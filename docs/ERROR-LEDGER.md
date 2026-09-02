@@ -96,3 +96,34 @@ subject line is "Ending our engagement" — so the obvious keyword would have re
 as the load-bearing signal and never once fired. And `"disengagement"` contains
 `"engagement"`, so the filename rung was returning `Engagement letter` for
 `SATC Disengagement Letter.pdf`.
+
+
+## Session of 2 September 2026 — walking one client end to end
+
+Three defects, none of them found by reading code. All three were found by taking
+one fabricated client through every command in order and looking at what came out.
+
+| # | The error | What caught it |
+|---|---|---|
+| 28 | `deadlines.return_type_for` read a `FederalForm` key **no record in this system has ever carried**. `intake.compose_record` writes `_return_type`; the form number survives only as prose inside `FederalReturns`. So the season board placed *nothing*, ever — `season` read the engagement it had just created and reported it unplaceable "no federal form or no tax year", with both plainly answered | Running `season` on a real engagement |
+| 29 | `satc collect` never passed a store to `collect()`, so on the only path a person runs, `client_for_ref`, `reconcile_received` and the report's own "closes …" lines were unreachable. Ten module-level tests covered the reconciliation; none went through `main()` | Running `collect` on a real drop folder |
+| 30 | `closeout.apply_to_answers` re-read `answers[d.against]` for the "was" value, while `compare` had read that count off the **list** it came from (`or_list:`). The report said "we were told 2, filed as 1"; the move log said `None -> 1`. And moving the count left the list contradicting it, so next year's interview would inherit two answers that disagree | Running `reconcile --apply` on a real engagement |
+
+**Tally: 3 a real run · 0 mutation testing · 0 reading the code.**
+
+Entries 28 and 29 are entry 17's shape again, and this ledger's most durable
+lesson gets sharper each time: **a fixture built to the shape the code wants
+proves the code agrees with itself.** Every deadline test constructed a record
+with `FederalForm` on it, so every one passed and the feature never worked. Every
+collect test handed in a store the command does not hand in.
+
+The rule that follows, and it is now in the tenets as S32: *the test that matters
+is the one that starts where a person starts.* Both fixes are pinned by a test
+through the front door — `intake.compose_record` for the board, `cli.main()` for
+collect — and both fail if the wiring is removed again.
+
+Entry 30 is worth a second look for a different reason. The bug was not in the
+comparison, which was right, nor in the move, which was right. It was that the
+**evidence** of the move disagreed with the **report** that justified it, and
+either read alone looks correct. Mutation testing did not find it and could not
+have: no single line was wrong.

@@ -198,3 +198,21 @@ def test_an_explanation_is_written_for_a_person_doing_the_work(registry):
                 f"{screen}/{key}: a {longest}-word sentence was written to be "
                 f"complete rather than to be read"
             )
+
+
+def test_a_help_line_that_changes_every_run_is_steadied_before_it_is_committed():
+    """The committed inventory drifted on every capture — two help lines carry
+    the run's own temp directory and today's date — so `--check` could never be
+    green twice running. A check that always fails is read as noise, which is
+    the same as having no check."""
+    from walkthrough import Screen, steady, to_json
+
+    a = "Built and checked. 4 document(s) in /tmp/satc-walk-xnkb1b6s/store/x."
+    b = "Built and checked. 4 document(s) in /tmp/satc-walk-ayyh24jq/store/x."
+    assert steady(a) == steady(b), "two runs of the same screen still differ"
+    assert steady("Sent 2026-08-30, 0 day(s) ago.") == \
+           steady("Sent 2026-09-02, 0 day(s) ago.")
+    assert "4 document(s)" in steady(a), "the part that carries meaning was lost"
+
+    one = to_json([Screen(key="k", heading="H", help=a, shot="k.png")])
+    assert "xnkb1b6s" not in one, "a run's temp path reached the committed file"

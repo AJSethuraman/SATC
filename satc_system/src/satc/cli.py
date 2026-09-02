@@ -43,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
                            help="file the documents (default: preview only)")
     p_collect.add_argument("--library", default=None,
                            help="where filed documents go (default: $SATC_LIBRARY)")
+    p_collect.add_argument("--dir", default=None,
+                           help="the store holding the engagements, so an "
+                                "arriving document closes the request that "
+                                "asked for it (default: the usual one)")
 
     sub.add_parser("corpus", help="score the classifier against the real IRS blanks")
 
@@ -109,7 +113,18 @@ def main(argv: list[str] | None = None) -> int:
                   "folder OneDrive syncs your SharePoint uploads into.")
             return 2
         lib = args.library or library_root()
-        report = collect(SyncedFolder(folder), library=lib, apply=args.apply)
+
+        # THE STORE IS HALF THE COMMAND. `collect` takes an optional store and
+        # closes the intake request each arriving document satisfies; without
+        # one it only files. This call passed no store, so on the only path a
+        # person actually runs, `reconcile_received` was never reached and the
+        # report's own "closes ..." / "still waiting on ..." lines could not
+        # print. The capability was built, tested and unreachable -- front to
+        # back or it is not delivered (S28).
+        from satc.persistence import SATCStore
+        store = SATCStore(args.dir)
+        report = collect(SyncedFolder(folder), library=lib, apply=args.apply,
+                         store=store)
 
         if not report.drops:
             print(f"Nothing waiting in {folder}")
@@ -132,6 +147,11 @@ def main(argv: list[str] | None = None) -> int:
                           f"still waiting on {a.awaiting}")
                 elif a.satisfied:
                     print(f"      {'':<24} ↳ closes “{a.satisfied}”")
+                elif a.wrong_year_for:
+                    # The one that reads as fine and is not: the client sent a
+                    # form we asked for, from the wrong year.
+                    print(f"      {'':<24} ↳ “{a.wrong_year_for}” asked for this "
+                          f"form, but for a different year — nothing closed")
             for name in dr.not_downloaded:
                 # Loudly, and with the remedy. This is the one that used to be
                 # filed as Unclassified and never seen again.

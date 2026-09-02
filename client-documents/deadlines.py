@@ -227,6 +227,25 @@ _FORM_TO_TYPE = {
     "1120": "c_corp_1120",
 }
 
+# THE KEY A REAL RECORD ACTUALLY CARRIES. A composed record has no
+# `FederalForm` on it: `intake.compose_record` reads the interview's
+# `federal_form` answer, writes `_return_type` in the rest of the codebase's
+# vocabulary ("individual", "s_corp", ...), and the form number itself only
+# survives as prose inside `FederalReturns` ("Form 1040 with Schedules B and
+# D"). Reading `FederalForm` here therefore placed nothing at all: every
+# engagement the interview created came back unplaced, and the board said the
+# season was empty. That is this file's own docstring bug wearing a new hat --
+# a claim in one place, the behaviour in another, and nothing comparing them
+# (S31). The comparing thing is `test_deadlines.py::test_every_return_type_the
+# _interview_can_write_is_placeable`, which fails if either vocabulary grows a
+# member the other does not have.
+_KIND_TO_TYPE = {
+    "individual": "individual_1040",
+    "partnership": "partnership_1065",
+    "s_corp": "s_corp_1120s",
+    "c_corp": "c_corp_1120",
+}
+
 
 def return_type_for(record: dict) -> str | None:
     """Which filing date an engagement's record falls under, or None.
@@ -235,6 +254,9 @@ def return_type_for(record: dict) -> str | None:
     unknown deadline, and putting it under 15 April because most returns are
     is how a 1065 misses 15 March.
     """
+    kind = str(record.get("_return_type") or "").strip()
+    if kind in _KIND_TO_TYPE:
+        return _KIND_TO_TYPE[kind]
     form = str(record.get("FederalForm") or record.get("federal_form") or "").strip()
     form = form.replace("Form ", "").replace("form ", "").strip()
     return _FORM_TO_TYPE.get(form.upper())

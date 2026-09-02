@@ -754,3 +754,48 @@ useful denominators came from documents the firm had already written and signed:
 the engagement letters' promises, the fee schedule's priced services, the four
 deadlines in the settings file. Ask what the work requires before asking what the
 code gets wrong.
+
+---
+
+## S32 · A test that builds its own fixture proves the code agrees with itself. Start where a person starts.
+
+Three defects in one session, all found by walking one client through the real
+commands, none of them found by a suite that passed on every commit.
+
+`deadlines.return_type_for` read a `FederalForm` key. No record this system has
+ever produced carries one — `intake.compose_record` writes `_return_type`, and
+the form number survives only as prose. Eight tests exercised the function, and
+every one of them built its own record with `FederalForm` on it, because that is
+the key the code asked for. So the season board placed nothing at all, in every
+real run since it was written, while its tests stayed green.
+
+`satc collect` never handed a store to `collect()`. Ten tests covered the
+reconciliation the store enables; every one called `collect(...)` directly and
+passed a store in. The command a person types passed none, so `client_for_ref`,
+`reconcile_received` and the report lines written to announce them were dead.
+
+The shape is the same both times, and it is not "write more tests":
+
+> A fixture built to the shape the code wants is a mirror. It reflects the
+> code's own assumptions back at it, and reflection is not evidence.
+
+**The rule.** For anything a person invokes — a CLI command, an HTTP route, a
+button — at least one test enters through that door and nowhere else. It builds
+its input the way the system builds it (`intake.compose_record`, not a dict
+literal), and it calls what the person calls (`cli.main([...])`, not the
+function three layers down).
+
+**The cost is real and it is worth paying.** A front-door test is slower, harder
+to read, and fails for more reasons than the one it was written for. That last
+property is the point: the two defects above were both *extra* reasons, and
+nothing narrower would have failed for them.
+
+**How to tell whether you have one.** Delete the wiring — the argument passed,
+the store handed in, the call made — and run the suite. If it stays green, every
+test you have is a mirror. That check took under a minute for each of these, and
+it is the only version of the question with an answer.
+
+*(Related: **S28**, front to back or it isn't delivered — this is what proves
+it; **S31**, build the thing that compares — a front-door test is often that
+thing; **S2**, a check reports its denominator — the season board's honest
+"1 could not be placed" is what made the first defect visible at all.)*

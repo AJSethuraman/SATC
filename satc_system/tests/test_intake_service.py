@@ -167,3 +167,41 @@ def test_reconcile_received_returns_none_for_unknown_doc_type(tmp_path):
                       answers={"newSatcClient": "yes"})
 
     assert reconcile_received(store, client_id=cid, doc_type="nonexistent-zzz") is None
+
+
+def _one_request(store, *, tax_year=2026, doc_type="1099-INT"):
+    from satc.models.mart import DocumentRecord
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D1", client_id="C1", tax_year=tax_year, doc_type=doc_type,
+        status="Requested", note=f"Upload your {doc_type}"))
+    store.save_mart(mart)
+    return store
+
+
+def test_the_year_explanation_is_only_given_when_the_year_is_why(tmp_path):
+    """It names the request the year blocked — not every request the form
+    matches. Without the check it would explain a document that closed fine as
+    though something had gone wrong with it."""
+    from satc.intake.service import request_missed_on_year
+    store = _one_request(SATCStore(tmp_path))
+    assert request_missed_on_year(store, client_id="C1", doc_type="1099-INT",
+                                  doc_year=2024) == "1099-INT"
+    assert request_missed_on_year(store, client_id="C1", doc_type="1099-INT",
+                                  doc_year=2026) == "", (
+        "the year matched: there is nothing to explain")
+
+
+def test_a_year_we_could_not_read_is_never_blamed(tmp_path):
+    """`wrong_year` is asymmetric on purpose: a year we could not read blocks
+    nothing. Telling the firm the year was wrong when we never read one would
+    send them looking at a document that is fine.
+
+    This is pinned here rather than guarded in `request_missed_on_year`,
+    because a guard there restates `wrong_year`'s rule in a second place and
+    mutation testing showed no test could tell the two apart. The behaviour is
+    the contract; where it comes from is not."""
+    from satc.intake.service import request_missed_on_year
+    store = _one_request(SATCStore(tmp_path))
+    assert request_missed_on_year(store, client_id="C1", doc_type="1099-INT",
+                                  doc_year=None) == ""

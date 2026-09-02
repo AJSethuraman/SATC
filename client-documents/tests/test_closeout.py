@@ -212,9 +212,11 @@ def test_applying_moves_the_answer_and_writes_it_down(engaged, tmp_path):
                      .read_text(encoding="utf-8"))
     assert len(log) == 1
     moved = log[0]["moved"]
-    assert len(moved) == 1
     assert moved[0] == {"answer": "count_states", "was": 1, "now": 2,
                         "because": "filed_state_count"}
+    # The list the count could have come from is set aside in the same move,
+    # because it now disagrees with the count. See the set-aside test below.
+    assert [m["answer"] for m in moved] == ["count_states", "states"]
     assert log[0]["at"].endswith("+00:00")
 
 
@@ -255,3 +257,89 @@ def test_closing_an_engagement_with_no_interview_refuses(tmp_path):
     (store / "2026-0001" / "record.json").write_text("{}", encoding="utf-8")
     assert cli.main(["close", "--engagement", "2026-0001",
                      "--store", str(store)]) == 1
+
+
+def test_the_log_records_what_was_compared_not_what_the_key_held(engaged, tmp_path):
+    """Found in a real run. `compare` reads a count off the LIST it came from
+    when the count itself is blank (`or_list:`), so the report read "we were
+    told 2, filed as 1" — and the move log, re-reading `answers["count_states"]`
+    directly, wrote "None -> 1". The evidence of a move disagreed with the
+    report that justified it, which is worse than either being wrong alone."""
+    store, ref = engaged["store"], engaged["ref"]
+    answers = json.loads((engagements._dir(store, ref) / "interview.json")
+                         .read_text(encoding="utf-8"))
+    answers.pop("count_states", None)          # only the list was recorded
+    answers["states"] = ["Ohio", "Michigan"]
+    engagements.save_answers(answers, ref, store)
+
+    filed = tmp_path / "filed.json"
+    filed.write_text(json.dumps(FILED_CLEAN | {"filed_state_count": 1}),
+                     encoding="utf-8")
+    cli.main(["close", "--engagement", ref, "--store", str(store),
+              "--filed", str(filed)])
+    cli.main(["reconcile", "--store", str(store), "--apply"])
+
+    log = json.loads((engagements._dir(store, ref) / "reconciled.json")
+                     .read_text(encoding="utf-8"))
+    states = [m for m in log[0]["moved"] if m["answer"] == "count_states"]
+    assert states == [{"answer": "count_states", "was": 2, "now": 1,
+                       "because": "filed_state_count"}], (
+        "the log recorded a different 'was' than the report showed")
+
+
+def test_a_list_that_now_contradicts_its_count_is_set_aside_not_guessed(engaged, tmp_path):
+    """Moving `count_states` to 1 while `states` still reads two names seeds
+    next year's interview with two answers that disagree — and the `or_list`
+    fallback cannot catch it a second time, because the count is set now.
+
+    Which of the two states was not filed is not something this software
+    knows, and it does not pick one. The list is set aside with its reason, so
+    next year the question is asked again."""
+    store, ref = engaged["store"], engaged["ref"]
+    answers = json.loads((engagements._dir(store, ref) / "interview.json")
+                         .read_text(encoding="utf-8"))
+    answers.pop("count_states", None)
+    answers["states"] = ["Ohio", "Michigan"]
+    engagements.save_answers(answers, ref, store)
+
+    filed = tmp_path / "filed.json"
+    filed.write_text(json.dumps(FILED_CLEAN | {"filed_state_count": 1}),
+                     encoding="utf-8")
+    cli.main(["close", "--engagement", ref, "--store", str(store),
+              "--filed", str(filed)])
+    cli.main(["reconcile", "--store", str(store), "--apply"])
+
+    saved = json.loads((engagements._dir(store, ref) / "interview.json")
+                       .read_text(encoding="utf-8"))
+    assert saved["count_states"] == 1
+    assert "states" not in saved, "a list known to be wrong was left to be inherited"
+    aside = saved["_superseded"]["states"]
+    assert aside["was"] == ["Ohio", "Michigan"], "the old answer was thrown away"
+    assert "not recorded here" in aside["because"], (
+        "set aside without saying that which one is unknown")
+
+
+def test_a_list_that_still_agrees_with_its_count_is_left_alone(engaged, tmp_path):
+    """The set-aside is for a contradiction, not for every move. A list whose
+    length matches what was filed is still true and must survive — deleting it
+    would throw away the state names for no reason."""
+    store, ref = engaged["store"], engaged["ref"]
+    answers = json.loads((engagements._dir(store, ref) / "interview.json")
+                         .read_text(encoding="utf-8"))
+    # The count was miskeyed; the list was right all along.
+    answers["count_localities"] = 1
+    answers["localities"] = ["Solon", "Bedford Heights", "Macedonia"]
+    engagements.save_answers(answers, ref, store)
+
+    filed = tmp_path / "filed.json"
+    filed.write_text(json.dumps(FILED_CLEAN | {"filed_locality_count": 3}),
+                     encoding="utf-8")
+    cli.main(["close", "--engagement", ref, "--store", str(store),
+              "--filed", str(filed)])
+    cli.main(["reconcile", "--store", str(store), "--apply"])
+
+    saved = json.loads((engagements._dir(store, ref) / "interview.json")
+                       .read_text(encoding="utf-8"))
+    assert saved["count_localities"] == 3, "the count did not move"
+    assert saved["localities"] == ["Solon", "Bedford Heights", "Macedonia"], (
+        "a list that agreed with what was filed was set aside anyway")

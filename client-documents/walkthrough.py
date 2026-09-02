@@ -363,9 +363,28 @@ def missing(screens: list[Screen], registry: dict) -> list[str]:
     return out
 
 
+# TEXT THAT IS DIFFERENT EVERY RUN AND MEANS THE SAME THING. A capture writes
+# the help line it read off the screen, and two of those carry the run's own
+# temporary directory and today's date -- so the committed inventory drifted on
+# every capture and `--check` could never be green twice in a row. A check that
+# always fails is read as noise within a week, which is the same as no check.
+# Steadied here rather than at the comparison, so what is committed is stable.
+_VOLATILE = (
+    (re.compile(r"/tmp/[\w.-]+"), "/tmp/<run>"),
+    (re.compile(r"\b\d{4}-\d{2}-\d{2}\b"), "<date>"),
+)
+
+
+def steady(text: str) -> str:
+    """One run's help line, with the parts that differ every run replaced."""
+    for pattern, standin in _VOLATILE:
+        text = pattern.sub(standin, text)
+    return text
+
+
 def to_json(screens: list[Screen]) -> str:
     return json.dumps(
-        [{"key": s.key, "heading": s.heading, "help": s.help, "shot": s.shot,
+        [{"key": s.key, "heading": s.heading, "help": steady(s.help), "shot": s.shot,
           "controls": [{"kind": c.kind, "shape": c.shape, "label": c.label,
                         "examples": list(c.examples), "count": c.count}
                        for c in s.controls]}

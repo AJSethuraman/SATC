@@ -315,3 +315,41 @@ def test_a_statutory_date_is_distinguishable_from_a_firm_one():
                           today=date(2027, 2, 18))
     kinds = {d.kind: d.statutory for d in due}
     assert kinds == {"materials": False, "filing": True}
+
+
+def test_a_record_the_interview_actually_composed_lands_on_the_board():
+    """THE TEST THAT WAS MISSING. Every test above builds its own record with a
+    `FederalForm` key on it. No record in this system has ever had that key: the
+    interview writes `_return_type`, and the form number survives only as prose
+    inside `FederalReturns`. So the board placed nothing at all in real use --
+    `season` read one engagement, said "nothing due", and listed it as unplaced
+    for want of "no federal form or no tax year" that were both plainly
+    answered. A hand-built fixture cannot catch that. This one goes through
+    `intake.compose_record`, which is what the running system calls."""
+    import intake
+    record = intake.compose_record({
+        "federal_form": "1040", "tax_year": "2026",
+        "client_full_name": "Marcus Ellwood", "filing_status": "single",
+    })
+    assert taxcal.return_type_for(record) == "individual_1040", (
+        "a record the interview composed could not be read back")
+    due, unplaced = taxcal.board([("2026-0001", record)], today=date(2027, 2, 15))
+    assert unplaced == [], "the interview's own record came back unplaceable"
+    assert [d.when for d in due] == [date(2027, 3, 25), date(2027, 4, 15)]
+
+
+def test_every_return_type_the_interview_can_write_is_placeable():
+    """THE THIRD THING (S31). Two vocabularies name the same four returns: the
+    interview's `_return_type` ("individual") and the settings key
+    ("individual_1040"). Nothing compared them, which is how one could be read
+    for the other for as long as it was. Adding a fifth form to either side
+    now fails here rather than silently dropping that client off the board."""
+    import intake
+    assert set(intake.RETURN_TYPE.values()) == set(taxcal._KIND_TO_TYPE), (
+        "a return type the interview can write has no filing date")
+    assert set(taxcal._KIND_TO_TYPE.values()) == set(taxcal.RETURN_TYPES), (
+        "a filing date exists that no interview answer reaches")
+    for form, kind in intake.RETURN_TYPE.items():
+        composed = {"_return_type": kind}
+        assert taxcal.return_type_for(composed) == taxcal._FORM_TO_TYPE[form], (
+            f"{form} and {kind} disagree about which date they are under")

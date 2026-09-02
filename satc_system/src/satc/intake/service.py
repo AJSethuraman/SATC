@@ -164,6 +164,40 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
+def _requests_naming(mart, client_id: str, doc_type: str) -> list:
+    """Every outstanding request of this client's that names this form.
+
+    The year is deliberately NOT applied here: two callers want the same set
+    for different reasons -- one to close a request, one to explain why it
+    could not -- and stating the match rule twice is how they drift apart.
+    """
+    return [d for d in mart.documents
+            if d.client_id == client_id and d.status == "Requested"
+            and matching.matches(doc_type, str(d.doc_type), d.note)]
+
+
+def request_missed_on_year(store, *, client_id: str, doc_type: str,
+                           doc_year: int | None) -> str:
+    """The request this document would have satisfied but for its year, or "".
+
+    WHY THIS EXISTS. The year filter in :func:`reconcile_received` is right --
+    a 2024 1099-DIV does not close a 2026 request -- but it was silent. In a
+    real run the collection report showed the 1099-DIV filed, with nothing
+    beside it, exactly as it shows a document no request ever asked for. The
+    two look identical and mean opposite things: one is fine, the other is a
+    client who has sent the wrong year and does not know it. Saying nothing is
+    the report claiming there is nothing to say.
+    """
+    # No guard for doc_year=None here on purpose: `wrong_year` already treats
+    # a year we could not read as blocking nothing, so the loop finds nothing
+    # to blame. An extra check would be a second statement of that rule, in a
+    # place where no test could tell whether it was still true.
+    for d in _requests_naming(store.load_mart(), client_id, doc_type):
+        if wrong_year(doc_year, d.tax_year):
+            return str(d.doc_type)
+    return ""
+
+
 def reconcile_received(store, *, client_id: str, doc_type: str,
                        doc_year: int | None = None) -> DocumentRecord | None:
     """Flip the best matching outstanding request to ``Received`` and complete its task.
@@ -181,10 +215,8 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
     W-2 request Received. See ``satc.ingest.classify.wrong_year``.
     """
     mart = store.load_mart()
-    candidates = [d for d in mart.documents
-                  if d.client_id == client_id and d.status == "Requested"
-                  and matching.matches(doc_type, str(d.doc_type), d.note)
-                  and not wrong_year(doc_year, d.tax_year)]
+    candidates = [d for d in _requests_naming(mart, client_id, doc_type)
+                  if not wrong_year(doc_year, d.tax_year)]
     if not candidates:
         return None
     match = min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))

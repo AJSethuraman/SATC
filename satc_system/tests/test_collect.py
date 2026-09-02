@@ -423,3 +423,76 @@ def test_a_filename_only_verdict_files_the_document_but_closes_nothing(tmp_path)
     assert one.arrivals[0].filed_to, "and still filed somewhere"
     assert one.arrivals[0].satisfied == "", "a filename guess closed a request"
     assert [d.status for d in store.load_mart().documents] == ["Requested"]
+
+
+def test_the_command_a_person_runs_closes_the_request(tmp_path, capsys):
+    """THE TEST THAT WAS MISSING, and every test above is why it was needed.
+
+    All the reconciliation tests call `collect(...)` and hand it a store. The
+    CLI did not: `satc collect` built the source and the library and passed no
+    store at all, so on the only path a person actually runs, `client_for_ref`,
+    `reconcile_received` and the report's own "closes ..." line were
+    unreachable. Everything was tested and nothing was connected. This test
+    goes through `main`, so wiring that is not there fails here.
+    """
+    from satc.cli import main
+    from satc.models.intake import IntakeEngagement
+    from satc.models.mart import DocumentRecord
+    from satc.persistence.store import SATCStore
+
+    root = tmp_path / "up"
+    _form(root / "2026-0001 — Ellwood" / "Scan_0001.pdf", W2)
+
+    db = tmp_path / "db"
+    store = SATCStore(db)
+    store.save_intake_engagement(IntakeEngagement(
+        engagement_id="E1", client_id="C1", workflow_key="1040",
+        engagement_ref="2026-0001"))
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D1", client_id="C1", tax_year=2026, doc_type="W-2",
+        status="Requested", note="Upload your W-2s"))
+    store.save_mart(mart)
+
+    rc = main(["collect", str(root), "--apply",
+               "--library", str(tmp_path / "lib"), "--dir", str(db)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "closes" in out, f"the command never reported closing a request:\n{out}"
+    assert [d.status for d in SATCStore(db).load_mart().documents] == ["Received"]
+
+
+def test_a_document_from_the_wrong_year_says_so_instead_of_nothing(tmp_path, capsys):
+    """Filed with nothing beside it is how a document no request asked for
+    prints. This one IS asked for — just for another year — and the two must not
+    read identically. Found in a real run: a 2024 1099-INT sat in the report
+    looking exactly as settled as the W-2 above it.
+    """
+    from satc.cli import main
+    from satc.models.intake import IntakeEngagement
+    from satc.models.mart import DocumentRecord
+    from satc.persistence.store import SATCStore
+
+    old = ["Form 1099-INT", "2024", "Interest Income",
+           "PAYER'S name: Heartland Bank", "1 Interest income   412.55"]
+    root = tmp_path / "up"
+    _form(root / "2026-0001 — Ellwood" / "IMG_4417.pdf", old)
+
+    db = tmp_path / "db"
+    store = SATCStore(db)
+    store.save_intake_engagement(IntakeEngagement(
+        engagement_id="E1", client_id="C1", workflow_key="1040",
+        engagement_ref="2026-0001"))
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D1", client_id="C1", tax_year=2026, doc_type="1099-INT",
+        status="Requested", note="Upload your 1099-INT"))
+    store.save_mart(mart)
+
+    assert main(["collect", str(root), "--apply",
+                 "--library", str(tmp_path / "lib"), "--dir", str(db)]) == 0
+    out = capsys.readouterr().out
+    assert "different year" in out, (
+        f"the wrong year closed nothing and the report did not say why:\n{out}")
+    assert [d.status for d in SATCStore(db).load_mart().documents] == ["Requested"], \
+        "the wrong year must still close nothing"

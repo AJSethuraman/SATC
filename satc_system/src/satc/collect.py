@@ -143,6 +143,11 @@ class Arrival:
     # the match without this is how a collection reads complete while a form
     # the client was asked for is still missing.
     awaiting: str = ""
+    # SET WHEN THE ONLY THING WRONG WAS THE YEAR. A document that closes no
+    # request and a document whose year does not match the request it names
+    # printed identically -- nothing beside the line -- and they mean opposite
+    # things. See service.request_missed_on_year.
+    wrong_year_for: str = ""
     note: str = ""
     # Whether this verdict was good enough to CLOSE a request rather than just
     # to file the document. Carried from the classification so the rule is
@@ -300,9 +305,15 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                     from satc.intake.service import (outstanding_parts,
                                                      reconcile_received)
 
+                    from satc.intake.service import request_missed_on_year
+
                     matched = reconcile_received(
                         store, client_id=dr.client_id, doc_type=arrival.label,
                         doc_year=arrival.tax_year)
+                    if matched is None:
+                        arrival.wrong_year_for = request_missed_on_year(
+                            store, client_id=dr.client_id,
+                            doc_type=arrival.label, doc_year=arrival.tax_year)
                     if matched is not None:
                         arrival.satisfied = str(matched.doc_type)
                         # See reconcile_received: a request naming several forms
