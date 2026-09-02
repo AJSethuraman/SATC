@@ -7,9 +7,12 @@ separate question, and "S corp" is one answer to that one.
 
 ## 01 · An LLC is a state filing
 
-You form one with the Ohio Secretary of State, on Form 610. It asks for a name,
-and for a statutory agent — someone at an Ohio address who takes legal mail for
-the business.
+You form one with the Ohio Secretary of State. You can do it yourself on their
+website for a filing fee, and most people do not need help with this part.
+
+It asks for a name and for a statutory agent: someone at an Ohio address who
+takes legal mail for the business. The company exists once the filing is
+accepted.
 
 That filing settles who owns the business and how far the owners stand behind
 its debts. How far that reaches is a question for a lawyer.

@@ -19,9 +19,13 @@ It reads the cited page and looks for the claim's own load-bearing strings --
 the phrases the sources file put in quotation marks, and the dates, amounts,
 years and form numbers in the claim itself. So:
 
-  MATCH      every probe is on the page. For a claim that is a date, a
-             threshold or a form number, that is the whole question, and a
-             string check is more reliable than a person skimming.
+  MATCH      the page carries the QUOTED WORDING the sources file attributed
+             to it, and every other probe too. This is the only verdict that
+             means the claim's assertion was tested.
+  UNTESTED   the claim cites a page but the sources file quotes no wording from
+             it, so there was nothing to test the assertion against. Bare years
+             and form numbers being present proves only that the page mentions
+             them. NOT a pass.
   PARTIAL    some probes found, some not. Usually wording that was paraphrased
              rather than quoted -- a human decides.
   NO MATCH   nothing distinctive was found. Either the claim is not on that
@@ -128,28 +132,48 @@ def strip_html(src: str) -> str:
     return re.sub(r"\s+", " ", src)
 
 
-def probes(claim: str, note: str) -> list[str]:
-    """The strings that would have to be on the page for the claim to hold."""
-    out: list[str] = []
-    # Anything the sources file put in quotation marks is a direct quote and is
-    # the strongest probe available.
+def probes(claim: str, note: str) -> tuple[list[str], list[str]]:
+    """Return (substantive, token) probes.
+
+    THE DISTINCTION IS THE WHOLE POINT, and getting it wrong is what made the
+    first version of this file overstate its results.
+
+    A SUBSTANTIVE probe is a quoted phrase -- wording the sources file says the
+    page actually contains. Finding it tests the claim's assertion.
+
+    A TOKEN probe is a bare year, amount or form number. Finding one proves the
+    page mentions that token and nothing else. "2025" appears on the 1099-DA
+    page; so does "2026"; so does "Form 1099-DA". A claim whose only probes are
+    tokens was never tested, and the first version of this script called that
+    MATCH -- which is how "crypto statements for 2025 sales show proceeds and
+    not cost" came back verified while the cited page says brokers report
+    proceeds "(and in some cases, basis for)" digital assets. The firm caught
+    it, not the tool.
+
+    So a claim with no substantive probe is now UNTESTED, never MATCH.
+    """
+    sub: list[str] = []
     for q in re.findall(r'"([^"]{8,160})"', note):
-        out.append(q)
-    # Then the claim's own hard facts: years, amounts, form numbers, day-month
-    # pairs. These are what a client actually relies on.
+        if len(q.split()) >= 5:            # a phrase, not a stray fragment
+            sub.append(q)
+
+    tok: list[str] = []
     both = claim + " " + note
-    out += re.findall(r"\$[\d,]+(?:\.\d\d)?", both)
-    out += re.findall(r"\b(?:19|20)\d{2}\b", both)
-    out += re.findall(r"\b(?:Form|Schedule|Publication|Pub\.?)\s*[\dA-Z][\dA-Z-]*", both)
-    out += re.findall(r"\b(?:January|February|March|April|May|June|July|August|"
+    tok += re.findall(r"\$[\d,]+(?:\.\d\d)?", both)
+    tok += re.findall(r"\b(?:19|20)\d{2}\b", both)
+    tok += re.findall(r"\b(?:Form|Schedule|Publication|Pub\.?)\s*[\dA-Z][\dA-Z-]*", both)
+    tok += re.findall(r"\b(?:January|February|March|April|May|June|July|August|"
                       r"September|October|November|December)\s+\d{1,2}\b", both)
-    seen, keep = set(), []
-    for p in out:
-        p = p.strip().strip(".,;")
-        if len(p) < 3 or p.lower() in STOP or p.lower() in seen:
-            continue
-        seen.add(p.lower()); keep.append(p)
-    return keep[:8]
+
+    def dedupe(xs):
+        seen, keep = set(), []
+        for x in xs:
+            x = x.strip().strip(".,;")
+            if len(x) < 3 or x.lower() in STOP or x.lower() in seen:
+                continue
+            seen.add(x.lower()); keep.append(x)
+        return keep
+    return dedupe(sub)[:6], dedupe(tok)[:6]
 
 
 def found(page: str, probe: str) -> bool:
@@ -220,24 +244,32 @@ def main() -> int:
         print(f"  fetched {i}/{len(urls)}  {'ok ' if u in pages else 'FAIL'} {u[:78]}")
     print()
 
-    results, tally = [], {"MATCH": 0, "PARTIAL": 0, "NO MATCH": 0, "UNREACHED": 0}
+    results, tally = [], {"MATCH": 0, "PARTIAL": 0, "NO MATCH": 0, "UNTESTED": 0, "UNREACHED": 0}
     for r in rows:
-        ps = probes(r["claim"], r["note"])
+        sub, tok = probes(r["claim"], r["note"])
+        ps = sub + tok
         text = " ".join(pages.get(u, "") for u in r["urls"])
         if not r["urls"]:
             verdict, hits, miss = "UNREACHED", [], []
         elif not text:
             verdict, hits, miss = "UNREACHED", [], ps
-        elif not ps:
-            verdict, hits, miss = "PARTIAL", [], []
+        elif not sub:
+            # No quoted wording to test against. Whatever the tokens do, the
+            # claim's assertion was not checked -- say so rather than imply it.
+            hits = [p for p in tok if found(text, p)]
+            verdict, miss = "UNTESTED", [p for p in tok if p not in hits]
         else:
             hits = [p for p in ps if found(text, p)]
             miss = [p for p in ps if p not in hits]
-            verdict = "MATCH" if not miss else ("PARTIAL" if hits else "NO MATCH")
+            sub_miss = [p for p in sub if p not in hits]
+            if sub_miss:
+                verdict = "PARTIAL" if hits else "NO MATCH"
+            else:
+                verdict = "MATCH" if not miss else "PARTIAL"
         tally[verdict] += 1
         results.append({**r, "verdict": verdict, "hit": hits, "miss": miss})
 
-    for v in ("NO MATCH", "PARTIAL", "UNREACHED", "MATCH"):
+    for v in ("NO MATCH", "PARTIAL", "UNTESTED", "UNREACHED", "MATCH"):
         group = [x for x in results if x["verdict"] == v]
         if not group:
             continue

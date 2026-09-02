@@ -38,9 +38,10 @@ This is where a short return turns into a long one.
   funds, and for bonds and options. Anything bought before yours arrives with
   the cost box empty, and the number has to come from somewhere else.
 
-- **What you paid for crypto.** Statements for 2025 sales show what you sold
-  for and not what you paid. Exchanges start reporting the purchase price for
-  2026 sales. Until then the record is yours to keep.
+- **What you paid for crypto.** The statement has a box for it, but a broker
+  only has to track what you paid on assets bought from 2026 onward. On
+  anything held longer it may be filled in or it may not. Either way, the
+  record you kept is the one that settles it.
 
 - **What a home cost, and what you have put into it since.** The closing papers
   from when you bought, and receipts for work that improved the place rather
