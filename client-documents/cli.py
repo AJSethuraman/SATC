@@ -595,6 +595,76 @@ def cmd_invoice(args) -> int:
     return 0
 
 
+def _payments_check(args) -> int:
+    """Prove the payment path works, against the live processor, end to end.
+
+    THE QUESTION THIS ANSWERS, from the firm on 2 September 2026: *"how do we
+    truly confirm the square thing works - i want to know i'll get paid and the
+    client isn't just sending money to the void"*.
+
+    Every automated test runs against a stand-in for the network. They prove
+    this software behaves correctly; they cannot tell a working Square account
+    from a closed one. This asks Square.
+    """
+    sandbox = not args.production
+    if args.production:
+        # A REAL LINK TAKES REAL MONEY. It is the only thing that proves the
+        # production location is the firm's own and the payout reaches the
+        # bank -- so it is offered, and it is never the default.
+        print("\nThis will create a REAL payment link on the live account for "
+              f"${args.cents / 100:,.2f}.\nPaying it moves real money onto a "
+              "real statement.\n")
+
+    steps, link, got = payments.live_check(sandbox=sandbox, amount_cents=args.cents)
+
+    where = "Square's test account" if sandbox else "the LIVE Square account"
+    print(f"\nChecking the payment path against {where}.\n")
+    for step in steps:
+        print(f"  {'yes' if step.ok else 'NO ':4} {step.name}")
+        if step.detail:
+            print(f"       {step.detail}")
+    done = sum(1 for s in steps if s.ok)
+    print(f"\n  {done} of {payments.CHECK_STEPS} checked.\n")
+
+    if len(steps) < payments.CHECK_STEPS:
+        print("It stopped at the first thing that failed, so the steps after "
+              "it\nwere not reached — not passed.\n")
+        return 1
+
+    if got is not None and got.paid:
+        print("The whole loop is proven: a link was made, somebody paid it, "
+              "and\nthis software saw the money.\n")
+        if sandbox:
+            print("What this does NOT prove is the live account: that is a "
+                  "different\nlocation id and a different token. Run "
+                  "`--production` once, pay a\ndollar with your own card, and "
+                  "watch it land in your bank.\n")
+        return 0
+
+    print(f"{payments.CHECK_STEPS - 1} of the {payments.CHECK_STEPS} are "
+          f"proven. The last one needs a card, because no\nsoftware can pay "
+          f"itself:\n")
+    print(f"  1. Open   {link.url if link else ''}")
+    if sandbox:
+        # Square publishes the sandbox card numbers; they are printed here so
+        # nobody has to go looking, and sourced so nobody has to trust this.
+        print("  2. Pay it with a Square sandbox test card — no money moves.")
+        print("     Square lists them at "
+              "https://developer.squareup.com/docs/devtools/sandbox/payments")
+        print("     (the Visa is 4111 1111 1111 1111, CVV 111, any future "
+              "expiry,\n      postal 94103 — check the page if it is refused).")
+    else:
+        print("  2. Pay it with your own card. It is a real charge for "
+              f"${args.cents / 100:,.2f};\n     refund it from the Square "
+              "dashboard afterwards.")
+    print("  3. Run this command again. It reuses the same link, so it will\n"
+          "     find the payment and tell you the money arrived.\n")
+    if not sandbox:
+        print("Then check your bank. The transfer is Square's to make and this\n"
+              "software cannot see it — that last step is yours, once.\n")
+    return 0
+
+
 def cmd_payments(args) -> int:
     """Ask the processor which bills have been paid, and write down the answer.
 
@@ -607,6 +677,8 @@ def cmd_payments(args) -> int:
     pays, and a bill marked unpaid that has since been settled is the error that
     ends up in front of a client.
     """
+    if getattr(args, "check", False):
+        return _payments_check(args)
     store = Path(args.store) if args.store else engagements.STORE
     waiting = payments.outstanding(store)
     if not waiting:
@@ -620,17 +692,29 @@ def cmd_payments(args) -> int:
         return 1
 
     moved = 0
+    trouble = []
     print(f"\n{len(waiting)} bill(s) with a link out:\n")
     for row in waiting:
         got = answers.get(row["order_id"])
-        if got and payments.record_settlement(row["path"], got):
+        posted = (payments.record_settlement(row["path"], got) if got
+                  else payments.Posting())
+        if posted.settled:
             moved += 1
-        state = "PAID" if (got and got.paid) else "waiting"
+        if posted.problem:
+            trouble.append((row, posted))
+        # SHORT IS NOT "waiting". Money arrived and did not cover the bill; a
+        # line reading `waiting` would say nobody had paid, which is false and
+        # is the reading somebody would act on.
+        state = ("SHORT" if posted.short
+                 else "PAID" if (got and got.paid) else "waiting")
         when = f"  {got.when}" if got and got.paid and got.when else ""
         print(f"  {state:8} {row['ref']}  invoice {row['invoice']:10} "
               f"{row['amount']:>10}{when}")
     print(f"\n{moved} newly settled.\n" if moved
           else "\nNothing new has settled.\n")
+    for row, posted in trouble:
+        print(f"  {row['ref']}  invoice {row['invoice']}:\n    "
+              + posted.problem + "\n")
     return 0
 
 
@@ -2495,6 +2579,15 @@ def build_parser() -> argparse.ArgumentParser:
     pay.add_argument("--store")
     pay.add_argument("--sandbox", action="store_true",
                      help="ask Square's test account, where no money is real")
+    pay.add_argument("--check", action="store_true",
+                     help="prove the payment path works, step by step, against "
+                          "Square itself")
+    pay.add_argument("--production", action="store_true",
+                     help="with --check: use the LIVE account and a real "
+                          "charge (the only thing that proves you get paid)")
+    pay.add_argument("--cents", type=int, default=100,
+                     help="with --check: how much the check link asks for "
+                          "(default 100, i.e. $1.00)")
     pay.set_defaults(fn=cmd_payments)
 
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")

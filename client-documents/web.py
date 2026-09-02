@@ -889,6 +889,11 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                     "date": bill.get("InvoiceDate", ""),
                     "settled": bill.get("SettledOn", ""),
                     "url": bill.get("PaymentUrl", ""),
+                    # A SHORT PAYMENT LOOKS EXACTLY LIKE AN UNPAID BILL unless
+                    # this page says otherwise: both are unsettled. Money did
+                    # arrive, and somebody needs to chase the difference rather
+                    # than wait for a client who thinks they have paid.
+                    "short": (bill.get("_payment") or {}).get("short_by") or 0,
                 })
         rows.sort(key=lambda r: (bool(r["settled"]), r["invoice"]))
         if wants_json():
@@ -1921,6 +1926,9 @@ def payments_body(rows) -> str:
     for r in rows:
         if r["settled"]:
             state = f"<b style='color:#2F6B4F'>paid {esc(r['settled'])}</b>"
+        elif r.get("short"):
+            state = (f"<b style='color:#6A2833'>part paid &mdash; "
+                     f"${r['short'] / 100:,.2f} still owed</b>")
         elif r["url"]:
             state = ("<a href='" + esc(r["url"]) + "'>link out</a>")
         else:

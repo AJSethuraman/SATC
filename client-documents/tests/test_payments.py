@@ -37,6 +37,12 @@ class Recorder:
                  fail=None):
         self.calls: list[tuple] = []
         self.url, self.state, self.fail = url, state, fail
+        self.canned: dict | None = None
+
+    def reply(self, payload: dict) -> None:
+        """Answer the next order lookup with this exact body, so a test can
+        put a shape on the wire that the default fake never produces."""
+        self.canned = payload
 
     def __call__(self, method, url, headers, body):
         self.calls.append((method, url, headers, body))
@@ -46,6 +52,8 @@ class Recorder:
             return {"payment_link": {"id": "PL1", "order_id": "ORD1",
                                      "url": self.url}}
         if url.endswith("/batch-retrieve"):
+            if self.canned is not None:
+                return self.canned
             return {"orders": [{"id": oid, "state": self.state,
                                 "total_money": {"amount": 64500},
                                 "closed_at": "2027-03-04T10:00:00Z"}
@@ -258,23 +266,107 @@ def test_it_asks_in_batches_the_processor_will_accept(square):
     assert sizes == [100, 100, 30]
 
 
+def _bill(tmp_path, due="$645.00", number="2027-0001"):
+    """A bill on disk with the field the money is checked against.
+
+    THE FIXTURES HERE USED TO CARRY NO `AmountDue`, which is why nothing in
+    this file could notice that no code compared the money to the bill: the
+    tests agreed with the code about a document neither of them had looked at.
+    """
+    path = tmp_path / f"{number}.json"
+    path.write_text(json.dumps({"InvoiceNumber": number, "AmountDue": due}),
+                    encoding="utf-8")
+    return path
+
+
 def test_an_unpaid_order_is_never_written_down(tmp_path):
     """A cached "no" goes stale the moment somebody pays, and a bill marked
     unpaid that has been settled is the error that reaches a client."""
-    bill = tmp_path / "2027-0001.json"
-    bill.write_text(json.dumps({"InvoiceNumber": "2027-0001"}), encoding="utf-8")
+    bill = _bill(tmp_path)
     assert not payments.record_settlement(
-        bill, payments.Settlement("ORD1", "OPEN"))
+        bill, payments.Settlement("ORD1", "OPEN")).settled
     assert "SettledOn" not in json.loads(bill.read_text(encoding="utf-8"))
 
 
 def test_a_settlement_is_written_once_and_not_rewritten(tmp_path):
-    bill = tmp_path / "2027-0001.json"
-    bill.write_text(json.dumps({"InvoiceNumber": "2027-0001"}), encoding="utf-8")
+    bill = _bill(tmp_path)
     paid = payments.Settlement("ORD1", "COMPLETED", 64500, "2027-03-04")
-    assert payments.record_settlement(bill, paid)
+    posted = payments.record_settlement(bill, paid)
+    assert posted.settled and not posted.problem
     assert json.loads(bill.read_text(encoding="utf-8"))["SettledOn"] == "2027-03-04"
-    assert not payments.record_settlement(bill, paid), "it wrote twice"
+    assert not payments.record_settlement(bill, paid).settled, "it wrote twice"
+
+
+# ── the money is checked against the bill ─────────────────────────────────
+#
+# `deactivate` was written because "a link outliving its figure is the one way
+# this feature takes the wrong amount", and then nothing ever compared the two
+# amounts: `settled_amount` was written onto every bill and `grep` found no
+# reader. These are the cases that were unguarded.
+
+
+def test_a_short_payment_does_not_settle_the_bill(tmp_path):
+    """The stale-link case, end to end: a link made at $645 collects $645
+    after the engagement is re-quoted to $745. The bill is not covered, so it
+    must not be marked settled -- `signing.may_file` reads settled bills, and
+    every engagement letter promises no e-file before the invoice is."""
+    bill = _bill(tmp_path, due="$745.00")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "COMPLETED", 64500, "2027-03-04"))
+    assert not posted.settled and posted.short
+    assert posted.due_cents == 74500 and posted.arrived_cents == 64500
+    assert "$100.00" in posted.problem, posted.problem
+
+    written = json.loads(bill.read_text(encoding="utf-8"))
+    assert "SettledOn" not in written, "a short payment settled the bill"
+    assert written["_payment"]["short_by"] == 10000
+
+
+def test_an_overpayment_settles_and_says_what_is_owed_back(tmp_path):
+    """Holding a return hostage over the firm's own refund would be absurd.
+    The bill is covered; somebody still owes the client the difference."""
+    bill = _bill(tmp_path, due="$645.00")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "COMPLETED", 74500, "2027-03-04"))
+    assert posted.settled and not posted.short
+    assert "$100.00" in posted.problem and "back" in posted.problem
+
+    written = json.loads(bill.read_text(encoding="utf-8"))
+    assert written["SettledOn"] == "2027-03-04"
+    assert written["_payment"]["over_by"] == 10000
+
+
+def test_what_arrived_beats_what_the_order_was_for(tmp_path):
+    """A partial tender leaves the order total at the full figure. Reading the
+    total would call a half-paid bill settled."""
+    bill = _bill(tmp_path, due="$645.00")
+    half = payments.Settlement("ORD1", "COMPLETED", 64500, "2027-03-04",
+                               tendered_cents=32250)
+    assert half.arrived_cents == 32250
+    posted = payments.record_settlement(bill, half)
+    assert not posted.settled and posted.short
+    assert "SettledOn" not in json.loads(bill.read_text(encoding="utf-8"))
+
+
+def test_tenders_are_read_off_the_order(square):
+    rec, api = square
+    rec.reply({"orders": [{"id": "ORD1", "state": "COMPLETED",
+                           "total_money": {"amount": 64500},
+                           "closed_at": "2027-03-04T18:00:00Z",
+                           "tenders": [{"amount_money": {"amount": 30000}},
+                                       {"amount_money": {"amount": 20000}}]}]})
+    got = api.settled(["ORD1"])["ORD1"]
+    assert got.tendered_cents == 50000 and got.arrived_cents == 50000
+
+
+def test_a_bill_whose_figure_cannot_be_read_is_never_settled(tmp_path):
+    """An invoice still carrying a `[CONFIRM:` has no figure to check money
+    against. Settling it would be settling against nothing."""
+    bill = _bill(tmp_path, due="[CONFIRM: the fee for this engagement]")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "COMPLETED", 64500, "2027-03-04"))
+    assert not posted.settled and posted.problem
+    assert "SettledOn" not in json.loads(bill.read_text(encoding="utf-8"))
 
 
 # ── a quote never gets a link ─────────────────────────────────────────────
@@ -399,3 +491,107 @@ def test_a_production_link_never_carries_the_sandbox_location(monkeypatch):
     payments.link_for(BILL, using=api, reg=reg)
     assert rec.calls[0][3]["quick_pay"]["location_id"] == "LPROD"
     assert "LSANDBOX" not in json.dumps(rec.calls)
+
+
+# ── the live check ────────────────────────────────────────────────────────
+#
+# The check itself is software and can lie the same way anything else can. It
+# is exercised here through the same stand-in transport -- which is exactly the
+# limit these tests have, and the reason the check exists.
+
+
+class Console:
+    """A Square that answers the check's questions."""
+
+    def __init__(self, *, locations=None, state="OPEN"):
+        self.calls = []
+        self.locations = ([{"id": "LOC1-SANDBOX", "name": "SAT-C LLP",
+                            "status": "ACTIVE", "currency": "USD"}]
+                          if locations is None else locations)
+        self.state = state
+
+    def __call__(self, method, url, headers, body):
+        self.calls.append((method, url, body))
+        if url.endswith("/v2/locations"):
+            return {"locations": self.locations}
+        if url.endswith("/payment-links"):
+            return {"payment_link": {"id": "PL9", "order_id": "ORD9",
+                                     "url": "https://square.link/u/check"}}
+        if url.endswith("/batch-retrieve"):
+            return {"orders": [{"id": "ORD9", "state": self.state,
+                                "total_money": {"amount": 100},
+                                "closed_at": "2027-03-04T10:00:00Z",
+                                "tenders": ([{"amount_money": {"amount": 100}}]
+                                            if self.state == "COMPLETED"
+                                            else [])}]}
+        return {}
+
+
+def test_the_check_stops_at_the_first_failure_and_says_how_far_it_got(approved):
+    """S2: a check that examined two things and printed a tick is worse than
+    one that failed. Nothing after a failed step is passed -- it is unreached,
+    and the caller has to be able to tell the difference."""
+    reg = json.loads(json.dumps(approved))
+    reg["square"]["sandbox_location_id"] = "[CONFIRM: the sandbox location id]"
+    steps, link, got = payments.live_check(sandbox=True, reg=reg)
+    assert len(steps) == 1 and not steps[0].ok
+    assert link is None and got is None
+
+
+def test_the_check_never_prints_the_token(monkeypatch, approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "sq0-super-secret")
+    steps, _, _ = payments.live_check(sandbox=True, reg=approved,
+                                      transport=Console())
+    assert "sq0-super-secret" not in json.dumps([s.__dict__ for s in steps])
+
+
+def test_a_location_id_that_is_not_yours_stops_the_check(monkeypatch, approved):
+    """The typo that is otherwise invisible until a client is standing at a
+    checkout page that will not load."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    console = Console(locations=[{"id": "SOMEBODY-ELSE", "name": "Not you"}])
+    steps, link, _ = payments.live_check(sandbox=True, reg=approved,
+                                         transport=console)
+    named = {s.name: s for s in steps}
+    assert not named["the location id is one of yours"].ok
+    assert "Not you" in named["the location id is one of yours"].detail
+    assert link is None, "it made a link against a location that is not yours"
+
+
+def test_an_unpaid_check_link_is_five_of_six(monkeypatch, approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    steps, link, got = payments.live_check(sandbox=True, reg=approved,
+                                           transport=Console())
+    assert len(steps) == payments.CHECK_STEPS
+    assert sum(s.ok for s in steps) == payments.CHECK_STEPS - 1
+    assert link.url == "https://square.link/u/check"
+    assert not steps[-1].ok and not got.paid
+
+
+def test_a_paid_check_link_is_six_of_six(monkeypatch, approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    steps, _, got = payments.live_check(sandbox=True, reg=approved,
+                                        transport=Console(state="COMPLETED"))
+    assert len(steps) == payments.CHECK_STEPS and all(s.ok for s in steps)
+    assert got.paid and got.arrived_cents == 100
+
+
+def test_the_check_link_is_the_same_link_all_day(monkeypatch, approved):
+    """Re-running is the whole flow: open it, pay it, run it again. A second
+    link each time would leave the paid one behind and report nothing."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    console = Console()
+    for _ in range(2):
+        payments.live_check(sandbox=True, reg=approved, transport=console)
+    keys = [b["idempotency_key"] for _, url, b in console.calls
+            if url.endswith("/payment-links")]
+    assert len(keys) == 2 and keys[0] == keys[1]
+
+
+def test_the_check_bills_itself_not_a_client(monkeypatch, approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    console = Console()
+    payments.live_check(sandbox=True, reg=approved, transport=console)
+    note = next(b["payment_note"] for _, url, b in console.calls
+                if url.endswith("/payment-links"))
+    assert note.startswith(payments.CHECK_PREFIX)

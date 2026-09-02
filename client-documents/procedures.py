@@ -31,6 +31,7 @@ from pathlib import Path
 
 import closeout
 import packaging
+import payments
 import presend
 
 ROOT = Path(__file__).resolve().parent
@@ -753,6 +754,14 @@ def render() -> str:
     add("a settlement is ever written down** — an unpaid order is left alone,")
     add("because a cached \"no\" goes stale the moment somebody pays.")
     add("")
+    add("**The money is checked against the bill.** A payment that does not")
+    add("cover what is owed does not settle it: `SettledOn` stays unwritten,")
+    add("the screen says `SHORT` rather than `waiting`, and the return stays")
+    add("blocked from filing. The case this exists for is a link that outlived")
+    add("its figure — re-quote an engagement from $645 to $745 and the old")
+    add("link still cheerfully collects $645. An OVERpayment does settle the")
+    add("bill, and says how much is owed back.")
+    add("")
     add("Once a bill is settled, `sign` stops reporting the invoice half of the")
     add("promise as unknowable: every engagement letter says we will not e-file")
     add("before the invoice is settled, and that becomes something the software")
@@ -774,6 +783,34 @@ def render() -> str:
     add("`location_id` for real money and `sandbox_location_id` for `--sandbox`.")
     add("A run needs only the one it is using, so you can test before you have")
     add("a live location — and a live invoice can never carry the test one.")
+    add("")
+    add("### Proving the money actually arrives")
+    add("")
+    add("```")
+    add(f"python cli.py {_require('payments')} --check")
+    add(f"python cli.py {_require('payments')} --check --production")
+    add("```")
+    add("")
+    add("Every automated test here talks to a stand-in for the network. They")
+    add("prove this software sends the right request and reacts correctly to")
+    add("the answer; they cannot tell a working card account from a closed")
+    add("one. `--check` asks the processor itself and reports what each step")
+    add(f"established — {payments.CHECK_STEPS} of them, and it says how far it")
+    add("got, because a check that stopped early and printed a tick is worse")
+    add("than one that failed.")
+    add("")
+    add("It stops one step short on its own, because no software can pay")
+    add("itself: it leaves a $1 link and tells you to open it and pay it. On")
+    add("`--check` that is a test card and no money moves. Run it again and it")
+    add("finds the same link — the invoice number is the key, so re-running")
+    add("does not make a second one — and tells you the money was seen.")
+    add("")
+    add("> **Judgement, not procedure:** the last mile is yours, once.")
+    add("> `--check --production` makes a REAL $1 link on the live account.")
+    add("> Paying it is the only thing that proves the live location is your")
+    add("> own, and watching it reach your bank is the only thing that proves")
+    add("> the payout works. This software cannot see your bank and will")
+    add("> never claim to.")
     add("")
 
     # ── 5 · closing ───────────────────────────────────────────────────────

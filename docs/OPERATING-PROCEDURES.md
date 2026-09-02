@@ -359,6 +359,14 @@ answer, from a laptop, with nothing listening on the internet. **Only
 a settlement is ever written down** — an unpaid order is left alone,
 because a cached "no" goes stale the moment somebody pays.
 
+**The money is checked against the bill.** A payment that does not
+cover what is owed does not settle it: `SettledOn` stays unwritten,
+the screen says `SHORT` rather than `waiting`, and the return stays
+blocked from filing. The case this exists for is a link that outlived
+its figure — re-quote an engagement from $645 to $745 and the old
+link still cheerfully collects $645. An OVERpayment does settle the
+bill, and says how much is owed back.
+
 Once a bill is settled, `sign` stops reporting the invoice half of the
 promise as unknowable: every engagement letter says we will not e-file
 before the invoice is settled, and that becomes something the software
@@ -380,6 +388,34 @@ There are **two** location ids, because Square gives you two accounts:
 `location_id` for real money and `sandbox_location_id` for `--sandbox`.
 A run needs only the one it is using, so you can test before you have
 a live location — and a live invoice can never carry the test one.
+
+### Proving the money actually arrives
+
+```
+python cli.py payments --check
+python cli.py payments --check --production
+```
+
+Every automated test here talks to a stand-in for the network. They
+prove this software sends the right request and reacts correctly to
+the answer; they cannot tell a working card account from a closed
+one. `--check` asks the processor itself and reports what each step
+established — 7 of them, and it says how far it
+got, because a check that stopped early and printed a tick is worse
+than one that failed.
+
+It stops one step short on its own, because no software can pay
+itself: it leaves a $1 link and tells you to open it and pay it. On
+`--check` that is a test card and no money moves. Run it again and it
+finds the same link — the invoice number is the key, so re-running
+does not make a second one — and tells you the money was seen.
+
+> **Judgement, not procedure:** the last mile is yours, once.
+> `--check --production` makes a REAL $1 link on the live account.
+> Paying it is the only thing that proves the live location is your
+> own, and watching it reach your bank is the only thing that proves
+> the payout works. This software cannot see your bank and will
+> never claim to.
 
 ### Appendix — the documents this produces
 

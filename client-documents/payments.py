@@ -87,15 +87,29 @@ class Link:
 
 @dataclass(frozen=True)
 class Settlement:
-    """What the processor says about one order."""
+    """What the processor says about one order.
+
+    TWO FIGURES, BECAUSE THEY CAN DISAGREE. `amount_cents` is what the order
+    was FOR; `tendered_cents` is what was actually handed over, summed off the
+    order's tenders. On an ordinary quick-pay link they are the same number and
+    the distinction is idle. They come apart on a partial tender -- and a bill
+    is only covered by what arrived, never by what was asked.
+    """
     order_id: str
     state: str
     amount_cents: int = 0
     when: str = ""
+    tendered_cents: int = 0
 
     @property
     def paid(self) -> bool:
         return self.state == PAID
+
+    @property
+    def arrived_cents(self) -> int:
+        """What the firm actually got. The tenders when the processor reports
+        them, the order total when it does not -- never a guess of zero."""
+        return self.tendered_cents or self.amount_cents
 
 
 @lru_cache(maxsize=1)
@@ -255,8 +269,21 @@ class Square:
                     amount_cents=((order.get("total_money") or {})
                                   .get("amount") or 0),
                     when=(order.get("closed_at") or "")[:10],
+                    tendered_cents=sum(
+                        (t.get("amount_money") or {}).get("amount") or 0
+                        for t in (order.get("tenders") or [])),
                 )
         return out
+
+    def locations(self) -> list[dict]:
+        """Every location this token can see. The cheapest real question.
+
+        It is the only call that proves the TOKEN is good and the LOCATION ID
+        is one of the firm's own, and it moves no money to ask. A typo in the
+        location id is otherwise invisible until a client is standing at a
+        checkout page that will not load.
+        """
+        return (self._call("GET", "/v2/locations") or {}).get("locations") or []
 
     def deactivate(self, link: Link) -> None:
         """Take a link out of service. Used when a bill is re-quoted.
@@ -394,26 +421,250 @@ def outstanding(store: Path) -> list[dict]:
     return out
 
 
-def record_settlement(path: Path, got: Settlement) -> bool:
-    """Write a settlement onto its invoice. Returns whether anything moved.
+@dataclass(frozen=True)
+class Posting:
+    """What happened when one processor answer met one bill.
+
+    `settled` is the only thing the old return value said, and it is still the
+    thing most callers want. `problem` is why a payment that ARRIVED did not
+    settle its bill -- empty when there is nothing to say.
+    """
+    settled: bool = False
+    due_cents: int = 0
+    arrived_cents: int = 0
+    problem: str = ""
+
+    @property
+    def short(self) -> bool:
+        """Money came in and did not cover the bill."""
+        return bool(self.arrived_cents) and self.arrived_cents < self.due_cents
+
+
+def _due_cents(bill: dict) -> int:
+    """What this bill says is owed, in cents. Raises if it cannot be read."""
+    return _cents(bill.get("AmountDue"))
+
+
+def record_settlement(path: Path, got: Settlement) -> Posting:
+    """Write a settlement onto its invoice. Says what moved, and what did not.
 
     THE PROCESSOR IS THE SYSTEM OF RECORD FOR MONEY, and this is a cache of its
     answer -- which is why it is written onto the bill rather than into an
     append-only log. What must never be cached is a NEGATIVE: an unpaid order
     is simply left alone, so nothing here can mark a bill unpaid that the
     processor has since settled.
+
+    A PAYMENT IS NOT A SETTLEMENT UNTIL THE FIGURES MATCH. `deactivate` exists
+    because a link outlives its figure: re-price an engagement from $645 to
+    $745 and the old link still cheerfully collects $645. That was written down
+    as the one way this feature takes the wrong amount, and then nothing
+    downstream ever compared the two numbers -- `settled_amount` was written
+    onto every bill and read by nobody. So a client could pay $645 against a
+    $745 bill, the bill would be marked settled, and `signing.may_file` would
+    open the e-file gate that every engagement letter promises stays shut until
+    the invoice is settled. A short payment now leaves `SettledOn` unwritten:
+    the gate stays shut by construction rather than by a report somebody reads.
+
+    An OVERpayment settles -- the bill is covered and holding a return hostage
+    over the firm's own refund would be absurd -- but it is written down and
+    said out loud, because somebody owes the client money back.
     """
     if not got.paid:
-        return False
+        return Posting()
     bill = json.loads(Path(path).read_text(encoding="utf-8"))
     if bill.get("SettledOn"):
-        return False
+        return Posting()
+
+    arrived = got.arrived_cents
+    try:
+        due = _due_cents(bill)
+    except PaymentError:
+        # A bill whose figure cannot be read cannot be checked against the money
+        # that arrived, and settling it would be settling against nothing.
+        return Posting(arrived_cents=arrived, problem=(
+            f"{arrived / 100:,.2f} arrived against invoice "
+            f"{bill.get('InvoiceNumber', '')}, whose amount due is not a figure "
+            f"this software can read. Nothing has been marked settled."))
+
+    if arrived < due:
+        bill["_payment"] = {**(bill.get("_payment") or {}), "state": got.state,
+                            "settled_amount": arrived, "due_amount": due,
+                            "short_by": due - arrived}
+        Path(path).write_text(
+            json.dumps(bill, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8")
+        return Posting(due_cents=due, arrived_cents=arrived, problem=(
+            f"${arrived / 100:,.2f} arrived against a bill for "
+            f"${due / 100:,.2f} — ${(due - arrived) / 100:,.2f} short. The "
+            f"invoice is NOT settled and the return is not clear to file. "
+            f"A link made before a re-quote collects the old figure; check "
+            f"whether this bill was re-priced after its link went out."))
+
     bill["SettledOn"] = got.when or date.today().isoformat()
     bill["_payment"] = {**(bill.get("_payment") or {}), "state": got.state,
-                        "settled_amount": got.amount_cents}
+                        "settled_amount": arrived, "due_amount": due}
+    over = arrived - due
+    if over:
+        bill["_payment"]["over_by"] = over
     Path(path).write_text(json.dumps(bill, indent=2, ensure_ascii=False) + "\n",
                           encoding="utf-8")
-    return True
+    return Posting(settled=True, due_cents=due, arrived_cents=arrived,
+                   problem=("" if not over else
+                            f"${arrived / 100:,.2f} arrived against a bill for "
+                            f"${due / 100:,.2f} — ${over / 100:,.2f} more than "
+                            f"was owed. The bill is settled; the client is owed "
+                            f"${over / 100:,.2f} back."))
+
+
+# ── proving it works, against the real processor ──────────────────────────
+#
+# THE FIRM'S QUESTION, 2 September 2026: *"how do we truly confirm the square
+# thing works - i want to know i'll get paid and the client isn't just sending
+# money to the void"*.
+#
+# Every test in `tests/test_payments.py` runs against a fake transport. They
+# prove this software sends the right request and reacts correctly to an
+# answer. THEY PROVE NOTHING ABOUT SQUARE -- not that the token works, not that
+# the location id is the firm's, not that a client can open the page. A green
+# suite and a dead account look identical from here.
+#
+# So this walks the loop against the live API and says, step by step, what each
+# step actually established -- and, just as importantly, what it did not.
+
+
+@dataclass(frozen=True)
+class Step:
+    """One thing that was checked, and what checking it proved."""
+    name: str
+    ok: bool
+    detail: str = ""
+
+
+CHECK_PREFIX = "SATC-CHECK-"
+
+# HOW MANY STEPS THE LOOP HAS, stated once. `live_check` returns only the steps
+# it REACHED, and a caller has to be able to say "3 of 7" rather than "3 of 3"
+# -- the whole point of the report is the denominator. Counting them at the
+# call site is the same bug this repository keeps finding: a claim in one place,
+# the behaviour in another, and nothing comparing them. A test does the
+# comparing.
+CHECK_STEPS = 7
+
+
+def check_number(today: date | None = None) -> str:
+    """The scratch invoice number a live check bills itself against.
+
+    STABLE WITHIN A DAY, ON PURPOSE. The idempotency key is the invoice number,
+    so re-running the check on the same day returns the SAME link rather than
+    a second one -- which is what makes "open it, pay it, run the check again"
+    work without this having to store anything.
+    """
+    return CHECK_PREFIX + (today or date.today()).isoformat()
+
+
+def live_check(*, sandbox: bool = True, amount_cents: int = 100,
+               reg: dict | None = None, transport: Callable | None = None,
+               today: date | None = None) -> tuple[list[Step], Link | None,
+                                                   Settlement | None]:
+    """Walk the whole payment loop against the real processor.
+
+    Returns every step it took -- including the ones it could not take -- so a
+    caller can report the DENOMINATOR. A check that quietly examined two things
+    and printed a tick is worse than one that fails.
+
+    It does not, and cannot, confirm the last mile: that the money reaches the
+    firm's bank. Nothing short of one real payment and one real payout does.
+    """
+    reg = reg if reg is not None else settings()
+    steps: list[Step] = []
+    conf = (reg or {}).get("square") or {}
+    which = _location_key(sandbox)
+    env = conf.get("token_env") or "SATC_SQUARE_TOKEN"
+
+    written = str(conf.get(which, ""))
+    if not written or CONFIRM.search(written):
+        steps.append(Step("the location id is written down", False,
+                          f"`square.{which}` in registry/payments.yaml is still "
+                          f"waiting on the firm. Nothing else can be checked "
+                          f"until it is filled in."))
+        return steps, None, None
+    steps.append(Step("the location id is written down", True, written))
+
+    # THE TOKEN IS NEVER PRINTED, only whether one is there. An error message
+    # ends up in a terminal, a log and whatever screenshot goes into a ticket.
+    if not os.environ.get(env, "").strip():
+        steps.append(Step("a token is in the environment", False,
+                          f"${env} is empty. Set it in the shell that runs "
+                          f"this; it is deliberately never stored in the repo."))
+        return steps, None, None
+    steps.append(Step("a token is in the environment", True,
+                      f"${env} is set (its value is not shown, here or "
+                      f"anywhere else)"))
+
+    try:
+        api = processor(sandbox=sandbox, reg=reg, transport=transport)
+    except PaymentError as exc:
+        steps.append(Step("the processor can be built", False, str(exc)))
+        return steps, None, None
+
+    try:
+        found = api.locations()
+    except PaymentError as exc:
+        steps.append(Step("Square answers this token", False, str(exc)))
+        return steps, None, None
+    steps.append(Step("Square answers this token", True,
+                      f"{len(found)} location(s) on the account"))
+
+    mine = next((loc for loc in found if loc.get("id") == api.location_id), None)
+    if mine is None:
+        steps.append(Step("the location id is one of yours", False,
+                          f"{api.location_id} is not among the "
+                          f"{len(found)} location(s) this token can see"
+                          + (f" — those are: "
+                             + ", ".join(f"{l.get('name', '?')} ({l.get('id')})"
+                                         for l in found) if found else "")))
+        return steps, None, None
+    steps.append(Step("the location id is one of yours", True,
+                      f"{mine.get('name', '(unnamed)')} — "
+                      f"{mine.get('status', '?')}, "
+                      f"{mine.get('currency', '?')}"))
+
+    number = check_number(today)
+    try:
+        link = api.create_link(
+            invoice=number, amount_cents=amount_cents,
+            name=str(reg.get("link_name", "")).split("—")[0].strip()
+                 or "SAT-C payment check",
+            today=today)
+    except PaymentError as exc:
+        steps.append(Step("a client can be given something to pay", False,
+                          str(exc)))
+        return steps, None, None
+    steps.append(Step("a client can be given something to pay", True,
+                      f"a ${amount_cents / 100:,.2f} link at {link.url}"))
+
+    try:
+        got = api.settled([link.order_id]).get(link.order_id)
+    except PaymentError as exc:
+        steps.append(Step("the payment can be read back afterwards", False,
+                          str(exc)))
+        return steps, link, None
+    if got is None:
+        steps.append(Step("the payment can be read back afterwards", False,
+                          f"Square made order {link.order_id} and then did not "
+                          f"return it. A payment against it could not be seen."))
+        return steps, link, None
+    steps.append(Step("the payment can be read back afterwards", True,
+                      f"order {link.order_id} reads `{got.state}`"
+                      + (f", ${got.arrived_cents / 100:,.2f} in"
+                         if got.paid else " — nobody has paid it yet")))
+
+    steps.append(Step("the money arrived", got.paid,
+                      f"${got.arrived_cents / 100:,.2f} settled {got.when}"
+                      if got.paid else
+                      "nothing has been paid against this link yet. Open it, "
+                      "pay it, and run this again."))
+    return steps, link, got
 
 
 def settled_for(store: Path, ref: str) -> list[dict]:
