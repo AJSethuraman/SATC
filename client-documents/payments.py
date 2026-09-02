@@ -253,6 +253,19 @@ class Square:
         bill, each able to take the money. Square returns the original link for
         a repeated key rather than making a second.
         """
+        # NOTHING UNFILLED REACHES A PAYER. `_fill` already refused an
+        # unresolved token, and `live_check` was then written with its own,
+        # worse way of preparing the same string -- so a real sandbox checkout
+        # page went up reading `SATC <<InvoiceNumber>>`, to a person about to
+        # type a card number into it. The guard belongs at the boundary every
+        # caller passes, not in one of the two functions that build a name.
+        if _TOKEN.search(name or ""):
+            raise PaymentError(
+                f"the payment link's name still has "
+                f"{', '.join(sorted(set(_TOKEN.findall(name))))} in it, "
+                f"unfilled. That is the line a client reads on Square's page "
+                f"and on their card statement. No link has been made."
+            )
         got = self._call("POST", "/v2/online-checkout/payment-links", {
             "idempotency_key": f"satc-{invoice}",
             "quick_pay": {
@@ -685,6 +698,38 @@ def _asks_the_other_account(reg: dict, sandbox: bool, transport) -> str:
             f"token, or run the check against {name}.")
 
 
+def _check_record(number: str) -> dict:
+    """The fields a check's own link name is filled from.
+
+    THE SAME `_fill` EVERY OTHER CALLER USES. This once did its own thing --
+    `link_name.split("—")[0].strip()` -- on the assumption the firm's name was
+    an em-dashed prefix. The registry says `SATC <<InvoiceNumber>>`, with no
+    dash in it at all, so the split did nothing and the raw token went to
+    Square. A real sandbox checkout page read `SATC <<InvoiceNumber>>` above a
+    card field.
+
+    Whatever the firm puts in `link_name`, it is filled from here or the check
+    refuses rather than shipping a placeholder to a payer.
+    """
+    import settings as firm_settings
+
+    out: dict = {}
+    try:
+        out.update({k: v for k, v in
+                    (firm_settings.firm_fields(str(date.today().year)) or {}).items()
+                    if isinstance(v, str) and v})
+    except Exception:                                      # noqa: BLE001
+        # A settings file that will not load is a real problem, and it is not
+        # this function's to report -- `doctor` says so. `_fill` refuses here
+        # rather than this guessing a firm name.
+        pass
+    # LAST, so nothing from the firm's settings can shadow it: the check bills
+    # itself, and its number is the idempotency key that makes a re-run find
+    # the same link instead of making a second one.
+    out["InvoiceNumber"] = number
+    return out
+
+
 def live_check(*, sandbox: bool = True, amount_cents: int = 100,
                reg: dict | None = None, transport: Callable | None = None,
                today: date | None = None) -> tuple[list[Step], Link | None,
@@ -791,8 +836,8 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
     try:
         link = api.create_link(
             invoice=number, amount_cents=amount_cents,
-            name=str(reg.get("link_name", "")).split("—")[0].strip()
-                 or "SAT-C payment check",
+            name=_fill(str(reg.get("link_name", "")) or "<<FirmName>>",
+                       _check_record(number)),
             today=today)
     except PaymentError as exc:
         steps.append(Step("a client can be given something to pay", False,

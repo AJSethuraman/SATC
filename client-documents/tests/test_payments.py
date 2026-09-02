@@ -909,3 +909,68 @@ def test_a_refusal_never_carries_the_request_or_the_token():
                  payments._fact(401, "nope"),
                  payments._guesses(401, "https://connect.squareup.com/x")):
         assert "Bearer" not in said and "Authorization" not in said
+
+
+# ── nothing unfilled reaches a payer ──────────────────────────────────────
+#
+# A REAL SANDBOX CHECKOUT PAGE, 2 September 2026, read `SATC
+# <<InvoiceNumber>>` above the card field. `_fill` already refused an
+# unresolved token, saying in its own error why -- "It is what the client sees
+# on Square's page and on their card statement" -- and `live_check` was then
+# written with its own way of preparing the same string:
+# `link_name.split("—")[0].strip()`, on the assumption the firm's name was an
+# em-dashed prefix. The registry says `SATC <<InvoiceNumber>>` and has no dash
+# in it, so the split did nothing.
+#
+# S29: one statement of a rule was changed and its sibling was not read.
+
+
+def test_a_name_with_an_unfilled_token_never_reaches_the_processor(square):
+    """PREVENTION, at the boundary every caller passes. `_fill` guards one of
+    the two functions that build a name; this guards the door."""
+    rec, api = square
+    with pytest.raises(payments.PaymentError, match="InvoiceNumber"):
+        api.create_link(invoice="2027-0001", amount_cents=100,
+                        name="SATC <<InvoiceNumber>>")
+    assert not rec.calls, "it called Square with a placeholder in the name"
+
+
+def test_the_check_fills_its_own_link_name(monkeypatch, approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    console = Console()
+    payments.live_check(sandbox=True, reg=approved, transport=console)
+    name = next(b["quick_pay"]["name"] for _, url, b in console.calls
+                if url.endswith("/payment-links"))
+    assert "<<" not in name and ">>" not in name
+    assert payments.CHECK_PREFIX in name
+
+
+def test_the_check_fills_a_name_the_registry_actually_carries(monkeypatch,
+                                                              approved):
+    """Against the real wording, not a fixture's. The registry's own
+    `link_name` has no em dash, which is precisely what the old code assumed
+    it did -- so a test that supplied its own dashed name would have passed
+    while the shipped one failed."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    reg = json.loads(json.dumps(approved))
+    reg["link_name"] = payments.settings().get("link_name", "")
+    assert "<<" in reg["link_name"], "the registry stopped using a token"
+    console = Console()
+    payments.live_check(sandbox=True, reg=reg, transport=console)
+    name = next(b["quick_pay"]["name"] for _, url, b in console.calls
+                if url.endswith("/payment-links"))
+    assert "<<" not in name, name
+
+
+def test_the_check_refuses_a_name_it_cannot_fill(monkeypatch, approved):
+    """A token the firm adds that nothing here supplies must stop the check,
+    not go up on a page in front of somebody's card."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    reg = json.loads(json.dumps(approved))
+    reg["link_name"] = "SATC <<SomethingNobodyProvides>>"
+    console = Console()
+    steps, link, _ = payments.live_check(sandbox=True, reg=reg,
+                                         transport=console)
+    assert link is None
+    assert not steps[-1].ok
+    assert "SomethingNobodyProvides" in steps[-1].detail
