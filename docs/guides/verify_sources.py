@@ -22,6 +22,10 @@ years and form numbers in the claim itself. So:
   MATCH      the page carries the QUOTED WORDING the sources file attributed
              to it, and every other probe too. This is the only verdict that
              means the claim's assertion was tested.
+
+             Quotes inside a sentence that records what a page does NOT say
+             are skipped -- see NEGATIVE. Without that, writing down a
+             correction made the corrected row look like a failure.
   UNTESTED   the claim cites a page but the sources file quotes no wording from
              it, so there was nothing to test the assertion against. Bare years
              and form numbers being present proves only that the page mentions
@@ -30,6 +34,11 @@ years and form numbers in the claim itself. So:
              rather than quoted -- a human decides.
   NO MATCH   nothing distinctive was found. Either the claim is not on that
              page, or the page moved its wording. Read it.
+  PRACTICE   the sources file labels this the firm's own practice or an
+             explicit non-claim. There is no page to check it against, and the
+             label -- not this tool -- is what discloses that.
+  NO SOURCE  the sources file names no page for a claim that is not labelled
+             practice. Nothing to check and nothing saying so. Fix the row.
   UNREACHED  the fetch failed. Not a verdict about the claim.
 
 It cannot settle a claim of interpretation -- "an LLC changes nothing on a
@@ -60,6 +69,48 @@ SOURCES = ["SOURCES.md", "SOURCES-entity-choice.md"]
 STOP = {"january", "february", "march", "april", "may", "june", "july",
         "august", "september", "october", "november", "december",
         "the", "and", "for", "you", "your", "not", "that", "with", "form"}
+
+# "Same", "Same page", "Same document", "Same two pages" -- shorthand in the
+# sources files meaning "the row above". It does not always open the note:
+# "**READ - open question closed.** Same document." puts it second, and
+# anchoring to the start missed that row and reported it as having no source.
+# Only consulted when the row names no URL of its own.
+SAME = re.compile(r"(?:^|\.\s|\*\*\s*)Same\b(?:\s+(?:page|document|two pages|"
+                  r"source|IRS|form)\b)?", re.I)
+
+# Rows the sources files mark as the firm's own practice or as a deliberate
+# non-claim. These are not assertions about a cited page and are reported in
+# their own bucket rather than as unverified facts.
+PRACTICE = re.compile(r"\b(?:Practice(?:[.,]|$| for | on |, resting)|"
+                      r"\*\*Practice|Deliberate non-claim|"
+                      r"is the firm's own|are the inputs the return needs)",
+                      re.I)
+
+# A sources note does two jobs: it quotes what the page says, and it records
+# what the page turned out NOT to say. Both go in quotation marks, and a
+# checker that cannot tell them apart reports the second kind as a failure --
+# which is how correcting a bad citation used to make the row look worse.
+#
+# So: a SENTENCE carrying one of these cues contributes no probes. Its quotes
+# are either negative evidence ("the string 2012 does not appear on that page")
+# or a quote of our own draft rather than of the source ("the guide now says").
+# Write those in their own sentence and the checker will stay out of the way.
+NEGATIVE = re.compile(
+    r"\b(?:"
+    r"does not appear|do not appear|doesn't appear|never (?:says|states|appears)|"
+    r"is not on (?:it|that page|the page)|not on that page|not on the page|"
+    r"cannot support|can't support|does not (?:carry|say|state)|did not carry|"
+    r"is not quoted|are \*\*not quoted|not quoted here|"
+    r"the draft said|used to (?:say|cite|claim|assert)|previously (?:said|cited|claimed)|"
+    r"the row used to|the guide now says|both places now say|now says|"
+    r"is deliberately|are deliberately|deliberately (?:not|absent)|"
+    r"stays out of|is not in the guide|"
+    # A sentence about a fetch that FAILED quotes the error page, not the
+    # source: "come back as an 853-byte 'official State of Ohio government
+    # website' wrapper" was being probed for on the page that replaced it.
+    r"comes? back as|cannot be fetched|can't be fetched|never downloaded|"
+    r"was ever read|were ever read|wrapper rather than"
+    r")\b", re.I)
 
 
 def fetch(url: str, refetch: bool = False) -> str | None:
@@ -153,12 +204,26 @@ def probes(claim: str, note: str) -> tuple[list[str], list[str]]:
     So a claim with no substantive probe is now UNTESTED, never MATCH.
     """
     sub: list[str] = []
-    for q in re.findall(r'"([^"]{8,160})"', note):
+    # Split on sentence enders, INCLUDING one that sits inside a closing quote
+    # -- `...as a corporation". The page adds` is two sentences. Missing that
+    # glued a positive quote to the correction sentence beside it, and the
+    # correction's cue then suppressed the quote that was doing the work.
+    # The quote character stays in the sentence -- match it in the LOOKBEHIND
+    # rather than consuming it. Consuming it stripped the closing quote off
+    # `...for the year."` and then no quoted phrase could be found at all.
+    positive = " ".join(s for s in re.split(r"""(?<=[.!?]["'\)\]])\s+|(?<=[.!?])\s+""", note)
+                        if not NEGATIVE.search(s))
+    # Up to 320 characters. The cap was 160, which silently dropped the quotes
+    # that carry the most -- a statutory sentence runs long ("In order to form
+    # a limited liability company, one or more persons shall execute articles
+    # of organization and deliver the articles to the secretary of state for
+    # filing." is 175). A dropped quote left the row UNTESTED with no hint why.
+    for q in re.findall(r'"([^"]{8,320})"', positive):
         if len(q.split()) >= 5:            # a phrase, not a stray fragment
             sub.append(q)
 
     tok: list[str] = []
-    both = claim + " " + note
+    both = claim + " " + positive
     tok += re.findall(r"\$[\d,]+(?:\.\d\d)?", both)
     tok += re.findall(r"\b(?:19|20)\d{2}\b", both)
     tok += re.findall(r"\b(?:Form|Schedule|Publication|Pub\.?)\s*[\dA-Z][\dA-Z-]*", both)
@@ -180,6 +245,12 @@ def found(page: str, probe: str) -> bool:
     p = page.lower()
     q = re.sub(r"\s+", " ", probe.lower().strip())
     if q in p:
+        return True
+    # A PDF content stream carries no spaces between text-showing operators, so
+    # extraction glues words: the RITA Form 37 instructions come out as
+    # "residentmunicipality", and a correct phrase probe misses. Compare with
+    # all whitespace removed before concluding the wording is absent.
+    if re.sub(r"\s", "", q) in re.sub(r"\s", "", p):
         return True
     # A quote can be broken by markup or a line break in the source; fall back
     # to requiring most of its distinctive words, in any order.
@@ -207,19 +278,36 @@ def parse_sources() -> list[dict]:
             h3 = re.match(r"^### (.+)$", line)
             if h3:
                 section = h3.group(1).strip(); continue
-            m = re.match(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$", line)
-            if not m or not guide:
+            # Exactly two cells. SOURCES.md also carries a three-column
+            # weekend/holiday table, and a looser pattern read its rows as
+            # claims -- inventing five entries called "Stated", "January 31",
+            # "February 15", "March 15" and "May 31", each of them UNREACHED
+            # because a date is not a claim and has no source.
+            if not guide or not line.startswith("|"):
                 continue
-            claim, src = m.group(1), m.group(2)
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) != 2 or not all(cells):
+                continue
+            claim, src = cells
             if set(claim) <= set("-: ") or claim.startswith("Claim in the draft"):
                 continue
             links = re.findall(r"\[[^\]]+\]\((https?://[^)]+)\)", src)
+            # "Same", "Same page", "Same two pages" -- the file's own shorthand
+            # for the row above. Without following it, a correctly sourced row
+            # was reported as having no source at all, which put twenty-one
+            # rows in a bucket that read like a failure and was not one.
+            if not links and SAME.search(src) and rows:
+                links = rows[-1]["urls"]
             rows.append({
                 "guide": guide, "section": section,
                 "claim": re.sub(r"\*\*(.+?)\*\*", r"\1", claim),
                 "note": re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", src),
                 "urls": links,
                 "already_read": "READ" in src,
+                # A claim of practice is not a claim about a page, and holding
+                # it against a citation it never had is how the honest count
+                # got buried. It still has to be LABELLED practice in the file.
+                "practice": bool(PRACTICE.search(src)),
             })
     return rows
 
@@ -244,13 +332,18 @@ def main() -> int:
         print(f"  fetched {i}/{len(urls)}  {'ok ' if u in pages else 'FAIL'} {u[:78]}")
     print()
 
-    results, tally = [], {"MATCH": 0, "PARTIAL": 0, "NO MATCH": 0, "UNTESTED": 0, "UNREACHED": 0}
+    results, tally = [], {"MATCH": 0, "PARTIAL": 0, "NO MATCH": 0, "UNTESTED": 0,
+                          "PRACTICE": 0, "NO SOURCE": 0, "UNREACHED": 0}
     for r in rows:
         sub, tok = probes(r["claim"], r["note"])
         ps = sub + tok
         text = " ".join(pages.get(u, "") for u in r["urls"])
-        if not r["urls"]:
-            verdict, hits, miss = "UNREACHED", [], []
+        if r["practice"] and not sub:
+            # Labelled practice in the sources file. Nothing to check, and
+            # nothing being hidden either -- the label is the disclosure.
+            verdict, hits, miss = "PRACTICE", [], []
+        elif not r["urls"]:
+            verdict, hits, miss = "NO SOURCE", [], []
         elif not text:
             verdict, hits, miss = "UNREACHED", [], ps
         elif not sub:
@@ -269,14 +362,15 @@ def main() -> int:
         tally[verdict] += 1
         results.append({**r, "verdict": verdict, "hit": hits, "miss": miss})
 
-    for v in ("NO MATCH", "PARTIAL", "UNTESTED", "UNREACHED", "MATCH"):
+    for v in ("NO MATCH", "PARTIAL", "UNTESTED", "NO SOURCE", "UNREACHED",
+              "PRACTICE", "MATCH"):
         group = [x for x in results if x["verdict"] == v]
         if not group:
             continue
         print("=" * 78)
         print(f"{v} — {len(group)}")
         print("=" * 78)
-        for x in group if v != "MATCH" else group[:0]:
+        for x in group if v not in ("MATCH", "PRACTICE") else group[:0]:
             print(f"\n  {x['guide']} · {x['section']}")
             print(f"  {x['claim'][:150]}")
             if x["miss"]:

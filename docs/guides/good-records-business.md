@@ -96,7 +96,7 @@ Send the whole letter, both sides, with the envelope. Some of them run on a
 ## 08 · What a business keeps for longer
 
 How long to keep things is on the other page. One rule sits on top of it here:
-payroll records, four years from when the tax was due or paid.
+payroll records run four years, longer than most of the rest.
 
 ---
 
