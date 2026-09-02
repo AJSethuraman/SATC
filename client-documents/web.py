@@ -1540,7 +1540,10 @@ def outcome_body(sid, outcome) -> str:
         out.append("</ul></div>")
     out.append(_flag_block(outcome))
     out.append(f"<p class=help>{esc(outcome.reason)}</p>")
-    out.append(f"<p class=muted>Nothing was written.</p>"
+    # SAY WHAT "nothing" MEANS. A bare "Nothing was written" leaves a
+    # preparer wondering what might have been half-done.
+    out.append(f"<p class=muted>Nothing was written &mdash; no engagement, "
+               f"no price, no documents.</p>"
                f"<p><a href='/interview/{esc(sid)}'>Back to the interview</a> "
                f"&middot; <a href='/'>Home</a></p>")
     return "".join(out)

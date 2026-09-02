@@ -93,19 +93,26 @@ question:
     Goes to the last question and shows what was answered, so a client who
     corrects themselves does not cost you the sitting. Nothing is thrown away
     by looking.
-  "text:the answer to “Which tax year?”": null
+  "answer[/interview/<id>]": null
 
 question-claim:
   "button:Next": null
-  "radio[input|radio|answer|/interview/<id>]": null
+  "answer[/interview/<id>]": null
 
 question-hardno:
   "button:Next": null
   "button:← Back": null
-  "checkbox[input|checkbox|answer|/interview/<id>]": >-
-    Tick everything that is true; several can be. One or two are marked HARD NO
-    in red — work the firm does not take. Ticking one does not end the sitting;
-    it stops an engagement being created at the end, and says why.
+  # THE KEY, AND THE FACT. The key collapsed to the stable one; the sentence
+  # was also out of date. It said ticking a HARD NO "does not end the
+  # sitting" — true until 2 September 2026, when the question moved to number
+  # four and the sitting was made to stop where it is ticked. The harness
+  # caught it because the key changed; nothing would have caught the wrong
+  # fact on its own.
+  "answer[/interview/<id>]": >-
+    Tick everything that is true; several can be. The top two are marked HARD
+    NO in red — work the firm does not take. Ticking one of those ends the
+    sitting here: no engagement, no price, no documents, and the screen says
+    which one stopped it.
 
 question-back:
   "button:← Back": null
@@ -117,7 +124,7 @@ question-back:
     Leaves the answer exactly as it was and returns to where the sitting had
     got to. This is the one to press when you went back to check something and
     it was right.
-  "radio[input|radio|answer|/interview/<id>]": null
+  "answer[/interview/<id>]": null
 
 review:
   "button:Change": >-

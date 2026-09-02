@@ -106,6 +106,28 @@ class Control:
 
     @property
     def key(self) -> str:
+        # THE ANSWER FIELD IS THE ANSWER FIELD, whatever it is asking. Its
+        # label quotes the question -- "the answer to “Taxpayer's name...”" --
+        # so keying on the label made this control a DIFFERENT control every
+        # time the question order changed. Moving the refusal question to
+        # number four on 2 September 2026 altered which question `← Back`
+        # lands on, and the harness reported the guide as wrong about a screen
+        # whose guide had not changed and did not need to.
+        #
+        # Identity here is "which control is this", not "which question was it
+        # asking at the time".
+        if "|answer|" in self.shape:
+            # NEITHER THE LABEL NOR THE KIND. The label quotes the question
+            # ("the answer to “Which tax year?”") and the kind follows the
+            # question's type -- a radio for a choice, a box for a name -- so
+            # both change whenever question order does. Keying on either made
+            # this one control read as a different control, and the harness
+            # reported a guide as wrong about a screen whose guide had not
+            # changed and did not need to.
+            #
+            # Identity is "the field you type the answer into". What it is
+            # asking today is the question's business, not this control's.
+            return "answer[/interview/<id>]"
         return f"{self.kind}:{self.label}" if self.label else f"{self.kind}[{self.shape}]"
 
     @property

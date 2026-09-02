@@ -278,8 +278,8 @@
   },
   {
     "key": "question-back",
-    "heading": "Is this a returning client?",
-    "help": "Set for you by `cli.py returning`. Answering yes here by hand is fine; it only decides whether the change questions are asked.",
+    "heading": "Taxpayer's name, as it goes under the signature line",
+    "help": "",
     "shot": "question-back.png",
     "controls": [
       {
@@ -311,14 +311,11 @@
         "count": 1
       },
       {
-        "kind": "radio",
-        "shape": "input|radio|answer|/interview/<id>",
-        "label": "",
-        "examples": [
-          "No — this is the first year",
-          "Yes — we prepared their return before"
-        ],
-        "count": 2
+        "kind": "text",
+        "shape": "input|text|answer|/interview/<id>",
+        "label": "the answer to “Taxpayer's name, as it goes under the signature line”",
+        "examples": [],
+        "count": 1
       }
     ]
   },
@@ -333,7 +330,7 @@
         "shape": "button|submit|link|/interview/<id>/back{to}",
         "label": "Change",
         "examples": [],
-        "count": 38
+        "count": 37
       },
       {
         "kind": "button",
@@ -390,7 +387,7 @@
   {
     "key": "refused",
     "heading": "Not taken on",
-    "help": "This is work the firm does not take. firm-settings.yaml lists it under `hard_no` and the interview schema marks the options themselves. Override only if the list is wrong, not because this one feels like an exception.",
+    "help": "This is work you have said the firm does not take on. You can take it on anyway and it will be recorded that you did — do that only if the rule itself is wrong, not to make one exception to it.",
     "shot": "refused.png",
     "controls": [
       {
@@ -716,7 +713,7 @@
   {
     "key": "payments",
     "heading": "Payments",
-    "help": "1 of 1 bill(s) outstanding. This is what was written down the last time cli.py payments asked the processor — this screen does not ask, so it never hangs waiting on them.",
+    "help": "1 of 1 bill(s) outstanding, as of the last time the card processor was asked. This page shows what was written down then rather than asking now, so it never hangs waiting on them — a payment made in the last few minutes may not be here yet.",
     "shot": "payments.png",
     "controls": [
       {
@@ -886,7 +883,7 @@
   {
     "key": "wording-section",
     "heading": "Engagement Letter - Tax Preparation",
-    "help": "Click a section to open it. **bold** makes a phrase bold; <<FieldName>> is a merge field and has to stay where it is — adding or dropping one is the registry's business, not a wording change.",
+    "help": "Click a section to open it. **bold** makes a phrase bold. <<LikeThis>> is a blank that fills in with the client's own details when the letter is written — you can move the words around it, but leave it in place. Adding a new one is a change to what the letter asks for, not to how it reads.",
     "shot": "wording-section.png",
     "controls": [
       {
@@ -940,7 +937,7 @@
   {
     "key": "wording-add",
     "heading": "Engagement Letter - Tax Preparation",
-    "help": "Click a section to open it. **bold** makes a phrase bold; <<FieldName>> is a merge field and has to stay where it is — adding or dropping one is the registry's business, not a wording change.",
+    "help": "Click a section to open it. **bold** makes a phrase bold. <<LikeThis>> is a blank that fills in with the client's own details when the letter is written — you can move the words around it, but leave it in place. Adding a new one is a change to what the letter asks for, not to how it reads.",
     "shot": "wording-add.png",
     "controls": [
       {

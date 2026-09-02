@@ -129,11 +129,13 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
                 #
                 # A screen says what happened and what to do about it. Where
                 # the rule is written down is the software's business.
+                # The screen already prints "Nothing was written" under this
+                # paragraph, and saying it twice reads as a stammer. Caught by
+                # photographing the screen rather than by reading the string.
                 reason="This is work you have said the firm does not take on. "
-                       "Nothing was written — no engagement, no price, no "
-                       "documents. You can take it on anyway and it will be "
-                       "recorded that you did. Do that only if the rule itself "
-                       "is wrong, not to make one exception to it.")
+                       "You can take it on anyway and it will be recorded that "
+                       "you did — do that only if the rule itself is wrong, "
+                       "not to make one exception to it.")
         # An override is recorded on the outcome so it reaches whatever is
         # reading -- a flag that can be set silently is a flag that means
         # nothing.
