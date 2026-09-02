@@ -295,6 +295,42 @@ class Square:
         self._call("DELETE", f"/v2/online-checkout/payment-links/{link.id}")
 
 
+def _refusal(code: int, detail: str, url: str) -> str:
+    """What to say when the processor refuses. Pure, so it can be tested.
+
+    A BARE STATUS CODE IS NOT AN ANSWER. `401` sent somebody to look at their
+    Square account, when the fault was almost certainly one field away: there
+    are TWO accounts, each with its own token, and a sandbox token is refused
+    by the live host exactly as a production token is refused by the sandbox.
+    The console shows both, one click apart, beside two other values that are
+    not tokens at all. Naming the likely cause here is the difference between
+    a message that ends the problem and one that starts an investigation.
+
+    Square's own sentence already ends in a full stop, so the template does
+    not add a second one.
+    """
+    # THE CONSOLE'S OWN WORDS, not ours. Square labels the two tabs "Sandbox"
+    # and "Production"; telling somebody to look for a "live" tab sends them
+    # hunting for a thing that is not on the screen in front of them.
+    where = "Sandbox" if "squareupsandbox" in url else "Production"
+    said = (detail or "").strip()
+    out = f"the payment processor refused: {code}"
+    if said:
+        out += f" — {said.rstrip('.')}"
+    out += ". Nothing has been put on the invoice."
+    if code in (401, 403):
+        other = "Production" if where == "Sandbox" else "Sandbox"
+        out += (
+            f" Square did not accept the token. This run used the {where} "
+            f"account, and a {other} token is always refused there — that is "
+            f"the commonest cause. In Square's developer console, check the "
+            f"tab says {where}, then copy the ACCESS TOKEN: not the "
+            f"application id, not the application secret, and not the token "
+            f"from the {other} tab."
+        )
+    return out
+
+
 def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
     """One HTTP call, on the standard library.
 
@@ -316,11 +352,7 @@ def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
                                (problem.get("errors") or []))
         except Exception:                                  # noqa: BLE001
             pass
-        raise PaymentError(
-            f"the payment processor refused: {exc.code}"
-            + (f" — {detail}" if detail else "")
-            + ". Nothing has been put on the invoice."
-        ) from None
+        raise PaymentError(_refusal(exc.code, detail, url)) from None
     except urllib.error.URLError as exc:
         raise PaymentError(
             f"the payment processor could not be reached ({exc.reason}). The "

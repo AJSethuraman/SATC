@@ -704,3 +704,47 @@ def test_it_does_not_pretend_to_look_up_an_id_with_no_token(approved,
     assert len(steps) == 1 and not steps[0].ok
     assert "is empty" in steps[0].detail
     assert "failed" not in steps[0].detail
+
+
+# ── what a refusal says ───────────────────────────────────────────────────
+#
+# A 401 came back from a real sandbox run on 2 September 2026 and the message
+# was `refused: 401 — This request could not be authorized..` -- a doubled full
+# stop, and not one word about the likely cause. A bare status code sends
+# somebody to look at their Square account when the fault is one field away.
+
+
+def test_a_refusal_does_not_double_squares_full_stop():
+    said = payments._refusal(
+        401, "This request could not be authorized.",
+        "https://connect.squareupsandbox.com/v2/locations")
+    assert ".." not in said
+
+
+def test_a_401_names_the_likeliest_cause_and_the_tab_to_look_at():
+    """There are two accounts, each with its own token, and a token from one
+    is always refused by the other. The console shows both, one click apart,
+    beside two values that are not tokens at all."""
+    sand = payments._refusal(401, "", "https://connect.squareupsandbox.com/x")
+    assert "Sandbox" in sand and "Production token is always refused" in sand
+    assert "application id" in sand and "application secret" in sand
+
+    live = payments._refusal(401, "", "https://connect.squareup.com/x")
+    assert "Production" in live and "Sandbox token is always refused" in live
+
+
+def test_only_an_authorization_refusal_gets_the_token_advice():
+    """A rate limit or a server fault has nothing to do with the token, and
+    telling somebody to go and re-copy one would send them the wrong way."""
+    for code in (400, 429, 500, 503):
+        said = payments._refusal(code, "Something else.",
+                                 "https://connect.squareup.com/x")
+        assert "ACCESS TOKEN" not in said, code
+        assert "Nothing has been put on the invoice." in said
+
+
+def test_a_refusal_never_carries_the_request_or_the_token():
+    """The request carries the Authorization header, and an exception string
+    ends up in a terminal, a log, and whatever screenshot goes into a ticket."""
+    said = payments._refusal(401, "nope", "https://connect.squareup.com/x")
+    assert "Bearer" not in said and "Authorization" not in said
