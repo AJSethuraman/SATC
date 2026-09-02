@@ -721,16 +721,126 @@ def test_a_refusal_does_not_double_squares_full_stop():
     assert ".." not in said
 
 
-def test_a_401_names_the_likeliest_cause_and_the_tab_to_look_at():
-    """There are two accounts, each with its own token, and a token from one
-    is always refused by the other. The console shows both, one click apart,
-    beside two values that are not tokens at all."""
-    sand = payments._refusal(401, "", "https://connect.squareupsandbox.com/x")
-    assert "Sandbox" in sand and "Production token is always refused" in sand
-    assert "application id" in sand and "application secret" in sand
+def test_a_401_lists_the_causes_and_claims_none_of_them():
+    """WHAT ONE REFUSAL CANNOT TELL YOU.
 
-    live = payments._refusal(401, "", "https://connect.squareup.com/x")
-    assert "Production" in live and "Sandbox token is always refused" in live
+    This message used to name a token from the other tab as "the commonest
+    cause". Then a real run refused the SAME token on BOTH hosts, and the two
+    messages contradicted each other -- each confidently naming the one place
+    the problem was not. A single 401 distinguishes none of these causes, so
+    the message lists them and chooses between none of them.
+    """
+    for url in ("https://connect.squareupsandbox.com/x",
+                "https://connect.squareup.com/x"):
+        said = payments._refusal(401, "", url)
+        assert "application id" in said and "application secret" in said
+        assert "revoked" in said
+        assert "commonest cause" not in said
+        assert "always refused" not in said
+
+    # It still says which account THIS run used -- that is observed, not guessed.
+    assert "Sandbox account" in payments._refusal(
+        401, "", "https://connect.squareupsandbox.com/x")
+    assert "Production account" in payments._refusal(
+        401, "", "https://connect.squareup.com/x")
+
+
+# ── the claim, earned ─────────────────────────────────────────────────────
+
+
+class Refuses:
+    """A Square that turns this token away, on whichever host is asked."""
+
+    def __init__(self, *, accepts: str = ""):
+        # `accepts` is the host substring that DOES take the token, if any.
+        self.accepts = accepts
+        self.asked: list[str] = []
+
+    def __call__(self, method, url, headers, body):
+        self.asked.append(url)
+        if self.accepts and self.accepts in url:
+            return {"locations": [{"id": "LOK", "name": "SAT-C LLP"}]}
+        raise payments.PaymentError("the payment processor refused: 401.",
+                                    code=401)
+
+
+def test_a_token_both_accounts_refuse_is_named_as_neither(monkeypatch, approved):
+    """The real run, reproduced: same token, both hosts, two 401s. What that
+    rules out is the cross-tab mix-up, so the report must stop suggesting it."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    api = Refuses()
+    steps, _, _ = payments.live_check(sandbox=True, reg=approved, transport=api)
+    said = steps[-1].detail
+    assert "not a token for either" in said
+    assert "application id" in said and "revoked" in said
+    assert any("squareupsandbox" in u for u in api.asked)
+    assert any("squareupsandbox" not in u for u in api.asked), \
+        "it never asked the other account"
+
+
+def test_a_token_the_other_account_accepts_is_named_definitely(monkeypatch,
+                                                               approved):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    steps, _, _ = payments.live_check(
+        sandbox=True, reg=approved,
+        transport=Refuses(accepts="connect.squareup.com"))
+    said = steps[-1].detail
+    assert "Production account DOES accept" in said
+    assert "this run used Sandbox" in said
+    assert "not a token for either" not in said
+
+
+def test_a_working_run_never_asks_the_other_account(monkeypatch, approved):
+    """The probe is a diagnosis, not a step. An ordinary run must make no
+    extra call at all."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    console = Console()
+    payments.live_check(sandbox=True, reg=approved, transport=console)
+    hosts = {u.split("/v2")[0] for _, u, _ in console.calls}
+    assert len(hosts) == 1, hosts
+
+
+def test_a_fault_that_is_not_a_refusal_is_not_diagnosed(monkeypatch, approved):
+    """A 500 or a dead network says nothing about the token, and a guess
+    dressed as a finding is what this whole path exists to stop.
+
+    IT MUST ALSO NOT ASK. Asserting only on the wording let a mutant live that
+    made the extra call and then said nothing with it -- silent, wasted, and
+    on somebody's rate limit. The call is the behaviour; the wording is a
+    consequence of it.
+    """
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    asked = []
+
+    def broken(method, url, headers, body):
+        asked.append(url)
+        raise payments.PaymentError("could not be reached (timed out).")
+
+    steps, _, _ = payments.live_check(sandbox=True, reg=approved,
+                                      transport=broken)
+    assert "application id" not in steps[-1].detail
+    assert "DOES accept" not in steps[-1].detail
+    assert len(asked) == 1, f"it went asking after a fault: {asked}"
+
+
+def test_the_other_account_being_unreachable_proves_nothing(monkeypatch,
+                                                            approved):
+    """The mixed case: this account refused, and the other one could not be
+    asked. Two silences are not an answer, and "refuses it too" would be a
+    finding invented out of a timeout."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+
+    def refused_then_dead(method, url, headers, body):
+        if "squareupsandbox" in url:
+            raise payments.PaymentError("refused: 401.", code=401)
+        raise payments.PaymentError("could not be reached (timed out).")
+
+    steps, _, _ = payments.live_check(sandbox=True, reg=approved,
+                                      transport=refused_then_dead)
+    said = steps[-1].detail
+    assert "refuses it too" not in said
+    assert "not a token for either" not in said
+    assert "DOES accept" not in said
 
 
 def test_only_an_authorization_refusal_gets_the_token_advice():

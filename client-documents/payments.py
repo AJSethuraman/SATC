@@ -57,7 +57,17 @@ PAID = "COMPLETED"
 
 
 class PaymentError(RuntimeError):
-    """Something that would put a wrong link, or a wrong figure, on a bill."""
+    """Something that would put a wrong link, or a wrong figure, on a bill.
+
+    IT CARRIES THE STATUS when the processor gave one. A caller that wants to
+    react to an AUTHORIZATION refusal specifically -- and only `live_check`
+    does -- would otherwise have to match on the wording of a message written
+    for a person to read, which breaks the moment the wording improves.
+    """
+
+    def __init__(self, message: str, code: int | None = None):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -320,13 +330,21 @@ def _refusal(code: int, detail: str, url: str) -> str:
     out += ". Nothing has been put on the invoice."
     if code in (401, 403):
         other = "Production" if where == "Sandbox" else "Sandbox"
+        # WHAT ONE REFUSAL CAN AND CANNOT TELL YOU. This said a token from the
+        # other tab was "the commonest cause", and then a real run refused the
+        # SAME token on BOTH hosts -- so the message confidently named the one
+        # place the problem was not, on each of the two runs, contradicting
+        # itself between them. A single 401 distinguishes none of these causes.
+        # The causes are listed; the choosing is done by `live_check`, which
+        # can actually ask. Tenet 1, in the code that quotes tenet 1.
         out += (
             f" Square did not accept the token. This run used the {where} "
-            f"account, and a {other} token is always refused there — that is "
-            f"the commonest cause. In Square's developer console, check the "
-            f"tab says {where}, then copy the ACCESS TOKEN: not the "
-            f"application id, not the application secret, and not the token "
-            f"from the {other} tab."
+            f"account. It may be the {other} token — there are two accounts, "
+            f"each with its own — or it may not be an access token at all: the "
+            f"application id and the application secret sit on the same "
+            f"console page, and a token can be revoked. One refusal cannot "
+            f"tell these apart. `payments --check` asks both accounts and says "
+            f"which it is."
         )
     return out
 
@@ -352,7 +370,8 @@ def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
                                (problem.get("errors") or []))
         except Exception:                                  # noqa: BLE001
             pass
-        raise PaymentError(_refusal(exc.code, detail, url)) from None
+        raise PaymentError(_refusal(exc.code, detail, url),
+                           code=exc.code) from None
     except urllib.error.URLError as exc:
         raise PaymentError(
             f"the payment processor could not be reached ({exc.reason}). The "
@@ -599,6 +618,46 @@ def check_number(today: date | None = None) -> str:
     return CHECK_PREFIX + (today or date.today()).isoformat()
 
 
+def _asks_the_other_account(reg: dict, sandbox: bool, transport) -> str:
+    """Put the same token to the OTHER account, and say what the answer proves.
+
+    THE REPORT THAT WAS WRONG BOTH WAYS. A run against Sandbox said the token
+    was probably a Production one; the same token against Production said it
+    was probably a Sandbox one. Both cannot be true, and between them they had
+    already ruled out the thing each was asserting -- the observation needed
+    was sitting one request away and nothing went and made it.
+
+    `/v2/locations` is a read: it moves no money and creates nothing, which is
+    why it is safe to make on a caller's behalf without asking. It is only
+    made when the first account has already refused, so an ordinary run makes
+    no extra call at all.
+    """
+    other = not sandbox
+    conf = (reg or {}).get("square") or {}
+    name = "Sandbox" if other else "Production"
+    ran = "Production" if other else "Sandbox"
+    try:
+        # The location id is irrelevant to listing locations, and the other
+        # account's is usually still a `[CONFIRM:`, so it is stubbed rather
+        # than waited on -- this is a diagnosis, not a run against that account.
+        elsewhere = processor(sandbox=other, transport=transport, reg={
+            **reg, "square": {**conf, _location_key(other): "unknown"}})
+        elsewhere.locations()
+    except PaymentError as exc:
+        if getattr(exc, "code", None) in (401, 403):
+            return (f" The {name} account refuses it too, so it is not a token "
+                    f"for either of them. It is most likely the application id "
+                    f"or the application secret rather than the ACCESS TOKEN — "
+                    f"all three sit on the same console page — or a token that "
+                    f"has been revoked.")
+        # Could not ask. Saying nothing is right: a guess dressed as a finding
+        # is what this whole function exists to stop.
+        return ""
+    return (f" The {name} account DOES accept this token, so it is a {name} "
+            f"token and this run used {ran}. Use the {ran} access token, or "
+            f"run the check against {name}.")
+
+
 def live_check(*, sandbox: bool = True, amount_cents: int = 100,
                reg: dict | None = None, transport: Callable | None = None,
                today: date | None = None) -> tuple[list[Step], Link | None,
@@ -643,9 +702,11 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
                 **conf, which: "unknown"}}, transport=transport)
             found = api.locations()
         except PaymentError as exc:
+            more = (_asks_the_other_account(reg, sandbox, transport)
+                    if getattr(exc, "code", None) in (401, 403) else "")
             steps.append(Step("the location id is written down", False,
                               f"`square.{which}` is not filled in, and asking "
-                              f"Square for it failed: {exc}"))
+                              f"Square for it failed: {exc}{more}"))
             return steps, None, None
         steps.append(Step("the location id is written down", False,
                           f"`square.{which}` in registry/payments.yaml is "
@@ -676,7 +737,9 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
     try:
         found = api.locations()
     except PaymentError as exc:
-        steps.append(Step("Square answers this token", False, str(exc)))
+        more = (_asks_the_other_account(reg, sandbox, transport)
+                if getattr(exc, "code", None) in (401, 403) else "")
+        steps.append(Step("Square answers this token", False, f"{exc}{more}"))
         return steps, None, None
     steps.append(Step("Square answers this token", True,
                       f"{len(found)} location(s) on the account"))
