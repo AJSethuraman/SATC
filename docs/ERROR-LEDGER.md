@@ -205,3 +205,43 @@ rather than as a sentence; it is caught and printed now.
 ran end to end — **29 scenarios, 190 documents, 0 refusals, 0 with something
 unexpected**, every document opened in a browser. The refusal scenario still
 refuses after the hard-no question moved to number four.
+
+### The firm reads a screen, 2 September 2026
+
+They sent a screenshot of the refusal screen and asked:
+
+> like in the attached it says something about the yaml. why would that be in
+> our software? what software says stuff like that to its user?
+
+| # | The error | What caught it |
+|---|---|---|
+| 44 | The refusal screen read *"This is work the firm does not take. **firm-settings.yaml** lists it under **`hard_no`** and the **interview schema** marks the options themselves."* — a filename and two code identifiers, on a screen a preparer sees mid-call with a client in the room | **The firm, looking at it** |
+| 45 | Five more of the same, found by sweeping once the first was known: the Prices page named `fee-schedule.yaml`; a single price was located by "fee-schedule.yaml line 214"; Payments explained itself as "the last time `cli.py payments` asked"; the wording editor said adding a field "is the registry's business"; and a question's help said "Set for you by `cli.py returning`" | A sweep of all 241 browser-facing strings, prompted by entry 44 |
+| 46 | Two interview help texts ended by citing `assumed.cleanup` and `assumed.foreign_company` in `registry/fee-schedule.yaml` — to a preparer, mid-sitting, who cannot open either | The same sweep |
+
+**Tally: 1 the firm · 2 a sweep the firm's question prompted · 0 tests.**
+
+This is `CLAUDE.md`'s own recorded failure — *"A requirement written for whoever
+builds the thing is not copy"* — one surface over. That rule was written about
+the **price page** and enforced on published copy by `website/pricing.spec.py`.
+Nobody thought to ask whether the firm's own screens had the same problem, and
+they did, in six places.
+
+**Why no check existed.** The repo's client-facing rules all guard documents a
+CLIENT reads. The preparer's screens were treated as internal, and "internal"
+was quietly read as "may talk like a developer". But the person on those screens
+is doing tax work with somebody sitting across the desk; a filename there is a
+thing they now have to know about and cannot act on.
+
+`plainspoken.py` is the check. It reads every string that reaches a browser
+screen — the page builders in `web.py`, the refusal text `intake.py` hands it,
+and every `help:` in the interview — and fails on a filename, a config key, a
+code identifier in backticks, or a terminal command. 241 strings examined, and
+the denominator is asserted so a rename cannot leave it silently reading none.
+
+**The CLI is deliberately exempt, and that is the interesting half.** `python
+cli.py render --engagement <REF>` is the most useful sentence a terminal can
+print, and a rule that banned it everywhere would have deleted the best thing
+about the command line. The distinction is not "internal versus external" — it
+is *what the reader is holding*. Someone at a terminal can act on a filename.
+Someone on a screen, with a client waiting, cannot.

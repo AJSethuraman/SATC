@@ -119,10 +119,21 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
         if not override_hard_no:
             return Outcome(
                 status="refused", blockers=blockers, flags=flags,
-                reason="This is work the firm does not take. firm-settings.yaml "
-                       "lists it under `hard_no` and the interview schema marks "
-                       "the options themselves. Override only if the list is "
-                       "wrong, not because this one feels like an exception.")
+                # WRITTEN FOR THE PERSON READING IT, NOT FOR WHOEVER BUILT
+                # IT. This used to say "firm-settings.yaml lists it under
+                # `hard_no` and the interview schema marks the options
+                # themselves" -- a filename and two code identifiers, on a
+                # screen a preparer sees mid-call with a client in the room.
+                # The firm, seeing it: "why would that be in our software?
+                # what software says stuff like that to its user?"
+                #
+                # A screen says what happened and what to do about it. Where
+                # the rule is written down is the software's business.
+                reason="This is work you have said the firm does not take on. "
+                       "Nothing was written — no engagement, no price, no "
+                       "documents. You can take it on anyway and it will be "
+                       "recorded that you did. Do that only if the rule itself "
+                       "is wrong, not to make one exception to it.")
         # An override is recorded on the outcome so it reaches whatever is
         # reading -- a flag that can be set silently is a flag that means
         # nothing.

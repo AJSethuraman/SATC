@@ -912,3 +912,56 @@ procedures, where a person would act on it. Prose near code is not inert.
 *(Related: **S31**, build the thing that compares — this is that, one layer up;
 **S32**, start where a person starts; **S2**, a check reports its denominator —
 22 command lines checked is what makes "none would fail" worth reading.)*
+
+---
+
+## S35 · Write for the person holding the screen, not the person who built it. The difference is what they can act on.
+
+The firm sent a screenshot of their own refusal screen:
+
+> This is work the firm does not take. **firm-settings.yaml** lists it under
+> **`hard_no`** and the **interview schema** marks the options themselves.
+
+and asked: *"why would that be in our software? what software says stuff like
+that to its user?"*
+
+Their preparer sees that mid-call, with a client across the desk. A filename
+there is a thing they now have to know about and cannot do anything with.
+
+**This repository already knew this rule and had scoped it too narrowly.**
+`CLAUDE.md` records it from the price page — *"A requirement written for whoever
+builds the thing is not copy"* — and `website/pricing.spec.py` enforces it on
+published copy. Both guard what a CLIENT reads. The preparer's own screens were
+treated as internal, and *internal* was quietly read as *may talk like a
+developer*. Sweeping once the firm asked found **six** of them.
+
+**The line is not internal versus external.** It is what the reader is holding:
+
+* **A terminal may name a file, a key, a command.** Its reader is already at a
+  prompt. `python cli.py render --engagement <REF>` is the most useful sentence
+  a CLI can print, and a rule that banned it everywhere would delete the best
+  thing about the command line.
+* **A screen may not.** Its reader is doing the work, not running the software.
+  Say what happened and what they can do about it; where the rule is written
+  down is the software's own business.
+
+**Four shapes to watch for**, each of which shipped here:
+
+1. **A filename** — "read from `fee-schedule.yaml`". They are on this screen
+   precisely so they never have to open it.
+2. **A config key or identifier** — "lists it under `hard_no`", "the registry's
+   business". Names something the reader cannot see and did not choose.
+3. **A command, on a page** — "the last time `cli.py payments` asked". If the
+   point is that the number may be stale, say *that*.
+4. **The builder's word for a thing** — "merge field". A blank that fills in
+   with the client's details is a blank.
+
+**The check is `plainspoken.py`**, and its test is the part worth copying: it
+feeds the checker the five sentences that actually shipped and fails if it would
+have let them through, then feeds it the five replacements and fails if it
+objects to any. A checker proved only against synthetic examples is a checker
+proved against nothing.
+
+*(Related: **S2**, it reports 241 strings examined so a rename cannot leave it
+reading none; **S31**, the thing that compares a claim to behaviour — here the
+claim is "our software speaks plainly" and nothing had ever asked.)*

@@ -710,14 +710,12 @@ sections:
       - id: count_foreign_accounts
         question: "How many foreign accounts?"
         help: >
-          Priced per account, at the same $50, because that is how the firm
-          already bills this work: "i have been doing this stuff with a client
-          for awhile and just charge per account".
+          One line per account, at $50 each.
 
-          A foreign COMPANY is not this question. A Form 5471 or 8865 is a
-          different job and stays hourly -- see `assumed.foreign_company` in
-          registry/fee-schedule.yaml. If one of these accounts turns out to be
-          an interest in a foreign entity, this is the wrong line for it.
+          A foreign COMPANY is not this question. An interest in one is a
+          different job, billed by the hour, and none of these lines cover it.
+          If an account turns out to be a stake in a business rather than
+          somewhere money sits, it does not belong on this count.
         type: number
         showIf: "'foreign_accounts' in extra_forms"
         supplies: []
@@ -732,13 +730,14 @@ sections:
       - id: count_sorting
         question: "Does what they sent need sorting before it can be worked?"
         help: >
-          UNSORTED BUT COMPLETE — a shoebox. Everything is there, in no order.
-          Answer 1 for yes, leave blank for no.
+          A shoebox: everything is there, just in no order, and somebody has
+          to put it in order before the return can be started. Answer 1 for
+          yes; leave it blank for no.
 
-          This is NOT the same as records that do not tie or are missing
-          something. That is discovered at file review, not at the
-          consultation, and it is billed hourly against the estimate's own
-          assumption. See `assumed.cleanup` in registry/fee-schedule.yaml.
+          Records that DO NOT TIE, or that are missing something, are a
+          different problem — you find that at file review rather than sitting
+          here, and it is billed by the hour. This question is only about
+          sorting what has already arrived.
         type: number
         internal: true
         internal_reason: >-
@@ -903,9 +902,13 @@ sections:
     questions:
       - id: returning_client
         question: "Is this a returning client?"
+        # NOT "Set for you by `cli.py returning`". A preparer reading this
+        # mid-sitting does not know or care which command filled it in, and
+        # naming one is the software talking about itself.
         help: >-
-          Set for you by `cli.py returning`. Answering yes here by hand is
-          fine; it only decides whether the change questions are asked.
+          Already answered when you started this from last year's return.
+          Answering it by hand is fine; it only decides whether you are asked
+          what changed.
         type: single
         required: true
         options:

@@ -1066,9 +1066,12 @@ def prices_body(prices) -> str:
     that difference should be visible before the click, not after.
     """
     out = ["<h1>Prices</h1>",
-           "<p class=muted>Every figure the engine charges, read from "
-           "<code>fee-schedule.yaml</code>. Changing one here changes the "
-           "estimate, the letters and the website together.</p>"]
+           # "read from fee-schedule.yaml" told a preparer the name of a
+           # file they are on this screen precisely so they never have to
+           # open. What matters is the consequence, which the second
+           # sentence already says.
+           "<p class=muted>Every figure the firm charges. Changing one here "
+           "changes the estimate, the letters and the website together.</p>"]
     where = None
     for pr in prices:
         if pr.where != where:
@@ -1087,9 +1090,12 @@ def prices_body(prices) -> str:
 
 def price_body(price, *, report=None, saved=False, error="") -> str:
     """One price, with what changing it would do said out loud."""
+    # The path is kept -- it is how a person finds this figure again among a
+    # hundred -- but it is labelled as what it is rather than as a filename
+    # and a line number, which is a developer's way of pointing at a thing.
     out = [f"<h1>{esc(price.label)}</h1>",
-           f"<p class=muted><code>{esc(price.path)}</code> &middot; "
-           f"fee-schedule.yaml line {price.line}</p>"]
+           f"<p class=muted>In the fee schedule at "
+           f"<code>{esc(price.path)}</code></p>"]
     if price.published:
         out.append("<p class=claim><b>This figure is on satcllp.com.</b> "
                    "Changing it changes what a stranger reads.</p>")
@@ -1247,11 +1253,16 @@ def templates_body(rows) -> str:
 
 def template_body(name, secs, saved="", error="", open_id="") -> str:
     out = [f"<h1>{esc(name.replace('SATC ', '').replace('.html', ''))}</h1>",
+           # "the registry's business" told a preparer that something they
+           # cannot see has jurisdiction over what they are editing. Say what
+           # the thing IS instead: a blank the client's own details drop into.
            "<p class=help>Click a section to open it. "
-           "<code>**bold**</code> makes a phrase bold; "
-           "<code>&lt;&lt;FieldName&gt;&gt;</code> is a merge field and has to "
-           "stay where it is &mdash; adding or dropping one is the registry's "
-           "business, not a wording change.</p>"]
+           "<code>**bold**</code> makes a phrase bold. "
+           "<code>&lt;&lt;LikeThis&gt;&gt;</code> is a blank that fills in "
+           "with the client's own details when the letter is written &mdash; "
+           "you can move the words around it, but leave it in place. Adding a "
+           "new one is a change to what the letter asks for, not to how it "
+           "reads.</p>"]
     if error:
         out.append(f"<p class=err>{esc(error)}</p>"
                    "<p class=muted>Nothing was saved. A section saves whole or "
@@ -1313,8 +1324,9 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
             f"<input type=text id=new-title name=title required></div>"
             f"<div class=f><label class=fl for=new-text>What it says</label>"
             f"<textarea id=new-text name=text rows=3 placeholder='"
-            f"**bold** works; a merge field does not — that is the registry&#39;s "
-            f"business.' required></textarea></div>"
+            f"**bold** works here. A &lt;&lt;Blank&gt;&gt; does not — a new "
+            f"section cannot ask the client for something new.' "
+            f"required></textarea></div>"
             f"<div class=f><label class=fl for=new-after>Where it goes</label>"
             f"<select id=new-after name=after>{opts}"
             f"<option value=''>at the end</option></select></div>"
@@ -1891,10 +1903,16 @@ def payments_body(rows) -> str:
         out.append("<p class=help>No invoice has been raised yet.</p>")
         return "".join(out)
     owing = [r for r in rows if not r["settled"]]
+    # THE POINT SURVIVES, THE COMMAND NAME DOES NOT. What a person needs to
+    # know is that this page shows the last answer rather than a live one --
+    # so a payment made an hour ago may not be here yet. Which command last
+    # asked is the software's own business.
     out.append(f"<p class=help>{len(owing)} of {len(rows)} bill(s) "
-               f"outstanding. This is what was written down the last time "
-               f"<code>cli.py payments</code> asked the processor &mdash; this "
-               f"screen does not ask, so it never hangs waiting on them.</p>")
+               f"outstanding, as of the last time the card processor was "
+               f"asked. This page shows what was written down then rather "
+               f"than asking now, so it never hangs waiting on them &mdash; "
+               f"a payment made in the last few minutes may not be here "
+               f"yet.</p>")
     out.append("<table><tr><th>Invoice</th><th>Amount</th><th>Raised</th>"
                "<th>Status</th></tr>")
     for r in rows:
