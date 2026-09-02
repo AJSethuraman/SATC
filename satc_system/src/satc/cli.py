@@ -49,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
                                 "asked for it (default: the usual one)")
 
     sub.add_parser("corpus", help="score the classifier against the real IRS blanks")
+    p_pay = sub.add_parser("paystub-corpus",
+                           help="score the paystub reader against the synthetic stubs")
+    p_pay.add_argument("--reader", choices=["columns", "lines"], default="columns",
+                       help="columns = reads the printed headings; "
+                            "lines = the older reader that counts figures on a line")
+    p_pay.add_argument("--out", default="", help="where to write the rendered stubs")
 
     p_chase = sub.add_parser(
         "chase", help="who owes us a document, longest wait first")
@@ -183,6 +189,28 @@ def main(argv: list[str] | None = None) -> int:
         # Unclassified is not a failure here: it leaves the request open and asks
         # a human. A wrong answer files the document under another form and
         # closes that form's request, which is the failure that costs money.
+        return 1 if s.wrong else 0
+
+    if args.cmd == "paystub-corpus":
+        # `Path` is imported at the top of this module. Importing it again HERE
+        # made it a local of `main()` for the whole function, so `cmd_reset`'s
+        # `Path(args.dir)` three hundred lines down raised UnboundLocalError on
+        # every OTHER command. Three tests caught it; nothing in this file's own
+        # branch would have.
+        import tempfile
+
+        from satc.ingest.paystub_corpus import score
+
+        out = Path(args.out) if args.out else Path(tempfile.mkdtemp(prefix="satc-paystubs-"))
+        s = score(out, reader=args.reader)
+        print("SATC paystub reader — scored against the synthetic stubs\n")
+        print(s.report())
+        print(f"\n  Stubs written to {out}")
+        print("  These are invented layouts, not anybody's paystub. What they")
+        print("  measure is whether a figure can be read out of the wrong column;")
+        print("  they cannot tell you how the reader does on a stub a client sent.")
+        # Non-zero on a WRONG figure only. A refusal is the reader stopping and
+        # saying so, which is the design working; a wrong figure becomes a return.
         return 1 if s.wrong else 0
 
     if args.cmd == "chase":
