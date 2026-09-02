@@ -32,10 +32,10 @@ becomes the next working day.
 
 This is where a short return turns into a long one.
 
-- **What you paid for older investments.** Brokers began tracking cost for
-  stock bought from 2011, for mutual funds and reinvested dividends from 2012,
-  and for bonds and options from 2014. Anything bought before that arrives with
-  the box empty, and the number has to be found somewhere else.
+- **What you paid for older investments.** Brokers only report what you paid on
+  securities bought after a cut-off date. That date is different for shares, for
+  funds, and for bonds and options. Anything bought before yours arrives with
+  the cost box empty, and the number has to come from somewhere else.
 
 - **What you paid for crypto.** Statements for 2025 sales show what you sold
   for and not what you paid. Exchanges start reporting the purchase price for

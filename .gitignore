@@ -1,0 +1,4 @@
+
+# Cached source pages fetched by docs/guides/verify_sources.py. Regenerable,
+# large, and a snapshot of somebody else's site rather than our work.
+docs/guides/.source-cache/
