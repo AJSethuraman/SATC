@@ -352,6 +352,7 @@ def _engine():
 
 
 @pytest.mark.skipif(_engine() is None, reason="no PDF engine installed")
+@pytest.mark.renders
 def test_the_opening_package_reaches_pdf(tmp_path):
     rc = cli.main(["render", str(SAMPLES / "tax-opening-package.json"),
                    "--out", str(tmp_path)])

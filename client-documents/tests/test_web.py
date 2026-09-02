@@ -654,6 +654,7 @@ def _gate_that_blocks(monkeypatch, detail="a sentence the firm deleted is back")
     monkeypatch.setattr(presend, "gate", fake)
 
 
+@pytest.mark.renders
 def test_the_browser_can_build_the_pack_the_terminal_builds(client, answers):
     ref = _an_engagement(client, answers)
     got = client.post(f"/engagement/{ref}/package", json={}, headers=JSON)
@@ -672,6 +673,7 @@ def test_the_browser_can_build_the_pack_the_terminal_builds(client, answers):
     assert body["written"], "a pack with no files in it reported success"
 
 
+@pytest.mark.renders
 def test_the_browser_cannot_skip_the_gate(client, answers, monkeypatch):
     """The one claim the whole arrangement rests on, at the one step that
     blocks."""
@@ -688,6 +690,7 @@ def test_the_browser_cannot_skip_the_gate(client, answers, monkeypatch):
     )
 
 
+@pytest.mark.renders
 def test_an_override_through_the_browser_is_recorded(client, answers,
                                                      monkeypatch):
     """The firm chose blocking-with-a-logged-override. A gate a browser cannot
@@ -724,6 +727,7 @@ def test_the_browser_will_not_write_into_somebody_elses_folder(client, answers):
     assert (theirs / "their-notes.txt").read_text(encoding="utf-8") == "mine"
 
 
+@pytest.mark.renders
 def test_the_failed_checks_come_before_the_green_ones_on_the_page(
         client, answers, monkeypatch):
     """The terminal prints the check list and then the refusal under it. On a

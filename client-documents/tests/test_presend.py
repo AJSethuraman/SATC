@@ -194,6 +194,7 @@ def test_the_manifest_the_client_gets_is_the_one_the_gate_read(packed, tmp_path)
             f"the manifest names {name!r} and the pack does not carry it")
 
 
+@pytest.mark.renders
 def test_a_pack_missing_an_asset_is_refused_and_nothing_is_written(
         packed, tmp_path, monkeypatch):
     """THE ORIGINAL BUG, reproduced: the templates are there, the assets are
@@ -212,6 +213,7 @@ def test_a_pack_missing_an_asset_is_refused_and_nothing_is_written(
         "opens the folder")
 
 
+@pytest.mark.renders
 def test_force_without_a_reason_is_refused(packed, tmp_path, monkeypatch):
     crippled = tmp_path / "templates"
     shutil.copytree(cli.TEMPLATE_DIR, crippled)
@@ -223,6 +225,7 @@ def test_force_without_a_reason_is_refused(packed, tmp_path, monkeypatch):
     assert not out.exists() or not any(out.iterdir())
 
 
+@pytest.mark.renders
 def test_force_with_a_reason_writes_the_pack_and_logs_what_failed(
         packed, tmp_path, monkeypatch):
     """The override is what makes this a gate rather than a wall. What makes
