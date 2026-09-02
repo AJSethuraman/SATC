@@ -58,8 +58,10 @@ A credit card used only for the business does the same job.
 ## 05 · People you paid
 
 - Ask for a W-9 before the first payment, not in January.
-- $600 or more to someone who is not an employee usually means a 1099-NEC. It
-  is due both to them and to the IRS by January 31.
+- $2,000 or more to someone who is not an employee usually means a 1099-NEC. It
+  is due both to them and to the IRS by January 31. That threshold was $600
+  until recently and it rises with inflation from 2027, so ask rather than
+  assume it.
 - Schedule C asks on the form itself whether you made payments that required a
   1099. It is a question the return has to answer either way.
 

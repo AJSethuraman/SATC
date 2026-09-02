@@ -108,9 +108,8 @@ Against it:
   leaves little to save on and a payroll to run regardless.
 - **You want one return.** One owner, no payroll, no March deadline. That is a
   real answer and it is often the right one.
-- **You want outside money in it.** A fund, another company, or someone who is
-  not a US citizen or resident cannot hold the stock. One class of stock leaves
-  no room for investor terms.
+- **You want outside money in it.** A fund or another company cannot hold the
+  stock, and one class of stock leaves no room for investor terms.
 - **It holds rentals.** Rental profit carries no self-employment tax to start
   with, so there is nothing there to save. Taking a property back out of a
   corporation later is taxed as though it had been sold.

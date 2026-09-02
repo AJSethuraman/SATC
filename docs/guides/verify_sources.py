@@ -211,8 +211,24 @@ def probes(claim: str, note: str) -> tuple[list[str], list[str]]:
     # The quote character stays in the sentence -- match it in the LOOKBEHIND
     # rather than consuming it. Consuming it stripped the closing quote off
     # `...for the year."` and then no quoted phrase could be found at all.
-    positive = " ".join(s for s in re.split(r"""(?<=[.!?]["'\)\]])\s+|(?<=[.!?])\s+""", note)
-                        if not NEGATIVE.search(s))
+    # Split the note into sentences, but NEVER inside a quotation -- a quote
+    # that runs to two sentences ("...does not pay income tax. Instead, it
+    # passes through...") was being cut in half, which orphaned its quotation
+    # marks and lost the whole probe. Mask the quoted spans, split, restore.
+    BAR = "\x00"
+    # Only a period FOLLOWED BY SPACE, i.e. an internal sentence break. A
+    # period sitting right before the closing quote is the quote's own ending
+    # and the note's; masking that one re-merged the sentence with whatever
+    # followed it.
+    masked = re.sub(r'"[^"]*"',
+                    lambda m: re.sub(r"\.(?=\s)", BAR, m.group(0)), note)
+    # Sentence enders, including one followed by a closing quote or by markdown
+    # bold. `...on that page at all.** What the page says is "..."` is two
+    # sentences; treating it as one let the negative half suppress the quote in
+    # the positive half, so a corrected row still counted as untested.
+    positive = " ".join(
+        s for s in re.split(r"""(?<=[.!?]\*\*)\s+|(?<=[.!?]["'\)\]])\s+|(?<=[.!?])\s+""", masked)
+        if not NEGATIVE.search(s)).replace(BAR, ".")
     # Up to 320 characters. The cap was 160, which silently dropped the quotes
     # that carry the most -- a statutory sentence runs long ("In order to form
     # a limited liability company, one or more persons shall execute articles
