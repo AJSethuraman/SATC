@@ -1,0 +1,22 @@
+# Line endings, declared rather than left to each machine's git config.
+#
+# `core.autocrlf=true` is the Windows default and rewrites LF to CRLF on
+# checkout. Harmless for a file nobody reads back; NOT harmless for one this
+# software writes to and asserts about. On 3 September 2026, the first time
+# this branch was checked out on Windows, `test_the_lf_file_stays_lf` failed
+# before a line of code ran -- git had already converted `rate_plans.yaml` on
+# the way to disk.
+#
+# The test was right and the repository was silent. This is the repository
+# saying what it needs.
+* text=auto
+
+# Config this app edits and writes back. The editor preserves LF; checkout
+# must not undo that.
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.sh   text eol=lf
+
+# Windows entry points, which keep CRLF to be safe in every shell.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
