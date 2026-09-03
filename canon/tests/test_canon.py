@@ -33,12 +33,26 @@ def test_the_plugin_manifest_is_valid_and_names_canon():
     assert got["description"].strip()
 
 
-def test_bassy_is_a_skill_the_harness_can_load():
-    text = (CANON / "skills" / "bassy" / "SKILL.md").read_text(encoding="utf-8")
-    assert text.startswith("---\n"), "no frontmatter, so nothing will load it"
-    front = text.split("---", 2)[1]
-    assert "name: bassy" in front
-    assert "description:" in front
+def test_every_skill_is_one_the_harness_can_load():
+    """Written over the whole directory rather than over `bassy` alone. It was
+    `bassy` alone, and three skills were added afterwards -- any one of which
+    could have shipped with no frontmatter and loaded nowhere, silently, with
+    a green test beside it. A guard aimed at one instance of a thing is a guard
+    that stops covering it the moment there are two.
+    """
+    skills = sorted(p for p in (CANON / "skills").iterdir() if p.is_dir())
+    assert {p.name for p in skills} == {"bassy", "canon-adopt", "canon-mine",
+                                        "how-we-work"}
+    for skill in skills:
+        path = skill / "SKILL.md"
+        assert path.is_file(), f"{skill.name} has no SKILL.md"
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), \
+            f"{skill.name} has no frontmatter, so nothing will load it"
+        front = text.split("---", 2)[1]
+        assert f"name: {skill.name}" in front, \
+            f"{skill.name}'s frontmatter name does not match its directory"
+        assert "description:" in front, f"{skill.name} has no description"
 
 
 def test_every_tenet_carries_evidence():

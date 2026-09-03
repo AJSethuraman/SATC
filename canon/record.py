@@ -297,6 +297,12 @@ so every citation already written across that repository still resolves.
 **Evidence count is reported, not implied.** A tenet carrying one incident is a
 local observation. One carrying three, from three projects, is a law. The
 difference should be visible without reading.
+
+**Ratified by the firm, 3 September 2026**, after reading them: *"i was reviewing
+the tenets - i am agreed with them."* That date matters. Before it these were
+thirty-five observations an agent had written down about its own mistakes; after
+it they are the firm's rules, and a build that breaks one is answerable to them
+rather than to a document.
 """
 
 

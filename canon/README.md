@@ -58,25 +58,32 @@ make.
 
 ## State
 
-**Slices 1–9 of thirteen — v1 is complete.** The record parses and round-trips,
-nothing enters it without an explicit yes, nothing is ever deleted, the
-challenge fires and the silence holds, evidence accumulates, all 35 tenets have
-moved in, and the corpus can be mined.
+**All thirteen slices are built.** The record parses and round-trips, nothing
+enters it without an explicit yes, nothing is ever deleted, the challenge fires
+and the silence holds, evidence accumulates, all 35 tenets have moved in and
+were **ratified by the firm on 3 September 2026**, the corpus can be mined, and
+a repository that predates canon can be adopted.
 
 | | |
 |---|---|
 | `record.py` | convictions and tenets, parsed from and rendered to Markdown |
 | `challenge.py` | what the record has to say about a decision in flight |
 | `mine.py` | reads the corpus, proposes, **never writes** |
+| `adopt.py` | reads a repo it has never seen; proposes; writes nothing |
 | `check_record.py` | nothing sensitive lives here — with its denominator |
+| `LOG.md` | the running log: roadmap, deferred work, known gaps |
+| `projects/REGISTER.md` | one thin identity card per adopted project |
 | `skills/bassy/` | the challenge role |
-| `skills/canon-mine/` | how to run a mine and propose one conviction at a time |
+| `skills/how-we-work/` | the thirteen standing behaviours |
+| `skills/canon-mine/` | mining the corpus, one proposal at a time |
+| `skills/canon-adopt/` | adopting a repository, and writing its card |
 
-`python -m pytest -q tests` — 67 tests. Every guard has been mutation-checked:
-break it on purpose, and a test must go red. Two survivors so far, both fixed,
-both recorded in the comment at the site.
+`python -m pytest -q tests` — 102 tests. Every guard has been mutation-checked:
+break it on purpose, and a test must go red. **37 mutants planted, 37 killed**,
+after two survivors that were both the test's fault rather than the code's — the
+fix and the reason are in the comment at each site.
 
-`docs/prd-canon.md` is the spec. `docs/ISSUES.md` is the remaining work in
-dependency order — 10, 12 and 13 are M2. `corpus/` holds the firm's own words,
-from which the convictions are mined: proposed for confirmation, never written
-directly.
+`docs/prd-canon.md` is the spec, `docs/ISSUES.md` the slices in dependency
+order, and `LOG.md` what is deferred and what is still unknown. `corpus/` holds
+the firm's own words, from which the convictions are mined: proposed for
+confirmation, never written directly.
