@@ -81,9 +81,13 @@ SAME = re.compile(r"(?:^|\.\s|\*\*\s*)Same\b(?:\s+(?:page|document|two pages|"
 # Rows the sources files mark as the firm's own practice or as a deliberate
 # non-claim. These are not assertions about a cited page and are reported in
 # their own bucket rather than as unverified facts.
-PRACTICE = re.compile(r"\b(?:Practice(?:[.,]|$| for | on |, resting)|"
-                      r"\*\*Practice|Deliberate non-claim|"
-                      r"is the firm's own|are the inputs the return needs)",
+# The LABEL, not the word. "This row was previously filed under practice,
+# which was the wrong bucket" is prose ABOUT the bucket and kept a statutory
+# rule filed as a judgement call. So "Practice" only counts where a label
+# sits: opening the note, opening a sentence, or in bold.
+PRACTICE = re.compile(r"(?:^|(?<=[.!?])\s|\*\*)\s*Practice\b(?!\s+unit)"
+                      r"|Deliberate non-claim"
+                      r"|are the inputs the return needs",
                       re.I)
 
 # A sources note does two jobs: it quotes what the page says, and it records

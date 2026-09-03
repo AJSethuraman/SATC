@@ -105,7 +105,9 @@ Against it:
 ## 07 · When it is the wrong answer
 
 - **The profit is small.** A reasonable wage can absorb most of it, which
-  leaves little to save on and a payroll to run regardless.
+  leaves little to save on and a payroll to run regardless. The wage is not a
+  number on paper either. It has to be paid, and the tax on it comes due in
+  cash whether the business has the cash or not.
 - **You want one return.** One owner, no payroll, no March deadline. That is a
   real answer and it is often the right one.
 - **You want outside money in it.** A fund or another company cannot hold the

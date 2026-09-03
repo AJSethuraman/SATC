@@ -23,8 +23,9 @@ A credit card used only for the business does the same job.
   statement.
 - The same holds at year end for every account: checking, savings, credit
   cards, loans.
-- A number in the books with no statement behind it is a guess, and it has to
-  be chased down before it can go on a return.
+- A number in the books with no statement behind it is a guess. Finding the
+  record behind it is part of keeping the books, and it has to happen before
+  the return can use that number.
 
 ---
 
@@ -39,6 +40,10 @@ A credit card used only for the business does the same job.
 - A count of what is on the shelves at year end, if you carry stock.
 - What the owners put in or took out, and any loan taken or repaid.
 
+That is the usual set, not the whole of it. Your business may need more, and
+if you are not sure whether something belongs, ask us before the year closes
+rather than after.
+
 ---
 
 ## 04 · Miles, home office, meals
@@ -49,7 +54,9 @@ A credit card used only for the business does the same job.
   the first year the car is used for the business. A leased car stays on that
   method for the whole lease, renewals included.
 - **Home office.** The square footage of the room and of the house, plus the
-  year's utility, insurance and repair bills.
+  year's bills for the house &mdash; utilities and insurance to start with. What
+  counts here shifts, so send more than you think we need and ask us if you are
+  unsure.
 - **Meals.** A receipt does not carry who was there or why. Write it on the
   receipt at the time.
 
