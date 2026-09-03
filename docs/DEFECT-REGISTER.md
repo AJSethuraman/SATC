@@ -30,9 +30,7 @@ reason on every item:
 | # | Defect | Costs | State |
 |---|---|---|---|
 | **F14** | `POST /interview/<sid>` still carries no question id, so a resubmit is applied to whatever question is current when it lands. No longer able to store a wrong *value* (F2 refuses it), but on a free-text question — a name, a note — there are no options to check against, so it can still overwrite the wrong field | wrong document | open, split from F1 |
-| **F4** | The letter's scope comes from the `states` list, the fee from a separate `count_states`. Neither derives from the other. Proven: one state in the letter, $100 of extra state returns on the estimate. Reconciled only at close-out, a season later | wrong price | awaiting decision **B** (client-facing question changes) |
 | **F6** | `type: integer` (`count_brokerages`, `count_extension_estimates`) is a type no code in the repo handles. Prices correctly only by luck; renders a text box for a count; blinds the dead-condition sweep, which probes only `type: number` | latent | queued |
-| **F7** | `intake.finish` does not derive `federal_schedules`; every caller must remember to. Answers arriving the back way pass the required gate and are priced without them — proven: the Essentials package billed where Standard was due, and a rental line the letter omits. `exercise.py:332` works around it by hand | wrong price | queued |
 | **F8** | `extra_forms` has no `showIf`, so a 1120 is asked whether it sold a home. The dead-condition sweep cannot catch it — an unconditional question is filed under `always` and never examined | annoyance | queued |
 | **F9** | `test_coverage.py:86-99` asserts a `1120` produces `business-letter`; `cli.py:126-131` sends a C corp to `ccorp-letter`. Passes only because the test hand-writes two answers a real 1120 sitting prunes. **The live path is fine** — I drove a real 1120 end to end | test integrity | queued |
 | **F10** | A draft is deleted only when an engagement is created. A decline or an abandoned call leaves name, address and email in cleartext JSON indefinitely — in a folder that now syncs to OneDrive. TINs are already refused on every write; names are not | PII retention | awaiting decision **C** (retention period) |
@@ -91,6 +89,23 @@ that remembered and for nobody else. `answer()` calls it itself now — `coerce`
 is idempotent, so the doors may keep calling it. Same shape as F7, and the same
 reason `intake.py`'s header gives: *"a control that lives in one front door is a
 control the other silently skips."*
+
+### 3 September 2026 — one answer, and one place that derives from it
+
+| # | Defect | Closed by |
+|---|---|---|
+| **F4** | The letter's scope came from the `states` list, the fee from a separate `count_states`. Proven: one state named in the letter, $100 of extra state returns on the estimate beside it, reconciled only at close-out a season later | The counts are `derived: true` now — same mechanism `federal_schedules` already used — and `interview.counted()` reads them off the lists. A lone `"None"` counts as zero, because `localities`' help tells the preparer to type exactly that |
+| **F7** | `intake.finish` did not derive `federal_schedules`; `Interview.answer` did it per keystroke and `missing_required` on a throwaway copy, so answers arriving any other way were priced without them | `iv.derive()` at the top of `intake.finish`. The workaround in `exercise.py:332` is deleted — it was the tell that this was known |
+
+**Both fixes are the same seam.** F4 adds a second derived value, and it had to
+land wherever the first one did — building that hole twice would have been
+silly, so `derive()` is now the one place: `schedules.apply` plus the counts,
+called by `Interview.answer`, by `missing_required`, and by `intake.finish`.
+
+Note the direction, because `schedules.py` warns against the opposite:
+deriving a *schedule* from a *count* is wrong, since a count can be blank while
+the thing exists. Deriving a count from a *list* is safe — the list is the
+enumeration, so its length is exact and cannot be blank-but-true.
 
 ### The year window, and why it is not three
 

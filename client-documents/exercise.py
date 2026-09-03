@@ -329,7 +329,10 @@ def _unwritten(record: dict) -> list[str]:
 
 def run_one(s: Scenario, store: Path, out: Path) -> Result:
     r = Result(key=s.key, what=s.what, note=s.note, expect=s.expect)
-    answers = sched.apply(dict(s.answers))
+    # `intake.finish` derives for itself now, so this no longer has to
+    # remember -- but it still hands over a COPY, because the harness
+    # reuses `s.answers` across scenarios and deriving mutates in place.
+    answers = dict(s.answers)
     try:
         outcome = intake.finish(answers, store=store)
     except Exception as exc:                              # noqa: BLE001

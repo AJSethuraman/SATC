@@ -970,3 +970,110 @@ def test_a_count_with_no_declared_minimum_still_takes_zero():
     if countless is None:
         pytest.skip("every number question declares a minimum")
     assert iv.coerce(countless, "0") == 0
+
+
+# ── the counts are derived, not asked ──────────────────────────────────────
+#
+# F4 and F7, raised 3 September 2026.
+
+
+def test_the_count_questions_are_not_asked_at_all():
+    """F4. Two questions about one fact could disagree, and did.
+
+    The letter's scope was written from `states`; the fee was billed from a
+    separate `count_states`. Proven before the fix: one state named in the
+    letter, $100 of extra state returns on the estimate beside it, reconciled
+    only at close-out a season later.
+    """
+    schema = iv.load_schema()
+    by_id = {q["id"]: q for _, q in iv.all_questions(schema)}
+    # They remain in the schema -- the question still describes the field and
+    # what it feeds, which is how `billable_counts` finds it. `derived: true`
+    # is what stops anyone being shown it, same as `federal_schedules`.
+    for qid in ("count_states", "count_localities"):
+        assert by_id[qid].get("derived") is True, f"{qid} must be derived"
+        assert by_id[qid].get("feeds") == "LineItems", "still feeds the fee"
+    assert "states" in by_id and "localities" in by_id, "the lists remain"
+
+    # And a real sitting never reaches either of them.
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("return_basis", "original")
+    asked = []
+    for _ in range(80):
+        nxt = session.next_question()
+        if nxt is None:
+            break
+        _, q = nxt
+        asked.append(q["id"])
+        session.answer(q["id"], _plausible_answer(q))
+    assert "count_states" not in asked
+    assert "count_localities" not in asked
+
+
+def _plausible_answer(q):
+    """Any answer this question takes that does not end the sitting."""
+    options = [o for o in (q.get("options") or []) if not o.get("hard_no")]
+    if options:
+        return [options[0]["value"]] if q["type"] == "multi" else options[0]["value"]
+    if q.get("options"):
+        return [] if q["type"] == "multi" else ""
+    if q["type"] == "year":
+        return date.today().year
+    if q["type"] == "number":
+        return max(1, q.get("min") or 1)
+    if q["type"] == "list":
+        return ["Ohio - resident"]
+    return "x"
+
+
+def test_the_count_follows_the_list_it_comes_from():
+    answers = {"states": ["Ohio - resident", "Michigan - non-resident"],
+               "localities": ["Solon RITA"]}
+    iv.derive(answers)
+    assert answers["count_states"] == 2
+    assert answers["count_localities"] == 1
+
+
+def test_a_lone_none_is_no_localities_and_not_one():
+    """`localities`' help says "Emit 'None' when there are none -- never blank".
+
+    A preparer who follows that instruction types the word, and naive length
+    would bill it as one local return. Both spellings of "no localities" have
+    to reach the same number.
+    """
+    for spelling in ([], ["None"], ["none"], [" None "], [""]):
+        answers = {"localities": spelling}
+        iv.derive(answers)
+        assert answers["count_localities"] == 0, f"{spelling!r}"
+
+
+def test_changing_the_list_moves_the_count_with_it():
+    """The point of deriving: they cannot drift apart on a correction."""
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("return_basis", "original")
+    session.answer("states", ["Ohio - resident"])
+    assert session.answers["count_states"] == 1
+    session.answer("states", ["Ohio - resident", "Michigan - non-resident",
+                              "Pennsylvania - non-resident"])
+    assert session.answers["count_states"] == 3
+
+
+def test_answers_arriving_the_back_way_are_still_derived():
+    """F7. `Interview.answer` derived on every keystroke and `missing_required`
+    on a throwaway copy, so answers reaching `intake.finish` any other way were
+    composed and priced WITHOUT their schedules.
+
+    Proven before the fix: rentals and investments ticked, no
+    `federal_schedules`, and the estimate billed the Essentials package where
+    Standard was due while adding a rental line the letter never mentioned.
+    """
+    answers = {"federal_form": "1040", "return_basis": "original",
+               "tax_year": date.today().year,
+               "return_features": ["rentals", "investments"],
+               "states": ["Ohio - resident"], "localities": []}
+    assert "federal_schedules" not in answers
+    iv.derive(answers)
+    assert "E1" in answers["federal_schedules"], "the rental schedule"
+    assert answers["count_states"] == 1

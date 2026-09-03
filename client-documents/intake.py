@@ -162,6 +162,21 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
     #
     # Checked HERE rather than at the top so a refusal and a decline still work
     # on a partial interview: only CREATING an engagement needs a complete one.
+    # DERIVE BEFORE ANYTHING READS THE ANSWERS. `Interview.answer` derives on
+    # every keystroke and `missing_required` derives on a throwaway copy, so a
+    # set of answers arriving here any other way -- a replay, a script, the
+    # re-quote path -- passed the required gate using derived schedules and was
+    # then composed and priced WITHOUT them. Proven: rentals and investments
+    # ticked with no `federal_schedules` billed the Essentials package where
+    # Standard was due, and added a rental line the letter did not mention.
+    #
+    # `exercise.py` worked around this by calling `sched.apply` by hand right
+    # before `finish`, which is the tell that it was known. This is the fix:
+    # the control lives in the door, not in whoever remembers to knock.
+    # `intake.py`'s own header says so -- "a control that lives in one front
+    # door is a control the other silently skips."
+    iv.derive(answers)
+
     unanswered = iv.missing_required(answers)
     if unanswered:
         return Outcome(

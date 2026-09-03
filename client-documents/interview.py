@@ -260,6 +260,57 @@ def _collapse(question: dict, value):
     return value
 
 
+# ── what the answers imply ─────────────────────────────────────────────────
+
+# Lists whose LENGTH is the count that used to be asked for separately, and the
+# count question each one replaces.
+COUNTED_LISTS = {"states": "count_states", "localities": "count_localities"}
+
+
+def counted(items) -> int:
+    """How many things a list answer actually names.
+
+    A LONE "None" IS ZERO. `localities`' help says "Emit 'None' when there are
+    none -- never blank", so a preparer following it types the word, and naive
+    length would bill that as one local return. `_listed` already turns an
+    empty list into the literal "None" on the document, so both spellings of
+    "no localities" have to mean the same number here.
+    """
+    if isinstance(items, str):
+        items = [items]
+    named = [str(i).strip() for i in (items or []) if str(i).strip()]
+    if len(named) == 1 and named[0].casefold() == "none":
+        return 0
+    return len(named)
+
+
+def derive(answers: dict, schema: dict | None = None) -> dict:
+    """Everything the answers imply, worked out in ONE place.
+
+    Two derivations, and they used to live in different numbers of places:
+
+    * `federal_schedules`, from the facts the client gave -- `schedules.apply`.
+    * `count_states` and `count_localities`, from the lists that name them.
+
+    THE COUNTS USED TO BE ASKED. The letter's scope was written from the
+    `states` list and the fee was billed from a separate `count_states` number,
+    with nothing comparing them until close-out -- so a letter naming one state
+    went out beside an estimate billing three, and the client saw both. This
+    engine's own comment (`_scope_line`) says why that cannot stand: "Exact
+    inverses, from one answer. Two questions could disagree; one cannot."
+
+    Note the direction. `schedules.py` warns against deriving a schedule FROM a
+    count, because a count can be blank while the thing exists. This is the
+    other way round: the list is the enumeration, so its length is exact and
+    cannot be blank-but-true.
+    """
+    sched.apply(answers, schema)
+    for list_id, count_id in COUNTED_LISTS.items():
+        if list_id in answers:
+            answers[count_id] = counted(answers[list_id])
+    return answers
+
+
 def is_offered(question: dict, value) -> bool:
     """Is every part of this answer one the question actually offered?
 
@@ -505,7 +556,7 @@ class Interview:
         # `return_features` and `count_rentals` has to appear or disappear on
         # the same keystroke. Deriving after the prune would leave the session
         # one answer behind itself.
-        sched.apply(self.answers, self.schema)
+        derive(self.answers, self.schema)
         # An answer can hide a question that was already answered -- change
         # joint_return to "no" and the spouse name must go, or it reaches a
         # document that no longer has a place for it.
@@ -615,7 +666,7 @@ def missing_required(answers: dict, schema: dict | None = None) -> list[str]:
     schema = schema if schema is not None else load_schema()
     seen = dict(answers)
     try:
-        sched.apply(seen, schema)
+        derive(seen, schema)
     except Exception:                                        # noqa: BLE001
         pass          # a schedule that will not derive is reported elsewhere
     return [q["id"] for _, q in all_questions(schema)

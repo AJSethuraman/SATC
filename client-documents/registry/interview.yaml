@@ -566,15 +566,31 @@ sections:
   - id: counts
     title: What drives the fee
     questions:
+      # DERIVED FROM THE LISTS, NOT ASKED. Same mechanism as
+      # `federal_schedules` above: the question still describes the field and
+      # what it feeds, and `derived: true` means nobody is ever shown it.
+      #
+      # They used to be asked. The letter's scope was written from the `states`
+      # list and the fee was billed from this number, with nothing comparing
+      # them until close-out -- so a letter naming one state went out beside an
+      # estimate billing three, and the client saw both. The engine's own rule,
+      # from `_scope_line`: "Exact inverses, from one answer. Two questions
+      # could disagree; one cannot."
       - id: count_states
         question: "How many state returns?"
+        help: >-
+          Counted from the states named above.
         type: number
+        derived: true
         supplies: []
         feeds: LineItems
 
       - id: count_localities
         question: "How many local returns?"
+        help: >-
+          Counted from the localities named above. A lone "None" is zero.
         type: number
+        derived: true
         supplies: []
         feeds: LineItems
 
