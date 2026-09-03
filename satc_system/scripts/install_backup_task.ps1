@@ -35,12 +35,64 @@
   powershell -ExecutionPolicy Bypass -File satc_system\scripts\install_backup_task.ps1
 #>
 
+param(
+    # Set by the elevated re-launch below. Carries the name of the user the
+    # task must RUN as, which is not necessarily the admin who approved UAC.
+    [string]$ForUser = $env:USERNAME
+)
+
 $ErrorActionPreference = "Stop"
 
+# REGISTERING A TASK NEEDS ELEVATION, RUNNING IT MUST NOT.
+#
+# `Register-ScheduledTask` writes to the root task store, which a standard user
+# cannot do -- it fails with `Access is denied` / HRESULT 0x80070005. So this
+# re-launches itself through UAC.
+#
+# The task it then registers runs as the ORIGINAL user, not as the admin who
+# approved the prompt, and only while that user is logged on (`-LogonType
+# Interactive`, `-RunLevel Limited`). That is not a detail: the job has to see
+# that user's OneDrive folder, and a task running as SYSTEM or as a different
+# account would find nothing there and back up nothing, successfully.
+$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+$elevated  = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $elevated) {
+    Write-Host "  Not elevated. Registering a scheduled task requires it -- asking for consent."
+    Write-Host "  (The job itself will run as $($env:USERNAME), unelevated, so it can see your OneDrive.)"
+    Write-Host ""
+    $argv = @(
+        "-ExecutionPolicy", "Bypass",
+        "-NoProfile",
+        "-File", "`"$PSCommandPath`"",
+        "-ForUser", "`"$($env:USERNAME)`""
+    )
+    try {
+        $p = Start-Process -FilePath "powershell.exe" -ArgumentList $argv `
+                           -Verb RunAs -Wait -PassThru
+        exit $p.ExitCode
+    } catch {
+        Write-Host "  UAC was declined, so the task was not installed." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Nothing is broken -- the backup script itself needs no admin rights."
+        Write-Host "  You can run a backup by hand at any time with:"
+        Write-Host "    python `"$env:USERPROFILE\.satc\backup_client_data.py`" --verify-restore"
+        exit 1
+    }
+}
+
 $TaskName = "SATC - Back up client data to OneDrive"
-$Home_    = $env:USERPROFILE
+
+# The profile of the user the job RUNS as. When UAC was approved with a
+# different admin account, `$env:USERPROFILE` is that admin's -- and pointing
+# the backup at the wrong profile would find no OneDrive and no data.
+$Home_ = Join-Path (Split-Path $env:USERPROFILE -Parent) $ForUser
+if (-not (Test-Path $Home_)) { $Home_ = $env:USERPROFILE }
+
 $Script   = Join-Path $Home_ ".satc\backup_client_data.py"
 $Log      = Join-Path $Home_ ".satc\backup.log"
+Write-Host "  running as $ForUser, profile $Home_"
 
 # Deploy the script next to where it will run from, so the task does not depend
 # on which branch a working checkout happens to be sitting on.
@@ -50,7 +102,12 @@ Copy-Item $SourceScript $Script -Force
 Write-Host "  deployed  $Script"
 
 # Plain system Python: the script is stdlib-only, so it must not depend on a venv.
-$Py = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\pythonw.exe"
+#
+# `python.exe`, NOT `pythonw.exe`. The windowed build has no console and its
+# `sys.stdout` can be invalid, so a run that failed could write nothing to the
+# log and look exactly like a run that never happened. A console that flashes
+# for a second once a day is a much better trade than a silent backup.
+$Py = Join-Path $Home_ "AppData\Local\Programs\Python\Python312\python.exe"
 if (-not (Test-Path $Py)) {
     $Py = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"
 }
@@ -77,11 +134,23 @@ $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 15)
 
+# RUNS AS THE OWNER, ONLY WHILE THEY ARE LOGGED ON.
+#
+# `Interactive` and `Limited` on purpose. The job needs that user's OneDrive
+# folder, which only exists inside their session; running it as SYSTEM or with
+# the highest privileges would find nothing and report success at backing up
+# nothing. It also means no stored password.
+$principalObj = New-ScheduledTaskPrincipal `
+    -UserId    $ForUser `
+    -LogonType Interactive `
+    -RunLevel  Limited
+
 Register-ScheduledTask `
     -TaskName    $TaskName `
     -Action      $action `
     -Trigger     $triggers `
     -Settings    $settings `
+    -Principal   $principalObj `
     -Description ("Snapshots satc_mart.db and satc_vault.db to the SATC OneDrive. " +
                   "Never copies vault.key and refuses if one is found at the destination. " +
                   "Verifies by restoring. Source: satc_system/scripts/backup_client_data.py") `
