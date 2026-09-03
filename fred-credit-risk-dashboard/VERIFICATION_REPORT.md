@@ -1,5 +1,12 @@
 # Verification Report — FRED Credit-Risk Dashboard
 
+> **Status update:** the audit below is the **as-found** state. Several defects
+> have since been fixed this session — see **§ Fixes applied** at the end for what
+> changed, the commits, and how each was re-proven. Still open (documented, not yet
+> fixed): the HIGH silent xlwings→openpyxl downgrade, the `write_backend` no-op, D1
+> (Python-vs-Excel NaN-newest), the hand-edit-path freq/bool defaults, and — the
+> big one — the LIVE FRED pull, which remains unrunnable here (egress-blocked).
+
 **Date:** 2026-09-03 · **Verifier:** adversarial re-run (four independent checks:
 test-suite + mutation, hazard hunt, adversarial compute, workbook-artifact open).
 **Method:** every claim below was produced by running the code and/or **opening the
