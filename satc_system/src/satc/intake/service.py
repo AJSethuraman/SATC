@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from satc.ids import opaque_id
+from satc.ingest.classify import wrong_year
 from satc.models.actor import INTAKE, Actor
 from satc.intake import matching
 from satc.intake.importer import ParsedClient
@@ -340,17 +341,25 @@ def letter_facts_for_job(store, job, *, today: date | None = None,
     return plan.letter_facts
 
 
-def find_match(store, *, client_id: str, doc_type: str) -> RequestedItem | None:
+def find_match(store, *, client_id: str, doc_type: str,
+               doc_year: int | None = None) -> RequestedItem | None:
     """The outstanding request an arriving document would satisfy. Reads only.
 
     A request's type AND its prose description (stored in ``note``) are both
     considered, so a received "W-2" satisfies a "core income documents" bundle.
     When several requests match, the most specific one wins.
+
+    ``doc_year`` is the tax year read off the document, and it is filtered
+    ASYMMETRICALLY: a year we could not read (None) blocks nothing, but a year we
+    DID read which differs from the request's closes nothing. Measured 30 Aug
+    2026, before this: a 2019 W-2 from a job the client left marked this year's
+    W-2 request Received. See ``satc.ingest.classify.wrong_year``.
     """
     mart = store.load_mart()
     candidates = [i for i in mart.requested_items
                   if i.client_id == client_id and i.is_open
-                  and matching.matches(doc_type, str(i.doc_type), i.request_text)]
+                  and matching.matches(doc_type, str(i.doc_type), i.request_text)
+                  and not wrong_year(doc_year, i.tax_year)]
     if not candidates:
         return None
     return min(candidates,
@@ -367,6 +376,7 @@ def _blocking_docs():
 
 
 def reconcile_received(store, *, client_id: str, doc_type: str,
+                       doc_year: int | None = None,
                        classified_by: Actor = INTAKE) -> RequestedItem | None:
     """Flip the best matching outstanding request to ``Received`` and complete its task.
 
@@ -385,7 +395,8 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
     """
     if classified_by.is_model:
         return None
-    match = find_match(store, client_id=client_id, doc_type=doc_type)
+    match = find_match(store, client_id=client_id, doc_type=doc_type,
+                       doc_year=doc_year)
     if match is None:
         return None
     match.status = "satisfied"

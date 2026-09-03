@@ -126,6 +126,36 @@ class User(UserMixin, db.Model):
 class Invoice(db.Model):
     __tablename__ = "invoices"
 
+    # A PUBLIC LINK MUST NOT OUTLIVE ITS INVOICE AND POINT AT THE NEXT ONE.
+    # `/i/<token>` signs this integer. Without AUTOINCREMENT, SQLite hands the
+    # next insert the highest free rowid, so deleting an invoice releases its
+    # id and the next invoice raised on the instance inherits it -- and every
+    # link already sitting in a client's inbox resolves to somebody else's
+    # invoice.
+    #
+    # Reproduced ACROSS ACCOUNTS by the scenario harness: owner A raises a
+    # confidential $5,000 invoice, sends the link, deletes the invoice; owner
+    # B, a different workspace, raises the next invoice and inherits the id;
+    # A's client opens A's link and reads B's invoice, client name and all.
+    # Nothing about the authorization is wrong -- the public page is meant to
+    # be readable by whoever holds the link. The identifier underneath it was.
+    #
+    # `sqlite_autoincrement` makes SQLite keep a monotonic counter in
+    # `sqlite_sequence` and never reuse an id. Chosen over a random public
+    # token deliberately: a token change invalidates every link already in a
+    # client's hands, which is the owner's call, and this closes the hole
+    # without touching one of them.
+    #
+    # Postgres allocates from a sequence and never reuses, so the Render
+    # deployment was never affected; `docker compose up`, `run.ps1` and a bare
+    # `flask run` all default to SQLite and were.
+    #
+    # AN EXISTING SQLite FILE DOES NOT GAIN THIS. The table would have to be
+    # rebuilt. New installs are safe; an instance that has already been
+    # deleting invoices needs `docs/invoicer-scenarios.md` read before it is
+    # trusted with a public link.
+    __table_args__ = {"sqlite_autoincrement": True}
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id"), nullable=False, index=True

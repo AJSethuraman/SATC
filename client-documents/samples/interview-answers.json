@@ -1,0 +1,56 @@
+{
+  "_comment": "A completed consultation, keyed by question id. Replays with `cli.py interview --answers`. Fictional, and the same client as tax-opening-package.json so the two can be compared.",
+  "client_full_name": "Mr. and Mrs. Daniel Reyes",
+  "client_address1": "418 Rockwell Street",
+  "client_city": "Solon",
+  "client_state": "OH",
+  "client_zip": "44139",
+  "client_email": "dreyes@example.com",
+  "joint_return": "yes",
+  "taxpayer_name": "Daniel Reyes",
+  "spouse_name": "Maria Reyes",
+  "tax_year": "2026",
+  "federal_form": "1040",
+  "return_basis": "original",
+  "return_features": [
+    "self_employment",
+    "rentals",
+    "k1",
+    "itemizing"
+  ],
+  "federal_schedules": [
+    "A",
+    "C",
+    "E1",
+    "E2",
+    "SE"
+  ],
+  "states": [
+    "Ohio — resident"
+  ],
+  "localities": [
+    "Solon municipal"
+  ],
+  "additional_forms": [
+    "Two K-1s as reported"
+  ],
+  "first_deliverable_target": "April 1, 2027",
+  "count_states": 1,
+  "count_localities": 1,
+  "count_rentals": 1,
+  "count_k1s": 2,
+  "count_businesses": 1,
+  "schedule_c_kind": "standard",
+  "prior_firm": "yes",
+  "prior_firm_name": "Halloran & Reeve CPAs",
+  "prior_return_available": "yes",
+  "unfiled_years": "",
+  "red_flags": [
+    "missing_records"
+  ],
+  "decision": "yes",
+  "notes": "Sold a rental in March; K-1 from a partnership joined last year.",
+  "other_income_documents": "yes",
+  "has_dependents": "no",
+  "returning_client": "no"
+}

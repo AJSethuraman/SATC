@@ -1,0 +1,17 @@
+{
+  "_comment": "FABRICATED leads, for the walkthrough and for driving the browser. Nobody here is real: the names, addresses, emails and phone numbers were invented for this file. The firm's actual workbook is client-documents/leads.xlsx, it is gitignored, it holds real people, and nothing in this repository may read it.",
+  "columns": ["name", "email", "phone", "location", "preferred", "services",
+              "individual complexity", "urgency", "tax status", "notes"],
+  "rows": [
+    ["Marcus Ellwood", "m.ellwood@example.com", "(216) 555-0142", "Solon, OH",
+     "Email", "Individual tax return", "One W-2; sold some stock",
+     "Before the deadline", "Up to date", "Moved from Michigan in March."],
+    ["Priya Raman", "p.raman@example.com", "(440) 555-0198", "Twinsburg, OH",
+     "Phone", "Individual tax return; Bookkeeping", "Rental property; a K-1",
+     "No rush", "Up to date", "Runs a small consultancy on the side."],
+    ["Halloway Fabrication LLC", "ap@example.com", "(330) 555-0176",
+     "Aurora, OH", "Email", "Business tax return", "",
+     "Before the deadline", "Behind a year",
+     "Two owners. Last preparer retired."]
+  ]
+}

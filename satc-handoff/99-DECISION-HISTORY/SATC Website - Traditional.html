@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SAT-C LLP — Accounting, Tax &amp; Consulting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--navy-soft:#22374F;--oxblood:#6A2833;--oxblood-lt:#8A3A44;--gold:#C0A265;--paper:#F1EEE6;--paper-2:#E9E5DA;--hairline:#E4DFD3;--hairline-2:#DCD6C9;--ink:#2A3340;--ink-2:#4A5360;--mute:#8A857E;--serif:"IBM Plex Serif",Georgia,serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:var(--oxblood-lt)}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:40px}
+.mono{font-family:var(--mono)}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2)}
+
+/* mark */
+.mark{width:30px;height:30px;flex:none}
+.mark rect.o{fill:none;stroke:var(--navy);stroke-width:2}
+.mark rect.i{fill:var(--oxblood)}
+.mark--lt rect.o{stroke:var(--paper)}.mark--lt rect.i{fill:var(--gold)}
+
+/* topbar */
+.top{border-bottom:1px solid var(--hairline-2);background:var(--paper);position:sticky;top:0;z-index:40}
+.top__in{display:flex;align-items:center;gap:36px;height:82px}
+.brand{display:flex;align-items:center;gap:13px}
+.brand .nm{font-family:var(--serif);font-size:20px;font-weight:500;letter-spacing:-.015em;color:var(--navy);line-height:1}
+.brand .ds{font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);margin-top:5px}
+.nav{display:flex;gap:28px;margin-left:auto;font-family:var(--sans);font-size:14.5px}
+.nav a{color:var(--ink-2)}.nav a:hover{color:var(--navy)}
+.btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--sans);font-size:14px;font-weight:600;padding:13px 24px;background:var(--oxblood);color:var(--paper);border:0;cursor:pointer}
+.btn:hover{background:var(--oxblood-lt);color:var(--paper)}
+.btn--ln{background:transparent;color:var(--navy);border-bottom:1px solid var(--hairline-2);padding:13px 2px}
+.btn--ln:hover{background:transparent;color:var(--oxblood);border-color:var(--oxblood)}
+
+/* hero — classical, centered */
+.hero{padding:104px 0 88px;text-align:center;border-bottom:1px solid var(--hairline-2)}
+.hero .est{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-2);margin-bottom:30px}
+.hero h1{font-family:var(--serif);font-size:clamp(38px,5.4vw,60px);line-height:1.1;letter-spacing:-.028em;font-weight:400;color:var(--navy);max-width:19ch;margin:0 auto}
+.hero h1 em{font-style:italic;color:var(--oxblood)}
+.hero .goldrule{width:64px;height:1px;background:var(--gold);margin:34px auto}
+.hero p{font-size:18.5px;line-height:1.66;color:var(--ink-2);max-width:56ch;margin:0 auto 38px}
+.hero .cta{display:flex;gap:22px;justify-content:center;align-items:center}
+
+/* three pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--hairline-2)}
+.pillar{padding:56px 40px 52px;border-right:1px solid var(--hairline-2)}
+.pillar:last-child{border-right:0}
+.pillar .n{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--gold);margin-bottom:20px}
+.pillar h3{font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:-.018em;color:var(--navy);margin-bottom:12px}
+.pillar p{font-size:15.5px;line-height:1.64;color:var(--ink-2);margin-bottom:20px}
+.pillar ul{list-style:none;margin:0;padding:0;font-family:var(--sans);font-size:13.5px;color:var(--ink-2)}
+.pillar li{padding:6px 0;border-top:1px solid var(--hairline)}
+
+/* approach */
+.sec{padding:96px 0;border-bottom:1px solid var(--hairline-2)}
+.sec__hd{text-align:center;max-width:60ch;margin:0 auto 56px}
+.sec__hd h2{font-family:var(--serif);font-size:38px;font-weight:400;letter-spacing:-.025em;color:var(--navy);line-height:1.16}
+.sec__hd h2 em{font-style:italic;color:var(--oxblood)}
+.sec__hd p{font-size:17px;color:var(--ink-2);margin-top:16px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start}
+.plate{background:repeating-linear-gradient(135deg,var(--paper-2),var(--paper-2) 11px,var(--paper) 11px,var(--paper) 22px);border:1px solid var(--hairline-2);aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+.plate span{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);line-height:1.8}
+.principle{padding:22px 0;border-top:1px solid var(--hairline)}
+.principle:first-child{border-top:0;padding-top:0}
+.principle h4{font-family:var(--serif);font-size:20px;font-weight:500;color:var(--navy);margin-bottom:7px}
+.principle p{font-size:15.5px;color:var(--ink-2);line-height:1.64}
+
+/* figures band */
+.band{background:var(--navy);color:var(--paper);padding:76px 0}
+.band .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:44px}
+.fig .v{font-family:var(--serif);font-size:44px;font-weight:400;letter-spacing:-.03em;line-height:1;color:var(--paper)}
+.fig .v sub{font-size:20px;vertical-align:baseline;color:var(--gold)}
+.fig .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(241,238,230,.55);margin-top:14px;line-height:1.7}
+
+/* who we serve */
+.serve{display:grid;grid-template-columns:repeat(2,1fr);gap:0 72px}
+.serve__row{display:flex;gap:20px;padding:20px 0;border-top:1px solid var(--hairline)}
+.serve__row .sq{width:9px;height:9px;background:var(--gold);flex:none;margin-top:9px}
+.serve__row h4{font-family:var(--serif);font-size:18.5px;font-weight:500;color:var(--navy)}
+.serve__row p{font-size:15px;color:var(--ink-2);margin-top:4px;line-height:1.6}
+
+/* insights */
+.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+.note{border-top:2px solid var(--navy);padding-top:20px}
+.note .d{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.note h4{font-family:var(--serif);font-size:21px;font-weight:400;line-height:1.32;color:var(--navy);margin:12px 0 10px;letter-spacing:-.015em}
+.note p{font-size:15px;color:var(--ink-2);line-height:1.6}
+.note a{font-family:var(--sans);font-size:13.5px;font-weight:600;display:inline-block;margin-top:14px}
+
+/* cta */
+.close{padding:104px 0;text-align:center}
+.close h2{font-family:var(--serif);font-size:clamp(32px,4.4vw,50px);font-weight:400;letter-spacing:-.028em;line-height:1.14;color:var(--navy);max-width:22ch;margin:0 auto 20px}
+.close h2 em{font-style:italic;color:var(--oxblood)}
+.close p{font-size:17.5px;color:var(--ink-2);max-width:52ch;margin:0 auto 36px}
+
+/* footer */
+.foot{background:var(--navy);color:rgba(241,238,230,.72);padding:72px 0 40px;font-family:var(--sans);font-size:14px}
+.foot__top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;padding-bottom:48px;border-bottom:1px solid rgba(241,238,230,.16)}
+.foot .brand .nm{color:var(--paper)}
+.foot h5{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.foot a{display:block;color:rgba(241,238,230,.72);padding:5px 0}
+.foot a:hover{color:var(--paper)}
+.foot__legal{padding-top:32px;display:flex;justify-content:space-between;gap:40px;font-size:12.5px;color:rgba(241,238,230,.5);line-height:1.7}
+.foot__legal .ph{color:var(--gold);font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:900px){
+.wrap{padding-inline:24px}
+.nav{display:none}
+.pillars,.band .grid,.notes,.serve,.two{grid-template-columns:1fr}
+.pillar{border-right:0;border-bottom:1px solid var(--hairline-2)}
+.two{gap:40px}.band .grid{gap:34px}.notes{gap:34px}
+.foot__top{grid-template-columns:1fr 1fr;gap:32px}
+.foot__legal{flex-direction:column;gap:16px}
+.hero{padding:64px 0 56px}.sec{padding:64px 0}.close{padding:72px 0}
+}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap top__in">
+  <a class="brand" href="#">
+    <svg class="mark" viewBox="0 0 32 32"><rect class="o" x="2" y="2" width="19" height="19"/><rect class="i" x="12" y="12" width="18" height="18"/></svg>
+    <span><span class="nm">SAT&#8209;C&nbsp;LLP</span><span class="ds" style="display:block">Accounting, Tax &amp; Consulting</span></span>
+  </a>
+  <nav class="nav"><a href="#services">Services</a><a href="#approach">Approach</a><a href="#serve">Who We Serve</a><a href="#insights">Insights</a><a href="#">Client Login</a></nav>
+  <a class="btn" href="#contact">Request a consultation</a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div class="est">Sethuraman Accounting, Tax, and Consulting LLP</div>
+  <h1>Books that hold up to <em>scrutiny</em>.</h1>
+  <div class="goldrule"></div>
+  <p>We keep the accounting precise, the tax position defensible, and the reporting timely — so the numbers are settled long before anyone asks to see them.</p>
+  <div class="cta"><a class="btn" href="#contact">Request a consultation</a><a class="btn btn--ln" href="#services">Review our services →</a></div>
+</div></section>
+
+<section class="pillars" id="services">
+  <div class="pillar">
+    <div class="n">01 — ACCOUNTING</div>
+    <h3>Kept current, closed on time</h3>
+    <p>Monthly close, reconciliation and statements you can hand to a lender without rework.</p>
+    <ul><li>Bookkeeping &amp; monthly close</li><li>Financial statement preparation</li><li>Payroll &amp; sales-tax filings</li><li>Outsourced controller services</li></ul>
+  </div>
+  <div class="pillar">
+    <div class="n">02 — TAX</div>
+    <h3>Positions we can defend</h3>
+    <p>Federal, state and multi-state filings, prepared with the planning done in advance rather than in April.</p>
+    <ul><li>Business &amp; individual returns</li><li>Multi-state &amp; nexus review</li><li>Entity structuring</li><li>Quarterly estimates &amp; planning</li></ul>
+  </div>
+  <div class="pillar">
+    <div class="n">03 — CONSULTING</div>
+    <h3>Judgment, not just figures</h3>
+    <p>The advisory work owners actually need: what the numbers mean and what to do next.</p>
+    <ul><li>Cash-flow &amp; forecast modeling</li><li>CFO advisory</li><li>Systems &amp; process design</li><li>Transaction &amp; diligence support</li></ul>
+  </div>
+</section>
+
+<section class="sec" id="approach"><div class="wrap">
+  <div class="sec__hd"><h2>A small firm, deliberately — so a <em>partner</em> reads your file.</h2><p>You will not be handed down a chain of associates. The person who reviews your return is the person who answers the phone.</p></div>
+  <div class="two">
+    <div class="plate"><span>Portrait — partners<br/>or office interior<br/>· 4:5 ·</span></div>
+    <div>
+      <div class="principle"><h4>We close before we advise</h4><p>Advice built on unreconciled books is guesswork. The close comes first, every month, without being chased.</p></div>
+      <div class="principle"><h4>Fixed scope, quoted in advance</h4><p>An engagement letter that states what is included and what it costs. No surprise invoices for a phone call.</p></div>
+      <div class="principle"><h4>Documentation as a habit</h4><p>Every position is supported at the time it's taken, not reconstructed later under pressure.</p></div>
+      <div class="principle"><h4>One point of contact</h4><p>A named partner on every engagement, with a response inside one business day.</p></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap"><div class="grid">
+  <div class="fig"><div class="v">18<sub>yrs</sub></div><div class="k">Combined practice<br/>experience</div></div>
+  <div class="fig"><div class="v">240<sub>+</sub></div><div class="k">Returns prepared<br/>annually</div></div>
+  <div class="fig"><div class="v">12<sub>day</sub></div><div class="k">Average monthly<br/>close</div></div>
+  <div class="fig"><div class="v">1<sub>bd</sub></div><div class="k">Response time<br/>commitment</div></div>
+</div></div></section>
+
+<section class="sec" id="serve"><div class="wrap">
+  <div class="sec__hd"><h2>Who we work with</h2><p>Owner-managed businesses and the people who run them.</p></div>
+  <div class="serve">
+    <div class="serve__row"><span class="sq"></span><div><h4>Professional services firms</h4><p>Agencies, design studios, consultancies and legal practices billing $500k–$10m.</p></div></div>
+    <div class="serve__row"><span class="sq"></span><div><h4>Construction &amp; trades</h4><p>Job costing, retainage, progress billing and multi-state payroll.</p></div></div>
+    <div class="serve__row"><span class="sq"></span><div><h4>Restaurants &amp; hospitality</h4><p>Tip reporting, sales tax across jurisdictions, and tight weekly cash reporting.</p></div></div>
+    <div class="serve__row"><span class="sq"></span><div><h4>Real estate &amp; holdings</h4><p>Entity structures, cost segregation, partnership allocations and K-1 preparation.</p></div></div>
+    <div class="serve__row"><span class="sq"></span><div><h4>Founders &amp; individuals</h4><p>Personal returns where equity, multi-state income or trusts are involved.</p></div></div>
+    <div class="serve__row"><span class="sq"></span><div><h4>Firms in transition</h4><p>Businesses being sold, acquired or restructured, needing clean books quickly.</p></div></div>
+  </div>
+</div></section>
+
+<section class="sec" id="insights"><div class="wrap">
+  <div class="sec__hd"><h2>Notes &amp; commentary</h2><p>Plain-language notes on the changes that affect owner-managed businesses.</p></div>
+  <div class="notes">
+    <div class="note"><div class="d">August 2026</div><h4>Multi-state nexus after a remote hire</h4><p>One employee in another state can create a filing obligation. What to check before payroll runs.</p><a href="#">Read the note →</a></div>
+    <div class="note"><div class="d">July 2026</div><h4>Quarterly estimates when income is uneven</h4><p>The annualized method is usually better for seasonal businesses — and usually unused.</p><a href="#">Read the note →</a></div>
+    <div class="note"><div class="d">June 2026</div><h4>What a lender actually reads first</h4><p>Three statements, in a specific order. Preparing for that changes how you close the month.</p><a href="#">Read the note →</a></div>
+  </div>
+</div></section>
+
+<section class="close" id="contact"><div class="wrap">
+  <h2>Let's look at your <em>current position</em>.</h2>
+  <p>A short call, no charge — we'll tell you plainly whether we're the right firm for the work.</p>
+  <a class="btn" href="#">Request a consultation</a>
+  <p style="margin-top:28px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)">or call (000) 000‑0000</p>
+</div></section>
+
+<footer class="foot"><div class="wrap">
+  <div class="foot__top">
+    <div>
+      <a class="brand" href="#" style="margin-bottom:18px">
+        <svg class="mark mark--lt" viewBox="0 0 32 32"><rect class="o" x="2" y="2" width="19" height="19"/><rect class="i" x="12" y="12" width="18" height="18"/></svg>
+        <span><span class="nm" style="font-family:var(--serif);font-size:19px;font-weight:500">SAT&#8209;C&nbsp;LLP</span></span>
+      </a>
+      <p style="font-size:13.5px;line-height:1.7;color:rgba(241,238,230,.6);max-width:34ch">Sethuraman Accounting, Tax, and Consulting LLP. Accounting, tax and consulting for owner-managed businesses.</p>
+    </div>
+    <div><h5>Services</h5><a href="#services">Accounting</a><a href="#services">Tax</a><a href="#services">Consulting</a><a href="#services">Controller services</a></div>
+    <div><h5>Firm</h5><a href="#approach">Approach</a><a href="#serve">Who we serve</a><a href="#insights">Insights</a><a href="#contact">Contact</a></div>
+    <div><h5>Clients</h5><a href="#">Client login</a><a href="#">Secure file upload</a><a href="#">Pay an invoice</a><a href="#">Request documents</a></div>
+  </div>
+  <div class="foot__legal">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in Ohio. Registered office: 6544 Copley Avenue, Solon, OH 44139.<br/>© 2026 SAT-C LLP. All rights reserved.</p>
+    <p style="max-width:46ch">Information on this site is general in nature and is not accounting, tax or legal advice for your situation. <span class="ph">[CONFIRM REQUIRED DISCLOSURE WORDING WITH COUNSEL]</span></p>
+  </div>
+</div></footer>
+
+</body>
+</html>

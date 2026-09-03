@@ -185,3 +185,76 @@ doc_types:
     keywords:
       - ["tax organizer", 10]
       - ["client organizer", 8]
+
+  # ── ADDED 30 Aug 2026 ────────────────────────────────────────────────────
+  # Measured on an adversarial corpus: a mortgage 1098, a 1099-G state refund
+  # and an SSA-1099 all came back Unclassified. Safe (the classifier never
+  # guessed) but not harmless -- the file lands in a folder, no request closes,
+  # and nothing chases it, so the packet reads short for a reason nobody sees.
+  #
+  # All `key: null`: real documents we recognise and file, but do not read
+  # figures off. There is no extraction map for any of them and inventing one
+  # would be guessing at box numbers.
+
+  - key: null
+    label: "1098"
+    code: "1098"
+    # NOT a filename hint of "1098" alone -- 1098-T files are named that way too
+    # and the tuition form is a different document. Content decides; see
+    # test_1098_is_not_confused_with_1098_t.
+    filename_hints: ["mortgage interest"]
+    keywords:
+      - ["mortgage interest statement", 10]
+      - ["mortgage interest received from payer", 8]
+      - ["form 1098", 6]
+      - ["outstanding mortgage principal", 4]
+
+  - key: null
+    label: "1099-G"
+    code: "1099-G"
+    filename_hints: ["1099g", "1099-g", "1099 g"]
+    keywords:
+      - ["certain government payments", 10]
+      - ["form 1099-g", 9]
+      - ["1099-g", 9]
+      - ["state or local income tax refunds", 5]
+      - ["unemployment compensation", 4]
+
+  - key: null
+    label: "SSA-1099"
+    code: "SSA-1099"
+    filename_hints: ["ssa1099", "ssa-1099", "social security benefit"]
+    keywords:
+      - ["social security benefit statement", 10]
+      - ["ssa-1099", 9]
+      - ["net benefits for", 4]
+
+  - key: null
+    label: "1099-B"
+    code: "1099-B"
+    filename_hints: ["1099b", "1099-b", "1099 b"]
+    keywords:
+      - ["proceeds from broker and barter exchange transactions", 10]
+      - ["form 1099-b", 9]
+      - ["1099-b", 9]
+      - ["proceeds from broker", 6]
+
+  - key: null
+    label: "1099-MISC"
+    code: "1099-MISC"
+    filename_hints: ["1099misc", "1099-misc", "1099 misc"]
+    keywords:
+      - ["miscellaneous information", 9]
+      - ["miscellaneous income", 9]
+      - ["form 1099-misc", 9]
+      - ["1099-misc", 9]
+
+  - key: null
+    label: "W-2G"
+    code: "W-2G"
+    filename_hints: ["w2g", "w-2g"]
+    keywords:
+      - ["certain gambling winnings", 10]
+      - ["form w-2g", 9]
+      - ["w-2g", 9]
+      - ["reportable winnings", 5]

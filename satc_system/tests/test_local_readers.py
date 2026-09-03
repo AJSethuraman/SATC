@@ -84,10 +84,22 @@ def test_ollama_is_opt_in(monkeypatch):
 
 # -- classifier OCR fallback --------------------------------------------------
 
-def test_classifier_types_a_scan_via_injected_ocr():
+def test_classifier_types_a_scan_via_injected_ocr(tmp_path):
+    """Uses a REAL file on disk, deliberately.
+
+    This passed "/tmp/IMG_9999.png" -- a path that does not exist -- and worked
+    only because nothing in the classifier had ever looked at the file itself.
+    Once a placeholder guard was added (a file with no bytes is refused rather
+    than classified, see test_not_downloaded.py) the fiction broke, correctly: a
+    scan that is not on the disk cannot be OCR'd. The injected provider still
+    stands in for Tesseract; the file it is handed is now real.
+    """
     from satc.ingest import load_classifier
+
+    scan = tmp_path / "IMG_9999.png"
+    scan.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 64)   # bytes, not an image
     clf = load_classifier(has_key=False)
     clf.ocr_text_provider = lambda _p: "\n".join(TEXT_W2)   # pretend Tesseract read the scan
-    c = clf.classify_path("/tmp/IMG_9999.png")             # no form fields, no text layer
+    c = clf.classify_path(scan)                            # no form fields, no text layer
     assert c.label == "W-2"
     assert c.method == "ocr"

@@ -18,3 +18,6 @@ invoices/*.pdf
 static/uploads/*
 !static/uploads/.gitkeep
 !invoices/.gitkeep
+
+# Scenario harness output (exercise.py) — real invoices, real PDFs.
+out/

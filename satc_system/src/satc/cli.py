@@ -57,6 +57,15 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("prices",
                    help="check and print the service catalogue and rate plans")
+    p_collect = sub.add_parser(
+        "collect", help="collect what clients uploaded to the synced drop folder")
+    p_collect.add_argument("folder", nargs="?", default=None,
+                           help="the synced SharePoint upload folder "
+                                "(default: $SATC_DROP_FOLDER)")
+    p_collect.add_argument("--apply", action="store_true",
+                           help="file the documents (default: preview only)")
+    p_collect.add_argument("--library", default=None,
+                           help="where filed documents go (default: $SATC_LIBRARY)")
 
     p_seed = sub.add_parser("seed", help="initialize the SQLite store from fixtures")
     p_seed.add_argument("--dir", default=None)
@@ -199,6 +208,46 @@ def main(argv: list[str] | None = None) -> int:
                   f"[{it.method}/{it.confidence}]  ->  {it.new_relpath}")
         if not plan.applied:
             print(f"\n{verb} into {plan.dest}.  Re-run with --apply to write the copies.")
+        return 0
+
+    if args.cmd == "collect":
+        import os
+
+        from satc.collect import SyncedFolder, collect
+        from satc.ingest.client_library import library_root
+
+        folder = args.folder or os.environ.get("SATC_DROP_FOLDER")
+        if not folder:
+            print("No drop folder given. Pass one, or set SATC_DROP_FOLDER to the\n"
+                  "folder OneDrive syncs your SharePoint uploads into.")
+            return 2
+        lib = args.library or library_root()
+        report = collect(SyncedFolder(folder), library=lib, apply=args.apply)
+
+        if not report.drops:
+            print(f"Nothing waiting in {folder}")
+            return 0
+        print(f"{'Collected from' if report.applied else 'Waiting in'} "
+              f"{report.source}\n")
+        for dr in report.drops:
+            who = f"{dr.drop.ref} {dr.drop.label}".strip() or dr.drop.path.name
+            print(f"  {who}")
+            for a in dr.arrivals:
+                year = f" {a.tax_year}" if a.tax_year else ""
+                where = f"  ->  {a.filed_to}" if a.filed_to else ""
+                print(f"      {a.name:<24} {a.label}{year} "
+                      f"[{a.method}/{a.confidence}]{where}")
+            for name in dr.not_downloaded:
+                # Loudly, and with the remedy. This is the one that used to be
+                # filed as Unclassified and never seen again.
+                print(f"      {name:<24} NOT DOWNLOADED — right-click it in "
+                      f"Explorer and choose Always keep on this device")
+            if dr.unresolved:
+                print(f"      ! {dr.unresolved}")
+        print(f"\n  {report.collected} document(s)"
+              + (f", {report.refused} not downloaded" if report.refused else ""))
+        if not report.applied:
+            print("  Preview only. Re-run with --apply to file them.")
         return 0
 
     if args.cmd == "seed":

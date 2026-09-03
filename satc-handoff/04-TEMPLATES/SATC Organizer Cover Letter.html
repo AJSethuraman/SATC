@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — organizer cover letter (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">Your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax organizer</div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+  <p><span data-encl="attachment:organizer">Your organizer for the <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax year is enclosed.</span> It is prefilled with what we carried forward from last year, so much of it is confirming rather than gathering.</p>
+
+  <div class="callout">
+    <p><strong>Please return the completed organizer and your documents by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>.</strong> Material arriving after that date may require an extension, which gives more time to file but not more time to pay.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What to send</h2>
+    <ul>
+      <li class="mark"><span class="cond">[[EACH Requested]]</span></li>
+      <li><b><span class="f">&lt;&lt;Item.Category&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+      <li class="mark"><span class="cond">[[END EACH]]</span></li>
+    </ul>
+    <p>Send what you have as you get it; we would rather start with most of it than wait for all of it. Anything you are unsure about, include it and we will tell you whether it matters.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>What to tell us about</h2>
+    <p>Some items are easy to overlook and carry separate filings. Answer these even if the answer is no:</p>
+    <ul>
+      <li>Any <b>digital asset</b> activity — sales, exchanges, income received in kind.</li>
+      <li>Any <b>foreign</b> account, asset, trust, gift, or inheritance.</li>
+      <li>A new <b>business interest</b>, rental property, or K-1 you have not sent us before.</li>
+      <li>A change in <b>marital status, dependents, or state of residence</b>.</li>
+      <li>Letters or notices from any taxing authority, whether or not you have replied.</li>
+    </ul>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">03</span>How to send it</h2>
+    <p>Use the secure upload link we email you. Anything sent another way is sent at your own risk.</p>
+    <span class="cond">[[IF FeeChange]]</span>
+    <p>One note on fees: <span class="f">&lt;&lt;FeeChangeNote&gt;&gt;</span> <span data-encl="none">Your engagement letter and estimate for this year will follow separately.</span></p>
+    <span class="cond end">[[END IF]]</span>
+  </div>
+
+  <div class="signoff">
+    <p>We look forward to working with you again this year.</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
+  <span class="id">ORGANIZER COVER<br/><span class="f">&lt;&lt;TaxYear&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>Same conventions as the other templates. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span> This is the highest-volume document in the set — it goes to every returning client every January — so it is also the one most likely to ship a merge bug at scale.</p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>January 12, 2027</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — <b>the ref for the year being organised</b>, which the letter and estimate will reuse when they follow</td></tr>
+    <tr><td>&lt;&lt;TaxYear&gt;&gt;</td><td class="req">Required</td><td>2026 — appears three times</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Dan</td></tr>
+    <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Four fields, same record as every other template</td></tr>
+    <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — <b>the same date the engagement letter will carry.</b> Two different dates across the two documents is the mistake this template is most likely to make.</td></tr>
+    <tr><td>[[EACH Requested]]</td><td class="req">List</td><td>One or more. Two sub-fields each. Drive it from last year's return, not a generic checklist — a list naming what the client actually had gets returned faster.</td></tr>
+    <tr><td>&lt;&lt;Item.Category&gt;&gt;</td><td class="req">Required</td><td>W-2s</td></tr>
+    <tr><td>&lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Both employers, including the one you left in March</td></tr>
+    <tr><td>[[IF FeeChange]] + &lt;&lt;FeeChangeNote&gt;&gt;</td><td class="req">Flag + field</td><td>Our fees for individual returns are increasing modestly this year. — drops the whole paragraph when false. <b>Say it here, in January, or not at all</b>; a fee surprise in April is how clients leave.</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
+  </table>
+  <p><b>13 fields + 1 repeating list of 2 + 1 flag.</b> Twelve of the thirteen are shared with the tax engagement letter.</p>
+
+  <h3>How this one earns its keep</h3>
+  <ol>
+    <li><b>The requested list is per-client, not generic.</b> Generating it from last year's return — naming their employers, their brokerage, their rental — is the difference between an organizer that comes back in two weeks and one that comes back in April.</li>
+    <li><b>Section 02 asks the questions clients answer wrong by omission.</b> Digital assets, foreign accounts, a new K-1. Asking in January costs nothing; finding out in April costs a filing.</li>
+    <li><b>The deadline appears once, in a callout.</b> It is the only thing on the page that must survive a skim.</li>
+    <li><b>The fee-change paragraph is conditional and belongs here.</b> January is when a client can absorb a fee change without resentment.</li>
+  </ol>
+
+  <h3>What this is not</h3>
+  <p>This is the <b>cover</b>. The organizer itself — the questionnaire and prior-year figures a client fills in — is a separate document, and it is the one piece in this set worth generating from tax software rather than designing by hand. This letter's job is to get that document returned on time.</p>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

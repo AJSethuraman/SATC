@@ -65,6 +65,48 @@ def acting_actor() -> Actor:
         return Actor.system("headless")
     return Actor.owner() if has_request_context() else Actor.system("headless")
 
+# How much text a PDF must carry before we call its text layer usable. A page of
+# a real form runs to hundreds of characters; a stray watermark or a scanner's
+# empty /Contents can leave a handful. Set low on purpose -- the point is to tell
+# "nothing to read" from "something to read", not to judge quality.
+TEXT_LAYER_MIN = 40
+
+
+def text_layer_chars(fpath) -> int:
+    """How much real text this PDF carries -- asked of the FILE, not of a reader.
+
+    THE DISTINCTION THIS EXISTS TO MAKE. "This document has no text to read" and
+    "our reader could not read this document's text" are different facts, and the
+    reader ladder used to conflate them: its only question at each rung was
+    whether that rung returned any fields. So a software-printed W-2 with a
+    perfectly good text layer, whose labels our anchors were never written for,
+    fell through to OCR exactly as a photograph would. OCR then rasterised a
+    document that already had text and read it worse -- and the note it produced
+    looked exactly like a success, so the parser bug stayed invisible.
+
+    The firm, 30 August 2026: *"it was not smart enough for some reason even
+    though I suggested it to use PDF scanning over OCR when applicable."* It was
+    applicable. Nothing in the ladder could tell.
+
+    Never raises. A truncated download, a OneDrive placeholder with no bytes, or
+    a file that is not a PDF at all is "no text" -- the ladder's job is to keep
+    going and say what it saw, not to fall over on a bad file.
+    """
+    from pathlib import Path
+
+    path = Path(fpath)
+    if path.suffix.lower() != ".pdf":
+        return 0
+    try:
+        import pymupdf
+
+        with pymupdf.open(str(path)) as doc:
+            if doc.page_count == 0:
+                return 0
+            return len(doc[0].get_text().strip())
+    except Exception:       # noqa: BLE001 -- an unreadable file has no text layer
+        return 0
+
 
 @dataclass
 class AppState:
@@ -319,14 +361,18 @@ class AppState:
 
                 for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
-                    if c.classified:   # close the loop: does this satisfy an open request?
-                        # The actor is derived from WHICH RUNG classified it. Only
-                        # the vision rung asks a model, and a model may not close a
-                        # client request — it may only point at one.
+                    # A multi-form page closes nothing on its own -- see
+                    # matching.is_multi. It is filed and flagged; which requests
+                    # it actually satisfies is the preparer's call.
+                    if c.classified and not c.multi:   # close the loop: does this satisfy an open request?
+                        # The actor is derived from WHICH RUNG classified it.
+                        # Only the vision rung asks a model, and a model may not
+                        # close a client request -- it may only point at one.
                         classified_by = (Actor.model("vision") if c.is_model_classified
                                          else Actor.system(f"classifier:{c.method}"))
                         matched = reconcile_received(self.store, client_id=client_id,
                                                      doc_type=c.label,
+                                                     doc_year=c.tax_year,
                                                      classified_by=classified_by)
                         if matched is not None:
                             reconciled += 1
@@ -378,28 +424,55 @@ class AppState:
 
         Order: fillable form fields → text layer → local OCR (Tesseract) → local
         vision (Ollama) → cloud vision (opt-in only). Everything before the last
-        rung runs entirely on the machine. Returns ``(ReadResult|None, problem)``.
+        rung runs entirely on the machine.
+
+        The text-layer rung is entered on a fact about the FILE (does it carry
+        text at all -- see :func:`text_layer_chars`), never on whether the rung
+        before it happened to return fields. That is the whole point: a document
+        we could read but failed to parse must not look like a document there was
+        nothing to read.
+
+        Returns ``(ReadResult|None, problem)``. ``problem`` is NOT only an error:
+        it also carries a diagnostic on an otherwise successful read, so a note
+        can say the answer came from OCR *because our anchors missed*, rather
+        than reporting a plain success.
         """
         from satc.settings import ocr_enabled, ollama_enabled
 
+        unread = ""    # set when WE failed on a document that was readable
         try:
             if fpath.suffix.lower() == ".pdf":
                 result = PdfFormReader(cfg).read(str(fpath))      # 1) fillable form fields (local)
                 if result.labeled_fields:
                     return result, ""
-                result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
-                if result.labeled_fields:
-                    return result, ""
+                chars = text_layer_chars(fpath)
+                if chars >= TEXT_LAYER_MIN:
+                    result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
+                    if result.labeled_fields:
+                        return result, ""
+                    # THE DOCUMENT WAS READABLE AND WE FAILED ON IT. Falling
+                    # straight to OCR here is what hid this from the firm for a
+                    # season: OCR rasterises text that was already there, reads
+                    # it worse, and reports a success. We still go on -- a text
+                    # layer can be genuine rubbish, and refusing outright would
+                    # lose documents OCR does handle -- but the note now says
+                    # which of the two happened, so a parser gap is visible as a
+                    # parser gap instead of passing for an ordinary scan.
+                    unread = (f"text layer present ({chars} characters) but no "
+                              f"field labels matched — our anchors, not the "
+                              f"document. ")
             if ocr_enabled():                                     # 3) local OCR (Tesseract)
                 result = TesseractOcrReader(cfg).read(str(fpath))
                 if result.labeled_fields:
-                    return result, ""
+                    return result, unread
             if ollama_enabled():                                  # 4) local vision (Ollama)
                 result = OllamaVisionReader(cfg).read(str(fpath))
                 if result.labeled_fields:
-                    return result, ""
+                    return result, unread
             if allow_cloud:                                       # 5) cloud vision (opt-in only)
-                return VisionDocumentReader(cfg).read(str(fpath)), ""
+                return VisionDocumentReader(cfg).read(str(fpath)), unread
+            if unread:
+                return None, unread + "Add the label to this form's extraction map."
             return None, "scan with no text layer — enable local OCR (Tesseract) or key it in manually."
         except Exception as exc:        # noqa: BLE001 - surface, don't crash
             return None, f"could not read ({exc})."

@@ -1,0 +1,57 @@
+{
+  "LetterDate": "June 4, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "EffectiveDate": "June 30, 2027",
+  "ScopeEnded": "the preparation of your 2026 individual income tax returns and the related state and municipal filings",
+  "RecordsAvailableUntil": "August 31, 2027",
+  "OutstandingBalance": "$1,240.00",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun_sethuraman@satcllp.com",
+  "ClientInitiated": false,
+  "FirmInitiated": true,
+  "BalanceOutstanding": true,
+  "AccountSettled": false,
+  "WorkStatus": [
+    {
+      "Work": "2026 Federal Form 1040",
+      "Status": "Prepared and e-filed on April 9, 2027; accepted April 9"
+    },
+    {
+      "Work": "2026 Ohio IT 1040",
+      "Status": "Prepared and e-filed on April 9, 2027; accepted April 10"
+    },
+    {
+      "Work": "2026 City of Solon municipal return",
+      "Status": "Not prepared. An extension was filed on April 14, 2027; the return itself is outstanding."
+    },
+    {
+      "Work": "2027 estimated payment vouchers",
+      "Status": "Not prepared."
+    }
+  ],
+  "OpenDeadlines": [
+    {
+      "Obligation": "File the 2026 municipal return",
+      "Detail": "City of Solon, due October 15, 2027 — extended, not filed"
+    },
+    {
+      "Obligation": "Make the 2027 second-quarter estimated payment",
+      "Detail": "Due June 15, 2027. No voucher was prepared; your new preparer will need the 2026 return to calculate it."
+    }
+  ]
+}

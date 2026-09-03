@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — the C is the piece</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+svg{display:block}
+.wrap{max-width:1160px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:54px 0 48px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.hd .row{display:flex;align-items:center;gap:38px;flex-wrap:wrap}
+.hd h1{font-size:clamp(27px,3.5vw,38px);font-weight:600;letter-spacing:-.042em;line-height:1.06;margin-bottom:14px;max-width:24ch}
+.hd p{font-size:16.5px;line-height:1.62;color:rgba(255,255,255,.75);max-width:58ch}
+.hd em{font-style:normal;color:var(--gold)}
+
+.sec{padding:52px 0;border-bottom:1px solid var(--hairline)}
+.sec:last-of-type{border-bottom:0}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.sec h2{font-size:24px;font-weight:600;letter-spacing:-.033em;color:var(--navy);margin-bottom:8px}
+.sec .intro{font-size:15.5px;line-height:1.62;color:var(--ink-2);max-width:74ch;margin-bottom:28px}
+
+.states{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.state{background:var(--paper);padding:32px 30px 28px}
+.state .stage{height:186px;display:flex;align-items:center;justify-content:center;margin-bottom:24px}
+.state .nm{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--oxblood);margin-bottom:7px}
+.state h3{font-size:20px;font-weight:600;letter-spacing:-.03em;color:var(--navy);margin-bottom:9px}
+.state p{font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+.state .uses{margin-top:15px;padding-top:13px;border-top:1px solid var(--hairline);font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.state .uses b{color:var(--navy);font-weight:600;display:block;margin-bottom:3px;font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase}
+
+/* ── LOCKUP ──
+   The square and the C cannot live in one SVG: inside the artwork the square
+   is 16 units and the C only 8, so matching the C to a cap-height letter would
+   force the square to twice the type's cap height. So the wordmark is REAL
+   TEXT — SAT and C at the same size — and the notched square is a separately
+   sized element standing in for the hyphen, its gap facing the C. */
+.locks{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.lockbox{background:var(--paper);border:1px solid var(--hairline);padding:30px 32px}
+.lockbox.dk{background:var(--navy);border-color:var(--navy)}
+.lockrow{display:flex;align-items:flex-end;gap:5px;font-size:44px}
+.lockrow .w{font-weight:700;letter-spacing:-.05em;line-height:.72;font-size:1em}
+.lockrow .sat{color:var(--navy)}
+.lockrow .cee{color:var(--oxblood)}
+.lockbox.dk .lockrow .sat{color:#fff}
+.lockbox.dk .lockrow .cee{color:var(--gold)}
+.lockrow .hyph{width:.68em;height:.68em;flex:none;margin-bottom:1px}
+.cap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-top:22px;padding-top:14px;border-top:1px solid var(--hairline)}
+.lockbox.dk .cap{color:rgba(255,255,255,.45);border-top-color:rgba(255,255,255,.16)}
+.sublegal{font-family:var(--mono);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:12px}
+.lockbox.dk .sublegal{color:rgba(255,255,255,.5)}
+
+.sizes{display:flex;align-items:flex-end;gap:30px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--hairline);padding:28px 30px}
+.sz{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sz .n{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ink-2)}
+.sz .n.bad{color:var(--oxblood)}
+.tile{background:var(--navy);display:flex;align-items:center;justify-content:center;flex:none}
+
+pre{background:var(--navy);color:#fff;font-family:var(--mono);font-size:11.5px;line-height:1.75;padding:20px 22px;overflow-x:auto;margin:0}
+pre .c{color:rgba(255,255,255,.42)}
+pre .s{color:var(--gold)}
+.codecap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.note{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:20px 24px;margin-top:24px;font-size:14.5px;line-height:1.62;color:var(--ink-2)}
+.note b{color:var(--navy);font-weight:600}
+.note code{font-family:var(--mono);font-size:12.5px;background:var(--shell);border:1px solid var(--hairline);padding:1px 5px;color:var(--navy)}
+
+.say{background:var(--navy);color:#fff;padding:42px 0 46px}
+.say .k{font-family:var(--mono);font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.say p{font-size:19px;line-height:1.55;color:rgba(255,255,255,.88);max-width:58ch}
+.say .sub{font-size:14px;line-height:1.62;color:rgba(255,255,255,.55);max-width:62ch;margin-top:16px}
+@media(max-width:860px){.states,.locks,.two{grid-template-columns:1fr}.wrap{padding:0 24px}}
+.two>*,.pair>*,.tests>*,.grid>*,.locks>*,.states>*,.rules>*{min-width:0}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · mark, round four</div>
+  <div class="row">
+    <svg width="124" height="124" viewBox="1.4 1.4 29.4 29.4">
+      <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+      <text x="25.4" y="29.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="700" fill="#C0A265">C</text>
+    </svg>
+    <div>
+      <h1>Don't put a C on the piece. Make the C <em>be</em> the piece.</h1>
+      <p>You were right that a letter stamped on a floating square looks like a sticker. But the piece and the letter were always the same thing — so the C stops being decoration and becomes the shape cut to fit the gap.</p>
+    </div>
+  </div>
+</div></header>
+
+<!-- STATES -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">01</div>
+  <h2>Two states</h2>
+  <p class="intro">Same notched square. The oxblood block becomes a C set in Plex Sans Bold — outside the gap, then inside it.</p>
+
+  <div class="states">
+    <div class="state">
+      <div class="stage">
+        <svg width="160" height="160" viewBox="1.4 1.4 29.4 29.4">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+          <text x="25.4" y="29.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="700" fill="#6A2833">C</text>
+        </svg>
+      </div>
+      <div class="nm">State 1 · Open</div>
+      <h3>The gap, and the C outside it</h3>
+      <p>The C sits where the block used to — apart, at the corner, unmistakably the thing that belongs in the hole. This is the working mark.</p>
+      <div class="uses"><b>Use for</b> Nav, letterhead, card, report cover — everywhere at 64px and above.</div>
+    </div>
+
+    <div class="state">
+      <div class="stage">
+        <svg width="160" height="160" viewBox="1.4 1.4 29.4 29.4">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+          <text x="15.4" y="18.1" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="7.8" font-weight="700" fill="#6A2833">C</text>
+        </svg>
+      </div>
+      <div class="nm">State 2 · Filled</div>
+      <h3>The C seated in the notch</h3>      <p>The letter drops into the void it was cut from and sits clear of the seam. The square isn't solid — a C can't fill a square hole — but the C is now <em>inside</em> the business instead of beside it, which is the part that means something.</p>
+      <div class="uses"><b>Use for</b> Engagement confirmed, statement paid, filing complete, the closing slide.</div>
+    </div>
+  </div>
+
+  <div class="note"><b>One correction worth stating plainly:</b> the seated C is set to <code>font-size 7.8</code>, not the notch's full 8 units, so its ink clears the 2.4-wide stroke band on the notch edges. Sized to the void it gets sliced by the outline. If you ever want the filled state to read as a genuinely <em>solid</em> square — for a paid stamp, say — use the plain block from the earlier spec rather than the C.</div>
+</div></section>
+
+<!-- LOCKUP -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">02</div>
+  <h2>The square becomes the hyphen</h2>
+  <p class="intro">Here's the honest constraint: inside the artwork the square is 16 units and the C is 8, so a C scaled to match cap-height letters forces the square to twice their height. One SVG can't do both. So the wordmark is <strong>real text</strong> — SAT and C at the same size — with the notched square standing in for the hyphen, its gap facing the C. The C is oxblood, so it still reads as the piece.</p>
+
+  <div class="locks">
+    <div class="lockbox">
+      <div class="lockrow">
+        <span class="w sat">SAT</span>
+        <svg class="hyph" viewBox="1.8 1.8 18.4 18.4">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+        </svg>
+        <span class="w cee">C</span>
+      </div>
+      <div class="sublegal">Sethuraman Accounting, Tax &amp; Consulting LLP</div>
+      <div class="cap">Primary lockup · square as hyphen, C in oxblood</div>
+    </div>
+
+    <div class="lockbox dk">
+      <div class="lockrow">
+        <span class="w sat">SAT</span>
+        <svg class="hyph" viewBox="1.8 1.8 18.4 18.4">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+        </svg>
+        <span class="w cee">C</span>
+      </div>
+      <div class="sublegal">Sethuraman Accounting, Tax &amp; Consulting LLP</div>
+      <div class="cap">Reversed · footer, card back, report cover</div>
+    </div>
+  </div>
+
+  <div class="note"><b>What this buys you.</b> It reads as SAT‑C at a glance, because the square sits exactly where a hyphen would and the C is a real letter at full size. On a second look, the square has a corner missing and the only oxblood thing on the page is the C — so the gap and the piece find each other without anyone explaining it. The mark and the wordmark are now the same object, which is what you were after.</div>
+</div></section>
+
+<!-- SIZE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">03</div>
+  <h2>Where the C survives</h2>
+  <p class="intro">One boundary, and here's the basis for it: the C is set at <code>font-size 11</code> in a 29.4-unit viewBox, so its cap ink measures roughly <code>0.7 × 11 × (px ÷ 29.4)</code> — <strong>16.8px at 64px overall</strong>, and shrinking fast below that. 16px of cap ink is about where a bold letterform stops being a letterform on screen. So: <strong>C at 64px and above, plain block below 64px.</strong></p>
+
+  <div class="sizes">
+    <div class="sz">
+      <svg width="112" height="112" viewBox="1.4 1.4 29.4 29.4"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><text x="25.4" y="29.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="700" fill="#6A2833">C</text></svg>
+      <span class="n">112 · C ✓</span>
+    </div>
+    <div class="sz">
+      <svg width="72" height="72" viewBox="1.4 1.4 29.4 29.4"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><text x="25.4" y="29.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="700" fill="#6A2833">C</text></svg>
+      <span class="n">72 · C ✓</span>
+    </div>
+    <div class="sz">
+      <svg width="64" height="64" viewBox="1.4 1.4 29.4 29.4"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.5"/><text x="25.4" y="29.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="700" fill="#6A2833">C</text></svg>
+      <span class="n">64 · C ✓ min</span>
+    </div>
+    <div class="sz">
+      <svg width="56" height="56" viewBox="1.8 1.8 28.6 28.6"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.5"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+      <span class="n">56 · block ✓</span>
+    </div>
+    <div class="sz">
+      <svg width="30" height="30" viewBox="1.8 1.8 28.6 28.6"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+      <span class="n">30 · block ✓</span>
+    </div>
+    <div class="sz">
+      <span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M6 6 H20 V13 H13 V20 H6 Z" fill="none" stroke="#fff" stroke-width="3"/><rect x="21" y="21" width="6" height="6" fill="#C0A265"/></svg></span>
+      <span class="n">16 · block ✓</span>
+    </div>
+  </div>
+
+  <div class="note"><b>One mark, two resolutions.</b> At 64px and above the piece is a C; below 64px it's the plain block. Nobody sees both at once and the silhouette is identical, so it reads as one mark rather than two logos. Favicon, app icon, and the email signature all use the block.</div>
+</div></section>
+
+<!-- CODE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">04</div>
+  <h2>Production</h2>
+  <p class="intro">Three assets: the large mark in two states, and the small block. The viewBox is cropped to the artwork, so no negative-margin patches are needed anywhere.</p>
+  <div class="two">
+    <div>
+      <div class="codecap">Open · 64px and above</div>
+      <pre>&lt;svg class="seal" viewBox="<span class="s">1.4 1.4 29.4 29.4</span>"&gt;
+  &lt;path class="s-o" d="<span class="s">M3 3 H19 V11 H11 V19 H3 Z</span>"/&gt;
+  &lt;text class="s-c" x="25.4" y="29.4" text-anchor="middle"
+        font-size="11" font-weight="700"&gt;C&lt;/text&gt;
+&lt;/svg&gt;</pre>
+      <div class="codecap" style="margin-top:20px">Filled · 64px and above</div>
+      <pre><span class="c">&lt;!-- 7.8 not 8: the ink must clear the stroke band --&gt;</span>
+&lt;svg class="seal is-filled" viewBox="1.4 1.4 29.4 29.4"&gt;
+  &lt;path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/&gt;
+  &lt;text class="s-c" x="<span class="s">15.4</span>" y="<span class="s">18.1</span>" text-anchor="middle"
+        font-size="<span class="s">7.8</span>" font-weight="700"&gt;C&lt;/text&gt;
+&lt;/svg&gt;</pre>
+      <div class="codecap" style="margin-top:20px">Small · below 64px</div>
+      <pre>&lt;svg class="seal seal--sm" viewBox="1.8 1.8 28.6 28.6"&gt;
+  &lt;path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/&gt;
+  &lt;rect class="s-i" x="22" y="22" width="8" height="8"/&gt;
+&lt;/svg&gt;</pre>
+    </div>
+    <div>
+      <div class="codecap">Lockup · real text, square as hyphen</div>
+      <pre>&lt;span class="lockup"&gt;
+  &lt;span class="w"&gt;SAT&lt;/span&gt;
+  &lt;svg class="hyph" viewBox="<span class="s">1.8 1.8 18.4 18.4</span>"&gt;
+    &lt;path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/&gt;
+  &lt;/svg&gt;
+  &lt;span class="w cee"&gt;C&lt;/span&gt;
+&lt;/span&gt;</pre>
+      <div class="codecap" style="margin-top:20px">CSS · identical to this page's own rules</div>
+      <pre>.lockup <span class="c">{</span>
+  display: flex; align-items: flex-end; gap: 5px;
+  <span class="s">font-size: 44px;</span>  <span class="c">/* the em the square resolves against */</span>
+<span class="c">}</span>
+.lockup .w <span class="c">{</span>
+  font-size: 1em;             <span class="c">/* inherits the container size */</span>
+  font-weight: 700; letter-spacing: -.05em;
+  line-height: .72;           <span class="c">/* box hugs the caps */</span>
+  color: var(--navy);
+<span class="c">}</span>
+.lockup .cee <span class="c">{</span> color: var(--oxblood); <span class="c">}</span>
+<span class="c">/* .68em of 44px = 29.9px, matching the 32px cap box */</span>
+.lockup .hyph <span class="c">{</span>
+  width: .68em; height: .68em; flex: none;
+  margin-bottom: 1px;         <span class="c">/* sits it on the baseline */</span>
+<span class="c">}</span>
+
+.seal .s-o <span class="c">{</span> fill: none; stroke: currentColor; stroke-width: 2.4; <span class="c">}</span>
+.seal .s-c <span class="c">{</span> font-family: <span class="s">"IBM Plex Sans"</span>; fill: var(--oxblood); <span class="c">}</span>
+.seal .s-i <span class="c">{</span> fill: var(--oxblood); <span class="c">}</span>
+.on-dark .seal .s-c,
+.on-dark .seal .s-i <span class="c">{</span> fill: var(--gold); <span class="c">}</span></pre>
+      <div class="note" style="margin-top:20px"><b>Outline the C before shipping.</b> A <code>&lt;text&gt;</code> element depends on the webfont loading — convert it to a path in any vector editor so the mark can't reflow into Arial on someone else's machine.</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="say"><div class="wrap">
+  <div class="k">What it means, in a meeting</div>
+  <p>"The square is your business, and the corner that's missing is the part nobody's handling. The C is us — cut to the exact shape of the gap."</p>
+  <p class="sub">And if they ask why a C: because it's the C in SAT‑C. The mark is the last letter of our name. Short enough to say once and never again.</p>
+</div></section>
+
+</body>
+</html>

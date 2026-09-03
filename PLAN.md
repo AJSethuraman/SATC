@@ -3,7 +3,7 @@
 > Living log of where the project stands, what's in flight, and what's decided.
 > Keep the date current when editing. Newest decisions at the top of the log.
 >
-> **Last updated: 2026-07-04**
+> **Last updated: 2026-08-27**
 
 ## What SATC is (positioning — read the norms through this lens)
 
@@ -19,7 +19,26 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Where things stand
 
-- **Branch:** `claude/happy-heisenberg-5rt6y1` (draft PR #21 → `main`). Suite: **242 passing**.
+> **2026-08-27.** This section and "In flight" below had gone thirteen days
+> stale, and the review findings further down had gone nearly two months
+> stale — several of them describe defects that were fixed weeks ago. The
+> stale parts are now marked in place rather than deleted, because what a
+> finding said and when it stopped being true are both worth keeping.
+>
+> **`docs/REPO-INVENTORY.md` is the current map of the whole repo** and is
+> the file to read first. This one is the decision log.
+
+- **Test suites, 27 August:** `client-documents` **966** · `satc_system`
+  **259** · `invoice-generator` **63**. The 242 below was `satc_system` on
+  14 August.
+- **In flight now:** PR #155 on
+  `claude/satc-handoff-batches-2-4-n2qrl9-b7-fee-estimate` — the controls
+  layer around the document pipeline: a blocking pre-send gate, the tenet
+  linter in both halves, the lifecycle documents, the close-out
+  reconciliation, and generated operating procedures. Draft; nothing near
+  `main`.
+- **The `satc_system` branch below:** `claude/happy-heisenberg-5rt6y1`
+  (draft PR #21 → `main`). Suite: **242 passing** as of 14 August; 259 today.
 - **The app:** local Flask GUI (`satc-app`, default port 5050) over a shared SQLite store
   (`~/.satc/data`). Identity vault (names/SSN/EIN) is split from the de-identified working
   mart. Drake remains the system of record.
@@ -34,7 +53,9 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## In flight
 
-- **Full review + industry-norms research (5 parallel agents, launched 2026-07-03):**
+- **Full review + industry-norms research (5 parallel agents, launched 2026-07-03)
+  — DELIVERED. The findings are below; several are since fixed, and each is
+  marked.**
   1. Security audit of the repo (vault-at-rest, Flask CSRF/auth, MCP surface)
   2. Handoff/usability audit ("stranger gets this today — where do they get stuck?")
   3. Compliance norms research (FTC Safeguards Rule/WISP, IRS Pub 4557/5708, §7216 & AI)
@@ -45,19 +66,29 @@ same legal duties either way — Phase 0 below stands regardless.
 ## Review findings
 
 ### Security audit (done 2026-07-03) — verified against code
-- **CRITICAL C1 — vault is plaintext.** `persistence/store.py` stores full legal
+
+> **Re-verified against the code on 2026-08-27: C1, H2, H3, M4 and M6 are
+> FIXED.** `persistence/crypto.py` encrypts the vault's PII with AES-256-GCM;
+> `app/server.py` rejects a non-loopback `Host` header and a state-changing
+> request a browser marks as cross-origin; the data directory and its files
+> are created 0700/0600, and the organizer PDF folder with them. The entries
+> below are left as written, with their status noted, because the finding and
+> the date it stopped being true are both worth keeping. **M5, M7, L8 and L9
+> were not re-checked and are not claimed either way.**
+
+- **CRITICAL C1 — vault is plaintext. FIXED (AES-256-GCM, `crypto.py`).** `persistence/store.py` stores full legal
   names + SSN/EIN in an **unencrypted** SQLite file (`satc_vault.db`); a real SSN was
   pulled straight out with `strings`. No encryption, no restrictive file ACLs. This is
   the top fix and the crux of the compliance gap.
-- **HIGH H2 — DNS-rebinding.** Flask sets no Host-header/trusted-host check; a malicious
+- **HIGH H2 — DNS-rebinding. FIXED (`server.py` Host allow-list).** Flask sets no Host-header/trusted-host check; a malicious
   page the preparer visits could rebind to `127.0.0.1:5050` and read `/clients`, `/export`,
   `/source` (raw W-2/1099 PDFs). Fix: `before_request` Host allow-list (+ optional token).
-- **HIGH H3 — no CSRF.** No tokens on any POST route; a drive-by page can blind-POST
+- **HIGH H3 — no CSRF. FIXED (cross-origin state-changing requests refused).** No tokens on any POST route; a drive-by page can blind-POST
   `/clients/<id>/discard`, `/sample/clear`, `/staging/post`, etc. Fix: Flask-WTF CSRF +
   `SameSite=Strict`.
-- **MEDIUM:** M4 data dir/files at default perms (want 0700/0600 + NTFS ACLs) · M5 local
-  API unauthenticated (low data impact) · M6 organizer PDFs write cleartext names to the
-  unprotected data dir · M7 hardcoded default `secret_key`.
+- **MEDIUM:** ~~M4 data dir/files at default perms~~ **FIXED (0700/0600)** · M5 local
+  API unauthenticated (low data impact) · ~~M6 organizer PDFs write cleartext names to the
+  unprotected data dir~~ **FIXED (folder restricted to 0700)** · M7 hardcoded default `secret_key`.
 - **LOW:** L8 `run_intake` takes an arbitrary folder (writes-only) · L9 shared SQLite
   connection across threads (corruption risk).
 - **Verified GOOD (don't churn):** MCP safe-by-default gating holds; MCP reads are truly
@@ -100,8 +131,10 @@ same legal duties either way — Phase 0 below stands regardless.
   else still applies.**
 - **NON-waived, still required for a solo preparer:** **encryption at rest AND in transit** (§314.4(c)(3)),
   **MFA** (c)(5), **access controls** (c)(1), a Qualified Individual, the WISP itself, service-provider
-  oversight, training, secure disposal. → **The plaintext-SSN vault (C1) is a real, non-waivable
-  violation.** BitLocker alone = defensible checkbox but leaves SSNs readable on a running machine;
+  oversight, training, secure disposal. → **The plaintext-SSN vault (C1) was a real, non-waivable
+  violation. It is encrypted as of the C1 fix** — AES-256-GCM at the field
+  level, which is the "app-level vault encryption" this paragraph names as
+  the defensible answer. BitLocker alone = defensible checkbox but leaves SSNs readable on a running machine;
   **app-level vault encryption (SQLCipher/AES-256, key via Windows DPAPI/keystore) is the defensible
   fix** and also earns the breach-rule "encrypted" carve-out.
 - **Breach rule (eff. May 13 2024):** notify FTC ≤30 days if *unencrypted* customer info of ≥500
@@ -183,6 +216,17 @@ same legal duties either way — Phase 0 below stands regardless.
 2. **CSRF tokens + Host-header allow-list** on the Flask app (H3/H2); restrictive dir/file perms (M4).
 3. Ship a **WISP template** (IRS Pub 5708) as a product artifact — turns compliance into a feature.
 
+**Fee automation (added 2026-08-25, after the pricing sign-off):**
+- **Phase A — the 1040 fee estimate renders for real.** Specified in
+  `client-documents/docs/prd-1040-fee-estimate.md`. Reshape `fee-schedule.yaml` to hold
+  the four-package ladder, the $50 per-form rule and the allowances, fill in the signed
+  prices, and prove a real estimate out of both front doors.
+- **Phase B — the invoice bridge.** Estimate line items → an invoice. Its first question
+  is the one deliberately left open below: which processor the client actually sees.
+- **Phase C — entity returns.** The `1120S/1065/1120` bases and the five business-return
+  gates (balance sheet $350, payroll $150, inventory $125, assets bought this year $95,
+  first year $250), on the pattern Phase A establishes.
+
 **Phase 1 — Actually giveable:**
 4. Merge to `main` + cut a **matching release** (code/exe/docs agree); root README; handoff quick-wins
    (fix `.mcpb` entry_point, OCR poppler→pymupdf, doctor Tesseract probe, doc fixes, data-dir doc).
@@ -203,6 +247,56 @@ same legal duties either way — Phase 0 below stands regardless.
    (Drake Portals already does e-sign). Industry norms informed this list; they don't dictate it.
 
 ## To-do
+
+### The end-of-cycle reconciliation control
+
+- [ ] **Check our data against what was actually filed, and update it.** The
+      firm, 26 August 2026: *"our interview and such is system of record until
+      proven wrong. we should update the data to match what we file if
+      required. this should be a control we build at the end of the cycle."*
+      Filing is the moment our answers are proven right or wrong, and today
+      nothing looks. Until this exists, "authoritative until proven wrong" has
+      no mechanism behind the second half. Depends on nothing else; blocked
+      only on where the filed figures are read from.
+
+### Owed to the firm when the documents are done
+
+- [ ] **Walk the whole fee schedule with the firm, line by line.** Asked for on
+      26 August 2026: *"when we are said and done i will have you give me the
+      fee schedule and we will ensure it's right."* Not a diff and not a
+      summary — the schedule itself, in a form the firm can read straight
+      through and correct. Every price, every assumption, every publish
+      decision, and what each one prints on a client's estimate. This is the
+      point at which the money is signed off as a whole rather than a round at
+      a time, so it comes after the documents settle, not before.
+
+### Raised in the sign-off room, 26 August 2026 — build work, not wording
+
+These came out of the firm reading the rendered documents. The wording notes
+were applied the same day; these three are the ones that need something built.
+
+- [ ] **A licence expiry check.** The firm: *"let's make a note to incorporate
+      a license expiry check we can email clients about as well."* We ask for
+      photo ID at onboarding and an ID has a date on it, so the software could
+      watch it and write to the client before it lapses. Nothing captures the
+      date today — the request list asks for the ID, not for what is on it.
+      Needs deciding: whether the expiry is a field on the record at all, given
+      an ID is identity data and `CLAUDE.md` keeps that out of this store.
+- [ ] **A business attachment for Schedule C clients.** The firm, on the
+      onboarding letter's one-line request for business income and expenses:
+      *"there is likely more to this - maybe we should just have a separate
+      attachment for business stuff depending on your situation."* Right, and
+      it is a document rather than a longer line — what a Schedule C needs
+      depends on payroll, inventory, a vehicle, a home office. The line is left
+      as it stands until that attachment exists.
+- [ ] **Preliminary and final numbers on the delivery letter.** The firm: *"we
+      can have a process that inputs the preliminary numbers (these) into the
+      workbook which then fills the template (or whatever we are using as a
+      database) and then we can record final numbers as well."* The delivery
+      letter's `ReturnsDelivered` list is hand-built today. It should come from
+      the same place the return's figures do, and the final numbers should be
+      recorded when they are known.
+
 
 ### Security fixes (Phase 0 — in progress)
 - [x] **C1 vault encryption** — AES-256-GCM on all vault PII (`persistence/crypto.py`); key sealed by
@@ -257,6 +351,26 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
       from-source `satc-mcp` and future `SATC.exe --mcp` paths)
 
 ### Explicitly deferred (decided against for now)
+- **Square vs Stripe — `delivery.payment_instruction`.** The firm takes Square; Invoicer
+  is Stripe end to end (`stripe_utils.py`, a webhook, four templates). One has to move
+  before that sentence can be written honestly. Confirmed 2026-08-25 that it blocks the
+  **invoice** template only — the fee estimate references neither `PaymentInstruction`
+  nor `MaterialsDeadline` — so it was fenced out of the estimate work rather than
+  decided under time pressure. It is Phase B's first question.
+- **The 2026 materials deadlines** — four firm settings that block the engagement and
+  organizer letters, not the estimate. Each needs a lead time chosen against the filing
+  date, which is its own conversation (2026-08-25).
+- **Bookkeeping pricing** — parked with a reason rather than left blank: *"this just
+  needs its own workstream and we will get there when we get there - for now we have
+  cleanup in tax prep."* The `assumed.cleanup` hourly line holds the honest tax-prep
+  case meanwhile (2026-08-25, thread T-12).
+- **Interview and pricing for non-return services** — bookkeeping, advisory, planning,
+  entity setup, notice resolution. Each needs its own base-and-adder model; the first
+  interview build covers **tax return preparation only**. Roadmap, not a permanent no
+  (2026-08-14). See `docs/prd-interview-and-field-registry.md`.
+- **RITA locality counting** — whether one Ohio RITA filing counts as a single locality
+  or several, for both the `LocalReturns` string and the billable count. Deferred while
+  prices are deferred; it changes a fee, not a field (2026-08-14).
 - HTTP refactor of the full read+write MCP server — investigated 2026-07-03, net-negative
   today (0 of 7 heavy tools have JSON endpoints; shared store already gives write
   visibility; folder-intake provenance doesn't survive an HTTP boundary). Revisit only if
@@ -266,6 +380,108 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
 
 ## Decisions log
 
+- **2026-08-27 — The pre-send gate blocks, with a logged override.** The firm's
+  choice over advisory-only and over blocking-with-no-escape: *a gate with no
+  override will one day stop a return going out at eleven at night and there
+  will be nothing to do about it; a gate that can be waved through silently is
+  not a gate.* `--force` needs `--reason`, and both go to the engagement's own
+  append-only log. If the log cannot be written, the pack is not written.
+- **2026-08-27 — Exact tenets block; judgement ones advise.** A tenet a machine
+  can check exactly becomes a hard failure. One it can only guess at prints as a
+  note, and is promoted only after a full cycle with no false positive. Eight
+  block today; ten advise behind `package --notes`; thirteen were measured and
+  dropped because a machine is the wrong instrument for them.
+- **2026-08-27 — Reconciliation is a short close-out interview, not a Drake
+  read.** What we said in January, checked against what was filed in April, from
+  the preparer's own answers. **No question asks for a figure** — a test enforces
+  it — because a figure would make this a second set of books, and Drake stays
+  the system of record.
+- **2026-08-27 — Operating procedures are generated from the harness.** Not
+  written beside the software. Every step is read out of the code that performs
+  it, so the document cannot name a command that does not exist or claim a check
+  the gate does not run. `procedures --check` fails in the suite when the
+  committed copy drifts.
+- **2026-08-27 — Order of work: money risk, then gates, then features, then
+  procedures.** The firm's ranking. Procedures went last deliberately —
+  documenting an ungated pipeline documents a pipeline that can still ship
+  unreadable documents.
+- **2026-08-27 — Every check reports its denominator.** Forced by finding two
+  blocking gates that had passed on every real send while examining nothing. A
+  check with nothing to look at prints `NONE`, never `ok`, and the count comes
+  from the check's own census rather than from beside it. See
+  `docs/SOFTWARE-TENETS.md` S2.
+
+- **2026-08-25 — Build one thing correctly, then use it as the blueprint.** The
+  operator's own framing while scoping the fee-estimate work: *"we can do one thing
+  at a time correctly and use that as our kind of blueprint for the next step."*
+  Applied immediately — the estimate v1 covers Form 1040 only, with entity returns,
+  the invoice bridge, the payment processor and the materials deadlines all fenced
+  out rather than carried along. It is a working principle, not a one-off scoping
+  call: prefer a narrow path proven end to end over a wide one proven nowhere.
+- **2026-08-25 — Gates are complexity checks answered from facts, and past the
+  assumptions the fixed prices stop applying.** Written as the header comment of
+  `client-documents/registry/fee-schedule.yaml` so nobody changes a price without
+  reading it. Three claims: a gate never asks a client to rate their own complexity;
+  hourly is what happens *instead of* a fixed price, not a surcharge on one; and
+  every price assumes the client supplies what we asked for. The corollary, from the
+  same week: where **our process** costs more than the return needs, that is a cost
+  to fix, not a cost to bill (`docs/workflow-friction-log.md`).
+- **2026-08-25 — Pricing goes on a public page, for transparency.** The firm, against
+  a recommendation to show the number only at the end of the intake: *"i plan to
+  operate transparently and find it personally frustrating it is hard to know what
+  you will pay upfront on most tax sites."* The recommendation was about risk; the
+  decision is about positioning, which is the firm's call. Three consequences are now
+  requirements rather than good practice — nothing goes on the page that is not in
+  `fee-schedule.yaml`, the three unset entity bases say "quoted after a conversation"
+  rather than leaving a gap a visitor fills in, and the page must be checkable
+  against the schedule in under a minute. Instructions for the website agent are in
+  `docs/pricing-for-website.md`; the intake estimate is the second half of the same
+  idea, not a replacement for it.
+- **2026-08-25 — What a package covers prints on the estimate, and `includes:` is
+  followed rather than printed.** An estimate that names a package and a price and
+  nothing else asks the client to take the number on faith. "Everything in Standard"
+  is true on a price page where the reader can see Standard and meaningless on an
+  estimate where they see one package, so the ladder is data and the chain is
+  expanded. It carries the allowances down with it, so a package cannot claim to
+  include everything in the rung below and quietly allow less. Counted lines say
+  "after the first" for the same reason.
+- **2026-08-25 — Warn, do not derive.** Rentals outnumbering local returns is worth a
+  preparer's eye and is not a fact the software may infer: townships levy no income
+  tax, an out-of-state rental owes an Ohio city nothing, and deriving the count would
+  quietly bill for returns nobody has to file. That needed a third channel — until
+  now the interview could say HARD NO or nothing. `Outcome.flags` is preparer-facing,
+  changes no price, reaches no client document, and appears on every outcome
+  including the refused ones.
+- **2026-08-25 — Brokerage comes off the hourly list; an assumption and a price for
+  the same overrun is worse than either alone.** $45 a statement past the first, $95
+  for one that has to be keyed, and `assumed.brokerage` deleted rather than reworded.
+  The direction of travel is worth noticing: an assumption with an hourly consequence
+  is what a firm writes when it has not decided the price. What the deletion cost the
+  client — the estimate no longer warns that keying costs $95 — is open as T-14.
+- **2026-08-25 — The pricing write-up is retired; the sheet carries the reasoning.**
+  Deferred twice, which was the signal. Every line on the price sheet now carries its
+  own justification and `docs/pricing-and-deadlines-basis.md` holds the derivation, so
+  a third prose copy only went stale faster than the other two.
+
+- **2026-08-14 — `EngagementRef` format wins over the lead number.** The templates
+  specify `YYYY-NNNN` (`2027-0114`) and require it byte-identical across letter,
+  estimate, onboarding letter and every invoice. The `SATC leads.xlsx` Lead Number
+  formula generates `2026 - 0001`. The template format is authoritative; the lead number
+  changes to match, and a lead's number becomes its `EngagementRef` on conversion — one
+  identifier for a client's whole life.
+- **2026-08-14 — `PeriodLabel` is derived per document, not stored.** The estimate and
+  onboarding letter use it for the engagement period ("2026 tax year"); the invoice uses
+  it for the period billed ("March 2027"). Sharing one stored value would print the wrong
+  thing on one of them.
+- **2026-08-14 — `MaterialsDeadline` is a firm setting, not a per-client answer.** One
+  fixed date per return type per season. It prints in three documents and the organizer's
+  field doc calls a mismatch "this template's most likely bug".
+- **2026-08-14 — The interview record holds no TIN.** Legal name, address, email and
+  phone are in scope; SSN, ITIN and EIN are not, and a denylist test enforces it. The
+  record lives in OneDrive, which is not an appropriate store for identifiers.
+- **2026-08-14 — No fee quoted on the call.** A single estimate follows in writing inside
+  the engagement letter, under the standing disclosure paragraph. The live site's
+  "discuss timeline and cost" over-promises this and needs a copy fix.
 - **2026-07-03 — Review & research pass ordered.** Owner directive: review everything,
   fix what's wrong, research industry norms, design for handoff ("time to look higher").
   Big changes require owner sign-off.

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — fill the gap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+svg{display:block}
+.wrap{max-width:1160px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:56px 0 50px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.hd h1{font-size:clamp(28px,3.8vw,42px);font-weight:600;letter-spacing:-.042em;line-height:1.04;margin-bottom:16px;max-width:22ch}
+.hd p{font-size:17px;line-height:1.62;color:rgba(255,255,255,.75);max-width:64ch}
+.hd p+p{margin-top:12px}
+.hd em{font-style:normal;color:var(--gold)}
+
+.sec{padding:54px 0;border-bottom:1px solid var(--hairline)}
+.sec:last-of-type{border-bottom:0}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.sec h2{font-size:24px;font-weight:600;letter-spacing:-.033em;color:var(--navy);margin-bottom:8px}
+.sec .intro{font-size:15.5px;line-height:1.62;color:var(--ink-2);max-width:74ch;margin-bottom:30px}
+
+/* two states */
+.states{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.state{background:var(--paper);padding:34px 32px 30px}
+.state .stage{height:190px;display:flex;align-items:center;justify-content:center;margin-bottom:26px}
+.state .nm{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--oxblood);margin-bottom:7px}
+.state h3{font-size:21px;font-weight:600;letter-spacing:-.03em;color:var(--navy);margin-bottom:9px}
+.state p{font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+.state .uses{margin-top:16px;padding-top:14px;border-top:1px solid var(--hairline);font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.state .uses b{color:var(--navy);font-weight:600;display:block;margin-bottom:3px;font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase}
+
+/* size row */
+.sizes{display:flex;align-items:flex-end;gap:32px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--hairline);padding:30px 32px}
+.sz{display:flex;flex-direction:column;align-items:center;gap:11px}
+.sz .n{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ink-2)}
+.tile{background:var(--navy);display:flex;align-items:center;justify-content:center;flex:none}
+.dead{color:var(--oxblood)}
+
+/* lockups */
+.locks{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.lockbox{background:var(--paper);border:1px solid var(--hairline);padding:28px 30px}
+.lockbox.dk{background:var(--navy);border-color:var(--navy)}
+.lock{display:flex;align-items:center;gap:14px}
+.lock .txt .nm{font-size:20px;font-weight:700;letter-spacing:-.042em;color:var(--navy);line-height:1;display:flex;align-items:center;gap:2px}
+.lock .txt .nm .hy{width:6px;height:6px;background:var(--oxblood);display:block;flex:none;margin:0 2px}
+.lock .txt .legal{font-family:var(--mono);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:6px}
+.lockbox.dk .lock .txt .nm{color:#fff}
+.lockbox.dk .lock .txt .nm .hy{background:var(--gold)}
+.lockbox.dk .lock .txt .legal{color:rgba(255,255,255,.5)}
+.cap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-top:22px;padding-top:14px;border-top:1px solid var(--hairline)}
+.lockbox.dk .cap{color:rgba(255,255,255,.45);border-top-color:rgba(255,255,255,.16)}
+
+pre{background:var(--navy);color:#fff;font-family:var(--mono);font-size:11.5px;line-height:1.75;padding:20px 22px;overflow-x:auto;margin:0}
+pre .c{color:rgba(255,255,255,.42)}
+pre .s{color:var(--gold)}
+.codecap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.note{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:20px 24px;margin-top:24px;font-size:14.5px;line-height:1.62;color:var(--ink-2)}
+.note b{color:var(--navy);font-weight:600}
+
+.say{background:var(--navy);color:#fff;padding:44px 0 48px}
+.say .k{font-family:var(--mono);font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.say p{font-size:19px;line-height:1.55;color:rgba(255,255,255,.88);max-width:56ch}
+.say .sub{font-size:14px;line-height:1.62;color:rgba(255,255,255,.55);max-width:60ch;margin-top:18px}
+@media(max-width:860px){.states,.locks,.two{grid-template-columns:1fr}.wrap{padding:0 24px}}
+.two>*,.pair>*,.tests>*,.grid>*,.locks>*,.states>*,.rules>*{min-width:0}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · mark, round three</div>
+  <h1>The gap isn't ours. It's theirs — and we're the piece that fits it.</h1>
+  <p>Your read is better than mine. Nothing was removed by a razor; the square is <em>the client's business</em>, the gap is what's missing from it, and the oxblood piece is <em>us</em>.</p>
+  <p>Which means the mark now has two states, and the second one is the sale.</p>
+</div></header>
+
+<!-- STATES -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">01</div>
+  <h2>Two states, one geometry</h2>
+  <p class="intro">Same square, same 8×8 piece, same path you already approved. The only variable is whether the piece is seated. Nothing new is drawn — which is why this works rather than feeling like a gimmick.</p>
+
+  <div class="states">
+    <div class="state">
+      <div class="stage">
+        <svg width="150" height="150" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+          <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        </svg>
+      </div>
+      <div class="nm">State 1 · Open</div>
+      <h3>The gap, and the piece</h3>
+      <p>The client's situation before you're involved: something missing, and the thing that fits it sitting apart. This is the working mark — the one on the nav, the card, the letterhead.</p>
+      <div class="uses"><b>Use for</b> Everything by default. Nav, business card, letterhead, favicon, signature, footer.</div>
+    </div>
+
+    <div class="state">
+      <div class="stage">
+        <svg width="150" height="150" viewBox="0 0 32 32">
+          <rect x="11" y="11" width="8" height="8" fill="#6A2833"/>
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+        </svg>
+      </div>
+      <div class="nm">State 2 · Filled</div>
+      <h3>Seated — and the seam still shows</h3>
+      <p>The piece slots home. The square is complete, but the notch's inner edges remain as a visible seam, so you can still read that it arrived from outside. Completion without erasing the story.</p>
+      <div class="uses"><b>Use for</b> Engagement confirmed, statement paid, filing complete, "thank you" pages, the last slide of a proposal.</div>
+    </div>
+  </div>
+
+  <div class="note"><b>Why the seam matters.</b> If the piece simply filled the corner with no seam, you'd have a plain square and the idea would vanish. The notch's stroke stays drawn <em>over</em> the seated piece — one line of SVG order — and that's the whole trick. Draw the piece first, the outline second.</div>
+</div></section>
+
+<!-- SIZE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">02</div>
+  <h2>Where the letters can and can't go</h2>
+  <p class="intro">You wanted the letters connected to the piece. They can be — but only above about 64px. Below that a reversed letter inside an 8-unit square turns to mush, so the piece goes plain and the wordmark carries the name. Here's the honest cutoff.</p>
+
+  <div class="sizes">
+    <div class="sz">
+      <svg width="120" height="120" viewBox="0 0 32 32">
+        <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+        <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        <text x="26" y="28.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="6.4" font-weight="700" fill="#F7F7F5">C</text>
+      </svg>
+      <span class="n">120 · letter ✓</span>
+    </div>
+    <div class="sz">
+      <svg width="72" height="72" viewBox="0 0 32 32">
+        <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+        <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        <text x="26" y="28.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="6.4" font-weight="700" fill="#F7F7F5">C</text>
+      </svg>
+      <span class="n">72 · letter ✓</span>
+    </div>
+    <div class="sz">
+      <svg width="44" height="44" viewBox="0 0 32 32">
+        <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.6"/>
+        <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        <text x="26" y="28.4" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="6.4" font-weight="700" fill="#F7F7F5">C</text>
+      </svg>
+      <span class="n dead">44 · breaking down</span>
+    </div>
+    <div class="sz">
+      <svg width="30" height="30" viewBox="0 0 32 32">
+        <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/>
+        <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+      </svg>
+      <span class="n">30 · plain ✓</span>
+    </div>
+    <div class="sz">
+      <span class="tile" style="width:20px;height:20px">
+        <svg width="16" height="16" viewBox="0 0 32 32"><path d="M4 4 H20 V12 H12 V20 H4 Z" fill="none" stroke="#fff" stroke-width="3.4"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg>
+      </span>
+      <span class="n">20 · plain ✓</span>
+    </div>
+    <div class="sz">
+      <span class="tile" style="width:16px;height:16px">
+        <svg width="13" height="13" viewBox="0 0 32 32"><path d="M6 6 H20 V13 H13 V20 H6 Z" fill="none" stroke="#fff" stroke-width="3"/><rect x="21" y="21" width="6" height="6" fill="#C0A265"/></svg>
+      </span>
+      <span class="n">16 · favicon ✓</span>
+    </div>
+  </div>
+
+  <div class="note"><b>So the rule is simple:</b> the lettered piece is an <em>expanded</em> mark for large applications only — report covers, the website hero, signage, a proposal title slide. Everywhere else the piece is plain and <strong>SAT&#8209;C</strong> does the naming. Nobody learns a pronunciation from a 16px favicon; they learn it from the wordmark.</div>
+</div></section>
+
+<!-- LOCKUPS -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">03</div>
+  <h2>SAT-C leads now</h2>
+  <p class="intro">The wordmark flips: <strong>SAT&#8209;C</strong> is what people say, so it's what they see. The full legal name drops to the line beneath — still on every document, no longer the thing being read first. And the hyphen becomes the piece, tying the letters to the mark even when the mark isn't there.</p>
+
+  <div class="locks">
+    <div class="lockbox">
+      <div class="lock">
+        <svg width="34" height="34" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.7"/>
+          <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        </svg>
+        <div class="txt">
+          <div class="nm">SAT<span class="hy"></span>C<span style="letter-spacing:-.02em">&nbsp;LLP</span></div>
+          <div class="legal">Sethuraman Accounting, Tax &amp; Consulting</div>
+        </div>
+      </div>
+      <div class="cap">Primary · nav, letterhead, card, signature</div>
+    </div>
+
+    <div class="lockbox dk">
+      <div class="lock">
+        <svg width="34" height="34" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#ffffff" stroke-width="2.7"/>
+          <rect x="22" y="22" width="8" height="8" fill="#C0A265"/>
+        </svg>
+        <div class="txt">
+          <div class="nm">SAT<span class="hy"></span>C<span style="letter-spacing:-.02em">&nbsp;LLP</span></div>
+          <div class="legal">Sethuraman Accounting, Tax &amp; Consulting</div>
+        </div>
+      </div>
+      <div class="cap">Reversed · footer, report cover, card back</div>
+    </div>
+  </div>
+
+  <div class="note"><b>The hyphen device.</b> Setting the hyphen in SAT&#8209;C as a small oxblood square is the cheapest way to make the letters and the symbol feel like one system — it reads as a hyphen at a glance and as the piece on a second look. It also means the wordmark alone still carries the brand on a plain-text or single-colour application.</div>
+</div></section>
+
+<!-- CODE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">04</div>
+  <h2>Production</h2>
+  <p class="intro">Both states are the same two elements in a different order. Nothing else in the system changes.</p>
+  <div class="two">
+    <div>
+      <div class="codecap">State 1 · Open (default)</div>
+      <pre>&lt;svg class="seal" viewBox="0 0 32 32" aria-hidden="true"&gt;
+  &lt;path class="s-o" d="<span class="s">M3 3 H19 V11 H11 V19 H3 Z</span>"/&gt;
+  &lt;rect class="s-i" x="<span class="s">22</span>" y="<span class="s">22</span>" width="8" height="8"/&gt;
+&lt;/svg&gt;</pre>
+      <div class="codecap" style="margin-top:22px">State 2 · Filled</div>
+      <pre><span class="c">&lt;!-- piece FIRST so the outline draws over it --&gt;</span>
+&lt;svg class="seal is-filled" viewBox="0 0 32 32"&gt;
+  &lt;rect class="s-i" x="<span class="s">11</span>" y="<span class="s">11</span>" width="8" height="8"/&gt;
+  &lt;path class="s-o" d="<span class="s">M3 3 H19 V11 H11 V19 H3 Z</span>"/&gt;
+&lt;/svg&gt;</pre>
+    </div>
+    <div>
+      <div class="codecap">CSS · unchanged from the existing spec</div>
+      <pre>.lockup .seal .s-o <span class="c">{</span>
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.7;
+<span class="c">}</span>
+.lockup .seal .s-i <span class="c">{</span> fill: var(--oxblood); <span class="c">}</span>
+.lockup.on-dark .seal .s-i <span class="c">{</span> fill: var(--gold); <span class="c">}</span>
+
+<span class="c">/* the hyphen device in the wordmark */</span>
+.lockup .nm <span class="c">{</span>
+  display: flex; align-items: center;
+  font-weight: 700; letter-spacing: -0.042em;
+<span class="c">}</span>
+.lockup .nm .hy <span class="c">{</span>
+  width: .3em; height: .3em; margin: 0 .1em;
+  background: var(--oxblood); flex: none;
+<span class="c">}</span></pre>
+      <div class="note" style="margin-top:22px"><b>Don't animate the transition</b> on the website. A logo that assembles itself on page load is a 2016 trope and it will date the site faster than anything else in the system. Use the filled state as a <em>static</em> mark on completion screens, where it means something.</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="say"><div class="wrap">
+  <div class="k">What it means, in a meeting</div>
+  <p>"The square is your business. The gap is the part that isn't handled — the books, the filings, the thing you keep meaning to sort out. The piece is us. We're the shape that fits it."</p>
+  <p class="sub">Then, if it's going well, hand them the version with the piece seated. That's the close, and it doesn't need a word said over it.</p>
+</div></section>
+
+</body>
+</html>

@@ -1,24 +1,38 @@
 #!/usr/bin/env python3
 """Generate branded raster images for the SATC site (og-image, apple-touch-icon).
 
+UPDATED for the restyle: the Notch mark, cool palette, sans wordmark.
+Replaces website/assets/make-images.py.
+
 Run from anywhere:  python3 website/assets/make-images.py
 Outputs:  website/og-image.png (1200x630)  and  website/apple-touch-icon.png (180x180)
 
-Pure Pillow + the system DejaVu fonts, so it re-runs anywhere with `pip install Pillow`.
+Pure Pillow. Tries IBM Plex Sans first (to match the site) and falls back to the
+system DejaVu fonts, so it still re-runs anywhere with `pip install Pillow`.
+To get exact Plex output, install the family or point PLEX_* at your .ttf files.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 OUT = Path(__file__).resolve().parent.parent  # the website/ folder
 
-NAVY        = (11, 31, 58)
-GOLD        = (176, 141, 87)
-GOLD_LIGHT  = (212, 185, 126)
-CREAM       = (247, 245, 240)
+# ---- restyle palette (was: NAVY 11,31,58 / GOLD 176,141,87 / CREAM 247,245,240)
+NAVY    = (19, 36, 55)     # #132437
+OXBLOOD = (106, 40, 51)    # #6A2833
+GOLD    = (192, 162, 101)  # #C0A265
+WHITE   = (255, 255, 255)
+SHELL   = (247, 247, 245)  # #F7F7F5
 
-SERIF      = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
-SERIF_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS       = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+# ---- fonts: prefer IBM Plex Sans, fall back to DejaVu -----------------------
+PLEX_SANS      = "/usr/share/fonts/truetype/plex/IBMPlexSans-Regular.ttf"
+PLEX_SANS_BOLD = "/usr/share/fonts/truetype/plex/IBMPlexSans-SemiBold.ttf"
+PLEX_MONO      = "/usr/share/fonts/truetype/plex/IBMPlexMono-Regular.ttf"
+DEJA_SANS      = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+DEJA_SANS_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+SANS      = PLEX_SANS if Path(PLEX_SANS).exists() else DEJA_SANS
+SANS_BOLD = PLEX_SANS_BOLD if Path(PLEX_SANS_BOLD).exists() else DEJA_SANS_BOLD
+MONO      = PLEX_MONO if Path(PLEX_MONO).exists() else DEJA_SANS
 
 
 def font(path, size):
@@ -49,16 +63,57 @@ def draw_centered(draw, cx, y, s, fnt, fill):
     draw.text((cx - draw.textlength(s, font=fnt) / 2, y), s, font=fnt, fill=fill)
 
 
-def seal(draw, cx, cy, r):
-    """The gold-ringed 'S' monogram."""
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=NAVY,
-                 outline=GOLD, width=max(2, r // 18))
-    ir = int(r * 0.74)
-    draw.ellipse([cx - ir, cy - ir, cx + ir, cy + ir], outline=GOLD, width=1)
-    f = font(SERIF, int(r * 1.5))
-    b = draw.textbbox((0, 0), "S", font=f)
-    draw.text((cx - (b[2] - b[0]) / 2 - b[0], cy - (b[3] - b[1]) / 2 - b[1]),
-              "S", font=f, fill=GOLD_LIGHT)
+def wordmark(draw, cx, y, size, ink, square):
+    """SAT[square]C LLP, centered on cx, drawn from the top at y.
+
+    The proportions come straight from the CSS in the mark spec, with the
+    font-size standing in for the em: square 0.3em, 0.18em either side of it,
+    LLP set 0.22em after the C at a lighter weight. The square sits 0.2em above
+    the baseline so it reads at hyphen height rather than as a full stop.
+    """
+    bold = font(SANS_BOLD, size)
+    med = font(SANS, size)
+    sq, pad, llp_gap = 0.30 * size, 0.18 * size, 0.22 * size
+
+    w_sat = draw.textlength("SAT", font=bold)
+    w_c = draw.textlength("C", font=bold)
+    w_llp = draw.textlength("LLP", font=med)
+    total = w_sat + pad + sq + pad + w_c + llp_gap + w_llp
+
+    # Cap bottom of the bold face, so the square lines up with real letterforms
+    # rather than with the font's full em box.
+    cap_bottom = draw.textbbox((0, 0), "SATC", font=bold)[3]
+
+    x = cx - total / 2
+    draw.text((x, y), "SAT", font=bold, fill=ink)
+    x += w_sat + pad
+    sq_bottom = y + cap_bottom - 0.20 * size
+    draw.rectangle([x, sq_bottom - sq, x + sq, sq_bottom], fill=square)
+    x += sq + pad
+    draw.text((x, y), "C", font=bold, fill=ink)
+    x += w_c + llp_gap
+    draw.text((x, y), "LLP", font=med, fill=ink)
+
+
+def mark(draw, x, y, size, outer=WHITE, inner=GOLD):
+    """The Notch mark. (x, y) is the top-left of the whole footprint.
+
+    Proportions are lifted from the SVG in index.html so raster and vector
+    agree exactly:
+        viewBox 32 · outline path M3 3 H19 V11 H11 V19 H3 Z · piece 22,22 8x8
+    which normalises to a 27-unit footprint (3 → 30).
+
+    The notch and the piece are both 8x8 — the piece fits the hole it came
+    from. Do not change one without the other.
+    """
+    k = size / 27
+    w = max(2, round(2.4 * k))
+    # the notched outline, drawn as a closed polyline
+    pts = [(3, 3), (19, 3), (19, 11), (11, 11), (11, 19), (3, 19)]
+    poly = [(x + (a - 3) * k, y + (b - 3) * k) for a, b in pts]
+    draw.line(poly + [poly[0]], fill=outer, width=w, joint="curve")
+    # the removed piece, set beside it
+    draw.rectangle([x + 19 * k, y + 19 * k, x + 27 * k, y + 27 * k], fill=inner)
 
 
 def make_og():
@@ -66,22 +121,27 @@ def make_og():
     img = Image.new("RGB", (W, H), NAVY)
     d = ImageDraw.Draw(img)
 
-    # decorative concentric rings, upper-right (dim gold over navy)
-    for rr, a in ((430, 0.14), (330, 0.10), (230, 0.07)):
-        d.ellipse([W - 250 - rr, -250 - rr, W - 250 + rr, -250 + rr],
-                  outline=blend(GOLD, NAVY, a), width=2)
+    # decorative OFFSET SQUARES, upper-right (was: concentric circles).
+    # Echoes the mark and matches the .hero::before/::after squares in the CSS.
+    for off, a in ((0, 0.15), (150, 0.09)):
+        x0 = W - 470 + off
+        y0 = -190 + off
+        d.rectangle([x0, y0, x0 + 430, y0 + 430],
+                    outline=blend(GOLD, NAVY, a), width=2)
 
-    seal(d, W // 2, 188, 78)
+    mark(d, W // 2 - 58, 116, 116, outer=WHITE, inner=GOLD)
 
-    draw_centered(d, W // 2, 300, "Sethuraman", font(SERIF, 92), CREAM)
-    draw_tracked(d, W // 2, 410, "ACCOUNTING  ·  TAX  ·  CONSULTING",
-                 font(SANS, 26), GOLD_LIGHT, tracking=6)
-    draw_centered(d, W // 2, 470, "Clarity in complexity.", font(SERIF, 34),
-                  blend(CREAM, NAVY, 0.82))
+    # The wordmark, not the firm name in full — the descriptor carries that.
+    # On navy the hyphen square goes gold, matching .lockup.on-dark .wm .hy.
+    wordmark(d, W // 2, 274, 88, ink=WHITE, square=GOLD)
+    draw_tracked(d, W // 2, 392, "SETHURAMAN ACCOUNTING, TAX & CONSULTING",
+                 font(MONO, 20), GOLD, tracking=3)
+    draw_centered(d, W // 2, 452, "Everything you need, from one desk.",
+                  font(SANS, 32), blend(SHELL, NAVY, 0.74))
 
     # gold hairline + url
-    d.line([(W // 2 - 70, 540), (W // 2 + 70, 540)], fill=GOLD, width=2)
-    draw_tracked(d, W // 2, 558, "SATCLLP.COM", font(SANS, 20), GOLD, tracking=5)
+    d.line([(W // 2 - 60, 534), (W // 2 + 60, 534)], fill=GOLD, width=1)
+    draw_tracked(d, W // 2, 552, "SATCLLP.COM", font(MONO, 19), GOLD, tracking=4)
 
     img.save(OUT / "og-image.png")
     print("wrote", OUT / "og-image.png")
@@ -91,7 +151,8 @@ def make_icon():
     S = 180
     img = Image.new("RGB", (S, S), NAVY)
     d = ImageDraw.Draw(img)
-    seal(d, S // 2, S // 2, 78)
+    fp = 104                      # mark footprint, leaves even padding
+    mark(d, (S - fp) // 2, (S - fp) // 2, fp, outer=WHITE, inner=GOLD)
     img.save(OUT / "apple-touch-icon.png")
     print("wrote", OUT / "apple-touch-icon.png")
 

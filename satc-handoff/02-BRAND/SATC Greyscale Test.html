@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — greyscale &amp; photocopy stress test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+svg{display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:56px 0 50px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.hd h1{font-size:clamp(28px,3.6vw,40px);font-weight:600;letter-spacing:-.04em;line-height:1.05;margin-bottom:14px}
+.hd p{font-size:16.5px;line-height:1.62;color:rgba(255,255,255,.72);max-width:66ch}
+
+.verdict-strip{background:var(--oxblood);color:#fff;padding:24px 0}
+.verdict-strip .wrap{display:flex;gap:26px;align-items:baseline;flex-wrap:wrap}
+.verdict-strip .n{font-family:var(--mono);font-size:34px;font-weight:500;letter-spacing:-.02em;line-height:1}
+.verdict-strip .t{font-size:16px;line-height:1.55;max-width:74ch;color:rgba(255,255,255,.9)}
+.verdict-strip .t b{color:#fff;font-weight:600}
+
+.sec{padding:56px 0;border-bottom:1px solid var(--hairline)}
+.sec:last-of-type{border-bottom:0}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.sec h2{font-size:24px;font-weight:600;letter-spacing:-.032em;color:var(--navy);margin-bottom:8px}
+.sec .intro{font-size:15.5px;line-height:1.62;color:var(--ink-2);max-width:72ch;margin-bottom:30px}
+
+/* measurement table */
+.mt{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--hairline)}
+.mt th{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:12px 16px;border-bottom:1px solid var(--hairline);background:var(--shell)}
+.mt th.r,.mt td.r{text-align:right}
+.mt td{padding:13px 16px;border-bottom:1px solid var(--hairline);font-size:14px;color:var(--ink-2)}
+.mt tr:last-child td{border-bottom:0}
+.mt .sw{display:inline-block;width:26px;height:16px;vertical-align:middle;margin-right:10px;border:1px solid rgba(0,0,0,.12)}
+.mt .nm{color:var(--navy);font-weight:600}
+.mt .num{font-family:var(--mono);font-size:13px;color:var(--navy);font-variant-numeric:tabular-nums}
+.mt .fail{color:#9B2C2C;font-weight:600}
+.mt .ok{color:#2F6B4E;font-weight:600}
+
+/* filter panels */
+.tests{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.test{background:var(--paper);border:1px solid var(--hairline)}
+.test__hd{padding:13px 18px;border-bottom:1px solid var(--hairline);background:var(--shell);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.test__hd .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--navy)}
+.test__hd .d{font-family:var(--mono);font-size:9px;color:var(--ink-2)}
+.test__body{padding:26px}
+.f-grey{filter:grayscale(1)}
+.f-copy{filter:grayscale(1) contrast(2.4) brightness(1.06)}
+.f-fax{filter:grayscale(1) contrast(14) brightness(1.1)}
+
+/* the specimen */
+.spec{font-family:var(--sans)}
+.spec .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.spec .lock{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.spec .lock .wm{display:flex;align-items:flex-end;font-size:15px;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.spec .lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.spec .lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.spec .tg{font-family:var(--mono);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:0}
+.spec .ref{font-family:var(--mono);font-size:9px;line-height:1.8;color:var(--ink-2);text-align:right}
+.spec .rule{height:1.5px;background:var(--navy);margin-bottom:14px}
+.spec table{width:100%;border-collapse:collapse}
+.spec th{font-family:var(--mono);font-size:7.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 7px;border-bottom:1px solid var(--hairline-2)}
+.spec th.r,.spec td.r{text-align:right}
+.spec td{font-size:12.5px;color:var(--ink);padding:8px 0;border-bottom:1px solid var(--hairline)}
+.spec td.r{font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--navy)}
+.spec tr.tot td{border-bottom:0;padding-top:11px;font-weight:600;color:var(--navy);font-size:13px}
+.spec tr.tot td.r{font-size:15px}
+.spec .goldrule{height:1px;background:var(--gold);margin-top:3px}
+.spec .foot{display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--hairline)}
+.spec .cta{background:var(--oxblood);color:#fff;font-size:11.5px;font-weight:600;padding:9px 18px}
+.spec .chip{border:1px solid var(--hairline-2);font-size:11.5px;padding:9px 14px;color:var(--ink-2)}
+.spec .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.spec .terms{margin-left:auto;font-family:var(--mono);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+
+/* rules out */
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.rules>div{background:var(--paper);padding:26px 26px 28px}
+.rules>div.no{background:var(--shell)}
+.rules h3{font-size:17px;font-weight:600;letter-spacing:-.026em;color:var(--navy);margin-bottom:3px}
+.rules .sub{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-bottom:18px}
+.rules ul{list-style:none;margin:0;padding:0}
+.rules li{font-size:14.5px;line-height:1.55;color:var(--ink-2);padding:11px 0 11px 22px;border-top:1px solid var(--hairline);position:relative}
+.rules li:first-child{border-top:0}
+.rules>div:not(.no) li::before{content:"";position:absolute;left:0;top:18px;width:7px;height:7px;background:var(--oxblood)}
+.rules>div.no li::before{content:"";position:absolute;left:0;top:21px;width:9px;height:1px;background:var(--mute)}
+.rules b{color:var(--navy);font-weight:600}
+
+.note{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:20px 24px;margin-top:26px;font-size:14.5px;line-height:1.62;color:var(--ink-2);max-width:88ch}
+.note b{color:var(--navy);font-weight:600}
+@media(max-width:900px){.tests,.rules{grid-template-columns:1fr}.wrap{padding:0 24px}}
+.two>*,.pair>*,.tests>*,.grid>*,.locks>*,.states>*,.rules>*{min-width:0}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · palette stress test</div>
+  <h1>Does it survive a photocopier?</h1>
+  <p>Clients photocopy, scan, and fax statements. If meaning is carried by colour alone, it disappears on the second-generation copy. This tests the navy / oxblood / gold system at greyscale, at photocopy contrast, and at fax threshold.</p>
+</div></header>
+
+<div class="verdict-strip"><div class="wrap">
+  <span class="n">1.47:1</span>
+  <span class="t"><b>Navy and oxblood are nearly identical in greyscale.</b> That's the finding, and it's a real one — but the system survives, because everywhere it uses both, <b>shape already carries the meaning</b>. Rules below.</span>
+</div></div>
+
+<!-- MEASURED -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">01</div>
+  <h2>What each colour becomes</h2>
+  <p class="intro">Relative luminance per WCAG, converted to its equivalent neutral grey. This is roughly what a mono laser printer puts on the page.</p>
+  <table class="mt">
+    <thead><tr><th>Colour</th><th>Hex</th><th class="r">Luminance</th><th>Becomes</th><th class="r">vs. navy</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="sw" style="background:#132437"></span><span class="nm">Navy</span></td>
+        <td class="num">#132437</td><td class="r num">0.0167</td>
+        <td><span class="sw" style="background:#232323"></span><span class="num">#232323</span></td>
+        <td class="r num">—</td>
+      </tr>
+      <tr>
+        <td><span class="sw" style="background:#6A2833"></span><span class="nm">Oxblood</span></td>
+        <td class="num">#6A2833</td><td class="r num">0.0484</td>
+        <td><span class="sw" style="background:#3E3E3E"></span><span class="num">#3E3E3E</span></td>
+        <td class="r"><span class="fail">1.47:1</span></td>
+      </tr>
+      <tr>
+        <td><span class="sw" style="background:#C0A265"></span><span class="nm">Gold</span></td>
+        <td class="num">#C0A265</td><td class="r num">0.3836</td>
+        <td><span class="sw" style="background:#A6A6A6"></span><span class="num">#A6A6A6</span></td>
+        <td class="r"><span class="ok">6.5:1</span></td>
+      </tr>
+      <tr>
+        <td><span class="sw" style="background:#82817C"></span><span class="nm">Mute</span></td>
+        <td class="num">#82817C</td><td class="r num">0.2374</td>
+        <td><span class="sw" style="background:#888888"></span><span class="num">#888888</span></td>
+        <td class="r"><span class="ok">4.3:1</span></td>
+      </tr>
+      <tr>
+        <td><span class="sw" style="background:#F7F7F5"></span><span class="nm">Shell</span></td>
+        <td class="num">#F7F7F5</td><td class="r num">0.9037</td>
+        <td><span class="sw" style="background:#F7F7F7;border-color:#ddd"></span><span class="num">#F7F7F7</span></td>
+        <td class="r"><span class="ok">14.4:1</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="note"><b>Why gold is fine and oxblood isn't.</b> Gold sits far up the luminance range, so it separates cleanly from navy even in mono — which is exactly why it works as a hairline. Oxblood is a <em>dark</em> colour like navy; it reads as different only because of hue, and hue is the first thing a photocopier throws away.</div>
+</div></section>
+
+<!-- THE FOUR TESTS -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">02</div>
+  <h2>The same statement, four ways</h2>
+  <p class="intro">Colour, then greyscale, then photocopy contrast, then fax threshold. Watch the <em>Settle account</em> button and the mark — those are the two places navy and oxblood sit near each other.</p>
+  <div class="tests">
+
+    <div class="test">
+      <div class="test__hd"><span class="n">As designed</span><span class="d">full colour</span></div>
+      <div class="test__body"><div class="spec">
+        <div class="top">
+          <div class="lock">
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </div>
+          <div class="ref">Statement 4471<br/>Aug 13, 2026</div>
+        </div>
+        <div class="rule"></div>
+        <table>
+          <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly close — July</td><td class="r">14.0</td><td class="r">$2,450.00</td></tr>
+            <tr><td>Multi-state review</td><td class="r">6.5</td><td class="r">$1,137.50</td></tr>
+            <tr class="tot"><td>Balance due</td><td class="r"></td><td class="r">$3,587.50<div class="goldrule"></div></td></tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="cta">Settle account</span>
+          <span class="chip on">Sent</span>
+          <span class="terms">Net 14</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="test">
+      <div class="test__hd"><span class="n">Greyscale</span><span class="d">mono laser</span></div>
+      <div class="test__body f-grey"><div class="spec">
+        <div class="top">
+          <div class="lock">
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </div>
+          <div class="ref">Statement 4471<br/>Aug 13, 2026</div>
+        </div>
+        <div class="rule"></div>
+        <table>
+          <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly close — July</td><td class="r">14.0</td><td class="r">$2,450.00</td></tr>
+            <tr><td>Multi-state review</td><td class="r">6.5</td><td class="r">$1,137.50</td></tr>
+            <tr class="tot"><td>Balance due</td><td class="r"></td><td class="r">$3,587.50<div class="goldrule"></div></td></tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="cta">Settle account</span>
+          <span class="chip on">Sent</span>
+          <span class="terms">Net 14</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="test">
+      <div class="test__hd"><span class="n">Photocopy</span><span class="d">2nd generation</span></div>
+      <div class="test__body f-copy"><div class="spec">
+        <div class="top">
+          <div class="lock">
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </div>
+          <div class="ref">Statement 4471<br/>Aug 13, 2026</div>
+        </div>
+        <div class="rule"></div>
+        <table>
+          <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly close — July</td><td class="r">14.0</td><td class="r">$2,450.00</td></tr>
+            <tr><td>Multi-state review</td><td class="r">6.5</td><td class="r">$1,137.50</td></tr>
+            <tr class="tot"><td>Balance due</td><td class="r"></td><td class="r">$3,587.50<div class="goldrule"></div></td></tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="cta">Settle account</span>
+          <span class="chip on">Sent</span>
+          <span class="terms">Net 14</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="test">
+      <div class="test__hd"><span class="n">Fax threshold</span><span class="d">1-bit, worst case</span></div>
+      <div class="test__body f-fax"><div class="spec">
+        <div class="top">
+          <div class="lock">
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </div>
+          <div class="ref">Statement 4471<br/>Aug 13, 2026</div>
+        </div>
+        <div class="rule"></div>
+        <table>
+          <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly close — July</td><td class="r">14.0</td><td class="r">$2,450.00</td></tr>
+            <tr><td>Multi-state review</td><td class="r">6.5</td><td class="r">$1,137.50</td></tr>
+            <tr class="tot"><td>Balance due</td><td class="r"></td><td class="r">$3,587.50<div class="goldrule"></div></td></tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="cta">Settle account</span>
+          <span class="chip on">Sent</span>
+          <span class="terms">Net 14</span>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+  <div class="note"><b>What actually breaks:</b> the gold hairline under the total. It's the lightest ink in the system, so at fax threshold it either vanishes or blows out to black. On print documents, make that rule <b>navy at 0.5pt</b> instead of gold — the specimen below the letterhead does exactly that. Everything else holds: the button survives because it's a filled block, and the mark survives because outline-versus-solid is a shape difference, not a colour one.</div>
+</div></section>
+
+<!-- RULES -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">03</div>
+  <h2>Rules this produces</h2>
+  <p class="intro">The palette stands. These are the constraints that keep it standing on paper.</p>
+  <div class="rules">
+    <div>
+      <h3>Safe — shape carries it</h3>
+      <p class="sub">Keep doing these</p>
+      <ul>
+        <li><b>Oxblood as a filled block.</b> A solid button reads as a button in any generation of copy — the fill is the signal, not the hue.</li>
+        <li><b>The mark's outline vs. solid piece.</b> Survives greyscale, threshold, and embossing, because the difference is geometric.</li>
+        <li><b>Gold on screen only, as hairlines.</b> 6.5:1 against navy in mono — clean separation where it survives at all.</li>
+        <li><b>Navy for every rule and heading on print.</b> One dark ink, doing the structural work.</li>
+      </ul>
+    </div>
+    <div class="no">
+      <h3>Banned — colour alone</h3>
+      <p class="sub">Never do these</p>
+      <ul>
+        <li><b>Oxblood text on navy, or navy on oxblood.</b> 1.47:1 — fails in colour before it even reaches the copier.</li>
+        <li><b>Status coded by navy vs. oxblood.</b> Paid vs. overdue must differ by word, weight, or position — never hue alone.</li>
+        <li><b>Gold hairlines on anything printed.</b> Use navy at 0.5pt. Gold is a screen material here.</li>
+        <li><b>Oxblood on a figure to mean "negative."</b> Use parentheses — the accounting convention, and it photocopies.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>Verify it yourself in ten seconds:</b> print any document to PDF, then open it and print again with "greyscale" or "black and white" ticked. If you can still tell what to pay and by when, it passed. The filters above are approximations — a real toner path is always harsher.</div>
+</div></section>
+
+</body>
+</html>

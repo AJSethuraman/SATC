@@ -1,0 +1,357 @@
+"""Deriving the fee schedule from hours × a rate.
+
+The firm has never priced itself and has no past invoices to read prices off,
+so "what do you charge for a K-1?" has no answer. "How long does a K-1 take
+you?" does. This module does that multiplication.
+
+What the tests defend is the same claim `test_pricing.py` defends from the
+other side: **nothing here may invent a number.** A blank hour count must stay
+a `[CONFIRM:`, a missing rate must refuse rather than default, and rounding —
+which is a pricing policy — must stay off until asked for.
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import fees  # noqa: E402
+import pricing  # noqa: E402
+
+EXAMPLE_HOURS = ROOT / "samples" / "fee-hours-example.yaml"
+
+
+@pytest.fixture(scope="module")
+def blank():
+    """The firm's real schedule with every amount opened back up.
+
+    It used to be `pricing.load()` unchanged, because every amount in the real
+    file was a `[CONFIRM:`. The firm finished pricing itself on 26 August 2026
+    and the fixture became a lie -- these tests are about DERIVATION, which is
+    the machinery for getting from hours to prices, and it has to keep working
+    on a schedule that has not been priced yet whether or not this one has.
+    """
+    s = json.loads(json.dumps(pricing.load()))
+    for path, question in fees.ITEMS:
+        node = s
+        parts = path.split(".")
+        for key in parts[:-1]:
+            node = node[key]
+        node[parts[-1]] = f"[CONFIRM: {question}]"
+    return s
+
+
+@pytest.fixture(scope="module")
+def hours():
+    raw = yaml.safe_load(EXAMPLE_HOURS.read_text(encoding="utf-8"))
+    raw.pop("rate"), raw.pop("base_covers")
+    return raw
+
+
+# ── the multiplication ────────────────────────────────────────────────────
+
+def test_a_fee_is_hours_times_the_rate(blank):
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 437.5
+
+
+def test_a_full_sitting_prices_everything(hours, blank):
+    """Every amount hours can reach. A gate is not an amount -- no number of
+    hours says which package a client is in -- so it stays open by design and
+    `doctor` keeps reporting it."""
+    out = fees.derive(175, hours, base_covers="federal_only", schedule=blank)
+    left = [p for p, _ in fees.still_open(out) if fees.is_derivable(p)]
+    assert left == []
+
+
+def test_the_result_actually_prices_an_interview(hours, blank):
+    """The point of the exercise: a schedule the estimate can render from."""
+    out = fees.derive(175, hours, base_covers="federal_only", schedule=blank)
+    priced = pricing.price({"federal_form": "1040", "count_states": 1,
+                            "count_k1s": 2}, out)
+    # 2.5h + 1h + (2 x 0.4h) = 4.3h at $175. Written as the arithmetic rather
+    # than as a total, because a bare "$752.50" is unfalsifiable by eye.
+    assert priced["EstimateTotal"] == "$752.50" == \
+        f"${(2.5 + 1 + 0.4 * 2) * 175:,.2f}"
+    assert "[CONFIRM:" not in priced["EstimateTotal"]
+
+
+# ── what it refuses to invent ─────────────────────────────────────────────
+
+def test_an_item_left_blank_stays_unpriced(blank):
+    """The whole failure mode. A preparer who knows what a 1040 takes and
+    genuinely does not know what a K-1 issued to an owner takes must be able
+    to say so."""
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    still = dict(fees.still_open(out))
+    # An entity base, because owner_k1 got its price on 25 Aug. Same point:
+    # something the preparer genuinely does not know stays unpriced and says so.
+    assert "base.1120S" in still
+    assert "base.1040.tiers.essentials.amount" not in still
+
+
+def test_a_partial_sitting_still_refuses_to_total(blank):
+    """Two localities, not one: the base covers the first of each, and the
+    local return is the line still carrying a [CONFIRM. Naming a specific
+    unpriced item is the point -- the moment one gets priced this test has to
+    move to another, which is the reminder that it is about the refusal and
+    not about that item."""
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    # Moved 25 Aug 2026, exactly as the docstring said it would have to be: the
+    # local return got its price, so the refusal is shown on an entity base,
+    # which is deliberately still open while entity work is out of scope.
+    assert "[CONFIRM:" in pricing.price(
+        {"federal_form": "1120S"}, out)["EstimateTotal"]
+
+
+def test_hours_with_no_rate_refuse_rather_than_default(blank):
+    with pytest.raises(fees.FeeBasisError):
+        fees.derive(None, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+
+
+def test_a_rate_of_zero_is_refused(blank):
+    with pytest.raises(fees.FeeBasisError):
+        fees.derive(0, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+
+
+def test_negative_hours_are_refused(blank):
+    with pytest.raises(fees.FeeBasisError):
+        fees.derive(175, {"base.1040.tiers.essentials.amount": -1}, schedule=blank)
+
+
+def test_an_hours_key_that_prices_nothing_is_refused(blank):
+    """A typo'd path that silently priced nothing would look like a blank."""
+    with pytest.raises(fees.FeeBasisError):
+        fees.derive(175, {"base.1041": 2}, schedule=blank)
+
+
+def test_base_covers_is_not_guessed(blank):
+    """It changes every number under it, so deriving prices never invents it.
+
+    The firm has since answered it (`one_included`), so what this pins is that
+    `derive` leaves it exactly as it found it and refuses a value it does not
+    recognise."""
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    assert out["base_covers"] == blank["base_covers"]
+    with pytest.raises(fees.FeeBasisError):
+        fees.derive(175, {}, base_covers="whatever", schedule=blank)
+
+
+# ── rounding is a policy, not a default ───────────────────────────────────
+
+def test_rounding_is_off_unless_asked_for(blank):
+    assert fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)["base"]["1040"]["tiers"]["essentials"]["amount"] == 437.5
+
+
+def test_rounding_goes_up_to_the_firms_increment(blank):
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, increment=25, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 450
+
+
+def test_an_amount_already_on_the_increment_does_not_jump(blank):
+    out = fees.derive(100, {"base.1040.tiers.essentials.amount": 4.5}, increment=25, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 450
+
+
+# ── writing back ──────────────────────────────────────────────────────────
+#
+# These take the REAL schedule rather than the blank one, because the write is
+# a text substitution against the real file and the two have to agree about
+# what is currently in it. Writing over a number the file actually contains is
+# also the case that matters now that the firm has priced itself: the first
+# write was into blanks, and every write after this one is a price change.
+
+
+@pytest.fixture
+def real():
+    return pricing.load()
+
+
+def test_the_write_keeps_every_comment(real):
+    """The file is two thirds comment and the comments are what make it
+    fillable by hand. A YAML dump would produce a valid file that had lost
+    all of them."""
+    src = fees.SCHEDULE.read_text(encoding="utf-8")
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
+    assert written.count("#") == src.count("#")
+    assert "TO PRICE THE FIRM" in written
+
+
+def test_the_write_changes_only_what_was_priced(real):
+    src = fees.SCHEDULE.read_text(encoding="utf-8")
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
+    diff = [(a, b) for a, b in zip(src.splitlines(), written.splitlines()) if a != b]
+    assert len(diff) == 1 and "amount:" in diff[0][1]
+
+
+def test_what_was_written_parses_back_to_what_was_derived(real):
+    """Every priced line, round-tripped through the text and back.
+
+    This used to cover only the items still open, on the reasoning that
+    derivation is for filling blanks and that `_sub_once` refused to rewrite a
+    plain number whose text occurred elsewhere in the file. Both halves have
+    moved: the firm priced itself on 26 August 2026, so the open set emptied
+    and the test asserted nothing about anything; and `_sub_once` now anchors
+    on the key, so rewriting a set number is safe. What derivation is for now
+    is CHANGING a price, which is what this covers.
+    """
+    src = fees.SCHEDULE.read_text(encoding="utf-8")
+    hours = {p: 2 for p, _ in fees.ITEMS}
+    out = fees.derive(175, hours, base_covers="one_included", schedule=real)
+    assert yaml.safe_load(fees.apply_to_text(src, real, out)) == out
+
+
+def test_a_whole_number_writes_without_a_trailing_point_zero(real):
+    """`450.0` in a fee schedule reads like a rounding error.
+
+    Written against a still-open amount rather than a package price: once the
+    firm has set a figure it is a plain number, and `_sub_once` refuses to
+    rewrite a plain number whose text occurs elsewhere in the file. That
+    refusal is the safety rule working, not a bug to route around.
+    """
+    src = fees.SCHEDULE.read_text(encoding="utf-8")
+    out = fees.derive(180, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
+    assert "amount: 450\n" in written and "amount: 450.0" not in written
+
+
+def test_an_ambiguous_rewrite_refuses_rather_than_editing_the_wrong_line(blank):
+    """Once amounts are plain numbers, `450` may occur twice and there is no
+    safe way to tell which line was meant."""
+    src = 'base:\n  "1040": 450\n  "1065": 450\n'
+    before = {"base": {"1040": 450, "1065": 450}}
+    after = {"base": {"1040": 500, "1065": 450}}
+    with pytest.raises(fees.FeeBasisError):
+        fees._sub_once(src, "450", "500", "base.1040.tiers.essentials.amount")
+
+
+# ── the prompts ───────────────────────────────────────────────────────────
+
+def test_every_priceable_amount_has_a_prompt(blank):
+    """If the schedule grows an amount and ITEMS does not, that amount can
+    never be derived and nothing would say so."""
+    derivable = {p for p, _ in fees.ITEMS}
+    for path, _ in pricing.open_amounts(blank):
+        if not fees.is_derivable(path):
+            continue
+        assert path in derivable, f"{path} has no prompt in fees.ITEMS"
+
+
+def test_every_prompt_points_at_something_real(blank):
+    for path, meaning in fees.ITEMS:
+        fees._dig(blank, path)
+        assert meaning and meaning[0].islower(), path
+
+
+def test_the_example_hours_are_labelled_fictional():
+    """Same guard the example schedule carries. A file of plausible hours is
+    one copy-paste from becoming the firm's prices."""
+    head = EXAMPLE_HOURS.read_text(encoding="utf-8")[:200].upper()
+    assert "EXAMPLE ONLY" in head and "FICTIONAL" in head
+
+
+# ── what a price buys, in hours ───────────────────────────────────────────
+#
+# The inverse of derivation, and the half that gets used daily: `price` is run
+# once when the firm sets its fees; `hours` is run whenever someone wants to
+# know how long a job has before it stops earning its rate.
+
+def test_the_rate_comes_from_the_schedule_not_the_caller():
+    """A budget that depended on what the caller typed would not be an
+    expectation. It would be an opinion held once."""
+    rate, step, floor = fees.basis_of(pricing.load())
+    assert rate > 0 and step > 0
+    assert floor > 0, "with no floor, nothing can ever be flagged as under it"
+
+
+def test_a_schedule_with_no_rate_yields_no_budgets_and_says_so():
+    with pytest.raises(fees.FeeBasisError, match="basis.rate"):
+        fees.basis_of({"base": {"1040": 170}})
+
+
+def test_hours_are_rounded_to_the_unit_time_is_booked_in():
+    """1.133 h cannot be entered on a timesheet; 1.25 can."""
+    b = fees.hours_for(170, 150, step=0.25)
+    assert b.raw == pytest.approx(170 / 150)
+    assert b.hours == 0.25 * round((170 / 150) / 0.25) == 1.25
+
+
+def test_rounding_is_to_nearest_not_up():
+    """Rounding a budget up hands back time the price never paid for.
+    $800 / $150 is 5.33 h, which is nearer 5.25 than 5.50."""
+    assert fees.hours_for(800, 150).hours == 5.25
+
+
+def test_the_floor_is_reported_and_never_applied():
+    """A $30 line does not become a $37.50 line because the firm has a
+    fifteen-minute minimum. It becomes a line worth asking about."""
+    b = fees.hours_for(30, 150, floor=0.25)
+    assert b.under_floor is True
+    assert b.raw == pytest.approx(0.2), "the honest number survives the flag"
+    assert fees.hours_for(60, 150, floor=0.25).under_floor is False
+
+
+def test_a_half_priced_schedule_yields_half_a_budget():
+    """Absent, not zero. A schedule that is partly priced is partly budgeted,
+    which is the truth about it."""
+    schedule = copy.deepcopy(pricing.load())
+    before = set(fees.expected_hours(schedule))
+    fees._plant(schedule, "base.1040.tiers.essentials.amount", 170)
+    budgets = fees.expected_hours(schedule)
+    assert set(budgets) == before | {"base.1040.tiers.essentials.amount"}, \
+        "planting one price budgets exactly one more line"
+    assert budgets["base.1040.tiers.essentials.amount"].hours == 1.25
+
+
+def test_every_priceable_item_can_carry_a_budget():
+    """Whatever `price` can set, `hours` can read back. If ITEMS grows and the
+    budget side is not taught about it, the new line would silently have no
+    expectation attached."""
+    schedule = copy.deepcopy(pricing.load())
+    for path, _ in fees.ITEMS:
+        fees._plant(schedule, path, 300)
+    assert set(fees.expected_hours(schedule)) == {p for p, _ in fees.ITEMS}
+
+
+def test_a_price_and_its_budget_agree_at_the_rate():
+    """The round trip that does hold: hours -> price -> hours, when the hours
+    were already a multiple of the booking unit."""
+    rate, _, _ = fees.basis_of(pricing.load())
+    priced = fees.derive(rate, {"base.1040.tiers.essentials.amount": 2.5}, schedule=copy.deepcopy(pricing.load()))
+    assert fees._dig(priced, "base.1040.tiers.essentials.amount") == 2.5 * rate
+    assert fees.expected_hours(priced)["base.1040.tiers.essentials.amount"].hours == 2.5
+
+
+def test_a_price_can_still_be_rewritten_after_its_base_grows_metadata():
+    """The entity bases became blocks on 26 August 2026 — an `amount` plus the
+    "from price" notes that have to travel with it.
+
+    That broke the fee writer, which had been reading `base.1120S` as the
+    money itself. It failed loudly rather than writing to the wrong line,
+    which is the behaviour it was built for, but a price the firm cannot
+    rewrite is a price they cannot change without editing YAML by hand — and
+    the whole point of this module is that they do not have to.
+
+    A caller asking for a price should not have to know whether that price
+    lives bare or inside a block.
+    """
+    schedule = pricing.load()
+    assert isinstance(schedule["base"]["1120S"], dict), \
+        "this test is about the block shape; the shape has changed again"
+
+    assert fees._dig(schedule, "base.1120S") == 950, "should reach the money"
+
+    fees._plant(schedule, "base.1120S", 975)
+    assert schedule["base"]["1120S"]["amount"] == 975, "should write the money"
+    assert schedule["base"]["1120S"]["publish"] == "from", \
+        "and must not flatten the block on the way past"

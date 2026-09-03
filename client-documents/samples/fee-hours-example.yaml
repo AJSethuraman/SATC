@@ -1,0 +1,41 @@
+# EXAMPLE ONLY — FICTIONAL HOURS AND A FICTIONAL RATE. NOT THE FIRM'S.
+#
+# What `price --hours` eats. Every key is a path from `price --list`; anything
+# omitted or left null stays unpriced in the result, which is the honest
+# outcome when you do not yet know.
+#
+# The hours are incremental where the schedule is incremental: `state_return`
+# is what ONE MORE state costs you, not what the first one costs.
+rate: 175
+base_covers: federal_only
+
+# One figure per package. The hours behind them differ by more than the
+# prices do, which is the point of having four.
+base.1040.tiers.starter.amount: 1.0
+base.1040.tiers.essentials.amount: 2.5
+base.1040.tiers.standard.amount: 3.5
+base.1040.tiers.business.amount: 5.0
+base.1120S: 4.75
+base.1065: 4.75
+base.1120: 5.25
+
+per_unit.state_return.amount: 1
+per_unit.local_return.amount: 0.5
+# Rentals are priced as a FORM now, so the form fee is the Schedule E itself
+# and `amount` is only the marginal property past the ones it covers.
+per_unit.rental.form_fee: 1.0
+per_unit.rental.amount: 0.3
+per_unit.farm.form_fee: 1.25
+per_unit.farm.amount: 1.25
+per_unit.k1.amount: 0.4
+per_unit.owner_k1.amount: 0.5
+per_unit.schedule_c.tiers.simple.amount: 0.4
+per_unit.schedule_c.tiers.standard.amount: 1.25
+
+
+# Added 26 Aug 2026 alongside the lines they price. Still fictional.
+per_unit.brokerage.amount: 0.3
+per_unit.foreign_account.amount: 0.3
+per_form.amount: 0.3
+per_form.forms.earned_income_credit.amount: 0.4
+per_unit.records_sorting.amount: 1.25

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — disengagement letter (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">Ending our engagement — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+  <p>This letter confirms that our engagement ends on <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. It sets out what we completed, what we did not, what you now have, and what you need to arrange. <strong>Section 03 is the part with a deadline in it.</strong></p>
+
+  <div class="dateline">
+    <div>
+      <div class="k">Engagement ends</div>
+      <div class="v"><span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span></div>
+    </div>
+    <div style="text-align:right">
+      <div class="k">Records available until</div>
+      <div class="v"><span class="f">&lt;&lt;RecordsAvailableUntil&gt;&gt;</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What this ends</h2>
+    <p>As the <b>Ending this engagement</b> section of your engagement letter provides, either of us may end it in writing at any time. This is that writing. It covers <span class="f">&lt;&lt;ScopeEnded&gt;&gt;</span>, and it takes effect on <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>.</p>
+    <span class="cond">[[IF ClientInitiated]]</span>
+    <p>You asked us to stop, and we have. No explanation is needed and we have not recorded one.</p>
+    <span class="cond end">[[END IF]]</span>
+    <span class="cond">[[IF FirmInitiated]]</span>
+    <p>This is our decision, and we are telling you in writing so the date is not in doubt. <strong>We are giving you the time set out in section 03 to make other arrangements</strong>, and we will do the things listed there to make the transition workable.</p>
+    <span class="cond end">[[END IF]]</span>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>What we completed, and what we did not</h2>
+    <span class="cond">[[EACH WorkStatus]]</span>
+    <ul>
+      <li><b><span class="f">&lt;&lt;Item.Work&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Status&gt;&gt;</span></li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <div class="callout">
+      <p><strong>Anything not marked complete above is not filed, not lodged, and not being worked on by us.</strong> Treat every incomplete item as yours from <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>.</p>
+    </div>
+    <p>We will not begin any new work, respond to any notice, or file anything on your behalf after that date, and no filing extension we have already obtained changes any date a taxing authority has set for you.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">03</span>Deadlines you now own</h2>
+    <span class="cond">[[EACH OpenDeadlines]]</span>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b><span class="f">&lt;&lt;Item.Obligation&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></span>
+      </li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <p><strong>These dates are ours to tell you about and yours to meet.</strong> We have listed the ones we know of from the work we did. It is not a complete list of everything you owe anyone.</p>
+    <p><strong>Engage someone promptly.</strong> A new preparer needs time to read a file before a deadline, not after it, and the ones above do not move because the engagement changed.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">04</span>Your records</h2>
+    <p><span data-encl="attachment:client-records">Your original records are returned with this letter, or are available for collection until <span class="f">&lt;&lt;RecordsAvailableUntil&gt;&gt;</span>.</span> <span data-encl="attachment:work-copies">Copies of everything we prepared for you are included.</span></p>
+    <p>As the <strong>Your records, our files, and delivery</strong> section of your engagement letter provides, <strong>our work papers are ours, not part of your records</strong>. We keep our copies for the period that section states, and we will respond to a successor's request for what a successor is properly entitled to.</p>
+    <p>Tell us in writing if you want us to send anything to another firm, and name the firm. <strong>We will not release your information to anyone on a telephone call</strong>, including someone who says they are your new accountant.</p>
+  </div>
+
+  <span class="cond">[[IF BalanceOutstanding]]</span>
+  <div class="sec">
+    <h2><span class="n">05</span>Your account</h2>
+    <p>The balance on your account is <span class="f">&lt;&lt;OutstandingBalance&gt;&gt;</span>, covering work performed up to <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. <span data-encl="invoice">The invoices are enclosed</span> and the terms are the ones in the <b>Fees and billing</b> section of your engagement letter.</p>
+    <p>Settling it is not a condition of getting your records back. <strong>Your records are yours and they are returned either way.</strong></p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+  <span class="cond">[[IF AccountSettled]]</span>
+  <div class="sec">
+    <h2><span class="n">05</span>Your account</h2>
+    <p>Your account is settled and nothing further is owed. A final invoice will not follow this letter.</p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <div class="sec">
+    <h2><span class="n">06</span>What we are not saying</h2>
+    <p>This letter ends an engagement. <strong>It is not an opinion about your records, your returns, your business, or your circumstances</strong>, and it should not be read as one or shown to anyone as one.</p>
+    <p>Nothing here changes what was already filed. If a taxing authority writes to you about work we did, send us the letter — we will tell you what it says, and whether it concerns something within the work we performed. It is not a new engagement.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">07</span>Questions</h2>
+    <p>Ask them now rather than later, while the file is fresh. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
+  <span class="id">DISENGAGEMENT LETTER<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>The letter nobody builds until they urgently need it, which is exactly why it is built now: written under pressure it comes out either apologetic or angry, and both are expensive. It is <b>a record of dates and facts</b>. Clauses in the engagement letter are referenced <b>by name</b>. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>June 4, 2027 — the date the letter is sent, which may be earlier than the effective date</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the engagement being ended. <b>One letter per ref</b>: a client with a personal and an entity engagement gets two letters, or one that says so in ScopeEnded.</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — appears twice: subject and footer</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields. <b>Send it to the address of record by a method that produces a receipt</b>, whatever else you also do with it.</td></tr>
+    <tr><td>&lt;&lt;EffectiveDate&gt;&gt;</td><td class="req">Required</td><td>June 30, 2027 — <b>appears four times.</b> The date everything hinges on. Drive all four from one value.</td></tr>
+    <tr><td>&lt;&lt;ScopeEnded&gt;&gt;</td><td class="req">Required</td><td>the preparation of your 2026 individual income tax returns — <b>a phrase, not a code</b>, that names precisely what ends. If another engagement continues, this field is where the letter says so.</td></tr>
+    <tr><td>&lt;&lt;RecordsAvailableUntil&gt;&gt;</td><td class="req">Required</td><td>August 31, 2027 — a real date, in the dateline and in section 04</td></tr>
+    <tr><td>&lt;&lt;OutstandingBalance&gt;&gt;</td><td class="opt">If BalanceOutstanding</td><td>$1,240.00 — a pre-formatted string from the one money formatter. This template does no arithmetic.</td></tr>
+    <tr><td>[[EACH WorkStatus]]</td><td class="req">List</td><td>One or more. Two sub-fields. <b>Every piece of work in scope, complete or not.</b> A complete list is the point — an omission here is the thing a client relies on later.</td></tr>
+    <tr><td>&lt;&lt;Item.Work&gt;&gt; &lt;&lt;Item.Status&gt;&gt;</td><td class="req">Required</td><td>2026 Federal Form 1040 · Prepared and e-filed on April 9, 2027; accepted April 9. <b>Status is a sentence with a date in it</b>, never "done" or "in progress".</td></tr>
+    <tr><td>[[EACH OpenDeadlines]]</td><td class="req">List</td><td>One or more. Two sub-fields. The dates the client now owns.</td></tr>
+    <tr><td>&lt;&lt;Item.Obligation&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>File the 2026 municipal return · City of Solon, due October 15, 2027 — extended, not filed</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
+    <tr><td>[[IF ClientInitiated]]</td><td class="req">Flag</td><td>Boolean. The client asked. One sentence, no explanation recorded.</td></tr>
+    <tr><td>[[IF FirmInitiated]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse.</b> States that it is the firm's decision and that notice is being given, and gives no reason — see below.</td></tr>
+    <tr><td>[[IF BalanceOutstanding]]</td><td class="req">Flag</td><td>Boolean. Renders section 05 with the balance.</td></tr>
+    <tr><td>[[IF AccountSettled]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of BalanceOutstanding.</b> Renders section 05 saying nothing is owed. <b>Section 05 always renders</b> — silence about money in a disengagement letter is read as a threat.</td></tr>
+  </table>
+  <p><b>17 fields + 2 repeating lists of 2 + 4 flags.</b> Both flag pairs are inverses; exactly one of each pair is ever true.</p>
+
+  <h3>The letter states no reason, ever</h3>
+  <p>Neither branch of section 01 says why. <b>This is the most important decision in the template.</b> A reason in a disengagement letter is a statement of fact the firm has to be able to stand behind, written at the worst possible moment, that goes into a file the firm no longer controls. It has no upside: the client already knows, and every other reader is someone you did not choose. Say the date, say what is outstanding, say what happens next. <span class="warn">Do not add a reason field to this template.</span></p>
+
+  <h3>Section numbering</h3>
+  <p>The <code>ClientInitiated</code> / <code>FirmInitiated</code> pair sits <b>inside</b> section 01. The <code>BalanceOutstanding</code> / <code>AccountSettled</code> pair renders <b>two versions of section 05</b>, of which exactly one survives — so the numbering is continuous either way and <b>nothing needs renumbering.</b> A disengagement letter with a gap in its clause numbers is the one that gets read closely.</p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No reason.</b> See above. The single most deliberate omission in the set.</li>
+    <li><b>No successor named, and no recommendation.</b> Recommending a firm to a client you are leaving attaches you to whatever happens next.</li>
+    <li><b>No opinion on anything.</b> Section 06 says so outright, because a letter that arrives at the end of a relationship is the one most likely to be shown to a third party.</li>
+    <li><b>No records held against payment.</b> Section 05 says the records come back either way, in terms. Leaving it unsaid invites the client to assume the opposite, and to say so to someone.</li>
+    <li><b>No signature line, and no acknowledgement to return.</b> This is notice, not agreement. Asking a departing client to countersign creates a document that can be withheld, and a fact that can then be disputed.</li>
+    <li><b>No good wishes.</b> Warmth in this letter reads as either insincere or as an opening. The engagement letter set the tone; this one records dates.</li>
+    <li><b>No offer to help "if anything comes up".</b> Section 06 says exactly what will be done about a notice, and calls it a courtesy rather than an engagement. An open-ended offer is an engagement nobody priced.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li>Both flag pairs must be derived from one stored value each. Two independent booleans can both be false, and a disengagement letter that is silent about who ended it, or silent about money, is worse than no letter.</li>
+    <li><code>WorkStatus</code> must cover <b>every</b> engaged item, complete or not, generated from the engagement scope rather than typed. The callout under it says nothing else is being worked on; that sentence is only safe if the list above it is generated.</li>
+    <li><code>OpenDeadlines</code> is a statement of what the firm knows. Section 03 says in terms that it is not a complete list of the client's obligations. <span class="warn">Do not let that sentence be edited out</span> — it is the difference between telling a client what you know and taking on a duty to know everything.</li>
+    <li>Send it by a method that produces a receipt, and <b>store the receipt with the engagement</b>. The date this letter took effect is the fact the whole document exists to fix.</li>
+    <li>Strip the <code>.f</code> class and the <code>.cond</code> markers on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C Disengagement — Reyes — 2026.pdf</code>.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

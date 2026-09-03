@@ -1,0 +1,651 @@
+# SATC — consolidated merge-field registry
+#
+# Generated from the six templates in satc-handoff/04-TEMPLATES by parsing every
+# <<Field>>, [[IF Flag]] and [[EACH List]] token. Regenerate with:
+#     python -m tests.extract   (see tests/test_registry.py)
+#
+# source:
+#   firm        set once in firm-settings.yaml; never asked
+#   interview   a human answers during the consultation
+#   engagement  derived when the engagement is created
+#   bookkeeping engagement fields specific to a bookkeeping engagement
+#   computed    produced by software; never typed
+#   invoice     arises at billing time, after the work
+
+fields:
+  - field: AccountingSystem
+    label: "Accounting system"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: AdditionalForms
+    label: "Also filed alongside"
+    source: interview
+    templates: [business-letter, ccorp-letter, fee-estimate, tax-letter]
+    notes: >-
+      Emit the literal 'None' when empty. With foreign reporting in scope, blank and 'None' are different statements.
+  - field: AmountDue
+    label: "Amount due"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Computed: subtotal plus credits (credits negative).
+  - field: BillingContactEmail
+    label: "Billing questions — email"
+    source: firm
+    templates: [invoice]
+  - field: BillingContactName
+    label: "Billing questions — who"
+    source: firm
+    templates: [invoice]
+  - field: Cadence
+    label: "How often the books are done"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: CatchUpPeriods
+    label: "Periods to catch up"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: ClientAddress1
+    label: "Client — street"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Not collected by the website intake — the interview must ask.
+  - field: ClientCity
+    label: "Client — city"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Website intake collects city+state together; the interview splits them.
+  - field: ClientEmail
+    label: "Client — email"
+    source: interview
+    templates: [onboarding-letter]
+    notes: >-
+      Printed on purpose: the upload link and the Encyro signing invitation both go here.
+  - field: ClientFullName
+    label: "Client — full legal name"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Addressee block. For a business engagement this is the entity's legal name.
+  - field: ClientState
+    label: "Client — state"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Website intake collects city+state together; the interview splits them.
+  - field: ClientZip
+    label: "Client — ZIP"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Not collected by the website intake — the interview must ask.
+  - field: CreditAmount
+    label: "Credit applied"
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      A real minus sign (U+2212), not a hyphen. Never parentheses.
+  - field: CreditDetail
+    label: "What the credit was for"
+    source: invoice
+    templates: [invoice]
+  - field: CreditLabel
+    label: "Credit — how it reads"
+    source: invoice
+    templates: [invoice]
+  - field: DeliveryTarget
+    label: "When the books are delivered"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: EffectiveDate
+    label: "Date the engagement ends"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Appears four times in the disengagement letter. The date everything in it
+      hinges on, and the fact the document exists to fix.
+  - field: EngagementRef
+    label: "Engagement reference"
+    source: engagement
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding and every invoice. A lead's number becomes its EngagementRef on conversion.
+  - field: EntityType
+    label: "What the entity is"
+    source: engagement
+    templates: [business-letter, ccorp-letter]
+    notes: >-
+      A phrase, not a code -- 'an Ohio limited liability company taxed as an S
+      corporation'. Generated from the entity record, never typed, so the letter
+      and the return cannot disagree about what the entity is.
+  - field: EstimateDate
+    label: "Date of the estimate"
+    source: computed
+    templates: [fee-estimate, invoice]
+    notes: >-
+      The estimate's OWN date, and the reason it is not LetterDate: an
+      engagement can be quoted again. A re-quote leaves the signed letter's
+      date alone and moves this one, so a client holding two estimates can
+      tell which is the live one, and the invoice cites the estimate it is
+      actually billing against. Set to LetterDate when the engagement is
+      created, so an engagement nobody re-quotes reads exactly as before.
+  - field: EstimateTotal
+    label: "Estimate total"
+    source: computed
+    templates: [fee-estimate, invoice]
+    notes: >-
+      Computed — sum the line items in code. Never typed.
+  - field: EstimatedPaymentAmount
+    label: "Payment to send with the extension"
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Pre-formatted money string. The template does no arithmetic.
+  - field: ExtendedDeadline
+    label: "Extended filing deadline"
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Appears three times in the extension notice; drive all three from one
+      value. Must never equal PaymentDeadline -- if it does, something is wrong.
+  - field: FederalReturns
+    label: "Federal returns and schedules"
+    source: interview
+    templates: [business-letter, ccorp-letter, fee-estimate, tax-letter]
+  - field: FeeChangeNote
+    label: "What changed about the fee"
+    source: engagement
+    templates: [organizer-letter]
+  - field: FirmAddress1
+    label: "Firm — street"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # Masthead and footer; the invoice's remit-to block as well.
+  - field: FirmCity
+    label: "Firm — city"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # With FirmState and FirmZip. Masthead and footer.
+  - field: FirmJurisdiction
+    label: "Firm — state of registration"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # The state of registration, named in the footer's partnership sentence.
+  - field: FirmLegalName
+    label: "Firm — registered name"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # The registered name. Footer only — the partnership sentence.
+  - field: FirmName
+    label: "Firm — short name"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # The short form a client reads. Masthead, sign-off, and the invoice's
+    # remit-to block.
+  - field: FirmState
+    label: "Firm — state"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # With FirmCity and FirmZip. Masthead and footer.
+  - field: FirmWebsite
+    label: "Firm — website"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # Masthead. No protocol, no www.
+  - field: FirmZip
+    label: "Firm — ZIP"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    # With FirmCity and FirmState. Masthead and footer.
+  - field: FirstDeliverableTarget
+    label: "First deliverable promised by"
+    source: interview
+    templates: [onboarding-letter]
+    notes: >-
+      Asked on the call. Was `source: engagement` while nothing derived it, so
+      the onboarding letter could never render -- found the first time an
+      interview-created engagement was rendered.
+  - field: FirstPeriod
+    label: "First period we do"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: InvoiceDate
+    label: "Invoice date"
+    source: computed
+    templates: [invoice]
+  - field: InvoiceNumber
+    label: "Invoice number"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Sequential, never reused. One engagement has many invoices.
+  - field: LetterDate
+    label: "Date on the letter"
+    source: computed
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, records-release, tax-letter]
+    notes: >-
+      Generated at send time. The estimate carries it only in the sentence that
+      names the engagement letter -- the estimate's own date is EstimateDate,
+      because a re-quote moves one and must not move the other.
+  - field: LocalReturns
+    label: "Local returns"
+    source: interview
+    templates: [business-letter, ccorp-letter, fee-estimate, tax-letter]
+    notes: >-
+      Name every locality. Emit the literal 'None' when empty — never blank.
+  - field: MaterialsDeadline
+    label: "Everything due from the client by"
+    source: engagement
+    templates: [business-letter, ccorp-letter, extension-notice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Firm setting per return type per season, not a per-client answer. Prints in three documents; a mismatch is the organizer's most likely bug.
+  - field: NoticePeriod
+    label: "Notice to end the engagement"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: OutstandingBalance
+    label: "Still owed"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Pre-formatted money string. The template does no arithmetic.
+  - field: PaymentDeadline
+    label: "Payment due by"
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      The ORIGINAL due date, which the extension did not move. The whole point
+      of the notice is that this and ExtendedDeadline are different dates.
+  - field: PaymentUrl
+    label: "Where the client pays"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      The payment link, issued per invoice by `payments.py`. ON THE INVOICE
+      ALONE, and the firm said why: "Quotes get no link. Only the invoice.
+      Obviously." An estimate is what the work will cost and is not yet owed --
+      and this engine re-quotes, so a link on a quote would collect a figure
+      that had since moved. Optional: the block drops where there is no link,
+      so an invoice raised before this existed still renders.
+  - field: PaymentInstruction
+    label: "How to pay"
+    source: firm
+    templates: [invoice]
+  - field: PeriodLabel
+    label: "Period this covers"
+    source: computed
+    templates: [business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, records-release]
+    notes: >-
+      DERIVED PER DOCUMENT, never stored. Estimate/onboarding: the engagement period ('2026 tax year'). Invoice: the period BILLED ('March 2027'). One shared value would print the wrong thing on one of them.
+  - field: PreparerEmail
+    label: "Preparer — email"
+    source: firm
+    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter, records-release]
+  - field: PreparerName
+    label: "Preparer — name"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+  - field: PreparerTitle
+    label: "Preparer — title"
+    source: firm
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+  - field: PriorFirmName
+    label: "Previous accountant"
+    source: interview
+    templates: [onboarding-letter, records-release]
+  - field: RecordsAvailableUntil
+    label: "Records available until"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      A real date. Records come back whether or not the account is settled.
+  - field: ScheduleK1Target
+    label: "K-1s go out by"
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      When the K-1s are delivered. A promise every owner's preparer schedules
+      around; if it can only be produced as a guess, refuse rather than guess.
+      Spelled with a digit because PascalCase forbids the hyphen in 'K-1'.
+  - field: ScopeEnded
+    label: "Work the engagement covered"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      A phrase naming precisely what ends. Where the letter says so when another
+      engagement continues. NOT where a reason goes -- the letter states none.
+  - field: SignatureDeadline
+    label: "Signature due by"
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      A real date, never 'as soon as possible'. Measured from LetterDate.
+  - field: OwnerCount
+    label: "How many owners receive a K-1"
+    source: interview
+    templates: [business-letter]
+    notes: >-
+      From `count_owners`. Section 01 is the scope statement, and how many
+      K-1s the engagement produces is part of that scope -- the same number
+      the estimate prices the owner K-1s from, so the two cannot disagree.
+  - field: SignerName
+    label: "Who signs for the entity"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter]
+  - field: SignerTitle
+    label: "In what capacity"
+    source: interview
+    templates: [bookkeeping-letter, business-letter, ccorp-letter]
+  - field: SpouseName
+    label: "Spouse"
+    source: interview
+    templates: [records-release, tax-letter]
+  - field: StateReturns
+    label: "State returns"
+    source: interview
+    templates: [business-letter, ccorp-letter, fee-estimate, tax-letter]
+    notes: >-
+      Name every state. This is the scope boundary.
+  - field: Subtotal
+    label: "Subtotal before credits"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Computed.
+  - field: TaxYear
+    label: "Tax year"
+    source: interview
+    templates: [organizer-letter, tax-letter]
+    notes: >-
+      Appears three times in the tax letter — drive them all from one value.
+  - field: TaxpayerName
+    label: "Taxpayer"
+    source: interview
+    templates: [records-release, tax-letter]
+  - field: VarianceNote
+    label: "Why the bill differs from the estimate"
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      Not optional when the invoice exceeds the estimate.
+
+flags:
+  - flag: PaymentLink
+    label: "This bill carries a payment link"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Set by `payments.py` beside `PaymentUrl`, and separate from it on
+      purpose: a condition is a flag and a value is a field, and using the URL
+      as its own condition means one name registered as two things. Drops the
+      whole link block, so an invoice raised before any of this existed still
+      renders.
+
+  - flag: AccountSettled
+    inverse_of: BalanceOutstanding
+    label: "Nothing is owed"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of BalanceOutstanding.
+  - flag: BalanceOutstanding
+    inverse_of: AccountSettled
+    label: "There is a balance owing"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of AccountSettled. Section 05 always
+      renders: silence about money in a disengagement letter reads as a threat.
+  - flag: CatchUp
+    label: "There are back periods to catch up"
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - flag: ClientInitiated
+    inverse_of: FirmInitiated
+    label: "The client ended it"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of FirmInitiated. Neither branch states a
+      reason, and no reason field may be added.
+  - flag: CreditsApplied
+    label: "A credit is being applied"
+    source: invoice
+    templates: [invoice]
+  - flag: EFiled
+    inverse_of: PaperFiled
+    label: "Filed electronically"
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Inverse of PaperFiled. Derive both from ONE stored value:
+      two booleans can both be false, and a delivery letter that says
+      nothing about how a return gets filed is the worst version of it.
+  - flag: EstimateReference
+    label: "Show the estimate this is billed against"
+    source: invoice
+    templates: [invoice]
+  - flag: EstimatedPayments
+    label: "Quarterly payments are being suggested"
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Next-year vouchers are in the package.
+  - flag: FeeChange
+    label: "The fee is changing this year"
+    source: engagement
+    templates: [organizer-letter]
+  - flag: FirmInitiated
+    inverse_of: ClientInitiated
+    label: "We ended it"
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of ClientInitiated.
+  - flag: JointReturn
+    label: "Married filing jointly"
+    source: interview
+    templates: [records-release, tax-letter]
+  - flag: NoPaymentRequired
+    inverse_of: PaymentEnclosed
+    label: "Nothing to pay with the extension"
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Inverse of PaymentEnclosed.
+  - flag: OwnerReturnsElsewhere
+    inverse_of: OwnerReturnsPrepared
+    label: "Someone else does the owners' returns"
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Inverse of OwnerReturnsPrepared.
+  - flag: OwnerReturnsPrepared
+    inverse_of: OwnerReturnsElsewhere
+    label: "We do the owners' returns too"
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Inverse of OwnerReturnsElsewhere. Derive both from
+      ONE stored value. Who turns the K-1 into a personal return is the
+      question the business letter exists to answer.
+  - flag: PaperFiled
+    inverse_of: EFiled
+    label: "Filed on paper"
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Inverse of EFiled. Puts filing on the client.
+  - flag: PaymentEnclosed
+    inverse_of: NoPaymentRequired
+    label: "A payment goes with the extension"
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Inverse of NoPaymentRequired. Derive both from ONE
+      stored value -- section 02 must never be silent about money.
+  - flag: PriorFirm
+    label: "There was a previous accountant"
+    source: interview
+    templates: [onboarding-letter]
+  - flag: ReturnScope
+    label: "This engagement prepares returns"
+    source: engagement
+    templates: [fee-estimate]
+    notes: >-
+      Does this engagement prepare returns? Turns on the estimate's scope
+      block, which repeats the engagement letter's four scope lines word for
+      word so the two documents can be read side by side. Derived in
+      `interview.compose` from the federal form; never asked. A bookkeeping
+      engagement is the case it is off for -- its scope is ScopeItems, a
+      list, and it has no interview yet.
+  - flag: EntityIssuesK1s
+    label: "The entity issues Schedules K-1"
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Derived from the federal form -- true for a 1120-S or a 1065, false for
+      a 1120. A C corporation issues no K-1s, which `count_owners` has always
+      known (it is asked of the other two only) and the letter did not.
+  - flag: SCorpElection
+    label: "Taxed as an S corporation"
+    source: engagement
+    templates: [business-letter, ccorp-letter]
+    notes: >-
+      Adds the officer-compensation scope exclusion, which is
+      meaningless for a partnership.
+
+lists:
+  - list: ScopeItems
+    label: "What the bookkeeping covers"
+    templates: [bookkeeping-letter]
+    item_fields: [Detail, Service]
+    required: true
+    notes: >
+      Required. A bookkeeping engagement letter with no scope is not an
+      engagement -- it is a signature block attached to nothing.
+  - list: Assumptions
+    label: "What the estimate assumes"
+    templates: [fee-estimate]
+    item_fields: [Text]
+    required: true
+    notes: >
+      Built from the schedule's `assumed:` block by pricing.assumptions(),
+      never typed. One sentence per assumed item, on every estimate -- the
+      boundary is stated before the work rather than after it fails.
+  - list: LineItems
+    label: "The priced lines"
+    # DELIBERATELY NOT [fee-estimate, invoice]. There are two LineItems
+    # entries, one per template, because the estimate's items carry
+    # `Includes` and the invoice's do not -- see the entry below. A script
+    # that regenerates `templates:` from "where is this token used" merges
+    # the two and loses the distinction; one did, on 26 August 2026, and the
+    # sub-field check caught it.
+    templates: [fee-estimate]
+    item_fields: [Amount, Detail, Includes, Service]
+    required: true
+    notes: >
+      `Includes` is the estimate's only, and is what a package covers. The
+      invoice's LineItems carry the same three other keys and no Includes: an
+      invoice bills work that is done, and restating what the package was
+      supposed to contain is not what a client checks a bill against. Empty
+      string on any row with nothing to list, never the word "None".
+  - list: LineItems
+    label: "The priced lines"
+    templates: [invoice]
+    item_fields: [Amount, Detail, Service]
+    required: true
+  - list: RequestList
+    label: "What to send us"
+    templates: [onboarding-letter]
+    item_fields: [Detail, Document]
+    required: true
+    notes: >
+      A letter whose whole purpose is "what we need from you" cannot
+      render with nothing in this list. Found empty-and-silent on 26 Aug
+      2026: the letter still said "Below is everything we need to start
+      your work" and then stopped. Same failure as the blank invoice --
+      an [[EACH]] over an empty list leaves no token behind, so the
+      strict check has nothing to catch.
+  - list: Requested
+    label: "What the organizer asks for"
+    templates: [organizer-letter]
+    item_fields: [Category, Detail]
+    required: true
+    notes: >
+      Required for the same reason as the onboarding letter's RequestList:
+      an organizer cover letter with no requested categories is a covering
+      note for nothing.
+  - list: ActionList
+    label: "What the client has to do"
+    templates: [delivery-letter]
+    item_fields: [Action, Detail]
+    may_be_empty: >-
+      A return delivered with nothing left for the client to do is a real
+      and welcome outcome. The list is what remains, not what was done, so
+      an empty one is a true statement rather than a hole. Unlike
+      ReturnsDelivered beside it, which cannot be empty -- a delivery letter
+      delivering nothing is not a document.
+    notes: >-
+      Built from the returns, never typed. Every amount is a
+      pre-formatted string -- a human must not type a tax figure here.
+  - list: ReturnsDelivered
+    label: "Returns being delivered"
+    templates: [delivery-letter]
+    item_fields: [Detail, Return]
+    required: true
+    notes: >-
+      Every return in the package, in the order they are stacked.
+  - list: ExtendedReturns
+    label: "Returns put on extension"
+    templates: [extension-notice]
+    item_fields: [Detail, Return]
+    required: true
+    notes: >-
+      EXACTLY what was filed. Some authorities extend on the
+      federal extension and some do not; assuming tells a client a return is
+      covered when it is not.
+  - list: OutstandingItems
+    label: "Still missing"
+    templates: [extension-notice]
+    item_fields: [Detail, Document]
+    may_be_empty: >-
+      An extension is often filed for time rather than for missing papers,
+      so nothing outstanding is a real extension notice. This was already
+      the reasoning in cli.py's comment on required lists; it is written
+      here now because that is where the decision belongs.
+    notes: >-
+      What is still missing: the onboarding letter's RequestList
+      minus what arrived. Done by hand it drifts, and a client chased for
+      something they already sent stops reading these letters.
+  - list: OpenDeadlines
+    label: "Deadlines still ahead of them"
+    templates: [disengagement-letter]
+    item_fields: [Detail, Obligation]
+    may_be_empty: >-
+      The letter says in terms that this is what the firm knows about and
+      not everything the client owes, so an empty list understates nothing
+      the letter has not already disclaimed. Note the contrast with
+      WorkStatus above, on the same letter: that one carries a sentence
+      that reads "above" and needs something there.
+    notes: >-
+      What the firm knows about, which the letter says in terms
+      is not everything the client owes.
+  - list: WorkStatus
+    label: "Where each piece of work stands"
+    templates: [disengagement-letter]
+    item_fields: [Status, Work]
+    required: true
+    notes: >-
+      EVERY engaged item, complete or not, generated from the
+      engagement scope. The callout beneath it says nothing else is being worked
+      on; that sentence is only safe if this list is generated.
+      Made required 26 Aug 2026, after rendering the letter with it empty:
+      section 02 came out as a heading with no rows, and the sentence under it
+      survived word for word -- "anything not marked complete ABOVE is not
+      filed, not lodged, and not being worked on by us. Treat every incomplete
+      item as yours." Pointing at nothing. Same failure as the onboarding
+      letter's RequestList, on the document with the most legal exposure in
+      the set.

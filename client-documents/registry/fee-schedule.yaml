@@ -1,0 +1,1180 @@
+# SATC — fee schedule
+#
+# ── THE RULE THIS FILE FOLLOWS ─────────────────────────────────────────────
+#
+# Stated by the firm on 25 August 2026, and written here because it is the
+# thing that decides every price below. Read it before changing any of them.
+#
+#   "if it is too complex, and beyond typical assumptions, we have to charge
+#    hourly which is simply outside of the bounds of these prices. however, if
+#    they give us what we need, we assume gates are complexity checks - if no
+#    additional forms or whatever, then it's fairly simple."
+#
+# Three claims, and the whole schedule follows from them.
+#
+# 1. A GATE IS A COMPLEXITY CHECK, ANSWERED FROM FACTS. Every tier and every
+#    gate keys on something the client knows about their own year -- standard
+#    mileage or actual expenses, receipts under $250,000, did you sell a home.
+#    Never on a level of complexity they would have to rate about themselves. A
+#    client whose books need reconstruction does not know they are in that
+#    state; being in it is what makes it invisible from the inside.
+#
+# 2. PAST THE ASSUMPTIONS, THE FIXED PRICE STOPS GOVERNING. Hourly is not a
+#    re-quote: a re-quote stops the job and opens a negotiation the firm did
+#    not want, so the meter simply runs instead. See `assumed:` below: each
+#    item states what the fee ASSUMES, what triggers the change, and that the
+#    consequence is `beyond: hourly`.
+#
+#    CORRECTED 26 August 2026. This paragraph used to say hourly happens
+#    INSTEAD of the fixed price and is never added to it. That was never what
+#    the software did, and it is not what a client is told: every one of the
+#    `assumed:` items below carries `inside_base: false`, and the client-facing
+#    phrase is `beyond_hourly` -- "the ADDITIONAL time is billed as it is
+#    worked". The firm settled it the same day: hourly can happen either in
+#    lieu of the fixed work or in addition to it, depending on what turns up.
+#    The website says exactly that; this file no longer says otherwise.
+#
+# 3. EVERY PRICE ASSUMES THE CLIENT GIVES US WHAT WE NEED. Records arrive
+#    complete and reconciled. That is not a disclaimer buried in a letter -- it
+#    prints on the estimate, in the client's own copy, before any of the work
+#    happens.
+#
+# The corollary, from the same week and worth keeping in view: where OUR PROCESS
+# costs more than the return needs, that is a cost to fix, not a cost to bill.
+# See `docs/workflow-friction-log.md`.
+#
+# ───────────────────────────────────────────────────────────────────────────
+#
+# What the interview's counts are worth. The interview has always COUNTED
+# billable items and never priced them, which is why `LineItems` and
+# `EstimateTotal` were unfilled and the fee estimate could not render.
+#
+# EVERY AMOUNT HERE IS `[CONFIRM: ...]` ON PURPOSE. §9 of the authoring contract
+# says fee figures are a human's to set and that an invented one is worse than a
+# blank, so the structure is wired and the numbers are not guessed. The merge
+# engine treats a surviving `[CONFIRM:` as a hard failure, so a placeholder
+# cannot reach a client — it can only stop the estimate from rendering, which is
+# the correct outcome until these are set.
+#
+# TO PRICE THE FIRM: replace each placeholder with a number. Nothing else here
+# needs to change. `cd client-documents && make doctor` lists what is still open.
+#
+# MOST OF THESE ARE ALREADY ANSWERED, on paper, in the firm's own workbook. See
+# `docs/pricing-and-deadlines-basis.md` for the reconciliation: which line here
+# maps to which line there, what it costs, what hours that implies at a $150
+# rate, and the four places where the workbook's structure and this file's
+# structure disagree. They are not transcribed here because the workbook is set
+# to tax year 2023 and nobody has confirmed the prices still stand.
+#
+# Amounts are plain numbers — 450, not "$450.00". One formatter turns them into
+# money strings (see money.py), because the moment two places format money they
+# drift, and an accountant's estimate showing $450.00 on one line and $185.5 on
+# the next undoes everything else about the document.
+
+currency: USD
+
+# ── the time basis ────────────────────────────────────────────────────────
+#
+# Every amount in this file is also a TIME BUDGET. A price and a target rate
+# imply how long the work can take before it stops earning that rate, and that
+# number is more useful day to day than the price is: it is the thing you can
+# check yourself against while the work is in front of you.
+#
+# `cd client-documents && python cli.py hours` prints the budget for every
+# priced line, and flags any price that buys less than the firm's own minimum
+# billing increment.
+#
+# Set 25 August 2026 from the principal's own words. The rate is the one value
+# here he called soft — "we average about $150 an hour, at least for now" — so
+# every budget below is calibrated to an estimate, not to a fact. Change the
+# rate and every budget moves with it; that is the point of storing it once.
+basis:
+  rate: 150
+
+  # Time rounds. Invoices do not.
+  #
+  # `round_time_to` is the unit time is recorded in, so a budget is expressed
+  # in units that can actually be booked — 1.25 h, never 1.13 h.
+  #
+  # `minimum_increment` is the floor: no piece of work is billed at less than
+  # this. A price that buys less than the floor is priced below what the firm
+  # says its smallest possible piece of work costs, which is worth knowing
+  # about even when the line is a small add-on inside a bundled quote.
+  round_time_to: 0.25
+  minimum_increment: 0.25
+
+  # THE FIRM'S MINIMUM ENGAGEMENT FEE, and the one rung allowed below it.
+  #
+  #     my normal minimum is $200 unless you are a simpler filer
+  #     -- the firm, 25 August 2026
+  #
+  # This was decided in August and recorded nowhere but a comment beside the
+  # Simple Filer tier and a paragraph in the website brief. The tail of this
+  # file said, in terms, "no minimum ... a policy invented in a config file is
+  # a policy nobody decided". The policy WAS decided; nothing carried it.
+  #
+  # Both halves matter. Simple Filer at $100 is an EXCEPTION below the floor,
+  # not the entry point -- which is why the rung was renamed from "Starter".
+  # A page that presents $100 as the starting price makes every visitor ask
+  # why they are not getting it. The firm's own framing is the one to use:
+  # our minimum is $200, unless your return is simpler than that.
+  #
+  # A test holds the floor: no OTHER package may sit under it.
+  minimum: 200
+  minimum_exception: starter
+
+# ── how the base fee relates to the counts ────────────────────────────────
+#
+# The one structural decision, and it changes every number below it.
+#
+#   "federal_only"  the base covers the federal return alone, and EVERY state
+#                   and locality counted is charged as its own line.
+#   "one_included"  the base covers the federal return plus the first state and
+#                   the first locality; only additional ones are charged.
+#
+# Written down because it is invisible in a total: two firms can quote the same
+# $785 from completely different structures, and only one of them can explain
+# the number to a client who asks.
+# Answered by the firm, 25 August 2026: "the default package is $200 - which is
+# a 1040, state return and local for free". That is `one_included` exactly. The
+# consequence is easy to miss: `per_unit.state_return` and `per_unit.local_return`
+# below now price the SECOND one, not the first.
+base_covers: "one_included"
+
+# ── base fee, by federal return ───────────────────────────────────────────
+# Prints as its own line item: "Federal Form 1040".
+# ── the individual ladder ─────────────────────────────────────────────────
+#
+# Four packages, one per client, DERIVED from what the interview already asked
+# rather than chosen by anyone at the call.
+#
+# ORDER MATTERS: the tiers are read TOP TO BOTTOM and the FIRST gate that
+# holds wins, so they are written MOST SPECIFIC FIRST and the broadest last.
+# That encodes the firm's rule -- "the highest package whose gate is met" --
+# without depending on it, and it is the only ordering that works at both
+# ends of the ladder. Starter is the most restrictive gate AND the cheapest
+# package, so a rule phrased in terms of price alone gets it wrong: a Starter
+# client also satisfies Essentials, and "the dearest match" would quote them
+# 200. Specificity is what actually decides it, so specificity is what the
+# file is ordered by. Essentials sits last as the fallback for a 1040 with no
+# schedules that nothing more specific claimed.
+#
+# GATES KEY ON `federal_schedules`, NOT ON COUNTS. This is the trap worth
+# naming, because it was found by walking the design rather than by reading
+# it: a client who ticks "Schedule E page 1 — rentals" and leaves
+# `count_rentals` blank has a rental and a count of zero. A gate written as
+# "count_rentals > 0" sends that client to the CHEAPEST package. Membership of
+# a multi-select the client actually ticked cannot go blank the same way, so
+# every gate below asks what is ON the return and never how many.
+#
+# The operators, and there are deliberately few:
+#   schedules_none: true      the client ticked no schedules at all
+#   schedules_any: [A, C]     at least one of these is on the return
+#   answer_is: {q: value}     an exact answer
+#   any_of: [ {...}, {...} ]  at least one sub-gate holds
+# Everything in a gate must hold. A gate naming a question the interview does
+# not ask is a hard error, not a silently-never-selected package.
+#
+# WHAT A PACKAGE COVERS IS DATA, AND IT PRINTS. `covers:` is the list the
+# client reads on their own estimate, so every line is written for a client
+# rather than for us. `includes:` names the rung below and is FOLLOWED, never
+# printed: "Everything in Standard" is a true sentence on a public price page,
+# where the reader can see Standard, and a meaningless one on an estimate,
+# where the client sees only the package they bought.
+#
+# `includes:` carries the allowances down with it, so a package cannot say it
+# includes everything in the one below and quietly allow less. The either/or
+# does NOT inherit -- it is the thing that makes a package that package.
+#
+# `supersedes:` REPLACES an inherited line rather than adding to it. Some
+# things a package covers are not cumulative -- they are one choice out of
+# several, and inheriting the lower rung's choice alongside your own states
+# both. Found 26 August 2026 by the firm, reading a Standard estimate that
+# listed "The standard deduction" AND "Itemized deductions": a client cannot
+# have both, and the second is the whole reason the package costs more.
+#
+# The firm's rule, and why the fix is not simply to delete the shared line:
+# "standard is implied - itemized is not. so on essentials and starter, we can
+# keep standard. for the higher ones just say itemized (and we would default to
+# standard if it were higher, which you dont need to specify)." The lower rungs
+# still say it because for them it is the whole answer. A test refuses a
+# `supersedes:` string that no lower rung actually says, so this cannot rot
+# into config that silently does nothing.
+#
+# The three allowance shapes:
+#   allows:        flat, always applies
+#   allows_when:   flat, behind a gate -- for an allowance that depends on an
+#                  ANSWER rather than a count (a gig Schedule C, not a full one)
+#   allows_one_of: the either/or; the branch worth most to the CLIENT wins,
+#                  scored on what is left after the flat allowances above
+base:
+  "1040":
+    tier_from: derived
+    tiers:
+      starter:
+        # RENAMED 26 August 2026. "Starter" means WHERE YOU BEGIN, which
+        # invites every new client to ask why they are not in it. The firm
+        # wants this rung to read as an exception BELOW the minimum, not the
+        # bottom of a ladder -- "my normal minimum is $200 unless you are a
+        # simpler filer" -- and "Simple Filer" says exactly that: this is you
+        # or it is not.
+        #
+        # The other three names were left alone on the firm's own rule of
+        # thumb: the simplest answer is usually right, and renaming names that
+        # are already plain and already true costs a content migration on the
+        # website for nothing.
+        label: "Simple Filer"
+        detail: "W-2 income only, standard deduction"
+        amount: 100
+        covers:
+          - "Your federal 1040, your first state return and your first local return"
+          - "One or two W-2s"
+          - "A 1098-T education credit claimed for yourself"
+          - "The standard deduction"
+        # `has_dependents` WAS HERE and came off on 26 August 2026, after the
+        # firm asked how the market charges for dependents and the answer
+        # turned out to be: it doesn't. The NSA survey prices sixty-odd forms
+        # and schedules and has no per-dependent line, no Form 2441, no Form
+        # 8863. The one dependent-adjacent figure in it is Schedule EIC at $65
+        # -- already a line on this sheet.
+        #
+        # Which follows from the law rather than the survey: since the personal
+        # exemption went away, a dependent by itself is a name, a taxpayer ID
+        # and a checkbox. What costs time is the DUE DILIGENCE on the credit it
+        # unlocks, and that is priced separately.
+        #
+        # So this gate asks the question that predicts work -- did another
+        # income document arrive -- and no longer asks the one that does not.
+        # A W-2 parent claiming the child tax credit is a Simple Filer.
+        gate:
+          schedules_none: true
+          answer_is:
+            other_income_documents: "no"
+        publish: "yes"
+
+      business:
+        # RENAMED 26 August 2026, because "Property" stopped being true the
+        # moment rentals became a form. A package called Property & Business
+        # that does not handle property is a name that misleads whoever reads
+        # it in a year.
+        #
+        # SETTLED 26 August 2026, round twelve: "self-employed seems
+        # reasonable". T-19 closed.
+        #
+        # "Business" was the problem the rename set out to fix and then did
+        # not: this is a 1040 package, and the entity returns are 1065, 1120S
+        # and 1120. A partnership or S-corp owner reading four package names
+        # picks the one with their word in it and buys a personal return --
+        # a mistake the client makes and the firm has to unwind.
+        #
+        # "Self-Employed" describes who it is for rather than what it is, and
+        # nobody with an S corporation reads it as theirs. "Freelancer" was
+        # the warmer option and was left off the list on purpose: it is wrong
+        # for a contractor with employees, who is exactly the full-Schedule-C
+        # client this tier is priced for.
+        #
+        # THE KEY STAYS `business`. It is internal -- gates, allowances and
+        # tests reference it, no client ever sees it -- and renaming it would
+        # be churn for no reader's benefit. The label is the name.
+        label: "Self-Employed"
+        detail: "You work for yourself"
+        amount: 500
+        includes: standard
+        covers:
+          - "One full Schedule C business"
+        # The either/or is gone with the rentals. What is left is one
+        # conditional allowance, and it is written as one rather than as a
+        # degenerate choice between a single option and nothing.
+        allows_when:
+          - when:
+              answer_is: {schedule_c_kind: standard}
+            count_businesses: 1
+        # E1 and F have both moved to Standard's gate, and both are priced as
+        # forms beside it. What is left here is the one thing a package still
+        # earns its step for: a full Schedule C at $500 against Standard plus
+        # a $200 Schedule C at $525.
+        gate:
+          answer_is: {schedule_c_kind: standard}
+        publish: "yes"
+
+      standard:
+        label: "Standard"
+        detail: "Schedules, but nothing that scales"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 325
+        includes: essentials
+        # Not cumulative with Essentials' line: a return takes one or the
+        # other, and this is the rung where itemizing starts being covered.
+        supersedes:
+          - "The standard deduction"
+        covers:
+          - "Itemized deductions"
+          - "One brokerage statement"
+          - "Up to two K-1s you receive"
+          - "One gig Schedule C on standard mileage"
+        # What the package swallows before anything is counted.
+        allows:
+          count_brokerages: 1
+          count_k1s: 2
+        # The gig Schedule C this package says it covers -- and ONLY the gig
+        # one. Standard's own gate already sends a full Schedule C up to
+        # Property & Business, so inside Standard the `when` never changes the
+        # answer. It is written anyway because Property & Business INHERITS
+        # these allowances through `includes:`, and up there the distinction
+        # is the whole ballgame: a full Schedule C must cost the either/or
+        # below, not ride in free on the back of "everything in Standard".
+        allows_when:
+          - when:
+              answer_is: {schedule_c_kind: simple}
+            count_businesses: 1
+        gate:
+          # E1 joined this list on 26 August 2026, when rentals became a form.
+          # A landlord is a Standard client who also files a Schedule E, and
+          # the Schedule E is priced next to it rather than bundled above it.
+          schedules_any: [A, B, D, E1, E2, SE, C, F]
+          # A full Schedule C is what the Business package is for; a gig one
+          # rides inside Standard.
+          any_of:
+            - schedules_none_of: [C]
+            - answer_is: {schedule_c_kind: simple}
+        publish: "yes"
+
+      essentials:
+        label: "Essentials"
+        detail: "No schedules"
+        amount: 200
+        covers:
+          - "Your federal 1040, your first state return and your first local return"
+          - "Wages, interest and dividends"
+          - "The standard deduction"
+        gate:
+          schedules_none: true
+        publish: "yes"
+
+  # Set 26 August 2026. Anchored on the NSA 2020-2021 survey -- $733
+  # partnership, $903 S corporation, $913 corporation -- with roughly 8% added
+  # for the years since, which is a judgement rather than a source. See
+  # docs/market-fee-benchmarks.md.
+  #
+  # SPLIT RATHER THAN FLAT, which was the decision. The workbook priced all
+  # three at $800; the market treats a partnership as meaningfully cheaper
+  # than a corporation and the firm followed the market.
+  #
+  # The balance-sheet worry -- "maybe having to file a balance sheet will
+  # cause more work than a company with essentially no balance sheet" -- is
+  # not answered by these numbers and is not meant to be. It is answered by
+  # charging for the balance sheet when one is required, so the company
+  # without one does not subsidise the company with one.
+  # PUBLISHED AS "FROM" PRICES, on the firm's answer to round twelve:
+  #
+  #     definitely a from price - prevents people from wasting my time
+  #     squeezing value but it should also be fairly clear that these are
+  #     starting points and maybe some very light notes indicating what
+  #     "starting" means
+  #
+  # This is the difference between an entity price and a package price, and it
+  # is worth stating plainly because it decides how the number may be shown.
+  # The four 1040 packages are GATED on what is on the return, so the price a
+  # visitor reads is the price they get. An entity base is not gated that way:
+  # it is a floor with the balance sheet, the reconciliation and the owner
+  # K-1s PAST THE FIRST TWO on top. A bare $950 on a page is read as a total.
+  #
+  # (That sentence said "and the owner K-1s on top" until 28 August 2026, when
+  # the base took on the two-K-1 allowance its own note beneath had always
+  # promised. It was the last place in this file still describing the old
+  # behaviour.)
+  #
+  # `starting_note` travels WITH the number so the two cannot drift apart. The
+  # wording is client-facing and is in the sign-off register.
+  "1065":
+    amount: 800
+    publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Each partner's K-1 after the first two"
+      - "Returns in more than one state"
+  "1120S":
+    amount: 950
+    publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Each shareholder's K-1 after the first two"
+      - "Returns in more than one state"
+  "1120":
+    amount: 950
+    publish: from
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Returns in more than one state"
+
+# ── per unit ──────────────────────────────────────────────────────────────
+# Multiplied by the count the interview collected. The `label` and `detail`
+# become `Item.Service` and `Item.Detail` on the estimate, so they are written
+# as a client reads them, not as the tax code names them.
+# ── an amendment ──────────────────────────────────────────────────────────
+#
+# THREE CASES, and what separates them is WHOSE WORK IT IS -- not what the
+# return looks like. The firm, 26 August 2026:
+#
+#     if we legit made a mistake i wouldn't even charge to fix it for $50. but
+#     yes for someone else's return we add $50
+#
+# The $50 is the amendment itself. The package on top of it is charged only
+# when SATC has to LEARN the return before it can change one -- which is true
+# of a stranger's return and false of one we filed last month. Pricing those
+# the same was the flaw in the flat adder this replaces: it quoted $850 to
+# amend a 1065 we had prepared ourselves.
+#
+# `reprices` is the switch. False means the estimate is the amendment line and
+# nothing else: no package, no schedules, no states. We already hold all of
+# it, and charging for it again is charging twice for one piece of work.
+#
+# NO SEPARATE ENTITY PRICE, deliberately. What actually makes an entity
+# amendment bigger is reissuing a K-1 to every owner, and `owner_k1` already
+# prices that per owner -- so it scales where it should, on the number of
+# owners rather than on the word "entity".
+amendment:
+  label: "Amendment"
+  when: { answer_is: { return_basis: amended } }
+  tier_from: amendment_reason
+  publish: "yes"
+  tiers:
+    # NOT ADVERTISED, on the firm's instruction of 26 August 2026:
+    #
+    #     we do not need to specify we correct our own mistakes for free - we
+    #     are only talking about how we charge for amendments. we would not
+    #     re-file for free if someone did not give us all the info until later
+    #
+    # So the firm still does it and stops announcing it. The line reads as an
+    # amendment with no charge rather than as a promise about how the firm
+    # behaves -- a claim of that kind belongs in what the firm does, not in
+    # what its price sheet says about itself.
+    our_error:
+      label: "Amendment"
+      detail: "No charge"
+      amount: 0
+      reprices: false
+      publish: "no"
+      publish_reason: >-
+        The firm corrects its own errors without charging and does not
+        advertise that. Published, it reads as a marketing claim and invites
+        an argument about whose error a given one was.
+    # A late K-1, a corrected 1099, a fact that changed. Not our error and not
+    # a return we have to meet for the first time.
+    new_information:
+      label: "Amendment"
+      detail: "Amending the return we filed, from information that arrived later"
+      amount: 50
+      reprices: false
+    other_preparer:
+      label: "Amendment"
+      detail: "Amending a return prepared elsewhere, priced with the return itself"
+      amount: 50
+      reprices: true
+
+per_unit:
+  state_return:
+    count_from: count_states
+    label: "State return"
+    detail: "Per state"
+    # Set by the firm, 25 August 2026: "state should be $50 a return at least
+    # i think". Recorded as 50 because that is the figure given; "at least"
+    # means it is a floor the firm may raise, not a settled ceiling. It was 30
+    # in the TY2023 workbook, which is below what TurboTax charges a client to
+    # self-file one ($49-64).
+    amount: 50
+    publish: "yes"
+
+  local_return:
+    count_from: count_localities
+    label: "Local return"
+    detail: "Municipal, RITA, CCA or school district"
+    # Signed 25 Aug 2026. The weakest number on the sheet and
+    # flagged as such: no published survey breaks out an Ohio municipal return
+    # and neither RITA nor CCA publishes preparer fees, so it is reasoned --
+    # lighter than a state return, but residency, the workplace credit and
+    # withholding by city are real work. Kept rather than researched: the only
+    # real research is ringing round other firms, which costs more than the
+    # answer is worth on a line that will rarely decide a quote.
+    amount: 35
+    publish: "yes"
+
+  rental:
+    count_from: count_rentals
+    label: "Rental schedule"
+    detail: "Schedule E"
+    # PRICED AS A FORM, on the firm's instruction of 25 August 2026 and on the
+    # market's own shape. The National Society of Accountants 2020-2021 survey
+    # (docs/market-fee-benchmarks.md) prices Schedule E at $145 as a FORM --
+    # not per property -- alongside Schedule C at $192 and Schedule F at $200.
+    #
+    # The firm reached the same shape independently: "is this resolved by
+    # having a minimum charge for rentals that include up to 3 on the initial
+    # charge? what is normal?" That is the market almost exactly.
+    #
+    # It is also the better model of the work. A rental is a form with a
+    # depreciation schedule behind it; the second property on the same form is
+    # rows, not another job. Pricing it purely per property is what made the
+    # old three-rental package allowance worth $135 against a $175 price step
+    # -- it never paid for itself, which is what T-15 found.
+    form_fee: 145
+    # How many properties the form fee covers. The firm's number, kept.
+    form_covers: 3
+    # The form fee fires on the SCHEDULE, not on the count. A client who ticks
+    # the rentals schedule and leaves the number blank has a Schedule E and a
+    # count of zero; without this the form is prepared and never charged for.
+    form_when:
+      schedules_any: [E1]
+    # Each property past those. Unchanged: the workbook's own per-property
+    # rate, which is right for the marginal one even though it was wrong for
+    # the first.
+    # Signed 25 Aug 2026 and unchanged: the workbook charges 130 per group of
+    # three, which is 43 each, so 45 keeps the firm's own rate. It was the
+    # wrong price for the FIRST rental -- that is what the form fee is now for
+    # -- and it is the right one for the marginal property past the form.
+    amount: 45
+    publish: "yes"
+
+  farm:
+    count_from: count_farms
+    label: "Farm schedule"
+    detail: "Schedule F"
+    # Priced as a form, like the Schedule E beside it, and for the same
+    # reason. $200 is the NSA 2020-2021 average for Schedule F -- see
+    # docs/market-fee-benchmarks.md.
+    #
+    # WHY IT EXISTS AT ALL. When rentals left the package ladder, Schedule E
+    # joined Standard's gate, and a farm client with any other schedule became
+    # Standard-eligible too -- at which point the farm work was FREE, because
+    # nothing priced it. Under the old ladder the Business package was the
+    # only rung a farm could land on, so the price was hidden inside it.
+    #
+    # SETTLED 26 August 2026: the firm TAKES farm work and does not ADVERTISE
+    # it. Priced here so nobody gets a Schedule F for nothing; absent from the
+    # website on purpose, because a published price is a solicitation and the
+    # firm does not want to solicit this work. Both halves are deliberate --
+    # see docs/pricing-for-website.md, which instructs the site not to mention
+    # farms even though the price exists.
+    form_fee: 200
+    form_covers: 1
+    amount: 200
+    form_when:
+      schedules_any: [F]
+    publish: "no"
+    publish_reason: >-
+      Settled 26 Aug 2026: the firm TAKES farm work and does not ADVERTISE
+      it. A published price is a solicitation, and the firm does not
+      solicit farm returns.
+
+  k1:
+    count_from: count_k1s
+    label: "Schedule K-1 received"
+    detail: "Per K-1 entered"
+    # Signed 25 Aug 2026, AGAINST a recommendation of 25, and the
+    # reasoning was better than the recommendation: 25 reads as punitive for a
+    # page of numbers somebody else already computed. One of the four lines
+    # tagged as exposed to automation -- see docs/pricing-open-threads.md T-01.
+    amount: 15
+    publish: "yes"
+
+  brokerage:
+    count_from: count_brokerages
+    label: "Brokerage statement"
+    detail: "Per 1099-B"
+    # Signed 25 Aug 2026, and the line that MOVED: brokerage used to sit
+    # inside the base fee at any volume, stated as an assumption with an
+    # hourly consequence. The firm took it off the hourly list and put it on
+    # the counted one, which is the better trade in both directions -- the
+    # client sees a price instead of a warning, and the firm bills a second
+    # statement without having to have a conversation about it.
+    amount: 45
+    publish: "yes"
+
+  foreign_account:
+    count_from: count_foreign_accounts
+    label: "Foreign account reporting"
+    detail: "Per account"
+    # THE ONE LINE ON THIS SHEET THAT RUNS TO INFINITY, until this is set.
+    #
+    # The firm asked for a cap on 25 August 2026 and did not name the number,
+    # so the number is the question and the mechanism is not. One FBAR can
+    # list a dozen accounts; at $50 each that is $600 for a form, which is not
+    # what "nothing huge though" described. Past the cap the line stops
+    # climbing -- the client is not charged for account thirteen.
+    #
+    # Until it is a number: a client with ONE account prices normally (one
+    # account cannot be over any cap worth setting), and a client with more
+    # carries this question to their line, so the estimate refuses rather than
+    # quoting the uncapped total the firm has already rejected.
+    # Set 26 August 2026 at four. Past that the accounts are rows on a form we
+    # were already filing, and $200 is close to what the market charges for a
+    # whole schedule.
+    cap_units: 4
+    # SOFT, on the firm's answer to round eleven, 26 August 2026:
+    #
+    #     4 is a soft cap. Then we add dollars for time
+    #
+    # A bare `cap_units` is a HARD cap: past four the client is charged nothing
+    # further, ever. That was the reading shipped on 26 August and it is the
+    # expensive direction to be wrong in -- twelve accounts would have been
+    # four accounts' money for twelve accounts' work. The per-account price
+    # still stops at four, because the thirteenth account is a row rather than
+    # a filing; what does not stop is the time.
+    cap_beyond: hourly
+    # Signed 25 Aug 2026 at the per-form price, because that is already how
+    # the firm bills it: "i have been doing this stuff with a client for
+    # awhile and just charge per account". A foreign COMPANY is not this line
+    # -- see `assumed.foreign_company`.
+    amount: 50
+    # THE BLANK-COUNT TRAP, one line down. Exactly the reason `rental` above
+    # carries a `form_when`: a client who ticks "Held a foreign bank or
+    # investment account" and leaves the number for later has foreign
+    # reporting on the return and a count of zero, so the line never fired
+    # and the work was done for nothing. The onboarding letter had already
+    # asked them for "the bank, the account number, and the highest balance
+    # at any point in the year" -- so the package asked for the records and
+    # the estimate charged nobody. Found 26 Aug 2026 by running the ticked-
+    # but-uncounted case end to end. A blank count now reads as one account,
+    # which is the smallest number a ticked box can honestly mean; the
+    # preparer raises it when they know.
+    form_when:
+      answer_includes: {extra_forms: foreign_accounts}
+    publish: "yes"
+
+  # T-17, closed 26 August 2026 on the firm's answer to round eleven:
+  # "$75, as its own named line -- filing-only extensions free".
+  #
+  # THE BUG THIS CLOSES. The Extension Notice is one of the ten templates and
+  # it deliberately carries no fee -- its spec says "the invoice owns it. An
+  # extension notice that also asks for money reads as a bill and gets filed
+  # as one, and this is the letter that most needs reading." Good decision.
+  # The invoice it handed the money to had no line for an extension. Each
+  # document was right on its own and the pair dropped the charge on the
+  # floor.
+  #
+  # $75 AND NOT $50, and the argument was already in this file. The `per_form`
+  # header records that at $75 the extension "would simply have BECOME the
+  # per-form price" -- it stayed a named exception at $50 precisely because
+  # "computing a payment from an incomplete file is not a twenty-minute job".
+  # That reasoning was written about the extension specifically; the firm has
+  # now priced it accordingly.
+  #
+  # THE FILING IS FREE. Only the computation is billed. A client who wants
+  # more time and owes nothing costs a form and a signature.
+  #
+  # COUNTED, because a state that will not honour the federal extension is a
+  # second computation rather than the same one filed twice.
+  #
+  # Preparer-facing and normally blank when the estimate goes out -- an
+  # extension happens in season, months after the estimate. Same shape as
+  # brokerage keying: discovered, flagged at review, landing on the invoice
+  # where the variance note refuses to let a bigger bill go out unexplained.
+  extension_estimate:
+    count_from: count_extension_estimates
+    label: "Extension with a payment estimate"
+    detail: "Computing what to pay by the original due date, from an incomplete file"
+    amount: 75
+    publish: "yes"
+
+  records_sorting:
+    # Split out of `cleanup` on 26 August 2026, because one word was covering
+    # two jobs. The firm: "i think that it makes sense sometimes... others not
+    # so much. what does disorganized really mean in this case?"
+    #
+    # It means two things, and the NSA survey conflates them under one $166
+    # average -- "disorganized/INCOMPLETE files".
+    #
+    #   UNSORTED BUT COMPLETE. A shoebox. Everything is there, in no order.
+    #   Dull, real, and -- the part that decides the shape -- you can SEE THE
+    #   SIZE OF IT AT THE DOOR. That is this line.
+    #
+    #   INCOMPLETE OR UNRECONCILED. The books do not tie, or something is
+    #   missing and nobody knows what. You cannot see the bottom from the
+    #   door. That is `assumed.cleanup` below, and it stays hourly, because a
+    #   flat fee for it is a guess you will be wrong about in both directions.
+    #
+    # A FLOOR, NOT A FIXED PRICE. The firm, same day: "we'll set our price to
+    # 175 - and we will say 175 is the minimum so if the preparer thinks it'll
+    # take more than that much worth of hours they should adjust the estimate".
+    # $175 is a bit over an hour at the standard rate. `amount_from` lets the
+    # preparer enter a larger figure at the consultation; `minimum` stops it
+    # ever going below the floor, deliberately or by a typo.
+    label: "Records sorting"
+    detail: "Sorting and organizing what arrived"
+    count_from: count_sorting
+    amount: 175
+    minimum: 175
+    amount_from: sorting_amount
+    publish: "no"
+    publish_reason: >-
+      A floor a preparer sets when they see what arrived, not a price --
+      and a charge for the client's own untidiness reads very differently
+      on a public page than it does in a conversation. The estimate says
+      it when it applies.
+
+  owner_k1:
+    count_from: count_owners
+    label: "Schedule K-1 issued"
+    detail: "Per owner — shareholder or partner"
+    # Signed 25 Aug 2026. Nothing in the workbook priced this, so
+    # a six-owner S corp and a one-owner S corp cost the same. Allocation, a
+    # page and delivery per owner. Entity work, so it does not fire on a 1040.
+    amount: 40
+    publish: "yes"
+
+  # A tiered item. `tier_from` names an interview answer; the tier it selects
+  # supplies the label, the detail and the amount, exactly as a flat item's own
+  # keys would. Counting still comes from `count_from`.
+  #
+  # Schedule C is the case that forced this. One price for "a Schedule C" is
+  # wrong at the bottom end: a driver on standard mileage who tracked their
+  # trips is a data-entry job on top of a return we are already preparing, and
+  # pricing that like a business quotes them out of the firm.
+  #
+  # It is NOT wrong at the top end, and that is why there are two tiers rather
+  # than three. A third — inventory, employees, its own books — was drafted and
+  # removed, because every engagement already ASSUMES records arrive complete
+  # and reconciled (see `assumed.cleanup` below). Hold that assumption and a
+  # bookkeeping-heavy Schedule C is the same work on a longer trial balance:
+  # the numbers come off a balance sheet either way. What actually makes one of
+  # those engagements expensive is the assumption FAILING, and that is already
+  # priced — hourly, at the point it is discovered, outside this line.
+  #
+  # A tier that carries the same price as its neighbour is a question the
+  # client has to answer that changes nothing. Two tiers, or the mechanism is
+  # decoration.
+  #
+  # The tiers are not complexity bands — each names FACTS a client can answer
+  # correctly at the consultation call. "Standard mileage or actual expenses"
+  # has an answer they know. "How complex is your business" does not, which is
+  # why the brokerage and cleanup bands were deleted rather than retiered.
+  schedule_c:
+    count_from: count_businesses
+    tier_from: schedule_c_kind
+    tiers:
+      simple:
+        label: "Gig or contract work"
+        detail: "Schedule C — standard mileage, no assets, inventory or payroll"
+        # Signed 25 Aug 2026. The gig figure that already sits inside
+        # Standard; this is what a SECOND gig business costs.
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 65
+      standard:
+        label: "Sole proprietorship"
+        detail: "Schedule C — actual expenses, a home office, depreciation, inventory or employees"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 200
+    publish: "yes"
+
+# ── the words the estimate assembles ──────────────────────────────────────
+#
+# Everything below is CLIENT-FACING ENGLISH that used to live in pricing.py.
+# It is here because the firm asked for it on 25 August 2026:
+#
+#   "templates should be easily customizable to the degree possible - in the
+#    sense that i can easily manually update how they read"
+#
+# The ten HTML templates were already hand-editable. These sentences were not:
+# they are stitched together at render time from the labels, details and
+# assumptions above, and the connective tissue -- "Includes:", "after the
+# first", "this estimate assumes ... and does not include work beyond it" --
+# was English written in Python. Changing a word meant changing code.
+#
+# HOW TO EDIT ONE. Rewrite the text. Keep every {slot} that is already in it,
+# spelled the same way; a slot is a hole the software fills, and a phrase
+# missing one loses whatever it was going to say. Adding a slot that is not
+# listed for that phrase is an error rather than a blank, and the test suite
+# says which phrase and which slot.
+#
+# Each pair is the same sentence twice: once with a detail already on the line
+# and once without. They are written out rather than derived, because deriving
+# them means the rule for where a comma goes lives in code again.
+phrases:
+  # The package line: what the package covers.
+  #   {detail} the package's own one-line description
+  #   {list}   its covers list, joined
+  # Its own field on the estimate (`Item.Includes`), not appended to the
+  # line's detail sentence -- nine clauses inside a table cell is a paragraph
+  # nobody finishes.
+  includes:      "Includes: {list}."
+
+  # Which side of an either/or allowance the client got.
+  #   {detail} the package line's detail so far
+  #   {branch} the winning allowance's label
+  with_allowance: "{detail} — with {branch}"
+
+  # The old flat base fee, kept for a schedule with no package ladder.
+  base_covers_one: "Includes the first state and locality"
+
+  # A counted line whose first unit the package already paid for.
+  #   {detail} the line's own detail
+  #   {n}      how many were included
+  after_first:      "{detail}, after the first"
+  after_first_only: "After the first"
+  after_n:          "{detail}, after the {n} included"
+  after_n_only:     "After the {n} included"
+
+  # A line priced as a form: one fee, some number of items inside it, then
+  # per item beyond.
+  #   {n} how many the form fee covers / how many are past it
+  #   {each} the price of one past it
+  form_covers: "{detail}, covering up to {n}"
+  form_over:   "{detail} — plus {n} × {each}"
+
+  # A counted line that stopped climbing.
+  #   {n} the cap
+  capped:      "{detail}, capped at {n}"
+  capped_only: "Capped at {n}"
+  # A SOFT cap. The per-account charge stops at {n}; the work past it is time.
+  # Both halves have to be said: "capped at four" alone reads as a promise the
+  # firm is not making, and the client finds out otherwise on the invoice.
+  capped_soft:      "{detail}, capped at {n} — beyond that the time is billed at {rate} an hour"
+  capped_soft_only: "Capped at {n} — beyond that the time is billed at {rate} an hour"
+
+  # More than one of something.
+  #   {n} how many are charged   {each} the price of one
+  multiplier:      "{detail} — {n} × {each}"
+  multiplier_only: "{n} × {each}"
+
+  # An assumption, in the estimate's own assumptions block.
+  #   {label} {assumes} {trigger}  from the `assumed:` item
+  #   {where}       one of the two lines below it
+  #   {consequence} one of the two below that
+  # NOT "this estimate assumes ...". The block is headed "What this estimate
+  # assumes", so every bullet saying it again is the heading read aloud five
+  # times over. The firm, 26 Aug 2026: "stop repeating things for the sake of
+  # repeating."
+  #
+  # Nor "and does not include work beyond it". Every `assumed:` entry is
+  # outside the base, so that clause printed on every bullet saying nothing,
+  # immediately before a sentence that says exactly what happens beyond it.
+  # The two cases are two sentences now rather than one sentence with a slot
+  # that is the same on every line.
+  assumption:        "{label} — {assumes}. If {trigger}, {consequence}."
+  # Used when `inside_base: true`. Nothing carries it today; it exists because
+  # an assumption whose work IS in the price is a different statement, and the
+  # difference has to survive somewhere other than a dangling clause.
+  assumption_inside: "{label} — {assumes}, and the price above covers it. If {trigger}, {consequence}."
+
+  # What happens past an assumption. One per `beyond:` value.
+  #   {rate} " at $150 an hour", or empty when no rate is set
+  beyond_hourly: "the additional time is billed{rate} as it is worked"
+  #   {each}   how the priced line names one of itself (`per_each`)
+  #   {amount} its price, formatted
+  # The ONE place this promise is made. It earns its space here because the
+  # client is being told a number before the work happens and asked to agree
+  # it. Repeating the same reassurance on every other line, as this file did
+  # until 26 August 2026, turns it into wallpaper -- and means changing it
+  # once means changing it everywhere.
+  beyond_priced: "{each} is {amount}, which we will agree with you before we do it rather than adding it to your bill unannounced"
+
+# ── one price per named form ──────────────────────────────────────────────
+#
+# The firm, 25 August 2026:
+#
+#   "i have been doing this stuff with a client for awhile and just charge per
+#    account - nothing huge though. let's just try to make it simple and come
+#    up with a per form amount and gate with complexity"
+#
+# Five bespoke gates at five bespoke prices were proposed and replaced by this.
+# One amount, a handful of named situations, and the ASSUMPTION BEHIND EACH
+# FORM acting as its gate: hold the assumption and pay the flat price; break
+# it and the meter runs. That is claim 2 of the header rule applied to a whole
+# category rather than to one line, and it turns this part of the sheet from a
+# price list into a rule plus exceptions.
+#
+# $50 is the firm's number, against a recommendation of $75 -- twenty minutes
+# at the standard rate rather than half an hour. One consequence is worth
+# recording because it was argued the other way: at $75 the extension line
+# would simply have BECOME the per-form price. At $50 it stays a named
+# exception, because computing a payment from an incomplete file is not a
+# twenty-minute job.
+#
+# HOW FAR THE RULE GOES, and this boundary was deliberate. It fits individual
+# forms, which genuinely have one document behind them. It does NOT fit the
+# entity gates: Schedules L, M-1 and M-2 are three schedules and a book-to-tax
+# reconciliation, not a form, and pricing those per form would misprice the
+# exact engagements where mispricing hurts most.
+per_form:
+  amount: 50
+  # Publishable as "$50 each" plus the list of situations. The ASSUMPTION
+  # behind each form is not for the page -- it belongs on a client's own
+  # estimate, attached to a real engagement, where it can be read next to
+  # what they actually told us.
+  publish: "yes"
+  # The multi-select whose ticked values name the forms. Every option there is
+  # something that HAPPENED -- a client knows whether they sold a house.
+  select_from: extra_forms
+  forms:
+    home_sale:
+      label: "Sale of a home"
+      detail: "Form 8949 and Schedule D, and the exclusion"
+      assumes: "this was your main home and the closing statements are to hand"
+      trigger: "it was a rental for part of the time you owned it, or the basis has to be reconstructed"
+
+    debt_cancelled:
+      label: "Cancelled debt"
+      detail: "Form 1099-C"
+      assumes: "the cancelled amount is taxable as reported"
+      trigger: "insolvency, bankruptcy or a qualified exclusion has to be worked out and substantiated"
+
+    digital_assets:
+      label: "Digital assets"
+      detail: "Form 8949 reporting"
+      assumes: "your exchange produces a statement with cost basis on it"
+      trigger: "basis has to be reconstructed across wallets or exchanges"
+
+    marketplace:
+      label: "Marketplace health insurance"
+      detail: "Form 1095-A and the premium tax credit"
+      assumes: "one Form 1095-A covering the household for the year"
+      trigger: "the policy is shared between tax households, or coverage changed mid-year"
+
+    hsa:
+      label: "Health savings account"
+      detail: "Form 8889"
+      assumes: "contributions and distributions are on a 5498-SA and a 1099-SA"
+      trigger: "an excess contribution has to be worked out, or eligibility changed during the year"
+
+    early_withdrawal:
+      label: "Early retirement withdrawal"
+      detail: "Form 5329"
+      assumes: "the 1099-R coding is right and any exception is a plain one"
+      trigger: "the coding is wrong, or the exception has to be substantiated"
+
+    # THE NAMED EXCEPTION to the one-price rule, and the first line on this
+    # sheet the firm set by moving TOWARD the market rather than away from it.
+    #
+    # It was $150 in the workbook against a market average of $65 (NSA
+    # 2020-2021 -- see docs/market-fee-benchmarks.md), which was the largest
+    # single divergence on the whole sheet. The recommendation was to keep
+    # $150 and write down why: Form 8867 due diligence is real work and the
+    # penalty for getting it wrong is $600-plus per failure, landing on the
+    # preparer rather than the client.
+    #
+    # The firm overruled that on 26 August 2026, and the reason was better
+    # than the recommendation: "i don't like the idea of EIC being punitive
+    # when it is for low income". Pricing a credit by the risk it carries the
+    # preparer charges the least able client the most, which is a defensible
+    # accounting position and an indefensible one to hold at a kitchen table.
+    earned_income_credit:
+      label: "Earned income credit"
+      detail: "Form 8867 due diligence"
+      amount: 65
+      # FIRED BY THE PREPARER, not by the client's tick. Round eleven, 26
+      # August 2026: "We don't, at the estimate -- discover it at file review,
+      # like brokerage keying."
+      #
+      # It was an option in `extra_forms` until then, beside "sold a home" and
+      # "paid into an HSA", and it does not belong there. A client knows
+      # whether they sold a house. Nobody knows whether they qualify for this
+      # until the return is computed: earned income under a threshold that
+      # moves with filing status and number of children, investment income
+      # under a separate limit, valid Social Security numbers, residency for
+      # the whole year, and either a qualifying child or being 25 to 64
+      # without one. Asking invited a wrong answer that priced a return.
+      when: { answer_is: { eic_claimed: "yes" } }
+      assumes: "the children claimed lived with you for more than half the year and you can show it"
+      trigger: "residency or relationship has to be substantiated from records"
+
+    # Ticked to reveal the count question, and priced BY that count rather
+    # than here: the firm charges per account, so one flat line would undercharge
+    # the client with four and overcharge nobody's idea of fair. Naming the
+    # per-unit line keeps the two from both firing.
+    foreign_accounts:
+      priced_by: foreign_account
+
+# ── assumed, not counted ──────────────────────────────────────────────────
+#
+# Some work cannot be priced when the quote is written, because the thing that
+# drives its cost is not knowable then. Brokerage volume and records cleanup
+# are both like that, and the schedule used to get it wrong twice over: it put
+# them in bands, and it asked the CLIENT which band they were in. A client
+# whose books need reconstruction does not know that. Being in that state is
+# what makes it invisible from the inside.
+#
+# So these carry no price. Each states what the fee ASSUMES and what happens
+# when the assumption does not hold, and the answer is never a re-quote. Work
+# beyond the assumption is billed hourly at `basis.rate`, in the increments
+# `basis` sets. A re-quote stops the job, opens a negotiation the firm did not
+# want, and is how a practice ends up absorbing work it never agreed to rather
+# than have that conversation. The meter simply runs instead.
+#
+# The assumption is not a disclaimer buried in a letter. It prints on the
+# estimate, in the client's own copy, before any of the work happens.
+assumed:
+  # `brokerage` was here, and it was the second thing on this list until the
+  # firm moved it on 25 August 2026. It assumed "a single consolidated 1099-B
+  # that imports cleanly", declared itself inside the base fee at any volume,
+  # and billed the overrun hourly. All three are now wrong: a second statement
+  # is $45, a statement that has to be keyed is $95, and both are lines on the
+  # sheet rather than a warning followed by a meter.
+  #
+  # An assumption and a price for the same overrun is worse than either alone.
+  # The client reads "included" and then gets an invoice line, and nobody can
+  # say afterwards which one was operative. So it came off rather than being
+  # reworded.
+  #
+  # WHAT CAME OFF WITH IT was the warning: in the common case nobody knows yet
+  # whether a statement can be summarised, so the estimate went out silent and
+  # the $95 met the client on the invoice. That was T-14, and the firm settled
+  # it the same evening by describing the thing it wanted:
+  #
+  #   "this should be more like - we will tell you it's going to be $95 more
+  #    and we agree now that we know?"
+  #
+  # So the assumption comes back below with a PRICE rather than a rate. It is
+  # not the old one reworded: the old one claimed brokerage was inside the base
+  # fee at any volume and billed the overrun hourly, and all of that was wrong.
+  # DELETED 26 August 2026: the $95 "brokerage entered by hand" line, and the
+  # `count_brokerages_keyed` question that fed it. The firm: "this is way too
+  # much crap. we are actually deleting the $95 thing - all are $45 we will
+  # figure out how to make it efficient. however it is possible that brokerage
+  # statements are so messy they require keying which could significantly
+  # increase time and therefor result in an hourly charge."
+  #
+  # Every brokerage statement is $45. What survives is the honest residue: a
+  # statement disordered enough to key is not a $95 job of known size, it is
+  # time. Asking at the consultation how many WOULD turn out messy was always
+  # the weakest question on the sheet -- nobody knows before opening them.
+  brokerage_keying:
+    label: "Brokerage"
+    # NEEDS A BROKERAGE STATEMENT TO BE ABOUT. Same shape as
+    # `officer_compensation` below, found the same way -- by reading a
+    # rendered estimate rather than by any test. A client with only a W-2 has
+    # no 1099-B, so "your 1099-Bs can be summarized rather than keyed line by
+    # line" is a boundary around work that cannot arise. That is not a
+    # boundary being stated; it is filler, and filler is how a client learns
+    # to skip the block.
+    when:
+      schedules_any: [D]
+    assumes: "your 1099-Bs can be summarized rather than keyed line by line"
+    inside_base: false
+    trigger: "a statement is disordered enough that it has to be keyed"
+    beyond: hourly
+
+  foreign_company:
+    label: "Foreign entities"
+    # Signed 25 Aug 2026, alongside the per-account price: foreign ACCOUNTS
+    # are counted at $50; a foreign COMPANY is a different job. Form 5471 or
+    # 8865 is a return inside a return -- its own balance sheet, its own
+    # income statement, its own translation -- and pricing it per form would
+    # misprice the exact engagement where mispricing hurts most.
+    # NEEDS FOREIGN HOLDINGS TO BE ABOUT. The sentence tells a client which
+    # KIND their holdings were assumed to be; said to someone who declared
+    # none, it asks them to wonder what foreign holdings we think they have.
+    # Gated on the interview's own answer rather than on the priced count, so
+    # it still prints for someone who declared accounts and was charged for
+    # none.
+    when:
+      answer_includes: { extra_forms: "foreign_accounts" }
+    assumes: "your foreign holdings are accounts rather than companies"
+    inside_base: false
+    trigger: "you hold an interest in a foreign corporation or partnership"
+    beyond: hourly
+
+  # ADDED 26 August 2026, auditing the website brief against this file after
+  # the site agent reported the schedule was missing things it should have.
+  # It was. §3 of `docs/pricing-for-website.md` names THREE hourly things --
+  # records that need reconciling, responding to a notice, and anything to do
+  # with a foreign company -- and this file carried two of them.
+  #
+  # A client who gets a letter from a taxing authority is ordinary, expected
+  # work. Nothing priced it, so it would have been done and not billed, or
+  # billed by hand off the sheet.
+  #
+  # NEVER an intake question, for the same reason as cleanup: a notice arrives
+  # after the return is filed. It is raised when it happens.
+  # DELETED 26 August 2026. The firm: "notices and corresponds belong in a
+  # different letter engagement or would be discussed anyway, get rid of it.
+  # can't bite if not a secret."
+  #
+  # The engagement letter already says representing you in an examination,
+  # notice response or appeal is a separately quoted engagement. Repeating it
+  # on the estimate as an ASSUMPTION said the same thing twice and implied the
+  # meter was already running, which is not the arrangement.
+
+  # Settled 25 August 2026 and, until now, recorded only as a scope-exclusion
+  # flag on the business engagement letter in `fields.yaml`. A DOCUMENT said
+  # it and the thing that prices work did not, which is how an exclusion turns
+  # into unbilled work: the letter excludes it, the client asks for it anyway,
+  # and no line exists to put it on.
+  officer_compensation:
+    label: "Officer compensation"
+    # ENTITY RETURNS ONLY. A person filing a 1040 has no officers, and this
+    # sentence was printing on their estimate until 26 August 2026 -- caught
+    # by reading a rendered one rather than by any test. An assumption that
+    # cannot arise is not a boundary being stated; it is filler.
+    #
+    # Written as `any_of` rather than a new "one of these values" operator:
+    # the gate vocabulary is deliberately short, and three clauses spell it
+    # out without adding a word everyone then has to learn.
+    when:
+      any_of:
+        - answer_is: { federal_form: "1065" }
+        - answer_is: { federal_form: "1120S" }
+        - answer_is: { federal_form: "1120" }
+    assumes: "setting officer compensation is not part of this engagement"
+    inside_base: false
+    trigger: "you ask us to determine or review it, and we agree in writing"
+    beyond: hourly
+
+  cleanup:
+    label: "Records cleanup"
+    assumes: "your records arrive complete and reconciled"
+    inside_base: false
+    trigger: "the records need reconciling before the return can be prepared"
+    beyond: hourly
+    # NEVER an intake question. Cleanup is discovered, not declared, so it is
+    # raised when the file is reviewed -- which the onboarding letter already
+    # promises happens within three business days of the documents arriving.
+    raised_at: file_review
+
+# `beyond` accepts `hourly` and `priced`. It does NOT accept `requote`: that
+# would need a workflow to stop the work, produce a second estimate and wait
+# for a signature, and the firm has ruled that out on purpose. Keeping the key
+# means the ruling is visible rather than implied by the absence of an
+# alternative.
+#
+# This comment read "accepts only `hourly`" until 26 August 2026 -- three
+# blocks after `brokerage_keying` started using `priced`, which the firm asked
+# for. A comment that contradicts the config above it is worse than no comment:
+# whoever reads it stops trusting the rest of the file.
+
+# ── what this schedule deliberately does not do ───────────────────────────
+#
+# 1. No hourly rate. The estimate and the invoice both carry line items and no
+#    rates -- "a rate card on an invoice invites the client to scrutinise your
+#    time", per the invoice's own field doc. If hourly work exists it is quoted
+#    separately, not derived here.
+# 2. No rush loading and no discount. Each is a policy, and a policy invented
+#    in a config file is a policy nobody decided. THE MINIMUM IS NO LONGER ON
+#    this list: the firm set $200 in August with Simple Filer as its one
+#    exception, and it is recorded under `basis:` as of 26 August 2026. This
+#    line said "no minimum" for a day after the minimum existed.
+# 3. No rounding rule. Amounts are what they are; if the firm rounds a total to
+#    the nearest 25, that is a decision and it belongs here once made.
+# 4. No bookkeeping pricing. Recurring work is a different engagement with a
+#    different cadence, and the bookkeeping interview does not exist yet.

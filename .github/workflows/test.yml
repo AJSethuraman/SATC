@@ -1,19 +1,44 @@
 name: Tests
 
-# Run the SATC test suite on every push and PR — separate from the Windows
+# Run the SATC test suites on every push and PR — separate from the Windows
 # desktop build, so logic regressions are caught even when no release is cut.
+#
+# One job per project, because the repo is one-folder-per-project and each has
+# its own stack and its own way of installing. fail-fast is off so a break in
+# one project still reports the others.
+# EVERY BRANCH HERE IS A PR BRANCH, so `push: branches: ["**"]` beside
+# `pull_request:` ran the whole matrix TWICE on every commit -- six jobs where
+# three were wanted, on a repo with more than seventy branches. That is what
+# exhausted the Actions allowance and put a `startup_failure` on PR #154, which
+# looked from the notification email like a broken test and was not.
+#
+# `push` is now main only, so a merge is still verified on the branch it lands
+# on, and a PR is verified once.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 jobs:
   pytest:
-    name: pytest (satc_system)
+    name: pytest (${{ matrix.project }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: satc_system
+            install: pip install -e ".[dev]"
+          - project: client-documents
+            # Chromium too: the pipeline tests render real PDFs, and a suite
+            # that skips the one step a client actually receives is not
+            # testing the pipeline.
+            install: pip install -r requirements.txt && playwright install --with-deps chromium
+          - project: invoice-generator
+            install: pip install -r requirements.txt pytest
     defaults:
       run:
-        working-directory: satc_system
+        working-directory: ${{ matrix.project }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +51,71 @@ jobs:
       - name: Install project + test deps
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          ${{ matrix.install }}
 
       - name: Run tests
         run: pytest -q
+
+  # The website publishes prices. A number on satcllp.com is a commitment, and
+  # the estimate a client gets later has to agree with it — so the page is
+  # checked against client-documents/registry/fee-schedule.yaml on every push,
+  # rather than whenever someone remembers to run it.
+  #
+  # Its own job, not a matrix entry: website/ has no pytest suite, and this
+  # needs neither a browser nor a server (unlike intake.spec.py, which needs
+  # both and stays a local check).
+  # ── SIDELINED 30 August 2026, by the firm, until further notice ──────────
+  #
+  # This has been red on every branch for days for a reason no branch can fix:
+  # the fee schedule dropped `notice_response` and the generated
+  # `website/pricing-config.js` still advertises it. It fails on `main` too.
+  # Only someone permitted to edit `website/` can clear it, and the exact
+  # two-line fix is written up in `docs/website-agent-handoff.md`.
+  #
+  # The firm: *"This is driving me crazy, sideline this test until further
+  # notice. Keep it as recurring reminder on the interview."*
+  #
+  # WHAT SIDELINED MEANS HERE, exactly:
+  #   * the check still RUNS and still prints its full report, so the moment it
+  #     starts passing anyone can see that;
+  #   * it no longer FAILS the run, so it stops masking a real red check on a
+  #     branch that has one.
+  #
+  # A permanently-red check is worse than no check: after the third day nobody
+  # reads it, and the next genuine failure hides behind it. This keeps the
+  # signal and drops the noise.
+  #
+  # TO PUT IT BACK: delete the `continue-on-error` line below. That is the whole
+  # revert, and it is one line on purpose.
+  pricing:
+    name: published prices match the fee schedule
+    runs-on: ubuntu-latest
+    continue-on-error: true          # sidelined — see the note above
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: python -m pip install --upgrade pip pyyaml
+
+      # The checker regenerates pricing-config.js from the schedule and fails if
+      # the committed copy differs, so this also catches a schedule change that
+      # nobody propagated to the page.
+      # `|| true` as well as the job-level continue-on-error: the two do
+      # different things and both are wanted. continue-on-error stops a red job
+      # blocking the run; this stops the STEP going red, so the check reads
+      # green-with-a-note rather than a red tick everyone learns to ignore.
+      # The report is printed either way -- that is the part being kept.
+      - name: Check the page against the schedule (sidelined — reported, not enforced)
+        working-directory: website
+        run: |
+          python3 pricing.spec.py || true
+          echo
+          echo "This check is SIDELINED until further notice (30 Aug 2026)."
+          echo "It reports, it does not enforce. The fix is two edits under"
+          echo "website/, written up in docs/website-agent-handoff.md."
