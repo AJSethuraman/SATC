@@ -328,6 +328,68 @@ What a real answer needs, when it is time: off-machine, encrypted, automatic,
 and a restore that has actually been performed. A backup nobody has restored
 from is a hope.
 
+### Being closed, 3 September 2026 — OneDrive
+
+The firm chose the SATC OneDrive, which also turns out to be where the lead
+intake lives — the reason the survey could not find `leads.xlsx` anywhere on
+this disk. **The SATC tenant was already registered on the machine**
+(`WorkplaceJoined: YES`, `Sethuraman Accounting Tax and Consulting LLP`), but
+OneDrive itself had been removed in the 29 July debloat and was reinstalled for
+this.
+
+**Two decisions the firm made, and they are the whole design:**
+
+1. **The vault syncs; `vault.key` does not.** They sit in the same directory
+   today, and copying both to one cloud folder would mean the tenant holds the
+   ciphertext and the key side by side — at which point AES-256 protects nothing
+   the account password was not already protecting. So `satc_vault.db` and
+   `satc_mart.db` go up and the key stays off-cloud.
+
+   ⚠️ **This makes the key a single point of failure, deliberately.** If this
+   disk dies and the key is not somewhere else, the backup restores a file
+   nobody can read. **The key still has no second home** — that is the one thing
+   left before this counts as a backup. `--check-key` says so every time it is
+   asked.
+
+2. **Live client data only** — `satc_mart.db` and `satc_vault.db`. Not the
+   orphaned 2021–2024 engagement letters and tax workbooks the survey found in
+   the stale personal OneDrive folder (`C:\Users\ajish\OneDrive`, 741 files,
+   683 MB, untouched since the debloat, real client documents interleaved with
+   game saves). Those are still backed up by nothing and are a separate job.
+
+`satc_system/scripts/backup_client_data.py` does the work.
+`install_backup_task.ps1` registers it daily at 12:30 **and at logon** — both,
+because this machine starts things at logon rather than boot, so a daily-only
+trigger would quietly do nothing across a reboot nobody logged back into.
+
+It meets three of the four bars already, and is honest about the fourth:
+
+| | |
+|---|---|
+| off-machine | ✅ once signed in — the SATC tenant, not the personal account, which the script enforces by reading `OneDriveCommercial` rather than `OneDriveConsumer` |
+| automatic | ✅ scheduled, with output appended to `~\.satc\backup.log` so a failure is visible after the fact |
+| **a restore actually performed** | ✅ **done, not asserted.** `--verify-restore` copies the backup back out, opens it, and compares every table to the live database. Measured this day: `satc_mart.db` 22 tables / 102 rows, `satc_vault.db` 3 tables / 21 rows, both identical. The scratch copy is deleted afterwards — proving a backup works is not a reason to leave a second unencrypted vault lying in a temp directory |
+| encrypted | ⚠️ **the vault already is; the mart is not.** `satc_mart.db` is the de-identified working mart and goes up as-is, protected by the tenant. Whether that is good enough is a question for the firm, not an answer this document should invent |
+
+Two guards, both verified to actually fire rather than merely exist:
+
+- The run **refuses** if `vault.key` is found anywhere in the destination and
+  exits non-zero — not "we did not copy it" but "it is not there", whoever put
+  it there. Tested with a dummy file: exit 1.
+- Every copy is taken with SQLite's **online backup API**, not a file copy, so a
+  database being written to cannot be captured mid-transaction, and every copy
+  is reopened and `PRAGMA integrity_check`ed before the run reports success.
+
+**Still open:** sign-in. It is an interactive login and could not be done for
+the firm; until it happens the job runs, fails loudly, and says why. And the
+key still needs its second home.
+
+**This is a deliberate deviation from local-first.** `CLAUDE.md` says client
+data stays on the firm's own hardware rather than in a vendor cloud. Sending the
+vault to Microsoft is a decision the firm made on 3 September 2026 with the
+alternative — one disk, no redundancy, no backup — in front of them. Recorded
+as a decision so it does not later read as drift.
+
 ## What is still unknown
 
 - Whether anything is expected to be reachable from outside Tailscale.
