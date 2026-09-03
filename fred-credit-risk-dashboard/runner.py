@@ -119,6 +119,9 @@ class SeriesSpec:
 class Config:
     settings: Dict[str, str] = field(default_factory=dict)
     thresholds: Dict[str, float] = field(default_factory=dict)
+    # Raw (pre-float) threshold strings, kept so validate_thresholds() can name
+    # the offending value in its error rather than showing a coerced sentinel.
+    raw_thresholds: Dict[str, str] = field(default_factory=dict)
     series: List[SeriesSpec] = field(default_factory=list)
     cbsa_extensions: List[Dict[str, str]] = field(default_factory=list)
 
@@ -190,10 +193,14 @@ def parse_config(rows: Sequence[Sequence]) -> Config:
             if section == "SETTINGS":
                 cfg.settings[a] = str(val).strip()
             else:
+                cfg.raw_thresholds[a] = "" if val is None else str(val).strip()
+                # A blank / non-numeric threshold is recorded as NaN (NOT 0.0) so
+                # validate_thresholds() refuses it loudly. Silently coercing to 0.0
+                # would flag on nearly every series with no warning.
                 try:
                     cfg.thresholds[a] = float(val)
                 except (TypeError, ValueError):
-                    cfg.thresholds[a] = 0.0
+                    cfg.thresholds[a] = math.nan
         elif section == "SERIES":
             if series_header is None:
                 series_header = [str(c).strip() for c in raw]
@@ -372,6 +379,45 @@ def evaluate_alert(spec: SeriesSpec, s: pd.Series, cfg: Config) -> Optional[dict
             return {"series_id": spec.series_id, "rule": "sloos_level", "value": round(v, 1),
                     "band": cfg.sloos_band}
     return None
+
+
+class ThresholdConfigError(Exception):
+    """Raised when a threshold that an alert rule actually depends on is present
+    in _config but unusable (blank, non-numeric, or non-positive). This is a hard
+    gate, like validate_watchlist/validate_transforms: a bad band must fail loudly,
+    not silently flag every series (Python side, band->0.0) or silently blank the
+    whole Flag column (Excel side, number >= text is always FALSE)."""
+
+
+# alert_rule -> the threshold key it reads (used to decide which bands matter).
+_ALERT_RULE_BAND = {"zscore": "zscore_band", "sloos_level": "sloos_band"}
+
+
+def validate_thresholds(cfg: "Config", series: Sequence[SeriesSpec]) -> None:
+    """Refuse any threshold that a live alert rule depends on but cannot use.
+
+    Only bands actually referenced by a series' alert_rule are checked. A band
+    that is simply ABSENT falls back to the safe hardcoded default (Config
+    property) and is left alone; the danger this closes is a band that is
+    PRESENT but blank/non-numeric (silently became NaN here, 0.0 before) or
+    non-positive (flags on nearly everything)."""
+    referenced = {band for s in series
+                  if (band := _ALERT_RULE_BAND.get(s.alert_rule))}
+    for key in sorted(referenced):
+        if key not in cfg.thresholds:
+            continue  # absent -> Config property supplies a safe default
+        v = cfg.thresholds[key]
+        raw = cfg.raw_thresholds.get(key, v)
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            raise ThresholdConfigError(
+                f"Threshold '{key}' is present in _config but not a number "
+                f"(value: {raw!r}). A blank/non-numeric band silently flags on "
+                f"nearly every series in Python and silently blanks the entire "
+                f"Flag column in Excel. Set '{key}' to a positive number.")
+        if v <= 0:
+            raise ThresholdConfigError(
+                f"Threshold '{key}' = {v} must be positive; a zero or negative "
+                f"band flags on nearly every series. Set '{key}' above 0.")
 
 
 # ---------------------------------------------------------------------------
@@ -724,6 +770,7 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
     # Hard gates BEFORE any pull (BUILD SPEC sec 0.1, sec 3).
     validate_watchlist(cfg.series)
     validate_transforms(cfg.series)
+    validate_thresholds(cfg, cfg.series)
 
     if demo or _as_bool(cfg.setting("demo_mode", "false")):
         provider: Provider = DemoProvider(asof=asof)
@@ -774,6 +821,7 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
         "timestamp": asof.isoformat() if asof else "",
         "mode": mode,
         "series_in_dict": len(cfg.series),
+        "series_pullable": len(pullable),
         "series_pulled": pulled,
         "alert_count": len(alerts),
         "alerts": alerts[:25],
@@ -783,6 +831,16 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
     backend.write_status(status)
     backend.finalize()
     return status
+
+
+def run_succeeded(status: dict) -> bool:
+    """False when there were series to pull but ZERO came back -- a total-fetch
+    failure (FRED unreachable, key revoked, network blocked). Individual fetch
+    errors are collected rather than raised, so without this check main() would
+    return exit 0 while the workbook silently kept stale raw data. A run with
+    nothing pullable (all series dead) is not a failure."""
+    pullable = status.get("series_pullable", status.get("series_in_dict", 0))
+    return not (pullable > 0 and status.get("series_pulled", 0) == 0)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -796,7 +854,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     asof = datetime.strptime(args.asof, "%Y-%m-%d").date() if args.asof else None
     try:
         status = run(args.workbook, backend_name=args.backend, demo=args.demo, asof=asof)
-    except (WatchlistBoundaryError, TransformMisuseError) as exc:
+    except (WatchlistBoundaryError, TransformMisuseError, ThresholdConfigError) as exc:
         sys.stderr.write(f"BOUNDARY ERROR: {exc}\n")
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 2
@@ -808,7 +866,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         sys.stderr.write(f"RUN ERROR: {exc}\n")
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1
-    print(json.dumps({"ok": True, **status}))
+    ok = run_succeeded(status)
+    print(json.dumps({"ok": ok, **status}))
+    if not ok:
+        sys.stderr.write(
+            f"FAIL: pulled 0/{status.get('series_pullable', 0)} series -- every "
+            f"fetch failed (FRED unreachable, key revoked, or network blocked). "
+            f"The workbook was NOT refreshed with new data; it retains prior raw "
+            f"values. Do not treat this run as current.\n")
+        return 4
     sys.stderr.write(
         f"OK: {status['series_pulled']}/{status['series_in_dict']} series, "
         f"{status['alert_count']} alerts, {len(status['stale'])} stale.\n")

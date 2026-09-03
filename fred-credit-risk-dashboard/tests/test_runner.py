@@ -297,5 +297,69 @@ def test_fredprovider_retries_on_rate_limit(monkeypatch):
     assert s.iloc[0] == 1.0
 
 
+# --------------------------------------------------------------------------
+# Threshold validation gate (a bad band must fail loudly, not silently flag
+# everything in Python / blank the whole column in Excel)
+# --------------------------------------------------------------------------
+def _thresh_cfg(z="1.0", sloos="20"):
+    return R.parse_config([["[THRESHOLDS]"], ["key", "value"],
+                           ["zscore_band", z], ["sloos_band", sloos]])
+
+
+def test_parse_config_bad_threshold_is_nan_not_zero():
+    # The old code silently coerced garbage -> 0.0 (flags on everything). Now NaN.
+    cfg = _thresh_cfg(z="garbage")
+    assert math.isnan(cfg.thresholds["zscore_band"])
+    assert cfg.raw_thresholds["zscore_band"] == "garbage"
+
+
+def test_validate_thresholds_rejects_non_numeric():
+    cfg = _thresh_cfg(z="garbage")
+    series = [_spec(alert_rule="zscore", watchlist_capable=False,
+                    category="credit_card", lane="consumer", geo_segment="national")]
+    with pytest.raises(R.ThresholdConfigError) as ei:
+        R.validate_thresholds(cfg, series)
+    assert "zscore_band" in str(ei.value)
+
+
+def test_validate_thresholds_rejects_blank():
+    cfg = _thresh_cfg(sloos="")
+    series = [_spec(alert_rule="sloos_level", watchlist_capable=False,
+                    category="sloos", lane="commercial", geo_segment="national")]
+    with pytest.raises(R.ThresholdConfigError) as ei:
+        R.validate_thresholds(cfg, series)
+    assert "sloos_band" in str(ei.value)
+
+
+def test_validate_thresholds_rejects_nonpositive():
+    for bad in ("0", "-1.5"):
+        cfg = _thresh_cfg(z=bad)
+        series = [_spec(alert_rule="zscore", watchlist_capable=False,
+                        category="credit_card", lane="consumer", geo_segment="national")]
+        with pytest.raises(R.ThresholdConfigError):
+            R.validate_thresholds(cfg, series)
+
+
+def test_validate_thresholds_ignores_unreferenced_band():
+    # A bad band nobody's alert_rule reads must NOT block the run.
+    cfg = _thresh_cfg(sloos="garbage")            # sloos bad, but...
+    series = [_spec(alert_rule="zscore", watchlist_capable=False,       # ...only zscore used
+                    category="credit_card", lane="consumer", geo_segment="national")]
+    R.validate_thresholds(cfg, series)            # must not raise
+
+
+def test_validate_thresholds_accepts_shipped_seed():
+    R.validate_thresholds(_thresh_cfg(), _seed_specs())   # must not raise
+
+
+# --------------------------------------------------------------------------
+# A total-fetch failure must NOT read as success (never trust the exit code)
+# --------------------------------------------------------------------------
+def test_run_succeeded_flags_zero_pull():
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 5}) is True
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 0}) is False   # total failure
+    assert R.run_succeeded({"series_pullable": 0, "series_pulled": 0}) is True     # nothing to pull
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

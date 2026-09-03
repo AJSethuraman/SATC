@@ -196,10 +196,17 @@ def write_dashboard(wb, tab, specs, blocks, title, subtitle, lane):
         ws.cell(r, 8, f"=IFERROR(({latest}-AVERAGE({win}))/STDEV({win}),\"\")")
         # col 9 (Trend) intentionally left blank — sparklines painted by the macro.
         zc, lc = f"${COL['Z-score (8)']}{r}", f"${COL['Latest']}{r}"
+        # ISNUMBER() also guards the BAND, not just the data cell: without it a
+        # non-numeric band (e.g. a typo, a %-formatted cell Excel stores as text)
+        # makes `value >= text` silently FALSE, blanking the whole column with no
+        # signal. With it, a bad band is a visible #VALUE!-free blank AND is caught
+        # up-front by the runner's validate_thresholds gate.
         if s.alert_rule == "zscore":
-            flag = f"=IF(AND(ISNUMBER({zc}),{zc}>=zscore_band),\"⚠ ALERT\",\"\")"
+            flag = (f"=IF(NOT(ISNUMBER(zscore_band)),\"⚠ zscore_band not numeric\","
+                    f"IF(AND(ISNUMBER({zc}),{zc}>=zscore_band),\"⚠ ALERT\",\"\"))")
         elif s.alert_rule == "sloos_level":
-            flag = f"=IF(AND(ISNUMBER({lc}),{lc}>=sloos_band),\"⚠ TIGHTENING\",\"\")"
+            flag = (f"=IF(NOT(ISNUMBER(sloos_band)),\"⚠ sloos_band not numeric\","
+                    f"IF(AND(ISNUMBER({lc}),{lc}>=sloos_band),\"⚠ TIGHTENING\",\"\"))")
         else:
             flag = ""
         ws.cell(r, 10, flag)
