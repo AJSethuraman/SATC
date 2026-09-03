@@ -30,3 +30,29 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+  pytest-fred-dashboard:
+    name: pytest (fred-credit-risk-dashboard)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fred-credit-risk-dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Offline test deps only — the suite mocks FRED and needs no network or
+      # Excel. `formulas`/`xlwings` are intentionally omitted (no test imports
+      # them). See VERIFICATION_REPORT.md.
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest oletools openpyxl pandas fredapi
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
