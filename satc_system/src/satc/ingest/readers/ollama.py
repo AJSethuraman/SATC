@@ -27,14 +27,16 @@ class OllamaVisionReader:
 
     def __init__(self, config: dict[str, Any], *, host: str | None = None,
                  model: str | None = None, page: int | None = None,
+                 num_ctx: int | None = None,
                  transport: Callable[[dict], dict] | None = None) -> None:
-        from satc.settings import ollama_host, ollama_model
+        from satc.settings import ollama_host, ollama_model, ollama_num_ctx
 
         self.doc_type = config.get("doc_type", "document")
         self.field_specs = config.get("fields", [])
         self.page = page
         self.host = host or ollama_host()
         self.model = model or ollama_model()
+        self.num_ctx = num_ctx or ollama_num_ctx()
         self._transport = transport          # injectable: payload -> response dict
 
     def _image_b64(self, source: str) -> str:
@@ -56,7 +58,12 @@ class OllamaVisionReader:
                 f"or an identifier.\n{lines}")
 
     def _call(self, image_b64: str) -> dict:
+        # `num_ctx` IS SENT EXPLICITLY. Without it the request inherits whatever
+        # the model's own default happens to be, which on this hardware is the
+        # difference between running wholly on the GPU and spilling to the CPU
+        # -- and there was no setting to pin. See `settings.ollama_num_ctx`.
         payload = {"model": self.model, "stream": False, "format": "json",
+                   "options": {"num_ctx": self.num_ctx},
                    "messages": [{"role": "user", "content": self._prompt(), "images": [image_b64]}]}
         if self._transport is not None:
             return self._transport(payload)

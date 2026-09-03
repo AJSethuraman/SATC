@@ -360,21 +360,24 @@ _KIND_TO_TYPE = {
 # "Any unfiled years?" precisely because it does. A hard three-year floor here
 # would refuse real engagements.
 #
-# So three years is not the input rule. This range exists to catch a TYPO --
-# `99999`, `-5`, `0`, a transposed digit -- and nothing else. Seven back is
-# generous enough for the oldest unfiled year anyone brings in; one forward is
-# the return prepared in December for the year just ending.
+# THE FIRM SET THE WINDOW AT THREE, 3 September 2026, having been shown the
+# distinction above and chosen anyway. So the input rule IS the refund window
+# here, deliberately, and this is what that costs:
 #
-# Confirmed against irs.gov on 3 September 2026, at the firm's instruction,
-# after `0` put a return due 0001-04-17 at the top of the board.
-YEARS_BACK = 7
-YEARS_FORWARD = 1
-
-# The separate fact, kept next to the rule it is NOT: past this, a refund can no
-# longer be claimed. Nothing enforces it yet -- it is the natural shape of a
-# review flag, not of an input refusal, because the return may still be worth
-# filing.
+#   an unfiled 2019 return, prepared in 2026, is REFUSED at the question.
+#
+# That work still exists. It goes through `unfiled_years` -- the free-text
+# question in the history section -- rather than by opening an engagement dated
+# to a year this refuses. If the firm starts taking that work often enough to
+# want its own engagement per year, this constant is the thing to revisit, and
+# raising it is a one-line change with tests that name the consequence.
+#
+# One forward is the return prepared in December for the year just ending.
+# Confirmed against irs.gov, after `0` put a return due 0001-04-17 at the top
+# of the board.
 REFUND_YEARS = 3
+YEARS_BACK = REFUND_YEARS
+YEARS_FORWARD = 1
 
 
 def plausible_year(value, today: date | None = None) -> bool:

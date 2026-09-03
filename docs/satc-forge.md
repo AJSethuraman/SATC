@@ -70,11 +70,45 @@ Already set in the user environment: `SATC_OLLAMA=1`,
 `satc doctor` reports **local vision enabled and reachable**, so the document
 readers' local rung has a real model behind it for the first time.
 
-**Not measured: whether any of them places 100% on the GPU.** `ollama ps` was
-empty — nothing resident — and loading one to find out is a write the survey did
-not make. It matters most for `SATC-DocReader`: a 6.0 GB model on an 8 GB card,
-where the 8192-token context ceiling recorded elsewhere was measured against the
-5.2 GB `qwen3:8b`, not against this. Re-measure before relying on it.
+### Measured 3 September 2026 — and the 8192 note is wrong for the vision models
+
+| Model | Max 100% GPU | Spills at | tok/s |
+|---|---|---|---|
+| `qwen3:8b` | **8192** | 12288 (`13%/87% CPU/GPU`) | 66.5 |
+| `SATC-Assistant` | **8192** | 12288 | 66.2 |
+| `qwen2.5vl:7b` | **5120** | 6144 | 72.3 |
+| `SATC-DocReader` | **5120** | 6144 | 71.7 |
+
+The "8192 is the ceiling" note was measured against `qwen3:8b` and **does not
+transfer**. Both vision models spill at 6144, and at 8192 they read
+`15%/85% CPU/GPU` — so anything running DocReader on that note's advice was
+running partly on the CPU. Their real ceiling is 37% lower.
+
+The KV allocation is a step function, not a slope: the vision models report
+5.5 GB at both 4096 and 5120, then jump to 6.3 GB at 6144.
+
+**With a real page attached, 4096 and 5120 both still hold 100% GPU.** That
+measurement had never been taken — every earlier figure used a text-only prompt,
+and the open worry was that a real image's vision-encoder allocation would push
+5120 over. It does not, for a single letter-size page at 150 dpi.
+
+**The code was sending no context size at all.** `readers/ollama.py` built its
+payload with no `options` block, so the value was whatever the model's own
+default happened to be and there was nowhere to pin it — which is why a stale
+note could go unnoticed. `settings.ollama_num_ctx()` now supplies it,
+`SATC_OLLAMA_NUM_CTX` overrides it, and it is pinned to **4096**: the difference
+between 4096 and 5120 is far smaller than the difference between on the card and
+off it.
+
+**And the local rung read a document.** On a synthetic W-2 (invented figures, no
+client data) `qwen2.5vl:7b` returned Box 1 `52000.00` and Box 2 `6,240.00`
+correctly, at `100% GPU`. First end-to-end proof that the local vision path
+works on an actual page rather than in a unit test.
+
+⚠️ **The desktop's own VRAM use moved 1.6 GB during the measurement run**
+(2208 → 558 MiB with nothing resident). `qwen3:8b` at 8192 sits at 7501 of
+8192 MiB — under 700 MB of margin — so a heavy desktop moment could push even
+the confirmed setting off 100% GPU.
 
 ## Toolchain — measured
 

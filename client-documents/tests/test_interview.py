@@ -877,21 +877,21 @@ def test_an_ordinary_year_and_the_edges_of_the_window_are_accepted():
         assert session.answers["tax_year"] == good
 
 
-def test_an_unfiled_year_older_than_the_refund_window_is_still_workable():
-    """THE POINT OF NOT USING THREE.
+def test_a_year_older_than_the_refund_window_is_refused_and_that_is_a_choice():
+    """The firm set the window at three on 3 September 2026, having been shown
+    that filing an old unfiled return is not time-barred the way a refund is.
 
-    IRC 6511(a) caps a refund claim at three years. It does not cap FILING: the
-    assessment clock starts when a return is filed, so for a year the client
-    never filed it never started. The interview asks "Any unfiled years?"
-    because the firm does that work, and refusing year four here would refuse
-    the engagement.
+    So this refuses an engagement dated to year four, and that work goes through
+    `unfiled_years` instead. Asserted rather than assumed, so the trade-off is
+    visible to whoever changes the constant next.
     """
-    assert taxcal.YEARS_BACK > taxcal.REFUND_YEARS
+    assert taxcal.YEARS_BACK == taxcal.REFUND_YEARS
     session = _at_tax_year()
     q = session.question("tax_year")
     older_than_a_refund = date.today().year - taxcal.REFUND_YEARS - 1
-    session.answer("tax_year", iv.coerce(q, str(older_than_a_refund)))
-    assert session.answers["tax_year"] == older_than_a_refund
+    with pytest.raises(iv.InterviewError):
+        session.answer("tax_year", iv.coerce(q, str(older_than_a_refund)))
+    assert "unfiled_years" in {qq["id"] for _, qq in iv.all_questions(session.schema)},         "the older work needs somewhere to go"
 
 
 # ── counts ─────────────────────────────────────────────────────────────────

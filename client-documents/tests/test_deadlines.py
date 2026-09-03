@@ -379,20 +379,29 @@ def test_a_year_that_parses_but_cannot_be_a_year_does_not_take_the_board_down():
         assert all(d.ref == "2026-0001" for d in due)
 
 
-def test_the_year_window_is_the_typo_guard_and_not_the_refund_window():
-    """IRC 6511(a) caps a REFUND claim at three years. Filing is not capped.
+def test_the_window_is_the_refund_window_because_the_firm_chose_that():
+    """THE COST OF THIS CHOICE IS NAMED HERE ON PURPOSE.
 
-    Recorded as a test because the two numbers are easy to conflate, and
-    conflating them would refuse an unfiled-year engagement the firm does take.
+    IRC 6511(a) caps a REFUND claim at three years from filing. It does not cap
+    FILING: 6501's assessment clock starts when a return is filed, so for a year
+    nobody filed it never started, and an old unfiled return is still work the
+    firm can do.
+
+    The firm was shown that distinction on 3 September 2026 and set the window
+    at three anyway. So an unfiled 2019 return prepared in 2026 is refused at
+    the question, and that work goes through `unfiled_years` instead. This test
+    exists so that raising the constant later is a deliberate act with a
+    consequence somebody already wrote down, rather than a number nobody
+    remembers the reason for.
     """
     assert taxcal.REFUND_YEARS == 3
-    assert taxcal.YEARS_BACK > taxcal.REFUND_YEARS
+    assert taxcal.YEARS_BACK == taxcal.REFUND_YEARS, "the firm's choice"
 
     today = date(2026, 6, 1)
     assert taxcal.plausible_year(2026, today)
     assert taxcal.plausible_year(2027, today), "a return prepared in December"
-    assert taxcal.plausible_year(2019, today), "the oldest unfiled year we accept"
-    assert not taxcal.plausible_year(2018, today)
+    assert taxcal.plausible_year(2023, today), "the oldest year we accept"
+    assert not taxcal.plausible_year(2022, today), "an unfiled year, refused"
     assert not taxcal.plausible_year(2028, today)
     for nonsense in ("x", "", None, "0", "-5", "99999", 0, -5):
         assert not taxcal.plausible_year(nonsense, today), f"{nonsense!r}"

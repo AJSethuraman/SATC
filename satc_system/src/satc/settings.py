@@ -58,3 +58,40 @@ def ollama_host() -> str:
 
 def ollama_model() -> str:
     return os.environ.get("SATC_OLLAMA_MODEL", "llama3.2-vision")
+
+
+# HOW MUCH CONTEXT THE VISION RUNG ASKS FOR, and why it is pinned low.
+#
+# Measured on the Forge (RTX 2070 SUPER, 8 GB) on 3 September 2026:
+#
+#   qwen3:8b       @ 8192  ->  100% GPU
+#   qwen2.5vl:7b   @ 8192  ->  15%/85% CPU/GPU     spilled
+#   qwen2.5vl:7b   @ 6144  ->  13%/87% CPU/GPU     spilled
+#   qwen2.5vl:7b   @ 5120  ->  100% GPU
+#
+# The machine notes said 8192 was the ceiling. That was measured against
+# `qwen3:8b`, a text model, and does not transfer: the VISION models spill at
+# 6144. Once any layer moves to the CPU, throughput collapses.
+#
+# 4096 rather than the measured 5120, deliberately. Every one of those numbers
+# was taken with a TEXT-only prompt, and a real page makes the model allocate
+# for the image as well -- at 5120 there was under 900 MB of headroom on the
+# card. 4096 is the setting with margin, and the difference between 4096 and
+# 5120 is far smaller than the difference between "on the card" and "not".
+#
+# Before this existed the payload sent no `options` at all, so the value was
+# whatever the model's own default happened to be and there was nowhere to pin
+# it. That is why the stale note went unnoticed for as long as it did.
+OLLAMA_NUM_CTX_DEFAULT = 4096
+
+
+def ollama_num_ctx() -> int:
+    """Context window for the local vision rung. ``SATC_OLLAMA_NUM_CTX`` overrides."""
+    raw = os.environ.get("SATC_OLLAMA_NUM_CTX", "").strip()
+    if not raw:
+        return OLLAMA_NUM_CTX_DEFAULT
+    try:
+        value = int(raw)
+    except ValueError:
+        return OLLAMA_NUM_CTX_DEFAULT
+    return value if value > 0 else OLLAMA_NUM_CTX_DEFAULT
