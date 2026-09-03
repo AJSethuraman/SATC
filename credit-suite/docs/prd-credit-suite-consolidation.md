@@ -237,11 +237,10 @@ sources, follow on the same engine.
 - **Risk — engine abstraction wrong for a later source.** Mitigation: the spine
   deliberately spans the two most divergent shapes (entity-keyed bank-level vs
   national series) before four monitors depend on it.
-- **Open question (needs your decision / your machine):** the unlocked build PC —
-  confirm it is **Windows with Excel installed** (required for the real-Excel
-  acceptance) and that a **`FRED_API_KEY`** is available there for the live FRED
-  pull. FDIC live is keyless. (Only you can provision these; everything else is
-  closed above.)
+- **Resolved (2026-09-03):** the build PC is **Windows with Excel installed**, and
+  a **`FRED_API_KEY`** will be provisioned there. Live FRED + real-Excel
+  ExtractFiles/recalc acceptance are therefore in-scope for "done" (M1). FDIC live
+  is keyless.
 - **Open question (business):** replace the illustrative seed peer set (CERTs /
   CIKs) with your real KeyBank peer list — a config edit via `--lookup`, yours to
   supply.
