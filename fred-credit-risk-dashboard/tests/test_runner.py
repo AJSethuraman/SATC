@@ -61,17 +61,30 @@ def test_missing_value_stays_missing():
 
 
 def test_zscore_8q_needs_full_window_and_flags_a_jump():
-    base = [2.0] * 8
-    s = q_series(base + [5.0])                 # 9th point spikes well above trailing mean
+    # VARYING warm-up (not flat) so the full-window requirement is actually
+    # load-bearing: with min_periods relaxed to 1 the early points would yield
+    # finite z's, so `all NaN` below genuinely detects that regression.
+    base = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+    s = q_series(base + [20.0])                 # 9th point spikes well above trailing mean
     out = R.t_zscore_8q(s, "quarterly")
-    assert all(math.isnan(x) for x in out.iloc[:7])   # < 8 periods -> NaN
+    assert all(math.isnan(x) for x in out.iloc[:7])   # < 8 observations -> NaN
+    assert not math.isnan(out.iloc[7])                # 8th point: first full window
     assert out.iloc[8] > 1.0                          # spike -> high z-score
 
 
-def test_zscore_flat_series_is_nan_not_inf():
-    s = q_series([2.0] * 9)                    # zero std -> guard against div-by-zero
-    out = R.t_zscore_8q(s, "quarterly")
-    assert math.isnan(out.iloc[8])
+def test_zscore_flat_window_nan_nonflat_finite():
+    # Flat window (std 0) -> NaN, never inf. NOTE: the explicit
+    # `std.replace(0.0, NaN)` guard is belt-and-suspenders -- in this rolling
+    # form the point is always inside its own window, so a flat window also has a
+    # zero numerator (0/0 = NaN) and the guard cannot be independently killed by
+    # a rolling-input mutation. What IS load-bearing here is the non-flat side:
+    # a jump after a flat run must yield a FINITE z (the std>0 path works), so we
+    # don't blanket-NaN real signal.
+    flat = R.t_zscore_8q(q_series([2.0] * 9), "quarterly")
+    assert math.isnan(flat.iloc[8])
+    assert not any(math.isinf(x) for x in flat.dropna())
+    jump = R.t_zscore_8q(q_series([2.0] * 8 + [5.0]), "quarterly")
+    assert math.isfinite(jump.iloc[8]) and jump.iloc[8] > 1.0
 
 
 def test_index_to_pct_equals_yoy_on_index():
@@ -362,6 +375,28 @@ def test_validate_thresholds_ignores_unreferenced_band():
 
 def test_validate_thresholds_accepts_shipped_seed():
     R.validate_thresholds(_thresh_cfg(), _seed_specs())   # must not raise
+
+
+# --------------------------------------------------------------------------
+# evaluate_alert -- BOTH branches (the sloos_level branch had zero coverage)
+# --------------------------------------------------------------------------
+def test_evaluate_alert_sloos_level_fires_on_or_above_band():
+    cfg = _thresh_cfg(sloos="20")
+    spec = _spec(alert_rule="sloos_level", transform="level", watchlist_capable=False,
+                 category="sloos", lane="commercial", geo_segment="national")
+    assert R.evaluate_alert(spec, q_series([10, 12, 15, 18, 25]), cfg)["rule"] == "sloos_level"
+    assert R.evaluate_alert(spec, q_series([10, 12, 15, 18, 20]), cfg) is not None   # == band, >=
+    assert R.evaluate_alert(spec, q_series([10, 12, 15, 18, 19.9]), cfg) is None     # below band
+
+
+def test_evaluate_alert_zscore_fires_on_or_above_band():
+    cfg = _thresh_cfg(z="1.0")
+    spec = _spec(alert_rule="zscore", transform="zscore_8q", watchlist_capable=False,
+                 category="credit_card", lane="consumer", geo_segment="national")
+    hot = q_series([2.0] * 8 + [10.0])          # big jump -> high z
+    calm = q_series([2.0, 2.01, 2.0, 2.02, 2.0, 2.01, 2.0, 2.02, 2.01])
+    assert R.evaluate_alert(spec, hot, cfg)["rule"] == "zscore"
+    assert R.evaluate_alert(spec, calm, cfg) is None
 
 
 # --------------------------------------------------------------------------
