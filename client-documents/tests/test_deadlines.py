@@ -353,3 +353,46 @@ def test_every_return_type_the_interview_can_write_is_placeable():
         composed = {"_return_type": kind}
         assert taxcal.return_type_for(composed) == taxcal._FORM_TO_TYPE[form], (
             f"{form} and {kind} disagree about which date they are under")
+
+
+def test_a_year_that_parses_but_cannot_be_a_year_does_not_take_the_board_down():
+    """F3. `int("99999")` succeeds; `date(100000, 4, 15)` does not.
+
+    The ValueError escaped `board()` entirely, so ONE engagement with a typo in
+    its year made the whole calendar raise — and every readable engagement
+    disappeared with it. That is precisely the failure this function's docstring
+    says `unplaced` exists to prevent, arriving by the one route that was not
+    guarded.
+
+    `0` is here too and is the nastier one: it does not raise. It produced
+    `papers due 0001-03-27` and `return due 0001-04-17`, which sorted to the TOP
+    of the board — soonest first — with `unplaced` empty and nothing reporting a
+    problem.
+    """
+    good = ("2026-0001", _rec("Marcus Ellwood", "1040"))
+    for typo in ("99999", "-5", "0", "x"):
+        bad = ("2026-0002", {"ClientFullName": "Typo", "FederalForm": "1040",
+                             "TaxYear": typo})
+        due, unplaced = taxcal.board([good, bad], today=date(2026, 2, 18))
+        assert unplaced == ["2026-0002"], f"{typo!r} should be named, not dropped"
+        assert due, f"{typo!r} took the whole board down"
+        assert all(d.ref == "2026-0001" for d in due)
+
+
+def test_the_year_window_is_the_typo_guard_and_not_the_refund_window():
+    """IRC 6511(a) caps a REFUND claim at three years. Filing is not capped.
+
+    Recorded as a test because the two numbers are easy to conflate, and
+    conflating them would refuse an unfiled-year engagement the firm does take.
+    """
+    assert taxcal.REFUND_YEARS == 3
+    assert taxcal.YEARS_BACK > taxcal.REFUND_YEARS
+
+    today = date(2026, 6, 1)
+    assert taxcal.plausible_year(2026, today)
+    assert taxcal.plausible_year(2027, today), "a return prepared in December"
+    assert taxcal.plausible_year(2019, today), "the oldest unfiled year we accept"
+    assert not taxcal.plausible_year(2018, today)
+    assert not taxcal.plausible_year(2028, today)
+    for nonsense in ("x", "", None, "0", "-5", "99999", 0, -5):
+        assert not taxcal.plausible_year(nonsense, today), f"{nonsense!r}"

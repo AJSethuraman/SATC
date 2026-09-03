@@ -17,6 +17,7 @@ Two things get the most attention, because both fail silently:
 from __future__ import annotations
 
 import json
+from datetime import date
 import sys
 from pathlib import Path
 
@@ -28,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 
 import cli  # noqa: E402
 import engagements  # noqa: E402
+import deadlines as taxcal  # noqa: E402
 import interview as iv  # noqa: E402
 
 SAMPLES = ROOT / "samples"
@@ -742,3 +744,145 @@ def test_the_elimination_sweep_would_notice_the_bug_it_exists_for():
 
     # And it must not fire on the live schema, whose conditions all work.
     assert elimination.interview_sweep().dead == []
+
+
+# ── an answer the question never offered ───────────────────────────────────
+#
+# Raised 3 September 2026, driving the real form on the Forge. `coerce`'s
+# docstring said `Interview.answer` rejected an unknown option. It did not: the
+# only gate was required-ness, so any string at all could be stored against a
+# multiple-choice question.
+
+
+def test_an_option_the_question_never_offered_is_refused():
+    """`federal_form="1041"` reached the engagement letter's scope line.
+
+    Worse than a bad string in a record: `intake.RETURN_TYPE.get(..., "individual")`
+    falls back to individual, so an unoffered entity code was silently filed as
+    a personal return and got the 1040 letter.
+    """
+    session = iv.Interview()
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("federal_form", "1041")
+    assert "federal_form" not in session.answers, "nothing may be stored"
+    # AND THE REFUSAL DOES NOT REPEAT IT. The first version of this message
+    # quoted the rejected value, and `test_tins.py` caught it: somebody types an
+    # SSN into question one and the error carries it into the log and the JSON.
+    assert "1041" not in str(raised.value), "a refusal must not echo what was sent"
+
+
+def test_the_message_says_what_the_question_does_offer():
+    """A refusal that does not say what would work is a puzzle, not an error."""
+    session = iv.Interview()
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("federal_form", "banana")
+    for offered in ("1040", "1120S", "1065", "1120"):
+        assert offered in str(raised.value)
+
+
+def test_a_free_text_question_still_takes_anything():
+    """No `options` means the question offers nothing and constrains nothing.
+
+    The guard must not turn every name, note and address into a closed list.
+    """
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("return_basis", "original")
+    session.answer("tax_year", "2025")
+    assert session.answers["tax_year"] == "2025"
+
+
+def test_an_optional_choice_may_be_left_blank():
+    """A blank is the absence of an option, not an illegal one.
+
+    Guarding this because the obvious implementation -- check every value
+    against the offered list -- refuses `None` on every optional question and
+    breaks the prune path, which stores exactly that.
+    """
+    session = iv.Interview()
+    optional = next(
+        (q for _, q in iv.all_questions(session.schema)
+         if q.get("options") and not q.get("required")), None)
+    if optional is None:
+        pytest.skip("every question with options is required in this schema")
+    session.answer(optional["id"], None)
+    assert session.answers[optional["id"]] is None
+
+
+def test_a_second_post_of_the_same_value_cannot_land_on_the_next_question():
+    """F1, defanged by F2.
+
+    `POST /interview/<sid>` carries no question id, so a double-click applies
+    the value to whatever question is current by the time it arrives. That is
+    fixed separately -- but it could only ever write a WRONG answer because
+    nothing checked the value against the question it landed on. Proven before
+    the fix: posting "1040" twice set `federal_form` AND `return_basis`.
+    """
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    _, landed_on = session.next_question()
+    assert landed_on["id"] == "return_basis", "the schema moved; retarget this test"
+    with pytest.raises(iv.InterviewError):
+        session.answer(landed_on["id"], "1040")
+    assert "return_basis" not in session.answers
+
+
+# ── the tax year ───────────────────────────────────────────────────────────
+#
+# F3, raised 3 September 2026. `tax_year` was `type: text`, so the form accepted
+# `x`, `-5`, `99999` and `2025; DROP TABLE`. The range is a TYPO guard, not the
+# three-year refund window: IRC 6511(a) limits a refund claim to three years,
+# but an unfiled return has no statute of limitations and the firm prepares
+# those, so a hard three-year floor would refuse real work.
+
+
+def _at_tax_year():
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("return_basis", "original")
+    return session
+
+
+@pytest.mark.parametrize("bad", ["x", "-5", "99999", "0", "2025; DROP TABLE"])
+def test_a_tax_year_that_is_not_a_year_is_refused(bad):
+    session = _at_tax_year()
+    q = session.question("tax_year")
+    with pytest.raises(iv.InterviewError):
+        session.answer("tax_year", iv.coerce(q, bad))
+    assert "tax_year" not in session.answers
+
+
+def test_the_refusal_names_the_range_and_not_the_answer():
+    """Same TIN rule as every other refusal: say what would work, not what came in."""
+    session = _at_tax_year()
+    q = session.question("tax_year")
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("tax_year", iv.coerce(q, "99999"))
+    assert "99999" not in str(raised.value)
+    assert str(date.today().year) in str(raised.value) or "20" in str(raised.value)
+
+
+def test_an_ordinary_year_and_the_edges_of_the_window_are_accepted():
+    now = date.today().year
+    for good in (now, now - taxcal.YEARS_BACK, now + taxcal.YEARS_FORWARD):
+        session = _at_tax_year()
+        q = session.question("tax_year")
+        session.answer("tax_year", iv.coerce(q, str(good)))
+        assert session.answers["tax_year"] == good
+
+
+def test_an_unfiled_year_older_than_the_refund_window_is_still_workable():
+    """THE POINT OF NOT USING THREE.
+
+    IRC 6511(a) caps a refund claim at three years. It does not cap FILING: the
+    assessment clock starts when a return is filed, so for a year the client
+    never filed it never started. The interview asks "Any unfiled years?"
+    because the firm does that work, and refusing year four here would refuse
+    the engagement.
+    """
+    assert taxcal.YEARS_BACK > taxcal.REFUND_YEARS
+    session = _at_tax_year()
+    q = session.question("tax_year")
+    older_than_a_refund = date.today().year - taxcal.REFUND_YEARS - 1
+    session.answer("tax_year", iv.coerce(q, str(older_than_a_refund)))
+    assert session.answers["tax_year"] == older_than_a_refund

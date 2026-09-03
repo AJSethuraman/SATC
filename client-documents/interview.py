@@ -25,12 +25,15 @@ wrong is silent:
 from __future__ import annotations
 
 import re
+from datetime import date
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
 
 import yaml
 
+import deadlines
 import schedules as sched
+import tins
 
 ROOT = Path(__file__).resolve().parent
 SCHEMA = ROOT / "registry" / "interview.yaml"
@@ -257,6 +260,32 @@ def _collapse(question: dict, value):
     return value
 
 
+def is_offered(question: dict, value) -> bool:
+    """Is every part of this answer one the question actually offered?
+
+    THE ONE PLACE THAT RULE LIVES. `prefill_is_answerable` asked this question
+    of a prefill and `Interview.answer` did not ask it at all, which meant the
+    interview would refuse to *suggest* a value it would happily *store* --
+    and `coerce`'s docstring asserted the opposite:
+
+        "An unknown option value is passed through untouched, so
+         `Interview.answer` rejects it."
+
+    It did not. `federal_form="1041"` was accepted, printed as the engagement
+    letter's scope line, and was then classified as an individual engagement by
+    `intake.RETURN_TYPE.get(..., "individual")` -- so a 1041 got the 1040
+    letter. Found 3 September 2026 by driving the real form.
+
+    A question with no `options` is free-form and offers nothing, so it accepts
+    anything; that is what makes a name or a note answerable.
+    """
+    options = [o["value"] for o in question.get("options") or []]
+    if not options:
+        return True
+    values = value if isinstance(value, list) else [value]
+    return all(v in options for v in values)
+
+
 def prefill_is_answerable(question: dict, value) -> bool:
     """Could this claim be accepted as it stands?
 
@@ -267,11 +296,7 @@ def prefill_is_answerable(question: dict, value) -> bool:
     """
     if value in (None, "", []):
         return False
-    options = [o["value"] for o in question.get("options", [])]
-    if not options:
-        return True
-    values = value if isinstance(value, list) else [value]
-    return all(v in options for v in values)
+    return is_offered(question, value)
 
 
 # ── the flow ───────────────────────────────────────────────────────────────
@@ -405,6 +430,42 @@ class Interview:
         q = self.question(qid)
         if q.get("required") and value in (None, "", []):
             raise InterviewError(f"{qid} is required")
+        # A BLANK IS NOT AN ILLEGAL OPTION, it is the absence of one. An
+        # optional multiple-choice question left empty has to stay storable, so
+        # the offered-values check runs only on an answer that is actually there.
+        # AN IDENTIFICATION NUMBER IS REFUSED BEFORE ANYTHING ELSE IS SAID.
+        # `save_draft` is still the boundary that stops the write; this is
+        # about which message the preparer gets. Somebody typing an SSN into
+        # question one needs to hear "the last four digits are enough", not
+        # "that is not one of the options" -- and before this ran first, the
+        # options check below answered for it. Both front doors benefit:
+        # `cli.py --set` reaches this too, and never reached `save_draft`.
+        tins.refuse(value, f"the answer to {qid}")
+        # A YEAR IS A DOMAIN TYPE, NOT A NUMBER THAT HAPPENS TO BE FOUR DIGITS.
+        # `tax_year` was free text: `x`, `-5`, `99999` and `0` were all accepted
+        # and all reached documents. `0` was the worst -- it rendered a return
+        # due 0001-04-17 and sorted to the TOP of the deadline board with
+        # nothing reporting a problem. The rule lives in `deadlines`, next to
+        # the filing calendar it is about, so the board and the question cannot
+        # drift apart on what a year is.
+        if (q.get("type") == "year" and value not in (None, "", [])
+                and not deadlines.plausible_year(value)):
+            now = date.today().year
+            raise InterviewError(
+                f"{qid} needs a tax year between "
+                f"{now - deadlines.YEARS_BACK} and {now + deadlines.YEARS_FORWARD}")
+        if value not in (None, "", []) and not is_offered(q, value):
+            # THE REFUSAL MUST NOT REPEAT WHAT WAS SENT. The first version of
+            # this message quoted the rejected value, which reads as helpful
+            # until somebody types their SSN into the first question -- and
+            # then the error, the log and the JSON response all carry it.
+            # `test_an_unfinished_sitting_is_refused_before_it_reaches_disk`
+            # caught exactly that, which is the TIN boundary working. What the
+            # caller needs is the list of things that WOULD work; it already
+            # knows what it sent.
+            offered = ", ".join(o["value"] for o in q.get("options") or [])
+            raise InterviewError(
+                f"{qid} does not offer that answer -- it offers: {offered}")
         self.answers[qid] = value
         # DERIVE BEFORE PRUNING. `federal_schedules` is worked out from the
         # facts, and half the fee questions below are gated on it -- change
@@ -468,7 +529,7 @@ def coerce(q: dict, raw) -> object:
         values = raw if isinstance(raw, list) else \
             [p.strip() for p in (raw or "").split(",") if p.strip()]
         return values
-    if t == "number":
+    if t in ("number", "year"):
         raw = (raw or "").strip() if isinstance(raw, str) else raw
         if raw in (None, ""):
             return None

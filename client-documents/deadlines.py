@@ -345,6 +345,54 @@ _KIND_TO_TYPE = {
 }
 
 
+# ── what can be a tax year at all ──────────────────────────────────────────
+#
+# THE REFUND CLIFF IS THREE YEARS; THE FILING WINDOW IS NOT.
+#
+# IRC 6511(a): a claim for credit or refund must be filed within 3 years of
+# filing the return, or 2 years of paying the tax, whichever is later. An
+# amended return asking for money back IS such a claim, so three years is the
+# real limit on a 1040-X that is worth filing.
+#
+# But there is NO statute of limitations on an unfiled return -- 6501's
+# assessment clock starts when a return is filed, so for a year the client
+# never filed it never started. The firm does that work, and the interview asks
+# "Any unfiled years?" precisely because it does. A hard three-year floor here
+# would refuse real engagements.
+#
+# So three years is not the input rule. This range exists to catch a TYPO --
+# `99999`, `-5`, `0`, a transposed digit -- and nothing else. Seven back is
+# generous enough for the oldest unfiled year anyone brings in; one forward is
+# the return prepared in December for the year just ending.
+#
+# Confirmed against irs.gov on 3 September 2026, at the firm's instruction,
+# after `0` put a return due 0001-04-17 at the top of the board.
+YEARS_BACK = 7
+YEARS_FORWARD = 1
+
+# The separate fact, kept next to the rule it is NOT: past this, a refund can no
+# longer be claimed. Nothing enforces it yet -- it is the natural shape of a
+# review flag, not of an input refusal, because the return may still be worth
+# filing.
+REFUND_YEARS = 3
+
+
+def plausible_year(value, today: date | None = None) -> bool:
+    """Could this be a tax year the firm would actually work on?
+
+    Deliberately not "is this an int". `0` is an int and produced a return due
+    `0001-04-17` that sorted to the TOP of the board -- soonest first -- with
+    `unplaced` empty and nothing reporting a problem. A number that parses is
+    not the same as a year that means anything.
+    """
+    try:
+        year = int(str(value).strip())
+    except (TypeError, ValueError):
+        return False
+    now = (today or date.today()).year
+    return now - YEARS_BACK <= year <= now + YEARS_FORWARD
+
+
 def return_type_for(record: dict) -> str | None:
     """Which filing date an engagement's record falls under, or None.
 
@@ -377,22 +425,40 @@ def board(records: list[tuple[str, dict]], *, today: date | None = None,
     for ref, record in records:
         return_type = return_type_for(record)
         tax_year = record.get("TaxYear") or record.get("tax_year")
-        try:
-            tax_year = int(str(tax_year).strip())
-        except (TypeError, ValueError):
-            tax_year = None
+        # `plausible_year` rather than a bare `int()`: both "unreadable" and
+        # "readable but impossible" have to land in `unplaced`, and only the
+        # first one used to.
+        tax_year = int(str(tax_year).strip()) if plausible_year(tax_year) else None
         if return_type is None or tax_year is None:
             unplaced.append(ref)
             continue
 
         client = str(record.get("ClientFullName") or record.get("EntityName")
                      or "(no name)")
-        for milestone in (
-            Milestone(materials_deadline(return_type, tax_year), "papers due in",
-                      return_type, "materials"),
-            Milestone(filing_date(return_type, tax_year), "return due",
-                      return_type, "filing"),
-        ):
+        # A YEAR THAT PARSES IS NOT A YEAR THAT WORKS. `int()` above accepts
+        # 99999 and -5 happily, and `date(year + 1, ...)` then raises
+        # `ValueError: year is out of range` -- out of THIS function, taking
+        # the whole board with it. Every readable engagement disappeared
+        # because one record had a typo in it, which is the failure the
+        # docstring above says `unplaced` exists to prevent, arriving by the
+        # one route that was not guarded.
+        #
+        # Found 3 September 2026: `tax_year` is free text in the interview, so
+        # this was one keystroke away at all times. That entry check is fixed
+        # too; this stays because the board must degrade to one named
+        # engagement no matter what reaches it.
+        try:
+            milestones = (
+                Milestone(materials_deadline(return_type, tax_year),
+                          "papers due in", return_type, "materials"),
+                Milestone(filing_date(return_type, tax_year),
+                          "return due", return_type, "filing"),
+            )
+        except (ValueError, OverflowError):
+            unplaced.append(ref)
+            continue
+
+        for milestone in milestones:
             days = (milestone.when - now).days
             if within_days is not None and days > within_days:
                 continue

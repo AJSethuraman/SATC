@@ -132,7 +132,12 @@ sections:
 
       - id: tax_year
         question: "Which tax year?"
-        type: text
+        # `year`, not `text`. Free text let `x`, `-5`, `99999` and `0` through;
+        # `0` printed a return due 0001-04-17 at the top of the deadline board.
+        # The accepted range is the typo guard in `deadlines.plausible_year`,
+        # NOT the three-year refund window -- an unfiled year has no statute of
+        # limitations and the firm prepares those.
+        type: year
         required: true
         supplies: [TaxYear]
 

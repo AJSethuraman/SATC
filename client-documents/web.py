@@ -32,6 +32,7 @@ from flask import (Flask, abort, jsonify, redirect, request, url_for)
 
 import dates
 import cli
+import deadlines
 import editor
 import registry_editor
 import engagements
@@ -1934,6 +1935,16 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
                        f"{esc(o['label'])}{mark}</label>")
     elif t == "textarea":
         out.append(f"<textarea name=answer rows=4>{esc(shown_value)}</textarea>")
+    elif t == "year":
+        # The same bounds the engine enforces, so the browser refuses a typo
+        # before the round trip. `min`/`max` are a convenience, never the
+        # control -- `Interview.answer` is the control, and the JSON door has
+        # no HTML to obey.
+        now = date.today().year
+        out.append(f"<input type=number name=answer autofocus "
+                   f"min={now - deadlines.YEARS_BACK} "
+                   f"max={now + deadlines.YEARS_FORWARD} "
+                   f"value='{esc(shown_value)}'>")
     elif t == "number":
         out.append(f"<input type=number name=answer min=0 "
                    f"value='{esc(shown_value)}'>")

@@ -13,6 +13,7 @@ own source and fails if a decision is ever written into it.
 from __future__ import annotations
 
 import json
+from datetime import date
 import sys
 from pathlib import Path
 
@@ -61,6 +62,11 @@ def _plausible(q):
     if q.get("options"):
         # Every option is a blocker: answering nothing is the only way past.
         return [] if q["type"] == "multi" else ""
+    # A `year` is a number with a window around today, so "x" and 1 are both
+    # refused. The helper has to know the type or every walk stalls at
+    # `tax_year` and the tests read a `question` key that never arrives.
+    if q["type"] == "year":
+        return date.today().year
     return 1 if q["type"] == "number" else "x"
 
 
