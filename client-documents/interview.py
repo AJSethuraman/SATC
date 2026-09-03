@@ -428,6 +428,13 @@ class Interview:
 
     def answer(self, qid: str, value) -> None:
         q = self.question(qid)
+        # COERCE HERE, NOT ONLY AT THE DOOR. `web.py` coerced before calling
+        # this and `cli.py --set` did too, which meant the type rules below
+        # held for the two callers that remembered and for nobody else --
+        # `intake.py`'s own header on why that shape is a bug: "a control that
+        # lives in one front door is a control the other silently skips."
+        # `coerce` is idempotent, so the doors may keep calling it.
+        value = coerce(q, value)
         if q.get("required") and value in (None, "", []):
             raise InterviewError(f"{qid} is required")
         # A BLANK IS NOT AN ILLEGAL OPTION, it is the absence of one. An
@@ -441,6 +448,32 @@ class Interview:
         # options check below answered for it. Both front doors benefit:
         # `cli.py --set` reaches this too, and never reached `save_draft`.
         tins.refuse(value, f"the answer to {qid}")
+        # A COUNT THAT IS NOT A NUMBER IS REFUSED HERE, WHERE IT WAS TYPED.
+        # `coerce` returns the raw STRING when `int()` fails, and `pricing._count`
+        # then reads any unparseable string as absence -- zero. So `count_rentals`
+        # of "abc", "2.7" or "-3" all priced identically to a correct answer of
+        # 1 (a sub-1 count is bumped to 1 by `form_when`), and `count_states` of
+        # -5 produced no state line at all. Silent, every time.
+        #
+        # `_count` guards `bool` and non-integral `float` and says so at length,
+        # but the interview can produce neither -- only a string, which falls
+        # through to its `return 0`. Its comment there ("the interview coerces
+        # its own types, and a stray string means the count was never really
+        # asked") was an assumption about this function. This is what makes it
+        # true. `bool` is excluded explicitly because `isinstance(True, int)`.
+        if (q.get("type") in ("number", "year") and value not in (None, "", [])
+                and (isinstance(value, bool) or not isinstance(value, int))):
+            raise InterviewError(
+                f"{qid} needs a whole number -- that answer is not one")
+        # A MINIMUM THE QUESTION DECLARES. Required-ness is
+        # `value in (None, "", [])`, and 0 is none of those, so `count_owners: 0`
+        # satisfied a required question and printed as `OwnerCount` on the
+        # business letter. Declared in the schema rather than special-cased here,
+        # so the next count that cannot sensibly be zero says so itself.
+        if (q.get("min") is not None and isinstance(value, int)
+                and not isinstance(value, bool) and value < q["min"]):
+            raise InterviewError(
+                f"{qid} cannot be less than {q['min']}")
         # A YEAR IS A DOMAIN TYPE, NOT A NUMBER THAT HAPPENS TO BE FOUR DIGITS.
         # `tax_year` was free text: `x`, `-5`, `99999` and `0` were all accepted
         # and all reached documents. `0` was the worst -- it rendered a return

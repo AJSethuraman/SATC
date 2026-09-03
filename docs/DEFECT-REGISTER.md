@@ -31,7 +31,6 @@ reason on every item:
 |---|---|---|---|
 | **F14** | `POST /interview/<sid>` still carries no question id, so a resubmit is applied to whatever question is current when it lands. No longer able to store a wrong *value* (F2 refuses it), but on a free-text question — a name, a note — there are no options to check against, so it can still overwrite the wrong field | wrong document | open, split from F1 |
 | **F4** | The letter's scope comes from the `states` list, the fee from a separate `count_states`. Neither derives from the other. Proven: one state in the letter, $100 of extra state returns on the estimate. Reconciled only at close-out, a season later | wrong price | awaiting decision **B** (client-facing question changes) |
-| **F5** | `coerce` stores the raw string when `int()` fails; `pricing._count` reads any unparseable string as `0`. `-3`, `"2.7"` and `"abc"` all bill identically to a correct `1`. The `isinstance(value, float)` guard written for this is unreachable — the interview only ever produces strings | wrong price | queued |
 | **F6** | `type: integer` (`count_brokerages`, `count_extension_estimates`) is a type no code in the repo handles. Prices correctly only by luck; renders a text box for a count; blinds the dead-condition sweep, which probes only `type: number` | latent | queued |
 | **F7** | `intake.finish` does not derive `federal_schedules`; every caller must remember to. Answers arriving the back way pass the required gate and are priced without them — proven: the Essentials package billed where Standard was due, and a rental line the letter omits. `exercise.py:332` works around it by hand | wrong price | queued |
 | **F8** | `extra_forms` has no `showIf`, so a 1120 is asked whether it sold a home. The dead-condition sweep cannot catch it — an unconditional question is filed under `always` and never examined | annoyance | queued |
@@ -39,7 +38,6 @@ reason on every item:
 | **F10** | A draft is deleted only when an engagement is created. A decline or an abandoned call leaves name, address and email in cleartext JSON indefinitely — in a folder that now syncs to OneDrive. TINs are already refused on every write; names are not | PII retention | awaiting decision **C** (retention period) |
 | **F11** | The PRD describes seven sections with red flags at six; the schema has nine with red flags second, plus three sections the PRD never mentions. PRD requirement 8 is that someone can build the Microsoft Form from it — today they would build the wrong one | doc drift | queued |
 | **F12** | `client_email` and `client_zip` are unvalidated. The email question's own help says the signing invitation goes to that address | low | queued |
-| **F13** | Required-ness is `value in (None, "", [])`, so `count_owners = 0` satisfies a required question and prints as `OwnerCount` on the business letter | low | queued |
 
 **Not one of the thirteen was covered by an existing test.** That is the number
 worth remembering: the suite was 1,362 green and knew about none of it. It is
@@ -79,6 +77,20 @@ and the live C-corp path.
    typed into question one got "that is not one of the options" instead of "the
    last four digits are enough". `tins.refuse` now runs first inside
    `Interview.answer`, which also gives the CLI door a check it never had.
+
+### 3 September 2026 — a count is a number, and some counts cannot be zero
+
+| # | Defect | Closed by |
+|---|---|---|
+| **F5** | `coerce` returned the raw string when `int()` failed and `pricing._count` read any unparseable string as absence — zero. `count_rentals` of `abc`, `2.7` or `-3` all billed identically to a correct `1`, because `form_when` bumps a sub-1 count to 1; `count_states` of `-5` produced no state line at all | `Interview.answer` refuses a non-integer answer to a `number` or `year` question. `_count`'s comment — "the interview coerces its own types, and a stray string means the count was never really asked" — was an assumption about the interview; it is now true |
+| **F13** | `count_owners = 0` satisfied a required question and printed as `OwnerCount` on the business letter, because required-ness is `value in (None, "", [])` and 0 is none of those | An optional `min:` on the question, declared in the schema rather than special-cased, so the next count that cannot be zero says so itself |
+
+**And the engine now coerces its own input.** `web.py` called `coerce` before
+`answer` and `cli.py --set` did too, so every type rule held for the two callers
+that remembered and for nobody else. `answer()` calls it itself now — `coerce`
+is idempotent, so the doors may keep calling it. Same shape as F7, and the same
+reason `intake.py`'s header gives: *"a control that lives in one front door is a
+control the other silently skips."*
 
 ### The year window, and why it is not three
 

@@ -353,6 +353,10 @@ sections:
           Shareholders for an S corporation, partners for a partnership. Drives
           the fee and the K-1 delivery list.
         type: number
+        # AN ENTITY WITH NO OWNERS IS NOT AN ENTITY. `required` only rejects
+        # blank -- 0 is not blank, so a zero satisfied it and printed as
+        # `OwnerCount` on the business letter.
+        min: 1
         # REQUIRED as of 26 August 2026. It always should have been: the fee
         # prices the owner K-1s from this number, and the engagement letter
         # now states how many K-1s the engagement is scoped for. An entity

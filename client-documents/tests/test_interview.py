@@ -789,7 +789,11 @@ def test_a_free_text_question_still_takes_anything():
     session.answer("federal_form", "1040")
     session.answer("return_basis", "original")
     session.answer("tax_year", "2025")
-    assert session.answers["tax_year"] == "2025"
+    assert session.answers["tax_year"] == 2025, "a year coerces to a number"
+    free_text = next(q for _, q in iv.all_questions(session.schema)
+                     if not q.get("options") and q.get("type") == "text")
+    session.answer(free_text["id"], "anything at all")
+    assert session.answers[free_text["id"]] == "anything at all"
 
 
 def test_an_optional_choice_may_be_left_blank():
@@ -806,7 +810,9 @@ def test_an_optional_choice_may_be_left_blank():
     if optional is None:
         pytest.skip("every question with options is required in this schema")
     session.answer(optional["id"], None)
-    assert session.answers[optional["id"]] is None
+    # `coerce` normalises a blank to the question's own empty shape -- `[]` for
+    # a multi, `None` for a single -- so assert "blank", not one spelling of it.
+    assert session.answers[optional["id"]] in (None, "", [])
 
 
 def test_a_second_post_of_the_same_value_cannot_land_on_the_next_question():
@@ -886,3 +892,81 @@ def test_an_unfiled_year_older_than_the_refund_window_is_still_workable():
     older_than_a_refund = date.today().year - taxcal.REFUND_YEARS - 1
     session.answer("tax_year", iv.coerce(q, str(older_than_a_refund)))
     assert session.answers["tax_year"] == older_than_a_refund
+
+
+# ── counts ─────────────────────────────────────────────────────────────────
+#
+# F5 and F13, raised 3 September 2026.
+
+
+def _entity():
+    session = iv.Interview()
+    session.answer("federal_form", "1120S")
+    session.answer("return_basis", "original")
+    return session
+
+
+@pytest.mark.parametrize("bad", ["abc", "2.7", "1e5", " "])
+def test_a_count_that_is_not_a_whole_number_is_refused(bad):
+    """F5. `coerce` hands back the raw string when `int()` fails, and
+    `pricing._count` reads any unparseable string as ABSENCE -- zero.
+
+    So `count_rentals` of "abc" or "2.7" priced identically to a correct answer
+    of 1, because `form_when` bumps a sub-1 count to 1. Silent under-billing
+    with no error and no review flag. `_count`'s own comment assumed this
+    function rejected them; it did not, until now.
+    """
+    session = _entity()
+    q = session.question("count_owners")
+    with pytest.raises(iv.InterviewError):
+        session.answer("count_owners", iv.coerce(q, bad))
+    assert "count_owners" not in session.answers
+
+
+def test_a_count_refusal_does_not_repeat_the_answer():
+    session = _entity()
+    q = session.question("count_owners")
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("count_owners", iv.coerce(q, "not-a-number"))
+    assert "not-a-number" not in str(raised.value)
+
+
+def test_an_entity_cannot_be_scoped_for_zero_owners():
+    """F13. `required` rejects only blank, and 0 is not blank -- so a zero
+    satisfied the question and printed as `OwnerCount` on the business letter.
+    """
+    session = _entity()
+    q = session.question("count_owners")
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("count_owners", iv.coerce(q, "0"))
+    assert "1" in str(raised.value), "say what the minimum is"
+    assert "count_owners" not in session.answers
+
+
+def test_the_minimum_is_declared_by_the_question_not_hardcoded():
+    """The next count that cannot be zero should say so itself, in the schema.
+
+    Guarded because the tempting fix was `if qid == "count_owners"`, which
+    fixes one field and leaves the same hole on every other count.
+    """
+    schema = iv.load_schema()
+    owners = next(q for _, q in iv.all_questions(schema)
+                  if q["id"] == "count_owners")
+    assert owners.get("min") == 1
+
+
+def test_a_count_with_no_declared_minimum_still_takes_zero():
+    """Zero is a real answer to most counts -- no rentals, no localities.
+
+    The minimum is opt-in, so this guards against the guard over-reaching into
+    every count in the schema.
+    """
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("return_basis", "original")
+    countless = next(
+        (q for _, q in iv.all_questions(session.schema)
+         if q.get("type") == "number" and q.get("min") is None), None)
+    if countless is None:
+        pytest.skip("every number question declares a minimum")
+    assert iv.coerce(countless, "0") == 0
