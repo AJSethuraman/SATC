@@ -4,8 +4,13 @@ Every turn the firm typed, in order, pulled from the session
 transcripts before the container holding them was wiped. Verbatim,
 nothing of the agent's, nothing paraphrased.
 
-**173 turns, 7,965 words.** Seed corpus for the
-convictions in `canon` — the record Bassy challenges from.
+**173 turns, 20 of them a screenshot and nothing else, 7,665 words.** Seed
+corpus for the convictions in `canon` — the record Bassy challenges from.
+
+*This line said 7,965 until the miner first counted it. The extra 300 were the
+`[Image: original 270x2612 …]` placeholders — the agent's words, in a file whose
+next sentence promises none of the agent's. The count and the counter are
+compared by a test now, so the two cannot drift apart again.*
 
 ---
 

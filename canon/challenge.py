@@ -26,10 +26,9 @@ disagreement resolved fluently is a finding destroyed.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from record import Conviction
+from record import Conviction, touches
 
 # The moments that fire whether or not anybody noticed anything. Kept small on
 # purpose: every entry is a promise that something runs there, and a list that
@@ -75,16 +74,6 @@ class Challenge:
                 f"Has the reason changed?")
 
 
-def _touches(text: str, term: str) -> bool:
-    """Whole words only.
-
-    Substring matching made "extension" fire on "extensive" and "rate" on
-    "generate" -- and a challenge that arrives for a word that merely contains
-    another word is the false positive that teaches somebody to stop reading.
-    """
-    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.I) is not None
-
-
 def _in_scope(c: Conviction, scope: str) -> bool:
     """A conviction scoped to one venture does not fire in another.
 
@@ -106,7 +95,7 @@ def candidates(convictions: list[Conviction], decision: Decision) -> list[Challe
     for c in convictions:
         if not c.held or not _in_scope(c, decision.scope):
             continue
-        hit = tuple(t for t in c.fires_on if _touches(decision.what, t))
+        hit = tuple(t for t in c.fires_on if touches(decision.what, t))
         if hit:
             out.append(Challenge(conviction=c, because=hit))
     return out

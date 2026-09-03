@@ -58,11 +58,25 @@ make.
 
 ## State
 
-Slice 1 of thirteen — the tracer bullet. One tenet, one conviction, and the
-challenge that reads them. Deliberately one of everything: the point is to prove
-the plugin loads, the record parses, the challenge fires and the silence holds,
-*before* thirty-five of anything is moved.
+**Slices 1–9 of thirteen — v1 is complete.** The record parses and round-trips,
+nothing enters it without an explicit yes, nothing is ever deleted, the
+challenge fires and the silence holds, evidence accumulates, all 35 tenets have
+moved in, and the corpus can be mined.
+
+| | |
+|---|---|
+| `record.py` | convictions and tenets, parsed from and rendered to Markdown |
+| `challenge.py` | what the record has to say about a decision in flight |
+| `mine.py` | reads the corpus, proposes, **never writes** |
+| `check_record.py` | nothing sensitive lives here — with its denominator |
+| `skills/bassy/` | the challenge role |
+| `skills/canon-mine/` | how to run a mine and propose one conviction at a time |
+
+`python -m pytest -q tests` — 67 tests. Every guard has been mutation-checked:
+break it on purpose, and a test must go red. Two survivors so far, both fixed,
+both recorded in the comment at the site.
 
 `docs/prd-canon.md` is the spec. `docs/ISSUES.md` is the remaining work in
-dependency order. `corpus/` holds the firm's own words, from which the
-convictions are mined — proposed for confirmation, never written directly.
+dependency order — 10, 12 and 13 are M2. `corpus/` holds the firm's own words,
+from which the convictions are mined: proposed for confirmation, never written
+directly.

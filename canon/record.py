@@ -30,6 +30,22 @@ TENETS = HERE / "TENETS.md"
 HELD, RETIRED = "held", "retired"
 
 
+def touches(text: str, term: str) -> bool:
+    """Whole words only. THE ONLY MATCHING RULE IN THIS CODEBASE.
+
+    Substring matching made "extension" fire on "extensive", "rate" on
+    "generate", and -- in the miner, on its first run -- "refuse" on four
+    pasted terminal transcripts saying "refused". A false positive is not a
+    cosmetic problem here: it is the thing that teaches somebody to stop
+    reading the output.
+
+    It lives in `record.py` rather than in each caller because it was briefly
+    written twice, once whole-word and once not, and the two disagreed for a
+    day without anything comparing them (S31). One rule, one place.
+    """
+    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text, re.I) is not None
+
+
 class RecordError(ValueError):
     """The record could not be read as a record. Never silently tolerated."""
 

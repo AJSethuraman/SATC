@@ -5,7 +5,8 @@ what was chosen. Answers the firm TYPED rather than picked are marked
 — those are the ones that rejected the framing, and they carry the
 reasoning. Seed corpus for the convictions.
 
-**44 decisions, 17 of them typed, 483 words.**
+**44 decisions, 17 of them typed, 446 words** — counting what the firm chose,
+not the questions they were asked. (This said 483 until the miner counted it.)
 
 ---
 
