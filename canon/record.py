@@ -249,12 +249,56 @@ def parse_tenets(text: str) -> list[Tenet]:
         marks = list(_E_HEAD.finditer(block))
         for j, m in enumerate(marks):
             stop = marks[j + 1].start() if j + 1 < len(marks) else len(block)
+            # THE SEPARATOR BELONGS TO THE FORMAT, NOT THE EVIDENCE. An
+            # entry's detail runs to the next heading, which means it swallows
+            # the `---` that divides tenets -- and the renderer then writes a
+            # second one beside it, growing the file by one separator per
+            # tenet on every write. Trimmed here, at the boundary where the
+            # format is understood, rather than by every caller.
+            detail = block[m.end():stop].strip()
+            if detail.endswith("---"):
+                detail = detail[:-3].rstrip()
             ev.append(Evidence(project=m.group(1).strip(), when=m.group(2),
-                               citation=m.group(3).strip(),
-                               detail=block[m.end():stop].strip()))
+                               citation=m.group(3).strip(), detail=detail))
         out.append(Tenet(id=head.group(1), title=head.group(2).strip(),
                          evidence=tuple(ev)))
     return out
+
+
+TENETS_PREAMBLE = """# Tenets — how to build
+
+**How this file works.** Each tenet is a rule, then the incidents that proved
+it. Evidence **appends**; it is never rewritten. Every entry names the project,
+the date, and a citation you can go and read — a commit, a quotation, a comment,
+or a test docstring.
+
+**A rule with nothing under it does not belong in this file.** The test each one
+had to pass: *if this rule had been in force, would that bug have shipped?*
+
+Identifiers match `SATC/docs/SOFTWARE-TENETS.md` — `S31` here is `S31` there —
+so every citation already written across that repository still resolves.
+
+**Evidence count is reported, not implied.** A tenet carrying one incident is a
+local observation. One carrying three, from three projects, is a law. The
+difference should be visible without reading.
+"""
+
+
+def render_tenets(items: list[Tenet], preamble: str = TENETS_PREAMBLE) -> str:
+    parts = [preamble.rstrip() + "\n"]
+    for t in items:
+        by: dict[str, int] = {}
+        for e in t.evidence:
+            by[e.project] = by.get(e.project, 0) + 1
+        tally = ", ".join(f"{p} ×{n}" for p, n in sorted(by.items()))
+        parts.append("\n---\n")
+        parts.append(f"\n## {t.id} · {t.title}\n\n")
+        parts.append(f"**Evidence: {len(t.evidence)}**"
+                     + (f" *({tally})*\n" if tally else "\n"))
+        for e in t.evidence:
+            parts.append(f"\n### {e.project} · {e.when} · {e.citation}\n\n")
+            parts.append(e.detail.rstrip() + "\n")
+    return "".join(parts)
 
 
 def add_evidence(items: list[Tenet], tid: str, new: Evidence) -> list[Tenet]:

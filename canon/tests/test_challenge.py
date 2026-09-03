@@ -257,3 +257,108 @@ def test_a_challenge_quotes_rather_than_paraphrases(held):
     assert held[0].quote in said, "it did not quote the firm"
     assert held[0].recorded in said
     assert said.rstrip().endswith("?"), "it did not end on the question"
+
+
+# ── slice 6 · evidence accumulates ────────────────────────────────────────
+#
+# `add_evidence` shipped with slice 1 and was never tested -- the function
+# existed, the guard did not. This is what makes the record COMPOUND rather
+# than merely persist, so it is the last thing that should have gone unchecked.
+
+HAND_WRITTEN_TENETS = """# Tenets
+
+---
+
+## S1 · Nothing is produced until something opens it
+
+**Evidence: 1** *(SATC ×1)*
+
+### SATC · 2026-08-27 · a commit
+
+A harness said 190 documents were fine and every one was unreadable.
+
+---
+
+## S2 · A check must report its denominator
+
+**Evidence: 0**
+"""
+
+
+@pytest.fixture
+def tenets():
+    return R.parse_tenets(HAND_WRITTEN_TENETS)
+
+
+def test_a_bare_rule_is_visible_as_bare(tenets):
+    """A rule with nothing under it does not belong in the file, so it has to
+    be findable without reading every entry."""
+    assert [t.id for t in tenets if t.bare] == ["S2"]
+
+
+def test_evidence_appends_and_never_rewrites(tenets):
+    before = tenets[0].evidence
+    after = R.add_evidence(tenets, "S1", R.Evidence(
+        project="canon", when="2026-09-03", citation="this session",
+        detail="The round-trip check found a parser eating half a record."))
+    got = next(t for t in after if t.id == "S1")
+    assert got.evidence[:1] == before, "appending rewrote what was there"
+    assert len(got.evidence) == 2
+    assert got.evidence[-1].project == "canon"
+
+
+def test_evidence_from_a_second_project_is_what_makes_it_a_law(tenets):
+    """One citation is a local observation. Two, from two codebases, is the
+    difference between a quirk and a rule -- and it should be countable
+    without reading."""
+    after = R.add_evidence(tenets, "S1", R.Evidence(
+        project="credit-review-os", when="2026-10-01", citation="a commit",
+        detail="It happened again somewhere else."))
+    text = R.render_tenets(after)
+    assert "**Evidence: 2**" in text
+    assert "SATC ×1" in text and "credit-review-os ×1" in text
+
+
+def test_adding_evidence_to_a_rule_that_is_not_there_refuses(tenets):
+    with pytest.raises(R.RecordError, match="not in the record"):
+        R.add_evidence(tenets, "S99", R.Evidence("x", "2026-01-01", "y", "z"))
+
+
+# ── slice 8 · the migration ───────────────────────────────────────────────
+
+def test_all_thirty_five_tenets_came_across():
+    got = R.parse_tenets(R.TENETS.read_text(encoding="utf-8"))
+    ids = [t.id for t in got]
+    assert len(ids) == 35, f"{len(ids)} tenets, expected 35"
+    assert ids == sorted(ids, key=lambda s: int(s[1:])), "out of order"
+    assert "S31" in ids
+
+
+def test_no_tenet_arrived_bare():
+    """The migration's own rule, applied to itself: a rule with nothing under
+    it does not belong in the file."""
+    got = R.parse_tenets(R.TENETS.read_text(encoding="utf-8"))
+    assert [t.id for t in got if t.bare] == []
+
+
+def test_the_curated_entry_was_not_overwritten_by_the_bulk_move():
+    """S31 carried two hand-written entries before the migration ran. A
+    migration that flattens curation destroys the thing it was moving."""
+    got = {t.id: t for t in R.parse_tenets(R.TENETS.read_text(encoding="utf-8"))}
+    s31 = got["S31"]
+    assert len(s31.evidence) == 2, f"S31 has {len(s31.evidence)} entries"
+    assert all("mined from the whole history" not in e.citation for e in s31.evidence)
+
+
+def test_the_tenets_file_round_trips():
+    """Second real bug this check found: detail ran to the next heading and
+    swallowed the `---` that divides tenets, so every write added a separator."""
+    text = R.TENETS.read_text(encoding="utf-8")
+    assert R.render_tenets(R.parse_tenets(text)) == text
+
+
+def test_no_separator_was_carried_into_a_tenets_evidence():
+    got = R.parse_tenets(R.TENETS.read_text(encoding="utf-8"))
+    for t in got:
+        for e in t.evidence:
+            assert not e.detail.rstrip().endswith("---"), f"{t.id} carries a separator"
