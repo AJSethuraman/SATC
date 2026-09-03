@@ -113,9 +113,44 @@ jobs:
       # The report is printed either way -- that is the part being kept.
       - name: Check the page against the schedule (sidelined — reported, not enforced)
         working-directory: website
-        run: |
-          python3 pricing.spec.py || true
-          echo
-          echo "This check is SIDELINED until further notice (30 Aug 2026)."
-          echo "It reports, it does not enforce. The fix is two edits under"
-          echo "website/, written up in docs/website-agent-handoff.md."
+        # UN-SIDELINED 3 Sep 2026. main turned this into `|| true` on 30 August
+        # because it was red everywhere, including on main: the fee schedule had
+        # dropped `notice_response` and website/ still advertised it in two
+        # places. docs/website-agent-handoff.md wrote up both edits and could not
+        # apply them, the practice-ops side not being permitted to touch website/.
+        # Both are applied on this branch and the check passes 66/66, so it goes
+        # back to enforcing. A reporting-only check on published prices is worth
+        # very little -- it is the one thing on the site a client can hold us to.
+        run: python3 pricing.spec.py
+
+  # The mechanical half of website/TENETS.md, over every published page rather
+  # than the price page alone. It is here rather than in `pricing` because it
+  # has nothing to do with the schedule: it reads markup and needs no yaml, no
+  # browser and no server.
+  #
+  # It exists because four of the six copy rules in CLAUDE.md stayed judgment
+  # and were broken every time afterwards, by drafters who had read them. The
+  # two that became code were never broken again. That is the whole argument.
+  copy:
+    name: every page reads the way the firm asked for
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The guide pages are generated from docs/guides/. Regenerate-and-diff, the
+      # same trick that keeps prices off the page unless the schedule wrote them:
+      # a sentence edited in the draft and not rebuilt fails here rather than
+      # leaving the site quietly a version behind.
+      - name: Check the guide pages against their drafts
+        working-directory: website
+        run: python3 build-guides.py --check
+
+      - name: Check the copy against the tenets
+        working-directory: website
+        run: python3 copy.spec.py

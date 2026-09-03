@@ -1,5 +1,4 @@
 
-
 # Rendered client documents, wherever they land. `client-documents/.gitignore`
 # already covers its own; this covers the repository root, which
 # `exercise.py` wrote to on its first run before the default was changed.
@@ -13,3 +12,7 @@ out/
 # it, which is why this is a line in a file rather than a note to be careful.
 __pycache__/
 *.py[cod]
+
+# Cached source pages fetched by docs/guides/verify_sources.py. Regenerable,
+# large, and a snapshot of somebody else's site rather than our work.
+docs/guides/.source-cache/
