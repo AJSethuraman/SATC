@@ -47,6 +47,23 @@ work on them to `BACKLOG.md`, not `PLAN.md`.
 - **New projects go in their own top-level folder** with their own README,
   dependencies, and tests — mirroring the existing ones.
 
+## Read these first, every session
+
+Three documents define what "right" looks like here. They are short, and they
+are binding — read them before building, not after.
+
+| Document | Answers |
+|---|---|
+| **`docs/DESIGN-PRINCIPLES.md`** | **What any change has to be true of.** The anti-drift doc: never invent a value, facts are recorded not inferred, refuse rather than default, the model proposes and the engine disposes, propose never dispose. Each principle is enforced by a test, not by intention. |
+| `docs/LOCAL-LLM-PATTERN.md` | The ten rules for anything touching the local model. Binding wherever a model is involved. |
+| `satc_system/ARCHITECTURE.md` | Which of the four layers a change belongs in, and which test guards it. |
+
+**`DESIGN-PRINCIPLES.md` must stay current.** When a decision changes a
+principle, update that file **in the same commit** — a principle that lives only
+in a commit message is one the next session will not read. When adding anything,
+answer its three questions: which principle does this rest on, which does it
+strain, and what test makes it stick.
+
 ## Client-facing copy is a different register from everything else
 
 **Anything a client reads must sound simpler than how we talk about it.** The

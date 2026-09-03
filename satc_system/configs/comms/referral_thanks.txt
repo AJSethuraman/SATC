@@ -1,0 +1,13 @@
+Dear {salutation},
+
+Thank you for the referral. It genuinely means something — people only recommend their
+accountant when they trust them, and we don't take that lightly.
+
+We'll look after them the way we look after you.
+
+With thanks,
+{preparer_name}
+{firm_name}
+"{firm_tagline}"
+
+— DRAFT for preparer review. Not sent automatically. —

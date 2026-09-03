@@ -11,6 +11,20 @@
   </div>
 </div>
 
+{% if refusal %}
+{# The deadline is computed from a cited rule, so a jurisdiction with no sourced
+   rules REFUSES rather than borrowing the federal calendar (principle 5). The
+   answers are re-rendered below rather than lost — a refusal must not cost the
+   owner the interview they just filled in. #}
+<div class="panel">
+  <h2>SATC will not create this engagement</h2>
+  <div class="body">
+    <p class="flag">{{ refusal }}</p>
+    <p class="note">Nothing was written. Your answers are still below.</p>
+  </div>
+</div>
+{% endif %}
+
 {% if not client_id or not public_client %}
 <div class="panel">
   <h2>Choose a client</h2>

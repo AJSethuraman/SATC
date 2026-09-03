@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{#
+  THE LADDER — docs/AUTONOMY-CHARTER.md section 4.
+
+  Every number on this page is COUNTED, not written: the rung and the streak
+  come from satc.autonomy.ladder.streaks(), walked fresh over the recorded
+  approval ledger every time this page loads (principle 3 — computed, never
+  stored). Nothing on this screen sends, signs, files, or transmits, and a
+  pair reaching "earned" changes exactly one recorded fact — see charter §10.
+#}
+{% block content %}
+<div class="hero">
+  <h2>Autonomy</h2>
+  <div class="muted">
+    A measured record of whether SATC's drafts are any good — how often a template sent
+    unchanged for a given client, how often it was corrected, and why. <strong>This changes
+    nothing about what SATC can do.</strong> Every client-facing draft is still read and sent
+    by hand; "earned" is one recorded fact, not a permission.
+  </div>
+</div>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+{% if note %}<p class="note">{{ note }}</p>{% endif %}
+
+{# --- the preconditions gate (charter §3) ----------------------------------- #}
+<div class="panel">
+  <h2>Preconditions
+    {% if digest.gate.holds %}<span class="badge b-Received">all confirmed</span>
+    {% else %}<span class="badge b-NEEDS_REVIEW">not met</span>{% endif %}
+  </h2>
+  <div class="body">
+    <p class="muted" style="margin-top:0">
+      No streak accrues anywhere until each of these is a <strong>recorded fact</strong> — a
+      date and who recorded it, never an inference (charter §3). A lapsed re-confirmation
+      freezes accrual; it demotes nothing already earned.
+    </p>
+    {% if not digest.gate.holds %}
+    <p class="flag">{{ digest.gate.why }}</p>
+    {% endif %}
+    <table>
+      <tr><th>Precondition</th><th>Last confirmed</th><th class="right">Record it now</th></tr>
+      {% for key in precondition_keys %}
+      {% set mine = preconditions | selectattr('key', 'equalto', key) | sort(attribute='confirmed_on') | list %}
+      <tr>
+        <td>
+          <strong>{{ precondition_labels.get(key, key) }}</strong>
+          <div class="muted mono">{{ key }}</div>
+        </td>
+        <td>
+          {% if mine %}
+          {% set latest = mine[-1] %}
+          {{ latest.confirmed_on.strftime('%b %d, %Y') }}
+          <div class="muted">by {{ latest.confirmed_by }}{% if latest.note %} — {{ latest.note }}{% endif %}</div>
+          {% if key in digest.gate.lapsed %}<div class="flag">re-confirmation lapsed</div>{% endif %}
+          {% else %}
+          <span class="flag">never recorded</span>
+          {% endif %}
+        </td>
+        <td class="right">
+          <form class="inline" method="post" action="{{ url_for('autonomy.record_precondition_route') }}">
+            <input type="hidden" name="key" value="{{ key }}">
+            <button class="btn sm primary" type="submit">I checked — confirm today</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note">
+      This is the owner's own attestation — SATC has no way to check a backup drive, a
+      Tailnet setting, or an authenticator app from here. Recording one is the same act as
+      confirming a staged field: it takes a human, and a model recording this on your behalf
+      is refused outright.
+    </p>
+  </div>
+</div>
+
+{# --- the ladder itself ------------------------------------------------------ #}
+<div class="panel">
+  <h2>Every pair <span class="muted">· {{ digest.rungs|length }}</span></h2>
+  <div class="body">
+    {% if not ever_decided %}
+    {# The empty case explains itself — principle 13. Charter §11 names this
+       gap by name: nothing yet records that a draft was sent unchanged. #}
+    <p class="flag" style="margin-top:0">No decision has ever been recorded.</p>
+    <p class="muted">
+      Every client-facing template starts, and stays, at <span class="mono">draft_only</span>
+      until the owner sends one exactly as written and that decision is recorded — see
+      <span class="mono">docs/AUTONOMY-CHARTER.md §11</span>. This is not a bug in your data;
+      it is the honest starting position. This build records a decision through
+      <span class="mono">satc.autonomy.approval.record_approval</span> /
+      <span class="mono">record_correction</span>, but nothing on the comms screen calls
+      either of those yet — wiring that click is a separate, and the actual first,
+      deliverable.
+    </p>
+    {% elif not digest.rungs %}
+    <p class="muted">No pair is on the ladder yet.</p>
+    {% else %}
+    <table>
+      <tr><th>Template</th><th>Client</th><th>Classification</th><th>Rung</th>
+        <th>Streak</th><th>Why</th></tr>
+      {% for r in digest.rungs %}
+      <tr>
+        <td class="mono">{{ r.pair[0] }}</td>
+        <td class="mono">{{ r.pair[1] }}</td>
+        <td class="muted">{{ policy.classification_for(r.pair[0]) }}</td>
+        <td>
+          {% if r.state == 'earned' %}<span class="badge b-Received">earned</span>
+          {% else %}<span class="badge b-Requested">draft_only</span>{% endif %}
+          {% if r.blocked_reason %}<div class="flag">precondition-blocked</div>{% endif %}
+        </td>
+        <td class="mono">{{ r.streak }} of {{ r.needed }}</td>
+        <td class="muted">{{ r.why }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<p class="note">
+  <strong>N is firm policy, not code</strong> — <span class="mono">configs/firm_policy.yaml</span>'s
+  <span class="mono">autonomy:</span> section. A template nobody has classified there is treated
+  as <span class="mono">money_or_deadline</span>, the stricter bar, because a template nobody
+  has thought about is not evidence it is safe.
+</p>
+<p class="note">
+  See the <a href="{{ url_for('autonomy.digest_view') }}">digest</a> for today's approvals,
+  corrections by reason, and the trap drill.
+</p>
+{% endblock %}

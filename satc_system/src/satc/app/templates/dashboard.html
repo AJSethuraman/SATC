@@ -21,7 +21,7 @@
       {% for d in state.outstanding() %}
       <tr>
         <td>{{ state.name(d.client_id) }}</td>
-        <td><span class="badge b-Requested">Requested</span> {{ d.doc_type }} — {{ d.note }}</td>
+        <td><span class="badge b-Requested">Outstanding</span> {{ d.doc_type }}{% if d.request_text %} — {{ d.request_text }}{% endif %}</td>
         <td><a class="btn sm" href="{{ url_for('documents') }}">Track →</a></td>
       </tr>
       {% endfor %}
@@ -44,7 +44,8 @@
         <td><strong>{{ r.return_type }}</strong></td>
         <td>{{ state.name(r.client_id) }}</td>
         <td>{{ r.jurisdiction }}</td>
-        <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
+        {% set st = state.return_status(r.return_key) %}
+        <td class="status-{{ st|replace(' ','.') }}">{{ st }}</td>
         <td class="right">
           {% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}
         </td>

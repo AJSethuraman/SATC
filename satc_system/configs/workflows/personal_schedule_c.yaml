@@ -39,6 +39,17 @@ questions:
     type: boolean
     risk_flag: Crypto / digital asset activity
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+services:
+  - service: schedule_c
+    because: this engagement is your self-employment income and expenses
+
+  # Sorting out a first year of books is real work and it is hourly, so the
+  # quote lists it without a number rather than guessing the hours.
+  - service: bookkeeping_cleanup
+    condition: {question_id: newBusiness, equals: "yes"}
+    because: you started the business this year, so the books need setting up
+
 tasks:
   - template_id: schedule-c-gross-receipts-summary
     title: Request Schedule C gross receipts support

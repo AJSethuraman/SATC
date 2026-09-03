@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{#
+  WHAT SATC CAN AND CANNOT CHECK — a capability screen, not a client screen.
+
+  Everything on this page is identical for every client, every workflow and
+  every week, because it is a statement about what this BUILD records rather
+  than about anybody's job. That is exactly why it is here and not on the
+  engagement plan: rendered per engagement it was five byte-identical refusal
+  rows on every plan the owner ever opened, and a row that can never change is
+  the row that teaches somebody to scroll past the one that mattered
+  (principle 13).
+
+  The refusals themselves are RIGHT and are not softened. A promise whose clock
+  has no recorded start cannot be measured, and saying so by name beats a green
+  tick derived from a guess. Each line below disappears from this page on the
+  day the fact it names starts being written down — which is what makes this a
+  real list rather than decoration.
+
+  data-kind="promise" throughout: nothing on this page is law, and the marking
+  survives a rewrite of the prose (principle 4).
+#}
+{% block content %}
+{% if refusal %}
+{# The promises are hand-edited firm policy, so a typo in them is ordinary — and
+   this is the screen somebody opens to find out why the promises stopped
+   working. It must not be the screen that 500s at that moment. #}
+<div class="panel">
+  <h2>SATC cannot read the promises on file</h2>
+  <div class="body">
+    <p class="flag" data-kind="promise">{{ refusal }}</p>
+    <p class="note">Nothing below is shown, because none of it could be worked out.
+      Fix the file and reload — nothing has been lost.</p>
+  </div>
+</div>
+{% else %}
+
+<div class="hero">
+  <h2>What we promised, and what SATC can actually check</h2>
+  <div class="muted">Turnaround this practice offers. <strong>None of it is law</strong> — the
+    durations are yours, set in <span class="mono">configs/firm_policy.yaml</span>, and
+    breaking one costs an apology rather than a penalty. This page is about the software,
+    not about a client: it says the same thing whoever you have open.</div>
+</div>
+
+<div class="panel" data-kind="promise">
+  <h2>Checked on every engagement <span class="muted">· {{ measurable|length }}</span></h2>
+  <div class="body">
+    {% if not measurable %}
+    <p class="note flag">SATC cannot check a single promise on this build. Every turnaround on
+      file has an end to its clock that nothing here writes down, so the plan screen will show
+      no promise rows at all — which is honest, and is not the same as nothing being owed.</p>
+    {% else %}
+    <p class="note" style="margin-top:0">Both ends of these clocks are written down, so they
+      answer for real. They appear on an engagement plan only when something has actually
+      started one, and they clear themselves when the work is recorded.</p>
+    <table>
+      <tr><th>Promise</th><th>How long</th><th>Clock starts</th><th>Clock stops</th></tr>
+      {% for d in measurable %}
+      <tr data-kind="promise">
+        <td><strong>{{ d.label }}</strong><div class="muted mono">{{ d.key }}</div></td>
+        <td class="mono">{{ d.duration() }}</td>
+        <td class="muted">{{ d.starts_when.describes }}</td>
+        <td class="muted">{{ d.ends_when.describes }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel" data-kind="promise">
+  <h2>Promised, but not checkable here <span class="muted">· {{ gaps|length }}</span></h2>
+  <div class="body">
+    {% if not gaps %}
+    <p class="note">Every promise this practice makes can be checked. Nothing is missing —
+      and if that is a surprise, it is the good kind.</p>
+    {% else %}
+    <p class="note" style="margin-top:0">These are promises you really make. SATC will not
+      report on them, because it would have to guess at one end of the clock — and a tick
+      derived from a guess reads exactly like a measured one, which is how a number becomes a
+      lie. Each line says what is missing and what would settle it.</p>
+    <table>
+      <tr><th>Promise</th><th>What is missing</th></tr>
+      {% for g in gaps %}
+      <tr data-kind="promise">
+        <td style="border-left:4px dotted var(--gold-deep);padding-left:10px">
+          <strong>{{ g.label }}</strong><div class="muted mono">{{ g.kind }}</div></td>
+        <td class="muted">{{ g.why }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note">Nothing here is a bug in your data — keying more will not clear any of it.
+      Each line clears on the day SATC starts recording the fact it names, and not before.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

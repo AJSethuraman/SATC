@@ -1,0 +1,31 @@
+{date}
+
+{client_name}
+Client ID: {client_id}
+
+RE: Conclusion of our engagement
+
+Dear {salutation},
+
+I'm writing to confirm that {firm_name} will not be continuing as your tax preparer, and
+that our engagement ends with this letter.
+
+WHAT THIS MEANS FOR YOU
+
+  • We will not prepare, sign, or file any further returns on your behalf, including any
+    return currently due. Please arrange for another preparer promptly — deadlines do
+    not pause because a preparer changes.
+  • Any authorisation you gave us to represent you before the IRS or a state authority
+    should be withdrawn. We will action that from our side.
+
+YOUR RECORDS
+
+{records_return_note}
+
+We wish you well.
+
+Sincerely,
+{preparer_name}
+{firm_name}
+
+— DRAFT disengagement letter for preparer review. —

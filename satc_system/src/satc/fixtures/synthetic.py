@@ -12,11 +12,11 @@ from decimal import Decimal
 
 from satc.ids import line_item_key, return_key
 from satc.models.identity import IdentityRecord, VaultAddress, VaultContact
+from satc.models.evidence import ReceivedDocument, RequestedItem
+from satc.models.work import Engagement
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    DocumentRecord,
-    EngagementRecord,
     EstimatePayment,
     LineItem,
     OwnerBasis,
@@ -255,23 +255,23 @@ def synthetic_mart() -> DataMart:
 
     mart.returns = [
         ReturnRecord(return_key=rk_23, client_id="SATC-001000", tax_year=2023,
-                     return_type="1040", jurisdiction="US", status="Accepted",
+                     return_type="1040", jurisdiction="US",
                      residency="FULL_YEAR", refund_amount=Decimal("1500")),
         ReturnRecord(return_key=rk_24, client_id="SATC-001000", tax_year=2024,
-                     return_type="1040", jurisdiction="US", status="In review",
+                     return_type="1040", jurisdiction="US",
                      residency="FULL_YEAR", balance_due_amount=Decimal("1767")),
         ReturnRecord(return_key=rk_24_oh, client_id="SATC-001000", tax_year=2024,
-                     return_type="1040", jurisdiction="OH", status="In review",
+                     return_type="1040", jurisdiction="OH",
                      residency="FULL_YEAR", refund_amount=Decimal("300")),
         ReturnRecord(return_key=return_key("SATC-002000", 2024, "1120S", "MI"),
                      client_id="SATC-002000", tax_year=2024, return_type="1120S",
-                     jurisdiction="MI", status="Ready to file"),
+                     jurisdiction="MI"),
         ReturnRecord(return_key=return_key("SATC-003000", 2024, "1065", "MA"),
                      client_id="SATC-003000", tax_year=2024, return_type="1065",
-                     jurisdiction="MA", status="In prep"),
+                     jurisdiction="MA"),
         ReturnRecord(return_key=return_key("SATC-004000", 2024, "1120", "OH"),
                      client_id="SATC-004000", tax_year=2024, return_type="1120",
-                     jurisdiction="OH", status="Filed", is_extended=True),
+                     jurisdiction="OH"),
     ]
 
     mart.line_items = [
@@ -326,42 +326,65 @@ def synthetic_mart() -> DataMart:
     ]
 
     mart.engagements = [
-        EngagementRecord(client_id="SATC-001000", tax_year=2024,
+        Engagement(client_id="SATC-001000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("650"),
                          invoiced=True, paid=False),
-        EngagementRecord(client_id="SATC-002000", tax_year=2024,
+        Engagement(client_id="SATC-002000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("2400"),
                          invoiced=True, paid=True),
-        EngagementRecord(client_id="SATC-003000", tax_year=2024,
+        Engagement(client_id="SATC-003000", tax_year=2024,
                          engagement_letter_status="Sent", fee_amount=Decimal("3200")),
-        EngagementRecord(client_id="SATC-004000", tax_year=2024,
+        Engagement(client_id="SATC-004000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("5500"),
                          invoiced=True, paid=True),
     ]
 
     from datetime import date as _d
-    sp = "https://sharepoint.example/SATC/{cid}/2024/{doc}"
-    mart.documents = [
-        DocumentRecord("DOC-0001", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
-                       sp.format(cid="SATC-001000", doc="W2-1"), "preparer"),
-        DocumentRecord("DOC-0002", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
-                       sp.format(cid="SATC-001000", doc="W2-2"), "preparer"),
-        DocumentRecord("DOC-0010", "SATC-001000", 2024, "1099-DIV", "Requested", _d(2025, 2, 1),
-                       "", "preparer", note="Awaiting corrected 1099-DIV (Box 1b)"),
-        DocumentRecord("DOC-0011", "SATC-001000", 2024, "Engagement letter", "Signed", _d(2025, 1, 15),
-                       sp.format(cid="SATC-001000", doc="EL"), "client"),
-        DocumentRecord("DOC-0012", "SATC-001000", 2024, "Form 8879", "Requested", _d(2025, 3, 1),
-                       "", "preparer", note="E-file authorization not yet signed"),
-        DocumentRecord("DOC-0013", "SATC-001000", 2024, "Delivery email", "Sent", _d(2025, 3, 10),
-                       sp.format(cid="SATC-001000", doc="delivery"), "system"),
-        DocumentRecord("DOC-0020", "SATC-002000", 2024, "K-1 (1120S)", "Received", _d(2025, 2, 20),
-                       sp.format(cid="SATC-002000", doc="K1"), "preparer"),
-        DocumentRecord("DOC-0021", "SATC-002000", 2024, "Trial balance", "Requested", _d(2025, 2, 10),
-                       "", "preparer", note="Awaiting year-end trial balance"),
-        DocumentRecord("DOC-0030", "SATC-003000", 2024, "Organizer", "Requested", _d(2025, 1, 20),
-                       "", "preparer", note="Partnership organizer outstanding"),
-        DocumentRecord("DOC-0040", "SATC-004000", 2024, "Signed 8879", "Signed", _d(2025, 3, 5),
-                       sp.format(cid="SATC-004000", doc="8879"), "client"),
+    from datetime import datetime as _dtm
+
+    def _ts(y, m, d):
+        """An arrival timestamp — §1.6695-2 wants WHEN, not just whether."""
+        return _dtm(y, m, d, 9, 0)
+
+    # What we ASKED FOR. `blocking` follows IRS Pub 1345 via
+    # configs/obligations/federal.yaml; a K-1 would be expected-late, since it
+    # cannot exist early in the season — it blocks FILING but not starting prep.
+    mart.requested_items = [
+        RequestedItem("REQ-0010", "SATC-001000", 2024, "1099-DIV",
+                      "Awaiting corrected 1099-DIV (Box 1b)", "non_blocking",
+                      requested_at=_d(2025, 2, 1)),
+        RequestedItem("REQ-0012", "SATC-001000", 2024, "Form 8879",
+                      "E-file authorization not yet signed", "blocking",
+                      requested_at=_d(2025, 3, 1)),
+        RequestedItem("REQ-0021", "SATC-002000", 2024, "Trial balance",
+                      "Awaiting year-end trial balance", "blocking",
+                      requested_at=_d(2025, 2, 10)),
+        RequestedItem("REQ-0030", "SATC-003000", 2024, "Organizer",
+                      "Partnership organizer outstanding", "non_blocking",
+                      requested_at=_d(2025, 1, 20)),
+    ]
+    mart.received_documents = [
+        ReceivedDocument("doc-w2-0001", "SATC-001000", 2024, "W-2",
+                         "furnished_by_client", _ts(2025, 2, 3), "Jordan Maplewood",
+                         "email", display_name="W2-Maplewood-J.pdf"),
+        ReceivedDocument("doc-w2-0002", "SATC-001000", 2024, "W-2",
+                         "furnished_by_client", _ts(2025, 2, 3), "Avery Maplewood",
+                         "email", display_name="W2-Maplewood-A.pdf"),
+        ReceivedDocument("doc-k1-0020", "SATC-002000", 2024, "K-1 (1120S)",
+                         "furnished_by_third_party", _ts(2025, 2, 20), "Northshore CPA",
+                         "portal"),
+        # Prior year — what makes the demo client a RETURNING client, and what
+        # the omission diff measures against. The 1099-INT has no 2024
+        # counterpart, which is the case the whole feature exists for.
+        ReceivedDocument("doc-w2-0901", "SATC-001000", 2023, "W-2",
+                         "furnished_by_client", _ts(2024, 2, 5), "Jordan Maplewood",
+                         "email"),
+        ReceivedDocument("doc-int-0902", "SATC-001000", 2023, "1099-INT",
+                         "furnished_by_client", _ts(2024, 2, 9), "Jordan Maplewood",
+                         "email", note="Lakeside Savings — interest on the joint account"),
+        ReceivedDocument("doc-div-0903", "SATC-001000", 2023, "1099-DIV",
+                         "furnished_by_client", _ts(2024, 2, 12), "Jordan Maplewood",
+                         "email"),
     ]
     return mart
 

@@ -57,4 +57,7 @@ def ollama_host() -> str:
 
 
 def ollama_model() -> str:
-    return os.environ.get("SATC_OLLAMA_MODEL", "llama3.2-vision")
+    # The vision model actually built for SATC on this box. The old default
+    # (llama3.2-vision) is not installed here, so the vision rung would have
+    # failed at call time rather than at configuration time.
+    return os.environ.get("SATC_OLLAMA_MODEL", "SATC-DocReader:latest")

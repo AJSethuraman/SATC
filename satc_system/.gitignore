@@ -18,3 +18,8 @@ venv/
 
 # LibreOffice transient
 .~lock.*#
+
+# Document corpus for the reading scoreboard — real client documents, never
+# committed. See corpus/README.md.
+corpus/
+!corpus/README.md

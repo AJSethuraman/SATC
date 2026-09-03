@@ -1,0 +1,408 @@
+"""WORK — the engagement (a contract), the job (an instance), the task (a unit).
+
+Three words that were previously two, one of which meant two things.
+``EngagementRecord`` (fee + letter status) and ``IntakeEngagement`` (a workflow
+instance with tasks) were unrelated concepts sharing the word "engagement", so
+every conversation about "the engagement" was ambiguous. And ``IntakeTask``
+carried ``completed: bool`` — while the document it pointed at had five states.
+
+Now:
+
+* **Engagement** — the CONTRACT. Scope, fee, letter status, document cutoff.
+  One per client per year. Slow-moving.
+* **Job** — an INSTANCE of work discharging one obligation, running a workflow
+  from config. This is what has a stage and a due date.
+* **Task** — one unit of assignable work inside a job.
+
+The distinction that matters most is on Task. A boolean can express "done" and
+"not done", and a practice needs at least: blocked on something else, waiting on
+the client, waived because it does not apply this year, and cancelled. Those are
+not shades of "not done" — they are different facts, and the difference decides
+whether the job can advance.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any, Literal
+
+from satc.models.actor import Actor
+
+TaskStatus = Literal[
+    "not_started",
+    "in_progress",
+    "waiting_on_client",   # we have asked; the ball is with them
+    "blocked",             # something else must finish first
+    "awaiting_review",
+    "done",
+    "waived",              # does not apply this year — WITH a reason
+    "cancelled",
+]
+
+# States in which a task no longer holds anything up.
+_SETTLED = {"done", "waived", "cancelled"}
+
+TaskAudience = Literal["internal", "client"]
+
+JobStage = Literal[
+    "not_started",
+    "waiting_on_documents",
+    "prep_ready",
+    "in_prep",
+    "in_review",
+    "ready_to_deliver",
+    "delivered",
+    "complete",
+]
+"""The INTERNAL stage — what the owner does next.
+
+Deliberately not the client-facing status and deliberately not the filing truth
+(Drake's ACK letter). Three authorities, three fields; collapsing them is what
+made the old PipelineStatus say "Filed" at transmission, which IRS Pub 1345
+contradicts — a return is not filed until the IRS acknowledges it.
+"""
+
+
+@dataclass(slots=True)
+class Completion:
+    """How a task was finished — never a bare checkbox.
+
+    ``procedure`` exists because "marked reviewed without documenting what was
+    actually performed" is a named junior failure mode. A tick that records
+    nothing is indistinguishable from a tick someone applied to clear a screen.
+    """
+
+    by: Actor
+    at: datetime
+    procedure: str = ""
+
+
+@dataclass(slots=True)
+class Task:
+    """One unit of assignable work inside a job. PK = ``task_id``."""
+
+    task_id: str
+    job_id: str
+    template_id: str
+    """Preserved across regeneration, so re-running the interview keeps progress."""
+
+    title: str
+    category: str = "General"
+    audience: TaskAudience = "internal"
+    status: TaskStatus = "not_started"
+    client_request_text: str = ""
+    accepted_alternatives: str = ""
+    why_needed: str = ""
+    internal_instructions: str = ""
+
+    due_date: date | None = None
+    """The REAL date this is due. Distinct from the derived hint below —
+    previously there was only the hint, so nothing was ever actually overdue."""
+
+    suggested_date: date | None = None
+    blocked_by: tuple[str, ...] = ()
+    waived_reason: str = ""
+    follow_up_round: int = 0
+    """Which chase this is. A second request must not read like the first."""
+
+    escalated_at: date | None = None
+    request_id: str = ""
+    """The RequestedItem this task opened, when it is a client ask."""
+
+    completion: Completion | None = None
+    notes: str = ""
+    relationship_generated: bool = False
+
+    @property
+    def is_settled(self) -> bool:
+        """Whether this task is no longer holding anything up."""
+        return self.status in _SETTLED
+
+    @property
+    def is_open(self) -> bool:
+        return not self.is_settled
+
+    @property
+    def is_done(self) -> bool:
+        """Genuinely finished — NOT waived or cancelled.
+
+        Kept separate from :attr:`is_settled` because a progress count that
+        treats "waived" as "done" flatters the number.
+        """
+        return self.status == "done"
+
+    def is_overdue(self, today: date) -> bool:
+        return self.is_open and self.due_date is not None and self.due_date < today
+
+
+class WorkError(Exception):
+    """A work item was asked to enter a state it may not."""
+
+
+def complete(task: Task, *, actor: Actor, procedure: str = "",
+             now: datetime | None = None) -> Task:
+    """Finish a task, recording who and what they actually did."""
+    from satc.models.actor import require_human
+
+    require_human(actor, "complete a task",
+                  instead="propose it as done and let the owner confirm")
+    task.status = "done"
+    task.completion = Completion(by=actor, at=now or datetime.now(), procedure=procedure)
+    return task
+
+
+def waive(task: Task, *, actor: Actor, reason: str,
+          now: datetime | None = None) -> Task:
+    """Set a task aside as not applicable — with a reason, always.
+
+    The same refusal as :func:`~satc.models.evidence.mark_not_applicable`, for
+    the same reason: a waived task with no reason is indistinguishable from one
+    someone clicked past.
+    """
+    from satc.models.actor import require_human
+
+    require_human(actor, "waive a task")
+    if not (reason or "").strip():
+        raise WorkError(
+            f"Cannot waive {task.title!r} without a reason. Record why it does not "
+            f"apply — that note is what makes the skip defensible later.")
+    task.status = "waived"
+    task.waived_reason = reason.strip()
+    task.completion = Completion(by=actor, at=now or datetime.now(),
+                                 procedure=f"waived: {reason.strip()}")
+    return task
+
+
+@dataclass(slots=True)
+class Job:
+    """A work instance discharging one obligation. PK = ``job_id``.
+
+    Was ``IntakeEngagement``. Renamed because it is not the contract — it is one
+    run of work against one duty, and a client can have several in a year.
+    """
+
+    job_id: str
+    client_id: str
+    workflow_key: str
+    obligation_key: str = ""
+    """Which duty this job discharges. Empty for ad-hoc work with no statutory
+    deadline behind it (a notice response, a one-off question)."""
+
+    period_key: str = ""
+    """``2025``, ``2026Q1``, ``2026-03`` — the recurrence anchor, and the thing
+    that makes regeneration idempotent."""
+
+    engagement_type: str = ""
+    tax_year: int | None = None
+    due_date: date | None = None
+    stage: JobStage = "not_started"
+    intake_answers: dict[str, str] = field(default_factory=dict)
+    risk_flags: list[str] = field(default_factory=list)
+    created_at: str = ""
+    updated_at: str = ""
+    tasks: list[Task] = field(default_factory=list)
+
+    # -- derived ----------------------------------------------------------
+
+    def client_tasks(self) -> list[Task]:
+        return [t for t in self.tasks if t.audience == "client"]
+
+    def open_tasks(self) -> list[Task]:
+        return [t for t in self.tasks if t.is_open]
+
+    def done_count(self) -> int:
+        """Genuinely finished tasks.
+
+        Computed here rather than in a template. ``selectattr('completed')``
+        over a STATUS string counts every task as done, because any non-empty
+        string is truthy — a 200 with a wrong number, which is the worst kind
+        of failure and the one the old templates would have hit silently.
+        """
+        return sum(1 for t in self.tasks if t.is_done)
+
+    def settled_count(self) -> int:
+        return sum(1 for t in self.tasks if t.is_settled)
+
+    def progress(self) -> tuple[int, int]:
+        """(settled, total) — what a progress bar should show."""
+        return self.settled_count(), len(self.tasks)
+
+    def overdue_tasks(self, today: date) -> list[Task]:
+        return [t for t in self.tasks if t.is_overdue(today)]
+
+    def is_blocked(self) -> bool:
+        return any(t.status == "blocked" for t in self.tasks)
+
+
+@dataclass(slots=True)
+class Engagement:
+    """The CONTRACT with a client for a period. PK = (client_id, tax_year).
+
+    Was ``EngagementRecord``. It stayed deliberately narrow while it had one
+    producer and two readers — but the rate plan changed that. What a client
+    pays is a term of the contract: agreed once, with a reason, and then
+    honoured. Deciding it per-invoice meant the owner re-decided it every time
+    and nothing on file ever said "this household is on the household rate".
+    """
+
+    client_id: str
+    tax_year: int
+    engagement_letter_status: str = "Not sent"   # Not sent / Sent / Signed
+    fee_amount: Any = None
+    invoiced: bool = False
+    paid: bool = False
+    preparer_id: str = ""
+    note: str = ""
+
+    rate_plan_key: str = ""
+    """Which rate plan was agreed for this year — a key into the plan catalogue.
+
+    Not a discount percentage. A percentage stored here would drift from the
+    catalogue the first time the practice moved the household rate, and there
+    would be no way to tell a stale number from a deliberate one.
+
+    Defaults to SILENCE, not to ``"standard"``. A default of "standard" would
+    make every engagement ever constructed in code carry an explicit agreement
+    to pay full rate, so a client nobody has priced would be indistinguishable
+    from one the owner sat down and priced — and :class:`RatePlanOnFile` exists
+    precisely to tell those two apart. Blank is the same thing the store reads
+    back from a legacy NULL column: nobody has decided yet (principles 1 and 2).
+    """
+
+    rate_plan_basis: str = ""
+    """WHY that plan was agreed, in the owner's words.
+
+    A sliding scale with no recorded reason is not a sliding scale, it is
+    improvisation — and improvisation is what looks like discrimination when
+    two clients compare notes. Empty is a legitimate state here (history must
+    always load); the refusal lives at invoice-issue time, where a reduced plan
+    with no basis cannot be issued.
+    """
+
+
+RatePlanSource = Literal["engagement", "practice_default"]
+"""Where a client's plan for a year came from — an agreement, or the absence of one."""
+
+
+@dataclass(frozen=True, slots=True)
+class RatePlanOnFile:
+    """What a client pays for a year, and how we know it.
+
+    :attr:`source` is the whole point of this type. A client on ``standard``
+    because the owner sat down and agreed standard is a DIFFERENT FACT from a
+    client on ``standard`` because nobody ever decided. As a bare string both
+    read ``"standard"`` — and the second one is the one worth a conversation.
+    An unanswered question is not an answer.
+    """
+
+    client_id: str
+    tax_year: int
+    plan_key: str
+    basis: str
+    source: RatePlanSource
+    requires_basis: bool = False
+    """Whether the catalogue demands a reason for this plan — reduced plans do."""
+
+    in_catalogue: bool = True
+    """Whether the recorded key is still a plan the catalogue knows about.
+
+    The catalogue is hand-edited and hot-reloaded, so a plan can be renamed or
+    retired under engagements that already reference it. Those engagements must
+    still LOAD — history that cannot be read is history that cannot be fixed —
+    so the stale key is carried through and flagged rather than raised on. It
+    is deliberately NOT resolved to the default: silently reading a retired key
+    as "standard" would invent an agreement nobody made (principle 1).
+    """
+
+    @property
+    def plan_missing(self) -> bool:
+        """The recorded plan is no longer in the catalogue — visible, not fatal.
+
+        Nothing can be priced from this record. The refusal lives at
+        invoice-issue time, where the catalogue lookup raises anyway; here the
+        job is to say so plainly instead of failing to load.
+        """
+        return not self.in_catalogue
+
+    @property
+    def is_agreed(self) -> bool:
+        """Somebody decided this. There is a contract term behind the number."""
+        return self.source == "engagement"
+
+    @property
+    def is_fallback(self) -> bool:
+        """Nothing is on file; this is what applies until someone decides."""
+        return not self.is_agreed
+
+    @property
+    def basis_missing(self) -> bool:
+        """An agreed reduced plan carrying no reason — visible, not fatal.
+
+        Reported rather than raised on purpose: history must always load, and
+        an invoice cannot be ISSUED on a reduced plan with no basis anyway. The
+        refusal belongs where the money moves, not where the record is read.
+        """
+        return self.is_agreed and self.requires_basis and not self.basis.strip()
+
+    def why(self) -> str:
+        """One line the owner can read without opening anything else."""
+        if self.plan_missing:
+            # Principle 10: name the next step. Which step depends on whether
+            # the dangling key came from the contract or from the config's own
+            # default — those are two different files to go and fix.
+            if self.is_fallback:
+                return (f"No rate plan agreed for {self.tax_year}, and the practice "
+                        f"default {self.plan_key!r} is not in the rate plan "
+                        f"catalogue. Fix configs/billing/rate_plans.yaml before "
+                        f"invoicing anyone.")
+            return (f"The {self.tax_year} engagement records rate plan "
+                    f"{self.plan_key!r}, which is no longer in the rate plan "
+                    f"catalogue. Agree a current plan before invoicing.")
+        if self.is_fallback:
+            return (f"No rate plan agreed for {self.tax_year} — the practice default "
+                    f"{self.plan_key!r} applies until one is recorded.")
+        if self.basis_missing:
+            return (f"{self.plan_key!r} agreed on the {self.tax_year} engagement, but "
+                    f"no basis is recorded. Record why before invoicing.")
+        if self.basis:
+            return f"{self.plan_key!r} agreed on the {self.tax_year} engagement: {self.basis}"
+        return f"{self.plan_key!r} agreed on the {self.tax_year} engagement."
+
+
+def rate_plan_for(engagements: Iterable[Engagement], *, client_id: str,
+                  tax_year: int) -> RatePlanOnFile:
+    """What plan this client is on for this year, and why.
+
+    Answers for every client, including one with no engagement on file — but it
+    answers DIFFERENTLY, and says which it is doing. Silently returning the
+    default plan for a client nobody has ever priced is exactly the confident
+    wrong answer this system is built not to give.
+
+    A blank plan key on an existing engagement is treated the same way: the slot
+    is empty, so nothing was agreed, so the default applies AS A FALLBACK.
+
+    Never raises on the recorded key. A plan renamed or retired in the
+    hand-edited catalogue would otherwise make every engagement carrying the
+    old key unloadable — the store goes out of its way to keep history readable
+    and this helper is not the place to undo that. A key the catalogue no
+    longer has comes back flagged (:attr:`RatePlanOnFile.plan_missing`), and
+    the refusal stays at invoice-issue time where the money moves.
+    """
+    # Local import: the catalogue reads YAML, and a data shape should not drag
+    # the billing config in at import time just to be defined.
+    from satc.billing.catalogue import default_plan_key, plans
+
+    found = next((e for e in engagements
+                  if e.client_id == client_id and e.tax_year == tax_year), None)
+    agreed = (found.rate_plan_key or "").strip() if found else ""
+    key = agreed or default_plan_key()
+    # .get, not plan(): a missing plan is reported, not raised.
+    known = plans().get(key)
+    return RatePlanOnFile(
+        client_id=client_id, tax_year=tax_year, plan_key=key,
+        basis=((found.rate_plan_basis or "").strip() if found else ""),
+        source="engagement" if agreed else "practice_default",
+        requires_basis=bool(known and known.requires_basis),
+        in_catalogue=known is not None)

@@ -22,7 +22,8 @@
       <tr>
         <td><strong>{{ r.return_type }}</strong></td>
         <td>{{ r.jurisdiction }}</td>
-        <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
+        {% set st = state.return_status(r.return_key) %}
+        <td class="status-{{ st|replace(' ','.') }}">{{ st }}</td>
         <td class="right">{% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}</td>
       </tr>
       {% endfor %}

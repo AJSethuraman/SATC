@@ -81,6 +81,23 @@ doc_types:
       - ["1099-k", 9]
       - ["gross amount of payment card", 4]
 
+  # W-2G is BLOCKING under IRS Pub 1345 — an e-filed return cannot be
+  # originated until it is in hand (or a Form 4852 substitute is on file). It
+  # was named in configs/obligations/federal.yaml as blocking while no
+  # classifier could ever emit it, which made that guard decorative: the
+  # readiness check passed with a missing W-2G every time.
+  # `key: null` because there is no extraction map yet — it is filed, not read.
+  - key: null
+    label: "W-2G"
+    code: "W-2G"
+    filename_hints: ["w2g", "w-2g", "w2 g", "gambling winnings"]
+    keywords:
+      - ["certain gambling winnings", 10]
+      - ["form w-2g", 9]
+      - ["w-2g", 9]
+      - ["type of wager", 4]
+      - ["winnings from identical wagers", 4]
+
   - key: null
     label: "1099-R"
     code: "1099-R"

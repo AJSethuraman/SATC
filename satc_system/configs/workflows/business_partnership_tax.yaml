@@ -36,6 +36,16 @@ questions:
     label: Asset acquisitions or disposals?
     type: boolean
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+services:
+  - service: return_1065
+    because: this engagement is your partnership return and its K-1s
+
+  - service: return_state
+    condition: {question_id: multiStateActivity, equals: "yes"}
+    quantity: unknown
+    because: you told us the partnership operates in more than one state
+
 tasks:
   - template_id: partnership-upload-trial-balance
     title: Request year-end trial balance

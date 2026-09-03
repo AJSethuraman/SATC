@@ -41,7 +41,7 @@
       <div class="docrow">
         <div class="docfields">
           <div class="muted" style="margin-bottom:6px">
-            <strong>{{ doc.doc_type }}</strong> · <span class="mono">{{ doc.document_id }}</span>
+            <strong>{{ doc.doc_type }}</strong> · <span class="mono">{{ doc.label() }}</span>
             {% if doc.source_note %} · {{ doc.source_note }}{% endif %}
           </div>
           <table>

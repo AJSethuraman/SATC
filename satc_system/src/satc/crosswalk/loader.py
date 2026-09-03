@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-from satc.config import CONFIG_ROOT
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 from satc.ids import normalize_jurisdiction
 
 ParamStatus = str  # "in_force" | "scheduled_reversion" | "pending"
@@ -123,11 +123,14 @@ def load_crosswalk_file(path: str | Path) -> Crosswalk:
     config_path = Path(path)
     if not config_path.exists():
         raise CrosswalkError(f"Crosswalk file not found: {config_path}")
+    # Through the shared reader, then re-raised in this module's own error
+    # family. It already named the file, which is why this is a re-wrap rather
+    # than a fix — but one parse path means one place where the message that
+    # reaches the owner is decided, and a sweep can prove there is only one.
     try:
-        with config_path.open("r", encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle) or {}
-    except yaml.YAMLError as exc:  # pragma: no cover - defensive
-        raise CrosswalkError(f"Invalid YAML in {config_path}: {exc}") from exc
+        raw = read_yaml(config_path) or {}
+    except ConfigError as exc:
+        raise CrosswalkError(str(exc)) from None
 
     meta = raw.get("meta", {})
     if not isinstance(meta, dict):

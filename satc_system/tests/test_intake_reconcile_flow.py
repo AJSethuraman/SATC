@@ -20,8 +20,8 @@ def test_intake_reconciles_requested_documents(tmp_path, monkeypatch):
     state.create_engagement(client_id="SATC-001000", workflow_key="personal_1040_core",
                             due_date="2026-04-15", tax_year=2024,
                             answers={"newSatcClient": "no"})
-    before = sum(1 for d in state.documents()
-                 if d.client_id == "SATC-001000" and d.status == "Requested")
+    before = sum(1 for d in state.requested_items()
+                 if d.client_id == "SATC-001000" and d.is_open)
     assert before >= 1
 
     # Drop a real W-2 (+1099-INT, engagement letter) into a folder and run intake.
@@ -30,7 +30,7 @@ def test_intake_reconciles_requested_documents(tmp_path, monkeypatch):
 
     # The arriving W-2 satisfied the core-income request -> at least one closed.
     assert summary["reconciled"] >= 1
-    received = [d for d in state.documents()
-                if d.client_id == "SATC-001000" and d.status == "Received"]
+    received = [d for d in state.requested_items()
+                if d.client_id == "SATC-001000" and not d.is_open]
     assert any("income" in d.doc_type.lower() for d in received)
     assert any("satisfies your request" in n for n in summary["notes"])

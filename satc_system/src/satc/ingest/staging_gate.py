@@ -17,6 +17,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Iterable, Literal
 
+from satc.models.actor import INTAKE, Actor, ActorRefused, require_human
+from satc.models.provenance import Provenance
 from satc.models.staging import StagedDocument, StagedField
 
 Agg = Literal["sum", "first", "max"]
@@ -48,8 +50,19 @@ class StagingGate:
     documents: list[StagedDocument] = field(default_factory=list)
 
     def add(self, doc: StagedDocument) -> StagingGate:
+        """Stage a document. Re-staging the same one is a no-op, not a duplicate.
+
+        Document ids are content hashes, so an original and the copy sort_folder
+        made hash identically — and re-reading a folder must not stage the same
+        W-2 twice. Doctrine rule 4: "already staged as requested" is success.
+        """
+        if any(d.document_id == doc.document_id for d in self.documents):
+            return self
         self.documents.append(doc)
         return self
+
+    def find_document(self, document_id: str) -> StagedDocument | None:
+        return next((d for d in self.documents if d.document_id == document_id), None)
 
     def all_fields(self) -> list[StagedField]:
         return [f for doc in self.documents for f in doc.fields]
@@ -61,37 +74,67 @@ class StagingGate:
         return None
 
     # -- gate operations ---------------------------------------------------
-    def auto_confirm_high(self, by: str = "auto") -> int:
-        """Confirm only HIGH-confidence, cleanly-parsed fields. Returns count."""
+    def auto_confirm_high(self, by: Actor) -> int:
+        """Confirm HIGH-confidence, cleanly-parsed, NON-model fields. Returns count.
+
+        ``by`` is required and has no default — a defaulted actor is the exact
+        shape this whole model exists to remove, and leaving one here would be
+        the last place a caller could be believed by omission.
+
+        Two gates, not one. Confidence says the read was clean; provenance says
+        what produced it. A model-produced value is never auto-confirmed at any
+        confidence — an 8B model that is confidently wrong is the failure mode
+        this exists to stop, and confidence is exactly the signal it fakes best.
+        """
+        # A system actor MAY run this sweep — deterministic code can be read,
+        # tested, and proven wrong. A model may not, at any confidence.
+        if by.is_model:
+            raise ActorRefused(
+                f"{by.handle} may not auto-confirm staged values. Deterministic "
+                f"intake runs this sweep; a model's route to the mart is to "
+                f"propose values that the owner accepts at the gate.")
         n = 0
         for f in self.all_fields():
-            if f.status == "STAGED" and f.provenance.confidence == "HIGH":
-                f.status = "CONFIRMED"
-                f.confirmed_value_text = f.value_text
-                f.confirmed_value_amount = f.value_amount
-                f.confirmed_by = by
-                f.confirmed_at = datetime.now()
-                n += 1
+            if f.status != "STAGED" or f.provenance.confidence != "HIGH":
+                continue
+            if f.provenance.is_model_produced:
+                # Left STAGED on purpose: it still reaches the owner's review
+                # queue, it just cannot skip it.
+                continue
+            f.status = "CONFIRMED"
+            f.confirmed_value_text = f.value_text
+            f.confirmed_value_amount = f.value_amount
+            f.confirmed_by = by
+            f.confirmed_at = datetime.now()
+            n += 1
         return n
 
-    def confirm(self, field_id: str, *, value_text: str | None = None,
-                value_amount: Decimal | None = None, by: str = "preparer") -> bool:
+    def confirm(self, field_id: str, actor: Actor, *, value_text: str | None = None,
+                value_amount: Decimal | None = None) -> bool:
+        """Turn a proposal into a fact. Humans only.
+
+        ``actor`` is positional and required — there is no default, because a
+        default here is what let any caller assert it was the preparer.
+        """
+        require_human(actor, "confirm a staged value")
         f = self._find(field_id)
         if f is None:
             return False
         f.status = "CONFIRMED"
         f.confirmed_value_text = value_text if value_text is not None else f.value_text
         f.confirmed_value_amount = value_amount if value_amount is not None else f.value_amount
-        f.confirmed_by = by
+        f.confirmed_by = actor
         f.confirmed_at = datetime.now()
         return True
 
-    def reject(self, field_id: str, *, by: str = "preparer", note: str = "") -> bool:
+    def reject(self, field_id: str, actor: Actor, *, note: str = "") -> bool:
+        """Reject a staged value. Humans only — rejecting is a judgment too."""
+        require_human(actor, "reject a staged value")
         f = self._find(field_id)
         if f is None:
             return False
         f.status = "REJECTED"
-        f.confirmed_by = by
+        f.confirmed_by = actor
         if note:
             f.note = note
         return True
@@ -104,7 +147,7 @@ class StagingGate:
         f.status = "STAGED" if f.provenance.confidence == "HIGH" else "NEEDS_REVIEW"
         f.confirmed_value_text = ""
         f.confirmed_value_amount = None
-        f.confirmed_by = ""
+        f.confirmed_by = None
         f.confirmed_at = None
         return True
 
@@ -117,9 +160,16 @@ class StagingGate:
                     return True
         return False
 
-    def edit(self, field_id: str, *, value_text: str | None = None,
-             value_amount: Decimal | None = None, by: str = "preparer (edited)") -> bool:
-        """Hand-correct a value and confirm it — the preparer's word overrides the read."""
+    def edit(self, field_id: str, actor: Actor, *, value_text: str | None = None,
+             value_amount: Decimal | None = None) -> bool:
+        """Hand-correct a value and confirm it — the preparer's word overrides the read.
+
+        Humans only, and for the same reason as :meth:`confirm`: this both sets a
+        value AND accepts it, so it is the most powerful operation on the gate.
+        A hand-corrected value becomes human-produced — the owner typed it, so
+        whatever produced the original read no longer taints it.
+        """
+        require_human(actor, "hand-correct a staged value")
         f = self._find(field_id)
         if f is None:
             return False
@@ -127,8 +177,16 @@ class StagingGate:
             f.confirmed_value_text = value_text
         f.confirmed_value_amount = value_amount
         f.status = "CONFIRMED"
-        f.confirmed_by = by
+        f.confirmed_by = actor
         f.confirmed_at = datetime.now()
+        # The owner typed this value, so it is now theirs — a hand-correction is
+        # the one operation that legitimately clears a model taint, because a
+        # human read the document and decided.
+        f.provenance = Provenance(
+            source_kind="PREPARER_ENTRY", confidence="HIGH",
+            source_ref=f.provenance.source_ref,
+            note=f.provenance.note, extractor=f.provenance.extractor,
+            extracted_at=f.provenance.extracted_at, produced_by=actor)
         if "hand-corrected" not in (f.note or ""):
             f.note = (f.note + " · hand-corrected").lstrip(" ·")
         return True

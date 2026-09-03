@@ -18,13 +18,13 @@
       <tr><th>Client</th><th>Workflow</th><th>Tax year</th><th>Due</th><th>Tasks</th><th>Risk flags</th><th class="right"></th></tr>
       {% for e in engagements %}
       <tr>
-        <td><a href="{{ url_for('intake.engagement_detail', engagement_id=e.engagement_id) }}">{{ state.name(e.client_id) }}</a></td>
+        <td><a href="{{ url_for('intake.engagement_detail', job_id=e.job_id) }}">{{ state.name(e.client_id) }}</a></td>
         <td>{{ e.workflow_key }}</td>
         <td>{{ e.tax_year or '—' }}</td>
         <td>{{ e.due_date or '—' }}</td>
-        <td>{{ e.tasks | selectattr('completed') | list | length }}/{{ e.tasks | length }} done</td>
+        <td>{{ progress[e.job_id][0] }}/{{ e.tasks | length }} done</td>
         <td class="muted">{{ e.risk_flags | join(', ') or '—' }}</td>
-        <td class="right"><a class="btn sm" href="{{ url_for('intake.engagement_detail', engagement_id=e.engagement_id) }}">Open →</a></td>
+        <td class="right"><a class="btn sm" href="{{ url_for('intake.engagement_detail', job_id=e.job_id) }}">Open →</a></td>
       </tr>
       {% endfor %}
     </table>

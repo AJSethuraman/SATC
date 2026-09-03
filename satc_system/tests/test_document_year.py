@@ -105,44 +105,77 @@ def test_an_unknown_year_is_not_treated_as_wrong():
 
 # -- end to end, through the real store ---------------------------------------
 
-def test_a_2019_w2_does_not_close_the_2026_request(tmp_path, monkeypatch):
+def test_a_2019_w2_does_not_close_the_2026_request():
     """The measured failure, asserted against the actual reconcile path.
 
-    Not a unit test of wrong_year -- that is above. This walks the seam a real
-    document walks: an open Requested row for tax year 2026, and a W-2 whose
-    printed year is 2019.
+    PORTED when `feat/comms-templates` merged, 3 September 2026. It was written
+    against `DocumentRecord`, which that branch's schema reset deleted. The
+    PROPERTY is unchanged and still the point; only the entity moved. The year
+    filter now lives in `find_match`, which is also what suggests a match to the
+    owner -- so a wrong-year document is neither closed nor recommended.
     """
     from satc.intake.service import reconcile_received
-    from satc.models.mart import DocumentRecord
+    from satc.models.evidence import RequestedItem
 
     class FakeMart:
-        def __init__(self, docs): self.documents = docs
+        def __init__(self, items): self.requested_items = items
 
     class FakeStore:
-        def __init__(self, docs):
-            self._docs = docs
-            self.set_calls = []
-        def load_mart(self): return FakeMart(self._docs)
-        def set_document_status(self, doc_id, status): self.set_calls.append((doc_id, status))
-        def load_intake_engagements(self): return []
+        def __init__(self, items):
+            self._items = items
+            self.saved = []
+        def load_mart(self): return FakeMart(self._items)
+        def save_requested_items(self, items): self.saved.extend(items)
+        def load_jobs(self): return []
         def save_task(self, task): pass
 
     def a_request():
-        return DocumentRecord(document_id="D1", client_id="C1", tax_year=2026,
-                              doc_type="W-2", status="Requested",
-                              note="Upload your W-2s")
+        return RequestedItem(request_id="R1", client_id="C1", tax_year=2026,
+                             doc_type="W-2", request_text="Upload your W-2s")
 
     stale = FakeStore([a_request()])
     assert reconcile_received(stale, client_id="C1", doc_type="W-2",
                               doc_year=2019) is None
-    assert stale.set_calls == [], "a 2019 W-2 closed the 2026 request"
+    assert stale.saved == [], "a 2019 W-2 closed the 2026 request"
 
     current = FakeStore([a_request()])
     assert reconcile_received(current, client_id="C1", doc_type="W-2",
                               doc_year=2026) is not None
-    assert current.set_calls == [("D1", "Received")]
+    assert [i.request_id for i in current.saved] == ["R1"]
 
     unknown = FakeStore([a_request()])
     assert reconcile_received(unknown, client_id="C1", doc_type="W-2",
-                              doc_year=None) is not None, \
-        "an unreadable year must not block -- unknown is not wrong"
+                              doc_year=None) is not None,         "an unreadable year must not block -- unknown is not wrong"
+
+
+def test_a_model_cannot_close_a_request_however_right_the_year_is():
+    """Where the two merged rules meet.
+
+    The branch gated this call so a MODEL cannot mark a client request
+    satisfied; main added the year filter. Both apply now, and the actor gate is
+    checked first -- a correct year does not buy a model the right to close
+    anything.
+    """
+    from satc.intake.service import reconcile_received
+    from satc.models.actor import Actor
+    from satc.models.evidence import RequestedItem
+
+    class FakeMart:
+        def __init__(self, items): self.requested_items = items
+
+    class FakeStore:
+        def __init__(self, items):
+            self._items = items
+            self.saved = []
+        def load_mart(self): return FakeMart(self._items)
+        def save_requested_items(self, items): self.saved.extend(items)
+        def load_jobs(self): return []
+        def save_task(self, task): pass
+
+    store = FakeStore([RequestedItem(request_id="R1", client_id="C1",
+                                     tax_year=2026, doc_type="W-2",
+                                     request_text="Upload your W-2s")])
+    assert reconcile_received(store, client_id="C1", doc_type="W-2",
+                              doc_year=2026,
+                              classified_by=Actor.model("vision")) is None
+    assert store.saved == [], "a model closed a client request"
