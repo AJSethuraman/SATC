@@ -18,45 +18,38 @@ now — and it means nothing already settled gets re-litigated a year later.
 A conviction is examined at the moment it bites, which is the only moment anyone
 has the context to judge it.
 
+**`Fires on`** is what makes selection deterministic: the subjects that bring a
+conviction into play. Code narrows to candidates; the judgement of whether a
+candidate is really a contradiction is made in the open, by a person reading.
+
 ---
 
 ## C1 · Working students are not charged what the work is worth
 
 **State:** held · **Recorded:** 2026-09-03 · **Applies:** SATC pricing
 
-> *"you know the reasons I wanted to charge people less if they are themselves
-> in college and working. I just don't think it's right to fuck them over,
-> basically."*
+> *you know the reasons I wanted to charge people less if they are themselves in college and working. I just don't think it's right to fuck them over, basically.*
 > — the firm, 3 September 2026
 
-**Why:** It is a judgement about who the practice is willing to make money from,
-not a pricing tactic. It costs revenue on purpose.
+**Why:** It is a judgement about who the practice is willing to make money from, not a pricing tactic. It costs revenue on purpose.
 
-**What a challenge looks like:** a decision that raises the student rate, removes
-the distinction, or prices a working student at the standard schedule. Bassy
-names this entry, quotes it, and asks whether the reason has changed. It does
-not argue the economics — that is not what this record is for.
+**Fires on:** student, students, college, discount, rate, pricing, fee schedule
 
-**How it could be wrong:** if the practice cannot cover its own costs, this stops
-being generosity and starts being a decision to go out of business slowly. Bassy
-does not raise that on its own; if the firm raises it, the resolution becomes a
-new conviction recording the trade-off, because *how* the firm resolves a
-collision is more revealing than either side of it.
+**A challenge looks like:** a decision that raises the student rate, removes the distinction, or prices a working student on the standard schedule. Bassy names this entry, quotes it, and asks whether the reason has changed. It does not argue the economics — that is not what this record is for.
+
+**How it could be wrong:** if the practice cannot cover its own costs, this stops being generosity and becomes a decision to close slowly. Bassy does not raise that unprompted. If the firm raises it, the resolution becomes a new conviction recording the trade-off — because how a collision is settled says more than either side of it.
 
 ---
 
-## Waiting to be mined
+## C2 · Nothing reaches the live domain without the firm's hand on it
 
-`corpus/` holds 173 turns and 44 decisions of the firm's own words. **Seventeen
-of those decisions were typed rather than picked** — and a picked answer accepted
-a framing while a typed one rejected it, which is what a conviction is.
+**State:** held · **Recorded:** 2026-08-28 · **Applies:** everything
 
-Three that are already visible in the corpus and are not yet recorded, because
-none has been put to the firm for confirmation:
+> *Never push to main: it publishes to the live domain satcllp.com through Cloudflare Pages.*
+> — the firm, 28 August 2026
 
-- deterministic outcomes wherever possible
-- controls in place, and results you can trust
-- never push to `main` — it publishes to the live domain
+**Why:** A push to main is a publication. There is no review step between the commit and the public site, so the branch IS the control.
 
-They are listed here as **candidates, not entries**. Slice 9 proposes them
-properly.
+**Fires on:** main, push, publish, deploy, live, production, cloudflare
+
+**A challenge looks like:** any move that would put work on `main`, or ship to production, without the firm having said so for that specific change.
