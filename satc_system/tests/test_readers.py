@@ -102,3 +102,57 @@ def test_vision_reader_flags_uncertain_and_masks_tin(tmp_path):
     # about WHICH fields to look at hardest, not a licence for the others.
     assert any(f.field_path == "w2.box3_ss_wages" for f in gate.needs_review())
     assert any(f.field_path == "w2.box1_wages" for f in gate.needs_review())
+
+
+# ── the context window the vision rung asks for ────────────────────────────
+
+def test_the_vision_reader_sends_a_context_size():
+    """It used to send none, so the value was whatever the model defaulted to.
+
+    On the Forge that is the difference between running wholly on the GPU and
+    spilling to the CPU, and there was no setting to pin. Measured 3 September
+    2026: `qwen2.5vl:7b` at 8192 reads `15%/85% CPU/GPU`; at 4096 it reads
+    `100% GPU`, with a real page attached.
+    """
+    from satc.ingest.readers.ollama import OllamaVisionReader
+
+    sent = {}
+    reader = OllamaVisionReader(
+        {"doc_type": "W-2", "fields": [{"field_path": "wages"}]},
+        transport=lambda payload: sent.update(payload) or {"message": {"content": "{}"}})
+    reader.read(str(_a_png()))
+
+    assert "options" in sent, "no options block: num_ctx was never sent"
+    assert sent["options"]["num_ctx"] == 4096
+
+
+def test_the_context_size_can_be_overridden_but_never_to_nonsense():
+    """`SATC_OLLAMA_NUM_CTX` is the knob. A junk value falls back rather than
+    being passed to Ollama, because a bad context is a silent CPU spill."""
+    import os
+    from satc.settings import ollama_num_ctx, OLLAMA_NUM_CTX_DEFAULT
+
+    for raw, expected in [("8192", 8192), ("", OLLAMA_NUM_CTX_DEFAULT),
+                          ("abc", OLLAMA_NUM_CTX_DEFAULT),
+                          ("0", OLLAMA_NUM_CTX_DEFAULT),
+                          ("-1", OLLAMA_NUM_CTX_DEFAULT)]:
+        old = os.environ.get("SATC_OLLAMA_NUM_CTX")
+        os.environ["SATC_OLLAMA_NUM_CTX"] = raw
+        try:
+            assert ollama_num_ctx() == expected, f"{raw!r}"
+        finally:
+            if old is None:
+                os.environ.pop("SATC_OLLAMA_NUM_CTX", None)
+            else:
+                os.environ["SATC_OLLAMA_NUM_CTX"] = old
+
+
+def _a_png():
+    """A 1x1 PNG on disk — the reader only needs something to base64."""
+    import base64, tempfile
+    from pathlib import Path
+    raw = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+    p = Path(tempfile.mkdtemp()) / "page.png"
+    p.write_bytes(raw)
+    return p
