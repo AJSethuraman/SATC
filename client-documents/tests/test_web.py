@@ -855,22 +855,45 @@ def test_a_preview_shows_every_line_that_moves_and_records_nothing(client,
 
 def test_the_reason_is_what_writes_it(client, priced):
     """Two posts, one route. Without a reason it is a look; with one it is a
-    record -- and there is no third state where something is half written."""
+    record -- and there is no third state where something is half written.
+
+    ANCHORED ON THE RECORD, NOT ON THE PAGE IT USED TO PRINT. The firm chose,
+    3 September 2026, to delete the page whose whole content was one sentence
+    confirming this: you now land back on the client's file with the new
+    figure already on it. What this test is for is that a reason is what makes
+    the write happen, and that survived the page.
+    """
     posted = {**K1S_6,
               "reason": "the estate issued four more K-1s in June"}
-    page = client.post(f"/engagement/{priced}/requote", data=posted).data.decode()
-    assert "The new quote is recorded" in page
+    got = client.post(f"/engagement/{priced}/requote", data=posted)
+    assert got.status_code in (302, 303), "it still stops on a page of its own"
+
     log = requote.revisions(priced, client.store)
     assert len(log) == 1
     assert log[0]["reason"] == posted["reason"]
     assert engagements.load(priced, client.store)["EstimateTotal"] == log[0]["now"]
 
 
+def test_a_recorded_quote_lands_on_the_file_saying_what_just_happened(client,
+                                                                      priced):
+    """The confirmation page is gone, so the arrival has to carry the news --
+    otherwise a deletion turns a confirmed action into a silent one."""
+    got = client.post(f"/engagement/{priced}/requote",
+                      data={**K1S_6, "reason": "four more K-1s in June"},
+                      follow_redirects=True)
+    page = got.data.decode()
+    new_figure = engagements.load(priced, client.store)["EstimateTotal"]
+    assert new_figure in page, "the file does not show the figure that moved"
+    assert "four more K-1s in June" in page, "the reason vanished with the page"
+
+
 def test_the_page_that_records_it_offers_the_pack_again(client, priced):
     """The scope or the figure has moved, so the documents the client holds
-    are out of date. The next step is on the page that knows it."""
-    page = client.post(f"/engagement/{priced}/requote",
-                       data={**K1S_6, "reason": "four more K-1s in June"}).data.decode()
+    are out of date. The next step is on the page you land on."""
+    page = client.post(
+        f"/engagement/{priced}/requote",
+        data={**K1S_6, "reason": "four more K-1s in June"},
+        follow_redirects=True).data.decode()
     assert f"/engagement/{priced}/package" in page
 
 

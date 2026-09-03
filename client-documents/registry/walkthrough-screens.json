@@ -330,7 +330,7 @@
         "shape": "button|submit|link|/interview/<id>/back{to}",
         "label": "Change",
         "examples": [],
-        "count": 37
+        "count": 1
       },
       {
         "kind": "button",
@@ -343,71 +343,6 @@
         "kind": "link",
         "shape": "a|header||/",
         "label": "SAT-C",
-        "examples": [],
-        "count": 1
-      }
-    ]
-  },
-  {
-    "key": "created",
-    "heading": "Engagement 2026-0001 created",
-    "help": "",
-    "shot": "created.png",
-    "controls": [
-      {
-        "kind": "button",
-        "shape": "button|submit|/engagement/<ref>/package",
-        "label": "Build the signing pack",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "button",
-        "shape": "button|button|ghost|/engagement/<ref>",
-        "label": "Open the engagement",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "button",
-        "shape": "button|button|ghost|/",
-        "label": "Home",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "link",
-        "shape": "a|header||/",
-        "label": "SAT-C",
-        "examples": [],
-        "count": 1
-      }
-    ]
-  },
-  {
-    "key": "refused",
-    "heading": "Not taken on",
-    "help": "This is work you have said the firm does not take on. You can take it on anyway and it will be recorded that you did — do that only if the rule itself is wrong, not to make one exception to it.",
-    "shot": "refused.png",
-    "controls": [
-      {
-        "kind": "link",
-        "shape": "a|header||/",
-        "label": "SAT-C",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "link",
-        "shape": "a|main||/interview/<x>",
-        "label": "Back to the interview",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "link",
-        "shape": "a|main||/",
-        "label": "Home",
         "examples": [],
         "count": 1
       }
@@ -457,6 +392,35 @@
     ]
   },
   {
+    "key": "refused",
+    "heading": "Not taken on",
+    "help": "This is work you have said the firm does not take on. You can take it on anyway and it will be recorded that you did — do that only if the rule itself is wrong, not to make one exception to it.",
+    "shot": "refused.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/interview/<x>",
+        "label": "Back to the interview",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/",
+        "label": "Home",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
     "key": "package-before",
     "heading": "The signing pack",
     "help": "Everything this client signs, built in one go. Nothing is written until every document has rendered and every check has passed — so if something is wrong, you get nothing rather than half a pack. One of those checks opens every document in a browser to prove it is readable, so this takes about a minute.",
@@ -487,21 +451,6 @@
         "kind": "checkbox",
         "shape": "input|checkbox|notes|/engagement/<ref>/package",
         "label": "Also read the prose and tell me what it notices (nothing here can stop a pack)",
-        "examples": [],
-        "count": 1
-      }
-    ]
-  },
-  {
-    "key": "package-written",
-    "heading": "The signing pack",
-    "help": "4 documents, built and checked. Nothing has been sent.",
-    "shot": "package-written.png",
-    "controls": [
-      {
-        "kind": "link",
-        "shape": "a|header||/",
-        "label": "SAT-C",
         "examples": [],
         "count": 1
       }
@@ -599,35 +548,6 @@
         "kind": "textarea",
         "shape": "textarea|textarea|reason|/engagement/<ref>/requote{_asked,_asked,additional_forms[],count_k1s}",
         "label": "WHY DID THE PRICE MOVE?",
-        "examples": [],
-        "count": 1
-      }
-    ]
-  },
-  {
-    "key": "requote-done",
-    "heading": "The new quote is recorded",
-    "help": "$60.00 more.",
-    "shot": "requote-done.png",
-    "controls": [
-      {
-        "kind": "button",
-        "shape": "button|submit|/engagement/<ref>/package",
-        "label": "Build the pack again",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "button",
-        "shape": "button|submit|ghost|/engagement/<ref>",
-        "label": "Open the engagement",
-        "examples": [],
-        "count": 1
-      },
-      {
-        "kind": "link",
-        "shape": "a|header||/",
-        "label": "SAT-C",
         "examples": [],
         "count": 1
       }

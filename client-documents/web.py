@@ -48,6 +48,7 @@ import interview as iv
 import requote
 import signing
 import settings as firm
+import stages
 import tins
 
 DRAFTS = "_drafts"
@@ -202,7 +203,14 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
             # already read, and a half-finished sitting is identified by its
             # id however it is described on screen.
             return jsonify(engagements=rows, drafts=drafts)
-        return page("SAT-C", index_body(rows, [draft_card(st(), d) for d in drafts]))
+        # THE STAGES ARE READ PER ROW AND NOT CACHED. Seven file tests and
+        # one signature census each; the alternative is a summary written
+        # somewhere else, which is the second copy this repository's own S6
+        # exists to forbid.
+        where = {r["ref"]: stages.reached(r["ref"], st()) for r in rows}
+        return page("SAT-C", index_body(rows,
+                                        [draft_card(st(), d) for d in drafts],
+                                        where))
 
     # ── start ─────────────────────────────────────────────────────────────
 
@@ -543,6 +551,18 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                            overridden=outcome.overridden,
                            flags=outcome.flags), \
                 (201 if outcome.created else 200)
+        # THE PAGE WHOSE WHOLE CONTENT WAS THREE BUTTONS IS GONE. Creating
+        # lands you on the client's file with a line at the top saying it was
+        # just made -- same information, one fewer press, and you arrive
+        # somewhere you can work (firm, 3 September 2026). A REFUSAL still
+        # gets a page: there is nothing to land on, because nothing was made.
+        #
+        # The flags an outcome carries are not lost. They come from the
+        # answers, so they are on the record the client's file shows; the
+        # refusal path below still renders them where nothing else can.
+        if outcome.created:
+            return redirect(url_for("engagement", ref=outcome.ref,
+                                    just="created"))
         return page("Outcome", outcome_body(sid, outcome))
 
     # ── what exists ───────────────────────────────────────────────────────
@@ -556,8 +576,21 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         open_now = firm.open_decisions() if hasattr(firm, "open_decisions") else []
         if wants_json():
             return jsonify(ref=ref, record=record, open_decisions=open_now)
-        return page(ref, engagement_body(ref, record, open_now,
-                                         requote.revisions(ref, st())))
+
+        def whole(name):
+            try:
+                return max(0, int(request.args.get(name) or 0))
+            except ValueError:
+                return 0
+
+        kind = request.args.get("just")
+        just = ({"kind": kind, "checks": whole("checks"),
+                 "nothing": whole("nothing")}
+                if kind in ("created", "requoted", "packed") else None)
+        return page(ref, engagement_body(
+            ref, record, open_now, requote.revisions(ref, st()),
+            steps=stages.reached(ref, st()), just=just,
+            pack_dir=(st() / ref / "pack") if kind == "packed" else None))
 
     # ── packaging: the same gate, without a terminal ──────────────────────
     #
@@ -651,6 +684,30 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                 override=pack.override, detail=pack.detail,
                 pdf=want_pdf), (200 if pack.ok else 409)
 
+        # CUT 3, AND IT IS THE ONE WITH A CONDITION. The firm asked the
+        # question that settles it, 3 September 2026: *"is it meant to be a
+        # call to read it all or a call to ensure anything it flags is
+        # resolved"* -- and it is the second. The gate BLOCKS on a failure and
+        # an override costs a written reason, so when nothing is flagged there
+        # is nothing on that page for a person to do and eleven green lines is
+        # a ritual.
+        #
+        # WHAT COUNTS AS FLAGGED, and the one that is deliberately not in the
+        # list: a check that examined nothing is not something anybody can
+        # resolve -- `every cited clause name is a real section` has nothing to
+        # read on every opening pack there will ever be -- so it does not hold
+        # the page open. It is still SAID, in the line, with its count, because
+        # not-known and fine must never look alike (S2).
+        flagged = (not pack.ok
+                   or pack.readings
+                   or (pack.check and pack.check.skipped)
+                   or pack.override
+                   or pdf_note)
+        if not flagged:
+            return redirect(url_for(
+                "engagement", ref=ref, just="packed",
+                checks=len(pack.check.checked) if pack.check else 0,
+                nothing=len(pack.check.examined_nothing) if pack.check else 0))
         return page("Package", packed_body(ref, record, pack, invoice,
                                            pdf_note))
 
@@ -771,8 +828,12 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                 return jsonify(ref=ref, status="recorded",
                                was=quote.before_total, now=quote.after_total,
                                difference=quote.difference)
-            return page("Update the quote",
-                        requoted_body(ref, record, quote, changes, done=True))
+            # AND THE SAME SHAPE AGAIN. What that page showed after the write
+            # -- what changed, what it did to the estimate, why -- is the price
+            # history the client's file already prints, from the same file
+            # `apply` just wrote to. Landing there is the diff plus everything
+            # else about the client, instead of the diff on its own.
+            return redirect(url_for("engagement", ref=ref, just="requoted"))
 
         if wants_json():
             return jsonify(
@@ -1303,6 +1364,59 @@ display:block}
    coloured edge, and the consequence is beside it rather than under it.
    `HARD NO` in bold red inside an ordinary box read as emphasis; this reads
    as a different kind of thing. */
+/* ── the line that says what month it is ────────────────────────────
+   The smallest type in the software and the only thing that never moves,
+   which is what makes it readable rather than loud. THE DATE ONLY: the
+   design carried a count of clients due before it, and the season board
+   does not count extension deadlines, so that number would have read zero
+   on the very date it names. */
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 22px}
+.today{margin:0;font:400 12px/1.4 var(--sans);color:#B9C2CD;
+display:flex;flex-wrap:wrap;align-items:baseline;gap:0 9px}
+.today b{color:#fff;font-weight:600}
+.today .sep{width:1px;height:11px;background:#3A4C61;display:inline-block}
+/* Inside thirty days the date is the only time the chrome raises its
+   voice, and it does it with a rule under the words and NOT with a colour.
+   The design used the third colour here; the third colour means the
+   software is waiting on the firm, and a deadline getting close is not
+   that. A second meaning is how a colour stops meaning anything. */
+.today .soon b{text-decoration:underline;text-decoration-thickness:2px;
+text-underline-offset:3px}
+/* ── seven marks, and no running count ─────────────────────────────
+   The firm, 3 September 2026: the steps are not a sequence -- most
+   engagements bill after filing and the letter promises the opposite for
+   the ones billed first -- so a count would run backwards for half the
+   book. Each mark is lit when it happens and nothing draws an arrow
+   between them. `unknown` is a third answer, not a shy no. */
+.stage{display:flex;flex-wrap:wrap;gap:5px;margin:0;list-style:none;padding:0}
+.stage i{display:block;width:13px;height:9px;border:1px solid var(--hairline);
+border-radius:1px;background:none}
+.stage i.on{background:var(--navy);border-color:var(--navy)}
+/* NOT the third colour. "We cannot tell" is not "waiting on you" -- it is
+   the `nothing to look at` end of the vocabulary, so it takes that
+   treatment: a solid empty outline, against the dashed one that means it
+   has simply not happened yet. The word carries it either way, spelled
+   out on the client's page and in the label a screen reader reads. */
+.stage i{border-style:dashed}
+.stage i.on,.stage i.unknown{border-style:solid}
+.stage.big{gap:6px 10px;margin:2px 0 20px}
+.stage.big li{display:flex;align-items:center;gap:7px;font-size:13px;
+color:var(--mute)}
+.stage.big li.on{color:var(--navy)}
+/* What just happened, on the page you landed on. Not a refusal and not a
+   note about the work -- three screens whose whole content was one
+   sentence are this line now. */
+.flash{border-left:2px solid var(--navy);background:var(--hairline-2);
+padding:10px 13px;margin:0 0 18px;font-size:14px}
+.flash b{color:var(--navy)}
+/* THE ROW IS THE CONTROL. Twenty-six facts and a Change button on every
+   one is the same word twenty-six times, and the eye cannot find the
+   answer that is wrong. The button keeps its place in the tab order and
+   in the accessibility tree -- `opacity`, not `display` -- so it is
+   invisible to the eye and fully present to a keyboard. */
+table.plain tr:hover{background:var(--hairline-2)}
+td.fix button.link{opacity:0;transition:opacity .1s}
+tr:hover td.fix button.link,td.fix button.link:focus-visible{opacity:1}
 label.no{border-color:var(--oxblood);border-left-width:3px}
 label.no .tag{font:500 10px/1 var(--mono);letter-spacing:.09em;
 text-transform:uppercase;color:var(--oxblood);float:right;white-space:nowrap}
@@ -1405,13 +1519,72 @@ def _written_labels(pack) -> dict:
     return out
 
 
+def today_line(today: date | None = None) -> str:
+    """Today, and the next date on the firm's calendar. On every screen.
+
+    THE DATE, AND NOT A COUNT. The design's chrome read "next: 15 September
+    ... 4 clients due before it". `deadlines.board` emits papers-due and
+    filing milestones and no extended one, so that count would have been zero
+    beside an extension deadline -- a number at the top of every screen that
+    nobody could check. The firm's answer, 3 September 2026: the date now, the
+    count when the board can count it.
+
+    NOTHING HERE RAISES. The chrome is on every page including the ones that
+    exist to report a problem, and a masthead that 500s takes the whole
+    application with it.
+    """
+    now = today or date.today()
+    said = f"<b>{now.strftime('%A %-d %B')}</b>"
+    try:
+        import deadlines
+
+        ahead = deadlines.next_line(now)
+    except Exception:                                          # noqa: BLE001
+        ahead = None
+    if ahead:
+        when, what = ahead
+        soon = " class=soon" if (when - now).days <= 30 else ""
+        said += (f"<span class=sep></span><span{soon}>next: "
+                 f"<b>{when.strftime('%-d %B')}</b> &mdash; {esc(what)}</span>")
+    return f"<p class=today>{said}</p>"
+
+
 def page(title: str, body: str) -> str:
     return (f"<!doctype html><html lang=en><head><meta charset=utf-8>"
             f"<meta name=viewport content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title if title != 'SAT-C' else 'Engagements')}"
-            f" · SAT-C</title><style>{CSS}</style></head>"
-            f"<body><header><a href='/'>SAT-C</a></header><main>{body}</main>"
-            f"</body></html>")
+            f" \u00b7 SAT-C</title><style>{CSS}</style></head>"
+            f"<body><header><a href='/'>SAT-C</a>{today_line()}</header>"
+            f"<main>{body}</main></body></html>")
+
+
+def stage_bar(steps, *, big: bool = False) -> str:
+    """The seven, each lit when it happened. No count, ever.
+
+    `aria-label` carries what the ticks say, because seven boxes are a picture
+    and a picture with no words in it is not on the page for everybody.
+    """
+    if not steps:
+        return ""
+    done = [s.name for s in steps if s.reached is True]
+    cannot = [s.name for s in steps if s.reached is None]
+    said = ("done: " + ", ".join(done) if done else "nothing recorded yet")
+    if cannot:
+        said += "; cannot tell about " + ", ".join(cannot)
+    if big:
+        rows = "".join(
+            f"<li class={'on' if s.reached else ('unknown' if s.reached is None else 'off')}>"
+            f"<i class={'on' if s.reached else ('unknown' if s.reached is None else 'off')}"
+            f"></i>{esc(s.name)}"
+            + ("<span class=muted> &mdash; cannot tell</span>"
+               if s.reached is None else "")
+            + "</li>"
+            for s in steps)
+        return f"<ul class='stage big' aria-label='{esc(said)}'>{rows}</ul>"
+    ticks = "".join(
+        f"<i class={'on' if s.reached else ('unknown' if s.reached is None else 'off')}"
+        f" title='{esc(s.name)}'></i>" for s in steps)
+    return f"<p class=stage aria-label='{esc(said)}'>{ticks}</p>"
 
 
 def prices_body(prices) -> str:
@@ -1479,15 +1652,18 @@ def price_body(price, *, report=None, saved=False, error="") -> str:
     return "".join(out)
 
 
-def index_body(rows, drafts) -> str:
+def index_body(rows, drafts, steps=None) -> str:
+    steps = steps or {}
     out = ["<h1>Engagements</h1>"]
     if rows:
-        out.append("<table><tr><th>Ref</th><th>Client</th><th>Period</th></tr>")
+        out.append("<table><tr><th>Ref</th><th>Client</th><th>Period</th>"
+                   "<th>Where it is</th></tr>")
         for r in rows:
             out.append(f"<tr><td><a href='/engagement/{esc(r['ref'])}'>"
                        f"<code>{esc(r['ref'])}</code></a></td>"
                        f"<td>{esc(r['client'])}</td>"
-                       f"<td>{esc(r.get('period',''))}</td></tr>")
+                       f"<td>{esc(r.get('period',''))}</td>"
+                       f"<td>{stage_bar(steps.get(r['ref'], []))}</td></tr>")
         out.append("</table>")
     else:
         out.append("<p class=muted>None yet.</p>")
@@ -1928,10 +2104,44 @@ def _field_labels() -> dict:
     return out
 
 
-def engagement_body(ref, record, open_now, revisions=()) -> str:
+# What the three deleted pages used to say, on the page you land on instead.
+# ENUMERATED, NOT FREE TEXT. The kind arrives in a URL, and a URL a person can
+# edit is not a place to keep a sentence -- so the sentence lives here and the
+# URL carries a word from this list or nothing at all.
+def _just_happened(ref, just, where=None) -> str:
+    kind = (just or {}).get("kind")
+    if kind == "created":
+        said = ("<b>Just created.</b> Priced from the same schedule the "
+                "website publishes, and the sitting is saved beside the "
+                "record so a year from now you can see why each document "
+                "says what it says.")
+    elif kind == "requoted":
+        said = ("<b>The new quote is recorded.</b> What moved, and the reason "
+                "you gave for it, are in the price history at the bottom of "
+                "this page.")
+    elif kind == "packed":
+        checks = just.get("checks") or 0
+        blind = just.get("nothing") or 0
+        said = (f"<b>The signing pack is built.</b> "
+                f"{tally(checks, 'check')}, nothing flagged"
+                + (f" &mdash; {tally(blind, 'check')} had nothing to look at"
+                   if blind else "")
+                + ". Nothing has been sent.")
+        if where:
+            said += (f" The documents are waiting in <code>{esc(str(where))}"
+                     f"</code> for you to attach them.")
+    else:
+        return ""
+    return f"<p class=flash>{said}</p>"
+
+
+def engagement_body(ref, record, open_now, revisions=(), *,
+                    steps=(), just=None, pack_dir=None) -> str:
     out = [f"<h1>{esc(record.get('ClientFullName', ref))}</h1>",
            f"<p class=sec>{esc(ref)} &middot; "
-           f"{esc(record.get('PeriodLabel',''))}</p>"]
+           f"{esc(record.get('PeriodLabel',''))}</p>",
+           _just_happened(ref, just, pack_dir),
+           stage_bar(steps, big=True)]
     rows = ["<table class=plain>"]
     labels = _field_labels()
     waiting = []

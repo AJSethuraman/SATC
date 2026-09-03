@@ -49,6 +49,13 @@ INVENTORY_FILE = ROOT / "registry" / "walkthrough-screens.json"
 # The order a preparer meets them, which is the order the walkthrough runs in.
 # A screen missing from here is a screen the walkthrough does not cover, and
 # `missing()` says so rather than letting it be quietly skipped.
+#
+# THREE WENT ON 3 SEPTEMBER 2026, on the firm's answer. "The engagement
+# exists", "The pack, and every check that passed" and "The new quote,
+# recorded" were pages whose whole content was a sentence and some buttons;
+# each now lands on the client's file with a line at the top saying what just
+# happened. The pack one keeps its page when something is FLAGGED -- that is
+# `package-blocked`, below, and it is the case worth walking anybody through.
 SCREENS = [
     ("home", "The list you start from"),
     ("leads", "Everyone who has asked"),
@@ -59,15 +66,12 @@ SCREENS = [
     ("question-hardno", "Work the firm does not take"),
     ("question-back", "Going back to fix an answer"),
     ("review", "Everything, before anything is created"),
-    ("created", "The engagement exists"),
     ("refused", "A HARD NO"),
     ("engagement", "The record"),
     ("package-before", "What is about to be built"),
     ("package-blocked", "A check failed"),
-    ("package-written", "The pack, and every check that passed"),
     ("requote-form", "The work changed, so the price does"),
     ("requote-changes", "Every line the new quote moves"),
-    ("requote-done", "The new quote, recorded"),
     ("signatures-waiting", "Who to chase this morning"),
     ("signatures-one", "One client, and what is still out"),
     ("payments", "Which bills have been paid"),

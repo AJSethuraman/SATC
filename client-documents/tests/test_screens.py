@@ -429,3 +429,123 @@ def test_the_chase_column_shows_a_number_and_not_a_span():
     html = web.waiting_body([Waiting()])
     assert "&lt;span" not in html, "a tally reached the page escaped"
     assert "<b>11</b> days" in html
+
+
+# ── seven marks, and no running count ─────────────────────────────────────
+
+def test_the_stage_bar_never_prints_a_count():
+    """The firm, 3 September 2026, on the design's "4 of 9": the steps are not
+    a sequence, so a count runs backwards for whichever half of the book it
+    was not drawn for. `signing._unsettled` says most engagements bill after
+    filing; every engagement letter promises the opposite for the ones that
+    are billed first. Both are true, of different clients.
+
+    WOULD NOTICE: an "n of 7" coming back, in either shape.
+    """
+    import stages
+
+    steps = [stages.Step(k, n, i < 3, "") for i, (k, n) in enumerate(stages.STEPS)]
+    for html in (web.stage_bar(steps), web.stage_bar(steps, big=True)):
+        assert " of 7" not in html and " of " not in html.replace("aria-label", "")
+        assert "3" not in html
+
+
+def test_a_step_the_software_cannot_tell_about_is_not_drawn_as_not_done():
+    """`signed` is the one that needs more than a file test, and if the
+    templates cannot be read the honest answer is that we do not know. A gate
+    that quietly reads "cannot tell" as "no" is the same failure as one that
+    reads it as "yes" (S5).
+
+    WOULD NOTICE: `None` collapsing into the unlit branch.
+    """
+    import stages
+
+    steps = [stages.Step("sitting", "sitting done", True, ""),
+             stages.Step("signed", "signed", None, ""),
+             stages.Step("paid", "paid", False, "")]
+    small = web.stage_bar(steps)
+    assert "unknown" in small, small
+    assert "cannot tell about signed" in small
+    big = web.stage_bar(steps, big=True)
+    assert "cannot tell" in big, big
+
+
+def test_every_step_names_the_file_that_proves_it():
+    """A mark with no evidence behind it is a claim. `PROOF` is what a person
+    is told when they ask why one is not lit, and it is beside the derivation
+    so the two cannot drift.
+
+    WOULD NOTICE: a step added to `STEPS` with nothing saying how it is known.
+    """
+    import stages
+
+    assert set(stages.PROOF) == {k for k, _ in stages.STEPS}
+    assert all(stages.PROOF[k] for k, _ in stages.STEPS)
+
+
+def test_the_seven_are_the_seven_the_firm_named():
+    """Nine were designed and seven are derivable. This pins the SET, not the
+    order, because the order is a listing convenience and the docstring says
+    so; the set is what the firm answered.
+    """
+    import stages
+
+    assert [k for k, _ in stages.STEPS] == [
+        "sitting", "packed", "sent", "signed", "billed", "paid", "closed"]
+
+
+# ── the line at the top of every screen ───────────────────────────────────
+
+def test_the_chrome_names_a_date_and_never_a_count_of_clients():
+    """The design's line read "4 clients due before it". `deadlines.board`
+    emits papers-due and filing milestones and no extended one, so beside an
+    extension deadline that count is zero -- a number at the top of every
+    screen that nobody can check. Date now, count when the board can count it.
+
+    WOULD NOTICE: a client count arriving in the chrome before the board does.
+    """
+    from datetime import date
+
+    said = web.today_line(date(2026, 9, 3))
+    assert "Thursday 3 September" in said
+    assert "15 September" in said
+    assert "client" not in said and "due before" not in said
+
+
+def test_the_chrome_says_who_a_deadline_is_for_in_the_firms_own_words():
+    """The four names are read out of the interview's own option labels, so
+    there is no second list to keep in step (S6/S7).
+
+    WOULD NOTICE: the join breaking, which would leave `s_corp_1120s` on the
+    masthead.
+    """
+    from datetime import date
+
+    said = web.today_line(date(2026, 9, 3))
+    assert "S corporations" in said and "partnerships" in said
+    assert "_1120s" not in said and "_1065" not in said
+
+
+def test_the_chrome_survives_a_calendar_that_cannot_answer(monkeypatch):
+    """It is on every screen including the ones that exist to report a
+    problem. A masthead that raises takes the whole application with it.
+
+    WOULD NOTICE: the guard being removed.
+    """
+    import deadlines
+    from datetime import date
+
+    def boom(*a, **k):
+        raise RuntimeError("no calendar")
+
+    monkeypatch.setattr(deadlines, "next_line", boom)
+    said = web.today_line(date(2026, 9, 3))
+    assert "3 September" in said and "next:" not in said
+
+
+def test_a_deadline_inside_thirty_days_is_the_only_thing_that_raises_its_voice():
+    """WOULD NOTICE: `soon` being applied always, or never."""
+    from datetime import date
+
+    assert "class=soon" in web.today_line(date(2026, 9, 3))
+    assert "class=soon" not in web.today_line(date(2026, 10, 20))

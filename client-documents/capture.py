@@ -219,14 +219,33 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
         # ── review, and what it decides ───────────────────────────────────
         await answer_through(ctx, app.base, sid)
         await go(f"/interview/{sid}")
+        # HOVER ONE ROW FIRST, because that is the control now. Twenty-six
+        # answers each carrying the word `Change` is the word twenty-six times
+        # and the eye cannot find the one that is wrong, so from 3 September
+        # 2026 the word appears on the row you are pointing at or have tabbed
+        # to. The harness counts what a preparer can SEE (`checkOpacity`), so
+        # photographing this screen cold would show -- correctly -- no way to
+        # change anything, and the walkthrough would stop explaining one.
+        # THE ROW THAT HAS ONE, not the second row. Only some answers are
+        # editable, so `tr:nth-child(2)` hovered whichever row happened to be
+        # second -- and when that one carried no Change button the harness
+        # correctly reported none drawn, and the walkthrough check failed
+        # saying the registry explained a control that was not there. The
+        # control was there; the hover was pointed at the wrong row.
+        await page.locator("table.plain tr:has(td.fix button.link)").first \
+                  .hover()
         screens.append(await look(page, "review", shots))
 
+        # CREATING LANDS ON THE CLIENT'S FILE. The page that used to say
+        # "Engagement 2026-0001 created" and offer three buttons is gone
+        # (3 September 2026), so this is where a preparer arrives -- with the
+        # line at the top saying it was just made and the stage bar showing
+        # the one thing that has happened so far. Photographed HERE rather
+        # than later precisely because that is the state they meet.
         await page.click("button:has-text('Create the engagement')")
         await page.wait_for_load_state("networkidle")
-        screens.append(await look(page, "created", shots))
-        ref = await page.evaluate(
-            "() => (document.querySelector('h1').innerText.match"
-            "(/\\d{4}-\\d{4}/) || [''])[0]")
+        screens.append(await look(page, "engagement", shots))
+        ref = page.url.rstrip("/").split("/engagement/")[-1].split("?")[0]
 
         # ── the same interview, refused ───────────────────────────────────
         no = (await (await ctx.request.post(app.base + "/interview",
@@ -250,16 +269,17 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
         await page.wait_for_load_state("networkidle")
         screens.append(await look(page, "refused", shots))
 
-        # ── the record, and the pack ──────────────────────────────────────
-        await go(f"/engagement/{ref}")
-        screens.append(await look(page, "engagement", shots))
+        # ── the pack ──────────────────────────────────────────────────────
         await go(f"/engagement/{ref}/package")
         screens.append(await look(page, "package-before", shots))
 
+        # A CLEAN BUILD NO LONGER HAS A PAGE. Nothing was flagged, so it lands
+        # back on the client's file with the count on a line -- which is why
+        # nothing is photographed here. The build still has to RUN: everything
+        # after this walks an engagement that has a pack.
         async with page.expect_navigation(timeout=300000, wait_until="load"):
             await page.click("button:has-text('Build the pack')",
                              no_wait_after=True)
-        screens.append(await look(page, "package-written", shots))
 
         # ── the work changed, so the price does ───────────────────────────
         #
@@ -287,10 +307,11 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
 
         await page.fill("textarea[name=reason]",
                         "the estate issued four more K-1s in June")
+        # Same again: recording the quote lands on the client's file, where
+        # the price history it used to show on its own page already prints.
         async with page.expect_navigation(timeout=300000, wait_until="load"):
             await page.click("button:has-text('Record the new quote')",
                              no_wait_after=True)
-        screens.append(await look(page, "requote-done", shots))
 
         # ── who has signed, and who has not ───────────────────────────────
         #

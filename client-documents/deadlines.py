@@ -63,6 +63,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from pathlib import Path
 
 # HOW LONG BEFORE THE FILING DATE the firm wants the client's papers. Policy,
 # not statute -- the one number to change. See the module docstring for why it
@@ -187,6 +188,103 @@ def season(tax_year: int) -> list[Milestone]:
         out.append(Milestone(filing_date(rt, tax_year, extended=True),
                              "extended return due", rt, "extended"))
     return sorted(out, key=lambda m: (m.when, m.return_type, m.kind))
+
+
+# ── what is next, for the line at the top of every screen ─────────────────
+#
+# THE DATE HALF ONLY, AND THAT IS THE FIRM'S DECISION. Claude Design's chrome
+# carried "next: 15 September ... 4 clients due before it". The date is
+# derived from the statute here and is safe; the COUNT is not. `board()` below
+# emits `materials` and `filing` milestones and no `extended` one, so a count
+# beside an extension deadline would have read zero on the very date it named
+# -- a number nobody could check, at the top of every screen, which is exactly
+# the shape §0 of the tenets is a list of. The count goes up when the board
+# counts extensions and not before (firm, 3 September 2026).
+
+
+def _plain_words() -> dict[str, str]:
+    """`{return type: what the firm calls that client}`, plural.
+
+    READ OUT OF THE INTERVIEW'S OWN OPTION LABELS rather than typed here. A
+    second list of names for the same four things is a second list to keep in
+    step, and this repository's own rule for that is to derive one from the
+    other (S6). `test_deadlines` holds the two files together, so a label the
+    firm rewords carries through and a form number either side gains without
+    the other fails.
+    """
+    import yaml
+
+    spec = yaml.safe_load(
+        (Path(__file__).resolve().parent / "registry" / "interview.yaml")
+        .read_text(encoding="utf-8")) or {}
+    out: dict[str, str] = {}
+    for section in spec.get("sections") or []:
+        for question in section.get("questions") or []:
+            if question.get("id") != "federal_form":
+                continue
+            for option in question.get("options") or []:
+                kind = _FORM_TO_TYPE.get(str(option.get("value", "")).upper())
+                label = str(option.get("label", ""))
+                if kind and "\u2014" in label:
+                    out[kind] = label.split("\u2014", 1)[1].strip() + "s"
+    return out
+
+
+def who(return_type: str) -> str:
+    """The plural noun for one return type, or the key when we have no word.
+
+    Falling back to the key is deliberate: a form number the interview stops
+    offering would otherwise vanish off the chrome silently, and a reader
+    seeing `s_corp_1120s` will ask, which is the outcome to want.
+    """
+    return _plain_words().get(return_type, return_type)
+
+
+def next_dates(today: date | None = None) -> list[Milestone]:
+    """Every milestone falling on the next date the firm's calendar carries.
+
+    A LIST, BECAUSE TWO RETURN TYPES SHARE MOST DATES. 15 March is partnerships
+    and S corporations; 15 April is individuals and C corporations. Naming one
+    of the pair on the chrome would be true and misleading.
+
+    Seasons overlap -- an extended 1065 for one tax year is due five months
+    after the next year's papers are asked for -- so this looks across the
+    three tax years that can still have a live date, rather than assuming
+    which season it is.
+    """
+    now = today or date.today()
+    soonest: list[Milestone] = []
+    for year in (now.year - 2, now.year - 1, now.year):
+        for milestone in season(year):
+            if milestone.when < now:
+                continue
+            if not soonest or milestone.when < soonest[0].when:
+                soonest = [milestone]
+            elif milestone.when == soonest[0].when:
+                soonest.append(milestone)
+    return soonest
+
+
+def next_line(today: date | None = None) -> tuple[date, str] | None:
+    """`(the date, what falls on it)` for the chrome, or None.
+
+    None when nothing is ahead, which happens only if the rule stops
+    producing dates -- and an empty line is the right answer to that, not a
+    guessed one.
+    """
+    ahead = next_dates(today)
+    if not ahead:
+        return None
+    kinds = {m.what for m in ahead}
+    # One date can carry two different things -- papers due in for one return
+    # type and a filing deadline for another. Say both rather than picking.
+    parts = []
+    for what in sorted(kinds):
+        names = sorted({who(m.return_type) for m in ahead if m.what == what})
+        if len(names) > 1:
+            names = [", ".join(names[:-1]) + " and " + names[-1]]
+        parts.append(f"{what} for {names[0]}")
+    return ahead[0].when, "; ".join(parts)
 
 
 # ── the board: the season across the whole book ───────────────────────────

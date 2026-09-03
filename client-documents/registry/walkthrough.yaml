@@ -128,19 +128,13 @@ question-back:
 
 review:
   "button:Change": >-
+    Appears on the row you are pointing at, or the row you have tabbed to.
     Jumps back to that one answer and returns here when you have saved it. This
     is the last look before anything exists, so read the list out loud if the
     client is still with you.
   "button:Create the engagement": >-
     Creates the record and prices it. Nothing has been written until this is
     pressed; up to here you can abandon the sitting and nothing has happened.
-
-created:
-  "button:Build the signing pack": >-
-    Everything this client signs, built in one go. Safe to press: nothing is
-    sent to anybody, and you get to look at every check before anything leaves.
-  "button:Open the engagement": null
-  "button:Home": null
 
 refused:
   "link:Back to the interview": >-
@@ -188,9 +182,6 @@ package-blocked:
     thing: the deleted line is inside a quoted excerpt from the client's own
     letter. "Urgent" is not a reason.
 
-# Nothing to press. It is the report, and the pack is already on disk.
-package-written: {}
-
 requote-form:
   "button:See what changes": >-
     Prices it again and shows you the result. Nothing is written by pressing
@@ -220,14 +211,6 @@ requote-changes:
     will ask why this client was charged more than the letter says, and this
     sentence is the answer. "Bought a second rental in April" works.
     "Updated" does not.
-
-requote-done:
-  "button:Build the pack again": >-
-    Rebuilds everything the client signs, with the new figure on it. Press it
-    when the scope changed — the page above tells you whether it did. If only
-    the price moved, the engagement letter still reads correctly and the
-    estimate can go on its own.
-  "button:Open the engagement": null
 
 prices:
   "link[a|main||/prices/<x>]": >-
