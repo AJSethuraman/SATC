@@ -380,9 +380,28 @@ Two guards, both verified to actually fire rather than merely exist:
   database being written to cannot be captured mid-transaction, and every copy
   is reopened and `PRAGMA integrity_check`ed before the run reports success.
 
-**Still open:** sign-in. It is an interactive login and could not be done for
-the firm; until it happens the job runs, fails loudly, and says why. And the
-key still needs its second home.
+**Running, as of 18:41 UTC on 3 September 2026.** Signed in to
+`OneDrive - Sethuraman Accounting Tax and Consulting LLP`, task registered as
+`ajish` / Interactive / Limited, first run exit 0, next run 12:30 the following
+day. The first real backup:
+
+```
+    ok       satc_mart.db       200,704 bytes   22 table(s), integrity ok
+    ok       satc_vault.db       20,480 bytes   3 table(s), integrity ok
+    ok       vault.key is NOT in the destination, as intended
+    MATCH    satc_mart.db     22 table(s),  102 row(s)
+    MATCH    satc_vault.db     3 table(s),   21 row(s)
+```
+
+Both files carry the `ReparsePoint` attribute, which OneDrive only applies once
+a file has been **uploaded** and converted to a Files-On-Demand placeholder. So
+this is off-machine in fact, not merely written to a folder that syncs
+eventually. It also means a restore needs connectivity: the local copies are
+placeholders, not second copies.
+
+**The one thing still missing is the key.** `vault.key` has no second home. Until
+it does, this restores a file nobody can read — which is the arrangement working
+exactly as designed, and useless in the disaster it exists for.
 
 **This is a deliberate deviation from local-first.** `CLAUDE.md` says client
 data stays on the firm's own hardware rather than in a vendor cloud. Sending the
