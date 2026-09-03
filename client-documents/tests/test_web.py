@@ -13,8 +13,9 @@ own source and fails if a decision is ever written into it.
 from __future__ import annotations
 
 import json
+import uuid
 import re
-from datetime import date
+from datetime import date, timedelta
 import sys
 from pathlib import Path
 
@@ -99,13 +100,23 @@ def answer_next(client, sid, value):
 def drive(client, answers):
     """Run a whole interview through the HTTP API, as automation would."""
     sid = client.post("/interview", headers=JSON).get_json()["draft"]
-    while True:
+    # BOUNDED, AND IT SAYS WHERE IT STUCK. `while True` here spins forever when
+    # `answers` has no entry for a required question: the POST comes back 400,
+    # the sitting does not advance, and the next read asks the same question
+    # again. That cost ten minutes of a test run on 3 September 2026 and looked
+    # like a hang rather than a failing test.
+    for _ in range(200):
         state = client.get(f"/interview/{sid}", headers=JSON).get_json()
         if state["complete"]:
             return sid
         qid = state["question"]["id"]
-        client.post(f"/interview/{sid}", json={"answer": answers.get(qid)},
-                    headers=JSON)
+        got = client.post(f"/interview/{sid}", json={"answer": answers.get(qid)},
+                          headers=JSON)
+        if got.status_code >= 400:
+            raise AssertionError(
+                f"the sitting cannot get past {qid!r}: "
+                f"{got.get_json().get('error')}")
+    raise AssertionError("the interview did not finish in 200 questions")
 
 
 # ── the same answers reach the same outcome by either door ────────────────
@@ -964,3 +975,110 @@ def test_both_doors_reach_the_same_verdict(client, priced):
     assert got["difference"].endswith("more")
     assert any(m["service"] == "Schedule K-1 received" for m in got["moved"])
     assert not requote.revisions(priced, client.store)
+
+
+# ── F14 · a resubmit cannot land on the next question ──────────────────────
+
+def test_a_stale_resubmit_is_refused_rather_than_applied(client):
+    """The double-click, reproduced.
+
+    Before the fix, posting the same value twice set `federal_form` AND
+    `return_basis` — the second post carried no question id, so the server
+    applied it to whatever was current by then. On an entity sitting the stray
+    answer lands on `signer_title`, which prints verbatim in the engagement
+    letter.
+    """
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    first = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    assert first["id"] == "federal_form"
+
+    ok = client.post(f"/interview/{sid}",
+                     json={"question": "federal_form", "answer": "1040"},
+                     headers=JSON)
+    assert ok.status_code == 200
+
+    # The same post arriving again — the browser's second click.
+    again = client.post(f"/interview/{sid}",
+                        json={"question": "federal_form", "answer": "1040"},
+                        headers=JSON)
+    assert again.status_code == 409, "the stale answer was applied"
+
+    answers = web.load_draft(client.store, sid)["answers"]
+    assert answers["federal_form"] == "1040"
+    assert "return_basis" not in answers, "it landed on the next question"
+
+
+def test_a_post_that_names_no_question_still_works(client):
+    """The JSON door predates this and callers may not send it.
+
+    Present-and-wrong is the case that matters; absent is accepted so that
+    anything written before the hidden field stays working.
+    """
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    got = client.post(f"/interview/{sid}", json={"answer": "1040"}, headers=JSON)
+    assert got.status_code == 200
+    assert web.load_draft(client.store, sid)["answers"]["federal_form"] == "1040"
+
+
+def test_the_browser_form_carries_the_question_it_is_asking(client):
+    """The hidden field is what makes the guard reachable from a browser."""
+    sid = client.post("/interview").headers["Location"].rsplit("/", 1)[-1]
+    page = client.get(f"/interview/{sid}").get_data(as_text=True)
+    assert "name=question value='federal_form'" in page
+
+
+# ── F10 · abandoned sittings do not keep a prospect's address forever ──────
+
+def _aged_draft(client, sid_answers, *, days_old, **extra):
+    """A draft on disk, dated `days_old` days ago.
+
+    Written directly rather than driven through the interview: an ABANDONED
+    sitting is by definition one that never finished, and `drive` cannot
+    produce one -- it answers every question or fails.
+    """
+    sid = uuid.uuid4().hex[:12]
+    data = {"answers": dict(sid_answers),
+            "started": (date.today() - timedelta(days=days_old)).isoformat()}
+    data.update(extra)
+    web.save_draft(client.store, sid, data)
+    return sid
+
+
+def test_an_abandoned_sitting_is_deleted_after_the_retention_period(client, answers):
+    """It held a name, a street address, an email and free-text notes in
+    cleartext, in a folder that syncs to OneDrive, indefinitely."""
+    half_finished = {"client_full_name": "A Half-Finished Call",
+                     "client_address1": "1 Somewhere Street",
+                     "client_email": "someone@example.com"}
+    old = _aged_draft(client, half_finished, days_old=web.DRAFT_TTL_DAYS + 1)
+    fresh = _aged_draft(client, half_finished, days_old=1)
+
+    removed = web.purge_drafts(client.store)
+
+    assert old in removed
+    assert fresh not in removed
+    assert not web.draft_path(client.store, old).exists()
+    assert web.draft_path(client.store, fresh).exists()
+
+
+def test_a_refusal_is_kept_however_old_it_is(client, answers):
+    """Refused work is not lost work — the firm needs to know who it turned
+    away. `test_a_refusal_keeps_the_draft` pins that for a fresh one; this
+    pins that the clock does not quietly undo it."""
+    refused = _aged_draft(client, dict(answers) | {"red_flags": ["assurance_needed"]},
+                          days_old=web.DRAFT_TTL_DAYS * 5)
+    assert web.purge_drafts(client.store) == []
+    assert web.draft_path(client.store, refused).exists()
+
+
+def test_a_decline_is_kept_too(client, answers):
+    declined = _aged_draft(client, dict(answers) | {"decision": "no"},
+                           days_old=web.DRAFT_TTL_DAYS * 5)
+    assert declined not in web.purge_drafts(client.store)
+
+
+def test_a_draft_with_no_readable_date_is_kept(client, answers):
+    """The safe direction for a rule whose failure mode is destroying a record."""
+    sid = _aged_draft(client, answers, days_old=999, started="not-a-date")
+    assert web.purge_drafts(client.store) == []
+    assert web.draft_path(client.store, sid).exists()

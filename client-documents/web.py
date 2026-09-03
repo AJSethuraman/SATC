@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
 
@@ -107,6 +107,55 @@ def save_draft(store: Path, sid: str, data: dict) -> None:
     p = draft_path(store, sid)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+# HOW LONG AN ABANDONED SITTING LIVES. Set by the firm, 3 September 2026, at
+# ninety days: long enough that a client who goes quiet in March and calls back
+# in May loses nothing, short enough that a half-finished call is not holding a
+# prospect's home address a year later.
+DRAFT_TTL_DAYS = 90
+
+
+def _was_decided(answers: dict) -> bool:
+    """Did the firm actually decide something about this client?
+
+    A REFUSAL AND A DECLINE ARE KEPT, DELIBERATELY. Refused work is not lost
+    work -- `test_a_refusal_keeps_the_draft` pins that, and it should stay: the
+    firm needs to know who it turned away and why. Same for a decline.
+
+    An ABANDONED sitting is a different thing. Nobody decided anything, nobody
+    is coming back to it, and it is holding a name, a street address and an
+    email in cleartext in a folder that syncs to OneDrive.
+    """
+    if iv.hard_no(answers):
+        return True
+    return str(answers.get("decision") or "") in ("no", "yes")
+
+
+def purge_drafts(store: Path, *, today: date | None = None,
+                 ttl_days: int = DRAFT_TTL_DAYS) -> list[str]:
+    """Delete abandoned sittings older than the retention period.
+
+    Returns what it removed, so a caller can say so rather than deleting client
+    data silently. A draft whose `started` will not parse is KEPT -- the safe
+    direction for a rule whose failure mode is destroying a record.
+    """
+    cutoff = (today or date.today()) - timedelta(days=ttl_days)
+    removed = []
+    folder = store / DRAFTS
+    if not folder.is_dir():
+        return removed
+    for path in sorted(folder.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            started = date.fromisoformat(str(data.get("started")))
+        except (OSError, ValueError, TypeError):
+            continue                      # unreadable or undated: keep it
+        if started >= cutoff or _was_decided(data.get("answers") or {}):
+            continue
+        path.unlink(missing_ok=True)
+        removed.append(path.stem)
+    return removed
 
 
 def draft_card(store: Path, sid: str) -> dict:
@@ -197,6 +246,11 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
 
     @app.get("/")
     def index():
+        # RETENTION RUNS HERE BECAUSE THIS IS THE PAGE THAT LISTS THEM. No
+        # scheduler exists on this machine, and adding one for a directory scan
+        # would be a second thing to keep alive; the sittings list is looked at
+        # far more often than every ninety days.
+        purge_drafts(st())
         rows = engagements.listing(st())
         drafts = sorted(p.stem for p in (st() / DRAFTS).glob("*.json")) \
             if (st() / DRAFTS).exists() else []
@@ -449,6 +503,20 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         _, q = nxt
 
         body = request.get_json(silent=True) if request.is_json else None
+
+        # A POST THAT NAMES A QUESTION MUST NAME THE CURRENT ONE. The browser
+        # always sends it; the JSON door may not, and an absent id is accepted
+        # so that callers written before this stay working. Present-and-wrong
+        # is the case that matters -- it is exactly the stale resubmit.
+        meant_for = (body or {}).get("question") or request.form.get("question")
+        if meant_for and meant_for != q["id"]:
+            if wants_json():
+                return jsonify(error="that answer was for an earlier question; "
+                                     "the sitting has moved on",
+                               question=q["id"]), 409
+            abort(409, "that answer was for an earlier question -- "
+                       "the sitting has moved on. Nothing was changed.")
+
         if body is not None:
             raw = body.get("answer")
         elif q["type"] in ("multi",):
@@ -1909,6 +1977,14 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
                        f"so it needs a real one.</p>")
 
     out.append(f"<form method=post action='/interview/{esc(sid)}'>")
+    # WHICH QUESTION THIS ANSWER IS FOR. Without it the server worked the
+    # target out AFTER reading the draft, so a double-click, a browser resubmit
+    # or a second tab applied the value to whatever question was current by the
+    # time it landed. Proven: posting "1040" twice set `federal_form` AND
+    # `return_basis`. F2's options check refuses most of those now, but a
+    # free-text question offers nothing to check against -- a name or a note
+    # would still overwrite the wrong field.
+    out.append(f"<input type=hidden name=question value='{esc(q['id'])}'>")
     t = q["type"]
     # AN ANSWER YOU CAME BACK TO IS SHOWN AS IT STANDS. Stepping back to a
     # blank form asks a preparer to remember what they typed, in front of the

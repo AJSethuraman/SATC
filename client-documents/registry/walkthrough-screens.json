@@ -169,7 +169,7 @@
     "controls": [
       {
         "kind": "button",
-        "shape": "button|submit|/interview/<id>",
+        "shape": "button|submit|/interview/<id>{question}",
         "label": "Next",
         "examples": [],
         "count": 1
@@ -183,7 +183,7 @@
       },
       {
         "kind": "radio",
-        "shape": "input|radio|answer|/interview/<id>",
+        "shape": "input|radio|answer|/interview/<id>{question}",
         "label": "",
         "examples": [
           "Form 1040 — individual",
@@ -210,7 +210,7 @@
       },
       {
         "kind": "button",
-        "shape": "button|submit|/interview/<id>",
+        "shape": "button|submit|/interview/<id>{question}",
         "label": "Next",
         "examples": [],
         "count": 1
@@ -223,8 +223,8 @@
         "count": 1
       },
       {
-        "kind": "text",
-        "shape": "input|text|answer|/interview/<id>",
+        "kind": "number",
+        "shape": "input|number|answer|/interview/<id>{question}",
         "label": "the answer to “Which tax year?”",
         "examples": [],
         "count": 1
@@ -246,7 +246,7 @@
       },
       {
         "kind": "button",
-        "shape": "button|submit|/interview/<id>",
+        "shape": "button|submit|/interview/<id>{question}",
         "label": "Next",
         "examples": [],
         "count": 1
@@ -260,7 +260,7 @@
       },
       {
         "kind": "checkbox",
-        "shape": "input|checkbox|answer|/interview/<id>",
+        "shape": "input|checkbox|answer|/interview/<id>{question}",
         "label": "",
         "examples": [
           "Deadline is tight for the work involved",
@@ -291,7 +291,7 @@
       },
       {
         "kind": "button",
-        "shape": "button|submit|/interview/<id>",
+        "shape": "button|submit|/interview/<id>{question}",
         "label": "Save the change",
         "examples": [],
         "count": 1
@@ -312,7 +312,7 @@
       },
       {
         "kind": "text",
-        "shape": "input|text|answer|/interview/<id>",
+        "shape": "input|text|answer|/interview/<id>{question}",
         "label": "the answer to “Taxpayer's name, as it goes under the signature line”",
         "examples": [],
         "count": 1

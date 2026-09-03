@@ -20,7 +20,13 @@ belongs in a question to the firm, not in a register that reads as fact.
 
 ---
 
-## Open — the client interview, raised 3 September 2026
+## Open
+
+*(Nothing. All fourteen from the 3 September interview triage are closed —
+thirteen raised by the review and F14 split out of F1 when its first fix turned
+out to be partial. New entries go here as they are reproduced.)*
+
+## Closed — the client interview, raised 3 September 2026
 
 Reproduced against the live interview engine and a running form on a temp store.
 No client data was opened. The firm's decision form, with a recommendation and a
@@ -29,10 +35,6 @@ reason on every item:
 
 | # | Defect | Costs | State |
 |---|---|---|---|
-| **F14** | `POST /interview/<sid>` still carries no question id, so a resubmit is applied to whatever question is current when it lands. No longer able to store a wrong *value* (F2 refuses it), but on a free-text question — a name, a note — there are no options to check against, so it can still overwrite the wrong field | wrong document | open, split from F1 |
-| **F9** | `test_coverage.py:86-99` asserts a `1120` produces `business-letter`; `cli.py:126-131` sends a C corp to `ccorp-letter`. Passes only because the test hand-writes two answers a real 1120 sitting prunes. **The live path is fine** — I drove a real 1120 end to end | test integrity | queued |
-| **F10** | A draft is deleted only when an engagement is created. A decline or an abandoned call leaves name, address and email in cleartext JSON indefinitely — in a folder that now syncs to OneDrive. TINs are already refused on every write; names are not | PII retention | awaiting decision **C** (retention period) |
-| **F11** | The PRD describes seven sections with red flags at six; the schema has nine with red flags second, plus three sections the PRD never mentions. PRD requirement 8 is that someone can build the Microsoft Form from it — today they would build the wrong one | doc drift | queued |
 
 **Not one of the thirteen was covered by an existing test.** That is the number
 worth remembering: the suite was 1,362 green and knew about none of it. It is
@@ -117,6 +119,28 @@ recording: `_plausible` returned `"x"` for anything textual, so every walk
 stalled at the first question with a `pattern`. The fix tries stock values
 against the pattern rather than mapping question ids, so the next question to
 grow one does not silently stall every walk again.
+
+### 3 September 2026 — the last four, and the register is empty
+
+| # | Defect | Closed by |
+|---|---|---|
+| **F14** | `POST /interview/<sid>` carried no question id, so a resubmit applied to whatever question was current when it landed | A hidden `question` field, and a 409 when it names a question the sitting has moved past. Absent is still accepted — the JSON door predates it, and present-and-wrong is the case that matters |
+| **F9** | The coverage test asserted `business-letter` for a 1120, which gets `ccorp-letter`, and passed only because it hand-wrote two answers a real 1120 sitting prunes | It drives a real sitting and takes the document from `OPENING_BY_RETURN`. A second test asserts every opening letter is covered, so `ccorp-letter` cannot go unchecked again |
+| **F10** | Abandoned drafts kept a prospect's name, address and email in cleartext forever, in a folder that syncs to OneDrive | `purge_drafts()` at 90 days, the firm's number. Refusals and declines are kept deliberately; an undated draft is kept, because the failure mode of this rule is destroying a record |
+| **F11** | The PRD described seven sections with red flags at six; the schema has ten with red flags second | The PRD is read back from the schema and says the schema wins, and `test_the_prd_names_the_sections_the_schema_actually_has` fails if a section is ever added silently |
+
+**Two harnesses caught things the suite did not**, which is the whole argument
+for keeping them:
+
+- `capture.py` failed after F3. It walks to "the first `text` question with no
+  claim", which used to be `tax_year` — giving that its own `type: year` moved
+  the stop PAST `red_flags`, so the walk answered the hard-no question on its
+  way by and photographed the review screen instead. 1,412 tests were green
+  while this was broken. The hand-maintained walkthrough registry was the only
+  thing that noticed (S9).
+- `drive()` in `test_web.py` looped `while True` and spun forever on a missing
+  answer instead of failing. It cost ten minutes of a run and looked like a
+  hang. Bounded now, and it says which question it stuck on.
 
 ### The year window, and why it is not three
 

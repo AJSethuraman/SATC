@@ -199,8 +199,15 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
         screens.append(await look(page, "question-claim", shots))
 
         # A plain typed question, and one that can refuse the work.
+        #
+        # `year` COUNTS AS TYPED. It is a box you type into, and until
+        # 3 September 2026 `tax_year` was `type: text` and was the question this
+        # stopped at. Giving it its own type moved this stop PAST `red_flags` --
+        # so the walk answered the hard-no question on its way by, and the next
+        # step had no hard-no question left to photograph and shot the review
+        # screen instead. The registry caught it; nothing else would have.
         await answer_through(ctx, app.base, sid,
-                             stop_at=lambda s: s["question"]["type"] == "text"
+                             stop_at=lambda s: s["question"]["type"] in ("text", "year")
                              and not s["claim"])
         await go(f"/interview/{sid}")
         screens.append(await look(page, "question", shots))
