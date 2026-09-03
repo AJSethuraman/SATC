@@ -60,8 +60,8 @@ be both. An LLC can elect it and stay an LLC with the state.
   anyone else on it.
 - Payroll brings an EIN, tax deposits through the year, a return every quarter,
   another one annually, and W-2s each January.
-- Ohio and the city where the work happens want their share of the wage — a
-  registration each, and returns of their own.
+- Wages bring state and local obligations too — a registration and returns for
+  each.
 - A late business return is charged a penalty per owner, per month, whether or
   not the company owed any tax.
 
@@ -95,8 +95,9 @@ Against it:
 - Payroll, every pay period, all year — a service that runs it or the hours to
   do it yourself.
 - A second tax return each year, and a K-1 per owner.
-- A wage is not business profit, so the deduction that applies to business
-  profit does not reach it. Some of the saving goes back out that way.
+- A wage is not business profit. There is a deduction that applies to business
+  profit and not to wages, so moving profit into wages shrinks it and hands
+  part of the saving back.
 - Social Security tax stops at an amount of wages that is reset every year.
   Past that point the arithmetic is different.
 
