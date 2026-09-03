@@ -779,8 +779,12 @@ def test_the_check_table_and_the_failures_above_it_cannot_disagree():
     rows = table.split("<tr>")
     deleted = next(r for r in rows if "has deleted has come back" in r)
     enclosure = next(r for r in rows if "promised enclosure" in r)
-    assert ">FAIL<" in deleted, deleted
-    assert ">ok<" in enclosure, enclosure
+    # THE PROPERTY IS THE DISAGREEMENT, NOT THE WORDS. `ok`/`FAIL` became
+    # `fine`/`stops it` on 2 September 2026, because the mark should say what
+    # happens to the person reading rather than what the check did. The example
+    # moved and the rule did not (S25).
+    assert "mk stop" in deleted and "stops it" in deleted, deleted
+    assert "mk pass" in enclosure and ">fine<" in enclosure, enclosure
 
 
 # ── quoting a live engagement again ───────────────────────────────────────

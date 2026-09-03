@@ -109,10 +109,10 @@ question-hardno:
   # caught it because the key changed; nothing would have caught the wrong
   # fact on its own.
   "answer[/interview/<id>]": >-
-    Tick everything that is true; several can be. The top two are marked HARD
-    NO in red — work the firm does not take. Ticking one of those ends the
-    sitting here: no engagement, no price, no documents, and the screen says
-    which one stopped it.
+    Tick everything that is true; several can be. The top two carry a red
+    edge and say "the firm says no" — work the firm does not take. Ticking one
+    of those ends the sitting here: no engagement, no price, no documents, and
+    the screen says which one stopped it.
 
 question-back:
   "button:← Back": null
@@ -154,6 +154,11 @@ engagement:
     Who still has to sign, and where you write down one that has come back.
     Also the one place that says what has to be true before the return can go
     — including the two things this software cannot see for you.
+  "button:Documents": >-
+    Every document this client's file can produce, one at a time — to read, to
+    print, or to send. Nothing here asks for another interview; it all comes
+    from answers already on file. The ones that travel with the signing pack
+    say so rather than offering a send button that would be wrong.
   "button:Update the quote": >-
     For when the work has changed since you priced it — a second rental, a K-1
     that turned up, a side business that turned out to be a real one. You are
@@ -173,7 +178,7 @@ package-before:
     someone has changed the wording.
 
 package-blocked:
-  "button:Send it anyway, and record that": >-
+  "button:Send it past these checks": >-
     Sends the pack past a check that failed. It needs the reason above, and
     both the reason and the failed checks go into this engagement's record with
     the date. Use it when you can see the check is wrong about this document —

@@ -1087,16 +1087,39 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
 # reason -- a front door with a toolchain is a front door that stops working.
 
 CSS = """
-:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;
---mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--paper:#FCFCFA}
+/* `--await` is the third colour, and it means one thing: the software is
+   declining to invent a sentence and waiting on the firm. Navy is the firm
+   acting, oxblood is a refusal, and `[CONFIRM: ...]` is neither -- it had been
+   wearing the refusal's colour, which taught whoever read the page that a
+   decision waiting on them was a thing that had gone wrong.
+   From `satc-handoff/06-APP/satc-app.css`. Measured against the brand's own
+   greyscale test: navy and oxblood are 1.47:1 in black and white, and this is
+   2.06:1 from oxblood -- better, still not enough on its own, which is why
+   every use of it is paired with a shape as well (a filled chip, a left rule).
+   THE MONO STACK IS THE SYSTEM'S. "IBM Plex Mono" was named here and no
+   webfont was ever loaded, so every screen has always rendered in whatever the
+   machine had; saying so is the difference between a design that works offline
+   and one that happens to. The documents a CLIENT opens are a different
+   surface and keep Plex -- `presend` opens each one and fails it if the type
+   is not the firm's. */
+:root{--navy:#132437;--oxblood:#6A2833;--await:#A8571C;--ink:#242C36;
+--ink-2:#4A5360;
+--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--paper:#FCFCFA;
+--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
-font:15px/1.55 "IBM Plex Sans",-apple-system,Segoe UI,sans-serif}
+font:15px/1.55 var(--sans)}
+/* VISIBLE FOCUS, IN THE COLOUR THAT MEANS "WAITING ON YOU". Only inputs had
+   one; a button or a link reached by keyboard showed whatever the browser
+   chose, which on a navy button is nearly nothing. This is a tool driven from
+   a keyboard with a client in the chair. */
+:focus-visible{outline:2px solid var(--await);outline-offset:2px}
 header{background:var(--navy);color:#fff;padding:14px 28px}
 header a{color:#fff;text-decoration:none;letter-spacing:.02em;font-weight:600}
 main{max-width:660px;margin:0 auto;padding:34px 28px 80px}
 h1{font-size:21px;line-height:1.3;margin:0 0 6px;font-weight:600}
-.sec{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;
+.sec{font:11px/1 var(--mono);letter-spacing:.14em;
 text-transform:uppercase;color:var(--ink-2);margin:0 0 18px}
 .help{color:var(--ink-2);margin:0 0 20px;font-size:14px}
 label{display:block;padding:9px 12px;border:1px solid var(--hairline);
@@ -1122,7 +1145,7 @@ transition:width .18s ease}
 .crumb{display:flex;justify-content:space-between;align-items:baseline;
 gap:14px;margin:0 0 18px}
 .crumb .sec{margin:0}
-.crumb .count{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;
+.crumb .count{font:11px/1 var(--mono);letter-spacing:.08em;
 color:var(--mute);flex:none}
 .crumb form{margin:0;flex:none}
 .crumb .sec{flex:1}
@@ -1141,11 +1164,11 @@ td.fix{width:1%;white-space:nowrap;text-align:right}
    check's own words, and the count it examined to say it. */
 table.checks th{font:inherit;font-size:14px;text-transform:none;
 letter-spacing:0;color:var(--ink);font-weight:400;width:auto}
-table.checks td.mk{width:1%;font:10.5px/1.6 "IBM Plex Mono",monospace;
-letter-spacing:.1em;white-space:nowrap;vertical-align:top;padding-top:9px}
-table.checks td.mk.ok{color:var(--mute)}
-table.checks td.mk.fail{color:var(--oxblood);font-weight:600}
-table.checks td.mk.none,table.checks td.mk.skip{color:var(--navy)}
+/* The mark is now an object of its own (`.mk`), so the cell only has to
+   hold it. Four colour rules lived here and each one had to be kept in step
+   with the vocabulary by hand -- S6, on a small scale. */
+table.checks td.mkc{width:1%;white-space:nowrap;vertical-align:top;
+padding-top:7px}
 table.checks td.den{width:1%;white-space:nowrap;text-align:right;
 font-size:13px;color:var(--ink-2)}
 @media (max-width:560px){table.checks td.den{white-space:normal}}
@@ -1153,7 +1176,7 @@ font-size:13px;color:var(--ink-2)}
 .hardno li b{color:var(--oxblood);font-weight:600}
 table{border-collapse:collapse;width:100%;font-size:14px}
 td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--hairline-2)}
-th{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;
+th{font:11px/1 var(--mono);letter-spacing:.1em;
 text-transform:uppercase;color:var(--ink-2)}
 iframe.doc{width:min(96vw,980px);height:820px;border:1px solid #d9d4cc;
   background:#fff;margin:8px 0 22px;display:block;
@@ -1170,12 +1193,12 @@ margin:0 0 20px}
 .note h2{color:var(--navy);font-size:15px;margin:0 0 8px}
 .note li{font-size:14px;color:var(--ink-2)}
 .muted{color:var(--ink-2);font-size:14px}
-code{font-family:"IBM Plex Mono",monospace;font-size:13px}
+code{font-family:var(--mono);font-size:13px}
 /* IN A CELL AS WELL AS A HEADER. It was styled under `th` alone, so the same
    span inside a `td` rendered inline and unstyled -- the payments screen read
    "2026-00012026-0001", the invoice number and the engagement ref run
    together. Found by looking at the screenshot. */
-th .fname,td .fname{display:block;font:10px/1.4 "IBM Plex Mono",monospace;
+th .fname,td .fname{display:block;font:10px/1.4 var(--mono);
 letter-spacing:.06em;color:var(--mute);text-transform:none;margin-top:2px}
 table.plain th{text-transform:none;font-family:inherit;font-size:14px;
 letter-spacing:0;color:var(--ink);font-weight:500;width:52%}
@@ -1184,7 +1207,7 @@ padding:15px 0 13px}
 .lead .who{min-width:0}
 .lead .who b{display:block;font-size:16px;color:var(--navy);font-weight:600}
 .lead .gist{display:block;font-size:13.5px;color:var(--ink-2);margin-top:2px}
-.lead .count{display:block;font:10.5px/1.6 "IBM Plex Mono",monospace;
+.lead .count{display:block;font:10.5px/1.6 var(--mono);
 letter-spacing:.08em;color:var(--mute)}
 .lead form{flex:none;margin:0}
 @media (max-width:520px){.lead{display:block}.lead form{margin-top:11px}}
@@ -1196,7 +1219,7 @@ details.blk.quiet[open] summary .count::before{content:"\2212 "}
 details.blk{border-bottom:1px solid var(--hairline-2)}
 details.blk summary{cursor:pointer;list-style:none;padding:13px 2px;
 display:flex;justify-content:space-between;align-items:baseline;gap:14px;
-font:12px/1.3 "IBM Plex Mono",monospace;letter-spacing:.1em;
+font:12px/1.3 var(--mono);letter-spacing:.1em;
 text-transform:uppercase;color:var(--ink-2)}
 details.blk summary::-webkit-details-marker{display:none}
 details.blk summary:hover{color:var(--navy)}
@@ -1221,18 +1244,165 @@ details.blk.door[open] summary .asbtn{background:var(--hairline-2)}
 /* A caption a field keeps. Placeholders read as labels until you type. */
 .f{margin:0 0 12px}
 label.fl{display:block;padding:0;margin:0 0 4px;border:0;background:none;
-cursor:default;font:11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.08em;
+cursor:default;font:11px/1.4 var(--mono);letter-spacing:.08em;
 text-transform:uppercase;color:var(--mute)}
 details.blk textarea{font-size:14px;line-height:1.55;margin-bottom:4px}
 .fieldrow{margin:0 0 14px;color:var(--mute)}
+b.late{color:var(--oxblood);font-weight:600}
 .locked{border-left:2px solid var(--hairline);padding:2px 0 2px 12px;
 margin:0 0 16px;font-size:14px;color:var(--ink-2)}
+/* ── every number says what it counted ─────────────────────────────
+   The engine has refused since August to let a check that examined nothing
+   look like a check that passed (S2). On screen that rule was bare prose. The
+   count and what it counted are one element, so a bare number cannot be
+   written with this class -- and `.tally.empty` is the case worth having: it
+   says so in words and never shows a zero. */
+.tally{font:400 12.5px/1.5 var(--mono);color:var(--ink-2);letter-spacing:.01em}
+.tally b{color:var(--navy);font-weight:500}
+.tally.empty,.tally.empty b{color:var(--mute)}
+/* A COUNT INSIDE A HEADING IS STILL A HEADING. "Not sent. 1 check stopped it"
+   read with two of its five words in small grey monospace -- the object is
+   right and its own type was fighting the sentence it sits in. Found by
+   photographing the blocked gate and looking at it. */
+h1 .tally,h2 .tally,h1 .tally b,h2 .tally b{font:inherit;color:inherit;
+letter-spacing:inherit}
+/* And in the check table the chip carries the longest word in the vocabulary
+   ("nothing to look at"), which at full size squeezed every check name into
+   three lines in a 660px column. */
+table.checks .mk{font-size:9.5px;padding:4px 6px 3px;letter-spacing:.07em}
+/* ── five things a line can be, and they do not look alike ─────────
+   Blocked, waiting-on-you, fine, examined-nothing and not-built were three
+   shades of one grey. FILLED MEANS IT NEEDS A PERSON: oxblood for a refusal,
+   the third colour for a decision. Outlines are facts. The difference between
+   `stop` and `notyet` is carried by the border, not the colour, so it survives
+   being read from three feet away and survives being read in greyscale. */
+.mk{display:inline-block;font:500 10.5px/1 var(--mono);letter-spacing:.09em;
+text-transform:uppercase;padding:5px 8px 4px;border:1px solid;border-radius:2px;
+white-space:nowrap}
+.mk.pass{color:var(--ink-2);border-color:var(--hairline);
+background:var(--hairline-2)}
+.mk.stop{color:#fff;border-color:var(--oxblood);background:var(--oxblood)}
+.mk.wait{color:#fff;border-color:var(--await);background:var(--await)}
+.mk.none{color:var(--mute);border-color:var(--hairline);background:none}
+.mk.notyet{color:var(--ink-2);border-color:var(--hairline);
+border-style:dashed;background:none}
+.mk.done{color:var(--navy);border-color:var(--navy);background:none}
+/* ── what the software refused to invent ───────────────────────────
+   `[CONFIRM: ...]` is not an error and must stop looking like one. The
+   placeholder is quoted exactly as it will print, because that is the string
+   somebody has to go and replace. */
+.ask{border:1px solid var(--await);border-left-width:3px;border-radius:2px;
+background:#FDF6F0;padding:15px 18px;margin:0 0 20px}
+.ask h2{color:var(--await);margin:0 0 5px;font-size:15px}
+.ask p{margin:0;font-size:14px;color:var(--ink-2)}
+.ask .said{font:400 13.5px/1.6 var(--mono);color:var(--ink);background:#fff;
+border:1px solid #EBD9CA;padding:9px 12px;margin-top:10px;border-radius:2px;
+display:block}
+.said{color:var(--await);font-family:var(--mono);font-size:13px}
+/* An option the firm does not take is the only row on the question with a
+   coloured edge, and the consequence is beside it rather than under it.
+   `HARD NO` in bold red inside an ordinary box read as emphasis; this reads
+   as a different kind of thing. */
+label.no{border-color:var(--oxblood);border-left-width:3px}
+label.no .tag{font:500 10px/1 var(--mono);letter-spacing:.09em;
+text-transform:uppercase;color:var(--oxblood);float:right;white-space:nowrap}
 """
 
 
 def esc(s) -> str:
     from markupsafe import escape
     return str(escape("" if s is None else s))
+
+
+def tally(n: int, one: str, many: str = "", *, nothing: str = "") -> str:
+    """A number and what it counted, as one element.
+
+    S2, ON A SCREEN. The engine has refused since August to let a check that
+    examined nothing look like a check that passed; the pages said so in prose,
+    which is a sentence somebody has to remember to write beside every number.
+    Here the count and the noun it counted are the SAME element, so a bare
+    number cannot be rendered through this and a caller that forgets the noun
+    does not compile.
+
+    `nothing` is what to say when there was nothing to count, and it is the
+    case worth having: "0 checks" and "we did not look" are the same words for
+    two different worlds, so a zero is never printed as a zero.
+
+    THE BRACKET-S GOES. `11 check(s)` is a machine talking to a person -- the
+    plural is one line of Python and it is the difference between software
+    written for you and software generated at you.
+    """
+    if not n and nothing:
+        return f"<span class='tally empty'>{esc(nothing)}</span>"
+    word = one if n == 1 else (many or one + "s")
+    return f"<span class=tally><b>{n:,}</b> {esc(word)}</span>"
+
+
+# What a check's `document` field says, and what a preparer would call it.
+# `presend` names the thing it looked at, which for a rendered document is the
+# FILE -- "SAT-C Engagement Letter - Reyes - 2026.html". That is a filename on
+# a screen, and the file it names is the one thing on the page nobody can do
+# anything about (S35). The sentinels are the software's own words for a scope.
+_WHOLE_PACK = {"(all)": "every document in the pack",
+               "(pack)": "the pack as a whole",
+               "(templates)": "the letter wording",
+               "(registry)": ""}
+
+
+def _document_named(raw: str, files: dict | None = None) -> str:
+    """The document a finding is about, as somebody would go and open it.
+
+    `files` maps a rendered file's name to the document's own label. Anything
+    that still looks like a file after that is dropped rather than shown: the
+    detail beside it already says what happened, and a filename says nothing a
+    person can act on. Dropping it is visible -- the row simply names no
+    document -- which is the failure mode to prefer over printing one nobody
+    asked for.
+    """
+    raw = str(raw or "")
+    if not raw:
+        return ""
+    if raw in _WHOLE_PACK:
+        return _WHOLE_PACK[raw]
+    named = (files or {}).get(raw)
+    if named:
+        return named
+    return "" if ("." in raw or "/" in raw) else raw
+
+
+def _check_labels(check) -> dict:
+    """`{a finding's own check key: the name the check is listed under}`.
+
+    ONE CHECK, TWO NAMES, ON ONE PAGE. The table calls it "no banned legalese
+    and no British spelling"; the failure above it called it **plain**, which
+    is the key `presend` tags its findings with and is not a sentence. So the
+    thing that stopped the pack and the row explaining it did not look like
+    the same check -- S3, on a screen, and the only place a preparer meets it
+    is the morning something is blocked.
+
+    Derived from `Result.counts` rather than kept as a second list here,
+    because a second list is what would go stale (S6).
+    """
+    out = {}
+    for what, got in (getattr(check, "counts", None) or []):
+        for finding in got.findings:
+            out.setdefault(finding.check, what)
+    return out
+
+
+def _written_labels(pack) -> dict:
+    """`{rendered file name: the document's label}` for one pack.
+
+    `sending.build` fills `written` BEFORE the gate runs, so this is populated
+    on a refusal as well as on a success -- which is the case that matters,
+    because a refusal is the screen that names a failing document.
+    """
+    out = {}
+    for doc, paths in (getattr(pack, "written", None) or {}).items():
+        label = cli.DOCUMENTS.get(doc, ("", doc))[1]
+        for path in paths:
+            out[Path(path).name] = label
+    return out
 
 
 def page(title: str, body: str) -> str:
@@ -1251,7 +1421,7 @@ def prices_body(prices) -> str:
     number and changing something a stranger can read on satcllp.com, and
     that difference should be visible before the click, not after.
     """
-    out = ["<h1>Prices</h1>",
+    out = ["<h1>What the firm charges</h1>",
            # "read from fee-schedule.yaml" told a preparer the name of a
            # file they are on this screen precisely so they never have to
            # open. What matters is the consequence, which the second
@@ -1573,10 +1743,16 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
     if t in ("single", "multi"):
         kind = "radio" if t == "single" else "checkbox"
         for o in q.get("options", []):
-            mark = " &nbsp;<b style='color:var(--oxblood)'>HARD NO</b>" \
-                if o.get("hard_no") else ""
+            # THE CONSEQUENCE, NOT AN EMPHASIS. `HARD NO` in bold red inside
+            # an ordinary box reads as the same kind of thing as every other
+            # option, shouted. These are the only rows on the page with a
+            # coloured edge, and what happens if you tick one is written
+            # beside the tick rather than found out after it.
+            no = bool(o.get("hard_no"))
+            mark = "<span class=tag>the firm says no</span>" if no else ""
             on = " checked" if str(o["value"]) in held else ""
-            out.append(f"<label><input type={kind} name=answer "
+            out.append(f"<label{' class=no' if no else ''}>"
+                       f"<input type={kind} name=answer "
                        f"value='{esc(o['value'])}'{on}> "
                        f"{esc(o['label'])}{mark}</label>")
     elif t == "textarea":
@@ -1754,19 +1930,74 @@ def _field_labels() -> dict:
 
 def engagement_body(ref, record, open_now, revisions=()) -> str:
     out = [f"<h1>{esc(record.get('ClientFullName', ref))}</h1>",
-           f"<p class=sec>{esc(ref)} &middot; {esc(record.get('PeriodLabel',''))}</p>",
-           "<table class=plain>"]
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('PeriodLabel',''))}</p>"]
+    rows = ["<table class=plain>"]
     labels = _field_labels()
+    waiting = []
     for k, v in record.items():
         if k.startswith("_") or isinstance(v, (list, dict)):
             continue
         # The label leads and the merge-field name follows it, small. A person
         # reading the record wants to know what the value IS; a person wiring
         # a template wants the token. Both are on the page, in that order.
-        out.append(f"<tr><th>{esc(labels.get(k, k))}"
-                   f"<span class=fname>{esc(k)}</span></th>"
-                   f"<td>{esc(v)}</td></tr>")
-    out.append("</table>")
+        #
+        # AND A `[CONFIRM: ...]` IS NOT AN ERROR. It is the software declining
+        # to write a sentence that is the firm's to write, and it had been
+        # sitting in the same ink as twenty-five settled facts -- so the one
+        # row on the page that needs a person looked exactly like the rest.
+        # It gets the third colour, which means that and nothing else.
+        held = str(v)
+        if "[CONFIRM:" in held:
+            # THE LABEL ONLY IF THERE IS ONE. `labels.get(k, k)` falls back to
+            # the merge field's own name, and putting that in the panel would
+            # be a code identifier on a screen -- the exact thing this panel
+            # is here to stop looking normal (S35). The placeholder's own
+            # question is already the plain-English half.
+            waiting.append((labels.get(k, ""), held))
+            cell = f"<span class=said>{esc(held)}</span>"
+        else:
+            cell = esc(v)
+        rows.append(f"<tr><th>{esc(labels.get(k, k))}"
+                    f"<span class=fname>{esc(k)}</span></th>"
+                    f"<td>{cell}</td></tr>")
+    rows.append("</table>")
+    # ABOVE THE RECORD, BECAUSE IT IS THE ONLY PART OF IT THAT NEEDS ANYBODY.
+    # Twenty-six settled facts and one unwritten sentence read as twenty-seven
+    # facts; the placeholder is quoted exactly as it will print, because that
+    # is the string somebody has to go and replace.
+    # AND THE ONES THAT ARE NOT ON THIS RECORD AT ALL. A `[CONFIRM: ...]` in
+    # the firm's own settings is what actually stops most letters, and it
+    # reaches a document at render time rather than sitting on the record --
+    # so a panel that only read the record would have been a panel nothing
+    # could ever fill (S14). `open_decisions` is the same list `doctor` reads;
+    # `blocks_render` is the half of it that would refuse a document, and the
+    # other half is policy that stops nothing and does not belong on a client's
+    # page (S4).
+    try:
+        waiting += [(q, f"[CONFIRM: {q}]")
+                    for path, q in firm.open_decisions()
+                    if firm.blocks_render(path)]
+    except Exception:                                          # noqa: BLE001
+        # An unreadable settings file is `doctor`'s news to break, not this
+        # page's. A client's record still has to be readable when it does.
+        pass
+    if waiting:
+        one = len(waiting) == 1
+        out.append("<div class=ask><h2>Waiting on you</h2>"
+                   f"<p>{tally(len(waiting), 'sentence')} on this file "
+                   + ("is yours to write" if one else "are yours to write")
+                   + ", and the software will not invent "
+                   + ("it" if one else "them")
+                   + ". The letter can be built until then but not sent, and "
+                     "it prints with "
+                   + ("this" if one else "these")
+                   + " in place of the words:</p>")
+        for label, held in waiting:
+            said = f"{esc(label)} &mdash; {esc(held)}" if label else esc(held)
+            out.append(f"<p class=said>{said}</p>")
+        out.append("</div>")
+    out += rows
     # THE NEXT THING, ON THE PAGE THAT KNOWS IT. A door nothing links to is a
     # door nobody finds -- packaging was reachable only by typing a command,
     # and this is the screen a preparer is on when the pack is what is next.
@@ -1993,15 +2224,23 @@ def waiting_body(rows) -> str:
         out.append("<p class=help>Nothing outstanding. Every engagement has "
                    "everything it is waiting for.</p>")
         return "".join(out)
-    out.append(f"<p class=help>{len(rows)} engagement(s), longest wait first. "
-               f"A row marked <b>overdue</b> is past the date that client was "
-               f"given in writing.</p>")
+    out.append(f"<p class=help>{tally(len(rows), 'engagement')}, longest "
+               f"wait first. A row marked <b>overdue</b> is past the date that "
+               f"client was given in writing.</p>")
     out.append("<table><tr><th>Engagement</th><th>Waiting</th>"
                "<th>Outstanding</th></tr>")
     for w in rows:
         days = w.waiting_days()
-        waited = f"{days} day(s)" if days is not None else "not sent"
-        flag = " <b style='color:var(--oxblood)'>overdue</b>" if w.overdue else ""
+        # ALREADY MARKUP, SO IT IS NOT ESCAPED BELOW. The first cut of this
+        # passed `tally()` through `esc()` and the column printed its own HTML
+        # as words -- caught by photographing the screen, which is the only
+        # thing that could have (S16). `not sent` is the only literal here and
+        # carries nothing to escape.
+        waited = tally(days, "day") if days is not None else "not sent"
+        # A colour typed into markup is a colour no palette can move, and it
+        # was already `var(--oxblood)` here rather than a hex only by luck --
+        # the payments list beside it had a green declared nowhere.
+        flag = " <b class=late>overdue</b>" if w.overdue else ""
         out.append(
             # THE LINK IS THE REF, THE NAME IS BESIDE IT -- the same pattern
             # the home page uses, and for a reason that is not cosmetic: the
@@ -2010,7 +2249,7 @@ def waiting_body(rows) -> str:
             # recognised as an identifier and folded.
             f"<tr><td><a href='/engagement/{esc(w.ref)}/signatures'>"
             f"{esc(w.ref)}</a> <b>{esc(w.client)}</b></td>"
-            f"<td>{esc(waited)}{flag}</td>"
+            f"<td>{waited}{flag}</td>"
             f"<td>{len(w.missing)} of {w.examined}<span class=fname>"
             + esc("; ".join(str(l) for l in w.missing[:3]))
             + ("…" if len(w.missing) > 3 else "") + "</span></td></tr>")
@@ -2029,7 +2268,7 @@ def signatures_body(ref, record, where, gate, problem="") -> str:
     days = where.waiting_days()
     if where.sent:
         out.append(f"<p class=help>Sent {esc(where.sent)}"
-                   + (f", {days} day(s) ago" if days is not None else "")
+                   + (f", {tally(days, 'day')} ago" if days is not None else "")
                    + (f". Due {esc(where.deadline)}" if where.deadline else "")
                    + (" &mdash; <b>past that date</b>." if where.overdue else ".")
                    + "</p>")
@@ -2101,24 +2340,36 @@ def payments_body(rows) -> str:
     # know is that this page shows the last answer rather than a live one --
     # so a payment made an hour ago may not be here yet. Which command last
     # asked is the software's own business.
-    out.append(f"<p class=help>{len(owing)} of {len(rows)} bill(s) "
-               f"outstanding, as of the last time the card processor was "
-               f"asked. This page shows what was written down then rather "
-               f"than asking now, so it never hangs waiting on them &mdash; "
-               f"a payment made in the last few minutes may not be here "
-               f"yet.</p>")
+    out.append(f"<p class=help>{len(owing)} of {tally(len(rows), 'bill')} "
+               f"unpaid, as of the last time the "
+               f"card processor was asked. This page shows what was written "
+               f"down then rather than asking now, so it never hangs waiting "
+               f"on them &mdash; a payment made in the last few minutes may "
+               f"not be here yet.</p>")
     out.append("<table><tr><th>Invoice</th><th>Amount</th><th>Raised</th>"
                "<th>Status</th></tr>")
     for r in rows:
+        # FOUR THINGS CAN BE TRUE OF A BILL AND THREE OF THEM LOOKED ALIKE.
+        # They now use the app's one vocabulary of marks, and the green that
+        # used to mean "paid" is gone -- it was a fourth colour, declared
+        # nowhere, meaning what an outline already means.
+        #
+        # PART PAID IS THE ONE THAT NEEDS A PERSON, and it is not a refusal:
+        # money arrived and the arithmetic does not close, and only the firm
+        # decides whether that is a short payment to chase, a fee agreed down,
+        # or somebody paying in two halves. So it takes the third colour.
+        # NO LINK is a fact about the bill, not a failure, so it is quiet.
         if r["settled"]:
-            state = f"<b style='color:#2F6B4F'>paid {esc(r['settled'])}</b>"
+            state = (f"<span class='mk done'>paid</span> "
+                     f"<span class=muted>{esc(r['settled'])}</span>")
         elif r.get("short"):
-            state = (f"<b style='color:#6A2833'>part paid &mdash; "
-                     f"${r['short'] / 100:,.2f} still owed</b>")
+            state = (f"<span class='mk wait'>your call</span> "
+                     f"<span class=muted>${r['short'] / 100:,.2f} short</span>")
         elif r["url"]:
-            state = ("<a href='" + esc(r["url"]) + "'>link out</a>")
+            state = (f"<span class='mk pass'>link sent</span> "
+                     f"<a href='{esc(r['url'])}'>open it</a>")
         else:
-            state = "<span class=muted>no link</span>"
+            state = "<span class='mk none'>no link</span>"
         out.append(f"<tr><td><a href='/engagement/{esc(r['ref'])}'>"
                    f"{esc(r['invoice'])}</a>"
                    f"<span class=fname>{esc(r['ref'])}</span></td>"
@@ -2187,8 +2438,8 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
 
     if pack.status == "refused-merge":
         out.append(f"<div class=hardno><h2>No pack written &mdash; "
-                   f"{len(pack.refused)} of {len(pack.documents)} document(s) "
-                   f"would not build</h2>"
+                   f"{tally(len(pack.refused), 'document')} of "
+                   f"{len(pack.documents)} would not build</h2>"
                    f"<p>A pack with a hole in it is worse than none: the "
                    f"client signs what arrived, and the rest turns up later "
                    f"saying something different.</p><ul>")
@@ -2205,15 +2456,18 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
 
     check = pack.check
     if pack.status in ("refused-gate", "no-reason", "not-logged"):
-        out.append(f"<div class=hardno><h2>{len(check.blocking)} check(s) "
-                   f"failed, so nothing was written</h2>"
+        named = _written_labels(pack)
+        called = _check_labels(check)
+        out.append(f"<div class=hardno><h2>Not sent. "
+                   f"{tally(len(check.blocking), 'check')} stopped it</h2>"
                    f"<p>A pack that does not survive being opened is not a "
                    f"pack &mdash; it is a folder the client cannot read.</p>"
                    f"<ul>")
         for f in check.blocking:
-            where = f" &mdash; {esc(f.document)}" if f.document else ""
-            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
-                       f"{esc(f.detail)}</li>")
+            in_what = _document_named(f.document, named)
+            where = f" &mdash; {esc(in_what)}" if in_what else ""
+            out.append(f"<li><b>{esc(called.get(f.check, f.check))}</b>"
+                       f"{where}<br>{esc(f.detail)}</li>")
         out.append("</ul></div>")
         if pack.status == "no-reason":
             out.append("<p class=err>Sending it anyway needs a reason written "
@@ -2235,16 +2489,24 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
                    "<div class=f><label class=fl for=why>Why is this going "
                    "out as it is?</label>"
                    "<textarea id=why name=reason rows=2></textarea></div>"
-                   "<div class=row><button class=ghost>Send it anyway, and "
-                   "record that</button><span class=muted>Goes in this "
+                   "<div class=row><button class=ghost>Send it past these "
+                   "checks</button><span class=muted>Goes in this "
                    "engagement's record, with the checks it failed.</span>"
                    "</div></form>")
         out.append(_checks_block(check))
         return "".join(out)
 
-    out.append(f"<p class=help>Built and checked. "
-               f"{len(pack.written)} document(s) in "
-               f"<code>{esc(str(pack.outdir))}</code>.</p>")
+    out.append(f"<p class=help>{tally(len(pack.written), 'document')}, "
+               f"built and checked. Nothing has been sent.</p>"
+               # THE FOLDER STAYS UNTIL THERE IS A SEND BUTTON. A path on a
+               # screen is normally the software talking about itself (S35) --
+               # but nothing in the browser sends a pack, so this is the only
+               # thing on the page that tells a preparer where the files they
+               # have to attach actually are. It moves out of the headline and
+               # says what it is for; it does not disappear.
+               f"<p class=muted>They are waiting in "
+               f"<code>{esc(str(pack.outdir))}</code> for you to attach "
+               f"them.</p>")
     if pdf_note:
         out.append(f"<p class=muted>No PDF engine here ({esc(pdf_note)}), so "
                    f"this is the HTML only.</p>")
@@ -2356,10 +2618,12 @@ def document_body(ref, doc, record, look, problem="") -> str:
     # which is the exact disagreement the packaging screen already has a test
     # against, arriving one screen over.
     if look.blocking:
-        out.append(f"<div class=hardno><h2>{len(look.blocking)} check(s) "
-                   f"would stop this going out</h2><ul>")
+        called = _check_labels(look.check)
+        out.append(f"<div class=hardno><h2>{tally(len(look.blocking), 'check')}"
+                   f" would stop this going out</h2><ul>")
         for f in look.blocking:
-            out.append(f"<li><b>{esc(f.check)}</b><br>{esc(f.detail)}</li>")
+            out.append(f"<li><b>{esc(called.get(f.check, f.check))}</b><br>"
+                       f"{esc(f.detail)}</li>")
         out.append("</ul></div>")
 
     if look.alone and not look.ready:
@@ -2408,12 +2672,15 @@ def sent_body(ref, doc, record, pack, refused="") -> str:
 
     check = pack.check
     if pack.status in ("refused-gate", "no-reason", "not-logged"):
-        out.append(f"<div class=hardno><h2>{len(check.blocking)} check(s) "
-                   f"failed, so nothing was written</h2><ul>")
+        named = _written_labels(pack)
+        called = _check_labels(check)
+        out.append(f"<div class=hardno><h2>Not sent. "
+                   f"{tally(len(check.blocking), 'check')} stopped it</h2><ul>")
         for f in check.blocking:
-            where = f" &mdash; {esc(f.document)}" if f.document else ""
-            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
-                       f"{esc(f.detail)}</li>")
+            in_what = _document_named(f.document, named)
+            where = f" &mdash; {esc(in_what)}" if in_what else ""
+            out.append(f"<li><b>{esc(called.get(f.check, f.check))}</b>"
+                       f"{where}<br>{esc(f.detail)}</li>")
         out.append("</ul></div>")
         if pack.status == "no-reason":
             out.append("<p class=err>Sending it anyway needs a reason written "
@@ -2430,8 +2697,8 @@ def sent_body(ref, doc, record, pack, refused="") -> str:
                    "<div class=f><label class=fl for=why>Why is this going "
                    "out as it is?</label>"
                    "<textarea id=why name=reason rows=2></textarea></div>"
-                   "<div class=row><button class=ghost>Send it anyway, and "
-                   "record that</button><span class=muted>Goes in this "
+                   "<div class=row><button class=ghost>Send it past these "
+                   "checks</button><span class=muted>Goes in this "
                    "engagement's record, with the checks it failed.</span>"
                    "</div></form>")
         out.append(_checks_block(check))
@@ -2454,8 +2721,8 @@ def sent_body(ref, doc, record, pack, refused="") -> str:
     return "".join(out)
 
 
-def _checks_block(check) -> str:
-    """Every check, and what it examined.
+def _checks_block(check, files: dict | None = None) -> str:
+    """Every check, what it read, and what happens to you if it failed.
 
     A green line from a check that looked at nothing is worse than a red one,
     so the denominator comes with it -- it is what caught two blocking checks
@@ -2465,38 +2732,46 @@ def _checks_block(check) -> str:
     facts are the same facts, but 90 columns of fixed-width text in a 660px
     page is a transcript you scroll sideways, and the mark you need to find is
     the one that fell off the right edge.
+
+    THE MARKS SAY WHAT HAPPENS, NOT WHAT THE CHECK DID. `FAIL` describes the
+    check; `stops it` describes the consequence to the person reading, which is
+    the half they need. `ok` and `NONE` were two shades of the same grey and
+    are the two that must never be confused -- one looked and was satisfied,
+    the other examined nothing and knows nothing.
     """
     # WHICH CHECKS FAILED IS READ OFF `blocking`, NOT OFF EACH CHECK'S OWN
     # BUCKET. A finding that reached the result any other way would otherwise
-    # be named at the top of the page as a failure and marked `ok` in the table
-    # underneath it -- caught by rendering this page and looking at it.
+    # be named at the top of the page as a failure and marked as fine in the
+    # table underneath it -- caught by rendering this page and looking at it.
     failed = {f.check for f in check.blocking}
     out = [f"<h1 style='margin-top:30px'>Before sending</h1>",
-           f"<p class=help>{len(check.checked)} check(s), and what each one "
-           f"actually looked at.</p>",
+           f"<p class=help>{tally(len(check.checked), 'check')}. "
+           f"What each one read is on the right.</p>",
            "<table class='plain checks'>"]
     for what, got in check.counts:
         broke = what in failed or any(f.blocking for f in got.findings)
         if broke:
-            mark, why = "FAIL", f"{got.counted()} examined"
+            mark, label, why = "stop", "stops it", f"{got.counted()} read"
         elif not got.examined:
-            mark, why = "NONE", "nothing to examine"
+            mark, label, why = "none", "nothing to look at", "nothing to read"
         else:
-            mark, why = "ok", f"{got.counted()} examined"
-        out.append(f"<tr><td class='mk {mark.lower()}'>{mark}</td>"
-                   f"<th>{esc(what)}</th><td class=den>{esc(why)}</td></tr>")
+            mark, label, why = "pass", "fine", f"{got.counted()} read"
+        out.append(f"<tr><td class=mkc><span class='mk {mark}'>{label}</span>"
+                   f"</td><th>{esc(what)}</th>"
+                   f"<td class=den>{esc(why)}</td></tr>")
     for what in check.skipped:
-        out.append(f"<tr><td class='mk skip'>SKIP</td><th>{esc(what)}</th>"
-                   f"<td class=den>not checked</td></tr>")
+        out.append(f"<tr><td class=mkc><span class='mk notyet'>did not run"
+                   f"</span></td><th>{esc(what)}</th>"
+                   f"<td class=den>nothing is known about it</td></tr>")
     out.append("</table>")
     nothing = check.examined_nothing
     if nothing:
-        out.append(f"<p class=muted>{len(nothing)} check(s) had nothing to "
-                   f"look at, and are marked NONE rather than ok. Nothing is "
-                   f"wrong with them. Nothing is known about them either.</p>")
+        out.append(f"<p class=muted>{tally(len(nothing), 'check')} had nothing "
+                   f"to look at. Nothing is wrong with them. Nothing is known "
+                   f"about them either.</p>")
     if check.skipped:
-        out.append(f"<p class=muted>{len(check.skipped)} check(s) did not run "
-                   f"at all.</p>")
+        out.append(f"<p class=muted>{tally(len(check.skipped), 'check')} did "
+                   f"not run at all.</p>")
     return "".join(out)
 
 

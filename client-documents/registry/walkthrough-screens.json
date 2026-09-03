@@ -267,10 +267,10 @@
           "Digital asset activity",
           "Dispute with the previous preparer",
           "Foreign accounts, assets, trusts or gifts",
-          "Needs assurance work HARD NO",
+          "Needs assurance work THE FIRM SAYS NO",
           "Open IRS or state notice",
           "Records are missing or unreliable",
-          "Wants a position we would not sign HARD NO"
+          "Wants a position we would not sign THE FIRM SAYS NO"
         ],
         "count": 8
       }
@@ -435,6 +435,13 @@
       },
       {
         "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/documents",
+        "label": "Documents",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
         "shape": "button|submit|ghost|/engagement/<ref>/requote",
         "label": "Update the quote",
         "examples": [],
@@ -488,7 +495,7 @@
   {
     "key": "package-written",
     "heading": "The signing pack",
-    "help": "Built and checked. 4 document(s) in /tmp/<run>/store/2026-0001/pack.",
+    "help": "4 documents, built and checked. Nothing has been sent.",
     "shot": "package-written.png",
     "controls": [
       {
@@ -629,7 +636,7 @@
   {
     "key": "signatures-one",
     "heading": "Signatures",
-    "help": "Sent <date>, 0 day(s) ago.",
+    "help": "Sent <date>, 0 days ago.",
     "shot": "signatures-one.png",
     "controls": [
       {
@@ -689,7 +696,7 @@
   {
     "key": "signatures-waiting",
     "heading": "Waiting on a signature",
-    "help": "1 engagement(s), longest wait first. A row marked overdue is past the date that client was given in writing.",
+    "help": "1 engagement, longest wait first. A row marked overdue is past the date that client was given in writing.",
     "shot": "signatures-waiting.png",
     "controls": [
       {
@@ -713,7 +720,7 @@
   {
     "key": "payments",
     "heading": "Payments",
-    "help": "1 of 1 bill(s) outstanding, as of the last time the card processor was asked. This page shows what was written down then rather than asking now, so it never hangs waiting on them — a payment made in the last few minutes may not be here yet.",
+    "help": "1 of 1 bill unpaid, as of the last time the card processor was asked. This page shows what was written down then rather than asking now, so it never hangs waiting on them — a payment made in the last few minutes may not be here yet.",
     "shot": "payments.png",
     "controls": [
       {
@@ -802,7 +809,7 @@
   },
   {
     "key": "prices",
-    "heading": "Prices",
+    "heading": "What the firm charges",
     "help": "",
     "shot": "prices.png",
     "controls": [
@@ -1019,13 +1026,13 @@
   {
     "key": "package-blocked",
     "heading": "The signing pack",
-    "help": "11 check(s), and what each one actually looked at.",
+    "help": "11 checks. What each one read is on the right.",
     "shot": "package-blocked.png",
     "controls": [
       {
         "kind": "button",
         "shape": "button|submit|ghost|/engagement/<ref>/package{force}",
-        "label": "Send it anyway, and record that",
+        "label": "Send it past these checks",
         "examples": [],
         "count": 1
       },

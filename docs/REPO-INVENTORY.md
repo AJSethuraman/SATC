@@ -146,6 +146,7 @@ a historical log entry.
 | **The entity request list** | Nothing today. Two lines were transcribed from section 04 of the business letter on 27 Aug and carry a `[CONFIRM:` for shortening or splitting |
 | **`accompanies` on T20's list** | The plain-language check. It is banned in `DOCUMENT-TENETS.md` and live, unobjected-to, in five templates; the linter ships without it and the tenet carries a `[CONFIRM:` |
 | **Template approval** | All **twelve** are complete; none is approved |
+| **The app redesign's seven questions** | The stage bar, the season line's client count, three page deletions, and the *Change* buttons on the review screen. Asked on 2 September 2026 in `docs/app-redesign-questions.md`; the design itself is committed at `satc-handoff/06-APP/`. Everything in it that states no new fact is already applied. **The stage bar is the one to read: it draws nine stages and the software can distinguish seven** |
 
 **On prices, this was true on 22 August and is not any more.** `fee-schedule.yaml`
 now carries the firm's own figures — an hourly rate, package amounts, per-unit
