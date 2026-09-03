@@ -165,3 +165,32 @@ under pinned `--asof`.
   `satc_system/`. **Closed in this change:** a `pytest-fred-dashboard` job now runs
   `fred-credit-risk-dashboard/tests` on every push/PR (offline, no Excel — matches what
   the suite needs).
+
+---
+
+## § Fixes applied (this session)
+
+Each fix is test-backed and proven red→green by mutation (neuter the fix → the
+named test fails → restore → green). Test count grew 44 → 57.
+
+| Defect (as-found) | Fix | Commit | Re-proven by |
+|---|---|---|---|
+| CRITICAL — malformed threshold silently → `0.0` (Python floods alerts) / blank Flag column (Excel) | New `validate_thresholds()` hard gate refuses a present-but-blank/non-numeric/non-positive band an alert_rule reads; parse keeps NaN not 0.0; Excel formula `ISNUMBER()`-guards the band and shows a visible warning | `ca218ca` | 3 tests; mutation |
+| CRITICAL — exit code `0` even if every fetch fails | `run_succeeded()`; `main()` exits 4 and says the workbook was not refreshed when 0 of N pullable came back | `ca218ca` | `test_run_succeeded_flags_zero_pull`; mutation |
+| MEDIUM — demo cadence mislabels watchlist YoY (~3yr as 1yr) | `DemoProvider` spaces dates by declared `frequency`, not a series-id suffix guess | `c6ba0b6` | cell read (31d/365d) + mutation |
+| Coverage — 3 decoration tests; `sloos_level` branch untested | Repaired the two z-score tests to be load-bearing; added direct on/above/below-band tests for both alert branches | `c4a7d3e` | mutation on each |
+| Audit trail — vintage/units/basis/FRED link missing (4 of 6 provenance) | Per-block `vintage=`+`units=` meta; clickable FRED HYPERLINK; honest threshold `basis` column; optional `fred_vintage` realtime pin | `99a8205` | all six elements read from cells; mutation |
+| Gap B — CI didn't cover this project | `pytest-fred-dashboard` job added to `test.yml` | `6599cd1` | (runs on push) |
+
+**Still open (recommended next pass):**
+- **Gap A — the live FRED pull still cannot run here** (`api.stlouisfed.org:443`
+  egress-blocked). The new `fred_vintage` realtime pinning is unit-tested via a mock
+  but **unverified against live FRED**. The tool is not proven end-to-end until run
+  from a machine with FRED egress.
+- **HIGH** — silent xlwings→openpyxl downgrade (surface the backend actually used;
+  detect an open target file).
+- **MEDIUM** — `write_backend` config knob is a no-op (wire it in or delete the doc).
+- **MEDIUM** — D1: Python (`latest_valid`) vs Excel (newest cell) disagree when the
+  newest observation is NaN.
+- **MEDIUM** — hand-edit path: unknown `frequency`→quarterly, bad boolean→False
+  default silently; add validation.
