@@ -239,6 +239,18 @@ def test_demo_provider_deterministic():
     assert a.isna().any()                       # exercises the missing-value path
 
 
+def test_demo_provider_spaces_dates_by_declared_frequency():
+    from datetime import date
+    p = R.DemoProvider(asof=date(2026, 3, 1),
+                       freq_by_id={"HPIPONM226S": "monthly", "USSTHPI": "quarterly"})
+    m = p.fetch("HPIPONM226S").sort_index()
+    q = p.fetch("USSTHPI").sort_index()
+    m_gap = (m.index[-1] - m.index[-2]).days
+    q_gap = (q.index[-1] - q.index[-2]).days
+    assert 26 <= m_gap <= 35, f"monthly series spaced {m_gap}d (should be ~1 month)"
+    assert 85 <= q_gap <= 100, f"quarterly series spaced {q_gap}d (should be ~1 quarter)"
+
+
 # --------------------------------------------------------------------------
 # Provider adapter: the FRED-specific path coerces through coerce_series.
 # Mocked so it runs without a key or network (the seam stays isolated).

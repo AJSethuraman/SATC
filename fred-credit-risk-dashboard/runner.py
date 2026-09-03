@@ -68,6 +68,10 @@ FREQ_PERIODS = {
     "weekly": {"year": 52, "step": 1},
 }
 
+# pandas period code per canonical frequency -- used by the DemoProvider so its
+# synthetic dates are spaced at the series' DECLARED cadence.
+_PANDAS_FREQ = {"quarterly": "Q", "monthly": "M", "annual": "Y", "weekly": "W"}
+
 
 def _freq_key(frequency: str) -> str:
     f = (frequency or "").strip().lower()
@@ -507,8 +511,15 @@ class DemoProvider(Provider):
     --demo or demo_mode=TRUE in _config. It never touches FRED.
     """
 
-    def __init__(self, asof: Optional[date] = None):
+    def __init__(self, asof: Optional[date] = None,
+                 freq_by_id: Optional[Dict[str, str]] = None):
         self.asof = asof or date(2026, 3, 1)
+        # Cadence per series comes from the DECLARED frequency, not a series-id
+        # suffix guess. A monthly series spaced at quarterly dates makes every
+        # offset-based formula (YoY, prior) built for its true cadence read the
+        # wrong rows -- e.g. a 12-row "YoY %" over quarterly data is really a
+        # 3-year change mislabeled as one year.
+        self.freq_by_id = dict(freq_by_id or {})
 
     def _seed(self, series_id: str) -> int:
         return sum((i + 1) * ord(c) for i, c in enumerate(series_id)) % 997
@@ -516,10 +527,9 @@ class DemoProvider(Provider):
     def fetch(self, series_id: str) -> pd.Series:
         seed = self._seed(series_id)
         # Deterministic pseudo-walk (no randomness -> reproducible).
-        quarterly = not series_id.endswith(("SL", "NS", "SLAR"))  # G.19 monthly-ish
         n = 60
-        freq = "Q" if quarterly else "M"
-        idx = pd.period_range(end=pd.Period(self.asof, freq=freq[0]), periods=n, freq=freq[0])
+        freq = _PANDAS_FREQ[_freq_key(self.freq_by_id.get(series_id, "quarterly"))]
+        idx = pd.period_range(end=pd.Period(self.asof, freq=freq), periods=n, freq=freq)
         idx = idx.to_timestamp(how="end").normalize()
         base = 2.0 + (seed % 50) / 10.0
         vals = []
@@ -773,7 +783,8 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
     validate_thresholds(cfg, cfg.series)
 
     if demo or _as_bool(cfg.setting("demo_mode", "false")):
-        provider: Provider = DemoProvider(asof=asof)
+        provider: Provider = DemoProvider(
+            asof=asof, freq_by_id={s.series_id: s.frequency for s in cfg.series})
         mode = "demo"
     else:
         key = resolve_api_key(cfg)
