@@ -60,6 +60,27 @@ STATUS_COL = 12              # column L
 # FRED missing-observation sentinel.
 FRED_MISSING = "."
 
+# FRED series-page URL template -- written next to each raw block so a flag is
+# traceable back to its exact source series (self-citation, BUILD SPEC audit).
+FRED_SERIES_URL = "https://fred.stlouisfed.org/series/{}"
+
+
+def fred_series_url(series_id: str) -> str:
+    return FRED_SERIES_URL.format(series_id)
+
+
+def block_meta(spec: "SeriesSpec", vintage: Optional[date] = None) -> str:
+    """The provenance string written on each raw block header: cadence, the
+    UNITS the value is in, the transform applied, and the VINTAGE (the date FRED
+    was queried -- distinct from the per-row observation dates). FRED serves the
+    latest release, so vintage records 'as FRED reported on this date'; a re-pull
+    after a revision may differ unless fred_vintage pins realtime (see run())."""
+    parts = [f"freq={spec.frequency}", f"units={spec.units or 'n/a'}",
+             f"transform={spec.transform}"]
+    if vintage is not None:
+        parts.append(f"vintage={vintage.isoformat()}")
+    return "; ".join(parts)
+
 # How many periods make a year / one step, by frequency.
 FREQ_PERIODS = {
     "quarterly": {"year": 4, "step": 1},
@@ -467,12 +488,18 @@ class FredProvider(Provider):
     stays under the cap instead of bursting past it.
     """
 
-    def __init__(self, api_key: str, min_interval: float = 0.6, max_retries: int = 4):
+    def __init__(self, api_key: str, min_interval: float = 0.6, max_retries: int = 4,
+                 realtime_end: Optional[str] = None):
         from fredapi import Fred          # imported lazily so the module loads w/o it
         self._fred = Fred(api_key=api_key)
         self._min_interval = max(0.0, float(min_interval))
         self._max_retries = max(0, int(max_retries))
         self._last_call = 0.0
+        # When set (YYYY-MM-DD), pin FRED's realtime window so the pull reproduces
+        # the data AS IT STOOD on that vintage date (ALFRED semantics) instead of
+        # "latest". Left None -> latest release (the default, non-reproducible
+        # across revisions -- which is why the vintage is stamped on each block).
+        self._realtime_end = (realtime_end or "").strip() or None
 
     def _throttle(self):
         gap = time.time() - self._last_call
@@ -481,10 +508,14 @@ class FredProvider(Provider):
         self._last_call = time.time()
 
     def fetch(self, series_id: str) -> pd.Series:
+        kwargs = {}
+        if self._realtime_end:
+            kwargs["realtime_start"] = self._realtime_end
+            kwargs["realtime_end"] = self._realtime_end
         for attempt in range(self._max_retries + 1):
             self._throttle()
             try:
-                return coerce_series(self._fred.get_series(series_id))
+                return coerce_series(self._fred.get_series(series_id, **kwargs))
             except Exception as exc:
                 if _is_rate_limit(exc) and attempt < self._max_retries:
                     backoff = 10.0 * (attempt + 1)        # 10s, 20s, 30s, 40s
@@ -615,7 +646,8 @@ class Backend:
     def read_config(self) -> Config:                      # pragma: no cover
         raise NotImplementedError
 
-    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series):  # pragma: no cover
+    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series,
+                        vintage: Optional[date] = None):  # pragma: no cover
         raise NotImplementedError
 
     def write_status(self, status: dict):                 # pragma: no cover
@@ -663,11 +695,14 @@ class OpenpyxlBackend(Backend):
         rows = [[c.value for c in row] for row in ws.iter_rows()]
         return parse_config(rows)
 
-    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series):
+    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series,
+                        vintage: Optional[date] = None):
         ws = self._wb[block.tab]
         ws.cell(block.header_row, RAW_DATE_COL, spec.series_id)
         ws.cell(block.header_row, RAW_VALUE_COL, spec.title)
-        ws.cell(block.header_row, RAW_VALUE_COL + 1, f"freq={spec.frequency}; transform={spec.transform}")
+        ws.cell(block.header_row, RAW_VALUE_COL + 1, block_meta(spec, vintage))
+        ws.cell(block.header_row, RAW_VALUE_COL + 2,
+                f'=HYPERLINK("{fred_series_url(spec.series_id)}","FRED: {spec.series_id}")')
         ws.cell(block.label_row, RAW_DATE_COL, "date")
         ws.cell(block.label_row, RAW_VALUE_COL, "value")
         # Clear the slot region first (stateless refresh).
@@ -714,12 +749,14 @@ class XlwingsBackend(Backend):
             rows = [rows]
         return parse_config(rows)
 
-    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series):
+    def write_raw_block(self, block: RawBlock, spec: SeriesSpec, s: pd.Series,
+                        vintage: Optional[date] = None):
         sht = self._book.sheets[block.tab]
         sht.range((block.header_row, RAW_DATE_COL)).value = spec.series_id
         sht.range((block.header_row, RAW_VALUE_COL)).value = spec.title
-        sht.range((block.header_row, RAW_VALUE_COL + 1)).value = (
-            f"freq={spec.frequency}; transform={spec.transform}")
+        sht.range((block.header_row, RAW_VALUE_COL + 1)).value = block_meta(spec, vintage)
+        sht.range((block.header_row, RAW_VALUE_COL + 2)).value = (
+            f'=HYPERLINK("{fred_series_url(spec.series_id)}","FRED: {spec.series_id}")')
         sht.range((block.label_row, RAW_DATE_COL)).value = "date"
         sht.range((block.label_row, RAW_VALUE_COL)).value = "value"
         clear_rng = sht.range((block.first_data_row, RAW_DATE_COL),
@@ -786,6 +823,7 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
         provider: Provider = DemoProvider(
             asof=asof, freq_by_id={s.series_id: s.frequency for s in cfg.series})
         mode = "demo"
+        vintage = asof
     else:
         key = resolve_api_key(cfg)
         if not key:
@@ -794,9 +832,17 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
                 "variable or paste your key into the _config tab "
                 "(SETTINGS -> fred_api_key). Get a free key at "
                 "https://fredaccount.stlouisfed.org/apikeys")
+        # Optional vintage pin: _config SETTINGS -> fred_vintage = YYYY-MM-DD makes
+        # the pull reproduce FRED as it stood on that date; blank = latest release.
+        vintage_pin = str(cfg.setting("fred_vintage", "") or "").strip()
         provider = FredProvider(key, min_interval=cfg.fred_min_interval,
-                                max_retries=cfg.fred_max_retries)
+                                max_retries=cfg.fred_max_retries,
+                                realtime_end=vintage_pin or None)
         mode = "live"
+        try:
+            vintage = date.fromisoformat(vintage_pin) if vintage_pin else asof
+        except ValueError:
+            vintage = asof
 
     blocks = raw_layout(cfg.series, slots=cfg.raw_slots)
     pulled, stale, alerts, errors = 0, [], [], []
@@ -814,7 +860,7 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
             errors.append(f"{spec.series_id}: {exc}")
             continue
         block = blocks[spec.series_id]
-        backend.write_raw_block(block, spec, s)
+        backend.write_raw_block(block, spec, s, vintage=vintage)
         pulled += 1
         if mode == "live" and i % 25 == 0:
             sys.stderr.write(f"  ... {i}/{len(pullable)} pulled\n")
@@ -830,6 +876,7 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
 
     status = {
         "timestamp": asof.isoformat() if asof else "",
+        "vintage": vintage.isoformat() if vintage else "",
         "mode": mode,
         "series_in_dict": len(cfg.series),
         "series_pullable": len(pullable),

@@ -75,10 +75,18 @@ def config_rows():
         ["stale_multiplier", "2.0", "flag a series stale if older than this x its cadence."],
         ["fred_min_interval", "0.6", "seconds between FRED requests (FRED allows ~120/min; keep >=0.5)."],
         ["fred_max_retries", "4", "retries with backoff if FRED returns a rate-limit error."],
+        ["fred_vintage", "", "OPTIONAL YYYY-MM-DD: pin FRED realtime to reproduce a past "
+                             "vintage (audit trail). Blank = latest release (default)."],
     ]
-    rows += [[], ["[THRESHOLDS]"], ["key", "value", "help"]]
-    rows.append(["zscore_band", 1.0, "flag a loss/delinquency series when its 8-period z-score >= this."])
-    rows.append(["sloos_band", 20.0, "flag a SLOOS series when net-tightening >= this (percent)."])
+    rows += [[], ["[THRESHOLDS]"], ["key", "value", "help", "basis"]]
+    rows.append(["zscore_band", 1.0,
+                 "flag a loss/delinquency series when its 8-period z-score >= this.",
+                 "UNCALIBRATED DEFAULT (1 sigma) -- not fitted to a KeyBank loss series. "
+                 "Set and cite a basis (owner/date/backtest) before production use."])
+    rows.append(["sloos_band", 20.0,
+                 "flag a SLOOS series when net-tightening >= this (percent).",
+                 "UNCALIBRATED DEFAULT (20 net %) -- illustrative, not calibrated. "
+                 "Set and cite a basis (owner/date/rationale) before production use."])
     rows += [[], ["[SERIES]"], SEED.HEADER]
     for r in SEED.all_series():
         rows.append([r[h] for h in SEED.HEADER])

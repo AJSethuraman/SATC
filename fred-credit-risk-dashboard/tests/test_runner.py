@@ -275,7 +275,7 @@ def test_fredprovider_coerces_dot_to_nan(monkeypatch):
         def __init__(self, api_key=None):
             pass
 
-        def get_series(self, sid):
+        def get_series(self, sid, **kwargs):
             return pd.Series(["2.0", ".", "3.0"],
                              index=pd.to_datetime(["2020-03-31", "2020-06-30", "2020-09-30"]))
 
@@ -292,6 +292,48 @@ def test_fredprovider_coerces_dot_to_nan(monkeypatch):
     assert p.last_observation_date("CORCCACBS").isoformat() == "2020-09-30"
 
 
+# --------------------------------------------------------------------------
+# Self-citation / vintage (BUILD SPEC audit trail)
+# --------------------------------------------------------------------------
+def test_fred_series_url():
+    assert R.fred_series_url("CORCCACBS") == "https://fred.stlouisfed.org/series/CORCCACBS"
+
+
+def test_block_meta_carries_units_transform_and_vintage():
+    from datetime import date
+    spec = _spec(series_id="CORCCACBS", units="percent", frequency="quarterly",
+                 transform="zscore_8q")
+    meta = R.block_meta(spec, vintage=date(2026, 3, 1))
+    assert "units=percent" in meta
+    assert "transform=zscore_8q" in meta
+    assert "vintage=2026-03-01" in meta       # pull-date stamp, distinct from obs dates
+
+
+def test_fredprovider_pins_realtime_when_vintage_set(monkeypatch):
+    import types
+    seen = {}
+
+    class FakeFred:
+        def __init__(self, api_key=None):
+            pass
+
+        def get_series(self, sid, **kwargs):
+            seen.update(kwargs)
+            return pd.Series([1.0], index=pd.to_datetime(["2020-03-31"]))
+
+    fake = types.ModuleType("fredapi")
+    fake.Fred = FakeFred
+    monkeypatch.setitem(sys.modules, "fredapi", fake)
+    # No pin -> no realtime kwargs (latest release).
+    R.FredProvider("k", min_interval=0).fetch("X")
+    assert "realtime_end" not in seen
+    # Pin -> realtime_start/end passed so FRED returns that vintage.
+    seen.clear()
+    R.FredProvider("k", min_interval=0, realtime_end="2026-03-01").fetch("X")
+    assert seen.get("realtime_start") == "2026-03-01"
+    assert seen.get("realtime_end") == "2026-03-01"
+
+
 def test_is_rate_limit_detection():
     assert R._is_rate_limit(Exception("429 Too Many Requests"))
     assert R._is_rate_limit(Exception("Exceeded Rate Limit"))
@@ -306,7 +348,7 @@ def test_fredprovider_retries_on_rate_limit(monkeypatch):
         def __init__(self, api_key=None):
             pass
 
-        def get_series(self, sid):
+        def get_series(self, sid, **kwargs):
             calls["n"] += 1
             if calls["n"] == 1:                       # first call rate-limited
                 raise ValueError("429 Too Many Requests. Exceeded Rate Limit.")
