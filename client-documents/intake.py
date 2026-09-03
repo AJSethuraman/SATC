@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import dates
 import engagements
 import interview as iv
 import pricing
@@ -84,7 +85,7 @@ def compose_record(answers: dict, *, today: date | None = None) -> dict:
     creating anything -- a web UI previewing before it commits, a test.
     """
     record = iv.compose(answers)
-    record["LetterDate"] = (today or date.today()).strftime("%B %-d, %Y")
+    record["LetterDate"] = dates.long_date(today or date.today())
     # THE SAME DATE TODAY, AND NOT THE SAME FIELD. The estimate and the letter
     # go out together and are dated together -- but an engagement can be quoted
     # again, and a re-quote moves the estimate's date while the letter keeps

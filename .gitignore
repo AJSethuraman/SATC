@@ -13,3 +13,12 @@ out/
 # it, which is why this is a line in a file rather than a note to be careful.
 __pycache__/
 *.py[cod]
+
+# Virtual environments at the repository root. Every project that has one
+# ignores its own (`client-documents/`, `satc_system/`, `invoice-generator/`),
+# but nothing covered the root, and on 3 September 2026 the first run on the
+# firm's own machine created one there -- `python -m venv .venv` at the top is
+# the obvious thing to type when three projects need dependencies at once.
+# ~200 MB, and `git add -A` would have taken all of it.
+.venv/
+venv/

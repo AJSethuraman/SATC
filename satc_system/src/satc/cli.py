@@ -17,7 +17,31 @@ import sys
 from pathlib import Path
 
 
+def _speak_utf8() -> None:
+    """Let this CLI print its own output on a Windows console.
+
+    `doctor` reports each row with a ✅ or a ⚠️, and a default Windows console
+    is cp1252, which has neither. On 3 September 2026 — the first time this was
+    run on the firm's own machine rather than in a Linux container — `satc
+    doctor` did not report a problem, it *crashed* with
+    `UnicodeEncodeError: 'charmap' codec can't encode character '✅'`.
+
+    A readiness check that dies on the machine whose readiness it is checking
+    is worse than no check, so this is fixed here rather than by asking anyone
+    to set `PYTHONIOENCODING`. `errors="replace"` is deliberate: on a console
+    that genuinely cannot draw a glyph, a `?` in one column still leaves the
+    rest of the report readable.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):       # a redirected/closed stream
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _speak_utf8()
     parser = argparse.ArgumentParser(prog="satc", description="SATC tax tooling")
     sub = parser.add_subparsers(dest="cmd", required=True)
 

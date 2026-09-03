@@ -38,6 +38,8 @@ from pathlib import Path
 
 import yaml
 
+import console
+import dates
 import money as m
 import engagements
 import invoicing
@@ -145,8 +147,7 @@ class NoPdfEngine(RuntimeError):
 
 def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None:
     from playwright.sync_api import sync_playwright
-    import os, tempfile
-    exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
+    import tempfile
     # A file on disk rather than set_content, so relative links resolve exactly
     # as they do when the template is opened.
     #
@@ -169,8 +170,7 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
     tmp.write_text(html, encoding="utf-8")
     try:
         with sync_playwright() as p:
-            launch = {"executable_path": exe} if Path(exe).exists() else {}
-            browser = p.chromium.launch(**launch)
+            browser = p.chromium.launch(**presend.launch_args())
             page = browser.new_page()
             page.goto(tmp.as_uri(), wait_until="networkidle")
             page.wait_for_timeout(700)          # doc-page.js defines the layout
@@ -934,7 +934,7 @@ def cmd_from_lead(args) -> int:
                      f"registry/interview.yaml."),
         "_season": args.season,
         "_return_type": args.return_type,
-        "LetterDate": date.today().strftime("%B %-d, %Y"),
+        "LetterDate": dates.long_date(date.today()),
         "EngagementRef": args.ref or todo,
         "PeriodLabel": f"{args.season} tax year",
         # The lead gives us a name to greet somebody by; the letters want the
@@ -2909,6 +2909,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    console.speak_utf8()
     args = build_parser().parse_args(argv)
 
     # TIME RECORDS ITSELF, IN ONE PLACE. The firm: "automate everything possible

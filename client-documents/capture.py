@@ -30,13 +30,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import presend  # noqa: E402
 import walkthrough as wt  # noqa: E402
 
 OUT = ROOT / "out" / "walkthrough"
 ANSWERS = json.loads(
     (ROOT / "samples" / "interview-answers.json").read_text(encoding="utf-8"))
 FONTS = re.compile(r"https?://fonts\.(googleapis|gstatic)\.com/")
-CHROMIUM = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
+
+# THE PINNED BROWSER, AND THE FALLBACK, LIVE IN `presend`. This file used
+# to carry its own copy of the constant and launch it directly, so it died
+# with "executable doesn't exist at /opt/pw-browsers/chromium" on the first
+# machine that was not the container it was written in -- while the
+# application it photographs rendered fine on that same machine.
 
 
 def _free_port() -> int:
@@ -162,7 +168,7 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
     J = {"Accept": "application/json"}
     screens: list[wt.Screen] = []
     async with async_playwright() as p:
-        browser = await p.chromium.launch(executable_path=CHROMIUM)
+        browser = await p.chromium.launch(**presend.launch_args())
         # NARROW ON PURPOSE. The app's column is 660px wide; photographing it
         # at 1180 puts a quarter of every screenshot into empty margin, and
         # then the document scales the whole thing down into a text column --

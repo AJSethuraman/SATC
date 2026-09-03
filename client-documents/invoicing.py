@@ -45,6 +45,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+import dates
 import money as m
 
 MINUS = "−"          # a real minus sign, per the invoice's field doc
@@ -200,7 +201,7 @@ def build(record: dict, *, number: str, billed: str, today: date | None = None,
 
     out = {
         "InvoiceNumber": number,
-        "InvoiceDate": (today or date.today()).strftime("%B %-d, %Y"),
+        "InvoiceDate": dates.long_date(today or date.today()),
         "PeriodLabel": billed,
         "LineItems": [dict(i) for i in items],
         "Subtotal": m.money(subtotal, currency),

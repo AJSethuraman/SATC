@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import dates
 import engagements
 import intake
 import interview as iv
@@ -455,7 +456,7 @@ def _recompose(record: dict, composed: dict, priced: dict, *,
     # THE ESTIMATE GETS ITS OWN DATE, AND THE LETTER KEEPS ITS ONE. Two sheets
     # in a drawer showing different totals under the same date is a question
     # nobody can answer next February.
-    out["EstimateDate"] = (today or date.today()).strftime("%B %-d, %Y")
+    out["EstimateDate"] = dates.long_date(today or date.today())
     return out
 
 

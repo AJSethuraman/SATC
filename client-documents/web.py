@@ -30,6 +30,7 @@ from pathlib import Path
 
 from flask import (Flask, abort, jsonify, redirect, request, url_for)
 
+import dates
 import cli
 import editor
 import registry_editor
@@ -1534,7 +1535,7 @@ def today_line(today: date | None = None) -> str:
     application with it.
     """
     now = today or date.today()
-    said = f"<b>{now.strftime('%A %-d %B')}</b>"
+    said = f"<b>{dates.weekday_day_month(now)}</b>"
     try:
         import deadlines
 
@@ -1545,7 +1546,7 @@ def today_line(today: date | None = None) -> str:
         when, what = ahead
         soon = " class=soon" if (when - now).days <= 30 else ""
         said += (f"<span class=sep></span><span{soon}>next: "
-                 f"<b>{when.strftime('%-d %B')}</b> &mdash; {esc(what)}</span>")
+                 f"<b>{dates.day_month(when)}</b> &mdash; {esc(what)}</span>")
     return f"<p class=today>{said}</p>"
 
 
