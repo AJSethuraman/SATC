@@ -7,7 +7,7 @@ Two syntaxes, deliberately different so a regex can tell them apart:
 - `<<Field>>` — substitutes a value
 - `[[IF Name]] … [[END IF]]` — keeps or drops a block
 
-**Fail the render on any unresolved `<<` or `[[`.** A merge that leaves `<<ClientLetterName>>` in a letter sent to a client is the one bug that actually costs you a client.
+**Fail the render on any unresolved `<<` or `[[`.** A merge that leaves `<<ClientFullName>>` in a letter sent to a client is the one bug that actually costs you a client.
 
 ---
 
@@ -26,7 +26,6 @@ Grouping matters more than the alphabetical list: it tells you which system of r
 | Field | Required | Example | Notes |
 |---|---|---|---|
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | Addressee block |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only — keep separate from the legal name |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -53,14 +52,32 @@ An optional `Address2` line is not in the template. Add it only if your data act
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | Replaces the old "return it in the envelope provided", which is wrong for an emailed letter |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields |
 
-**Total: 19 fields + 1 conditional flag.**
+**Total: 25 fields + 1 conditional flag.**
 
-Not variables — hardcoded in the template, and correct to keep that way: firm legal name, office address, phone, website, the Ohio LLP footer, the Encyro delivery method, and all nine clause bodies.
+Not variables — hardcoded in the template, and correct to keep that way: the Encyro delivery method, and all nine clause bodies.
 
 **The fee is deliberately not a field.** Section 06 points at the estimate attached to the letter instead of restating a number, so the letter and the estimate can never disagree. A re-quote means reissuing the estimate, not editing the letter.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -72,7 +89,6 @@ Not variables — hardcoded in the template, and correct to keep that way: firm 
   "EngagementRef": "2027-0114",
   "TaxYear": "2026",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",
@@ -85,7 +101,14 @@ Not variables — hardcoded in the template, and correct to keep that way: firm 
   "LocalReturns": "Solon municipal",
   "AdditionalForms": "Two K-1s as reported",
   "MaterialsDeadline": "March 15, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner"
 }

@@ -1,4 +1,18 @@
 
+# Rendered client documents, wherever they land. `client-documents/.gitignore`
+# already covers its own; this covers the repository root, which
+# `exercise.py` wrote to on its first run before the default was changed.
+out/
+
+# Python bytecode. Added 30 Aug 2026 after a `__pycache__` from a one-off run of
+# website/build-pricing-config.py was committed by accident -- into website/, the
+# one directory the practice-ops side is not permitted to touch, and it made a
+# claim repeated several times in this PR ("0 files under website/") false.
+# Nothing served it and nothing broke; the point is that no rule existed to stop
+# it, which is why this is a line in a file rather than a note to be careful.
+__pycache__/
+*.py[cod]
+
 # Cached source pages fetched by docs/guides/verify_sources.py. Regenerable,
 # large, and a snapshot of somebody else's site rather than our work.
 docs/guides/.source-cache/

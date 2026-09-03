@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -43,9 +42,9 @@
 <div class="subject">Preparation of your business returns — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
-  <p>Thank you for choosing SAT-C LLP to prepare the returns for <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>, <span class="f">&lt;&lt;EntityType&gt;&gt;</span>. This letter sets out what we will do, what we will not do, what we need from you, and what it costs. <strong>Please read it thoroughly.</strong></p>
+  <p>Thank you for choosing <span class="f">&lt;&lt;FirmName&gt;&gt;</span> to prepare the returns for <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>, <span class="f">&lt;&lt;EntityType&gt;&gt;</span>. This letter outlines what each of us is responsible for, and what the work costs. <strong>Please read it thoroughly.</strong></p>
 
   <div class="sec">
     <h2><span class="n">01</span>What we will prepare</h2>
@@ -54,29 +53,29 @@
       <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
       <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
       <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+      <span class="cond">[[IF EntityIssuesK1s]]</span><li><b>Schedules K-1:</b> <span class="f">&lt;&lt;OwnerCount&gt;&gt;</span>, one for each owner</li><span class="cond end">[[END IF]]</span>
     </ul>
-    <p>Returns and forms not outlined above are outside of this engagement. If one is required, an updated or second engagement letter will be confirmed in writing outlining a new cost estimate.</p>
-    <p><strong>This engagement covers the entity, not its owners.</strong> The entity return reports the business; each owner's share then reaches their personal return on a Schedule K-1. Section 02 sets out how that works and who does what.</p>
+    <p>Returns and forms not outlined above are outside of this engagement. If the return requires additional work, a new estimate will be provided in writing. Additional work will not begin without your written consent to the new estimate.</p>
+    <p><strong>This engagement covers the entity, not its owners.</strong> The entity return reports the business; each owner's share then reaches their personal return on a Schedule K-1.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">02</span>Schedules K-1, and your personal return</h2>
-    <p>The entity return produces a <strong>Schedule K-1 for every owner</strong>. Each owner needs theirs before their personal return can be finished — not merely to file it, but to prepare it at all. <strong>That is the constraint that governs this whole engagement's timing.</strong></p>
-    <p>Our target for delivering the K-1s is <span class="f">&lt;&lt;ScheduleK1Target&gt;&gt;</span>, provided the entity's records reach us complete by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>. If the records are late, the K-1s are late, and every owner's personal return is late behind them. <strong>One incomplete business file delays as many personal returns as there are owners.</strong></p>
+    <p>The entity return produces a <strong>Schedule K-1 for every owner</strong>. Our target for delivering them is <span class="f">&lt;&lt;ScheduleK1Target&gt;&gt;</span>, provided the entity's records reach us complete by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>. An owner cannot have their personal return prepared until their K-1 is in hand.</p>
     <span class="cond">[[IF OwnerReturnsPrepared]]</span>
-    <p>We also prepare the personal returns for the owners covered by their own engagement letters, so we will move the K-1 figures across without you re-sending them. <strong>That coordination does not change the deadlines.</strong> Each owner's return is its own engagement, with its own letter, its own fee, and its own signature — this letter does not cover them.</p>
+    <p>We prepare the owners' personal returns too, and we will move the K-1 figures across without you re-sending them. <strong>Each owner's return is a separate engagement</strong>, with its own letter, its own fee and its own signature.</p>
     <span class="cond end">[[END IF]]</span>
     <span class="cond">[[IF OwnerReturnsElsewhere]]</span>
     <p>We do not prepare the owners' personal returns, and <strong>we do not have a relationship with whoever does</strong>. We will deliver each K-1 to the entity. Getting it to the right owner, and to that owner's preparer, is the entity's job — we will not send an owner's K-1 to a third party without written instruction from the entity.</p>
-    <p>Tell your owners the target date above now, not in April. A preparer who learns in April that a K-1 is coming in September has already promised something they cannot deliver.</p>
+    <p>Tell your owners the target date above now, not in April.</p>
     <span class="cond end">[[END IF]]</span>
   </div>
 
   <div class="sec">
     <h2><span class="n">03</span>What this engagement is not</h2>
-    <p>We prepare returns from the information you give us. <strong>We will not audit or otherwise verify it.</strong> We may ask you to clarify an item, but our work is not designed to detect errors, fraud, theft, or other illegal acts — and should not be relied on for that purpose. If we find something material, we will tell you.</p>
-    <p>We will perform bookkeeping only as far as preparing the returns requires. <strong>We do not perform audits, reviews, or any assurance engagement</strong>, and we issue no opinion on your financial statements. If a lender or investor asks for audited statements, you will need a registered audit firm.</p>
-    <p><strong>Payroll processing, sales tax filings, and annual report or registered-agent filings are not included</strong> unless they are listed in section 01. Representing the entity in a notice response or an appeal is a separate engagement, quoted separately.</p>
+    <p>We prepare returns from the information you give us. <strong>We will not audit or otherwise verify it.</strong> We may ask you to clarify an item, but our work is not designed to detect errors, fraud, theft, or other illegal acts. If we find something material, we will tell you.</p>
+    <p>We will perform bookkeeping only as far as preparing the returns requires. <strong>We do not perform audits, reviews, or any assurance engagement</strong>, and we issue no opinion on your financial statements.</p>
+    <p><strong>Payroll processing, sales tax filings, and annual report or registered-agent filings are not included</strong> unless they are listed in section 01. Representing the entity in a notice response or an appeal is a separately quoted engagement.</p>
     <span class="cond">[[IF SCorpElection]]</span>
     <p>Setting or reviewing officer compensation is <strong>not within this engagement</strong> unless section 01 lists it. We will report the compensation the entity actually paid, as its records show it. If you would like us to advise on a reasonable figure, we can take that on as a separate, named piece of work — tell us and we will add it to the engagement in writing before we start, and it is billed at our hourly rate as it is worked.</p>
     <span class="cond end">[[END IF]]</span>
@@ -96,22 +95,22 @@
 
   <div class="sec">
     <h2><span class="n">05</span>Your deadline, and extensions</h2>
-    <p>To file by the original due date, we need the entity's complete information by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>. Material arriving after that date, or arriving incomplete, will likely require an extension.</p>
+    <p>To file by the original due date, we need the entity's complete information by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>. Material arriving after that date, or arriving incomplete, may require an extension.</p>
     <div class="callout">
-      <p><strong>An extension gives you more time to file, not more time to pay.</strong> Interest and penalties run from the original due date on anything unpaid. Where an entity return carries its own penalty for late filing, that penalty is commonly charged <strong>per owner, per month</strong> — which is why an entity with several owners has more at stake in a missed deadline than a single filer does.</p>
+      <p><strong>An extension gives you more time to file, not more time to pay.</strong> Interest and penalties run from the original due date on anything unpaid. Where an entity return carries its own penalty for late filing, that penalty is commonly charged <strong>per owner, per month</strong>.</p>
     </div>
     <p>We will file an extension on the entity's behalf where one is needed, unless you instruct us otherwise in writing. <strong>An extension of the entity return does not extend any owner's personal return</strong>, and it does not move any owner's payment date.</p>
-    <p><strong>The deadline is the entity's, not ours.</strong> We will tell you what we need and when we need it, and we will chase it. We cannot file a return we do not have the records for.</p>
+    <p><strong>The deadline is the entity's, not ours.</strong> We will tell you what we need and when, and we will chase it.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">06</span>Unclear law, and penalties</h2>
-    <p>The law imposes penalties when a taxpayer understates a liability. Where the law is unclear, or where positions conflict, we will set out the reasonable courses of action along with the risk and consequence of each, and <strong>we will adopt the one you choose</strong>. We will not sign a return taking a position we could not defend in writing.</p>
+    <p>The law imposes penalties when a taxpayer understates a liability. Where the law is unclear, or where positions conflict, we will set out the reasonable courses of action along with the risk and consequence of each, and <strong>we will adopt the one you choose</strong>. We will not prepare or file a return taking a position we could not defend in writing.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">07</span>Fees and billing</h2>
-    <p>Our fee for this engagement is the amount shown on the <strong>estimate accompanying this letter</strong>. Work outside the scope described in section 01 will be quoted before we begin it.</p>
+    <p>Our fee for this engagement is the amount shown on the <span data-encl="fee-estimate"><strong>estimate accompanying this letter</strong></span>. Work outside the scope described in section 01 is quoted in writing, and does not begin without your written consent to the new estimate.</p>
     <p>Invoices are due on presentation. Balances unpaid after thirty (30) days carry interest at the maximum rate state law permits. <strong>We may suspend or withdraw from the engagement if an invoice goes unpaid</strong>, or if requested information is not provided. We are not responsible for a late filing that results.</p>
     <p>We will not e-file a return before the invoice for it is settled, unless agreed upon in writing.</p>
   </div>
@@ -119,7 +118,7 @@
   <div class="sec">
     <h2><span class="n">08</span>Your records, our files, and delivery</h2>
     <p>We return your original records at the end of the engagement; store them, and everything supporting them, somewhere secure. We keep copies of your records and our work papers for <strong>seven years</strong>, after which they are destroyed. Our work papers are ours, not part of your records.</p>
-    <p>We send documents for signature through <strong>Encyro</strong>, and final returns and K-1s are delivered password-protected. We will use another method at your direction, though it may not be secure and we would not advise it.</p>
+    <p>We send documents for signature through <strong>Encyro</strong>, and final returns and K-1s are delivered password-protected. You send us documents through the secure upload link we email you. <strong>We will not send you anything unprotected</strong>, and anything you send another way is sent at your own risk.</p>
   </div>
 
   <div class="sec">
@@ -137,12 +136,12 @@
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 
   <div class="exec">
     <div class="accept">Acceptance</div>
-    <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign and return a copy. <span class="f">&lt;&lt;ReturnInstruction&gt;&gt;</span> The person signing must be authorised to bind the entity.</p>
+    <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign below. The person signing must be authorized to bind the entity.</p>
 
     <div class="sigrow">
       <div>
@@ -154,14 +153,14 @@
         <div class="siglab">Date</div>
       </div>
     </div>
-    <p class="execnote">One signature binds the entity, not its owners. Each owner's personal return is a separate engagement with a separate letter, and nothing signed here commits any owner to anything.</p>
+    <p class="execnote">One signature binds the entity, not its owners.</p>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">BUSINESS ENGAGEMENT LETTER<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -176,13 +175,12 @@
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0117 — the join key. <b>The entity gets its own ref</b>, separate from any owner's.</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — the self-describing period field the whole set uses. <span class="warn">Not <code>TaxYear</code>, which §4 of the authoring contract says must never come back.</span> Appears twice.</td></tr>
     <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Larchmere Holdings LLC — <b>the entity's exact registered name</b>, not a trading name. Appears three times: recipient block, opening sentence, signature label.</td></tr>
-    <tr><td>&lt;&lt;ClientLetterName&gt;&gt;</td><td class="req">Required</td><td>Dan — the human being read this, not the entity. Salutation only.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Dan — the human being read this, not the entity. Salutation only.</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Four fields. The entity's address, which is not always an owner's.</td></tr>
     <tr><td>&lt;&lt;EntityType&gt;&gt;</td><td class="req">Required</td><td>an Ohio limited liability company taxed as an S corporation — <b>a phrase, not a code</b>, written to drop into the opening sentence after a comma. It is the letter's statement of what it thinks the entity is, where a client can correct it.</td></tr>
     <tr><td>&lt;&lt;FederalReturns&gt;&gt; &lt;&lt;StateReturns&gt;&gt; &lt;&lt;LocalReturns&gt;&gt; &lt;&lt;AdditionalForms&gt;&gt;</td><td class="req">Required</td><td>Four fields, the same four the individual letter uses, from the same interview answers. Name every state — this is the scope boundary. <b>Emit the literal "None" when empty</b>, never a blank.</td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>February 15, 2027 — <b>the entity value, which is earlier than the individual one.</b> Appears twice: sections 02 and 05.</td></tr>
     <tr><td>&lt;&lt;ScheduleK1Target&gt;&gt;</td><td class="req">Required</td><td>March 10, 2027 — when the K-1s are delivered. <b>A real date</b>: every owner's preparer schedules around it.</td></tr>
-    <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — firm setting, shared with the other letters</td></tr>
     <tr><td>&lt;&lt;SignerName&gt;&gt; &lt;&lt;SignerTitle&gt;&gt;</td><td class="req">Required</td><td>Daniel Reyes · Managing Member. Two fields, <b>the same pair the bookkeeping letter uses</b> — an entity signs through a person, and that person must be able to bind it.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
     <tr><td>[[IF OwnerReturnsPrepared]]</td><td class="req">Flag</td><td>Boolean. The firm also prepares the owners' personal returns.</td></tr>

@@ -76,6 +76,11 @@ class DocType:
         return self.key is not None
 
 
+# Methods that are not an identification at all. Kept as a set rather than a
+# chain of != so that adding a third non-verdict cannot silently pass for one.
+_NOT_A_VERDICT = frozenset({"unclassified", "not downloaded"})
+
+
 @dataclass(slots=True)
 class Classification:
     """The classifier's verdict for one file."""
@@ -86,14 +91,112 @@ class Classification:
     confidence: str          # HIGH / MEDIUM / LOW / UNCERTAIN
     method: str              # "form fields" / "text" / "filename" / "vision" / "unclassified"
     evidence: str = ""
+    # EVERY form this one document contains, primary first. Empty for the
+    # ordinary case of one document, one form -- the composite label is not a
+    # substitute, because a caller that has to parse a label to learn what it
+    # found will eventually parse it wrong.
+    forms: tuple[str, ...] = ()
+    # The tax year printed on the document, or None for "could not read one".
+    # None NEVER means the current year -- see document_year and wrong_year.
+    tax_year: int | None = None
+
+    @property
+    def multi(self) -> bool:
+        """True when this document is SEVERAL forms, not one.
+
+        Distinct from a low confidence, and the distinction is the whole point.
+        MEDIUM means *we are unsure which single form this is*. ``multi`` means
+        *we are sure it is more than one* -- a consolidated brokerage 1099
+        carrying DIV, INT and B summaries on one page, which is what every
+        Schwab/Fidelity/Vanguard client sends. Answering that with the single
+        highest-scoring label is not a near-miss, it is a wrong answer that
+        closes a request: matching accepts "1099-INT" against a core-income
+        bundle, reconcile marks it Received, and the 1099-B nobody has yet is
+        never asked for again.
+        """
+        return len(self.forms) > 1
 
     @property
     def extractable(self) -> bool:
+        # A multi-form page is already excluded here and needs no test of its
+        # own: `classify_text` gives every "Several forms:" verdict `key=None`,
+        # because there IS no single extraction map for a page of three forms --
+        # reading it with one form's map would key another form's figures onto
+        # the wrong lines, which is worse than not reading it, because the
+        # result looks like data. A `not self.multi` clause was written here
+        # first and removed: it could never fire, and a check that cannot fire
+        # reads to the next person as if it were load-bearing.
         return self.key is not None
 
     @property
     def classified(self) -> bool:
-        return self.method != "unclassified"
+        """True when we identified what this document IS.
+
+        Both non-verdicts are excluded, and they are different non-verdicts:
+        "unclassified" is *we read it and did not recognise it*, "not downloaded"
+        is *we never saw it*. A comment here once claimed the second was already
+        excluded because its method differed from the first -- it was not, and
+        the test caught it: a placeholder counted as classified and would have
+        been handed to reconcile.
+        """
+        return self.method not in _NOT_A_VERDICT
+
+
+# A tax year printed on a form. Standalone only: an EIN (34-2026112), an account
+# number or a ZIP+4 can all carry four digits that read like a year, so a run
+# glued to more digits or to a dash is not one.
+_YEAR = re.compile(r"(?<![\d-])(19[9]\d|20[0-4]\d)(?![\d-])")
+
+# The window a tax document can plausibly belong to. Wide on purpose -- prior-year
+# returns, amended filings and carryforward schedules are ordinary work -- but
+# not so wide that a founding date in a letterhead ("Established 1887") counts.
+YEAR_FLOOR = 1990
+YEAR_CEILING = 2049
+
+
+def document_year(text: str) -> int | None:
+    """The tax year this document is for, or None when it cannot be read.
+
+    NONE MEANS UNKNOWN AND UNKNOWN MEANS UNKNOWN. It never means "probably this
+    year". Nothing downstream may treat a None as a match or as a mismatch --
+    see :func:`wrong_year` for the asymmetry that depends on it.
+
+    Real forms print their year more than once: in the header, in the footer
+    rule, sometimes in a box. A stray reference to a different year ("corrected
+    from your 2025 filing") appears once. So the most repeated year wins, and a
+    genuine tie is unknown rather than whichever happened to be scanned first --
+    picking one there would be a coin toss wearing a fact's clothes.
+
+    Measured 30 Aug 2026: without this, a 2019 W-2 from a job the client left
+    classified HIGH and filed as "W-2 (2).pdf" beside the current one, and could
+    close this year's W-2 request.
+    """
+    if not text:
+        return None
+    counts: dict[int, int] = {}
+    for m in _YEAR.finditer(text):
+        year = int(m.group(1))
+        if YEAR_FLOOR <= year <= YEAR_CEILING:
+            counts[year] = counts.get(year, 0) + 1
+    if not counts:
+        return None
+    ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return None            # a tie is not evidence
+    return ranked[0][0]
+
+
+def wrong_year(document: int | None, engagement: int | None) -> bool:
+    """True only when BOTH years are known and they differ.
+
+    The asymmetry is the whole design. A year we could not read blocks nothing:
+    most documents read fine, and a pipeline that refused everything it was
+    unsure of would hand the whole packet back to the preparer, which is the job
+    it exists to remove. A year we DID read, which differs, is the one case
+    where we know enough to be sure something is wrong -- and there it refuses.
+    """
+    return (document is not None and engagement is not None
+            and document != engagement)
 
 
 # A neutral verdict for files nothing matched.
@@ -102,6 +205,56 @@ UNCLASSIFIED = Classification(
     confidence="UNCERTAIN", method="unclassified",
     evidence="no form fields, text, filename hint, or vision match",
 )
+
+
+# How much of the winner's score a second form must reach before the document is
+# read as several forms rather than one. Chosen from measurement, not taste --
+# see the note at its use. Genuine multi-form documents cluster near 0.9; a
+# passing mention of another form clusters near 0.3.
+MULTI_SHARE = 0.6
+
+
+# A file whose bytes are not on this disk. DISTINCT FROM UNCLASSIFIED ON PURPOSE.
+#
+# OneDrive's Files On-Demand leaves PLACEHOLDERS: entries that appear in the
+# folder listing, report a size in Explorer, and have no bytes locally. Measured
+# 30 Aug 2026, and predicted in the collection design before that: a zero-byte
+# PDF came back "Unclassified", silently, and was filed. A document that arrived,
+# was processed, and vanished into a folder nobody reads.
+#
+# "We looked and could not identify it" and "we never saw it" are different facts
+# with different remedies -- the first wants a new keyword, the second wants you
+# to right-click and choose Always keep on this device. In a folder listing they
+# are the same grey word unless we make them different here.
+#
+# `method` is not "unclassified", so `classified` is False and nothing downstream
+# counts this as a document that arrived. That is the property reconcile keys on.
+NOT_DOWNLOADED = Classification(
+    label="Not downloaded", key=None, code="DOC",
+    confidence="UNCERTAIN", method="not downloaded",
+    evidence="the file has no bytes on this disk -- it is a placeholder, not a "
+             "document. Download it (right-click, Always keep on this device) "
+             "and run this again.",
+)
+
+
+def _has_bytes(path: Path) -> bool:
+    """True when this file's contents are actually on this disk.
+
+    Zero bytes ONLY. A small real PDF is a real PDF, and a size threshold here
+    would start refusing documents on a guess about how big a form ought to be.
+
+    ON WINDOWS a placeholder can also be a nonzero-size file with
+    FILE_ATTRIBUTE_OFFLINE or FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS set, which
+    this does not yet check -- st_file_attributes exists only on Windows and
+    there is no Windows machine in the build environment to prove it against.
+    NOT CLAIMED AS COVERED (S28). What is proven is the zero-byte case, which is
+    the one that was actually measured.
+    """
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False        # gone mid-sync is the same situation as never pulled
 
 
 class DocumentClassifier:
@@ -185,6 +338,11 @@ class DocumentClassifier:
     # -- classify ---------------------------------------------------------
     def classify_path(self, source: str | Path) -> Classification:
         path = Path(source)
+        # BEFORE ANY RUNG. Every reader below would "succeed" on a placeholder by
+        # finding nothing in it, and the verdict would be indistinguishable from
+        # a document we read and did not recognise.
+        if not _has_bytes(path):
+            return NOT_DOWNLOADED
         is_pdf = path.suffix.lower() == ".pdf"
 
         if is_pdf:
@@ -232,8 +390,14 @@ class DocumentClassifier:
             if score > best_score:
                 best, best_score = dt, score
         if best is not None and best_score >= 2:
+            # A fillable form is identified by its field NAMES, which carry no
+            # year -- so read the year off the printed page as every other rung
+            # does. Cheap (the text layer is already there on a fillable PDF)
+            # and it keeps the year available on the free, exact path rather
+            # than only on the text one.
             return Classification(best.label, best.key, best.code, "HIGH", "form fields",
-                                  f"matched {best_score} fillable form fields")
+                                  f"matched {best_score} fillable form fields",
+                                  tax_year=document_year(self._page_text(path)))
         return None
 
     def _by_text(self, path: Path) -> Classification | None:
@@ -251,6 +415,8 @@ class DocumentClassifier:
         if not text or not text.strip():
             return None
         norm = _normalize_text(text)
+        year = document_year(text)      # RAW text: _normalize_text folds the
+                                        # punctuation the standalone-run rule needs
         scored: list[tuple[int, int, DocType]] = []
         for dt in self.doc_types:
             score = sum(w for phrase, w in dt.keywords if phrase and phrase in norm)
@@ -264,12 +430,49 @@ class DocumentClassifier:
         # A runner-up that resolves to the *same* extraction key (e.g. the generic
         # "Schedule K-1" vs the specific 1120-S entry) agrees with the winner — it is
         # not a competing interpretation, so it never makes the result ambiguous.
-        runner = next((s for s, dt in qualified[1:] if dt.key != best.key), 0)
-        ambiguous = runner >= (best.threshold or self.text_threshold) or \
-            (runner > 0 and best_score - runner <= self.close_delta)
+        # Every OTHER type that cleared its own threshold on its own evidence.
+        # Types that resolve to the same extraction key (the generic "Schedule
+        # K-1" beside the specific 1120-S entry) agree with the winner rather
+        # than competing, so they never count as a second form.
+        others = [(s, dt) for s, dt in qualified[1:] if dt.key != best.key]
+        # A second form must clear its own threshold AND score a real SHARE of
+        # the winner's. Clearing the floor alone is not enough: measured on the
+        # real keyword weights, 30 Aug 2026 --
+        #
+        #   consolidated 1099 (DIV + INT + B)   1099-INT 16 vs 1099-DIV 15   0.94
+        #   terse "1099-INT ... 1099-DIV"       1099-DIV 18 vs 1099-INT 16   0.89
+        #   a W-2 that MENTIONS 1099-R          W-2      27 vs 1099-R   9    0.33
+        #
+        # -- so the floor-only rule called that last one "Several forms: W-2,
+        # 1099-R", which is a plain W-2 and one of the commonest documents there
+        # is. A form the document is ABOUT scores comparably to the winner; a
+        # form it merely refers to does not. MULTI_SHARE sits between the two
+        # clusters with margin on both sides.
+        strong = [dt.label for s, dt in others
+                  if s >= (dt.threshold or self.text_threshold)
+                  and s >= best_score * MULTI_SHARE]
+
+        if strong:
+            # SEVERAL FORMS, NOT AN UNSURE ONE. Each of these cleared the bar
+            # this classifier sets for "this document is a <form>" -- so the
+            # honest reading is that the page carries all of them. See
+            # Classification.multi for why answering with just the best one is
+            # a money bug rather than an imprecision.
+            names = [best.label, *strong]
+            return Classification(
+                label="Several forms: " + ", ".join(names),
+                key=None, code="MULTI", confidence="HIGH", method=method,
+                evidence=f"{len(names)} forms each cleared their threshold "
+                         f"(best {best_score})",
+                forms=tuple(names), tax_year=year,
+            )
+
+        runner = others[0][0] if others else 0
+        ambiguous = runner > 0 and best_score - runner <= self.close_delta
         conf = "MEDIUM" if ambiguous else "HIGH"
         ev = f"text score {best_score}" + (f" (runner-up {runner})" if runner else "")
-        return Classification(best.label, best.key, best.code, conf, method, ev)
+        return Classification(best.label, best.key, best.code, conf, method, ev,
+                              tax_year=year)
 
     def _by_filename(self, name: str) -> Classification | None:
         low = name.lower()

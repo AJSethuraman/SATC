@@ -7,6 +7,7 @@ either comes out complete, or it does not come out at all.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+import merge  # noqa: E402
 from merge import MergeError, render, render_file  # noqa: E402
 
 TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
@@ -66,15 +68,33 @@ def test_materials_deadline_matches_across_documents(record):
 
 def test_missing_field_raises_rather_than_shipping(record):
     holed = dict(record)
-    del holed["ClientLetterName"]
+    del holed["ClientFullName"]
     with pytest.raises(MergeError) as e:
         render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], holed)
-    assert "ClientLetterName" in str(e.value)
+    assert "ClientFullName" in str(e.value)
 
 
 def test_confirm_placeholder_cannot_reach_a_client(record):
+    """An undecided firm setting stops the render rather than printing.
+
+    HOLED IN A FIELD THE TEMPLATE ACTUALLY MERGES, and the assertion below
+    checks that. Until 26 August 2026 this test poked `ReturnInstruction`;
+    when that field was retired the template stopped merging it, the
+    placeholder never reached the output, and the test went on passing while
+    checking nothing. The guard reads the RENDERED TEXT, not the record, so a
+    value nothing prints can never fail it.
+
+    Naming the field in an assertion is what makes the next retirement break
+    this test loudly instead of quietly hollowing it out.
+    """
+    field = "PreparerName"
+    template = (TEMPLATE_DIR / OPENING_PACKAGE["tax letter"]).read_text(encoding="utf-8")
+    assert f"&lt;&lt;{field}&gt;&gt;" in template, (
+        f"this test holes {field}, which the tax letter no longer merges — "
+        f"point it at a field the template does merge, or it proves nothing"
+    )
     undecided = dict(record)
-    undecided["ReturnInstruction"] = "[CONFIRM: how do they return it?]"
+    undecided[field] = "[CONFIRM: who is signing this one?]"
     with pytest.raises(MergeError) as e:
         render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], undecided)
     assert "CONFIRM" in str(e.value)
@@ -105,14 +125,79 @@ def test_each_repeats_once_per_item(record):
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
     for item in record["LineItems"]:
         assert item["Service"] in html
-    assert html.count("$450") >= 1
+        assert item["Amount"] in html
+    assert len(record["LineItems"]) >= 1
 
 
 def test_empty_detail_renders_empty_not_none(record):
-    """The field docs are explicit: an empty Item.Detail is '', never 'None'."""
-    html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
+    """The field docs are explicit: an empty Item.Detail is '', never 'None'.
+
+    Built here rather than leaned on the sample: the sample's estimate is
+    generated from the engine now, and every line the engine writes happens to
+    carry a detail. A test that depends on that would pass for the wrong
+    reason the day a detail is added.
+    """
+    holed = dict(record)
+    holed["LineItems"] = list(record["LineItems"]) + [
+        {"Service": "Solon municipal return", "Detail": "",
+         "Includes": "", "Amount": "$35.00"}]
+    html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], holed).html
     assert "Solon municipal return" in html
     assert ">None<" not in html
+
+
+def test_a_line_item_missing_a_sub_field_refuses(record):
+    """Empty is a value; absent is a hole, and the two must not look alike.
+
+    `Includes` was added to the estimate's rows on 26 August 2026 and every
+    row carries it, empty where a line has nothing to list. A row assembled
+    without the key at all is a caller that has not been updated, and it has
+    to fail here rather than print `<<Item.Includes>>` on a fee estimate.
+    """
+    holed = dict(record)
+    holed["LineItems"] = [{"Service": "A return", "Detail": "", "Amount": "$35.00"}]
+    with pytest.raises(MergeError, match="Item.Includes"):
+        render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], holed)
+
+
+def test_the_estimate_and_the_letter_state_the_same_scope(record):
+    """The firm, 26 August 2026, holding both sheets: "either it needs to list
+    what we are doing in one place, or needs to be comparable in both."
+
+    They were not comparable. The letter named schedules -- "Form 1040 with
+    Schedules A, C, E, and SE" -- and the estimate named a package and a
+    price, "Self-Employed $500", with the rest of it buried in a semicolon
+    run-on inside a table cell. Everything was covered; nothing lined up.
+
+    The estimate now repeats the letter's four scope lines from the same four
+    fields. This asserts they are the same four VALUES on one record, which is
+    what makes the two sheets comparable rather than merely consistent.
+    """
+    letter = render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], record).html
+    estimate = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
+
+    for field in ("FederalReturns", "StateReturns", "LocalReturns", "AdditionalForms"):
+        value = record[field]
+        assert value in letter, f"{field} is not on the engagement letter"
+        assert value in estimate, f"{field} is not on the fee estimate"
+
+
+def test_the_estimate_prices_every_schedule_its_scope_names(record):
+    """The failure this pair is guarding against, stated directly.
+
+    The bug that started it: the letter's scope said "Schedules A, C, and SE"
+    while the estimate billed a $145 Rental schedule. Schedule E was on the
+    bill and outside the scope the client had signed. Both documents render
+    from one record now, so the two halves of that contradiction are here
+    together and can be compared.
+    """
+    scope = record["FederalReturns"]
+    if "E" in scope.replace("Schedules", ""):
+        priced = " ".join(i["Service"] + " " + i["Includes"] for i in record["LineItems"])
+        assert "Schedule E" in priced or "Rental" in priced, (
+            "the letter's scope names Schedule E and nothing on the estimate "
+            "prices it"
+        )
 
 
 # ── escaping ──────────────────────────────────────────────────────────────
@@ -125,7 +210,7 @@ def test_values_are_escaped(record):
 
 
 def test_a_value_cannot_inject_markup(record):
-    hostile = dict(record, ClientLetterName='<script>alert(1)</script>')
+    hostile = dict(record, ClientFullName='<script>alert(1)</script>')
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], hostile).html
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
@@ -309,3 +394,134 @@ def test_a_required_list_is_not_enforced_in_draft():
     out = render(REQUIRED_LIST_TPL, {"LineItems": []},
                        strict=False, required_lists=("LineItems",))
     assert out.html is not None
+
+
+# ── section numbering, after the conditionals resolve ─────────────────────
+
+def test_a_dropped_section_renumbers_the_ones_below_it():
+    """THE LIVE DEFECT. `[[IF PriorFirm]]` drops section 03 of the onboarding
+    letter and nothing renumbered, so 26 of 27 packs went out reading
+    01, 02, 04, 05. The template's own FIELDS spec asked for this in writing
+    -- "Renumber the remaining sections in code" -- and it was never built."""
+    out, moved = merge._renumber_sections(
+        '<h2><span class="n">01</span>A</h2>'
+        '<h2><span class="n">02</span>B</h2>'
+        '<h2><span class="n">04</span>C</h2>'
+        '<h2><span class="n">05</span>D</h2>')
+    assert re.findall(r'class="n">(\d+)<', out) == ["01", "02", "03", "04"]
+    assert moved == {"01": "01", "02": "02", "04": "03", "05": "04"}
+
+
+def test_prose_that_cites_a_section_moves_with_it():
+    """Renumbering the headings alone would leave "section 04 tells you what
+    to do" pointing at whatever now occupies 04 — worse than the gap."""
+    out, _ = merge._renumber_sections(
+        '<h2><span class="n">01</span>A</h2><p>Section 04 explains it.</p>'
+        '<h2><span class="n">02</span>B</h2>'
+        '<h2><span class="n">04</span>C</h2>')
+    assert "Section 03 explains it." in out
+
+
+def test_a_document_that_already_numbers_correctly_is_untouched():
+    src = ('<h2><span class="n">01</span>A</h2>'
+           '<h2><span class="n">02</span>B</h2><p>see section 02</p>')
+    out, moved = merge._renumber_sections(src)
+    assert out == src and moved == {}
+
+
+def test_a_reference_to_a_section_that_is_not_there_is_refused():
+    """A client reading "section 09 explains what to do" and finding no
+    section 09 is the same failure as an unresolved token: the document says
+    something that is not true of itself."""
+    with pytest.raises(merge.MergeError) as exc:
+        merge.render('<h2><span class="n">01</span>A</h2>'
+                     '<p>Section 09 explains it.</p>', {})
+    assert "section(s) 09" in str(exc.value)
+
+
+def test_the_result_says_whether_anything_moved():
+    """A silent renumber and no renumber look identical from outside, and one
+    of them means a condition dropped a section."""
+    quiet = merge.render('<h2><span class="n">01</span>A</h2>', {})
+    assert quiet.renumbered == {}
+    moved = merge.render('<h2><span class="n">01</span>A</h2>'
+                         '<h2><span class="n">03</span>B</h2>', {})
+    assert moved.renumbered == {"01": "01", "03": "02"}
+
+
+# ── a sentence can only be given a phrase ─────────────────────────────────
+
+def test_a_list_handed_to_a_sentence_is_refused():
+    """A disengagement letter went out reading: "It covers [{'Item': '2026
+    federal and Ohio returns', 'Status': 'Complete'}]". `str(value)` will
+    render a Python repr straight into a client's letter and nothing
+    downstream can tell that apart from a phrase somebody meant to write."""
+    with pytest.raises(MergeError) as exc:
+        render('<p>It covers &lt;&lt;Work&gt;&gt;.</p>',
+               {"Work": [{"Item": "2026 returns", "Status": "Complete"}]})
+    assert "Work is a list" in str(exc.value)
+    assert "Python" in str(exc.value)
+
+
+def test_a_dict_handed_to_a_sentence_is_refused():
+    with pytest.raises(MergeError):
+        render('<p>&lt;&lt;Where&gt;&gt;</p>', {"Where": {"city": "Dublin"}})
+
+
+@pytest.mark.parametrize("value", ["a phrase", 42, 3.5, True, None])
+def test_every_ordinary_value_still_renders(value):
+    """The gate must not become a reason to fear the record."""
+    render('<p>&lt;&lt;A&gt;&gt;</p>', {"A": value})
+
+
+def test_a_row_that_is_not_a_set_of_fields_is_refused():
+    """`[[EACH]]` has refused a non-list since it was written; this is the
+    same gate one level down. A list of strings cannot fill a table whose
+    columns have names — it used to raise AttributeError from inside the
+    engine, which tells a preparer nothing."""
+    with pytest.raises(MergeError) as exc:
+        render('[[EACH Rows]]<td>&lt;&lt;Item.A&gt;&gt;</td>[[END EACH]]',
+               {"Rows": ["just a string"]})
+    assert "row 1 of Rows" in str(exc.value)
+
+
+# ── two faces of one decision ─────────────────────────────────────────────
+
+EXT = ('<p>Your payment deadline does not move, and section 02 tells you what '
+       'to do about that.</p>'
+       '<h2><span class="n">02</span>Money</h2>'
+       '[[IF PaymentEnclosed]]<p>Pay $450 by 15 April.</p>[[END IF]]'
+       '[[IF NoPaymentRequired]]<p>There is nothing to pay.</p>[[END IF]]')
+PAIR = (("PaymentEnclosed", "NoPaymentRequired"),)
+
+
+def test_neither_half_of_an_inverse_pair_is_refused():
+    """THE WORST POSSIBLE VERSION OF THIS LETTER, in the template's own words.
+    Two independent booleans can both be false, and when they were, the
+    extension notice printed a warning that the payment deadline has not
+    moved, an intro saying section 02 tells you what to do about it, and then
+    nothing at all in section 02."""
+    with pytest.raises(MergeError) as exc:
+        render(EXT, {}, inverse_flags=PAIR)
+    assert "neither is set" in str(exc.value)
+    assert "come out empty" in str(exc.value)
+
+
+def test_both_halves_of_an_inverse_pair_is_refused():
+    with pytest.raises(MergeError) as exc:
+        render(EXT, {"PaymentEnclosed": True, "NoPaymentRequired": True},
+               inverse_flags=PAIR)
+    assert "both are set" in str(exc.value)
+
+
+def test_exactly_one_renders():
+    out = render(EXT, {"PaymentEnclosed": True, "NoPaymentRequired": False},
+                 inverse_flags=PAIR)
+    assert "Pay $450" in out.html
+    assert "nothing to pay" not in out.html
+
+
+def test_a_pair_this_document_does_not_use_is_not_its_problem():
+    """The delivery letter's EFiled/PaperFiled pair has nothing to do with an
+    engagement letter, and requiring it there would block every send."""
+    render("<p>Nothing conditional here.</p>", {}, inverse_flags=PAIR)

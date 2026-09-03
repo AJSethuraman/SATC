@@ -1,0 +1,214 @@
+# THE LABELLED CORPUS — a regression net. NOT a proof of correctness.
+#
+# READ THIS BEFORE TRUSTING A GREEN RUN. The firm, 30 August 2026, on the last
+# attempt at this: *"the synthetic tests weren't doing it — it was miscategorising
+# W-2s and stuff, and maybe that would've been fixed had it been actually looked
+# at."* That is the most important sentence about this file, so it goes at the top
+# of it.
+#
+# Everything below is generated text on a blank page. A real W-2 is a dense grid
+# of numbered boxes whose text layer comes out in scrambled reading order, with
+# the form title set in 6pt at the foot and often three copies 3-up on one sheet.
+# A case here that reads "Form W-2 / 1 Wages, tips, other compensation" is not a
+# W-2 — it is a note with the words on it, and of course it classifies.
+#
+# So be exact about what a green run means:
+#   IT PROVES     a change did not break a behaviour that used to work.
+#   IT DOES NOT   prove the classifier works on a document a client actually sent.
+#
+# Only two things can prove the second, and neither of them lives in this file:
+#
+#   1. REAL BLANK FORMS, SYNTHETICALLY FILLED. The IRS publishes fillable PDFs of
+#      W-2, the 1099 series, 1098 and 1095-A. They are public, carry no PII, and
+#      are committable. Filling a real blank gives the REAL AcroForm field names,
+#      the REAL layout and the REAL text-layer reading order — the three things
+#      that actually decide the answer. Categorically better than anything
+#      generated here. (`corpus/blanks/` — not yet populated; irs.gov is blocked
+#      from the build environment, so the blanks have to be fetched once by hand.)
+#
+#   2. A HELD-OUT RUN ON REAL CLIENT DOCUMENTS, ON THE FIRM'S OWN MACHINE. Prints
+#      the score; writes back only the SHAPE of each failure — "3-up W-2, title in
+#      footer only, classified 1099-INT" — never the document, never a name, never
+#      a figure. Those shapes then become cases here. That is the loop that closes
+#      the gap the firm hit; nothing inside this repository can close it alone.
+#
+# HOW THIS GROWS. When a real document fails you do NOT add the document. You add
+# a synthetic reconstruction of WHAT MADE IT FAIL, and a `found` note saying where
+# it came from. The corpus grows out of reality without ever holding any of it.
+#
+# `expect` is the label the classifier must return. `expect_many` lists the labels
+# one file legitimately contains; answering with only one counts as WRONG, because
+# a partial answer silently closes a request (see 1099-consolidated).
+# `must_refuse: true` means the right answer is to stop and say so, NOT to file it
+# as Unclassified — refusing loudly and shrugging quietly look identical in a
+# folder listing and are not the same thing at all.
+
+cases:
+
+  # ── the ones it already gets right, kept so a change cannot break them ──
+  - id: w2-fillable-bad-name
+    expect: W-2
+    why: >-
+      A camera filename with a real form inside. The whole reason the classifier
+      reads content instead of names.
+    filename: "IMG_4471.pdf"
+    pages:
+      - ["Form W-2  Wage and Tax Statement", "2026",
+         "Employer: Buckeye Manufacturing LLC",
+         "1 Wages, tips, other compensation   64,500.00",
+         "2 Federal income tax withheld  8,120.00"]
+
+  - id: w2-title-in-footer-only
+    expect: W-2
+    why: >-
+      Plenty of real W-2s carry the form name only in the footer rule. This
+      passes today on the structural fallback; it is here so it keeps passing.
+    pages:
+      - ["", "Employer identification number  34-1234567",
+         "Wages, tips, other compensation   64,500.00",
+         "Federal income tax withheld    8,120.00",
+         "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+         "Form W-2 (2026)   Department of the Treasury - Internal Revenue Service"]
+
+  - id: w2-three-copies-one-document
+    expect: W-2
+    why: >-
+      Copy B, Copy C and Copy 2 of ONE W-2. Three pages, one document -- the
+      splitter must not turn a single W-2 into three.
+    pages:
+      - ["Form W-2  Wage and Tax Statement",
+         "Copy B - To Be Filed With Employee's FEDERAL Tax Return",
+         "Employer: Buckeye Manufacturing LLC",
+         "1 Wages, tips, other compensation  64,500.00"]
+      - ["Form W-2  Wage and Tax Statement",
+         "Copy C - For EMPLOYEE'S RECORDS",
+         "Employer: Buckeye Manufacturing LLC",
+         "1 Wages, tips, other compensation  64,500.00"]
+      - ["Form W-2  Wage and Tax Statement",
+         "Copy 2 - To Be Filed With Employee's State Return",
+         "Employer: Buckeye Manufacturing LLC",
+         "1 Wages, tips, other compensation  64,500.00"]
+
+  - id: 1040-that-mentions-w2
+    expect: Prior-year 1040
+    why: >-
+      A 1040 whose own instructions say "attach Form(s) W-2". A keyword counter
+      would call this a W-2. It does not, and that is worth protecting.
+    pages:
+      - ["Form 1040  U.S. Individual Income Tax Return", "2025",
+         "Attach Form(s) W-2 here. Also attach Forms W-2G and 1099-R if tax was withheld.",
+         "1a Total amount from Form(s) W-2, box 1   64,500"]
+
+  - id: k1-1065
+    expect: Schedule K-1 (1065)
+    pages:
+      - ["Schedule K-1 (Form 1065)",
+         "Partner's Share of Income, Deductions, Credits, etc.",
+         "Partnership name: Maplewood Holdings LP",
+         "1 Ordinary business income (loss)  22,410"]
+
+  - id: covering-note-is-not-a-form
+    expect: Unclassified
+    why: >-
+      Clients put a note in the folder. Unclassified is the CORRECT answer --
+      this case exists so nobody "improves" the classifier into guessing.
+    pages:
+      - ["Hi Arjun - here is everything. The rental was empty May-July.",
+         "Let me know what else you need. - J"]
+
+  # ── the failures this corpus was written to catch ──────────────────────
+  - id: 1099-consolidated
+    expect_many: ["1099-DIV", "1099-INT", "1099-B"]
+    why: >-
+      THE MONEY BUG. A consolidated brokerage 1099 is three forms on one page.
+      Measured 30 Aug 2026: the classifier answers "1099-INT" alone, matching
+      says that satisfies a "core income documents" request, reconcile flips it
+      to Received and closes the task -- so $41,200 of 1099-B proceeds disappear
+      and the packet reports COMPLETE. A partial answer is worse than no answer,
+      because no answer leaves the request open.
+    found: "adversarial run, 30 Aug 2026"
+    status: >-
+      PARTLY FIXED 30 Aug 2026. The classifier now answers "Several forms:
+      1099-INT, 1099-DIV" and matching refuses that label outright, so the
+      request stays OPEN and the task does not close -- the money bug is shut.
+      COMPLETED the same day: 1099-B was added as a type, so the verdict now
+      reads "Several forms: 1099-B, 1099-INT, 1099-DIV" and names the proceeds
+      that drive a Schedule D. Both halves closed -- safety and completeness.
+    pages:
+      - ["2026 CONSOLIDATED FORMS 1099", "Charles Schwab & Co., Inc.",
+         "Summary of Form 1099-DIV     Total ordinary dividends  1,204.00",
+         "Summary of Form 1099-INT     Interest income  88.10",
+         "Summary of Form 1099-B       Proceeds from broker transactions  41,200.00"]
+
+  - id: prior-year-w2
+    expect: W-2
+    expect_year: 2019
+    why: >-
+      A W-2 from a job the client left years ago. Measured 30 Aug 2026: typed
+      W-2/HIGH and filed as "W-2 (2).pdf" beside the current one, because
+      Classification carries no year at all -- its fields are label, key, code,
+      confidence, method, evidence. A seven-year-old form can close this year's
+      request.
+    found: "adversarial run, 30 Aug 2026"
+    status: >-
+      FIXED 30 Aug 2026. Classification carries tax_year, read off the printed
+      page, and reconcile_received filters on it ASYMMETRICALLY: a year it could
+      not read blocks nothing, a year it read which differs closes nothing. This
+      document now reads 2019 and cannot close a 2026 request.
+    pages:
+      - ["Form W-2  Wage and Tax Statement", "2019",
+         "Employer: A Job She Left",
+         "1 Wages, tips, other compensation  31,000.00"]
+
+  - id: placeholder-zero-bytes
+    expect: Unclassified
+    must_refuse: true
+    why: >-
+      OneDrive Files On-Demand leaves a name with no bytes behind it. Measured
+      30 Aug 2026: classified Unclassified, silently, and filed. A document that
+      arrived, was processed, and vanished into a folder nobody reads. The right
+      answer is to refuse and say the file is not downloaded.
+    found: "predicted in the collection design, then confirmed 30 Aug 2026"
+    status: >-
+      FIXED 30 Aug 2026. Refused before any reader runs, with its own verdict
+      ("Not downloaded") and its own folder -- saying so and then filing it into
+      Unclassified anyway would have put the refusal back where nobody sees it,
+      which the sorter did until a run of it showed so. The Windows
+      nonzero-size-placeholder case (FILE_ATTRIBUTE_OFFLINE) is NOT covered and
+      is not claimed to be; there is no Windows machine here to prove it against.
+    empty_file: true
+
+  - id: blank-scan
+    expect: Unclassified
+    why: >-
+      A real scanner artefact -- a page that went through face-down. Unlike the
+      placeholder there IS a file here; Unclassified is honest.
+    pages:
+      - []
+
+  # ── types the config does not know yet ─────────────────────────────────
+  # Unclassified is SAFE (it never guesses wrong) but nothing chases these, so
+  # they sit in a folder while the packet reports short for a reason nobody can
+  # see. Each is one entry in classification.yaml.
+  - id: 1098-mortgage-interest
+    expect: "1098"
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
+    pages:
+      - ["Form 1098", "Mortgage Interest Statement",
+         "RECIPIENT'S/LENDER'S name: Third Federal",
+         "1 Mortgage interest received from payer(s)  11,402.19"]
+
+  - id: 1099-g-state-refund
+    expect: "1099-G"
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
+    pages:
+      - ["Form 1099-G", "Certain Government Payments",
+         "Ohio Department of Taxation",
+         "2 State or local income tax refunds  412.00"]
+
+  - id: ssa-1099
+    expect: "SSA-1099"
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
+    pages:
+      - ["SSA-1099  SOCIAL SECURITY BENEFIT STATEMENT", "2026",
+         "Box 5. Net Benefits for 2026   18,240.00"]

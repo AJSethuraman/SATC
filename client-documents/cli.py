@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import datetime as _dt
 import json
 import re
 import shutil
@@ -40,16 +41,29 @@ import yaml
 import money as m
 import engagements
 import invoicing
+import lifecycle
 import packaging
+import payments
+import notes
+import outgoing
+import presend
+import sending
+import procedures
 import fees
 import intake
 import interview as iv
+import closeout
+import consistency
 import merge
 import pricing
+import requote
+import signing
 import settings as firm
+import tins
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
+SAMPLES = ROOT / "samples"
 
 # Registry name -> (template file, human name for the output file). The keys
 # match registry/fields.yaml and tests/test_registry.py, so a template renamed
@@ -65,11 +79,29 @@ DOCUMENTS = {
     "delivery-letter":      ("SATC Tax Return Delivery Letter.html",          "Return Delivery"),
     "extension-notice":     ("SATC Extension Notice.html",                    "Extension Notice"),
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
+    "ccorp-letter":         ("SATC Engagement Letter - C Corporation.html",  "C Corporation Engagement Letter"),
+    "records-release":      ("SATC Records Release Authorization.html",     "Records Release"),
 }
 
-# The three that go out together. Named because generating them in one call is
-# the reason they cannot disagree about the date, the ref or the address.
-OPENING_PACKAGE = ["tax-letter", "fee-estimate", "onboarding-letter"]
+def opening_package(record: dict) -> list[str]:
+    """The documents this engagement's opening package actually contains.
+
+    ONE LIST, AND IT LIVES IN `packaging`. This used to be its own hard-coded
+    `["tax-letter", "fee-estimate", "onboarding-letter"]` plus the conditional
+    records release, sitting beside `packaging.PACKS`, which keys the letter on
+    `_return_type`. The two disagreed in both directions and each was right
+    about the half the other got wrong:
+
+    * `render --engagement` on an S corporation reached for the INDIVIDUAL
+      engagement letter, which then refused on `TaxpayerName` -- so the
+      business letter its own pack would have sent was never rendered at all.
+    * `package` never carried the records release, so a client with a
+      predecessor got a pack whose onboarding letter says "We have included a
+      short authorization for you to sign" and did not include one.
+
+    Both found on 26 August 2026 by running an entity engagement end to end.
+    """
+    return packaging.documents_for(record)
 
 # When in an engagement's life a document becomes due. Readiness is only
 # meaningful against a stage: a disengagement letter that cannot render at
@@ -77,18 +109,22 @@ OPENING_PACKAGE = ["tax-letter", "fee-estimate", "onboarding-letter"]
 # same way buries the one that matters.
 STAGE = {
     "tax-letter": "opening", "business-letter": "opening",
+    "ccorp-letter": "opening",
     "bookkeeping-letter": "opening", "fee-estimate": "opening",
     "onboarding-letter": "opening", "organizer-letter": "opening",
     "extension-notice": "in flight",
     "delivery-letter": "delivery", "invoice": "delivery",
     "disengagement-letter": "ending",
+    # Travels WITH the engagement letter, to any client who had a
+    # previous accountant. Opening-stage for that reason.
+    "records-release": "opening",
 }
 
 # Which opening document an engagement actually uses, by return type. The rest
 # belong to a different engagement and are not this one's business.
 OPENING_BY_RETURN = {
     "individual": "tax-letter", "s_corp": "business-letter",
-    "partnership": "business-letter", "c_corp": "business-letter",
+    "partnership": "business-letter", "c_corp": "ccorp-letter",
 }
 
 
@@ -110,12 +146,26 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
     from playwright.sync_api import sync_playwright
     import os, tempfile
     exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
-    # A temp file rather than set_content, so relative links (satc-doc.css,
-    # doc-page.js) resolve exactly as they do when the template is opened.
-    with tempfile.NamedTemporaryFile("w", suffix=".html", dir=base,
-                                     encoding="utf-8", delete=False) as fh:
-        fh.write(html)
-        tmp = Path(fh.name)
+    # A file on disk rather than set_content, so relative links resolve exactly
+    # as they do when the template is opened.
+    #
+    # IN A SCRATCH DIRECTORY, NOT IN `base`. Until 26 August 2026 this wrote
+    # straight into 04-TEMPLATES, which meant a RENDERED CLIENT DOCUMENT --
+    # real name, real address -- sat in the tracked template library for the
+    # length of every render. That is the exact condition
+    # `test_the_template_directory_holds_only_templates` exists to catch, and
+    # it caught it: the test flaked whenever it ran beside a PDF render. A
+    # guard tripping over the thing it guards against is the guard working.
+    #
+    # The two assets every template links are copied in beside it, so the
+    # render is byte-identical to the old one.
+    scratch = Path(tempfile.mkdtemp(prefix="satc-render-"))
+    for asset in ("satc-doc.css", "doc-page.js"):
+        src = base / asset
+        if src.exists():
+            (scratch / asset).write_bytes(src.read_bytes())
+    tmp = scratch / "render.html"
+    tmp.write_text(html, encoding="utf-8")
     try:
         with sync_playwright() as p:
             launch = {"executable_path": exe} if Path(exe).exists() else {}
@@ -133,7 +183,8 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
                      margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})
             browser.close()
     finally:
-        tmp.unlink(missing_ok=True)
+        import shutil
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 def _pdf_weasyprint(html: str, out: Path, base: Path, draft: bool = False) -> None:
@@ -226,6 +277,14 @@ def build_record(record: dict) -> dict:
     fields = firm.firm_fields(season, record.get("_return_type", "individual"))
     out = {k: v for k, v in fields.items() if v is not None}
     out.update(record)
+    # AN ENGAGEMENT PRICED BEFORE THE ESTIMATE HAD ITS OWN DATE. `EstimateDate`
+    # arrived with the re-quote -- until then the estimate was dated to the
+    # letter, and every record already on disk carries only `LetterDate`.
+    # Backfilled here rather than migrating the store: the value is the same on
+    # an engagement nobody has re-quoted, and a render that refused on a
+    # record written last week would be this change breaking real work.
+    if not out.get("EstimateDate") and out.get("LetterDate"):
+        out["EstimateDate"] = out["LetterDate"]
     # `_`-prefixed keys are metadata, not merge fields: the season and return
     # type that chose the deadline, and the website's unsharpened claims. They
     # ride along because the filename needs the season, and merge.render only
@@ -261,15 +320,30 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     print(f"Engagement {ref} - {record.get('ClientFullName', '(no name)')}\n")
 
     letter = OPENING_BY_RETURN.get(record.get("_return_type", "individual"))
+    # A DOCUMENT THIS CLIENT WILL NEVER BE SENT CANNOT BE BLOCKING THEM.
+    # The records release goes only to a client who had a previous accountant
+    # -- `opening_package` has always known that and this report did not, so
+    # every engagement with no predecessor was told, in red, that a document
+    # it is never going to send is "Blocked, and due now", and `doctor`
+    # exited 1 on a perfectly healthy engagement. A readiness tool that
+    # overstates what is broken teaches whoever reads it to stop believing
+    # the parts that are true -- the same argument that put `hard_no` in
+    # settings.POLICY_ONLY.
     relevant = [d for d in DOCUMENTS
                 if STAGE[d] != "opening" or d == letter
-                or d in ("fee-estimate", "onboarding-letter", "organizer-letter")]
+                or d in ("fee-estimate", "onboarding-letter", "organizer-letter")
+                or (d == "records-release" and record.get("PriorFirm"))]
 
     ready, blocked = [], {}
     for doc in relevant:
         template = (TEMPLATE_DIR / DOCUMENTS[doc][0]).read_text(encoding="utf-8")
         try:
-            merge.render(template, record)
+            # THE SAME CALL `render` MAKES, required lists and all. It used to
+            # omit them, so `doctor` reported the organizer letter "Ready now"
+            # while `render` refused it -- two halves of one tool disagreeing
+            # about the same document, which is worse than either answer.
+            merge.render(template, record,
+                         required_lists=_required_lists().get(doc, ()))
             ready.append(doc)
         except merge.MergeError as exc:
             blocked[doc] = html.unescape(str(exc))
@@ -306,30 +380,17 @@ def _engagement_readiness(ref: str, store: Path) -> int:
 
 
 def _previous_pack(outdir: Path) -> str | None:
-    """The engagement ref of a pack this command wrote here before, or None.
-
-    None means either an empty/absent directory or one we do not recognise --
-    the caller tells those apart, because they need different answers.
-    """
-    book = outdir / "MANIFEST.json"
-    if not book.is_file():
-        return None
-    try:
-        return json.loads(book.read_text(encoding="utf-8")).get(
-            "EngagementRef") or "an earlier engagement"
-    except (OSError, ValueError):
-        return "an earlier engagement"
+    """Moved to `sending`, where the code that acts on it lives."""
+    return sending.previous_pack(outdir)
 
 
 def cmd_package(args) -> int:
-    """Every document a client signs, in one atomic write.
+    """The terminal's door onto `sending.build` -- reporting, not deciding.
 
-    ATOMIC is the point and it is why this does not just loop `_render_one`
-    into the output directory. An engagement letter without its fee estimate
-    asks somebody to sign for work at a price they have not been shown; a pack
-    with a hole in it is worse than no pack at all. So everything is rendered
-    to a temporary directory first, and the output directory is only touched
-    once every document has succeeded.
+    Every rule this command used to enforce lives in `sending` now, so the
+    browser enforces the same ones by calling the same function. What is left
+    here is what a terminal is for: reading the arguments, and saying in words
+    what was decided.
     """
     store = Path(args.store) if args.store else engagements.STORE
     try:
@@ -341,6 +402,11 @@ def cmd_package(args) -> int:
 
     try:
         docs = packaging.documents_for(record, with_invoice=args.with_invoice)
+        # Asked here, before anything renders. The same question `manifest`
+        # asks -- the same function, so the two cannot come to differ -- but a
+        # typo in --attach is worth catching in a second rather than after
+        # three merges and three browser renders.
+        packaging.check_attachments(getattr(args, "attach", None))
     except packaging.PackageError as exc:
         print(f"\n{exc}\n")
         return 1
@@ -354,68 +420,68 @@ def cmd_package(args) -> int:
             want_pdf = False
 
     outdir = Path(args.out)
-    # WHOSE DIRECTORY IS THIS? Found by testing the refusal path: a run that
-    # refuses leaves whatever was already in `--out` untouched, so a complete
-    # pack from a DIFFERENT engagement sits there looking current, and the
-    # person who reads "No pack written" and then opens the folder finds one.
-    # That is the failure this command exists to prevent, arriving by the
-    # back door.
-    #
-    # So the pack owns its directory. A folder we wrote before (it has our
-    # MANIFEST) is replaced wholesale. A folder with anything else in it is
-    # somebody's, and we do not touch it.
-    stale = _previous_pack(outdir)
-    if stale is None and outdir.exists() and any(outdir.iterdir()):
+    pack = sending.build(
+        record, outdir, render=render_one,
+        ref=record.get("EngagementRef") or args.engagement, store=store,
+        template_dir=TEMPLATE_DIR, documents=docs, want_pdf=want_pdf,
+        attach=getattr(args, "attach", None),
+        skip_render=getattr(args, "skip_render", False),
+        readings=bool(getattr(args, "notes", False)),
+        force=bool(getattr(args, "force", False)),
+        reason=getattr(args, "reason", "") or "")
+
+    if pack.status == "not-ours":
         print(f"\n{outdir} already has files in it and no MANIFEST.json, so it "
               f"is not a pack this\ncommand wrote. Refusing to mix a signing "
               f"pack into somebody else's folder —\ngive --out a new directory.\n")
         return 1
 
-    staging = Path(tempfile.mkdtemp(prefix="satc-pack-"))
-    written: dict[str, list[Path]] = {}
-    refused: list[tuple[str, str]] = []
-    try:
-        for doc in docs:
-            try:
-                _, files = _render_one(doc, record, staging, False, want_pdf)
-                written[doc] = files
-            except merge.MergeError as exc:
-                refused.append((doc, str(exc)))
+    if pack.status == "refused-merge":
+        print(f"\nNo pack written. {len(pack.refused)} of {len(docs)} "
+              f"document(s) refused, and a pack with a hole in it is worse "
+              f"than none —\nthe client signs what arrived and the rest turns "
+              f"up later saying something different.\n")
+        for doc, why in pack.refused:
+            print(f"  {DOCUMENTS[doc][1]}")
+            for line in textwrap.wrap(why, 74):
+                print(f"      {line}")
+            print()
+        if pack.stale:
+            print(f"  WARNING: {outdir} still holds the pack written for "
+                  f"{pack.stale}.\n           It is not this engagement's and "
+                  f"it has not been updated. Do not send it.\n")
+        return 1
 
-        if refused:
-            print(f"\nNo pack written. {len(refused)} of {len(docs)} document(s) "
-                  f"refused, and a pack with a hole in it is worse than none —\n"
-                  f"the client signs what arrived and the rest turns up later "
-                  f"saying something different.\n")
-            for doc, why in refused:
-                print(f"  {DOCUMENTS[doc][1]}")
-                for line in textwrap.wrap(why, 74):
-                    print(f"      {line}")
-                print()
-            if stale:
-                print(f"  WARNING: {outdir} still holds the pack written for "
-                      f"{stale}.\n           It is not this engagement's and it "
-                      f"has not been updated. Do not send it.\n")
-            return 1
+    check = pack.check
+    print(f"\nBefore sending — {len(check.checked)} check(s):")
+    print(presend.format_result(check))
+    if getattr(args, "notes", False):
+        print(f"\nReadings — {len(pack.readings)} advisory check(s), none of "
+              f"which can stop a pack:")
+        print(notes.format_notes(pack.readings))
 
-        # Replace, do not merge. An entity pack written over an individual
-        # one would leave two engagement letters in the folder, and whoever
-        # sends it picks the wrong one.
-        if stale is not None and outdir.exists():
-            for old_file in outdir.iterdir():
-                if old_file.is_file():
-                    old_file.unlink()
-        outdir.mkdir(parents=True, exist_ok=True)
-        moved: dict[str, list[Path]] = {}
-        for doc, files in written.items():
-            moved[doc] = [Path(shutil.copy2(f, outdir / f.name)) for f in files]
+    if pack.status == "refused-gate":
+        print(f"\nNo pack written. {len(check.blocking)} check(s) failed, "
+              f"and a pack that does not\nsurvive being opened is not a "
+              f"pack — it is a folder the client cannot read.\n"
+              f"\n  Fix it, or send anyway with --force and a reason:\n"
+              f"      --force --reason \"why this is going out as it is\"\n")
+        return 1
 
-        book = packaging.manifest(record, docs, moved)
-        (outdir / "MANIFEST.json").write_text(
-            json.dumps(book, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8")
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    if pack.status == "no-reason":
+        print("\n--force needs --reason. An override with no recorded "
+              "reason is just a\nquieter way to send a pack that did "
+              "not pass.\n")
+        return 1
+
+    if pack.status == "not-logged":
+        print(f"\nCould not record the override ({pack.detail}), so the pack "
+              f"was not written.\nThe log is the only thing that makes "
+              f"--force different from no gate at all.\n")
+        return 1
+
+    if pack.override:
+        print(f"\n  Override recorded — {pack.override}")
 
     print(f"\nSigning pack for {record.get('EngagementRef') or args.engagement}"
           f" — {record.get('ClientFullName', '')}")
@@ -425,6 +491,33 @@ def cmd_package(args) -> int:
         print(f"      {packaging.PURPOSE.get(doc, '')}")
     print(f"\n  Estimate  {record.get('EstimateTotal', '(none)')}")
     print(f"  Manifest  {outdir / 'MANIFEST.json'}")
+
+    # ONE PRESS FROM SENT. The pack is four files in a folder and a covering
+    # note somebody types from memory; this writes it as an ordinary `.eml`
+    # that opens in the mail client already addressed, attached and written.
+    # Nothing is sent -- the human reads it and presses send, which keeps the
+    # one irreversible step in the pipeline attached to a person.
+    if getattr(args, "ready", False):
+        try:
+            message = outgoing.compose(record, outdir,
+                                       registry=signing._registry())
+            path = outgoing.write(message, outdir,
+                                  sender=firm.firm_fields(
+                                      str(record.get("_season", "")))
+                                  .get("BillingContactEmail", ""))
+        except outgoing.OutgoingError as exc:
+            # PRINTED LINE BY LINE, NOT REFLOWED. The refusal quotes the
+            # draft covering note back, and running a proposed letter through
+            # a paragraph filler turns it into a wall the reader skips.
+            print("\n  Not ready to send.")
+            for line in str(exc).splitlines():
+                print("  " + line if line.strip() else "")
+            print()
+            return 0
+        print(f"\n  Ready to send  {path}")
+        print(f"      {message.summary()}")
+        print(f"      Open it, read it, press send. Nothing has gone "
+              f"anywhere.\n")
     return 0
 
 
@@ -461,6 +554,24 @@ def cmd_invoice(args) -> int:
         print(f"\n{exc}\n")
         return 1
 
+    # THE LINK IS MADE BEFORE THE BILL IS WRITTEN, so a processor that refuses
+    # leaves no invoice claiming a link it never got. The bill is the thing the
+    # client reads; a half-made one is worse than none.
+    note = ""
+    if not args.no_link:
+        try:
+            link = payments.link_for(
+                fields, using=payments.processor(sandbox=args.sandbox))
+            fields.update(link.as_record())
+            note = f"    Pay online  {link.url}"
+        except payments.PaymentError as exc:
+            # NOT FATAL, AND SAID OUT LOUD. An invoice with no link is the
+            # invoice this firm sent all year; one that silently lost its link
+            # is a client told to click something that is not there.
+            note = ("    No link on this bill — "
+                    + textwrap.fill(str(exc), 66,
+                                    subsequent_indent="                ").strip())
+
     path = store / args.engagement / "invoices"
     path.mkdir(parents=True, exist_ok=True)
     out = path / f"{number}.json"
@@ -476,8 +587,49 @@ def cmd_invoice(args) -> int:
         print(f"    Estimated   {fields['EstimateTotal']}"
               + ("   (this bill differs — the note says why)"
                  if fields.get("VarianceNote") else ""))
+    if note:
+        print(f"\n{note}")
     print(f"\nNext:  python cli.py render --engagement {args.engagement} "
           f"--docs invoice --out out")
+    return 0
+
+
+def cmd_payments(args) -> int:
+    """Ask the processor which bills have been paid, and write down the answer.
+
+    POLLED, NOT PUSHED. A webhook would need a public server this firm does not
+    have; this asks the question when somebody wants the answer, from a laptop,
+    with nothing listening on the internet.
+
+    ONLY A SETTLEMENT IS EVER RECORDED. An unpaid order is left alone rather
+    than written down as unpaid -- a cached "no" goes stale the moment somebody
+    pays, and a bill marked unpaid that has since been settled is the error that
+    ends up in front of a client.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    waiting = payments.outstanding(store)
+    if not waiting:
+        print("\nNo bill is waiting on a payment.\n")
+        return 0
+    try:
+        square = payments.processor(sandbox=args.sandbox)
+        answers = square.settled([w["order_id"] for w in waiting])
+    except payments.PaymentError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    moved = 0
+    print(f"\n{len(waiting)} bill(s) with a link out:\n")
+    for row in waiting:
+        got = answers.get(row["order_id"])
+        if got and payments.record_settlement(row["path"], got):
+            moved += 1
+        state = "PAID" if (got and got.paid) else "waiting"
+        when = f"  {got.when}" if got and got.paid and got.when else ""
+        print(f"  {state:8} {row['ref']}  invoice {row['invoice']:10} "
+              f"{row['amount']:>10}{when}")
+    print(f"\n{moved} newly settled.\n" if moved
+          else "\nNothing new has settled.\n")
     return 0
 
 
@@ -645,8 +797,11 @@ def cmd_from_lead(args) -> int:
         "LetterDate": date.today().strftime("%B %-d, %Y"),
         "EngagementRef": args.ref or todo,
         "PeriodLabel": f"{args.season} tax year",
+        # The lead gives us a name to greet somebody by; the letters want the
+        # full legal name, because the salutation and the addressee block are
+        # the same string now. A lead's "Dan" is not that, so this stays a
+        # question for the interview.
         "ClientFullName": todo,
-        "ClientLetterName": contact.get("name") or todo,
         "ClientEmail": contact.get("email") or todo,
         "ClientAddress1": todo,
         "ClientCity": city or todo,
@@ -732,7 +887,8 @@ def _ask(section: dict, q: dict, default) -> object:
 
 def cmd_interview(args) -> int:
     lead = json.loads(Path(args.lead).read_text(encoding="utf-8")) if args.lead else None
-    session = iv.Interview(lead=lead)
+    carried = dict(getattr(args, "carried", None) or {})
+    session = iv.Interview(lead=lead, carried=carried)
 
     # A saved answers file replays an interview without a human at the
     # keyboard: how the tests drive it, and how you resume one you abandoned.
@@ -745,6 +901,9 @@ def cmd_interview(args) -> int:
             if nxt is None:
                 break
             _, q = nxt
+            if q["id"] not in canned and q["id"] in carried:
+                session.answer(q["id"], carried[q["id"]])
+                continue
             if q["id"] not in canned:
                 if q.get("required"):
                     raise SystemExit(
@@ -773,7 +932,11 @@ def cmd_interview(args) -> int:
             break
         section, q = nxt
         try:
-            value = _ask(section, q, iv.prefill_for(q, lead))
+            # LAST YEAR'S ANSWER IS A CLAIM, and a weaker one than the
+            # website's, because a year has passed. It is offered as the
+            # default and never taken as given -- the question is still asked.
+            value = _ask(section, q,
+                         carried.get(q["id"], iv.prefill_for(q, lead)))
             session.answer(q["id"], value)
         except iv.InterviewError as exc:
             print(f"      {exc} -- asking again")
@@ -839,6 +1002,656 @@ def _finish(session, args) -> int:
     return outcome.exit_code
 
 
+def cmd_returning(args) -> int:
+    """This year's interview, seeded from last year's answers.
+
+    The firm chose this over building an organizer, and gave the reason:
+    "we are not copying out of drake - drake is only system of record for
+    info. but our interview and such is system of record until proven wrong."
+    A returning client does not need last year's FIGURES typed back at them.
+    They need last year's ANSWERS shown back for confirmation, plus the events
+    that move a return.
+
+    NOTHING IS ASSUMED. Every carried answer is still asked, offered as last
+    year's claim, exactly the way a website lead's answer is offered. A carried
+    answer that answered itself would be an assumption wearing a
+    confirmation's clothes.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    prior_path = engagements._dir(store, args.engagement) / "interview.json"
+    if not prior_path.exists():
+        print(f"\n{args.engagement} has no saved interview, so there is nothing "
+              f"to carry forward.\nRun `interview` instead — a client we cannot "
+              f"show last year's answers to is\na new client as far as this "
+              f"command is concerned.\n")
+        return 1
+
+    prior = json.loads(prior_path.read_text(encoding="utf-8"))
+    carried, dropped = iv.carry_forward(prior)
+
+    name = prior.get("client_full_name", args.engagement)
+    print(f"\nReturning client — {name}")
+    print(f"  last year: {args.engagement}\n")
+    print(f"  {len(carried)} answer(s) carried forward, each shown for you to "
+          f"confirm:")
+    for key in sorted(carried):
+        shown = carried[key]
+        if isinstance(shown, list):
+            shown = ", ".join(str(x) for x in shown)
+        print(f"      {key:22} {str(shown)[:52]}")
+    if dropped:
+        print(f"\n  {len(dropped)} answer(s) deliberately NOT carried:")
+        for key in dropped:
+            print(f"      {key:22} {iv.DOES_NOT_CARRY.get(key, '')}")
+    print("\n  Everything else is asked fresh. A count is a fact about one "
+          "year, and\n  carrying it would be inventing this year's return out "
+          "of last year's.\n")
+
+    args.lead = None
+    args.carried = carried
+    # The change questions exist for exactly this flow, and this is the one
+    # place that knows the answer to their gate.
+    args.carried = {**carried, "returning_client": "yes"}
+    return cmd_interview(args)
+
+
+def cmd_close(args) -> int:
+    """Record what was actually filed, and say where it differs from what we
+    were told.
+
+    The end of the cycle, and the half of the control a person does. Nothing
+    is read out of Drake: the preparer answers a short set of questions from
+    the filed return, in-house, which is what the firm asked for.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        record = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+
+    answers_path = engagements._dir(store, args.engagement) / "interview.json"
+    if not answers_path.exists():
+        print(f"\n{args.engagement} has no saved interview, so there is nothing "
+              f"to reconcile against.\n")
+        return 1
+    answers = json.loads(answers_path.read_text(encoding="utf-8"))
+    return_type = record.get("_return_type", "individual")
+    asked = closeout.questions_for(return_type)
+
+    if args.filed:
+        filed = json.loads(Path(args.filed).read_text(encoding="utf-8"))
+    else:
+        print(f"\nClosing {args.engagement} — "
+              f"{record.get('ClientFullName', '')}")
+        print(f"  {len(asked)} question(s) about what was actually filed. "
+              f"Blank leaves one unanswered,\n  and an unanswered question is "
+              f"reported as unanswered, never as agreement.\n")
+        filed = {}
+        for q in asked:
+            print(f"\n  {q['id']}")
+            print(f"  {q['question']}")
+            if q.get("options"):
+                print(f"      one of: {', '.join(q['options'])}")
+            try:
+                value = input("  > ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print("\n\nabandoned; nothing was written")
+                return 1
+            if value:
+                filed[q["id"]] = value
+
+    closeout.save(args.engagement, filed, store)
+    divergences = closeout.compare(answers, filed, return_type)
+    unanswered = closeout.missing(filed, return_type)
+
+    print(f"\n{args.engagement} closed — {len(filed)} of {len(asked)} answered")
+    if unanswered:
+        print(f"\n  {len(unanswered)} question(s) unanswered, so not checked:")
+        for qid in unanswered:
+            print(f"      {qid}")
+    if not divergences:
+        print("\n  Nothing on the return disagrees with what we were told.\n")
+        return 0
+
+    print(f"\n  {len(divergences)} divergence(s) — the return and the "
+          f"interview disagree:\n")
+    for d in divergences:
+        print(d.line())
+        for line in textwrap.wrap(d.why, 68):
+            print(f"      {line}")
+        print()
+    print("  A divergence is not an error. Either the return changed after the\n"
+          "  interview, or the interview was wrong, or the wrong thing was\n"
+          "  filed — and only you can tell which. When the return is right:\n"
+          f"      python cli.py reconcile --engagement {args.engagement} --apply\n")
+    return 0
+
+
+def cmd_reconcile(args) -> int:
+    """THE END-OF-CYCLE CONTROL. Every engagement, closed or not.
+
+    The firm: "our interview and such is system of record until proven wrong.
+    we should update the data to match what we file if required. this should
+    be a control we build at the end of the cycle."
+
+    An engagement with no close-out is reported as NOT CLOSED rather than
+    skipped. A control that only examines the work somebody remembered to
+    close is a control over the diligent, which is not where the problem is.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    reviewed = closeout.sweep(store)
+    if args.engagement:
+        reviewed = [r for r in reviewed if r.ref == args.engagement]
+        if not reviewed:
+            print(f"no engagement {args.engagement} in {store}")
+            return 1
+
+    if not reviewed:
+        print(f"\nNothing in {store} to reconcile.\n")
+        return 0
+
+    open_ones = [r for r in reviewed if not r.closed]
+    diverged = [r for r in reviewed if r.divergences]
+
+    print(f"\nEnd-of-cycle reconciliation — {len(reviewed)} engagement(s)\n")
+    for r in reviewed:
+        if not r.closed:
+            print(f"  NOT CLOSED  {r.ref}  {r.client}")
+            continue
+        if not r.divergences:
+            note = "agrees"
+            if r.unanswered:
+                note += f", {len(r.unanswered)} question(s) unanswered"
+            print(f"  ok          {r.ref}  {r.client} — {note}")
+            continue
+        print(f"  DIVERGES    {r.ref}  {r.client}")
+        for d in r.divergences:
+            print(f"      {d.against}: we were told {d.asked!r}, "
+                  f"filed as {d.filed!r}")
+
+    if args.apply:
+        moved_total = 0
+        for r in diverged:
+            moved = closeout.apply_to_answers(r.ref, r.divergences, store)
+            moved_total += len(moved)
+            for m in moved:
+                print(f"\n  moved  {r.ref}  {m['answer']}: "
+                      f"{m['was']!r} -> {m['now']!r}")
+        print(f"\n  {moved_total} answer(s) moved to match what was filed, "
+              f"and every move is\n  recorded in the engagement's own "
+              f"reconciled.json. Next year's interview\n  is seeded from "
+              f"these answers, which is why it matters that they are right.\n")
+        return 0
+
+    print(f"\n  {len(reviewed) - len(open_ones)} closed · "
+          f"{len(open_ones)} still open · {len(diverged)} diverging")
+    if diverged:
+        print("\n  Nothing has been changed. When the returns are right and the\n"
+              "  record should follow:  python cli.py reconcile --apply\n")
+    else:
+        print()
+    return 0
+
+
+def cmd_procedures(args) -> int:
+    """Write the operating procedures, or check the committed copy is current.
+
+    Generated from the software that performs them, so a procedure cannot
+    describe a command that does not exist or a document a return type does
+    not get. `--check` runs in the suite: a procedure that has quietly stopped
+    being true is the same failure as a document that promises an enclosure it
+    does not carry.
+    """
+    def _shown(path: Path) -> str:
+        # A path outside the repo is printed whole rather than crashing.
+        # `relative_to` raises on anything it cannot shorten, and a command
+        # that dies while reporting where a file is has lost the plot.
+        try:
+            return str(path.relative_to(ROOT.parent))
+        except ValueError:
+            return str(path)
+
+    if args.check:
+        if procedures.is_current(procedures.OUT):
+            print(f"{_shown(procedures.OUT)} is what the software generates "
+                  f"today.")
+            return 0
+        print(f"\n{_shown(procedures.OUT)} is out of date — the software has "
+              f"changed\nand the procedures have not. Regenerate:\n\n"
+              f"    python cli.py procedures\n")
+        return 1
+    path = procedures.write(procedures.OUT)
+    print(f"wrote {_shown(path)} from the software itself")
+
+    if getattr(args, "html", None):
+        # THE MARKDOWN IS WRITTEN FIRST, ALWAYS. The reading copy is a
+        # rendering of the committed source, so the two cannot describe
+        # different software: there is one generation and one document behind
+        # both of them.
+        import procedures_html
+        doc = procedures_html.render(path)
+        lost = procedures_html.dropped(path.read_text(encoding="utf-8"), doc)
+        if lost:
+            print(f"\nThe reading copy was NOT written: it would have dropped "
+                  f"{lost}.\nA rendering that loses a step is worse than no "
+                  f"rendering.\n")
+            return 1
+        out = Path(args.html)
+        out.write_text(doc, encoding="utf-8")
+        print(f"wrote {_shown(out)} — one file, nothing beside it")
+    return 0
+
+
+def _ask_rows(spec: dict) -> list[dict]:
+    """One repeating list, at a terminal. Blank line ends it."""
+    cols = spec["columns"]
+    print(f"\n  {spec['prompt']} — {', '.join(cols)}")
+    print(f"      one per line, {' | '.join(c.lower() for c in cols)}; "
+          f"blank to finish")
+    rows = []
+    while True:
+        try:
+            line = input("  > ").strip()
+        except (KeyboardInterrupt, EOFError):
+            raise
+        if not line:
+            break
+        parts = [p.strip() for p in line.split("|")]
+        parts += [""] * (len(cols) - len(parts))
+        rows.append(dict(zip(cols, parts[:len(cols)])))
+    return rows
+
+
+def cmd_walkthrough(args) -> int:
+    """The guided walkthrough, from screens photographed out of the software.
+
+    Two halves, deliberately: `capture.py` drives the real application in a
+    real browser and writes down what is on each screen; this turns that plus
+    the sentences in `registry/walkthrough.yaml` into one file. Neither half
+    can quietly go stale, because a control with nothing written about it and a
+    sentence about a control that has gone both stop the document being
+    written at all.
+    """
+    import walkthrough as wt
+    import walkthrough_html
+
+    if args.check:
+        if not wt.INVENTORY_FILE.exists():
+            print(f"\nthere is no committed inventory of screens at "
+                  f"{wt.INVENTORY_FILE.name}. Run:\n\n    python capture.py\n")
+            return 1
+        screens = wt.from_json(
+            wt.INVENTORY_FILE.read_text(encoding="utf-8"))
+        gaps = wt.missing(screens, wt.load_registry())
+        if not gaps:
+            print(f"{len(screens)} screen(s), "
+                  f"{sum(len(s.controls) for s in screens)} control(s), all "
+                  f"accounted for.")
+            return 0
+        print(f"\n{len(gaps)} thing(s) the walkthrough would be wrong about:")
+        for g in gaps:
+            print(f"    {g}")
+        print(f"\nFix `registry/walkthrough.yaml`, or re-photograph the "
+              f"software with `python capture.py`.\n")
+        return 1
+
+    shots = Path(walkthrough_html.SHOTS) / "shots"
+    live = shots.parent / "screens.json"
+    if not live.exists():
+        print(f"\nnothing has been photographed yet. Run:\n\n"
+              f"    python capture.py\n")
+        return 1
+    screens = wt.from_json(live.read_text(encoding="utf-8"))
+    try:
+        doc = walkthrough_html.render(screens, wt.load_registry(), shots)
+    except RuntimeError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(doc, encoding="utf-8")
+    print(f"wrote {out} — {len(screens)} screen(s), one file, nothing beside "
+          f"it")
+    return 0
+
+
+def cmd_event(args) -> int:
+    """A lifecycle event, and the document it produces.
+
+    Four documents could not be produced by any command a preparer can run --
+    the delivery letter, the organizer cover, the extension notice and the
+    disengagement letter. Each needs facts that do not exist when the
+    engagement is created, and nothing collected them, so the opening pack was
+    a third of the process and the other two thirds had no front door.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        ev = lifecycle.event(args.kind)
+    except lifecycle.LifecycleError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    try:
+        raw = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+
+    saved = lifecycle.load_saved(args.engagement, args.kind, store) or {}
+    if args.answers:
+        payload = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+        answers = payload.get("answers", payload)
+        rows = payload.get("rows", {})
+    elif saved and not args.again:
+        answers, rows = saved.get("answers", {}), saved.get("rows", {})
+        print(f"\nUsing the answers already recorded for {args.kind}. "
+              f"`--again` asks them afresh.")
+    else:
+        print(f"\n{args.kind} — {ev.what}")
+        print(f"  {args.engagement}  {raw.get('ClientFullName', '')}\n")
+        answers, rows = {}, {}
+        try:
+            for q in ev.questions:
+                if not lifecycle.asks(q, answers):
+                    continue
+                print(f"\n  {q['question']}")
+                if q.get("options"):
+                    print(f"      one of: {', '.join(q['options'])}")
+                if q.get("why"):
+                    for line in textwrap.wrap(" ".join(q["why"].split()), 66):
+                        print(f"      {line}")
+                answers[q["id"]] = input("  > ").strip()
+            for spec in ev.rows:
+                rows[spec["list"]] = _ask_rows(spec)
+        except (KeyboardInterrupt, EOFError):
+            print("\n\nabandoned; nothing was written")
+            return 1
+
+    merged = lifecycle.fields(args.kind, answers, rows)
+    short = lifecycle.missing(args.kind, merged)
+    if short:
+        print(f"\nNot enough to write the {ev.document} yet — still needs: "
+              f"{', '.join(short)}.\nNothing was saved. A document that cannot "
+              f"be honest is not written.\n")
+        return 1
+
+    lifecycle.save(args.engagement, args.kind,
+                   {"answers": answers, "rows": rows}, store)
+
+    record = build_record({**raw, **merged})
+    outdir = Path(args.out) if args.out else Path("out") / args.engagement
+    rc = cmd_render(argparse.Namespace(
+        record=None, engagement=None, store=None, docs=[ev.document],
+        out=str(outdir), no_pdf=args.no_pdf, draft=False,
+        _record_override=record))
+    return rc
+
+
+def _requote_questions(ref: str, store: Path) -> int:
+    """What can be changed, and what it says today. The no-argument case.
+
+    `store` is passed rather than reached for. It defaulted to the real
+    engagement store while every other line of this command honoured
+    `--store`, so the listing reported "no saved interview" for an engagement
+    that was sitting right there in the store the caller named. Found by
+    running the command, which is the only way that class of bug is found.
+    """
+    try:
+        answers = requote._answers(ref, store)
+    except requote.RequoteError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    print(f"\nThese are the answers that move money on {ref}.")
+    print("Change one with --set, and give --reason to write it:\n")
+    print(f"    python cli.py requote --engagement {ref} \\")
+    print(f"        --set count_rentals=2 --reason 'bought a second rental "
+          f"in April'\n")
+    print("  Changing one can reveal another — how many rentals is only asked\n"
+          "  once Schedule E is on the return.\n")
+    for q in requote.questions(answers):
+        held = answers.get(q["id"])
+        shown = ", ".join(str(x) for x in held) if isinstance(held, list) \
+            else ("" if held in (None, "") else str(held))
+        print(f"  {q['id']:26} {shown[:30]:32} {q['question'][:52]}")
+    print()
+    return 0
+
+
+def _print_quote(quote, ref: str) -> None:   # noqa: ARG001
+    """The plan, as a preparer reads it out loud. Nothing has been written."""
+    for line in quote.blockers:
+        print("\n  " + textwrap.fill(line, 72, subsequent_indent="  "))
+    if quote.blockers:
+        print()
+        return
+    print("\n  What changed in the interview")
+    for change in quote.changed:
+        print(f"      {requote._question_text(change.question)}")
+        print(f"          {change.line()}")
+    if not quote.changed:
+        print("      nothing — these are the answers already on file")
+
+    print("\n  The estimate")
+    if quote.moved:
+        for mv in quote.moved:
+            was = mv.before if mv.before is not None else "—"
+            now = mv.after if mv.after is not None else "— (gone)"
+            print(f"      {mv.service[:38]:40} {was:>12}  →  {now}")
+    else:
+        print("      no line moves")
+    print(f"      {'TOTAL':40} {quote.before_total:>12}  →  "
+          f"{quote.after_total}")
+    print(f"\n  {quote.difference}.")
+
+    if quote.scope_moved:
+        # SAID SEPARATELY, AND SAID SECOND. The price is the headline and the
+        # scope is the thing that gets missed -- it is on a letter the client
+        # has already signed.
+        print("\n  The scope on the engagement letter moves too")
+        for change in quote.scope_moved:
+            print(f"      {change.line()}")
+    for note in quote.notes:
+        print("\n  " + textwrap.fill(note, 72, subsequent_indent="  "))
+    print()
+
+
+def cmd_requote(args) -> int:
+    """Quote a live engagement again, because the work changed.
+
+    NOBODY TYPES A FIGURE. The answers move and the same engine that priced
+    the engagement the first time prices it again -- see `requote.py` for why
+    that is not a stylistic preference.
+
+    WITHOUT `--reason`, THIS WRITES NOTHING. The plan prints and the command
+    stops. A re-quote that could happen by accident is a price that moved and
+    cannot be explained, and the reason is what makes it explicable a year
+    later.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    if not args.set:
+        return _requote_questions(args.engagement, store)
+
+    changes = {}
+    schema = iv.load_schema()
+    asked = {q["id"]: q for _, q in iv.all_questions(schema)}
+    for pair in args.set:
+        if "=" not in pair:
+            print(f"\n--set wants question=value, got {pair!r}.\n")
+            return 1
+        qid, raw = pair.split("=", 1)
+        qid = qid.strip()
+        q = asked.get(qid)
+        if q is None:
+            print(f"\nThe interview asks no question called {qid!r}. Run this "
+                  f"without --set to see the ones that move money.\n")
+            return 1
+        # The same conversion the browser does, from the same function: "2"
+        # has to become the integer 2 in both doors or they price differently.
+        changes[qid] = iv.coerce(q, raw)
+
+    try:
+        quote = requote.plan(args.engagement, changes, store=store)
+    except (engagements.EngagementError, requote.RequoteError) as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    print(f"\n{args.engagement} — "
+          f"{engagements.load(args.engagement, store).get('ClientFullName','')}")
+    _print_quote(quote, args.engagement)
+    if not quote.ok:
+        return 1
+
+    if not args.reason:
+        print("  Nothing has been written. Add --reason to record it, in one\n"
+              "  sentence, for whoever reads this engagement next year.\n")
+        return 0
+
+    try:
+        path = requote.apply(quote, args.reason, store=store)
+    except (requote.RequoteError, tins.TinRefused) as exc:
+        print(f"  {exc}\n")
+        return 1
+
+    print(f"  Recorded. {path}")
+    print(f"\n  Next: python cli.py package --engagement {args.engagement} "
+          f"--out packs/{args.engagement}")
+    if quote.scope_moved:
+        print("        — the scope moved, so the whole pack is out of date. "
+              "It is rebuilt from\n          the new answers and goes through "
+              "the same pre-send gate as the first one.\n")
+    else:
+        print("        — the estimate is rebuilt from the new figure. The "
+              "engagement letter still\n          reads correctly, so the "
+              "estimate can go on its own if you prefer.\n")
+    return 0
+
+
+def _signing_state(ref: str, store: Path):
+    """(record, documents, standing) for one engagement, or None with a note."""
+    record = engagements.load(ref, store)
+    docs = packaging.documents_for(record)
+    deadline = ""
+    saved = lifecycle.load_saved(ref, "delivery", store) or {}
+    for qid, value in (saved.get("answers") or {}).items():
+        if qid == "signature_deadline":
+            deadline = value
+    return record, docs, signing.standing(
+        ref, record, docs, TEMPLATE_DIR, store=store, deadline=deadline)
+
+
+def _signing_sweep(store: Path) -> int:
+    """Who to chase this morning, across every engagement.
+
+    THE HALF THAT PAYS. Sending a pack is three minutes of clicking; knowing
+    which clients have not signed, and which are past the date they were
+    given, is what nothing supported at all.
+    """
+    rows = signing.waiting(store, template_dir=TEMPLATE_DIR)
+    if not rows:
+        seen = len(engagements.listing(store))
+        print(f"\nNothing outstanding — {seen} engagement(s) looked at.\n"
+              if seen else "\nNo engagements yet.\n")
+        return 0
+    print(f"\n{len(rows)} engagement(s) waiting on a signature, "
+          f"longest first:\n")
+    for w in rows:
+        days = w.waiting_days()
+        out = f"{days}d" if days is not None else "not sent"
+        mark = "!!" if w.overdue else "  "
+        print(f"  {mark} {w.ref}  {w.client[:26]:28} {out:>9}  "
+              f"{len(w.missing)} of {w.examined} outstanding"
+              + (f"  — due {w.deadline}" if w.deadline else ""))
+        for line in w.missing:
+            print(f"        {line.document:22} {line.who}")
+    # The legend only where there is something to explain. A key under a list
+    # with no marks in it is noise, and noise is what gets skimmed past.
+    if any(w.overdue for w in rows):
+        print("\n  !! past the date the client was given.")
+    print()
+    return 0
+
+
+def cmd_sign(args) -> int:
+    """Who has signed what, and record one that has come back.
+
+    NOBODY TYPES A LIST OF WHO MUST SIGN. The templates carry the signature
+    blocks and this reads them, so a block that moves or gains a signer is
+    followed automatically -- and the spouse's line is expected only on a
+    joint return, because that is how the letter is drawn and what the
+    delivery letter tells the client.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    if not args.engagement:
+        return _signing_sweep(store)
+    try:
+        record, docs, where = _signing_state(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    name = record.get("ClientFullName", "")
+    if not args.record and not args.sent:
+        print(f"\n{args.engagement} — {name}")
+        if where.sent:
+            days = where.waiting_days()
+            print(f"  sent {where.sent}"
+                  + (f", {days} day(s) ago" if days is not None else ""))
+        else:
+            print("  not recorded as sent — `--sent encyro` starts the clock")
+        print(f"\n  {where.examined} signature(s) this pack asks for:\n")
+        got = {(s.document, s.field): s for s in where.have}
+        for line in where.expected:
+            have = got.get((line.document, line.field))
+            mark = "signed" if have else "OUTSTANDING"
+            when = f"  {have.when}" if have else ""
+            print(f"      {mark:12} {line.document:20} {line.who:28}{when}")
+        if where.deadline:
+            print(f"\n  Due by {where.deadline}"
+                  + ("  — PASSED" if where.overdue else ""))
+        gate = signing.may_file(args.engagement, record, docs, TEMPLATE_DIR,
+                                store=store, deadline=where.deadline)
+        for blocker in gate.blockers:
+            print("\n  " + textwrap.fill(blocker, 72, subsequent_indent="  "))
+        for said in gate.unknown:
+            print("\n  NOT KNOWN HERE: "
+                  + textwrap.fill(said, 72, subsequent_indent="  "))
+        print(f"\n  Record one:  python cli.py sign --engagement "
+              f"{args.engagement} \\\n"
+              f"                   --record tax-letter/TaxpayerName "
+              f"--on 'February 9, 2027' --how in-person\n")
+        return 0
+
+    if args.sent:
+        try:
+            path = signing.mark_sent(args.engagement, args.sent,
+                                     when=args.on or "", store=store)
+        except signing.SigningError as exc:
+            print(f"\n{exc}\n")
+            return 1
+        print(f"\n  Recorded as sent. {path}\n")
+        return 0
+
+    if "/" not in args.record:
+        print("\n--record wants document/Field, as the list above prints it.\n")
+        return 1
+    doc, fieldname = args.record.split("/", 1)
+    line = next((ln for ln in where.expected
+                 if ln.document == doc and ln.field == fieldname), None)
+    if line is None:
+        print(f"\nThis pack has no signature line {args.record!r}. Run without "
+              f"--record to see the ones it does.\n")
+        return 1
+    try:
+        path = signing.record_signature(
+            args.engagement, line, when=args.on or "", how=args.how or "",
+            reference=args.reference or "", store=store)
+    except signing.SigningError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    print(f"\n  Recorded. {path}\n")
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -869,11 +1682,35 @@ def _required_lists() -> dict:
     return out
 
 
-def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+def _inverse_flags() -> tuple:
+    """Flag pairs that are two faces of one decision, from the registry.
+
+    The relationship used to live only in the prose note beside each flag
+    ("Inverse of PaymentEnclosed"), which nothing read -- so a record could
+    leave both of a pair false and the section they control came out empty
+    under a heading that promised it said something.
+    """
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8")) or {}
+    seen, pairs = set(), []
+    for entry in spec.get("flags") or []:
+        other = entry.get("inverse_of")
+        if not other:
+            continue
+        key = frozenset((entry["flag"], other))
+        if key in seen:
+            continue                    # declared on both halves, one pair
+        seen.add(key)
+        pairs.append((entry["flag"], other))
+    return tuple(pairs)
+
+
+def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
     result = merge.render(template, record, strict=not draft,
-                          required_lists=_required_lists().get(doc, ()))
+                          required_lists=_required_lists().get(doc, ()),
+                          inverse_flags=_inverse_flags())
 
     html = _stamp_draft(result.html) if draft else result.html
     stem = output_name(doc, record, draft)
@@ -888,17 +1725,47 @@ def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: boo
     return result, written
 
 
+# `_render_one` was private while the terminal was its only caller. It has two
+# now, and the tests written against the old name still hold.
+_render_one = render_one
+
+
 def cmd_render(args) -> int:
     if args.engagement:
         store = Path(args.store) if args.store else engagements.STORE
         raw = engagements.load(args.engagement, store)
+        # THE BILL LIVES BESIDE THE ENGAGEMENT, NOT INSIDE IT. One engagement
+        # has many invoices, so `invoice` writes each to its own file rather
+        # than overwriting the record -- and this front door read only the
+        # record, so the command `invoice` tells you to run next refused on
+        # every invoice field there is. The invoice's own fields win where
+        # they overlap: `PeriodLabel` is the engagement's period on the
+        # estimate and the period BILLED here, which is the one value the two
+        # documents must NOT share.
+        if "invoice" in (args.docs or ()):
+            bill = invoicing.find(store, args.engagement,
+                                  getattr(args, "invoice", None))
+            if bill is None:
+                print(f"engagement {args.engagement} has no invoice yet. Raise "
+                      f"one first:\n  python cli.py invoice --engagement "
+                      f"{args.engagement} --billed 'March 2027'\n")
+                return 1
+            raw = {**raw, **bill}
+            print(f"  invoice {bill.get('InvoiceNumber', '')}\n")
+    elif getattr(args, "_record_override", None) is not None:
+        # A caller that has already composed the record -- `event` merges the
+        # engagement with the facts a preparer just supplied. Passing a path
+        # would mean writing a temporary file whose only reader is the next
+        # line of the same function.
+        raw = None
     elif args.record:
         raw = json.loads(Path(args.record).read_text(encoding="utf-8"))
     else:
         raise SystemExit("give a record file or --engagement REF")
-    record = build_record(raw)
+    record = (args._record_override if raw is None
+              else build_record(raw))
 
-    docs = args.docs or OPENING_PACKAGE
+    docs = args.docs or opening_package(record)
     unknown = [d for d in docs if d not in DOCUMENTS]
     if unknown:
         raise SystemExit(f"unknown document(s): {', '.join(unknown)}\n"
@@ -906,6 +1773,24 @@ def cmd_render(args) -> int:
 
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
+
+    # THE OTHER FRONT DOOR HAD THE SAME HOLE. `package` was taught to carry
+    # `satc-doc.css` and `doc-page.js` on 27 August 2026, after the firm opened
+    # a pack and found plain text. `render` was not -- and `render` is the
+    # command this CLI itself tells you to run next after raising an invoice:
+    #
+    #     Next:  python cli.py render --engagement 2026-0001 --docs invoice
+    #
+    # So every invoice, every delivery letter, every one-off document produced
+    # through this door opened as browser-default Times with the masthead
+    # collapsed into one line. Found by opening 303 rendered documents rather
+    # than by any test, because the harness only ever looked inside pack
+    # folders. Fixing one door and not the other is how a bug survives being
+    # fixed.
+    for asset in presend.PACK_ASSETS:
+        src = TEMPLATE_DIR / asset
+        if src.exists():
+            shutil.copy2(src, outdir / asset)
 
     want_pdf = not args.no_pdf
     if want_pdf:
@@ -924,7 +1809,7 @@ def cmd_render(args) -> int:
     failures = 0
     for doc in docs:
         try:
-            result, written = _render_one(doc, record, outdir, args.draft, want_pdf)
+            result, written = render_one(doc, record, outdir, args.draft, want_pdf)
         except merge.MergeError as exc:
             failures += 1
             print(f"  {doc:22s} REFUSED\n      {exc}\n", file=sys.stderr)
@@ -960,8 +1845,15 @@ def cmd_demo(args) -> int:
                                      season="2026", return_type="individual",
                                      ref="2027-0114"))
 
+    # The RECORD decides the package, so the record has to be loaded rather
+    # than named. Passing the path here read `opening_package("/…/x.json")`,
+    # which asked a string for `.get` and killed the command outright --
+    # `demo` is the one command a newcomer runs first and it had not been run
+    # since the conditional records release landed. Caught 26 Aug 2026 by a
+    # scenario that simply ran every CLI verb.
     record = str(ROOT / "samples" / "tax-opening-package.json")
-    common = dict(record=record, docs=OPENING_PACKAGE, out=str(outdir),
+    loaded = json.loads(Path(record).read_text(encoding="utf-8"))
+    common = dict(record=record, docs=opening_package(loaded), out=str(outdir),
                   no_pdf=args.no_pdf, engagement=None, store=None)
 
     print("\n2. a finished record (the interview's answers) -> documents")
@@ -1135,6 +2027,79 @@ def cmd_price(args) -> int:
     return 0
 
 
+def cmd_sample(args) -> int:
+    """Rebuild `samples/tax-opening-package.json` from the demo answers.
+
+    The demo record is what anyone looks at first to see what a client
+    receives, and until 26 August 2026 it was typed by hand. It had drifted
+    into quoting $450 for a 1040 and into a scope that had lost the Schedule E
+    its own estimate billed for -- two documents in one package contradicting
+    each other. `test_pricing.py` pins it to the engine now, so a schedule
+    change fails the suite; this is the command that answers the failure
+    instead of somebody editing JSON to match.
+
+    Only the generated half is rewritten. The client, the dates and the
+    reference are the sample's own and are left exactly as they are.
+    """
+    import requests as document_requests
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    path = SAMPLES / "tax-opening-package.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+
+    before = json.dumps(record, ensure_ascii=False, sort_keys=True)
+    record.update(iv.compose(answers))
+    record.update(pricing.price(answers))
+    # The onboarding letter's checklist, on the same footing as the estimate.
+    # It was hand-written too, and it asked for five things where the answers
+    # call for nine -- no signed engagement letter, no ID, and nothing about
+    # the Schedule C business the estimate was pricing a package around.
+    record["RequestList"] = document_requests.for_answers(answers)
+    after = json.dumps(record, ensure_ascii=False, sort_keys=True)
+
+    if before == after:
+        print("samples/tax-opening-package.json is already what the engine produces")
+        return 0
+    path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+    print("rewrote samples/tax-opening-package.json from interview-answers.json")
+    return 0
+
+
+def cmd_check(args) -> int:
+    """Does this package agree with itself?
+
+    Not the same question as `doctor`, which asks what is missing. This asks
+    the harder one: everything resolved, everything rendered -- do the
+    documents tell one story. The firm's ask of 26 August 2026, "show me how
+    you can tell it all goes together (so i can see consistency)."
+    """
+    record = build_record(json.loads(Path(args.record).read_text(encoding="utf-8")))
+    rendered = consistency.render_package(record, DOCUMENTS, TEMPLATE_DIR,
+                                          _required_lists(), _inverse_flags())
+    if not rendered:
+        print("No document in the set renders from this record, so there is "
+              "nothing to compare. `doctor` says what is missing.")
+        return 1
+
+    checks = consistency.report(record, rendered)
+    ref = record.get("EngagementRef") or "(no reference)"
+    print(f"SAT-C package agreement - {ref}\n")
+    print(f"  {len(rendered)} document(s) rendered: {', '.join(sorted(rendered))}\n")
+
+    for c in checks:
+        print(f"  {'ok  ' if c.ok else 'FAIL'}  {c.name}")
+        print(f"          {c.detail}")
+    failed = [c for c in checks if not c.ok]
+    print()
+    if failed:
+        print(f"  {len(failed)} of {len(checks)} disagree. A client reading two "
+              f"of these documents\n  side by side would find the difference.")
+        return 1
+    print(f"  All {len(checks)} agree.")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
@@ -1149,7 +2114,34 @@ def main(argv=None) -> int:
     pk.add_argument("--with-invoice", action="store_true",
                     help="include the invoice, which is not part of what is signed")
     pk.add_argument("--no-pdf", action="store_true")
+    pk.add_argument("--ready", action="store_true",
+                    help="also write the covering email as a .eml, addressed "
+                         "and attached, for you to read and send")
     pk.set_defaults(fn=cmd_package)
+
+    pk.add_argument("--attach", action="append", metavar="ID",
+                    help="declare something going in the envelope that this "
+                         "software does not render (organizer, payment-voucher, "
+                         "estimate-vouchers, client-records, work-copies, "
+                         "return-copies). Repeatable.")
+    pk.add_argument("--force", action="store_true",
+                    help="write the pack even though a pre-send check failed "
+                         "(needs --reason; the override is logged)")
+    pk.add_argument("--reason", default="",
+                    help="why this pack is going out despite a failed check")
+    pk.add_argument("--skip-render", action="store_true",
+                    help="do not open the documents in a browser. Faster, and "
+                         "it stops the gate proving the one thing it exists to "
+                         "prove")
+    pk.add_argument("--notes", action="store_true",
+                    help="also print the ten advisory tenet checks. They never "
+                         "block and never change the exit code")
+    pay = sub.add_parser("payments",
+                         help="which bills have been paid, and which have not")
+    pay.add_argument("--store")
+    pay.add_argument("--sandbox", action="store_true",
+                     help="ask Square's test account, where no money is real")
+    pay.set_defaults(fn=cmd_payments)
 
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
     iv.add_argument("--engagement", required=True)
@@ -1159,6 +2151,10 @@ def main(argv=None) -> int:
                     help="the period this invoice BILLS, e.g. '2026 tax year'")
     iv.add_argument("--credit", action="append", metavar="LABEL=AMOUNT",
                     help="a credit, entered as what it is worth")
+    iv.add_argument("--no-link", action="store_true",
+                    help="do not create a payment link for this bill")
+    iv.add_argument("--sandbox", action="store_true",
+                    help="use Square's test account; no money is real")
     iv.add_argument("--variance-note",
                     help="required when the bill exceeds the estimate")
     iv.set_defaults(fn=cmd_invoice)
@@ -1193,6 +2189,101 @@ def main(argv=None) -> int:
     i.add_argument("--store", help="engagements directory")
     i.set_defaults(fn=cmd_interview)
 
+    rt = sub.add_parser("returning",
+                        help="this year's interview, seeded from last year's "
+                             "answers")
+    rt.add_argument("--engagement", required=True,
+                    help="last year's engagement reference")
+    rt.add_argument("--store")
+    rt.add_argument("--answers", help="replay from a saved answers file")
+    rt.add_argument("--out")
+    rt.add_argument("--ref")
+    rt.add_argument("--override-hard-no", action="store_true")
+    rt.set_defaults(fn=cmd_returning)
+
+    cl = sub.add_parser("close",
+                        help="record what was actually filed, at the end of "
+                             "the engagement")
+    cl.add_argument("--engagement", required=True)
+    cl.add_argument("--store")
+    cl.add_argument("--filed", help="answers file, instead of asking")
+    cl.set_defaults(fn=cmd_close)
+
+    rc = sub.add_parser("reconcile",
+                        help="the end-of-cycle control: what we said against "
+                             "what we filed")
+    rc.add_argument("--engagement", help="just this one")
+    rc.add_argument("--store")
+    rc.add_argument("--apply", action="store_true",
+                    help="move the record to match what was filed, and log "
+                         "every move")
+    rc.set_defaults(fn=cmd_reconcile)
+
+    pc = sub.add_parser("procedures",
+                        help="write the operating procedures from the software "
+                             "that performs them")
+    pc.add_argument("--check", action="store_true",
+                    help="fail if the committed copy has drifted")
+    pc.add_argument("--html", metavar="FILE",
+                    help="also write a reading copy in the firm's house "
+                         "style: one self-contained file, nothing beside it")
+    pc.set_defaults(fn=cmd_procedures)
+
+    wk = sub.add_parser("walkthrough",
+                        help="write the guided walkthrough of the browser "
+                             "from screens photographed by `capture.py`")
+    wk.add_argument("--out", metavar="FILE",
+                    default=str(ROOT / "out" / "walkthrough" /
+                                "walkthrough.html"),
+                    help="where to write it (one self-contained file)")
+    wk.add_argument("--check", action="store_true",
+                    help="fail if the committed inventory of screens has "
+                         "drifted from what the registry answers for")
+    wk.set_defaults(fn=cmd_walkthrough)
+
+    evp = sub.add_parser("event",
+                         help="a lifecycle event after the opening pack, and "
+                              "the document it produces")
+    evp.add_argument("--kind", required=True,
+                     choices=sorted(lifecycle.load()),
+                     help="which event")
+    evp.add_argument("--engagement", required=True)
+    evp.add_argument("--store")
+    evp.add_argument("--out")
+    evp.add_argument("--answers", help="answers file, instead of asking")
+    evp.add_argument("--again", action="store_true",
+                     help="ask again rather than reusing what was recorded")
+    evp.add_argument("--no-pdf", action="store_true")
+    evp.set_defaults(fn=cmd_event)
+
+    rq = sub.add_parser("requote",
+                        help="the work changed: price the engagement again")
+    rq.add_argument("--engagement", required=True)
+    rq.add_argument("--set", action="append", metavar="QUESTION=VALUE",
+                    help="an interview answer that changed; repeatable. "
+                         "Omit to list the answers that move money.")
+    rq.add_argument("--reason",
+                    help="why the price moved, in one sentence. WITHOUT THIS "
+                         "NOTHING IS WRITTEN -- the plan prints and stops.")
+    rq.add_argument("--store")
+    rq.set_defaults(fn=cmd_requote)
+
+    sg = sub.add_parser("sign",
+                        help="who has signed what, and record one that is back")
+    sg.add_argument("--engagement",
+                    help="one engagement. Omit for everything still waiting.")
+    sg.add_argument("--sent", metavar="HOW",
+                    help="record that the pack went out, and start the clock")
+    sg.add_argument("--record", metavar="DOCUMENT/FIELD",
+                    help="the signature line that came back. Omit to list.")
+    sg.add_argument("--on", help="the day they signed, not the day you heard")
+    sg.add_argument("--how", choices=sorted(signing.MEANS),
+                    help="how it reached you; the means is the evidence")
+    sg.add_argument("--reference",
+                    help="the envelope or request id, for a signing service")
+    sg.add_argument("--store")
+    sg.set_defaults(fn=cmd_sign)
+
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")
     e.set_defaults(fn=cmd_engagements)
@@ -1201,8 +2292,13 @@ def main(argv=None) -> int:
     r.add_argument("record", nargs="?", help="a record JSON; or use --engagement")
     r.add_argument("--engagement", metavar="REF", help="render a stored engagement")
     r.add_argument("--store", help="engagements directory")
+    r.add_argument("--invoice", metavar="NUMBER",
+                   help="which invoice to render (default: the latest raised)")
     r.add_argument("--docs", nargs="+", metavar="DOC",
-                   help=f"default: the opening package ({', '.join(OPENING_PACKAGE)})")
+                   help="default: this engagement's own opening package — the "
+                        "engagement letter for its return type, the estimate, "
+                        "the onboarding letter, and the records release where "
+                        "there is a predecessor")
     r.add_argument("--out", default="out")
     r.add_argument("--draft", action="store_true",
                    help="render past open decisions, stamped DRAFT")
@@ -1229,6 +2325,15 @@ def main(argv=None) -> int:
     d.add_argument("--out", default="out/demo")
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
+
+    ck = sub.add_parser("check",
+                        help="does a rendered package agree with itself?")
+    ck.add_argument("record")
+    ck.set_defaults(fn=cmd_check)
+
+    sa = sub.add_parser("sample",
+                        help="rebuild the demo record from the demo answers")
+    sa.set_defaults(fn=cmd_sample)
 
     args = p.parse_args(argv)
     return args.fn(args)

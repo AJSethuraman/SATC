@@ -133,7 +133,11 @@ HOURLY_COPY = {
     "brokerage_keying":  "Keyed brokerage statements",
     "foreign_company":   "An interest in a company based abroad",
     "cleanup":           "Books that need cleaning up or reconciling",
-    "notice_response":   "A letter from the IRS or the state you would like us to handle",
+    # `notice_response` was removed on 3 Sep 2026, when main's fee schedule
+    # arrived here without it. A key here that the schedule does not have is
+    # the page advertising work the firm no longer prices -- which is the
+    # failure `pricing.spec.py` is for, and the reason that check had been
+    # sidelined on main since 30 August. See docs/website-agent-handoff.md.
     "officer_compensation": "Setting what an S corporation owner pays themselves",
 }
 

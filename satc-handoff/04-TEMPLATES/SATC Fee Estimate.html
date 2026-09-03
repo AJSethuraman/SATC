@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -32,10 +31,10 @@
 <div class="doctitle">
   <div>
     <h1>Fee estimate</h1>
-    <div class="kind">Accompanies our engagement letter</div>
+    <div class="kind"><span data-encl="engagement-letter">Accompanies our engagement letter</span></div>
   </div>
   <table class="smeta">
-    <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></td></tr>
+    <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;EstimateDate&gt;&gt;</span></td></tr>
     <tr><td class="k">Engagement ref</td><td class="v"><span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></td></tr>
     <tr><td class="k">Period</td><td class="v"><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></td></tr>
   </table>
@@ -50,13 +49,25 @@
   </div>
 </div>
 
-<p class="intro">The figures below cover the work described in the <strong>scope section of our engagement letter</strong> dated <span class="f">&lt;&lt;LetterDate&gt;&gt;</span>. The figures reflect our best assessment of the work involved, and may change if complexities arise that are not apparent today.</p>
+<p class="intro">These figures are for the work set out below, under our engagement letter dated <span class="f">&lt;&lt;LetterDate&gt;&gt;</span>. They reflect our best assessment of the work involved, and may change if complexities arise that are not apparent today.</p>
+
+<span class="cond">[[IF ReturnScope]]</span>
+<div class="scope">
+  <div class="h">What we will prepare</div>
+  <ul>
+    <li><b>Federal:</b> <span class="f">&lt;&lt;FederalReturns&gt;&gt;</span></li>
+    <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
+    <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
+    <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+  </ul>
+</div>
+<span class="cond end">[[END IF]]</span>
 
 <table class="led">
   <tr><th>Service</th><th class="r">Estimate</th></tr>
   <tr class="mark"><td colspan="2"><span class="cond inline">[[EACH LineItems]]</span></td></tr>
   <tr>
-    <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></td>
+    <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span><span class="inc"><span class="f">&lt;&lt;Item.Includes&gt;&gt;</span></span></td>
     <td class="r num"><span class="f">&lt;&lt;Item.Amount&gt;&gt;</span></td>
   </tr>
   <tr class="mark"><td colspan="2"><span class="cond inline">[[END EACH]]</span></td></tr>
@@ -73,21 +84,17 @@
     <li><span class="f">&lt;&lt;Item.Text&gt;&gt;</span></li>
   </ul>
   <span class="cond end">[[END EACH]]</span>
-  <ul>
-    <li>Only the work listed in the <b>scope</b> section of the engagement letter is included.</li>
-    <li>Billing and payment terms are in the <b>Fees and billing</b> section of the engagement letter.</li>
-  </ul>
 </div>
 
 <div class="signoff">
   <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-  <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+  <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">FEE ESTIMATE<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -98,7 +105,8 @@
   <p>Serves either engagement letter — tax preparation or bookkeeping. Clauses are referenced <b>by name</b>, never by number, so renumbering either letter cannot break the pointer. Same conventions as the letters: <code>&lt;&lt;Field&gt;&gt;</code> substitutes a value, <code>[[EACH List]]</code> … <code>[[END EACH]]</code> repeats the rows between them once per item. Inside an EACH block, fields are dotted — <code>&lt;&lt;Item.Service&gt;&gt;</code>. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
   <table>
     <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
-    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>the engagement letter's date, not today's</b>. The estimate is dated to the letter it accompanies, and appears twice.</td></tr>
+    <tr><td>&lt;&lt;EstimateDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>this estimate's own date</b>, at the head of the sheet. Set to the letter's date when the engagement is created, and moved when the engagement is quoted again. Two estimates in a drawer showing different totals under the same date is a question nobody can answer next February.</td></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>the engagement letter's date</b>, in the one sentence that names it. Never moves: the client has signed that letter. Byte-identical to the letter's own.</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key. Must be byte-identical to the letter's, or the pair comes apart in a file drawer.</td></tr>
     <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
@@ -112,7 +120,7 @@
     <tr><td>&lt;&lt;EstimateTotal&gt;&gt;</td><td class="req">Required</td><td>$785 — <b>computed, not typed.</b> Sum the line items in code so the arithmetic can't be wrong on a client-facing document.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
   </table>
-  <p><b>11 fields + 1 repeating list of 3.</b> Nine come from the same records that drive either engagement letter, so generate the pair together from one call and they can never disagree. The other two — <code>&lt;&lt;PeriodLabel&gt;&gt;</code> and <code>&lt;&lt;EstimateTotal&gt;&gt;</code> — are the estimate's own.</p>
+  <p><b>12 fields + 1 repeating list of 3.</b> Nine come from the same records that drive either engagement letter, so generate the pair together from one call and they can never disagree. The other three — <code>&lt;&lt;EstimateDate&gt;&gt;</code>, <code>&lt;&lt;PeriodLabel&gt;&gt;</code> and <code>&lt;&lt;EstimateTotal&gt;&gt;</code> — are the estimate's own, and the first of them is why: an engagement can be quoted again, and the sheet has to say when.</p>
 
   <h3>Deliberately not here</h3>
   <ol>

@@ -139,9 +139,9 @@ def test_a_required_question_will_not_take_a_blank():
 def test_prefill_offers_the_website_claim_without_answering():
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     session = iv.Interview(lead=lead)
-    q = session.question("client_letter_name")
-    assert iv.prefill_for(q, lead) == "Dan"
-    assert "client_letter_name" not in session.answers, (
+    q = session.question("client_email")
+    assert iv.prefill_for(q, lead) == "dreyes@example.com"
+    assert "client_email" not in session.answers, (
         "prefill must offer a claim, never answer for you -- the schema is "
         "explicit that every prefilled question is still asked"
     )
@@ -171,20 +171,88 @@ def test_a_split_with_nothing_in_that_position_makes_no_claim():
     assert iv.prefill_for(q, {"contact": {"location": "Solon"}}) is None
 
 
-def test_the_websites_vocabulary_is_translated_not_carried_through():
-    """"rental" is not a schedule. "E1" is."""
+def test_the_website_answer_reaches_the_interview_at_all():
+    """It could not, until 26 August 2026.
+
+    `federal_schedules` used to prefill through a `prefill_map` whose keys had
+    drifted from the intake form: it expected `rental`, `self_employed`,
+    `sole_prop`, `brokerage` and `itemize`, and the site has never sent any of
+    the five. A prospect ticked "Rental property" and the interview offered
+    nothing. Only `k1` and `investments` ever matched.
+
+    The fix was to stop translating. `return_features` asks the same question
+    the website asks, in the same words, with the same option values -- so
+    there is no vocabulary to keep in step and no map to go stale.
+    """
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     session = iv.Interview(lead=lead)
-    got = iv.prefill_for(session.question("federal_schedules"), lead)
-    assert set(got) == {"E1", "E2"}
+    got = iv.prefill_for(session.question("return_features"), lead)
+    assert got, "the website's answer reached the interview as nothing"
+    assert set(got) <= set(lead["individual_complexity"]), \
+        "a value was invented rather than carried"
 
 
-def test_a_lead_value_with_no_translation_is_dropped():
-    """A plain W-2 is a real thing to tell us and is not a schedule."""
+def test_the_sample_lead_only_says_things_the_website_can_say():
+    """It said "rental". The site sends "rentals".
+
+    So the fixture demonstrated the exact bug it was meant to exercise: a
+    value the interview could never hear. A sample that cannot happen proves
+    nothing about the leads that do.
+    """
+    import re
+    site = (Path(__file__).resolve().parents[2] / "website" / "intake-config.js"
+            ).read_text(encoding="utf-8")
+    i = site.index("id: 'individual_complexity'")
+    sends = set(re.findall(r"value: '([^']+)'", site[i:site.index("/* ── 4", i)]))
+
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    stray = [v for v in lead["individual_complexity"] if v not in sends]
+    assert not stray, f"the sample lead says things the intake form cannot: {stray}"
+
+
+def test_a_lead_value_that_means_no_schedule_is_dropped():
+    """A plain W-2 is a real thing to tell us and implies no schedule."""
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     assert "w2" in lead["individual_complexity"]
     session = iv.Interview(lead=lead)
-    assert "w2" not in iv.prefill_for(session.question("federal_schedules"), lead)
+    assert "w2" not in iv.prefill_for(session.question("return_features"), lead)
+
+
+def test_the_interview_and_the_website_share_one_vocabulary():
+    """The guard that stops the five dead keys coming back.
+
+    Every option `return_features` offers must be an option the intake form
+    actually sends, or a prospect can tick something on the site that the
+    interview quietly cannot hear.
+    """
+    import re
+    site = (Path(__file__).resolve().parents[2] / "website" / "intake-config.js"
+            ).read_text(encoding="utf-8")
+    i = site.index("id: 'individual_complexity'")
+    block = site[i:site.index("/* ── 4", i)]
+    sends = set(re.findall(r"value: '([^']+)'", block))
+
+    q = iv.Interview().question("return_features")
+    asks = {o["value"] for o in q["options"]}
+
+    # THE DIRECTION THAT MATTERS is site -> interview. Every value the site can
+    # send must be one the interview either offers or deliberately drops; a
+    # value it sends that the interview has never heard of is the failure this
+    # question was rebuilt to stop.
+    #
+    # The reverse is NOT a failure. `farm` and `itemizing` are asked on the
+    # call and not on the site, because a preparer learns things a prospect was
+    # never asked. That gap is recorded in docs/site-open-questions.md for the
+    # site rather than forced closed from here.
+    unheard = {v for v in sends if v in asks} - asks
+    assert not unheard
+    assert asks & sends, "the two share no vocabulary at all, so prefill is dead"
+    for v in sorted(sends):
+        assert v in asks or v not in {"self_employment", "business_owner",
+                                      "rentals", "k1", "investments"}, (
+            f"the website sends {v!r}, which means a schedule, and the "
+            f"interview does not offer it"
+        )
 
 
 def test_one_lead_answer_can_imply_two_schedules():
@@ -346,6 +414,22 @@ def test_years_do_not_collide(tmp_path):
 
 
 # ── interview -> engagement -> render, the whole chain ────────────────────
+
+def test_a_hard_no_label_does_not_repeat_the_badge():
+    """Both front doors draw a HARD NO badge from `hard_no: true`.
+
+    Two option labels also ended with "— HARD NO", so the screen read
+    "Needs assurance work — HARD NO **HARD NO**". Found 26 August 2026 by
+    screenshotting the real page rather than reading the YAML.
+    """
+    import interview as iv
+    for _, q in iv.all_questions(iv.load_schema()):
+        for o in q.get("options") or []:
+            if o.get("hard_no"):
+                assert "HARD NO" not in o["label"].upper(), (
+                    f"{q['id']}/{o['value']}: the label repeats the badge"
+                )
+
 
 def _run_interview(tmp_path, answers_file="interview-answers.json", extra=()):
     return cli.main(["interview", "--answers", str(SAMPLES / answers_file),

@@ -19,3 +19,8 @@ playwright
 
 # Fallback, if a browser is genuinely unavailable. Usable, not brand-accurate.
 # weasyprint
+
+# Reading the leads workbook. Optional at runtime -- `leads.py` imports it
+# inside the function and says so if it is missing, because rendering a
+# letter should not depend on a spreadsheet nobody opened.
+openpyxl

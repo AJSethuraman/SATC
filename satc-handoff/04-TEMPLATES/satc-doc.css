@@ -47,7 +47,12 @@ h1,h2,h3,p{margin:0}
 /* ---------- letter body ---------- */
 .body{margin-top:12pt}
 .body p{margin-bottom:8pt;text-wrap:pretty}
-.body strong{color:var(--navy);font-weight:600}
+/* ONE BOLD, NOT TWO. Measured in a browser 26 Aug 2026 on the delivery
+   letter: <strong> resolved to 600 in navy and <b> to the browser default
+   700 in body ink, so two different-looking bolds sat in one paragraph on
+   a client's document. Both tags mean the same thing to a reader and the
+   templates use both; the stylesheet now agrees with the reader. */
+.body strong,.body b{color:var(--navy);font-weight:600}
 /* numbered clauses — numbered so a client, or a court, can point at one */
 .sec{margin-top:13pt;break-inside:avoid}
 .sec>h2{display:flex;align-items:baseline;gap:9pt;font-size:9pt;font-weight:600;color:var(--navy);letter-spacing:0.01em;padding-bottom:5pt;margin-bottom:7pt;border-bottom:0.5pt solid var(--hairline-2)}
@@ -77,7 +82,7 @@ h1,h2,h3,p{margin:0}
 .prepared .nm{font-weight:600;color:var(--navy)}
 .prepared .ad{font-size:9pt;line-height:1.45;color:var(--ink-2);margin-top:2pt}
 .intro{margin-top:14pt;font-size:9.5pt;line-height:1.55}
-.intro strong{color:var(--navy);font-weight:600}
+.intro strong,.intro b{color:var(--navy);font-weight:600}
 
 /* ---------- ledger ---------- */
 /* Figures follow the house conventions in SATC Figures and Tables.html:
@@ -89,6 +94,11 @@ h1,h2,h3,p{margin:0}
 .led td.r{text-align:right}
 .led .desc b{color:var(--navy);font-weight:600;display:block}
 .led .desc>span{font-size:8.5pt;color:var(--ink-2);display:block;margin-top:1pt}
+/* What a package covers. Set apart from the line's own detail because it is
+   a list of up to nine clauses, and run together with the detail it reads as
+   a paragraph in a table cell. Empty on every row that has nothing to list. */
+.led .desc>span.inc{font-size:8pt;line-height:1.45;color:var(--mute);margin-top:2.5pt;padding-left:7pt;border-left:1.5pt solid var(--hairline-2)}
+.led .desc>span.inc:empty{display:none}
 .led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9.5pt;color:var(--navy);white-space:nowrap}
 .led tr.sub td{border-bottom:0.5pt solid var(--hairline);font-weight:500;color:var(--ink-2)}
 .led tr.credit .num{color:var(--oxblood)}
@@ -107,6 +117,8 @@ h1,h2,h3,p{margin:0}
 /* ---------- three-up detail strip (payment, remit, contact) ---------- */
 .pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
 .pay>div{flex:1}
+.paylink{margin-top:5pt;font-family:var(--mono);font-size:8pt;line-height:1.45;word-break:break-all}
+.paylink a{color:var(--navy);text-decoration:underline;text-underline-offset:2pt}
 .pay .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
 .pay p{font-size:9pt;line-height:1.5;color:var(--ink-2)}
 .pay b{color:var(--navy);font-weight:600}
@@ -154,7 +166,17 @@ h1,h2,h3,p{margin:0}
 .siglab b{color:var(--navy);font-weight:500}
 .execnote{font-size:8.5pt;color:var(--ink-2);margin-top:10pt}
 .accept{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--navy);margin-top:20pt;padding-bottom:5pt;border-bottom:0.8pt solid var(--navy)}
-.signoff{margin-top:16pt;break-inside:avoid}
+/* A SIGNATURE MUST NOT BE THE ONLY THING ON A PAGE. `break-inside` stopped the
+   block from SPLITTING and nothing stopped it being PUSHED: a multistate fee
+   estimate printed a second page carrying 258 characters -- the partner's
+   name, the title, and the registration line. A client turning to a blank
+   page for a signature reads it as a document that was cut off.
+   `break-before:avoid` keeps it with the content above it; when there is no
+   room, the section above comes with it, which is the right answer. Measured
+   before and after by printing to PDF and counting characters on the last
+   page. */
+.signoff{margin-top:16pt;break-inside:avoid;break-before:avoid;
+         page-break-before:avoid}
 /* A ledger document's sign-off follows a .notes block rather than the .sp
    signature gap, and sits 20pt clear of it. Promoted here from the invoice and
    the fee estimate, which had each declared it separately -- two documents
@@ -189,3 +211,15 @@ h1,h2,h3,p{margin:0}
 a{color:var(--oxblood)}
 a:hover{color:var(--navy)}
 @media print{.ref{display:none}}
+
+/* The estimate's scope block. Deliberately the same four lines as the
+   engagement letter's "What we will prepare", from the same four fields, so a
+   client holding both sheets can line them up. The firm's ask, 26 Aug 2026:
+   "either it needs to list what we are doing in one place, or needs to be
+   comparable in both". */
+.scope{margin-top:14pt;padding:11pt 13pt;background:#FAFAF8;border:0.5pt solid var(--hairline-2);border-left:2pt solid var(--navy)}
+.scope .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:7pt}
+.scope ul{margin:0;padding-left:14pt}
+.scope li{font-size:9.5pt;line-height:1.5;margin-bottom:2pt}
+.scope li b{color:var(--navy);font-weight:600}
+.scope>p{font-size:8pt;color:var(--mute);margin:8pt 0 0}

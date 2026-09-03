@@ -65,7 +65,7 @@ optional anywhere.
 1. **Escape values on substitution.** A client named "Ross & Sons" otherwise
    breaks the page.
 2. **Fail loudly on any unresolved `<<` or `[[`** before the PDF is rendered.
-   A letter that reaches a client with `<<ClientLetterName>>` still in it is the
+   A letter that reaches a client with `<<ClientFullName>>` still in it is the
    one bug that costs a client.
 3. **Strip the `.f` class and the `.cond` markers** (and the `tr.mark` marker rows) on the client-facing render.
    They exist so an unfilled proof is obvious; a real letter shows no field

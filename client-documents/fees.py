@@ -79,8 +79,6 @@ ITEMS: list[tuple[str, str]] = [
      "a Schedule C with actual expenses, a home office, depreciation or inventory"),
     ("per_unit.brokerage.amount",
      "each brokerage statement past the one the package includes"),
-    ("per_unit.brokerage_keyed.amount",
-     "each brokerage statement that has to be keyed rather than summarised"),
     ("per_unit.foreign_account.amount", "each foreign account reported"),
     ("per_form.amount",
      "any one of the named per-form situations -- one price, whichever it is"),
@@ -88,6 +86,10 @@ ITEMS: list[tuple[str, str]] = [
      "the earned income credit and its Form 8867 due diligence"),
 ]
 
+# Brokerage keying used to be here too, at $95 a statement. Deleted 26 August
+# 2026 -- every brokerage statement is $45 now, and a statement disordered
+# enough to key is billed as time rather than as a second price.
+#
 # Cleanup used to be here, in bands. It is not priced any more and cannot be:
 # see `assumed:` in the schedule. It is billed hourly beyond a stated
 # assumption, at the rate `basis` already carries, so there is nothing for a

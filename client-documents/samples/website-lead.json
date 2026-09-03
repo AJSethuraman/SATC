@@ -1,8 +1,21 @@
 {
-  "_comment": "A website intake submission, in the shape docs/leads-to-excel.md documents: the `_json` line the Formspree notification carries. Fictional.",
-  "services": ["individual_tax", "tax_resolution"],
-  "individual_complexity": ["w2", "k1", "rental"],
-  "business_structure": ["sole_prop"],
+  "_comment": "A website intake submission, in the shape the firm's own SATC_leads.xlsx export carries -- checked against a real row on 26 August 2026, which is where business_complexity and revenue_band came from: the workbook has no column for either, so only the Raw JSON carries them and nothing here had ever seen one. Fictional client.",
+  "services": [
+    "individual_tax",
+    "tax_resolution"
+  ],
+  "individual_complexity": [
+    "w2",
+    "k1",
+    "rentals"
+  ],
+  "business_structure": [
+    "sole_prop"
+  ],
+  "business_complexity": [
+    "employees"
+  ],
+  "revenue_band": "100k_500k",
   "tax_status": "unsure",
   "urgency": "no",
   "notes": "Sold a rental in March and have a K-1 from a partnership I joined last year. Prior accountant retired.",

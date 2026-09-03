@@ -16,6 +16,7 @@ source is how they are kept honest.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -242,8 +243,12 @@ def test_the_firms_base_says_what_the_package_includes():
     """
     base = pricing.line_items({"federal_form": "1040"})[0]
     assert base["Service"] == "Essentials"
-    assert base["Detail"] == (
-        "No schedules. Includes: Your federal 1040, your first state return "
+    assert base["Detail"] == "No schedules"
+    # Its own field, not appended to the detail. Nine clauses run together
+    # with the gate sentence made a paragraph inside a table cell, and a
+    # covers list nobody reads to the end does not do the job it is here for.
+    assert base["Includes"] == (
+        "Includes: Your federal 1040, your first state return "
         "and your first local return; Wages, interest and dividends; "
         "The standard deduction.")
 
@@ -321,10 +326,14 @@ def test_requoting_is_refused_because_the_firm_ruled_it_out(priced):
 
 
 def test_line_items_carry_exactly_the_fields_the_template_wants(answers, priced):
-    """The registry says LineItems has Amount, Detail, Service. A stray key is
-    a field the estimate will not print and nobody will miss."""
+    """The registry says LineItems has Amount, Detail, Includes, Service. A
+    stray key is a field the estimate will not print and nobody will miss.
+
+    `Includes` rides on every row, empty where there is nothing to list, so
+    the shape does not change between a package line and a per-form one.
+    """
     for item in pricing.price(answers, priced)["LineItems"]:
-        assert set(item) == {"Service", "Detail", "Amount"}
+        assert set(item) == {"Service", "Detail", "Includes", "Amount"}
 
 
 def test_the_price_always_carries_its_assumptions(answers, priced):
@@ -942,11 +951,15 @@ def test_an_unanswered_starter_question_falls_to_essentials():
     assert line["Service"] == "Essentials"
 
 
-def test_starter_is_no_longer_an_open_decision():
-    assert not [p for p, _ in pricing.open_amounts() if p.endswith("starter.gate")]
+# TWO TESTS DELETED FROM HERE, under S30.
+#
+#   test_starter_is_no_longer_an_open_decision — subsumed by
+#     `test_registry.py::test_no_decision_is_still_open_anywhere`, which sweeps
+#     every registry rather than naming one settled decision.
+#   test_requote_is_still_refused — the same control as
+#     `test_requoting_is_refused_because_the_firm_ruled_it_out` above, asserted
+#     twice. Two tests over one rule is one rule and one place to forget.
 
-
-# ── the per-form rule ─────────────────────────────────────────────────────
 
 def test_a_named_form_costs_the_one_per_form_price():
     """One amount, a handful of named situations. Signed 25 Aug 2026 at $50,
@@ -1131,13 +1144,40 @@ def test_a_second_brokerage_statement_is_counted():
                                  if i["Service"] == "Brokerage statement"][0]["Detail"]
 
 
-def test_a_statement_that_must_be_keyed_is_its_own_line():
-    """Signed 25 Aug 2026 at $95, keying on what cannot be summarised."""
+def test_every_brokerage_statement_is_the_same_price():
+    """There used to be two brokerage prices: $45 a statement, and $95 for one
+    that had to be keyed rather than summarised.
+
+    The firm deleted the second on 26 August 2026 -- "this is way too much
+    crap. we are actually deleting the $95 thing - all are $45 we will figure
+    out how to make it efficient" -- and the question that fed it went with
+    it. Nobody knows at the consultation how many statements will turn out
+    messy; it was the weakest question on the sheet.
+    """
     s = pricing.load()
-    items = pricing.line_items(
+    assert "brokerage_keyed" not in s["per_unit"], "the second price came back"
+    assert s["per_unit"]["brokerage"]["amount"] == 45
+
+    lines = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["D"],
-         "count_brokerages": 1, "count_brokerages_keyed": 1}, s)
-    assert pricing.estimate_total(items, s) == "$420.00"      # 325 + 95
+         "count_brokerages": 3}, s)
+    brokerage = [l for l in lines if "Brokerage" in l["Service"]]
+    assert len(brokerage) == 1, [l["Service"] for l in brokerage]
+
+
+def test_a_messy_statement_is_time_not_a_second_price():
+    """What survives the deletion, and the honest residue of it: a statement
+    disordered enough to key is not a $95 job of known size."""
+    # WITH A BROKERAGE. The assumption is gated on Schedule D since 27 August
+    # 2026: a client with only a W-2 has no 1099-B, and a boundary around work
+    # that cannot arise is filler. What is under test here is the SHAPE of the
+    # sentence, not who hears it.
+    said = [t for t in pricing.assumptions(
+                {"federal_form": "1040", "federal_schedules": ["D"]})
+            if t.startswith("Brokerage")]
+    assert len(said) == 1
+    assert "an hour" in said[0]
+    assert "$95" not in said[0]
 
 
 def test_the_old_brokerage_assumption_is_gone_not_reworded():
@@ -1151,49 +1191,77 @@ def test_the_old_brokerage_assumption_is_gone_not_reworded():
 
 
 # ── beyond: priced ────────────────────────────────────────────────────────
+#
+# NOTHING IN THE REAL SCHEDULE USES THIS TODAY. Brokerage keying did, at $95 a
+# statement, and the firm deleted that line on 26 August 2026 -- every
+# brokerage statement is $45 and a disordered one is billed as time.
+#
+# The mechanism stays and is tested against a fixture rather than against
+# whichever real line happens to use it. It is the best of the three
+# consequences and the firm asked for it in as many words on 25 August:
+#
+#     "this should be more like - we will tell you it's going to be $95 more
+#      and we agree now that we know?"
+#
+# Hourly gives a client a rate and leaves them unable to work out the total; a
+# re-quote stops the job; this gives them the number before the work.
+
+
+def _priced_schedule(**over):
+    """A schedule whose one assumption carries a named price."""
+    s = pricing.load()
+    s["per_unit"]["a_named_line"] = {
+        "count_from": "count_widgets", "label": "A named line",
+        "detail": "Per widget", "per_each": "that widget",
+        "amount": 95, "publish": "yes",
+    }
+    s["assumed"] = {"a_boundary": {
+        "label": "A boundary", "assumes": "the usual thing is true",
+        "inside_base": False, "trigger": "the usual thing is not true",
+        "beyond": "priced", "beyond_price_from": "a_named_line",
+    }}
+    for path, value in over.items():
+        node, key = s, path
+        if "." in path:
+            head, key = path.rsplit(".", 1)
+            for part in head.split("."):
+                node = node[part]
+        if value is None:
+            del node[key]
+        else:
+            node[key] = value
+    return s
+
+
+def _boundary(s):
+    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("A boundary")]
+    assert len(said) == 1, said
+    return said[0]
+
 
 def test_a_priced_boundary_names_the_number_not_the_rate():
-    """The firm, 25 Aug 2026, asked for exactly this:
-
-        "this should be more like - we will tell you it's going to be $95 more
-         and we agree now that we know?"
-
-    A third consequence, and the best of the three. Hourly gives a client a
-    rate and leaves them unable to work out the total; a re-quote stops the
-    job; this gives them the number before the work and agrees it at the
-    moment it is found.
-    """
-    s = pricing.load()
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")]
-    assert len(said) == 1
-    t = said[0]
-    assert "$95.00" in t
-    assert "an hour" not in t
-    assert "agree it with you then" in t
+    said = _boundary(_priced_schedule())
+    assert "$95.00" in said
+    assert "an hour" not in said
+    assert "agree with you before we do it" in said
 
 
 def test_a_priced_boundary_reads_its_number_off_the_line_that_charges_it():
     """Two places holding the same number is how an estimate ends up
     promising $95 while the invoice bills $110."""
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = 110
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
-    assert "$110.00" in said
+    assert "$110.00" in _boundary(_priced_schedule(**{"per_unit.a_named_line.amount": 110}))
 
 
 def test_a_priced_boundary_that_names_no_line_refuses():
-    s = pricing.load()
-    del s["assumed"]["brokerage_keying"]["beyond_price_from"]
+    s = _priced_schedule(**{"assumed.a_boundary.beyond_price_from": None})
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "invent a number" in str(exc.value)
 
 
 def test_a_priced_boundary_pointing_at_nothing_refuses():
-    s = pricing.load()
-    s["assumed"]["brokerage_keying"]["beyond_price_from"] = "not_a_line"
+    s = _priced_schedule(**{"assumed.a_boundary.beyond_price_from": "not_a_line"})
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "the invoice cannot keep" in str(exc.value)
@@ -1207,25 +1275,11 @@ def test_a_priced_boundary_whose_line_has_no_amount_carries_the_question():
     its `[CONFIRM:` and the merge engine refuses on it. Raising instead would
     kill the whole estimate over one line and hide everything else missing.
     """
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = "[CONFIRM: what keying costs]"
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
+    said = _boundary(_priced_schedule(
+        **{"per_unit.a_named_line.amount": "[CONFIRM: what it costs]"}))
     assert "[CONFIRM:" in said
-    assert "brokerage_keyed" in said
+    assert "a_named_line" in said
 
-
-def test_requote_is_still_refused():
-    """The vocabulary got wider by exactly one word, and not that one. A
-    re-quote stops the job and opens a negotiation the firm did not want."""
-    s = pricing.load()
-    s["assumed"]["cleanup"]["beyond"] = "requote"
-    with pytest.raises(pricing.PricingError) as exc:
-        pricing.assumptions({"federal_form": "1040"}, s)
-    assert "ruled out re-quoting" in str(exc.value)
-
-
-# ── the wording is data ───────────────────────────────────────────────────
 
 def test_every_phrase_the_estimate_can_say_is_in_the_registry():
     """The firm, 25 Aug 2026: "templates should be easily customizable to the
@@ -1282,7 +1336,19 @@ def test_a_schedule_without_phrases_uses_the_firms_one_copy():
     sample = pricing.load(ROOT / "samples" / "fee-schedule-example.yaml")
     assert "phrases" not in sample
     said = pricing.assumptions({"federal_form": "1040"}, sample)
-    assert said and all("this estimate assumes" in t for t in said)
+    assert said, "a schedule with no phrases of its own produced no sentences"
+
+    # The SHAPE, not a phrase. This used to assert the words "this estimate
+    # assumes", which the firm had deleted from the wording on 26 August 2026
+    # -- "the section is titled 'what this estimate assumes' so why say 'this
+    # estimate assumes' in each bullet". A test that pins the current wording
+    # fails when the firm rewords something, which teaches whoever hits it to
+    # edit the test rather than think. What must hold is that the fallback
+    # produced the registry's assembled sentence and not a raw fragment.
+    for line in said:
+        assert " — " in line, f"not the assembled sentence: {line!r}"
+        assert line.endswith("."), f"not a finished sentence: {line!r}"
+        assert "{" not in line, f"an unfilled slot reached a client: {line!r}"
 
 
 # ── the mechanism gives the cheapest answer ───────────────────────────────
@@ -1543,14 +1609,19 @@ def test_a_cap_beyond_nobody_recognises_refuses():
 #     yes for someone else's return we add $50
 
 def test_our_own_mistake_is_free():
-    """And it prints, rather than being silently absent. A client who is told
-    in writing that correcting our error costs nothing has been told
-    something; a line that quietly does not appear has not."""
+    """It prints as an amendment at no charge — not as a claim about the firm.
+
+    The firm still corrects its own errors without charging; on 26 August 2026
+    they said to stop announcing it: "we do not need to specify we correct our
+    own mistakes for free — we are only talking about how we charge for
+    amendments." Published, it reads as marketing and invites an argument
+    about whose error a given one was. `publish: "no"` keeps it off the page.
+    """
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "amended",
          "amendment_reason": "our_error"}, s)
-    assert [i["Service"] for i in items] == ["Correction of our error"]
+    assert [i["Service"] for i in items] == ["Amendment"]
     assert items[0]["Amount"] == "$0.00"
     assert pricing.estimate_total(items, s) == "$0.00"
 
@@ -1581,7 +1652,23 @@ def test_amending_someone_elses_return_prices_the_whole_return_plus_fifty():
 
 def test_an_entity_amendment_follows_the_same_three_cases():
     """There is no separate entity amendment price. What actually differs is
-    reissuing a K-1 to every owner, and that is already its own line."""
+    reissuing a K-1 to every owner, and that is already its own line.
+
+    The five-partner figure was $1,050 until 28 August 2026, when the base
+    took on the two-K-1 allowance its published note had always promised. It
+    is $970 now: three billable K-1s rather than five.
+
+    THE ALLOWANCE REACHES ACROSS AN AMENDMENT, and that was asked rather than
+    assumed. The allowance was settled about the base, which is a from-price
+    for an ORIGINAL return, so a two-partner amendment billing nothing for
+    reissuing two K-1s did not obviously follow. The firm, 28 August 2026:
+    *"This can flow through."*
+
+    Nothing changed in the engine to make it so -- the allowance already
+    flowed, and the question was whether to stop it. Both counts are pinned
+    below so a later change that quietly reintroduces a charge for the first
+    two has to move a number somebody can see.
+    """
     s = pricing.load()
     ours = pricing.line_items(
         {"federal_form": "1065", "return_basis": "amended",
@@ -1590,7 +1677,18 @@ def test_an_entity_amendment_follows_the_same_three_cases():
     theirs = pricing.line_items(
         {"federal_form": "1065", "return_basis": "amended",
          "amendment_reason": "other_preparer", "count_owners": 5}, s)
-    assert pricing.estimate_total(theirs, s) == "$1,050.00"
+    assert pricing.estimate_total(theirs, s) == "$970.00"
+
+    # The settled case, pinned so it cannot be reopened by accident.
+    two = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "other_preparer", "count_owners": 2}, s)
+    assert pricing.estimate_total(two, s) == "$850.00"
+    assert not [i for i in two if "K-1" in i["Service"]], (
+        "the two-partner amendment bills for the reissue -- the firm said the "
+        "allowance flows through, so this is a decision being undone rather "
+        "than a bug"
+    )
 
 
 def test_an_amendment_with_no_reason_carries_the_question_not_a_price():
@@ -1853,18 +1951,20 @@ def test_publication_lists_what_may_go_up():
 
 # ── things the firm settled that the schedule did not know ────────────────
 
-def test_responding_to_a_notice_is_on_the_schedule():
-    """`docs/pricing-for-website.md` §3 names three hourly things: records
-    that need reconciling, **responding to a notice**, and anything to do with
-    a foreign company. The schedule carried two of the three.
+def test_notices_are_not_an_assumption_on_the_estimate():
+    """Deleted 26 August 2026. The firm: "notices and corresponds belong in a
+    different letter engagement or would be discussed anyway, get rid of it.
+    can't bite if not a secret."
 
-    Found 26 August 2026 by auditing the prose against the YAML after the
-    website agent reported the schedule was missing things. It was: a client
-    who gets an IRS letter is real, ordinary work, and nothing priced it.
+    The engagement letter already says representing you in an examination,
+    notice response or appeal is a separately quoted engagement. Saying it
+    again on the estimate as an ASSUMPTION implied the meter was already
+    running, which is not the arrangement.
     """
     s = pricing.load()
-    assert "notice_response" in s["assumed"]
-    assert s["assumed"]["notice_response"]["beyond"] == "hourly"
+    assert "notice_response" not in (s.get("assumed") or {})
+    said = pricing.assumptions({"federal_form": "1040"}, s)
+    assert not any("notice" in t.lower() for t in said)
 
 
 def test_officer_compensation_is_on_the_schedule():
@@ -1901,3 +2001,289 @@ def test_no_other_package_sits_below_the_minimum():
     below = [k for k, t in s["base"]["1040"]["tiers"].items()
              if k != allowed and t["amount"] < floor]
     assert not below, f"packages under the firm's ${floor} minimum: {below}"
+
+
+def test_the_sample_record_is_generated_from_the_answers_not_typed():
+    """The engagement letter and the fee estimate must describe the same job.
+
+    Found 26 August 2026 by the firm, reading the two side by side: "i cannot
+    tie this back to the engagement letter - the letter outlines specific
+    things." They could not, and the documents genuinely disagreed. The
+    letter's scope said "Form 1040 with Schedules A, C, and SE" while the
+    estimate billed a $145 Rental schedule — Schedule E was on the estimate
+    and nowhere in the scope that engagement letter defines.
+
+    The composition code was right all along; the SAMPLE was hand-written and
+    had lost the E. Every field `interview.compose` supplies is now generated
+    from `interview-answers.json`, so all three documents in the opening
+    package read off one set of answers and cannot contradict each other.
+    """
+    import interview as iv
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+
+    drift = {k: (record[k], v) for k, v in iv.compose(answers).items()
+             if k in record and record[k] != v}
+    assert not drift, (
+        "hand-edited fields that the interview composes: "
+        + "; ".join(f"{k}: record {r!r} vs engine {e!r}" for k, (r, e) in drift.items())
+    )
+    assert "E" in record["FederalReturns"], \
+        "the rental on the estimate must appear in the letter's scope"
+
+
+def test_the_sample_estimate_matches_what_the_engine_prices():
+    """The demo record's estimate was hand-written and had drifted badly.
+
+    Found 26 August 2026 by the firm, reading a rendered fee estimate: "this
+    doesn't appear to have our package data and i want to see that wording
+    with this." It did not. It quoted $450 for a 1040, $185 for a state
+    return and $95 for a local one — none of which is a price this firm
+    charges, and none of which had been true since the package ladder was
+    built. It also carried assumption sentences frozen as literal strings, so
+    they still said things the schedule had stopped saying.
+
+    A sample that contradicts the engine is worse than no sample: it is the
+    thing anyone looks at first to see what a client receives.
+    """
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+    s = pricing.load()
+
+    items = pricing.line_items(answers, s)
+    assert record["LineItems"] == [
+        {k: v for k, v in i.items() if not k.startswith("_")} for i in items
+    ], "the sample estimate has drifted from what the engine prices"
+    assert record["EstimateTotal"] == pricing.estimate_total(items, s)
+    assert record["Assumptions"] == [{"Text": t} for t in pricing.assumptions(answers, s)]
+    assert any("Self-Employed" == i["Service"] for i in record["LineItems"]), \
+        "the sample must show a package line — that is the wording being reviewed"
+
+
+def test_the_sample_request_list_is_what_the_engine_builds():
+    """The onboarding letter's checklist, on the same footing as the estimate.
+
+    The firm, 26 August 2026: the onboarding items "need to be driven by
+    actual requirements". The code does that -- `requests.for_answers` gates
+    every line on the same answers the fee schedule prices from. The SAMPLE
+    did not. It listed five items where the answers call for nine, and the
+    three it omitted are the ones that cost something: the signed engagement
+    letter, photo ID, and any record at all of the Schedule C business the
+    estimate was pricing a whole package around.
+
+    A demo package whose letter bills for a business its own checklist never
+    asks about is the same failure as the scope that had lost Schedule E.
+    """
+    import requests as document_requests
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+    assert record["RequestList"] == document_requests.for_answers(answers), \
+        "the sample checklist has drifted from what the answers require"
+
+
+def test_an_assumption_that_cannot_apply_is_not_printed():
+    """Officer compensation was printing on individual estimates.
+
+    Found 26 August 2026 by reading a rendered fee estimate for a 1040 — the
+    same read that caught the stale sample. Every `assumed:` entry printed on
+    every estimate, deliberately: an assumption a client hears about only
+    after it fails is a surprise, not an assumption.
+
+    That principle is about UNLIKELY, not about IMPOSSIBLE. A person filing a
+    1040 has no officers, so the sentence is not a boundary being stated — it
+    is noise, and noise is how a client learns to skip the block. It is also
+    exactly the bloat the firm objected to the same day.
+
+    So `when:` gates an assumption on the return, and only where the thing
+    genuinely cannot arise. Everything ungated still prints always.
+    """
+    s = pricing.load()
+    individual = pricing.assumptions({"federal_form": "1040",
+                                      "return_basis": "original"}, s)
+    assert not any(a.startswith("Officer compensation") for a in individual)
+    assert any(a.startswith("Records cleanup") for a in individual), \
+        "an ungated assumption still prints on every estimate"
+
+    entity = pricing.assumptions({"federal_form": "1120S"}, s)
+    assert any(a.startswith("Officer compensation") for a in entity)
+    assert any(a.startswith("Records cleanup") for a in entity)
+
+
+def test_no_package_tells_a_client_it_covers_two_deduction_methods():
+    """A return takes the standard deduction or itemizes. Never both.
+
+    Found by the firm on 26 August 2026, reading a Standard estimate: it
+    listed "The standard deduction" and "Itemized deductions" one after the
+    other, because `covers:` inherits down the ladder and Essentials says the
+    first. Both printed, so the estimate stated a thing that cannot be true —
+    and buried the one line that explains why the package costs more.
+
+    The firm's rule: "standard is implied - itemized is not. so on essentials
+    and starter, we can keep standard. for the higher ones just say itemized."
+    Written as a property rather than as four expected lists, so a fifth
+    package cannot be added with the bug back in it.
+    """
+    s = pricing.load()
+    tiers = s["base"]["1040"]["tiers"]
+    for key in tiers:
+        lines = [ln.lower() for ln in pricing.covers(key, tiers, "base.1040")]
+        standard = [ln for ln in lines if "standard deduction" in ln]
+        itemized = [ln for ln in lines if "itemi" in ln]
+        assert not (standard and itemized), (
+            f"the {key!r} package tells a client it covers both the standard "
+            f"deduction and itemizing: {standard + itemized}"
+        )
+        assert standard or itemized, (
+            f"the {key!r} package says nothing about which deduction it "
+            f"covers, which is the one thing that separates the rungs"
+        )
+
+
+def test_superseding_a_line_no_lower_package_says_is_refused():
+    """`supersedes:` that replaces nothing is config that reads as a decision.
+
+    The failure it guards is drift, not typos: someone rewords Essentials'
+    covers line, Standard's `supersedes:` quietly stops matching, and both
+    deduction methods are back on the estimate with the config still sitting
+    there looking like it handles the case.
+    """
+    s = pricing.load()
+    tiers = {k: dict(v) for k, v in s["base"]["1040"]["tiers"].items()}
+    tiers["essentials"] = dict(tiers["essentials"])
+    tiers["essentials"]["covers"] = ["Wages, interest and dividends"]
+    with pytest.raises(pricing.PricingError) as caught:
+        pricing.covers("standard", tiers, "base.1040")
+    assert "supersedes" in str(caught.value)
+    assert "The standard deduction" in str(caught.value)
+
+
+# ── an assumption that cannot arise is filler ─────────────────────────────
+
+def _assumptions(answers):
+    import schedules as sched_mod
+    full = sched_mod.apply(dict(answers))
+    priced = pricing.price(full, pricing.load())
+    return " ".join(a.get("Text", "") for a in (priced.get("Assumptions") or []))
+
+
+W2_ONLY = {"federal_form": "1040", "decision": "yes", "return_features": [],
+           "extra_forms": [], "prior_return_available": "no",
+           "other_income_documents": "no"}
+
+
+def test_a_w2_only_client_is_not_told_about_their_foreign_holdings():
+    """Same shape as the officer-compensation bug the firm caught by reading a
+    rendered estimate: an assumption about work that cannot arise is not a
+    boundary being stated, it is filler, and filler is how a client learns to
+    skip the block. "Your foreign holdings are accounts rather than companies"
+    said to someone who declared none asks them to wonder what foreign
+    holdings we think they have."""
+    said = _assumptions(W2_ONLY)
+    assert "foreign holdings" not in said
+    assert "1099-B" not in said
+
+
+def test_someone_with_foreign_accounts_is_still_told():
+    """The gate removes the impossible case, not the boundary."""
+    said = _assumptions(W2_ONLY | {"extra_forms": ["foreign_accounts"],
+                                   "count_foreign_accounts": 2})
+    assert "foreign holdings" in said
+
+
+def test_someone_with_a_brokerage_is_still_told():
+    said = _assumptions(W2_ONLY | {"return_features": ["investments"]})
+    assert "1099-B" in said
+
+
+def test_records_cleanup_is_still_said_to_everybody():
+    """Deliberately ungated. Any client can arrive with records that need
+    reconciling; being in that state is exactly what makes it invisible from
+    the inside, which is why it is stated up front."""
+    assert "reconciled" in _assumptions(W2_ONLY)
+
+
+# ── the published note and the engine, held together ──────────────────────
+
+def test_the_entity_from_price_covers_the_k1s_its_note_promises():
+    """A CLAIM IN ONE PLACE, BEHAVIOUR IN ANOTHER, AND NOTHING COMPARING THEM.
+
+    `starting_note` said "each partner's K-1 after the first two" and was
+    published verbatim on the website; the engine billed every K-1 from the
+    first. A two-owner partnership was quoted $880 against a page promising
+    $800, and 1001 tests passed while it did, because no test knew the
+    sentence existed.
+
+    So the sentence is now read, parsed, and compared to the allowance. Change
+    "the first two" to "the first three" and this fails until the number moves
+    with it.
+    """
+    schedule = pricing.load()
+    checked = 0
+    for form, base in schedule["base"].items():
+        if not isinstance(base, dict) or "starting_note" not in base:
+            continue
+        promises = [n for n in base["starting_note"]
+                    if re.search(r"K-1 after the first", n)]
+        allows = int((base.get("allows") or {}).get("count_owners", 0))
+        if not promises:
+            assert not allows, (
+                f"base.{form} holds back {allows} K-1(s) and its note never "
+                f"tells a client so"
+            )
+            continue
+        assert len(promises) == 1, f"base.{form} promises it twice"
+        words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+        said = re.search(r"after the first (\w+)", promises[0]).group(1)
+        want = words.get(said, None)
+        assert want is not None, f"base.{form}: cannot read {said!r} as a number"
+        assert allows == want, (
+            f"base.{form} tells a client the first {said} K-1s are in the "
+            f"price and holds back {allows}"
+        )
+        checked += 1
+    assert checked, "no entity base carries a K-1 promise; the check ran on nothing"
+
+
+@pytest.mark.parametrize("form,base", [("1065", 800), ("1120S", 950)])
+@pytest.mark.parametrize("owners", [0, 1, 2, 3, 5])
+def test_an_entity_is_priced_the_way_the_website_says_it_is(form, base, owners):
+    """The arithmetic the note describes, at every count that matters."""
+    schedule = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": form, "count_owners": owners, "count_states": 1},
+        schedule)
+    want = base + max(0, owners - 2) * 40
+    assert pricing.estimate_total(items, schedule) == m.money(want, "USD")
+
+
+def test_a_c_corporation_is_never_asked_how_many_k_1s_it_issues():
+    """It issues none, and its own published note does not mention them.
+
+    THE GUARD IS THE SCHEMA, NOT THE ENGINE, and it is worth being exact about
+    which. `pricing.line_items` has no mechanism for suppressing a per-unit
+    line by form -- `form_when` only PROMOTES a blank count to one, it never
+    holds a line back -- so handed `{federal_form: 1120, count_owners: 4}` it
+    bills $160 of K-1s a C corporation does not issue.
+
+    Nothing can hand it that: `count_owners` is gated to 1120S and 1065, so the
+    answer cannot exist on a C corporation record. This test holds the gate
+    that does the work. The remaining exposure is a hand-edited record, or a
+    carry-forward from a year the entity was an S corp and then revoked the
+    election -- recorded rather than built for, because building a suppressing
+    gate for an unreachable case is speculative and the reachable protection
+    already exists.
+    """
+    import interview as iv
+
+    schedule = pricing.load()
+    assert not any("K-1" in n for n in schedule["base"]["1120"]["starting_note"])
+
+    question = next(q for _, q in iv.all_questions(iv.load_schema())
+                    if q["id"] == "count_owners")
+    assert not iv.visible(question, {"federal_form": "1120"}), (
+        "a C corporation is being asked how many owners receive a K-1"
+    )
+    for form in ("1065", "1120S"):
+        assert iv.visible(question, {"federal_form": form}), form

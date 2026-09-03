@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -40,12 +39,12 @@
   <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
 </div>
 
-<div class="subject">Your returns are ready — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+<div class="subject">Action required: please review your returns — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
-  <p>Your returns are finished. This letter tells you what we prepared, what you need to do, and by when. <strong>Read section 02 first</strong> — nothing is filed until you act on it.</p>
+  <p>We have completed our work on your returns. Below is a summary of what we prepared and your next steps.</p>
 
   <div class="dateline">
     <div>
@@ -65,11 +64,16 @@
       <li><b><span class="f">&lt;&lt;Item.Return&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p><strong>Review the returns before you sign anything.</strong> They are prepared from the information you gave us, and the <b>What you are responsible for</b> section of your engagement letter puts their contents on you. If a figure looks wrong, tell us now — a correction before filing costs a phone call, and after filing costs an amended return.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">02</span>What you need to do</h2>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b>Review your returns</b><span>A figure that looks wrong before filing is a phone call. After filing it is an amended return.</span></span>
+      </li>
+    </ul>
     <span class="cond">[[EACH ActionList]]</span>
     <ul class="req-list">
       <li>
@@ -78,15 +82,15 @@
       </li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p>Every amount and date above comes from the returns themselves. <strong>Pay each authority directly</strong> — never send a tax payment to us, and never to anyone who telephones claiming to be us. If you are unsure whether a request is genuine, call <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span> and ask.</p>
+    <p><strong>For your safety, pay each authority directly.</strong></p>
   </div>
 
   <span class="cond">[[IF EFiled]]</span>
   <div class="sec">
-    <h2><span class="n">03</span>Signing the e-file authorisation</h2>
-    <p>We cannot transmit anything until the signed authorisation is back with us. <span class="f">&lt;&lt;ReturnInstruction&gt;&gt;</span> On a joint return, <strong>both spouses sign</strong>, and one signature is not enough to file.</p>
+    <h2><span class="n">03</span>Signing the e-file authorization</h2>
+    <p>We cannot transmit anything until the signed authorization is back with us. On a joint return, <strong>both spouses sign</strong>, and one signature is not enough to file.</p>
     <div class="callout">
-      <p><strong>Signing the authorisation is not the same as paying.</strong> If a return shows a balance due, the payment is a separate step and it has its own deadline — see section 02. Signing on time and paying late still carries interest and penalties.</p>
+      <p><strong>Signing the authorization is not the same as paying.</strong> If a return shows a balance due, the payment is a separate step and it has its own deadline — see section 02. Signing on time and paying late still carries interest and penalties.</p>
     </div>
     <p>We will confirm in writing once each return has been transmitted and accepted. <strong>If you do not get that confirmation from us, assume nothing has been filed</strong> and call.</p>
   </div>
@@ -105,40 +109,40 @@
   <span class="cond">[[IF EstimatedPayments]]</span>
   <div class="sec">
     <h2><span class="n">04</span>Next year's estimated payments</h2>
-    <p>Estimated payment vouchers are included with your copies. The amounts and the four due dates are printed on them. They are calculated from this year's figures, so <strong>if your income changes materially, tell us and we will recalculate</strong> rather than leaving you to overpay or fall short.</p>
+    <p><span data-encl="attachment:estimate-vouchers">Estimated payment vouchers are included with your copies.</span> The amounts and the four due dates are printed on them. They are calculated from this year's figures, so <strong>if your income changes materially, tell us and we will recalculate</strong> rather than leaving you to overpay or fall short.</p>
     <p>Estimated payments are not optional for everyone. Where they apply, missing one carries an underpayment charge even if the return itself is filed and paid on time.</p>
   </div>
   <span class="cond end">[[END IF]]</span>
 
   <div class="sec">
     <h2><span class="n">05</span>What to keep</h2>
-    <p>Keep your complete copy of every return, and keep the records behind it. The <b>Your records, our files, and delivery</b> section of your engagement letter says how long we hold our copies and what happens to them; <strong>that is our retention, not yours</strong>, and it is not a substitute for keeping your own.</p>
-    <p>If a taxing authority writes to you about any of these returns, send us the letter before you reply to it. Responding to a notice is a separate engagement, but reading one and telling you what it actually says is not.</p>
+    <p>Keep your complete copy of every return, and keep the records behind it. The <strong>Your records, our files, and delivery</strong> section of your engagement letter says how long we hold our copies and what happens to them; <strong>that is our retention, not yours</strong>, and it is not a substitute for keeping your own.</p>
+    <p>If a taxing authority writes to you about any of these returns, send us the letter before you reply to it.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">06</span>Where this engagement ends</h2>
-    <p>This delivery closes the work. As the <b>Ending this engagement</b> section of your engagement letter sets out, <strong>our engagement ends when we transmit the returns</strong> — not when a taxing authority accepts them, and not when a refund arrives.</p>
-    <p>That is a boundary, not a brush-off. Questions about what we prepared are part of the work and always will be. New work — an amended return, a notice, next year's returns — starts with a new engagement letter, which is how you know what it covers and what it costs before it begins.</p>
+    <p>This delivery closes the work. As the <strong>Ending this engagement</strong> section of your engagement letter sets out, <strong>our engagement ends when we transmit the returns</strong> — not when a taxing authority accepts them, and not when a refund arrives.</p>
+    <p>Questions about what we prepared are part of the work. New work — an amended return, a notice, next year's returns — starts with a new engagement letter, so you know what it covers and what it costs before it begins.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">07</span>Questions</h2>
-    <p>Ask before you guess. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <p>Ask before you guess. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">DELIVERY LETTER<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -152,14 +156,13 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>April 2, 2027 — the delivery date, and the date the signature clock starts from</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key back to the engagement letter, the estimate and the invoice</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — same field as everywhere else. Appears twice: subject and footer.</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries, from the same record</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries, from the same record</td></tr>
     <tr><td>&lt;&lt;SignatureDeadline&gt;&gt;</td><td class="req">Required</td><td>April 10, 2027 — <b>a real date, never "as soon as possible".</b> A deadline with no date is not one.</td></tr>
     <tr><td>[[EACH ReturnsDelivered]]</td><td class="req">List</td><td>One or more. Two sub-fields. Every return in the package, in the order they are stacked.</td></tr>
     <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 · Refund of $1,240, direct deposit to the account ending 4417. Detail is an empty string when there is nothing to add, never "None".</td></tr>
     <tr><td>[[EACH ActionList]]</td><td class="req">List</td><td>One or more. Two sub-fields. The checklist a client works down. <b>Every amount in it is a pre-formatted string from the money formatter</b> — this template does no arithmetic.</td></tr>
     <tr><td>&lt;&lt;Item.Action&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Pay the Ohio balance due · $412.00 to Ohio Treasurer of State by April 15, 2027</td></tr>
-    <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — <b>firm setting, not per client.</b> Same field the engagement letter uses.</td></tr>
-    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
     <tr><td>[[IF EFiled]]</td><td class="req">Flag</td><td>Boolean. The e-file branch: signing the authorisation, and the confirmation we owe you.</td></tr>
     <tr><td>[[IF PaperFiled]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of EFiled</b> — see the note below. The paper branch puts filing on the client, which is the single most important sentence in the letter when it applies.</td></tr>
     <tr><td>[[IF EstimatedPayments]]</td><td class="req">Flag</td><td>Boolean. Drops the next-year estimates section when there are no vouchers in the package.</td></tr>

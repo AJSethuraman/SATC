@@ -28,6 +28,9 @@ TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
 TEMPLATES = {
     "tax-letter": "SATC Engagement Letter - Tax Preparation.html",
     "business-letter": "SATC Engagement Letter - Business Return.html",
+    # Its own letter since 26 August 2026. See packaging.PACKS for why a C
+    # corporation could not be sent the business one at all.
+    "ccorp-letter": "SATC Engagement Letter - C Corporation.html",
     "bookkeeping-letter": "SATC Engagement Letter - Bookkeeping.html",
     "fee-estimate": "SATC Fee Estimate.html",
     "invoice": "SATC Invoice.html",
@@ -36,6 +39,7 @@ TEMPLATES = {
     "delivery-letter": "SATC Tax Return Delivery Letter.html",
     "extension-notice": "SATC Extension Notice.html",
     "disengagement-letter": "SATC Disengagement Letter.html",
+    "records-release": "SATC Records Release Authorization.html",
 }
 
 
@@ -103,6 +107,93 @@ def test_no_orphan_registry_fields(parsed, registry):
     assert not orphans, f"registry lists fields no template uses: {sorted(orphans)}"
 
 
+# ── the FIELDS docs agree with the templates ──────────────────────────────
+
+# Registry name -> the companion FIELDS doc. §7 of the authoring contract makes
+# the pair the unit of work: a template without its spec is not done.
+FIELDS_DOCS = {
+    "tax-letter": "FIELDS - Engagement Letter - Tax Preparation.md",
+    "business-letter": "FIELDS - Engagement Letter - Business Return.md",
+    "bookkeeping-letter": "FIELDS - Engagement Letter - Bookkeeping.md",
+    "fee-estimate": "FIELDS - Fee Estimate.md",
+    "invoice": "FIELDS - Invoice.md",
+    "onboarding-letter": "FIELDS - Onboarding Letter.md",
+    "organizer-letter": "FIELDS - Organizer Cover Letter.md",
+    "delivery-letter": "FIELDS - Tax Return Delivery Letter.md",
+    "extension-notice": "FIELDS - Extension Notice.md",
+    "disengagement-letter": "FIELDS - Disengagement Letter.md",
+    "records-release": "FIELDS - Records Release Authorization.md",
+}
+
+
+@pytest.fixture(scope="module")
+def body_fields():
+    """The fields a template actually merges, ignoring its on-screen crib.
+
+    `parsed` reads the whole file, and the `<div class="ref">` block at the
+    bottom quotes every token in a table. That block is stripped before a
+    client ever sees the document (`merge._REF_BLOCK`), so it is the wrong
+    thing to hold the specification to.
+    """
+    out = {}
+    for name, filename in TEMPLATES.items():
+        html = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+        out[name] = tokens_in(html.split('<div class="ref">')[0])["fields"]
+    return out
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_the_fields_doc_names_every_field_its_template_merges(name, body_fields):
+    """The spec is what a person reads before wiring anything to a template.
+
+    It went stale the moment the firm block moved out of the templates and
+    into settings: ten specs still said the address was "not a variable" while
+    eight new fields merged it. Nothing caught that, because nothing had ever
+    compared the two.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    named = set(re.findall(r"<<([A-Za-z][\w.]*)>>", doc))
+    named |= set(re.findall(r'"([A-Z]\w+)":', doc))      # the example payload
+    missing = sorted(body_fields[name] - named)
+    assert not missing, (
+        f"{FIELDS_DOCS[name]} does not mention fields the template merges: {missing}"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_the_fields_doc_field_count_is_true(name, body_fields):
+    """A stated total is a claim, and every one of the ten was wrong.
+
+    They drifted by one to three as fields were added and retired over the
+    build. The number is small enough to look authoritative and nobody
+    recounts it, which is exactly the kind of thing to pin.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    stated = re.search(r"\*\*Total: (\d+) fields", doc)
+    assert stated, f"{FIELDS_DOCS[name]} states no total"
+    assert int(stated.group(1)) == len(body_fields[name]), (
+        f"{FIELDS_DOCS[name]} claims {stated.group(1)} fields; the template "
+        f"merges {len(body_fields[name])}"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_a_fields_doc_does_not_call_a_merged_value_hardcoded(name):
+    """Every spec carried a "Not variables:" line listing what is typed into
+    the template. All ten listed the firm's name, address and website, which
+    are now merge fields. The line is useful; a false one is worse than none.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    line = next((l for l in doc.splitlines() if l.startswith("Not variables")), None)
+    assert line, f"{FIELDS_DOCS[name]} has no 'Not variables' line"
+    for claim in ("firm name", "firm legal name", "office address", "remit-to address",
+                  "website", "Ohio LLP footer"):
+        assert claim not in line, (
+            f"{FIELDS_DOCS[name]} still calls the {claim} hardcoded; it merges "
+            f"from firm-settings.yaml"
+        )
+
+
 # ── the interview and the registry agree, in both directions ──────────────
 
 def _interview_questions(interview):
@@ -149,6 +240,14 @@ def test_every_question_earns_its_place(registry, interview):
             assert not unknown, f"{q['id']} supplies unknown fields {sorted(unknown)}"
             continue
         if q.get("feeds"):          # feeds a computed list, e.g. LineItems
+            continue
+        if q.get("derives"):
+            # Supplies no merge field itself; another question's value is
+            # worked out from it. `return_features` is the case -- it asks
+            # about the client's year and `federal_schedules` follows.
+            ids = {o["id"] for _, o in _interview_questions(interview)}
+            missing = set(q["derives"]) - ids
+            assert not missing, f"{q['id']} derives questions that do not exist: {sorted(missing)}"
             continue
         if q.get("internal"):
             assert q.get("internal_reason"), f"{q['id']} is internal with no reason given"
@@ -197,6 +296,82 @@ def test_no_sample_contains_a_real_looking_tin():
     for path in (ROOT / "samples").glob("*.json"):
         text = path.read_text(encoding="utf-8")
         assert not TIN_VALUE.search(text), f"{path.name} contains something shaped like a TIN"
+
+
+# ── plain English ─────────────────────────────────────────────────────────
+
+def test_every_field_has_a_plain_english_label(registry):
+    """The engagement record used to read `FEDERALRETURNS | Form 1040 with
+    Schedules A, C, E, and SE` -- the software's name for the thing rather
+    than the thing. The firm, 26 August 2026: "it should have plain english
+    descriptions next to field names."
+
+    The label lives beside the field it names, so adding a field and not
+    saying what it is fails here rather than showing a stranger a
+    PascalCase token.
+
+    THIS IS THE ONLY RULE. Two attempts at a stricter one were abandoned: a
+    label may not be the field name respaced (failed on `AmountDue` ->
+    "Amount due"), then a label may not be the field name verbatim (failed on
+    `Subtotal`). Some field names are already plain English, and no rule
+    distinguishes that from laziness. A test that fails when the project
+    succeeds teaches whoever hits it to edit the test.
+    """
+    bare = []
+    for kind, key in (("fields", "field"), ("flags", "flag"), ("lists", "list")):
+        bare += [e[key] for e in registry[kind] if not (e.get("label") or "").strip()]
+    assert not bare, f"no plain-English label: {bare}"
+
+
+# ── spelling ──────────────────────────────────────────────────────────────
+
+# The client-facing half of the templates drifted into British spelling: an
+# Ohio partnership's return delivery letter said "e-file authorisation" three
+# times. That one is not only style -- the IRS form is an e-file
+# AUTHORIZATION, so the British spelling names something that does not exist.
+_BRITISH = re.compile(
+    r"\b\w*(?:itemis|authoris|organis|recognis|summaris|minimis|analys"
+    r"|behaviour|favour|licence|cheque)\w*\b", re.I)
+
+
+@pytest.mark.parametrize("name", sorted(TEMPLATES))
+def test_client_facing_text_is_american_english(name, body_fields):
+    """Only the body. The `<div class="ref">` crib is for whoever wires the
+    software, is stripped before a client sees the page, and is not worth the
+    churn of rewriting."""
+    body = (TEMPLATE_DIR / TEMPLATES[name]).read_text(
+        encoding="utf-8").split('<div class="ref">')[0]
+    hits = sorted(set(_BRITISH.findall(body)))
+    assert not hits, f"{TEMPLATES[name]} uses British spelling a client reads: {hits}"
+
+
+def test_no_sample_carries_british_spelling():
+    """The samples hold values that reach a document unchanged. The delivery
+    letter's checklist said "Sign the federal and Ohio e-file authorisations"
+    -- template text, registry wording and record values all print the same
+    way, so all three have to be swept."""
+    bad = {}
+    for path in (ROOT / "samples").glob("*.json"):
+        hits = sorted(set(_BRITISH.findall(path.read_text(encoding="utf-8"))))
+        if hits:
+            bad[path.name] = hits
+    assert not bad, f"British spelling in a sample record: {bad}"
+
+
+def test_registry_wording_a_client_reads_is_american_english():
+    """The registries hold the firm's own words -- request lines, fee-line
+    details, assumption sentences -- and those reach a client as directly as
+    anything typed into a template. Comments are exempt; nobody reads those
+    but us."""
+    bad = {}
+    for path in (ROOT / "registry").glob("*.yaml"):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            hits = sorted(set(_BRITISH.findall(line)))
+            if hits:
+                bad[f"{path.name}:{i}"] = hits
+    assert not bad, f"British spelling in wording a client reads: {bad}"
 
 
 # ── naming ────────────────────────────────────────────────────────────────
@@ -436,3 +611,34 @@ def test_no_decision_is_still_open_anywhere():
 
     assert firm.open_decisions() == [], "an unanswered decision is back in the settings"
     assert pricing.open_amounts() == [], "an unpriced item is back in the schedule"
+
+
+# ── inverse flags are declared, not merely described ──────────────────────
+
+def test_every_inverse_relationship_is_machine_readable():
+    """It used to live only in the prose note beside each flag -- "Inverse of
+    PaymentEnclosed" -- which nothing read. A document stated the rule and the
+    thing that enforces it did not, so a record could leave both halves false
+    and the section they control came out empty under a heading promising it
+    said something."""
+    spec = yaml.safe_load((ROOT / "registry" / "fields.yaml").read_text(
+        encoding="utf-8"))
+    described = {f["flag"] for f in spec["flags"]
+                 if "inverse of" in (f.get("notes") or "").lower()}
+    declared = {f["flag"] for f in spec["flags"] if f.get("inverse_of")}
+    assert described <= declared, (
+        f"these flags describe an inverse in prose but do not declare one: "
+        f"{sorted(described - declared)}")
+
+
+def test_every_declared_inverse_is_symmetric_and_real():
+    spec = yaml.safe_load((ROOT / "registry" / "fields.yaml").read_text(
+        encoding="utf-8"))
+    by_name = {f["flag"]: f for f in spec["flags"]}
+    for flag, entry in by_name.items():
+        other = entry.get("inverse_of")
+        if not other:
+            continue
+        assert other in by_name, f"{flag} names {other}, which is not a flag"
+        assert by_name[other].get("inverse_of") == flag, (
+            f"{flag} says its inverse is {other}, but {other} does not agree")

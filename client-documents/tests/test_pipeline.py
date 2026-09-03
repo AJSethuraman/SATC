@@ -48,6 +48,97 @@ def test_every_return_type_resolves_a_deadline(return_type):
     assert fields["MaterialsDeadline"], f"no deadline for {return_type}"
 
 
+FIRM_BLOCK = ("FirmName", "FirmLegalName", "FirmAddress1", "FirmCity",
+              "FirmState", "FirmZip", "FirmWebsite", "FirmJurisdiction")
+
+
+def test_the_firm_block_reaches_every_document_from_settings_alone():
+    """Change the firm's address in one file and all ten documents follow.
+
+    Until 26 August 2026 the masthead, the footer and the sign-off were typed
+    into each template, byte-identical across eleven files. The firm asked for
+    exactly this: "things like the email and phone number are generated from a
+    template - this could change in the future, we could hire, etc. software
+    needs to be made to be robust and scalable." So the test moves the firm
+    rather than checking a spelling.
+    """
+    from tests.test_registry import TEMPLATES
+
+    moved = firm.load()
+    moved["firm"] = dict(moved["firm"],
+                         name="SATC Group LLP",
+                         address1="1 Public Square",
+                         city="Cleveland", zip="44113",
+                         website="satcgroup.example")
+    record = firm.firm_fields("2026", settings=moved)
+
+    for name, filename in TEMPLATES.items():
+        template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+        html = merge.render(template, record, strict=False).html
+        assert "SATC Group LLP" in html, f"{name}: the firm name did not follow"
+        assert "1 Public Square" in html, f"{name}: the address did not follow"
+        assert "6544 Copley" not in html, f"{name}: the old address is still typed in"
+        assert "SAT-C LLP" not in html, f"{name}: the old name is still typed in"
+
+
+def test_no_sample_can_drift_from_the_firm_settings():
+    """The samples carry the firm block because `test_merge` renders them raw.
+
+    That is a second copy of an address whose whole point is having one copy,
+    so it is pinned rather than trusted.
+    """
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        settings = firm.firm_fields(record.get("_season", "2026"))
+        for field in FIRM_BLOCK:
+            if field in record:
+                assert record[field] == settings[field], (
+                    f"{path.name}: {field} has drifted from firm-settings.yaml"
+                )
+
+
+def test_no_sample_states_a_firm_value_the_firm_does_not_set():
+    """Three samples said `arjun@satcllp.com` while settings said
+    `arjun_sethuraman@satcllp.com`. The drift test only covered the Firm block
+    when it was written, so the preparer's own address went unchecked -- on
+    the three documents that print it as the way to reach us.
+    """
+    settings = firm.firm_fields("2026")
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for field in ("PreparerName", "PreparerTitle", "PreparerEmail",
+                      "BillingContactName", "BillingContactEmail",
+                      "PaymentInstruction"):
+            if field in record:
+                assert record[field] == settings[field], (
+                    f"{path.name}: {field} has drifted from firm-settings.yaml"
+                )
+
+
+def test_no_sample_states_a_deadline_the_firm_does_not_set():
+    """A sample carrying its own date is a second copy of the deadline rule.
+
+    Both opening samples had one, and both were wrong: the rule is three weeks
+    before the filing deadline, and they said March 15 and February 15 against
+    the firm's March 25 and February 22. A per-engagement override IS
+    legitimate -- `build_record` lets the record win on purpose -- which is
+    exactly why a sample must not quietly demonstrate one.
+
+    Skipped where a sample has no `_return_type`: the extension notice's
+    deadline is the extended one, which is not on this table at all.
+    """
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if "MaterialsDeadline" not in record or "_return_type" not in record:
+            continue
+        expected = firm.firm_fields(record.get("_season", "2026"),
+                                    record["_return_type"])["MaterialsDeadline"]
+        assert record["MaterialsDeadline"] == expected, (
+            f"{path.name} states {record['MaterialsDeadline']!r}; the firm's "
+            f"deadline for a {record['_return_type']} return is {expected!r}"
+        )
+
+
 def test_an_unknown_return_type_is_refused():
     with pytest.raises(KeyError):
         firm.firm_fields("2026", "sole_trader")
@@ -85,20 +176,20 @@ def test_open_decisions_are_reported_with_their_question():
 # ── record assembly ───────────────────────────────────────────────────────
 
 def test_firm_settings_fill_in_behind_the_record():
-    record = cli.build_record({"_season": "2026", "ClientLetterName": "Dan"})
+    record = cli.build_record({"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"})
     assert record["PreparerName"], "firm settings did not reach the record"
-    assert record["ClientLetterName"] == "Dan"
+    assert record["ClientFullName"] == "Mr. and Mrs. Daniel Reyes"
 
 
 def test_the_record_wins_over_a_firm_default():
     """A per-engagement override is legitimate; ignoring it silently is not."""
-    record = cli.build_record({"_season": "2026", "AckWindow": "two business days"})
-    assert record["AckWindow"] == "two business days"
+    record = cli.build_record({"_season": "2026", "PreparerTitle": "Managing Partner"})
+    assert record["PreparerTitle"] == "Managing Partner"
 
 
 def test_a_record_without_a_season_is_refused():
     with pytest.raises(SystemExit):
-        cli.build_record({"ClientLetterName": "Dan"})
+        cli.build_record({"ClientFullName": "Mr. and Mrs. Daniel Reyes"})
 
 
 def test_metadata_cannot_reach_a_document():
@@ -113,12 +204,25 @@ def test_metadata_cannot_reach_a_document():
 
 # ── the two modes ─────────────────────────────────────────────────────────
 
+def test_a_client_with_no_predecessor_gets_no_records_release():
+    """The attachment goes out BY DEFAULT, which is not the same as always.
+    A client with nobody to ask has nothing to sign."""
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert "records-release" in cli.opening_package(record)
+    assert "records-release" not in cli.opening_package(dict(record, PriorFirm=False))
+
+
 def test_a_complete_record_renders_the_whole_opening_package(tmp_path):
     rc = cli.main(["render", str(SAMPLES / "tax-opening-package.json"),
                    "--out", str(tmp_path), "--no-pdf"])
     assert rc == 0
     written = sorted(p.name for p in tmp_path.glob("*.html"))
-    assert len(written) == len(cli.OPENING_PACKAGE), written
+    # NOT `OPENING_PACKAGE`: the demo record has a previous accountant, so
+    # the package carries the records release as well. `opening_package()` is
+    # what decides, and holding the test to the fixed list would have made
+    # sending that attachment by default look like a bug.
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert len(written) == len(cli.opening_package(record)), written
     for f in tmp_path.glob("*.html"):
         text = f.read_text(encoding="utf-8")
         assert "&lt;&lt;" not in text, f"{f.name}: an unfilled field survived"
@@ -129,7 +233,7 @@ def test_a_complete_record_renders_the_whole_opening_package(tmp_path):
 def test_real_mode_writes_nothing_when_a_document_would_be_holed(tmp_path):
     """The point of the whole thing. A refusal that still left a file on disk
     would be worse than no refusal — somebody would send the file."""
-    thin = {"_season": "2026", "ClientLetterName": "Dan"}
+    thin = {"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"}
     path = tmp_path / "thin.json"
     path.write_text(json.dumps(thin), encoding="utf-8")
 
@@ -140,7 +244,7 @@ def test_real_mode_writes_nothing_when_a_document_would_be_holed(tmp_path):
 
 
 def test_draft_mode_renders_the_same_record_and_stamps_it(tmp_path):
-    thin = {"_season": "2026", "ClientLetterName": "Dan"}
+    thin = {"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"}
     path = tmp_path / "thin.json"
     path.write_text(json.dumps(thin), encoding="utf-8")
 
@@ -182,14 +286,16 @@ def test_a_website_lead_becomes_a_record_skeleton(tmp_path):
     record = json.loads(out.read_text(encoding="utf-8"))
 
     # what the website genuinely knows is carried across
-    assert record["ClientLetterName"] == "Dan"
+    assert record["ClientEmail"] == "dreyes@example.com"
     assert record["ClientCity"] == "Solon" and record["ClientState"] == "OH"
     assert record["EngagementRef"] == "2027-0114"
 
     # and what it does not know is marked, not guessed
     assert "[CONFIRM:" in record["ClientFullName"], (
-        "the interview schema is explicit that a website answer is a claim, not "
-        "a fact; a legal name must never be inferred from a first name"
+        "the interview schema is explicit that a website answer is a claim, "
+        "not a fact; a legal name must never be inferred from a first name. "
+        "Since 26 August the salutation uses this same field, so a guess here "
+        "would reach the top of every letter as well as the address block."
     )
 
 
@@ -231,7 +337,8 @@ def test_the_opening_package_reaches_pdf(tmp_path):
                    "--out", str(tmp_path)])
     assert rc == 0
     pdfs = sorted(tmp_path.glob("*.pdf"))
-    assert len(pdfs) == len(cli.OPENING_PACKAGE), [p.name for p in pdfs]
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert len(pdfs) == len(cli.opening_package(record)), [p.name for p in pdfs]
     for p in pdfs:
         assert p.stat().st_size > 4000, f"{p.name} is too small to be a document"
         assert p.read_bytes().startswith(b"%PDF"), f"{p.name} is not a PDF"
@@ -289,3 +396,48 @@ def test_the_registry_is_what_decides_which_lists_are_required():
     assert "LineItems" in required.get("invoice", ())
     # An extension notice with nothing outstanding is a real document.
     assert "OutstandingItems" not in required.get("extension-notice", ())
+
+
+# ── doctor and render must agree ──────────────────────────────────────────
+
+def test_doctor_and_render_agree_about_every_document(tmp_path):
+    """They did not. `doctor --engagement` reported the organizer cover letter
+    "Ready now" while `render` refused it, because doctor's readiness check
+    left out the required-lists guard that render applies.
+
+    Two halves of one tool disagreeing about the same document is worse than
+    either answer on its own: whichever a person happens to run is the one
+    they believe.
+    """
+    import engagements
+    import merge as m
+
+    record = cli.build_record(_load("tax-opening-package.json"))
+    for doc, (filename, _) in cli.DOCUMENTS.items():
+        template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+
+        def renders(**kw):
+            try:
+                m.render(template, record, **kw)
+                return True
+            except m.MergeError:
+                return False
+
+        doctor_says = renders(required_lists=cli._required_lists().get(doc, ()))
+        try:
+            cli._render_one(doc, record, tmp_path, draft=False, want_pdf=False)
+            render_says = True
+        except m.MergeError:
+            render_says = False
+        assert doctor_says == render_says, (
+            f"{doc}: doctor says {'ready' if doctor_says else 'blocked'} and "
+            f"render says {'ready' if render_says else 'blocked'}"
+        )
+
+
+def test_the_organizer_cover_letter_refuses_without_its_list():
+    """It promises an enclosed organizer and a "what to send" list. With no
+    `Requested`, section 01 is a heading with nothing under it."""
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert "Requested" not in record
+    assert "Requested" in cli._required_lists()["organizer-letter"]

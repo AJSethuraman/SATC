@@ -4,8 +4,16 @@ Everything for the SAT-C brand, website, and client documents. One folder, in
 reading order. **Date of this snapshot: 2026-08-20.**
 
 > **Agent picking this up for an unattended run?** Read
-> `00-START-HERE/OVERNIGHT-BRIEF.md` and then
-> `00-START-HERE/AUTHORING-CONTRACT.md`. Do not start work before both.
+> `00-START-HERE/OVERNIGHT-BRIEF.md`, then
+> `00-START-HERE/AUTHORING-CONTRACT.md`, then
+> **`00-START-HERE/DOCUMENT-TENETS.md`**. Do not start work before all three.
+>
+> The tenets are the newest and the most specific: 28 rules for anything a
+> client reads, each one cited to a real note from the firm and the edit it
+> produced, plus a 20-step cutting test to run over a finished draft. Where a
+> tenet and the authoring contract disagree, the tenets are later and win —
+> the contract's own §5 licensed several of the drafts the firm rejected, and
+> the tenets say which parts and why.
 
 ---
 

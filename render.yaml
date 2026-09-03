@@ -14,7 +14,22 @@ services:
     dockerContext: ./invoice-generator
     plan: free          # change to "starter" for an always-on instance (no cold starts)
     healthCheckPath: /api/health
-    autoDeploy: true
+    # DELIBERATELY OFF. Render's own autodeploy fires on the push to main, in
+    # parallel with CI and without waiting for it -- so a merge that breaks the
+    # suite reaches a live payment system before anyone knows. Deploys are now
+    # driven by .github/workflows/deploy-invoicer.yml, which runs only after the
+    # Tests workflow has concluded successfully on main.
+    #
+    # Turning this back to `true` removes the gate. If you ever do, do it
+    # knowingly: it is the difference between "tests decide what ships" and
+    # "whatever lands on main ships".
+    #
+    # NOTE: this line only takes effect once the Blueprint is re-synced in
+    # Render (Dashboard -> the invoicer service -> Settings -> Blueprint, or
+    # New -> Blueprint on this repo). Until then, turn Auto-Deploy off for the
+    # service by hand in the dashboard -- the file alone does not stop a deploy
+    # that is already configured.
+    autoDeploy: false
     envVars:
       - key: APP_ENV
         value: production

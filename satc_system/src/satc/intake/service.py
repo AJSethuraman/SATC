@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from satc.ids import opaque_id
+from satc.ingest.classify import wrong_year
 from satc.intake import matching
 from satc.intake.importer import ParsedClient
 from satc.intake.workflows import build_engagement, load_workflow
@@ -163,7 +164,8 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
-def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecord | None:
+def reconcile_received(store, *, client_id: str, doc_type: str,
+                       doc_year: int | None = None) -> DocumentRecord | None:
     """Flip the best matching outstanding request to ``Received`` and complete its task.
 
     Called when the document pipeline classifies an arriving document; closes the
@@ -171,11 +173,18 @@ def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecor
     request's type AND its prose description (stored in ``note``) are both
     considered, so a received "W-2" satisfies a "core income documents" bundle.
     When several requests match, the most specific one wins.
+
+    ``doc_year`` is the tax year read off the document, and it is filtered
+    ASYMMETRICALLY: a year we could not read (None) blocks nothing, but a year we
+    DID read which differs from the request's closes nothing. Measured 30 Aug
+    2026, before this: a 2019 W-2 from a job the client left marked this year's
+    W-2 request Received. See ``satc.ingest.classify.wrong_year``.
     """
     mart = store.load_mart()
     candidates = [d for d in mart.documents
                   if d.client_id == client_id and d.status == "Requested"
-                  and matching.matches(doc_type, str(d.doc_type), d.note)]
+                  and matching.matches(doc_type, str(d.doc_type), d.note)
+                  and not wrong_year(doc_year, d.tax_year)]
     if not candidates:
         return None
     match = min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))

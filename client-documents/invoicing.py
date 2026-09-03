@@ -85,6 +85,46 @@ def _issued(store: Path) -> list[dict]:
     return out
 
 
+def issued_for(store: Path, ref: str) -> list[dict]:
+    """Every invoice raised against one engagement, oldest number first."""
+    folder = store / ref / "invoices"
+    if not folder.is_dir():
+        return []
+    out = []
+    for path in sorted(folder.glob("*.json")):
+        try:
+            out.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def find(store: Path, ref: str, number: str | None = None) -> dict | None:
+    """One engagement's invoice fields: the named one, or the latest raised.
+
+    Exists because the money and the client live in two files on purpose --
+    `record.json` holds the engagement, `invoices/NNNN.json` holds one bill --
+    and rendering the invoice needs both. `cli.py invoice` prints
+    "Next: python cli.py render --engagement REF --docs invoice" and that
+    command refused, every time, on `<<AmountDue>>, <<InvoiceDate>>,
+    <<InvoiceNumber>>, <<Subtotal>>`: the render was reading the engagement
+    record alone and no invoice had ever reached it. A tool that hands you
+    the next command has to hand you one that works.
+    """
+    raised = issued_for(store, ref)
+    if not raised:
+        return None
+    if number is None:
+        return raised[-1]
+    for one in raised:
+        if one.get("InvoiceNumber") == number:
+            return one
+    raise InvoiceError(
+        f"engagement {ref} has no invoice {number}. Raised so far: "
+        f"{', '.join(i.get('InvoiceNumber', '?') for i in raised) or 'none'}."
+    )
+
+
 def build(record: dict, *, number: str, billed: str, today: date | None = None,
           credits: list[dict] | None = None, variance_note: str = "",
           currency: str = "USD") -> dict:
@@ -138,7 +178,11 @@ def build(record: dict, *, number: str, billed: str, today: date | None = None,
         "Subtotal": m.money(subtotal, currency),
         "AmountDue": m.money(due, currency),
         "EstimateTotal": estimate,
-        "EstimateDate": record.get("LetterDate", ""),
+        # THE ESTIMATE'S DATE, NOT THE LETTER'S. They are the same until the
+        # engagement is quoted again, and after that the invoice must cite the
+        # estimate it is actually billing against -- otherwise a bill built on
+        # March's figures points a client at February's sheet.
+        "EstimateDate": record.get("EstimateDate") or record.get("LetterDate", ""),
         "VarianceNote": variance_note.strip(),
     }
     if credits:
@@ -166,16 +210,15 @@ def _sum(items: list[dict], currency: str) -> float:
 
 
 def _parse(amount) -> float | None:
-    if isinstance(amount, (int, float)):
-        return float(amount)
-    if not isinstance(amount, str):
-        return None
-    cleaned = amount.replace(",", "").strip()
-    cleaned = re.sub(r"^[^\d\-−.]+", "", cleaned).replace(MINUS, "-")
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+    """One parser, in `money`, beside the formatter it has to agree with.
+
+    It lived here, and `requote` became its second caller. Two parsers for
+    one money format is what `money.py` warns about in its own docstring:
+    one would learn about a new shape and the other would not, and the one
+    that did not would be deciding whether a client was billed over their
+    estimate.
+    """
+    return m.parse(amount)
 
 
 def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):
@@ -192,7 +235,17 @@ def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):
         # existed, or one carrying a [CONFIRM. Nothing to check against, and
         # inventing a comparison would be worse than not making one.
         return
-    if subtotal > quoted and not out["VarianceNote"]:
+    # COMPARE IN CENTS, NOT IN FLOATS. A sorting amount a preparer types with
+    # cents in it -- 175.08 -- sums to 275.08000000000004 while the estimate
+    # string re-parses to exactly 275.08, so an invoice that bills EXACTLY its
+    # estimate was refused, with a message saying it billed "$275.08 against an
+    # estimate of $275.08". The escape hatch made it worse than a wrong number:
+    # the preparer's way out was to write a variance note explaining a
+    # difference that does not exist, which puts a false sentence on a client's
+    # bill. `consistency.py` has rounded to integer cents for exactly this
+    # reason since it was written; this is the one place on the money path that
+    # did not.
+    if round(subtotal * 100) > round(quoted * 100) and not out["VarianceNote"]:
         raise InvoiceError(
             f"this invoice bills {m.money(subtotal, currency)} against an "
             f"estimate of {m.money(quoted, currency)} and says nothing about "

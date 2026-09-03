@@ -33,7 +33,6 @@ Same names, same records, same values where the client is the same. This is the 
 | `<<EngagementRef>>` | Yes | 2027-0117 | The join key. **The entity gets its own**, separate from any owner's. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | The self-describing period field. **Not `TaxYear`** — §4 of the authoring contract says that name must never come back. Appears twice. |
 | `<<ClientFullName>>` | Yes | Larchmere Holdings LLC | **The entity's exact registered name**, not a trading name. Appears three times: recipient block, opening sentence, signature label. |
-| `<<ClientLetterName>>` | Yes | Dan | A human is reading this, not the entity. Salutation only. |
 | `<<ClientAddress1>>` | Yes | 1240 Larchmere Boulevard | The entity's address, which is not always an owner's. |
 | `<<ClientCity>>` | Yes | Cleveland | |
 | `<<ClientState>>` | Yes | OH | |
@@ -43,7 +42,6 @@ Same names, same records, same values where the client is the same. This is the 
 | `<<LocalReturns>>` | Yes | City of Cleveland net profit return | |
 | `<<AdditionalForms>>` | Yes | None | **Emit the literal "None" when empty**, never a blank. With foreign reporting in scope, blank and "None" are different statements. |
 | `<<MaterialsDeadline>>` | Yes | February 15, 2027 | **The entity value, which is earlier than the individual one.** Appears twice — sections 02 and 05. |
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | Firm setting. |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields. |
 
 ### Specific to this letter (5 fields + 3 flags)
@@ -52,16 +50,18 @@ Same names, same records, same values where the client is the same. This is the 
 |---|---|---|---|
 | `<<EntityType>>` | Yes | an Ohio limited liability company taxed as an S corporation | **A phrase, not a code**, written to drop into the opening sentence after a comma. It is the letter's statement of what it believes the entity is, put where the client can correct it. |
 | `<<ScheduleK1Target>>` | Yes | March 10, 2027 | When the K-1s are delivered. **A real date** — every owner's preparer schedules around it. |
+| `<<OwnerCount>>` | Yes | 3 | From `count_owners`, now **required** for a 1120-S or 1065. Section 01 is the scope statement, and how many K-1s the engagement produces is part of that scope. Same number the estimate prices owner K-1s from, so the two cannot disagree. **Gated on `EntityIssuesK1s`** — a C corporation issues none. |
 | `<<SignerName>>` + `<<SignerTitle>>` | Yes | Daniel Reyes · Managing Member | Two fields, **the same pair the bookkeeping letter uses**. An entity signs through a person, and that person must be able to bind it. |
 | `[[IF OwnerReturnsPrepared]]` | Flag | Boolean | The firm also prepares the owners' personal returns. |
 | `[[IF OwnerReturnsElsewhere]]` | Flag | Boolean | **The exact inverse.** |
+| `[[IF EntityIssuesK1s]]` | Yes | Flag | Boolean, derived from the federal form — true for a 1120-S or a 1065, false for a 1120. **A C corporation issues no K-1s.** Gates the K-1 scope line in section 01. |
 | `[[IF SCorpElection]]` | Flag | Boolean | Adds the officer-compensation scope exclusion in section 03, which is meaningless for a partnership. |
 
-**Total: 21 fields + 3 flags. No repeating lists.**
+**Total: 28 fields + 4 flags. No repeating lists.**
 
 Sixteen of the twenty-one are the same fields, from the same records, as the individual tax letter.
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the whole of the "what this engagement is not" language, the responsibilities list, the extension callout, the unclear-law clause, the records and confidentiality clauses, and the execution note.
+Not variables: the whole of the "what this engagement is not" language, the responsibilities list, the extension callout, the unclear-law clause, the records and confidentiality clauses, and the execution note.
 
 ### On `ScheduleK1Target` and the name
 
@@ -79,6 +79,25 @@ That is deliberate and it is not a coincidence: **this letter is signed.** A sig
 
 `OwnerReturnsPrepared` and `OwnerReturnsElsewhere` are inverses and exactly one must render. The single question this letter exists to answer is *who turns the K-1 into a personal return, and by when*. An entity letter that leaves it unstated produces the April phone call about a K-1 nobody was expecting — from an owner who is not your client, about a deadline you did not set.
 
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
+
 ---
 
 ## Example payload
@@ -91,7 +110,6 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "EngagementRef": "2027-0117",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Larchmere Holdings LLC",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "1240 Larchmere Boulevard",
   "ClientCity": "Cleveland",
   "ClientState": "OH",
@@ -103,9 +121,17 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "AdditionalForms": "None",
   "MaterialsDeadline": "February 15, 2027",
   "ScheduleK1Target": "March 10, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "OwnerCount": 3,
   "SignerName": "Daniel Reyes",
   "SignerTitle": "Managing Member",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "OwnerReturnsPrepared": true,

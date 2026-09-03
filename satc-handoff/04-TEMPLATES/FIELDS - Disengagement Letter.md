@@ -29,7 +29,6 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `<<EngagementRef>>` | Yes | 2027-0114 | The engagement being ended. **One letter per ref** — a client with a personal and an entity engagement gets two letters, or one whose `ScopeEnded` says so precisely. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | Appears twice — subject line and footer. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only. |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | **The address of record.** Send it there, by a method that produces a receipt, whatever else you also do with it. |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -44,7 +43,7 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `<<ScopeEnded>>` | Yes | the preparation of your 2026 individual income tax returns | **A phrase, not a code**, naming precisely what ends. If another engagement continues, this is where the letter says so. |
 | `<<RecordsAvailableUntil>>` | Yes | August 31, 2027 | A real date. Appears in the dateline and in section 04. |
 | `<<OutstandingBalance>>` | If flag | $1,240.00 | A pre-formatted string from the one money formatter. **This template does no arithmetic.** |
-| `<<PreparerEmail>>` + `<<PreparerPhone>>` | Yes | arjun@satcllp.com · 307-941-0508 | Two fields. |
+| `<<PreparerEmail>>` | Yes | arjun@satcllp.com | The only way the letter offers to reach us. No phone goes on a client document until the firm has a business line. |
 | `[[EACH WorkStatus]]` | List | one or more | Two sub-fields. **Every piece of work in scope, complete or not.** |
 | `<<Item.Work>>` | Yes | 2026 Federal Form 1040 | |
 | `<<Item.Status>>` | Yes | Prepared and e-filed on April 9, 2027; accepted April 9 | **A sentence with a date in it**, never "done" or "in progress". |
@@ -56,9 +55,9 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `[[IF BalanceOutstanding]]` | Flag | Boolean | Renders section 05 with the balance. |
 | `[[IF AccountSettled]]` | Flag | Boolean | **The exact inverse.** Renders section 05 saying nothing is owed. |
 
-**Total: 17 fields + 2 repeating lists of 2 + 4 flags.** Both flag pairs are inverses; exactly one of each pair is ever true.
+**Total: 23 fields + 2 repeating lists of 2 + 4 flags.** Both flag pairs are inverses; exactly one of each pair is ever true.
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the nothing-is-in-a-queue callout, the records-come-back-either-way sentence, the whole of section 06, and the not-a-complete-list sentence in section 03.
+Not variables: the nothing-is-in-a-queue callout, the records-come-back-either-way sentence, the whole of section 06, and the not-a-complete-list sentence in section 03.
 
 ---
 
@@ -87,6 +86,25 @@ A disengagement letter is the one most likely to be read closely by someone othe
 
 Silence about money in a disengagement letter is read as a threat. If there is a balance, the letter states it and states that records come back regardless. If there is not, the letter says so and says no final invoice will follow. There is no third case.
 
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
+
 ---
 
 ## Example payload
@@ -99,7 +117,6 @@ Firm-initiated with a balance outstanding — the harder of the two combinations
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",
@@ -108,10 +125,17 @@ Firm-initiated with a balance outstanding — the harder of the two combinations
   "ScopeEnded": "the preparation of your 2026 individual income tax returns and the related state and municipal filings",
   "RecordsAvailableUntil": "August 31, 2027",
   "OutstandingBalance": "$1,240.00",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "PreparerEmail": "arjun@satcllp.com",
-  "PreparerPhone": "307-941-0508",
   "ClientInitiated": false,
   "FirmInitiated": true,
   "BalanceOutstanding": true,

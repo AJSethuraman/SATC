@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -43,7 +42,7 @@
 <div class="subject">Ending our engagement — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>This letter confirms that our engagement ends on <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. It sets out what we completed, what we did not, what you now have, and what you need to arrange. <strong>Section 03 is the part with a deadline in it.</strong></p>
 
@@ -77,7 +76,7 @@
     </ul>
     <span class="cond end">[[END EACH]]</span>
     <div class="callout">
-      <p><strong>Anything not marked complete above is not filed, not lodged, and not being worked on by us.</strong> Nothing is waiting in a queue here. Treat every incomplete item as yours from <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>.</p>
+      <p><strong>Anything not marked complete above is not filed, not lodged, and not being worked on by us.</strong> Treat every incomplete item as yours from <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>.</p>
     </div>
     <p>We will not begin any new work, respond to any notice, or file anything on your behalf after that date, and no filing extension we have already obtained changes any date a taxing authority has set for you.</p>
   </div>
@@ -92,21 +91,21 @@
       </li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p><strong>These dates are ours to tell you about and yours to meet.</strong> We have listed the ones we know of from the work we did. It is not a complete list of everything you owe anyone — we cannot see obligations we were never engaged for.</p>
+    <p><strong>These dates are ours to tell you about and yours to meet.</strong> We have listed the ones we know of from the work we did. It is not a complete list of everything you owe anyone.</p>
     <p><strong>Engage someone promptly.</strong> A new preparer needs time to read a file before a deadline, not after it, and the ones above do not move because the engagement changed.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">04</span>Your records</h2>
-    <p>Your original records are returned with this letter, or are available for collection until <span class="f">&lt;&lt;RecordsAvailableUntil&gt;&gt;</span>. Copies of everything we prepared for you are included.</p>
-    <p>As the <b>Your records, our files, and delivery</b> section of your engagement letter provides, <strong>our work papers are ours, not part of your records</strong>. We keep our copies for the period that section states, and we will respond to a successor's request for what a successor is properly entitled to.</p>
+    <p><span data-encl="attachment:client-records">Your original records are returned with this letter, or are available for collection until <span class="f">&lt;&lt;RecordsAvailableUntil&gt;&gt;</span>.</span> <span data-encl="attachment:work-copies">Copies of everything we prepared for you are included.</span></p>
+    <p>As the <strong>Your records, our files, and delivery</strong> section of your engagement letter provides, <strong>our work papers are ours, not part of your records</strong>. We keep our copies for the period that section states, and we will respond to a successor's request for what a successor is properly entitled to.</p>
     <p>Tell us in writing if you want us to send anything to another firm, and name the firm. <strong>We will not release your information to anyone on a telephone call</strong>, including someone who says they are your new accountant.</p>
   </div>
 
   <span class="cond">[[IF BalanceOutstanding]]</span>
   <div class="sec">
     <h2><span class="n">05</span>Your account</h2>
-    <p>The balance on your account is <span class="f">&lt;&lt;OutstandingBalance&gt;&gt;</span>, covering work performed up to <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. The invoices are enclosed and the terms are the ones in the <b>Fees and billing</b> section of your engagement letter.</p>
+    <p>The balance on your account is <span class="f">&lt;&lt;OutstandingBalance&gt;&gt;</span>, covering work performed up to <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. <span data-encl="invoice">The invoices are enclosed</span> and the terms are the ones in the <b>Fees and billing</b> section of your engagement letter.</p>
     <p>Settling it is not a condition of getting your records back. <strong>Your records are yours and they are returned either way.</strong></p>
   </div>
   <span class="cond end">[[END IF]]</span>
@@ -120,26 +119,26 @@
   <div class="sec">
     <h2><span class="n">06</span>What we are not saying</h2>
     <p>This letter ends an engagement. <strong>It is not an opinion about your records, your returns, your business, or your circumstances</strong>, and it should not be read as one or shown to anyone as one.</p>
-    <p>Nothing here changes what was already filed. If a taxing authority writes to you about work we did, send us the letter — we will tell you what it says, and whether it concerns something within the work we performed. That is a courtesy, and it is not a new engagement.</p>
+    <p>Nothing here changes what was already filed. If a taxing authority writes to you about work we did, send us the letter — we will tell you what it says, and whether it concerns something within the work we performed. It is not a new engagement.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">07</span>Questions</h2>
-    <p>Ask them now rather than later, while the file is fresh. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <p>Ask them now rather than later, while the file is fresh. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">DISENGAGEMENT LETTER<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -153,7 +152,7 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>June 4, 2027 — the date the letter is sent, which may be earlier than the effective date</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the engagement being ended. <b>One letter per ref</b>: a client with a personal and an entity engagement gets two letters, or one that says so in ScopeEnded.</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — appears twice: subject and footer</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields. <b>Send it to the address of record by a method that produces a receipt</b>, whatever else you also do with it.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields. <b>Send it to the address of record by a method that produces a receipt</b>, whatever else you also do with it.</td></tr>
     <tr><td>&lt;&lt;EffectiveDate&gt;&gt;</td><td class="req">Required</td><td>June 30, 2027 — <b>appears four times.</b> The date everything hinges on. Drive all four from one value.</td></tr>
     <tr><td>&lt;&lt;ScopeEnded&gt;&gt;</td><td class="req">Required</td><td>the preparation of your 2026 individual income tax returns — <b>a phrase, not a code</b>, that names precisely what ends. If another engagement continues, this field is where the letter says so.</td></tr>
     <tr><td>&lt;&lt;RecordsAvailableUntil&gt;&gt;</td><td class="req">Required</td><td>August 31, 2027 — a real date, in the dateline and in section 04</td></tr>
@@ -162,7 +161,7 @@
     <tr><td>&lt;&lt;Item.Work&gt;&gt; &lt;&lt;Item.Status&gt;&gt;</td><td class="req">Required</td><td>2026 Federal Form 1040 · Prepared and e-filed on April 9, 2027; accepted April 9. <b>Status is a sentence with a date in it</b>, never "done" or "in progress".</td></tr>
     <tr><td>[[EACH OpenDeadlines]]</td><td class="req">List</td><td>One or more. Two sub-fields. The dates the client now owns.</td></tr>
     <tr><td>&lt;&lt;Item.Obligation&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>File the 2026 municipal return · City of Solon, due October 15, 2027 — extended, not filed</td></tr>
-    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
     <tr><td>[[IF ClientInitiated]]</td><td class="req">Flag</td><td>Boolean. The client asked. One sentence, no explanation recorded.</td></tr>
     <tr><td>[[IF FirmInitiated]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse.</b> States that it is the firm's decision and that notice is being given, and gives no reason — see below.</td></tr>
     <tr><td>[[IF BalanceOutstanding]]</td><td class="req">Flag</td><td>Boolean. Renders section 05 with the balance.</td></tr>

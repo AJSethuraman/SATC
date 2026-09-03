@@ -18,7 +18,7 @@ collects/retains client info, and provides small services around Drake.
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
-| `client-documents/` | The document pipeline: interview → engagement → priced, merged client documents. CLI **and** browser front doors over one core | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q`; `make web` for the browser front door |
+| `client-documents/` | The document pipeline and the whole life of an engagement: interview → priced documents → billing → delivery, extension, disengagement → close-out and reconciliation. CLI **and** browser front doors over one core. **Every document a client receives passes a blocking pre-send gate**; `docs/OPERATING-PROCEDURES.md` is generated from the software and must not be edited by hand | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q` (1,123 passed, 2 skipped), then `python exercise.py` — 29 real scenarios, 190 documents, **every one opened in a browser**. `make web` for the browser front door |
 | `satc-handoff/` | Brand, the ten client document templates + their FIELDS specs, the authoring contract, the run log and the open-questions list | HTML/CSS/Markdown, no build | Read `satc-handoff/START-HERE.md`; templates render in a browser |
 | `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
 
@@ -94,8 +94,19 @@ and it is the pattern to copy for any other client-facing surface.
   masked/last-4 values belong in artifacts, logs, and workbooks — **never** real
   taxpayer PII. Validation tests fail the build if legal names / full TINs leak
   into outputs. The SATC MCP is **read-only by default**.
-- **Drake stays the system of record.** SATC does not replace Drake's
-  calculations or e-file; it prepares/reconciles inputs.
+- **The system of record is split, and the split is load-bearing.** The firm,
+  26 August 2026: *"we are not copying out of drake — drake is only system of
+  record for info. but our interview and such is system of record until proven
+  wrong. we should update the data to match what we file if required."*
+  - **Drake owns what was FILED** — the calculations, the e-file, the return.
+    SATC does not replace any of it.
+  - **SATC's interview owns what we were TOLD**, and is authoritative *until
+    proven wrong*. Never argue that Drake owns a fact and therefore SATC must
+    not hold it; that reading is backwards and has caused work to be dropped.
+  - **The proving happens at the end of the cycle.** `cli.py close` records
+    what was actually filed, in-house, nothing read out of Drake;
+    `cli.py reconcile [--apply]` reports every divergence and moves the record
+    when the return is right, logging each move.
 - **Money & tax correctness.** Invoice math, Stripe webhooks, withholding math,
   and tax line-sheet logic are correctness-critical — add/keep tests and
   double-check rather than guess. Cite sources for tax parameters.
@@ -114,6 +125,21 @@ spine for new work is **`grill-me` → `to-prd` → `to-issues` → build**, wit
 `handoff`, `diagnosing-bugs`, `tdd`, `research`, `domain-modeling`,
 `codebase-design`, and `triage` as supporting steps. Use `PRD_TEMPLATE.md` at the
 repo root as the PRD shape.
+
+## The line that governs a change here
+
+**Change anything a test can prove; change nothing a client reads or pays.**
+
+Client-facing wording is the firm's. Where a sentence is missing, transcribe
+what they have already written elsewhere — the engagement letters are full of
+it — or leave `[CONFIRM: ...]`, which makes the document *refuse* rather than
+ship a placeholder. `exercise.py` reports those as **waiting on the firm**, not
+as failures.
+
+And never claim something works without opening the artifact. `docs/SOFTWARE-TENETS.md`
+is 29 tenets on that theme, each cited to a real bug in this repository; the
+first one exists because a proof artifact once declared 190 documents fine when
+every one of them was unreadable.
 
 ## Git workflow
 

@@ -46,11 +46,20 @@ def test_the_record_carries_a_request_list_at_all():
 
 def test_everybody_is_asked_for_the_basics():
     """Ungated entries apply to every client. If these ever stop appearing,
-    the registry has lost its unconditional rows and every letter is thin."""
+    the registry has lost its unconditional rows and every letter is thin.
+
+    "The signed engagement letter" WAS the first thing asserted here, until
+    the firm removed it on 26 August 2026: "they dont send it to us - it would
+    be sent automatically via encyro". A list headed "What to send us" cannot
+    carry something the client never sends. The rule this test guards is
+    unchanged; only the example moved, and it is now checked against three
+    rows rather than one so a single removal cannot hollow it out again.
+    """
     for extra in ({}, {"federal_schedules": ["A", "C", "D", "E1", "E2", "F"]}):
         docs = _docs({"federal_form": "1040", **extra})
-        assert "The signed engagement letter" in docs
         assert "Every W-2 for the year" in docs
+        assert "Photo ID" in docs
+        assert "The Social Security number for everyone on the return" in docs
 
 
 def test_a_client_with_nothing_still_gets_a_list():
@@ -65,7 +74,7 @@ def test_a_client_with_nothing_still_gets_a_list():
     ("E2", "Each K-1 you received"),
     ("C", "Your business income and expenses"),
     ("F", "Farm income and expenses"),
-    ("A", "Your itemised deduction records"),
+    ("A", "Your itemized deduction records"),
 ])
 def test_each_schedule_asks_for_its_own_records(schedule, wanted):
     assert wanted in _docs({"federal_form": "1040", "federal_schedules": [schedule]})
@@ -98,10 +107,15 @@ def test_answer_includes_handles_a_comma_string_too():
 # ── order and refusals ────────────────────────────────────────────────────
 
 def test_the_order_is_the_registry_s_not_the_answers(answers):
-    """Two clients with the same return get the same letter, and the
-    engagement letter sits at the top where it belongs."""
+    """Two clients with the same return get the same letter, in one order.
+
+    The order is the REGISTRY's, so a client who happens to have answered in a
+    different sequence does not get a differently-ordered letter. What sits
+    first changed on 26 August 2026 when the engagement-letter row was
+    removed; that it is stable is the property under test, not which row wins.
+    """
     docs = _docs(answers)
-    assert docs[0] == "The signed engagement letter"
+    assert docs[0] == "Every W-2 for the year"
     reordered = dict(answers)
     reordered["federal_schedules"] = list(reversed(answers["federal_schedules"]))
     assert _docs(reordered) == docs
@@ -128,3 +142,62 @@ def test_every_gate_in_the_registry_is_one_the_engine_knows():
         gate = entry.get("when")
         if gate is not None:
             pricing.gate_holds(gate, {}, f"document-requests[{i}]")
+
+
+# ── an entity is not an individual ────────────────────────────────────────
+
+def test_a_business_is_not_asked_for_photo_id_and_everyones_ssn():
+    """FOUND BY OPENING AN ENTITY'S ONBOARDING LETTER. Every request in the
+    registry was written for a 1040 and none carried a gate, so a PARTNERSHIP
+    was asked for exactly three things: every W-2 for the year, photo ID, and
+    the Social Security number for everyone on the return. Nothing about the
+    business, and not one line asking for a set of books."""
+    entity = {"federal_form": "1065", "entity_structure": "llc",
+              "entity_state": "Ohio", "owner_returns": "yes",
+              "count_owners": 3, "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    asked = " ".join((r.get("Document") or "") for r in requests.for_answers(entity))
+
+    assert "W-2" not in asked
+    assert "Photo ID" not in asked
+    assert "Social Security number" not in asked
+
+
+def test_an_individual_is_still_asked_for_all_three():
+    """The gate must remove the wrong ask, not the right one."""
+    individual = {"federal_form": "1040", "prior_return_available": "no",
+                  "other_income_documents": "no", "decision": "yes"}
+    asked = " ".join((r.get("Document") or "") for r in requests.for_answers(individual))
+
+    assert "W-2" in asked
+    assert "Photo ID" in asked
+    assert "Social Security number" in asked
+
+
+@pytest.mark.parametrize("form", ["1065", "1120S", "1120"])
+def test_every_entity_is_asked_for_its_books(form):
+    """The wording is the firm's own, transcribed from section 04 of the
+    business engagement letter -- the section clients already sign. The letter
+    says what you owe us; this file says what to put in the envelope."""
+    entity = {"federal_form": form, "entity_structure": "llc",
+              "entity_state": "Ohio", "owner_returns": "yes",
+              "count_owners": 3, "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    asked = requests.for_answers(entity)
+
+    assert asked, "an entity with no request list produces an onboarding letter that refuses"
+    assert any("books" in (r.get("Document") or "").lower() for r in asked)
+    assert not any("[CONFIRM:" in (r.get("Document") or "") for r in asked)
+
+
+def test_a_c_corporation_is_not_told_a_k1_goes_to_anyone():
+    """It issues none. The owner-list line is split from the shareholder-list
+    line for exactly this sentence and nothing else."""
+    c_corp = {"federal_form": "1120", "entity_structure": "corporation",
+              "entity_state": "Ohio", "owner_returns": "no",
+              "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    said = " ".join((r.get("Document") or "") + " " + (r.get("Detail") or "")
+                    for r in requests.for_answers(c_corp))
+    assert "K-1" not in said
+    assert "shareholders" in said.lower()

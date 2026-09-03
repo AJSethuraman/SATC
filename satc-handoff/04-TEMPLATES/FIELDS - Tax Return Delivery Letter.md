@@ -31,20 +31,18 @@ Same records, same values, same engagement. `EngagementRef` is what ties this le
 | `<<EngagementRef>>` | Yes | 2027-0114 | The join key. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | Self-describing; the same field every other document uses. Appears twice — subject line and footer. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only. |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
 | `<<ClientZip>>` | Yes | 44139 | |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields. Name appears twice — the dateline and the sign-off. |
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | **Firm setting, not per client.** Same field the engagement letter uses, so the two cannot describe different return routes. |
 
 ### Specific to this letter (3 fields + 2 lists + 3 flags)
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
 | `<<SignatureDeadline>>` | Yes | April 10, 2027 | **A real date, never "as soon as possible".** A deadline with no date is not one. |
-| `<<PreparerEmail>>` + `<<PreparerPhone>>` | Yes | arjun@satcllp.com · 307-941-0508 | Two fields. Phone appears twice — the anti-fraud line in section 02 and the questions section. |
+| `<<PreparerEmail>>` | Yes | arjun@satcllp.com | The only way the letter offers to reach us. No phone goes on a client document until the firm has a business line. |
 | `[[EACH ReturnsDelivered]]` | List | one or more | Two sub-fields. Every return in the package, in the order they are stacked. |
 | `<<Item.Return>>` | Yes | Federal Form 1040 | As the form is named on its own face |
 | `<<Item.Detail>>` | Yes | Refund of $1,240, direct deposit to the account ending 4417 | Empty string when there is nothing to add — never "None" |
@@ -55,9 +53,9 @@ Same records, same values, same engagement. `EngagementRef` is what ties this le
 | `[[IF PaperFiled]]` | Flag | Boolean | **The exact inverse of `EFiled`.** Puts filing on the client, which is the most important sentence in the letter when it applies. |
 | `[[IF EstimatedPayments]]` | Flag | Boolean | Drops the next-year estimates section when there are no vouchers in the package. |
 
-**Total: 15 fields + 2 repeating lists of 2 + 3 flags.**
+**Total: 20 fields + 2 repeating lists of 2 + 3 flags.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the review-before-you-sign paragraph, the never-send-a-payment-to-us warning, the certified-mail advice, the retention paragraph, and the whole of the "Where this engagement ends" section.
+Not variables: the review-before-you-sign paragraph, the never-send-a-payment-to-us warning, the certified-mail advice, the retention paragraph, and the whole of the "Where this engagement ends" section.
 
 ---
 
@@ -76,6 +74,25 @@ Three conditionals, two of which are numbered sections.
 
 That is why `EFiled` and `PaperFiled` share a number, and it is the assumption to check before wiring. A package that mixes the two — a federal e-file alongside a paper municipal return — is not covered, and the honest fix is a third branch rather than rendering both sections.
 
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
+
 ---
 
 ## Example payload
@@ -88,17 +105,22 @@ Both flag states are exercised: this one is e-filed with estimates, so `PaperFil
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",
   "ClientZip": "44139",
   "SignatureDeadline": "April 10, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "PreparerEmail": "arjun@satcllp.com",
-  "PreparerPhone": "307-941-0508",
   "EFiled": true,
   "PaperFiled": false,
   "EstimatedPayments": true,

@@ -1,0 +1,121 @@
+# SATC — sentences the firm has deleted, and must not come back
+#
+# Every entry here was a sentence in a client-facing document that the firm
+# read and told us to remove. The reason is recorded beside it, and the tenet
+# it belongs to. `presend` fails a document that carries any of them.
+#
+# WHY THIS EXISTS. One did come back -- or rather, one never left. The
+# bookkeeping engagement letter carried
+#
+#     "If this letter states your understanding, sign and return a copy.
+#      Sign through Encyro and it comes straight back to us."
+#
+# for a day after the firm replaced it everywhere else, and DOCUMENT-TENETS.md
+# said so in writing ("Not yet swept") without anything acting on it. A note
+# that a thing is still wrong is not a control.
+#
+# TWO RULES ON THE SHAPE, both enforced by the loader:
+#
+#   1. Store the WHOLE sentence, never a prefix. A prefix collides: "this
+#      estimate assumes" is retired as a bullet opener and live as the heading
+#      "What this estimate assumes".
+#   2. At least five words. A phrase shorter than that is not a sentence and
+#      will match something innocent sooner or later.
+#
+# Headings are exempt when the check runs -- see `presend.retired_phrases`.
+# That is not a fudge, it is the fix for the one false positive this produces.
+
+phrases:
+  # ── T1 · a fact lives in one document ────────────────────────────────
+  - phrase: "The same list as the What we will prepare section of your engagement letter."
+    retired: 2026-08-26
+    tenet: T1
+    why: "restated a fact the engagement letter already carries"
+  - phrase: "Only the work listed in the scope section of the engagement letter is included."
+    retired: 2026-08-26
+    tenet: T1
+    why: "the same, and the estimate is not where scope is set"
+  - phrase: "Billing and payment terms are in the Fees and billing section of the engagement letter."
+    retired: 2026-08-26
+    tenet: T1
+    why: "the firm — why is this even under what the estimate assumes? delete"
+  - phrase: "Section 02 sets out how that works and who does what."
+    retired: 2026-08-26
+    tenet: T1
+    why: "a pointer carrying no fact of its own"
+
+  # ── T6 · the demonstrative tail ──────────────────────────────────────
+  - phrase: "Each owner needs theirs before their personal return can be finished"
+    retired: 2026-08-26
+    tenet: T6
+    why: "restates the causal chain the sentence before it already states"
+  - phrase: "That is the constraint that governs this whole engagement's timing."
+    retired: 2026-08-26
+    tenet: T6
+    why: "a demonstrative pointing back at what was just said"
+  - phrase: "If the records are late, the K-1s are late, and every owner's personal return is late behind them."
+    retired: 2026-08-26
+    tenet: T6
+    why: "derived by the reader for free from the sentence above it"
+  - phrase: "One incomplete business file delays as many personal returns as there are owners."
+    retired: 2026-08-26
+    tenet: T6
+    why: "the same thing a third time, in bigger words"
+
+  # ── T7 · the consequence a reader derives for free ───────────────────
+  - phrase: "and should not be relied on for that purpose"
+    retired: 2026-08-26
+    tenet: T7
+    why: "the firm — words like this are self-evident based on the words surrounding it"
+  - phrase: "If a lender or investor asks for audited statements"
+    retired: 2026-08-26
+    tenet: T7
+    why: "self-evident from the sentence before it"
+  - phrase: "We will speak with your attorney, banker, or advisor only if you instruct us in writing."
+    retired: 2026-08-26
+    tenet: T7
+    why: "duplicated the sentence immediately before it"
+
+  # ── T8 · do not narrate our own tone or reasoning ────────────────────
+  - phrase: "Sign through Encyro and it comes straight back to us."
+    retired: 2026-08-26
+    tenet: T8
+    why: >-
+      replaced by "If this letter states your understanding, sign below."
+      Found still live in the bookkeeping letter on 27 August, a day after the
+      sweep, by the check this registry exists to feed.
+  - phrase: "never send a tax payment to us, and never to anyone who telephones claiming to be us"
+    retired: 2026-08-26
+    tenet: T8
+    why: "replaced by the firm's own shorter line"
+  - phrase: "we cannot tell a missing document from one that does not exist, and we will keep asking"
+    retired: 2026-08-26
+    tenet: T8
+    why: "the firm — this entire sentence reads like someone who can't form the subject of a sentence first"
+  - phrase: "a five-minute question now is cheaper than a correction later"
+    retired: 2026-08-26
+    tenet: T8
+    why: "narrating our own reasoning; replaced by \"Ask us early rather than guessing.\""
+  - phrase: "Responding to a notice is a separate engagement, but reading one and telling you what it actually says costs nothing."
+    retired: 2026-08-26
+    tenet: T8
+    why: "the first half is said in the engagement letter; only the second half was kept"
+
+  # ── T?? · certainty stated where only possibility exists ─────────────
+  - phrase: "will likely require an extension"
+    retired: 2026-08-26
+    tenet: T14
+    why: "do not state as certain what is merely possible — became \"may require\""
+  - phrase: "though it may not be secure and we would not advise it"
+    retired: 2026-08-26
+    tenet: T15
+    why: "their choice, not our disapproval — became \"that is your choice, and we take no responsibility for it\""
+
+  # ── the no-charge amendment stopped advertising itself ───────────────
+  - phrase: "We do not charge to correct our own mistakes"
+    retired: 2026-08-26
+    tenet: T18
+    why: >-
+      the firm — we do not need to specify we correct our own mistakes for
+      free, we are only talking about how we charge for amendments. The firm
+      still does it; it is not a selling point on a document.

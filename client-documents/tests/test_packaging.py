@@ -24,6 +24,16 @@ import packaging  # noqa: E402
 SAMPLES = ROOT / "samples"
 ENTITY = {"entity_structure": "llc", "entity_state": "Ohio",
           "signer_name": "Priya Raman", "signer_title": "Managing Member",
+          # Required of a 1120-S or a 1065 since 26 August 2026, because the
+          # letter now states how many K-1s the engagement is scoped for.
+          # Ignored for a 1120 -- a C corporation issues none.
+          "count_owners": 3,
+          # Required of every entity by the schema, and the fixture did not
+          # answer it. Nothing noticed until the flag pair it derives became
+          # enforced: the business letter's section on the owners' returns
+          # rendered EMPTY, because both halves of the inverse were absent and
+          # each [[IF]] dropped in silence.
+          "owner_returns": "yes",
           "k1_target": "each member's personal return"}
 
 
@@ -55,9 +65,19 @@ def test_an_individual_signs_the_tax_letter():
 
 
 @pytest.mark.parametrize("kind", ["s_corp", "partnership", "c_corp"])
-def test_an_entity_signs_the_business_letter(kind):
+def test_an_entity_signs_an_entity_letter(kind):
+    """Never the individual one — which is what happened before 26 August
+    2026, when `opening_package` was a hard-coded list that ignored the return
+    type entirely and the pack then refused on `TaxpayerName`.
+
+    WHICH entity letter differs. A C corporation gets its own since the same
+    day: the business letter's section 02 is entirely about Schedules K-1,
+    which a C corporation does not issue, and merging that section's date is
+    what made an 1120 pack refuse to render at all.
+    """
+    expected = {"c_corp": "ccorp-letter"}.get(kind, "business-letter")
     docs = packaging.documents_for({"_return_type": kind})
-    assert docs[0] == "business-letter"
+    assert docs[0] == expected
     assert "tax-letter" not in docs
 
 
@@ -92,15 +112,43 @@ def test_an_unknown_engagement_kind_refuses_rather_than_falling_back():
     assert "wrong letter" in str(exc.value)
 
 
+def test_an_unknown_attachment_refuses_before_anything_renders(tmp_path):
+    """A typo in --attach used to surface from inside `manifest`, after three
+    merges and three browser renders, as a traceback. It is one message and
+    exit 1 now, asked in the same breath as "what documents does this get"."""
+    with pytest.raises(packaging.PackageError) as exc:
+        packaging.check_attachments(["organizer", "nonsense"])
+    assert "nonsense" in str(exc.value)
+    assert "organizer" in str(exc.value)       # names what IS known
+
+
+def test_the_early_check_and_the_manifest_ask_the_same_question():
+    """One function, not two that must agree (SOFTWARE-TENETS S3)."""
+    good = ["organizer", "payment-voucher"]
+    assert packaging.check_attachments(good) == good
+    book = packaging.manifest({}, [], {}, good)
+    assert [a["id"] for a in book["Attachments"]] == good
+
+
 # ── atomicity ─────────────────────────────────────────────────────────────
 
 def test_a_whole_pack_is_written(answers, tmp_path):
+    """Counted against `documents_for`, not against the literal 3.
+
+    It WAS 3, and that was the bug: the demo client has a previous
+    accountant, so their pack carries the records release as well, and this
+    number said otherwise for as long as `packaging` did not know about the
+    conditional attachment. Holding the test to a fixed count is what would
+    make sending the attachment by default look like a regression.
+    """
     store, out = tmp_path / "store", tmp_path / "pack"
     ref = _engagement(answers, store)
+    record = json.loads((store / ref / "record.json").read_text())
     assert _run(ref, store, out) == 0
     names = sorted(p.name for p in out.iterdir())
     assert "MANIFEST.json" in names
-    assert sum(n.endswith(".html") for n in names) == 3
+    assert sum(n.endswith(".html") for n in names) == \
+        len(packaging.documents_for(record))
 
 
 @pytest.mark.parametrize("form", ["1120S", "1065", "1120"])
@@ -109,7 +157,15 @@ def test_every_entity_type_produces_a_pack(answers, tmp_path, form):
     store, out = tmp_path / "store", tmp_path / "pack"
     ref = _engagement(answers, store, form)
     assert _run(ref, store, out) == 0
-    assert any("Business Engagement" in p.name for p in out.iterdir())
+    # An ENTITY letter, whichever one this entity gets. Naming the file by
+    # hand here is what would make a C corporation's own letter look like a
+    # regression the day it was added.
+    wanted = packaging.documents_for({"_return_type": {"1120S": "s_corp",
+                                                       "1065": "partnership",
+                                                       "1120": "c_corp"}[form]})[0]
+    stem = cli.DOCUMENTS[wanted][1]
+    assert any(stem in p.name for p in out.iterdir()), \
+        f"a {form} pack should carry {stem!r}"
 
 
 def test_one_refusal_writes_nothing_at_all(answers, tmp_path):
@@ -195,8 +251,11 @@ def test_the_manifest_says_what_is_in_the_folder(answers, tmp_path):
     book = json.loads((out / "MANIFEST.json").read_text())
     assert book["EngagementRef"] == ref
     assert book["EstimateTotal"].startswith("$")
+    # The demo client had a previous accountant, so the authorization they
+    # sign travels with the letter. It is listed here because the manifest is
+    # what somebody reads in a year to know what was sent.
     assert [d["key"] for d in book["Documents"]] == \
-        ["tax-letter", "fee-estimate", "onboarding-letter"]
+        ["tax-letter", "fee-estimate", "onboarding-letter", "records-release"]
     for entry in book["Documents"]:
         assert entry["purpose"], f"{entry['key']} has no stated purpose"
         assert entry["files"], f"{entry['key']} lists no files"
@@ -206,11 +265,39 @@ def test_every_document_in_every_pack_has_a_stated_purpose():
     """A key added to PACKS without a PURPOSE would print a blank line in the
     manifest, which is how a folder becomes unexplainable."""
     for kind, docs in packaging.PACKS.items():
-        for doc in docs + ["invoice"]:
+        for doc in docs + ["invoice"] + list(packaging.CONDITIONAL):
             assert packaging.PURPOSE.get(doc), f"{doc} ({kind}) has no purpose"
 
 
 def test_every_document_named_in_a_pack_is_a_real_template():
     for kind, docs in packaging.PACKS.items():
-        for doc in docs:
+        for doc in docs + list(packaging.CONDITIONAL):
             assert doc in cli.DOCUMENTS, f"{kind} names {doc!r}, which does not exist"
+
+
+def test_a_pack_carries_what_its_documents_need_to_render(answers, tmp_path):
+    """A pack of HTML with no stylesheet beside it opens as plain text.
+
+    Found 27 August 2026 by the firm, opening one: "these html files are
+    plain text?" Every template links `satc-doc.css` and `doc-page.js` by
+    relative path. The pack copied the documents and not the two files they
+    need, so the folder rendered as an unbroken wall of text -- no masthead,
+    no rules, no layout. With `--no-pdf` that is the whole deliverable.
+
+    NOTHING CAUGHT IT because every other test reads the HTML as a STRING and
+    asserts on its tokens. That is the right way to test a merge and it is
+    blind to whether the result renders at all. This test asks the other
+    question: is the folder complete?
+    """
+    store, out = tmp_path / "store", tmp_path / "pack"
+    ref = _engagement(answers, store)
+    assert _run(ref, store, out) == 0
+    names = {p.name for p in out.iterdir()}
+    for asset in ("satc-doc.css", "doc-page.js"):
+        assert asset in names, (
+            f"the pack has no {asset}, so every document in it opens unstyled"
+        )
+    # and the documents really do ask for them by relative path
+    doc = next(p for p in out.glob("*.html"))
+    html = doc.read_text(encoding="utf-8")
+    assert 'href="satc-doc.css"' in html and 'src="doc-page.js"' in html
