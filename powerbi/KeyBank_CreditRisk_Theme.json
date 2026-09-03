@@ -1,0 +1,221 @@
+{
+  "name": "KeyBank Credit Risk",
+  "$schema": "https://raw.githubusercontent.com/microsoft/powerbi-desktop-samples/main/Report%20Theme%20JSON%20Schema/reportThemeSchema-2.114.json",
+
+  "//": "Source of truth = fdic-peer-monitor/keybank_style.py. Design rule: BLACK grounds, RED leads sparingly, NEUTRALS breathe. RED means 'look here' (alert), never decoration. Heat ramp is brand-muted (NOT Power BI default 63BE7B/F8696B): stress=warm rose E0A6A6, calm=sage BBD3BD, mid=canvas F4F1EC.",
+
+  "dataColors": [
+    "#CC0000",
+    "#16130F",
+    "#57534B",
+    "#960019",
+    "#B9B4AC",
+    "#1E7A47",
+    "#E0A6A6",
+    "#BBD3BD",
+    "#EFD7CF",
+    "#E4DFD5"
+  ],
+
+  "background": "#FFFFFF",
+  "secondaryBackground": "#F4F1EC",
+  "foreground": "#16130F",
+  "foregroundNeutralSecondary": "#57534B",
+  "foregroundNeutralTertiary": "#B9B4AC",
+  "tableAccent": "#CC0000",
+
+  "good": "#1E7A47",
+  "neutral": "#57534B",
+  "bad": "#960019",
+
+  "maximum": "#E0A6A6",
+  "center": "#F4F1EC",
+  "minimum": "#BBD3BD",
+  "null": "#B9B4AC",
+
+  "hyperlink": "#960019",
+  "visualHeaderText": "#57534B",
+
+  "textClasses": {
+    "title": {
+      "fontFace": "Arial",
+      "fontSize": 16,
+      "color": "#16130F"
+    },
+    "header": {
+      "fontFace": "Arial",
+      "fontSize": 11,
+      "color": "#16130F"
+    },
+    "callout": {
+      "fontFace": "Arial",
+      "fontSize": 28,
+      "color": "#16130F"
+    },
+    "label": {
+      "fontFace": "Calibri",
+      "fontSize": 11,
+      "color": "#16130F"
+    }
+  },
+
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          { "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }
+        ],
+        "border": [
+          { "show": true, "color": { "solid": { "color": "#E4DFD5" } }, "radius": 0 }
+        ],
+        "visualHeader": [
+          { "show": true, "background": { "solid": { "color": "#FFFFFF" } }, "foreground": { "solid": { "color": "#57534B" } }, "border": { "solid": { "color": "#E4DFD5" } } }
+        ],
+        "title": [
+          {
+            "show": true,
+            "fontColor": { "solid": { "color": "#FFFFFF" } },
+            "background": { "solid": { "color": "#0A0908" } },
+            "alignment": "left",
+            "fontFamily": "Arial",
+            "fontSize": 12,
+            "bold": true
+          }
+        ],
+        "divider": [
+          { "show": true, "color": { "solid": { "color": "#CC0000" } }, "width": 2 }
+        ]
+      }
+    },
+
+    "page": {
+      "*": {
+        "background": [
+          { "color": { "solid": { "color": "#F4F1EC" } }, "transparency": 0 }
+        ],
+        "outspace": [
+          { "color": { "solid": { "color": "#F4F1EC" } }, "transparency": 0 }
+        ]
+      }
+    },
+
+    "card": {
+      "*": {
+        "labels": [
+          { "color": { "solid": { "color": "#16130F" } }, "fontSize": 28, "fontFamily": "Arial", "bold": true }
+        ],
+        "categoryLabels": [
+          { "show": true, "color": { "solid": { "color": "#57534B" } }, "fontSize": 9, "fontFamily": "Arial", "bold": true }
+        ],
+        "background": [
+          { "show": true, "color": { "solid": { "color": "#F4F1EC" } }, "transparency": 0 }
+        ]
+      }
+    },
+
+    "kpi": {
+      "*": {
+        "indicator": [
+          { "color": { "solid": { "color": "#16130F" } }, "fontFamily": "Arial" }
+        ],
+        "trendline": [
+          { "show": true }
+        ]
+      }
+    },
+
+    "columnChart": {
+      "*": {
+        "dataPoint": [
+          { "defaultColor": { "solid": { "color": "#CC0000" } }, "showAllDataPoints": true }
+        ]
+      }
+    },
+
+    "barChart": {
+      "*": {
+        "dataPoint": [
+          { "defaultColor": { "solid": { "color": "#CC0000" } }, "showAllDataPoints": true }
+        ]
+      }
+    },
+
+    "lineChart": {
+      "*": {
+        "dataPoint": [
+          { "defaultColor": { "solid": { "color": "#CC0000" } } }
+        ]
+      }
+    },
+
+    "filledMap": {
+      "*": {
+        "dataPoint": [
+          {
+            "colorMode": "linear",
+            "minColor": { "solid": { "color": "#BBD3BD" } },
+            "centerColor": { "solid": { "color": "#F4F1EC" } },
+            "maxColor": { "solid": { "color": "#E0A6A6" } },
+            "diverging": true
+          }
+        ]
+      }
+    },
+
+    "shapeMap": {
+      "*": {
+        "dataPoint": [
+          {
+            "colorMode": "linear",
+            "minColor": { "solid": { "color": "#BBD3BD" } },
+            "centerColor": { "solid": { "color": "#F4F1EC" } },
+            "maxColor": { "solid": { "color": "#E0A6A6" } },
+            "diverging": true
+          }
+        ]
+      }
+    },
+
+    "tableEx": {
+      "*": {
+        "grid": [
+          { "gridVertical": true, "gridVerticalColor": { "solid": { "color": "#E7E2D8" } }, "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#E7E2D8" } }, "rowPadding": 3, "outlineColor": { "solid": { "color": "#E4DFD5" } } }
+        ],
+        "columnHeaders": [
+          { "fontColor": { "solid": { "color": "#FFFFFF" } }, "backColor": { "solid": { "color": "#0A0908" } }, "fontFamily": "Arial", "bold": true, "fontSize": 10 }
+        ],
+        "values": [
+          { "fontColorPrimary": { "solid": { "color": "#16130F" } }, "backColorPrimary": { "solid": { "color": "#FFFFFF" } }, "backColorSecondary": { "solid": { "color": "#F4F1EC" } }, "fontFamily": "Calibri", "fontSize": 10 }
+        ]
+      }
+    },
+
+    "pivotTable": {
+      "*": {
+        "grid": [
+          { "gridVertical": true, "gridVerticalColor": { "solid": { "color": "#E7E2D8" } }, "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#E7E2D8" } }, "outlineColor": { "solid": { "color": "#E4DFD5" } } }
+        ],
+        "columnHeaders": [
+          { "fontColor": { "solid": { "color": "#FFFFFF" } }, "backColor": { "solid": { "color": "#0A0908" } }, "fontFamily": "Arial", "bold": true, "fontSize": 10 }
+        ],
+        "rowHeaders": [
+          { "fontColor": { "solid": { "color": "#16130F" } }, "backColor": { "solid": { "color": "#FFFFFF" } }, "fontFamily": "Arial", "bold": true, "fontSize": 10 }
+        ],
+        "values": [
+          { "fontColorPrimary": { "solid": { "color": "#16130F" } }, "backColorPrimary": { "solid": { "color": "#FFFFFF" } }, "backColorSecondary": { "solid": { "color": "#F4F1EC" } }, "fontFamily": "Calibri", "fontSize": 10 }
+        ]
+      }
+    },
+
+    "slicer": {
+      "*": {
+        "header": [
+          { "fontColor": { "solid": { "color": "#16130F" } }, "fontFamily": "Arial", "bold": true, "fontSize": 10 }
+        ],
+        "items": [
+          { "fontColor": { "solid": { "color": "#57534B" } }, "background": { "solid": { "color": "#FFFFFF" } }, "fontFamily": "Calibri" }
+        ]
+      }
+    }
+  }
+}

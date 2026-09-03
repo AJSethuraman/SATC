@@ -44,6 +44,16 @@ PURPOSE = {
     "Crit_Class_Tracker": "Commercial criticized/classified per competitor + 8-K events (EDGAR)",
 }
 
+# The suite's ENTIRE credential surface (user choice: keys live in the
+# workbook _config cells; every runner already reads them). --configure
+# writes a value into every workbook that has the setting.
+CONFIG_KEYS = {
+    "fred_api_key": "FRED API key (free: fredaccount.stlouisfed.org/apikeys) "
+                    "-- used by the FRED + Macro templates",
+    "edgar_user_agent": "SEC fair-access identifier 'YourOrg you@bank.com' "
+                        "-- required by the EDGAR tracker (not a secret)",
+}
+
 # Data hosts per provider, for --doctor (which template needs which host).
 DOCTOR_HOSTS = [
     ("api.stlouisfed.org", "FRED + Macro templates (live FRED pulls)"),
@@ -120,6 +130,67 @@ def read_status(t: Template) -> dict:
     except Exception as exc:
         out["detail"] = f"(status unreadable: {exc})"
     return out
+
+
+def read_setting(t: Template, key: str):
+    """Read one [SETTINGS] value from the workbook's _config tab (or None if
+    the workbook doesn't carry that setting)."""
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(t.xlsm_path, read_only=True)
+        if "_config" not in wb.sheetnames:
+            wb.close()
+            return None
+        ws = wb["_config"]
+        for row in ws.iter_rows(min_col=1, max_col=2):
+            if str(row[0].value).strip() == key:
+                val = "" if row[1].value is None else str(row[1].value).strip()
+                wb.close()
+                return val
+        wb.close()
+    except Exception:
+        pass
+    return None
+
+
+def set_setting(t: Template, key: str, value: str) -> bool:
+    """Write one [SETTINGS] value into the workbook's _config tab. Returns
+    False if the workbook doesn't carry that setting. Close the workbook in
+    Excel first -- this saves the file (keep_vba honored per L2)."""
+    import openpyxl
+    keep = t.xlsm_path.lower().endswith(".xlsm")
+    wb = openpyxl.load_workbook(t.xlsm_path, keep_vba=keep)
+    try:
+        if "_config" not in wb.sheetnames:
+            return False
+        ws = wb["_config"]
+        for row in ws.iter_rows(min_col=1, max_col=1):
+            if str(row[0].value).strip() == key:
+                ws.cell(row[0].row, 2).value = value
+                wb.save(t.xlsm_path)
+                return True
+        return False
+    finally:
+        wb.close()
+
+
+def configure_all(templates, key, value, log=print) -> int:
+    """Write a setting into EVERY workbook that has it (configure once,
+    applied suite-wide)."""
+    if key not in CONFIG_KEYS:
+        log(f"unknown setting '{key}' -- known: {', '.join(CONFIG_KEYS)}")
+        return 2
+    hits = 0
+    for t in templates:
+        try:
+            if set_setting(t, key, value):
+                log(f"[{t.name}] {key} set")
+                hits += 1
+        except Exception as exc:
+            log(f"[{t.name}] FAILED ({exc}) -- is the workbook open in Excel?")
+    if hits == 0:
+        log(f"no discovered workbook carries '{key}'")
+    return 0 if hits else 1
 
 
 # --------------------------------------------------------------------------
@@ -214,7 +285,24 @@ def doctor(root=".", log=print) -> int:
     log(f"workbooks: {len(ts)} discovered under {os.path.abspath(root)}")
     for t in ts:
         log(f"  - {t.name}")
-    # 3. data-host reachability (LIVE pulls only; demo mode needs no network)
+    # 3. credentials (the whole surface: one free key + one identifier)
+    log("credentials (live mode only; demo needs none):")
+    for key, why in CONFIG_KEYS.items():
+        holders = [(t, read_setting(t, key)) for t in ts]
+        holders = [(t, v) for t, v in holders if v is not None]
+        if not holders:
+            continue
+        env_note = ""
+        if key == "fred_api_key" and os.environ.get("FRED_API_KEY"):
+            env_note = " (FRED_API_KEY env var IS set -- cells optional)"
+        for t, v in holders:
+            state = "SET" if v else "blank"
+            log(f"  {key:<18} {state:<6} in {t.name}{env_note}")
+        if any(not v for _, v in holders) and not env_note:
+            log(f"      -> fix once for all: python control_center.py "
+                f"--configure {key} \"<value>\"   ({why})")
+    log("  (FDIC, CFPB and NY Fed HHDC templates need NO credentials)")
+    # 4. data-host reachability (LIVE pulls only; demo mode needs no network)
     log("data hosts (live mode; demo mode works regardless):")
     import urllib.request
     for host, needed_by in DOCTOR_HOSTS:
@@ -260,6 +348,9 @@ def cli(argv):
     ap.add_argument("--tieout", nargs=2, metavar=("NAME", "ENTITY"),
                     help="verification: values beside their official document locations")
     ap.add_argument("--extract", metavar="NAME", help="extract a template's runner.py and exit")
+    ap.add_argument("--configure", nargs=2, metavar=("KEY", "VALUE"),
+                    help="write a setting into EVERY workbook that has it "
+                         "(keys: " + ", ".join(CONFIG_KEYS) + ")")
     ap.add_argument("--demo", action="store_true", help="offline deterministic demo data")
     args = ap.parse_args(argv)
 
@@ -279,6 +370,8 @@ def cli(argv):
     if args.extract:
         print(extract_runner(_resolve(args.extract, templates)))
         return 0
+    if args.configure:
+        return configure_all(templates, args.configure[0], args.configure[1])
     if args.tieout:
         t = _resolve(args.tieout[0], templates)
         return run_tieout(t, args.tieout[1], demo=args.demo)
@@ -408,6 +501,36 @@ def gui(templates, root):
     def do_doctor():
         in_thread(lambda: doctor(root, log=lambda m: win.after(0, log, m)))
 
+    def do_configure():
+        # The suite's whole credential surface is two values; ask for both,
+        # write each into every workbook that carries it. Blank = skip.
+        current_fred = next((read_setting(t, "fred_api_key") for t in templates
+                             if read_setting(t, "fred_api_key") is not None), "")
+        current_ua = next((read_setting(t, "edgar_user_agent") for t in templates
+                           if read_setting(t, "edgar_user_agent") is not None), "")
+        fred = simpledialog.askstring(
+            APP_TITLE, "FRED API key (free at fredaccount.stlouisfed.org/"
+            "apikeys)\nApplied to every workbook that uses FRED.\n"
+            "Leave blank to keep current.", initialvalue=current_fred or "")
+        ua = simpledialog.askstring(
+            APP_TITLE, "EDGAR user agent -- 'YourOrg you@bank.com' (SEC "
+            "fair-access rule, not a secret).\nLeave blank to keep current.",
+            initialvalue=current_ua or "")
+
+        def work():
+            wrote = False
+            if fred:
+                configure_all(templates, "fred_api_key", fred,
+                              log=lambda m: win.after(0, log, m))
+                wrote = True
+            if ua:
+                configure_all(templates, "edgar_user_agent", ua,
+                              log=lambda m: win.after(0, log, m))
+                wrote = True
+            win.after(0, log, "configure: done -- live refreshes are ready"
+                      if wrote else "configure: nothing changed")
+        in_thread(work)
+
     def do_open():
         t = selected()
         if not t:
@@ -425,6 +548,7 @@ def gui(templates, root):
             ("Refresh (Live)", lambda: do_run(False), KEY_RED),
             ("Refresh ALL (Demo)", lambda: do_run(True, everything=True), INK),
             ("Tie-out / verify...", do_tieout, SLATE),
+            ("Configure keys...", do_configure, SLATE),
             ("Doctor (env check)", do_doctor, SLATE),
             ("Open folder", do_open, SLATE)]:
         b = tk.Button(btns, text=label, command=cmd, bg=accent, fg="white",
