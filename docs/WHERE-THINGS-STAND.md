@@ -91,6 +91,26 @@ today.
 
 ---
 
+## The Forge
+
+The firm's own hardware is up as of 3 September 2026, and the work is moving
+onto it: **real client data lives there and the practice runs there.** The code
+keeps travelling by git — GitHub is the backup and the branch/PR workflow does
+not change. Claude connects over Remote Control, so the filesystem and the
+network are the firm's own rather than a rented container's.
+
+`docs/forge-first-run.md` is the survey the first session on that machine runs:
+measure what the machine actually is, then the whole suite, then say plainly
+what was not checked.
+
+**One live risk, recorded rather than left as a question.** Asked what backs up
+the client data, the answer was *nothing yet* — a Storage Spaces mirror and no
+more. A mirror survives a failed disk; it does not survive a fire, a theft, a
+ransomware run, or the wrong folder being deleted. **Git backs up the code and
+nothing backs up the clients.** The firm has chosen to prove the suite runs
+first, which is the right order — this is written down so the sequence is a
+decision rather than an omission.
+
 ## Waiting on the firm
 
 1. The **production Square location id** (above).

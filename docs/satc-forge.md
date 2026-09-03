@@ -4,9 +4,12 @@ The firm's own hardware, and the intended home for SATC workloads. Written
 down on 26 August 2026 because it appeared nowhere in this repository and an
 agent searching for it found only four hits, all about email forgery.
 
-**It is not up right now.** The firm: *"we can get more info later when i have
-it back up and running."* Everything below is the firm's description, recorded
-as given. Nothing here has been verified against a running machine.
+**It is up, as of 3 September 2026.** The firm: *"the forge is up and
+operational."* Everything below is still the firm's description as given on
+26 August; **nothing here has been verified against the running machine yet.**
+`docs/forge-first-run.md` is the survey that will replace this section with
+measurements, and until it has been run, treat every specification below as
+reported rather than confirmed.
 
 ---
 
@@ -77,13 +80,50 @@ can fall back to a big one.
 
 ---
 
+## Answered, 3 September 2026
+
+**The Forge is where the practice runs.** Asked whether real client data lives
+there or whether it is a test rig on synthetic data, the firm chose the first:
+the real leads workbook and real engagements. That settles two of the questions
+below at once — client documents live there, and the machine serves the firm
+rather than merely hosting a sandbox.
+
+What that changes for anything working on that machine:
+
+- `client-documents/leads.xlsx` and `client-documents/engagements/` hold real
+  names, emails, phone numbers and engagements. They are gitignored on purpose.
+  **Never commit them, never copy a real value into a test fixture, a sample,
+  an artifact or a commit message.**
+- A test run that globs the engagement store will walk real clients. Point
+  tests at a temporary store, never at the live one.
+- The rule about masked/last-4 values in `CLAUDE.md` stops being a design
+  intention on that machine and starts being the thing standing between a real
+  taxpayer's TIN and a log file.
+
+## THE BACKUP GAP, WHICH IS NOW A LIVE RISK AND NOT AN OPEN QUESTION
+
+Asked what backs up the client data, the firm's answer was **nothing yet** —
+the Storage Spaces mirror is all there is.
+
+Written plainly because it stopped being hypothetical the moment real client
+data moved onto the machine: **git backs up the code and nothing backs up the
+clients.** A mirror survives a failed disk. It does not survive a fire, a
+theft, a ransomware run, or somebody deleting the wrong folder — and the two
+things it does not survive are the two that take the whole practice with them.
+
+The firm has chosen to run the suite on the Forge first, which is the right
+order for proving the machine works. This is recorded so that it is a decision
+about sequence rather than something that quietly never happened.
+
+What a real answer needs, when it is time: off-machine, encrypted, automatic,
+and a restore that has actually been performed. A backup nobody has restored
+from is a hope.
+
 ## What is still unknown
 
-- Whether the Forge is meant to **serve** the software to the firm's own
-  machines, or just to **host** the agent sandbox and the vault.
-- Whether client documents are meant to live there, or only the vault.
-- What the backup story is beyond the Storage Spaces mirror — a mirror
-  survives a disk, not a fire or a mistake.
 - Whether anything is expected to be reachable from outside Tailscale.
+- Whether the Forge's Claude Code sandbox is Windows or a Linux guest — which
+  decides half the tooling questions and is the first thing the survey answers.
+- Which Ollama model is pulled, and at what quantisation.
 
 Ask before designing against any of these.
