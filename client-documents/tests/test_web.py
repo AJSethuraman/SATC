@@ -732,12 +732,23 @@ def test_the_failed_checks_come_before_the_green_ones_on_the_page(
         client, answers, monkeypatch):
     """The terminal prints the check list and then the refusal under it. On a
     page that ordering puts the thing you have to act on below a wall of
-    green."""
+    green.
+
+    ANCHORED ON STRUCTURE, NOT ON COPY. This looked for the literal string
+    `check(s) failed`, and the headline became `2 checks stopped it` when the
+    bracket-s plurals went -- so a wording change broke a test about ORDERING,
+    which is not what it is here to hold. The refusal block and the table of
+    every check are the two things whose order matters; their labels are free
+    to improve.
+    """
     ref = _an_engagement(client, answers)
     _gate_that_blocks(monkeypatch)
     page = client.post(f"/engagement/{ref}/package",
                        data={}).get_data(as_text=True)
-    assert page.index("check(s) failed") < page.index("Before sending")
+    assert "class=hardno" in page, "nothing on the page says it was refused"
+    assert "plain checks" in page, "the table of every check is missing"
+    assert page.index("class=hardno") < page.index("plain checks"), \
+        "the wall of green came before the thing you have to act on"
     assert "name=reason" in page, "no way to override, and no way to ask why"
 
 
