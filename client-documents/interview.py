@@ -46,7 +46,9 @@ class InterviewError(RuntimeError):
 # ── the schema ─────────────────────────────────────────────────────────────
 
 def load_schema(path: Path | str = SCHEMA) -> dict:
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    schema = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    check_types(schema)
+    return schema
 
 
 def all_questions(schema: dict):
@@ -258,6 +260,33 @@ def _collapse(question: dict, value):
         distinct = list(dict.fromkeys(value))
         return distinct[0] if len(distinct) == 1 else None
     return value
+
+
+# ── the types a question may declare ───────────────────────────────────────
+#
+# WRITTEN DOWN SO A TYPO CANNOT BE SILENT. Two questions declared
+# `type: integer`, which no code in this repository handles: `coerce` fell
+# through to its string branch and `question_body` rendered a free-text box
+# where a count belonged. It priced correctly by luck -- `pricing._count` calls
+# `int()` on the way past -- and it blinded the dead-condition sweep, which
+# generates numeric probes only for `type: number`.
+#
+# Nothing caught it because nothing was looking. `check_types` is what looks.
+TYPES = {"single", "multi", "list", "number", "year", "text", "textarea"}
+
+
+def check_types(schema: dict) -> None:
+    """Every question declares a type this engine implements. Raises if not."""
+    unknown = sorted({
+        f"{q['id']}: {q.get('type')!r}"
+        for _, q in all_questions(schema) if q.get("type") not in TYPES
+    })
+    if unknown:
+        raise InterviewError(
+            "the schema declares types this engine does not implement -- "
+            + "; ".join(unknown)
+            + f". Known types: {', '.join(sorted(TYPES))}. A type nothing "
+              f"handles renders as a text box and is swept blind.")
 
 
 # ── what the answers imply ─────────────────────────────────────────────────
@@ -538,6 +567,14 @@ class Interview:
             raise InterviewError(
                 f"{qid} needs a tax year between "
                 f"{now - deadlines.YEARS_BACK} and {now + deadlines.YEARS_FORWARD}")
+        # A SHAPE THE QUESTION DECLARES. `client_email` and `client_zip` were
+        # free text, and the way a mistyped email fails is silent -- the
+        # signing invitation simply never arrives. `pattern_says` carries what
+        # the shape IS, because a regex is not an error message.
+        if q.get("pattern") and isinstance(value, str) and value.strip():
+            if not re.match(q["pattern"], value.strip()):
+                raise InterviewError(
+                    f"{qid} should be {q.get('pattern_says') or 'a valid value'}")
         if value not in (None, "", []) and not is_offered(q, value):
             # THE REFUSAL MUST NOT REPEAT WHAT WAS SENT. The first version of
             # this message quoted the rejected value, which reads as helpful

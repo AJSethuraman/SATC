@@ -1024,7 +1024,9 @@ def _plausible_answer(q):
         return max(1, q.get("min") or 1)
     if q["type"] == "list":
         return ["Ohio - resident"]
-    return "x"
+    # A question that declares a shape needs an answer of that shape; "x" is
+    # refused by `client_email` and `client_zip`.
+    return {"client_email": "t@example.com", "client_zip": "44139"}.get(q["id"], "x")
 
 
 def test_the_count_follows_the_list_it_comes_from():
@@ -1077,3 +1079,76 @@ def test_answers_arriving_the_back_way_are_still_derived():
     iv.derive(answers)
     assert "E1" in answers["federal_schedules"], "the rental schedule"
     assert answers["count_states"] == 1
+
+
+# ── F6, F8, F12 ────────────────────────────────────────────────────────────
+
+
+def test_every_question_declares_a_type_this_engine_implements():
+    """F6. Two questions declared `type: integer`, which nothing handles.
+
+    `coerce` fell through to its string branch and the preparer got a free-text
+    box where a count belonged. It priced correctly only because
+    `pricing._count` calls `int()` on the way past, and it blinded the
+    dead-condition sweep, which probes only `type: number`.
+    """
+    iv.check_types(iv.load_schema())          # raises if any type is unknown
+
+
+def test_an_unknown_type_is_loud_rather_than_a_text_box():
+    """The half that matters more: the whole CLASS of typo becomes an error."""
+    schema = {"sections": [{"id": "s", "title": "s", "questions": [
+        {"id": "q", "question": "?", "type": "intger"}]}]}
+    with pytest.raises(iv.InterviewError) as raised:
+        iv.check_types(schema)
+    assert "intger" in str(raised.value)
+    assert "number" in str(raised.value), "say what the known types are"
+
+
+def test_a_c_corporation_is_not_asked_whether_it_sold_a_home():
+    """F8. `extra_forms` had no `showIf` at all, so every option -- home sale,
+    HSA, marketplace insurance, a pre-59.5 withdrawal -- was put to a 1120.
+
+    The dead-condition sweep could not find this: a question with no condition
+    is filed under `always` and never examined.
+    """
+    for entity in ("1120", "1120S", "1065"):
+        session = iv.Interview()
+        session.answer("federal_form", entity)
+        assert not iv.visible(session.question("extra_forms"), session.answers), entity
+
+    individual = iv.Interview()
+    individual.answer("federal_form", "1040")
+    assert iv.visible(individual.question("extra_forms"), individual.answers)
+
+
+@pytest.mark.parametrize("bad", ["not-an-email", "a@b", "@b.co", "a b@c.com"])
+def test_an_email_that_cannot_be_one_is_refused(bad):
+    """F12. A mistyped address fails silently -- the signing invitation simply
+    never arrives -- so the shape is checked where it is typed."""
+    session = iv.Interview()
+    with pytest.raises(iv.InterviewError):
+        session.answer("client_email", bad)
+
+
+def test_the_email_refusal_says_what_the_shape_is_not_the_regex():
+    session = iv.Interview()
+    with pytest.raises(iv.InterviewError) as raised:
+        session.answer("client_email", "nope")
+    said = str(raised.value)
+    assert "name@example.com" in said
+    assert "^" not in said, "a regex is not an error message"
+
+
+@pytest.mark.parametrize("good", ["44139", "44139-1234"])
+def test_a_real_zip_is_accepted(good):
+    session = iv.Interview()
+    session.answer("client_zip", good)
+    assert session.answers["client_zip"] == good
+
+
+@pytest.mark.parametrize("bad", ["4413", "abcde", "44139-12"])
+def test_a_zip_that_cannot_be_one_is_refused(bad):
+    session = iv.Interview()
+    with pytest.raises(iv.InterviewError):
+        session.answer("client_zip", bad)

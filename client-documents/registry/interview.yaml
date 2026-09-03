@@ -220,6 +220,8 @@ sections:
         question: "ZIP"
         type: text
         required: true
+        pattern: '^[0-9]{5}(-[0-9]{4})?$'
+        pattern_says: "a ZIP code, like 44139 or 44139-1234"
         supplies: [ClientZip]
         notes: "Not collected by the website intake."
 
@@ -228,6 +230,12 @@ sections:
         help: "Printed on the onboarding letter. The secure upload link goes to this address, and so does the Encyro invitation to sign."
         type: text
         required: true
+        # A SHAPE CHECK, NOT A DELIVERABILITY CHECK. The realistic error is a
+        # slip at the keyboard while a client reads the address out, and the
+        # way it fails is silent: the signing invitation simply never arrives.
+        # Anything stronger belongs to whatever actually sends the mail.
+        pattern: '^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$'
+        pattern_says: "an email address, like name@example.com"
         prefill: contact.email
         supplies: [ClientEmail]
 
@@ -674,7 +682,17 @@ sections:
       # Every option names something that HAPPENED, which is the same test
       # every other gate here passes: a client knows whether they sold a
       # house. They do not know whether their return is complicated.
+      # INDIVIDUALS ONLY. Every option here is a personal event -- a home
+      # sale, an HSA, marketplace insurance, a pre-59.5 withdrawal -- and a
+      # 1120 sitting was asked about all of them. The firm's own tenet, quoted
+      # at the top of `elimination.py`: "if something is not applicable why
+      # would you want to answer questions around it".
+      #
+      # The dead-condition sweep could not have found this: a question with no
+      # `showIf` is filed under `always` and never examined. It took driving a
+      # real 1120 sitting to see it.
       - id: extra_forms
+        showIf: "federal_form == '1040'"
         question: "Did any of these happen last year?"
         help: >
           Each one adds a form to the return and $50 to the fee. Tick what
@@ -799,7 +817,7 @@ sections:
           the hourly list on 25 August 2026 and onto the counted list at $45 a
           statement, with the first one inside the package. It still selects
           the forms and builds the document request as well.
-        type: integer
+        type: number
         showIf: "'D' in federal_schedules"
         supplies: []
         feeds: LineItems
@@ -829,7 +847,7 @@ sections:
 
           Federal and any state that will not honour the federal extension
           count separately, because each is its own computation.
-        type: integer
+        type: number
         supplies: []
         internal: true
         internal_reason: >-

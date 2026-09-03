@@ -30,12 +30,9 @@ reason on every item:
 | # | Defect | Costs | State |
 |---|---|---|---|
 | **F14** | `POST /interview/<sid>` still carries no question id, so a resubmit is applied to whatever question is current when it lands. No longer able to store a wrong *value* (F2 refuses it), but on a free-text question — a name, a note — there are no options to check against, so it can still overwrite the wrong field | wrong document | open, split from F1 |
-| **F6** | `type: integer` (`count_brokerages`, `count_extension_estimates`) is a type no code in the repo handles. Prices correctly only by luck; renders a text box for a count; blinds the dead-condition sweep, which probes only `type: number` | latent | queued |
-| **F8** | `extra_forms` has no `showIf`, so a 1120 is asked whether it sold a home. The dead-condition sweep cannot catch it — an unconditional question is filed under `always` and never examined | annoyance | queued |
 | **F9** | `test_coverage.py:86-99` asserts a `1120` produces `business-letter`; `cli.py:126-131` sends a C corp to `ccorp-letter`. Passes only because the test hand-writes two answers a real 1120 sitting prunes. **The live path is fine** — I drove a real 1120 end to end | test integrity | queued |
 | **F10** | A draft is deleted only when an engagement is created. A decline or an abandoned call leaves name, address and email in cleartext JSON indefinitely — in a folder that now syncs to OneDrive. TINs are already refused on every write; names are not | PII retention | awaiting decision **C** (retention period) |
 | **F11** | The PRD describes seven sections with red flags at six; the schema has nine with red flags second, plus three sections the PRD never mentions. PRD requirement 8 is that someone can build the Microsoft Form from it — today they would build the wrong one | doc drift | queued |
-| **F12** | `client_email` and `client_zip` are unvalidated. The email question's own help says the signing invitation goes to that address | low | queued |
 
 **Not one of the thirteen was covered by an existing test.** That is the number
 worth remembering: the suite was 1,362 green and knew about none of it. It is
@@ -106,6 +103,20 @@ Note the direction, because `schedules.py` warns against the opposite:
 deriving a *schedule* from a *count* is wrong, since a count can be blank while
 the thing exists. Deriving a count from a *list* is safe — the list is the
 enumeration, so its length is exact and cannot be blank-but-true.
+
+### 3 September 2026 — a type nothing understood, a question nobody should see, and two shapes
+
+| # | Defect | Closed by |
+|---|---|---|
+| **F6** | `type: integer` on two questions was a type no code in the repo handled — free-text box for a count, and invisible to the dead-condition sweep, which probes only `type: number` | Both changed to `number`, and `check_types()` now runs at every `load_schema()`. The whole class of typo is an error at load rather than a wrong input box nobody notices |
+| **F8** | `extra_forms` had no `showIf`, so a 1120 was asked about home sales, HSAs, marketplace insurance and pre-59½ withdrawals | `showIf: federal_form == '1040'`. The sweep could never have found it — an unconditional question is filed under `always` and never examined |
+| **F12** | `client_email` and `client_zip` were unvalidated, and a mistyped address fails silently: the signing invitation just never arrives | A `pattern` the question declares, with `pattern_says` carrying the human sentence — because a regex is not an error message |
+
+**The test helpers had to learn the new shapes**, in two files, and that is worth
+recording: `_plausible` returned `"x"` for anything textual, so every walk
+stalled at the first question with a `pattern`. The fix tries stock values
+against the pattern rather than mapping question ids, so the next question to
+grow one does not silently stall every walk again.
 
 ### The year window, and why it is not three
 

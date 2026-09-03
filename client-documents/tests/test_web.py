@@ -13,6 +13,7 @@ own source and fails if a decision is ever written into it.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 import sys
 from pathlib import Path
@@ -67,7 +68,18 @@ def _plausible(q):
     # `tax_year` and the tests read a `question` key that never arrives.
     if q["type"] == "year":
         return date.today().year
-    return 1 if q["type"] == "number" else "x"
+    if q["type"] == "number":
+        return max(1, q.get("min") or 1)
+    # A question that declares a shape refuses "x". Try stock values and hand
+    # back the first that fits, rather than mapping ids -- so the next question
+    # to grow a `pattern` does not silently stall every walk in this file.
+    if q.get("pattern"):
+        for candidate in ("t@example.com", "44139", "2025-01-01", "555-0100"):
+            if re.match(q["pattern"], candidate):
+                return candidate
+        raise AssertionError(
+            f"{q['id']} declares a pattern no stock value matches; add one here")
+    return "x"
 
 
 def answer_next(client, sid, value):
