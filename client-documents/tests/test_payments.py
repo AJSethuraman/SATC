@@ -974,3 +974,84 @@ def test_the_check_refuses_a_name_it_cannot_fill(monkeypatch, approved):
     assert link is None
     assert not steps[-1].ok
     assert "SomethingNobodyProvides" in steps[-1].detail
+
+
+# ── money arriving is a tender, not a word ────────────────────────────────
+#
+# THE FIRM PAID THE SANDBOX LINK ON 2 SEPTEMBER 2026 and Square's own testing
+# panel reported, in this order: "Your test payment was successful",
+# "Tender.id: Added to Order", "Order state: OPEN". `paid` asked only whether
+# the state read `COMPLETED`, so a bill the firm HAD been paid for would have
+# been reported unpaid for ever -- and `signing.may_file` would have gone on
+# refusing to clear a return whose invoice was settled.
+
+
+def test_a_charged_card_counts_even_when_the_order_says_open():
+    """The observed case. `OPEN` with a tender is a link somebody paid."""
+    got = payments.Settlement("ORD1", "OPEN", 64500, "2027-03-04",
+                              tendered_cents=64500)
+    assert got.paid and got.arrived_cents == 64500
+
+
+def test_an_order_nobody_paid_is_not_paid_whatever_it_is_called():
+    for state in ("DRAFT", "OPEN", "CANCELED", ""):
+        assert not payments.Settlement("ORD1", state, 64500).paid, state
+
+
+def test_completed_still_counts_on_its_own():
+    """An order can be closed without this seeing its tenders."""
+    assert payments.Settlement("ORD1", "COMPLETED", 64500).paid
+
+
+def test_an_open_order_with_a_tender_settles_its_bill(tmp_path):
+    """End to end, on the shape Square actually returned."""
+    bill = _bill(tmp_path, due="$645.00")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "OPEN", 64500, "2027-03-04",
+                                  tendered_cents=64500))
+    assert posted.settled
+    assert json.loads(bill.read_text(encoding="utf-8"))["SettledOn"] == "2027-03-04"
+
+
+def test_a_tender_that_does_not_cover_the_bill_still_does_not_settle_it(tmp_path):
+    """Trusting the tender is not a loosening: money arriving and money
+    covering the bill are still two different questions."""
+    bill = _bill(tmp_path, due="$745.00")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "OPEN", 74500, "2027-03-04",
+                                  tendered_cents=64500))
+    assert not posted.settled and posted.short
+    assert "SettledOn" not in json.loads(bill.read_text(encoding="utf-8"))
+
+
+def test_the_check_number_does_not_stutter_the_firms_name(monkeypatch, approved):
+    """`link_name` is `SATC <<InvoiceNumber>>`, so a number starting `SATC-`
+    reads `SATC SATC-CHECK-...` on a payer's card statement."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    reg = json.loads(json.dumps(approved))
+    reg["link_name"] = payments.settings().get("link_name", "")
+    console = Console()
+    payments.live_check(sandbox=True, reg=reg, transport=console)
+    name = next(b["quick_pay"]["name"] for _, url, b in console.calls
+                if url.endswith("/payment-links"))
+    assert "SATC SATC" not in name, name
+
+
+def test_a_reused_key_says_what_it_means(monkeypatch, approved):
+    """The key is the day, so a link already made today cannot be remade with
+    different wording. That is not a fault in the payment path, and a bare 400
+    left somebody staring at it."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+
+    def clash(method, url, headers, body):
+        if url.endswith("/v2/locations"):
+            return {"locations": [{"id": "LOC1-SANDBOX", "name": "SAT-C LLP"}]}
+        raise payments.PaymentError(
+            "the payment processor refused: 400 — This idempotency key has "
+            "already been used to create a Payment Link.", code=400)
+
+    steps, link, _ = payments.live_check(sandbox=True, reg=approved,
+                                         transport=clash)
+    assert link is None and not steps[-1].ok
+    assert "already made today" in steps[-1].detail
+    assert "Nothing is wrong with the payment path" in steps[-1].detail

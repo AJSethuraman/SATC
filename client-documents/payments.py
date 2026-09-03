@@ -50,17 +50,22 @@ from typing import Callable
 CONFIRM = re.compile(r"\[CONFIRM:\s*(.*?)\s*\]", re.S)
 _TOKEN = re.compile(r"<<(\w+)>>")
 
-# States a Square order reaches. `COMPLETED` is the only one that means money
-# arrived, and reading any other as paid would mark a bill settled because
-# somebody looked at the page.
+# THE STATES OBSERVED, and the reason no state is trusted on its own.
 #
-# AN UNPAID QUICK-PAY LINK READS `DRAFT`, not `OPEN`. Observed against the live
-# sandbox on 2 September 2026 -- the first run of this code that ever reached
-# Square returned `order CAcLRdwVCq... reads DRAFT`. This comment said `OPEN`,
-# which was written from the API documentation rather than from a reply, and
-# named a state this flow does not produce. The behaviour was right either way
-# because only `COMPLETED` is ever treated as paid, and that is the point of
-# allowing exactly one state rather than excluding the ones we expect.
+# Against the live sandbox, 2-3 September 2026, one quick-pay link went:
+#   DRAFT      made, nobody has been near it
+#   OPEN       a card was charged; Square's panel reported "Your test payment
+#              was successful" and "Tender.id: Added to Order" in the same breath
+# `COMPLETED` never appeared. This constant was written from the API docs, and
+# twice in two days a comment here asserted a state's meaning from one reading
+# rather than from a reply -- first that an unpaid link reads `OPEN` (it reads
+# `DRAFT`), then that `OPEN` is a state this flow does not produce (it is the
+# state a PAID link sits in).
+#
+# So the answer is not a better guess at the vocabulary. `Settlement.paid` asks
+# whether a TENDER exists -- whether somebody's card was actually charged --
+# and treats `COMPLETED` as sufficient but not necessary. A label can be
+# renamed by the processor; money changing hands cannot.
 PAID = "COMPLETED"
 
 
@@ -127,7 +132,26 @@ class Settlement:
 
     @property
     def paid(self) -> bool:
-        return self.state == PAID
+        """Did money actually come in.
+
+        A TENDER IS MONEY; A STATE IS A LABEL. This asked only whether the
+        order read `COMPLETED`, and the firm's own paid sandbox link came back
+        `OPEN` with a tender on it -- Square's testing panel said, in order,
+        "Your test payment was successful", "Tender.id: Added to Order",
+        "Order state: OPEN". So a bill the firm HAD been paid for would have
+        been reported unpaid, for ever, and `signing.may_file` would have gone
+        on refusing to clear a return whose invoice was settled.
+
+        `COMPLETED` still counts on its own, because an order can be closed
+        without this seeing its tenders. But a tender is the thing that means
+        somebody's card was charged, and it is now enough by itself.
+
+        THIS IS NOT A LOOSENING. Settling a bill takes more than money
+        arriving: `record_settlement` compares what arrived to what was owed
+        and refuses to settle a short payment. This says money came in; that
+        says whether it covered the bill.
+        """
+        return self.state == PAID or self.tendered_cents > 0
 
     @property
     def arrived_cents(self) -> int:
@@ -635,7 +659,11 @@ class Step:
     detail: str = ""
 
 
-CHECK_PREFIX = "SATC-CHECK-"
+# NOT "SATC-CHECK-". The firm's `link_name` is `SATC <<InvoiceNumber>>`, so a
+# number beginning `SATC-` renders as `SATC SATC-CHECK-2026-09-03` on the very
+# line a payer reads on their card statement. The firm's name belongs to the
+# name template; this is only the number.
+CHECK_PREFIX = "CHECK-"
 
 # HOW MANY STEPS THE LOOP HAS, stated once. `live_check` returns only the steps
 # it REACHED, and a caller has to be able to say "3 of 7" rather than "3 of 3"
@@ -840,8 +868,17 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
                        _check_record(number)),
             today=today)
     except PaymentError as exc:
-        steps.append(Step("a client can be given something to pay", False,
-                          str(exc)))
+        said = str(exc)
+        if "idempotency" in said.lower():
+            # THE KEY IS THE DAY, so a check link made earlier today cannot be
+            # remade with different wording -- Square keeps the first one. It
+            # is not a fault in the payment path and it clears at midnight; the
+            # message used to leave somebody staring at a bare 400.
+            said += (f" A check link was already made today, and Square keeps "
+                     f"the first one for a given number. Nothing is wrong with "
+                     f"the payment path — open the link from the earlier run, "
+                     f"or run this again tomorrow.")
+        steps.append(Step("a client can be given something to pay", False, said))
         return steps, None, None
     steps.append(Step("a client can be given something to pay", True,
                       f"a ${amount_cents / 100:,.2f} link at {link.url}"))
