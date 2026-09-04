@@ -14,6 +14,9 @@ editor would write them.
 from __future__ import annotations
 
 import json
+import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,12 +29,6 @@ import check_record  # noqa: E402
 
 
 # ── the record is a record ────────────────────────────────────────────────
-
-def test_the_plugin_manifest_is_valid_and_names_canon():
-    got = json.loads((CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    assert got["name"] == "canon"
-    assert got["description"].strip()
-
 
 def test_every_skill_is_one_the_harness_can_load():
     """Written over the whole directory rather than over `bassy` alone. It was
@@ -163,3 +160,68 @@ def test_the_real_record_is_clean():
     assert files >= 5, f"it only examined {files} files; something is excluded"
     assert size > 10_000, "it examined almost nothing"
     assert bad == [], f"canon carries something it must not:\n{bad}"
+
+
+# ── the manifest, checked by the thing that decides ───────────────────────
+
+def _claude_cli() -> str | None:
+    return shutil.which("claude")
+
+
+def test_the_manifest_says_valid_by_our_own_reading():
+    """Always runs, even where the CLI is absent, so this file never becomes a
+    check that examined nothing (S2).
+
+    The specific shape below is not decoration: `author` was a plain string and
+    the real installer rejected it -- `expected object, received string` -- on
+    the first attempt to install canon anywhere. The test beside it asserted
+    the manifest was "valid" and had only ever checked that the JSON parsed.
+    """
+    got = json.loads((CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert got["name"] == "canon"
+    assert got["description"].strip()
+    assert isinstance(got.get("author"), dict), \
+        "author is an object in the manifest schema, not a string"
+    assert got["author"].get("name"), "an author object with no name"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", got.get("version", "")), \
+        "version must be semver for a marketplace entry"
+
+
+def test_the_installer_itself_accepts_the_manifest():
+    """The real validator, not our reading of it. Skipped where the CLI is not
+    installed -- and the skip says so out loud rather than passing quietly."""
+    cli = _claude_cli()
+    if not cli:
+        pytest.skip("the `claude` CLI is not on PATH, so the REAL validator did "
+                    "not run here; only our own reading of the schema did")
+    got = subprocess.run([cli, "plugin", "validate", str(CANON)],
+                         capture_output=True, text=True, timeout=120)
+    assert got.returncode == 0, got.stdout + got.stderr
+    assert "Validation passed" in got.stdout
+
+
+def test_the_marketplace_lists_canon_and_the_installer_accepts_it():
+    """The marketplace lives one level up, outside `canon/`, which is the one
+    place that is allowed to know canon exists: it is what makes the plugin
+    installable from any other repository. canon still reaches nothing above
+    itself.
+    """
+    market = CANON.parent / ".claude-plugin" / "marketplace.json"
+    if not market.is_file():
+        # canon has been lifted out, which is what it is built for. The
+        # marketplace belongs to whatever repository is now offering it, and
+        # this copy is in no position to check one it does not own.
+        pytest.skip("no marketplace above this copy — canon has been lifted "
+                    "out, and the marketplace belongs to its new home")
+    got = json.loads(market.read_text(encoding="utf-8"))
+    entry = next(p for p in got["plugins"] if p["name"] == "canon")
+    assert entry["source"] == "./canon"
+    assert isinstance(got["owner"], dict)
+
+    cli = _claude_cli()
+    if not cli:
+        pytest.skip("the `claude` CLI is not on PATH, so the REAL validator did "
+                    "not run over the marketplace")
+    ran = subprocess.run([cli, "plugin", "validate", str(CANON.parent)],
+                         capture_output=True, text=True, timeout=120)
+    assert ran.returncode == 0, ran.stdout + ran.stderr

@@ -18,6 +18,13 @@ WHAT IT DOES NOT PROVE, said plainly. That a Claude Code harness elsewhere
 loads the plugin. Nothing here reaches a harness. It proves the record loads,
 the challenge fires, the guards hold and the tests pass with no SATC anywhere
 above them — which is the half that is this repository's to keep true.
+
+The other half WAS observed by hand on 4 September 2026 and is not covered
+here: canon installed from a marketplace at user scope, and a session started
+in an unrelated git repository saw `canon:bassy`, `canon:how-we-work`,
+`canon:canon-mine` and `canon:canon-adopt`, read `CONVICTIONS.md`, and
+challenged a push-to-main by quoting C2 back verbatim. Observed once, by a
+person, is a weaker thing than a test, and it is recorded as such.
 """
 from __future__ import annotations
 

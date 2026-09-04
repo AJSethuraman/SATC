@@ -21,6 +21,12 @@ sys.path.insert(0, str(CANON))
 SKILL = CANON / "skills" / "how-we-work" / "SKILL.md"
 TEXT = SKILL.read_text(encoding="utf-8")
 
+# PROSE ASSERTIONS RUN AGAINST THE UNWRAPPED TEXT. A sentence in a Markdown
+# file wraps wherever it wraps, and a test that fails because a phrase crossed
+# a line break has found nothing -- it just costs a cycle and trains whoever
+# hits it to reach for the assertion rather than the file.
+FLAT = " ".join(TEXT.split())
+
 HEAD = re.compile(r"^## (\d+) · (.+)$", re.M)
 
 
@@ -70,19 +76,26 @@ def test_the_skill_is_written_to_load_without_being_asked_for():
     assert "not only when asked" in front
 
 
-def test_the_file_admits_what_loading_does_not_guarantee():
-    """S4 and behaviour 7. Claiming the harness enforces a standing load would
-    be asserting something this repository has not observed."""
-    assert "not a guarantee the harness enforces" in TEXT
+def test_the_file_separates_what_is_available_from_what_is_loaded():
+    """Behaviour 7: earn the claim, or don't make it.
+
+    Installing the plugin makes this skill available everywhere — observed. It
+    does not follow that a session picks it up on its own, which is a separate
+    claim and still an unenforced one. The file has to hold both apart, and
+    name the way to load it by hand when it did not fire.
+    """
+    assert "observed on 4 September 2026" in FLAT, "the observed half is stated"
+    assert "not a guarantee the harness enforces" in FLAT, "the unobserved half too"
+    assert "/canon:how-we-work" in FLAT, "no way given to load it by hand"
 
 
 def test_voice_is_named_as_a_behaviour_not_a_personality():
-    assert "Voice is a standing behaviour, not a personality" in TEXT
-    assert "perform certainty it does not have" in TEXT
+    assert "Voice is a standing behaviour, not a personality" in FLAT
+    assert "perform certainty it does not have" in FLAT
 
 
 def test_these_are_distinguished_from_the_tenets():
     """Two files of numbered rules invite being conflated, and then one gets
     edited as if it were the other."""
-    assert "These are not the tenets" in TEXT
+    assert "These are not the tenets" in FLAT
     assert "TENETS.md" in TEXT

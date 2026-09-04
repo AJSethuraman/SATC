@@ -177,3 +177,41 @@ to run. Both were the test's fault, not the code's.
 **What is still open**, and it is one thing: `projects/REGISTER.md` holds two
 cards. Seven of the nine analytics projects and every practice-ops project are
 unadopted.
+
+---
+
+## 2026-09-04 · Installed, for real, and it did not work the first time
+
+The firm asked the obvious question — *"if I open a repo will it automatically
+have canon?"* — and the honest answer at that moment was **no**. Four skills
+existed under `canon/skills/`, and nothing anywhere loaded them: not
+`.claude/skills/`, not an installed plugin. They were not loaded in the SATC
+session that wrote them. The README's "installs itself into every project" had
+never been anything but a design claim, exactly as this log said.
+
+**What was missing was one file.** A plugin needs a marketplace to be installed
+from. `SATC/.claude-plugin/marketplace.json` now lists canon, and that file
+lives one level above `canon/` on purpose: the marketplace knows canon exists,
+canon still reaches nothing above itself.
+
+**And the manifest was invalid.** The first real install failed:
+`author: expected object, received string`. `test_the_plugin_manifest_is_valid_
+and_names_canon` had been green the whole time and had only ever checked that
+the JSON parsed — a test whose *name* claimed validity while checking almost
+nothing, which is the shape this repository exists to catch. There is a real
+validator (`claude plugin validate`) and it now runs in the suite, alongside a
+pure-Python schema check that runs even where the CLI is absent, so the test
+never becomes a check that examined nothing.
+
+**Then it was proven by doing it.** Installed at user scope; a session opened in
+a temporary git repository with no relationship to SATC listed `canon:bassy`,
+`canon:how-we-work`, `canon:canon-mine`, `canon:canon-adopt`; asked to challenge
+a push straight to `main`, it found `CONVICTIONS.md`, quoted C2 verbatim, gave
+the firm's own reason, asked whether it had changed, and proposed nothing.
+
+Two things are now separated wherever they are claimed. **Available** is
+enforced by the install. **Loaded without being asked** is a description
+matching, which nothing guarantees — so every place that mentions it also names
+the way to load the skill by hand.
+
+123 tests.
