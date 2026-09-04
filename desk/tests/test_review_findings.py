@@ -63,14 +63,17 @@ def test_reading_every_paragraph_recovers_problems_that_were_being_dropped():
     "deduct" at all, then three whose conclusion was CONDITIONAL -- "must be
     capitalized if these amounts result in an improvement" is the regulation
     settling that a safe harbour is unavailable, not that capitalisation follows.
-    Every move is a REDUCTION for correctness, so the number this asserts is the
-    honest one rather than the high-water mark.
+    Then 21 -> 16 (#244): the expected citation became the RULE an example's
+    own analysis names, and five examples name two rules that neither contains
+    -- (k)(2) beside (k)(1)(iv), say -- which is an answer key nobody can read
+    off the text. Every move is a REDUCTION for correctness, so the number this
+    asserts is the honest one rather than the high-water mark.
     """
     _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
                                       checked="2026-09-04")
-    assert len(kept) >= 21, (
+    assert len(kept) >= 16, (
         f"only {len(kept)} problems usable; reading every paragraph of each "
-        f"example should yield at least 21"
+        f"example should yield at least 16"
     )
 
 

@@ -160,3 +160,49 @@ answer. All of that is undone by one line in an adapter that passes
 **The baseline is printed beside the result because 57% is beatable by not
 reading.** A scoreboard whose baseline is unstated reads as skill when it may be
 arithmetic.
+
+---
+
+## The second run — the rules as authority (#244)
+
+The first run's citation number was uninterpretable: the desk's whole authority
+corpus was its own answer key, 21 worked examples for 21 problems, and the
+frontier row solved the citation as an assignment puzzle
+(`runs/2026-09-04/SCOREBOARD.md`, NOT CHECKED 2). #244 changed the record, not
+the engine: the stored authority is now every paragraph of the section outside
+its examples (172 of them), and a problem's expected citation is the rule its
+own withheld analysis names. Sixteen problems; the other five of the 21 are
+excluded **by name** in `PROBLEMS.md` because their analysis names two rules
+that neither contains.
+
+**Run it on the Forge, into a new dated directory.** Never into
+`runs/2026-09-04/`; that is a measured record and the two runs are comparable
+only with the change between them stated.
+
+```
+cd desk
+python tools/scoreboard_run.py --corpus index --dump-prompts desks/fixed-assets/runs/<today>/prompts.json
+```
+
+Hand `prompts.json` to a fresh frontier context that has seen nothing else, as
+before, then:
+
+```
+python tools/scoreboard_run.py \
+  --corpus index \
+  --frontier-replies desks/fixed-assets/runs/<today>/frontier-replies.json \
+  --notes            desks/fixed-assets/runs/<today>/NOT-CHECKED.txt \
+  --out              desks/fixed-assets/runs/<today>
+```
+
+`--corpus index` shows each citation with the first sentence of its paragraph
+(about 4,100 tokens, inside the 8,192-token window). `--corpus text` shows every
+paragraph in full (about 17,000 tokens) and does not fit the Forge; a row
+answered under it is a different run. The record prints which shape was shown.
+
+What to put in `NOT-CHECKED.txt`, at minimum: the denominator is 16 and not 21,
+so the rows are not comparable to 4 September on the conclusion either; the
+citation baseline is 7 of 16 (always citing `(j)`); and the engine matches a
+citation exactly, so a desk citing `(j)(1)(iii)` where the key is `(j)` is
+refused as `citation_does_not_support` — a limitation of the key, stated in
+`PROBLEMS.md`, not a finding about the brain.

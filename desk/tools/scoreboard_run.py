@@ -1,20 +1,33 @@
 """The adapter and the script: put 21 problems to two brains and grade both.
 
-MEASURED, NEVER ASSERTED. Nothing here is imported by a test and nothing here
-gates CI. `scoreboard.py` says why: "a non-deterministic run cannot gate a build
-without either flaking or being weakened until it proves nothing." This is a
-script run at the desk, and its output is committed as a record.
+MEASURED, NEVER ASSERTED. No score produced here is asserted by a test and
+nothing here gates CI. `scoreboard.py` says why: "a non-deterministic run cannot
+gate a build without either flaking or being weakened until it proves nothing."
+This is a script run at the desk, and its output is committed as a record. The
+deterministic parts -- how the prompt is composed, what it refuses to carry, how
+a reply is read -- ARE tested, because a leak gate nothing exercises is a promise.
 
-WHAT THE MODEL IS SHOWN, AND WHY THE LIST IS SHORT. `build_prompt` composes
-exactly three things: the desk's sources (id, title, tier, citation prefix), the
-citation strings the desk holds, and `problem.facts`. It is a whitelist rather
-than a "don't include" comment, because the leak `extract_ecfr.py` closed over
-eight review rounds reopens the moment an adapter passes
-`desk.passage(problem.citation).text` in as helpful context -- the stored
-authority is the same regulation example COMPLETE, conclusion included.
-`problem.title` is withheld for the same reason: several titles name the outcome.
-`check_no_leak` re-reads the finished prompt and raises, so the whitelist is a
-mechanism rather than a promise (rule 6: policy at the choke point).
+WHAT THE MODEL IS SHOWN. `build_prompt` composes exactly three things: the
+desk's sources (id, title, tier, citation prefix), the desk's stored authority,
+and `problem.facts`. The authority is the section's RULES -- every paragraph
+outside its worked examples -- and it may be shown, because a rule states a test
+and not the outcome for these facts. The first record stored the worked examples
+themselves as authority, so showing the corpus leaked every conclusion and the
+adapter had to withhold it; "cite your authority" then meant recalling example
+numbers from a list of 21 bare strings, one per problem, which the frontier row
+solved as an assignment puzzle (`runs/2026-09-04/SCOREBOARD.md`).
+
+Two shapes, and the run records which. `index` gives each citation with the
+first sentence of its paragraph -- about 4,100 tokens for this desk, inside the
+8,192-token window 8 GB of VRAM allows (rule 1). `text` gives every paragraph
+in full, about 17,000 tokens, for a brain with the window. Rows answered under
+different shapes are different runs and are not a gap.
+
+`problem.title` is withheld: several titles name the outcome. `check_no_leak`
+re-reads the finished prompt and raises, so the whitelist is a mechanism rather
+than a promise (rule 6: policy at the choke point). What it now refuses is a
+worked example reaching the prompt -- the leak moved to the boundary between
+the rules and the examples, and so did the gate.
 
 THE ONE THING DISCLOSED ON PURPOSE. The engine compares a position to the known
 one exactly, normalised for case and space only, so a desk that phrases its
@@ -72,9 +85,10 @@ You are a desk. You answer only from the authority listed below, and you cite it
 SOURCES YOU MAY RELY ON
 {sources}
 
-AUTHORITY THIS DESK HOLDS. Cite exactly one of these strings, copied verbatim.
-Nothing outside this list resolves, and an answer whose citation does not resolve
-is refused before it reaches anyone.
+AUTHORITY THIS DESK HOLDS. Each line is a citation, copied verbatim, followed by
+the paragraph it names. Cite the ONE rule these facts turn on. Nothing outside
+this list resolves, and an answer whose citation does not resolve is refused
+before it reaches anyone.
 {citations}
 
 THE FACTS
@@ -82,7 +96,7 @@ THE FACTS
 
 REPLY WITH ONE JSON OBJECT AND NOTHING ELSE:
 {{"position": "<exactly one of: {positions}>",
- "citation": "<one line copied verbatim from the list above>",
+ "citation": "<one citation copied verbatim from the list above: the part before the dash, nothing after it>",
  "escalated": false,
  "reason": "",
  "working": "<one or two sentences: why that conclusion, from that authority>"}}
@@ -93,16 +107,22 @@ of: {reasons}. Declining is a success here; a guess that cites nothing is not.
 """
 
 
-def build_prompt(problem: Problem, desk: Desk) -> str:
+#: The two shapes the authority may take in a prompt. A closed set so a run can
+#: only ever record one of two words for what it showed.
+SHAPES = ("index", "text")
+
+
+def build_prompt(problem: Problem, desk: Desk, *, shape: str = "index") -> str:
     """Compose the only thing the brain sees. A whitelist, and a short one."""
+    if shape not in SHAPES:
+        raise ValueError(f"shape is {shape!r}; must be one of {', '.join(SHAPES)}")
     sources = "\n".join(
         f'{s.id} - {s.title} - tier: {s.tier} - citations begin "{s.citation_prefix}"'
         for s in desk.sources
     )
-    citations = "\n".join(f"  {c}" for c in citation_index(desk))
     prompt = _TEMPLATE.format(
         sources=sources,
-        citations=citations,
+        citations="\n".join(corpus_lines(desk, shape)),
         facts=problem.facts,
         positions=" | ".join(admissible(desk)),
         reasons=", ".join(OFFERABLE),
@@ -111,13 +131,26 @@ def build_prompt(problem: Problem, desk: Desk) -> str:
     return prompt
 
 
-def citation_index(desk: Desk) -> list[str]:
-    """The citations the desk holds, sorted so the order carries no signal.
+_FIRST = re.compile(r"(?<=\.)\s")
 
-    File order is the order the examples appear in the regulation, which is the
-    order the problems are in -- so an unsorted index would pair the nth problem
-    with the nth line and hand over the answer by position.
+
+def corpus_lines(desk: Desk, shape: str) -> list[str]:
+    """The stored authority as the prompt shows it, in the record's order.
+
+    Record order is the regulation's order, and it is kept: with the rules as
+    authority and the examples as problems there is no nth-line-for-nth-problem
+    pairing to hide, and a reader checking a transcript against eCFR should find
+    the paragraphs where the section puts them. `index` shows each paragraph's
+    first sentence -- its heading where it has one, its operative sentence where
+    it does not; `text` shows all of it.
     """
+    if shape == "text":
+        return [f"  {p.citation}\n    {p.text}" for p in desk.passages]
+    return [f"  {p.citation} — {_FIRST.split(p.text, 1)[0]}" for p in desk.passages]
+
+
+def citation_index(desk: Desk) -> list[str]:
+    """Every citation the desk holds, as a set a reply can be checked against."""
     return sorted({p.citation for p in desk.passages})
 
 
@@ -141,14 +174,36 @@ def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
     A whitelist that is only enforced by how the template was written is a
     convention; this is the gate. It checks the OUTPUT rather than the inputs,
     so a future edit that adds a helpful line is caught by the same code.
+
+    THE WORKED EXAMPLES MAY NOT REACH THE PROMPT, FROM ANY DIRECTION. The
+    authority shown is the section's rules; if a worked example is ever stored
+    beside them again -- the first record stored nothing else -- it would carry
+    its own conclusion into every prompt. The tell is a problem's fact pattern
+    appearing where only the rules should be: the problem's own facts must
+    appear exactly once (as the question), and no other problem's at all. The
+    longest sentence of each fact pattern is the probe, because a short one
+    ("Assume that § 1.212-1 does not apply.") can legitimately appear in a rule.
     """
-    passage = desk.passage(problem.citation)
-    if passage is not None and _bare(passage.text) in _bare(prompt):
-        raise Leak(
-            f"{problem.id}: the prompt carries the stored passage for its own "
-            f"citation. That text is the regulation example COMPLETE, conclusion "
-            f"included; showing it makes the problem a reading exercise"
-        )
+    bare = _bare(prompt)
+    # Checked against the STORED authority as well as the finished prompt: in
+    # the `index` shape only a passage's first sentence is shown, so a worked
+    # example stored beside the rules would pass a prompt-only probe while
+    # still being what the model is told it may cite.
+    stored = _bare(" ".join(p.text for p in desk.passages))
+    for other in desk.problems:
+        probe = _bare(max(_SENTENCES.split(other.facts), key=len))
+        if probe in stored:
+            raise Leak(
+                f"{problem.id}: the stored authority carries the fact pattern of "
+                f"{other.id}. A worked example in the authority carries its own "
+                f"conclusion; the corpus is the rules"
+            )
+        allowed = 1 if other.id == problem.id else 0
+        if bare.count(probe) > allowed:
+            raise Leak(
+                f"{problem.id}: the prompt carries the fact pattern of {other.id} "
+                f"where only the rules should be"
+            )
     if _bare(problem.title) in _bare(prompt):
         raise Leak(
             f"{problem.id}: the prompt carries the problem's title "
@@ -161,6 +216,9 @@ def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
             f"{problem.id}: {problem.answer!r} appears in the prompt outside the "
             f"list of admissible conclusions"
         )
+
+
+_SENTENCES = re.compile(r"(?<=\.)\s+(?=[A-Z(])")
 
 
 def _bare(text: str) -> str:
@@ -273,13 +331,14 @@ def ollama(model: str, prompt: str, *, num_ctx: int, timeout: int = 900) -> str:
     return body.get("message", {}).get("content", "")
 
 
-def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int):
+def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int,
+                  shape: str = "index"):
     """`ask(problem) -> Answer` backed by the local model, keeping every reply."""
     transcript.parent.mkdir(parents=True, exist_ok=True)
     transcript.write_text("", encoding="utf-8")
 
     def ask(problem: Problem) -> Answer:
-        prompt = build_prompt(problem, desk)
+        prompt = build_prompt(problem, desk, shape=shape)
         try:
             raw = ollama(model, prompt, num_ctx=num_ctx)
         except AdapterGaveUp as exc:
@@ -291,7 +350,8 @@ def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int):
     return ask
 
 
-def replay_adapter(desk: Desk, replies: dict, transcript: Path):
+def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
+                   shape: str = "index"):
     """`ask(problem) -> Answer` reading replies a brain already produced.
 
     The frontier row is obtained this way: the prompts `build_prompt` composes
@@ -303,7 +363,7 @@ def replay_adapter(desk: Desk, replies: dict, transcript: Path):
     transcript.write_text("", encoding="utf-8")
 
     def ask(problem: Problem) -> Answer:
-        prompt = build_prompt(problem, desk)
+        prompt = build_prompt(problem, desk, shape=shape)
         raw = replies.get(problem.id)
         if raw is None:
             _log(transcript, problem, prompt, "", "no reply recorded")
@@ -424,8 +484,15 @@ def constant_control(desk: Desk) -> dict:
 
     conclusion, agrees = Counter(
         p.answer for p in desk.problems).most_common(1)[0]
+    # AND THE SAME FOR THE CITATION. With the rules as authority several
+    # problems share a governing paragraph, so always citing the commonest one
+    # matches some of them by arithmetic. That number belongs beside a
+    # citation score for the same reason 57% belonged beside the conclusion.
+    citation, cites = Counter(
+        p.citation for p in desk.problems).most_common(1)[0]
     graded = [grade(Answer(position=conclusion), p, desk) for p in desk.problems]
     return {"conclusion": conclusion, "agrees_with": agrees,
+            "citation": citation, "cites": cites,
             "of": len(desk.problems), "through_the_engine": tally(graded)}
 
 
@@ -467,17 +534,24 @@ def _main(argv: list[str]) -> int:
     ap.add_argument("--frontier-label", default="frontier")
     ap.add_argument("--notes", default="",
                     help="a file of what was NOT checked, one per line")
+    ap.add_argument("--corpus", default="index", choices=SHAPES,
+                    help="how the stored rules are shown: 'index' (citation "
+                         "and first sentence, fits the Forge's window) or "
+                         "'text' (every paragraph in full). Recorded in the "
+                         "run, because rows shown different things are not "
+                         "comparable")
     args = ap.parse_args(argv)
 
     desk = load(Path(args.desk))
+    prompt_for = lambda p: build_prompt(p, desk, shape=args.corpus)
 
     if args.dump_prompts:
         out = Path(args.dump_prompts)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(
-            {p.id: build_prompt(p, desk) for p in desk.problems},
+            {p.id: prompt_for(p) for p in desk.problems},
             indent=2), encoding="utf-8")
-        print(f"{len(desk.problems)} prompts -> {out}")
+        print(f"{len(desk.problems)} prompts ({args.corpus}) -> {out}")
         return 0
 
     out_dir = Path(args.out or ROOT / "desks" / desk.name / "runs"
@@ -492,11 +566,12 @@ def _main(argv: list[str]) -> int:
         seen: dict = {}
         if args.forge_replies:
             backend = replay_adapter(desk, _replies(args.forge_replies),
-                                     out_dir / "forge-regraded.jsonl")
+                                     out_dir / "forge-regraded.jsonl",
+                                     shape=args.corpus)
         else:
             backend = forge_adapter(desk, args.forge_model,
                                     out_dir / "forge.jsonl",
-                                    num_ctx=args.num_ctx)
+                                    num_ctx=args.num_ctx, shape=args.corpus)
         ask = watched(backend, seen)
         r = scoreboard.run(desk, ask, model=label)
         runs.append(r)
@@ -510,7 +585,8 @@ def _main(argv: list[str]) -> int:
         replies = _replies(args.frontier_replies)
         seen = {}
         ask = watched(replay_adapter(desk, replies,
-                                     out_dir / "frontier.jsonl"), seen)
+                                     out_dir / "frontier.jsonl",
+                                     shape=args.corpus), seen)
         r = scoreboard.run(desk, ask, model=label)
         runs.append(r)
         answers[label] = seen
@@ -524,6 +600,9 @@ def _main(argv: list[str]) -> int:
     control = constant_control(desk)
 
     lines = [scoreboard.render(runs, notes=notes), ""]
+    lines.append(f"AUTHORITY SHOWN: {len(desk.passages)} stored paragraphs as "
+                 f"'{args.corpus}', for {len(desk.problems)} problems.")
+    lines.append("")
     lines.append("BASELINE, BESIDE THE RESULT AND NOT BELOW IT:")
     lines.append(f"  answering {control['conclusion']!r} every time agrees with "
                  f"{control['agrees_with']} of {control['of']} conclusions "
@@ -531,6 +610,9 @@ def _main(argv: list[str]) -> int:
     lines.append(f"  and through the engine scores "
                  f"{control['through_the_engine']['correct']} correct: a "
                  f"constant answer cites nothing.")
+    lines.append(f"  citing {control['citation']!r} every time matches "
+                 f"{control['cites']} of {control['of']} citations "
+                 f"({control['cites'] * 100 // control['of']}%).")
     lines.append("")
     lines.append("gap (correct): " + ", ".join(
         f"{k} {v}" for k, v in scoreboard.gap(runs).items()))
