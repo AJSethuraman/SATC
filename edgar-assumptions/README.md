@@ -104,9 +104,26 @@ is missing, EBITDA-based metrics for that company-year are recorded as missing
 
 ## Output
 
+Each run writes three files from one `--out` base path:
+
+- **`<out>.xlsx`** — a clean, formatted Excel workbook (the primary deliverable),
+  with five sheets:
+  - **ReadMe** — run metadata and the standing caveats block.
+  - **Summary** — a tidy, filterable table: one row per SIC × revenue tier ×
+    view (current / through-cycle) × metric, with p10/p25/p50/p75/p90, sample
+    sizes, median CV, and a low-confidence flag. Proper number formats (%, ×,
+    days), a frozen header, frozen key columns, and an auto-filter — ready to
+    pivot or chart. Low-confidence tiers are shaded.
+  - **Roster** — the constituent companies of each tier.
+  - **2020 Shock** — median 2019→2020 change per metric, per tier.
+  - **Raw Data** — the full auditable per-company-per-year feed.
+
+  The workbook is written with a dependency-free, deterministic writer (no
+  third-party libraries), so it too is byte-identical across re-runs. Use
+  `--no-xlsx` to skip it.
 - **`<out>.csv`** — one row per company / fiscal year with every raw line item,
   reconstructed EBITDA (+ method), assigned tier, and all computed metrics.
-  This is the audit trail.
+  This is the audit trail (also present as the workbook's Raw Data sheet).
 - **`<out>.summary.md`** — per SIC code: for each tier, a **roster of the
   constituent companies** (ticker, name, CIK, latest revenue, fiscal-year span,
   # years contributed), then per-tier percentile tables (10/25/50/75/90),
@@ -118,10 +135,11 @@ is missing, EBITDA-based metrics for that company-year are recorded as missing
 ## Example outputs
 
 See [`examples/`](examples/) for illustrative output files —
-`sample_food_dist.summary.md` (the readable per-tier report) and
-`sample_food_dist.csv` (the auditable raw feed). These are generated from
-**synthetic** data (`examples/generate_examples.py`) to show the format and the
-cross-tier story; they are not real EDGAR figures.
+`sample_food_dist.xlsx` (the formatted workbook), `sample_food_dist.summary.md`
+(the readable per-tier report), and `sample_food_dist.csv` (the auditable raw
+feed). These are generated from **synthetic** data
+(`examples/generate_examples.py`) to show the format and the cross-tier story;
+they are not real EDGAR figures.
 
 ## Determinism & reproducibility
 
@@ -160,6 +178,8 @@ satc_edgar/
   metrics.py    # per-company-year extraction + metric computation + EBITDA
   aggregate.py  # revenue tiering, percentile distributions, cyclicality
   output.py     # auditable CSV + readable markdown summary + caveats
+  xlsx.py       # dependency-free, deterministic .xlsx writer
+  excel.py      # workbook layout (ReadMe / Summary / Roster / Shock / Raw Data)
   selftest.py   # end-to-end pipeline check against known CIKs
 tests/          # offline fixture-based tests (no network)
 ```

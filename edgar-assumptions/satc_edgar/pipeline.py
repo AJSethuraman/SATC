@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
-from . import output
+from . import excel, output
 from .aggregate import (
     CompanySeries,
     Tier,
@@ -152,11 +152,17 @@ def run_for_sic(
 
 
 def write_outputs(runs: List[SicRun], out_path: str, years: int, vintage: str,
-                  min_sample: int, log: Logger) -> Tuple[str, str]:
-    """Write the combined CSV and a markdown summary; return their paths."""
+                  min_sample: int, log: Logger,
+                  write_xlsx: bool = True) -> Tuple[str, str, Optional[str]]:
+    """Write CSV, markdown summary, and (by default) an .xlsx workbook.
+
+    Returns ``(csv_path, md_path, xlsx_path)`` — ``xlsx_path`` is ``None`` when
+    ``write_xlsx`` is False.
+    """
     base, ext = os.path.splitext(out_path)
     csv_path = out_path if ext.lower() == ".csv" else base + ".csv"
     md_path = base + ".summary.md"
+    xlsx_path = base + ".xlsx"
 
     all_rows: List[dict] = []
     for run in sorted(runs, key=lambda r: r.sic):
@@ -177,6 +183,13 @@ def write_outputs(runs: List[SicRun], out_path: str, years: int, vintage: str,
                 data_vintage=vintage,
                 min_sample=min_sample,
             )
-    log(f"Wrote CSV  -> {csv_path}")
-    log(f"Wrote docs -> {md_path}")
-    return csv_path, md_path
+    log(f"Wrote CSV   -> {csv_path}")
+    log(f"Wrote docs  -> {md_path}")
+
+    written_xlsx: Optional[str] = None
+    if write_xlsx:
+        excel.write_workbook(xlsx_path, runs, years, vintage, min_sample)
+        written_xlsx = xlsx_path
+        log(f"Wrote xlsx  -> {xlsx_path}")
+
+    return csv_path, md_path, written_xlsx

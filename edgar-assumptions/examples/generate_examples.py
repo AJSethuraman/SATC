@@ -158,7 +158,7 @@ def main():
     # Fixed vintage so the committed example is stable.
     write_outputs([run], base, 7, "2026-06-09 (SYNTHETIC EXAMPLE — not real EDGAR data)",
                   8, log=lambda m: None)
-    print("Wrote example CSV + summary to", out_dir)
+    print("Wrote example CSV + summary + xlsx to", out_dir)
 
 
 if __name__ == "__main__":

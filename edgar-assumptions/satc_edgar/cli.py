@@ -40,7 +40,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-sample", type=int, default=10,
                    help="Per-tier minimum company count; thinner tiers are flagged "
                         "LOW CONFIDENCE (default 10).")
-    p.add_argument("--out", help="Output base path; writes <out>.csv and <out>.summary.md.")
+    p.add_argument("--out", help="Output base path; writes <out>.csv, <out>.summary.md, "
+                                 "and <out>.xlsx.")
+    p.add_argument("--no-xlsx", action="store_true",
+                   help="Skip the Excel workbook (write only CSV + markdown).")
     p.add_argument("--user-agent", default=DEFAULT_USER_AGENT,
                    help="SEC-required User-Agent; MUST include a real contact email.")
     p.add_argument("--cache-dir", default=".edgar_cache",
@@ -95,7 +98,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         runs.append(run)
 
     vintage = client.vintage_range()
-    write_outputs(runs, args.out, args.years, vintage, args.min_sample, log)
+    write_outputs(runs, args.out, args.years, vintage, args.min_sample, log,
+                  write_xlsx=not args.no_xlsx)
 
     # Console-level data-quality summary.
     log("\n=== DATA-QUALITY SUMMARY ===")

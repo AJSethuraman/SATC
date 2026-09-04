@@ -9,11 +9,13 @@
 *.summary.md
 food_dist*
 *.csv
+*.xlsx
 
 # ...but keep the committed illustrative example outputs
 !examples/
 !examples/*.csv
 !examples/*.summary.md
+!examples/*.xlsx
 
 # Python
 __pycache__/

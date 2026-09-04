@@ -10,6 +10,7 @@ food distributors) across revenue tiers.
 
 | File | What it is |
 |---|---|
+| `sample_food_dist.xlsx` | The formatted Excel workbook: ReadMe, a filterable Summary sheet, Roster, 2020 Shock, and Raw Data — with %/×/days number formats, frozen headers, auto-filters, and shaded low-confidence tiers. |
 | `sample_food_dist.summary.md` | The readable per-tier summary: rosters, current vs through-cycle percentile tables, volatility, the 2020 shock, the cross-tier size trend, caveats, and a LOW CONFIDENCE flag on the thin tier. |
 | `sample_food_dist.csv` | The auditable raw feed: one row per company per fiscal year with every line item, reconstructed EBITDA (+ method), assigned tier, and all metrics. |
 

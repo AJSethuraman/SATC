@@ -43,13 +43,15 @@ def _run(tmp_path):
     tiers = parse_tiers("0-250M,250M-1B,1B-5B,5B+")
     run = run_for_sic(client, "5140", companies, tiers, years=5, min_sample=10, log=lambda m: None)
     out_base = os.path.join(tmp_path, "food_dist")
-    csv_path, md_path = write_outputs([run], out_base, 5, "2026-06-09", 10, lambda m: None)
-    return run, csv_path, md_path
+    csv_path, md_path, xlsx_path = write_outputs(
+        [run], out_base, 5, "2026-06-09", 10, lambda m: None)
+    return run, csv_path, md_path, xlsx_path
 
 
 def test_pipeline_produces_outputs(tmp_path):
-    run, csv_path, md_path = _run(tmp_path)
+    run, csv_path, md_path, xlsx_path = _run(tmp_path)
     assert os.path.exists(csv_path) and os.path.exists(md_path)
+    assert xlsx_path and os.path.exists(xlsx_path)
     q = run.quality
     assert q["attempted"] == 14
     assert q["usable"] == 14
@@ -86,7 +88,9 @@ def test_deterministic_byte_identical(tmp_path):
     d2 = os.path.join(tmp_path, "run2")
     os.makedirs(d1)
     os.makedirs(d2)
-    _, c1, m1 = _run(d1)
-    _, c2, m2 = _run(d2)
+    _, c1, m1, x1 = _run(d1)
+    _, c2, m2, x2 = _run(d2)
     assert open(c1, "rb").read() == open(c2, "rb").read()
     assert open(m1, "rb").read() == open(m2, "rb").read()
+    # The xlsx workbook is deterministic too (byte-identical).
+    assert open(x1, "rb").read() == open(x2, "rb").read()
