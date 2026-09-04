@@ -22,18 +22,95 @@ import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
 
-#: Conclusions this desk can score, and the exact wording that states each. Kept
-#: narrow on purpose: a looser match would turn "is not required to capitalize
-#: under paragraph (x), but must under (y)" into a confident wrong answer.
-CONCLUSIONS = (
-    ("must capitalize", re.compile(r"\bmust capitalize\b")),
-    ("not required to capitalize", re.compile(r"\bis not required to capitalize\b")),
+#: HOW THE REGULATION ACTUALLY STATES A CONCLUSION, read off the corpus rather
+#: than guessed at. Across § 1.263(a)-3's 117 examples, 112 sentences open with a
+#: conclusion connective, and every scorable outcome in them is one of four
+#: framings: "must capitalize" (22), "not required to be capitalized" (13), "not
+#: required to capitalize" (8), "must be capitalized" (7). Two answers, four
+#: spellings. An earlier version knew only the first and third, which is how an
+#: example concluding "must be capitalized" was recorded as NOT required to.
+CLASSIFY = (
+    ("must capitalize", re.compile(r"\bmust capitaliz\w*", re.I)),
+    ("must capitalize", re.compile(r"\bmust be capitaliz\w*", re.I)),
+    ("not required to capitalize", re.compile(r"\bnot required to capitaliz\w*", re.I)),
+    ("not required to capitalize", re.compile(r"\bnot required to be capitaliz\w*", re.I)),
 )
 
+#: A conclusion is announced, not merely stated. Requiring the connective is what
+#: separates the paragraph that DECIDES from the ones that recite the rule or the
+#: taxpayer's own prior treatment -- both of which use the same verbs.
+CONNECTIVE = re.compile(
+    r"^\(?[ivx]*\)?\s*(?:Therefore|Accordingly|Thus|As a result|Consequently)\b", re.I)
+
+#: WHAT COUNTS AS LEAKING AN ANSWER. Deliberately WIDER than `CLASSIFY`, and it
+#: must stay that way -- `test_extract.py` asserts the containment, so the
+#: vocabulary that withholds can never be narrower than the one that checks.
+#: Erring wide costs an example and can never cost a leak, which is the only
+#: direction this trade may run.
+LEAKS = re.compile(
+    r"\b(?:must|shall|need not|(?:is|are|was|were) not required to|not required to)"
+    r"\s+(?:be\s+)?capitaliz\w*"
+    r"|\bmust treat[^.]{0,140}?\bcapitaliz\w*"
+    r"|\bcapitaliz\w+\s+(?:these|those|such)\s+amounts"
+    r"|\b(?:may|must)\s+deduct\b|\b(?:is|are)\s+deductible\b", re.I)
+
 #: An example that leans on one not shown cannot be answered from what the desk
-#: is given. Both spellings, because the regulation uses each -- and a filter
-#: written for only the first missed a real case on this script's first run.
-DEPENDENT = re.compile(r"same facts as(?: in)? Example|Assume the same facts", re.I)
+#: is given. Three spellings, because the regulation uses each -- a filter
+#: written for only the first missed a real case on this script's first run, and
+#: one written for the first two missed "The facts are the same as in Example 30"
+#: on the third.
+DEPENDENT = re.compile(
+    r"same facts as(?: in)? Example|Assume the same facts|the facts are the same as", re.I)
+
+#: A sentence boundary, kept crude on purpose. Its correctness is NOT what makes
+#: the split safe: whatever it does, `LEAKS` re-checks what survives.
+_SENTENCE = re.compile(r"(?<=\.)\s+(?=[A-Z(])")
+
+
+def conclusions_in(text: str) -> set:
+    """Every DISTINCT answer this text states. Zero, one, or -- fatally -- two."""
+    return {a for a, rx in CLASSIFY if rx.search(text)}
+
+
+def split_conclusion(text: str):
+    """Split an example into its fact pattern and the conclusion it announces.
+
+    Returns `(facts, conclusion, answer)`, or `(None, None, why)` naming the
+    reason this example cannot become a problem. Nothing is ever guessed and
+    nothing is ever dropped without a reason a reader can count.
+
+    WHY THIS EXISTS, AND WHAT IT NEARLY COST. `build` wrote each example's
+    COMPLETE text into `Facts`, and an example was kept precisely BECAUSE that
+    text stated a conclusion -- so every problem handed to a model contained its
+    own answer, in the regulation's own words. A model had only to copy the
+    sentence back, both scoreboard rows would have read near-perfect, and the gap
+    between the local brain and the frontier one -- the single finding this
+    harness exists to produce -- would have been noise between two ceilings.
+
+    WHY MORE THAN ONE CONCLUSION IS A REFUSAL AND NOT A CHOICE. § 1.263(a)-3(l)(3)
+    Example 4 concludes that a cleanup is not an adaptation AND that the regrading
+    must be capitalized. Reading only two spellings, an earlier version saw one
+    phrase, recorded "not required to capitalize", and would have scored the right
+    answer as WRONGLY ABSORBED -- manufacturing the one number that costs
+    something. An example stating two outcomes has no single answer to score, so
+    it is not a problem, and saying so is the only honest move available.
+    """
+    facts, held, found = [], [], set()
+    for sentence in _SENTENCE.split(text.strip()):
+        answers = conclusions_in(sentence)
+        if answers and CONNECTIVE.search(sentence.strip()):
+            held.append(sentence)
+            found |= answers
+        else:
+            facts.append(sentence)
+    if not found:
+        return None, None, "states no conclusion this desk can score"
+    if len(found) > 1:
+        return None, None, "states more than one conclusion"
+    kept = " ".join(facts).strip()
+    if not kept or LEAKS.search(kept):
+        return None, None, "conclusion cannot be separated from the facts"
+    return kept, " ".join(held).strip(), found.pop()
 
 
 PROBLEMS_HEAD = """# Problems — the denominator
@@ -46,12 +123,19 @@ Generated by `tools/extract_ecfr.py` from the section's own XML, so the facts ar
 verbatim by construction rather than retyped. Do not hand-edit.
 
 **The conclusion is withheld from the facts.** Every sentence in which the
-regulation states the outcome is stripped out and kept only under `Answer`, so a
-problem cannot be solved by reading it back. Written the other way -- the whole
+regulation announces its outcome is stripped out and kept only under `Answer`, so
+a problem cannot be solved by reading it back. Written the other way -- the whole
 example into `Facts` -- a model needed only to copy the phrase that had decided
-the answer, and both scoreboard rows would have read near-perfect while measuring
-nothing. An example whose conclusion could not be cleanly separated is left out
-and counted below rather than shipped leaking.
+the answer, and both rows of the scoreboard would have read near-perfect while
+measuring reading comprehension.
+
+**An example that states two outcomes is not a problem.** § 1.263(a)-3(l)(3)
+Example 4 holds that a cleanup is not an adaptation and that the regrading must be
+capitalized. Reading only some of the regulation's spellings, an earlier version
+saw one of them and recorded the opposite answer -- which would have scored a
+correct response as `wrongly_absorbed`, manufacturing the one number that costs
+something. Anything that cannot be reduced to a single scorable conclusion is left
+out and counted below.
 
 ## The count, and every exclusion
 
@@ -64,6 +148,16 @@ and counted below rather than shipped leaking.
 | Left out | Because |
 |---|---|
 {reasons}
+
+## What a model gets for free
+
+| Answer | Problems |
+|---|---|
+{spread}
+
+**Always answering the most common one scores {baseline}.** That is the number any
+run has to beat before it has shown anything, and it is printed here because a
+scoreboard whose baseline is unstated reads as skill when it may be arithmetic.
 
 **Nothing is dropped silently.** An example that leans on one not shown cannot be
 answered from what the desk is given, and one whose outcome is not stated in
@@ -124,72 +218,20 @@ def examples(xml_path: Path):
             }
 
 
-def classify(text: str):
-    """Return the stated conclusion, or None. Ambiguity is None, never a guess."""
-    hits = [name for name, rx in CONCLUSIONS if rx.search(text)]
-    return hits[0] if len(hits) == 1 else None
-
-
-def states_conclusion(text: str) -> bool:
-    """Does this text state an outcome this desk scores? Any phrase, not one."""
-    return any(rx.search(text) for _, rx in CONCLUSIONS)
-
-
-#: A sentence boundary, kept deliberately crude. Its correctness is NOT what
-#: makes the split safe -- `split_conclusion` re-checks whatever survives, so a
-#: bad split costs an example and can never leak one.
-_SENTENCE = re.compile(r"(?<=\.)\s+(?=[A-Z(])")
-
-
-def split_conclusion(text: str) -> tuple[str, str]:
-    """Split an example into the fact pattern and the conclusion it states.
-
-    WHY THIS EXISTS, AND WHAT IT NEARLY COST. `build` wrote each example's
-    COMPLETE text into `Facts`. An example is kept precisely BECAUSE that text
-    states a conclusion this desk can score -- so every problem handed to a
-    model contained its own answer, in the regulation's own words, usually in a
-    sentence starting "therefore" or "accordingly". A model had only to copy the
-    phrase back. Both scoreboard rows would have read near-perfect while
-    measuring reading comprehension, and the gap between the local brain and the
-    frontier one -- the single finding this harness exists to produce -- would
-    have been noise between two ceilings.
-
-    THE GUARANTEE DOES NOT REST ON THE SPLITTER. Whatever the sentence regex
-    did, what survives is re-checked against the same phrases that decided the
-    answer. A split that went wrong therefore loses the example instead of
-    leaking it, and `build` counts that exclusion by name rather than dropping
-    it quietly.
-
-    Returns `("", "")` when the two cannot be separated -- never a fact pattern
-    that still carries its answer.
-    """
-    facts, conclusion = [], []
-    for sentence in _SENTENCE.split(text.strip()):
-        (conclusion if states_conclusion(sentence) else facts).append(sentence)
-    kept = " ".join(facts).strip()
-    if not kept or not conclusion or states_conclusion(kept):
-        return "", ""
-    return kept, " ".join(conclusion).strip()
-
-
 def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
           source_id="S1", today=None):
     today = today or date.today().isoformat()
     all_ex = list(examples(xml_path))
     kept, dropped = [], []
     for e in all_ex:
-        why = None
         if DEPENDENT.search(e["text"]):
-            why = "depends on an example not shown"
-        elif classify(e["text"]) is None:
-            why = "no single conclusion stated in capitalisation terms"
+            dropped.append((e, "depends on an example not shown"))
+            continue
+        facts, _, verdict = split_conclusion(e["text"])
+        if facts is None:
+            dropped.append((e, verdict))          # `verdict` is the reason
         else:
-            facts, _ = split_conclusion(e["text"])
-            if not facts:
-                why = "conclusion cannot be separated from the fact pattern"
-            else:
-                e = {**e, "facts": facts}
-        (dropped if why else kept).append((e, why))
+            kept.append(({**e, "facts": facts, "answer": verdict}, None))
 
     wrap = lambda t: "\n".join(textwrap.wrap(t, 78, initial_indent="> ",
                                              subsequent_indent="> "))
@@ -198,7 +240,7 @@ def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
     problems = [
         f"## P{i} · {e['title']}\n\n"
         f"**Citation:** {cite(e)}\n\n"
-        f"**Answer:** {classify(e['text'])}\n\n"
+        f"**Answer:** {e['answer']}\n\n"
         f"**Facts:** {e['facts']}\n"
         for i, (e, _) in enumerate(kept, 1)
     ]
@@ -216,8 +258,11 @@ def counts(all_ex, kept, dropped):
     reasons = {}
     for _, why in dropped:
         reasons[why] = reasons.get(why, 0) + 1
+    spread = {}
+    for e, _ in kept:
+        spread[e["answer"]] = spread.get(e["answer"], 0) + 1
     return {"found": len(all_ex), "kept": len(kept), "dropped": len(dropped),
-            "reasons": reasons}
+            "reasons": reasons, "spread": spread}
 
 
 def write(desk_dir: Path, problems, passages, c, *, section="1.263(a)-3") -> None:
@@ -230,9 +275,13 @@ def write(desk_dir: Path, problems, passages, c, *, section="1.263(a)-3") -> Non
     """
     desk_dir = Path(desk_dir)
     reasons = "\n".join(f"| {n} | {why} |" for why, n in sorted(c["reasons"].items()))
+    spread = "\n".join(f"| {a} | {n} |" for a, n in sorted(c["spread"].items()))
+    top = max(c["spread"].values()) if c["spread"] else 0
+    baseline = f"{top} of {c['kept']} ({top * 100 // c['kept']}%)" if c["kept"] else "nothing"
     (desk_dir / "PROBLEMS.md").write_text(
         PROBLEMS_HEAD.format(section=section, found=c["found"], kept=c["kept"],
-                             dropped=c["dropped"], reasons=reasons)
+                             dropped=c["dropped"], reasons=reasons,
+                             spread=spread, baseline=baseline)
         + "\n---\n\n".join(problems), encoding="utf-8")
     extracted = desk_dir / "extracted"
     extracted.mkdir(exist_ok=True)

@@ -86,6 +86,23 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
     today = today or date.today().isoformat()
     rep = Report()
 
+    # ASKED ONCE PER SOURCE, NOT ONCE PER PASSAGE. `amended_on` takes a Source and
+    # answers a question about that source, but it was called inside the passage
+    # loop -- so the shipped desk, whose 34 passages all cite S1, made 34
+    # identical requests to one government site. Beyond the rate limit, it made
+    # the answer non-deterministic: if the eleventh call failed where the tenth
+    # succeeded, two passages of the SAME source landed in different buckets and
+    # the report contradicted itself. One question, one answer, applied to all.
+    seen: dict[str, tuple] = {}
+
+    def amendment(src):
+        if src.id not in seen:
+            try:
+                seen[src.id] = (amended_on(src), None)
+            except Exception as exc:           # a failure is not freshness
+                seen[src.id] = (None, exc)
+        return seen[src.id]
+
     for p in desk.passages:
         src = desk.source(p.source_id)
         if not src.readable:
@@ -95,11 +112,10 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
             ))
             continue
 
-        try:
-            moved = amended_on(src)
-        except Exception as exc:                       # a failure is not freshness
+        moved, failed = amendment(src)
+        if failed is not None:
             rep.unchecked.append(Finding(
-                p.citation, src.id, p.checked, "unreachable", str(exc)))
+                p.citation, src.id, p.checked, "unreachable", str(failed)))
             continue
 
         if moved is None:

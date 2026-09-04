@@ -131,3 +131,25 @@ def test_only_primary_authority_is_binding():
 def test_human_only_sources_are_not_readable():
     src = record.parse_sources(BASE.replace("public_fetch", "human_only"))[0]
     assert not src.readable, "human_only is the absence of a fetch, not a stricter one"
+
+
+def test_a_position_whose_citation_matches_no_source_is_refused_at_load(tmp_path):
+    """It loaded clean and raised EngineError the first time anybody asked that
+    exact question -- a record that reads as valid and detonates on use."""
+    d = tmp_path / "typo"
+    (d / "positions").mkdir(parents=True)
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** tertiary · **Access:** human_only · "
+        "**May store:** license_check · **Checked:** 2026-09-04\n\n"
+        "**Citation prefix:** ASC\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** ASC 360\n\n**Answer:** must capitalize\n\n"
+        "**Facts:** f\n", encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · A position with a mistyped citation\n\n"
+        "**Citation:** ACS 360-10 · **Recorded:** 2026-09-04\n\n"
+        "**Position:** must capitalize\n\n"
+        "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match="matches 0 recorded sources"):
+        record.load(d)

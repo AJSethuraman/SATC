@@ -114,3 +114,21 @@ def test_staleness_never_raises_on_a_finding(tmp_path):
 def test_every_entry_lands_in_exactly_one_bucket(tmp_path):
     r = staleness.check(desk(tmp_path), lambda s: "2026-01-01", today="2026-09-06")
     assert r.total == 1, "an entry was double-counted or vanished"
+
+
+def test_a_source_is_asked_once_however_many_passages_cite_it(fixed_assets):
+    """Called inside the passage loop, the shipped desk made one request per
+    passage -- 31 identical calls to one government site. Beyond the rate limit
+    it made the report non-deterministic: a call that failed where an earlier one
+    succeeded put two passages of the SAME source in different buckets."""
+    calls = []
+
+    def amended_on(src):
+        calls.append(src.id)
+        return "2020-01-01"
+
+    staleness.check(fixed_assets, amended_on, today="2026-09-04")
+    assert len(fixed_assets.passages) > 1, "fixture cannot show the difference"
+    assert calls == sorted(set(calls)), (
+        f"asked {len(calls)} times for {len(set(calls))} sources: {calls[:5]}..."
+    )

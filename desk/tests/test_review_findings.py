@@ -55,11 +55,40 @@ def test_every_child_of_an_example_is_read_not_just_pspace():
 
 
 def test_reading_every_paragraph_recovers_problems_that_were_being_dropped():
+    """Reading only `<PSPACE>` dropped the paragraph the conclusion lives in.
+
+    The threshold moved from 34 to 31 when the conclusion vocabulary was
+    corrected: examples stating two outcomes, and one leaning on facts not shown,
+    stopped counting. That is a REDUCTION for correctness, not a regression -- so
+    the number this asserts is the honest one, not the high-water mark.
+    """
     _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
                                       today="2026-09-04")
-    assert len(kept) >= 34, (
+    assert len(kept) >= 31, (
         f"only {len(kept)} problems usable; reading every paragraph of each "
-        f"example should yield at least 34"
+        f"example should yield at least 31"
+    )
+
+
+def test_the_problem_set_is_not_won_by_answering_the_same_thing_every_time():
+    """A denominator whose rows nearly all share an answer measures nothing: a
+    model that never reads the facts scores the majority share. The share is
+    printed in `PROBLEMS.md` so the baseline is read beside the result, and this
+    holds it somewhere a constant answer cannot pass for competence."""
+    import record
+    desk = record.load(DESKS / "fixed-assets")
+    counts = {}
+    for p in desk.problems:
+        counts[p.answer] = counts.get(p.answer, 0) + 1
+    assert len(counts) > 1, f"every problem has the same answer: {counts}"
+    top = max(counts.values()) / len(desk.problems)
+    assert top <= 0.75, (
+        f"answering {max(counts, key=counts.get)!r} every time scores "
+        f"{top:.0%}; this set cannot distinguish a desk from a coin"
+    )
+    text = (DESKS / "fixed-assets" / "PROBLEMS.md").read_text(encoding="utf-8")
+    assert "Always answering the most common one scores" in text, (
+        "the baseline is not stated where the denominator is read"
     )
 
 

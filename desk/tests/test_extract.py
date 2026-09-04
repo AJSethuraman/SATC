@@ -11,6 +11,7 @@ contents.
 """
 from __future__ import annotations
 
+import re
 import sys
 
 import pytest
@@ -26,35 +27,107 @@ XML = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
 # ── ambiguity is never resolved into a guess ─────────────────────────────────
 
 @pytest.mark.parametrize("text,expected", [
-    ("Therefore, A must capitalize the amount paid.", "must capitalize"),
-    ("A is not required to capitalize the amount.", "not required to capitalize"),
+    ("A owns a machine. Therefore, A must capitalize the amount paid.",
+     "must capitalize"),
+    ("A owns a machine. Therefore, A must be capitalized under (x).",
+     "must capitalize"),
+    ("A owns a machine. Accordingly, A is not required to capitalize it.",
+     "not required to capitalize"),
+    ("A owns a machine. Thus, the amounts are not required to be capitalized.",
+     "not required to capitalize"),
 ])
-def test_a_single_stated_conclusion_is_read(text, expected):
-    assert ex.classify(text) == expected
+def test_each_spelling_the_regulation_uses_is_read(text, expected):
+    """Four framings, two answers. Knowing only two of the four is how an example
+    concluding "must be capitalized" came to be recorded as NOT required to."""
+    _, _, verdict = ex.split_conclusion(text)
+    assert verdict == expected
 
 
 def test_an_example_stating_both_conclusions_is_left_out_not_guessed():
-    """"...not required to capitalize under (x), but must capitalize under (y)"
-    is the case a looser matcher turns into a confident wrong answer."""
-    both = ("B is not required to capitalize the amounts under paragraph (x), "
-            "but must capitalize the amounts under paragraph (y).")
-    assert ex.classify(both) is None
+    """The real § 1.263(a)-3(l)(3) Example 4 shape: a cleanup that is not an
+    adaptation, and regrading that must be capitalized. Recording either one as
+    THE answer scores a correct response as `wrongly_absorbed`."""
+    both = ("B pays two amounts. Therefore, B is not required to capitalize the "
+            "cleanup under paragraph (x). Accordingly, the regrading must be "
+            "capitalized under paragraph (y).")
+    facts, _, why = ex.split_conclusion(both)
+    assert facts is None
+    assert why == "states more than one conclusion"
+
+
+def test_a_conclusion_must_be_announced_not_merely_mentioned():
+    """The verbs appear all over the regulation -- in the rule being recited and
+    in the taxpayer's own prior treatment. Only the sentence that ANNOUNCES the
+    outcome decides it, which is what the connective marks."""
+    facts, _, why = ex.split_conclusion(
+        "C properly capitalizes its costs. Under paragraph (x) a taxpayer must "
+        "capitalize an improvement. C pays an amount for work.")
+    assert facts is None
+    assert why == "states no conclusion this desk can score"
 
 
 def test_an_example_stating_no_conclusion_is_left_out():
-    assert ex.classify("C owns a building. C pays an amount for work.") is None
+    facts, _, why = ex.split_conclusion("C owns a building. C pays for work.")
+    assert facts is None
+    assert why == "states no conclusion this desk can score"
+
+
+def test_the_leak_vocabulary_can_never_be_narrower_than_the_classifier():
+    """THE ONE CHECK THAT IS NOT CIRCULAR. Every earlier leak test asked the
+    splitter's own vocabulary whether the splitter had leaked, so a phrasing the
+    splitter did not know was invisible to both -- which is exactly how "must be
+    capitalized" survived into a fact pattern after the leak was called fixed.
+
+    `LEAKS` is deliberately wider than `CLASSIFY`, and this asserts the
+    containment holds for every phrase the classifier can match. Erring wide
+    costs an example; erring narrow costs the scoreboard its meaning."""
+    for answer, rx in ex.CLASSIFY:
+        sample = f"Therefore, the amount {rx.pattern}"
+        probe = {
+            r"\bmust capitaliz\w*": "Therefore, A must capitalize it.",
+            r"\bmust be capitaliz\w*": "Therefore, it must be capitalized.",
+            r"\bnot required to capitaliz\w*": "Therefore, A is not required to capitalize it.",
+            r"\bnot required to be capitaliz\w*": "Therefore, it is not required to be capitalized.",
+        }[rx.pattern]
+        assert rx.search(probe), f"probe does not exercise {rx.pattern}"
+        assert ex.LEAKS.search(probe), (
+            f"{rx.pattern!r} is scorable but not treated as a leak: a fact "
+            f"pattern could keep it and every leak check would pass"
+        )
 
 
 @pytest.mark.parametrize("text", [
     "Assume the same facts as in Example 1, except that...",
     "Assume the same facts as Example 25, except that...",
     "The same facts as Example 3 apply.",
+    "The facts are the same as in Example 30, except that...",
 ])
 def test_an_example_leaning_on_one_not_shown_is_left_out(text):
-    """Both spellings. A filter written for only "same facts as in Example"
-    missed a real case on this extractor's first run, because the regulation
-    also says "same facts as Example" without the *in*."""
+    """Three spellings. A filter written for only "same facts as in Example"
+    missed a real case on this extractor's first run, because the regulation also
+    says "same facts as Example" without the *in* -- and one written for both
+    still missed "The facts are the same as in Example 30"."""
     assert ex.DEPENDENT.search(text)
+
+
+def test_no_problem_in_the_record_leans_on_an_example_not_shown():
+    """Asserted over what SHIPPED, not over the filter.
+
+    The parametrized test above interrogates `DEPENDENT` directly, so deleting a
+    spelling from it left every test green while a problem referring to facts
+    nobody can see stayed in the denominator -- the helper checked, the caller
+    unchecked, for the third time in this plugin's short life.
+    """
+    import record
+    desk = record.load(DESKS / "fixed-assets")
+    assert desk.problems, "no problems loaded; this would pass vacuously"
+    leaning = [p.id for p in desk.problems
+               if ex.DEPENDENT.search(p.facts)
+               or re.search(r"(?:in|as) Example \d", p.facts)]
+    assert not leaning, (
+        f"{len(leaning)} problems rest on facts the desk was never given: "
+        f"{leaning}"
+    )
 
 
 # ── the denominator is real ──────────────────────────────────────────────────
@@ -138,7 +211,7 @@ def test_no_problem_hands_the_model_its_own_answer():
     import record
     desk = record.load(DESKS / "fixed-assets")
     assert desk.problems, "no problems loaded; this check would pass vacuously"
-    leaking = [p.id for p in desk.problems if ex.states_conclusion(p.facts)]
+    leaking = [p.id for p in desk.problems if ex.LEAKS.search(p.facts)]
     assert not leaking, (
         f"{len(leaking)} problems state their own answer in the facts: {leaking}"
     )
@@ -149,12 +222,13 @@ def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
     is lost and counted -- never shipped with the answer still in it."""
     # One sentence, carrying both the facts and the conclusion: nothing survives
     # the split, so there is no fact pattern to hand anybody.
-    assert ex.split_conclusion(
-        "X paid to replace the roof and must capitalize the amount."
-    ) == ("", "")
+    facts, _, why = ex.split_conclusion(
+        "Therefore, X must capitalize the amount paid to replace the roof.")
+    assert facts is None
+    assert why == "conclusion cannot be separated from the facts"
     # And `build` routes that outcome into the counted exclusions rather than
     # letting the example through with empty facts.
-    monkey = lambda _text: ("", "")
+    monkey = lambda _t: (None, None, "conclusion cannot be separated from the facts")
     real, ex.split_conclusion = ex.split_conclusion, monkey
     try:
         _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
@@ -162,5 +236,5 @@ def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
     finally:
         ex.split_conclusion = real
     assert kept == [], "every example should have been lost to the split"
-    assert any(why == "conclusion cannot be separated from the fact pattern"
+    assert any(why == "conclusion cannot be separated from the facts"
                for _, why in dropped), "the exclusion was not counted by name"

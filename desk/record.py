@@ -302,6 +302,23 @@ def load(desk_dir: Path) -> Desk:
                 f"in SOURCES.md; authority with no recorded source is unverifiable"
             )
 
+    # A POSITION MUST RESOLVE TO EXACTLY ONE SOURCE, CHECKED HERE AND NOT LATER.
+    # Positions are matched to their source by citation prefix rather than by an
+    # id, so a mistyped citation resolved to nothing and `authority_for` handed
+    # back `("position", pos, None)`. The desk loaded clean and then raised
+    # EngineError the first time anybody asked that exact question -- a record
+    # that reads as valid and detonates on use. Two sources whose prefixes both
+    # match is the same defect wearing the other face: the tier served would
+    # depend on file order.
+    for q in pos:
+        matched = [s for s in sources if q.citation.startswith(s.citation_prefix)]
+        if len(matched) != 1:
+            raise RecordError(
+                f"position {q.id} cites {q.citation!r}, which matches "
+                f"{len(matched)} recorded sources ({[s.id for s in matched]}); a "
+                f"position must rest on exactly one, or it cannot be served"
+            )
+
     return Desk(
         name=desk_dir.name,
         sources=tuple(sources),
