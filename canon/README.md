@@ -49,8 +49,21 @@ into the project you are working in.
 
 ```powershell
 # once, from anywhere
-claude plugin marketplace add AJSethuraman/SATC
+claude plugin marketplace add AJSethuraman/SATC@claude/satc-handoff-batches-2-4-n2qrl9-b7-fee-estimate
 claude plugin install canon@satc --yes
+```
+
+**The branch ref is not optional yet, and that is the whole reason to notice
+it.** canon lives on a feature branch; its pull request is not merged, so
+`main` carries no `marketplace.json` and no `canon/`. Told to run the command
+without the ref, a session went and looked at `main`, found neither, and
+reported — correctly for what it could see — that canon did not exist. Once the
+pull request merges, drop the `@…` and the plain form works.
+
+To pick up a change to the record on a machine that already has it:
+
+```powershell
+claude plugin marketplace update satc
 ```
 
 Inside a running session, the same two steps are `/plugin marketplace add …` and

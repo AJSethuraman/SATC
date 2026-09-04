@@ -215,3 +215,38 @@ matching, which nothing guarantees — so every place that mentions it also name
 the way to load the skill by hand.
 
 123 tests.
+
+---
+
+## 2026-09-04 · Two things wrong with the install instruction
+
+**The branch.** The instruction given to the firm was
+`claude plugin marketplace add AJSethuraman/SATC`. Another session ran it,
+looked at `main`, found no `marketplace.json` and nothing named canon, and
+reported that canon does not exist. That session was right about everything it
+could see: canon lives on a feature branch whose pull request is not merged.
+The command needs the ref —
+`claude plugin marketplace add AJSethuraman/SATC@claude/satc-handoff-batches-2-4-n2qrl9-b7-fee-estimate` —
+until the branch lands, and the README now says so and says why.
+
+**The record's address.** The first proof asked only whether it worked. It
+worked: a session in an unrelated repo challenged a push to main by quoting C2
+back. Asked *where it had read the record from*, it answered with a path to a
+checkout that happens to exist on this machine — not the plugin's own copy. On
+any machine without that checkout it would have found nothing.
+
+Every skill that reads the record now names `${CLAUDE_PLUGIN_ROOT}` and says not
+to read a copy it merely found: a working tree is a branch, a half-finished
+edit, someone else's experiment. Re-proved after the fix, asking the same extra
+question, and the answer is now
+`/root/.claude/plugins/cache/satc/canon/1.0.0/CONVICTIONS.md`.
+
+**And the consequence that outlives both.** The plugin directory is versioned
+and replaced on update, so a conviction recorded into it is discarded the next
+time canon updates. That settles an architectural question nobody had asked:
+**the plugin is how the record is read everywhere; the repository is the only
+place it is written.** A new conviction is a pull request against canon, and it
+reaches other machines through `claude plugin marketplace update satc`. Every
+record-reading skill says so now.
+
+127 tests.
