@@ -37,13 +37,29 @@ RECORD = (
 RELEASED = CANON / ".claude-plugin" / "RELEASED.json"
 
 
+def _content(path: Path) -> bytes:
+    """The file's content, with line endings normalised to LF.
+
+    HASHING THE RAW BYTES MADE THE DIGEST DEPEND ON WHO CHECKED OUT. Git converts
+    these Markdown files to CRLF on a Windows checkout with `core.autocrlf=true`,
+    and nothing in this repository forces LF for them -- so the same commit
+    hashed differently on Windows than on Linux, and the check would fail on one
+    platform or the other whichever machine wrote the digest. This repository
+    builds a Windows desktop binary, so that is not a hypothetical checkout.
+
+    A check whose result depends on the machine running it is not a check.
+    """
+    text = path.read_text(encoding="utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def digest(root: Path = CANON) -> str:
     """One hash over the record, in a fixed order so it is reproducible."""
     h = hashlib.sha256()
     for name in RECORD:
         h.update(name.encode("utf-8"))
         h.update(b"\0")
-        h.update((root / name).read_bytes())
+        h.update(_content(root / name))
         h.update(b"\0")
     return h.hexdigest()
 

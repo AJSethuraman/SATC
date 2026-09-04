@@ -28,3 +28,15 @@
 # cannot run at all. Added 4 Sep 2026 after exactly that happened on the build
 # PC: `formula-text-blind: expected 1 occurrence ... found 0`.
 credit-suite/**/*.py text eol=lf
+
+# canon's record, for a third instance of the same thing. `canon/release.py`
+# hashes CONVICTIONS.md, TENETS.md and two skills so a version says what it
+# contains; hashing raw bytes made that digest depend on WHO checked the repo
+# out, because nothing here forced LF for Markdown. Same commit, different hash
+# on Windows, and the check fails on one platform or the other whichever machine
+# wrote it. Caught in review on 4 Sep 2026, before it reached a Windows box.
+#
+# `release.py` normalises line endings when hashing, so the check is correct
+# either way. This is the second belt: the file on disk is the same file
+# everywhere, which is what the two incidents above are about.
+canon/**/*.md text eol=lf

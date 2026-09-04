@@ -278,16 +278,29 @@ def test_the_version_says_what_the_record_actually_contains():
     )
 
 
+#: Spellings a manifest might use for the behaviour count. Asserted to cover the
+#: real count, so growing past the end of it fails loudly instead of silently.
+NUMBER_WORDS = {
+    "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20, "twenty-one": 21, "twenty-two": 22,
+    "twenty-three": 23, "twenty-four": 24, "twenty-five": 25,
+}
+
+
 def test_a_count_stated_in_a_manifest_is_a_count_somebody_made():
     """Both manifests describe canon in prose, and the prose carries a number.
     The marketplace said "fifteen standing behaviours" while the file held
     eighteen — a claim about the product, drifting where nothing compared it."""
-    words = {"fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
-             "nineteen": 19, "twenty": 20}
     real = len(re.findall(r"^## \d+ · ",
                           (CANON / "skills" / "how-we-work" / "SKILL.md")
                           .read_text(encoding="utf-8"), re.M))
     assert real, "no behaviours found; this check would pass vacuously"
+    assert real in NUMBER_WORDS.values(), (
+        f"there are {real} behaviours and NUMBER_WORDS stops short of it, so "
+        f"this check can no longer read the claim it exists to compare. Extend "
+        f"the table rather than letting the check quietly stop checking"
+    )
 
     texts = {"plugin.json": json.loads(
         (CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
@@ -298,9 +311,55 @@ def test_a_count_stated_in_a_manifest_is_a_count_somebody_made():
             p for p in json.loads(market.read_text(encoding="utf-8"))["plugins"]
             if p["name"] == "canon")["description"]
 
+    # THE PHRASE IS FOUND FIRST, THEN READ. Written the other way -- looping over
+    # known spellings and asserting only where one matched -- the check went
+    # silent the moment the count passed the end of the table, or somebody
+    # misspelled it, or wrote "21". It would have passed on any claim it could
+    # not parse, which is the one way a check must never fail.
+    stated = 0
     for where, text in texts.items():
-        for word, n in words.items():
-            if re.search(rf"\b{word} standing behaviours\b", text, re.I):
-                assert n == real, (
-                    f"{where} claims {word} standing behaviours; there are {real}"
-                )
+        for m in re.finditer(r"\b([\w-]+) standing behaviours\b", text, re.I):
+            said = m.group(1).lower()
+            stated += 1
+            n = NUMBER_WORDS.get(said, int(said) if said.isdigit() else None)
+            assert n is not None, (
+                f"{where} says {said!r} standing behaviours, which this check "
+                f"cannot read — so it cannot tell whether the claim is true"
+            )
+            assert n == real, (
+                f"{where} claims {said} standing behaviours; there are {real}"
+            )
+    assert stated, (
+        "neither manifest states a behaviour count any more. If that is "
+        "deliberate, delete this test; leaving it is a check that passes "
+        "because it found nothing to check"
+    )
+
+
+def test_the_digest_does_not_depend_on_who_checked_the_repository_out(tmp_path):
+    """Hashing raw bytes made the digest a fact about the MACHINE.
+
+    Git rewrites these Markdown files to CRLF on a Windows checkout with
+    `core.autocrlf=true`, and nothing forced LF for them. Same commit, different
+    hash, so the check would fail on Linux or on Windows depending only on which
+    one wrote it. This repository builds a Windows desktop binary and
+    `.gitattributes` already records two earlier instances of exactly this.
+
+    A check whose result depends on the machine running it is not a check.
+    """
+    import release
+    lf = tmp_path / "lf"
+    crlf = tmp_path / "crlf"
+    for root in (lf, crlf):
+        for name in release.RECORD:
+            dst = root / name
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            text = (CANON / name).read_text(encoding="utf-8")
+            body = text.replace("\r\n", "\n")
+            dst.write_bytes((body.replace("\n", "\r\n") if root is crlf
+                             else body).encode("utf-8"))
+    assert (crlf / "CONVICTIONS.md").read_bytes() != \
+        (lf / "CONVICTIONS.md").read_bytes(), "the fixture is not a real CRLF copy"
+    assert release.digest(lf) == release.digest(crlf), (
+        "the same record hashed differently once git had touched it"
+    )
