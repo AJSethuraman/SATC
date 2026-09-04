@@ -1,0 +1,122 @@
+"""The record's gates. They fail the build; they do not warn.
+
+Each guard exists because review discipline is not a mechanism: a rule that
+depends on somebody noticing a line in a diff holds until the first busy
+afternoon, and then it holds nowhere and nobody knows when it stopped.
+"""
+from __future__ import annotations
+
+import pytest
+
+import guards
+import record
+from conftest import DESKS
+
+GOOD_SOURCE = ("## S1 · A source\n\n"
+               "**Tier:** primary · **Access:** public_fetch · "
+               "**May store:** full_text · **Checked:** 2026-09-04\n\n"
+               "**Citation prefix:** 26 CFR\n")
+GOOD_PROBLEM = ("## P1 · x\n\n**Citation:** 26 CFR 1\n\n"
+                "**Answer:** must capitalize\n\n**Facts:** f\n")
+GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+                "> must capitalize\n")
+
+
+def build(tmp_path, *, source=GOOD_SOURCE, problem=GOOD_PROBLEM,
+          passage=GOOD_PASSAGE, name="d"):
+    d = tmp_path / name
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(source, encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(problem, encoding="utf-8")
+    if passage is not None:
+        (d / "extracted" / "a.md").write_text(passage, encoding="utf-8")
+    return d
+
+
+# ── the control, without which every test below could pass for the wrong reason ──
+
+def test_a_well_formed_desk_passes_every_guard(tmp_path):
+    assert guards.check(build(tmp_path)).name == "d"
+
+
+def test_the_shipped_desk_passes_every_guard():
+    """The one that actually matters: the record in this repo is legal."""
+    assert guards.check(DESKS / "fixed-assets")
+
+
+# ── a judgement must not ride along inside an extraction ─────────────────────
+
+@pytest.mark.parametrize("marker", ["Position", "Ratified"])
+def test_a_position_hidden_in_an_extraction_fails_the_build(tmp_path, marker):
+    """A large extraction diff is skimmed and a single position is read. A
+    position inside the first is one that got ratified by a glance."""
+    d = build(tmp_path, passage=GOOD_PASSAGE + f"\n**{marker}:** we capitalise\n")
+    with pytest.raises(guards.GuardFailure, match=marker):
+        guards.check(d)
+
+
+# ── nothing is stored from a source that does not permit storing ─────────────
+
+@pytest.mark.parametrize("may_store", ["citation_only", "license_check"])
+def test_storing_text_under_a_restricted_source_fails_the_build(
+        tmp_path, may_store):
+    d = build(tmp_path, source=GOOD_SOURCE.replace("full_text", may_store))
+    with pytest.raises(guards.GuardFailure, match="may_store"):
+        guards.check(d)
+
+
+def test_license_check_is_the_default_and_it_stores_nothing():
+    """A licence the firm holds may permit a copy, which is why this is a fact
+    per source rather than one policy over all of them."""
+    assert record.MAY_STORE[-1] == "license_check"
+
+
+# ── human_only is the absence of a fetch ─────────────────────────────────────
+
+def test_stored_text_from_a_human_only_source_fails_the_build(tmp_path):
+    """The engine never reaches for it, so this text cannot have arrived by a
+    permitted route. FASB ASC is the worked example."""
+    d = build(tmp_path, source=GOOD_SOURCE.replace("public_fetch", "human_only"))
+    with pytest.raises(guards.GuardFailure, match="human_only"):
+        guards.check(d)
+
+
+def test_a_human_only_source_may_still_be_cited_by_a_problem(tmp_path):
+    """Cited by reference, never read. That is the whole point of the value."""
+    d = build(tmp_path,
+              source=GOOD_SOURCE.replace("public_fetch", "human_only"),
+              passage=None)
+    assert guards.check(d)
+
+
+# ── a problem the desk cannot support cannot be scored honestly ──────────────
+
+def test_a_problem_citing_authority_the_desk_lacks_fails_the_build(tmp_path):
+    d = build(tmp_path, problem=GOOD_PROBLEM.replace("26 CFR 1", "26 CFR 9"))
+    with pytest.raises(guards.GuardFailure, match="not in extracted"):
+        guards.check(d)
+
+
+# ── positions parse, and an unratified one says so ───────────────────────────
+
+def test_a_position_carries_the_firms_words_and_its_authority():
+    ps = positions_parse(
+        "## POS1 · Roof replacement\n\n"
+        "**Citation:** 26 CFR 1 · **Recorded:** 2026-09-04\n\n"
+        "**Position:** we capitalise a full roof replacement\n\n"
+        "**Ratified:** PR #999\n")
+    assert ps[0].position.startswith("we capitalise")
+    assert not ps[0].proposed
+
+
+def test_an_unratified_position_is_marked_proposed():
+    """Real when a person merges it, and not before."""
+    ps = positions_parse(
+        "## POS1 · x\n\n**Citation:** c · **Recorded:** 2026-09-04\n\n"
+        "**Position:** p\n")
+    assert ps[0].proposed
+
+
+def positions_parse(text):
+    import positions
+    return positions.parse(text)
