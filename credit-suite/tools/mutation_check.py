@@ -42,6 +42,8 @@ class Mutation:
 
 
 T = "tests/test_parity.py::"
+L = "tests/test_engine_logic.py::"
+C = "tests/test_engine_config.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -173,6 +175,153 @@ MUTATIONS: list[Mutation] = [
         '"Dashboard_AssetQuality!A4": ["#DIV/0!", ',
         (T + "test_every_unpinned_formula_is_one_the_engine_documents_it_cannot_run",),
         "a formula that stopped resolving is named, not shrugged at",
+    ),
+
+    # ======================================================================
+    # the engine (issue #165)
+    # ======================================================================
+    Mutation(
+        "threshold-watch-before-alert", SRC / "engine" / "thresholds.py",
+        "    if hit(threshold.alert):\n        return ALERT\n"
+        "    if hit(threshold.watch):\n        return WATCH\n",
+        "    if hit(threshold.watch):\n        return WATCH\n"
+        "    if hit(threshold.alert):\n        return ALERT\n",
+        (L + "test_status_matches_the_legacy_engine_over_every_combination",
+         L + "test_alert_wins_over_watch_when_a_value_passes_both"),
+        "a value past both bands reports the worse one",
+    ),
+    Mutation(
+        "threshold-direction-inverted", SRC / "engine" / "thresholds.py",
+        'above = threshold.direction != "below"',
+        'above = threshold.direction == "below"',
+        (L + "test_status_matches_the_legacy_engine_over_every_combination",
+         L + "test_direction_below_flags_the_other_way",
+         L + "test_only_the_literal_word_below_flips_the_direction"),
+        "below-is-bad metrics (capital, coverage) flag the right way round",
+    ),
+    Mutation(
+        "threshold-blank-becomes-a-flag", SRC / "engine" / "thresholds.py",
+        "            isinstance(value, float) and math.isnan(value)):\n        return OK",
+        "            isinstance(value, float) and math.isnan(value)):\n        return ALERT",
+        (L + "test_a_missing_threshold_is_ok_never_a_flag",
+         L + "test_status_matches_the_legacy_engine_over_every_combination"),
+        "a missing number is never fabricated into a flag",
+    ),
+    Mutation(
+        "gate-admits-everything", SRC / "engine" / "gates.py",
+        "    if not spec.entity.admits(row.entity_key):",
+        "    if False:",
+        (L + "test_the_gate_is_default_deny_not_deny_listed",
+         L + "test_one_bad_row_refuses_itself_and_lets_the_rest_land",
+         L + "test_entity_refusal_message_is_byte_identical_to_the_legacy_one"),
+        "the join-key whitelist is default-deny and actually applied",
+    ),
+    Mutation(
+        "gate-inactive-is-a-refusal", SRC / "engine" / "gates.py",
+        "        if not row.active:\n            excluded.append(row)",
+        "        if not row.active:\n            refusals.append((row, 'inactive'))",
+        # NOT the differential test: the shipped [PEERS] table has no
+        # inactive row carrying an entity, so both implementations agree
+        # under this mutation. Only the synthetic case can see it.
+        (L + "test_an_inactive_row_is_excluded_and_never_refused",),
+        "switching an entity off is a choice, not a mistake to go and fix",
+    ),
+    Mutation(
+        "gate-one-typo-kills-the-refresh", SRC / "engine" / "gates.py",
+        "            refusals.append((row, entity_refusal_message(row, reasons, spec)))",
+        "            return [], [(row, entity_refusal_message(row, reasons, spec))], excluded",
+        (L + "test_one_bad_row_refuses_itself_and_lets_the_rest_land",),
+        "a bad entity row refuses only itself; the rest still lands",
+    ),
+    Mutation(
+        "gate-class-c-admitted", SRC / "engine" / "gates.py",
+        "    if series.source_class not in spec.admitted_source_classes:",
+        "    if False:",
+        (L + "test_a_non_admitted_metric_class_refuses_the_whole_run",
+         L + "test_class_c_is_never_admitted_however_capable_it_claims_to_be",
+         L + "test_metric_refusal_message_is_byte_identical_to_the_legacy_one"),
+        "a licensed (Class C) feed stays gated until a contract exists",
+    ),
+    Mutation(
+        "capacity-truncates-instead-of-refusing", SRC / "engine" / "gates.py",
+        "    if bad:\n        need = max(",
+        "    if False:\n        need = max(",
+        (L + "test_over_capacity_is_refused_with_a_rebuild_command_never_truncated",),
+        "an over-capacity entity list is refused, never silently truncated",
+    ),
+    Mutation(
+        "staleness-no-baseline-invents-a-finding", SRC / "engine" / "staleness.py",
+        "    if set_max_period is None:\n        return False",
+        "    if set_max_period is None:\n        return True",
+        (L + "test_nothing_landed_anywhere_is_not_a_staleness_finding",
+         L + "test_staleness_matches_the_legacy_guard_over_every_combination"),
+        "with no baseline, staleness is not claimed",
+    ),
+    Mutation(
+        "staleness-unreadable-date-assumed-current", SRC / "engine" / "staleness.py",
+        "    except ValueError:\n        return True",
+        "    except ValueError:\n        return False",
+        (L + "test_an_unreadable_period_is_stale_rather_than_assumed_current",
+         L + "test_staleness_matches_the_legacy_guard_over_every_combination"),
+        "a date the guard cannot read is a date it does not vouch for",
+    ),
+    Mutation(
+        "staleness-ignores-period-length", SRC / "engine" / "staleness.py",
+        "return (newest - last).days > stale_multiplier * period_days",
+        "return (newest - last).days > stale_multiplier * 92",
+        (L + "test_the_period_length_is_the_monitors_to_set",),
+        "a monthly source is not judged on quarterly patience",
+    ),
+    Mutation(
+        "rawlayout-stride-drops-the-gap", SRC / "engine" / "rawlayout.py",
+        "stride = HEADER_ROWS + raw_slots + GAP_ROWS",
+        "stride = HEADER_ROWS + raw_slots",
+        (L + "test_slot_anchors_match_the_legacy_layout_for_every_slot",
+         L + "test_an_anchor_depends_only_on_the_slot_not_on_who_occupies_it"),
+        "block anchors match the ones every dashboard formula points at",
+    ),
+    Mutation(
+        "rawlayout-oldest-first", SRC / "engine" / "rawlayout.py",
+        "                     reverse=True)[:raw_slots]",
+        "                     reverse=False)[:raw_slots]",
+        (L + "test_only_raw_slots_periods_are_kept_newest_first",
+         L + "test_a_field_missing_a_period_blanks_that_cell_rather_than_shifting_rows"),
+        "periods land newest-first, which every offset formula assumes",
+    ),
+    Mutation(
+        "rawlayout-intersects-instead-of-unions", SRC / "engine" / "rawlayout.py",
+        "    periods = sorted({row.period for rows in field_rows.values() "
+        "for row in rows},\n                     reverse=True)[:raw_slots]",
+        "    _sets = [{row.period for row in rows} for rows in field_rows.values()]\n"
+        "    periods = sorted(set.intersection(*_sets) if _sets else set(),\n"
+        "                     reverse=True)[:raw_slots]",
+        (L + "test_a_field_missing_a_period_blanks_that_cell_rather_than_shifting_rows",),
+        "a field missing one period blanks a cell rather than shifting a column",
+    ),
+    Mutation(
+        "config-coerces-a-malformed-key", SRC / "engine" / "config.py",
+        "    return str(value).strip()\n\n\ndef norm_slot",
+        "    return \"\".join(c for c in str(value) if c.isdigit())\n\n\ndef norm_slot",
+        # NOT the differential test: every seeded cert is already a clean
+        # digit string, so tidying one changes nothing it compares.
+        (C + "test_a_malformed_key_reaches_the_gate_rather_than_being_coerced",),
+        "a malformed key reaches the gate instead of being tidied into a valid one",
+    ),
+    Mutation(
+        "config-tolerates-a-nan-band", SRC / "engine" / "config.py",
+        "            if isinstance(raw, float) and raw != raw:",
+        "            if False:",
+        (C + "test_a_nan_band_an_alert_rule_reads_is_refused_not_coerced",),
+        "L8: a band an alert rule reads is refused, not coerced",
+    ),
+    Mutation(
+        "config-comments-become-data", SRC / "engine" / "config.py",
+        'if not first or first.startswith("#"):',
+        "if not first:",
+        (C + "test_a_comment_line_is_never_data",
+         C + "test_the_shipped_config_parses_to_something_worth_comparing",
+         C + "test_every_entity_row_matches_the_legacy_peer_row"),
+        "an in-sheet comment line is never read as data",
     ),
 ]
 
