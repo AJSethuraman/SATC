@@ -254,7 +254,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "collect":
         import os
 
-        from satc import collect as collect_mod
         from satc.collect import SyncedFolder, collect
         from satc.ingest.client_library import library_root
 
@@ -269,9 +268,9 @@ def main(argv: list[str] | None = None) -> int:
         # closes the intake request each arriving document satisfies; without
         # one it only files. This call passed no store, so on the only path a
         # person actually runs, `reconcile_received` was never reached and the
-        # report's own "closes ..." / "still waiting on ..." lines could not
-        # print. The capability was built, tested and unreachable -- front to
-        # back or it is not delivered (S28).
+        # report's own "closes ..." line could not print. The capability was
+        # built, tested and unreachable -- front to back or it is not
+        # delivered (S28).
         from satc.persistence import SATCStore
         store = SATCStore(args.dir)
         report = collect(SyncedFolder(folder), library=lib, apply=args.apply,
@@ -290,32 +289,13 @@ def main(argv: list[str] | None = None) -> int:
                 where = f"  ->  {a.filed_to}" if a.filed_to else ""
                 print(f"      {a.name:<24} {a.label}{year} "
                       f"[{a.method}/{a.confidence}]{where}")
-                # A REQUEST NAMING SEVERAL FORMS IS NOT CLOSED BY ONE OF THEM.
-                # Printed here because the collection report is where the firm
-                # decides a client has sent everything.
-                if a.satisfied and a.awaiting:
-                    print(f"      {'':<24} ↳ part of “{a.satisfied}” — "
-                          f"still waiting on {a.awaiting}")
-                elif a.satisfied:
+                if a.satisfied:
                     print(f"      {'':<24} ↳ closes “{a.satisfied}”")
-                elif a.wrong_year_for:
-                    # The one that reads as fine and is not: the client sent a
-                    # form we asked for, from the wrong year.
-                    print(f"      {'':<24} ↳ “{a.wrong_year_for}” asked for this "
-                          f"form, but for a different year — nothing closed")
             for name in dr.not_downloaded:
                 # Loudly, and with the remedy. This is the one that used to be
                 # filed as Unclassified and never seen again.
                 print(f"      {name:<24} NOT DOWNLOADED — right-click it in "
                       f"Explorer and choose Always keep on this device")
-            if dr.aged:
-                # REPORTED, NEVER REMOVED. See collect.RETENTION_YEARS -- the
-                # period is the one the engagement letter already promises, and
-                # deleting a client's documents is a person's act, not a run's.
-                shown = ", ".join(dr.aged[:3])
-                more = f" (+{len(dr.aged) - 3} more)" if len(dr.aged) > 3 else ""
-                print(f"      · {len(dr.aged)} file(s) past {collect_mod.RETENTION_YEARS} "
-                      f"years: {shown}{more}")
             if dr.unresolved:
                 print(f"      ! {dr.unresolved}")
         print(f"\n  {report.collected} document(s)"

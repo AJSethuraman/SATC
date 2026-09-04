@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS estimate_payments (
 CREATE TABLE IF NOT EXISTS engagements (
   client_id TEXT, tax_year INTEGER, engagement_letter_status TEXT, fee_amount TEXT,
   invoiced INTEGER, paid INTEGER, preparer_id TEXT, note TEXT,
-  rate_plan_key TEXT, rate_plan_basis TEXT,
+  rate_plan_key TEXT, rate_plan_basis TEXT, engagement_ref TEXT,
   PRIMARY KEY (client_id, tax_year));
 CREATE TABLE IF NOT EXISTS requested_items (
   request_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
@@ -494,6 +494,16 @@ class SATCStore:
                 self.mart.execute(f"ALTER TABLE engagements ADD COLUMN {column} TEXT")
         self.mart.commit()
 
+        # The join between what a client sees on their paperwork ("2026-0001")
+        # and what this store keys on (client_id, "SATC-001000") -- the firm's
+        # instruction, 31 Aug 2026: "ADD THE FIELD". Added after the table
+        # already had rows, so an existing engagement has no engagement_ref and
+        # must read back blank rather than fail to load. See client_for_ref,
+        # which relies on a blank ref never being matched.
+        if "engagement_ref" not in eng_cols:
+            self.mart.execute("ALTER TABLE engagements ADD COLUMN engagement_ref TEXT")
+            self.mart.commit()
+
         # The facts a job's STAGE is derived from. Without blocked_by, a task
         # waiting on earlier work in the same job came back off disk looking
         # startable — so a job the derivation calls "in_prep, waiting on its own
@@ -648,6 +658,28 @@ class SATCStore:
             (client_id,)).fetchone()
         return self._cipher.decrypt(row["email"]) if row else ""
 
+    def client_for_ref(self, ref: str) -> str | None:
+        """The client whose engagement carries this ref, or ``None``.
+
+        What lets `collect` resolve a drop folder named "2026-0001" to a
+        client without guessing. A blank ``ref`` is refused before it reaches
+        SQL: most engagements carry "" until someone sets the field (see
+        Engagement.engagement_ref), and ``WHERE engagement_ref=''`` would
+        resolve an unplaced drop folder to whichever of them got saved first.
+
+        Nothing in the schema stops two engagements from carrying the same
+        ref -- a typo, a reused folder name, a bad import. ``DISTINCT``
+        rather than ``LIMIT 1``: if the matching rows name more than one
+        client, that is ambiguous, not resolved, and a document closes the
+        WRONG client's request the moment this picks one arbitrarily.
+        """
+        if not ref:
+            return None
+        rows = self.mart.execute(
+            "SELECT DISTINCT client_id FROM engagements WHERE engagement_ref=?",
+            (ref,)).fetchall()
+        return rows[0]["client_id"] if len(rows) == 1 else None
+
     # -- mart write -------------------------------------------------------
     def save_mart(self, mart: DataMart) -> None:
         m = self.mart
@@ -692,10 +724,10 @@ class SATCStore:
                       (p.payment_id, p.client_id, p.tax_year, p.jurisdiction, p.period,
                        _d(p.amount), _dt(p.paid_date)))
         for e in mart.engagements:
-            m.execute("INSERT OR REPLACE INTO engagements VALUES (?,?,?,?,?,?,?,?,?,?)",
+            m.execute("INSERT OR REPLACE INTO engagements VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                       (e.client_id, e.tax_year, e.engagement_letter_status, _d(e.fee_amount),
                        int(e.invoiced), int(e.paid), e.preparer_id, e.note,
-                       e.rate_plan_key, e.rate_plan_basis))
+                       e.rate_plan_key, e.rate_plan_basis, e.engagement_ref))
         self.save_requested_items(mart.requested_items)
         self.save_received_documents(mart.received_documents)
         m.commit()
@@ -1378,7 +1410,10 @@ class SATCStore:
             # plan on it, and rate_plan_for reports a blank key as a fallback,
             # not as a decision.
             rate_plan_key=_col(r, "rate_plan_key") or "",
-            rate_plan_basis=_col(r, "rate_plan_basis") or "")
+            rate_plan_basis=_col(r, "rate_plan_basis") or "",
+            # Same reasoning: a row written before this column existed has
+            # NULL here, and reads back as "no ref recorded" rather than "".
+            engagement_ref=_col(r, "engagement_ref") or "")
             for r in m.execute("SELECT * FROM engagements")]
         mart.requested_items = self.load_requested_items()
         mart.received_documents = self.load_received_documents()

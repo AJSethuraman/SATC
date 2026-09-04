@@ -281,6 +281,22 @@ class Engagement:
     with no basis cannot be issued.
     """
 
+    engagement_ref: str = ""
+    """The ref a client sees on their own paperwork -- "2026-0001", the id
+    `client-documents` and every letter, estimate and invoice already use.
+    Distinct from ``client_id`` ("SATC-001000"), which is this system's own
+    key and nothing a client is ever shown.
+
+    The firm's instruction, 31 Aug 2026, verbatim: "ADD THE FIELD" -- a join,
+    not a rename. Renaming ``client_id`` would break every citation already
+    written against it; putting an internal id on a folder a client can see
+    would leak a detail for the software's convenience. Blank by default for
+    the same reason ``rate_plan_key`` above is: SILENCE, not a guess. A drop
+    folder named for a ref nobody has recorded here must resolve to nothing --
+    see ``SATCStore.client_for_ref`` -- never to whichever engagement happens
+    to load first.
+    """
+
 
 RatePlanSource = Literal["engagement", "practice_default"]
 """Where a client's plan for a year came from — an agreement, or the absence of one."""
