@@ -182,27 +182,46 @@ STATES = {
     "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
 }
 
-# FHFA metro convention ATNHPIUS[CBSA]Q -- starter set of major CBSAs (extensible
-# via the _config CBSA_EXTENSIONS table).
+# FHFA metro convention ATNHPIUS[AREA]Q -- starter set of major metros
+# (extensible via the _config CBSA_EXTENSIONS table).
+#
+# AREA IS NOT ALWAYS THE CBSA (issue #181). For the eleven largest metros FHFA
+# publishes the All-Transactions HPI at METROPOLITAN DIVISION level and does not
+# publish a CBSA-level series at all, so `ATNHPIUS<cbsa>Q` 404s for exactly those
+# eleven -- which is what the live run found. The area code below is therefore
+# the division's where one exists, and the CBSA's where it does not.
+#
+# Every id here was verified against the FRED `series` endpoint on 2026-09-04:
+# present, quarterly, and not discontinued. They are NOT derived from the CBSA
+# table, because deriving them is what produced the bug.
+#
+# The entity key stays `cbsa:<cbsa>` -- the metro is the thing being watched, and
+# its identity does not change because the source publishes a division. The label
+# names the DIVISION, because that is what the numbers are.
+#
+# Known and accepted: Washington (47894) last published 2024-10 and FHFA has not
+# updated it since. It is still the most current DC-area series that exists (the
+# alternatives stop in 2018 and 2013), so it stays and the staleness gate flags
+# it. That is the gate doing its job, not a defect to silence.
 CBSAS = {
-    "35620": "New York-Newark-Jersey City, NY-NJ-PA",
-    "31080": "Los Angeles-Long Beach-Anaheim, CA",
-    "16980": "Chicago-Naperville-Elgin, IL-IN-WI",
-    "19100": "Dallas-Fort Worth-Arlington, TX",
-    "26420": "Houston-The Woodlands-Sugar Land, TX",
-    "47900": "Washington-Arlington-Alexandria, DC-VA-MD-WV",
-    "33100": "Miami-Fort Lauderdale-Pompano Beach, FL",
-    "37980": "Philadelphia-Camden-Wilmington, PA-NJ-DE-MD",
-    "12060": "Atlanta-Sandy Springs-Alpharetta, GA",
-    "38060": "Phoenix-Mesa-Chandler, AZ",
-    "14460": "Boston-Cambridge-Newton, MA-NH",
-    "41860": "San Francisco-Oakland-Berkeley, CA",
-    "42660": "Seattle-Tacoma-Bellevue, WA",
-    "33460": "Minneapolis-St. Paul-Bloomington, MN-WI",
-    "19820": "Detroit-Warren-Dearborn, MI",
-    "12420": "Austin-Round Rock-Georgetown, TX",
-    "40140": "Riverside-San Bernardino-Ontario, CA",
-    "45300": "Tampa-St. Petersburg-Clearwater, FL",
+    "35620": ("35614", "New York-Jersey City-White Plains, NY-NJ (div)"),
+    "31080": ("31084", "Los Angeles-Long Beach-Glendale, CA (div)"),
+    "16980": ("16984", "Chicago-Naperville-Evanston, IL (div)"),
+    "19100": ("19124", "Dallas-Plano-Irving, TX (div)"),
+    "26420": ("26420", "Houston-The Woodlands-Sugar Land, TX"),
+    "47900": ("47894", "Washington-Arlington-Alexandria, DC-VA-MD-WV (div)"),
+    "33100": ("33124", "Miami-Miami Beach-Kendall, FL (div)"),
+    "37980": ("37964", "Philadelphia, PA (div)"),
+    "12060": ("12060", "Atlanta-Sandy Springs-Alpharetta, GA"),
+    "38060": ("38060", "Phoenix-Mesa-Chandler, AZ"),
+    "14460": ("14454", "Boston, MA (div)"),
+    "41860": ("41884", "San Francisco-San Mateo-Redwood City, CA (div)"),
+    "42660": ("42644", "Seattle-Bellevue-Kent, WA (div)"),
+    "33460": ("33460", "Minneapolis-St. Paul-Bloomington, MN-WI"),
+    "19820": ("19804", "Detroit-Dearborn-Livonia, MI (div)"),
+    "12420": ("12420", "Austin-Round Rock-Georgetown, TX"),
+    "40140": ("40140", "Riverside-San Bernardino-Ontario, CA"),
+    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),
 }
 
 # Case-Shiller 20-city components (seasonally adjusted, *XRSA).
@@ -224,10 +243,15 @@ def _geo_rows():
                        "price", "quarterly", "NSA", "index 1980Q1=100", "index", f"state:{code}",
                        False, True, "yoy_pct", "none",
                        "FHFA state HPI -- geographically keyed; watchlist-capable."))
-    for cbsa, name in CBSAS.items():
-        out.append(row(f"ATNHPIUS{cbsa}Q", f"FHFA HPI -- {name}", "hpi_metro", "price", "price",
+    for cbsa, (area, name) in CBSAS.items():
+        note = ("FHFA metro HPI -- watchlist-capable."
+                if area == cbsa else
+                f"FHFA metro HPI -- FHFA publishes this metro at METROPOLITAN "
+                f"DIVISION level, so the series is division {area}, not CBSA "
+                f"{cbsa}; the entity key stays the metro.")
+        out.append(row(f"ATNHPIUS{area}Q", f"FHFA HPI -- {name}", "hpi_metro", "price", "price",
                        "quarterly", "NSA", "index 1995Q1=100", "index", f"cbsa:{cbsa}", False, True,
-                       "yoy_pct", "none", "FHFA metro HPI (CBSA) -- watchlist-capable."))
+                       "yoy_pct", "none", note))
     for sid, name in CASE_SHILLER.items():
         out.append(row(sid, f"Case-Shiller HPI -- {name}", "hpi_caseshiller", "price", "price",
                        "monthly", "SA", "index 2000-01=100", "index", f"metro:{name}", False, True,
@@ -241,7 +265,8 @@ def all_series():
 
 
 def cbsa_extension_rows():
-    return [{"cbsa": k, "name": v, "series_id": f"ATNHPIUS{k}Q"} for k, v in CBSAS.items()]
+    return [{"cbsa": k, "name": n, "series_id": f"ATNHPIUS{a}Q"}
+            for k, (a, n) in CBSAS.items()]
 
 
 if __name__ == "__main__":

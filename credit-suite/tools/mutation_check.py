@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,6 +44,7 @@ class Mutation:
 
 
 T = "tests/test_parity.py::"
+M = "tests/test_fred_series_ids.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
@@ -553,6 +556,48 @@ MUTATIONS: list[Mutation] = [
         (N + "test_the_report_states_what_it_examined",),
         "a check that examined nothing says so in words",
     ),
+    # ---- issue #181: the metro series ids ----------------------------------
+    # The shipped bug in one line: derive every metro id from the CBSA code.
+    # Eleven of eighteen 404 on a live pull and the offline bar stays green, so
+    # these mutations are the only thing standing between that and a re-run.
+    Mutation(
+        "metro-ids-derived-from-cbsa-again", SRC / "sources/fred/series_seed.py",
+        'out.append(row(f"ATNHPIUS{area}Q"',
+        'out.append(row(f"ATNHPIUS{cbsa}Q"',
+        (M + "test_every_metro_series_id_uses_the_verified_area_code",
+         M + "test_eleven_metros_are_published_as_divisions"),
+        "the exact regression of #181 -- ids re-derived from the CBSA code",
+    ),
+    Mutation(
+        "metro-extension-table-hands-out-cbsa-ids", SRC / "sources/fred/series_seed.py",
+        'return [{"cbsa": k, "name": n, "series_id": f"ATNHPIUS{a}Q"}',
+        'return [{"cbsa": k, "name": n, "series_id": f"ATNHPIUS{k}Q"}',
+        (M + "test_the_extension_table_offers_the_same_ids_it_would_pull",),
+        "the copy-into-_config table offers ids that actually resolve",
+    ),
+    Mutation(
+        "metro-keyed-on-the-division", SRC / "sources/fred/series_seed.py",
+        '"index", f"cbsa:{cbsa}", False, True,',
+        '"index", f"cbsa:{area}", False, True,',
+        (M + "test_the_entity_key_stays_the_metro_not_the_division",
+         M + "test_every_metro_series_id_uses_the_verified_area_code"),
+        "the watchlist stays keyed on the metro, not the division",
+    ),
+    Mutation(
+        "metro-division-note-dropped", SRC / "sources/fred/series_seed.py",
+        'f"DIVISION level, so the series is division {area}, not CBSA "',
+        'f"level, so the series is {area}, not CBSA "',
+        (M + "test_a_division_series_says_so_in_its_notes",),
+        "a division-sourced metro says so where the reader can see it",
+    ),
+    Mutation(
+        "metro-set-changed-without-a-live-check", SRC / "sources/fred/series_seed.py",
+        '    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),\n',
+        '    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),\n'
+        '    "41740": ("41740", "San Diego-Chula Vista-Carlsbad, CA"),\n',
+        (M + "test_the_seed_covers_exactly_the_verified_metros",),
+        "a metro added without confirming its id against FRED is refused",
+    ),
 ]
 
 
@@ -561,11 +606,37 @@ MUTATIONS: list[Mutation] = [
 _EXTRA_ARGS: list[str] = []
 
 
+def _purge_bytecode() -> int:
+    """Delete every ``__pycache__`` under the package. Returns how many.
+
+    Python validates a cached ``.pyc`` against the source's (mtime-in-SECONDS,
+    size). A mutation that swaps equal-length text -- ``{cbsa}`` for ``{area}``,
+    ``{a}`` for ``{k}`` -- leaves the size identical, so if it lands inside the
+    same second as the last compile, the stale ``.pyc`` is reused and the
+    mutation NEVER REACHES THE INTERPRETER. The suite then passes and the
+    harness reports a survivor that is really a no-op.
+
+    That is the worst failure this tool can have. It is silent, it is timing
+    dependent, and it fails in *both* directions: a genuinely dead test can be
+    reported as killed. Two runs of the same mutation set minutes apart reported
+    two different survivors, which is how it was found.
+    """
+    removed = 0
+    for cache in PKG.rglob("__pycache__"):
+        shutil.rmtree(cache, ignore_errors=True)
+        removed += 1
+    return removed
+
+
 def _pytest(node_ids: tuple[str, ...]) -> subprocess.CompletedProcess:
+    # Belt and braces: purge what exists, and forbid writing more for the
+    # duration, so no run can leave a trap for the next one.
+    _purge_bytecode()
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     return subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider",
-         *_EXTRA_ARGS, *node_ids],
-        cwd=PKG, capture_output=True, text=True,
+        [sys.executable, "-B", "-m", "pytest", "-q", "--no-header",
+         "-p", "no:cacheprovider", *_EXTRA_ARGS, *node_ids],
+        cwd=PKG, capture_output=True, text=True, env=env,
     )
 
 

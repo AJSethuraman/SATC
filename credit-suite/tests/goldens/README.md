@@ -66,3 +66,28 @@ python tools/mutation_check.py --list
 
 Each mutation neuters one behaviour (drop the recalc, blind the value diff,
 tamper with a golden) and names the tests that must go red because of it.
+
+## When a golden is re-banked on purpose
+
+A golden that moves is normally a defect. Twice now it has been the point, so
+the reason lives here rather than in a commit message somebody has to go find.
+
+### `fred-demo.json`, 2026-09-04 — issue #181
+
+Eleven of the eighteen metro house-price series were pulling ids FRED does not
+publish. FHFA publishes those metros at metropolitan *division* level, and the
+seed derived every id from the CBSA code, so a live pull 404'd eleven times
+while the whole offline bar stayed green.
+
+Fixing the ids changes the seed, so it changes the demo workbook: the metro
+labels, the series ids, and every demo figure derived from them (the demo
+provider is deterministic in the series id, so a different id is a different
+number by construction). 846-plus cells moved on `Watchlist_Geo` alone.
+
+That is a deliberate output change, approved before it was made, and the golden
+was re-banked *after* confirming it detected the change first. The
+pre-consolidation FRED shipped golden is untouched — it still pins the shape.
+
+Re-banking now runs through `monitorbuild.built_monitor`, not
+`capture_baselines.py`: the legacy runners that tool drives were deleted by the
+migration, so it can no longer produce a FRED baseline.

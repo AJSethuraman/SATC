@@ -27,6 +27,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+# A Windows console defaults to cp1252, and a cell that differs may hold any
+# character the source published. Without this the tool raises
+# UnicodeEncodeError *while printing the diff* -- crashing at the one moment it
+# has something to say, and reporting a parity break as a stack trace. Found by
+# the first real break this harness ever had to describe (issue #181).
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, ValueError):        # pragma: no cover - not a tty
+        pass
+
 from credit_suite import parity  # noqa: E402
 import monitorbuild  # noqa: E402
 
