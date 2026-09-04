@@ -448,3 +448,363 @@ A queue that only grows is a desk nobody is feeding.
 
 ---
 
+## U19 · (i) A is a commercial airline engaged in the business of transporting passengers and freight throughout the United States and abroad. To conduct its business, A owns or leases various types of aircraft. As a condition of maintaining its airworthiness certification for these aircraft, A is required by the Federal Aviation Administration (FAA) to establish and adhere to a continuous maintenance program for each aircraft within its fleet. These programs, which are designed by A and the aircraft's manufacturer and approved by the FAA, are incorporated into each aircraft's maintenance manual. The maintenance manuals require a variety of periodic maintenance visits at various intervals. One type of maintenance visit is an engine shop visit (ESV), which A expects to perform on its aircraft engines approximately every 4 years to keep its aircraft in its ordinarily efficient operating condition. In Year 1, A purchased a new aircraft, which included four new engines attached to the airframe. The four aircraft engines acquired with the aircraft are not materials or supplies under § 1.162-3(c)(1)(i) because they are acquired as part of a single unit of property, the aircraft. In Year 5, A performs its first ESV on the aircraft engines. The ESV includes disassembly, cleaning, inspection, repair, replacement, reassembly, and testing of the engine and its component parts. During the ESV, the engine is removed from the aircraft and shipped to an outside vendor who performs the ESV. If inspection or testing discloses a discrepancy in a part's conformity to the specifications in A's maintenance program, the part is repaired, or if necessary, replaced with a comparable and commercially available replacement part. After the ESVs, the engines are returned to A to be reinstalled on another aircraft or stored for later installation. Assume that the class life for A's aircraft, including the engines, is 12 years. Assume that none of the exceptions set out in paragraph (i)(3) of this section apply to the costs of performing the ESVs.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> (i) A is a commercial airline engaged in the business of transporting passengers and freight throughout the United States and abroad. To conduct its business, A owns or leases various types of aircraft. As a condition of maintaining its airworthiness certification for these aircraft, A is required by the Federal Aviation Administration (FAA) to establish and adhere to a continuous maintenance program for each aircraft within its fleet. These programs, which are designed by A and the aircraft's manufacturer and approved by the FAA, are incorporated into each aircraft's maintenance manual. The maintenance manuals require a variety of periodic maintenance visits at various intervals. One type of maintenance visit is an engine shop visit (ESV), which A expects to perform on its aircraft engines approximately every 4 years to keep its aircraft in its ordinarily efficient operating condition. In Year 1, A purchased a new aircraft, which included four new engines attached to the airframe. The four aircraft engines acquired with the aircraft are not materials or supplies under § 1.162-3(c)(1)(i) because they are acquired as part of a single unit of property, the aircraft. In Year 5, A performs its first ESV on the aircraft engines. The ESV includes disassembly, cleaning, inspection, repair, replacement, reassembly, and testing of the engine and its component parts. During the ESV, the engine is removed from the aircraft and shipped to an outside vendor who performs the ESV. If inspection or testing discloses a discrepancy in a part's conformity to the specifications in A's maintenance program, the part is repaired, or if necessary, replaced with a comparable and commercially available replacement part. After the ESVs, the engines are returned to A to be reinstalled on another aircraft or stored for later installation. Assume that the class life for A's aircraft, including the engines, is 12 years. Assume that none of the exceptions set out in paragraph (i)(3) of this section apply to the costs of performing the ESVs.
+
+**Concluded:**
+
+> not required to capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(i)(3)(i)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The ESVs are periodic maintenance visits required to keep the aircraft in its ordinarily efficient operating condition. According to 26 CFR 1.263(a)-3(i)(3)(i), amounts paid for routine maintenance are not required to be capitalized unless they meet the criteria for betterments, restorations, or adaptations. Since the ESVs do not meet those criteria, they are not required to be capitalized.
+
+---
+
+## U20 · In Year 1, G acquires a large retail mall in which it leases space to retailers. The mall contains an escalator system with 40 escalators, which includes landing platforms, trusses, tracks, steps, handrails, and safety brushes. In Year 1, when G placed its building into service, G reasonably expected that it would need to replace the handrails on the escalators approximately every four years to keep the escalator system in its ordinarily efficient operating condition. After a routine inspection and test of the escalator system in Year 4, G determines that the handrails need to be replaced and pays an amount to replace the handrails with comparable and commercially available handrails. Assume that none of the exceptions in paragraph (i)(3) of this section apply to the scheduled maintenance costs.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> In Year 1, G acquires a large retail mall in which it leases space to retailers. The mall contains an escalator system with 40 escalators, which includes landing platforms, trusses, tracks, steps, handrails, and safety brushes. In Year 1, when G placed its building into service, G reasonably expected that it would need to replace the handrails on the escalators approximately every four years to keep the escalator system in its ordinarily efficient operating condition. After a routine inspection and test of the escalator system in Year 4, G determines that the handrails need to be replaced and pays an amount to replace the handrails with comparable and commercially available handrails. Assume that none of the exceptions in paragraph (i)(3) of this section apply to the scheduled maintenance costs.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The replacement of handrails is a routine maintenance activity that is expected to keep the escalator system in its ordinarily efficient operating condition. According to 26 CFR 1.263(a)-3(d)(1), amounts paid to restore the unit of property must be capitalized.
+
+---
+
+## U21 · (i) In January, Year 1, C purchased a used machine for use in its manufacturing operations. Assume that the machine is a unit of property and has a class life of 10 years. C placed the machine in service in January, Year 1 and at that time expected to perform manufacturer recommended scheduled maintenance on the machine every three years. The scheduled maintenance includes cleaning and oiling the machine, inspecting parts for defects, and replacing minor items, such as springs, bearings, and seals, with comparable and commercially available replacement parts. The scheduled maintenance does not include any material additions or materially increase the capacity, productivity, efficiency, strength, quality, or output of the machine. At the time C purchased the machine, it was approaching the end of a three-year scheduled maintenance period. As a result, in February, Year 1, C pays an amount to perform the manufacturer recommended scheduled maintenance to keep the machine in its ordinarily efficient operating condition. C acquired the machine just before it had received its three-year scheduled maintenance. Accordingly, the amount that C pays for the scheduled maintenance results from the prior owner's use of the property and ameliorates conditions or defects that existed prior to C's ownership of the machine.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> (i) In January, Year 1, C purchased a used machine for use in its manufacturing operations. Assume that the machine is a unit of property and has a class life of 10 years. C placed the machine in service in January, Year 1 and at that time expected to perform manufacturer recommended scheduled maintenance on the machine every three years. The scheduled maintenance includes cleaning and oiling the machine, inspecting parts for defects, and replacing minor items, such as springs, bearings, and seals, with comparable and commercially available replacement parts. The scheduled maintenance does not include any material additions or materially increase the capacity, productivity, efficiency, strength, quality, or output of the machine. At the time C purchased the machine, it was approaching the end of a three-year scheduled maintenance period. As a result, in February, Year 1, C pays an amount to perform the manufacturer recommended scheduled maintenance to keep the machine in its ordinarily efficient operating condition. C acquired the machine just before it had received its three-year scheduled maintenance. Accordingly, the amount that C pays for the scheduled maintenance results from the prior owner's use of the property and ameliorates conditions or defects that existed prior to C's ownership of the machine.
+
+**Concluded:**
+
+> not required to capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(i)(3)(i)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> Under 26 CFR 1.263(a)-3(i)(3)(i), amounts paid for a betterment to a unit of property are required to be capitalized. However, the scheduled maintenance described here does not constitute a betterment, restoration, or adaptation under the regulation. Instead, it is routine maintenance that does not materially increase the productivity, efficiency, or output of the machine. Therefore, it is not required to be capitalized.
+
+---
+
+## U22 · D purchases a used ice resurfacing machine for use in the operation of its ice skating rink. To comply with local regulations, D is required to routinely monitor the air quality in the ice skating rink. One week after D places the machine into service, during a routine air quality check, D discovers that the operation of the machine is adversely affecting the air quality in the skating rink. As a result, D pays an amount to inspect and retune the machine, which includes replacing minor components of the engine that had worn out prior to D's acquisition of the machine. Assume the resurfacing machine, including the engine, is the unit of property. The amount that D pays to inspect, retune, and replace minor components of the ice resurfacing machine ameliorates a condition or defect that existed prior to D's acquisition of the equipment.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> D purchases a used ice resurfacing machine for use in the operation of its ice skating rink. To comply with local regulations, D is required to routinely monitor the air quality in the ice skating rink. One week after D places the machine into service, during a routine air quality check, D discovers that the operation of the machine is adversely affecting the air quality in the skating rink. As a result, D pays an amount to inspect and retune the machine, which includes replacing minor components of the engine that had worn out prior to D's acquisition of the machine. Assume the resurfacing machine, including the engine, is the unit of property. The amount that D pays to inspect, retune, and replace minor components of the ice resurfacing machine ameliorates a condition or defect that existed prior to D's acquisition of the equipment.
+
+**Concluded:**
+
+> not required to capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(i)(3)(i)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The facts indicate that the amount paid ameliorates a condition or defect that existed prior to D's acquisition of the equipment, which falls under the exception for amounts paid for a betterment to a unit of property. This is explicitly excluded from capitalization under 26 CFR 1.263(a)-3(i)(3)(i).
+
+---
+
+## U23 · K owns a building that it uses in its business. In Year 1, City C passes an ordinance setting higher safety standards for buildings because of the hazardous conditions caused by earthquakes. To comply with the ordinance, K pays an amount to add expansion bolts to its building structure. These bolts anchor the wooden framing of K's building to its cement foundation, providing additional structural support and resistance to seismic forces, making the building more resistant to damage from lateral movement. Prior to the ordinance, the old building was in good condition but did not meet City C's new requirements for earthquake resistance.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> K owns a building that it uses in its business. In Year 1, City C passes an ordinance setting higher safety standards for buildings because of the hazardous conditions caused by earthquakes. To comply with the ordinance, K pays an amount to add expansion bolts to its building structure. These bolts anchor the wooden framing of K's building to its cement foundation, providing additional structural support and resistance to seismic forces, making the building more resistant to damage from lateral movement. Prior to the ordinance, the old building was in good condition but did not meet City C's new requirements for earthquake resistance.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The expansion bolts improve the structural integrity of the building to meet new safety standards, which qualifies as a betterment under the regulation.
+
+---
+
+## U24 · N owns a factory building with a storage area on the second floor. N pays an amount to reinforce the columns and girders supporting the second floor to permit storage of supplies with a gross weight 50 percent greater than the previous load-carrying capacity of the storage area.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> N owns a factory building with a storage area on the second floor. N pays an amount to reinforce the columns and girders supporting the second floor to permit storage of supplies with a gross weight 50 percent greater than the previous load-carrying capacity of the storage area.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The reinforcement of structural elements to increase the load capacity of the storage area is a betterment that materially increases the productivity and efficiency of the unit of property, thus requiring capitalization.
+
+---
+
+## U25 · Q owns a building that it uses in its retail business. The building contains one floor of retail space with very high ceilings. Q pays an amount to add a stairway and a mezzanine for the purposes of adding additional selling space within its building.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> Q owns a building that it uses in its retail business. The building contains one floor of retail space with very high ceilings. Q pays an amount to add a stairway and a mezzanine for the purposes of adding additional selling space within its building.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> Under 26 CFR 1.263(a)-3(d)(1), amounts paid for a betterment to the unit of property must be capitalized. The stairway and mezzanine improve the building's functionality and add additional selling space, qualifying as a betterment.
+
+---
+
+## U26 · R owns an office building that it uses to provide services to customers. The building contains an HVAC system that incorporates 10 roof-mounted units that provide heating and air conditioning for different parts of the building. The HVAC system also consists of controls for the entire system and duct work that distributes the heated or cooled air to the various spaces in the building's interior. After many years of use of the HVAC system, R begins to experience climate control problems in various offices throughout the office building and consults with a contractor to determine the cause. The contractor recommends that R replace two of the roof-mounted units. R pays an amount to replace the two specified units. The two new units are expected to eliminate the climate control problems and to be 10 percent more energy efficient than the replaced units in their original condition. No work is performed on the other roof-mounted heating/cooling units, the duct work, or the controls.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> R owns an office building that it uses to provide services to customers. The building contains an HVAC system that incorporates 10 roof-mounted units that provide heating and air conditioning for different parts of the building. The HVAC system also consists of controls for the entire system and duct work that distributes the heated or cooled air to the various spaces in the building's interior. After many years of use of the HVAC system, R begins to experience climate control problems in various offices throughout the office building and consults with a contractor to determine the cause. The contractor recommends that R replace two of the roof-mounted units. R pays an amount to replace the two specified units. The two new units are expected to eliminate the climate control problems and to be 10 percent more energy efficient than the replaced units in their original condition. No work is performed on the other roof-mounted heating/cooling units, the duct work, or the controls.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> Under 26 CFR 1.263(a)-3(d)(1), amounts paid for a betterment to the unit of property must be capitalized. The replacement of the roof-mounted units is a betterment as it resolves climate control problems and improves energy efficiency, meeting the criteria for capitalization.
+
+---
+
+## U27 · S owns a building that it uses in its service business. S conducts an energy assessment and determines that it could significantly reduce its energy costs by adding insulation to its building. S pays an insulation contractor to apply a combination of loose-fill, spray foam, and blanket insulation throughout S's building structure, including within the attic, walls, and crawl spaces. S reasonably expects the new insulation to make the building more energy efficient because the contractor indicated that the new insulation would reduce its annual energy and power costs by approximately 50 percent of its annual costs during the last five years.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> S owns a building that it uses in its service business. S conducts an energy assessment and determines that it could significantly reduce its energy costs by adding insulation to its building. S pays an insulation contractor to apply a combination of loose-fill, spray foam, and blanket insulation throughout S's building structure, including within the attic, walls, and crawl spaces. S reasonably expects the new insulation to make the building more energy efficient because the contractor indicated that the new insulation would reduce its annual energy and power costs by approximately 50 percent of its annual costs during the last five years.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The insulation improves the energy efficiency of the building, which is a material addition that ameliorates a material condition and is reasonably expected to increase the productivity of the unit of property, thereby requiring capitalization.
+
+---
+
+## U28 · G is a common carrier that owns a fleet of petroleum hauling trucks. G pays amounts to replace the existing engine, cab, and petroleum tank with a new engine, cab, and tank. Assume the tractor of the truck (which includes the cab and the engine) is a single unit of property and that the trailer (which contains the petroleum tank) is a separate unit of property. The new engine and the cab each constitute a part or combination of parts that comprise a major component of G's tractor, because they perform a discrete and critical function in the operation of the tractor. In addition, the cab constitutes a part or combination of parts that comprise a substantial structural part of G's tractor. Moreover, the new petroleum tank constitutes a part or combination of parts that comprise a major component and a substantial structural part of the trailer.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> G is a common carrier that owns a fleet of petroleum hauling trucks. G pays amounts to replace the existing engine, cab, and petroleum tank with a new engine, cab, and tank. Assume the tractor of the truck (which includes the cab and the engine) is a single unit of property and that the trailer (which contains the petroleum tank) is a separate unit of property. The new engine and the cab each constitute a part or combination of parts that comprise a major component of G's tractor, because they perform a discrete and critical function in the operation of the tractor. In addition, the cab constitutes a part or combination of parts that comprise a substantial structural part of G's tractor. Moreover, the new petroleum tank constitutes a part or combination of parts that comprise a major component and a substantial structural part of the trailer.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> Under 26 CFR 1.263(a)-3(d)(1), amounts paid for a betterment to the unit of property must be capitalized. The new engine, cab, and petroleum tank are major components and substantial structural parts of their respective units, thus qualifying as betterments requiring capitalization.
+
+---
+
+## U29 · A is a manufacturer and owns a manufacturing building that it has used for manufacturing since Year 1, when A placed it in service. In Year 30, A pays an amount to convert its manufacturing building into a showroom for its business. To convert the facility, A removes and replaces various structural components to provide a better layout for the showroom and its offices. A also repaints the building interiors as part of the conversion. When building materials are removed and replaced, A uses comparable and commercially available replacement materials.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> A is a manufacturer and owns a manufacturing building that it has used for manufacturing since Year 1, when A placed it in service. In Year 30, A pays an amount to convert its manufacturing building into a showroom for its business. To convert the facility, A removes and replaces various structural components to provide a better layout for the showroom and its offices. A also repaints the building interiors as part of the conversion. When building materials are removed and replaced, A uses comparable and commercially available replacement materials.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The conversion includes structural modifications and repainting, which are improvements that meet the criteria for capitalization under the regulation.
+
+---
+
+## U30 · B owns and leases out space in a building consisting of twenty retail spaces. The space was designed to be reconfigured; that is, adjoining spaces could be combined into one space. One of the tenants expands its occupancy by leasing two adjoining retail spaces. To facilitate the new lease, B pays an amount to remove the walls between the three retail spaces. Assume that the walls between spaces are part of the building and its structural components.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> B owns and leases out space in a building consisting of twenty retail spaces. The space was designed to be reconfigured; that is, adjoining spaces could be combined into one space. One of the tenants expands its occupancy by leasing two adjoining retail spaces. To facilitate the new lease, B pays an amount to remove the walls between the three retail spaces. Assume that the walls between spaces are part of the building and its structural components.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The walls are part of the building's structural components, and removing them to reconfigure space is an improvement that enhances the building's utility. Therefore, the cost must be capitalized.
+
+---
+
+## U31 · C owns a building consisting of twenty retail spaces. C decides to sell the building. In anticipation of selling the building, C pays an amount to repaint the interior walls and to refinish the hardwood floors.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> C owns a building consisting of twenty retail spaces. C decides to sell the building. In anticipation of selling the building, C pays an amount to repaint the interior walls and to refinish the hardwood floors.
+
+**Concluded:**
+
+> not required to capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(i)(3)(i)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> Under 26 CFR 1.263(a)-3(i)(3)(i), amounts paid for a betterment to a unit of property are excluded from the routine maintenance safe harbor. However, repainting and refinishing are typically considered routine maintenance, not betterments, and thus are not required to be capitalized.
+
+---
+
+## U32 · (i) F owns a building in which it operates a grocery store. The grocery store includes various departments for fresh produce, frozen foods, fresh meats, dairy products, toiletries, and over-the-counter medicines. The grocery store also includes separate counters for deli meats, prepared foods, and baked goods, often made to order. To better accommodate its customers' shopping needs, F decides to add a sushi bar where customers can order freshly prepared sushi from the counter for take-home or to eat at the counter. To create the sushi bar, F pays amounts to add a sushi counter and chairs, add additional wiring and outlets to support the counter, and install additional pipes and a sink, to provide for the safe handling of the food. F also pays amounts to replace flooring and wall coverings in the sushi bar area with decorative coverings to reflect more appropriate décor. Assume the sushi counter and chairs are section 1245 property, and F treats the amounts paid for those units of property as costs of acquiring new units of property under § 1.263(a)-2.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> (i) F owns a building in which it operates a grocery store. The grocery store includes various departments for fresh produce, frozen foods, fresh meats, dairy products, toiletries, and over-the-counter medicines. The grocery store also includes separate counters for deli meats, prepared foods, and baked goods, often made to order. To better accommodate its customers' shopping needs, F decides to add a sushi bar where customers can order freshly prepared sushi from the counter for take-home or to eat at the counter. To create the sushi bar, F pays amounts to add a sushi counter and chairs, add additional wiring and outlets to support the counter, and install additional pipes and a sink, to provide for the safe handling of the food. F also pays amounts to replace flooring and wall coverings in the sushi bar area with decorative coverings to reflect more appropriate décor. Assume the sushi counter and chairs are section 1245 property, and F treats the amounts paid for those units of property as costs of acquiring new units of property under § 1.263(a)-2.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The addition of the sushi counter, wiring, plumbing, and decorative coverings are improvements that enhance the building's functionality and appearance, meeting the criteria for capitalization under the regulation.
+
+---
+
+## U33 · (i) G owns a hospital with various departments dedicated to the provision of clinical medical care. To better accommodate its patients' needs, G decides to modify the emergency room space to provide both emergency care and outpatient surgery. To modify the space, G pays amounts to move interior walls, add additional wiring and outlets, replace floor tiles and doors, and repaint the walls. To complete the outpatient surgery center, G also pays amounts to install miscellaneous medical equipment necessary for the provision of surgical services. Assume the medical equipment is section 1245 property, and G treats the amounts paid for those units of property as costs of acquiring new units of property under § 1.263(a)-2.
+
+**Failed because:** citation_does_not_support · **Recorded:** 2026-09-04
+
+**Question:**
+
+> (i) G owns a hospital with various departments dedicated to the provision of clinical medical care. To better accommodate its patients' needs, G decides to modify the emergency room space to provide both emergency care and outpatient surgery. To modify the space, G pays amounts to move interior walls, add additional wiring and outlets, replace floor tiles and doors, and repaint the walls. To complete the outpatient surgery center, G also pays amounts to install miscellaneous medical equipment necessary for the provision of surgical services. Assume the medical equipment is section 1245 property, and G treats the amounts paid for those units of property as costs of acquiring new units of property under § 1.263(a)-2.
+
+**Concluded:**
+
+> must capitalize
+
+**Believed authority:**
+
+> 26 CFR 1.263(a)-3(d)(1)
+
+**Model:** qwen3:8b (Forge)
+
+**Working:**
+
+> The modifications described in the facts are improvements that enhance the functionality and utility of the hospital's emergency room space. According to 26 CFR 1.263(a)-3(d)(1), amounts paid for a betterment to the unit of property must be capitalized. The installation of medical equipment necessary for outpatient surgery also qualifies as an improvement, as it adapts the property to a new use, which is covered under 26 CFR 1.263(a)-3(d)(3).
+
+---
+
