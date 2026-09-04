@@ -152,6 +152,29 @@ one — worse, because alone the fallback never ran, so a wrong import inside it
 passed in isolation and failed only in the full suite. **A branch that runs in
 one ordering and not the other is not covered.** There is no branch now.
 
+### Late: the model question, and two projects that were not on the map
+
+**Fable 5.1 — asked, read, answered.** The firm: *"should you be using fable 5.1
+for anything"*. Read from the model reference rather than from memory, which was
+the right call: it is **$10/$50 per MTok against Opus 5's $5/$25**, and it
+**requires 30-day data retention** — not available under zero data retention
+unless Anthropic expressly authorises it. The vision reader (`claude-opus-4-8`
+today) can send client tax documents to Anthropic, so a mandated 30-day retention
+is a compliance problem there, not a feature. The recommendation was to stay;
+**the firm overruled it** — *"Try Fable on one hard task and compare"* — and the
+end-to-end process assessment was run on both Fable 5.1 and Opus 5 on the same
+brief.
+
+**`canon` and `desk` were not in `CLAUDE.md`.** Canon had **zero mentions** in
+the file every session reads first, and `desk` — 43 files, 174 tests, arrived
+that day across five pull requests — none. Both added. The repository map going
+stale is the failure `docs/REPO-INVENTORY.md` exists for, and it had happened
+again in the file above it.
+
+**BitLocker** — *"Remind me in a week"*. A cloud routine fires 11 September at
+10:00, carrying the steps and the recovery-key warning. `CronCreate` was the
+wrong tool: it is session-only and would not have survived the night.
+
 ### Still open at the end of the day
 
 - **W5 / B4** — the seven-year destruction promise has no mechanism. Deferred
