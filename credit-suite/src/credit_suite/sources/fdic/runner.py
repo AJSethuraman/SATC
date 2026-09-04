@@ -326,7 +326,7 @@ def _describe_source(schedule: str, caption: str) -> List[tuple]:
 
 
 def do_tieout(workbook: str, args: List[str], demo: bool,
-              brief: bool = False) -> int:
+              brief: bool = False, filing: bool = False) -> int:
     """``--tieout CERT [REPDTE]``: sample-verify the feed against the filing.
 
     Contract section 12. The point is that a flagged number can be defended in
@@ -473,7 +473,62 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
     print()
     print("  Per-FIELD rows (every raw input's schedule/line/MDRM) are on "
           "the workbook's _provenance tab.")
+
+    if filing:
+        _tieout_to_filing(cert, iso, values, prov_rows, mode)
     return runtime.EXIT_OK
+
+
+def _tieout_to_filing(cert: str, iso: str, landed: dict, prov_rows: dict,
+                      mode: str) -> None:
+    """The first link of the chain: the bank's own filed XBRL, from the FFIEC.
+
+    Compares every RAW dollar field the workbook landed against the line(s)
+    the provenance map says it comes from, evaluated in the filing itself.
+    Ratios are skipped -- they are FDIC-computed, and the arithmetic leg above
+    already recomputes them from these same raw lines.
+    """
+    from credit_suite.sources.fdic import filing as F
+
+    print()
+    print("  FILING CHECK -- the bank's own XBRL from cdr.ffiec.gov, not the "
+          "FDIC's republication")
+    if mode == "demo":
+        print("  *** demo values cannot tie to a real filing; this compares the "
+              "filing against fiction and is shown only to exercise the path. ***")
+    try:
+        facts = F.parse_facts(F.fetch_xbrl(cert, iso), iso)
+    except Exception as exc:                          # noqa: BLE001
+        print("  could not fetch the filing: %s" % exc)
+        print("  -> the chain stops at the FDIC API for this bank-quarter; "
+              "that is stated, not hidden.")
+        return
+    expressions = {f: prov_rows[f]["mdrm"] for f in fields.RAW_FIELDS
+                   if f in prov_rows and prov_rows[f]["mdrm"]}
+    rows = F.tie(facts, landed, expressions, units=fields.FIELD_UNITS)
+    checked = [r for r in rows if not r.note]
+    ties = sum(r.verdict == "TIES" for r in checked)
+    differs = [r for r in checked if r.verdict.startswith("DIFFERS")]
+    absent = [r for r in checked if r.verdict == "NOT IN FILING"]
+    print("  %d facts in the filing for %s" % (len(facts), iso))
+    print("  %d raw dollar lines compared: %d tie, %d differ, %d not in the filing; "
+          "%d skipped with a stated reason"
+          % (len(checked), ties, len(differs), len(absent), len(rows) - len(checked)))
+    print("  filed values are DOLLARS; landed values are THOUSANDS -- shown in thousands")
+    print("  %-10s %18s %18s  %-22s %s" % ("field", "filed (k$)", "landed (k$)",
+                                            "filed as", "verdict"))
+    for r in rows:
+        filed = "-" if r.filed_thousands is None else "{:,}".format(r.filed_thousands)
+        got = "-" if r.landed_thousands is None else "{:,.0f}".format(r.landed_thousands)
+        print("  %-10s %18s %18s  %-22s %s" % (r.field, filed, got, r.used or "-", r.verdict))
+    if differs:
+        print("  DIFFERENCES ARE FINDINGS. Each one is either a line the map cites "
+              "wrongly for this filer, or a real disagreement between the FDIC's "
+              "republication and the filing -- and only reading the form says which.")
+    if any(r.used.startswith("RCFD") for r in rows):
+        print("  RCFD = consolidated (form 031, foreign offices); RCON = domestic only. "
+              "The FDIC's totals are the consolidated ones -- following a bare RCON "
+              "code to the facsimile for this bank lands on the wrong line.")
 
 
 # --------------------------------------------------------------------------
@@ -489,6 +544,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--asof", default=None, help="YYYY-MM-DD (testing)")
     ap.add_argument("--lookup", metavar="NAME", default=None,
                     help="resolve an institution name to its CERT (live only)")
+    ap.add_argument("--filing", action="store_true",
+                    help="with --tieout: also fetch the bank's filed XBRL from "
+                         "cdr.ffiec.gov and tie every raw field to it (network)")
     ap.add_argument("--tieout", nargs="+", metavar="ARG", default=None,
                     help="CERT [REPDTE] -- print each value with its source")
     return ap
@@ -507,7 +565,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return runtime.EXIT_GATE_ERROR
     if args.tieout:
         try:
-            return do_tieout(args.workbook, args.tieout, args.demo)
+            return do_tieout(args.workbook, args.tieout, args.demo,
+                             filing=args.filing)
         except Exception as exc:                   # noqa: BLE001
             print("TIE-OUT ERROR: %s" % exc, file=sys.stderr)
             return runtime.EXIT_RUN_ERROR

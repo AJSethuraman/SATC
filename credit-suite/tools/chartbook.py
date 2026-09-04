@@ -30,6 +30,23 @@ because this workbook carries no macros it opens with **no security banner** --
 the monitor's own `.xlsm` is blocked by Excel's Mark of the Web when it arrives
 by email, and a chart nobody can see is not a chart.
 
+WHAT THE FIRST VERSION GOT WRONG, AND HOW IT WAS FOUND
+
+The first build "opened with zero dialogs" and a harness read a cell out of it,
+and on that basis it was called done. Exporting a chart to PNG and *looking*
+showed two defects no harness could see: **no axis numbers at all** (openpyxl
+3.1 hides axes unless told otherwise), and the peer sheet was twelve coloured
+lines with the legend sitting on the data -- unreadable, and past three or four
+hues indistinguishable to a colour-blind reader. Opening the artifact means
+looking at it. Now:
+
+* axes are drawn, with tick labels;
+* the peer overview draws every bank in grey with the **peer median** in
+  colour, so the shape of the group reads at a glance and any one bank is a
+  click away (Excel highlights a series when you click it);
+* below it, one small chart per bank -- that bank in colour against the peer
+  median in grey -- which is the "where do we sit" view without twelve hues.
+
 The numbers are not recomputed here. They come from the monitor's own engine, so
 a chart cannot disagree with the dashboard it was drawn from.
 """
@@ -37,9 +54,10 @@ a chart cannot disagree with the dashboard it was drawn from.
 from __future__ import annotations
 
 import argparse
+import statistics
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -66,10 +84,18 @@ STAGES = [("P3CONOTHR", "30-89 days late"),
           ("NACONOTHR", "Nonaccrual"),
           ("NTCONOTQR", "Net charge-offs (annualised)")]
 
+#: Colours. Four categorical hues validated by the data-viz palette checker
+#: (light surface); grey for context. Hex without '#', as openpyxl wants.
+HUES = ["2A78D6", "EB6834", "1BAF7A", "EDA100"]
+CONTEXT = "B9B8B3"
+ACCENT = HUES[0]
+PT = 12700                                             # EMU per point
+
 HEAD = PatternFill("solid", fgColor="1E3D63")
 HEAD_FONT = Font(color="FFFFFF", bold=True, size=10)
 TITLE_FONT = Font(bold=True, size=13)
 NOTE_FONT = Font(size=9, color="667286")
+MEDIAN_LABEL = "Peer median"
 
 
 def _quarter(iso: str) -> str:
@@ -80,6 +106,18 @@ def _sheet_name(prefix: str, name: str) -> str:
     """Excel caps sheet names at 31 chars and forbids []:*?/\\ ."""
     clean = "".join(c for c in name if c not in "[]:*?/\\")
     return ("%s_%s" % (prefix, clean))[:31]
+
+
+def _median_row(rows: List[tuple]) -> List[Optional[float]]:
+    """Per-quarter median across the banks, None where nobody reported."""
+    if not rows:
+        return []
+    width = max(len(v) for _, v in rows)
+    out: List[Optional[float]] = []
+    for i in range(width):
+        got = [v[i] for _, v in rows if i < len(v) and v[i] is not None]
+        out.append(statistics.median(got) if got else None)
+    return out
 
 
 def _write_grid(ws, row0: int, periods: List[str], rows: List[tuple]) -> int:
@@ -103,21 +141,85 @@ def _write_grid(ws, row0: int, periods: List[str], rows: List[tuple]) -> int:
     return row0 + len(rows)
 
 
-def _add_chart(ws, title: str, subtitle: str, row0: int, n_rows: int,
-               n_cols: int, anchor: str) -> None:
+def _style(series, colour: str, width_pt: float) -> None:
+    series.smooth = False
+    series.marker.symbol = "none"
+    series.graphicalProperties.line.solidFill = colour
+    series.graphicalProperties.line.width = int(width_pt * PT)
+
+
+def _base_chart(title: str, y_title: str, height: float, width: float) -> LineChart:
     chart = LineChart()
     chart.title = title
     chart.style = 2
-    chart.height, chart.width = 9.5, 26
-    chart.y_axis.title = subtitle
+    chart.height, chart.width = height, width
+    chart.y_axis.title = y_title
+    chart.y_axis.number_format = "0.00"
     chart.y_axis.majorGridlines = None
+    # openpyxl >= 3.1 hides both axes unless told not to. The first build of
+    # this file shipped charts with no numbers on either axis and a harness
+    # called them fine; a human would not have.
+    chart.x_axis.delete = False
+    chart.y_axis.delete = False
+    # Legend below the plot, and NOT overlaid: without `overlay = False` Excel
+    # draws it on top of the category labels, which is what the second export
+    # showed. A y-axis title overlaps the tick numbers under Excel's auto
+    # layout for these charts, so the measure's meaning lives in the sheet
+    # header (A2) and the chart title instead.
+    chart.legend.position = "b"
+    chart.legend.overlay = False
+    chart.y_axis.title = None
+    return chart
+
+
+def _series_refs(ws, row0: int, n_rows: int, n_cols: int):
     data = Reference(ws, min_col=1, max_col=1 + n_cols,
                      min_row=row0 + 1, max_row=row0 + n_rows)
+    cats = Reference(ws, min_col=2, max_col=1 + n_cols, min_row=row0, max_row=row0)
+    return data, cats
+
+
+def _add_stages_chart(ws, title: str, y_title: str, row0: int, n_rows: int,
+                      n_cols: int, anchor: str) -> None:
+    """Up to four series, each its own validated hue, direct legend."""
+    chart = _base_chart(title, y_title, 9.5, 26)
+    data, cats = _series_refs(ws, row0, n_rows, n_cols)
     chart.add_data(data, titles_from_data=True, from_rows=True)
-    chart.set_categories(Reference(ws, min_col=2, max_col=1 + n_cols,
-                                   min_row=row0, max_row=row0))
-    for series in chart.series:
-        series.smooth = False
+    chart.set_categories(cats)
+    for i, series in enumerate(chart.series):
+        _style(series, HUES[i % len(HUES)], 2.0)
+    ws.add_chart(chart, anchor)
+
+
+def _add_peer_overview(ws, metric: str, meaning: str, row0: int, n_banks: int,
+                       n_cols: int, anchor: str) -> None:
+    """Every bank in grey, the peer median in colour. The last grid row is the
+    median, written by the caller after the banks."""
+    chart = _base_chart("%s -- all peers, with the peer median" % metric,
+                        meaning[:40], 9.5, 26)
+    data, cats = _series_refs(ws, row0, n_banks + 1, n_cols)
+    chart.add_data(data, titles_from_data=True, from_rows=True)
+    chart.set_categories(cats)
+    for i, series in enumerate(chart.series):
+        if i == n_banks:                               # the median row
+            _style(series, ACCENT, 2.75)
+        else:
+            _style(series, CONTEXT, 1.0)
+    ws.add_chart(chart, anchor)
+
+
+def _add_small_multiple(ws, bank: str, metric: str, row0: int, bank_row: int,
+                        median_row: int, n_cols: int, anchor: str) -> None:
+    """One bank in colour against the peer median in grey."""
+    chart = _base_chart(bank, "", 5.2, 8.6)
+    chart.legend = None
+    chart.y_axis.title = None
+    cats = Reference(ws, min_col=2, max_col=1 + n_cols, min_row=row0, max_row=row0)
+    for r, colour, width in ((median_row, CONTEXT, 1.25), (bank_row, ACCENT, 2.0)):
+        ref = Reference(ws, min_col=1, max_col=1 + n_cols, min_row=r, max_row=r)
+        chart.add_data(ref, titles_from_data=True, from_rows=True)
+        _style(chart.series[-1], colour, width)
+    chart.set_categories(cats)
     ws.add_chart(chart, anchor)
 
 
@@ -129,6 +231,7 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         next(iter(panels["NCLNLSR"].series))].periods))
     all_banks = sorted(panels["NCLNLSR"].series)
     chosen = [b for b in all_banks if not banks or b in banks]
+    n_cols = len(periods)
 
     wb = openpyxl.Workbook()
     about = wb.active
@@ -141,6 +244,12 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         "  The same numbers as the monitor, drawn over time. The monitor shows the latest",
         "  quarter against a threshold; this shows the direction, the pace, and how each",
         "  bank compares with its peers.",
+        "",
+        "How to read the peer sheets",
+        "  The big chart draws every bank in grey and the peer median in blue, so the shape",
+        "  of the group reads at a glance. Click any grey line to highlight that bank.",
+        "  Below the numbers, one small chart per bank: that bank in blue against the",
+        "  peer median in grey. That is the 'where do we sit' view.",
         "",
         "Where the numbers come from",
         "  Read from the monitor's own Raw_FDIC block and computed by its own engine, so a",
@@ -183,14 +292,27 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
                     else "Lower is worse." if direction == "down"
                     else "Direction is not a verdict for this measure.")
         ws["A3"].font = NOTE_FONT
+
         rows = []
         for bank in chosen:
             series = panel.series.get(bank)
             if series:
                 rows.append((bank, list(reversed(series.values))))
-        last = _write_grid(ws, 20, periods, rows)
-        _add_chart(ws, "%s -- all peers" % metric, meaning[:40], 20,
-                   len(rows), len(periods), "A5")
+        rows.append((MEDIAN_LABEL, _median_row(rows)))
+        grid_top = 20
+        _write_grid(ws, grid_top, periods, rows)
+        ws.cell(grid_top + len(rows), 1).font = Font(bold=True)
+        _add_peer_overview(ws, metric, meaning, grid_top, len(rows) - 1, n_cols, "A5")
+
+        # small multiples, three across, below the grid
+        median_row = grid_top + len(rows)
+        first = grid_top + len(rows) + 3
+        ws.cell(first - 1, 1, "Each bank against the peer median").font = Font(bold=True)
+        cols = ("A", "G", "M")
+        for k, (bank, _values) in enumerate(rows[:-1]):
+            anchor = "%s%d" % (cols[k % 3], first + (k // 3) * 11)
+            _add_small_multiple(ws, bank, metric, grid_top, grid_top + 1 + k,
+                                median_row, n_cols, anchor)
         ws.freeze_panes = "B21"
 
     # --- one bank, the four stages ---------------------------------------
@@ -213,8 +335,8 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         if not rows:
             continue
         _write_grid(ws, 20, periods, rows)
-        _add_chart(ws, "%s -- delinquency to charge-off" % bank,
-                   "% of that loan book", 20, len(rows), len(periods), "A5")
+        _add_stages_chart(ws, "%s -- delinquency to charge-off" % bank,
+                          "% of that loan book", 20, len(rows), n_cols, "A5")
         ws.freeze_panes = "B21"
 
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -30,6 +30,7 @@ HERE = Path(__file__).resolve().parent
 PKG = HERE.parent
 SRC = PKG / "src" / "credit_suite"
 GOLDENS = PKG / "tests" / "goldens"
+TOOLS = PKG / "tools"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,6 +48,9 @@ T = "tests/test_parity.py::"
 M = "tests/test_fred_series_ids.py::"
 V = "tests/test_vba_compression.py::"
 S = "tests/test_fred_staleness.py::"
+G = "tests/test_filing.py::"
+R = "tests/test_trend.py::"
+B = "tests/test_chartbook.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
@@ -675,6 +679,116 @@ MUTATIONS: list[Mutation] = [
         "",
         (S + "test_every_category_that_was_permanently_stale_now_ships_a_lag",),
         "a category losing its shipped lag is caught, not silently re-flagged",
+    ),
+    # ---- the filing tie-out: the four lessons, each restored as a bug --------
+    Mutation(
+        "filing-forgets-the-units", SRC / "sources/fdic/filing.py",
+        '        return total // DOLLARS_PER_UNIT, "".join(used).lstrip("+")',
+        '        return total, "".join(used).lstrip("+")',
+        (G + "test_the_filing_is_dollars_and_the_workbook_is_thousands",),
+        "filed dollars are compared in thousands, like the API and the workbook",
+    ),
+    Mutation(
+        "filing-domestic-first", SRC / "sources/fdic/filing.py",
+        'PREFIXES = ("RCFD", "RCON")',
+        'PREFIXES = ("RCON", "RCFD")',
+        (G + "test_consolidated_wins_over_domestic_for_an_031_filer",),
+        "consolidated lines are tried before domestic ones",
+    ),
+    Mutation(
+        "filing-treats-rcon-as-an-instruction", SRC / "sources/fdic/filing.py",
+        "        explicit = prefix if prefix and prefix not in PREFIXES else None",
+        "        explicit = prefix or None",
+        (G + "test_consolidated_wins_over_domestic_for_an_031_filer",
+         G + "test_the_mdrm_column_parses_into_primary_alternative_and_optional"),
+        "a bare RCON in the map is the convention, not a fixed prefix",
+    ),
+    Mutation(
+        "filing-drops-the-foreign-office-line", SRC / "sources/fdic/filing.py",
+        "        for opt in expression.optional:\n            got = _resolve(facts, opt)",
+        "        for opt in ():\n            got = _resolve(facts, opt)",
+        (G + "test_a_plus_parenthetical_adds_the_foreign_office_line_when_present",),
+        "the map's (+RCFN... 031) addition is honoured",
+    ),
+    Mutation(
+        "filing-ignores-the-031-alternative", SRC / "sources/fdic/filing.py",
+        "    for terms in ((expression.alternative, True), (expression.primary, False)):",
+        "    for terms in ((expression.primary, False),):",
+        (G + "test_an_031_alternative_is_tried_first_and_used_when_it_resolves",),
+        "the map's (031: ...) alternative is tried first",
+    ),
+    Mutation(
+        "filing-reports-a-partial-sum", SRC / "sources/fdic/filing.py",
+        '            if is_alt:\n                continue\n            return None, ""',
+        '            if is_alt:\n                continue\n            resolved = [r for r in resolved if r]',
+        (G + "test_a_partial_sum_is_refused_not_reported",),
+        "a sum with a missing term is refused, never reported smaller",
+    ),
+    Mutation(
+        "filing-ties-a-ratio-to-a-dollar-line", SRC / "sources/fdic/filing.py",
+        "        if units is not None and units.get(fieldname, DOLLAR_UNIT) != DOLLAR_UNIT:",
+        "        if False:",
+        (G + "test_a_ratio_is_never_reported_as_a_fifteen_billion_difference",
+         G + "test_tie_reports_verdicts_and_skips_ratios_and_flows_with_reasons"),
+        "a percent is never compared to a dollar line",
+    ),
+    # ---- the trend tool ------------------------------------------------------
+    Mutation(
+        "trend-polarity-ignored", TOOLS / "trend.py",
+        '        bad = change if polarity == "up" else -change',
+        '        bad = change',
+        (R + "test_deteriorating_reads_polarity_not_direction",),
+        "deterioration is read from the metric's declared polarity",
+    ),
+    Mutation(
+        "trend-run-length-unsigned", TOOLS / "trend.py",
+        "        return run * sign",
+        "        return run",
+        (R + "test_run_length_is_signed_and_stops_at_the_first_reversal",),
+        "a run of falls is distinguishable from a run of rises",
+    ),
+    Mutation(
+        "trend-derive-guard-inside-the-loop", TOOLS / "trend.py",
+        "                if metric in already_raw:\n                    continue",
+        "                if metric in already_raw or (metric in panels and bank in panels[metric].series):\n                    continue",
+        (R + "test_every_dashboard_metric_is_trendable_not_just_the_raw_fields",),
+        "every derived quarter is filled, not only the first",
+    ),
+    Mutation(
+        "trend-derives-with-its-own-formula", TOOLS / "trend.py",
+        "                    computed = metric_value(metric, values)",
+        "                    computed = (metric_value(metric, values) or 0) + 0.001",
+        (R + "test_derived_metrics_equal_the_engines_own_definition",),
+        "a derived metric is the engine's number, not the tool's",
+    ),
+    # ---- the chart workbook --------------------------------------------------
+    Mutation(
+        "chartbook-hides-the-axes", TOOLS / "chartbook.py",
+        "    chart.x_axis.delete = False\n    chart.y_axis.delete = False",
+        "    chart.x_axis.delete = True\n    chart.y_axis.delete = True",
+        (B + "test_every_chart_draws_its_axes",),
+        "every chart draws its axis numbers -- the first build did not",
+    ),
+    Mutation(
+        "chartbook-legend-over-the-data", TOOLS / "chartbook.py",
+        "    chart.legend.overlay = False",
+        "    chart.legend.overlay = True",
+        (B + "test_no_legend_sits_on_top_of_the_plot",),
+        "the legend is given its own space, never drawn over the plot",
+    ),
+    Mutation(
+        "chartbook-twelve-hues", TOOLS / "chartbook.py",
+        "            _style(series, CONTEXT, 1.0)",
+        "            _style(series, HUES[i % len(HUES)], 1.0)",
+        (B + "test_the_peer_overview_is_grey_context_with_one_coloured_median",),
+        "the peer overview is grey context plus one coloured median",
+    ),
+    Mutation(
+        "chartbook-median-is-a-mean", TOOLS / "chartbook.py",
+        "        out.append(statistics.median(got) if got else None)",
+        "        out.append(sum(got) / len(got) if got else None)",
+        (B + "test_the_median_row_is_the_median_of_the_banks",),
+        "the peer line is the median, which one outlier cannot drag",
     ),
 ]
 

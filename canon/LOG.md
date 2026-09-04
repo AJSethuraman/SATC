@@ -600,3 +600,71 @@ the docket says so beside the recommendation to merge.
 **Docket published**, five decisions: merge #248; permission to download the
 XBRL; amend L4; ship the chart workbook as an M2 slice; document the red banner
 in `_readme`. Answers to be written here when given.
+
+## 4 September 2026 (night) — the third docket's five answers, and the chain reaches the filing
+
+Five answers, all on the recommendation, all acted on. Recorded here because the
+form is where an answer is given and the log is where it lives.
+
+| decision | answer | what it caused |
+|---|---|---|
+| Merge PR #248 | *Merge it* | `d16e326`. Trends, charts, readable tie-out on main. |
+| Download the filed XBRL | *Yes — download it*, with a question back: *"is this to tie out our api pull to that so we can prove it worked?"* | Yes. The chain now runs filing → components → ratio → workbook. Built into `--tieout --filing`, repeatable for any bank and quarter. |
+| Amend L4 | *Amend L4, cite the tests* | Amended in `TEMPLATE_CONTRACT.md` with both tests cited and the half that still holds kept binding. |
+| Chart workbook ships | *Ship it as an M2 slice* | Issue #252, placed after #208. |
+| The red banner | *Runbook only* | A "Before you start" section in `docs/runbook-live-acceptance.md`: Mark of the Web shown and explained, the one-time unblock, the trusted-folder fix, copy-pastable. Not in `_readme`, per the answer. |
+
+**What the filing check found, in the order it found it.** Capital One (CERT
+4297) and KeyBank (CERT 17534), 2026-06-30, XBRL fetched from `cdr.ffiec.gov`
+by replaying the page's own postback — to the form's *action* URL, which is a
+different page from the one displayed; posting to the displayed page returns the
+page, politely, with no file.
+
+- **The filing is in dollars; the API and workbook are in thousands.** Total
+  assets read 662,157,000,000 in one and 662,157,000 in the others.
+- **Banks with foreign offices file consolidated lines under `RCFD`.** The
+  provenance map cites `RCON` codes and annotates the 031 variant only for
+  total assets. Capital One's `RCON2122` is 449.65 bn; `RCFD2122` is 457.43 bn,
+  and the FDIC's figure is the consolidated one. A reviewer following the map
+  literally to the facsimile would see a 7.78 bn "discrepancy" that is not one.
+- **The map's parentheticals were right and my first parser threw them away.**
+  `RCON2200 (+RCFN2200 031)` — deposits tie only with the 150,000 k$ of
+  foreign-office deposits added. `RCON1766 (031: RCFD1763+1764)` — C&I loans
+  are a different sum for an 031 filer, and it ties to the thousand.
+- **Twelve "raw" fields are ratios and the charge-off flows are year-to-date.**
+  The first run tied a percent to a dollar line and reported a 98 bn
+  difference. Now skipped by unit, and by shape, each with its reason printed.
+- **A regression of my own, caught by the tests and the live run at once:**
+  treating the map's `RCON` as a fixed prefix rather than the convention sent
+  every 031 line to the wrong box. Fixed; `RCON`/`RCFD` are the default
+  resolved consolidated-first, and only `RCFN`/`RIAD` are instructions.
+
+**Result:** 32 of 32 raw dollar lines tie for both banks, 0 differ, 0 absent, 5
+skipped with a stated reason. `RCFD1407 + RCFD1403 = 6,822,000 = NCLNLS`;
+`100 × 6,822,000 / 457,432,000 = 1.4913692089753` = the FDIC's published ratio
+= the workbook. The chain is closed at the source of record for two banks.
+
+**Opened the artifact, three times.** The chart workbook "opened with zero
+dialogs" and a harness read a cell out of it. Exporting charts to PNG through
+Excel and *looking* found: no axis numbers on any chart (openpyxl 3.1 hides
+axes by default); the legend drawn over the data; and on the second pass, the
+legend over the x-axis labels and the y-axis title over the tick numbers. Three
+builds to get a chart a person could read. The harness could not have found any
+of it. The peer overview is now grey context with the median in colour, plus one
+small chart per bank — twelve hues were never going to be readable.
+
+**The four unmigrated monitors, buttons pressed at last.** All day they were
+"verified by file identity". Built from their own folders in a scratch copy and
+driven through real Excel: all four `ran=True`, all four extracted their files.
+
+**Tests written for the tools that had none:** `test_trend.py`, `test_chartbook.py`,
+`test_filing.py` — 41 tests, 15 mutations, including the one that IS the
+consolidated-first regression restored. 278 → 319 passed. 77 → 92 mutations.
+
+**Behaviour 2, again.** "32 open pull requests" was read off a listing. A
+limit-free count says 9; 65 of mine closed since noon. Recorded on the docket.
+
+**Not done, stated:** FRED has no chart workbook (#252). The trend tool trends
+FDIC only. The provenance tab still cites bare `RCON` codes — the tool now
+compensates, but the tab a reviewer reads has not been corrected; that is a
+golden change and wants its own decision.
