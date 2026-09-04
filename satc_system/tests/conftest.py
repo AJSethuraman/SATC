@@ -3,9 +3,71 @@
 import os
 import pytest
 import tempfile
+from pathlib import Path
 
 # Must be set before satc.app.state (which builds the module-level STATE) imports.
 os.environ.setdefault("SATC_DATA_DIR", tempfile.mkdtemp(prefix="satc_test_store_"))
+
+
+# ── pytest needs a scratch root it can actually use ──────────────────────────
+#
+# MEASURED ON THIS MACHINE, 4 September 2026: **467 of the 958 tests that ask
+# for `tmp_path` errored**, every one of them at *setup*, before a line of the
+# test ran. The cause is not in this repository. `<temp>/pytest-of-<user>` was
+# left with a DACL that denies everything — `icacls` cannot even read it back,
+# and PowerShell is refused the same way — so pytest cannot scan its own
+# scratch root and every `tmp_path` request dies with `PermissionError`
+# `[WinError 5]`.
+#
+# The symptom looks nothing like the cause. A session reading 467 errors in
+# tests it did not touch concludes the code is broken.
+#
+# `canon/conftest.py` hit this first and worked out the whole shape of it; this
+# is that reasoning applied here, deliberately copied rather than imported —
+# canon lifts out whole and nothing may depend on it from outside.
+#
+# Repairing the locked directory needs an elevated shell, which a test suite
+# may not assume. Choosing a different root needs nothing.
+#
+# THE ROOT MAY NOT LIVE INSIDE THE REPOSITORY. Tried in canon: the no-client-
+# data guard walks the tree, read the fixtures the fix had just written, and
+# reported a taxpayer identifier that was never there. Every tree-walking check
+# in this suite would do the same.
+#
+# Short on purpose: Windows still refuses paths past ~260 characters, and a
+# generous root spends the budget that `pytest-of-<user>/pytest-<n>/<long test
+# name>/` needs. The failure then arrives as a subprocess exit code that says
+# nothing about length.
+_TEMPROOT = "PYTEST_DEBUG_TEMPROOT"
+
+
+def _usable_scratch_root() -> Path | None:
+    """The root to impose, or None to leave pytest's own choice standing.
+
+    Falling back is correct rather than fatal: a machine whose default root is
+    fine needs nothing from this, and a machine where neither works should show
+    its own errors rather than one invented here.
+    """
+    if os.environ.get(_TEMPROOT):
+        return None                    # an operator chose one; not ours to override
+    root = Path(tempfile.gettempdir()) / "satc-pt"
+    if Path(__file__).resolve().parents[1] in root.resolve().parents:
+        return None                    # inside the tree: every tree walk would read it
+    if len(str(root)) > 100:
+        return None                    # no better than the default, harder to explain
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        probe = root / ".write-probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except OSError:
+        return None                    # unwritable too; let the default speak
+    return root
+
+
+SCRATCH_ROOT = _usable_scratch_root()
+if SCRATCH_ROOT is not None:
+    os.environ[_TEMPROOT] = str(SCRATCH_ROOT)
 
 
 # ── no test may drive the desktop Outlook ────────────────────────────────────

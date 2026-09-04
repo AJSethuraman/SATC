@@ -13,7 +13,65 @@ run itself.
 
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
+
+# ── pytest needs a scratch root it can actually use ──────────────────────────
+#
+# MEASURED, 4 September 2026: **1,165 errors and nothing passing** — every test
+# that asks for `tmp_path`, failing at setup before its first line runs. The
+# cause is not in this repository. `<temp>/pytest-of-<user>` on this machine
+# carries a DACL that denies everything: `icacls` cannot read it back and
+# PowerShell is refused identically, so pytest cannot scan its own scratch root
+# and each request dies with `PermissionError [WinError 5]`.
+#
+# The same run reported `1434 passed, 2 skipped` earlier the same day. **A
+# green number goes stale the moment the machine under it changes**, which is
+# this repository's own first tenet pointed at its own test run.
+#
+# `canon/conftest.py` worked this out first; copied rather than imported,
+# because canon lifts out whole and nothing outside it may depend on it.
+#
+# THE ROOT MUST NOT LIVE INSIDE THIS TREE — and here that matters more than
+# anywhere else in the repository. The client-data guards walk these
+# directories; a scratch root inside would have them read the suite's own
+# fixtures and report a taxpayer identifier that never existed. It also must
+# never land near `engagements/`, which holds real client files.
+_TEMPROOT = "PYTEST_DEBUG_TEMPROOT"
+
+
+def _usable_scratch_root() -> Path | None:
+    """The root to impose, or None to leave pytest's own choice standing.
+
+    Falling back is correct rather than fatal: on a machine whose default root
+    works this does nothing, and on one where neither works the real errors
+    should speak instead of an invented one.
+    """
+    if os.environ.get(_TEMPROOT):
+        return None                    # an operator chose one; not ours to override
+    root = (Path(tempfile.gettempdir()) / "satc-cd-pt").resolve()
+    repo = Path(__file__).resolve().parents[1]
+    if root == repo or repo in root.parents:
+        return None                    # inside the tree the guards walk
+    if len(str(root)) > 100:
+        return None                    # Windows path budget; a long root breaks git
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        probe = root / ".write-probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except OSError:
+        return None
+    return root
+
+
+SCRATCH_ROOT = _usable_scratch_root()
+if SCRATCH_ROOT is not None:
+    os.environ[_TEMPROOT] = str(SCRATCH_ROOT)
+
 
 _LEFT_OUT: list = []
 

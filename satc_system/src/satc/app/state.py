@@ -126,7 +126,10 @@ def text_layer_chars(fpath) -> int:
 
 @dataclass
 class AppState:
-    store: SATCStore = field(default_factory=lambda: SATCStore(os.environ.get("SATC_DATA_DIR")))
+    # No argument: SATCStore resolves SATC_DATA_DIR itself now. Passing it
+    # in was one of the two places that happened to get it right while
+    # six others did not.
+    store: SATCStore = field(default_factory=SATCStore)
     mart: DataMart = field(default_factory=DataMart)
     names: dict[str, str] = field(default_factory=dict)
     gate: StagingGate = field(default_factory=StagingGate)
