@@ -8,9 +8,9 @@
     {
       "name": "canon",
       "source": "./canon",
-      "description": "Tenets — how to build, each carrying the incidents that proved it, ratified by the firm — convictions in the firm's own words, and fifteen standing behaviours. Bassy challenges from that record and never from an opinion, and the docket hands back open decisions as a form. Holds no client data.",
+      "description": "Tenets \u2014 how to build, each carrying the incidents that proved it, ratified by the firm \u2014 convictions in the firm's own words, and fifteen standing behaviours. Bassy challenges from that record and never from an opinion, and the docket hands back open decisions as a form. Holds no client data.",
       "version": "1.4.0",
-      "displayName": "canon — the practice brain",
+      "displayName": "canon \u2014 the practice brain",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"
       },
@@ -20,6 +20,24 @@
         "convictions",
         "review",
         "discipline"
+      ],
+      "category": "productivity"
+    },
+    {
+      "name": "desk",
+      "source": "./desk",
+      "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from cited authority, says how binding that authority is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, and reports four outcomes with the costly one first. Depends on canon. Holds no client data.",
+      "version": "0.1.0",
+      "displayName": "desk \u2014 experts an agent can ask",
+      "author": {
+        "name": "Sethuraman Accounting, Tax & Consulting"
+      },
+      "repository": "https://github.com/AJSethuraman/SATC",
+      "keywords": [
+        "authority",
+        "citation",
+        "review",
+        "experts"
       ],
       "category": "productivity"
     }

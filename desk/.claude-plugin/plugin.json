@@ -1,0 +1,10 @@
+{
+  "name": "desk",
+  "version": "0.1.0",
+  "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from authority it can cite, states how binding that authority is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, so \"never invent a position\" is enforced by code rather than by a prompt. Holds no client data.",
+  "author": {
+    "name": "Sethuraman Accounting, Tax & Consulting"
+  },
+  "homepage": "https://github.com/AJSethuraman/SATC/tree/main/desk",
+  "dependencies": ["canon"]
+}
