@@ -1,10 +1,21 @@
 # What is in this repository
 
 Produced 2026-08-22 by a four-agent sweep of the whole tree, every open PR, and
-all 76 remote branches. Written down because the same facts kept being
+all remote branches. Written down because the same facts kept being
 rediscovered: the interview's governing PRD sat in `docs/` unreferenced for
 weeks, and a whole unmerged project has been riding along on twelve branches
 without a PR of its own.
+
+**Counts refreshed 4 September 2026**, and the refresh taught something the
+original did not know: **a hard-coded count in a document is the wrong shape.**
+The figures below moved twice in the four hours it took to check them, because
+the session doing the checking was opening branches and pull requests of its
+own. Treat every number here as of its date, and re-derive rather than trust:
+
+```
+git ls-remote --heads origin | wc -l
+gh api 'repos/AJSethuraman/SATC/pulls?state=open&per_page=100' --jq 'length'
+```
 
 Every claim below was checked against the repository. Where two agents
 disagreed, the disagreement is noted rather than averaged.
@@ -58,9 +69,23 @@ looked at a proxy rather than the thing.
 
 ## 1 · The shape of it
 
-**16 top-level folders, 76 remote branches, 34 open PRs.** Roughly half the
-tree is practice-operations software; the other half is credit and macro
-analytics for a separate consulting line.
+**18 project folders, 91 remote branches, 41 open PRs** (4 September 2026,
+after #177/#179/#182/#183 merged; was 16 / 76 / 34 on 22 August, and 92 / 42
+four hours before this line was rewritten). Roughly half the tree is practice-operations
+software; the other half is credit and macro analytics for a separate
+consulting line.
+
+**Two project folders have arrived since this was written** and are not in
+either row below: **`canon`** — the thirty-five tenets moved in as something
+testable, with its own suite and a plugin manifest — and **`cashew-institute`**.
+
+**Sixteen of the open pull requests are May–June prototypes** that have not
+moved in three months. A triage proposal covering all of them, sorted
+by which folders each one actually touches, is at
+`https://claude.ai/code/artifact/2ec1aebc-50a3-4fbc-80fe-9b8f577ac1bc` — the
+finding worth carrying here is that **three of them are `mergeable` while every
+file in them has been rewritten underneath**, so a green merge button is not
+evidence that a pull request still means what it meant.
 
 | | Folders | Lines |
 |---|---|---|
