@@ -103,6 +103,29 @@ were my own test being wrong**, which is the reason to check the checker:
   The 404 was the allow-list working, and it is now asserted rather than merely
   excluded — an exclusion outlives the guard it was written around.
 
+### And every button
+
+*"sounds like you know what to do, then."*
+
+The crawl follows links rather than reading a list, so it reaches **46 pages**
+where the screen sweep reached 27 — the difference being every detail page,
+which is where the buttons live. **203 forms**, and every one of them lands on
+a route that accepts the method it uses. Then all 202 POST buttons were pressed
+with an empty form, which is what a person does by accident: **no 500s**.
+
+**Three of the findings were the checker, not the app.** It reported two dead
+buttons that were `method="get"` filter forms; it called two self-posting forms
+orphans when a form with no `action` posts to its own page; and its own registry
+of "endpoints with no button" was wrong in both directions at once — one missing,
+three carrying excuses that had gone stale.
+
+**And two of my own tests were order-dependent**, which is the fault this
+repository hunts hardest. `STATE` is module-level, so the crawl sees whatever
+store the previous 1,600 tests left behind: staged fields get confirmed, drafts
+get cleared, and buttons that render alone do not render after a full run. Split
+rather than pinned — what is structurally never a button is asserted in both
+directions, and what depends on the data is documented and asserted in neither.
+
 ### Still open at the end of the day
 
 - **W5 / B4** — the seven-year destruction promise has no mechanism. Deferred
