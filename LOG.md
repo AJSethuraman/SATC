@@ -126,6 +126,32 @@ get cleared, and buttons that render alone do not render after a full run. Split
 rather than pinned — what is structurally never a button is asserted in both
 directions, and what depends on the data is documented and asserted in neither.
 
+### What the buttons do, not just that they work
+
+*"All of them, take the time."* — and *"Close anything older than August,
+unless this sound super destructive."*
+
+**32 open pull requests → 9.** Twenty-three closed, branches and commits kept.
+**Two deliberately not closed**, which is what the caveat was for: **#23**, the
+Consumer Credit Red-Flag Monitor the firm had already asked to keep, and
+**#88**, opened in July and worked on this week — closing by creation date
+would have killed live work.
+
+**Twelve behavioural tests**, pressing through the front door and reading the
+store back. 202 buttons are about fifteen verbs; the verbs now carry the state
+change their labels promise: Received records satisfied and invents no reason;
+N/A with a reason keeps the reason; a blank N/A changes nothing and refuses
+visibly; Confirm confirms, Reject does not confirm, Delete removes, Edit stores
+what was typed, and an unrecognised action is inert. Endpoints not asserted here
+are named with where they are covered instead — a list, not silence.
+
+**And the same lesson twice more, in my own tests.** Five of them SKIPPED in the
+full suite while passing alone, because they borrowed a staged field the earlier
+1,600 tests had already confirmed. The first fix added a fallback that built
+one — worse, because alone the fallback never ran, so a wrong import inside it
+passed in isolation and failed only in the full suite. **A branch that runs in
+one ordering and not the other is not covered.** There is no branch now.
+
 ### Still open at the end of the day
 
 - **W5 / B4** — the seven-year destruction promise has no mechanism. Deferred
@@ -133,4 +159,14 @@ directions, and what depends on the data is documented and asserted in neither.
 - **W8** — written notice is recorded nowhere. Gated to the bookkeeping launch.
 - **B8** — the disk is not encrypted. Measured, recorded, not acted on.
 - **The WISP** — 49 open questions and no signature.
-- ~~Every screen except Documents has never been opened by anything.~~ **Closed 4 September.** All 27 open in a browser on every run. What is still unasserted is what the BUTTONS on them do: only the Documents screen has had anything pressed, and there are 48 POST endpoints.
+- ~~Every screen except Documents has never been opened by anything.~~
+  **Closed 4 September.** All 27 open in a browser on every run, and 203
+  forms across 46 pages were pressed — none breaks the app.
+- ~~Pressing a button proves only that it does not crash.~~ **Closed
+  4 September.** Fifteen verbs now assert the record they write. What is still
+  only crash-tested are the client-side withholding controls and anything
+  needing state the demo store does not build — named in `NOT_ASSERTED`
+  rather than left to inference.
+- **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
+  Deferred deliberately; the disk holding the vault is unencrypted and the
+  recovery key must go to Bitwarden before it is turned on.
