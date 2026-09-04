@@ -10,9 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import runner as R
-import series_seed as S
+from credit_suite.sources.fred import runner as R
+from credit_suite.sources.fred import series_seed as S
 
 
 # --------------------------------------------------------------------------

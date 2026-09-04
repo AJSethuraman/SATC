@@ -24,12 +24,12 @@ from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
 
-import runner as R
-import series_seed as SEED
+from credit_suite.sources.fred import runner as R
+from credit_suite.sources.fred import series_seed as SEED
 
 # ---- the house design system (single source of style) --------------------
-import keybank_style as KB
-from keybank_style import (
+from credit_suite.engine import style as KB
+from credit_suite.engine.style import (
     INK, ONYX, KEY_RED, CRIMSON, CANVAS, MIST, SLATE,
     HDR_FILL, SECT_FILL, MONO_FONT, NOTE_FONT,
     brand_banner, kpi_tiles, header_row, section_band, watchlist_boundary,

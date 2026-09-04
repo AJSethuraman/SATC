@@ -45,6 +45,7 @@ T = "tests/test_parity.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
+F = "tests/test_fred_seam.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -399,6 +400,39 @@ MUTATIONS: list[Mutation] = [
         'return [NormalizedRow(id=spec.id, period="1900-01-01", value=0.0,',
         (W + "test_a_licensed_adapter_refuses_to_call_without_its_secret",),
         "the Class C stub returns a valueless row, never fabricated data",
+    ),
+
+    # --- FRED's translation onto the contract seam (issue #166) ------------
+    Mutation(
+        "fred-seam-nan-becomes-zero", SRC / "sources" / "fred" / "runner.py",
+        "value=None if pd.isna(value) else float(value),",
+        "value=0.0 if pd.isna(value) else float(value),",
+        (F + "test_a_missing_observation_survives_as_missing_not_as_zero",
+         F + "test_the_round_trip_is_lossless_for_every_seeded_series"),
+        "a missing FRED observation stays missing across the seam, never 0",
+    ),
+    Mutation(
+        "fred-seam-loses-the-blank-coming-back",
+        SRC / "sources" / "fred" / "runner.py",
+        'values = [float("nan") if r.value is None else float(r.value) for r in rows]',
+        "values = [0.0 if r.value is None else float(r.value) for r in rows]",
+        (F + "test_a_missing_observation_survives_as_missing_not_as_zero",
+         F + "test_the_round_trip_is_lossless_for_every_seeded_series"),
+        "a blank rebuilt from rows comes back blank, not zero",
+    ),
+    Mutation(
+        "fred-seam-unsorted", SRC / "sources" / "fred" / "runner.py",
+        'return pd.Series(values, index=index, dtype="float64").sort_index()',
+        'return pd.Series(values, index=index, dtype="float64")',
+        (F + "test_rows_come_back_sorted_oldest_first",),
+        "rows rebuild in date order, which every offset formula assumes",
+    ),
+    Mutation(
+        "fred-bypasses-the-seam", SRC / "sources" / "fred" / "runner.py",
+        "s = rows_to_series(provider.fetch_series(spec))",
+        "s = provider.fetch(spec.series_id)",
+        (F + "test_the_run_path_actually_goes_through_the_seam",),
+        "run() fetches through the contract seam rather than around it",
     ),
 ]
 

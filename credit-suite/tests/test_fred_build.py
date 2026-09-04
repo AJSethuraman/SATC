@@ -9,11 +9,11 @@ import zipfile
 import openpyxl
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import assemble_xlsm
-import build_workbook
-import runner as R
-import vba_writer
+from credit_suite.engine import vba as vba_writer
+from credit_suite.sources.fred import layout as build_workbook
+from credit_suite.sources.fred import runner as R
+from credit_suite.sources.fred import series_seed as S
+from credit_suite.sources.fred import package_fred as assemble_xlsm
 from oletools.olevba import VBA_Parser, decompress_stream
 
 EXPECTED_TABS = {
@@ -86,8 +86,9 @@ def test_code_tab_roundtrips_to_runner(built):
     ws = wb["_code_py"]
     lines = [ws.cell(r, 1).value for r in range(1, ws.max_row + 1)]
     rebuilt = "\n".join("" if v is None else str(v) for v in lines)
-    original = open(os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                 "runner.py"), encoding="utf-8").read().rstrip("\n")
+    # Point at the runner module itself rather than a path beside the tests, so
+    # the assertion keeps meaning "the tab reproduces THE runner" after the move.
+    original = open(R.__file__, encoding="utf-8").read().rstrip("\n")
     assert rebuilt.rstrip("\n") == original
 
 
@@ -114,9 +115,9 @@ def test_refresh_preserves_macro_and_fills_data(built, tmp_path):
 def test_validator_blocks_bad_config_at_build():
     """If config marks a delinquency series watchlist-capable, build must refuse
     (the hard gate, enforced at build time too)."""
-    specs = R.parse_config([["[SERIES]"], __import__("series_seed").HEADER]
-                           + [[r[h] for h in __import__("series_seed").HEADER]
-                              for r in __import__("series_seed").all_series()]).series
+    specs = R.parse_config([["[SERIES]"], S.HEADER]
+                           + [[r[h] for h in S.HEADER]
+                              for r in S.all_series()]).series
     # corrupt one consumer series
     for s in specs:
         if s.series_id == "DRCCLACBS":

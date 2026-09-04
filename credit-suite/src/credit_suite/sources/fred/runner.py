@@ -34,6 +34,8 @@ from typing import Callable, Dict, List, Optional, Sequence
 
 import pandas as pd
 
+from credit_suite.engine.provider import NormalizedRow
+
 # Lane -> raw tab name. Presentation tabs read from these.
 LANE_RAW_TAB = {
     "consumer": "Raw_Consumer",
@@ -465,13 +467,61 @@ def coerce_series(raw: pd.Series) -> pd.Series:
 
 class Provider:
     """Provider protocol. Implementations must return a tidy, date-indexed,
-    NaN-for-missing float Series and a last-observation date."""
+    NaN-for-missing float Series and a last-observation date.
+
+    THE GRANDFATHERED SHAPE. Every other monitor's adapter answers the
+    contract's seam, ``fetch_series(spec, secret) -> list[NormalizedRow]``
+    (TEMPLATE_CONTRACT section 6). FRED predates that and speaks pandas.
+
+    Rather than rewrite the providers -- which would put a rewrite underneath a
+    parity check whose whole job is to prove nothing changed -- ``fetch_series``
+    below TRANSLATES: it calls the pandas ``fetch`` and emits NormalizedRows.
+    ``run`` then consumes rows and rebuilds the Series, so the contract seam is
+    genuinely on the path rather than decoration bolted to the side. Parity is
+    what proves the round trip is lossless.
+    """
 
     def fetch(self, series_id: str) -> pd.Series:  # pragma: no cover - interface
         raise NotImplementedError
 
     def last_observation_date(self, series_id: str) -> Optional[date]:  # pragma: no cover
         raise NotImplementedError
+
+    def fetch_series(self, spec, secret=None):
+        """The contract seam. A pandas Series -> a list of NormalizedRows."""
+        return series_to_rows(self.fetch(spec.series_id), spec)
+
+
+def series_to_rows(series: pd.Series, spec) -> List["NormalizedRow"]:
+    """A date-indexed float Series -> contract rows, oldest first.
+
+    NaN becomes ``None``, never 0: FRED's own missing marker is "." and the
+    whole point of coercing it is that a missing observation stays missing.
+    """
+    rows = []
+    for stamp, value in series.items():
+        rows.append(NormalizedRow(
+            id=spec.series_id,
+            period=stamp.date().isoformat() if hasattr(stamp, "date")
+            else str(stamp)[:10],
+            value=None if pd.isna(value) else float(value),
+            geo_segment=spec.geo_segment,
+            source_class="A",
+            units=spec.units))
+    return rows
+
+
+def rows_to_series(rows: Sequence["NormalizedRow"]) -> pd.Series:
+    """Contract rows -> the date-indexed float Series the transforms expect.
+
+    The inverse of :func:`series_to_rows`. ``None`` returns to NaN, so a blank
+    stays blank rather than becoming a number.
+    """
+    if not rows:
+        return pd.Series(dtype="float64")
+    index = pd.to_datetime([r.period for r in rows])
+    values = [float("nan") if r.value is None else float(r.value) for r in rows]
+    return pd.Series(values, index=index, dtype="float64").sort_index()
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -855,7 +905,9 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
             f"per series; please let it finish.\n")
     for i, spec in enumerate(pullable, 1):
         try:
-            s = provider.fetch(spec.series_id)
+            # Through the contract seam (section 6), not around it: the adapter
+            # emits NormalizedRows and the Series is rebuilt from them.
+            s = rows_to_series(provider.fetch_series(spec))
         except Exception as exc:
             errors.append(f"{spec.series_id}: {exc}")
             continue

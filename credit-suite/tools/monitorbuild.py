@@ -38,10 +38,11 @@ RECIPES: dict[str, dict[str, object]] = {
         "macro_module": "PeerMonitor",
     },
     "fred": {
-        "folder": "fred-credit-risk-dashboard",
+        "engine": True,
         "workbook": "FRED_Credit_Risk_Dashboard.xlsm",
-        "build": ["make_workbook.py"],
-        "run": ["runner.py", "--workbook", "{workbook}", "--demo", "--asof", "{asof}"],
+        "layout": "credit_suite.sources.fred.layout",
+        "runner": "credit_suite.sources.fred.runner",
+        "macro_module": "FREDDashboard",
     },
 }
 
