@@ -104,7 +104,10 @@ def test_these_are_distinguished_from_the_tenets():
 # ── every skill that reads the record says where the record is ────────────
 
 READS_THE_RECORD = ("bassy", "canon-mine", "canon-adopt")
-RUNS_NO_RECORD = ("how-we-work",)
+# docket reads the repository's own log and state, never the record — it
+# hands anything conviction-shaped to bassy rather than reading or writing
+# CONVICTIONS.md itself, which is what keeps it on this side of the list.
+RUNS_NO_RECORD = ("how-we-work", "docket")
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
