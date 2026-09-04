@@ -21,6 +21,12 @@ dev = [
   "pypdf>=4.0",
   "reportlab>=4.0",
   "pymupdf>=1.24",
+  # The suite could not open a screen until this was here. Every test drove
+  # Flask's test client, which proves a page came back and cannot tell
+  # dark-on-dark from readable or a dead button from a live one -- so a panel
+  # heading rendered its own count invisibly (1.10:1) through 1,685 passing
+  # tests. `client-documents` has had this since August; `satc_system` had not.
+  "playwright>=1.40",
 ]
 # Document readers. The vision backend needs the Anthropic SDK; the free PDF
 # form-field backend needs pypdf. Neither is required for the rest of the system.

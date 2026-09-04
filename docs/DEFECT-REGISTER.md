@@ -102,6 +102,31 @@ and the live C-corp path.
 
 ## Fixed
 
+### 4 September 2026 — the N/A button recorded documents as received
+
+| # | Defect | Closed by |
+|---|---|---|
+| **W9** | **Pressing N/A with an empty reason box marked the request `satisfied`** — the Received outcome. The register then said a client had sent a document they had not. `close_request` branched on `if reason:` rather than on which button was pressed, so a blank N/A fell through to the satisfied path | The form now carries the intent (`name="how"`), `close_request` branches on it, and the refusal is rendered on the page rather than raised. `server.py`, `state.py`, `documents.html` |
+
+**THE GUARD ALREADY EXISTED AND THE BROWSER COULD NOT REACH IT.**
+`mark_not_applicable` has always refused a blank reason, in the same words the
+screen prints under the form — *"a bare N/A is indistinguishable from never
+having asked."* An empty reason never got that far: the route decided it was a
+Received before the model was consulted. A rule stated in the model, printed on
+the screen, and enforced nowhere a person can reach.
+
+**Found by the first test that pressed the button.** The firm asked, on
+4 September: *"do the instructions you understand have you not only open screens
+and screenshot them, but you are pressing buttons and opening screens and
+'typing' stuff to make sure it actually works?"* They had not. The panel had
+been rendered, photographed and reported as verified the same afternoon, and
+1,685 tests were green throughout — every one of them driving Flask's test
+client, which proves a page came back and cannot tell a live button from a dead
+one.
+
+Checked by mutation: with the original `if reason:` restored, the browser test
+that names this fails alone and the other four pass.
+
 ### 4 September 2026 — the payment loop, proven with real money
 
 | # | Proved | How |

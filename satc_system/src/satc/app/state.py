@@ -245,20 +245,40 @@ class AppState:
         return seen
 
     # -- mutations (write through to the store) ---------------------------
-    def close_request(self, request_id: str, *, reason: str = "") -> None:
+    def close_request(self, request_id: str, *, reason: str = "",
+                      how: str = "") -> None:
         """Close an open request — satisfied, or not applicable WITH A REASON.
 
         Replaces set_document_status(). The old call took any of five statuses
         spanning four lifecycles and wrote it to one column; this one can only
         do the thing a request can actually do.
+
+        `how` IS THE CALLER'S INTENT AND IT IS NOT THE SAME QUESTION AS WHETHER
+        A REASON WAS TYPED. This branched on `if reason:` alone, so pressing the
+        N/A button with an empty box fell through to the satisfied path and
+        **recorded the document as RECEIVED** — the register then said a client
+        had sent something they had not.
+
+        `mark_not_applicable` has always refused a blank reason, in the same
+        words the screen prints underneath the form. The web route could not
+        reach it: an empty reason never got that far. A guard nothing can reach
+        is not a guard.
+
+        Found on 4 September 2026 by the first test that pressed the button
+        rather than photographing it, after the firm asked whether anything
+        actually used the software.
         """
         from satc.models.evidence import mark_not_applicable
+
+        # Old callers pass only `reason`, and their intent is unambiguous from
+        # it. New ones say which button was pressed and get held to it.
+        how = how or ("not_applicable" if reason else "received")
 
         for item in self.mart.requested_items:
             if item.request_id != request_id:
                 continue
-            if reason:
-                mark_not_applicable(item, reason)
+            if how == "not_applicable":
+                mark_not_applicable(item, reason)      # raises on a blank reason
             else:
                 item.status = "satisfied"
             self.store.save_requested_items([item])

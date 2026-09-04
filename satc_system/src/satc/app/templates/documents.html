@@ -82,17 +82,22 @@
         <td class="right">
           {% if i.is_open %}
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
-            <button class="btn sm" type="submit">Received</button>
+            <button class="btn sm" type="submit" name="how" value="received">Received</button>
           </form>
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
             <input class="field-input" type="text" name="reason" placeholder="not applicable because…" style="width:190px">
-            <button class="btn sm" type="submit">N/A</button>
+            <button class="btn sm" type="submit" name="how" value="not_applicable">N/A</button>
           </form>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </table>
+    {% if refused %}
+    <p class="note tie" style="border-left:3px solid var(--red);padding-left:12px">
+      <strong>Not closed.</strong> {{ refused }}
+    </p>
+    {% endif %}
     <p class="note">
       Marking something not applicable <strong>needs a reason</strong> — "they closed that
       account in March" is a record that the gap was considered. A bare N/A is
