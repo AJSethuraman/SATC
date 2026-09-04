@@ -351,13 +351,13 @@ def main(argv: list[str] | None = None) -> int:
         # say so rather than print the sentence a clear register prints.
         if sweep.examined_nothing:
             print("  Nothing looked at: this store holds no document requests and no\n"
-                  "  engagements, so there is nothing here to chase yet. `satc seed`\n"
+                  "  jobs, so there is nothing here to chase yet. `satc seed`\n"
                   "  loads the demo data; `satc app` is where a real one starts.\n")
             return 0
         if not sweep.rows:
-            print(f"  Nothing outstanding — {sweep.documents} register row(s) read "
+            print(f"  Nothing outstanding — {sweep.requests} register row(s) read "
                   f"across {sweep.clients} client(s),\n"
-                  f"  {sweep.engagements} engagement(s).")
+                  f"  {sweep.jobs} job(s).")
         else:
             print(f"  {len(sweep.rows)} request(s) outstanding, longest wait first:\n")
             for w in sweep.rows:
@@ -387,9 +387,9 @@ def main(argv: list[str] | None = None) -> int:
                 if bundle:
                     print(textwrap.fill(bundle, 74, initial_indent=" " * 10,
                                         subsequent_indent=" " * 12))
-            print(f"\n  {len(sweep.rows)} outstanding of {sweep.documents} "
+            print(f"\n  {len(sweep.rows)} outstanding of {sweep.requests} "
                   f"register row(s) read, across {sweep.clients} client(s),\n"
-                  f"  {sweep.engagements} engagement(s).")
+                  f"  {sweep.jobs} job(s).")
         if sweep.opened_today:
             print(f"  {sweep.opened_today} more asked for today — held back, "
                   f"because chasing on the morning\n  you asked is noise, not a "

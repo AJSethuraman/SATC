@@ -11,6 +11,53 @@
 </div>
 
 <div class="panel">
+  <h2>Who owes us a document <span class="muted">· {{ chase.rows | length }} to chase</span></h2>
+  <div class="body">
+    {% if chase.examined_nothing %}
+    <p class="note tie">
+      Nothing looked at — this store holds no document requests and no jobs, so
+      there is nothing here to chase yet. That is a different report from
+      "nothing outstanding", and only one of them is good news.
+    </p>
+    {% elif not chase.rows %}
+    <p class="note tie">Nothing outstanding.</p>
+    {% else %}
+    <table>
+      <tr><th>Waiting</th><th>Client</th><th>What we asked for</th><th>Still missing</th></tr>
+      {% for w in chase.rows %}
+      <tr>
+        {% if w.waiting_days() is none %}
+        {# Said out loud, every time. A blank here would read as "just asked",
+           which is the one thing an undated request is not. #}
+        <td>not known<div class="muted">no date on this request</div></td>
+        {% else %}
+        <td>{{ w.waiting_days() }} day(s)</td>
+        {% endif %}
+        <td>{{ w.client }}<div class="muted mono">{{ w.client_id }} · {{ w.tax_year }}</div></td>
+        <td>{{ w.doc_type }}<div class="muted">{{ w.asked_for }}</div></td>
+        <td>
+          {% if w.part_way %}<div class="muted">{{ w.part_way }}: {{ w.here }}</div>{% endif %}
+          {% if w.still_missing %}{{ w.still_missing }}{% else %}<span class="muted">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <p class="note">
+      Longest wait first, and a request with <strong>no date sorts to the top</strong> —
+      an unmeasurable wait may well be the oldest one here, and ranking it as new
+      is how a forgotten request stays forgotten.
+      {{ chase.requests }} register row(s) read across {{ chase.clients }} client(s),
+      {{ chase.jobs }} job(s).
+      {% if chase.opened_today %}
+      {{ chase.opened_today }} more asked for today, held back — chasing on the
+      morning you asked is noise, not a chase.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="panel">
   <h2>Asked for <span class="muted">· {{ requested | selectattr('is_open') | list | length }} open</span></h2>
   <div class="body">
     {% if not requested %}<p class="note tie">Nothing has been requested yet.</p>{% endif %}
