@@ -42,6 +42,25 @@ until every named part has arrived — so the `parts` column, the migration and
 `chasing.py` off `parked/satc-system-pre-schema-port` are buildable without
 asking anyone anything.
 
+## Found by the WISP survey, 4 September 2026
+
+Turned up while evidencing safeguards for `docs/WISP-DRAFT.md` (PR #187). Each
+was read in source; the two marked **verified here** were re-checked
+independently rather than taken from the survey.
+
+| # | What | State |
+|---|---|---|
+| **W1** | `client-documents/web.py` started the browser front door with `debug=True`, and `make web` is that path. The Werkzeug interactive debugger offers a Python console on any traceback — arbitrary code execution, as whoever runs the app, to anything that can reach the port. Loopback-bound and PIN-gated, so never open to the network; still a debugger left on by default on the machine holding the client vault | **verified here. Fixed in this PR** — off unless `SATC_WEB_DEBUG=1` |
+| **W2** | `satc.settings.ollama_host()` returns `$SATC_OLLAMA_HOST` unchecked, so an environment variable can point the document reader at a **remote** Ollama and send client documents to it. The Forge's standing rule keeps the *server* on `127.0.0.1`; nothing keeps the *client* there | **verified here.** Open — wants a loopback check, refusing rather than defaulting |
+| **W3** | "Inference is local" is true *by default*, not absolutely: `ingest/readers/vision.py` can send document images to Anthropic behind two independent opt-ins (`settings.py:22-29`). Off today. If ever switched on, Anthropic becomes a §314.4(f) service provider | open — a decision, and a line in the WISP either way |
+| **W4** | No login and no MFA on either local app (§314.4(c)(5)). The gate is physical access to the machine plus the Windows account | open — needs the firm's call on compensating controls |
+| **W5** | No retention or disposal schedule. There is a 90-day *prospect draft* purge and a manual `delete_client`, and nothing else. Secure disposal is **not** waived by the small-firm exemption | open |
+| **W6** | `vault.key` still has no second copy, and sits beside the vault it opens. The backup deliberately excludes it — correctly — so today's verified backup restores a database nobody can read | open, and it is two minutes of the owner's time |
+
+**W1 and W2 are the same shape**: a default chosen for a developer's convenience
+on a box that later took real client data. Neither was exposed to the network.
+Both are the kind of thing that is free to fix now and expensive to explain later.
+
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
 
