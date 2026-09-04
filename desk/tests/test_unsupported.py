@@ -197,3 +197,26 @@ def test_the_supported_existing_path_also_deduplicates(tmp_path):
     unsupported.append(path, make(current, "2026-09-05"))
     got = unsupported.parse(path.read_text(encoding="utf-8"))
     assert len(got) == 1, f"the same refusal was recorded {len(got)} times"
+
+
+def test_a_models_markdown_reasoning_round_trips_intact(tmp_path):
+    """The one free-form field carries prose a model wrote, and prose contains
+    Markdown. `**Evidence:**` read as the next record field and truncated
+    everything after it; a line opening `## x · y` could be read as a whole new
+    ENTRY and make the queue unparsable. Every other field here is structured and
+    short — this one is arbitrary, so it is escaped rather than trusted."""
+    working = ("First line of reasoning\n"
+               "**Evidence:** paragraph (e)(2)(ii) makes the building the unit\n"
+               "\n"
+               "## Not a heading · and not a new entry\n"
+               "- so the safe harbour cannot apply")
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, unsupported.from_refusal(
+        "is a roof a unit of property?",
+        Answer(position="p", citation="26 CFR 1", working=working),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+        today="2026-09-04"))
+    got = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(got) == 1, f"the queue split into {len(got)} entries"
+    assert got[0].working == working, f"kept {got[0].working!r}"
+    assert got[0].failed_because == "authority_absent", "a later field was eaten"

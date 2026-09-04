@@ -67,7 +67,7 @@ def test_reading_every_paragraph_recovers_problems_that_were_being_dropped():
     honest one rather than the high-water mark.
     """
     _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
-                                      today="2026-09-04")
+                                      checked="2026-09-04")
     assert len(kept) >= 21, (
         f"only {len(kept)} problems usable; reading every paragraph of each "
         f"example should yield at least 21"
@@ -167,9 +167,16 @@ def test_the_extract_command_actually_writes_what_it_computed(tmp_path):
     nothing — so the "reproducible regeneration" path regenerated nothing."""
     d = tmp_path / "desk"
     (d / "extracted").mkdir(parents=True)
-    r = subprocess.run(
-        [sys.executable, str(ROOT / "tools" / "extract_ecfr.py"), str(XML), str(d)],
-        capture_output=True, text=True)
+    run = lambda *extra: subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "extract_ecfr.py"), str(XML), str(d),
+         *extra], capture_output=True, text=True)
+
+    # And it refuses without the date the XML was TAKEN, rather than stamping
+    # today's: a rebuild is not a re-verification.
+    bare = run()
+    assert bare.returncode != 0, "the command ran with no as-of date"
+
+    r = run("2026-09-04")
     assert r.returncode == 0, r.stderr
     assert (d / "PROBLEMS.md").is_file(), "PROBLEMS.md was not written"
     written = list((d / "extracted").glob("*.md"))

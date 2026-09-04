@@ -61,7 +61,15 @@ class Unsupported:
         if self.model:
             lines += ["", f"**Model:** {self.model}"]
         if self.working:
-            lines += ["", f"**Working:** {self.working}"]
+            # QUOTED, BECAUSE THIS IS THE ONE FREE-FORM FIELD. A model's working
+            # is prose it wrote, and prose contains Markdown: `**Evidence:** ...`
+            # read as the next record field and truncated everything after it,
+            # and a line starting `## x · y` could be read as a whole new ENTRY
+            # and make the queue unparsable. Every other field here is structured
+            # and short. This one is arbitrary, so it is escaped rather than
+            # trusted -- the same `>` the record already uses for stored text.
+            lines += ["", "**Working:**", ""]
+            lines += [f"> {ln}" if ln else ">" for ln in self.working.split("\n")]
         return "\n".join(lines) + "\n"
 
 
@@ -78,9 +86,27 @@ def parse(text: str) -> list[Unsupported]:
             concluded=_field(block, "Concluded", where),
             believed_authority=_field(block, "Believed authority", where),
             model=_field(block, "Model", where, required=False),
-            working=_field(block, "Working", where, required=False),
+            working=_quoted(block, "Working"),
         ))
     return out
+
+
+def _quoted(block: str, label: str) -> str:
+    """Read a `>`-quoted free-form value back, exactly as it was written."""
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ \t]*$", block, re.M)
+    if not m:
+        return ""
+    out = []
+    for line in block[m.end():].split("\n"):
+        if line.startswith("> "):
+            out.append(line[2:])
+        elif line.rstrip() == ">":
+            out.append("")
+        elif not line.strip() and not out:
+            continue                         # the blank line after the label
+        else:
+            break
+    return "\n".join(out)
 
 
 PREAMBLE = """# Unsupported — answers the engine would not serve, kept with their reasoning

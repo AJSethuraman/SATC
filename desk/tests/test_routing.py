@@ -207,3 +207,19 @@ def test_the_caller_holds_one_schema_not_one_per_desk(regs):
         "route() must take a question and the registry, not a desk name — the "
         "caller must not have to know which desks exist"
     )
+
+
+def test_a_desk_registering_under_another_name_is_refused(tmp_path):
+    """A typo or stale name in the heading became `Registration.desk`, so routing
+    still matched while `refusal_naming_the_desk()` sent the caller to a desk
+    that does not exist — the deterministic recovery path pointing away from the
+    record that produced it."""
+    with pytest.raises(routing.RecordError, match="registers itself as"):
+        routing.parse_subjects(
+            "## fixed-asset · Fixed assets\n\n**Fires on:** roof, elevator\n",
+            "fixed-assets")
+    # The control: matching name and directory parses.
+    r = routing.parse_subjects(
+        "## fixed-assets · Fixed assets\n\n**Fires on:** roof, elevator\n",
+        "fixed-assets")
+    assert r.desk == "fixed-assets"

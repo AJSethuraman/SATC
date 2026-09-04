@@ -11,7 +11,8 @@ that means nothing -- and that is the first tenet in `docs/SOFTWARE-TENETS.md`,
 which exists because a proof artifact once declared 190 documents fine when
 every one of them was unreadable.
 
-Run:  python tools/extract_ecfr.py <reg.xml> <desk-dir>
+Run:  python tools/extract_ecfr.py <reg.xml> <desk-dir> <YYYY-MM-DD>
+      where the date is the day the XML was TAKEN FROM eCFR -- not today.
 """
 from __future__ import annotations
 
@@ -237,8 +238,26 @@ def examples(xml_path: Path):
 
 
 def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
-          source_id="S1", today=None):
-    today = today or date.today().isoformat()
+          source_id="S1", checked: str | None = None):
+    """Build the record. `checked` is the day the XML was taken from eCFR.
+
+    IT IS NOT THE CLOCK, AND IT HAS NO DEFAULT. Defaulted to `date.today()`, the
+    documented offline regeneration -- run against a COMMITTED fixture, touching
+    no network -- restamped every passage with the day it happened to be run. An
+    old snapshot would read as freshly verified, and the staleness report would
+    call it fresh at exactly the moment the live regulation had moved. The one
+    signal designed to catch a stale record, silenced by rebuilding it.
+
+    So it is required, and it is a fact about the fetch rather than about the
+    run: never invent a value, and refuse rather than default.
+    """
+    if not checked:
+        raise ValueError(
+            "checked is required: the date the XML was taken from eCFR, not the "
+            "day this ran. A rebuild is not a re-verification."
+        )
+    _date_only(checked)
+    today = checked
     all_ex = list(examples(xml_path))
     kept, dropped = [], []
     for e in all_ex:
@@ -307,9 +326,22 @@ def write(desk_dir: Path, problems, passages, c, *, section="1.263(a)-3") -> Non
      ).write_text(EXTRACTED_HEAD + "\n---\n\n".join(passages), encoding="utf-8")
 
 
+def _date_only(value: str) -> str:
+    """A real day. The record's parser will refuse anything else on read."""
+    try:
+        date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"checked is {value!r}, not a date: {exc}") from exc
+    return value
+
+
 if __name__ == "__main__":                                  # pragma: no cover
-    xml_path, desk_dir = Path(sys.argv[1]), Path(sys.argv[2])
-    all_ex, kept, dropped, problems, passages = build(xml_path, desk_dir)
+    if len(sys.argv) < 4:
+        sys.exit("usage: extract_ecfr.py <reg.xml> <desk-dir> <YYYY-MM-DD "
+                 "the day the XML was taken from eCFR>")
+    xml_path, desk_dir, checked = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+    all_ex, kept, dropped, problems, passages = build(
+        xml_path, desk_dir, checked=checked)
     c = counts(all_ex, kept, dropped)
     write(desk_dir, problems, passages, c)
     print(f"found {c['found']} examples; kept {c['kept']}; left out {c['dropped']}")

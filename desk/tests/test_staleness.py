@@ -163,3 +163,85 @@ def test_a_desk_answering_only_through_positions_is_still_reported(tmp_path):
     assert any(f.citation == "ASC 360-10" for f in rep.unchecked), (
         f"the only authority this desk has went unmentioned: {rep.render()}"
     )
+
+
+def test_a_source_is_asked_once_however_many_passages_cite_it(fixed_assets):
+    """Called inside the passage loop, the shipped desk made one request per
+    passage -- identical calls to one government site. Beyond the rate limit it
+    made the report non-deterministic: a call failing where an earlier one
+    succeeded put two passages of the SAME source in different buckets."""
+    calls = []
+
+    def amended_on(src):
+        calls.append(src.id)
+        return "2020-01-01"
+
+    staleness.check(fixed_assets, amended_on, today="2026-09-04")
+    assert len(fixed_assets.passages) > 1, "fixture cannot show the difference"
+    assert calls == sorted(set(calls)), (
+        f"asked {len(calls)} times for {len(set(calls))} sources: {calls[:5]}..."
+    )
+
+
+def test_a_desk_answering_only_through_positions_is_still_reported(tmp_path):
+    """A `human_only` source has no stored text, so a desk built on one has NO
+    passages -- and the loop ran zero times, reporting "0 entries checked" while
+    the engine served those positions daily. Silence that reads as a clean bill
+    is worse than no report at all."""
+    d = tmp_path / "positions-only"
+    (d / "positions").mkdir(parents=True)
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source we may not read\n\n"
+        "**Tier:** tertiary · **Access:** human_only · "
+        "**May store:** license_check · **Checked:** 2026-09-04\n\n"
+        "**Citation prefix:** ASC\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** ASC 360-10\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · What we do here\n\n"
+        "**Citation:** ASC 360-10 · **Recorded:** 2020-01-01\n\n"
+        "**Position:** must capitalize\n\n"
+        "**Ratified:** the firm, 1 January 2020\n", encoding="utf-8")
+    desk_ = record.load(d)
+    assert not desk_.passages, "fixture must have no stored text"
+
+    rep = staleness.check(desk_, lambda src: None, today="2026-09-04")
+    assert rep.total == 1, f"reported {rep.total} entries for a desk with one"
+    assert any(f.citation == "ASC 360-10" for f in rep.unchecked), (
+        f"the only authority this desk has went unmentioned: {rep.render()}"
+    )
+
+
+def test_a_position_on_a_human_only_source_is_still_aged(tmp_path):
+    """`human_only` short-circuits a PASSAGE, whose freshness only re-reading the
+    source could establish. A POSITION is the firm's own record: its age is
+    knowable from the date they took it, and a person may supply an amendment
+    date through the callback. Short-circuiting both meant the principal case
+    this loop was widened for was the one case it still did not check."""
+    d = tmp_path / "old-position"
+    (d / "positions").mkdir(parents=True)
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source we may not read\n\n"
+        "**Tier:** tertiary · **Access:** human_only · "
+        "**May store:** license_check · **Checked:** 2026-09-04\n\n"
+        "**Citation prefix:** ASC\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** ASC 360-10\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · What we do here\n\n"
+        "**Citation:** ASC 360-10 · **Recorded:** 2020-01-01\n\n"
+        "**Position:** must capitalize\n\n"
+        "**Ratified:** the firm, 1 January 2020\n", encoding="utf-8")
+    desk_ = record.load(d)
+
+    # A person supplies the amendment date the engine may not fetch.
+    r = staleness.check(desk_, lambda s: "2021-01-01", today="2026-09-04")
+    assert [f.citation for f in r.amended] == ["ASC 360-10"], r.render()
+
+    # And with no date, it is aged rather than waved through as human_only.
+    r = staleness.check(desk_, lambda s: None, today="2026-09-04")
+    assert r.total == 1 and r.fresh == 0, r.render()

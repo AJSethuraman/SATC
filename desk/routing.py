@@ -62,6 +62,17 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
             f"{desk_name}: no 'Fires on' subjects. A desk nothing routes to is "
             f"a desk nobody asks."
         )
+    # THE DIRECTORY IS THE IDENTITY. A typo or stale name in the heading became
+    # `Registration.desk`, so routing still matched while
+    # `refusal_naming_the_desk()` sent the caller to a desk that does not exist
+    # -- the deterministic recovery path pointing away from the record that
+    # produced it. Refuse the mismatch rather than pick a winner.
+    if head.group(1) != desk_name:
+        raise RecordError(
+            f"{desk_name}/SUBJECTS.md registers itself as {head.group(1)!r}; a "
+            f"desk named differently from its directory cannot be reached by "
+            f"the name a refusal gives out"
+        )
     return Registration(
         desk=head.group(1),
         title=head.group(2).strip(),

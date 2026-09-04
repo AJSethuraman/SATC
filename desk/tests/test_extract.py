@@ -147,7 +147,7 @@ def test_no_problem_in_the_record_leans_on_an_example_not_shown():
 
 def test_every_example_is_either_kept_or_counted_as_dropped():
     all_ex, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
-                                           today="2026-09-04")
+                                           checked="2026-09-04")
     assert len(kept) + len(dropped) == len(all_ex), "an example vanished"
     assert all(why for _, why in dropped), "something was dropped with no reason"
 
@@ -156,7 +156,7 @@ def test_the_extraction_is_reproducible_from_the_committed_source():
     """The record can be rebuilt without a network. If eCFR is down, or the
     section is amended, this still runs and the diff shows what moved."""
     _, kept, _, problems, passages = ex.build(XML, DESKS / "fixed-assets",
-                                              today="2026-09-04")
+                                              checked="2026-09-04")
     assert len(problems) == len(passages) == len(kept)
     assert problems, "the fixture produced nothing; it is not the section"
 
@@ -188,7 +188,7 @@ def test_problems_md_cannot_lie_about_its_own_count():
 
 def test_every_exclusion_reason_is_named_in_the_document():
     all_ex, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
-                                           today="2026-09-04")
+                                           checked="2026-09-04")
     text = (DESKS / "fixed-assets" / "PROBLEMS.md").read_text(encoding="utf-8")
     for _, why in dropped:
         assert why in text, f"examples were dropped for {why!r} and it is not stated"
@@ -204,7 +204,7 @@ def test_the_facts_are_verbatim_from_the_source_not_retyped():
     """
     import record
     desk = record.load(DESKS / "fixed-assets")
-    _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", today="2026-09-04")
+    _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", checked="2026-09-04")
     from_source = "\n".join(e["text"] for e, _ in kept)
     for p in desk.problems:
         for sentence in ex._SENTENCE.split(p.facts):
@@ -250,7 +250,7 @@ def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
     real, ex.split_conclusion = ex.split_conclusion, monkey
     try:
         _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
-                                          today="2026-09-04")
+                                          checked="2026-09-04")
     finally:
         ex.split_conclusion = real
     assert kept == [], "every example should have been lost to the split"
@@ -289,3 +289,20 @@ def test_no_shipped_problem_rests_on_a_conditional_conclusion():
         f"{len(bad)} problems record an unconditional answer for a conclusion "
         f"the regulation states conditionally: {bad}"
     )
+
+
+def test_a_rebuild_is_not_a_re_verification():
+    """`checked` defaulted to the wall clock, so running the documented OFFLINE
+    regeneration -- against a committed fixture, touching no network -- restamped
+    every passage with the day it happened to run. An old snapshot would read as
+    freshly verified, and the staleness report would call it fresh at exactly the
+    moment the live regulation had moved: the one signal designed to catch a
+    stale record, silenced by rebuilding it."""
+    with pytest.raises(ValueError, match="checked is required"):
+        ex.build(XML, DESKS / "fixed-assets")
+    with pytest.raises(ValueError, match="not a date"):
+        ex.build(XML, DESKS / "fixed-assets", checked="yesterday")
+    # And what it is given is what lands, rather than anything about now.
+    _, _, _, _, passages = ex.build(XML, DESKS / "fixed-assets",
+                                    checked="2019-01-02")
+    assert "**Checked:** 2019-01-02" in passages[0]

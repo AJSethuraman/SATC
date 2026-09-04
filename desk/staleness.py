@@ -115,19 +115,27 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
     # the firm took it, which is the same question asked of a different kind of
     # authority -- and resolves to its source by citation prefix, which `load()`
     # has already proved unique.
-    checkable = [(p.citation, desk.source(p.source_id), p.checked)
+    checkable = [(p.citation, desk.source(p.source_id), p.checked, "passage")
                  for p in desk.passages]
     checkable += [
         (q.citation,
          next((s for s in desk.sources if q.citation.startswith(s.citation_prefix)), None),
-         q.recorded)
+         q.recorded, "position")
         for q in desk.positions if not q.proposed
     ]
 
-    for citation, src, checked in checkable:
+    for citation, src, checked, kind in checkable:
         if src is None:                                    # pragma: no cover
             raise RecordError(f"{citation!r} has no source; load() checks this")
-        if not src.readable:
+        # `human_only` short-circuits a PASSAGE, whose freshness only re-reading
+        # the source could establish -- and we may not read it. A POSITION is the
+        # firm's own record: its age is knowable from the date they took it, and
+        # a person can supply an amendment date through the callback, which the
+        # contract has always permitted. Short-circuiting both meant a position
+        # recorded years ago could only ever be reported "human_only", never aged
+        # -- so the principal case this loop was widened for was the one case it
+        # still did not check.
+        if not src.readable and kind == "passage":
             rep.unchecked.append(Finding(
                 citation, src.id, checked, "human_only",
                 f"{src.title} is access={src.access!r}; only a person can confirm it",
