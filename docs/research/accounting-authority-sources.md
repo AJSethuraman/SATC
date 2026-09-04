@@ -6,8 +6,9 @@ the authority, or only *citations* to it?
 
 **Researched:** 4 September 2026 · for the standards-desk design
 **Re-tested:** 4 September 2026 — automated-access and eCFR questions closed; the
-FASB copyright wording is *still* unread, and the previously recorded reason for
-that was wrong (see "Correction" below)
+FASB copyright wording is *still* unread, but for a different reason than before:
+the allow-list was added and FASB's own origin refuses us anyway (see
+"Correction" below)
 **Short answer:** **citations only for FASB and AICPA; full text for anything
 federal.** The line is not "free vs paid" — it is who wrote it.
 
@@ -208,7 +209,16 @@ the record is the prohibited act. The distinction is storage, not reading.
 
 ---
 
-## Flagged for the PRD — not edited here
+## Flagged for the PRD — since acted on
+
+> **Resolved in `41c3758`.** Both flags below were raised here and left for
+> whoever owns the PRD; that owner acted on them the same day. §6.5 now splits
+> the one reason into `source_blocked_by_us` and `source_refuses_us` with
+> different fixes, and §10's open question has been rewritten to say the
+> allow-list is done and was not enough. **The flags are kept below as written,
+> because the reasoning is the part worth keeping** — the finding was that a
+> diagnosis whose fix cannot resolve the case is worse than no diagnosis, and
+> that is now a rule in the PRD rather than a note in a research file.
 
 `docs/prd-expert-desks.md` **§6.3 stands.** Nothing found on re-test disturbs
 "citation only for FASB and AICPA, full text for federal authority." The
