@@ -25,14 +25,42 @@ from pathlib import Path
 
 CANON = Path(__file__).resolve().parent
 
-#: Everything an installed session reads AS THE RECORD. A change to any of these
-#: is a change to what Bassy knows, which is what a version is for.
-RECORD = (
-    "CONVICTIONS.md",
-    "TENETS.md",
-    "skills/how-we-work/SKILL.md",
-    "skills/bassy/SKILL.md",
+#: WHAT IS HASHED: everything the plugin ships, minus a short list of exclusions
+#: each carrying its reason. Written first as four Markdown files called "the
+#: record" -- and that was wrong in the way this whole session kept being wrong.
+#: `skills/bassy/SKILL.md` invokes `${CLAUDE_PLUGIN_ROOT}/record.py`, and
+#: `canon-adopt` invokes `adopt.py`; a change to either ships as installed
+#: BEHAVIOUR. Hashing only the prose meant a stale install of the CODE was
+#: exactly as invisible as the stale convictions this file was written to catch.
+#:
+#: So the default is everything, and narrowing it takes a stated reason. A
+#: check that has to be told what to look at will always be told too little.
+EXCLUDED = (
+    # The version label and this digest itself. The digest describes CONTENT;
+    # including the manifest would make a bump change the hash, and then a moved
+    # hash could no longer tell you whether anything actually changed.
+    ".claude-plugin",
+    # Not installed behaviour. A test edit should not raise "should this be
+    # 1.6.0?" -- nothing a session reads has moved.
+    "tests",
+    # Generated.
+    "__pycache__",
+    ".pytest_cache",
 )
+
+
+def files(root: Path = CANON) -> list[Path]:
+    """Every shipped file, sorted, so the hash is reproducible."""
+    out = []
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if not path.is_file() or path.suffix == ".pyc":
+            continue
+        if any(part in EXCLUDED for part in rel.parts):
+            continue
+        out.append(rel)
+    return out
+
 
 RELEASED = CANON / ".claude-plugin" / "RELEASED.json"
 
@@ -56,10 +84,10 @@ def _content(path: Path) -> bytes:
 def digest(root: Path = CANON) -> str:
     """One hash over the record, in a fixed order so it is reproducible."""
     h = hashlib.sha256()
-    for name in RECORD:
-        h.update(name.encode("utf-8"))
+    for rel in files(root):
+        h.update(str(rel).replace("\\", "/").encode("utf-8"))
         h.update(b"\0")
-        h.update(_content(root / name))
+        h.update(_content(root / rel))
         h.update(b"\0")
     return h.hexdigest()
 

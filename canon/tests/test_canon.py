@@ -351,7 +351,7 @@ def test_the_digest_does_not_depend_on_who_checked_the_repository_out(tmp_path):
     lf = tmp_path / "lf"
     crlf = tmp_path / "crlf"
     for root in (lf, crlf):
-        for name in release.RECORD:
+        for name in release.files():
             dst = root / name
             dst.parent.mkdir(parents=True, exist_ok=True)
             text = (CANON / name).read_text(encoding="utf-8")
@@ -363,3 +363,34 @@ def test_the_digest_does_not_depend_on_who_checked_the_repository_out(tmp_path):
     assert release.digest(lf) == release.digest(crlf), (
         "the same record hashed differently once git had touched it"
     )
+
+
+def test_the_digest_covers_the_code_a_session_actually_runs():
+    """WRITTEN FIRST AS FOUR MARKDOWN FILES CALLED "THE RECORD", AND THAT WAS THE
+    SAME MISTAKE AGAIN.
+
+    `skills/bassy/SKILL.md` invokes `${CLAUDE_PLUGIN_ROOT}/record.py`, and
+    `canon-adopt` invokes `adopt.py`. Those ship as installed BEHAVIOUR, so a
+    stale install of the code was exactly as invisible as the stale convictions
+    this digest exists to catch — and both release checks still passed.
+
+    This asserts the category rather than the four files: every Python module at
+    the plugin root and every skill a session loads is inside the hash.
+    """
+    import release
+    covered = {str(f).replace("\\", "/") for f in release.files()}
+
+    for py in sorted(CANON.glob("*.py")):
+        assert py.name in covered, (
+            f"{py.name} ships with the plugin and is not hashed; a change to it "
+            f"would install stale and no check would notice"
+        )
+    skills = sorted(CANON.glob("skills/*/SKILL.md"))
+    assert skills, "no skills found; this check would pass vacuously"
+    for skill in skills:
+        rel = str(skill.relative_to(CANON)).replace("\\", "/")
+        assert rel in covered, f"{rel} is not hashed"
+
+    # And the exclusions stay a short, stated list rather than growing quietly.
+    assert set(release.EXCLUDED) == {".claude-plugin", "tests", "__pycache__",
+                                     ".pytest_cache"}, release.EXCLUDED
