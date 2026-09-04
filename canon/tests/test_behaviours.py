@@ -99,3 +99,65 @@ def test_these_are_distinguished_from_the_tenets():
     edited as if it were the other."""
     assert "These are not the tenets" in FLAT
     assert "TENETS.md" in TEXT
+
+
+# ── every skill that reads the record says where the record is ────────────
+
+READS_THE_RECORD = ("bassy", "canon-mine", "canon-adopt")
+RUNS_NO_RECORD = ("how-we-work",)
+
+
+def test_every_skill_that_reads_the_record_names_the_plugin_root():
+    """The bug this exists for, found by asking one extra question.
+
+    A session in an unrelated repo was asked to challenge a push to main. It
+    did — correctly, quoting the firm. Asked WHERE it had read the record from,
+    it named a checkout on that machine, not the plugin's own copy. On a machine
+    without that checkout it would have found nothing, and the first proof had
+    only asked whether it worked, not what it read.
+
+    `${CLAUDE_PLUGIN_ROOT}` is the plugin's own directory. A skill that does not
+    name it is a skill that works only where somebody happens to have cloned the
+    repository.
+    """
+    for name in READS_THE_RECORD:
+        text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "${CLAUDE_PLUGIN_ROOT}/CONVICTIONS.md" in text, \
+            f"{name} never says where the record is"
+        assert "not from a copy you happened to find" in " ".join(text.split()), \
+            f"{name} does not warn against the checkout on the machine"
+
+
+def test_every_bundled_script_is_invoked_from_the_plugin_root():
+    """`python mine.py` runs whatever `mine.py` is in the working directory,
+    which in another repository is nothing at all."""
+    for name in READS_THE_RECORD:
+        text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        for line in text.splitlines():
+            bare = line.strip()
+            if bare.startswith("python ") and bare.endswith(".py"):
+                assert "CLAUDE_PLUGIN_ROOT" in bare, \
+                    f"{name} runs a bare script path: {bare!r}"
+
+
+def test_the_skills_say_the_plugin_directory_is_never_written_to():
+    """The plugin path is versioned and replaced on update, so a conviction
+    recorded into it is thrown away the next time canon updates. The record is
+    READ from the plugin everywhere and WRITTEN only in the repository."""
+    for name in READS_THE_RECORD:
+        flat = " ".join((CANON / "skills" / name / "SKILL.md")
+                        .read_text(encoding="utf-8").split())
+        assert "Never write there" in flat, f"{name} does not forbid writing there"
+        assert "claude plugin marketplace update satc" in flat, \
+            f"{name} does not say how a change reaches other machines"
+
+
+def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
+    """A list of exceptions with nothing asserting it is complete is a list
+    that grows one skill at a time without anybody deciding."""
+    every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
+    assert every == set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
+    for name in RUNS_NO_RECORD:
+        text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "CONVICTIONS.md" not in text, \
+            f"{name} reads the record after all, and must say where it is"
