@@ -63,9 +63,15 @@ and the day the firm asked whether anything actually presses the buttons.
   Redone in `1967bf1`.
 - The open pull request count was reported as 12, then 14, then 20 in one day.
   All three were a row limit read back as a total. **It is 38.**
-- `CLAUDE.md` says `exercise.py` produces **190 documents**. The run on
-  4 September produced **109** across 29 scenarios. The difference is not
-  explained and is recorded rather than corrected.
+- `CLAUDE.md` said the suite was 1,412 / 2 and that `exercise.py` produces
+  **190 documents**. Measured 4 September: the suite is **1,434 / 2** and the
+  harness produced **109** documents across 29 scenarios. The count was
+  corrected; the 190 was not explained and is flagged in place rather than
+  quietly rewritten.
+- **Ten tests skip until the harnesses have run**, and say so only in the
+  skip reason. A checkout that has never run them reports 1,424 / 12 and looks
+  healthy. Both checkouts now read 1,434 / 2, and the two remaining skips are a
+  real data condition rather than a missing capability.
 
 ### Still open at the end of the day
 
