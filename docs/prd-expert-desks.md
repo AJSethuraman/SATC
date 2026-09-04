@@ -139,7 +139,7 @@ allowed into the shared layer, and a test enforces that.
 4. **[P0]** Every source carries `may_store: full_text | citation_only | license_check`.
    Default is `license_check`, which stores nothing. Storing text under a
    `citation_only` or `license_check` source is a build failure.
-4a. **[P0]** Every source carries `access: public_fetch | headless_browser | signed_in_browser`,
+4a. **[P0]** Every source carries `access: public_fetch | headless_browser | signed_in_browser | human_only`,
    and the engine uses the method named there. A source with no `access` is a parse
    error, not a default — the same discipline as `checked`.
 4b. **[P0]** A denied fetch is **never** retried through a different client. It
@@ -296,11 +296,30 @@ ratified them, mirroring how `CONVICTIONS.md` records a conviction.
 
 Settled by research, not assumption — `docs/research/accounting-authority-sources.md`:
 
-- **FASB ASC** — the copyright notice forbids content being *"reproduced, stored
-  in a retrieval system, or transmitted"* without written permission. A git
-  repository is a retrieval system; so is a vector index and so is a local cache.
-  **Citation only.** The distinction is *storage*, not reading: a desk may fetch
-  ASC to answer and must not cache it.
+- **FASB ASC** — **`human_only`. A desk may cite it by reference and may never
+  read it.** Settled 4 September 2026 when the firm opened the FAF **License
+  Agreement** at source, which is stricter than the copyright notice this document
+  first relied on. Three clauses decide it. **§3(a)(j)** prohibits use *"for
+  commercial purposes"*, and SATC holds no paid subscription, so the free
+  click-through is the only licence in force and it does not reach client work at
+  all. **§3(b)(i)** prohibits use *"in connection with any… large language models
+  (LLMs)… under any circumstances, including using any documents, content, or
+  materials in the Codification… as input into"* AI. **§3(b)(iii)** prohibits
+  access *"via mechanical, programmatic, robotic, scripted, or any other automated
+  means."*
+
+  An earlier draft of this section let a desk read ASC live and cache nothing.
+  **That is not available** — §3(b)(i) covers content reaching a model by any
+  route, a browser included, so `signed_in_browser` does not rescue it.
+
+  What survives is the half that matters: a **citation** (`ASC 360-10-35-4`) is a
+  reference, not Codification content; and the firm reading ASC in their own
+  session and writing their own conclusion is the personal use the licence
+  contemplates, and those words are the firm's. So a desk answers an ASC question
+  **from the firm's ratified position in `positions/`**, cites the paragraph, and
+  whoever wants the text opens it themselves. That is the better artifact anyway:
+  a client memo should carry SATC's position with the paragraph behind it, never
+  FASB's prose filtered through a model.
 - **Federal authority** — 17 U.S.C. § 105 places IRC, Treasury Regulations and
   IRS publications in the public domain. **Storable in full.** The narrow
   exception: § 105 bars the government from *originating* copyright, not from
@@ -324,11 +343,21 @@ named there. There is no try-then-escalate.
   access: headless_browser      # rendering, not permission — no login
   may_store: full_text
 
-- source: FASB ASC
+- source: <a licensed source the firm subscribes to>
   access: signed_in_browser     # the firm's own profile, on the Forge
   requires: subscription
   may_store: citation_only
+
+- source: FASB ASC
+  access: human_only            # licence forbids it reaching a model at all
+  may_store: citation_only      # the reference; never the text
 ```
+
+**`human_only` is not a stricter fetch — it is the absence of one.** The engine
+never reaches for the source at all. It answers from a ratified position in
+`positions/`, citing the reference, or it escalates. That is what a licence
+forbidding both automated *and* AI access leaves available, and FASB ASC is the
+worked example (§6.3).
 
 **Why declared rather than discovered.** If a failed fetch is what triggers a
 heavier tool, then a site *refusing* automated access becomes the thing that makes
@@ -343,6 +372,7 @@ also C8's test: a rule applied, not a judgement made.
 |---|---|
 | **Denied by our own policy** — the egress proxy refuses the domain | Refuse with `source_blocked_by_us`. The allow-list is the fix |
 | **Denied by the source** — 403 from its origin, bot management, terms forbid automation | Refuse with `source_refuses_us`. The allow-list is **not** the fix, and a different client is not the answer |
+| **`human_only`** — the licence forbids the content reaching a model at all | Never attempted. Answer from `positions/` citing the reference, or escalate |
 | **Empty** — JS-rendered, the fetch got a shell | A headless browser is fine. Nothing was denied and no authority changed |
 | **Transient** — timeout, 5xx, reset | Retry the **same** method, once |
 | **Licensed** — needs to be the firm | Never discovered at runtime; declared or unavailable |
@@ -661,8 +691,13 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
   under time pressure. The check is concrete: M4 must not start before M1–M3 are
   green, and the factory's questions must be traceable to something the hand-built
   desk actually needed.
-- **Open question (needs you, and only you):** reading FASB's terms at their
-  source. **The allow-list is done and it was not enough** — verified 4 September
+- ~~**Open question:** reading FASB's terms at their source.~~ **CLOSED
+  4 September 2026** — the firm read the FAF License Agreement in an ordinary
+  browser. It is stricter than assumed and produced the `human_only` access value
+  (§6.3, §6.3a). The note below is kept because it records how the gap was
+  actually closed.
+
+  **The allow-list was done and it was not enough** — verified 4 September
   2026 by a re-test session: `asc.fasb.org` is reachable, and its content pages
   return a **Cloudflare 403 from FASB's own origin**, which no network setting can
   change. `viewpoint.pwc.com` fetches fine. So the remaining gap needs a person

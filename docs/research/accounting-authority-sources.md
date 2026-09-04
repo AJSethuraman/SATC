@@ -323,26 +323,76 @@ Chromium from this container was attempted and did not get through either.
 it does not raise the confidence level: the copyright wording is still unread at
 its source.
 
-### The FASB wording is still unverified — deliberately left at medium
+### CLOSED 4 September 2026: the firm read the licence at its source
 
-**Medium confidence, and the reason:** the FASB restriction language quoted at
-the top of this file was recovered through a search index, not by fetching
-`asc.fasb.org`. A re-test on 4 September 2026 tried again and **still could not
-open the page** — for the corrected reason above. The quoted sentence is
-consistent across sources and is standard "all rights reserved" boilerplate, but
-**it has still not been read at its source.**
+The gap below is closed. The firm opened `asc.fasb.org` in an ordinary browser
+and read the **FAF License Agreement (updated 10.10.24)** — the click-through
+that gates the free Codification. It is stricter than the second-hand quote this
+file was carrying, and it settles the question in a way the copyright notice
+alone did not.
 
-This matters more than an ordinary citation gap: **the whole shape of the record
-rests on the phrase "stored in a retrieval system,"** and that phrase is
-currently taken on trust from a secondary rendering. It is not a phrase to
-paraphrase from memory. Before anything further is built on it, a human should
-open <https://asc.fasb.org/copyright> and <https://asc.fasb.org/help> in an
-ordinary browser and confirm the wording verbatim.
+**Confidence: high.** Read at source by the firm, 4 September 2026.
+
+Three operative clauses, quoted narrowly because the agreement is itself FAF's
+copyright:
+
+**§3(a)(j) — commercial use.** The licence prohibits use of the Codification
+*"for commercial purposes."* **SATC holds no paid subscription** (confirmed by
+the firm, 4 September 2026), so the free click-through is the only licence in
+force — and it does not cover a practice using ASC in client work at all. This
+alone decides the question, before any of the rest.
+
+**§3(b)(i) — artificial intelligence.** Use of any portion of the Codification is
+*"expressly prohibited… in connection with any artificial intelligence or machine
+learning technology, platform, or other system, or large language models (LLMs)…
+**under any circumstances**, including using any documents, content, or materials
+in the Codification… **as input into** or for other training or development of
+artificial intelligence."*
+
+**§3(b)(iii) — automated means.** Access is prohibited *"via mechanical,
+programmatic, robotic, scripted, or any other automated means (including… also
+known as 'screen scraping')."* The section closes: *"use of the Codification and
+GARS is permitted only via individual users engaged in an active user session for
+personal use."*
+
+**What this changes.** The record previously planned `citation_only` for ASC,
+allowing a desk to read it live and cache nothing. **That is not available.** Not
+the storing, not the reading, and not by a browser instead of a fetcher — §3(b)(i)
+covers content reaching a model by any route. The design consequence is a
+stricter access value, `human_only`: a source a desk may **cite by reference**
+and never read.
+
+**What it does not change, and this is the useful half.** A *citation* — the
+string `ASC 360-10-35-4` — is a reference, not Codification content. And the
+firm reading ASC in their own session, forming a view, and writing it in their
+own words is squarely the personal use the licence contemplates; those words are
+the firm's copyright, not FAF's. So `positions/` remains fully available, and it
+is the only ASC-adjacent thing that can exist here. A desk answers an ASC
+question from the firm's ratified position, cites the paragraph, and anyone
+wanting the text opens it themselves.
+
+That is a better artifact than an ingested one: what goes to a client should be
+SATC's position with the paragraph behind it, never FASB's prose filtered through
+a model.
+
+**Also observed:** `asc.fasb.org` serves CAPTCHAs alongside the Cloudflare bot
+management recorded above. Consistent with §3(b)(iii) being enforced rather than
+merely stated.
+
+**Superseded:** an earlier revision of this file quoted a FASB restriction on
+content being *"reproduced, stored in a retrieval system, or transmitted"* from a
+search index and flagged it as unverified. That flag was correct and is now
+retired — but note the sentence above is from FASB's **copyright notice**, a
+different document from the **License Agreement** quoted here. The licence is the
+operative instrument for anyone accessing the Codification, and it is stricter.
+The conclusion the file reached on weaker evidence holds, and then some.
 
 **Not checked at all:**
 
-- **The FASB copyright wording, at its source.** Re-tested 4 September 2026 and
-  still blocked — Cloudflare 403, not egress. Needs a human with a browser.
+- ~~**The FASB copyright wording, at its source.**~~ **CLOSED 4 September 2026** —
+  the firm read the License Agreement at source; see above. The separate copyright
+  notice at `/copyright` remains unread, but the licence supersedes it for access
+  purposes.
 - **The Basic View vs Professional View / academic tiers** — what registration
   requires, and whether the free Basic View's terms differ from the general
   copyright notice. `asc.fasb.org/help` is behind the same Cloudflare 403.
