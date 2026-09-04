@@ -29,9 +29,16 @@ own module -- the document request list -- and it SHADOWS the HTTP library
 inside this package: `import requests` here returns the wrong thing entirely.
 The standard library has no such problem and adds no dependency to declare.
 
-NOTHING HERE HOLDS A CREDENTIAL. The token is read from the environment at the
-moment of a call and never stored, logged, echoed in an error, or written to any
-engagement file. Tests assert that.
+NOTHING HERE HOLDS A CREDENTIAL, AND NOTHING IN THE REPOSITORY DOES. The token
+is resolved at the moment of a call -- `$SATC_SQUARE_TOKEN` first, then a token
+the owner chose to remember, which lives OUTSIDE the repository in their own
+profile, sealed with DPAPI so no other Windows account can read it. It is never
+logged, echoed in an error, or written to any engagement file. Tests assert that.
+
+The remembered token exists because "set an environment variable in the shell
+that runs this" is an obstacle in front of a credential, and an obstacle in
+front of a credential is how the credential ends up somewhere worse -- pasted
+into a file, or into a note. `payments --setup` asks once per account.
 """
 
 from __future__ import annotations
@@ -443,9 +450,33 @@ def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
     return json.loads(raw) if raw else {}
 
 
+def _remembered(sandbox: bool) -> str:
+    """A token sealed into the user's profile by `payments --setup`, or "".
+
+    THE ENVIRONMENT STILL WINS where it is set. This is the fallback that means
+    the firm answers "what is your token" ONCE per account rather than in every
+    shell it ever invoices from -- and an obstacle in front of a credential is
+    how the credential ends up pasted somewhere worse.
+
+    Imported lazily: `square_setup` is a front-door convenience and nothing in
+    the payment path should fail to import because of it.
+    """
+    try:
+        import square_setup
+        return square_setup.stored_token(sandbox)
+    except Exception:            # noqa: BLE001 -- absent or unreadable is ""
+        return ""
+
+
 def processor(*, sandbox: bool = False, transport: Callable | None = None,
-              reg: dict | None = None) -> Square:
-    """The configured processor, or a refusal saying what is missing."""
+              reg: dict | None = None, token: str | None = None) -> Square:
+    """The configured processor, or a refusal saying what is missing.
+
+    `token` is for the one caller that HAS a token and has not stored it yet:
+    setup, holding what was just typed, deciding whether it works before
+    sealing it. Everywhere else leaves it None and the environment or the
+    remembered token answers.
+    """
     reg = reg if reg is not None else settings()
     which = reg.get("processor", "")
     if which != "square":
@@ -463,12 +494,14 @@ def processor(*, sandbox: bool = False, transport: Callable | None = None,
             + ", ".join(waiting) + " is still a `[CONFIRM: ]`."
         )
     env = conf.get("token_env") or "SATC_SQUARE_TOKEN"
-    token = os.environ.get(env, "").strip()
+    token = (token or "").strip() or os.environ.get(env, "").strip() \
+        or _remembered(sandbox)
     if not token:
         raise PaymentError(
-            f"no payment token in ${env}. It is read from the environment on "
-            f"purpose and is never stored here — a token in the repository is "
-            f"a token in every clone, backup and screenshot."
+            f"no payment token. Run `python cli.py payments --setup` once and "
+            f"it will ask for both, or set ${env} in this shell. A token is "
+            f"never written into the repository — one in the repository is one "
+            f"in every clone, backup and screenshot."
         )
     return Square(token=token, sandbox=sandbox,
                   location_id=conf.get(_location_key(sandbox), ""),
@@ -782,13 +815,18 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
 
     # THE TOKEN IS NEVER PRINTED, only whether one is there. An error message
     # ends up in a terminal, a log and whatever screenshot goes into a ticket.
-    has_token = bool(os.environ.get(env, "").strip())
+    #
+    # Asked the same way `processor` resolves it, or this reports "no token"
+    # about a run that is about to work -- which is worse than a wrong answer,
+    # because it sends someone looking for a problem that is not there.
+    has_token = bool(os.environ.get(env, "").strip() or _remembered(sandbox))
 
     if missing_location and not has_token:
         steps.append(Step("the location id is written down", False,
                           f"`square.{which}` in registry/payments.yaml is still "
-                          f"waiting on the firm, and ${env} is empty, so this "
-                          f"cannot look the id up for you either."))
+                          f"waiting on the firm, and no token is available, "
+                          f"so this cannot look the id up for you either. Run "
+                          f"`python cli.py payments --setup`."))
         return steps, None, None
 
     if missing_location:
@@ -821,13 +859,14 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
     steps.append(Step("the location id is written down", True, written))
 
     if not has_token:
-        steps.append(Step("a token is in the environment", False,
-                          f"${env} is empty. Set it in the shell that runs "
-                          f"this; it is deliberately never stored in the repo."))
+        steps.append(Step("a token is available", False,
+                          f"No token. Run `python cli.py payments --setup` "
+                          f"once, or set ${env} in this shell."))
         return steps, None, None
-    steps.append(Step("a token is in the environment", True,
-                      f"${env} is set (its value is not shown, here or "
-                      f"anywhere else)"))
+    steps.append(Step("a token is available", True,
+                      ("$" + env if os.environ.get(env, "").strip()
+                       else "remembered on this Windows account")
+                      + " (its value is not shown, here or anywhere else)"))
 
     try:
         api = processor(sandbox=sandbox, reg=reg, transport=transport)

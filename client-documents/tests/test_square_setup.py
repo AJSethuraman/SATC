@@ -123,30 +123,30 @@ def test_it_writes_inside_the_square_block_not_into_a_comment():
 
 def test_an_empty_token_is_not_stored():
     with pytest.raises(setup.SetupError):
-        setup.remember_token("   ")
+        setup.remember_token("   ", sandbox=True)
 
 
 @pytest.mark.skipif(setup._dpapi(b"probe") is None,
                     reason="DPAPI unavailable on this platform")
 def test_a_remembered_token_round_trips_and_is_not_readable_as_text(tmp_path,
                                                                    monkeypatch):
-    monkeypatch.setattr(setup, "TOKEN_FILE", tmp_path / "square-token")
+    monkeypatch.setattr(setup, "TOKEN_FILES", {True: tmp_path / "s", False: tmp_path / "p"})
     secret = "EAAAl-not-a-real-token-000"
-    setup.remember_token(secret)
-    assert setup.stored_token() == secret
-    on_disk = (tmp_path / "square-token").read_bytes()
+    setup.remember_token(secret, sandbox=True)
+    assert setup.stored_token(True) == secret
+    on_disk = (tmp_path / "s").read_bytes()
     assert secret.encode() not in on_disk, "the token is sitting there in clear"
-    assert setup.forget_token() is True
-    assert setup.stored_token() == ""
+    assert setup.forget_token(True)
+    assert setup.stored_token(True) == ""
 
 
 def test_no_remembered_token_reads_as_empty_rather_than_raising(tmp_path,
                                                                monkeypatch):
     """The absence of a token is an ordinary state, not an error. It is what
     every machine that has never run --setup looks like."""
-    monkeypatch.setattr(setup, "TOKEN_FILE", tmp_path / "nothing-here")
-    assert setup.stored_token() == ""
-    assert setup.forget_token() is False
+    monkeypatch.setattr(setup, "TOKEN_FILES", {True: tmp_path / "no", False: tmp_path / "ne"})
+    assert setup.stored_token(True) == ""
+    assert setup.forget_token(True) == []
 
 
 def test_it_refuses_rather_than_storing_a_token_it_cannot_seal(tmp_path,
@@ -156,12 +156,12 @@ def test_it_refuses_rather_than_storing_a_token_it_cannot_seal(tmp_path,
     The fallback that would 'helpfully' still store it is the whole risk here,
     so the refusal is the behaviour under test.
     """
-    monkeypatch.setattr(setup, "TOKEN_FILE", tmp_path / "square-token")
+    monkeypatch.setattr(setup, "TOKEN_FILES", {True: tmp_path / "s", False: tmp_path / "p"})
     monkeypatch.setattr(setup, "_dpapi", lambda *a, **k: None)
     with pytest.raises(setup.SetupError) as e:
-        setup.remember_token("EAAAl-not-a-real-token-000")
+        setup.remember_token("EAAAl-not-a-real-token-000", sandbox=True)
     assert "NOT been written" in str(e.value)
-    assert not (tmp_path / "square-token").exists()
+    assert not (tmp_path / "s").exists()
 
 
 # -- the property has to hold on DISK, not just in memory ---------------------
