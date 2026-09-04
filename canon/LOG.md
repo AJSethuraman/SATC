@@ -305,3 +305,49 @@ The README's "121 tests / 48 mutants" was stale by six tests before this work
 started; corrected to 138 / 55.
 
 Version left at 1.3.0: nothing a session reads changed.
+
+---
+## 2026-09-04 · C6 retired within a day, and four entries in its place
+
+**A conviction misfired, and that is the entry worth reading.** C6 was recorded
+on 4 September as applying to *"Occam, and any AI doing the practice's work"*.
+Hours later Bassy pointed it at a scheduled, deterministic data-disposal engine
+and asked whether the firm had abandoned the separation of duties. The firm:
+*"this is really specific to Occam, maybe overstated... in this case, i think it
+is being misinterpreted."*
+
+The record was wrong, not the firm. C6 is **retired** — text kept, state flipped,
+reason recorded — and four entries take its place:
+
+- **C7 · The context follows the role, and the reviewer carries the preparer's
+  work.** The rewrite is much better than what it replaces, and it came from the
+  firm rather than from a session tidying its own mistake: the division is not
+  headcount, it is *information*. The reviewer answers for what the preparer did;
+  their output is a **question back to the preparer**, not a correction; and the
+  preparer must be able to send up what is *"beyond their paygrade"*.
+- **C8 · A deterministic engine is not a brain, and does not need a second one.**
+  The line C6 could not draw, settled by the misfire that exposed it.
+- **C9 · The simplest answer is likely the best.** The practice's software is
+  named after it and it was not on record.
+- **C10 · An agent runs on the Forge if it can, and is built to its role.**
+
+**The new entries were run before being believed.** `challenge.gate` was called
+with a decision written for each one, and C9 **did not fire on the exact case its
+own challenge note describes** — "add a second backup script beside the existing
+one" returned silence, because `touches` matches whole words by design and
+"duplicating" is not "duplicate". Inflections added, re-run, fires. C9 also now
+says in its own text that the selector under-fires here: it matches a decision's
+*subject*, and this entry is about a decision's *shape*. Better to record the
+limit than to let the entry claim a reach it does not have.
+
+**A pre-existing false positive, reported and not touched.** `bump the version
+number in package.json` fires **C4**, whose `Fires on` includes `package`;
+whole-word matching still sees `package` in `package.json`. It is the firm's
+conviction and theirs to change, so it is written down here rather than fixed
+quietly.
+
+Convictions are read from the plugin cache, which keys on version, so this is
+**1.4.0** — without the bump `claude plugin update` pulls nothing.
+
+126 passed, 1 failed (the `/usr/bin:/bin` PATH bug that PR #198 fixes), with the
+temp-root workaround this branch still needs because #198 has not merged.
