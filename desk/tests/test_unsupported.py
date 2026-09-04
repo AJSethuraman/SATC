@@ -180,3 +180,20 @@ def test_a_models_multiline_reasoning_survives_the_round_trip(tmp_path):
         today="2026-09-04"))
     got = unsupported.parse(path.read_text(encoding="utf-8"))[0]
     assert got.working == working, f"kept only {got.working!r}"
+
+
+def test_the_supported_existing_path_also_deduplicates(tmp_path):
+    """The last fix held only on an ID CLASH. Pass the parsed queue as `existing`
+    -- the documented way -- and the retry gets a fresh id, so the clash search
+    never ran and the same finding was appended twice. Same guarantee, two ways
+    in, and only one of them held it."""
+    path = tmp_path / "UNSUPPORTED.md"
+    make = lambda existing, day: unsupported.from_refusal(
+        "is a roof a unit of property?", Answer(position="p", citation="26 CFR 1"),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+        existing=existing, today=day)
+    unsupported.append(path, make([], "2026-09-04"))
+    current = unsupported.parse(path.read_text(encoding="utf-8"))
+    unsupported.append(path, make(current, "2026-09-05"))
+    got = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(got) == 1, f"the same refusal was recorded {len(got)} times"

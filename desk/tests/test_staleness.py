@@ -132,3 +132,34 @@ def test_a_source_is_asked_once_however_many_passages_cite_it(fixed_assets):
     assert calls == sorted(set(calls)), (
         f"asked {len(calls)} times for {len(set(calls))} sources: {calls[:5]}..."
     )
+
+
+def test_a_desk_answering_only_through_positions_is_still_reported(tmp_path):
+    """A `human_only` source has no stored text, so a desk built on one has NO
+    passages -- and the loop ran zero times, reporting "0 entries checked" while
+    the engine served those positions daily. Silence that reads as a clean bill
+    is worse than no report at all."""
+    d = tmp_path / "positions-only"
+    (d / "positions").mkdir(parents=True)
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source we may not read\n\n"
+        "**Tier:** tertiary · **Access:** human_only · "
+        "**May store:** license_check · **Checked:** 2026-09-04\n\n"
+        "**Citation prefix:** ASC\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** ASC 360-10\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · What we do here\n\n"
+        "**Citation:** ASC 360-10 · **Recorded:** 2020-01-01\n\n"
+        "**Position:** must capitalize\n\n"
+        "**Ratified:** the firm, 1 January 2020\n", encoding="utf-8")
+    desk = record.load(d)
+    assert not desk.passages, "fixture must have no stored text"
+
+    rep = staleness.check(desk, lambda src: "2026-01-01", today="2026-09-04")
+    assert rep.total == 1, f"reported {rep.total} entries for a desk with one"
+    assert any(f.citation == "ASC 360-10" for f in rep.unchecked), (
+        f"the only authority this desk has went unmentioned: {rep.render()}"
+    )

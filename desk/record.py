@@ -369,6 +369,21 @@ def load(desk_dir: Path) -> Desk:
     # that reads as valid and detonates on use. Two sources whose prefixes both
     # match is the same defect wearing the other face: the tier served would
     # depend on file order.
+    # The third face of the same defect, and the worst of them: `position()`
+    # takes the first match, so two RATIFIED positions on one citation meant a
+    # filename decided which conclusion the desk served as the firm's. Proposals
+    # may collide freely -- competing proposals are what a pull request is for.
+    ratified = set()
+    for q in pos:
+        if q.proposed:
+            continue
+        if q.citation in ratified:
+            raise RecordError(
+                f"two ratified positions cite {q.citation!r}; the firm's served "
+                f"conclusion would be decided by filename order"
+            )
+        ratified.add(q.citation)
+
     for q in pos:
         matched = [s for s in sources if q.citation.startswith(s.citation_prefix)]
         if len(matched) != 1:

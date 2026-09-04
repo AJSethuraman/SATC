@@ -124,10 +124,14 @@ def append(path: Path, entry: Unsupported) -> Path:
     # with the U1 already written, and returned silently. The second refusal and
     # every one after it was dropped by the idempotency guard, from a queue whose
     # entire purpose is to keep them.
-    clash = next((u for u in current if u.id == entry.id), None)
-    if clash is not None:
-        if _same_refusal(clash, entry):
-            return path                     # genuinely the same one, twice
+    # IDEMPOTENCY IS CHECKED AGAINST EVERY ENTRY, NOT JUST AN ID CLASH. Written
+    # the other way, the SUPPORTED path defeated it: pass the parsed queue as
+    # `existing` and the retry gets a fresh id, so the clash search never ran and
+    # the same finding was appended twice. Same guarantee, two ways in, and only
+    # one of them held it.
+    if any(_same_refusal(u, entry) for u in current):
+        return path
+    if any(u.id == entry.id for u in current):
         entry = replace(entry, id=next_id(current))
 
     sep = "" if text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")

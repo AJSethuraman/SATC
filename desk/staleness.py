@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from record import Desk, Source
+from record import Desk, Source, RecordError
 
 #: How long an entry may go unre-examined before it is flagged regardless of any
 #: amendment date. Not a deadline -- a prompt to look.
@@ -103,11 +103,33 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
                 seen[src.id] = (None, exc)
         return seen[src.id]
 
-    for p in desk.passages:
-        src = desk.source(p.source_id)
+    # EVERY PIECE OF AUTHORITY THE ENGINE MIGHT SERVE, NOT JUST THE STORED TEXT.
+    # A desk answering through ratified positions -- which is REQUIRED of a
+    # `human_only` or citation-only source, where a position is the desk's entire
+    # knowledge of it -- has no passages at all, so this loop ran zero times and
+    # the report read "0 entries checked" and "NOT CHECKED: 0" while the engine
+    # served those positions daily. A staleness report that is silent about the
+    # only authority a desk has is worse than none: it reads as a clean bill.
+    #
+    # A position carries `recorded` where a passage carries `checked` -- the day
+    # the firm took it, which is the same question asked of a different kind of
+    # authority -- and resolves to its source by citation prefix, which `load()`
+    # has already proved unique.
+    checkable = [(p.citation, desk.source(p.source_id), p.checked)
+                 for p in desk.passages]
+    checkable += [
+        (q.citation,
+         next((s for s in desk.sources if q.citation.startswith(s.citation_prefix)), None),
+         q.recorded)
+        for q in desk.positions if not q.proposed
+    ]
+
+    for citation, src, checked in checkable:
+        if src is None:                                    # pragma: no cover
+            raise RecordError(f"{citation!r} has no source; load() checks this")
         if not src.readable:
             rep.unchecked.append(Finding(
-                p.citation, src.id, p.checked, "human_only",
+                citation, src.id, checked, "human_only",
                 f"{src.title} is access={src.access!r}; only a person can confirm it",
             ))
             continue
@@ -115,7 +137,7 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
         moved, failed = amendment(src)
         if failed is not None:
             rep.unchecked.append(Finding(
-                p.citation, src.id, p.checked, "unreachable", str(failed)))
+                citation, src.id, checked, "unreachable", str(failed)))
             continue
 
         if moved is None:
@@ -124,23 +146,23 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
             # once below -- so `total` overstated the denominator, and a report
             # whose own count is wrong is the failure this file exists to catch.
             rep.unchecked.append(Finding(
-                p.citation, src.id, p.checked, "no amendment date published",
+                citation, src.id, checked, "no amendment date published",
                 f"{src.title} publishes no amendment date; age is the only "
-                f"signal, and it is {_days(today, p.checked)} days old",
+                f"signal, and it is {_days(today, checked)} days old",
             ))
             continue
-        if _days(moved, p.checked) > 0:
+        if _days(moved, checked) > 0:
             rep.amended.append(Finding(
-                p.citation, src.id, p.checked, "amended",
-                f"amended {moved}, checked {p.checked}",
+                citation, src.id, checked, "amended",
+                f"amended {moved}, checked {checked}",
             ))
             continue
 
-        age = _days(today, p.checked)
+        age = _days(today, checked)
         if age > max_age_days:
             rep.aged.append(Finding(
-                p.citation, src.id, p.checked, "aged",
-                f"checked {p.checked}, {age} days ago",
+                citation, src.id, checked, "aged",
+                f"checked {checked}, {age} days ago",
             ))
         else:
             rep.fresh += 1

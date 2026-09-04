@@ -221,3 +221,32 @@ def test_the_same_citation_stored_twice_is_refused(tmp_path):
     (d / "extracted" / "b.md").write_text(body, encoding="utf-8")
     with pytest.raises(record.RecordError, match="stored more than once"):
         record.load(d)
+
+
+def test_two_ratified_positions_on_one_citation_are_refused(tmp_path):
+    """`position()` takes the first match, so a FILENAME decided which
+    conclusion the desk served as the firm's. Proposals may collide freely --
+    competing proposals are what a pull request is for."""
+    d = tmp_path / "two-positions"
+    (d / "positions").mkdir(parents=True)
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(BASE, encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1.263(a)-3(a)\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    entry = ("## POS{n} · Reading {n}\n\n"
+             "**Citation:** 26 CFR 1.263(a)-3(a) · **Recorded:** 2026-09-04\n\n"
+             "**Position:** {p}\n\n**Ratified:** the firm, 4 September 2026\n")
+    (d / "positions" / "a.md").write_text(
+        entry.format(n=1, p="must capitalize"), encoding="utf-8")
+    (d / "positions" / "b.md").write_text(
+        entry.format(n=2, p="not required to capitalize"), encoding="utf-8")
+    with pytest.raises(record.RecordError, match="two ratified positions"):
+        record.load(d)
+
+    # A ratified one beside a PROPOSAL is not a collision: only one answers.
+    (d / "positions" / "b.md").write_text(
+        entry.format(n=2, p="not required to capitalize")
+        .replace("**Ratified:** the firm, 4 September 2026\n", ""),
+        encoding="utf-8")
+    assert record.load(d).position("26 CFR 1.263(a)-3(a)").position == "must capitalize"

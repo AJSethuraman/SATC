@@ -113,3 +113,35 @@ def test_an_empty_body_points_at_the_browser_that_needs_no_sign_in():
     assert "signed_in" not in e.value.detail, (
         "solving a rendering problem must never reach for an identity"
     )
+
+
+@pytest.mark.parametrize("boom", [TimeoutError, ConnectionResetError])
+def test_a_transport_that_raises_a_timeout_is_retried_once(boom):
+    """This module's own header promises "timeout, 5xx, reset -> retry the SAME
+    method, once", and only the 5xx half was implemented: a transport signalling
+    a timeout by RAISING went straight out of `fetch` untried. The failure most
+    likely to be a flake was the one never retried."""
+    source = src()
+    calls = []
+
+    def transport(source, access):
+        calls.append(access)
+        if len(calls) == 1:
+            raise boom("the socket gave up")
+        return fetch.Response(200, "the text")
+
+    assert fetch.fetch(source, transport) == "the text"
+    assert calls == [source.access, source.access], (
+        f"retried with {calls!r}; a different client is a different permission"
+    )
+
+
+def test_two_raised_timeouts_are_real_and_named():
+    """A second failure is not a flake, and the reason must say what happened."""
+    def transport(source, access):
+        raise TimeoutError("the socket gave up")
+
+    with pytest.raises(fetch.NotFetchable) as e:
+        fetch.fetch(src(), transport)
+    assert e.value.reason == "source_refuses_us"
+    assert "TimeoutError" in str(e.value), str(e.value)

@@ -67,6 +67,14 @@ ORIGIN_MARKERS = ("cf-ray", "x-amz-cf-id", "x-akamai-request-id", "x-served-by")
 
 TRANSIENT = (408, 425, 429, 500, 502, 503, 504)
 
+#: The transport-level half of the same idea. This module's own header promises
+#: "timeout, 5xx, reset -> retry the SAME method, once", and only the 5xx half
+#: was implemented: a transport that signalled a timeout by RAISING went straight
+#: out of `fetch` with no retry at all, so the one failure most likely to be a
+#: flake was the one never retried.
+TRANSIENT_ERRORS = (TimeoutError, ConnectionResetError, ConnectionAbortedError,
+                    BrokenPipeError)
+
 
 def classify(source: Source, resp: Response) -> str:
     """Name the failure by its cause. Returns "" when there is nothing wrong."""
@@ -99,18 +107,24 @@ def fetch(source: Source, transport) -> str:
             f"or escalate.",
         )
 
-    resp = transport(source, source.access)
-    reason = classify(source, resp)
+    def attempt():
+        """One try. A transient RAISE and a transient STATUS are one thing."""
+        try:
+            resp = transport(source, source.access)
+        except TRANSIENT_ERRORS as exc:
+            return None, "transient", type(exc).__name__
+        return resp, classify(source, resp), str(resp.status)
+
+    resp, reason, what = attempt()
 
     if reason == "transient":
         # Retry the SAME method, once. Never a different client — a different
         # client is a different permission, and this failure is neither.
-        resp = transport(source, source.access)
-        reason = classify(source, resp)
+        resp, reason, what = attempt()
         if reason == "transient":
             raise NotFetchable(
                 "source_refuses_us",
-                f"{source.title} failed twice with {resp.status}; a second "
+                f"{source.title} failed twice with {what}; a second "
                 f"failure is real, not a flake",
             )
 
