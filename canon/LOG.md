@@ -250,3 +250,60 @@ reaches other machines through `claude plugin marketplace update satc`. Every
 record-reading skill says so now.
 
 127 tests.
+
+## 4 September 2026 — credit-suite M1, and two bugs the bar could not see
+
+M1 merged to main as `577ca35` (PR #184, 29 commits). Nine issues closed:
+#164–#170, #180, #181. One engine, six monitors, both spine monitors at
+cell-for-cell parity — 22,836 FDIC cells and 21,975 FRED cells, formulas
+recomputed rather than compared as text.
+
+**Four decisions, answered on a docket form rather than in chat.** All four took
+the recommendation, and the form is the reason they are recorded here at all
+rather than living in a conversation nobody can find again.
+
+| decision | answer | what it caused |
+|---|---|---|
+| Turn the Excel VBA setting back off | *Done — turned it off* | Verified: `AccessVBOM` is absent again, back to its shipped default. |
+| Merge the branch | *Merge it* | `577ca35`. #164 needed closing by hand — its commit said `(#164)`, a reference, not a closing keyword. |
+| Stop 26 series being flagged stale forever | *Fix it — per-publisher lag* | PR #204. Live stale count 38 → 1. |
+| Five dead series | *Check for successors, drop the rest* | PR #204. Five retired, reasons in `series_seed.RETIRED`. |
+
+**The two defects, and why neither was visible.** Both were in shipped product
+and both were invisible to a suite that was green the whole time.
+
+*The ExtractFiles button had never worked, in any monitor, in any workbook ever
+shipped.* The VBA compressor emitted MS-OVBA literals only, which cannot be
+legal past one chunk: the header carries the chunk size in 12 bits, capping a
+chunk at 4098 bytes, while every non-final chunk must decompress to exactly
+4096 — and 4096 literals need 4096 + 512 flag bytes. Any module over ~3.6 KB was
+unrepresentable. Both shipped macros are over it. `olevba` decodes the broken
+output without complaint, which is exactly why the offline bar stayed green, and
+real Excel refuses it.
+
+Eight hypotheses died before one held, each overturned by the next experiment,
+and two experiments were void by construction. What ended it was not more
+thinking: the firm enabled the Trust Center setting, Excel authored a project
+itself, and bisecting *down* from that working file found it in three steps.
+**A known-good artefact beat eight rounds of reasoning about a broken one.**
+
+*Eleven of eighteen FRED metro series were pulling ids FRED does not publish.*
+FHFA publishes those metros at division level; the seed derived every id from
+the CBSA code. A live pull 404'd eleven times while the whole offline bar was
+green.
+
+**What this says about the bar.** Three separate times the checking machinery
+was the thing at fault: `check_parity` crashed while *printing* a diff, the
+first real break it ever had to describe; `mutation_check` could silently skip
+an equal-length mutation through stale bytecode, in both directions, so every
+mutation count quoted before this week was worth less than claimed; and the same
+harness could not run at all on a fresh Windows clone. Each was found by using
+it, not by reading it.
+
+The suite went 234 → 278 passing and 63 → 77 mutations killed, and credit-suite
+got its first CI job — until 4 September its entire verification bar ran only on
+the machine that built it.
+
+**Still open:** whether `DEXRSA` (Case-Shiller Detroit, one month behind its
+nineteen peers) is a permanent stop or a one-off delay. One observation cannot
+say, and the flag now surfaces it instead of burying it in 38.
