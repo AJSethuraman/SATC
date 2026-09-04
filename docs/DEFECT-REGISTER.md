@@ -33,14 +33,14 @@ git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.
 
 | # | What | Costs | Needs |
 |---|---|---|---|
-| **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
-| **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
+| **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | **DECIDED 4 September: it stays open until every named part has arrived.** What is left is code — a `parts` column, a migration, and `chasing.py` back off the parked tag |
 
-**Nothing left here is pure code.** S3, S4 and S6 all closed 4 September. What
-remains is two decisions, not two builds: S2 needs the firm to say whether a
-bundle request stays open when one part arrives, and S5 needs the firm to
-settle the reader-ladder disagreement. Neither is worth a line of code until
-that happens.
+**S2 is the only thing left, and it is now code rather than a question.** S3,
+S4 and S6 closed 4 September; S5 closed the same day when the firm settled the
+ladder. S2's product decision came with them — a bundle request stays open
+until every named part has arrived — so the `parts` column, the migration and
+`chasing.py` off `parked/satc-system-pre-schema-port` are buildable without
+asking anyone anything.
 
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
@@ -77,6 +77,26 @@ and the live C-corp path.
 ---
 
 ## Fixed
+
+### 4 September 2026 — the ladder question, settled
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S5** | Two defensible reader ladders were argued and neither could ship while the other was open. A text-layer PDF our anchors miss: refuse to summon a model, or go on and name the parser gap? | **The firm chose to go on.** A text layer can be genuine rubbish, and refusing outright loses documents the later rungs do handle — so the ladder fails towards READING a document with the gap named, not towards refusing one. No code changed: `state.py:491` already did this. What changed is that it is now held in place |
+
+**The skipped test was worse than no test.** `test_the_ladder_reaches_no_model_
+while_a_deterministic_rung_can_still_read` had a docstring arguing the stricter
+case and **no body** — it could not have failed if the ladder had done anything
+at all. It is replaced by `test_a_readable_document_our_anchors_missed_still_
+reaches_a_model` in `test_reader_ladder.py`, which asserts both halves: the
+ladder reaches the model, AND the note still reads *"our anchors, not the
+document"*.
+
+Verified the way S15 asks for — the stricter rule was injected into
+`state.py` and the suite re-run. **The new test failed, for the reason its name
+gives, and the seven tests already in that file all passed**, because every one
+of them disables OCR and vision and so says nothing about where the ladder
+stops. Without it a revert to the stricter rule was a green merge.
 
 ### 4 September 2026 — the join the collector was waiting on
 
