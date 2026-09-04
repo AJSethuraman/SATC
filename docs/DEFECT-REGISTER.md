@@ -20,18 +20,29 @@ belongs in a question to the firm, not in a register that reads as fact.
 
 ---
 
-## Open
+## Open — and this is the work queue, in order
 
-| # | Defect | Costs | State |
+Everything here is recoverable. The `satc_system` work that did not survive the
+port is tagged **`parked/satc-system-pre-schema-port`** (= `055dcf3`, the tip of
+PR #162 before it was closed). A tag rather than a branch, because branches get
+deleted and a tag is how you say *keep this*. Recover any file with:
+
+```
+git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.py
+```
+
+| # | What | Costs | Needs |
 |---|---|---|---|
-| **S1** | `claude/satc-handoff-batches-2-4-...` carries `satc_system` work written against the data model PR #171 replaced. **13 files there still reference `DocumentRecord`**, which the schema reset retired; main has 3, two of them a doc and a test. Merging main in throws 11 files / 20 hunks, `persistence/store.py` alone accounting for 8 | a schema port, not a merge | **open** — split out of #162 on 3 September so the finished interview work could land without it |
+| **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
+| **S3** | **`engagement_ref`** — the join between what a client sees (`2026-0001`) and what the system keys on (`SATC-001000`). The firm asked for it on 31 Aug: *"ADD THE FIELD"*. Main's `Engagement` has no such field, and `collect.py` still prints an error naming it. Parked: `test_engagement_ref.py` | the collector cannot close the request a document satisfies | a field on `Engagement`, a store column, a migration. **No product question — the firm already decided** |
+| **S4** | **Page provenance.** The page is read and reported; it is not carried into the record. `source_ref.page` is `None`. `test_intake_carries_the_page_all_the_way_into_the_workpaper` is `xfail(strict=True)` — it fails loudly the moment this is fixed | a field cannot be cited to the page it came from | carrying `page` through `MapExtractor` into provenance. Smallest of the three |
+| **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
+| **S6** | `test_changing_a_rate_takes_effect_without_a_restart` is order-dependent — passes alone, fails after `test_price_editor`. **Confirmed on untouched main**, so it predates all of this | a green suite that is green by ordering | find the shared state and isolate it |
 
-**What this needs, when it is picked up.** Not conflict resolution: a decision
-per file about which lineage wins, then the suite, then the app driven by hand.
-The two models are `DocumentRecord` (old, on that branch) and `RequestedItem`
-(new, on main). Precedent for how to do it is in the #171 merge commit — main's
-year-filter test was ported to the new entity rather than either version being
-discarded, and the property it guarded was kept intact.
+**Suggested order: S3, then S4, then S2.** S3 is decided and blocking a feature
+that half-exists — `collect.py` already prints an error about the missing field.
+S4 is the smallest. S2 needs the firm before any code is worth writing, and S5
+is only a decision.
 
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
