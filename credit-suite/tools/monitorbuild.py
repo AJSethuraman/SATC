@@ -11,6 +11,7 @@ check can never leave a half-built workbook behind for the next run to read.
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -26,11 +27,15 @@ from credit_suite import parity  # noqa: E402
 #: How each monitor is built and run. ``build`` and ``run`` are argv lists
 #: relative to the monitor folder; ``{workbook}`` and ``{asof}`` are filled in.
 RECIPES: dict[str, dict[str, object]] = {
+    # FDIC is migrated: built and run through the shared engine, not from a
+    # per-monitor folder. `engine` marks that, and `built_monitor` takes the
+    # in-process path for it.
     "fdic": {
-        "folder": "fdic-peer-monitor",
+        "engine": True,
         "workbook": "Bank_Peer_Monitor.xlsm",
-        "build": ["make_workbook.py"],
-        "run": ["runner.py", "--workbook", "{workbook}", "--demo", "--asof", "{asof}"],
+        "layout": "credit_suite.sources.fdic.layout",
+        "runner": "credit_suite.sources.fdic.runner",
+        "macro_module": "PeerMonitor",
     },
     "fred": {
         "folder": "fred-credit-risk-dashboard",
@@ -69,6 +74,10 @@ def built_monitor(name: str, root: Path | None = None,
     spec = parity.SPINE_BASELINES[name]
     workbook_name = str(recipe["workbook"])
 
+    if recipe.get("engine"):
+        yield from _built_through_engine(name, recipe, spec, run_demo)
+        return
+
     workdir = Path(tempfile.mkdtemp(prefix="credit-suite-build-"))
     try:
         folder = workdir / name
@@ -87,6 +96,40 @@ def built_monitor(name: str, root: Path | None = None,
             argv = [str(a).format(workbook=workbook_name, asof=spec["asof"])
                     for a in recipe["run"]]
             stdout = _run(argv, folder).stdout
+        yield workbook, stdout
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
+def _built_through_engine(name: str, recipe: dict, spec: dict, run_demo: bool):
+    """A migrated monitor: built and run in-process through the shared engine.
+
+    No folder to copy and no subprocess -- the engine IS the build. The scratch
+    directory still exists so a parity check never writes into the repo.
+    """
+    import importlib
+
+    from credit_suite.engine import package
+
+    layout = importlib.import_module(str(recipe["layout"]))
+    runner = importlib.import_module(str(recipe["runner"]))
+
+    workdir = Path(tempfile.mkdtemp(prefix="credit-suite-build-"))
+    try:
+        base = workdir / (Path(str(recipe["workbook"])).stem + "_base.xlsx")
+        workbook = workdir / str(recipe["workbook"])
+        layout.build(str(base))
+        package.assemble(str(base), str(workbook),
+                         str(Path(layout.HERE) / "macro.bas"),
+                         str(recipe["macro_module"]))
+
+        stdout = ""
+        if run_demo:
+            from datetime import date
+            asof = date.fromisoformat(str(spec["asof"]))
+            status = runner.run(str(workbook), demo=True, asof=asof)
+            stdout = json.dumps({k: v for k, v in status.items()
+                                 if k != "digest"})
         yield workbook, stdout
     finally:
         shutil.rmtree(workdir, ignore_errors=True)

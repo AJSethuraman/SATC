@@ -22,7 +22,7 @@ test = ["pytest>=7.4"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tools"]
 testpaths = ["tests"]
 markers = [
     "live: opt-in acceptance that touches the network or real Excel (not run in CI)",
