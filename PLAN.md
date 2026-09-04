@@ -434,29 +434,32 @@ it with them.
 
 ## Decisions log
 
-- **2026-09-04 — An agent reads what the firm pays for; it does not route around a
-  block.** Standing rule for any agent of this practice that reaches the web, recorded
-  while specifying expert desks (issue #231). Three parts, and the first is the one that
-  matters:
+- **2026-09-04 — An agent reads what the firm pays for, on the machine that is already
+  signed in.** Standing rule for any agent of this practice that reaches the web, recorded
+  while specifying a browser capability for the desks (issue #231).
 
-  **A different client is not a different permission.** Verified in a cloud session the
-  same day: Chromium is pre-installed and `no_proxy` covers only localhost, the Anthropic
-  API and package registries, so a browser's traffic goes through the same egress proxy
-  that refused `asc.fasb.org`. Chrome gets the identical refusal. Where a host is blocked
-  by policy the fix is the allowlist, never a different tool — which is also the agent
-  proxy's own instruction: *"Do not retry or route around it — report the blocked host."*
+  **Where it runs decides what it can reach, and the two cases are not alike.** An
+  Anthropic-hosted cloud session sits behind an egress proxy: Chromium is pre-installed
+  there, `no_proxy` covers only localhost, the Anthropic API and package registries, and a
+  browser's traffic is refused exactly as any other client's is — so inside a cloud
+  container a different client is not a different permission, and the fix is the
+  environment's allowlist rather than another tool. A **Remote Control session on the
+  firm's own machine is not that**: it *"uses your machine's network and files, not a cloud
+  environment"*, so there is no proxy and nothing to route around. The first version of
+  this entry generalised the container's constraint to every session and was wrong.
 
-  **Reading a subscription is not scraping, and the two must not be blurred.** A browser
-  signed into ASC Professional View or Checkpoint, reading content the firm pays for, is
-  using what it bought. Pointing the same browser at a site that forbids automated access
-  is a different act, and running it from the firm's own machine does not convert one into
-  the other. So: an explicit per-source allowlist, sign-in only where a subscription is
-  held, and a refusal rather than a workaround everywhere else.
+  **A fresh browser is not the firm's browser.** Reaching a licensed source is not the same
+  as being able to read it: Checkpoint or ASC Professional View answer to a signed-in
+  session, so the capability that matters is driving the browser profile that is *already*
+  logged in, on the machine that holds it. That is what the firm meant by *"as though it is
+  using my work computer"*, and it is why this belongs on the Forge — not because a cloud
+  container is blocked, but because a cloud container is nobody.
 
-  **Reading grants no storage right.** A licensed source stays uncacheable whatever client
-  read it — the citation and tier are recorded, the text is not. And credentials never
-  enter a repository in any form, which is the strongest argument for this running on the
-  Forge rather than in a cloud container.
+  **Reachable is not the same as permitted, and reading grants no storage right.** Terms
+  and robots.txt still decide whether a source may be accessed automatically, wherever the
+  session runs — a question separate from copyright, and unread for FASB as of this date. A
+  licensed source stays uncacheable whatever client read it: the citation and tier are
+  recorded, the text is not. Credentials never enter a repository in any form.
 
 - **2026-09-04 — Expert desks: the mechanism is the deliverable, one desk is the
   proof.** Grilled this session; spec in `docs/prd-expert-desks.md`. A *desk* is an
