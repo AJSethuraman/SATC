@@ -41,6 +41,53 @@ is a nag you learn to click past.
   the firm owns, which makes it the worst possible home for anything that has to
   stay put. A check enforces this over the whole record.
 
+## Installing it
+
+canon is a plugin. Installing it once at **user scope** makes it available in
+every repository you open — it is not per-project, and nothing has to be copied
+into the project you are working in.
+
+```powershell
+# once, from anywhere
+claude plugin marketplace add AJSethuraman/SATC
+claude plugin install canon@satc --yes
+```
+
+Inside a running session, the same two steps are `/plugin marketplace add …` and
+`/plugin install canon@satc`, followed by `/reload-plugins` — a session already
+open does not pick up a newly installed plugin on its own.
+
+Then, in any repo:
+
+```
+/canon:bassy            what does the record say about what I'm about to do
+/canon:how-we-work      the thirteen standing behaviours
+/canon:canon-mine       read the corpus and propose a conviction
+/canon:canon-adopt      read a repo canon has never seen
+```
+
+Or just talk to it — the skills carry descriptions written to be matched on
+ordinary work, so a session should reach for them without being told. *Should*
+is doing real work in that sentence: being available is enforced, being picked
+up is not. If a session has plainly not got them, name the skill.
+
+**Observed, 4 September 2026:** installed from the marketplace at user scope, a
+session started in a git repository with no relationship to SATC saw all four
+skills, read `CONVICTIONS.md`, and answered a plan to push straight to `main` by
+quoting C2 back verbatim and asking whether the reason had changed.
+
+**Verify the manifest before publishing a change to it:**
+
+```powershell
+claude plugin validate .            # the marketplace
+claude plugin validate ./canon      # the plugin
+```
+
+Both run in the test suite too, where the CLI is present. That guard exists
+because it was missing: `author` was a plain string, the real installer rejected
+it on the first attempt to install canon anywhere, and the test that claimed the
+manifest was valid had only ever checked that the JSON parsed.
+
 ## Where this lives, and why that is temporary
 
 `canon` sits inside the SATC monorepo, which is the one-folder-per-project

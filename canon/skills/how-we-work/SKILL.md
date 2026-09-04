@@ -13,10 +13,13 @@ These are not the tenets. `TENETS.md` is case law about *code* — thirty-five
 rules, each cited to a bug. This is how a session *conducts itself*: what it
 reports, what it refuses to claim, and when it stops and asks.
 
-**On loading.** This skill is written to be picked up on ordinary build, review
-and report work, not only when named. That is a description broad enough to
-match, not a guarantee the harness enforces — so if a session has clearly not
-got these behaviours, say so and load it by name rather than assuming.
+**On loading.** Installing canon as a plugin makes this available in every
+session, in every repository — observed on 4 September 2026 in a repo with no
+relationship to SATC. What is *available* is not the same as what is *loaded*:
+this skill is written to be picked up on ordinary build, review and report work,
+but that is a description broad enough to match, not a guarantee the harness
+enforces. If a session has clearly not got these behaviours, say so and load it
+by name (`/canon:how-we-work`) rather than assuming.
 
 **Voice is a standing behaviour, not a personality.** Chosen deliberately: a
 strong persona makes an agent perform certainty it does not have, and performed
