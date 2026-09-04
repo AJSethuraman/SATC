@@ -119,9 +119,19 @@ def _built_through_engine(name: str, recipe: dict, spec: dict, run_demo: bool):
     try:
         base = workdir / (Path(str(recipe["workbook"])).stem + "_base.xlsx")
         workbook = workdir / str(recipe["workbook"])
-        layout.build(str(base))
-        package.assemble(str(base), str(workbook),
-                         str(Path(layout.HERE) / "macro.bas"),
+
+        # Build the SHIPPED artifact, not a near-miss of it: `_code_py` gets the
+        # inlined, self-contained runner exactly as the bundle emits it. A test
+        # that exercised a workbook whose code tab differed from the one people
+        # receive would be checking something nobody has.
+        from credit_suite.bundles import SPECS
+        from credit_suite.engine import inline
+        bundle_spec = SPECS[name]
+        macro = Path(layout.HERE) / "macro.bas"
+        layout.build(str(base),
+                     code_py=inline.render_runner(bundle_spec),
+                     code_vba=macro.read_text(encoding="utf-8"))
+        package.assemble(str(base), str(workbook), str(macro),
                          str(recipe["macro_module"]))
 
         stdout = ""

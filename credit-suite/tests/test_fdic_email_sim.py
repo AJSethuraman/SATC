@@ -91,22 +91,53 @@ def test_the_raw_block_is_populated_after_a_refresh(built):
         wb.close()
 
 
-def test_the_self_contained_half_is_not_claimed_yet(built):
-    """The gap, asserted so it cannot be forgotten.
+def test_the_workbook_rebuilds_itself_in_an_empty_folder(built, tmp_path):
+    """The second half of the shipped acceptance, closed by the inliner (#167).
 
-    `_code_py` holds a runner that imports `credit_suite`, so extracting it into
-    an empty folder would not run. Issue #167's inliner is what closes this, and
-    its acceptance is exactly the assertion inverted. If someone makes `_code_py`
-    self-contained without updating this test, it goes red and says so.
+    Copy ONLY the .xlsm into an empty folder. Reproduce what the VBA button
+    does -- read `_code_py` and write `runner.py` beside the workbook. Then run
+    it with an isolated interpreter and no `credit_suite` anywhere, and the
+    workbook must repopulate itself with nothing else present.
+
+    At #165 this could not pass, and a test asserted the gap rather than letting
+    silence imply a pass. This is that test, inverted, now that it holds.
     """
+    import json
+    import os
+    import subprocess
+    import sys
+
     workbook, _status = built
-    wb = openpyxl.load_workbook(workbook, keep_vba=True)
+    folder = tmp_path / "email"
+    folder.mkdir()
+    target = folder / workbook.name
+    target.write_bytes(workbook.read_bytes())
+    assert sorted(p.name for p in folder.iterdir()) == [workbook.name]
+
+    runner_py = folder / "runner.py"
+    email_digest.extract_code_tab(str(target), "_code_py", str(runner_py))
+    assert runner_py.stat().st_size > 1000
+
+    env = {"PATH": os.environ.get("PATH", ""),
+           "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+           "TEMP": str(folder), "TMP": str(folder)}
+    result = subprocess.run(
+        [sys.executable, "-I", "runner.py", "--workbook", workbook.name,
+         "--demo", "--asof", email_digest.ASOF],
+        cwd=str(folder), capture_output=True, text=True, env=env, timeout=900)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    payload = json.loads([ln for ln in result.stdout.splitlines()
+                          if ln.startswith("{")][-1])
+    assert payload["ok"] is True and payload["banks_landed"] == 12
+
+    # Nothing but the workbook and the extracted runner: the workbook is the
+    # source of truth, and it needed nothing else to rebuild.
+    assert sorted(p.name for p in folder.iterdir()) == \
+        sorted([workbook.name, "runner.py"])
+
+    wb = openpyxl.load_workbook(target, keep_vba=True)
     try:
-        source = "\n".join(str(c.value or "")
-                           for row in wb["_code_py"].iter_rows() for c in row)
+        assert wb.vba_archive is not None, "the self-refresh dropped the macro"
     finally:
         wb.close()
-    assert "from credit_suite" in source or "import credit_suite" in source, \
-        ("_code_py no longer imports credit_suite -- if the inliner (#167) "
-         "landed, enable the extract-and-run-in-an-empty-folder acceptance "
-         "and delete this test")

@@ -46,6 +46,7 @@ L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
 F = "tests/test_fred_seam.py::"
+I = "tests/test_inliner.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -433,6 +434,49 @@ MUTATIONS: list[Mutation] = [
         "s = provider.fetch(spec.series_id)",
         (F + "test_the_run_path_actually_goes_through_the_seam",),
         "run() fetches through the contract seam rather than around it",
+    ),
+
+    # --- the build-time inliner (issue #167) --------------------------------
+    Mutation(
+        "bundle-carries-a-clock", SRC / "engine" / "inline.py",
+        "compresslevel=9, mtime=0) as gz:",
+        "compresslevel=9) as gz:",
+        (I + "test_the_encoder_carries_no_clock",
+         I + "test_the_bundle_is_byte_identical_run_to_run"),
+        "a bundle is byte-identical run to run, so it can be diffed",
+    ),
+    Mutation(
+        "bundle-ships-non-ascii", SRC / "engine" / "inline.py",
+        "        if ord(char) >= 128:",
+        "        if False:",
+        (I + "test_a_non_ascii_payload_is_refused_rather_than_shipped",),
+        "a non-ASCII bundle is refused rather than shipped into an email gateway",
+    ),
+    Mutation(
+        "inliner-misses-nested-imports", SRC / "engine" / "inline.py",
+        "        for found in _imported_names(tree, name, top_level_only=False,",
+        "        for found in _imported_names(tree, name, top_level_only=True,",
+        (I + "test_a_module_reachable_only_through_a_function_level_import_is_inlined",),
+        "modules imported inside functions are inlined too, or the bundle "
+        "dies in the empty folder it was built for",
+    ),
+    Mutation(
+        "inliner-orders-alphabetically", SRC / "engine" / "inline.py",
+        "        ready = [n for n in remaining if deps[n] <= placed]",
+        "        ready = list(remaining)",
+        (I + "test_modules_are_ordered_so_dependencies_execute_first",
+         I + "test_the_bundle_builds_and_runs_in_an_empty_folder"),
+        "modules execute in dependency order, so `from x import y` finds y",
+    ),
+    Mutation(
+        "code-py-is-not-self-contained",
+        SRC / "sources" / "fdic" / "layout.py",
+        '                   "python", source_text=code_py)',
+        '                   "python")',
+        (I + "test_the_code_py_tab_is_now_self_contained",
+         "tests/test_fdic_email_sim.py::"
+         "test_the_workbook_rebuilds_itself_in_an_empty_folder"),
+        "_code_py carries the inlined runner, so the button's output runs alone",
     ),
 ]
 

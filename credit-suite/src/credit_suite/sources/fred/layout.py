@@ -362,12 +362,21 @@ def write_watchlist(wb, specs, blocks):
 # ==========================================================================
 # Code-in-tab + readme  (quiet system tabs)
 # ==========================================================================
-def write_code_tab(wb, tab, source_path, language):
+def write_code_tab(wb, tab, source_path, language, source_text=None):
+    """One source line per cell in column A (contract section 2, lesson L3).
+
+    ``source_text`` overrides the file, which is how the build-time inliner puts
+    a SELF-CONTAINED runner into `_code_py`: that tab has to carry code which
+    runs on a machine with no credit-suite installed, and that code is
+    generated, not read off disk.
+    """
     ws = wb.create_sheet(tab)
     hide_gridlines(ws)
     ws.column_dimensions["A"].width = 120
-    with open(source_path, "r", encoding="utf-8") as fh:
-        lines = fh.read().split("\n")
+    if source_text is None:
+        with open(source_path, "r", encoding="utf-8") as fh:
+            source_text = fh.read()
+    lines = source_text.split("\n")
     if lines and lines[-1] == "":
         lines = lines[:-1]
     if language == "vba":
@@ -460,7 +469,7 @@ def write_readme(wb):
 # ==========================================================================
 # Orchestration
 # ==========================================================================
-def build(out_path):
+def build(out_path, code_py=None, code_vba=None):
     rows = config_rows()
     cfg = R.parse_config(rows)
     specs = cfg.series
@@ -486,8 +495,10 @@ def build(out_path):
                     lane="price")
     write_watchlist(wb, specs, blocks)
     write_config(wb)
-    write_code_tab(wb, "_code_py", os.path.join(HERE, "runner.py"), "python")
-    write_code_tab(wb, "_code_vba", os.path.join(HERE, "macro.bas"), "vba")
+    write_code_tab(wb, "_code_py", os.path.join(HERE, "runner.py"),
+                   "python", source_text=code_py)
+    write_code_tab(wb, "_code_vba", os.path.join(HERE, "macro.bas"),
+                   "vba", source_text=code_vba)
     write_readme(wb)
 
     order = ["Dashboard_Consumer", "Dashboard_Commercial", "Dashboard_Price",
