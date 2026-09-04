@@ -76,6 +76,18 @@ tr:hover td{background:#faf7f0}
 .btn.sm{padding:3px 9px;font-size:11.5px}
 form.inline{display:inline}
 .muted{color:var(--charcoal);font-size:12px}
+/* A MUTED COUNT IN A PANEL HEADER SITS ON NAVY, NOT ON PAPER.
+   `--charcoal` (#1F2733) against `--navy` (#0B1F3A) measures 1.10:1 -- present
+   in the DOM, invisible to a person, and WCAG AA asks for 4.5:1. Every
+   `<h2>Asked for <span class="muted">· 4 open</span></h2>` in the app was
+   rendering that count into the background.
+   Found by opening the page in a browser on 4 September 2026. Nothing in 1,685
+   passing tests could see it: the span is there, its text is correct, and a
+   test client cannot tell dark-on-dark from readable. 32 headers across ten
+   templates were affected, so this is one rule rather than 32 edits.
+   #A8B6C9 measures 8.02:1 -- still clearly secondary to the white heading
+   beside it, and legible. */
+.panel h2 .muted{color:#A8B6C9}
 .right{text-align:right}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 .tie{color:var(--green);font-weight:600}
