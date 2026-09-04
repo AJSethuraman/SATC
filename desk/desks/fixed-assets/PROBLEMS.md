@@ -27,13 +27,14 @@ out and counted below.
 | | |
 |---|---|
 | Examples in the section | **117** |
-| Usable as problems | **24** |
-| Left out | **93** |
+| Usable as problems | **21** |
+| Left out | **96** |
 
 | Left out | Because |
 |---|---|
 | 8 | conclusion cannot be separated from the facts |
 | 27 | depends on an example not shown |
+| 3 | states its conclusion conditionally |
 | 1 | states more than one conclusion |
 | 57 | states no conclusion this desk can score |
 
@@ -41,10 +42,10 @@ out and counted below.
 
 | Answer | Problems |
 |---|---|
-| must capitalize | 12 |
+| must capitalize | 9 |
 | not required to capitalize | 12 |
 
-**Always answering the most common one scores 12 of 24 (50%).** That is the number any
+**Always answering the most common one scores 12 of 21 (57%).** That is the number any
 run has to beat before it has shown anything, and it is printed here because a
 scoreboard whose baseline is unstated reads as skill when it may be arithmetic.
 
@@ -65,27 +66,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P2 · Routine maintenance resulting from prior owner's use
-
-**Citation:** 26 CFR 1.263(a)-3(i)(6) Example 4
-
-**Answer:** must capitalize
-
-**Facts:** (i) In January, Year 1, B purchases a used machine for use in its manufacturing operations. Assume that the machine is the unit of property and has a class life of 10 years. B places the machine in service in January, Year 1, and at that time, B expects to perform manufacturer recommended scheduled maintenance on the machine approximately every three years. The scheduled maintenance includes the cleaning and oiling of the machine, the inspection of parts for defects, and the replacement of minor items such as springs, bearings, and seals with comparable and commercially available replacement parts. At the time B purchased the machine, the machine was approaching the end of a three-year scheduled maintenance period. As a result, in February, Year 1, B pays amounts to perform the manufacturer recommended scheduled maintenance. Assume that none of the exceptions set out in paragraph (i)(3) of this section apply to the amounts paid for the scheduled maintenance. (ii) The majority of B's costs do not qualify under the routine maintenance safe harbor in paragraph (i)(1)(ii) of this section because the costs were incurred primarily as a result of the prior owner's use of the property and not B's use. B acquired the machine just before it had received its three-year scheduled maintenance.
-
----
-
-## P3 · Routine maintenance once during class life
-
-**Citation:** 26 CFR 1.263(a)-3(i)(6) Example 7
-
-**Answer:** must capitalize
-
-**Facts:** D is a Class I railroad that owns a fleet of freight cars. Assume that a freight car, including all its components, is a unit of property and has a class life of 14 years. At the time that D places a freight car into service, D expects to perform cyclical reconditioning to the car every 8 to 10 years to keep the freight car in ordinarily efficient operating condition. During this reconditioning, D pays amounts to disassemble, inspect, and recondition or replace components of the freight car with comparable and commercially available replacement parts. Ten years after D places the freight car in service, D pays amounts to perform a cyclical reconditioning on the car. Because D expects to perform the reconditioning only once during the 14 year class life of the freight car, the amounts D pays for the reconditioning do not qualify for the routine maintenance safe harbor under paragraph (i)(1)(ii) of this section.
-
----
-
-## P4 · Routine maintenance on non-rotable part
+## P2 · Routine maintenance on non-rotable part
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 9
 
@@ -95,17 +76,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P5 · Exceptions to routine maintenance
-
-**Citation:** 26 CFR 1.263(a)-3(i)(6) Example 12
-
-**Answer:** must capitalize
-
-**Facts:** F owns and operates a farming and cattle ranch with an irrigation system that provides water for crops. Assume that each canal in the irrigation system is a single unit of property and has a class life of 20 years. At the time F placed the canals into service, F expected to have to perform major maintenance on the canals every three years to keep the canals in their ordinarily efficient operating condition. This maintenance includes draining the canals, and then cleaning, inspecting, repairing, and reconditioning or replacing parts of the canal with comparable and commercially available replacement parts. F placed the canals into service in Year 1 and did not perform any maintenance on the canals until Year 6. At that time, the canals had fallen into a state of disrepair and no longer functioned for irrigation. In Year 6, F pays amounts to drain the canals and do extensive cleaning, repairing, reconditioning, and replacing parts of the canals with comparable and commercially available replacement parts. Although the work performed on F's canals was similar to the activities that F expected to perform, but did not perform, every three years, the costs of these activities do not fall within the routine maintenance safe harbor. Specifically, under paragraph (i)(3)(v) of this section, routine maintenance does not include activities that return a unit of property to its former ordinarily efficient operating condition if the property has deteriorated to a state of disrepair and is no longer functional for its intended use.
-
----
-
-## P6 · Routine maintenance on a building; escalator system
+## P3 · Routine maintenance on a building; escalator system
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 13
 
@@ -115,7 +86,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P7 · Not amelioration of pre-existing material condition or defect
+## P4 · Not amelioration of pre-existing material condition or defect
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 3
 
@@ -125,7 +96,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P8 · Not amelioration of pre-existing material condition or defect
+## P5 · Not amelioration of pre-existing material condition or defect
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 4
 
@@ -135,7 +106,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P9 · Betterment; regulatory requirement
+## P6 · Betterment; regulatory requirement
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 11
 
@@ -145,7 +116,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P10 · Material increase in capacity; building
+## P7 · Material increase in capacity; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 14
 
@@ -155,7 +126,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P11 · Material increase in capacity; building
+## P8 · Material increase in capacity; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 19
 
@@ -165,7 +136,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P12 · Not material increase in efficiency; HVAC system
+## P9 · Not material increase in efficiency; HVAC system
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 20
 
@@ -175,7 +146,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P13 · Material increase in efficiency; building
+## P10 · Material increase in efficiency; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 21
 
@@ -185,7 +156,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P14 · Restoration of property in a state of disrepair
+## P11 · Restoration of property in a state of disrepair
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 6
 
@@ -195,7 +166,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P15 · Replacement of major component or substantial structural part; personal property
+## P12 · Replacement of major component or substantial structural part; personal property
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 10
 
@@ -205,7 +176,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P16 · Not replacement of major component; incidental
+## P13 · Not replacement of major component; incidental
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 13
 
@@ -215,7 +186,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P17 · Replacement of major component or substantial structural part; roof
+## P14 · Replacement of major component or substantial structural part; roof
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 14
 
@@ -225,7 +196,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P18 · Not replacement of major component or substantial structural part; roof membrane
+## P15 · Not replacement of major component or substantial structural part; roof membrane
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 15
 
@@ -235,7 +206,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P19 · Replacement of major component or substantial structural part; plumbing system
+## P16 · Replacement of major component or substantial structural part; plumbing system
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 22
 
@@ -245,7 +216,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P20 · New or different use; change in building use
+## P17 · New or different use; change in building use
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 1
 
@@ -255,7 +226,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P21 · Not a new or different use; leased building
+## P18 · Not a new or different use; leased building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 2
 
@@ -265,7 +236,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P22 · Not a new or different use; preparing building for sale
+## P19 · Not a new or different use; preparing building for sale
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 3
 
@@ -275,7 +246,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P23 · Not a new or different use; part of building
+## P20 · Not a new or different use; part of building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 6
 
@@ -285,7 +256,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P24 · Not a new or different use; part of building
+## P21 · Not a new or different use; part of building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 7
 

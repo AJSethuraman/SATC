@@ -202,3 +202,22 @@ def test_the_same_source_id_defined_twice_is_refused(tmp_path):
         "> text\n", encoding="utf-8")
     with pytest.raises(record.RecordError, match="more than once"):
         record.load(d)
+
+
+def test_the_same_citation_stored_twice_is_refused(tmp_path):
+    """Two extracted files defining one citation both load and `Desk.passage()`
+    takes the first. Files are read sorted, so RENAMING one changes the source,
+    tier and checked date behind an answer -- and a tier change can turn a served
+    answer into `authority_permits_choice` with nothing in the diff to show it."""
+    d = tmp_path / "twice"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(BASE, encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1.263(a)-3(a)\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    body = ("## 26 CFR 1.263(a)-3(a)\n\n**Source:** S1 · "
+            "**Checked:** 2026-09-04\n\n> text\n")
+    (d / "extracted" / "a.md").write_text(body, encoding="utf-8")
+    (d / "extracted" / "b.md").write_text(body, encoding="utf-8")
+    with pytest.raises(record.RecordError, match="stored more than once"):
+        record.load(d)

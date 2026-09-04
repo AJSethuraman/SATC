@@ -26,7 +26,7 @@ propose, never write.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
@@ -116,11 +116,35 @@ def append(path: Path, entry: Unsupported) -> Path:
     if not path.exists():
         path.write_text(PREAMBLE, encoding="utf-8")
     text = path.read_text(encoding="utf-8")
-    if any(u.id == entry.id for u in parse(text)):
-        return path
+    current = parse(text)
+
+    # THE ID IS DECIDED HERE, AGAINST THE QUEUE ON DISK. `from_refusal` numbers
+    # from whatever list it was handed, and its default is an empty one -- so the
+    # natural `append(path, from_refusal(...))` produced U1 every time, collided
+    # with the U1 already written, and returned silently. The second refusal and
+    # every one after it was dropped by the idempotency guard, from a queue whose
+    # entire purpose is to keep them.
+    clash = next((u for u in current if u.id == entry.id), None)
+    if clash is not None:
+        if _same_refusal(clash, entry):
+            return path                     # genuinely the same one, twice
+        entry = replace(entry, id=next_id(current))
+
     sep = "" if text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
     path.write_text(text + sep + entry.render() + "\n---\n\n", encoding="utf-8")
     return path
+
+
+def _same_refusal(a: Unsupported, b: Unsupported) -> bool:
+    """Idempotency is about the REFUSAL, not the row.
+
+    Compared on what identifies the event -- the question, what was concluded,
+    what was cited and why it failed. Not the date, and not the id: re-recording
+    the same refusal tomorrow is the same finding, and a queue that grows a row
+    per retry stops being readable.
+    """
+    return ((a.question, a.concluded, a.believed_authority, a.failed_because)
+            == (b.question, b.concluded, b.believed_authority, b.failed_because))
 
 
 def next_id(existing: list[Unsupported]) -> str:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 import unsupported
-from engine import Answer, Outcome, Refusal, Served, grade, serve
+from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
 
 
@@ -132,3 +132,51 @@ def test_the_queue_explains_what_to_do_with_it(tmp_path):
     head = p.read_text(encoding="utf-8")
     assert "Retained is not accepted" in head
     assert "source" in head and "position" in head
+
+
+def test_two_different_refusals_both_reach_the_queue(tmp_path):
+    """`from_refusal`'s `existing` defaults to an empty list, so it numbered
+    every entry U1; `append` saw the id already present and returned silently.
+    The natural one-liner therefore kept the FIRST refusal and threw away every
+    one after it -- from the queue whose entire purpose is to keep them."""
+    path = tmp_path / "UNSUPPORTED.md"
+    for q, cite in [("is a roof a unit of property?", "26 CFR 1"),
+                    ("what about an elevator?", "26 CFR 2"),
+                    ("and a parking lot?", "")]:
+        unsupported.append(path, unsupported.from_refusal(
+            q, Answer(position="p", citation=cite),
+            Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+            today="2026-09-04"))
+    got = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(got) == 3, f"queue kept {len(got)} of 3 refusals"
+    assert [u.id for u in got] == ["U1", "U2", "U3"], [u.id for u in got]
+
+
+def test_the_same_refusal_recorded_twice_is_still_one_row(tmp_path):
+    """Renumbering must not turn the idempotency guard off: a queue that grows a
+    row per retry stops being readable and its count stops meaning anything."""
+    path = tmp_path / "UNSUPPORTED.md"
+    make = lambda day: unsupported.from_refusal(
+        "is a roof a unit of property?", Answer(position="p", citation="26 CFR 1"),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"), today=day)
+    unsupported.append(path, make("2026-09-04"))
+    unsupported.append(path, make("2026-09-05"))     # same finding, later day
+    assert len(unsupported.parse(path.read_text(encoding="utf-8"))) == 1
+
+
+def test_a_models_multiline_reasoning_survives_the_round_trip(tmp_path):
+    """`_field` read one line, so chain-of-thought was kept as its first sentence
+    -- and the reasoning is the whole evidentiary value of a retained refusal.
+    Canon had this exact bug in the exact same place, parsing 5 of 24 subjects
+    and reporting success."""
+    working = ("first, the roof is not the unit of property\n"
+               "second, paragraph (e) makes the building the unit\n"
+               "so the safe harbour cannot apply")
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, unsupported.from_refusal(
+        "is a roof a unit of property?",
+        Answer(position="p", citation="26 CFR 1", working=working),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+        today="2026-09-04"))
+    got = unsupported.parse(path.read_text(encoding="utf-8"))[0]
+    assert got.working == working, f"kept only {got.working!r}"

@@ -36,6 +36,15 @@ CLASSIFY = (
     ("not required to capitalize", re.compile(r"\bnot required to be capitaliz\w*", re.I)),
 )
 
+#: A CONCLUSION HEDGED ON A CONDITION IS NOT AN ANSWER. Three examples conclude
+#: that amounts "must be capitalized IF these amounts result in an improvement" --
+#: the regulation is settling that a safe harbour is unavailable, not that
+#: capitalisation follows. Their facts do not establish the condition, so the
+#: honest answer is conditional and the desk would have marked it wrong. Three of
+#: 24 rows, each one punishing the better answer.
+CONDITIONAL = re.compile(
+    r"\b(?:if|unless|to the extent|provided that|only if)\b", re.I)
+
 #: A conclusion is announced, not merely stated. Requiring the connective is what
 #: separates the paragraph that DECIDES from the ones that recite the rule or the
 #: taxpayer's own prior treatment -- both of which use the same verbs.
@@ -114,6 +123,8 @@ def split_conclusion(text: str):
         return None, None, "states no conclusion this desk can score"
     if len(found) > 1:
         return None, None, "states more than one conclusion"
+    if CONDITIONAL.search(" ".join(held)):
+        return None, None, "states its conclusion conditionally"
     kept = " ".join(facts).strip()
     if not kept or DISCLOSES.search(kept):
         return None, None, "conclusion cannot be separated from the facts"

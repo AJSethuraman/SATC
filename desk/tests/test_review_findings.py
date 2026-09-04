@@ -57,18 +57,20 @@ def test_every_child_of_an_example_is_read_not_just_pspace():
 def test_reading_every_paragraph_recovers_problems_that_were_being_dropped():
     """Reading only `<PSPACE>` dropped the paragraph the conclusion lives in.
 
-    The threshold moved 34 -> 31 -> 24 as the record got more honest: examples
-    stating two outcomes stopped counting, then one leaning on facts not shown,
-    then every example whose fact pattern mentioned "capitalize" or "deduct" at
-    all. Each move is a REDUCTION for correctness, so the number this asserts is
-    the honest one rather than the high-water mark -- and 24 of them are split 12
-    and 12, which the previous 31 were not.
+    The threshold moved 34 -> 31 -> 24 -> 21 as the record got more honest:
+    examples stating two outcomes stopped counting, then one leaning on facts not
+    shown, then every example whose fact pattern mentioned "capitalize" or
+    "deduct" at all, then three whose conclusion was CONDITIONAL -- "must be
+    capitalized if these amounts result in an improvement" is the regulation
+    settling that a safe harbour is unavailable, not that capitalisation follows.
+    Every move is a REDUCTION for correctness, so the number this asserts is the
+    honest one rather than the high-water mark.
     """
     _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
                                       today="2026-09-04")
-    assert len(kept) >= 24, (
+    assert len(kept) >= 21, (
         f"only {len(kept)} problems usable; reading every paragraph of each "
-        f"example should yield at least 24"
+        f"example should yield at least 21"
     )
 
 

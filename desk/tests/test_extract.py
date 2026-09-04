@@ -256,3 +256,36 @@ def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
     assert kept == [], "every example should have been lost to the split"
     assert any(why == "conclusion cannot be separated from the facts"
                for _, why in dropped), "the exclusion was not counted by name"
+
+
+def test_a_conclusion_hedged_on_a_condition_is_not_an_answer():
+    """"...must be capitalized IF these amounts result in an improvement" settles
+    that a safe harbour is unavailable, not that capitalisation follows. The facts
+    do not establish the condition, so the defensible answer is conditional -- and
+    recording it as `must capitalize` marks the better answer wrong."""
+    facts, _, why = ex.split_conclusion(
+        "D pays to recondition a freight car. Accordingly, D must capitalize the "
+        "amounts if these amounts result in an improvement under paragraph (d).")
+    assert facts is None
+    assert why == "states its conclusion conditionally"
+
+
+def test_no_shipped_problem_rests_on_a_conditional_conclusion():
+    """Asserted over the committed record, with the condition words written here
+    rather than imported -- the same reason the disclosure stems are."""
+    import record
+    desk = record.load(DESKS / "fixed-assets")
+    assert desk.problems, "no problems loaded; this would pass vacuously"
+    hedged = re.compile(r"\b(?:if|unless|to the extent|only if)\b", re.I)
+    bad = []
+    for p in desk.problems:
+        text = desk.passage(p.citation).text
+        for s in ex._SENTENCE.split(text):
+            if ex.CONNECTIVE.search(s.strip()) and ex.conclusions_in(s) \
+                    and hedged.search(s):
+                bad.append(p.id)
+                break
+    assert not bad, (
+        f"{len(bad)} problems record an unconditional answer for a conclusion "
+        f"the regulation states conditionally: {bad}"
+    )

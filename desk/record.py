@@ -183,10 +183,28 @@ def _blocks(text: str, pattern: re.Pattern) -> list[tuple[re.Match, str]]:
     ]
 
 
+#: Where a standalone field stops: the next field, the next block, or the end.
+_FIELD_END = re.compile(r"^(?:\*\*|## |---\s*$)", re.M)
+
+
 def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
-    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*?)$", block, re.M)
-    if m and m.group(1).strip():
-        return m.group(1).strip()
+    """Read a standalone field, INCLUDING the lines it wraps onto.
+
+    This took only the first line. A model's `Working` is chain-of-thought and
+    routinely several lines, so the queue kept the first and dropped the rest --
+    and the whole reason a refusal is retained is that its reasoning is the
+    evidence of what the record is missing. Canon had this identical bug in the
+    identical place: a single-line reader on a field that had grown, parsing 5 of
+    24 subjects and reporting success. A silent partial read is worse than an
+    error, because nothing downstream can tell it happened.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if m:
+        rest = block[m.end():]
+        stop = _FIELD_END.search(rest)
+        value = (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
+        if value:
+            return value
     if required:
         raise RecordError(f"{where}: no '{label}' field")
     return ""
@@ -321,6 +339,19 @@ def load(desk_dir: Path) -> Desk:
                 f"would decide the tier and the storage rule, by file order"
             )
         seen_ids.add(s_.id)
+
+    # The same defect one level down: two extracted files defining one citation
+    # both load, and `Desk.passage()` takes the first. Files are read sorted, so
+    # RENAMING one changes which source, tier and checked date back an answer --
+    # and a tier change can turn a served answer into authority_permits_choice.
+    seen_citations = set()
+    for p in passages:
+        if p.citation in seen_citations:
+            raise RecordError(
+                f"{p.citation!r} is stored more than once in extracted/; which "
+                f"copy answers would be decided by filename order"
+            )
+        seen_citations.add(p.citation)
 
     known = seen_ids
     for p in passages:
