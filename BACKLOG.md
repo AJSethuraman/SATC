@@ -157,7 +157,8 @@ Phased (one effort, sequenced):
 - [ ] **M1 spine:** `credit-suite` engine + inliner; migrate **FDIC + FRED**
       (the two most divergent shapes); full rigor + **cell-for-cell output parity**
       vs the current shipped `.xlsm`; live FRED/FDIC + real-Excel acceptance.
-- [ ] **M2:** migrate bureau/macro/CFPB/EDGAR onto the engine; retrofit §12
+- [ ] **M2:** SCOPED 4 Sep 2026 into issues #208-#214 (7 slices, dependency-ordered).
+      migrate bureau/macro/CFPB/EDGAR onto the engine; retrofit §12
       provenance to all six; suite-wide conformance CI (single-sourced modules,
       contract-shaped tabs, all green on push).
 - [ ] **M3:** raw **FFIEC CDR** provider + **FR Y-9C** holding-company —

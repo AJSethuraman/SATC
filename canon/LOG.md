@@ -408,3 +408,41 @@ the machine that built it.
 **Still open:** whether `DEXRSA` (Case-Shiller Detroit, one month behind its
 nineteen peers) is a permanent stop or a one-off delay. One observation cannot
 say, and the flag now surfaces it instead of burying it in 38.
+
+## 4 September 2026 (later) — the second docket, and M2 scoped
+
+Four more answers, all on the recommendation, all acted on.
+
+| decision | answer | what it caused |
+|---|---|---|
+| Merge PR #204 | *Merge it* | `8b1f810`. The stale flag now means something and five dead series are gone. |
+| Close #176 | *Close it — post the evidence* | Closed with the run output, after re-running canon's suite here: 138 passed on Windows, the thing the issue called impossible. |
+| Detroit still flagged | *Leave flagged, re-check next release* | Issue #207, with the date (29 Sep, the last Tuesday) and the three outcomes and what each means. |
+| Start M2 | *Scope into issues first* | Issues #208–#214. |
+
+**Two decisions were only possible because someone checked rather than assumed.**
+#176 was fixed by another session and left open; it closed on a suite run here,
+not on reading their commit. And Detroit looked like a sixth dead series until
+FRED's own metadata showed it had been refreshed on 27 August within two minutes
+of Chicago's — alive and maintained, just missing one month. Retiring it would
+have been a plausible, checkable, wrong decision.
+
+**M2, seven slices, dependency-ordered.** Goldens for all four monitors first,
+because nothing may move before there is a record to move it against — that is
+the single thing that made M1 safe. Then macro (reuses the proven FRED provider
+and kills the duplicate, closing #178), bureau (whose data source is genuinely
+unestablished and is named as an open question rather than assumed), CFPB (a
+scraping provider, where an empty result must fail loudly), EDGAR (two-stage
+fetch and a CIK dialect — and the slice explicitly checks whether the engine
+diff is zero, because the PRD's own success criterion says it should be).
+Then provenance across all six, then conformance turning from reporting to
+failing.
+
+**Why the last slice matters.** On the morning of 4 September the ExtractFiles
+fix had to be applied by hand to five separate copies of the same file. Nothing
+currently stops someone copying a module back in — it is the easiest thing in
+the world to do, it always works, and it is invisible until a fix lands in one
+copy and not the other. Slice 6 makes that fail the build instead.
+
+**Standing:** #175 untouched. #207 waits on the September release. 278 tests,
+77 mutations, both spine monitors at parity, six of six checks green.
