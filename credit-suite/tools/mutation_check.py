@@ -47,6 +47,7 @@ C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
+N = "tests/test_conformance.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -477,6 +478,80 @@ MUTATIONS: list[Mutation] = [
          "tests/test_fdic_email_sim.py::"
          "test_the_workbook_rebuilds_itself_in_an_empty_folder"),
         "_code_py carries the inlined runner, so the button's output runs alone",
+    ),
+
+    # --- the conformance check (issue #168) ---------------------------------
+    Mutation(
+        "conformance-blind-to-copies", SRC / "conformance.py",
+        "        if digest in by_digest:",
+        "        if False:",
+        (N + "test_a_copied_engine_module_is_caught_and_named",
+         N + "test_a_renamed_copy_is_caught_too",
+         N + "test_the_outstanding_copies_are_reported_not_hidden"),
+        "a copied engine module is caught -- the regression this exists for",
+    ),
+    Mutation(
+        "conformance-name-matches-instead-of-hashing", SRC / "conformance.py",
+        "    return hashlib.sha256(\n        path.read_bytes().replace(b\"\\r\\n\", b\"\\n\")).hexdigest()",
+        "    return hashlib.sha256(path.name.encode()).hexdigest()",
+        (N + "test_a_renamed_copy_is_caught_too",),
+        "the check hashes CONTENT, so renaming a copy does not hide it",
+    ),
+    Mutation(
+        "conformance-tolerates-loose-source", SRC / "conformance.py",
+        "        if folder in MIGRATED_FOLDERS and not GENERATED.match(path.name):",
+        "        if False:",
+        (N + "test_loose_source_in_a_migrated_folder_is_caught_even_if_not_a_copy",),
+        "a migrated folder carries no hand-written source",
+    ),
+    Mutation(
+        "conformance-hides-the-outstanding-copies", SRC / "conformance.py",
+        "            if folder in UNMIGRATED_FOLDERS:\n                pending.append(Finding(",
+        "            if True:\n                _unused = (Finding(",
+        (N + "test_the_outstanding_copies_are_reported_not_hidden",),
+        "outstanding copies are reported, not filtered into silence",
+    ),
+    Mutation(
+        "conformance-accepts-any-tab", SRC / "conformance.py",
+        "            if not known:",
+        "            if False:",
+        (N + "test_an_unknown_tab_is_caught_and_named",),
+        "a tab outside the contract's taxonomy is caught",
+    ),
+    Mutation(
+        "conformance-skips-required-tabs", SRC / "conformance.py",
+        "            if required not in names:",
+        "            if False:",
+        (N + "test_a_missing_tab_is_caught_and_named",),
+        "a missing required tab is caught",
+    ),
+    Mutation(
+        "conformance-skips-the-gated-lane", SRC / "conformance.py",
+        "        if not any(t in WATCHLIST for t in names):",
+        "        if False:",
+        (N + "test_a_missing_gated_lane_is_caught",),
+        "a monitor with no gated lane is caught",
+    ),
+    Mutation(
+        "conformance-ignores-cli-drift", SRC / "conformance.py",
+        "            if flag not in options:",
+        "            if False:",
+        (N + "test_a_cli_missing_a_contract_flag_is_caught_and_named",),
+        "a runner that dropped a contract flag is caught",
+    ),
+    Mutation(
+        "conformance-ignores-exit-code-drift", SRC / "conformance.py",
+        "        if actual != value:",
+        "        if False:",
+        (N + "test_a_moved_exit_code_is_caught_and_named",),
+        "an exit code that moved is caught",
+    ),
+    Mutation(
+        "conformance-hides-its-denominator", SRC / "conformance.py",
+        'lines = ["examined %s" % (counts or "NOTHING")]',
+        'lines = ["examined %s" % (counts or "")]',
+        (N + "test_the_report_states_what_it_examined",),
+        "a check that examined nothing says so in words",
     ),
 ]
 
