@@ -71,9 +71,47 @@ class TextAnchorReader:
         self.field_specs = config.get("fields", [])
         self.page = page
         self.window = window
+        # Which pages the page rule dropped on the last read, so a caller can
+        # say so. Empty on every single-page document, which is most of them.
+        self.skipped_pages: list[int] = []
 
     def read(self, source: str) -> ReadResult:
-        return self.read_text(self._page_text(Path(source)))
+        """Anchor page by page, so every value knows where it came from.
+
+        IT USED TO ANCHOR OVER THE JOIN of every page at once, which is how the
+        page number could never be filled in -- by the time a value was found
+        there was no page left to attribute it to. Reading each page separately
+        costs nothing (the same text is scanned either way) and turns
+        `Doc fw2.pdf` into `Doc fw2.pdf p.2`.
+
+        FIRST PAGE TO YIELD A LABEL WINS. A W-2 carries six copies of the same
+        form and each would answer for Box 1; taking the first is the same value
+        the join produced, now with a page against it.
+        """
+        from satc.ingest.pages import split_pages
+
+        path = Path(source)
+        if self.page is not None:
+            got = self.read_text(self._page_text(path))
+            got.pages = {label: self.page for label in got.labeled_fields}
+            return got
+
+        kept, dropped = split_pages(path)
+        self.skipped_pages = list(dropped)
+        if not kept:
+            return self.read_text("")
+
+        merged = ReadResult(backend="TextAnchorReader", deterministic=True)
+        for number, text in kept:
+            page_result = self.read_text(text)
+            for label, value in page_result.labeled_fields.items():
+                if label in merged.labeled_fields:
+                    continue
+                merged.labeled_fields[label] = value
+                merged.pages[label] = number
+                if label in page_result.uncertain_labels:
+                    merged.uncertain_labels.add(label)
+        return merged
 
     def read_text(self, text: str) -> ReadResult:
         """Core extraction over already-read text (unit-testable, no PDF)."""
@@ -89,6 +127,7 @@ class TextAnchorReader:
             if not confident:
                 uncertain.add(label)
         return ReadResult(labeled_fields=labeled, uncertain_labels=uncertain,
+                          deterministic=True,   # label anchors + regex, no model
                           backend="TextAnchorReader")
 
     def _extract(self, spec: dict[str, Any], text: str, low: str) -> tuple[str, bool]:
@@ -115,11 +154,37 @@ class TextAnchorReader:
         return "", False
 
     def _page_text(self, path: Path) -> str:
+        """The form's own pages -- never the IRS's instructions ABOUT the form.
+
+        THIS READ EVERY PAGE, and on a BLANK eleven-page W-2 that produced
+        ``Box 1 - Wages = 200000`` and ``Box 5 - Medicare wages = 200000``,
+        both HIGH confidence, both auto-confirmed into the workpaper. The
+        source was page 7 -- *"the 0.9% Additional Medicare Tax on any of those
+        Medicare wages and tips above $200,000"* -- an instruction page, where
+        the anchor ``medicare wages and tips`` sits 30 characters from a dollar
+        figure that is a threshold in a sentence, not a value in a box.
+
+        On the actual form pages the boxes are empty, so nothing matches and a
+        blank form reads as blank. That is the whole fix: the reader was not
+        losing a blank box to a number, it was reading a page that is not the
+        form. See :mod:`satc.ingest.pages`.
+        """
         try:
             from pypdf import PdfReader
 
-            reader = PdfReader(str(path))
-            pages = reader.pages if self.page is None else [reader.pages[self.page - 1]]
-            return "\n".join((p.extract_text() or "") for p in pages)
+            from satc.ingest.pages import split_pages
+
+            if self.page is not None:
+                reader = PdfReader(str(path))
+                return reader.pages[self.page - 1].extract_text() or ""
+            kept, dropped = split_pages(path)
+            # RECORDED, NOT SILENT. The firm asked the right question of this
+            # rule: a client's own W-2 has no instruction pages, so what stops
+            # the software dropping a page that had something on it? Two things
+            # -- a page carrying form fields is never dropped, and when a page
+            # IS dropped the reader says which, so it shows up in the note
+            # beside the values rather than being discovered later.
+            self.skipped_pages = list(dropped)
+            return "\n".join(t for _, t in kept)
         except Exception:  # noqa: BLE001 - no text layer / unreadable => empty
             return ""

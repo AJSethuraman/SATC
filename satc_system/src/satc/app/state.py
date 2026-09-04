@@ -72,6 +72,22 @@ def acting_actor() -> Actor:
 TEXT_LAYER_MIN = 40
 
 
+def _skipped_note(pages: list[int]) -> str:
+    """What to say when the page rule left pages out. Empty when it did not.
+
+    PORTED from the branch that added multi-page reading. A form's own pages are
+    read and its instruction pages are not, and a note that says only "read from
+    the form" hides which pages were skipped -- so a page the rule got WRONG
+    looks identical to one it got right. S2: a check reports its denominator.
+    """
+    if not pages:
+        return ""
+    which = ", ".join(str(p) for p in pages)
+    return (f"read from the form's own pages; page{'s' if len(pages) > 1 else ''} "
+            f"{which} looked like the instructions and {'were' if len(pages) > 1 else 'was'} "
+            f"not read. ")
+
+
 def text_layer_chars(fpath) -> int:
     """How much real text this PDF carries -- asked of the FILE, not of a reader.
 
@@ -447,9 +463,13 @@ class AppState:
                     return result, ""
                 chars = text_layer_chars(fpath)
                 if chars >= TEXT_LAYER_MIN:
-                    result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
+                    anchors = TextAnchorReader(cfg)
+                    result = anchors.read(str(fpath))                 # 2) text layer (local)
                     if result.labeled_fields:
-                        return result, ""
+                        # WHICH PAGES WERE LEFT OUT, when the page rule skipped
+                        # any. Silence here made a mis-skipped page look exactly
+                        # like a correctly-skipped one.
+                        return result, _skipped_note(getattr(anchors, "skipped_pages", []))
                     # THE DOCUMENT WAS READABLE AND WE FAILED ON IT. Falling
                     # straight to OCR here is what hid this from the firm for a
                     # season: OCR rasterises text that was already there, reads

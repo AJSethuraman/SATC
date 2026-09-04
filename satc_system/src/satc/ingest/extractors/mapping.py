@@ -49,7 +49,8 @@ class MapExtractor:
     def extract(self, *, document_id: str, client_id: str, tax_year: int,
                 labeled_fields: dict[str, Any], page: int | None = None,
                 sharepoint_link: str | None = None,
-                confidences: dict[str, str] | None = None) -> StagedDocument:
+                confidences: dict[str, str] | None = None,
+                pages: dict[str, int] | None = None) -> StagedDocument:
         """Map ``{source_label: value}`` to a staged document.
 
         ``confidences`` (optional, keyed by source label) lets a reader downgrade
@@ -57,6 +58,12 @@ class MapExtractor:
         so they never auto-confirm.
         """
         confidences = confidences or {}
+        # PER FIELD, NOT PER DOCUMENT. `page` was one number for the whole
+        # document and no caller ever passed it, so every citation read
+        # `Doc <id>` with no page at all. A value now carries the page it was
+        # read off; `page` remains as the fallback for a reader that can only
+        # say "this document", which is honest for an image with one page in it.
+        pages = pages or {}
         staged = StagedDocument(
             document_id=document_id, client_id=client_id, tax_year=tax_year,
             doc_type=self.doc_type, extracted_at=datetime.now(),
@@ -82,7 +89,8 @@ class MapExtractor:
                 document_id=document_id, client_id=client_id, tax_year=tax_year,
                 field_path=field_path, label=spec.get("label", field_path),
                 raw_value=value, is_money=is_money, extractor=f"MapExtractor[{self.doc_type}]",
-                page=page, sharepoint_link=sharepoint_link, base_confidence=base_conf,
+                page=pages.get(source_label, page),
+                sharepoint_link=sharepoint_link, base_confidence=base_conf,
             )
             staged.fields.append(field)
         return staged
