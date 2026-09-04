@@ -94,6 +94,10 @@ class MonitorSpec:
     metric_refusal_note: str = ""
     #: Gate 2's reason text -- which classes this monitor admits, and why.
     gate2_reason: str = ""
+    #: The note attached to a stale entity, in the source's own vocabulary
+    #: ("REPDTE", "quarters"). ``{multiplier}`` is filled in. Empty means the
+    #: source attaches its own staleness note via an annotator instead.
+    stale_note: str = ""
 
 
 @dataclass

@@ -44,6 +44,7 @@ class Mutation:
 T = "tests/test_parity.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
+W = "tests/test_engine_workbook.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -322,6 +323,75 @@ MUTATIONS: list[Mutation] = [
          C + "test_the_shipped_config_parses_to_something_worth_comparing",
          C + "test_every_entity_row_matches_the_legacy_peer_row"),
         "an in-sheet comment line is never read as data",
+    ),
+
+    # --- the workbook writer, the provider seam and the run guards ---------
+    Mutation(
+        "L7-clearing-is-a-silent-noop", SRC / "engine" / "workbook.py",
+        "                ws.cell(row, col).value = None            # L7: assign .value",
+        "                ws.cell(row, col, None)",
+        (W + "test_clearing_actually_blanks",),
+        "L7: cells are blanked by assigning .value -- the historical bug, replanted",
+    ),
+    Mutation(
+        "null-lands-as-zero", SRC / "engine" / "workbook.py",
+        "                    None if value is None else float(value)",
+        "                    float(value or 0)",
+        (W + "test_a_null_value_lands_as_a_blank_not_a_zero",),
+        "trap F3 through the write path: a null never becomes 0 in the sheet",
+    ),
+    Mutation(
+        "raw-layout-guard-off", SRC / "engine" / "workbook.py",
+        'if existing is not None and str(existing).strip() not in ("", label):',
+        "if False:",
+        (W + "test_a_relabelled_slot_is_refused_with_the_rebuild_command",),
+        "a moved raw layout is refused, not written into cells nothing reads",
+    ),
+    Mutation(
+        "pack-sentinel-guard-off", SRC / "engine" / "workbook.py",
+        'if str(found or "").strip() != last:',
+        "if False:",
+        (W + "test_a_workbook_built_by_another_pack_is_refused",),
+        "a workbook from a different metric pack is refused",
+    ),
+    Mutation(
+        "ratio-divides-by-zero", SRC / "engine" / "metrics.py",
+        "    if num is None or den is None or den == 0:",
+        "    if num is None or den is None:",
+        (W + "test_a_zero_denominator_blanks_rather_than_raising",
+         W + "test_ratio_matches_the_legacy_one_over_every_combination"),
+        "a zero denominator blanks the metric instead of raising",
+    ),
+    Mutation(
+        "total-treats-null-as-zero", SRC / "engine" / "metrics.py",
+        "        if value is None:\n            return None\n        out += value",
+        "        if value is None:\n            continue\n        out += value",
+        (W + "test_a_missing_input_blanks_the_metric_and_never_reads_as_zero",
+         W + "test_total_matches_the_legacy_none_propagating_sum"),
+        "a null component blanks a composite instead of understating it",
+    ),
+    Mutation(
+        "zero-pull-reported-as-success", SRC / "engine" / "runtime.py",
+        '    return not (expected > 0 and status.get("entities_landed", 0) == 0)',
+        "    return True",
+        (W + "test_zero_pulls_where_pulls_were_expected_is_a_failure",),
+        "a total outage is a failure, not a quiet success over a blank workbook",
+    ),
+    Mutation(
+        "secret-invented-when-unset", SRC / "engine" / "provider.py",
+        "    return os.environ.get(name) or None",
+        '    return os.environ.get(name) or "default-secret"',
+        # NOT the keyless test: with no secret_env name, resolve_secret
+        # returns before it ever reaches the mutated line.
+        (W + "test_the_secret_is_read_by_name_from_the_environment",),
+        "a missing secret stays missing rather than becoming a fabricated one",
+    ),
+    Mutation(
+        "licensed-adapter-calls-unauthenticated", SRC / "engine" / "provider.py",
+        "        if not self._secret:\n            raise MissingSecret(",
+        "        if False:\n            raise MissingSecret(",
+        (W + "test_a_licensed_adapter_refuses_to_call_without_its_secret",),
+        "a Class C adapter never calls without its secret",
     ),
 ]
 
