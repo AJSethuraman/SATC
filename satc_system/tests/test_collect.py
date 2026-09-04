@@ -139,3 +139,65 @@ def test_a_client_with_no_matching_request_files_but_closes_nothing(drop_root, t
     arrival = rep.drops[0].arrivals[0]
     assert arrival.satisfied == ""
     assert store.saved == []
+
+
+# -- the model guard --------------------------------------------------------
+
+def test_a_model_classified_arrival_does_not_close_a_request_on_its_own(tmp_path):
+    """Only the vision rung asks a model, and a model may not close a client's
+    request on its own -- see Classification.is_model_classified and
+    reconcile_received's model guard, which state.py already respects by
+    deriving Actor.model("vision") for a vision verdict. collect() must derive
+    the same actor rather than let reconcile_received default to INTAKE,
+    which would bypass the guard for every vision-classified arrival."""
+    from satc.ingest.classify import Classification
+    from satc.models.evidence import RequestedItem
+
+    root = tmp_path / "Client Uploads"
+    (root / "2026-0001 — Maplewood").mkdir(parents=True)
+    (root / "2026-0001 — Maplewood" / "scan.jpg").write_bytes(b"not a real image")
+
+    vision_verdict = Classification(label="W-2", key="w2", code="W2",
+                                    confidence="MEDIUM", method="vision",
+                                    tax_year=2026)
+
+    class VisionClassifier:
+        def classify_path(self, path):
+            return vision_verdict
+
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store, classifier=VisionClassifier())
+
+    arrival = rep.drops[0].arrivals[0]
+    assert arrival.satisfied == "", "a model verdict closed a request on its own"
+    assert store.saved == []
+    assert req.status == "outstanding"
+
+
+# -- retrying a reconciliation the ledger once skipped -----------------------
+
+def test_a_document_filed_before_its_ref_resolved_still_closes_once_it_does(
+        drop_root, tmp_path):
+    """The ledger records that a file was FILED, not that its request was ever
+    closed. An unresolved ref at filing time means no reconciliation was even
+    attempted -- and the digest still enters the ledger, because filing does
+    not depend on resolution. A later run, once the firm sets engagement_ref,
+    must not skip that file as 'already seen' and leave the request stuck
+    outstanding forever."""
+    lib = tmp_path / "lib"
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
+
+    unresolved = FakeStore(refs={}, requested=[req])
+    first = collect(SyncedFolder(drop_root), library=lib, apply=True, store=unresolved)
+    assert first.drops[0].arrivals[0].satisfied == ""
+    assert req.status == "outstanding"
+
+    resolved = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+    second = collect(SyncedFolder(drop_root), library=lib, apply=True, store=resolved)
+    assert second.drops[0].arrivals[0].satisfied == "W-2"
+    assert req.status == "satisfied"

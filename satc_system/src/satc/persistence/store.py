@@ -666,13 +666,19 @@ class SATCStore:
         SQL: most engagements carry "" until someone sets the field (see
         Engagement.engagement_ref), and ``WHERE engagement_ref=''`` would
         resolve an unplaced drop folder to whichever of them got saved first.
+
+        Nothing in the schema stops two engagements from carrying the same
+        ref -- a typo, a reused folder name, a bad import. ``DISTINCT``
+        rather than ``LIMIT 1``: if the matching rows name more than one
+        client, that is ambiguous, not resolved, and a document closes the
+        WRONG client's request the moment this picks one arbitrarily.
         """
         if not ref:
             return None
-        row = self.mart.execute(
-            "SELECT client_id FROM engagements WHERE engagement_ref=? LIMIT 1",
-            (ref,)).fetchone()
-        return row["client_id"] if row else None
+        rows = self.mart.execute(
+            "SELECT DISTINCT client_id FROM engagements WHERE engagement_ref=?",
+            (ref,)).fetchall()
+        return rows[0]["client_id"] if len(rows) == 1 else None
 
     # -- mart write -------------------------------------------------------
     def save_mart(self, mart: DataMart) -> None:

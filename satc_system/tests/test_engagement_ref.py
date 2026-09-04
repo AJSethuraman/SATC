@@ -122,3 +122,21 @@ def test_a_blank_ref_never_matches_the_engagements_that_have_none(tmp_path):
         _eng(client_id="SATC-002000", tax_year=2025),
     ]))
     assert store.client_for_ref("") is None
+
+
+def test_two_clients_sharing_a_ref_resolve_to_nothing_rather_than_a_guess(tmp_path):
+    """Nothing in the schema stops two engagements from carrying the same ref
+    -- a typo, a reused folder, a mistake in a spreadsheet import. ``LIMIT 1``
+    would pick whichever row SQLite happened to return first, which means an
+    arriving document could close the WRONG client's request. Ambiguous must
+    refuse, the same as unknown -- see docs/DESIGN-PRINCIPLES.md: refuse
+    rather than default."""
+    from satc.models.mart import DataMart
+    from satc.persistence.store import SATCStore
+
+    store = SATCStore(tmp_path)
+    store.save_mart(DataMart(engagements=[
+        _eng(client_id="SATC-001000", engagement_ref="2026-0001"),
+        _eng(client_id="SATC-002000", tax_year=2025, engagement_ref="2026-0001"),
+    ]))
+    assert store.client_for_ref("2026-0001") is None

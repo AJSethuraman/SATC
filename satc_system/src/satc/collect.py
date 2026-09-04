@@ -48,6 +48,7 @@ from typing import Protocol
 from satc.ingest.classify import (Classification, DocumentClassifier,
                                   load_classifier)
 from satc.ingest.split import split_to_dir
+from satc.models.actor import Actor
 
 # The engagement ref every client document carries -- YYYY-NNNN, from
 # client-documents/README.md. Naming the drop folder for it is what lets an
@@ -244,10 +245,17 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 dr.not_downloaded.append(path.name)
                 continue          # deliberately NOT remembered -- see the docstring
             digest = _digest(path)
-            if digest in seen or digest in fresh:
-                continue
-            fresh.add(digest)
-            for arrival in _file_one(path, c, dest_root, lib, classifier, apply):
+            # A digest already in the ledger is not re-copied -- but it may
+            # still need to be RECONCILED. The ledger records that a file was
+            # FILED, not that its request was ever closed: an unresolved ref
+            # at filing time meant no reconciliation was even attempted, and
+            # skipping the file here on every later run would leave it filed
+            # but stuck outstanding, even after the firm sets engagement_ref.
+            already_filed = digest in seen or digest in fresh
+            if not already_filed:
+                fresh.add(digest)
+            for arrival in _file_one(path, c, dest_root, lib, classifier,
+                                     apply and not already_filed):
                 # CLOSE THE LOOP, and only when we are sure whose it is AND sure
                 # enough what it is. Gating on `may_close` matters: a LOW verdict
                 # off the file's name is good enough to FILE but not to tell a
@@ -256,12 +264,22 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 # is written.
                 if apply and store is not None and dr.client_id and arrival.may_close:
                     from satc.intake.service import reconcile_received
+                    # THE ACTOR IS DERIVED FROM WHICH RUNG CLASSIFIED IT, same
+                    # as state.py's equivalent path. Only the vision rung asks
+                    # a model, and a model may not close a client's request on
+                    # its own -- leaving classified_by at its INTAKE default
+                    # here would bypass reconcile_received's own guard for
+                    # every vision-classified arrival.
+                    classified_by = (Actor.model("vision")
+                                     if arrival.method == "vision"
+                                     else Actor.system(f"classifier:{arrival.method}"))
                     matched = reconcile_received(
                         store, client_id=dr.client_id, doc_type=arrival.label,
-                        doc_year=arrival.tax_year)
+                        doc_year=arrival.tax_year, classified_by=classified_by)
                     if matched is not None:
                         arrival.satisfied = matched.doc_type
-                dr.arrivals.append(arrival)
+                if not already_filed or arrival.satisfied:
+                    dr.arrivals.append(arrival)
 
         if apply and fresh:
             _remember(dest_root, seen | fresh)
