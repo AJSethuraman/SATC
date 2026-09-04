@@ -74,7 +74,7 @@ Then, in any repo:
 
 ```
 /canon:bassy            what does the record say about what I'm about to do
-/canon:how-we-work      the fifteen standing behaviours
+/canon:how-we-work      the eighteen standing behaviours
 /canon:docket           open decisions as a form you fill in, with denominators
 /canon:canon-mine       read the corpus and propose a conviction
 /canon:canon-adopt      read a repo canon has never seen
@@ -137,7 +137,7 @@ a repository that predates canon can be adopted.
 | `LOG.md` | the running log: roadmap, deferred work, known gaps |
 | `projects/REGISTER.md` | one thin identity card per adopted project |
 | `skills/bassy/` | the challenge role |
-| `skills/how-we-work/` | the fifteen standing behaviours |
+| `skills/how-we-work/` | the eighteen standing behaviours |
 | `skills/canon-mine/` | mining the corpus, one proposal at a time |
 | `skills/canon-adopt/` | adopting a repository, and writing its card |
 | `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps, in plain English |

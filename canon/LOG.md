@@ -11,6 +11,7 @@ roadmap lives.
 
 ---
 
+
 ## 2026-09-03 · v1 built
 
 Slices 1–9 of thirteen, in dependency order. The record parses and round-trips,
@@ -446,3 +447,40 @@ copy and not the other. Slice 6 makes that fail the build instead.
 
 **Standing:** #175 untouched. #207 waits on the September release. 278 tests,
 77 mutations, both spine monitors at parity, six of six checks green.
+
+## 1.5.0 — three behaviours a fourteen-hour session paid for
+
+**16 · A skipped check is not a passed one.** Five tests skipped in a full suite
+while passing alone — they borrowed a staged record the earlier 1,600 tests had
+consumed. The same day, ten tests in another project skipped for want of a
+harness nobody had run, so the checkout holding the firm's real client data
+reported *1,424 passed, 12 skipped* and looked healthy while the working copy
+reported 1,434 and 2. Same commit. The gap was ten checks that quietly did not
+happen.
+
+**17 · Clean up what your run touched.** A test suite drove the owner's desktop
+Outlook — five compose windows across two runs, four of which saved themselves
+into his Drafts. He noticed before the session did. Nothing was sent, and fixing
+it made the suite five times faster: most of sixteen minutes had been spent
+blocking on a desktop application.
+
+**18 · Prepare it; do not prescribe it.** The firm was told to run a command
+still sitting in an unmerged pull request, from a checkout parked on another
+branch, with a Python that could not import its own libraries. All three were
+checkable from that machine.
+
+**Two sharpened rather than added.** Behaviour 2 gains the count that was
+reported as 12, then 14, then 20 in one day and was 38 — each figure a row limit
+read back as a total. Behaviour 3 gains the harder half: in that session **five
+findings were the instrument, not the code**, and every one would have had
+somebody repair something that was never wrong. It also now names two shapes
+that hide from mutation testing — a branch that runs in one ordering and not the
+other, and an exclusion list that outlives the guard it was written around.
+
+**Checked before believed.** Three mutations against canon's own tests: a
+behaviour stripped of its incident, one reduced to an observation with no
+`**Do:**`, and a stated count that disagrees with the content. Each fails the
+test that names it. 138 passed.
+
+Convictions are read from the plugin cache, which keys on version, so this is
+**1.5.0** — without the bump `claude plugin update` pulls nothing.
