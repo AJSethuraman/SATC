@@ -91,47 +91,121 @@ class EngineError(Exception):
     """A caller broke the engine's contract. Never a silent default."""
 
 
-def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
-    """Verify the citation, then grade against the known answer.
+@dataclass(frozen=True)
+class Served:
+    """What actually leaves the desk. Carries its authority or it does not exist."""
+    position: str
+    citation: str
+    tier: str
+    checked: str
 
-    The two are genuinely separate checks and stay separate. A citation can
-    resolve to a real passage that does not support the claim, and an answer can
-    be right while citing the wrong paragraph -- collapsing them would report
-    both as the same thing.
+
+@dataclass(frozen=True)
+class Refusal:
+    """The desk declining to serve. Names the next step, never just "no"."""
+    reason: str
+    detail: str
+
+    def __bool__(self) -> bool:            # so `if served:` reads correctly
+        return False
+
+
+def _check(answer: Answer, desk: Desk):
+    """The one verification. Shared by the gate and the scoreboard on purpose.
+
+    If serving and grading each had their own copy, they would drift, and the
+    scoreboard would stop measuring the thing the gate actually does — which is
+    the shape of nearly every real bug in this operation: a claim in one place,
+    the behaviour in another, and nothing comparing them.
+
+    Returns `(refusal, passage, source)`. A refusal of None means it passed.
     """
-    if answer.escalated:
-        if answer.reason not in REASONS:
-            raise EngineError(
-                f"escalation reason {answer.reason!r} is not one of: "
-                f"{', '.join(REASONS)}. An open reason set cannot be counted."
-            )
-        return Result(problem.id, Outcome.ESCALATED, reason=answer.reason)
-
     if not answer.citation.strip():
-        return Result(
-            problem.id, Outcome.WRONG_CAUGHT, reason="no_citation",
-            detail="answered with no citation; use the fixed-assets desk's "
-                   "recorded authority, or escalate with a reason",
-        )
+        return Refusal(
+            "no_citation",
+            "answered with no citation; cite this desk's recorded authority, "
+            "or escalate with a reason",
+        ), None, None
 
     passage = desk.passage(answer.citation)
     if passage is None:
-        return Result(
-            problem.id, Outcome.WRONG_CAUGHT, reason="authority_absent",
-            detail=f"{answer.citation!r} is not in this desk's record; add it "
-                   f"cited, or escalate with reason 'authority_absent'",
-        )
+        return Refusal(
+            "authority_absent",
+            f"{answer.citation!r} is not in this desk's record; add it cited, "
+            f"or escalate with reason 'authority_absent'",
+        ), None, None
 
     source = desk.source(passage.source_id)
     if source is None:                                  # pragma: no cover
-        raise EngineError(f"passage {passage.citation!r} has no source; load() checks this")
+        raise EngineError(
+            f"passage {passage.citation!r} has no source; load() checks this")
 
     if not source.binding:
-        return Result(
-            problem.id, Outcome.ESCALATED, reason="authority_permits_choice",
-            detail=f"{source.title} is {source.tier} authority, which is somebody's "
-                   f"reading rather than the rule; this is a position for the firm",
+        return Refusal(
+            "authority_permits_choice",
+            f"{source.title} is {source.tier} authority, which is somebody's "
+            f"reading rather than the rule; this is a position for the firm",
+        ), passage, source
+
+    return None, passage, source
+
+
+def serve(answer: Answer, desk: Desk) -> Served | Refusal:
+    """The production path: hand back an answer, or refuse and say why.
+
+    **Nothing leaves here without authority behind it.** An uncited answer is
+    refused by this function, not by a prompt asking the model nicely — the
+    difference was measured at 100%, 4% and 0% of runs as prose, and always at
+    the choke point.
+
+    A refusal is not a dead end. Pair it with `unsupported.from_refusal` to keep
+    the reasoning, which is the best evidence of what the record is missing.
+    """
+    if answer.escalated:
+        _reason(answer.reason)
+        return Refusal(answer.reason, "escalated by the desk")
+
+    refusal, passage, source = _check(answer, desk)
+    if refusal is not None:
+        return refusal
+    return Served(
+        position=answer.position,
+        citation=passage.citation,
+        tier=source.tier,
+        checked=passage.checked,
+    )
+
+
+def _reason(reason: str) -> str:
+    if reason not in REASONS:
+        raise EngineError(
+            f"escalation reason {reason!r} is not one of: {', '.join(REASONS)}. "
+            f"An open reason set cannot be counted."
         )
+    return reason
+
+
+def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
+    """Verify the citation, then grade against the known answer.
+
+    Verification and grading are genuinely separate and stay separate. A citation
+    can resolve to a passage that does not support the claim, and an answer can be
+    right while citing the wrong paragraph — collapsing them would report both as
+    the same thing.
+    """
+    if answer.escalated:
+        return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason))
+
+    refusal, passage, source = _check(answer, desk)
+
+    if refusal is not None:
+        # An interpretive source is not an error, it is the case where authority
+        # permits a choice — so it escalates rather than counting as wrong.
+        if refusal.reason == "authority_permits_choice":
+            return Result(problem.id, Outcome.ESCALATED,
+                          reason=refusal.reason, detail=refusal.detail)
+        return Result(problem.id, Outcome.WRONG_CAUGHT,
+                      reason=refusal.reason, detail=refusal.detail)
 
     if _same(answer.position, problem.answer):
         return Result(problem.id, Outcome.CORRECT)
