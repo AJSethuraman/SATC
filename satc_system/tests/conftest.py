@@ -106,3 +106,76 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     write("  and its browser, then run the whole suite:")
     write("      pip install playwright && python -m playwright install chromium")
     write("=" * 70)
+
+# ── a number means nothing without the environment that produced it ──────────
+#
+# W7: the same commit passed in one checkout and failed in the other. Identical
+# source, identical config, identically seeded store. The cause turned out to be
+# pywin32 -- present in one venv, absent in the other -- so `/comms/outlook`
+# took the COM branch in one and the mailto fallback in the other.
+#
+# Finding that one cause was not the same as finding the cause LIST, and I
+# stopped at the first. Counted afterwards: the two checkouts differ by 35
+# installed packages, and this source has eight `except ImportError` /
+# `*_available()` probes that change behaviour on what happens to be installed.
+# Any of them can do the same thing again, quietly, and the failure looks like
+# a flaky test rather than an environment.
+#
+# So every run says what it had. Two runs whose capability lines match are
+# comparable; two whose lines differ have explained their own disagreement
+# before anybody goes looking for a bug. Behaviour 2 -- report the denominator
+# -- applied to the environment rather than to the count.
+
+def _capabilities() -> list[tuple[str, bool, str]]:
+    """(name, present, what it changes). Probed, never assumed."""
+    out = []
+
+    def probe(name, fn, changes):
+        try:
+            out.append((name, bool(fn()), changes))
+        except Exception:                     # noqa: BLE001 - absent is an answer
+            out.append((name, False, changes))
+
+    def _outlook():
+        from satc.intake.email_draft import outlook_available
+        return outlook_available()
+
+    def _browser():
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            p.chromium.launch().close()
+        return True
+
+    def _corpus():
+        """ASKED THE WAY THE TESTS ASK IT.
+
+        The first version checked that `corpus/` existed and was not empty. It
+        is never empty -- it ships a README, a manifest and two fetch scripts --
+        so the line said "yes" on a machine where every corpus test skipped for
+        want of documents. A capability row that disagrees with the suite it
+        describes is worse than no row: it is a denominator that lies.
+        """
+        from satc.scoreboard import load_corpus
+        return bool(load_corpus())
+
+    probe("desktop Outlook (pywin32)", _outlook, "/comms/outlook: COM draft vs mailto fallback")
+    probe("Playwright + Chromium", _browser, "whether any screen is opened at all")
+    probe("document corpus", _corpus, "the scoreboard tests")
+    try:
+        from satc import settings
+        probe("local OCR (Tesseract)", settings.ocr_enabled, "the reader ladder's OCR rung")
+        probe("local vision (Ollama)", settings.ollama_enabled, "the reader ladder's model rung")
+        probe("cloud vision", settings.cloud_vision_enabled, "whether documents may leave the machine")
+    except Exception:                          # noqa: BLE001
+        pass
+    return out
+
+
+def pytest_report_header(config):
+    """Printed at the TOP, where somebody reading a number will see it."""
+    rows = _capabilities()
+    width = max(len(n) for n, _, _ in rows)
+    lines = ["what this run could reach (a different answer here is a different suite):"]
+    for name, present, changes in rows:
+        lines.append(f"  {'yes' if present else 'NO ':4} {name:<{width}}   {changes}")
+    return lines
