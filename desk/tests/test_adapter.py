@@ -184,3 +184,67 @@ def test_wrongly_absorbed_is_reachable_at_all():
     wrong_cite = next(q.citation for q in desk.problems if q.citation != p.citation)
     assert engine.grade(Answer(position=other, citation=wrong_cite), p, desk
                         ).outcome is engine.Outcome.WRONG_CAUGHT
+
+
+# ── a replayed reply must have answered the prompt being rebuilt ──────────────
+
+def test_replaying_against_a_different_prompt_is_refused(tmp_path):
+    """A `.jsonl` transcript stores the prompt beside every reply, and the replay
+    used to discard it and rebuild the evidence from whatever `--corpus` it was
+    invoked with. Regrade a `text`-corpus transcript without `--corpus text` and
+    the record's own `AUTHORITY SHOWN` line claimed `index` over replies that had
+    seen something else — a claim in one place, the behaviour in another.
+
+    Comparing the whole prompt rather than deriving the shape catches the
+    category: a changed desk, a changed template, a reordered index and a wrong
+    `--corpus` all diverge here, and any of them makes the replies un-regradable
+    rather than merely mislabelled.
+    """
+    desk = record.load(DESK)
+    p = desk.problems[0]
+    reply = json.dumps({"position": p.answer, "citation": p.citation})
+
+    # A transcript recorded under one shape, replayed under the other.
+    shown = {p.id: sr.build_prompt(p, desk, shape="text")}
+    ask = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "t.jsonl",
+                            shape="index", shown=shown)
+    with pytest.raises(sr.ReplayMismatch, match="different prompt"):
+        ask(p)
+
+    # The control: replayed under the shape it was recorded under, it passes.
+    same = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "u.jsonl",
+                             shape="text", shown=shown)
+    assert same(p).citation == p.citation
+
+    # AND IT COMPARES THE CONTENT, NOT THE SIZE. A length check passes the case
+    # above by accident, because the two shapes happen to differ in length —
+    # which would leave a same-length divergence (a reordered index, an edited
+    # paragraph, a swapped citation) silently regraded.
+    built = sr.build_prompt(p, desk, shape="index")
+    tampered = built.replace(p.facts[:20], p.facts[:20][::-1], 1)
+    assert len(tampered) == len(built) and tampered != built, "bad fixture"
+    swapped = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "v.jsonl",
+                                shape="index", shown={p.id: tampered})
+    with pytest.raises(sr.ReplayMismatch):
+        swapped(p)
+
+
+def test_a_transcript_carries_the_prompt_its_reply_answered(tmp_path):
+    """The check above is only possible because `_replies` now keeps the prompt.
+    Dropping it turns the refusal off silently, so the shape of what `_replies`
+    hands back is asserted rather than assumed."""
+    row = {"problem": "P1", "prompt": "the prompt shown", "reply": "{}", "error": ""}
+    path = tmp_path / "t.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    replies, shown = sr._replies(str(path))
+    assert replies == {"P1": "{}"}
+    assert shown == {"P1": "the prompt shown"}, (
+        "the prompt was dropped; the replay can no longer tell whether these "
+        "replies answered the prompts being rebuilt"
+    )
+
+    # A plain reply map carries no prompts, and that is not an error — it is how
+    # a fresh frontier context hands its answers back.
+    plain = tmp_path / "r.json"
+    plain.write_text(json.dumps({"P1": "{}"}), encoding="utf-8")
+    assert sr._replies(str(plain)) == ({"P1": "{}"}, {})

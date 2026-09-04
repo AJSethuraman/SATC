@@ -350,17 +350,36 @@ def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int,
     return ask
 
 
+class ReplayMismatch(Exception):
+    """The replayed replies did not answer the prompts being rebuilt."""
+
+
 def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
-                   shape: str = "index"):
+                   shape: str = "index", shown: dict | None = None):
     """`ask(problem) -> Answer` reading replies a brain already produced.
 
     The frontier row is obtained this way: the prompts `build_prompt` composes
     are written out, answered, and read back through the SAME parser the local
     model's replies go through. Two brains graded by one code path, which is the
     only way the gap between the rows means anything.
+
+    THE REBUILT PROMPT IS CHECKED AGAINST THE ONE THE BRAIN ACTUALLY SAW.
+    A `.jsonl` transcript stores the prompt beside every reply, and this used to
+    discard it and rebuild the evidence from whatever `--corpus` the replay was
+    invoked with. Regrade a `text`-corpus transcript without `--corpus text` and
+    the record's own `AUTHORITY SHOWN` line then claimed `index` over replies
+    that had seen something else -- a claim in one place and the behaviour in
+    another, which is the failure this repository exists to close.
+
+    Deriving the shape from the stored prompt would fix that one case. Comparing
+    the whole prompt fixes the category: a changed desk, a changed template, a
+    reordered index and a wrong `--corpus` all diverge here, and any of them
+    makes these replies un-regradable rather than merely mislabelled. So it
+    refuses instead of recording a number nobody can check.
     """
     transcript.parent.mkdir(parents=True, exist_ok=True)
     transcript.write_text("", encoding="utf-8")
+    shown = shown or {}
 
     def ask(problem: Problem) -> Answer:
         prompt = build_prompt(problem, desk, shape=shape)
@@ -368,6 +387,15 @@ def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
         if raw is None:
             _log(transcript, problem, prompt, "", "no reply recorded")
             raise AdapterGaveUp(f"{problem.id}: no reply recorded")
+        was = shown.get(problem.id)
+        if was and was != prompt:
+            raise ReplayMismatch(
+                f"{problem.id}: the reply being replayed answered a different "
+                f"prompt ({len(was)} chars) than the one rebuilt here "
+                f"({len(prompt)} chars). These replies cannot be regraded "
+                f"against this desk and this --corpus shape; the record would "
+                f"state an authority shape the brain never saw."
+            )
         _log(transcript, problem, prompt, raw, "")
         return parse_reply(raw)
 
@@ -519,18 +547,23 @@ def constant_control(desk: Desk) -> dict:
             "of": len(desk.problems), "through_the_engine": tally(graded)}
 
 
-def _replies(path: str) -> dict:
-    """Replies keyed by problem id, from a plain map or from a transcript.
+def _replies(path: str) -> tuple[dict, dict]:
+    """`(replies, prompts)` keyed by problem id, from a map or a transcript.
 
     A run's own `.jsonl` transcript is accepted so a committed record can be
     regraded from the evidence it shipped with -- which is the difference
-    between a scoreboard a reader can check and one they have to believe.
+    between a scoreboard a reader can check and one they have to believe. That
+    transcript also stores the prompt each reply answered, and it is returned
+    beside the replies so `replay_adapter` can refuse a regrade against a prompt
+    the brain never saw. A plain map carries no prompts and yields `{}`, which
+    is not an error: it is how a fresh frontier context hands answers back.
     """
     text = Path(path).read_text(encoding="utf-8")
     if path.endswith(".jsonl"):
         rows = [json.loads(l) for l in text.splitlines() if l.strip()]
-        return {r["problem"]: r["reply"] for r in rows if r["reply"]}
-    return json.loads(text)
+        return ({r["problem"]: r["reply"] for r in rows if r["reply"]},
+                {r["problem"]: r.get("prompt", "") for r in rows if r["reply"]})
+    return json.loads(text), {}
 
 
 def _main(argv: list[str]) -> int:
@@ -588,9 +621,10 @@ def _main(argv: list[str]) -> int:
         label = f"{args.forge_model} (Forge)"
         seen: dict = {}
         if args.forge_replies:
-            backend = replay_adapter(desk, _replies(args.forge_replies),
+            forge_replies, forge_shown = _replies(args.forge_replies)
+            backend = replay_adapter(desk, forge_replies,
                                      out_dir / "forge-regraded.jsonl",
-                                     shape=args.corpus)
+                                     shape=args.corpus, shown=forge_shown)
         else:
             backend = forge_adapter(desk, args.forge_model,
                                     out_dir / "forge.jsonl",
@@ -605,11 +639,11 @@ def _main(argv: list[str]) -> int:
 
     if args.frontier_replies:
         label = args.frontier_label
-        replies = _replies(args.frontier_replies)
+        replies, front_shown = _replies(args.frontier_replies)
         seen = {}
         ask = watched(replay_adapter(desk, replies,
                                      out_dir / "frontier.jsonl",
-                                     shape=args.corpus), seen)
+                                     shape=args.corpus, shown=front_shown), seen)
         r = scoreboard.run(desk, ask, model=label)
         runs.append(r)
         answers[label] = seen
