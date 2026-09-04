@@ -60,6 +60,7 @@ REASONS = (
     "authority_permits_choice",  # NOT fixable. the firm decides.
     "no_citation",              # the answer cited nothing that resolves
     "citation_does_not_support",  # real authority, but not this question's
+    "contradicts_ratified_position",  # cited the firm's words, said the opposite
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
@@ -146,6 +147,21 @@ def _check(answer: Answer, desk: Desk):
     # invited. This is the whole point of `human_only` — a source the engine
     # may never read is reachable only through what the firm wrote about it.
     if kind == "position":
+        # AND IT MUST BE THE POSITION THE FIRM ACTUALLY TOOK. This branch used
+        # to approve on the citation alone, never comparing what was submitted
+        # with what the firm wrote -- so on the `human_only` path, where a
+        # position is the desk's ENTIRE knowledge of a source it may never read,
+        # a model could cite a real position and hand back the opposite
+        # conclusion, and `serve()` would return that conclusion as the firm's.
+        # The one path that exists because a human decided was the one path that
+        # did not check the human's decision.
+        if not _same(answer.position, passage.position):
+            return Refusal(
+                "contradicts_ratified_position",
+                f"cited {answer.citation!r}, where the firm's position is "
+                f"{passage.position!r}; answered {answer.position!r}. A position "
+                f"is the firm's word and a desk does not revise it",
+            ), passage, source
         return None, passage, source
 
     if not source.binding:
@@ -177,7 +193,12 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
     if refusal is not None:
         return refusal
     return Served(
-        position=answer.position,
+        # A position is the firm's words, so those are the words that leave the
+        # desk -- not a restatement, however close. `_check` has already refused
+        # one that disagrees; this makes the agreeing case exact rather than
+        # merely equivalent, which is what "the model proposes, the engine
+        # disposes" means at the only point where it is observable.
+        position=getattr(passage, "position", None) or answer.position,
         citation=passage.citation,
         tier=source.tier,
         # A passage records when someone last confirmed it against the source;

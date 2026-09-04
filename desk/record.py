@@ -149,13 +149,22 @@ class Desk:
 
         Returns `(kind, obj, source)` or None. Both are real authority; they
         differ in who wrote them, which is why they are stored apart.
+
+        A RATIFIED POSITION OUTRANKS A STORED PASSAGE ON THE SAME CITATION.
+        The passage lookup used to come first unconditionally, so a secondary or
+        tertiary source carrying both stored text and a position the firm had
+        taken on it reached the engine as non-binding authority and refused with
+        `authority_permits_choice` -- which is the very escalation that CREATES
+        a position. The record already held the answer and refused to use it.
+        The firm is the last layer; where they have spoken, their words are the
+        authority and the commentary underneath them is not.
         """
-        if (p := self.passage(citation)) is not None:
-            return "passage", p, self.source(p.source_id)
         if (pos := self.position(citation)) is not None:
             src = next((s for s in self.sources
                         if citation.startswith(s.citation_prefix)), None)
             return "position", pos, src
+        if (p := self.passage(citation)) is not None:
+            return "passage", p, self.source(p.source_id)
         return None
 
 

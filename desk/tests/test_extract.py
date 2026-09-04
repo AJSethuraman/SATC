@@ -110,12 +110,57 @@ def test_every_exclusion_reason_is_named_in_the_document():
 
 def test_the_facts_are_verbatim_from_the_source_not_retyped():
     """The extractor reads the regulation's own EXAMPLE elements, so a problem's
-    facts are the authority's words by construction."""
+    facts are the authority's words by construction.
+
+    Checked sentence by sentence rather than whole, because the conclusion is now
+    withheld: the facts are a SUBSET of the example's sentences, and every one of
+    them still has to appear in the section exactly as the section wrote it.
+    """
     import record
     desk = record.load(DESKS / "fixed-assets")
     _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", today="2026-09-04")
-    from_source = {e["text"] for e, _ in kept}
+    from_source = "\n".join(e["text"] for e, _ in kept)
     for p in desk.problems:
-        assert p.facts in from_source, (
-            f"problem {p.id}'s facts are not verbatim from the section"
-        )
+        for sentence in ex._SENTENCE.split(p.facts):
+            assert sentence in from_source, (
+                f"problem {p.id} contains {sentence!r}, which the section does not"
+            )
+
+
+def test_no_problem_hands_the_model_its_own_answer():
+    """The whole scoreboard rests on this. A problem whose facts state the
+    conclusion measures whether a model can copy a sentence.
+
+    Asserted over the COMMITTED record, not over a fresh build, because the file
+    a scoreboard run reads is the file on disk -- a check that only ever sees
+    what `build` just returned would pass against a leaking `PROBLEMS.md`.
+    """
+    import record
+    desk = record.load(DESKS / "fixed-assets")
+    assert desk.problems, "no problems loaded; this check would pass vacuously"
+    leaking = [p.id for p in desk.problems if ex.states_conclusion(p.facts)]
+    assert not leaking, (
+        f"{len(leaking)} problems state their own answer in the facts: {leaking}"
+    )
+
+
+def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
+    """When the conclusion cannot be lifted out of the fact pattern, the example
+    is lost and counted -- never shipped with the answer still in it."""
+    # One sentence, carrying both the facts and the conclusion: nothing survives
+    # the split, so there is no fact pattern to hand anybody.
+    assert ex.split_conclusion(
+        "X paid to replace the roof and must capitalize the amount."
+    ) == ("", "")
+    # And `build` routes that outcome into the counted exclusions rather than
+    # letting the example through with empty facts.
+    monkey = lambda _text: ("", "")
+    real, ex.split_conclusion = ex.split_conclusion, monkey
+    try:
+        _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
+                                          today="2026-09-04")
+    finally:
+        ex.split_conclusion = real
+    assert kept == [], "every example should have been lost to the split"
+    assert any(why == "conclusion cannot be separated from the fact pattern"
+               for _, why in dropped), "the exclusion was not counted by name"

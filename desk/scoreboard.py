@@ -17,6 +17,16 @@ by side. The gap between them is the finding -- it is what the local lean
 actually costs, measured rather than argued about. Summing them would produce one
 number describing neither.
 
+THE ADAPTER MUST NEVER BE HANDED THE PASSAGE FOR THE PROBLEM'S OWN CITATION.
+`Problem.facts` now withholds the sentence in which the regulation states its
+outcome, so a problem cannot be solved by reading it back. The desk's STORED
+authority is the same example complete -- conclusion included -- because that is
+what the authority is, and the engine needs it to verify. So the leak closed in
+`extract_ecfr.py` reopens the moment an adapter passes `desk.passage(problem
+.citation)` in as context. This cannot be tested here: the thing that answers is
+injected and does not exist yet (#227). It is a constraint on whoever writes it,
+recorded rather than assumed.
+
 WRONGLY ABSORBED IS PRINTED FIRST AND STATED AT ZERO. It is the only outcome that
 costs anything, and a line that disappears when it is clean teaches a reader that
 its absence means nothing was checked.

@@ -13,7 +13,8 @@ import pytest
 
 import record
 from conftest import NetworkUsed
-from engine import Answer, EngineError, Outcome, REASONS, grade, report, tally
+from engine import (Answer, EngineError, Outcome, REASONS, grade, report,
+                    serve, tally)
 
 
 
@@ -196,3 +197,73 @@ def test_a_near_miss_is_not_treated_as_a_match(fixed_assets, problem):
     r = grade(Answer(position=problem.answer + " partially", citation=problem.citation),
               problem, fixed_assets)
     assert r.outcome is Outcome.WRONGLY_ABSORBED
+
+
+# ── a ratified position is the firm's word, and the engine holds it to that ────
+
+def _human_only_desk(tmp_path, *, position="not required to capitalize",
+                     passage_text=None):
+    """A desk whose only authority on a citation is what the firm wrote.
+
+    This is the `human_only` shape: a source the engine may never read, where a
+    ratified position is the desk's entire knowledge of it. `passage_text` adds
+    a stored passage on the SAME citation, which is the case where the two kinds
+    of authority compete.
+    """
+    d = tmp_path / "positions-desk"
+    (d / "extracted").mkdir(parents=True)
+    (d / "positions").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source we may not read\n\n"
+        "**Tier:** tertiary · **Access:** human_only · "
+        "**May store:** license_check · **Checked:** 2026-09-04\n\n"
+        "**Citation prefix:** ASC\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** ASC 360-10\n\n"
+        "**Answer:** not required to capitalize\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · What we do here\n\n"
+        "**Citation:** ASC 360-10 · **Recorded:** 2026-09-04\n\n"
+        f"**Position:** {position}\n\n"
+        "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
+    if passage_text is not None:
+        (d / "extracted" / "p.md").write_text(
+            "## ASC 360-10\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+            f"> {passage_text}\n", encoding="utf-8")
+    import record
+    return record.load(d)
+
+
+def test_citing_the_firms_position_and_answering_the_opposite_is_caught(tmp_path):
+    """The one path that exists because a human decided did not check the human's
+    decision: the branch approved on the citation alone, so a model could cite a
+    real position, hand back the opposite conclusion, and have `serve()` return
+    it as the firm's own answer."""
+    desk = _human_only_desk(tmp_path, position="not required to capitalize")
+    r = grade(Answer(position="must capitalize", citation="ASC 360-10"),
+              desk.problems[0], desk)
+    assert r.outcome is Outcome.WRONG_CAUGHT
+    assert r.reason == "contradicts_ratified_position"
+
+
+def test_agreeing_with_the_position_serves_the_firms_own_wording(tmp_path):
+    """Not the model's restatement of it, however close. The engine disposes."""
+    desk = _human_only_desk(tmp_path, position="not required to capitalize")
+    served = serve(Answer(position="  NOT REQUIRED TO CAPITALIZE  ",
+                          citation="ASC 360-10"), desk)
+    assert served, f"a matching position should serve: {served}"
+    assert served.position == "not required to capitalize"
+
+
+def test_a_ratified_position_outranks_a_passage_on_the_same_citation(tmp_path):
+    """The passage lookup used to win unconditionally, so a non-binding source
+    with a position on it escalated as `authority_permits_choice` -- the very
+    escalation that creates a position -- with the answer already in the record."""
+    desk = _human_only_desk(tmp_path, position="not required to capitalize",
+                            passage_text="somebody's reading of the standard")
+    assert desk.passage("ASC 360-10") is not None, "fixture must have both"
+    r = grade(Answer(position="not required to capitalize", citation="ASC 360-10"),
+              desk.problems[0], desk)
+    assert r.outcome is Outcome.CORRECT, (
+        f"the firm had spoken and the desk refused anyway: {r.reason} {r.detail}")
