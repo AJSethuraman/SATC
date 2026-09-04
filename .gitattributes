@@ -20,3 +20,11 @@
 # Windows entry points, which keep CRLF to be safe in every shell.
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+
+# credit-suite's Python sources, for the same reason as the goldens above. The
+# mutation harness matches multi-line anchors against the working tree byte for
+# byte, so on a checkout where core.autocrlf rewrote them (Git's Windows
+# default) every multi-line mutation fails to find its target and the harness
+# cannot run at all. Added 4 Sep 2026 after exactly that happened on the build
+# PC: `formula-text-blind: expected 1 occurrence ... found 0`.
+credit-suite/**/*.py text eol=lf

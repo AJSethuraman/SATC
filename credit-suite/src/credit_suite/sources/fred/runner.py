@@ -171,6 +171,29 @@ class Config:
     def stale_multiplier(self) -> float:
         return float(self.settings.get("stale_multiplier", 2.0))
 
+    def publication_lag_days(self, category: str) -> float:
+        """How late this category's publisher normally runs, in days.
+
+        The staleness rule was cadence-only: later than twice its own interval
+        means stale. That is right for a source that publishes promptly and
+        wrong for one that is slow by habit, and most of these are slow by
+        habit. Case-Shiller reports a month roughly two months after it ends;
+        the Fed's G.19 and Z.1 are similar. Under the old rule 26 of 146 series
+        were flagged on EVERY run, forever -- which is the failure
+        `engine/staleness.py` warns about in its own docstring: a flag that
+        always fires is a flag nobody reads, and the one real stoppage then
+        hides inside the noise.
+
+        Config, not code: `lag_days.<category>` in [SETTINGS]. Absent means
+        zero, so a category nobody has calibrated behaves exactly as before
+        rather than silently becoming more forgiving.
+        """
+        raw = self.settings.get("lag_days.%s" % (category or "").strip().lower(), 0)
+        try:
+            return float(str(raw).strip() or 0)
+        except ValueError:
+            return 0.0
+
     @property
     def fred_min_interval(self) -> float:
         # seconds between FRED requests; FRED allows 120/min, so >=0.5 is safe.
@@ -848,11 +871,19 @@ def make_backend(name: str, path: str) -> Backend:
 # ---------------------------------------------------------------------------
 # STALE-SERIES CHECK (BUILD SPEC sec 2)
 # ---------------------------------------------------------------------------
-def is_stale(last_obs: Optional[date], frequency: str, asof: date, multiplier: float) -> bool:
+def is_stale(last_obs: Optional[date], frequency: str, asof: date,
+             multiplier: float, publication_lag_days: float = 0.0) -> bool:
+    """Later than this publisher's own normal delay plus its cadence allowance.
+
+    `publication_lag_days` defaults to zero, so a caller that does not pass one
+    gets exactly the old behaviour. The allowance is added, never multiplied: a
+    publisher being two months late is a fixed offset, not something that should
+    scale with how often it publishes.
+    """
     if last_obs is None:
         return True
     days_per = {"quarterly": 92, "monthly": 31, "annual": 366, "weekly": 7}[_freq_key(frequency)]
-    return (asof - last_obs).days > days_per * multiplier
+    return (asof - last_obs).days > publication_lag_days + days_per * multiplier
 
 
 # ---------------------------------------------------------------------------
@@ -919,7 +950,8 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
         # Stale check from the data we already have -- no second API call.
         sd = s.dropna()
         last = sd.index.max().date() if not sd.empty else None
-        if is_stale(last, spec.frequency, asof, cfg.stale_multiplier):
+        if is_stale(last, spec.frequency, asof, cfg.stale_multiplier,
+                    cfg.publication_lag_days(spec.category)):
             stale.append(spec.series_id)
         if spec.alert_rule in ("zscore", "sloos_level"):
             a = evaluate_alert(spec, s, cfg)

@@ -2,6 +2,7 @@
 
 Run: python3 -m pytest tests/ -q     (or: python3 tests/test_runner.py)
 """
+import dataclasses
 import math
 import os
 import sys
@@ -197,15 +198,37 @@ def test_seed_passes_transform_gate():
 def test_seed_watchlist_only_hpi():
     specs = _seed_specs()
     wl = R.watchlist_series(specs)
-    assert len(wl) == 89                        # 51 states + 18 metros + 20 case-shiller
+    assert len(wl) == 86                        # 51 states + 15 metros + 20 case-shiller
     assert all(s.category in R._HPI_CATEGORIES for s in wl)
     assert all(s.lane == "price" for s in wl)
 
 
 def test_dead_series_excluded_from_pull():
-    specs = _seed_specs()
-    dead = [s for s in specs if s.is_dead]
-    assert any(s.series_id == "FODSP" for s in dead)
+    """The `is_dead` guard keeps a documented-dead series out of the live pull.
+
+    This used to point at FODSP, the one seeded series carrying a
+    "discontinued" note. FODSP was RETIRED on 2026-09-04 (FRED marks it
+    discontinued; last observation July 2023), which left the guard with
+    nothing in the seed to exercise it -- a mechanism that still runs on every
+    pull and would have stopped being tested at all.
+
+    So it is exercised against a constructed spec instead. That is stronger,
+    not weaker: it no longer depends on the seed happening to contain a corpse.
+    """
+    live = _seed_specs()
+    assert not [s for s in live if s.is_dead], (
+        "a documented-dead series is seeded again; retire it in "
+        "series_seed.RETIRED rather than leaving it to be skipped every run")
+
+    for note in ("DISCONTINUED after 2023:Q3 -- do not pull live.",
+                 "documented-dead, superseded",
+                 "Do Not Pull -- publisher withdrew it"):
+        spec = dataclasses.replace(live[0], series_id="ZZTEST", notes=note)
+        assert spec.is_dead, "note %r should mark the series dead" % note
+
+    alive = dataclasses.replace(live[0], series_id="ZZTEST",
+                                notes="Methodology break 2024:Q2.")
+    assert not alive.is_dead
 
 
 # --------------------------------------------------------------------------

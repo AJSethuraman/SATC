@@ -56,8 +56,10 @@ def test_base_has_all_tabs(built):
 
 
 def test_counts(built):
-    assert built["n"] == 147
-    assert built["nwl"] == 89
+    # 147 -> 142 and 89 -> 86 when five dead series were retired on
+    # 2026-09-04; see series_seed.RETIRED for which and why.
+    assert built["n"] == 142
+    assert built["nwl"] == 86
 
 
 def test_xlsm_is_macro_enabled(built):
