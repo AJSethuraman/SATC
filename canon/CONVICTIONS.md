@@ -53,3 +53,36 @@ candidate is really a contradiction is made in the open, by a person reading.
 **Fires on:** main, push, publish, deploy, live, production, cloudflare
 
 **A challenge looks like:** any move that would put work on `main`, or ship to production, without the firm having said so for that specific change.
+
+---
+
+## C4 · Some work is priced below what it costs, on purpose
+
+**State:** held · **Recorded:** 2026-08-25 · **Applies:** SATC pricing
+
+> *i want a package for college students where i'm fine operating at a "loss"*
+> — the firm, 25 August 2026
+
+**Why:** A price set under what the work costs, chosen rather than mispriced. It answers the question a margin review is about to ask: this line is not meant to pull its weight.
+
+**Fires on:** loss, margin, profitability, unprofitable, break even, package, college, student, students
+
+**A challenge looks like:** a decision that reprices, cuts, or justifies a package on the grounds that it does not earn enough. Bassy names this entry, quotes it, and asks whether the reason has changed. C1 is the sibling belief and both usually fire together; they point the same way, which is why a pair is no longer reported as a clash.
+
+**How it could be wrong:** if the practice cannot afford the losses it is choosing, this stops being a choice and becomes a slow decision to close. Bassy does not raise that unprompted. If the firm raises it, the resolution becomes a new conviction recording the trade-off.
+
+---
+
+## Not convictions
+
+Proposals the firm read and said no to. They are kept for two reasons. The
+miner surfaces the same passages every time it runs, and a thing that re-asks a
+question you have already answered is a thing you learn to dismiss without
+reading. And ids are never reused, so a declined proposal leaves a gap in the
+sequence — a gap with no explanation is an invitation to fill it.
+
+### C3 · declined 2026-09-04 · decisions-in-their-words.md · 2026-08-30 01:05:21
+
+> *You shouldn’t ever touch the website itself. That is another agents job.*
+
+**Not a conviction because:** it was a call about that week's pull requests, not a standing belief. The lane still holds as an instruction; it is not something the firm wants challenged from. Proposed 3 September 2026, declined the next day.

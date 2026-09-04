@@ -206,6 +206,38 @@ def test_the_ask_shows_the_exact_text_that_would_be_stored(corpus):
     assert "Nothing is written until you say so." in said
 
 
+def test_what_the_confirmation_shows_is_what_the_record_would_hold(corpus):
+    """The strong form. What the firm reads is parsed back and compared to the
+    draft field by field — so a confirmation that describes the entry rather
+    than rendering it cannot pass.
+
+    It WAS a hand-built list of labelled lines: a second description of the
+    same entry with nothing comparing them (S31). It had already drifted — a
+    quote containing quotation marks displayed as `"…a "loss""`, because the
+    display wrapped what the file does not.
+    """
+    _, decisions = corpus
+    draft = _draft()
+    shown = M.Proposal(draft=draft, passage=decisions[0]).ask()
+
+    block = "\n".join(line[2:] if line.startswith("  ") else line
+                      for line in shown.splitlines())
+    got = R.parse_convictions(block)
+    assert len(got) == 1
+    assert got[0] == draft, "what was shown is not what would be stored"
+
+
+def test_a_quote_containing_quotation_marks_survives_the_confirmation(corpus):
+    """The case that exposed it. C4's quote ends in `a "loss"`."""
+    _, decisions = corpus
+    passage = M.Passage(source="x.md", when="2026-08-25 15:21:55",
+                        text='i am fine operating at a "loss" here')
+    draft = _draft(quote='fine operating at a "loss"')
+    shown = M.Proposal(draft=draft, passage=passage).ask()
+    assert 'fine operating at a "loss"' in shown
+    assert '"loss""' not in shown, "the display wrapped what the file does not"
+
+
 # ── nothing here writes ───────────────────────────────────────────────────
 
 def test_mining_cannot_reach_the_record_except_through_the_confirmation(corpus):
@@ -288,3 +320,96 @@ def test_the_snippet_shows_the_marker_not_the_first_line():
     assert "i want the thing to be deterministic." in snippet
     assert "ok so" not in snippet, "the useless first line must not be what is shown"
     assert snippet.startswith("…"), "and the reader is told the passage was cut"
+
+
+# ── a refusal is kept, and read ───────────────────────────────────────────
+
+def test_the_record_keeps_what_the_firm_said_no_to():
+    """Ids are never reused, so a declined proposal leaves a gap in the
+    sequence — and a gap with no explanation is an invitation to fill it."""
+    text = R.CONVICTIONS.read_text(encoding="utf-8")
+    declined = R.parse_declined(text)
+    assert [d.cid for d in declined] == ["C3"]
+    assert "another agents job" in declined[0].quote
+    assert declined[0].because.strip(), "a refusal with no reason is a deletion"
+    assert "C3" not in [c.id for c in R.parse_convictions(text)]
+
+
+def test_a_declined_passage_is_not_proposed_again(corpus, convictions):
+    """A RECORD OF REFUSALS THAT NOTHING READS IS A DOCUMENT, NOT A GUARD.
+
+    The miner surfaces the same passages every run. Without this, the same
+    declined proposal comes back every month until somebody stops reading the
+    output — which is the nag failure the firm asked to be designed out.
+    """
+    _, decisions = corpus
+    passage = decisions[0]
+    declined = [R.Declined(cid="C3", on="2026-09-04", source="x",
+                           quote="another agents job", because="a call, not a belief")]
+
+    assert M.already_declined(declined, passage) == "C3"
+    assert M.already_declined([], passage) == "", "it must not refuse on its own"
+
+    text = M.report(*M.surfaced(*corpus), M.survey(*corpus), convictions, declined)
+    assert "[you declined this as C3]" in text
+    assert "touches C" not in text.split("declined this as C3")[1].split("\n")[0]
+
+
+def test_a_passage_the_firm_never_saw_is_still_proposed(corpus, convictions):
+    """The guard must be about THIS passage, not a blanket quietening."""
+    declined = [R.Declined(cid="C3", on="2026-09-04", source="x",
+                           quote="something else entirely", because="no")]
+    text = M.report(*M.surfaced(*corpus), M.survey(*corpus), convictions, declined)
+    assert "you declined" not in text
+
+
+def test_a_declined_passage_still_counts_in_the_denominator(corpus, convictions):
+    """Quietening a proposal must not quieten the count. A denominator that
+    shrinks when something is dismissed is a denominator that lies (S2)."""
+    declined = [R.Declined(cid="C3", on="2026-09-04", source="x",
+                           quote="another agents job", because="a call")]
+    with_it = M.report(*M.surfaced(*corpus), M.survey(*corpus), convictions, declined)
+    without = M.report(*M.surfaced(*corpus), M.survey(*corpus), convictions, [])
+    assert with_it.split("\n")[0] == without.split("\n")[0]
+    assert "1 answer(s) you typed" in with_it
+
+
+def test_a_declined_entry_with_no_quotation_is_refused():
+    """The guard that stops a refusal becoming a paraphrase. It survived the
+    first mutation pass: the code raised, and nothing ever handed it a
+    malformed entry, so deleting the raise changed nothing.
+
+    A declined entry without the firm's words cannot be matched against a
+    passage, so it silently stops suppressing the proposal it was written to
+    suppress — and the same question comes back next month.
+    """
+    malformed = """# Convictions
+
+---
+
+## Not convictions
+
+### C7 · declined 2026-09-04 · somewhere.md · 2026-08-30 01:05:21
+
+**Not a conviction because:** somebody deleted the quote.
+"""
+    with pytest.raises(R.RecordError, match="declined without a quotation"):
+        R.parse_declined(malformed)
+
+
+def test_a_well_formed_declined_entry_parses_from_hand_written_markdown():
+    """The fixture is written the way a person writes the file, not produced
+    by the renderer — a fixture the code builds proves it agrees with itself."""
+    good = """## Not convictions
+
+### C7 · declined 2026-09-04 · somewhere.md · 2026-08-30 01:05:21
+
+> *You shouldn't ever touch the website itself.*
+
+**Not a conviction because:** it was a call about that week, not a belief.
+"""
+    got = R.parse_declined(good)
+    assert len(got) == 1
+    assert got[0].cid == "C7" and got[0].on == "2026-09-04"
+    assert got[0].quote == "You shouldn't ever touch the website itself."
+    assert got[0].because.startswith("it was a call")

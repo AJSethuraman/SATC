@@ -114,3 +114,66 @@ hidden in a tracker, it is the visible state of the register.
 C1's earlier and sharper source from 25 August is still neither evidence nor a
 second conviction; and canon has been installed nowhere but SATC, so "installs
 into every project" remains a design claim.
+
+---
+
+## 2026-09-04 · The three open items are closed
+
+**C3 · declined.** The firm read the proposal and said it is not a conviction:
+it was a call about that week's pull requests, not a standing belief. Nothing
+was written to the record as a conviction — and the refusal itself is now kept.
+
+That was not the original plan. Declining C3 exposed a gap: ids are never
+reused, so C4 follows C2 and the hole at C3 is an invitation to fill it; and
+the miner surfaces the same passage on every run, so the same proposal would
+have come back every month. A thing that re-asks a question you have already
+answered is a thing you learn to dismiss without reading — which is exactly the
+nag failure the firm asked to be designed out. So `CONVICTIONS.md` now carries a
+**Not convictions** section, the miner reads it, and a declined passage is
+marked rather than re-proposed. It still appears in the count: quietening a
+proposal must never quieten the denominator.
+
+**C4 · recorded, 25 August 2026.** *"i want a package for college students where
+i'm fine operating at a 'loss'"* — a different claim from C1. C1 is about not
+charging a working student what the work is worth; C4 is a willingness to price
+below cost on purpose, and it fires on the decisions a margin review makes.
+
+**Installed elsewhere · proven.** `tests/test_installed_elsewhere.py` copies the
+tree into a fresh git repository in a temporary directory, with no SATC parent
+and no inherited path, and runs the record, the challenge, the guards, the
+no-client-data check and the whole suite there as a subprocess. What it does
+**not** prove, stated rather than implied: that a Claude Code harness elsewhere
+loads the plugin. Nothing here reaches a harness.
+
+### Four bugs, each found by doing the thing rather than reading about it
+
+- **`adopt.py` named the project after the path it was handed**, not the git
+  root. Installing into `host/vendor/canon` and adopting `..` produced a project
+  called `vendor`. Nothing failed; the card would simply have carried the wrong
+  name forever.
+- **The confirmation retyped the entry instead of rendering it** — a second
+  description of the same record in a second place with nothing comparing them
+  (S31). It had already drifted: a quote ending in `a "loss"` displayed as
+  `"…a "loss""`, because the display wrapped what the file does not. `ask()` is
+  now the renderer, and a test parses what is shown back and compares it to the
+  draft field by field.
+- **`conflicts()` was a claim the code cannot make.** All it observes is that
+  two convictions were selected; the report said flatly *"two things you believe
+  are pulling against each other here."* The moment C4 joined C1 — which agree —
+  that sentence was false. Renamed `both_bear_on`; the report says they may
+  point the same way.
+- **The round-trip test covered half the file.** The declined section was added
+  and `test_the_committed_record_round_trips` kept passing on the convictions
+  alone, which would have let every refusal be dropped on the next write with
+  nothing noticing.
+
+Two of the eight mutants in the closing pass survived the first attempt: the
+malformed-declined-entry guard had never been handed a malformed entry, and the
+portability test's own docstring tripped the absolute-path check it was written
+to run. Both were the test's fault, not the code's.
+
+**121 tests. 48 mutants planted across all passes, 48 killed.**
+
+**What is still open**, and it is one thing: `projects/REGISTER.md` holds two
+cards. Seven of the nine analytics projects and every practice-ops project are
+unadopted.

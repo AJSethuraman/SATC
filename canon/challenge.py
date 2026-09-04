@@ -101,8 +101,16 @@ def candidates(convictions: list[Conviction], decision: Decision) -> list[Challe
     return out
 
 
-def conflicts(found: list[Challenge]) -> list[tuple[Challenge, Challenge]]:
+def both_bear_on(found: list[Challenge]) -> list[tuple[Challenge, Challenge]]:
     """Pairs of convictions bearing on one decision. RESOLVED BY NOBODY HERE.
+
+    THIS WAS CALLED `conflicts`, AND THAT NAME WAS A CLAIM THE CODE CANNOT
+    MAKE. All it observes is that two convictions were both selected. Whether
+    they disagree is a judgement, and the report said flatly "two things you
+    believe are pulling against each other here" -- asserted, never checked.
+    The second the record grew two convictions that AGREE about student
+    pricing, that sentence was simply false, and the first false challenge is
+    the one that teaches somebody to stop reading them.
 
     Returned as pairs rather than a ranking, because ranking beliefs in the
     abstract is far harder than choosing between two in a real situation -- and
@@ -110,6 +118,11 @@ def conflicts(found: list[Challenge]) -> list[tuple[Challenge, Challenge]]:
     watching.
     """
     return [(a, b) for i, a in enumerate(found) for b in found[i + 1:]]
+
+
+# The old name, kept working because callers exist. Not an alias to be used in
+# new code: the name is the bug.
+conflicts = both_bear_on
 
 
 def gate(convictions: list[Conviction], decision: Decision) -> tuple[list[Challenge], str]:
@@ -132,12 +145,20 @@ def report(found: list[Challenge], clashes: list[tuple[Challenge, Challenge]]) -
     # instead, and `test_a_decision_touching_nothing_produces_nothing` holds it.
     lines: list[str] = []
     if clashes:
-        lines.append("Two things you believe are pulling against each other "
-                     "here. Both are yours; neither is resolved for you.\n")
+        # SAYS WHAT WAS OBSERVED, NOT WHAT IT WOULD BE SATISFYING TO CONCLUDE.
+        # This read "two things you believe are pulling against each other" --
+        # and nothing here checks whether they pull against each other. The
+        # moment the record grew two convictions that AGREE about student
+        # pricing, the sentence was just false, and a challenge the firm can
+        # see is false is the one that teaches them to skip the next.
+        lines.append("Two things you believe both bear on this. They may point "
+                     "the same way; if they do not, neither is settled for you "
+                     "here.\n")
         for a, b in clashes:
-            lines.append(f"  {a.conviction.id} vs {b.conviction.id} — "
+            lines.append(f"  {a.conviction.id} and {b.conviction.id} — "
                          f"{a.conviction.title}  /  {b.conviction.title}")
-        lines.append("\nHow you settle it is worth recording: it says what you "
-                     "value when it costs something.\n")
+        lines.append("\nIf they do pull against each other, how you settle it "
+                     "is worth recording: it says what you value when it costs "
+                     "something.\n")
     lines.extend(c.say() for c in found)
     return "\n\n".join(lines)
