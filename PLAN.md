@@ -340,11 +340,36 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
       The current v0.7.0 exe predates the withholding API and the `--mcp` agent mode.
 
 ### Next (pending synthesis of the five reports)
-- [ ] Triage security-audit findings; fix criticals (expect: vault encryption at rest,
-      CSRF on form routes, local API auth)
-- [ ] Triage handoff-audit blockers; write the "give this to a colleague" package
-- [ ] Compliance gap list (WISP template, §7216/AI stance) → decide what SATC must do vs document
-- [ ] Roadmap: what to build next, informed by industry table-stakes research
+
+**Three of these four were done and never ticked** — checked against the code and
+the files on 4 September 2026, not against this document. Left visible rather
+than deleted, because the fourth is real and deleting the list would have taken
+it with them.
+
+- [x] ~~Triage security-audit findings; fix criticals~~ — **superseded by Phase 0
+      above**, which is marked COMPLETE and names each fix. Verified on the code:
+      `persistence/crypto.py` (AES-256-GCM at rest), `app/server.py:79-83`
+      (rejects a cross-origin state change), `app/server.py:35,324` (binds
+      127.0.0.1, `_LOCAL_HOSTS` gate).
+- [x] ~~Triage handoff-audit blockers; write the "give this to a colleague"
+      package~~ — `satc_system/docs/QUICKSTART_WINDOWS.md` exists; Phase 1 above
+      records it as "the doc the handoff audit said was missing".
+- [x] ~~Roadmap~~ — **"Recommended roadmap"** above, synthesized 2026-07-04.
+- [ ] **The WISP. This one is real, and it is the only thing in this list that
+      is.** See the FTC Safeguards findings above: the <5,000-consumer exemption
+      waives the *written risk assessment*, the pen-test, the *written incident
+      response plan* and the annual board report — and **the WISP itself is
+      listed as NOT waived**, alongside encryption, MFA, access controls, a
+      Qualified Individual, service-provider oversight, training and secure
+      disposal. IRS Pub 5708 is a small-firm template. Nothing in this
+      repository is a WISP; searched 4 September 2026.
+
+      **Two things since 3 September make it more pressing, not less:**
+      the Forge now holds real client data rather than a test rig, and the daily
+      backup sends the vault to Microsoft — which puts a **service provider** in
+      scope, and service-provider oversight is on the non-waived list too.
+      Encryption at rest, the other non-waived item this repository owns, is
+      done.
 
 ### Decided, not yet done
 - [ ] Windows quickstart doc for Claude Desktop setup (exact config-file steps, both
