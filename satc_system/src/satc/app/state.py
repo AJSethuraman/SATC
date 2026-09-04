@@ -411,9 +411,19 @@ class AppState:
                     if result is None:
                         notes.append(f"{display} → {c.label} ({how}): {problem}")
                         continue
+                    # THE PAGE, CARRIED. Every other part of this was already
+                    # built: `ReadResult.pages` maps label -> page number,
+                    # `TextAnchorReader` anchors page by page precisely so it
+                    # can fill it, and `MapExtractor.extract` takes `pages=`.
+                    # This call did not pass it, so `SourceRef.page` was None on
+                    # every staged field and a workpaper citation read `Doc <id>`
+                    # with no page -- which is the state that let $200,000 of
+                    # wages lifted off an instructions page look identical to a
+                    # figure read off the form.
                     staged = MapExtractor(cfg).extract(
                         document_id=doc_id, client_id=client_id, tax_year=tax_year,
-                        labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+                        labeled_fields=result.labeled_fields, confidences=result.confidence_map(),
+                        pages=result.pages)
                     staged.source_path = str(path)        # retain the file for compare-to-source
                     staged.display_name = display          # local UI label; never exported
                     if parts:
