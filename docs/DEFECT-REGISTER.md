@@ -119,9 +119,15 @@ for ever, and `signing.may_file` would have gone on refusing to clear a return
 whose bill was paid. A label can be renamed by the processor; money changing
 hands cannot.
 
-**What this still does not prove:** that Square's transfer reaches the firm's
-bank. That is Square's to make, on their schedule, and no call from here can
-see it. It is the owner's to confirm once, in his own account.
+**And the owner confirmed the other end of it**, the same day: *"i got the
+notification from square that i was paid $1 i trust it."* So the money left a
+card, Square recorded it, this software read it, and Square told the firm it had
+been paid. That is the whole loop, from two independent directions.
+
+**The last inch is still not ours to see:** the transfer from Square's balance
+into the firm's bank happens on Square's schedule, and no call from here reaches
+it. Recorded as confirmed by the firm rather than measured here — which is the
+honest description of it, and enough.
 
 ### 4 September 2026 — the ladder question, settled
 
