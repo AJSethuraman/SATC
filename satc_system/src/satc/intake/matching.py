@@ -70,6 +70,52 @@ def families(text: str) -> set[str]:
     return {fam for fam, pats in _COMPILED.items() if any(p.search(blob) for p in pats)}
 
 
+# How a family is named to the firm. The keys above are storage; these are what
+# a note says out loud when a bundle is still waiting on something.
+FAMILY_LABELS: dict[str, str] = {
+    "W2": "W-2", "1099INT": "1099-INT", "1099DIV": "1099-DIV",
+    "1099B": "1099-B / brokerage", "1099G": "1099-G", "1099NEC": "1099-NEC",
+    "1099K": "1099-K", "1099R": "1099-R / retirement", "1095A": "1095-A",
+    "1098T": "1098-T", "MORTGAGE": "1098 mortgage interest",
+    "CLOSING": "closing statement", "K1": "Schedule K-1",
+    "PRIOR": "prior-year return", "STATEMOVE": "state move details",
+    "TRIALBAL": "trial balance", "MILEAGE": "mileage log", "W9": "W-9",
+    "PAYROLL": "payroll reports", "INVENTORY": "inventory",
+    "ASSET": "fixed asset detail", "FOREIGN": "foreign account details",
+    "ENGAGEMENT": "engagement letter", "ORGANIZER": "organizer",
+    "EFILE_AUTH": "signed 8879",
+}
+
+
+def name(family: str) -> str:
+    """A family as the firm reads it."""
+    return FAMILY_LABELS.get(family, family)
+
+
+def names(fams) -> str:
+    """A set of families as one readable list, in a stable order."""
+    return ", ".join(sorted(name(f) for f in fams))
+
+
+def is_bundle(*request_texts: str) -> bool:
+    """True when a request names MORE THAN ONE form.
+
+    THE BUG THIS EXISTS TO NAME. A request reading "Upload Forms 1099-INT,
+    1099-DIV and brokerage statements" was closed by the first document that
+    matched any of it: the 1099-DIV arrived, the request went Received, and the
+    1099-INT that came next found no open request to satisfy. Found in a live
+    run, 31 Aug 2026. It is the same shape as the consolidated-1099 bug the firm
+    had already paid for -- the packet reads complete while a named form is
+    still missing -- arriving from the other direction.
+    """
+    return len(families(" ".join(request_texts))) > 1
+
+
+def outstanding(request_texts, arrived) -> set[str]:
+    """Which of the families a request names have NOT arrived yet."""
+    return families(" ".join(t for t in request_texts if t)) - set(arrived or ())
+
+
 def _normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 

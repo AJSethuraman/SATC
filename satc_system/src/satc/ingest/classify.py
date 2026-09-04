@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,33 @@ class DocType:
 # chain of != so that adding a third non-verdict cannot silently pass for one.
 _NOT_A_VERDICT = frozenset({"unclassified", "not downloaded"})
 
+# Worst first, so `min(confidences, key=_CONFIDENCE_ORDER.index)` reads as what
+# it is: several pages agreeing is only as good as the least sure of them.
+_CONFIDENCE_ORDER = ["LOW", "MEDIUM", "HIGH"]
+
+# HOW MANY DISTINCT KEYWORDS A TYPE MUST MATCH before it may be a verdict at
+# all. The config's own header promises that "generic words are low so they
+# can't classify on their own" -- and that was only ever true of GENERIC words.
+# `["form w-2", 9]` against a threshold of 6 meant one occurrence of the literal
+# string "Form W-2", anywhere, classified a document as a W-2 at HIGH.
+#
+# MEASURED on the fourteen real blanks, 31 Aug 2026, counting distinct keyword
+# phrases matched by each file's winning type on its best page:
+#
+#     real forms      2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 6      (minimum 2)
+#     Schedule C      1     -- "Form W-2", "Form 1065", "Form 1040" once each,
+#                              which came back "Several forms: W-2, Schedule
+#                              K-1 (1065), Prior-year 1040"
+#
+# A document that IS a form says so more than once and in more than one way; a
+# document that MENTIONS one says it once. The two do not overlap.
+#
+# THE FAILURE DIRECTION IS DELIBERATE. A form that names itself only once now
+# comes back Unclassified, and a preparer looks at it. That is the cheap
+# mistake. Filing a Schedule C against a client's open W-2 request closes it,
+# and nobody asks for the W-2 again.
+MIN_SIGNALS = 2
+
 
 @dataclass(slots=True)
 class Classification:
@@ -139,6 +167,32 @@ class Classification:
         # first and removed: it could never fire, and a check that cannot fire
         # reads to the next person as if it were load-bearing.
         return self.key is not None
+
+    @property
+    def may_close_a_request(self) -> bool:
+        """Good enough to CLOSE a client's open request -- not merely to file it.
+
+        THE TWO ARE DIFFERENT JOBS and the pipeline used to run both off
+        `classified`. Filing a document in the wrong folder is a minute of
+        somebody's time; closing a request says the client has sent a form
+        they have not, and nobody asks for it again.
+
+        Measured 31 Aug 2026: a Schedule C named `2025 Schedule C 1040.pdf`
+        comes back `Prior-year 1040`, LOW, from the FILENAME rung -- and both
+        `state.run_intake` and `collect` handed that to `reconcile_received`,
+        which closed the client's open prior-year request. The content rung
+        had correctly declined to name it at all.
+
+        Three ways a verdict is not good enough, and each is a real case:
+          * it is not a verdict (unclassified, or never downloaded);
+          * it names SEVERAL forms, so it satisfies no single request --
+            see :attr:`multi`, which exists for a consolidated 1099;
+          * it came from the FILE'S NAME, or is LOW for any other reason. A
+            name is a hint for filing. A client's upload is called IMG_4471.pdf
+            and the one that is helpfully named is the one that misleads.
+        """
+        return (self.classified and not self.multi
+                and self.confidence != "LOW" and self.method != "filename")
 
     @property
     def classified(self) -> bool:
@@ -287,6 +341,10 @@ class DocumentClassifier:
         # Optional local-OCR text provider (path -> text); set by load_classifier
         # when Tesseract is available, so scans can be classified locally.
         self.ocr_text_provider: Any = None
+        # PAGE BY PAGE where the file has pages. The whole-file provider above
+        # stays for images and for tests that hand over plain text; this one is
+        # what lets a scan be judged by the same page rule as a text PDF.
+        self.ocr_page_text_provider: Any = None
 
     # -- construction -----------------------------------------------------
     @classmethod
@@ -381,6 +439,48 @@ class DocumentClassifier:
         return UNCLASSIFIED
 
     def _by_ocr(self, path: Path) -> Classification | None:
+        """OCR, page by page where we can, judged by the same rule as the text.
+
+        THE PROVIDER WAS POINTED AT PAGE 1 (`ocr_document_text(p, 1)`, with the
+        comment "first page is enough for typing"). On a scanned IRS document
+        page 1 is the notice, so this rung reproduced the very wrong answer the
+        text rung had just been fixed for -- and did it on TRUE SCANS, where no
+        cheaper rung is left to catch it.
+        """
+        if self.ocr_page_text_provider is not None and path.suffix.lower() == ".pdf":
+            try:
+                from pypdf import PdfReader
+
+                count = len(PdfReader(str(path)).pages)
+            except Exception:  # noqa: BLE001 - unreadable => try the whole-file rung
+                count = 0
+            if count:
+                from satc.ingest.pages import OCR_PAGE_LIMIT, is_guidance
+
+                def scanned() -> Iterator[tuple[int, str]]:
+                    for number in range(1, min(count, OCR_PAGE_LIMIT) + 1):
+                        try:
+                            text = self.ocr_page_text_provider(str(path), number)
+                        except Exception:  # noqa: BLE001 - a bad page is not the file
+                            continue
+                        if not is_guidance(text):
+                            yield number, text
+
+                # STOP AT THE FIRST PAGE THAT NAMES THE FORM, which the text
+                # rung does not do. Rasterising a page at 300 dpi and running
+                # Tesseract over it is thousands of times the cost of reading a
+                # text layer, and reading every page turned the test suite from
+                # minutes into hours.
+                #
+                # WHAT THIS GIVES UP, said plainly: a SCANNED consolidated
+                # statement that puts each form on its own page is identified by
+                # the first of them. The text rung still reads all of it, and a
+                # real consolidated 1099 is a generated PDF with a text layer,
+                # not a scan -- so this is the cheap end of a document class
+                # that barely exists. The failure it leaves is an unclosed
+                # request, not a wrongly closed one.
+                return self._verdict_over(scanned(), "ocr", stop_when_found=True)
+
         if self.ocr_text_provider is None:
             return None
         try:
@@ -413,7 +513,71 @@ class DocumentClassifier:
         return None
 
     def _by_text(self, path: Path) -> Classification | None:
-        return self.classify_text(self._page_text(path), method="text")
+        """Every form page judged on its own, and the verdicts unioned.
+
+        NOT one score over the concatenation, and NOT the best-scoring page.
+        Both were tried and measured on 31 Aug 2026:
+
+        * **Concatenating** the pages adds up evidence a page at a time, so a
+          form that merely REFERS to others collects their keywords across the
+          document and comes back as several forms.
+        * **The best-scoring page** compares scores that are not on one scale --
+          the per-type ceilings run from 17 to 38 against a shared threshold of
+          6 -- so it favours high-ceiling types; and it silently answers a
+          consolidated 1099 with whichever single form scored highest, which is
+          the partial answer :attr:`Classification.multi` exists to prevent.
+
+        Judging each page against its own thresholds has neither problem, and it
+        catches the consolidated statement that puts each form on its OWN page,
+        which no single-text rung could ever see.
+        """
+        from satc.ingest.pages import CLASSIFY_PAGE_LIMIT, form_pages
+
+        return self._verdict_over(form_pages(path)[:CLASSIFY_PAGE_LIMIT], "text")
+
+    def _verdict_over(self, pages: Iterable[tuple[int, str]], method: str,
+                      *, stop_when_found: bool = False) -> Classification | None:
+        """One verdict from many pages, each judged on its own.
+
+        ``stop_when_found`` is for the OCR rung, where reading one more page
+        costs seconds rather than milliseconds -- see :meth:`_by_ocr`.
+        """
+        labels: list[str] = []
+        confidences: list[str] = []
+        years: list[int] = []
+        evidence: list[str] = []
+        for number, text in pages:
+            verdict = self.classify_text(text, method=method)
+            if verdict is None:
+                continue
+            for label in (verdict.forms or (verdict.label,)):
+                if label not in labels:
+                    labels.append(label)
+            confidences.append(verdict.confidence)
+            if verdict.tax_year:
+                years.append(verdict.tax_year)
+            evidence.append(f"p{number}: {verdict.evidence}")
+            if stop_when_found:
+                break
+
+        if not labels:
+            return None
+
+        # THE YEAR IS A VOTE, not the first answer. A guidance page is already
+        # gone, but a form page may print a neighbouring revision date; the year
+        # the document repeats is the document's.
+        year = max(set(years), key=years.count) if years else None
+
+        if len(labels) == 1:
+            best = next(dt for dt in self.doc_types if dt.label == labels[0])
+            worst = min(confidences, key=_CONFIDENCE_ORDER.index)
+            return Classification(best.label, best.key, best.code, worst, method,
+                                  "; ".join(evidence), tax_year=year)
+
+        return Classification(
+            label="Several forms: " + ", ".join(labels), key=None, code="MULTI",
+            confidence="HIGH", method=method,
+            evidence="; ".join(evidence), forms=tuple(labels), tax_year=year)
 
     def classify_text(self, text: str, *, method: str = "text") -> Classification | None:
         """Weighted-keyword scoring over document text (shared by text + OCR rungs).
@@ -431,9 +595,9 @@ class DocumentClassifier:
                                         # punctuation the standalone-run rule needs
         scored: list[tuple[int, int, DocType]] = []
         for dt in self.doc_types:
-            score = sum(w for phrase, w in dt.keywords if phrase and phrase in norm)
-            if score > 0:
-                scored.append((score, dt.threshold or self.text_threshold, dt))
+            hits = [w for phrase, w in dt.keywords if phrase and phrase in norm]
+            if len(hits) >= MIN_SIGNALS:
+                scored.append((sum(hits), dt.threshold or self.text_threshold, dt))
         qualified = [(s, dt) for s, thr, dt in scored if s >= thr]
         if not qualified:
             return None
@@ -446,7 +610,15 @@ class DocumentClassifier:
         # Types that resolve to the same extraction key (the generic "Schedule
         # K-1" beside the specific 1120-S entry) agree with the winner rather
         # than competing, so they never count as a second form.
-        others = [(s, dt) for s, dt in qualified[1:] if dt.key != best.key]
+        # A RUNNER-UP AGREES WITH THE WINNER when it is the same form under
+        # another entry (the generic "Schedule K-1" beside the specific 1120-S
+        # one), and that is what this filter is for. It compared `key`, and
+        # `key` is ALSO the flag for "filed, not extracted" -- so all fourteen
+        # non-extractable types shared `key=None` and were read as agreeing with
+        # each other. A document that is genuinely a 1099-B *and* a 1099-MISC
+        # could never be reported as several forms. Compare on identity.
+        others = [(s, dt) for s, dt in qualified[1:] if dt.label != best.label
+                  and not (dt.key is not None and dt.key == best.key)]
         # A second form must clear its own threshold AND score a real SHARE of
         # the winner's. Clearing the floor alone is not enough: measured on the
         # real keyword weights, 30 Aug 2026 --
@@ -523,29 +695,36 @@ class DocumentClassifier:
 
     @staticmethod
     def _page_text(path: Path) -> str:
-        try:
-            from pypdf import PdfReader
+        """The document's OWN text -- guidance pages dropped, several pages deep.
 
-            reader = PdfReader(str(path))
-            if not reader.pages:
-                return ""
-            return reader.pages[0].extract_text() or ""
-        except Exception:  # noqa: BLE001 - image/scan with no text layer
-            return ""
+        THIS READ PAGE 1 AND NOTHING ELSE, and page 1 of a real IRS blank is a
+        notice about which revision to use whose worked example is 1099-NEC. A
+        1098-T, a 1099-G, a 1099-MISC and a 1099-R all came back "1099-NEC" at
+        HIGH confidence off that one page. See :mod:`satc.ingest.pages`.
+        """
+        from satc.ingest.pages import form_text
+
+        return form_text(path)
 
 
 def load_classifier(config_root: Path | None = None, *, has_key: bool | None = None
                     ) -> DocumentClassifier:
     """Convenience builder used by intake and the sorter.
 
-    Wires in the local-OCR text provider when Tesseract is available, so scanned
-    documents can be classified on-machine (first page is enough for typing).
+    Wires in the local-OCR text providers when Tesseract is available, so scanned
+    documents can be classified on-machine.
+
+    IT USED TO PASS `page=1` HERE, with the comment "first page is enough for
+    typing". That was the whole classifier bug in one argument: page 1 of a real
+    IRS document is a notice, and this rung is the one that runs on true scans,
+    where nothing cheaper is left to disagree with it.
     """
     clf = DocumentClassifier.from_config(config_root, has_key=has_key)
     from satc.settings import ocr_enabled
 
     if ocr_enabled():
-        from satc.ingest.ocr import ocr_document_text
+        from satc.ingest.ocr import ocr_document_text, ocr_pdf_page_text
 
-        clf.ocr_text_provider = lambda p: ocr_document_text(p, 1)
+        clf.ocr_text_provider = ocr_document_text          # every page, not the first
+        clf.ocr_page_text_provider = ocr_pdf_page_text
     return clf
