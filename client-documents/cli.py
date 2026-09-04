@@ -27,6 +27,7 @@ import argparse
 import html
 import datetime as _dt
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -650,6 +651,132 @@ def cmd_invoice(args) -> int:
     return 0
 
 
+def _payments_setup(args) -> int:
+    """Fill in the location id and, if asked, remember the token. Interactive.
+
+    THE FIRM, 4 September 2026: *"i can get the location and prod IDs if that's
+    what we need - i want it to be simple for me to update these figures."*
+
+    Before this, the two remaining facts were "find them in a web console, then
+    edit YAML by hand", and that produced the mistake it was always going to: on
+    2 September the firm sent an APPLICATION id instead of a LOCATION id,
+    because Square's console shows them side by side and nothing said which was
+    wanted.
+
+    NOTHING HERE IS GUESSED. The list comes from Square, and what gets written
+    is what the firm picks off that list.
+    """
+    import getpass
+    import square_setup as setup
+
+    which = "location_id" if args.production else "sandbox_location_id"
+    where = "the LIVE Square account" if args.production else "Square's test account"
+    reg = payments.settings()
+    env = ((reg.get("square") or {}).get("token_env")) or "SATC_SQUARE_TOKEN"
+
+    print("\nSetting up %s.\n" % where)
+
+    # THE ENVIRONMENT STILL WINS, so somebody who has already set it correctly
+    # is not asked again and cannot end up with two tokens that disagree.
+    from_env = os.environ.get(env, "").strip()
+    token = from_env or setup.stored_token()
+    had_one = bool(token)
+    if token:
+        print("  Using the token already available %s."
+              % ("in $" + env if from_env else "(remembered on this account)"))
+        print("  Its value is not shown, here or anywhere else.\n")
+    else:
+        print("  A Square access token is needed to ask which locations exist.")
+        print("  Square dashboard -> Developer -> your application -> Credentials.")
+        print("  Nothing is echoed as you paste it.\n")
+        try:
+            token = getpass.getpass("  Token: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Stopped. Nothing was changed.\n")
+            return 1
+        if not token:
+            print("\n  No token entered, so nothing could be looked up.\n")
+            return 1
+
+    os.environ[env] = token          # this process only; never written down
+
+    try:
+        api = payments.processor(
+            sandbox=not args.production,
+            reg={**reg, "square": {**(reg.get("square") or {}), which: "unknown"}})
+        found = api.locations()
+    except payments.PaymentError as exc:
+        print("\n  Square would not answer: %s\n" % exc)
+        print("  Nothing was written. The commonest cause is a token for the "
+              "other\n  account -- a sandbox token cannot see production "
+              "locations, nor the\n  other way round.\n")
+        return 1
+
+    if not found:
+        print("\n  This token can see NO locations at all. That is a question "
+              "for the\n  Square account, not for this software. Nothing was "
+              "written.\n")
+        return 1
+
+    print("  Square says this token can see %d location%s:\n"
+          % (len(found), "" if len(found) == 1 else "s"))
+    for n, loc in enumerate(found, 1):
+        print("    %d.  %s" % (n, loc.get("name") or "(unnamed)"))
+        print("        %s%s" % (loc.get("id"),
+                                "   " + loc["status"] if loc.get("status") else ""))
+    print()
+
+    if len(found) == 1:
+        chosen = found[0]
+        print("  Only one, so that is the one: %s\n" % chosen.get("id"))
+    else:
+        try:
+            raw = input("  Which one holds the firm's money? [1-%d] "
+                        % len(found)).strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Stopped. Nothing was changed.\n")
+            return 1
+        if not raw.isdigit() or not 1 <= int(raw) <= len(found):
+            print("\n  That is not one of the numbers offered. Nothing was "
+                  "changed.\n")
+            return 1
+        chosen = found[int(raw) - 1]
+
+    try:
+        path = setup.save_location(which, str(chosen.get("id", "")))
+    except setup.SetupError as exc:
+        print("\n  Not written: %s\n" % exc)
+        return 1
+    print("  Written to %s:  square.%s = %s" % (path.name, which, chosen.get("id")))
+    print("  Every comment in that file is untouched.\n")
+
+    # OFFERED, NEVER ASSUMED. A live payment token at rest is the owner's call
+    # and it belongs in the WISP either way.
+    if not had_one and not args.no_remember:
+        try:
+            ans = input("  Remember this token on this Windows account, sealed so "
+                        "no other\n  account on this machine can read it? [y/N] "
+                        ).strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            ans = "n"
+        if ans.startswith("y"):
+            try:
+                kept = setup.remember_token(token)
+                print("\n  Sealed into %s." % kept)
+                print("  Forget it again with:  "
+                      "python cli.py payments --forget-token\n")
+            except setup.SetupError as exc:
+                print("\n  %s\n" % exc)
+        else:
+            print("\n  Not stored. Set $%s in your shell before invoicing, or "
+                  "run this\n  again and say yes.\n" % env)
+
+    print("Now prove it end to end:")
+    print("  python cli.py payments --check%s\n"
+          % (" --production" if args.production else ""))
+    return 0
+
+
 def _payments_check(args) -> int:
     """Prove the payment path works, against the live processor, end to end.
 
@@ -734,6 +861,15 @@ def cmd_payments(args) -> int:
     """
     if getattr(args, "check", False):
         return _payments_check(args)
+    if getattr(args, "setup", False):
+        return _payments_setup(args)
+    if getattr(args, "forget_token", False):
+        import square_setup as setup
+        if setup.forget_token():
+            print("\nForgotten. %s is gone.\n" % setup.TOKEN_FILE)
+        else:
+            print("\nThere was no remembered token to forget.\n")
+        return 0
     store = Path(args.store) if args.store else engagements.STORE
     waiting = payments.outstanding(store)
     if not waiting:
@@ -2670,6 +2806,14 @@ def build_parser() -> argparse.ArgumentParser:
     pay.add_argument("--cents", type=int, default=100,
                      help="with --check: how much the check link asks for "
                           "(default 100, i.e. $1.00)")
+    pay.add_argument("--setup", action="store_true",
+                     help="ask Square which locations exist, write the one you "
+                          "pick into registry/payments.yaml, and offer to "
+                          "remember the token")
+    pay.add_argument("--no-remember", action="store_true",
+                     help="with --setup: do not offer to store the token")
+    pay.add_argument("--forget-token", action="store_true",
+                     help="delete the remembered Square token")
     pay.set_defaults(fn=cmd_payments)
 
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
