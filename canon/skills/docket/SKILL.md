@@ -1,13 +1,14 @@
 ---
 name: docket
-description: The standing check-in — what changed, what is open, and what needs the firm's decision, each with both outcomes and a recommendation. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Writes the answers back into the log.
+description: The standing check-in, published as a form the firm fills in — what changed, what is open, and every decision waiting on them with both outcomes, a recommendation, and a box to answer in. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Reads their answers back and writes them into the log.
 ---
 
 # docket
 
-A docket is the list of matters awaiting decision. That is what this produces:
-not a summary of what happened, but **the shortest thing the firm can act on**,
-with everything they do not need to act on underneath it.
+A docket is the list of matters awaiting decision, **and a place to answer
+them**. Not a summary of what happened: the shortest thing the firm can act on,
+as a page they fill in, with everything they do not need to act on underneath
+it.
 
 Behaviour 14 says keep the log where the work is. This is how the log gets read
 back out.
@@ -48,23 +49,48 @@ Every decision carries a recommendation with a one-line reason. Handing back
 three options and no opinion is handing back the work. The firm can overrule a
 recommendation in a word; they cannot overrule an absence.
 
+## It is a form, not a report
+
+**A docket is a thing you fill in.** Publish it as a page with a written answer
+field on every open decision, and give them the link. Prose in the reply is not
+a docket — it is a status update that happens to end in questions, and it makes
+the firm hold four decisions in their head and type the answers back in order.
+
+The page carries, for each decision: the context, both outcomes, the
+recommendation marked as the recommendation, quick-pick buttons for the obvious
+answers, and a free-text box for the answer that is not on the list. It saves as
+they type, so a docket half-answered at midnight is still half-answered in the
+morning.
+
+Build it with the `artifact` tool: `capabilities: {db: {}}`, one document per
+decision (`decisions/<id>`), `set` on change with a short debounce, and
+`onSnapshot` so a second device shows the same state. Load the
+`artifact-capabilities` skill before writing it rather than working from memory
+of the API.
+
+**Then go and read what they wrote.** `read_db` against the same artifact,
+collection `decisions`. An answer sitting in a store nobody reads back is worse
+than no form at all — the firm did the work and it went nowhere.
+
+**Incident:** on 4 September 2026 this skill said a docket was "prose in the
+reply", with publishing offered as a nicety for reading away from the machine.
+It produced four decisions as paragraphs. The firm: *"the docket needs to come
+as a docket, a form where i can read context you give me, have your
+recommendations, fill it out and save it for you to review."* The form was
+already built and working in that same session — for one report, by hand,
+because nothing said it was the shape.
+
 ## Then write it down
 
 When they answer, **append the answers to the log** — the decision, their words,
-and what it caused. That is what makes the next docket start from a real
-baseline instead of from a session's memory. An answer that lives only in a
-conversation has to be asked again.
+and what it caused. The form is where an answer is given; the log is where it
+lives. That is what makes the next docket start from a real baseline instead of
+from a session's memory. An answer that lives only in a conversation, or only in
+a page, has to be asked again.
 
 If an answer settles something the firm believes rather than something they want
 done, that is a conviction: draft it quoting them and take it to `bassy`.
 Nothing enters the record without an explicit yes.
-
-## Where it goes
-
-A docket is written for the person holding the screen. In the terminal that is
-prose in the reply. Where the firm would rather read it away from the machine —
-on a phone, later, or hand it to somebody else — publish it as a page and give
-them the link, and keep the answers with the work either way.
 
 ## What this is not
 
