@@ -592,9 +592,6 @@ def test_the_page_survives_the_extractor_per_field_not_per_document(tmp_path):
         f"one page was applied to every field: {by_label}")
 
 
-@pytest.mark.xfail(reason="see docs/DEFECT-REGISTER.md S3 — the page is READ but "
-                          "not carried into provenance on the merged tree",
-                   strict=True)
 def test_intake_carries_the_page_all_the_way_into_the_workpaper(tmp_path, monkeypatch):
     """THE WIRING, END TO END. Mutation testing removed the one argument that
     passes pages out of the reader and into the record, and every other test
