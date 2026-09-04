@@ -21,12 +21,18 @@ from credit_suite.sources.fred import series_seed as S
 #: cbsa -> the area code that actually appears in the published series id.
 #: Verified live 2026-09-04. Where the two differ, FHFA publishes the metro as a
 #: division; where they match, the CBSA-level series is the published one.
+#:
+#: Three metros left this table later the same day -- Washington (47900/47894),
+#: Atlanta (12060) and Tampa (45300). Their series exist and resolve, but FHFA
+#: stopped publishing them at 2024-10 while peer metros ran to 2026-04, and no
+#: successor exists. They are in `series_seed.RETIRED` with the evidence. This
+#: table is "what is published AND current", because an id that resolves to a
+#: two-year-old number is not usable data.
 VERIFIED_AREA_FOR_CBSA = {
     "35620": "35614", "31080": "31084", "16980": "16984", "19100": "19124",
-    "26420": "26420", "47900": "47894", "33100": "33124", "37980": "37964",
-    "12060": "12060", "38060": "38060", "14460": "14454", "41860": "41884",
-    "42660": "42644", "33460": "33460", "19820": "19804", "12420": "12420",
-    "40140": "40140", "45300": "45300",
+    "26420": "26420", "33100": "33124", "37980": "37964", "38060": "38060",
+    "14460": "14454", "41860": "41884", "42660": "42644", "33460": "33460",
+    "19820": "19804", "12420": "12420", "40140": "40140",
 }
 
 #: The eleven that 404'd on the live run. Kept explicit so the count is a fact in
@@ -40,6 +46,15 @@ METRO_ID = re.compile(r"^ATNHPIUS(\d{5})Q$")
 
 def metro_rows():
     return [r for r in S.all_series() if r["category"] == "hpi_metro"]
+
+
+def test_no_retired_series_is_seeded_again():
+    """Retirement has to stick. Re-adding one is easy -- the id resolves, so a
+    casual check finds nothing wrong -- and it puts a two-year-old number back
+    into a credit monitor looking current."""
+    seeded = {r["series_id"] for r in S.all_series()}
+    for sid, why in S.RETIRED.items():
+        assert sid not in seeded, "%s was retired (%s) and is seeded again" % (sid, why)
 
 
 def test_the_seed_covers_exactly_the_verified_metros():
@@ -63,11 +78,16 @@ def test_every_metro_series_id_uses_the_verified_area_code():
         )
 
 
-def test_eleven_metros_are_published_as_divisions():
+def test_ten_metros_are_published_as_divisions():
     """Guards the count itself. If a future edit quietly re-derives the ids from
     the CBSA table, every one of them matches its CBSA again and this drops to
-    zero -- which is precisely the shipped bug, so it gets its own assertion."""
-    assert len(PUBLISHED_AS_DIVISION) == 11
+    zero -- which is precisely the shipped bug, so it gets its own assertion.
+
+    Eleven when #181 was fixed; ten now. Of the three metros retired the same
+    day only Washington was a division -- Atlanta and Tampa published at CBSA
+    level -- so the count drops by one, not by three.
+    """
+    assert len(PUBLISHED_AS_DIVISION) == 10
     actual = {r["geo_segment"].split(":", 1)[1] for r in metro_rows()
               if METRO_ID.match(r["series_id"]).group(1)
               != r["geo_segment"].split(":", 1)[1]}

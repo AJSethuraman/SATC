@@ -46,6 +46,7 @@ class Mutation:
 T = "tests/test_parity.py::"
 M = "tests/test_fred_series_ids.py::"
 V = "tests/test_vba_compression.py::"
+S = "tests/test_fred_staleness.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
@@ -593,8 +594,12 @@ MUTATIONS: list[Mutation] = [
     ),
     Mutation(
         "metro-set-changed-without-a-live-check", SRC / "sources/fred/series_seed.py",
-        '    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),\n',
-        '    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),\n'
+        # Tampa was this anchor until 4 Sep 2026, when it was retired for having
+        # stopped publishing -- and the harness caught its own anchor going
+        # stale, which is the behaviour that makes "found 0" a finding rather
+        # than a nuisance.
+        '    "40140": ("40140", "Riverside-San Bernardino-Ontario, CA"),\n',
+        '    "40140": ("40140", "Riverside-San Bernardino-Ontario, CA"),\n'
         '    "41740": ("41740", "San Diego-Chula Vista-Carlsbad, CA"),\n',
         (M + "test_the_seed_covers_exactly_the_verified_metros",),
         "a metro added without confirming its id against FRED is refused",
@@ -632,6 +637,44 @@ MUTATIONS: list[Mutation] = [
         "    if len(body) >= MAX_CHUNK:",
         (V + "test_round_trips_incompressible_data",),
         "a RawChunk is emitted only at its one legal size, 4096",
+    ),
+    # ---- the publication-lag staleness rule --------------------------------
+    Mutation(
+        "staleness-ignores-the-publication-lag", SRC / "sources/fred/runner.py",
+        "    return (asof - last_obs).days > publication_lag_days + days_per * multiplier",
+        "    return (asof - last_obs).days > days_per * multiplier",
+        (S + "test_a_habitually_late_publisher_is_not_stale",),
+        "a habitually late publisher stops being flagged on every run",
+    ),
+    Mutation(
+        "staleness-multiplies-the-lag", SRC / "sources/fred/runner.py",
+        "    return (asof - last_obs).days > publication_lag_days + days_per * multiplier",
+        "    return (asof - last_obs).days > publication_lag_days * days_per * multiplier",
+        (S + "test_the_lag_is_added_not_multiplied",
+         S + "test_no_lag_leaves_the_old_behaviour_exactly"),
+        "the lag is a fixed offset, not something that scales with cadence",
+    ),
+    Mutation(
+        "staleness-lag-default-invented", SRC / "sources/fred/runner.py",
+        '        raw = self.settings.get("lag_days.%s" % (category or "").strip().lower(), 0)',
+        '        raw = self.settings.get("lag_days.%s" % (category or "").strip().lower(), 90)',
+        (S + "test_an_uncalibrated_category_reads_zero",),
+        "an uncalibrated category is unchanged, not quietly more forgiving",
+    ),
+    Mutation(
+        "staleness-junk-setting-crashes", SRC / "sources/fred/runner.py",
+        "        except ValueError:\n            return 0.0",
+        "        except ValueError:\n            raise",
+        (S + "test_a_junk_setting_reads_zero_rather_than_raising",),
+        "a typo in a config cell does not take the run down",
+    ),
+    Mutation(
+        "shipped-lag-dropped", SRC / "sources/fred/layout.py",
+        '        ["lag_days.g19", "60", "Fed G.19 consumer credit lands ~5 weeks after "\n'
+        '         "month end (observed 95 days). Limit becomes 122."],\n',
+        "",
+        (S + "test_every_category_that_was_permanently_stale_now_ships_a_lag",),
+        "a category losing its shipped lag is caught, not silently re-flagged",
     ),
 ]
 
@@ -676,17 +719,34 @@ def _pytest(node_ids: tuple[str, ...]) -> subprocess.CompletedProcess:
 
 
 def _apply(mutation: Mutation) -> bytes:
-    """Swap the target text in, byte for byte, and hand back the original bytes."""
+    """Swap the target text in and hand back the original bytes.
+
+    Matching happens on newline-NORMALISED text. The anchors here are written
+    with ``\\n``, and on a checkout where ``core.autocrlf`` rewrote the sources
+    -- Git's default on Windows -- every multi-line anchor would otherwise miss
+    and the harness could not run at all. It failed loudly rather than
+    silently, which is the right direction, but "cannot run on a fresh Windows
+    clone" is still broken. `.gitattributes` now pins these files to LF as well;
+    this is the belt to that pair of braces, because the harness is the one
+    thing that must not mis-report.
+
+    The file is written back in whatever convention it already used, so a
+    mutation never leaves a whitespace-only diff behind.
+    """
     original = mutation.path.read_bytes()
+    crlf = b"\r\n" in original
+    text = original.replace(b"\r\n", b"\n") if crlf else original
+
     old = mutation.old.encode("utf-8")
-    found = original.count(old)
+    found = text.count(old)
     if found != mutation.count:
         raise SystemExit(
             "%s: expected %d occurrence(s) of the mutation target in %s, found %d "
             "-- the code moved, so the mutation no longer proves anything"
             % (mutation.id, mutation.count, mutation.path.name, found)
         )
-    mutation.path.write_bytes(original.replace(old, mutation.new.encode("utf-8")))
+    mutated = text.replace(old, mutation.new.encode("utf-8"))
+    mutation.path.write_bytes(mutated.replace(b"\n", b"\r\n") if crlf else mutated)
     return original
 
 

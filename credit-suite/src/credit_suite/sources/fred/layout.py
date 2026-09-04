@@ -73,6 +73,22 @@ def config_rows():
         ["demo_mode", "FALSE", "TRUE = offline synthetic data (no key/network), for trying the button."],
         ["raw_slots", "100", "observations kept per series (newest-first)."],
         ["stale_multiplier", "2.0", "flag a series stale if older than this x its cadence."],
+        # How late each publisher normally runs, in days, ADDED to the cadence
+        # allowance above. Calibrated against what the publishers actually did
+        # on 2026-09-04, not from their marketing copy: the observed age of the
+        # newest observation is in each note. Without these, 26 of 146 series
+        # were flagged stale on every single run and the flag stopped meaning
+        # anything. A category with no entry here gets zero and behaves as before.
+        ["lag_days.hpi_caseshiller", "60", "Case-Shiller reports a month ~2 months "
+         "after it ends (observed 95 days). Limit becomes 122."],
+        ["lag_days.hpi_national", "60", "Same Case-Shiller release cadence "
+         "(observed 95 days). Limit becomes 122."],
+        ["lag_days.g19", "60", "Fed G.19 consumer credit lands ~5 weeks after "
+         "month end (observed 95 days). Limit becomes 122."],
+        ["lag_days.dsr", "75", "Fed household debt-service ratios land ~2.5 "
+         "months after quarter end (observed 246 days). Limit becomes 259."],
+        ["lag_days.cre_price", "75", "Z.1 Financial Accounts land ~2.5 months "
+         "after quarter end (observed 246 days). Limit becomes 259."],
         ["fred_min_interval", "0.6", "seconds between FRED requests (FRED allows ~120/min; keep >=0.5)."],
         ["fred_max_retries", "4", "retries with backoff if FRED returns a rate-limit error."],
         ["fred_vintage", "", "OPTIONAL YYYY-MM-DD: pin FRED realtime to reproduce a past "

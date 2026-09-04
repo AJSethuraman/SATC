@@ -91,3 +91,23 @@ pre-consolidation FRED shipped golden is untouched — it still pins the shape.
 Re-banking now runs through `monitorbuild.built_monitor`, not
 `capture_baselines.py`: the legacy runners that tool drives were deleted by the
 migration, so it can no longer produce a FRED baseline.
+
+### `fred-demo.json`, 2026-09-04 (second re-bank) — staleness + retired series
+
+Two approved changes in one build, both of which move cells by design:
+
+1. **Five series retired.** `FODSP` (FRED marks it DISCONTINUED, last published
+   July 2023), `COMREPUSQ159N` (stalled April 2025; superseded by
+   `BOGZ1FL075035503Q`, already in the seed), and three FHFA metro house-price
+   series stalled at October 2024 — Washington, Atlanta and Tampa. Each was
+   checked against the FRED `series` endpoint for a live successor; none exists.
+   The seed count goes 147 → 142. The reasons live in `series_seed.RETIRED`
+   rather than only here, because the next person extending that file is exactly
+   who needs them.
+
+2. **A publication-lag allowance per category**, added to `[SETTINGS]` as
+   `lag_days.<category>`. That adds rows to the `_config` tab, which moves
+   everything below them.
+
+The golden was confirmed to DETECT both before it was re-banked. The
+pre-consolidation FRED shipped golden is untouched.

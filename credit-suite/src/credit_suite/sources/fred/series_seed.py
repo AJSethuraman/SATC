@@ -99,9 +99,6 @@ CONSUMER = [
     row("CDSP", "Consumer Debt Service Payments as % of Disposable Income", "dsr", "consumer", "ratio",
         "quarterly", "SA", "percent", "ratio", "national", True, False, "level", "none",
         "Methodology break 2024:Q2 (credit-bureau)."),
-    row("FODSP", "Financial Obligations Ratio (discontinued)", "dsr", "consumer", "ratio",
-        "quarterly", "SA", "percent", "ratio", "national", False, False, "level", "none",
-        "DISCONTINUED after 2023:Q3 -- documented-dead, do not pull live."),
     # SLOOS consumer diffusion
     _sloos("DRTSCLCC", "Net % Banks Tightening Standards for Credit Card Loans", "consumer"),
     _sloos("STDSAUTO", "Net % Banks Tightening Standards for Auto Loans", "consumer"),
@@ -157,9 +154,6 @@ PRICE_NATIONAL = [
     row("BOGZ1FL075035503Q", "Z.1 Commercial Real Estate Value (Nonfinancial Corporate), Level", "cre_price",
         "price", "level", "quarterly", "NSA", "millions $", "level", "national", True, False, "level", "none",
         "DOLLAR LEVEL, not a 2000=100 index -- never apply index_to_pct."),
-    row("COMREPUSQ159N", "Commercial Real Estate Prices for United States (YoY %)", "cre_price", "price",
-        "rate", "quarterly", "NSA", "percent (YoY)", "rate", "national", True, False, "level", "none",
-        "Already expressed as YoY % -- passthrough, do not re-difference."),
     row("BOGZ1FL075035403Q", "Z.1 Multifamily Residential Real Estate Value, Level", "cre_price", "price",
         "level", "quarterly", "NSA", "millions $", "level", "national", True, False, "level", "none",
         "DOLLAR LEVEL, not an index -- never apply index_to_pct."),
@@ -209,10 +203,8 @@ CBSAS = {
     "16980": ("16984", "Chicago-Naperville-Evanston, IL (div)"),
     "19100": ("19124", "Dallas-Plano-Irving, TX (div)"),
     "26420": ("26420", "Houston-The Woodlands-Sugar Land, TX"),
-    "47900": ("47894", "Washington-Arlington-Alexandria, DC-VA-MD-WV (div)"),
     "33100": ("33124", "Miami-Miami Beach-Kendall, FL (div)"),
     "37980": ("37964", "Philadelphia, PA (div)"),
-    "12060": ("12060", "Atlanta-Sandy Springs-Alpharetta, GA"),
     "38060": ("38060", "Phoenix-Mesa-Chandler, AZ"),
     "14460": ("14454", "Boston, MA (div)"),
     "41860": ("41884", "San Francisco-San Mateo-Redwood City, CA (div)"),
@@ -221,7 +213,23 @@ CBSAS = {
     "19820": ("19804", "Detroit-Dearborn-Livonia, MI (div)"),
     "12420": ("12420", "Austin-Round Rock-Georgetown, TX"),
     "40140": ("40140", "Riverside-San Bernardino-Ontario, CA"),
-    "45300": ("45300", "Tampa-St. Petersburg-Clearwater, FL"),
+}
+
+#: Series REMOVED because the publisher stopped, verified against the FRED
+#: `series` endpoint on 2026-09-04. Kept as a record rather than deleted, for the
+#: same reason issue #181 existed: the next person to extend this file will be
+#: tempted to derive the list from a CBSA table or an old note, and re-add
+#: exactly these. Each was checked for a live successor; where one exists it is
+#: named. Re-add only after confirming the id returns data.
+RETIRED = {
+    "FODSP":          "FRED marks it DISCONTINUED; last observation 2023-07. No successor.",
+    "COMREPUSQ159N":  "Stalled at 2025-04. Superseded by BOGZ1FL075035503Q, already seeded.",
+    "ATNHPIUS47894Q": "Washington DC division; stalled at 2024-10. No successor "
+                      "(43524 stops 2018, 13644 stops 2013).",
+    "ATNHPIUS12060Q": "Atlanta; stalled at 2024-10 while peer metros run to 2026-04. "
+                      "No successor.",
+    "ATNHPIUS45300Q": "Tampa; stalled at 2024-10 while peer metros run to 2026-04. "
+                      "No successor.",
 }
 
 # Case-Shiller 20-city components (seasonally adjusted, *XRSA).
