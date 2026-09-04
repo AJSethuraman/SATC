@@ -36,7 +36,7 @@ square:
   # an easy and entirely reasonable mistake because the console shows them
   # side by side. `python cli.py payments --check` now asks Square for the
   # location list and prints the ids by name, so nobody has to go and look.
-  location_id: "[CONFIRM: the location id (L...) — run `payments --check --production` with the live token set and it will print yours]"
+  location_id: "LHW8CYHKQKH5A"
 
   # TWO LOCATIONS, BECAUSE SQUARE GIVES YOU TWO. The sandbox is a separate
   # account with its own locations, so the production location id names nothing
