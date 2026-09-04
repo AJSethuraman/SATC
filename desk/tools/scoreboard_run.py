@@ -1,0 +1,567 @@
+"""The adapter and the script: put 21 problems to two brains and grade both.
+
+MEASURED, NEVER ASSERTED. Nothing here is imported by a test and nothing here
+gates CI. `scoreboard.py` says why: "a non-deterministic run cannot gate a build
+without either flaking or being weakened until it proves nothing." This is a
+script run at the desk, and its output is committed as a record.
+
+WHAT THE MODEL IS SHOWN, AND WHY THE LIST IS SHORT. `build_prompt` composes
+exactly three things: the desk's sources (id, title, tier, citation prefix), the
+citation strings the desk holds, and `problem.facts`. It is a whitelist rather
+than a "don't include" comment, because the leak `extract_ecfr.py` closed over
+eight review rounds reopens the moment an adapter passes
+`desk.passage(problem.citation).text` in as helpful context -- the stored
+authority is the same regulation example COMPLETE, conclusion included.
+`problem.title` is withheld for the same reason: several titles name the outcome.
+`check_no_leak` re-reads the finished prompt and raises, so the whitelist is a
+mechanism rather than a promise (rule 6: policy at the choke point).
+
+THE ONE THING DISCLOSED ON PURPOSE. The engine compares a position to the known
+one exactly, normalised for case and space only, so a desk that phrases its
+conclusion differently scores `wrongly_absorbed` -- the single number that costs
+anything -- for punctuation. So the prompt names the desk's admissible
+conclusions, derived from the record rather than typed here. That discloses that
+the answer space is binary. It discloses nothing about WHICH, and the 57%
+baseline in PROBLEMS.md already assumes a reader who knows the space. It is
+stated in the run's notes because a disclosure nobody wrote down is a leak.
+
+NOTHING IS REPAIRED ON THE WAY BACK. `parse_reply` strips the transport -- a
+reasoning block, a code fence -- and reads the fields verbatim. It never maps a
+near-miss conclusion onto an admissible one and never repairs a citation against
+the index. If the model will not cite, that is `no_citation` and the engine says
+so. Rule 10: a scoreboard that tidies the answer is measuring the tidier.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from engine import REASONS, Answer                       # noqa: E402
+from record import Desk, Problem                         # noqa: E402
+
+
+class AdapterGaveUp(Exception):
+    """The brain returned nothing usable at all.
+
+    Raised rather than answered, because `scoreboard.run` turns an exception into
+    an escalation with reason `model_gave_up` and keeps the denominator. Rule 9:
+    the give-up tail is accepted and made harmless, not prompted away.
+    """
+
+
+# -- what the model is shown --------------------------------------------------
+
+#: The escalation reasons a brain may choose. A subset of `engine.REASONS` on
+#: purpose: the two fetch reasons describe our egress and the source's origin,
+#: neither of which the thing answering can observe, and `model_gave_up` is the
+#: harness's word for an abandoned run, not a choice.
+OFFERABLE = ("authority_absent", "authority_permits_choice", "no_citation",
+             "citation_does_not_support")
+
+_TEMPLATE = """\
+You are a desk. You answer only from the authority listed below, and you cite it.
+
+SOURCES YOU MAY RELY ON
+{sources}
+
+AUTHORITY THIS DESK HOLDS. Cite exactly one of these strings, copied verbatim.
+Nothing outside this list resolves, and an answer whose citation does not resolve
+is refused before it reaches anyone.
+{citations}
+
+THE FACTS
+{facts}
+
+REPLY WITH ONE JSON OBJECT AND NOTHING ELSE:
+{{"position": "<exactly one of: {positions}>",
+ "citation": "<one line copied verbatim from the list above>",
+ "escalated": false,
+ "reason": "",
+ "working": "<one or two sentences: why that conclusion, from that authority>"}}
+
+If the authority above does not settle it, do not guess. Reply with the same
+object, "escalated": true, an empty "citation", and "reason" set to exactly one
+of: {reasons}. Declining is a success here; a guess that cites nothing is not.
+"""
+
+
+def build_prompt(problem: Problem, desk: Desk) -> str:
+    """Compose the only thing the brain sees. A whitelist, and a short one."""
+    sources = "\n".join(
+        f'{s.id} - {s.title} - tier: {s.tier} - citations begin "{s.citation_prefix}"'
+        for s in desk.sources
+    )
+    citations = "\n".join(f"  {c}" for c in citation_index(desk))
+    prompt = _TEMPLATE.format(
+        sources=sources,
+        citations=citations,
+        facts=problem.facts,
+        positions=" | ".join(admissible(desk)),
+        reasons=", ".join(OFFERABLE),
+    )
+    check_no_leak(prompt, problem, desk)
+    return prompt
+
+
+def citation_index(desk: Desk) -> list[str]:
+    """The citations the desk holds, sorted so the order carries no signal.
+
+    File order is the order the examples appear in the regulation, which is the
+    order the problems are in -- so an unsorted index would pair the nth problem
+    with the nth line and hand over the answer by position.
+    """
+    return sorted({p.citation for p in desk.passages})
+
+
+def admissible(desk: Desk) -> list[str]:
+    """The conclusions this desk can state, read off the record, not typed here.
+
+    Typed here it would be a second copy of the answer vocabulary, free to drift
+    from the one the engine grades against -- and the drift would show up as
+    `wrongly_absorbed`, which is the number that must never be manufactured.
+    """
+    return sorted({p.answer for p in desk.problems})
+
+
+class Leak(Exception):
+    """Something the brain must not see reached the prompt."""
+
+
+def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
+    """Re-read the finished prompt for the three things it must never carry.
+
+    A whitelist that is only enforced by how the template was written is a
+    convention; this is the gate. It checks the OUTPUT rather than the inputs,
+    so a future edit that adds a helpful line is caught by the same code.
+    """
+    passage = desk.passage(problem.citation)
+    if passage is not None and _bare(passage.text) in _bare(prompt):
+        raise Leak(
+            f"{problem.id}: the prompt carries the stored passage for its own "
+            f"citation. That text is the regulation example COMPLETE, conclusion "
+            f"included; showing it makes the problem a reading exercise"
+        )
+    if _bare(problem.title) in _bare(prompt):
+        raise Leak(
+            f"{problem.id}: the prompt carries the problem's title "
+            f"({problem.title!r}); several titles name the outcome"
+        )
+    # The answer may appear only where the template lists the admissible
+    # conclusions, once per conclusion. Anywhere else it is the answer key.
+    if _bare(prompt).count(_bare(problem.answer)) > 1:
+        raise Leak(
+            f"{problem.id}: {problem.answer!r} appears in the prompt outside the "
+            f"list of admissible conclusions"
+        )
+
+
+def _bare(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+# -- what comes back ----------------------------------------------------------
+
+_THINK = re.compile(r"<think>.*?</think>", re.S)
+_FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.S)
+
+
+def parse_reply(raw: str) -> Answer:
+    """Read the fields verbatim. Strip the transport; repair nothing else.
+
+    A reply that is not JSON is not an error to be fixed here. It becomes an
+    Answer with the model's words as its position and no citation, which the
+    engine refuses as `no_citation` -- which is the true outcome, and the one a
+    tolerant parser would have hidden.
+    """
+    body = _THINK.sub("", raw).strip()
+    if not body:
+        raise AdapterGaveUp("empty reply")
+    if (fence := _FENCE.search(body)) is not None:
+        body = fence.group(1).strip()
+
+    obj = _first_object(body)
+    if obj is None:
+        return Answer(position=body, working=raw)
+
+    escalated = bool(obj.get("escalated"))
+    reason = str(obj.get("reason") or "").strip()
+    if escalated and reason not in REASONS:
+        # An unrecognised reason is not an escalation the engine can count, and
+        # inventing one for it would be the scoreboard answering for the model.
+        # It becomes an ordinary answer and is graded on what it cited.
+        escalated = False
+        reason = ""
+    return Answer(
+        position=str(obj.get("position") or "").strip(),
+        citation=str(obj.get("citation") or "").strip(),
+        escalated=escalated,
+        reason=reason if escalated else "",
+        working=str(obj.get("working") or "").strip() or raw.strip(),
+    )
+
+
+def _first_object(text: str) -> dict | None:
+    """The first balanced {...} that loads as an object. No repairs."""
+    for start in (i for i, ch in enumerate(text) if ch == "{"):
+        depth, in_str, esc = 0, False, False
+        for i in range(start, len(text)):
+            ch = text[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        break
+                    return obj if isinstance(obj, dict) else None
+    return None
+
+
+# -- the two brains -----------------------------------------------------------
+
+OLLAMA = "http://127.0.0.1:11434/api/chat"
+
+
+def ollama(model: str, prompt: str, *, num_ctx: int, timeout: int = 900) -> str:
+    """One call to the local model. Raises, so the harness counts a give-up.
+
+    `num_ctx` is passed rather than defaulted because rule 1 is the first
+    constraint on this box: 8 GB of VRAM is an 8,192-token window, and a request
+    that exceeds it does not error -- it silently drops the front of the prompt,
+    which on this desk is the instruction to cite.
+
+    Thinking is off. qwen3 emits its reasoning into the same window it must
+    answer from, and the window is the budget. That is a deliberate configuration
+    of this run and is recorded in its notes, not a fact about the model.
+    """
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "think": False,
+        "options": {"temperature": 0, "seed": 0, "num_ctx": num_ctx,
+                    "num_predict": 512},
+    }).encode()
+    req = urllib.request.Request(
+        OLLAMA, data=payload, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = json.loads(r.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError,
+            json.JSONDecodeError) as exc:
+        raise AdapterGaveUp(f"{model}: {type(exc).__name__}: {exc}") from exc
+    return body.get("message", {}).get("content", "")
+
+
+def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int):
+    """`ask(problem) -> Answer` backed by the local model, keeping every reply."""
+    transcript.parent.mkdir(parents=True, exist_ok=True)
+    transcript.write_text("", encoding="utf-8")
+
+    def ask(problem: Problem) -> Answer:
+        prompt = build_prompt(problem, desk)
+        try:
+            raw = ollama(model, prompt, num_ctx=num_ctx)
+        except AdapterGaveUp as exc:
+            _log(transcript, problem, prompt, "", str(exc))
+            raise
+        _log(transcript, problem, prompt, raw, "")
+        return parse_reply(raw)
+
+    return ask
+
+
+def replay_adapter(desk: Desk, replies: dict, transcript: Path):
+    """`ask(problem) -> Answer` reading replies a brain already produced.
+
+    The frontier row is obtained this way: the prompts `build_prompt` composes
+    are written out, answered, and read back through the SAME parser the local
+    model's replies go through. Two brains graded by one code path, which is the
+    only way the gap between the rows means anything.
+    """
+    transcript.parent.mkdir(parents=True, exist_ok=True)
+    transcript.write_text("", encoding="utf-8")
+
+    def ask(problem: Problem) -> Answer:
+        prompt = build_prompt(problem, desk)
+        raw = replies.get(problem.id)
+        if raw is None:
+            _log(transcript, problem, prompt, "", "no reply recorded")
+            raise AdapterGaveUp(f"{problem.id}: no reply recorded")
+        _log(transcript, problem, prompt, raw, "")
+        return parse_reply(raw)
+
+    return ask
+
+
+def _log(path: Path, problem: Problem, prompt: str, raw: str, error: str) -> None:
+    """Every exchange, verbatim, appended as it happens.
+
+    Written per call rather than at the end so an abandoned run still leaves the
+    evidence of how far it got -- which is the only thing that tells a give-up
+    apart from a crash.
+    """
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"problem": problem.id, "prompt": prompt,
+                             "reply": raw, "error": error}) + "\n")
+
+
+# -- the script ---------------------------------------------------------------
+
+def watched(ask, seen: dict):
+    """Keep the Answer each call produced, so the run can be described later.
+
+    THIS IS NOT WHERE THE SCORE COMES FROM. Rule 10: every reported outcome is
+    read off the `Result` objects the engine produced. These Answers back one
+    supplementary diagnostic -- how often the conclusion was right while the
+    citation was not -- which is a fact about the record and the engine's own
+    comparison, never about what the model claimed for itself.
+    """
+    def ask_and_keep(problem: Problem) -> Answer:
+        answer = ask(problem)
+        seen[problem.id] = answer
+        return answer
+    return ask_and_keep
+
+
+def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> int:
+    """Keep every answer the engine would not serve, with its reasoning.
+
+    Refused means `wrong_caught` or `escalated`: those are the outcomes where
+    `serve()` hands back a Refusal. A `wrongly_absorbed` answer was served -- it
+    is a scoreboard finding, not a queue entry, and putting it here would say the
+    desk had caught something it did not.
+    """
+    from engine import Outcome
+    import unsupported
+
+    refused = 0
+    problems = {p.id: p for p in desk.problems}
+    for result in run.results:
+        if result.outcome not in (Outcome.WRONG_CAUGHT, Outcome.ESCALATED):
+            continue
+        answer = answers.get(result.problem_id)
+        if answer is None:                 # the harness caught a give-up
+            answer = Answer(position="", escalated=True, reason=result.reason)
+        unsupported.append(path, unsupported.from_refusal(
+            problems[result.problem_id].facts, answer, result, model=run.model,
+            existing=unsupported.parse(path.read_text(encoding="utf-8"))
+            if path.exists() else [],
+        ))
+        refused += 1
+    return refused
+
+
+def diagnostic(desk: Desk, run, answers: dict) -> dict:
+    """One cross-tab the four outcomes cannot show, and it matters here.
+
+    `grade` refuses a citation that is real authority but not this question's
+    BEFORE it ever compares the conclusion. So a desk that reasons correctly and
+    cannot name the right worked example lands in `wrong_caught`, and the
+    scoreboard cannot tell that apart from a desk that was simply wrong. That is
+    the engine behaving exactly as designed -- an answer without its own
+    authority behind it has not earned to be called right -- but it means
+    `wrongly_absorbed` is structurally suppressed, and a reader should be told
+    by how much rather than left to assume the desk was clean.
+
+    Read from the record and the engine's own comparison. Never from prose.
+    """
+    from engine import _same
+
+    problems = {p.id: p for p in desk.problems}
+    right_position = sum(
+        1 for pid, a in answers.items()
+        if not a.escalated and _same(a.position, problems[pid].answer))
+    right_citation = sum(
+        1 for pid, a in answers.items()
+        if not a.escalated and a.citation.strip() == problems[pid].citation)
+    off_index = sum(
+        1 for pid, a in answers.items()
+        if not a.escalated and a.citation.strip()
+        and a.citation.strip() not in citation_index(desk))
+    return {
+        "answered": sum(1 for a in answers.values() if not a.escalated),
+        "position_matched": right_position,
+        "citation_matched": right_citation,
+        "citation_off_index": off_index,
+        "gave_up": run.gave_up,
+    }
+
+
+def constant_control(desk: Desk) -> dict:
+    """What answering the same thing every time scores. Computed, never typed.
+
+    PROBLEMS.md states that always giving the most common conclusion agrees with
+    12 of 21, and that is the number a run has to beat before it has shown
+    anything. It is a fact about the CONCLUSIONS, not about this scoreboard: put
+    through the engine, a constant answer cites nothing and scores zero correct,
+    because an answer with no resolvable citation never counts as correct. Both
+    numbers belong beside the result, and a reader given only one of them will
+    draw the wrong conclusion from either.
+    """
+    from collections import Counter
+    from engine import Answer, grade, tally
+
+    conclusion, agrees = Counter(
+        p.answer for p in desk.problems).most_common(1)[0]
+    graded = [grade(Answer(position=conclusion), p, desk) for p in desk.problems]
+    return {"conclusion": conclusion, "agrees_with": agrees,
+            "of": len(desk.problems), "through_the_engine": tally(graded)}
+
+
+def _replies(path: str) -> dict:
+    """Replies keyed by problem id, from a plain map or from a transcript.
+
+    A run's own `.jsonl` transcript is accepted so a committed record can be
+    regraded from the evidence it shipped with -- which is the difference
+    between a scoreboard a reader can check and one they have to believe.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    if path.endswith(".jsonl"):
+        rows = [json.loads(l) for l in text.splitlines() if l.strip()]
+        return {r["problem"]: r["reply"] for r in rows if r["reply"]}
+    return json.loads(text)
+
+
+def _main(argv: list[str]) -> int:
+    import argparse
+    from datetime import date
+
+    import scoreboard
+    from record import load
+
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--desk", default=str(ROOT / "desks" / "fixed-assets"))
+    ap.add_argument("--out", default="")
+    ap.add_argument("--dump-prompts", default="",
+                    help="write the prompts for a brain answered elsewhere")
+    ap.add_argument("--forge-model", default="qwen3:8b")
+    ap.add_argument("--num-ctx", type=int, default=8192)
+    ap.add_argument("--skip-forge", action="store_true")
+    ap.add_argument("--forge-replies", default="",
+                    help="grade a recorded local run instead of calling the "
+                         "model again; the record regenerates from its own "
+                         "transcript, and re-running the scoreboard never "
+                         "re-rolls the dice")
+    ap.add_argument("--frontier-replies", default="")
+    ap.add_argument("--frontier-label", default="frontier")
+    ap.add_argument("--notes", default="",
+                    help="a file of what was NOT checked, one per line")
+    args = ap.parse_args(argv)
+
+    desk = load(Path(args.desk))
+
+    if args.dump_prompts:
+        out = Path(args.dump_prompts)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(
+            {p.id: build_prompt(p, desk) for p in desk.problems},
+            indent=2), encoding="utf-8")
+        print(f"{len(desk.problems)} prompts -> {out}")
+        return 0
+
+    out_dir = Path(args.out or ROOT / "desks" / desk.name / "runs"
+                   / date.today().isoformat())
+    out_dir.mkdir(parents=True, exist_ok=True)
+    queue_dir = Path(args.desk) / "unsupported"
+
+    runs, answers, queues, diags = [], {}, {}, {}
+
+    if not args.skip_forge:
+        label = f"{args.forge_model} (Forge)"
+        seen: dict = {}
+        if args.forge_replies:
+            backend = replay_adapter(desk, _replies(args.forge_replies),
+                                     out_dir / "forge-regraded.jsonl")
+        else:
+            backend = forge_adapter(desk, args.forge_model,
+                                    out_dir / "forge.jsonl",
+                                    num_ctx=args.num_ctx)
+        ask = watched(backend, seen)
+        r = scoreboard.run(desk, ask, model=label)
+        runs.append(r)
+        answers[label], seen = seen, {}
+        diags[label] = diagnostic(desk, r, answers[label])
+        queues[label] = queue_refusals(
+            desk, r, answers[label], queue_dir / "forge.md")
+
+    if args.frontier_replies:
+        label = args.frontier_label
+        replies = _replies(args.frontier_replies)
+        seen = {}
+        ask = watched(replay_adapter(desk, replies,
+                                     out_dir / "frontier.jsonl"), seen)
+        r = scoreboard.run(desk, ask, model=label)
+        runs.append(r)
+        answers[label] = seen
+        diags[label] = diagnostic(desk, r, answers[label])
+        queues[label] = queue_refusals(
+            desk, r, answers[label], queue_dir / "frontier.md")
+
+    notes = [ln.strip() for ln in
+             Path(args.notes).read_text(encoding="utf-8").splitlines()
+             if ln.strip()] if args.notes else []
+    control = constant_control(desk)
+
+    lines = [scoreboard.render(runs, notes=notes), ""]
+    lines.append("BASELINE, BESIDE THE RESULT AND NOT BELOW IT:")
+    lines.append(f"  answering {control['conclusion']!r} every time agrees with "
+                 f"{control['agrees_with']} of {control['of']} conclusions "
+                 f"({control['agrees_with'] * 100 // control['of']}%),")
+    lines.append(f"  and through the engine scores "
+                 f"{control['through_the_engine']['correct']} correct: a "
+                 f"constant answer cites nothing.")
+    lines.append("")
+    lines.append("gap (correct): " + ", ".join(
+        f"{k} {v}" for k, v in scoreboard.gap(runs).items()))
+    lines.append("")
+    lines.append("DIAGNOSTIC -- not one of the four outcomes, and not a score:")
+    for label, d in diags.items():
+        lines.append(f"  {label}: conclusion matched {d['position_matched']}/"
+                     f"{len(desk.problems)}, citation matched "
+                     f"{d['citation_matched']}/{len(desk.problems)}, "
+                     f"cited outside the index {d['citation_off_index']}, "
+                     f"gave up {d['gave_up']}")
+    lines.append("")
+    lines.append("UNSUPPORTED QUEUE (entries this run produced):")
+    for label, n in queues.items():
+        lines.append(f"  {label}: {n}")
+    body = "\n".join(lines)
+    print(body)
+    (out_dir / "SCOREBOARD.txt").write_text(body + "\n", encoding="utf-8")
+
+    (out_dir / "outcomes.json").write_text(json.dumps({
+        r.model: {"counts": r.counts, "gave_up": r.gave_up,
+                  "results": [{"problem": x.problem_id,
+                               "outcome": x.outcome.value,
+                               "reason": x.reason, "detail": x.detail}
+                              for x in r.results],
+                  "diagnostic": diags[r.model],
+                  "queued": queues[r.model]}
+        for r in runs}, indent=2), encoding="utf-8")
+    print(f"\nengine state -> {out_dir / 'outcomes.json'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main(sys.argv[1:]))
