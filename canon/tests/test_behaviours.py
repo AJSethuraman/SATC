@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_thirteen_are_here_and_numbered_without_a_gap():
+def test_all_fourteen_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 14)]
-    assert "Thirteen behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 15)]
+    assert "Fourteen behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -104,7 +104,10 @@ def test_these_are_distinguished_from_the_tenets():
 # ── every skill that reads the record says where the record is ────────────
 
 READS_THE_RECORD = ("bassy", "canon-mine", "canon-adopt")
-RUNS_NO_RECORD = ("how-we-work",)
+# docket reads the repository's own log and state, never the record — it
+# hands anything conviction-shaped to bassy rather than reading or writing
+# CONVICTIONS.md itself, which is what keeps it on this side of the list.
+RUNS_NO_RECORD = ("how-we-work", "docket")
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
