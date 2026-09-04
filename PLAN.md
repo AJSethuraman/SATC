@@ -434,6 +434,30 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-04 — An agent reads what the firm pays for; it does not route around a
+  block.** Standing rule for any agent of this practice that reaches the web, recorded
+  while specifying expert desks (issue #231). Three parts, and the first is the one that
+  matters:
+
+  **A different client is not a different permission.** Verified in a cloud session the
+  same day: Chromium is pre-installed and `no_proxy` covers only localhost, the Anthropic
+  API and package registries, so a browser's traffic goes through the same egress proxy
+  that refused `asc.fasb.org`. Chrome gets the identical refusal. Where a host is blocked
+  by policy the fix is the allowlist, never a different tool — which is also the agent
+  proxy's own instruction: *"Do not retry or route around it — report the blocked host."*
+
+  **Reading a subscription is not scraping, and the two must not be blurred.** A browser
+  signed into ASC Professional View or Checkpoint, reading content the firm pays for, is
+  using what it bought. Pointing the same browser at a site that forbids automated access
+  is a different act, and running it from the firm's own machine does not convert one into
+  the other. So: an explicit per-source allowlist, sign-in only where a subscription is
+  held, and a refusal rather than a workaround everywhere else.
+
+  **Reading grants no storage right.** A licensed source stays uncacheable whatever client
+  read it — the citation and tier are recorded, the text is not. And credentials never
+  enter a repository in any form, which is the strongest argument for this running on the
+  Forge rather than in a cloud container.
+
 - **2026-09-04 — Expert desks: the mechanism is the deliverable, one desk is the
   proof.** Grilled this session; spec in `docs/prd-expert-desks.md`. A *desk* is an
   expert a doer agent consults so a question does not reach the firm — it answers only
