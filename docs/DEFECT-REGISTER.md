@@ -22,9 +22,23 @@ belongs in a question to the firm, not in a register that reads as fact.
 
 ## Open
 
-*(Nothing. All fourteen from the 3 September interview triage are closed —
-thirteen raised by the review and F14 split out of F1 when its first fix turned
-out to be partial. New entries go here as they are reproduced.)*
+| # | Defect | Costs | State |
+|---|---|---|---|
+| **S1** | `claude/satc-handoff-batches-2-4-...` carries `satc_system` work written against the data model PR #171 replaced. **13 files there still reference `DocumentRecord`**, which the schema reset retired; main has 3, two of them a doc and a test. Merging main in throws 11 files / 20 hunks, `persistence/store.py` alone accounting for 8 | a schema port, not a merge | **open** — split out of #162 on 3 September so the finished interview work could land without it |
+
+**What this needs, when it is picked up.** Not conflict resolution: a decision
+per file about which lineage wins, then the suite, then the app driven by hand.
+The two models are `DocumentRecord` (old, on that branch) and `RequestedItem`
+(new, on main). Precedent for how to do it is in the #171 merge commit — main's
+year-filter test was ported to the new entity rather than either version being
+discarded, and the property it guarded was kept intact.
+
+**What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
+`satc-handoff/` had zero conflicts and shipped separately in PR #172.
+
+All fourteen from the 3 September interview triage are closed — thirteen raised
+by the review and F14 split out of F1 when its first fix turned out to be
+partial.
 
 ## Closed — the client interview, raised 3 September 2026
 
