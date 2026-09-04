@@ -167,9 +167,16 @@ brief.
 
 **`canon` and `desk` were not in `CLAUDE.md`.** Canon had **zero mentions** in
 the file every session reads first, and `desk` — 43 files, 174 tests, arrived
-that day across five pull requests — none. Both added. The repository map going
-stale is the failure `docs/REPO-INVENTORY.md` exists for, and it had happened
-again in the file above it.
+that day across five pull requests — none. Both added.
+
+The firm corrected the desk entry as it was being written: *"some of the stuff
+you are reading and is in-process under design by another session - such as
+desk"*. The row was rewritten to say so. **A map entry written from a README by
+a session that does not own the design is a pointer, not a specification**, and
+one that reads as settled is worse than none — the next session would build
+against a description that is still moving. The repository map going stale is
+the failure `docs/REPO-INVENTORY.md` exists for; a map that is confidently wrong
+about live work is the same failure arriving faster.
 
 **BitLocker** — *"Remind me in a week"*. A cloud routine fires 11 September at
 10:00, carrying the steps and the recovery-key warning. `CronCreate` was the
