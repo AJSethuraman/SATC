@@ -41,3 +41,68 @@ def _no_desktop_outlook(monkeypatch):
         lambda **kw: email_draft.DraftResult(
             False, "unavailable", "disabled in tests: no test drives desktop Outlook"))
     monkeypatch.setattr(email_draft, "outlook_available", lambda: False)
+
+# ── a run that opened no screen has to say so ────────────────────────────────
+#
+# `client-documents` has had this since August, after a proof declared 190
+# documents fine when every one was unreadable. `satc_system` did not, and on
+# 4 September the count beside every panel heading rendered at 1.10:1 against
+# its own background -- invisible -- through 1,685 passing tests. Every one
+# drove Flask's test client, which proves a page came back and cannot tell
+# dark-on-dark from readable, or a live button from a dead one.
+#
+# So: a run that skipped or deselected the `renders` tests must SAY SO, at the
+# end, where the number is read. A green line from a run that opened no screen
+# looks exactly like a green line from one that opened all of them, and only
+# one means what the reader takes it to mean. Behaviour 2 -- report the
+# denominator -- applied to the test run itself.
+#
+# THE MARKER ALONE WOULD BE A SMOKE ALARM WITH NO BATTERY. It only fires when
+# something is skipped, so it is worth nothing without at least one real
+# browser test to skip: `tests/test_documents_in_a_browser.py`.
+
+_UNOPENED: list = []
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "renders: opens the app in a real browser. Skipped without Playwright, "
+        "and a run that skips them says so.")
+
+
+def pytest_deselected(items):
+    """What pytest actually dropped -- not what this file guesses it dropped.
+
+    `pytest_collection_modifyitems` sees only THIS run's collection, so
+    selecting a single file leaves nothing to count and the banner goes silent
+    on exactly the runs most likely to mislead. This hook is handed the real
+    deselections whatever was selected. Learned the same way in
+    `client-documents/tests/conftest.py`.
+    """
+    _UNOPENED.extend(i for i in items if i.get_closest_marker("renders"))
+
+
+def pytest_runtest_logreport(report):
+    if report.when == "setup" and report.skipped and "renders" in report.keywords:
+        _UNOPENED.append(report.nodeid)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    if not _UNOPENED:
+        return
+    write = terminalreporter.write_line
+    write("")
+    write("=" * 70)
+    write(f"  NO SCREEN WAS OPENED. {len(_UNOPENED)} browser test(s) did not run.")
+    write("")
+    write("  Everything above drove Flask's test client, which proves a page")
+    write("  came back. It cannot see that a heading is invisible against its")
+    write("  own background, or that a button posts nothing.")
+    write("")
+    write("  Both of those were real here on 4 September 2026.")
+    write("")
+    write("  Green above does not mean the screen works. Install Playwright")
+    write("  and its browser, then run the whole suite:")
+    write("      pip install playwright && python -m playwright install chromium")
+    write("=" * 70)
