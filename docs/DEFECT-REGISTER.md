@@ -97,6 +97,38 @@ and the live C-corp path.
 
 ## Fixed
 
+### 4 September 2026 — the payment loop, proven with real money
+
+| # | Proved | How |
+|---|---|---|
+| **P1** | A client can be given a link, pay it with a real card, and this software sees the money — on the LIVE Square account, not a sandbox | `python cli.py payments --check --production`, **7 of 7**. Link `square.link/u/Mtukztls`, order `T3yIEJw8D0j0CXjj8qwrERUF8cQZY`, $1.00 settled against location `LHW8CYHKQKH5A` (SAT-C LLP, ACTIVE, USD, `CREDIT_CARD_PROCESSING`) |
+
+**The owner set this bar himself:** *"i can invoice myself for $1 and pay it with
+a live card as our final test."* Every automated test in this repository runs
+against a stand-in for the network — they prove the software behaves correctly
+and cannot tell a working Square account from a closed one. This is the one
+check that could not be written.
+
+**THE ORDER READ `OPEN`, NOT `COMPLETED`, AND THAT IS WHY IT WORKED.**
+`Settlement.paid` asks whether a TENDER exists — whether a card was actually
+charged — and treats `COMPLETED` as sufficient but never necessary. Square's own
+Checkout Complete panel reported, in one breath, *"Your test payment was
+successful"*, *"Tender.id: Added to Order"*, and *"Order state: OPEN"*. Had the
+code trusted the documented state, this settled invoice would have read unpaid
+for ever, and `signing.may_file` would have gone on refusing to clear a return
+whose bill was paid. A label can be renamed by the processor; money changing
+hands cannot.
+
+**And the owner confirmed the other end of it**, the same day: *"i got the
+notification from square that i was paid $1 i trust it."* So the money left a
+card, Square recorded it, this software read it, and Square told the firm it had
+been paid. That is the whole loop, from two independent directions.
+
+**The last inch is still not ours to see:** the transfer from Square's balance
+into the firm's bank happens on Square's schedule, and no call from here reaches
+it. Recorded as confirmed by the firm rather than measured here — which is the
+honest description of it, and enough.
+
 ### 4 September 2026 — the ladder question, settled
 
 | # | Defect | Closed by |

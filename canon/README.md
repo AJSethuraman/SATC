@@ -142,10 +142,10 @@ a repository that predates canon can be adopted.
 | `skills/canon-adopt/` | adopting a repository, and writing its card |
 | `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps, in plain English |
 
-`python -m pytest -q tests` — 121 tests, including one that copies the whole
+`python -m pytest -q tests` — 138 tests, including one that copies the whole
 tree into a fresh repository with no SATC above it and runs everything there.
 Every guard has been mutation-checked: break it on purpose, and a test must go
-red. **48 mutants planted, 48 killed**, after four survivors that were each the
+red. **55 mutants planted, 55 killed**, after five survivors that were each the
 test's fault rather than the code's — the fix and the reason are in the comment
 at each site.
 

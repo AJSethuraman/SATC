@@ -251,6 +251,107 @@ record-reading skill says so now.
 
 127 tests.
 
+---
+
+## 2026-09-04 · The suite runs again, and a Unix filesystem asserted on Windows
+
+**The suite had not really been runnable.** `<temp>/pytest-of-<user>` on this
+machine is locked against its own owner — `icacls` cannot read it, and granting
+yourself access is refused — so every test taking `tmp_path` errored at *setup*.
+That is 34 of them, reported as errors in tests that never ran, which reads as
+broken code rather than a broken directory. The firm chose the in-repository fix
+over an elevated command.
+
+`conftest.py` now chooses a scratch root and carries why both obvious choices
+are wrong:
+
+- **Not inside the tree.** Tried first, and it made canon's own no-client-data
+  check walk the fixtures the fix had just written and report that the record
+  carried a taxpayer identifier, an employer identifier and a private key. It
+  carried none of them.
+- **Short.** Windows refuses paths past ~260 characters and names neither length
+  nor the tool that failed: the observed symptom was `git init` exiting 128
+  under a deep pytest path. The root has a length budget, asserted by a test.
+
+An operator who sets `PYTEST_DEBUG_TEMPROOT` themselves still wins.
+
+**And a failure that had been sitting in this repository.**
+`test_installed_elsewhere` isolated its subprocess with a hardcoded `PATH` of
+`/usr/bin:/bin` — a Unix filesystem asserted by a test that also runs on
+Windows. Every test using that helper passed except the one that shells out to
+`git`, which failed with `WinError 2` and named neither PATH nor git.
+`shutil.which` asks the platform instead. A claim in the docstring, a different
+behaviour in the value, and nothing comparing them — inside canon.
+
+**Mutation table.** Seven planted, seven killed, after one survivor worth more
+than the six kills: `test_a_root_the_operator_chose_is_left_alone` handed
+`choose_root` a *long* directory, so deleting the operator check left the
+*length* check to return `None` anyway and the test stayed green. It was passing
+for a reason unrelated to what it tested. Rewritten to use a short directory and
+to assert first that the directory would otherwise be accepted.
+
+**What went wrong in the doing of it, which belongs here more than the fix
+does.** The first commit of this work silently contained three of the five files
+it was supposed to. The `PATH` fix and this log entry were written, verified by a
+green suite, and then not committed — and both were reported to the firm as
+landed. It surfaced only because a rebase onto a moved `main` showed the branch
+carrying three files instead of five. Nothing in the process compared what was
+claimed against what was staged, which is the one sentence at the top of
+`how-we-work` happening to the session writing the guards. **`git show --stat`
+before saying a thing is committed.**
+
+93 passed and 34 errors → **138 passed, 0 failed**, with nothing set by hand.
+The README's "121 tests / 48 mutants" was stale by six tests before this work
+started; corrected to 138 / 55.
+
+Version left at 1.3.0: nothing a session reads changed.
+
+---
+## 2026-09-04 · C6 retired within a day, and four entries in its place
+
+**A conviction misfired, and that is the entry worth reading.** C6 was recorded
+on 4 September as applying to *"Occam, and any AI doing the practice's work"*.
+Hours later Bassy pointed it at a scheduled, deterministic data-disposal engine
+and asked whether the firm had abandoned the separation of duties. The firm:
+*"this is really specific to Occam, maybe overstated... in this case, i think it
+is being misinterpreted."*
+
+The record was wrong, not the firm. C6 is **retired** — text kept, state flipped,
+reason recorded — and four entries take its place:
+
+- **C7 · The context follows the role, and the reviewer carries the preparer's
+  work.** The rewrite is much better than what it replaces, and it came from the
+  firm rather than from a session tidying its own mistake: the division is not
+  headcount, it is *information*. The reviewer answers for what the preparer did;
+  their output is a **question back to the preparer**, not a correction; and the
+  preparer must be able to send up what is *"beyond their paygrade"*.
+- **C8 · A deterministic engine is not a brain, and does not need a second one.**
+  The line C6 could not draw, settled by the misfire that exposed it.
+- **C9 · The simplest answer is likely the best.** The practice's software is
+  named after it and it was not on record.
+- **C10 · An agent runs on the Forge if it can, and is built to its role.**
+
+**The new entries were run before being believed.** `challenge.gate` was called
+with a decision written for each one, and C9 **did not fire on the exact case its
+own challenge note describes** — "add a second backup script beside the existing
+one" returned silence, because `touches` matches whole words by design and
+"duplicating" is not "duplicate". Inflections added, re-run, fires. C9 also now
+says in its own text that the selector under-fires here: it matches a decision's
+*subject*, and this entry is about a decision's *shape*. Better to record the
+limit than to let the entry claim a reach it does not have.
+
+**A pre-existing false positive, reported and not touched.** `bump the version
+number in package.json` fires **C4**, whose `Fires on` includes `package`;
+whole-word matching still sees `package` in `package.json`. It is the firm's
+conviction and theirs to change, so it is written down here rather than fixed
+quietly.
+
+Convictions are read from the plugin cache, which keys on version, so this is
+**1.4.0** — without the bump `claude plugin update` pulls nothing.
+
+126 passed, 1 failed (the `/usr/bin:/bin` PATH bug that PR #198 fixes), with the
+temp-root workaround this branch still needs because #198 has not merged.
+
 ## 4 September 2026 — credit-suite M1, and two bugs the bar could not see
 
 M1 merged to main as `577ca35` (PR #184, 29 commits). Nine issues closed:
