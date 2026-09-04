@@ -260,7 +260,73 @@ def _cmd_lookup(name: str, demo: bool) -> int:
     return runtime.EXIT_OK
 
 
-def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
+
+def _wrap(text: str, width: int) -> List[str]:
+    """Wrap without importing textwrap for one call, and never mid-code:
+    an MDRM code split across two lines stops being searchable, which is the
+    one property it exists for."""
+    words = str(text).split()
+    lines, current = [], ""
+    for word in words:
+        if current and len(current) + 1 + len(word) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = (current + " " + word) if current else word
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
+def _describe_source(schedule: str, caption: str) -> List[tuple]:
+    """Label the two provenance columns by WHAT THEY HOLD, not by position.
+
+    The `_provenance` tab uses three conventions across the same column pair and
+    a fixed label is wrong for some row under every choice:
+
+      NCLNLSR   schedule="FDIC-computed ratio"        caption="100 x (1407+1403)/2122"
+      PD3089R   schedule="derived: P3LNLS/LNLSGR*100" caption="RC-N 9 col A over RC-C Pt I 12"
+      RBC1AAJ   schedule="FILED: RC-R Pt I 31"        caption="Leverage ratio"
+
+    So each value is classified on its own: a form location, a calculation, or
+    the form's own wording. Getting this wrong is not cosmetic -- printing
+    "Where on form: FDIC-computed ratio" tells a reviewer to go and look for a
+    page that does not exist.
+    """
+    def classify(text: str) -> str:
+        t = (text or "").strip()
+        if not t:
+            return "empty"
+        low = t.lower()
+        # Arithmetic wins over a mention. "100 x annualized qtr (4635-4605) /
+        # RC-K avg loans" names a schedule but IS a calculation, and calling it
+        # a location sends a reviewer looking for a page of arithmetic.
+        if (low.startswith(("derived", "fdic-computed", "filed but"))
+                or any(ch in t for ch in "*/+")
+                or " x " in low):
+            return "calc"
+        if (t.startswith("FILED:") or t.startswith("RC") or t.startswith("RI")
+                or " RC-" in t):
+            return "where"
+        return "wording"
+
+    LABELS = {"where": "Where on form", "calc": "How built",
+              "wording": "Filed as"}
+    out = []
+    for text in (schedule, caption):
+        kind = classify(text)
+        if kind == "empty":
+            continue
+        label = LABELS[kind]
+        # Two of the same kind: the second is the detail of the first.
+        if out and out[-1][0] == label:
+            label = "  ... also"
+        out.append((label, str(text).strip()))
+    return out
+
+
+def do_tieout(workbook: str, args: List[str], demo: bool,
+              brief: bool = False) -> int:
     """``--tieout CERT [REPDTE]``: sample-verify the feed against the filing.
 
     Contract section 12. The point is that a flagged number can be defended in
@@ -277,6 +343,7 @@ def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
     import openpyxl
 
     from credit_suite.engine.config import EntityRow, norm_key
+    from credit_suite.sources.fdic import plain
     from credit_suite.sources.fdic.engine_api import (assemble_quarters,
                                                       make_field_spec,
                                                       metric_value,
@@ -349,10 +416,26 @@ def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
     print("  Tie-out is two-step: API value <-> BankFind page (pull check) "
           "<-> CDR facsimile schedule/line (filing check).")
     print()
-    hdr = ("  %-10s %10s  %-34s %-30s %-12s notes"
-           % ("metric", "value", "schedule / line", "MDRM", "flag"))
-    print(hdr)
-    print("  " + "-" * (len(hdr) + 20))
+    if not brief:
+        print("  WHAT THE TERMS MEAN")
+        for term, meaning in plain.GLOSSARY:
+            first = True
+            for line in _wrap(meaning, 88):
+                print("    %-16s %s" % (("%s -" % term) if first else "", line))
+                first = False
+        print()
+
+    def _confidence(flag: str) -> str:
+        """The flag column in words. `[V]` is not self-explanatory and its
+        absence is the part that actually matters to a reviewer."""
+        f = (flag or "").strip()
+        if "[V]" in f and "comp" in f:
+            return "VERIFIED (computed from verified lines)"
+        if "[V]" in f:
+            return "VERIFIED against the FFIEC form caption"
+        if "[~]" in f:
+            return "PARTIAL - matched by caption, not by code"
+        return "NOT VERIFIED" if not f else f
 
     missing = []
     for series in cfg.series:
@@ -363,15 +446,26 @@ def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
             missing.append(series.id)
             row = {"schedule": "(no provenance row)", "caption": "",
                    "mdrm": "", "flag": "", "notes": ""}
-        schedule = row["schedule"] + ((" %s" % row["caption"])
-                                      if row["caption"] else "")
-        note = row["notes"]
+
+        print("  %s = %s" % (series.id, shown))
+        meaning = plain.describe(series.id)
+        if meaning:
+            for i, line in enumerate(_wrap(meaning, 84)):
+                print("      %-14s %s" % ("What it is" if i == 0 else "", line))
+        for label, text in _describe_source(row["schedule"], row["caption"]):
+            for i, line in enumerate(_wrap(text, 84)):
+                print("      %-14s %s" % (label if i == 0 else "", line))
+        if row["mdrm"]:
+            print("      %-14s %s" % ("Code", row["mdrm"]))
+        print("      %-14s %s" % ("Checked", _confidence(row["flag"])))
+        note = row["notes"] or ""
         loan_class = fields.LOANBOOK_CLASS.get(series.id)
         if loan_class:
-            note = "[%s] %s" % (loan_class, note)
-        print("  %-10s %10s  %-34s %-30s %-12s %s"
-              % (series.id, shown, schedule[:34], str(row["mdrm"])[:30],
-                 str(row["flag"])[:12], note))
+            note = ("[%s] %s" % (loan_class, note)).strip()
+        if note:
+            for i, line in enumerate(_wrap(note, 84)):
+                print("      %-14s %s" % ("Caveat" if i == 0 else "", line))
+        print()
 
     if missing:
         sys.stderr.write("WARNING: no _provenance row for: %s\n"

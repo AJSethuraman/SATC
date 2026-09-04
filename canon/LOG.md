@@ -540,3 +540,63 @@ spends money to widen it.
 
 141 passed. Version stays at **1.5.0** — the record did not change here; what
 changed is that the version now travels.
+
+## 4 September 2026 (evening) — trends, charts, a readable tie-out, and a lesson re-tested
+
+Written while working, not at the close. Session moved to Fable 5.1 mid-afternoon
+by the firm's choice; canon 1.6.0 loaded, and behaviours 16–18 were applied to
+this session before the docket was built rather than after.
+
+**Built, in PR #248 (draft, CI 7/7 green):**
+
+- `tools/trend.py` — the history was already in the workbook. `Raw_FDIC` holds
+  16 quarters × 12 banks × 68 fields back to 2022-Q3, and every dashboard read one
+  column. Change over 4q/8q, run length, divergence from the peer median move.
+  Lights no flags; thresholds stay in `_config`.
+- `tools/chartbook.py` — a second workbook with 18 native Excel line charts, no
+  macros, so it opens with no Mark-of-the-Web banner. FDIC only.
+- `--tieout` rewritten to a block per metric: what it is, how built, where on the
+  form, the code, the verification state in words. All 53 metrics described; the
+  codes kept, because stripping them makes the number unsearchable.
+
+**A carried lesson tested rather than inherited.** L4 forbids native charts on
+two grounds. The corruption ground did not reproduce in Excel 16.0 — a library
+chart opened with zero dialogs, bare and inside the real `.xlsm` with its macro
+still running. The refresh ground still holds and is the binding one. Amendment
+is on the docket, not made.
+
+**What an auditor asked for, and got most of.** *"i want to see the validation
+process work, and believe it."* Capital One (CERT 4297, 2026-06-30), pulled with
+raw `urllib` and no monitor code: RCON1407 + RCON1403 = 6,822,000 = NCLNLS as
+reported; 100 × 6,822,000 / 457,432,000 = 1.4913692089753 = the FDIC's published
+ratio = the workbook. The one ratio that does not tie (NTLNLSQR, 1.1% off) is
+explained by RC-K average loans, as the provenance note already said. The filed
+Call Report was opened at `cdr.ffiec.gov` and its cover confirmed — bank, quarter,
+form 031 — but the viewer would not surface the line item. **The chain reaches
+the FDIC's API, not the filing.** Closing it needs the XBRL download, which
+needs the firm's permission; it is decision 2 on the docket.
+
+**Behaviour 2, caught in the act.** This session reported "32 open pull requests"
+off a listing. A limit-free count says 9, with 65 of mine closed since noon (35
+merged) — main took 75 commits in an afternoon. Whether 32 was ever right cannot
+be told from here. Recorded on the docket as wrong, not absorbed.
+
+**Behaviour 16, applied.** The 20 skips are all the legacy-runner differential
+tests. What is therefore unproven: that the engine still matches an
+implementation that no longer exists. That proof now rests on the parity
+goldens — a different proof — and the docket says so instead of calling the
+skips inert.
+
+**Behaviour 17, applied.** Cleared before the docket: a data export left at the
+repo root, two scratch files in `/tmp`, a Chrome tab, and stray Excel processes
+(none found). `credit-suite/example-output/` is now ignored so `git add -A`
+cannot sweep two live workbooks into a commit.
+
+**Not tested, stated.** `trend.py` and `chartbook.py` carry no tests. They are
+hand-verified against raw cells and the workbook's own recalculated formulas,
+and they write nothing into the monitor. That is below this project's bar, and
+the docket says so beside the recommendation to merge.
+
+**Docket published**, five decisions: merge #248; permission to download the
+XBRL; amend L4; ship the chart workbook as an M2 slice; document the red banner
+in `_readme`. Answers to be written here when given.
