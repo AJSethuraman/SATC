@@ -49,6 +49,13 @@ INVENTORY_FILE = ROOT / "registry" / "walkthrough-screens.json"
 # The order a preparer meets them, which is the order the walkthrough runs in.
 # A screen missing from here is a screen the walkthrough does not cover, and
 # `missing()` says so rather than letting it be quietly skipped.
+#
+# THREE WENT ON 3 SEPTEMBER 2026, on the firm's answer. "The engagement
+# exists", "The pack, and every check that passed" and "The new quote,
+# recorded" were pages whose whole content was a sentence and some buttons;
+# each now lands on the client's file with a line at the top saying what just
+# happened. The pack one keeps its page when something is FLAGGED -- that is
+# `package-blocked`, below, and it is the case worth walking anybody through.
 SCREENS = [
     ("home", "The list you start from"),
     ("leads", "Everyone who has asked"),
@@ -59,15 +66,12 @@ SCREENS = [
     ("question-hardno", "Work the firm does not take"),
     ("question-back", "Going back to fix an answer"),
     ("review", "Everything, before anything is created"),
-    ("created", "The engagement exists"),
     ("refused", "A HARD NO"),
     ("engagement", "The record"),
     ("package-before", "What is about to be built"),
     ("package-blocked", "A check failed"),
-    ("package-written", "The pack, and every check that passed"),
     ("requote-form", "The work changed, so the price does"),
     ("requote-changes", "Every line the new quote moves"),
-    ("requote-done", "The new quote, recorded"),
     ("signatures-waiting", "Who to chase this morning"),
     ("signatures-one", "One client, and what is still out"),
     ("payments", "Which bills have been paid"),
@@ -106,6 +110,28 @@ class Control:
 
     @property
     def key(self) -> str:
+        # THE ANSWER FIELD IS THE ANSWER FIELD, whatever it is asking. Its
+        # label quotes the question -- "the answer to “Taxpayer's name...”" --
+        # so keying on the label made this control a DIFFERENT control every
+        # time the question order changed. Moving the refusal question to
+        # number four on 2 September 2026 altered which question `← Back`
+        # lands on, and the harness reported the guide as wrong about a screen
+        # whose guide had not changed and did not need to.
+        #
+        # Identity here is "which control is this", not "which question was it
+        # asking at the time".
+        if "|answer|" in self.shape:
+            # NEITHER THE LABEL NOR THE KIND. The label quotes the question
+            # ("the answer to “Which tax year?”") and the kind follows the
+            # question's type -- a radio for a choice, a box for a name -- so
+            # both change whenever question order does. Keying on either made
+            # this one control read as a different control, and the harness
+            # reported a guide as wrong about a screen whose guide had not
+            # changed and did not need to.
+            #
+            # Identity is "the field you type the answer into". What it is
+            # asking today is the question's business, not this control's.
+            return "answer[/interview/<id>]"
         return f"{self.kind}:{self.label}" if self.label else f"{self.kind}[{self.shape}]"
 
     @property
@@ -363,9 +389,28 @@ def missing(screens: list[Screen], registry: dict) -> list[str]:
     return out
 
 
+# TEXT THAT IS DIFFERENT EVERY RUN AND MEANS THE SAME THING. A capture writes
+# the help line it read off the screen, and two of those carry the run's own
+# temporary directory and today's date -- so the committed inventory drifted on
+# every capture and `--check` could never be green twice in a row. A check that
+# always fails is read as noise within a week, which is the same as no check.
+# Steadied here rather than at the comparison, so what is committed is stable.
+_VOLATILE = (
+    (re.compile(r"/tmp/[\w.-]+"), "/tmp/<run>"),
+    (re.compile(r"\b\d{4}-\d{2}-\d{2}\b"), "<date>"),
+)
+
+
+def steady(text: str) -> str:
+    """One run's help line, with the parts that differ every run replaced."""
+    for pattern, standin in _VOLATILE:
+        text = pattern.sub(standin, text)
+    return text
+
+
 def to_json(screens: list[Screen]) -> str:
     return json.dumps(
-        [{"key": s.key, "heading": s.heading, "help": s.help, "shot": s.shot,
+        [{"key": s.key, "heading": s.heading, "help": steady(s.help), "shot": s.shot,
           "controls": [{"kind": c.kind, "shape": c.shape, "label": c.label,
                         "examples": list(c.examples), "count": c.count}
                        for c in s.controls]}

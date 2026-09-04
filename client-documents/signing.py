@@ -488,11 +488,18 @@ def may_file(ref: str, record: dict, documents: list[str], template_dir: Path,
              today: date | None = None) -> Filing:
     """What the two promises say about transmitting this return.
 
-    WHAT IS NOT KNOWN IS SAID, NOT ASSUMED. Nothing in this repository records
-    whether an invoice was settled -- `invoicing` writes the bill and stops,
-    and it says so. So the second promise is reported as UNKNOWN rather than
-    as passed. A gate that quietly treats "we cannot tell" as "fine" is worse
-    than no gate: it launders an unanswered question into a green light.
+    WHAT IS NOT KNOWN IS SAID, NOT ASSUMED. A gate that quietly treats "we
+    cannot tell" as "fine" is worse than no gate: it launders an unanswered
+    question into a green light.
+
+    THIS PARAGRAPH USED TO SAY THE INVOICE WAS UNKNOWABLE, and stayed that way
+    after it stopped being true. `_unsettled` below reads raised invoices and
+    their `SettledOn`, so an unsettled bill is a BLOCKER, not an unknown --
+    and this docstring was transcribed, word for word, into
+    `docs/OPERATING-PROCEDURES.md`, where it told a preparer that billing
+    could not gate signing. They were then blocked by `sign` with no
+    explanation in the document. Prose beside a feature is a claim about it
+    (S31); this one outlived the feature it described.
     """
     out = Filing()
     where = standing(ref, record, documents, template_dir, store=store,

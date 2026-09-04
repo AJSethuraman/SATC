@@ -181,6 +181,25 @@ Four weeks is a proposal, not a fact. Three weeks is defensible and more
 aggressive; six is common for entity work. The rule is what matters, because it
 regenerates every January without anyone having to remember four dates.
 
+> **BUILT 1 September 2026 — and the rule above is NOT the one in force.** The
+> four dates already in `firm-settings.yaml`, which is what clients have been
+> told, are the filing date **minus 21 days, unshifted** — 25 March and 22
+> February 2027. Not minus four weeks, and not moved to a Monday. The proposal
+> was never approved and the file went its own way.
+>
+> `client-documents/deadlines.py` implements **what the file does**, because a
+> letter already read is not corrected by a better rule, and
+> `tests/test_deadlines.py` holds it to reproducing those four dates exactly.
+> The lead time is one number (`MATERIALS_LEAD_DAYS`) if the firm wants four
+> weeks after all.
+>
+> Two things changed with it. A season nobody typed is now **derived** rather
+> than refused, so rolling four dates forward every January is no longer a
+> chore anybody can forget. And a typed date that **disagrees** with the statute
+> is refused outright, naming both dates — because that means either the file is
+> stale or the policy moved, and printing either one silently is how a client
+> gets a date nobody chose.
+
 ## 7. What else the workbook settles
 
 - **The firm's legal name.** The client-facing quote sheet reads *"Sethuraman
@@ -188,8 +207,14 @@ regenerates every January without anyone having to remember four dates.
   **fourth** spelling, distinct from the three already in the repo. Four
   variants across the firm's own documents; only one is on the Ohio filing.
 - **Record retention: seven years.** The engagement letter states records and
-  work papers are kept for up to seven years and then destroyed. The repo's
-  templates say nothing about retention.
+  work papers are kept for up to seven years and then destroyed. *(The last
+  sentence here used to read "The repo's templates say nothing about
+  retention." Measured 31 Aug 2026: all four engagement letter templates carry
+  "we keep copies of your records and our work papers for seven years", and it
+  is one of the phrases the classifier now uses to recognise them.
+  `satc.collect.RETENTION_YEARS` is set from it rather than chosen separately —
+  the software matching what the client was told beats the software picking its
+  own number.)*
 - **Payment terms: net thirty, interest thereafter.** "Invoices are due and
   payable upon presentation of the Final Invoice. All accounts not paid within
   thirty (30) days are subject to interest charges to the extent permitted by

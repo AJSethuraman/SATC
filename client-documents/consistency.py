@@ -26,6 +26,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 
+import dates
 import interview as iv
 import merge
 
@@ -339,14 +340,13 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
         promised = _as_date(record.get(field))
         if due is None or promised is None:
             continue
-        stamp = "%B %-d, %Y"
         out.append(Check(
             name,
             promised >= due,
-            f"{promised.strftime(stamp)}, on or after the {due.strftime(stamp)} "
+            f"{dates.long_date(promised)}, on or after the {dates.long_date(due)} "
             f"deadline" if promised >= due else
-            f"{what} is promised for {promised.strftime(stamp)}, which is "
-            f"before the {due.strftime(stamp)} date the same package tells the "
+            f"{what} is promised for {dates.long_date(promised)}, which is "
+            f"before the {dates.long_date(due)} date the same package tells the "
             f"client to send everything by"))
 
     return out

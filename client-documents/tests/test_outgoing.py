@@ -44,6 +44,23 @@ def packed(tmp_path):
 
 
 @pytest.fixture
+def unapproved():
+    """The registry as it reads while a draft is still waiting on the firm.
+
+    Was the SHIPPED registry until 31 Aug 2026, when the firm supplied the
+    covering note in their own words. The refusal machinery still has to work --
+    the next unwritten sentence will need it -- so it is tested against a
+    registry built to be unapproved rather than against whatever happens to be
+    shipped. A test that reads the shipped file cannot tell "the guard works"
+    from "nobody has answered yet", and only one of those is worth asserting.
+    """
+    reg = json.loads(json.dumps(signing._registry()))
+    reg["covering_note"]["subject"] = "[CONFIRM: " + reg["covering_note"]["subject"] + "]"
+    reg["covering_note"]["body"] = "[CONFIRM:\n" + reg["covering_note"]["body"] + "\n]"
+    return reg
+
+
+@pytest.fixture
 def approved():
     """The registry as it reads once the firm has accepted the draft."""
     reg = json.loads(json.dumps(signing._registry()))
@@ -55,24 +72,32 @@ def approved():
 
 # ── the words are the firm's ──────────────────────────────────────────────
 
-def test_it_will_not_write_to_a_client_in_wording_nobody_approved(packed):
+def test_it_will_not_write_to_a_client_in_wording_nobody_approved(packed, unapproved):
     """The failure `CLAUDE.md` puts above the others: an agent writing to a
     client over the firm's name, in prose nobody read."""
     _, _, record, pack = packed
     with pytest.raises(outgoing.OutgoingError) as caught:
-        outgoing.compose(record, pack, registry=signing._registry())
+        outgoing.compose(record, pack, registry=unapproved)
     said = str(caught.value)
     assert "waiting on the firm" in said
     assert "engagement letter" in said, "it must quote the draft back"
     assert "[CONFIRM:" in said, "and say exactly how to accept it"
 
 
-def test_the_shipped_registry_is_the_one_that_refuses():
-    """If somebody deletes the placeholder without reading it, that is a
-    decision. Shipping it already accepted would be this file making it."""
+def test_the_shipped_note_is_the_firms_own_words():
+    """Was "the shipped registry is the one that refuses", and that was right
+    while the draft was mine -- shipping my wording pre-accepted would have been
+    the test file making a decision that belonged to the firm.
+
+    They made it on 31 Aug 2026, so the assertion inverts: what must now be true
+    is that nothing is left half-accepted. A `[CONFIRM:` surviving in a registry
+    that composes would mean a client reads the marker.
+    """
+    note = signing._registry()["covering_note"]
     for part in ("subject", "body"):
-        assert outgoing.CONFIRM.search(
-            signing._registry()["covering_note"][part])
+        assert not outgoing.CONFIRM.search(note[part]), \
+            f"{part} still carries a [CONFIRM: -- a client would read the marker"
+    assert "Please thoroughly review and sign" in note["body"], note["body"]
 
 
 def test_the_draft_is_in_the_register_the_firm_actually_writes_in():
@@ -211,12 +236,16 @@ def test_nothing_is_sent(packed, approved, monkeypatch):
         assert reach not in source, f"outgoing.py reaches for {reach}"
 
 
-def test_the_pack_still_builds_when_the_note_is_unwritten(packed):
-    """The covering note waiting on the firm must not cost anybody their
-    pack — the documents are the deliverable, the note is a convenience."""
+def test_the_pack_now_carries_the_email_too(packed):
+    """Was "the pack still builds when the note is unwritten", which asserted
+    NO .eml -- correct while the note was waiting on the firm, and exactly
+    backwards now they have written it. The point it protected still holds and
+    is asserted below it: the documents are the deliverable either way.
+    """
     ref, store, _, _ = packed
     out = store / "again"
     assert cli.main(["package", "--engagement", ref, "--store", str(store),
                      "--out", str(out), "--no-pdf", "--ready"]) == 0
-    assert list(out.glob("*.html"))
-    assert not list(out.glob("*.eml"))
+    assert list(out.glob("*.html")), "the documents are the deliverable"
+    assert list(out.glob("*.eml")), \
+        "the note is written now -- --ready should compose it"

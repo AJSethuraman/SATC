@@ -52,12 +52,7 @@ def firm_fields(season: str, return_type: str = "individual",
     bill = s.get("billing") or {}
     deliv = s.get("delivery") or {}
     deadlines = (s.get("materials_deadlines") or {}).get(season) or {}
-
-    if not deadlines:
-        raise KeyError(
-            f"no materials_deadlines for season {season!r} in firm-settings.yaml — "
-            f"add it rather than letting a document print the wrong date"
-        )
+    materials = _materials_deadline(season, RETURN_TYPES[return_type], deadlines)
 
     return {
         # The firm itself — masthead, footer and sign-off on all ten templates.
@@ -76,8 +71,61 @@ def firm_fields(season: str, return_type: str = "individual",
         "BillingContactName": bill.get("contact_name"),
         "BillingContactEmail": bill.get("contact_email"),
         "PaymentInstruction": deliv.get("payment_instruction"),
-        "MaterialsDeadline": deadlines.get(RETURN_TYPES[return_type]),
+        "MaterialsDeadline": materials,
     }
+
+
+def _spoken(day) -> str:
+    """A date the way the firm writes it. "March 5, 2027", never "March 05"."""
+    return f"{day.strftime('%B')} {day.day}, {day.year}"
+
+
+def _materials_deadline(season: str, key: str, typed: dict) -> str:
+    """The date the client's papers are due, from the file or from the statute.
+
+    THE FILE USED TO BE THE ONLY SOURCE, four dates typed by hand under a
+    comment telling a PERSON to "CHECK THIS AGAINST THE IRS CALENDAR each season
+    before rolling it forward". `deadlines.py` now derives them from IRC 6072 and
+    7503, so there are two answers where there was one -- and this is the thing
+    that compares them, which is the whole lesson of the last week.
+
+    THE TYPED DATE WINS when both exist. It is what a client was told, and a
+    letter already read is not corrected by a better rule. But a DISAGREEMENT is
+    refused rather than resolved: it means either the file is stale or the
+    policy moved, and printing either one silently is how a client gets a date
+    nobody chose.
+
+    WITH NO TYPED DATE the statute answers, rather than raising as this used to.
+    That is the annual chore gone: a new season needs no edit, and the first
+    year a deadline shifts for a weekend or Emancipation Day it shifts here too.
+    """
+    import deadlines as taxcal
+
+    try:
+        computed = taxcal.materials_deadline(key, int(season))
+    except (KeyError, ValueError):
+        computed = None                      # a return type or season it cannot derive
+
+    said = typed.get(key)
+    if not said:
+        if computed is None:
+            raise KeyError(
+                f"no materials deadline for {key!r} in season {season!r}: not in "
+                f"firm-settings.yaml and not derivable — add it rather than "
+                f"letting a document print the wrong date"
+            )
+        return _spoken(computed)
+
+    if computed is not None and _spoken(computed) != said:
+        raise ValueError(
+            f"the materials deadline for {key} in season {season} does not agree "
+            f"with the statute: firm-settings.yaml says {said}, and "
+            f"{taxcal.MATERIALS_LEAD_DAYS} days before the filing date "
+            f"({taxcal.filing_date(key, int(season))}) is {_spoken(computed)}. "
+            f"Either the file is stale or the policy changed; nothing is printed "
+            f"until one of them is corrected."
+        )
+    return said
 
 
 # Settings that govern POLICY rather than paperwork. A `[CONFIRM:` in one of

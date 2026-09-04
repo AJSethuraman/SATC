@@ -36,6 +36,15 @@ jobs:
             install: pip install -r requirements.txt && playwright install --with-deps chromium
           - project: invoice-generator
             install: pip install -r requirements.txt pytest
+          # canon has no dependencies beyond pytest, deliberately: it is built
+          # to be lifted out and installed into projects that share nothing
+          # with this one. Its own suite copies the tree into a fresh git
+          # repository and runs itself there, which is why `git` matters more
+          # here than any package. Where the `claude` CLI is absent -- as on a
+          # runner -- the two tests that call the real plugin validator SKIP
+          # and say so, rather than passing quietly.
+          - project: canon
+            install: pip install pytest
     defaults:
       run:
         working-directory: ${{ matrix.project }}

@@ -132,9 +132,52 @@ sections:
 
       - id: tax_year
         question: "Which tax year?"
-        type: text
+        # `year`, not `text`. Free text let `x`, `-5`, `99999` and `0` through;
+        # `0` printed a return due 0001-04-17 at the top of the deadline board.
+        # The accepted range is the typo guard in `deadlines.plausible_year`,
+        # NOT the three-year refund window -- an unfiled year has no statute of
+        # limitations and the firm prepares those.
+        type: year
         required: true
         supplies: [TaxYear]
+
+  # ── 2 · Anything that stops us ─────────────────────────────────────────
+  # MOVED HERE FROM SECTION 8, on the firm's instruction, 2 September 2026.
+  # Measured before the move: a plain 1040 sitting is 32 questions and this was
+  # number 30, so a client the firm does not take answered 29 questions first --
+  # name, address, filing status, every count -- before the question that ends
+  # it. It is now question five, straight after the year.
+  #
+  # The counter-argument is the firm's own, in firm-settings.yaml: "I don't
+  # wanna make a big deal out of hard nos." Their answer, asked directly: take
+  # the recommendation. The question is still one line with eight boxes and
+  # still skippable; what changed is only when it is put.
+  #
+  # The hard-no subset lives in firm-settings.yaml because it governs declining
+  # work, not producing a document.
+  - id: flags
+    title: Flags
+    questions:
+      - id: red_flags
+        question: "Anything that gives you pause?"
+        type: multi
+        options:
+          # The label does NOT repeat "HARD NO". Both front doors render the
+          # badge from `hard_no: true`, so the suffix printed it twice --
+          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
+          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
+          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
+          - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
+          - { value: "missing_records",   label: "Records are missing or unreliable" }
+          - { value: "notice_open",       label: "Open IRS or state notice" }
+          - { value: "foreign_exposure",  label: "Foreign accounts, assets, trusts or gifts" }
+          - { value: "digital_assets",    label: "Digital asset activity" }
+          - { value: "deadline_tight",    label: "Deadline is tight for the work involved" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Recorded for the decision and for pricing. Does not print on any client
+          document — the letter names risk areas generically in section 03.
 
   # ── 2 · Who they are ────────────────────────────────────────────────────
   - id: identity
@@ -177,6 +220,8 @@ sections:
         question: "ZIP"
         type: text
         required: true
+        pattern: '^[0-9]{5}(-[0-9]{4})?$'
+        pattern_says: "a ZIP code, like 44139 or 44139-1234"
         supplies: [ClientZip]
         notes: "Not collected by the website intake."
 
@@ -185,6 +230,12 @@ sections:
         help: "Printed on the onboarding letter. The secure upload link goes to this address, and so does the Encyro invitation to sign."
         type: text
         required: true
+        # A SHAPE CHECK, NOT A DELIVERABILITY CHECK. The realistic error is a
+        # slip at the keyboard while a client reads the address out, and the
+        # way it fails is silent: the signing invitation simply never arrives.
+        # Anything stronger belongs to whatever actually sends the mail.
+        pattern: '^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$'
+        pattern_says: "an email address, like name@example.com"
         prefill: contact.email
         supplies: [ClientEmail]
 
@@ -310,6 +361,10 @@ sections:
           Shareholders for an S corporation, partners for a partnership. Drives
           the fee and the K-1 delivery list.
         type: number
+        # AN ENTITY WITH NO OWNERS IS NOT AN ENTITY. `required` only rejects
+        # blank -- 0 is not blank, so a zero satisfied it and printed as
+        # `OwnerCount` on the business letter.
+        min: 1
         # REQUIRED as of 26 August 2026. It always should have been: the fee
         # prices the owner K-1s from this number, and the engagement letter
         # now states how many K-1s the engagement is scoped for. An entity
@@ -519,15 +574,31 @@ sections:
   - id: counts
     title: What drives the fee
     questions:
+      # DERIVED FROM THE LISTS, NOT ASKED. Same mechanism as
+      # `federal_schedules` above: the question still describes the field and
+      # what it feeds, and `derived: true` means nobody is ever shown it.
+      #
+      # They used to be asked. The letter's scope was written from the `states`
+      # list and the fee was billed from this number, with nothing comparing
+      # them until close-out -- so a letter naming one state went out beside an
+      # estimate billing three, and the client saw both. The engine's own rule,
+      # from `_scope_line`: "Exact inverses, from one answer. Two questions
+      # could disagree; one cannot."
       - id: count_states
         question: "How many state returns?"
+        help: >-
+          Counted from the states named above.
         type: number
+        derived: true
         supplies: []
         feeds: LineItems
 
       - id: count_localities
         question: "How many local returns?"
+        help: >-
+          Counted from the localities named above. A lone "None" is zero.
         type: number
+        derived: true
         supplies: []
         feeds: LineItems
 
@@ -611,7 +682,17 @@ sections:
       # Every option names something that HAPPENED, which is the same test
       # every other gate here passes: a client knows whether they sold a
       # house. They do not know whether their return is complicated.
+      # INDIVIDUALS ONLY. Every option here is a personal event -- a home
+      # sale, an HSA, marketplace insurance, a pre-59.5 withdrawal -- and a
+      # 1120 sitting was asked about all of them. The firm's own tenet, quoted
+      # at the top of `elimination.py`: "if something is not applicable why
+      # would you want to answer questions around it".
+      #
+      # The dead-condition sweep could not have found this: a question with no
+      # `showIf` is filed under `always` and never examined. It took driving a
+      # real 1120 sitting to see it.
       - id: extra_forms
+        showIf: "federal_form == '1040'"
         question: "Did any of these happen last year?"
         help: >
           Each one adds a form to the return and $50 to the fee. Tick what
@@ -672,14 +753,12 @@ sections:
       - id: count_foreign_accounts
         question: "How many foreign accounts?"
         help: >
-          Priced per account, at the same $50, because that is how the firm
-          already bills this work: "i have been doing this stuff with a client
-          for awhile and just charge per account".
+          One line per account, at $50 each.
 
-          A foreign COMPANY is not this question. A Form 5471 or 8865 is a
-          different job and stays hourly -- see `assumed.foreign_company` in
-          registry/fee-schedule.yaml. If one of these accounts turns out to be
-          an interest in a foreign entity, this is the wrong line for it.
+          A foreign COMPANY is not this question. An interest in one is a
+          different job, billed by the hour, and none of these lines cover it.
+          If an account turns out to be a stake in a business rather than
+          somewhere money sits, it does not belong on this count.
         type: number
         showIf: "'foreign_accounts' in extra_forms"
         supplies: []
@@ -694,13 +773,14 @@ sections:
       - id: count_sorting
         question: "Does what they sent need sorting before it can be worked?"
         help: >
-          UNSORTED BUT COMPLETE — a shoebox. Everything is there, in no order.
-          Answer 1 for yes, leave blank for no.
+          A shoebox: everything is there, just in no order, and somebody has
+          to put it in order before the return can be started. Answer 1 for
+          yes; leave it blank for no.
 
-          This is NOT the same as records that do not tie or are missing
-          something. That is discovered at file review, not at the
-          consultation, and it is billed hourly against the estimate's own
-          assumption. See `assumed.cleanup` in registry/fee-schedule.yaml.
+          Records that DO NOT TIE, or that are missing something, are a
+          different problem — you find that at file review rather than sitting
+          here, and it is billed by the hour. This question is only about
+          sorting what has already arrived.
         type: number
         internal: true
         internal_reason: >-
@@ -737,7 +817,7 @@ sections:
           the hourly list on 25 August 2026 and onto the counted list at $45 a
           statement, with the first one inside the package. It still selects
           the forms and builds the document request as well.
-        type: integer
+        type: number
         showIf: "'D' in federal_schedules"
         supplies: []
         feeds: LineItems
@@ -767,7 +847,7 @@ sections:
 
           Federal and any state that will not honour the federal extension
           count separately, because each is its own computation.
-        type: integer
+        type: number
         supplies: []
         internal: true
         internal_reason: >-
@@ -865,9 +945,13 @@ sections:
     questions:
       - id: returning_client
         question: "Is this a returning client?"
+        # NOT "Set for you by `cli.py returning`". A preparer reading this
+        # mid-sitting does not know or care which command filled it in, and
+        # naming one is the software talking about itself.
         help: >-
-          Set for you by `cli.py returning`. Answering yes here by hand is
-          fine; it only decides whether the change questions are asked.
+          Already answered when you started this from last year's return.
+          Answering it by hand is fine; it only decides whether you are asked
+          what changed.
         type: single
         required: true
         options:
@@ -918,33 +1002,6 @@ sections:
         internal_reason: >-
           The preparer's own note. A tick box says a thing happened; only this
           says enough to act on it.
-
-  # ── 8 · Red flags ───────────────────────────────────────────────────────
-  # Recorded against the record. The hard-no subset lives in firm-settings.yaml
-  # because it governs declining work, not producing a document.
-  - id: flags
-    title: Flags
-    questions:
-      - id: red_flags
-        question: "Anything that gives you pause?"
-        type: multi
-        options:
-          # The label does NOT repeat "HARD NO". Both front doors render the
-          # badge from `hard_no: true`, so the suffix printed it twice --
-          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
-          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
-          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
-          - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
-          - { value: "missing_records",   label: "Records are missing or unreliable" }
-          - { value: "notice_open",       label: "Open IRS or state notice" }
-          - { value: "foreign_exposure",  label: "Foreign accounts, assets, trusts or gifts" }
-          - { value: "digital_assets",    label: "Digital asset activity" }
-          - { value: "deadline_tight",    label: "Deadline is tight for the work involved" }
-        supplies: []
-        internal: true
-        internal_reason: >-
-          Recorded for the decision and for pricing. Does not print on any client
-          document — the letter names risk areas generically in section 03.
 
   # ── 9 · Internal ────────────────────────────────────────────────────────
   - id: internal
