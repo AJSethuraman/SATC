@@ -1,3 +1,8 @@
 
 # Ephemeral subagent git worktrees (isolation mode) — never commit
 .claude/worktrees/
+
+# Local dev virtualenv
+.venv/
+__pycache__/
+*.pyc

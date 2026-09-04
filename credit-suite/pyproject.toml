@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-suite"
+version = "0.1.0"
+description = "credit-suite - the one shared engine behind the Credit-Risk Template Suite monitors"
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1",       # the workbook is the deliverable (contract SS1)
+    "formulas>=1.2",       # recalc: statuses are formula-driven, so parity must recompute them
+]
+
+[project.scripts]
+credit-suite = "credit_suite.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+    "live: opt-in acceptance that touches the network or real Excel (not run in CI)",
+]

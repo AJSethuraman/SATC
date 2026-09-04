@@ -1,0 +1,4 @@
+# The parity goldens are byte-compared and asserted to be pure ASCII with LF
+# line endings (contract section 11). core.autocrlf must not rewrite them on
+# checkout, or the harness's own format test fails on a fresh clone.
+tests/goldens/*.json text eol=lf
