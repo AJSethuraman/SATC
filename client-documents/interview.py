@@ -25,12 +25,15 @@ wrong is silent:
 from __future__ import annotations
 
 import re
+from datetime import date
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
 
 import yaml
 
+import deadlines
 import schedules as sched
+import tins
 
 ROOT = Path(__file__).resolve().parent
 SCHEMA = ROOT / "registry" / "interview.yaml"
@@ -43,7 +46,9 @@ class InterviewError(RuntimeError):
 # ── the schema ─────────────────────────────────────────────────────────────
 
 def load_schema(path: Path | str = SCHEMA) -> dict:
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    schema = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    check_types(schema)
+    return schema
 
 
 def all_questions(schema: dict):
@@ -59,11 +64,30 @@ _EQ = re.compile(r"^\s*(\w+)\s*(==|!=)\s*'([^']*)'\s*$")
 _IN = re.compile(r"^\s*'([^']*)'\s+in\s+(\w+)\s*$")
 
 
+# WHAT "BLANK" IS, once, for the whole grammar. `showIf: "count_sorting != ''"`
+# reads as "only ask this if they answered the one above", and it never once
+# said no: `coerce` turns a blank number into None (a number field cannot hold
+# ""), and `None != ''` is True. So `sorting_amount` -- "How much for the
+# sorting? ($175 minimum)" -- was put to the preparer in EVERY sitting, on
+# every return type, including the one-W-2 client who has sent nothing yet.
+# Measured 2 September 2026: asked in all four paths.
+#
+# Fixed here rather than in that one condition, because the next `!= ''` in
+# the registry would have had the same bug and nothing would have compared the
+# two (S29, S31). An unanswered question and an empty string are the same
+# thing to a person reading the condition, so they are made the same thing
+# here. A typed 0 is NOT blank -- somebody entered it, and what it means is
+# the registry's business, not the grammar's.
+_BLANK = (None, "", [], {})
+
+
 def _clause(text: str, answers: dict) -> bool:
     m = _EQ.match(text)
     if m:
         qid, op, literal = m.groups()
         value = answers.get(qid)
+        if literal == "" and value in _BLANK:
+            value = ""
         return (value == literal) if op == "==" else (value != literal)
 
     m = _IN.match(text)
@@ -148,6 +172,44 @@ def prefill_for(question: dict, lead: dict | None) -> object:
     return node
 
 
+def prefill_source(question: dict, lead: dict | None) -> str:
+    """What the lead ACTUALLY said, when a map translated it into something else.
+
+    Both front doors show a prefilled answer as "the website said <value>", and
+    for a mapped question that sentence is not true. `services: [tax_planning]`
+    is translated to "1040" by `prefill_map`, and the preparer was then told the
+    website said "1040" -- which the client never said. They said they wanted
+    tax planning.
+
+    The firm's own description of what a lead is for: *"we use the lead as a
+    starting point, so we would always ask whether we are doing a 1040. we would
+    confirm what they put there. they didn't necessarily know what they needed."*
+    Confirming what they put there requires being shown what they put there. A
+    translated value wearing the client's name is the one thing that makes that
+    impossible.
+
+    Returns "" when there is nothing to add -- no map, or the map did not change
+    the words. Never invents a label: the lead's own value with its underscores
+    opened out, because the website's wording belongs to the firm and is not
+    this module's to restate.
+    """
+    if not lead or not question.get("prefill") or not question.get("prefill_map"):
+        return ""
+    node = lead
+    for part in question["prefill"].split("."):
+        if not isinstance(node, dict) or part not in node:
+            return ""
+        node = node[part]
+    said = node if isinstance(node, list) else [node]
+    said = [str(v) for v in said if v not in (None, "")]
+    if not said:
+        return ""
+    shown = _collapse(question, _mapped(question, question["prefill_map"], node))
+    if shown is None or [str(shown)] == said:
+        return ""
+    return ", ".join(v.replace("_", " ") for v in said)
+
+
 def _mapped(question: dict, mapping: dict, node):
     """The lead's vocabulary translated through the question's own map.
 
@@ -200,6 +262,110 @@ def _collapse(question: dict, value):
     return value
 
 
+# ── the types a question may declare ───────────────────────────────────────
+#
+# WRITTEN DOWN SO A TYPO CANNOT BE SILENT. Two questions declared
+# `type: integer`, which no code in this repository handles: `coerce` fell
+# through to its string branch and `question_body` rendered a free-text box
+# where a count belonged. It priced correctly by luck -- `pricing._count` calls
+# `int()` on the way past -- and it blinded the dead-condition sweep, which
+# generates numeric probes only for `type: number`.
+#
+# Nothing caught it because nothing was looking. `check_types` is what looks.
+TYPES = {"single", "multi", "list", "number", "year", "text", "textarea"}
+
+
+def check_types(schema: dict) -> None:
+    """Every question declares a type this engine implements. Raises if not."""
+    unknown = sorted({
+        f"{q['id']}: {q.get('type')!r}"
+        for _, q in all_questions(schema) if q.get("type") not in TYPES
+    })
+    if unknown:
+        raise InterviewError(
+            "the schema declares types this engine does not implement -- "
+            + "; ".join(unknown)
+            + f". Known types: {', '.join(sorted(TYPES))}. A type nothing "
+              f"handles renders as a text box and is swept blind.")
+
+
+# ── what the answers imply ─────────────────────────────────────────────────
+
+# Lists whose LENGTH is the count that used to be asked for separately, and the
+# count question each one replaces.
+COUNTED_LISTS = {"states": "count_states", "localities": "count_localities"}
+
+
+def counted(items) -> int:
+    """How many things a list answer actually names.
+
+    A LONE "None" IS ZERO. `localities`' help says "Emit 'None' when there are
+    none -- never blank", so a preparer following it types the word, and naive
+    length would bill that as one local return. `_listed` already turns an
+    empty list into the literal "None" on the document, so both spellings of
+    "no localities" have to mean the same number here.
+    """
+    if isinstance(items, str):
+        items = [items]
+    named = [str(i).strip() for i in (items or []) if str(i).strip()]
+    if len(named) == 1 and named[0].casefold() == "none":
+        return 0
+    return len(named)
+
+
+def derive(answers: dict, schema: dict | None = None) -> dict:
+    """Everything the answers imply, worked out in ONE place.
+
+    Two derivations, and they used to live in different numbers of places:
+
+    * `federal_schedules`, from the facts the client gave -- `schedules.apply`.
+    * `count_states` and `count_localities`, from the lists that name them.
+
+    THE COUNTS USED TO BE ASKED. The letter's scope was written from the
+    `states` list and the fee was billed from a separate `count_states` number,
+    with nothing comparing them until close-out -- so a letter naming one state
+    went out beside an estimate billing three, and the client saw both. This
+    engine's own comment (`_scope_line`) says why that cannot stand: "Exact
+    inverses, from one answer. Two questions could disagree; one cannot."
+
+    Note the direction. `schedules.py` warns against deriving a schedule FROM a
+    count, because a count can be blank while the thing exists. This is the
+    other way round: the list is the enumeration, so its length is exact and
+    cannot be blank-but-true.
+    """
+    sched.apply(answers, schema)
+    for list_id, count_id in COUNTED_LISTS.items():
+        if list_id in answers:
+            answers[count_id] = counted(answers[list_id])
+    return answers
+
+
+def is_offered(question: dict, value) -> bool:
+    """Is every part of this answer one the question actually offered?
+
+    THE ONE PLACE THAT RULE LIVES. `prefill_is_answerable` asked this question
+    of a prefill and `Interview.answer` did not ask it at all, which meant the
+    interview would refuse to *suggest* a value it would happily *store* --
+    and `coerce`'s docstring asserted the opposite:
+
+        "An unknown option value is passed through untouched, so
+         `Interview.answer` rejects it."
+
+    It did not. `federal_form="1041"` was accepted, printed as the engagement
+    letter's scope line, and was then classified as an individual engagement by
+    `intake.RETURN_TYPE.get(..., "individual")` -- so a 1041 got the 1040
+    letter. Found 3 September 2026 by driving the real form.
+
+    A question with no `options` is free-form and offers nothing, so it accepts
+    anything; that is what makes a name or a note answerable.
+    """
+    options = [o["value"] for o in question.get("options") or []]
+    if not options:
+        return True
+    values = value if isinstance(value, list) else [value]
+    return all(v in options for v in values)
+
+
 def prefill_is_answerable(question: dict, value) -> bool:
     """Could this claim be accepted as it stands?
 
@@ -210,11 +376,7 @@ def prefill_is_answerable(question: dict, value) -> bool:
     """
     if value in (None, "", []):
         return False
-    options = [o["value"] for o in question.get("options", [])]
-    if not options:
-        return True
-    values = value if isinstance(value, list) else [value]
-    return all(v in options for v in values)
+    return is_offered(question, value)
 
 
 # ── the flow ───────────────────────────────────────────────────────────────
@@ -298,6 +460,13 @@ class Interview:
     # a carried answer that answered itself would be an assumption wearing a
     # confirmation's clothes.
     carried: dict = dc_field(default_factory=dict)
+    # "This one is not a refusal, carry on." Set by `--override-hard-no`, which
+    # already existed for the case where the hard-no LIST is wrong rather than
+    # the client. Without it here, ending the sitting on a block would end it
+    # for the override too, and nothing could ever be created -- caught by
+    # test_a_hard_no_can_be_overridden_deliberately, which is what that test is
+    # for.
+    override_hard_no: bool = False
 
     def pending(self):
         """Every question still to ask, in order, given current answers.
@@ -314,19 +483,117 @@ class Interview:
                 yield section, q
 
     def next_question(self):
+        """The next question to put, or None when the sitting is over.
+
+        A HARD NO ENDS IT HERE, in the one place both front doors ask. Before
+        this, ticking "Needs assurance work" painted a red HARD NO badge on the
+        screen and then asked the next question, and the next: the block was
+        only acted on when the questions ran out. Measured 2 September 2026 --
+        two more questions after the tick, and 29 asked before it.
+
+        Returning None rather than raising is deliberate. Both doors already
+        have a "the questions ran out" branch that computes the blockers and
+        shows the refusal (`web.py` on `nxt is None`, `cli._finish` into
+        `intake.finish`, which tests the blockers before anything else). So the
+        refusal arrives through the path that already existed, and neither door
+        needed a second copy of the rule -- S3: two halves of one tool make the
+        same call because one of them IS the other.
+
+        `pending()` is left alone: it is what the progress counter reads, and a
+        sitting that ends early has not shrunk the schema.
+        """
+        if self.hard_no() and not self.override_hard_no:
+            return None
         return next(iter(self.pending()), None)
 
     def answer(self, qid: str, value) -> None:
         q = self.question(qid)
+        # COERCE HERE, NOT ONLY AT THE DOOR. `web.py` coerced before calling
+        # this and `cli.py --set` did too, which meant the type rules below
+        # held for the two callers that remembered and for nobody else --
+        # `intake.py`'s own header on why that shape is a bug: "a control that
+        # lives in one front door is a control the other silently skips."
+        # `coerce` is idempotent, so the doors may keep calling it.
+        value = coerce(q, value)
         if q.get("required") and value in (None, "", []):
             raise InterviewError(f"{qid} is required")
+        # A BLANK IS NOT AN ILLEGAL OPTION, it is the absence of one. An
+        # optional multiple-choice question left empty has to stay storable, so
+        # the offered-values check runs only on an answer that is actually there.
+        # AN IDENTIFICATION NUMBER IS REFUSED BEFORE ANYTHING ELSE IS SAID.
+        # `save_draft` is still the boundary that stops the write; this is
+        # about which message the preparer gets. Somebody typing an SSN into
+        # question one needs to hear "the last four digits are enough", not
+        # "that is not one of the options" -- and before this ran first, the
+        # options check below answered for it. Both front doors benefit:
+        # `cli.py --set` reaches this too, and never reached `save_draft`.
+        tins.refuse(value, f"the answer to {qid}")
+        # A COUNT THAT IS NOT A NUMBER IS REFUSED HERE, WHERE IT WAS TYPED.
+        # `coerce` returns the raw STRING when `int()` fails, and `pricing._count`
+        # then reads any unparseable string as absence -- zero. So `count_rentals`
+        # of "abc", "2.7" or "-3" all priced identically to a correct answer of
+        # 1 (a sub-1 count is bumped to 1 by `form_when`), and `count_states` of
+        # -5 produced no state line at all. Silent, every time.
+        #
+        # `_count` guards `bool` and non-integral `float` and says so at length,
+        # but the interview can produce neither -- only a string, which falls
+        # through to its `return 0`. Its comment there ("the interview coerces
+        # its own types, and a stray string means the count was never really
+        # asked") was an assumption about this function. This is what makes it
+        # true. `bool` is excluded explicitly because `isinstance(True, int)`.
+        if (q.get("type") in ("number", "year") and value not in (None, "", [])
+                and (isinstance(value, bool) or not isinstance(value, int))):
+            raise InterviewError(
+                f"{qid} needs a whole number -- that answer is not one")
+        # A MINIMUM THE QUESTION DECLARES. Required-ness is
+        # `value in (None, "", [])`, and 0 is none of those, so `count_owners: 0`
+        # satisfied a required question and printed as `OwnerCount` on the
+        # business letter. Declared in the schema rather than special-cased here,
+        # so the next count that cannot sensibly be zero says so itself.
+        if (q.get("min") is not None and isinstance(value, int)
+                and not isinstance(value, bool) and value < q["min"]):
+            raise InterviewError(
+                f"{qid} cannot be less than {q['min']}")
+        # A YEAR IS A DOMAIN TYPE, NOT A NUMBER THAT HAPPENS TO BE FOUR DIGITS.
+        # `tax_year` was free text: `x`, `-5`, `99999` and `0` were all accepted
+        # and all reached documents. `0` was the worst -- it rendered a return
+        # due 0001-04-17 and sorted to the TOP of the deadline board with
+        # nothing reporting a problem. The rule lives in `deadlines`, next to
+        # the filing calendar it is about, so the board and the question cannot
+        # drift apart on what a year is.
+        if (q.get("type") == "year" and value not in (None, "", [])
+                and not deadlines.plausible_year(value)):
+            now = date.today().year
+            raise InterviewError(
+                f"{qid} needs a tax year between "
+                f"{now - deadlines.YEARS_BACK} and {now + deadlines.YEARS_FORWARD}")
+        # A SHAPE THE QUESTION DECLARES. `client_email` and `client_zip` were
+        # free text, and the way a mistyped email fails is silent -- the
+        # signing invitation simply never arrives. `pattern_says` carries what
+        # the shape IS, because a regex is not an error message.
+        if q.get("pattern") and isinstance(value, str) and value.strip():
+            if not re.match(q["pattern"], value.strip()):
+                raise InterviewError(
+                    f"{qid} should be {q.get('pattern_says') or 'a valid value'}")
+        if value not in (None, "", []) and not is_offered(q, value):
+            # THE REFUSAL MUST NOT REPEAT WHAT WAS SENT. The first version of
+            # this message quoted the rejected value, which reads as helpful
+            # until somebody types their SSN into the first question -- and
+            # then the error, the log and the JSON response all carry it.
+            # `test_an_unfinished_sitting_is_refused_before_it_reaches_disk`
+            # caught exactly that, which is the TIN boundary working. What the
+            # caller needs is the list of things that WOULD work; it already
+            # knows what it sent.
+            offered = ", ".join(o["value"] for o in q.get("options") or [])
+            raise InterviewError(
+                f"{qid} does not offer that answer -- it offers: {offered}")
         self.answers[qid] = value
         # DERIVE BEFORE PRUNING. `federal_schedules` is worked out from the
         # facts, and half the fee questions below are gated on it -- change
         # `return_features` and `count_rentals` has to appear or disappear on
         # the same keystroke. Deriving after the prune would leave the session
         # one answer behind itself.
-        sched.apply(self.answers, self.schema)
+        derive(self.answers, self.schema)
         # An answer can hide a question that was already answered -- change
         # joint_return to "no" and the spouse name must go, or it reaches a
         # document that no longer has a place for it.
@@ -383,7 +650,7 @@ def coerce(q: dict, raw) -> object:
         values = raw if isinstance(raw, list) else \
             [p.strip() for p in (raw or "").split(",") if p.strip()]
         return values
-    if t == "number":
+    if t in ("number", "year"):
         raw = (raw or "").strip() if isinstance(raw, str) else raw
         if raw in (None, ""):
             return None
@@ -436,7 +703,7 @@ def missing_required(answers: dict, schema: dict | None = None) -> list[str]:
     schema = schema if schema is not None else load_schema()
     seen = dict(answers)
     try:
-        sched.apply(seen, schema)
+        derive(seen, schema)
     except Exception:                                        # noqa: BLE001
         pass          # a schedule that will not derive is reported elsewhere
     return [q["id"] for _, q in all_questions(schema)

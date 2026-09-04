@@ -44,6 +44,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import cli                       # noqa: E402
+import console                   # noqa: E402
+import dates                     # noqa: E402
 import engagements               # noqa: E402
 import intake                    # noqa: E402
 import invoicing                 # noqa: E402
@@ -327,7 +329,10 @@ def _unwritten(record: dict) -> list[str]:
 
 def run_one(s: Scenario, store: Path, out: Path) -> Result:
     r = Result(key=s.key, what=s.what, note=s.note, expect=s.expect)
-    answers = sched.apply(dict(s.answers))
+    # `intake.finish` derives for itself now, so this no longer has to
+    # remember -- but it still hands over a COPY, because the harness
+    # reuses `s.answers` across scenarios and deriving mutates in place.
+    answers = dict(s.answers)
     try:
         outcome = intake.finish(answers, store=store)
     except Exception as exc:                              # noqa: BLE001
@@ -525,7 +530,7 @@ def _requote(ref: str, store: Path, pack: Path) -> str:
             and quote.before_total not in amounts
             and quote.before_total in html):
         trouble.append(f"the estimate still shows {quote.before_total}")
-    if record["EstimateDate"] != _date.today().strftime("%B %-d, %Y"):
+    if record["EstimateDate"] != dates.long_date(_date.today()):
         trouble.append(f"the estimate is dated {record['EstimateDate']}, not "
                        f"the day it was quoted")
     if record["LetterDate"] not in html:
@@ -553,6 +558,7 @@ def renders(paths: list[Path]) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    console.speak_utf8()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     # DEFAULTS INSIDE client-documents, where `out/` is already gitignored.
     # The first run of this wrote to the REPO ROOT's out/, which is not --

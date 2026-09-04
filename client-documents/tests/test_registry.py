@@ -642,3 +642,22 @@ def test_every_declared_inverse_is_symmetric_and_real():
         assert other in by_name, f"{flag} names {other}, which is not a flag"
         assert by_name[other].get("inverse_of") == flag, (
             f"{flag} says its inverse is {other}, but {other} does not agree")
+
+
+def test_the_prd_names_the_sections_the_schema_actually_has():
+    """F11. The PRD described seven sections with red flags at six; the schema
+    has ten with red flags second, plus sections the PRD never mentioned.
+
+    PRD requirement 8 is that somebody can build the Microsoft Form from that
+    document. For a while they would have built the wrong one. This does not
+    police the prose — only that every section id in the schema is named
+    somewhere in the PRD, so a new one cannot be added silently.
+    """
+    import interview as iv
+    prd = (ROOT.parent / "docs" / "prd-interview-and-field-registry.md") \
+        .read_text(encoding="utf-8")
+    missing = [s["id"] for s in iv.load_schema()["sections"]
+               if f"`{s['id']}`" not in prd]
+    assert not missing, (
+        f"the PRD does not mention these schema sections: {missing}. "
+        f"It is the document somebody builds the Microsoft Form from.")

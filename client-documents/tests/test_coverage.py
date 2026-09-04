@@ -20,6 +20,8 @@ or a hole.
 from __future__ import annotations
 
 import json
+from datetime import date
+import re
 import sys
 from pathlib import Path
 
@@ -83,21 +85,79 @@ def _record(**over):
 OPENING = ["tax-letter", "fee-estimate", "onboarding-letter", "organizer-letter"]
 
 
+def _sat_through(form: str) -> dict:
+    """Answers from a REAL sitting for this return type.
+
+    Not a hand-written payload. `ENTITY_ANSWERS` wrote `k1_target` and
+    `count_owners` for every entity, and a real 1120 sitting PRUNES both --
+    their `showIf` is `1120S or 1065`. So the test supplied two fields the
+    interview would never produce and asserted the document could be built from
+    them, which is the exact shape `registry/interview.yaml`'s own header says
+    this registry exists because of: "the tests passed only because the sample
+    payload hand-wrote all four".
+    """
+    session = iv.Interview()
+    session.answer("federal_form", form)
+    for _ in range(120):
+        nxt = session.next_question()
+        if nxt is None:
+            break
+        _, q = nxt
+        session.answer(q["id"], _answerable(q))
+    return session.answers
+
+
+def _answerable(q: dict):
+    """Any answer this question takes that does not end the sitting."""
+    options = [o for o in (q.get("options") or []) if not o.get("hard_no")]
+    if options:
+        return [options[0]["value"]] if q["type"] == "multi" else options[0]["value"]
+    if q.get("options"):
+        return [] if q["type"] == "multi" else ""
+    if q["type"] == "year":
+        return date.today().year
+    if q["type"] == "number":
+        return max(1, q.get("min") or 1)
+    if q["type"] == "list":
+        return ["Ohio - resident"]
+    if q.get("pattern"):
+        for candidate in ("t@example.com", "44139"):
+            if re.match(q["pattern"], candidate):
+                return candidate
+    return "Larchmere Holdings LLC" if "name" in q["id"] else "x"
+
+
 @pytest.mark.parametrize("form", ["1040", "1120S", "1065", "1120"])
 def test_every_return_type_the_interview_offers_can_open_an_engagement(form):
     """The guard on the whole thing.
 
     `federal_form` offers four returns. Offering one the pipeline cannot
     produce documents for is the bug this file was written after.
+
+    THE DOCUMENT COMES FROM `OPENING_BY_RETURN`, not from a guess. This test
+    asserted `business-letter` for every entity, and a C corporation gets
+    `ccorp-letter` -- so the one return type with its own opening letter was
+    checked against a document it never receives, and `ccorp-letter` was
+    checked by nothing at all.
     """
-    over = dict(ENTITY_ANSWERS) if form != "1040" else {}
-    over["federal_form"] = form
-    record = _record(**over)
-    doc = "business-letter" if form != "1040" else "tax-letter"
+    answers = _sat_through(form)
+    record = intake.compose_record(answers)
+    doc = cli.OPENING_BY_RETURN[intake.RETURN_TYPE[form]]
     missing = sorted(f for f in _wants(doc) if f not in record and f not in LATER)
     assert not missing, (
         f"a {form} engagement cannot produce {doc}: {missing} are unasked"
     )
+
+
+def test_every_opening_letter_is_covered_by_the_test_above():
+    """`ccorp-letter` was reachable in production and asserted on by nothing.
+
+    Guarding the guard: if a fifth return type or a fifth opening letter is
+    added, this fails until the parametrize list above covers it.
+    """
+    checked = {cli.OPENING_BY_RETURN[intake.RETURN_TYPE[f]]
+               for f in ("1040", "1120S", "1065", "1120")}
+    assert checked == set(cli.OPENING_BY_RETURN.values())
 
 
 def test_the_business_letter_gets_its_entity_fields_from_the_interview():

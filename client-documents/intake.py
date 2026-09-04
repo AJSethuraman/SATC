@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import dates
 import engagements
 import interview as iv
 import pricing
@@ -84,7 +85,7 @@ def compose_record(answers: dict, *, today: date | None = None) -> dict:
     creating anything -- a web UI previewing before it commits, a test.
     """
     record = iv.compose(answers)
-    record["LetterDate"] = (today or date.today()).strftime("%B %-d, %Y")
+    record["LetterDate"] = dates.long_date(today or date.today())
     # THE SAME DATE TODAY, AND NOT THE SAME FIELD. The estimate and the letter
     # go out together and are dated together -- but an engagement can be quoted
     # again, and a re-quote moves the estimate's date while the letter keeps
@@ -119,10 +120,23 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
         if not override_hard_no:
             return Outcome(
                 status="refused", blockers=blockers, flags=flags,
-                reason="This is work the firm does not take. firm-settings.yaml "
-                       "lists it under `hard_no` and the interview schema marks "
-                       "the options themselves. Override only if the list is "
-                       "wrong, not because this one feels like an exception.")
+                # WRITTEN FOR THE PERSON READING IT, NOT FOR WHOEVER BUILT
+                # IT. This used to say "firm-settings.yaml lists it under
+                # `hard_no` and the interview schema marks the options
+                # themselves" -- a filename and two code identifiers, on a
+                # screen a preparer sees mid-call with a client in the room.
+                # The firm, seeing it: "why would that be in our software?
+                # what software says stuff like that to its user?"
+                #
+                # A screen says what happened and what to do about it. Where
+                # the rule is written down is the software's business.
+                # The screen already prints "Nothing was written" under this
+                # paragraph, and saying it twice reads as a stammer. Caught by
+                # photographing the screen rather than by reading the string.
+                reason="This is work you have said the firm does not take on. "
+                       "You can take it on anyway and it will be recorded that "
+                       "you did — do that only if the rule itself is wrong, "
+                       "not to make one exception to it.")
         # An override is recorded on the outcome so it reaches whatever is
         # reading -- a flag that can be set silently is a flag that means
         # nothing.
@@ -148,6 +162,21 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
     #
     # Checked HERE rather than at the top so a refusal and a decline still work
     # on a partial interview: only CREATING an engagement needs a complete one.
+    # DERIVE BEFORE ANYTHING READS THE ANSWERS. `Interview.answer` derives on
+    # every keystroke and `missing_required` derives on a throwaway copy, so a
+    # set of answers arriving here any other way -- a replay, a script, the
+    # re-quote path -- passed the required gate using derived schedules and was
+    # then composed and priced WITHOUT them. Proven: rentals and investments
+    # ticked with no `federal_schedules` billed the Essentials package where
+    # Standard was due, and added a rental line the letter did not mention.
+    #
+    # `exercise.py` worked around this by calling `sched.apply` by hand right
+    # before `finish`, which is the tell that it was known. This is the fix:
+    # the control lives in the door, not in whoever remembers to knock.
+    # `intake.py`'s own header says so -- "a control that lives in one front
+    # door is a control the other silently skips."
+    iv.derive(answers)
+
     unanswered = iv.missing_required(answers)
     if unanswered:
         return Outcome(

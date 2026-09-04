@@ -170,6 +170,14 @@ name for the same concept is a bug in the template.
    marks `PeriodLabel` as *derived per document*, with the derivation stated per
    template. It is not a stored record field.
 
+   **What actually happens, corrected 3 September 2026:** `interview.compose`
+   *does* store it (`interview.py`, `out["PeriodLabel"] = f"{tax_year} tax
+   year"`), and `invoicing.build` overrides it with the period billed — pinned
+   by `tests/test_invoicing.py`. So the outcome the decision wanted holds, by a
+   different mechanism than the one written here. Recorded rather than quietly
+   fixed, because `procedures.py` already flags that this document "said MUST
+   NOT SHARE `PeriodLabel` as though it were enforced", and it was not.
+
 2. **`EngagementRef` and the lead number use different formats.** The templates
    specify `2027-0114`; the `SATC leads.xlsx` Lead Number column generates
    `2026 - 0001`. `EngagementRef` must be byte-identical across letter,
@@ -190,23 +198,42 @@ works (`website/intake-config.js` is the reference implementation for the
 `showIf` pattern — a single predicate deciding both whether a question renders
 and whether its answer may survive).
 
-Sections, in order:
+> **`registry/interview.yaml` IS THE SOURCE OF TRUTH FOR THIS SECTION, NOT THIS
+> DOCUMENT.** The list below is read back from the schema; where the two ever
+> disagree again, the schema is what runs and this is what is stale. Requirement
+> 8 is that somebody can build the Microsoft Form from this document, and for a
+> while they would have built the wrong one: this said seven sections with red
+> flags at six, and the schema had ten with red flags second.
 
-1. **Confirm identity** — legal name(s), salutation name, full address, email,
-   phone. Pre-loaded from the lead row; the address is new.
-2. **Filing status** — joint or single; spouse name if joint. Sets
-   `JointReturn`.
-3. **Return composition** — which federal forms and schedules; which states and
-   the basis for each (resident, part-year, non-resident); which localities;
-   additional forms. Produces `FederalReturns`, `StateReturns`, `LocalReturns`,
-   `AdditionalForms` as prose strings assembled from structured answers.
-4. **Billable counts** — per item where countable (rentals, states, localities,
-   K-1s, entities); banded where not (brokerage activity, cleanup, document
-   volume). Produces the inputs to `LineItems`, not the amounts.
-5. **Prior year and predecessor** — prior firm, prior-year return availability,
-   unfiled years. Sets `PriorFirm`, `PriorFirmName`, and feeds `RequestList`.
-6. **Red flags** — recorded; a hard-no subset terminates.
-7. **Internal** — decision, notes. Tagged `internal`; supplies no template.
+Sections, in order, as the schema declares them (read back 3 September 2026):
+
+1. **What we are preparing** (`scope`, 4) — federal form, original or
+   amendment, tax year. The form chosen here closes most of the branches below.
+2. **Flags** (`flags`, 1) — red flags, and a hard-no subset terminates the
+   sitting. **Second, not sixth.** Moved to the front on the firm's instruction,
+   2 September 2026: measured beforehand, a plain 1040 was 32 questions and this
+   was number 30, so a client the firm does not take answered 29 questions —
+   name, address, filing status, every count — before the one that ends it.
+3. **Who they are** (`identity`, 6) — legal name, full address, email.
+   Pre-loaded from the lead row; the address is new.
+4. **Filing status** (`filing_status`, 3) — joint or single; spouse name if
+   joint. Sets `JointReturn`.
+5. **The entity** (`entity`, 7) — structure, state, signer and title, owner
+   count. Asked only of an entity return.
+6. **What we will prepare** (`composition`, 7) — schedules, states and the basis
+   for each, localities, additional forms. Produces `FederalReturns`,
+   `StateReturns`, `LocalReturns`, `AdditionalForms`. **`federal_schedules` is
+   derived**, not asked: the sitting collects facts a client can answer and
+   `schedules.py` turns them into schedules.
+7. **What drives the fee** (`counts`, 15) — per item where countable, banded
+   where not. Produces the inputs to `LineItems`, not the amounts.
+   **`count_states` and `count_localities` are derived** from the `states` and
+   `localities` lists; asking both let the letter and the estimate disagree.
+8. **Prior year** (`history`, 4) — prior firm, prior-year return availability,
+   unfiled years. Sets `PriorFirm`, `PriorFirmName`, feeds `RequestList`.
+9. **What changed** (`changes`, 3) — returning client, and what moved this year.
+10. **Decision** (`internal`, 2) — decision and notes. Tagged `internal`;
+    supplies no template field.
 
 ### Assembling the prose fields
 

@@ -38,6 +38,8 @@ from pathlib import Path
 
 import yaml
 
+import console
+import dates
 import money as m
 import engagements
 import invoicing
@@ -59,6 +61,7 @@ import pricing
 import requote
 import signing
 import settings as firm
+import timelog
 import tins
 
 ROOT = Path(__file__).resolve().parent
@@ -144,8 +147,7 @@ class NoPdfEngine(RuntimeError):
 
 def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None:
     from playwright.sync_api import sync_playwright
-    import os, tempfile
-    exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
+    import tempfile
     # A file on disk rather than set_content, so relative links resolve exactly
     # as they do when the template is opened.
     #
@@ -168,8 +170,7 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
     tmp.write_text(html, encoding="utf-8")
     try:
         with sync_playwright() as p:
-            launch = {"executable_path": exe} if Path(exe).exists() else {}
-            browser = p.chromium.launch(**launch)
+            browser = p.chromium.launch(**presend.launch_args())
             page = browser.new_page()
             page.goto(tmp.as_uri(), wait_until="networkidle")
             page.wait_for_timeout(700)          # doc-page.js defines the layout
@@ -240,8 +241,16 @@ _DRAFT_CSS = """
 _BANNER = ('<div slot="header" class="satc-draft-banner">Draft &middot; not for '
            'client use &middot; open decisions marked in oxblood</div>')
 
+# WHAT A PREVIEW SAYS ABOUT ITSELF. A preview is served into a browser, and a
+# browser can print it, save it, and attach it to an email. Nothing here can
+# stop that, so the only honest defence is that the sheet which comes out of
+# the printer says what it is -- on every page, for the same reason the draft
+# stamp does.
+_PREVIEW_BANNER = ('<div slot="header" class="satc-draft-banner">Preview '
+                   '&middot; not the copy that goes to the client</div>')
 
-def _stamp_draft(html: str) -> str:
+
+def _stamp_draft(html: str, banner: str = _BANNER) -> str:
     """Make a draft impossible to mistake for the real document.
 
     The banner goes in doc-page's `slot="header"`, which the component prints
@@ -252,10 +261,34 @@ def _stamp_draft(html: str) -> str:
     """
     html = html.replace("</head>", _DRAFT_CSS + "</head>", 1)
     # after the opening <doc-page ...> tag, so the component owns it
-    html = re.sub(r"(<doc-page\b[^>]*>)", r"\1\n" + _BANNER, html, count=1)
+    html = re.sub(r"(<doc-page\b[^>]*>)", r"\1\n" + banner, html, count=1)
     # highlight every decision nobody has made yet
     return re.sub(r"(\[CONFIRM:[^\]]*\])",
                   r'<span class="satc-open-decision">\1</span>', html)
+
+
+def stamp_preview(html: str, labels: dict | None = None) -> str:
+    """The same stamp, saying the other thing, with the blanks named.
+
+    Public because `previewing` is a second caller and the stamp is the whole
+    reason looking at a document is safe to allow past the gate.
+
+    AND THE BLANKS READ AS BLANKS. A preview of an unfinished document leaves
+    the token where the answer will go, and the token is spelled the way the
+    template spells it -- `<<PaymentDeadline>>`, in the middle of a letter, at
+    a preparer who is looking at a document and not at software. Marked the
+    same way an undecided sentence is marked, and named the way the rest of
+    the software names it.
+    """
+    html = _stamp_draft(html, _PREVIEW_BANNER)
+
+    def blank(m):
+        name = m.group(1)
+        said = (labels or {}).get(name) or name
+        return (f'<span class="satc-open-decision">{said} '
+                f'&mdash; not answered yet</span>')
+
+    return re.sub(r"&lt;&lt;([A-Za-z0-9_]+)&gt;&gt;", blank, html)
 
 
 # ── record assembly ────────────────────────────────────────────────────────
@@ -546,6 +579,23 @@ def cmd_invoice(args) -> int:
                 print(f"--credit wants LABEL=AMOUNT, got {entry!r}")
                 return 1
 
+    # MONEY THIS CLIENT HAS ALREADY OVERPAID. Refunding it costs the firm the
+    # processing fee -- Square keeps that on refunds -- so it belongs on the
+    # next bill. Which is this one, and nobody should have to remember.
+    over = payments.unapplied_overpayments(store, args.engagement)
+    taken = [o for o in over
+             if any(o["invoice"] in c["label"] for c in credits)]
+    for o in [o for o in over if o not in taken]:
+        print(f"\n  {args.engagement} overpaid invoice {o['invoice']} by "
+              f"${o['cents'] / 100:,.2f}, and it has not been given back.\n"
+              f"  Put it on this bill instead of refunding it — Square keeps "
+              f"the processing\n  fee on a refund, so sending it back costs "
+              f"the fee on money nobody asked for:\n\n"
+              f"    --credit 'Overpayment on invoice {o['invoice']}"
+              f"={o['cents'] / 100:.2f}'\n\n"
+              f"  Naming the invoice in the label is what stops this saying it "
+              f"again.\n")
+
     try:
         fields = invoicing.build(record, number=number, billed=args.billed,
                                  credits=credits,
@@ -553,6 +603,12 @@ def cmd_invoice(args) -> int:
     except invoicing.InvoiceError as exc:
         print(f"\n{exc}\n")
         return 1
+
+    # AFTER the bill is built, never before: a credit that was refused is not
+    # a credit that was given, and marking it applied would lose the money.
+    for o in taken:
+        payments.apply_overpayment(store, args.engagement,
+                                   invoice=o["invoice"], applied_to=number)
 
     # THE LINK IS MADE BEFORE THE BILL IS WRITTEN, so a processor that refuses
     # leaves no invoice claiming a link it never got. The bill is the thing the
@@ -594,6 +650,76 @@ def cmd_invoice(args) -> int:
     return 0
 
 
+def _payments_check(args) -> int:
+    """Prove the payment path works, against the live processor, end to end.
+
+    THE QUESTION THIS ANSWERS, from the firm on 2 September 2026: *"how do we
+    truly confirm the square thing works - i want to know i'll get paid and the
+    client isn't just sending money to the void"*.
+
+    Every automated test runs against a stand-in for the network. They prove
+    this software behaves correctly; they cannot tell a working Square account
+    from a closed one. This asks Square.
+    """
+    sandbox = not args.production
+    if args.production:
+        # A REAL LINK TAKES REAL MONEY. It is the only thing that proves the
+        # production location is the firm's own and the payout reaches the
+        # bank -- so it is offered, and it is never the default.
+        print("\nThis will create a REAL payment link on the live account for "
+              f"${args.cents / 100:,.2f}.\nPaying it moves real money onto a "
+              "real statement.\n")
+
+    steps, link, got = payments.live_check(sandbox=sandbox, amount_cents=args.cents)
+
+    where = "Square's test account" if sandbox else "the LIVE Square account"
+    print(f"\nChecking the payment path against {where}.\n")
+    for step in steps:
+        print(f"  {'yes' if step.ok else 'NO ':4} {step.name}")
+        if step.detail:
+            print(f"       {step.detail}")
+    done = sum(1 for s in steps if s.ok)
+    print(f"\n  {done} of {payments.CHECK_STEPS} checked.\n")
+
+    if len(steps) < payments.CHECK_STEPS:
+        print("It stopped at the first thing that failed, so the steps after "
+              "it\nwere not reached — not passed.\n")
+        return 1
+
+    if got is not None and got.paid:
+        print("The whole loop is proven: a link was made, somebody paid it, "
+              "and\nthis software saw the money.\n")
+        if sandbox:
+            print("What this does NOT prove is the live account: that is a "
+                  "different\nlocation id and a different token. Run "
+                  "`--production` once, pay a\ndollar with your own card, and "
+                  "watch it land in your bank.\n")
+        return 0
+
+    print(f"{payments.CHECK_STEPS - 1} of the {payments.CHECK_STEPS} are "
+          f"proven. The last one needs a card, because no\nsoftware can pay "
+          f"itself:\n")
+    print(f"  1. Open   {link.url if link else ''}")
+    if sandbox:
+        # Square publishes the sandbox card numbers; they are printed here so
+        # nobody has to go looking, and sourced so nobody has to trust this.
+        print("  2. Pay it with a Square sandbox test card — no money moves.")
+        print("     Square lists them at "
+              "https://developer.squareup.com/docs/devtools/sandbox/payments")
+        print("     (the Visa is 4111 1111 1111 1111, CVV 111, any future "
+              "expiry,\n      postal 94103 — check the page if it is refused).")
+    else:
+        print("  2. Pay it with your own card. It is a real charge for "
+              f"${args.cents / 100:,.2f};\n     refund it from the Square "
+              "dashboard afterwards.")
+    print("  3. Run this command again. It reuses the same link, so it will\n"
+          "     find the payment and tell you the money arrived.\n")
+    if not sandbox:
+        print("Then check your bank. The transfer is Square's to make and this\n"
+              "software cannot see it — that last step is yours, once.\n")
+    return 0
+
+
 def cmd_payments(args) -> int:
     """Ask the processor which bills have been paid, and write down the answer.
 
@@ -606,6 +732,8 @@ def cmd_payments(args) -> int:
     pays, and a bill marked unpaid that has since been settled is the error that
     ends up in front of a client.
     """
+    if getattr(args, "check", False):
+        return _payments_check(args)
     store = Path(args.store) if args.store else engagements.STORE
     waiting = payments.outstanding(store)
     if not waiting:
@@ -619,17 +747,29 @@ def cmd_payments(args) -> int:
         return 1
 
     moved = 0
+    trouble = []
     print(f"\n{len(waiting)} bill(s) with a link out:\n")
     for row in waiting:
         got = answers.get(row["order_id"])
-        if got and payments.record_settlement(row["path"], got):
+        posted = (payments.record_settlement(row["path"], got) if got
+                  else payments.Posting())
+        if posted.settled:
             moved += 1
-        state = "PAID" if (got and got.paid) else "waiting"
+        if posted.problem:
+            trouble.append((row, posted))
+        # SHORT IS NOT "waiting". Money arrived and did not cover the bill; a
+        # line reading `waiting` would say nobody had paid, which is false and
+        # is the reading somebody would act on.
+        state = ("SHORT" if posted.short
+                 else "PAID" if (got and got.paid) else "waiting")
         when = f"  {got.when}" if got and got.paid and got.when else ""
         print(f"  {state:8} {row['ref']}  invoice {row['invoice']:10} "
               f"{row['amount']:>10}{when}")
     print(f"\n{moved} newly settled.\n" if moved
           else "\nNothing new has settled.\n")
+    for row, posted in trouble:
+        print(f"  {row['ref']}  invoice {row['invoice']}:\n    "
+              + posted.problem + "\n")
     return 0
 
 
@@ -794,7 +934,7 @@ def cmd_from_lead(args) -> int:
                      f"registry/interview.yaml."),
         "_season": args.season,
         "_return_type": args.return_type,
-        "LetterDate": date.today().strftime("%B %-d, %Y"),
+        "LetterDate": dates.long_date(date.today()),
         "EngagementRef": args.ref or todo,
         "PeriodLabel": f"{args.season} tax year",
         # The lead gives us a name to greet somebody by; the letters want the
@@ -817,7 +957,7 @@ def cmd_from_lead(args) -> int:
     return 0
 
 
-def _ask(section: dict, q: dict, default) -> object:
+def _ask(section: dict, q: dict, default, said: str = "") -> object:
     """One question at a terminal. The only part of the interview that is I/O."""
     print(f"\n  {section['title']}  ·  {q['id']}")
     print(f"  {q['question']}")
@@ -846,7 +986,16 @@ def _ask(section: dict, q: dict, default) -> object:
         # IS confirming it -- retyping it character for character is not a
         # stronger confirmation, it is just friction, and friction is what makes
         # someone stop reading the value before they accept it.
-        hint = (f"website said: {default!r} -- enter to accept, '-' to clear"
+        #
+        # WHAT THEY SAID, WHEN A MAP CHANGED IT. `services: [tax_planning]`
+        # translates to "1040", and this line then told the preparer the
+        # website said "1040" -- which the client never said. The firm on what
+        # a lead is for: "we would confirm what they put there. they didn't
+        # necessarily know what they needed." Confirming what they put there
+        # needs it shown. See interview.prefill_source.
+        hint = (f"website said: {default!r}"
+                + (f" (they asked about {said})" if said else "")
+                + " -- enter to accept, '-' to clear"
                 + (f"; {hint}" if hint else ""))
     req = "required" if q.get("required") else "optional"
     raw = input(f"      [{req}{'; ' + hint if hint else ''}] > ").strip()
@@ -888,7 +1037,11 @@ def _ask(section: dict, q: dict, default) -> object:
 def cmd_interview(args) -> int:
     lead = json.loads(Path(args.lead).read_text(encoding="utf-8")) if args.lead else None
     carried = dict(getattr(args, "carried", None) or {})
-    session = iv.Interview(lead=lead, carried=carried)
+    session = iv.Interview(
+        lead=lead, carried=carried,
+        # The operator has already said this block is wrong, so the sitting is
+        # not ended by it. `intake.finish` still records the override.
+        override_hard_no=getattr(args, "override_hard_no", False))
 
     # A saved answers file replays an interview without a human at the
     # keyboard: how the tests drive it, and how you resume one you abandoned.
@@ -936,7 +1089,8 @@ def cmd_interview(args) -> int:
             # website's, because a year has passed. It is offered as the
             # default and never taken as given -- the question is still asked.
             value = _ask(section, q,
-                         carried.get(q["id"], iv.prefill_for(q, lead)))
+                         carried.get(q["id"], iv.prefill_for(q, lead)),
+                         iv.prefill_source(q, lead))
             session.answer(q["id"], value)
         except iv.InterviewError as exc:
             print(f"      {exc} -- asking again")
@@ -1604,7 +1758,17 @@ def cmd_sign(args) -> int:
             have = got.get((line.document, line.field))
             mark = "signed" if have else "OUTSTANDING"
             when = f"  {have.when}" if have else ""
-            print(f"      {mark:12} {line.document:20} {line.who:28}{when}")
+            # THE NAME `--record` WANTS, PRINTED WHERE IT IS READ. This
+            # column used to show only `line.who` -- "Taxpayer", "Spouse" --
+            # while `--record` matches `line.field` ("TaxpayerName",
+            # "SpouseName"), and the refusal for a wrong one said "run without
+            # --record to see the ones it does", which printed the names it
+            # rejects. Recording a spouse's signature, required on every joint
+            # return, was a closed loop.
+            print(f"      {mark:12} {line.document:20} {line.who:22}"
+                  f"{when}")
+            print(f"      {'':12} {'':20} --record "
+                  f"{line.document}/{line.field}")
         if where.deadline:
             print(f"\n  Due by {where.deadline}"
                   + ("  — PASSED" if where.overdue else ""))
@@ -1635,11 +1799,21 @@ def cmd_sign(args) -> int:
         print("\n--record wants document/Field, as the list above prints it.\n")
         return 1
     doc, fieldname = args.record.split("/", 1)
+    # EITHER NAME. The field id is what this matched, and the listing showed
+    # the human label; somebody typing what they were shown was refused. Both
+    # are accepted now, and a wrong one is answered with the names that work
+    # rather than a pointer back to the listing that rejected it.
     line = next((ln for ln in where.expected
-                 if ln.document == doc and ln.field == fieldname), None)
+                 if ln.document == doc
+                 and fieldname.casefold() in (ln.field.casefold(),
+                                              ln.who.casefold())), None)
     if line is None:
-        print(f"\nThis pack has no signature line {args.record!r}. Run without "
-              f"--record to see the ones it does.\n")
+        print(f"\nThis pack has no signature line {args.record!r}. It asks "
+              f"for:\n")
+        for ln in where.expected:
+            print(f"      --record {ln.document}/{ln.field}"
+                  f"      ({ln.who})")
+        print()
         return 1
     try:
         path = signing.record_signature(
@@ -1649,6 +1823,142 @@ def cmd_sign(args) -> int:
         print(f"\n{exc}\n")
         return 1
     print(f"\n  Recorded. {path}\n")
+    return 0
+
+
+def cmd_spent(args) -> int:
+    """What an engagement has actually taken, beside what its price budgeted.
+
+    THE LOOP THAT WAS NEVER CLOSED. The fee schedule is priced in hours; the
+    software budgets in hours and rounds to the quarter-hour a timesheet takes.
+    Nothing ever recorded one, so no engagement has been compared against its
+    own budget and every price in the schedule is still the estimate it was
+    written with.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    ref = args.engagement
+
+    try:
+        record = engagements.load(ref, store)
+    except Exception as exc:      # noqa: BLE001 - say which engagement, not a trace
+        print(f"  {exc}")
+        return 1
+
+    if args.add is not None:
+        try:
+            timelog.add(store, ref, args.add, args.what or "")
+        except (ValueError, FileNotFoundError) as exc:
+            print(f"  {exc}")
+            return 1
+        print(f"  recorded {args.add}h against {ref}: {args.what}")
+
+    schedule = pricing.load()
+    try:
+        _, _, floor = fees.basis_of(schedule)
+    except fees.FeeBasisError:
+        floor = 0.25
+    got = timelog.spent(store, ref, floor=floor)
+
+    print(f"\n  {ref}  {record.get('ClientFullName') or '(no name)'}\n")
+
+    # S2: A REPORT WITH NOTHING IN IT SAYS SO. "0.0 hours" beside a budget reads
+    # as a job that took no time, which is a claim; "nothing recorded" is the
+    # truth, and they are different sentences.
+    if got.examined_nothing:
+        print("  nothing recorded yet. Time is written here automatically as")
+        print("  commands run against this engagement, so this fills in by")
+        print("  itself — and `--add` is for the work in Drake, which this")
+        print("  software cannot see.")
+        return 0
+
+    print(f"  measured   {got.measured:>6.2f} h   "
+          f"across {len(got.sittings)} sitting(s), from {got.touches} touch(es)")
+    for sitting in got.sittings:
+        print(f"      {sitting.started:%d %b %H:%M}-{sitting.ended:%H:%M}  "
+              f"{sitting.hours(floor=floor):>5.2f} h   "
+              + ", ".join(sitting.what[:4]))
+    print(f"  stated     {got.stated:>6.2f} h   "
+          f"across {len(got.stated_entries)} entr(y/ies)")
+    for said in got.stated_entries:
+        print(f"      {said.when:%d %b %H:%M}  {said.hours:>5.2f} h   {said.what}")
+
+    # THE TWO ARE NEVER ADDED. A single total would look authoritative and would
+    # not be: measured is a FLOOR -- it sees the software and not Drake, where
+    # most of the return is prepared -- and stated is somebody's recollection.
+    # Summing a floor and a recollection produces a number nobody can defend.
+    print("\n  These are not added together. `measured` is what the software")
+    print("  saw and is a floor — it cannot see Drake. `stated` is what a")
+    print("  person said. A single total would look more certain than either.")
+
+    budget = record.get("BudgetHours") or record.get("EstimatedHours")
+    if budget:
+        try:
+            budget = float(budget)
+            print(f"\n  budgeted   {budget:>6.2f} h   from the price on this "
+                  f"engagement")
+            print(f"  measured is {got.measured / budget:.0%} of it; "
+                  f"measured plus stated is "
+                  f"{(got.measured + got.stated) / budget:.0%}")
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+    else:
+        # NOT SILENCE. The comparison is the entire point of the command, and
+        # its absence is a fact about the engagement worth saying out loud.
+        print("\n  no budget on this engagement to compare against — the record")
+        print("  carries no BudgetHours. `python cli.py hours` shows what the")
+        print("  schedule's prices imply, which is the same arithmetic one")
+        print("  level up.")
+    return 0
+
+
+def cmd_season(args) -> int:
+    """What is due across the whole book, soonest first.
+
+    THE SCREEN THAT DID NOT EXIST. Everything else here acts on one engagement;
+    nothing looked across all of them and said what season it is. That is what a
+    person otherwise holds in their head through February.
+    """
+    import deadlines
+
+    store = Path(args.store) if args.store else engagements.STORE
+    refs = [r["ref"] for r in engagements.listing(store)]
+    if not refs:
+        print("no engagements yet -- `python cli.py interview` creates one")
+        return 0
+
+    records = []
+    unreadable = []
+    for ref in refs:
+        try:
+            records.append((ref, engagements.load(ref, store)))
+        except Exception:      # noqa: BLE001 - a bad record is reported, not skipped
+            unreadable.append(ref)
+
+    today = date.fromisoformat(args.today) if args.today else date.today()
+    due, unplaced = deadlines.board(records, today=today, within_days=args.within)
+
+    # THE DENOMINATOR, FIRST. A board that says "nothing due" is only good news
+    # if it looked at something -- see S2. This line is why.
+    print(f"{len(refs)} engagement(s) read, {today.isoformat()}"
+          + (f", looking {args.within} days ahead" if args.within else "") + "\n")
+
+    if not due:
+        print("  nothing due in that window.")
+    for row in due:
+        when = "OVERDUE" if row.overdue else f"{row.days:>4}d"
+        mark = "!!" if row.overdue else ("  " if row.statutory else "· ")
+        print(f"{mark} {row.when}  {when:>7}  {row.ref}  "
+              f"{row.client[:28]:30s} {row.what}")
+
+    if unplaced:
+        # NAMED, NOT DROPPED. An engagement whose form or year we cannot read
+        # has an UNKNOWN deadline, and leaving it off the board says the season
+        # is quieter than it is.
+        print(f"\n  {len(unplaced)} could not be placed on a date "
+              f"(no federal form or no tax year): " + ", ".join(unplaced))
+    if unreadable:
+        print(f"  {len(unreadable)} record(s) could not be read: "
+              + ", ".join(unreadable))
     return 0
 
 
@@ -1705,12 +2015,38 @@ def _inverse_flags() -> tuple:
     return tuple(pairs)
 
 
-def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+def merge_one(doc: str, record: dict, draft: bool = False):
+    """Fill one document's template. NOTHING IS WRITTEN.
+
+    Split out of `render_one` so that LOOKING at a document does not have to
+    produce a file to look at. `previewing.look` needs the merged text and the
+    refusal, and had no way to ask for either without also writing the thing to
+    disk -- which is the exact difference between reading a letter and sending
+    one.
+
+    `draft` is the same switch it has always been: render past what is not
+    decided yet, rather than refusing.
+    """
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
-    result = merge.render(template, record, strict=not draft,
-                          required_lists=_required_lists().get(doc, ()),
-                          inverse_flags=_inverse_flags())
+    return merge.render(template, record, strict=not draft,
+                        required_lists=_required_lists().get(doc, ()),
+                        inverse_flags=_inverse_flags())
+
+
+def tokens_for(doc: str) -> dict:
+    """Every blank one document has. Reads the template, decides nothing.
+
+    A preview has to say what is still missing in the words a preparer knows,
+    and the merge's own refusal is written for whoever is filling a template.
+    This is the census that gets turned into those words.
+    """
+    filename, _ = DOCUMENTS[doc]
+    return merge.tokens_in((TEMPLATE_DIR / filename).read_text(encoding="utf-8"))
+
+
+def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+    result = merge_one(doc, record, draft)
 
     html = _stamp_draft(result.html) if draft else result.html
     stem = output_name(doc, record, draft)
@@ -1742,16 +2078,17 @@ def cmd_render(args) -> int:
         # they overlap: `PeriodLabel` is the engagement's period on the
         # estimate and the period BILLED here, which is the one value the two
         # documents must NOT share.
-        if "invoice" in (args.docs or ()):
-            bill = invoicing.find(store, args.engagement,
-                                  getattr(args, "invoice", None))
-            if bill is None:
-                print(f"engagement {args.engagement} has no invoice yet. Raise "
-                      f"one first:\n  python cli.py invoice --engagement "
-                      f"{args.engagement} --billed 'March 2027'\n")
-                return 1
-            raw = {**raw, **bill}
-            print(f"  invoice {bill.get('InvoiceNumber', '')}\n")
+        try:
+            folded = invoicing.fold_in(raw, args.docs or (), store,
+                                       args.engagement,
+                                       getattr(args, "invoice", None))
+        except invoicing.InvoiceError as exc:
+            print(f"{exc}\n  Raise one first:\n  python cli.py invoice "
+                  f"--engagement {args.engagement} --billed 'March 2027'\n")
+            return 1
+        if folded is not raw:
+            print(f"  invoice {folded.get('InvoiceNumber', '')}\n")
+        raw = folded
     elif getattr(args, "_record_override", None) is not None:
         # A caller that has already composed the record -- `event` merges the
         # engagement with the facts a preparer just supplied. Passing a path
@@ -2066,6 +2403,176 @@ def cmd_sample(args) -> int:
     return 0
 
 
+def cmd_forms(args) -> int:
+    """Do our forms eliminate work, or only claim to?
+
+    The firm's tenet, 2 September 2026: "a tenet of any checklist or
+    interview-like form we make ... no matter if for clients or internal use,
+    should be it directionally eliminates work where possible. for instance, if
+    something is not applicable why would you want to answer questions around
+    it."
+
+    A condition on a question is a CLAIM that the question can be skipped. This
+    runs each one to see whether any answer a person can actually give makes it
+    false. See elimination.py -- and note the sweep reports what it examined,
+    because "no dead conditions" is only good news beside a denominator.
+    """
+    import elimination
+
+    sweeps = elimination.sweep_all()
+    print("\nDo our forms eliminate work?\n")
+    for line in elimination.report(sweeps):
+        print(line)
+
+    dead = [d for s in sweeps.values() for d in s.dead]
+    print()
+    if dead:
+        print(f"  {len(dead)} condition(s) above read like a filter and are not "
+              f"one:\n  the question is put to everybody. Either the condition "
+              f"is wrong, or the\n  question belongs to everybody and should "
+              f"not pretend otherwise.")
+        return 1
+    print("  Every condition can say no to somebody.")
+    return 0
+
+
+def cmd_hourly(args) -> int:
+    """Put hourly work on an engagement, so it can be billed.
+
+    THE GAP THIS CLOSES. $150 an hour is on the firm's price page under five
+    named situations; `assumed.cleanup` promises clients in writing that
+    reconciling their records is billed hourly against the estimate; the time
+    log measures the hours. And nothing turned an hour into a line, because the
+    fee schedule had no hourly construct and the invoice takes its lines from
+    the priced record and nothing else. Work the firm already sold, and had
+    already told clients it would bill, could not be billed.
+
+    HOURS, NEVER AN AMOUNT. The preparer says how long it took; the schedule
+    says what an hour costs. `requote` refuses a typed figure on purpose and
+    this must not become the way around it -- so there is no `--amount`.
+
+    THE MEASURED TIME IS OFFERED AS A CLAIM, not taken as the answer. The time
+    log knows what the software watched, and it cannot see Drake, so it is a
+    floor and a starting point -- the same standing a website lead's answer
+    has, and it is confirmed the same way.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    ref = args.engagement
+    situations = pricing.hourly_situations()
+
+    if not args.situation:
+        print("\n  The firm's hourly situations, in the words the price page "
+              "already uses:\n")
+        for key, label in situations.items():
+            print(f"      {key:18} {label}")
+        rate = (pricing.load().get("basis") or {}).get("rate")
+        print(f"\n  Billed at {m.money(rate)} an hour, to the quarter hour.")
+        print(f"\n  Add one:  python cli.py hourly --engagement {ref} "
+              f"--for cleanup --hours 1.5")
+        return 0
+
+    path = engagements._dir(store, ref) / "interview.json"
+    if not path.exists():
+        print(f"\n  no engagement {ref} in {store}")
+        return 1
+    answers = json.loads(path.read_text(encoding="utf-8"))
+
+    hours = args.hours
+    if hours is None:
+        spent = timelog.spent(store, ref)
+        if spent.examined_nothing:
+            print("\n  No hours given, and the time log has nothing recorded "
+                  "for this\n  engagement to offer instead. Pass --hours.")
+            return 2
+        print(f"\n  The software measured {spent.measured:g} h on {ref}. It "
+              f"cannot see Drake,\n  so that is a floor, not the answer.\n")
+        print(f"  Bill that:  python cli.py hourly --engagement {ref} "
+              f"--for {args.situation} --hours {spent.measured:g}")
+        return 2
+
+    # EVERYTHING IS CHECKED BEFORE ANYTHING IS WRITTEN. The date parse used to
+    # sit after the line was priced and saved, so a refused `--on` returned 1
+    # having already put a billing line on the engagement -- the shape the
+    # atomic pack exists to prevent, reintroduced in a new command. Caught by
+    # running it: the refusal printed, and the next run said "2 hourly lines".
+    worked = None
+    if getattr(args, "on", None):
+        try:
+            worked = _dt.datetime.fromisoformat(args.on)
+        except ValueError:
+            print(f"\n  --on wants a date as 2027-02-09. {args.on!r} could be "
+                  f"read two ways\n  and this will not pick one. Nothing was "
+                  f"written.")
+            return 1
+
+    try:
+        line = pricing.hourly_line(args.situation, hours)
+    except pricing.PricingError as exc:
+        print(f"\n  {exc}")
+        return 1
+
+    work = list(answers.get("hourly_work") or [])
+    work.append({"kind": args.situation, "hours": float(hours),
+                 "note": args.note or ""})
+    answers["hourly_work"] = work
+    # THE FIFTH SEAM CATCHES THE NOTE, and it catches it HERE -- before the
+    # line is written -- because the note travels on the interview answers.
+    # So an identification number in "what the time was" refuses the whole
+    # command and leaves no billing line behind, which is the right end of the
+    # trade: the note can be retyped, and a TIN in a file that lives in
+    # OneDrive and is read back every season cannot be unwritten.
+    try:
+        engagements.save_answers(answers, ref, store)
+    except tins.TinRefused as exc:
+        print(f"\n  {exc}\n\n  Nothing was written.")
+        return 1
+
+    # AND THE RECORD, WHICH IS WHAT GETS BILLED. Saving the answers alone put
+    # the hour on the estimate and nowhere else: the invoice reads `LineItems`
+    # and `EstimateTotal` off the RECORD, so it went on billing the old total
+    # and printing "Estimated $325.00" beside it while the estimate said $550.
+    # Caught by walking one client through, not by any test -- the pricing was
+    # right, the command was right, and nothing carried one to the other (S28).
+    priced = pricing.price(answers)
+    try:
+        record = engagements.load(ref, store)
+    except Exception:
+        record = None
+    if record is not None:
+        record.update(priced)
+        engagements.save(record, ref, store)
+
+    # AN HOUR BILLED IS AN HOUR WORKED. The firm on why time capture is
+    # automatic at all: "i am bad at doing so." So an hour they have just told
+    # the software about, in order to bill it, is not left out of the time
+    # picture -- `spent` reported 0.00 stated on an engagement carrying a 1.5
+    # hour cleanup line, which is the software knowing something and not
+    # saying it. Recorded as STATED, not measured: a person asserted it, and
+    # `spent` keeps the two apart on purpose.
+    #
+    # Failure here does not lose the billing. The line is already written and
+    # priced; the time entry is the lesser record, and refusing the whole
+    # command over it would be the tail wagging the dog.
+    try:
+        timelog.add(store, ref, float(hours),
+                    args.note or f"{line['Service']} (billed hourly)",
+                    when=worked)
+    except Exception as exc:
+        print(f"\n  (the hourly line is recorded; the time entry was not: "
+              f"{exc})")
+
+    print(f"\n  {line['Service']}")
+    print(f"      {line['Detail']}   {line['Amount']}")
+    if args.note:
+        print(f"      {args.note}")
+    print(f"\n  {len(work)} hourly line(s) on {ref}. "
+          f"Estimate now {priced['EstimateTotal']}.")
+    print("\n  The invoice will refuse to exceed this without a written "
+          "reason,\n  which is what makes an estimate worth putting a number "
+          "on.")
+    return 0
+
+
 def cmd_check(args) -> int:
     """Does this package agree with itself?
 
@@ -2100,7 +2607,20 @@ def cmd_check(args) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The whole CLI, as a parser.
+
+    SPLIT OUT OF `main` so something other than a person can ask it what is
+    real. `procedures.py` prints command lines into the operating procedures
+    and, until this existed, nothing checked them: the first command in the
+    first procedure had been `from-lead --lead lead.json` since it was
+    written, and `lead` is a positional -- argparse refuses the flag. The
+    document promised it could not name a command that does not exist, and
+    that promise covered only the NAME.
+
+    Handing out the real parser rather than a description of it is the same
+    rule as everywhere else here: one thing, asked, not two things agreeing.
+    """
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2141,6 +2661,15 @@ def main(argv=None) -> int:
     pay.add_argument("--store")
     pay.add_argument("--sandbox", action="store_true",
                      help="ask Square's test account, where no money is real")
+    pay.add_argument("--check", action="store_true",
+                     help="prove the payment path works, step by step, against "
+                          "Square itself")
+    pay.add_argument("--production", action="store_true",
+                     help="with --check: use the LIVE account and a real "
+                          "charge (the only thing that proves you get paid)")
+    pay.add_argument("--cents", type=int, default=100,
+                     help="with --check: how much the check link asks for "
+                          "(default 100, i.e. $1.00)")
     pay.set_defaults(fn=cmd_payments)
 
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
@@ -2284,6 +2813,24 @@ def main(argv=None) -> int:
     sg.add_argument("--store")
     sg.set_defaults(fn=cmd_sign)
 
+    sp = sub.add_parser("spent",
+                        help="what an engagement has taken, beside its budget")
+    sp.add_argument("--engagement", required=True)
+    sp.add_argument("--add", type=float, metavar="HOURS",
+                    help="record work the software could not see, e.g. Drake")
+    sp.add_argument("--what", help="what that time was — required with --add")
+    sp.add_argument("--store")
+    sp.set_defaults(fn=cmd_spent)
+
+    sn = sub.add_parser("season",
+                        help="what is due across every engagement, soonest first")
+    sn.add_argument("--within", type=int, metavar="DAYS",
+                    help="only what falls in the next DAYS. Omit for everything.")
+    sn.add_argument("--today", metavar="YYYY-MM-DD",
+                    help="pretend it is this day, for looking ahead")
+    sn.add_argument("--store")
+    sn.set_defaults(fn=cmd_season)
+
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")
     e.set_defaults(fn=cmd_engagements)
@@ -2326,6 +2873,29 @@ def main(argv=None) -> int:
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
 
+    hy = sub.add_parser("hourly",
+                        help="hourly work on an engagement, so it can be billed")
+    hy.add_argument("--engagement", required=True)
+    # `--for`, NOT `--on`. This flag first read `--on cleanup`, and `--on`
+    # means a DATE on `sign` -- "the day they signed, not the day you heard".
+    # One flag with two meanings across two commands is worse than either
+    # spelling, and it collided outright the moment this command needed a date
+    # of its own.
+    hy.add_argument("--for", dest="situation", metavar="SITUATION",
+                    help="which of the firm's hourly situations. Omit to list them.")
+    hy.add_argument("--hours", type=float,
+                    help="how long it took. Omit to see what the software "
+                         "measured, which is a floor and not the answer.")
+    hy.add_argument("--note", help="what the time was, in one line")
+    hy.add_argument("--on", metavar="YYYY-MM-DD",
+                    help="the day it was worked, if that is not today")
+    hy.add_argument("--store")
+    hy.set_defaults(fn=cmd_hourly)
+
+    fm = sub.add_parser("forms",
+                        help="do our forms eliminate work, or only claim to?")
+    fm.set_defaults(fn=cmd_forms)
+
     ck = sub.add_parser("check",
                         help="does a rendered package agree with itself?")
     ck.add_argument("record")
@@ -2335,7 +2905,27 @@ def main(argv=None) -> int:
                         help="rebuild the demo record from the demo answers")
     sa.set_defaults(fn=cmd_sample)
 
-    args = p.parse_args(argv)
+    return p
+
+
+def main(argv=None) -> int:
+    console.speak_utf8()
+    args = build_parser().parse_args(argv)
+
+    # TIME RECORDS ITSELF, IN ONE PLACE. The firm: "automate everything possible
+    # about recording time because I am bad at doing so." Anything with a start
+    # button is a chore, and a chore that does not get done is a feature that
+    # reports nothing. So every command naming an engagement leaves a timestamp
+    # here and nowhere else -- put it inside the commands and the next command
+    # added forgets, which is the same failure by a slower route.
+    #
+    # BEFORE the command runs, not after: a command that refuses still took the
+    # time it took, and a pack blocked by the pre-send gate is often where the
+    # work actually went.
+    ref = getattr(args, "engagement", None)
+    if ref:
+        timelog.record(Path(args.store) if getattr(args, "store", None)
+                       else engagements.STORE, ref, args.cmd)
     return args.fn(args)
 
 

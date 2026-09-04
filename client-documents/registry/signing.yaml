@@ -87,37 +87,34 @@ sent_by:
 # `<<EngagementRef>>` are filled per client; anything else is typed as it reads.
 
 covering_note:
-  # REJECTED 30 August 2026 and redrafted. The firm on the first version:
-  # *"This sounds awful. I can't explain why but it just does. I feel the tenets
-  # failed here. 'I will put it right'. That pathetic earnestness."*
+  # SETTLED 31 August 2026, in the firm's own words. No longer a `[CONFIRM: ]`,
+  # so `outgoing.py` will compose.
   #
-  # They were right and the diagnosis is worth keeping. The first draft was
-  # written to sound CONSIDERATE, which made it plead. The firm's own onboarding
-  # letter never does that -- it says "This letter tells you what to send us,
-  # where to send it, and what happens next" and "We will not wait on them to
-  # start". Flat, second person, no feelings about the reader's feelings.
+  # TWO DRAFTS OF MINE WERE REJECTED BEFORE THIS, and the reason is worth
+  # keeping. The first ended "tell me before you sign and I will put it right" --
+  # the firm: *"This sounds awful. I can't explain why but it just does. I feel
+  # the tenets failed here. 'I will put it right'. That pathetic earnestness."*
+  # The second was flatter and still mine. This one is theirs.
   #
-  # So this draft says only what happens: here it is, sign it, work starts, and
-  # if it is wrong say so first. Nothing about how sorry anyone would be.
+  # ONE EDIT MADE, AND ONLY ONE: the firm wrote "Please review thoroughly review
+  # and sign" -- a word duplicated while typing. Corrected to "Please thoroughly
+  # review and sign". Nothing else was touched, and if that word was deliberate,
+  # put it back.
   #
-  # STILL A DRAFT. The firm rejected wording; they did not supply replacement
-  # wording, so this stays inside `[CONFIRM: ]` and `outgoing.py` still refuses
-  # to compose until they accept or rewrite it. To accept: delete the
-  # `[CONFIRM: ` and its closing `]`, leaving the words.
-  subject: "[CONFIRM: Your <<PeriodLabel>> engagement letter]"
-  # A LITERAL BLOCK (`|-`), NOT A FOLDED ONE. YAML's `>-` turns every line
-  # break into a space, which collapsed an earlier version into one paragraph.
+  # The subject was never commented on and is un-CONFIRMed too, so that a bill
+  # is not held up by a line nobody has objected to in three rounds. It reads
+  # "Your 2026 tax year engagement letter". Say the word and it changes.
+  subject: "Your <<PeriodLabel>> engagement letter"
+  # A LITERAL BLOCK (`|-`), NOT A FOLDED ONE. YAML's `>-` turns every line break
+  # into a space, which collapsed an earlier version into one paragraph.
   body: |-
-    [CONFIRM:
     <<ClientFullName>>,
 
     Attached is your engagement letter, with the fee estimate.
 
-    Sign it and we start. If anything in it does not match what we discussed,
-    tell me before you sign.
+    Please thoroughly review and sign. Reach out for any questions.
 
     Arjun
-    ]
 
 # THE ONE AUTOMATION HOOK ENCYRO APPEARS TO OFFER, and it is not an API.
 #

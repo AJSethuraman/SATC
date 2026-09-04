@@ -54,6 +54,24 @@ PACK_ASSETS = ("satc-doc.css", "doc-page.js")
 CHROMIUM = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
 
 
+def launch_args() -> dict:
+    """How to open Chromium — decided here and nowhere else.
+
+    `CHROMIUM` is a PINNED build (`/opt/pw-browsers/chromium`, or whatever
+    `SATC_CHROMIUM` names). Use it when it is there; otherwise let Playwright
+    launch the browser it installed itself.
+
+    THE FALLBACK IS THE WHOLE POINT, and it existed here while a copy of this
+    decision in `tests/test_presend.py` launched the pinned path directly. On
+    3 September 2026, on the first Windows machine to run this, that copy died
+    with `Failed to launch chromium because executable doesn't exist at
+    /opt/pw-browsers/chromium` — on a box where `exercise.py` had just opened
+    190 documents in a browser without complaint. Two places deciding one thing
+    is how a suite ends up measuring less than it says it does.
+    """
+    return {"executable_path": CHROMIUM} if Path(CHROMIUM).exists() else {}
+
+
 @dataclass(frozen=True)
 class Finding:
     """One thing wrong with a pack.
@@ -174,8 +192,7 @@ def renders(paths: list[Path]) -> list[Finding]:
 
     out: list[Finding] = []
     with sync_playwright() as pw:
-        launch = {"executable_path": CHROMIUM} if Path(CHROMIUM).exists() else {}
-        browser = pw.chromium.launch(**launch)
+        browser = pw.chromium.launch(**launch_args())
         page = browser.new_page()
         # THE FONT CDN IS NOT PART OF THE PACK, so do not wait for it. Every
         # template links Google Fonts, and a render-blocking stylesheet ahead
