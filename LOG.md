@@ -17,6 +17,54 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Friday 4 September 2026, evening — the docket came back, six for six
+
+Every decision answered, every one taking the recommendation, no amendments.
+Recorded here because an answer that lives only in a form has to be asked again.
+
+| | Asked | Answered |
+|---|---|---|
+| **D1** | `--store` reaches production Square | *"--no-link defaults on any non-default --store"* |
+| **D2** | a script with a request context is the owner | *"Adopt the Occam shape — launcher-set role and assignment"* |
+| **D3** | two applications, one practice, no join | *"client-documents owns the engagement; satc_system holds the return"* |
+| **D4** | two price lists disagreeing by 55% | *"registry/fee-schedule.yaml is the price"* |
+| **D5** | should we use Fable 5.1 | *"No Fable for SATC work"* |
+| **D6** | `desk/` is failing the same way | *"Tell the other session"* |
+
+**D3 is the one that unlocks the others.** Naming `client-documents` the owner of
+an engagement settles the join, the price question and the invoice numbering at
+once — they were three symptoms of not having decided it.
+
+**D5 is NOT a standing position, and I had it wrong within the hour.** I wrote
+that it was, and offered to draft it as a conviction. The firm: *"this isn't a
+conviction, i will just use it when i feel like it or want to test it."*
+
+So the finding stands and the rule does not. Fable 5.1 requires 30-day data
+retention with no zero-retention option, and it produced the weaker of two
+reports on the same brief at roughly twice the cost per token — all true, and
+none of it makes a policy. **A measurement is not a commitment**, and turning
+one into a rule on the firm's behalf is how a record fills up with things they
+never decided. Declined on the record so it is not re-proposed.
+
+**D1 built the same evening.** `payments.link_follows_the_store` decides once,
+at the seam: `--no-link` never, `--link` always, otherwise the default store
+gets a link and no other store does — and the suppression is printed rather than
+silent. `--link` had to exist, because a safety default with no override is not
+a default, it is a wall.
+
+**The test for it was decoration on the first attempt, and only the mutation run
+found that out.** It put a tripwire on the HTTP transport and asserted the
+output said "no link". Both halves were wrong. `processor()` refuses before any
+transport is touched when no token is configured — the state of every test
+machine — so the tripwire could never fire and the test proved *no token here*,
+not *no call made*. And "No link on this bill —" is exactly what the **old** code
+printed when the processor refused, so the assertion matched the bug's own
+output. It passed against the defect it was written to catch. Rebuilt to watch
+`link_for`, to stub `processor` so the tripwire is genuinely reachable, and to
+assert the one phrase only the new path produces. Then mutated again: it fails
+now, on the tripwire, which is what makes the nine passes worth anything.
+
+
 ## Friday 4 September 2026, evening — the evening two agents read the code and one ran it
 
 Two agents got the byte-identical brief — *can a person run this end to end, can

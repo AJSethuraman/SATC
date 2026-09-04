@@ -204,6 +204,22 @@ question you have already answered is a thing you learn to dismiss without
 reading. And ids are never reused, so a declined proposal leaves a gap in the
 sequence — a gap with no explanation is an invitation to fill it.
 
+### C11 · declined 2026-09-04 · this session, proposed and declined the same hour
+
+> *this isn't a conviction, i will just use it when i feel like it or want to test it*
+
+**Not a conviction because:** it was a measurement, and a measurement is not a
+commitment. Two agents were given the byte-identical brief, one on Fable 5.1 and
+one on Opus 5; Fable read the source and never ran the software, cost roughly
+twice as much per token, and produced the weaker report — and it requires 30-day
+data retention with no zero-retention option, on a box that holds real client
+books on the promise that nothing leaves the network. All of that is true and
+none of it is a belief the firm wants challenged from. They intend to use Fable
+when they choose to, including to test it, and a rule saying otherwise would
+have been mine rather than theirs. **Proposed and declined within the hour,
+which is the shortest a proposal has survived** — worth keeping precisely
+because the finding was strong and the conclusion still was not the firm's.
+
 ### C3 · declined 2026-09-04 · decisions-in-their-words.md · 2026-08-30 01:05:21
 
 > *You shouldn’t ever touch the website itself. That is another agents job.*
