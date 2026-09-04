@@ -157,3 +157,63 @@ def test_fillable_forms_still_short_circuit_before_any_of_this(tmp_path, monkeyp
     result, problem = AppState._read_document(p, cfg, False)
     assert result is not None and result.labeled_fields
     assert problem == ""
+
+
+# -- the decision the firm made, 4 September 2026 ------------------------------
+
+def test_a_readable_document_our_anchors_missed_still_reaches_a_model(tmp_path, monkeypatch):
+    """S5, DECIDED: fall through to a model, but say whose fault it was.
+
+    Two defensible ladders were argued and only one could ship. The stricter one
+    said a text-layer PDF must never summon a model, because the document was
+    readable and OUR PARSER is what failed -- asking a model there buries a
+    fixable gap under an answer nobody can reproduce. The firm chose the other:
+
+        fall through, and make the note say "our anchors, not the document".
+
+    The reason is that a text layer can be genuine rubbish -- a scanner that
+    emits a page of ligature soup produces characters without producing words --
+    and refusing outright loses documents the later rungs do handle. Failing
+    towards READING a document, with the parser gap named in the note, beats
+    failing towards refusing one.
+
+    THE STRICTER RULE WOULD PASS EVERY OTHER TEST IN THIS FILE. The two beside
+    this one both disable OCR and vision, so they pin the note and say nothing
+    about whether the ladder goes on. This test is the only thing standing
+    between the chosen behaviour and a plausible-looking revert.
+    """
+    p = _pdf_with_text(tmp_path / "printed.pdf",
+                       ["Form W-2  Wage and Tax Statement",
+                        "1 Wages, tips, other compensation  64,500.00"])
+    cfg = {"doc_type": "W-2", "fields": [
+        {"field_path": "w2.box1_wages", "label": "A label that appears nowhere",
+         "money": True},
+    ]}
+
+    reached = []
+
+    class _Vision:
+        def __init__(self, cfg):
+            pass
+
+        def read(self, path):
+            reached.append(path)
+            from satc.ingest.readers.base import ReadResult
+            return ReadResult(labeled_fields={"A label that appears nowhere": "64500"})
+
+    monkeypatch.setattr("satc.settings.ocr_enabled", lambda: False)
+    monkeypatch.setattr("satc.settings.ollama_enabled", lambda: True)
+    monkeypatch.setattr("satc.app.state.OllamaVisionReader", _Vision)
+
+    result, problem = AppState._read_document(p, cfg, False)
+
+    assert reached, \
+        "the ladder stopped at the failed text layer instead of going on to the model"
+    assert result is not None and result.labeled_fields, \
+        "the model read the document and the ladder threw the answer away"
+    # Reaching the model is HALF the decision. The other half is that the note
+    # still blames the parser -- a silent fall-through is the bug this whole
+    # file exists to prevent, and 'we decided to fall through' is not a licence
+    # to stop saying why.
+    assert "our anchors, not the document" in problem, problem
+    assert "64" not in problem, "the problem note must not quote the document"

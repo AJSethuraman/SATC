@@ -103,27 +103,21 @@ def test_a_model_read_never_auto_confirms(tmp_path):
         "a vision model's reading auto-confirmed into the workpaper"
     assert len(gate.needs_review()) == len(staged.fields)
 
-
 # -- and the ladder half ------------------------------------------------------
-
-@pytest.mark.skip(reason="see docs/DEFECT-REGISTER.md S2 — the firm has not "
-                        "chosen between two defensible ladders")
-def test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read(tmp_path):
-    """SKIPPED BECAUSE THE TWO BRANCHES DISAGREE, AND BOTH ARGUE THEIR CASE.
-
-    This asserts the STRICTER rule: a text-layer PDF our anchors happen to miss
-    must not summon a vision model at all, because the document is readable and
-    our parser is what failed.
-
-    `main` takes the more permissive one, and says why in `AppState._read`: it
-    still falls through to OCR and vision, but the note now reads "text layer
-    present but no field labels matched -- our anchors, not the document", so
-    the parser gap is visible as a parser gap. Its argument against refusing
-    outright: "a text layer can be genuine rubbish, and refusing would lose
-    documents OCR does handle."
-
-    Both are defensible and it is a question about client documents, not a
-    merge conflict, so it goes to the firm rather than being decided here.
-    Skipped rather than deleted: deleting a test that asserts a stricter safety
-    property is how the question disappears.
-    """
+#
+# A skipped stub lived here: `test_the_ladder_reaches_no_model_while_a_
+# deterministic_rung_can_still_read`, which asserted the STRICTER of two
+# defensible ladders while the firm had not chosen between them. It had a
+# docstring and no body -- it could never have failed.
+#
+# THE FIRM CHOSE THE OTHER ONE on 4 September 2026: a text-layer PDF our anchors
+# miss DOES go on to OCR and vision, and the note says "our anchors, not the
+# document" so the parser gap stays visible. That decision now has a real test
+# with real assertions, in the file that owns the ladder:
+#
+#   tests/test_reader_ladder.py::
+#       test_a_readable_document_our_anchors_missed_still_reaches_a_model
+#
+# Moved rather than rewritten here: this file is about DETERMINISM AS A PROPERTY
+# OF A READER, and where the ladder stops is a different question that already
+# had a home.

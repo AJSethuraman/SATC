@@ -3074,4 +3074,17 @@ def _checks_block(check, files: dict | None = None) -> str:
 
 
 if __name__ == "__main__":
-    create_app().run(port=5051, debug=True)
+    # DEBUG IS OFF BY DEFAULT, AND `make web` IS THIS PATH.
+    #
+    # `debug=True` turns on the Werkzeug interactive debugger, which offers a
+    # Python console on any traceback -- arbitrary code execution, as whoever
+    # runs the app, to anything that can reach the port. It bound loopback and
+    # was PIN-gated, so this was never open to the network; it was still the
+    # documented way to start the app on the machine that holds the client
+    # vault, and a debugger is not something to leave on by habit.
+    #
+    # Opt in per run when you actually want the reloader:
+    #     SATC_WEB_DEBUG=1 python web.py
+    import os
+    create_app().run(port=5051,
+                     debug=os.environ.get("SATC_WEB_DEBUG") == "1")

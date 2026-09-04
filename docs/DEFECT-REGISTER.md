@@ -33,14 +33,33 @@ git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.
 
 | # | What | Costs | Needs |
 |---|---|---|---|
-| **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
-| **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
+| **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | **DECIDED 4 September: it stays open until every named part has arrived.** What is left is code — a `parts` column, a migration, and `chasing.py` back off the parked tag |
 
-**Nothing left here is pure code.** S3, S4 and S6 all closed 4 September. What
-remains is two decisions, not two builds: S2 needs the firm to say whether a
-bundle request stays open when one part arrives, and S5 needs the firm to
-settle the reader-ladder disagreement. Neither is worth a line of code until
-that happens.
+**S2 is the only thing left, and it is now code rather than a question.** S3,
+S4 and S6 closed 4 September; S5 closed the same day when the firm settled the
+ladder. S2's product decision came with them — a bundle request stays open
+until every named part has arrived — so the `parts` column, the migration and
+`chasing.py` off `parked/satc-system-pre-schema-port` are buildable without
+asking anyone anything.
+
+## Found by the WISP survey, 4 September 2026
+
+Turned up while evidencing safeguards for `docs/WISP-DRAFT.md` (PR #187). Each
+was read in source; the two marked **verified here** were re-checked
+independently rather than taken from the survey.
+
+| # | What | State |
+|---|---|---|
+| **W1** | `client-documents/web.py` started the browser front door with `debug=True`, and `make web` is that path. The Werkzeug interactive debugger offers a Python console on any traceback — arbitrary code execution, as whoever runs the app, to anything that can reach the port. Loopback-bound and PIN-gated, so never open to the network; still a debugger left on by default on the machine holding the client vault | **verified here. Fixed in this PR** — off unless `SATC_WEB_DEBUG=1` |
+| **W2** | `satc.settings.ollama_host()` returns `$SATC_OLLAMA_HOST` unchecked, so an environment variable can point the document reader at a **remote** Ollama and send client documents to it. The Forge's standing rule keeps the *server* on `127.0.0.1`; nothing keeps the *client* there | **verified here.** Open — wants a loopback check, refusing rather than defaulting |
+| **W3** | "Inference is local" is true *by default*, not absolutely: `ingest/readers/vision.py` can send document images to Anthropic behind two independent opt-ins (`settings.py:22-29`). Off today. If ever switched on, Anthropic becomes a §314.4(f) service provider | open — a decision, and a line in the WISP either way |
+| **W4** | No login and no MFA on either local app (§314.4(c)(5)). The gate is physical access to the machine plus the Windows account | open — needs the firm's call on compensating controls |
+| **W5** | No retention or disposal schedule. There is a 90-day *prospect draft* purge and a manual `delete_client`, and nothing else. Secure disposal is **not** waived by the small-firm exemption | open |
+| **W6** | `vault.key` still has no second copy, and sits beside the vault it opens. The backup deliberately excludes it — correctly — so today's verified backup restores a database nobody can read | open, and it is two minutes of the owner's time |
+
+**W1 and W2 are the same shape**: a default chosen for a developer's convenience
+on a box that later took real client data. Neither was exposed to the network.
+Both are the kind of thing that is free to fix now and expensive to explain later.
 
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
@@ -77,6 +96,26 @@ and the live C-corp path.
 ---
 
 ## Fixed
+
+### 4 September 2026 — the ladder question, settled
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S5** | Two defensible reader ladders were argued and neither could ship while the other was open. A text-layer PDF our anchors miss: refuse to summon a model, or go on and name the parser gap? | **The firm chose to go on.** A text layer can be genuine rubbish, and refusing outright loses documents the later rungs do handle — so the ladder fails towards READING a document with the gap named, not towards refusing one. No code changed: `state.py:491` already did this. What changed is that it is now held in place |
+
+**The skipped test was worse than no test.** `test_the_ladder_reaches_no_model_
+while_a_deterministic_rung_can_still_read` had a docstring arguing the stricter
+case and **no body** — it could not have failed if the ladder had done anything
+at all. It is replaced by `test_a_readable_document_our_anchors_missed_still_
+reaches_a_model` in `test_reader_ladder.py`, which asserts both halves: the
+ladder reaches the model, AND the note still reads *"our anchors, not the
+document"*.
+
+Verified the way S15 asks for — the stricter rule was injected into
+`state.py` and the suite re-run. **The new test failed, for the reason its name
+gives, and the seven tests already in that file all passed**, because every one
+of them disables OCR and vision and so says nothing about where the ladder
+stops. Without it a revert to the stricter rule was a green merge.
 
 ### 4 September 2026 — the join the collector was waiting on
 
