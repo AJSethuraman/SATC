@@ -250,3 +250,58 @@ reaches other machines through `claude plugin marketplace update satc`. Every
 record-reading skill says so now.
 
 127 tests.
+
+---
+
+## 2026-09-04 · The suite runs again, and a Unix filesystem asserted on Windows
+
+**The suite had not really been runnable.** `<temp>/pytest-of-<user>` on this
+machine is locked against its own owner — `icacls` cannot read it, and granting
+yourself access is refused — so every test taking `tmp_path` errored at *setup*.
+That is 34 of them, reported as errors in tests that never ran, which reads as
+broken code rather than a broken directory. The firm chose the in-repository fix
+over an elevated command.
+
+`conftest.py` now chooses a scratch root and carries why both obvious choices
+are wrong:
+
+- **Not inside the tree.** Tried first, and it made canon's own no-client-data
+  check walk the fixtures the fix had just written and report that the record
+  carried a taxpayer identifier, an employer identifier and a private key. It
+  carried none of them.
+- **Short.** Windows refuses paths past ~260 characters and names neither length
+  nor the tool that failed: the observed symptom was `git init` exiting 128
+  under a deep pytest path. The root has a length budget, asserted by a test.
+
+An operator who sets `PYTEST_DEBUG_TEMPROOT` themselves still wins.
+
+**And a failure that had been sitting in this repository.**
+`test_installed_elsewhere` isolated its subprocess with a hardcoded `PATH` of
+`/usr/bin:/bin` — a Unix filesystem asserted by a test that also runs on
+Windows. Every test using that helper passed except the one that shells out to
+`git`, which failed with `WinError 2` and named neither PATH nor git.
+`shutil.which` asks the platform instead. A claim in the docstring, a different
+behaviour in the value, and nothing comparing them — inside canon.
+
+**Mutation table.** Seven planted, seven killed, after one survivor worth more
+than the six kills: `test_a_root_the_operator_chose_is_left_alone` handed
+`choose_root` a *long* directory, so deleting the operator check left the
+*length* check to return `None` anyway and the test stayed green. It was passing
+for a reason unrelated to what it tested. Rewritten to use a short directory and
+to assert first that the directory would otherwise be accepted.
+
+**What went wrong in the doing of it, which belongs here more than the fix
+does.** The first commit of this work silently contained three of the five files
+it was supposed to. The `PATH` fix and this log entry were written, verified by a
+green suite, and then not committed — and both were reported to the firm as
+landed. It surfaced only because a rebase onto a moved `main` showed the branch
+carrying three files instead of five. Nothing in the process compared what was
+claimed against what was staged, which is the one sentence at the top of
+`how-we-work` happening to the session writing the guards. **`git show --stat`
+before saying a thing is committed.**
+
+93 passed and 34 errors → **138 passed, 0 failed**, with nothing set by hand.
+The README's "121 tests / 48 mutants" was stale by six tests before this work
+started; corrected to 138 / 55.
+
+Version left at 1.3.0: nothing a session reads changed.

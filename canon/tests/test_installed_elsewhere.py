@@ -62,13 +62,28 @@ def _install(into: Path) -> Path:
     return plugin
 
 
+def _minimal_path() -> str:
+    """The least PATH the installed copy needs: wherever `git` actually lives,
+    and nothing of this checkout.
+
+    This was written as the literal `/usr/bin:/bin` -- a Unix filesystem
+    asserted by a test that also runs on Windows, where `git` sits under
+    Program Files. Everything kept passing except the one test that shells out
+    to git, which failed with `FileNotFoundError: [WinError 2]` and named
+    neither PATH nor git. Asking the platform where its tool is costs one call
+    and cannot be wrong on either.
+    """
+    git = shutil.which("git")
+    return str(Path(git).parent) if git else ""
+
+
 def _run(plugin: Path, code: str) -> subprocess.CompletedProcess:
     """Run code inside the installed copy, with nothing of this checkout on
     the path. `-I` isolates: no user site-packages, no inherited PYTHONPATH,
     no cwd surprises beyond the one we set deliberately."""
     return subprocess.run([sys.executable, "-I", "-c", code], cwd=plugin,
                           capture_output=True, text=True,
-                          env={"PATH": "/usr/bin:/bin", "HOME": str(plugin)})
+                          env={"PATH": _minimal_path(), "HOME": str(plugin)})
 
 
 @pytest.fixture(scope="module")
