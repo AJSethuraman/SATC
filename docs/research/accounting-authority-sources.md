@@ -237,6 +237,40 @@ The two conditions are genuinely different and want different handling:
 Whether that becomes a second escalation reason or a corrected "fix" column is a
 design call for whoever owns the PRD. **Flagged, deliberately not edited.**
 
+§6.3's new *"A failure is handled by its cause"* table makes this sharper, not
+softer. It routes **"Denied — 403, blocked, terms forbid automation"** to
+`source_unreachable` — correctly, and its *"Never a different client"* rule is
+the reason this session stopped rather than dressing up its requests. But that
+routing feeds 403s straight into the one fix that cannot resolve them.
+
+### And §10's open question asks the firm for the wrong thing
+
+The PRD's *"Open question (needs you, and only you)"* currently reads:
+
+> Verified blocked by test this session: `asc.fasb.org` and `viewpoint.pwc.com`
+> both return `EGRESS_BLOCKED`. Add `asc.fasb.org`, `*.fasb.org`,
+> `viewpoint.pwc.com` and `*.aicpa-cima.com` … Until then the FASB restriction
+> language is sourced from a search index rather than read at its source.
+
+**Both halves are contradicted by the re-test on 4 September 2026:**
+
+| Claim | What the re-test found |
+|---|---|
+| `viewpoint.pwc.com` returns `EGRESS_BLOCKED` | **Reachable.** `https://viewpoint.pwc.com/us/en.html` fetched and returned full page content — the site description, its guide catalogue, and its registration terms |
+| `asc.fasb.org` returns `EGRESS_BLOCKED` | **Not egress-blocked.** `robots.txt` returned HTTP 200; content paths return a Cloudflare 403 at FASB's origin |
+| Allow-listing those domains will let the FASB wording be read | **It will not.** The domain is already allowed and already reachable; the allow-list is not what is refusing |
+
+This is the costly kind of error, because it is an action item pointed at a
+human: it asks the firm to go into the network settings and make a change that
+would not have the stated effect, and implies the FASB gap closes when they do.
+It does not. **That gap needs a person to open the page in an ordinary browser**
+— which is, notably, exactly the `signed_in_browser` access method §6.3 already
+declares for FASB ASC. The PRD's own model has the right answer; only this
+paragraph disagrees with it.
+
+**Flagged, deliberately not edited** — §10 belongs to whoever owns the PRD, and
+one of its sentences is addressed to the firm.
+
 ---
 
 ## Confidence, and what was not checked
