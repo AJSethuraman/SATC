@@ -36,17 +36,30 @@ CANON = Path(__file__).resolve().parent
 #: So the default is everything, and narrowing it takes a stated reason. A
 #: check that has to be told what to look at will always be told too little.
 EXCLUDED = (
-    # The version label and this digest itself. The digest describes CONTENT;
-    # including the manifest would make a bump change the hash, and then a moved
-    # hash could no longer tell you whether anything actually changed.
-    ".claude-plugin",
     # Not installed behaviour. A test edit should not raise "should this be
-    # 1.6.0?" -- nothing a session reads has moved.
+    # 1.7.0?" -- nothing a session reads has moved.
     "tests",
     # Generated.
     "__pycache__",
     ".pytest_cache",
+    # VCS METADATA, BECAUSE CANON IS BUILT TO BE LIFTED OUT. `README.md` says so,
+    # and at the root of its own repository this walk reached `.git` and died on
+    # the first binary object -- UnicodeDecodeError, in the one layout the plugin
+    # exists to support. Even text-only metadata would have moved the digest on
+    # every commit.
+    ".git",
 )
+
+#: Not excluded, REWRITTEN. `plugin.json` ships, so `description`, `author` and
+#: `homepage` are installed content and belong in the hash -- excluding the whole
+#: `.claude-plugin` directory to keep the version out took the rest with it, and
+#: opened a fresh gap of exactly the kind this file closes. Only the version is
+#: dropped, because the digest describes content and a bump must not look like
+#: one.
+MANIFEST = ".claude-plugin/plugin.json"
+
+#: The digest cannot hash the file it is written into.
+SELF = ".claude-plugin/RELEASED.json"
 
 
 def files(root: Path = CANON) -> list[Path]:
@@ -57,6 +70,8 @@ def files(root: Path = CANON) -> list[Path]:
         if not path.is_file() or path.suffix == ".pyc":
             continue
         if any(part in EXCLUDED for part in rel.parts):
+            continue
+        if str(rel).replace("\\", "/") == SELF:
             continue
         out.append(rel)
     return out
@@ -81,13 +96,28 @@ def _content(path: Path) -> bytes:
     return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
 
 
+def _hashable(root: Path, rel: Path) -> bytes:
+    """What goes into the hash for one file.
+
+    The manifest is canonicalised with its VERSION REMOVED: everything else in it
+    ships and is installed content, but the version is the label this digest sits
+    beside, and hashing it would make a bump look identical to a change.
+    """
+    path = root / rel
+    if str(rel).replace("\\", "/") != MANIFEST:
+        return _content(path)
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest.pop("version", None)
+    return json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
 def digest(root: Path = CANON) -> str:
     """One hash over the record, in a fixed order so it is reproducible."""
     h = hashlib.sha256()
     for rel in files(root):
         h.update(str(rel).replace("\\", "/").encode("utf-8"))
         h.update(b"\0")
-        h.update(_content(root / rel))
+        h.update(_hashable(root, rel))
         h.update(b"\0")
     return h.hexdigest()
 
