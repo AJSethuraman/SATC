@@ -48,53 +48,78 @@ class Unsupported:
     working: str = ""
 
     def render(self) -> str:
-        """The exact text stored. Written so a person can read the diff."""
+        """The exact text stored. Written so a person can read the diff.
+
+        EVERY FIELD HERE COMES FROM OUTSIDE, AND EVERY ONE OF THEM IS ESCAPED.
+        `working` was quoted first, on the reasoning that it was "the one
+        free-form field". It was not. The question is the caller's, and the
+        conclusion and citation are the MODEL's -- all three arbitrary text, all
+        three written straight into Markdown structure. A conclusion containing
+        `**Evidence:** ...` was read as the next field and silently truncated
+        what followed; a question containing a line starting `## U99 · ` was read
+        as another ENTRY and made the file unparsable. The escape was applied to
+        an instance instead of to the category, which is the same mistake this
+        pull request has now made four times.
+
+        Only `failed_because` (a closed vocabulary) and `recorded` (a date the
+        parser validates) are safe unescaped, because neither can be arbitrary.
+        """
         lines = [
-            f"## {self.id} · {self.question}",
+            f"## {self.id} · {_oneline(self.question)}",
             "",
             f"**Failed because:** {self.failed_because} · **Recorded:** {self.recorded}",
             "",
-            f"**Concluded:** {self.concluded}",
+            "**Question:**", "", *_quote(self.question),
             "",
-            f"**Believed authority:** {self.believed_authority or '(none offered)'}",
+            "**Concluded:**", "", *_quote(self.concluded),
+            "",
+            "**Believed authority:**", "",
+            *_quote(self.believed_authority or "(none offered)"),
         ]
         if self.model:
-            lines += ["", f"**Model:** {self.model}"]
+            lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
-            # QUOTED, BECAUSE THIS IS THE ONE FREE-FORM FIELD. A model's working
-            # is prose it wrote, and prose contains Markdown: `**Evidence:** ...`
-            # read as the next record field and truncated everything after it,
-            # and a line starting `## x · y` could be read as a whole new ENTRY
-            # and make the queue unparsable. Every other field here is structured
-            # and short. This one is arbitrary, so it is escaped rather than
-            # trusted -- the same `>` the record already uses for stored text.
-            lines += ["", "**Working:**", ""]
-            lines += [f"> {ln}" if ln else ">" for ln in self.working.split("\n")]
+            lines += ["", "**Working:**", "", *_quote(self.working)]
         return "\n".join(lines) + "\n"
 
 
 def parse(text: str) -> list[Unsupported]:
     out = []
     for head, block in _blocks(text, _HEAD):
-        uid, question = head.group(1), head.group(2).strip()
+        uid = head.group(1)
         where = f"unsupported {uid}"
+        # Read from the quoted bodies, never from the heading. The heading is a
+        # one-line LABEL so a person can scan the file; the field beneath it is
+        # the value, and it is the value that must survive the round trip.
         out.append(Unsupported(
             id=uid,
-            question=question,
+            question=_quoted(block, "Question", where),
             failed_because=_inline(block, "Failed because", where),
             recorded=_date(_inline(block, "Recorded", where), "recorded", where),
-            concluded=_field(block, "Concluded", where),
-            believed_authority=_field(block, "Believed authority", where),
+            concluded=_quoted(block, "Concluded", where),
+            believed_authority=_quoted(block, "Believed authority", where),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
     return out
 
 
-def _quoted(block: str, label: str) -> str:
+def _oneline(value: str) -> str:
+    """A heading is one line. Collapse rather than let it break the format."""
+    return " ".join(value.split())
+
+
+def _quote(value: str) -> list[str]:
+    """Escape arbitrary text into lines that cannot be read as structure."""
+    return [f"> {ln}" if ln else ">" for ln in value.split("\n")]
+
+
+def _quoted(block: str, label: str, where: str = "") -> str:
     """Read a `>`-quoted free-form value back, exactly as it was written."""
     m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ \t]*$", block, re.M)
     if not m:
+        if where:
+            raise RecordError(f"{where}: no '{label}' field")
         return ""
     out = []
     for line in block[m.end():].split("\n"):

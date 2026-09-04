@@ -220,3 +220,45 @@ def test_a_models_markdown_reasoning_round_trips_intact(tmp_path):
     assert len(got) == 1, f"the queue split into {len(got)} entries"
     assert got[0].working == working, f"kept {got[0].working!r}"
     assert got[0].failed_because == "authority_absent", "a later field was eaten"
+
+
+def test_every_field_that_comes_from_outside_survives_markdown(tmp_path):
+    """`working` was quoted first, on the reasoning that it was "the one
+    free-form field". It was not: the question is the caller's, and the
+    conclusion and citation are the MODEL's. All three are arbitrary text, and
+    all three were written straight into Markdown structure.
+
+    The escape had been applied to an instance instead of to the category."""
+    hostile = ("line one\n"
+               "**Evidence:** this used to end the field\n"
+               "## U99 · and this used to start a whole new entry\n"
+               "- trailing")
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, unsupported.from_refusal(
+        hostile,
+        Answer(position=hostile, citation=hostile, working=hostile),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+        today="2026-09-04"))
+    got = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(got) == 1, f"the queue split into {len(got)} entries"
+    u = got[0]
+    assert u.question == hostile, f"question kept {u.question!r}"
+    assert u.concluded == hostile, f"concluded kept {u.concluded!r}"
+    assert u.believed_authority == hostile, f"citation kept {u.believed_authority!r}"
+    assert u.working == hostile, f"working kept {u.working!r}"
+    assert u.failed_because == "authority_absent", "a later field was eaten"
+    assert u.recorded == "2026-09-04"
+
+
+def test_the_heading_stays_one_line_and_scannable(tmp_path):
+    """A heading is a LABEL a person scans; the quoted field below it is the
+    value. Letting a multiline question into the heading broke the format."""
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, unsupported.from_refusal(
+        "is a roof\na unit\nof property?",
+        Answer(position="p", citation="26 CFR 1"),
+        Result("P1", Outcome.WRONG_CAUGHT, reason="authority_absent"),
+        today="2026-09-04"))
+    text = path.read_text(encoding="utf-8")
+    assert "## U1 · is a roof a unit of property?" in text, text
+    assert unsupported.parse(text)[0].question == "is a roof\na unit\nof property?"
