@@ -55,6 +55,24 @@ class Run:
         return len(self.results)
 
 
+class HarnessError(Exception):
+    """A fault in the harness, never a brain abandoning the task.
+
+    `run` absorbs anything an adapter raises, because a small model fails in
+    unpredictable ways and rule 9 says that must still produce a denominator.
+    The cost of that breadth was measured on this pull request: a replay adapter
+    raised because the transcript answered a different prompt, and the catch-all
+    turned all sixteen refusals into `model_gave_up` -- so the run "succeeded",
+    wrote a scoreboard claiming an authority shape the brain never saw, and
+    filed sixteen false entries in the unsupported queue. The refusal existed
+    and did nothing.
+
+    Anything raised for a reason that is OURS rather than the brain's subclasses
+    this and reaches the caller. Deciding that by type keeps rule 9's behaviour
+    for the failures it was written for.
+    """
+
+
 def run(desk: Desk, ask, *, model: str) -> Run:
     """Put every problem to `ask` and grade what comes back.
 
@@ -66,11 +84,17 @@ def run(desk: Desk, ask, *, model: str) -> Run:
     up on roughly one run in six to nine, worse under memory pressure, and no
     prompt fixes it (rule 9). An exception here becomes an escalation with reason
     `model_gave_up`, so the run still produces a denominator instead of nothing.
+
+    **A `HarnessError` is not that and is re-raised.** A run built on a broken
+    harness reports a denominator that reads exactly like a real one, which is
+    worse than reporting nothing: nothing invites a second look.
     """
     out = Run(model=model)
     for problem in desk.problems:
         try:
             answer = ask(problem)
+        except HarnessError:
+            raise
         except Exception:
             answer = Answer(position="", escalated=True, reason="model_gave_up")
             out.gave_up += 1

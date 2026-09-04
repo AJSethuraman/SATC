@@ -51,12 +51,14 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import scoreboard                                        # noqa: E402
 from engine import REASONS, Answer                       # noqa: E402
 from record import Desk, Problem                         # noqa: E402
 
@@ -350,8 +352,15 @@ def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int,
     return ask
 
 
-class ReplayMismatch(Exception):
-    """The replayed replies did not answer the prompts being rebuilt."""
+class ReplayMismatch(scoreboard.HarnessError):
+    """The replayed replies did not answer the prompts being rebuilt.
+
+    A `HarnessError` rather than a plain one, because `scoreboard.run` absorbs
+    every ordinary exception into `model_gave_up`: raised as a plain exception
+    this refusal produced sixteen false give-ups, a scoreboard claiming an
+    authority shape nobody saw, and an exit code of zero. Found in review of
+    the pull request that added it.
+    """
 
 
 def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
@@ -377,9 +386,30 @@ def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
     makes these replies un-regradable rather than merely mislabelled. So it
     refuses instead of recording a number nobody can check.
     """
+    shown = shown or {}
+
+    # CHECKED BEFORE THE RUN STARTS, NOT PER PROBLEM ON THE WAY PAST. Whether a
+    # transcript answers the prompts being rebuilt is a property of the
+    # transcript, known here; discovering it on problem seven is late for no
+    # reason, and it is late in the one way that matters -- by then the refusal
+    # is being raised inside `scoreboard.run`, whose catch-all is what turned it
+    # into sixteen `model_gave_up` escalations and a scoreboard that shipped.
+    by_id = {p.id: p for p in desk.problems}
+    for pid, was in sorted(shown.items()):
+        if pid not in by_id or not was:
+            continue
+        rebuilt = build_prompt(by_id[pid], desk, shape=shape)
+        if was != rebuilt:
+            raise ReplayMismatch(
+                f"{pid}: the reply being replayed answered a different prompt "
+                f"({len(was)} chars) than the one rebuilt here ({len(rebuilt)} "
+                f"chars). These replies cannot be regraded against this desk and "
+                f"this --corpus shape; the record would state an authority shape "
+                f"the brain never saw."
+            )
+
     transcript.parent.mkdir(parents=True, exist_ok=True)
     transcript.write_text("", encoding="utf-8")
-    shown = shown or {}
 
     def ask(problem: Problem) -> Answer:
         prompt = build_prompt(problem, desk, shape=shape)
@@ -387,15 +417,6 @@ def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
         if raw is None:
             _log(transcript, problem, prompt, "", "no reply recorded")
             raise AdapterGaveUp(f"{problem.id}: no reply recorded")
-        was = shown.get(problem.id)
-        if was and was != prompt:
-            raise ReplayMismatch(
-                f"{problem.id}: the reply being replayed answered a different "
-                f"prompt ({len(was)} chars) than the one rebuilt here "
-                f"({len(prompt)} chars). These replies cannot be regraded "
-                f"against this desk and this --corpus shape; the record would "
-                f"state an authority shape the brain never saw."
-            )
         _log(transcript, problem, prompt, raw, "")
         return parse_reply(raw)
 
@@ -566,11 +587,50 @@ def _replies(path: str) -> tuple[dict, dict]:
     return json.loads(text), {}
 
 
+#: What a finished run leaves behind. Any one of these means the directory holds
+#: a measured record, and a measured record is not overwritten.
+RUN_RECORDS = ("SCOREBOARD.md", "SCOREBOARD.txt", "outcomes.json")
+
+
+class RunWouldOverwrite(Exception):
+    """The output directory already holds a run. Refused rather than replaced."""
+
+
+def run_dir(out: str, desk_name: str, today: date) -> Path:
+    """Where this run writes, refusing a directory that already holds one.
+
+    FOUND BY THE SECOND FORGE RUN, 4 SEPTEMBER 2026. The default is
+    `runs/<today>/` and both runs happened on the same day, so the documented
+    command would have written the second run's scoreboard over the first run's
+    measured record -- the one thing in this directory that cannot be
+    regenerated, since the brain that produced it is not deterministic. The
+    session running it noticed and passed `--out` by hand. A default whose
+    safety depends on somebody noticing is the mechanism absent.
+
+    It refuses on an EXPLICIT `--out` too. Deriving the date differently would
+    fix the day-collision and leave `--out runs/2026-09-04` pointed at the same
+    record with the same result; what must not happen is a measured record being
+    replaced, whichever argument named it. There is deliberately no `--force`:
+    moving the old directory costs one command, and the record costs a rerun
+    that cannot reproduce it.
+    """
+    d = Path(out) if out else ROOT / "desks" / desk_name / "runs" / today.isoformat()
+    held = [n for n in RUN_RECORDS if (d / n).is_file()]
+    if held:
+        raise RunWouldOverwrite(
+            f"{d} already holds a run ({', '.join(held)}). A scoreboard is a "
+            f"measured record and the brain that produced it is not "
+            f"deterministic, so it cannot be regenerated. Two runs on one day "
+            f"is the case this catches: pass --out with a directory of its own "
+            f"(runs/{today.isoformat()}-second-run, say), and say in the record "
+            f"that they are two runs on one day rather than two days."
+        )
+    return d
+
+
 def _main(argv: list[str]) -> int:
     import argparse
-    from datetime import date
 
-    import scoreboard
     from record import load
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -610,8 +670,7 @@ def _main(argv: list[str]) -> int:
         print(f"{len(desk.problems)} prompts ({args.corpus}) -> {out}")
         return 0
 
-    out_dir = Path(args.out or ROOT / "desks" / desk.name / "runs"
-                   / date.today().isoformat())
+    out_dir = run_dir(args.out, desk.name, date.today())
     out_dir.mkdir(parents=True, exist_ok=True)
     queue_dir = Path(args.desk) / "unsupported"
 

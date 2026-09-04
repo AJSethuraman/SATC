@@ -101,11 +101,62 @@ def every_problem_has_authority(desk: record.Desk) -> None:
             )
 
 
+def storage_permission_records_its_licence(desk: record.Desk) -> None:
+    """A source that permits storing says which of its terms permits it.
+
+    `license_check` is the default and needs no reason -- it stores nothing.
+    Anything else is a claim about somebody else's licence, and a claim with no
+    term behind it is a guess that reaches outside this repository. § 1.263(a)-3
+    is storable because 17 U.S.C. § 105 places a work of the United States
+    Government in the public domain; that sentence is the evidence, and it lives
+    in the record where a reviewer meets it in the diff rather than in whatever
+    session decided it.
+    """
+    for s in desk.sources:
+        if s.may_store != "license_check" and not s.note.strip():
+            raise GuardFailure(
+                f"source {s.id} ({s.title}) is may_store={s.may_store!r} with no "
+                f"'Why'. Record the term you read it from, or leave it at "
+                f"license_check, which stores nothing."
+            )
+
+
+def authority_is_more_than_the_answer_key(desk: record.Desk) -> None:
+    """The stored authority must not be exactly the set of answers.
+
+    MEASURED, 4 SEPTEMBER 2026. The fixed-assets desk held 21 problems and 21
+    stored passages -- one passage per problem, the same citation on both sides,
+    a bijection. Citing correctly was therefore an assignment puzzle rather than
+    retrieval, and the run's citation number could not be read: it did not
+    distinguish a desk that found the governing rule from one that matched 21
+    things to 21 slots. #244 replaced the corpus with the section's operative
+    rule paragraphs and the number became interpretable.
+
+    A one-problem desk is exempt because it is a tracer and there is no
+    assignment to solve. Everything above that is exact -- the citation sets are
+    equal or they are not -- so this blocks rather than advises.
+    """
+    if len(desk.problems) < 2:
+        return
+    keys = {p.citation for p in desk.problems}
+    held = {p.citation for p in desk.passages}
+    if keys and keys == held:
+        raise GuardFailure(
+            f"this desk stores exactly the {len(held)} citations its "
+            f"{len(desk.problems)} problems are keyed to, and nothing else. The "
+            f"authority corpus IS the answer key, so citing correctly is an "
+            f"assignment puzzle and the citation score measures nothing. Store "
+            f"the rules the answers rest on, not the answers."
+        )
+
+
 ALL = (
     no_positions_in_extracted,
     stored_text_is_permitted,
     readable_sources_only_are_fetched,
     every_problem_has_authority,
+    storage_permission_records_its_licence,
+    authority_is_more_than_the_answer_key,
 )
 
 

@@ -15,7 +15,9 @@ from conftest import DESKS
 GOOD_SOURCE = ("## S1 · A source\n\n"
                "**Tier:** primary · **Access:** public_fetch · "
                "**May store:** full_text · **Checked:** 2026-09-04\n\n"
-               "**Citation prefix:** 26 CFR\n")
+               "**Citation prefix:** 26 CFR\n\n"
+               "**Why:** 17 U.S.C. § 105 places a work of the United States "
+               "Government in the public domain.\n")
 GOOD_PROBLEM = ("## P1 · x\n\n**Citation:** 26 CFR 1\n\n"
                 "**Answer:** must capitalize\n\n**Facts:** f\n")
 GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
@@ -113,6 +115,70 @@ def test_a_human_only_citation_with_no_position_is_not_authority(tmp_path):
               passage=None)
     with pytest.raises(guards.GuardFailure, match="resolves to no authority"):
         guards.check(d)
+
+
+# ── a storage permission is a claim about a licence, and carries its term ────
+
+def test_permission_to_store_with_no_licence_term_fails_the_build(tmp_path):
+    """`may_store` above `license_check` is a claim about somebody else's terms.
+
+    A claim with no term behind it is a guess that reaches outside this
+    repository, and the whole point of recording the permission per source is
+    that it was READ rather than assumed.
+    """
+    d = build(tmp_path, source=GOOD_SOURCE[:GOOD_SOURCE.index("\n\n**Why:**")] + "\n")
+    with pytest.raises(guards.GuardFailure, match="no 'Why'"):
+        guards.check(d)
+
+
+def test_license_check_needs_no_term_because_it_stores_nothing(tmp_path):
+    """The default is the one permission that needs no evidence."""
+    d = build(tmp_path,
+              source=(GOOD_SOURCE.replace("full_text", "license_check")
+                      .replace("\n\n**Why:** 17 U.S.C. § 105 places a work of "
+                               "the United States Government in the public "
+                               "domain.\n", "\n")),
+              passage=None, position=GOOD_POSITION)
+    assert guards.check(d)
+
+
+# ── the authority corpus must not be the answer key ──────────────────────────
+
+def test_a_corpus_that_is_exactly_the_answer_key_fails_the_build(tmp_path):
+    """Measured on fixed-assets, 4 Sep 2026: 21 problems, 21 stored passages,
+    the same citation on both sides. Citing correctly was an assignment puzzle,
+    so the run's citation number could not be read at all (#244)."""
+    two_problems = (GOOD_PROBLEM
+                    + "\n## P2 · y\n\n**Citation:** 26 CFR 2\n\n"
+                      "**Answer:** must capitalize\n\n**Facts:** g\n")
+    two_passages = (GOOD_PASSAGE
+                    + "\n## 26 CFR 2\n\n**Source:** S1 · "
+                      "**Checked:** 2026-09-04\n\n> must capitalize\n")
+    d = build(tmp_path, problem=two_problems, passage=two_passages)
+    with pytest.raises(guards.GuardFailure, match="authority corpus IS the answer key"):
+        guards.check(d)
+
+
+def test_one_rule_stored_beside_the_keyed_ones_is_enough(tmp_path):
+    """The bijection is the defect, not the overlap. A corpus that holds
+    anything the problems are not keyed to is retrieval again."""
+    two_problems = (GOOD_PROBLEM
+                    + "\n## P2 · y\n\n**Citation:** 26 CFR 2\n\n"
+                      "**Answer:** must capitalize\n\n**Facts:** g\n")
+    three_passages = (GOOD_PASSAGE
+                      + "\n## 26 CFR 2\n\n**Source:** S1 · "
+                        "**Checked:** 2026-09-04\n\n> must capitalize\n"
+                      + "\n## 26 CFR 3\n\n**Source:** S1 · "
+                        "**Checked:** 2026-09-04\n\n> some other rule\n")
+    d = build(tmp_path, problem=two_problems, passage=three_passages)
+    assert guards.check(d)
+
+
+def test_a_one_problem_tracer_is_exempt_because_there_is_nothing_to_assign(tmp_path):
+    """#221's tracer desk is one problem and one passage. That is a bijection
+    with no assignment in it, and failing it would make the guard fire on the
+    smallest honest desk there is."""
+    assert guards.check(build(tmp_path))
 
 
 # ── a problem the desk cannot support cannot be scored honestly ──────────────

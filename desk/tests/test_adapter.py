@@ -199,6 +199,12 @@ def test_replaying_against_a_different_prompt_is_refused(tmp_path):
     category: a changed desk, a changed template, a reordered index and a wrong
     `--corpus` all diverge here, and any of them makes the replies un-regradable
     rather than merely mislabelled.
+
+    IT IS CHECKED WHEN THE ADAPTER IS BUILT, NOT ON THE WAY PAST EACH PROBLEM.
+    Whether a transcript answers the prompts being rebuilt is a property of the
+    transcript, so the lazy version was late for no reason — and late in the one
+    way that mattered: by then the refusal was raised inside `scoreboard.run`,
+    whose catch-all absorbed it.
     """
     desk = record.load(DESK)
     p = desk.problems[0]
@@ -206,10 +212,9 @@ def test_replaying_against_a_different_prompt_is_refused(tmp_path):
 
     # A transcript recorded under one shape, replayed under the other.
     shown = {p.id: sr.build_prompt(p, desk, shape="text")}
-    ask = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "t.jsonl",
-                            shape="index", shown=shown)
     with pytest.raises(sr.ReplayMismatch, match="different prompt"):
-        ask(p)
+        sr.replay_adapter(desk, {p.id: reply}, tmp_path / "t.jsonl",
+                          shape="index", shown=shown)
 
     # The control: replayed under the shape it was recorded under, it passes.
     same = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "u.jsonl",
@@ -223,10 +228,45 @@ def test_replaying_against_a_different_prompt_is_refused(tmp_path):
     built = sr.build_prompt(p, desk, shape="index")
     tampered = built.replace(p.facts[:20], p.facts[:20][::-1], 1)
     assert len(tampered) == len(built) and tampered != built, "bad fixture"
-    swapped = sr.replay_adapter(desk, {p.id: reply}, tmp_path / "v.jsonl",
-                                shape="index", shown={p.id: tampered})
     with pytest.raises(sr.ReplayMismatch):
-        swapped(p)
+        sr.replay_adapter(desk, {p.id: reply}, tmp_path / "v.jsonl",
+                          shape="index", shown={p.id: tampered})
+
+
+def test_the_refusal_reaches_the_caller_instead_of_becoming_a_give_up():
+    """`scoreboard.run` absorbs every ordinary exception into `model_gave_up`,
+    because a small model fails in unpredictable ways and rule 9 says the run
+    must still produce a denominator. Raised as a plain exception, this refusal
+    therefore produced sixteen false give-ups, a scoreboard claiming an
+    authority shape nobody saw, and an exit code of zero — the refusal existed
+    and did nothing. Found in review of the pull request that added it."""
+    import scoreboard
+
+    assert issubclass(sr.ReplayMismatch, scoreboard.HarnessError)
+
+    desk = record.load(DESK)
+
+    def refuse(problem):
+        raise sr.ReplayMismatch("a fault of ours, not the brain's")
+
+    with pytest.raises(sr.ReplayMismatch):
+        scoreboard.run(desk, refuse, model="x")
+
+
+def test_a_brain_that_abandons_the_task_is_still_counted_not_raised():
+    """The control, without which the fix above could be the catch-all removed.
+    Rule 9: small models give up on roughly one run in six to nine and no prompt
+    fixes it, so a give-up must still produce a denominator."""
+    import scoreboard
+
+    desk = record.load(DESK)
+
+    def collapse(problem):
+        raise RuntimeError("the model returned nothing parseable")
+
+    r = scoreboard.run(desk, collapse, model="x")
+    assert r.gave_up == len(desk.problems)
+    assert r.counts["escalated"] == len(desk.problems)
 
 
 def test_a_transcript_carries_the_prompt_its_reply_answered(tmp_path):
@@ -248,3 +288,76 @@ def test_a_transcript_carries_the_prompt_its_reply_answered(tmp_path):
     plain = tmp_path / "r.json"
     plain.write_text(json.dumps({"P1": "{}"}), encoding="utf-8")
     assert sr._replies(str(plain)) == ({"P1": "{}"}, {})
+
+
+# ── a measured record is never written over ──────────────────────────────────
+
+def test_a_directory_already_holding_a_run_is_refused(tmp_path):
+    """Found by the second Forge run, 4 September 2026.
+
+    The default output is `runs/<today>/` and both runs happened on the same
+    day, so the documented command would have written the second scoreboard over
+    the first run's measured record. The session running it noticed and passed
+    `--out` by hand; a default whose safety depends on somebody noticing is the
+    mechanism absent.
+    """
+    from datetime import date
+
+    (tmp_path / "SCOREBOARD.md").write_text("the first run", encoding="utf-8")
+    with pytest.raises(sr.RunWouldOverwrite, match="already holds a run"):
+        sr.run_dir(str(tmp_path), "fixed-assets", date(2026, 9, 4))
+
+    # Still refused when the directory was named explicitly. Deriving the date
+    # differently would fix the collision and leave `--out runs/2026-09-04`
+    # pointed at the same record; what must not happen is a measured record
+    # being replaced, whichever argument named it.
+    assert (tmp_path / "SCOREBOARD.md").read_text(encoding="utf-8") == "the first run"
+
+
+#: NAMED HERE, NOT READ FROM `sr.RUN_RECORDS`. Parametrising over the tuple
+#: under test made the test shrink with it: cutting RUN_RECORDS down to
+#: SCOREBOARD.md alone left `outcomes.json` overwritable and the suite green,
+#: because the case that would have caught it was no longer generated.
+WRITTEN_BY_A_RUN = ("SCOREBOARD.md", "SCOREBOARD.txt", "outcomes.json")
+
+
+@pytest.mark.parametrize("leftover", WRITTEN_BY_A_RUN)
+def test_any_one_of_a_run_s_records_is_enough_to_refuse(tmp_path, leftover):
+    """`outcomes.json` is the engine state and `SCOREBOARD.txt` is what was
+    read; losing either loses the run as surely as losing the Markdown."""
+    from datetime import date
+
+    (tmp_path / leftover).write_text("x", encoding="utf-8")
+    with pytest.raises(sr.RunWouldOverwrite):
+        sr.run_dir(str(tmp_path), "fixed-assets", date(2026, 9, 4))
+
+
+def test_the_refusal_covers_everything_a_run_writes():
+    """And the list it checks is the list a run leaves behind, not a subset."""
+    assert set(sr.RUN_RECORDS) == set(WRITTEN_BY_A_RUN)
+
+
+def test_a_fresh_directory_is_returned_unchanged(tmp_path):
+    """The control: without it every test above could pass for the wrong reason."""
+    from datetime import date
+
+    assert sr.run_dir(str(tmp_path / "new"), "fixed-assets",
+                      date(2026, 9, 4)) == tmp_path / "new"
+
+
+def test_the_default_is_todays_directory_under_the_desk():
+    """The default is what collided, so it is asserted rather than assumed."""
+    from datetime import date
+
+    d = sr.run_dir("", "fixed-assets", date(2027, 1, 1))
+    assert d.parts[-3:] == ("fixed-assets", "runs", "2027-01-01")
+
+
+def test_the_shipped_first_run_is_what_the_default_would_have_replaced():
+    """The one that matters: pointed at 4 September 2026 with no --out, this
+    refuses instead of writing over the run that is committed in this
+    repository. That directory is the actual thing the fix protects."""
+    from datetime import date
+
+    with pytest.raises(sr.RunWouldOverwrite, match="2026-09-04"):
+        sr.run_dir("", "fixed-assets", date(2026, 9, 4))

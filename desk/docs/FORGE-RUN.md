@@ -175,9 +175,17 @@ own withheld analysis names. Sixteen problems; the other five of the 21 are
 excluded **by name** in `PROBLEMS.md` because their analysis names two rules
 that neither contains.
 
-**Run it on the Forge, into a new dated directory.** Never into
+**Run it on the Forge, into a directory of its own.** Never into
 `runs/2026-09-04/`; that is a measured record and the two runs are comparable
 only with the change between them stated.
+
+**The default `--out` is `runs/<today>/`, and both runs happened on 4 September
+2026** — so the command below, run without an explicit `--out`, would have
+written the second scoreboard over the first. The session running it noticed and
+passed `--out` by hand. `run_dir` now refuses a directory that already holds a
+run, on an explicit `--out` as well as the default: a scoreboard is measured and
+the brain that produced it is not deterministic, so it cannot be regenerated.
+Two runs on one day is not two days, and the record says which it is.
 
 ```
 cd desk
