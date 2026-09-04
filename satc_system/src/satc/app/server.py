@@ -192,7 +192,13 @@ def create_app() -> Flask:
     @app.route("/documents")
     def documents():
         """The register, now honestly two registers: asked for, and arrived."""
+        # S3 — the screen and `satc chase` make the SAME call, because whichever
+        # one you ran is the one you believed. The register below is in insertion
+        # order and says nothing about how long anyone has waited; the sweep is
+        # the chase, and it is computed once, here, not re-derived in Jinja.
+        from satc.intake.chasing import waiting
         return render_template("documents.html", title="Documents",
+                               chase=waiting(STATE.store),
                                requested=STATE.requested_items(),
                                received=STATE.received_documents())
 
