@@ -179,6 +179,23 @@ candidate is really a contradiction is made in the open, by a person reading.
 
 ---
 
+## C11 · The simplest answer is doing the work once, upfront, when you know it is coming
+
+**State:** held · **Recorded:** 2026-09-04 · **Applies:** everything the practice builds
+
+> *i am a firm believer in the simplest answer being doing the work upfront and testing to ensure it works when you know you will eventually do it anyway. that's what makes AI so useful as a tool, it wildly changes my view of complexity*
+> — the firm, 4 September 2026
+
+**Why:** It reads at first like a second belief beside C9 and it is not — it says how C9 is *measured*. "Simplest" is total work, not work-today. Deferring something you know is coming does not remove it; it moves it somewhere more expensive and adds the seam you will have to unpick. Two things follow that the plain reading loses. The test is part of the claim: work done upfront and unverified is not the simplest answer, it is a larger unproven one. And the calibration is deliberately not the conventional one, because the firm says why — AI moved the cost of thoroughness, so advice written when that cost was high does not transfer. It was recorded the same day the firm chose to build against a licence they did not yet hold: *"i will get a paid sub build as though we have it."*
+
+**Fires on:** simplest, simpler, simplicity, complexity, complicated, scope, defer, deferred, later, v2, minimal, premature, over-engineer, over-engineering, hardcode, hardcoded, prototype, throwaway, scale, future-proof, upfront
+
+**A challenge looks like:** deferring work the design already implies will be needed, on the grounds that it is not needed *yet* — or building the thorough version and not testing it, which this entry does not license. Bassy names this entry, quotes it, and asks whether the reason has changed.
+
+**How it could be wrong:** *"when you know you will eventually do it anyway"* is a prediction, and it carries the whole entry. Work done upfront for a future that never arrives is waste, and a lowered cost of building makes it easier to build the wrong thing thoroughly rather than harder. The check is whether the need is genuinely known or merely imagined, and that is a judgement the firm makes — not one this entry settles. C9 is where the answer lands when it turns out not to be known.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The

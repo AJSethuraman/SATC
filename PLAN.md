@@ -209,6 +209,20 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Recommended roadmap (synthesized 2026-07-04 — awaiting owner sign-off on the big items)
 
+- **The agent factory — a skill that builds an expert.** The firm's own thought, raised
+  4 September 2026 while specifying expert desks: *"it might make sense for us to make a
+  dedicated skill or some session or whatever that helps create an agent and perform the
+  required research and validate its findings and run it up against bassy's judgment with
+  canon."* It runs the research, validates the findings against primary sources, and puts
+  the result up against the record before anything ships. Sibling to
+  `docs/prd-expert-desks.md`, not part of it — the desks work has to prove the shape
+  first, or the factory is built against an imagined product.
+- **The second expert desk, and its metric.** v2 of the desks work, and it is the proof
+  that the mechanism generalised: the number to report is **how many changes the second
+  desk forces on the shared layer.** Zero means general; four means it was accounting
+  wearing a framework's clothes. The domain should be deliberately far from accounting —
+  law, prompting, or market research were all named.
+
 **Phase 0 — Safe-for-real-data (gating; must precede any real-SSN handoff):**
 1. **Vault encryption at rest** (SQLCipher or AES-256, key via Windows DPAPI so a non-technical user
    needs no passphrase). *Legally non-waivable* per FTC Safeguards §314.4(c)(3) even under <5,000
@@ -419,6 +433,67 @@ it with them.
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-09-04 — An agent reads what the firm pays for, on the machine that is already
+  signed in.** Standing rule for any agent of this practice that reaches the web, recorded
+  while specifying a browser capability for the desks (issue #231).
+
+  **Where it runs decides what it can reach, and the two cases are not alike.** An
+  Anthropic-hosted cloud session sits behind an egress proxy: Chromium is pre-installed
+  there, `no_proxy` covers only localhost, the Anthropic API and package registries, and a
+  browser's traffic is refused exactly as any other client's is — so inside a cloud
+  container a different client is not a different permission, and the fix is the
+  environment's allowlist rather than another tool. A **Remote Control session on the
+  firm's own machine is not that**: it *"uses your machine's network and files, not a cloud
+  environment"*, so there is no proxy and nothing to route around. The first version of
+  this entry generalised the container's constraint to every session and was wrong.
+
+  **A fresh browser is not the firm's browser.** Reaching a licensed source is not the same
+  as being able to read it: Checkpoint or ASC Professional View answer to a signed-in
+  session, so the capability that matters is driving the browser profile that is *already*
+  logged in, on the machine that holds it. That is what the firm meant by *"as though it is
+  using my work computer"*, and it is why this belongs on the Forge — not because a cloud
+  container is blocked, but because a cloud container is nobody.
+
+  **Reachable is not the same as permitted, and reading grants no storage right.** Terms
+  and robots.txt still decide whether a source may be accessed automatically, wherever the
+  session runs — a question separate from copyright, and unread for FASB as of this date. A
+  licensed source stays uncacheable whatever client read it: the citation and tier are
+  recorded, the text is not. Credentials never enter a repository in any form.
+
+- **2026-09-04 — Expert desks: the mechanism is the deliverable, one desk is the
+  proof.** Grilled this session; spec in `docs/prd-expert-desks.md`. A *desk* is an
+  expert a doer agent consults so a question does not reach the firm — it answers only
+  from cited authority, states how binding that authority is, and escalates rather than
+  guesses. Three rulings worth keeping out of the PRD, because they outlive it:
+
+  **Roles divide by information, not by subject.** The firm's first shape was one agent
+  per topic — GAAP, cash basis, fixed assets. C7 says *"the division is not headcount,
+  it is information"*, and each of those decomposes into an engine plus an input rather
+  than into a brain: basis is a recorded fact about the engagement that selects rules,
+  and fixed assets is a depreciation engine plus one judgment call. The split that
+  survives is doer → desk → firm.
+
+  **Big 4 guidance is not primary authority.** Proposed as such and corrected in the
+  grill. It is one firm's reading of the standard, and a record that flattens the
+  distinction hands over a whitepaper's opinion in the same voice as a regulation —
+  which is the *"large conjecture"* failure the firm named in the same breath. Three
+  tiers; anything resting only on tier 2 or 3 is an escalation, not an answer.
+
+  **What may be stored is a per-source fact, not a policy.** Researched, not assumed —
+  `docs/research/accounting-authority-sources.md`. FASB's notice forbids content being
+  *"stored in a retrieval system"*, and a git repository is one; 17 U.S.C. § 105 puts
+  federal authority in the public domain. Offline storage does not change the analysis;
+  a licence the firm holds might. So `may_store` is a field per source, defaulting to
+  `license_check`, which stores nothing.
+
+- **2026-09-04 — The Forge is a flag, not a gate, until VRAM allows.** Anything the
+  practice builds is scored on the Forge *and* on a frontier model, two denominators
+  reported side by side and never summed. The firm: *"it's also acceptable that it would
+  not work on our current hardware, that should just be flagged. at some point we will
+  have enough vram, for now we are limited."* This is how C10's lean gets honoured
+  without becoming a rule that stalls work — the cost of running local is measured
+  rather than argued about.
 
 - **2026-08-27 — The pre-send gate blocks, with a logged override.** The firm's
   choice over advisory-only and over blocking-with-no-escape: *a gate with no
