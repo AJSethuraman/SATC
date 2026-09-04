@@ -40,9 +40,10 @@ from credit_suite.sources.fdic.engine_api import (DASH_TABS, STATUS_COL,
                                                   STATUS_COL_BY_TAB)
 from credit_suite.sources.fdic.spec import FDIC
 
-CDR_FACSIMILE_URL = ("https://cdr.ffiec.gov/public/ManageFacsimiles.aspx"
-                     "?cert={cert}&dt={mmddyyyy}")
-BANKFIND_URL = "https://banks.data.fdic.gov/bankfind-suite/bankfind?name={cert}"
+CDR_FACSIMILE_URL = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
+                     "?ds=call&idType=fdiccert&id={cert}&date={mmddyyyy}")
+BANKFIND_URL = ("https://banks.data.fdic.gov/bankfind-suite/bankfind/"
+                "details/{cert}")
 
 
 # --------------------------------------------------------------------------
@@ -182,11 +183,15 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
 # tie-out (contract section 12) and lookup (section 13)
 # --------------------------------------------------------------------------
 
-def facsimile_url(cert: str, iso: str) -> str:
-    parts = str(iso)[:10].split("-")
-    return CDR_FACSIMILE_URL.format(cert=cert,
-                                    mmddyyyy="%s%s%s" % (parts[1], parts[2],
-                                                         parts[0]))
+def facsimile_url(cert: str, iso_repdte: str) -> str:
+    """The filed Call Report's public facsimile, keyed by CERT + MMDDYYYY.
+
+    This URL is the whole point of provenance: it opens the actual filing a
+    reviewer reads to check a flagged number by eye.
+    """
+    d = str(iso_repdte)[:10]
+    return CDR_FACSIMILE_URL.format(
+        cert=cert, mmddyyyy="%s%s%s" % (d[5:7], d[8:10], d[0:4]))
 
 
 def bankfind_url(cert: str) -> str:
@@ -216,26 +221,164 @@ def read_provenance_rows(wb) -> Dict[str, dict]:
 
 
 def _cmd_lookup(name: str, demo: bool) -> int:
+    """Resolve an institution name to its CERT.
+
+    Live-only, and the refusal says so in the words the shipped monitor used:
+    it names the endpoint, says the API is keyless (so nobody goes hunting for
+    a key that does not exist), and prints the exact command to run.
+    """
     if demo:
-        print("--lookup needs the live FDIC API (it resolves a real CERT); "
-              "it is not available in --demo.", file=sys.stderr)
+        sys.stderr.write(
+            "--lookup is LIVE-ONLY: it queries the FDIC BankFind API "
+            "(https://api.fdic.gov/banks/institutions) and cannot run in "
+            "--demo/offline mode. Run it without --demo -- the API is "
+            "keyless, no API key or account is needed:\n"
+            '    python runner.py --lookup "' + name + '"\n')
         return runtime.EXIT_GATE_ERROR
     try:
-        matches = adapter.FdicProvider().lookup(name)
+        hits = adapter.FdicProvider().lookup(name)
     except Exception as exc:                       # noqa: BLE001
-        print("lookup failed: %s" % exc, file=sys.stderr)
+        sys.stderr.write("lookup failed: %s\n"
+                         "Check network/proxy access to api.fdic.gov "
+                         "(keyless; no API key needed).\n" % exc)
         return runtime.EXIT_RUN_ERROR
-    if not matches:
-        print("no institution matched %r." % name, file=sys.stderr)
+    if not hits:
+        print('No institutions matched "%s".' % name)
         return runtime.EXIT_OK
-    print("%-8s %-7s %-14s %-4s %s" % ("CERT", "ACTIVE", "ASSET($000)", "ST",
-                                       "NAME"))
-    for row in matches:
-        print("%-8s %-7s %-14s %-4s %s"
-              % (row.get("CERT", ""), row.get("ACTIVE", ""),
-                 row.get("ASSET", ""), row.get("STALP", ""), row.get("NAME", "")))
-    print("\nPaste the CERT into the [PEERS] table in _config, then re-run.",
-          file=sys.stderr)
+    print("%8s  %6s  %14s  %-20s %-3s NAME"
+          % ("CERT", "ACTIVE", "ASSET($000)", "CITY", "ST"))
+    for row in hits:
+        asset = row.get("ASSET")
+        asset_s = "" if asset is None else "{:,.0f}".format(float(asset))
+        print("%8s  %6s  %14s  %-20s %-3s %s"
+              % (str(row.get("CERT", "")), str(row.get("ACTIVE", "")), asset_s,
+                 str(row.get("CITY", "")), str(row.get("STALP", "")),
+                 row.get("NAME", "")))
+    print("\nPut the CERT into the _config [PEERS] table "
+          "(slot | cert | name | group | active) and re-run the runner -- "
+          "no rebuild needed within the built slot capacity.")
+    return runtime.EXIT_OK
+
+
+def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
+    """``--tieout CERT [REPDTE]``: sample-verify the feed against the filing.
+
+    Contract section 12. The point is that a flagged number can be defended in
+    minutes: every value is printed beside the Call Report schedule, line and
+    MDRM code it came from, plus the URL of the official facsimile a reviewer
+    can open and read.
+
+    Works in ``--demo`` too, loudly labelled. The values are fiction there but
+    the schedule/line/MDRM columns are the real tie-out map either way, which is
+    the half worth checking offline.
+    """
+    import re
+
+    import openpyxl
+
+    from credit_suite.engine.config import EntityRow, norm_key
+    from credit_suite.sources.fdic.engine_api import (assemble_quarters,
+                                                      make_field_spec,
+                                                      metric_value,
+                                                      validate_metrics)
+
+    cert = norm_key(args[0])
+    repdte = args[1] if len(args) > 1 else None
+    if not FDIC.entity.admits("cert:%s" % cert):
+        sys.stderr.write("--tieout: '%s' is not a valid FDIC CERT (digits "
+                         'only). Find one with: python runner.py --lookup '
+                         '"<bank name>".\n' % args[0])
+        return runtime.EXIT_GATE_ERROR
+
+    wb = openpyxl.load_workbook(workbook, read_only=True, data_only=False)
+    try:
+        rows = [list(row) for row in wb["_config"].iter_rows(values_only=True)]
+        from credit_suite.engine.config import parse_config
+        cfg = parse_config(rows, FDIC)
+        prov_rows = read_provenance_rows(wb)
+    finally:
+        wb.close()
+
+    if not prov_rows:
+        sys.stderr.write("--tieout: this workbook has no _provenance tab -- it "
+                         "predates pack v1.1; rebuild it.\n")
+        return runtime.EXIT_RUN_ERROR
+
+    validate_metrics(cfg.series)
+    provider = adapter.make_provider(cfg, demo, None)
+    mode = "demo" if isinstance(provider, adapter.FdicDemoProvider) else "live"
+    try:
+        provider.prime([cert], date.today(), names={cert: "cert:%s" % cert})
+        entity = EntityRow(slot=1, key=cert, name="cert:%s" % cert,
+                           group="tieout", active=True, key_prefix="cert")
+        field_rows = {f: provider.fetch_series(make_field_spec(entity, f))
+                      for f in fields.RAW_FIELDS}
+    except Exception as exc:                       # noqa: BLE001
+        sys.stderr.write("--tieout fetch failed for cert %s: %s\n" % (cert, exc))
+        return runtime.EXIT_RUN_ERROR
+
+    quarters = assemble_quarters(field_rows, cfg.raw_slots)
+    if not quarters:
+        sys.stderr.write("--tieout: no quarters returned for cert %s.\n" % cert)
+        return runtime.EXIT_RUN_ERROR
+
+    if repdte:
+        wanted = str(repdte).strip()
+        if len(wanted) == 8 and wanted.isdigit():
+            wanted = "%s-%s-%s" % (wanted[0:4], wanted[4:6], wanted[6:8])
+        match = [(p, f) for p, f in quarters if p == wanted]
+        if not match:
+            sys.stderr.write("--tieout: REPDTE %s not in the fetched window "
+                             "(%s .. %s).\n"
+                             % (repdte, quarters[-1][0], quarters[0][0]))
+            return runtime.EXIT_RUN_ERROR
+        iso, values = match[0]
+    else:
+        iso, values = quarters[0]
+
+    print("TIE-OUT  cert %s  REPDTE %s  (pack %s, %s mode)"
+          % (cert, iso, FDIC.pack_version, mode))
+    if mode == "demo":
+        print("  *** DEMO VALUES -- deterministic FdicDemoProvider fiction, "
+              "NOT this bank's filing; the schedule/line/MDRM columns are "
+              "the real tie-out map. Re-run without --demo for live "
+              "values. ***")
+    print("  Call Report facsimile : %s" % facsimile_url(cert, iso))
+    print("  BankFind (pull check) : %s" % bankfind_url(cert))
+    print("  Data vintage          : %s" % (provider.vintage or "n/a"))
+    print("  Tie-out is two-step: API value <-> BankFind page (pull check) "
+          "<-> CDR facsimile schedule/line (filing check).")
+    print()
+    hdr = ("  %-10s %10s  %-34s %-30s %-12s notes"
+           % ("metric", "value", "schedule / line", "MDRM", "flag"))
+    print(hdr)
+    print("  " + "-" * (len(hdr) + 20))
+
+    missing = []
+    for series in cfg.series:
+        value = metric_value(series.id, values)
+        shown = "(blank)" if value is None else "{:,.2f}".format(value)
+        row = prov_rows.get(series.id)
+        if row is None:
+            missing.append(series.id)
+            row = {"schedule": "(no provenance row)", "caption": "",
+                   "mdrm": "", "flag": "", "notes": ""}
+        schedule = row["schedule"] + ((" %s" % row["caption"])
+                                      if row["caption"] else "")
+        note = row["notes"]
+        loan_class = fields.LOANBOOK_CLASS.get(series.id)
+        if loan_class:
+            note = "[%s] %s" % (loan_class, note)
+        print("  %-10s %10s  %-34s %-30s %-12s %s"
+              % (series.id, shown, schedule[:34], str(row["mdrm"])[:30],
+                 str(row["flag"])[:12], note))
+
+    if missing:
+        sys.stderr.write("WARNING: no _provenance row for: %s\n"
+                         % ", ".join(missing))
+    print()
+    print("  Per-FIELD rows (every raw input's schedule/line/MDRM) are on "
+          "the workbook's _provenance tab.")
     return runtime.EXIT_OK
 
 
@@ -268,6 +411,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.tieout is not None and len(args.tieout) > 2:
         print("--tieout takes CERT [REPDTE].", file=sys.stderr)
         return runtime.EXIT_GATE_ERROR
+    if args.tieout:
+        try:
+            return do_tieout(args.workbook, args.tieout, args.demo)
+        except Exception as exc:                   # noqa: BLE001
+            print("TIE-OUT ERROR: %s" % exc, file=sys.stderr)
+            return runtime.EXIT_RUN_ERROR
 
     asof = (datetime.strptime(args.asof, "%Y-%m-%d").date()
             if args.asof else None)

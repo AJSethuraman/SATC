@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Sequence
 
 import pandas as pd
 
-from credit_suite.engine.config import Config
+from credit_suite.engine.config import Config, norm_key
 from credit_suite.engine.provider import (FieldSpec, NormalizedRow, Provider,
                                           resolve_secret)
 from credit_suite.sources.fdic.fields import (FIELD_UNITS, MAX_REQUEST_FIELDS,
@@ -386,7 +386,7 @@ class FdicProvider(Provider):
                            or "")
         for rec in payload.get("data", []):
             d = rec.get("data") or {}                # DOUBLE WRAP: data[i].data
-            cert = _norm_cert(d.get("CERT"))
+            cert = norm_key(d.get("CERT"))
             iso = self._iso(d.get("REPDTE", ""))
             if not cert or not iso:
                 continue
@@ -406,7 +406,7 @@ class FdicProvider(Provider):
             rp = json.loads(self._download(rurl, "institutions roster").decode("utf-8"))
             for rec in rp.get("data", []):
                 d = rec.get("data") or {}
-                c = _norm_cert(d.get("CERT"))
+                c = norm_key(d.get("CERT"))
                 if c:
                     self.roster[c] = d
         except Exception:

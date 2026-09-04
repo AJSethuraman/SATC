@@ -123,3 +123,41 @@ def metric_refusal_message(series: SeriesSpec, reasons) -> str:
 def is_stale_bank(last_period, set_max_period, stale_multiplier) -> bool:
     return _staleness.is_stale(last_period, set_max_period, stale_multiplier,
                                FDIC.period_days)
+
+
+# --- the adapter's names, so a caller has one FDIC front door ------------
+import time  # noqa: E402  (re-exported: tests patch time.sleep through here)
+
+from credit_suite.engine.provider import ClassCStubProvider, Provider  # noqa: E402,F401
+from credit_suite.sources.fdic.adapter import (FdicDemoProvider,  # noqa: E402,F401
+                                               FdicProvider, make_provider)
+from credit_suite.sources.fdic.fields import (d_brodepr, d_creconr,  # noqa: E402,F401
+                                              d_lndepr, d_pd3089r, d_texas,
+                                              d_unrlzcapr)
+
+#: The join-key whitelist, spelled out for callers that assert on the pattern.
+ENTITY_KEY_PATTERN = FDIC.entity.key_pattern
+
+
+def __getattr__(name: str):
+    """Lazily expose the runner's entry points.
+
+    ``runner`` imports this module, so importing it at the top would be a
+    cycle. Everything here is a front door for callers, not a dependency of
+    anything in the engine.
+    """
+    if name in ("run", "main", "read_provenance_rows", "facsimile_url",
+                "bankfind_url", "status_lines", "ANNOTATORS", "build_parser"):
+        from credit_suite.sources.fdic import runner as _runner
+        return getattr(_runner, name)
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
+
+def assemble(base_xlsx: str, out_xlsm: str, macro_bas: str = None) -> str:
+    """Wrap FDIC's base .xlsx into the macro-enabled .xlsm."""
+    import os
+
+    from credit_suite.engine import package
+
+    macro_bas = macro_bas or os.path.join(os.path.dirname(__file__), "macro.bas")
+    return package.assemble(base_xlsx, out_xlsm, macro_bas, "PeerMonitor")

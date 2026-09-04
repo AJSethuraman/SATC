@@ -388,10 +388,17 @@ MUTATIONS: list[Mutation] = [
     ),
     Mutation(
         "licensed-adapter-calls-unauthenticated", SRC / "engine" / "provider.py",
-        "        if not self._secret:\n            raise MissingSecret(",
-        "        if False:\n            raise MissingSecret(",
+        "        if not secret:\n            raise PermissionError(",
+        "        if False:\n            raise PermissionError(",
         (W + "test_a_licensed_adapter_refuses_to_call_without_its_secret",),
         "a Class C adapter never calls without its secret",
+    ),
+    Mutation(
+        "licensed-adapter-fabricates-data", SRC / "engine" / "provider.py",
+        'return [NormalizedRow(id=spec.id, period="1900-01-01", value=None,',
+        'return [NormalizedRow(id=spec.id, period="1900-01-01", value=0.0,',
+        (W + "test_a_licensed_adapter_refuses_to_call_without_its_secret",),
+        "the Class C stub returns a valueless row, never fabricated data",
     ),
 ]
 

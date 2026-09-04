@@ -52,4 +52,7 @@ FDIC = MonitorSpec(
     entity_refusal_note=_ENTITY_NOTE,
     metric_refusal_note=_METRIC_NOTE,
     gate2_reason=_GATE2,
+    stale_note=("latest REPDTE lags the peer-set max by more than "
+                "{multiplier} quarters -- possible merger/closure -- check "
+                "/institutions ACTIVE, /history (trap F2)."),
 )

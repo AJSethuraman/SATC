@@ -110,32 +110,41 @@ def resolve_secret(cfg: Config) -> Optional[str]:
 
 
 class ClassCStubProvider(Provider):
-    """A licensed-feed adapter that refuses to make a live call.
+    """In-process OAuth client_credentials STUB for the licensed-feed seam.
 
-    Kept wired up rather than deleted so the Class C path is rehearsed: the gate
-    must refuse this because its ``source_class`` is not admitted, not because
-    nobody wrote the adapter. Deleting it would make the gate untestable, and an
-    untested gate is the one that opens.
+    Makes NO live request, ever. Kept wired up rather than deleted so the Class
+    C path is rehearsed: the gate must refuse this because its ``source_class``
+    is not admitted, not because nobody wrote the adapter. Delete it and the
+    gate can only be proven by the absence of code, and an untested gate is the
+    one that opens.
+
+    ``secret_env`` stays wired per contract for a hypothetical authenticated v2.
+    The secret itself arrives per call, matching the ``fetch_series(spec,
+    secret)`` seam, so nothing licensed is ever held on the instance.
     """
 
     source_class = "C"
 
-    def __init__(self, secret: Optional[str] = None) -> None:
+    def __init__(self, secret_env: str) -> None:
         super().__init__()
-        self._secret = secret
+        self.secret_env = secret_env
+        self._token: Optional[str] = None
 
-    def _authenticate(self) -> None:
-        if not self._secret:
-            raise MissingSecret(
-                "licensed (Class C) adapter requires its secret; set the env "
-                "var named in [SETTINGS] secret_env. No live Class C call is "
-                "made until a contract exists.")
+    def _authenticate(self, secret: Optional[str]) -> str:
+        if not secret:
+            raise PermissionError("HTTP 401: missing/invalid access token "
+                                  "(client_credentials not supplied).")
+        self._token = "stub-token"
+        return self._token
 
     def prime(self, keys, asof, names=None) -> None:
-        self._authenticate()
+        return None
 
-    def fetch_series(self, spec: FieldSpec, secret=None) -> List[NormalizedRow]:
-        self._authenticate()
-        return [NormalizedRow(id=spec.id, period="", value=None,
-                              geo_segment=spec.geo_segment,
-                              source_class=self.source_class, units=spec.units)]
+    def fetch_series(self, spec: FieldSpec,
+                     secret: Optional[str] = None) -> List[NormalizedRow]:
+        self._authenticate(secret)
+        # A schema-shaped, VALUELESS row: proves the seam contract without
+        # fabricating licensed data.
+        return [NormalizedRow(id=spec.id, period="1900-01-01", value=None,
+                              geo_segment=spec.geo_segment, source_class="C",
+                              units=spec.units)]

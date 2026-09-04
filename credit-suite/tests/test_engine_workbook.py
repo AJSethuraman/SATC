@@ -147,12 +147,34 @@ def test_a_keyless_monitor_resolves_no_secret():
 
 
 def test_a_licensed_adapter_refuses_to_call_without_its_secret():
-    """Class C stays gated until a contract exists, and the refusal is the
-    contract's exit code 3 rather than a generic crash."""
-    stub = provider.ClassCStubProvider(secret=None)
-    with pytest.raises(provider.MissingSecret):
-        stub.prime(["628"], None)
+    """Class C stays gated until a contract exists.
+
+    The refusal is a 401-shaped PermissionError, which is the shipped monitor's
+    contract -- the secret arrives per call, so nothing licensed is ever held on
+    the instance.
+    """
+    stub = provider.ClassCStubProvider(secret_env="FDIC_CLASS_C_SECRET")
+    spec = provider.make_field_spec(entity(), "ASSET", UNITS)
+    with pytest.raises(PermissionError, match="401"):
+        stub.fetch_series(spec, secret=None)
+
+    rows = stub.fetch_series(spec, secret="dummy-client-credentials")
+    assert len(rows) == 1
+    assert rows[0].value is None, "the stub must never fabricate licensed data"
+    assert rows[0].source_class == "C"
+
+
+def test_a_missing_secret_maps_to_the_contracts_exit_code_3():
+    """``MissingSecret`` is deliberately unraised by any adapter today: FDIC's
+    source is keyless, so there is no secret to be missing.
+
+    It is kept because exit code 3 is in the contract and a keyed source needs
+    somewhere to raise from -- FRED, whose live pull takes an API key, is the
+    first. Asserting the mapping here stops it being untested code that only
+    gets exercised the day it matters.
+    """
     assert issubclass(provider.MissingSecret, SystemExit)
+    assert runtime.EXIT_MISSING_SECRET == 3
 
 
 def test_a_licensed_adapter_is_refused_by_the_gate_not_by_missing_code():

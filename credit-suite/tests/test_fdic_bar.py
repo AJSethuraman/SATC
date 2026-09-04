@@ -1,4 +1,9 @@
-"""Headless test suite for the Bank Counterparty & Peer Monitor.
+"""TEMPLATE_CONTRACT section 9 -- the verification bar, run against the ENGINE.
+
+Ported from `fdic-peer-monitor/tests/test_runner.py` and pointed at
+`credit_suite`. Kept as close to the original as possible: these tests are the
+bar the monitor shipped against, and rewriting them while migrating would mean
+the migration was checked by tests written after the fact.
 
 Runs on Linux/CI with NO Excel and NO network, all in --demo mode. Mirrors the
 named tests in BUILD_SPEC_FDIC.md Section 6 (Phases 1-8):
@@ -29,15 +34,16 @@ from datetime import date
 import openpyxl
 import pytest
 
+from credit_suite.sources.fdic import engine_api as R      # noqa: E402
+from credit_suite.sources.fdic import runner as FDIC_RUNNER  # noqa: E402
+from credit_suite.sources.fdic import series_seed as SEED    # noqa: E402
+from credit_suite.sources.fdic import layout as BW           # noqa: E402
+from credit_suite.sources.fdic import adapter                # noqa: E402
+from credit_suite.sources.fdic import engine_api as assemble_xlsm  # noqa: E402
+from credit_suite.engine import vba as V                     # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
-
-import runner as R                     # noqa: E402
-import series_seed as SEED             # noqa: E402
-import build_workbook as BW            # noqa: E402
-import assemble_xlsm                   # noqa: E402
-import vba_writer as V                 # noqa: E402
 
 ASOF = date(2026, 3, 31)
 
@@ -77,7 +83,7 @@ def populated(xlsm, tmp_path_factory):
 
 
 def _peer(slot=13, cert="12345", name="Test Bank", group="peer", active=True):
-    return R.PeerRow(slot=slot, cert=cert, name=name, group=group,
+    return R.PeerRow(slot=slot, key=cert, name=name, group=group,
                      active=active)
 
 
@@ -136,16 +142,16 @@ def test_config_parse():
     assert cfg.thresholds["RBC1AAJ"].direction == "below"
     assert cfg.thresholds["LNRESNCR"].direction == "below"
     # [PEERS]: 40 provisioned slots, 12 seeded banks, certs normalized
-    assert cfg.peer_slots == 40 and len(cfg.peers) == 40
-    banked = [p for p in cfg.peers if p.has_bank]
+    assert cfg.entity_slots == 40 and len(cfg.entities) == 40
+    banked = [p for p in cfg.entities if p.has_entity]
     assert len(banked) == 12
-    assert [p.slot for p in cfg.peers] == list(range(1, 41))
+    assert [p.slot for p in cfg.entities] == list(range(1, 41))
     jpm = next(p for p in banked if p.slot == 1)
-    assert jpm.cert == "628" and jpm.entity_key == "cert:628"
+    assert jpm.key == "628" and jpm.entity_key == "cert:628"
     assert jpm.active is True and jpm.group == "peer"
     assert next(p for p in banked if p.slot == 9).group == "self"
-    for p in cfg.peers[12:]:
-        assert not p.has_bank and not p.active        # provisioned headroom
+    for p in cfg.entities[12:]:
+        assert not p.has_entity and not p.active        # provisioned headroom
     # settings the runner depends on
     assert cfg.raw_slots == 16
     assert cfg.stale_multiplier == pytest.approx(2.0)
@@ -160,7 +166,7 @@ def test_config_parse():
             "s03_NTCRCDQR", "s07_UNRLZCAPR"} <= unit_ids
     # capacity is validated, never truncated: a 41st bank refuses with the
     # exact rebuild command (the flexible-peers USER REQUIREMENT)
-    cfg.peers.append(_peer(slot=41, cert="99999", name="Overflow Bank"))
+    cfg.entities.append(_peer(slot=41, cert="99999", name="Overflow Bank"))
     with pytest.raises(R.PeerCapacityError) as ei:
         R.validate_peer_capacity(cfg)
     msg = str(ei.value)
@@ -168,7 +174,7 @@ def test_config_parse():
     assert "make_workbook.py" in msg and "never truncates" in msg
     # duplicate slots refuse too
     cfg2 = R.parse_config(BW.config_rows())
-    cfg2.peers.append(_peer(slot=1, cert="55555", name="Dup Bank"))
+    cfg2.entities.append(_peer(slot=1, cert="55555", name="Dup Bank"))
     with pytest.raises(R.PeerCapacityError, match="listed twice"):
         R.validate_peer_capacity(cfg2)
 
@@ -178,7 +184,7 @@ def test_config_parse():
 # --------------------------------------------------------------------------
 def test_demo_provider_deterministic():
     cfg = R.parse_config(BW.config_rows())
-    peers = {p.slot: p for p in cfg.peers if p.has_bank}
+    peers = {p.slot: p for p in cfg.entities if p.has_entity}
     prov = R.FdicDemoProvider(asof=ASOF, raw_slots=cfg.raw_slots)
     for slot, fname in ((1, "NCLNLSR"), (5, "EQ"),
                         (6, "ASSET"), (12, "RBCRWAJ")):
@@ -486,7 +492,7 @@ def test_watchlist_entity_gates():
 
     # blank cert: refused BY NAME with the --lookup hint (never fetched)
     blank = _peer(slot=13, cert="", name="Mystery Trust Co")
-    cfg.peers[12] = blank
+    cfg.entities[12] = blank
     admitted2, refusals2, _ = R.evaluate_peers(cfg)
     assert len(admitted2) == 12                    # the good rows still pass
     assert len(refusals2) == 1
@@ -499,8 +505,8 @@ def test_watchlist_entity_gates():
 
     # inactive slot: EXCLUDED (blanked), not refused
     cfg3 = R.parse_config(BW.config_rows())
-    idx = next(i for i, p in enumerate(cfg3.peers) if p.slot == 2)
-    cfg3.peers[idx] = replace(cfg3.peers[idx], active=False)
+    idx = next(i for i, p in enumerate(cfg3.entities) if p.slot == 2)
+    cfg3.entities[idx] = replace(cfg3.entities[idx], active=False)
     admitted3, refusals3, excluded3 = R.evaluate_peers(cfg3)
     assert len(admitted3) == 11 and refusals3 == []
     assert [p.slot for p in excluded3] == [2]
@@ -522,7 +528,7 @@ def test_watchlist_entity_gates():
         assert reasons and "Gate3" in reasons[0], cert
     # and the build-time hard gate backs the runtime gate
     cfg5 = R.parse_config(BW.config_rows())
-    cfg5.peers[13] = _peer(slot=14, cert="not-a-cert", name="Aggregate Row")
+    cfg5.entities[13] = _peer(slot=14, cert="not-a-cert", name="Aggregate Row")
     with pytest.raises(R.WatchlistRefused, match="Aggregate Row"):
         R.assert_entity_gates(cfg5)
 
@@ -546,7 +552,7 @@ class FrozenPeerProvider(R.FdicDemoProvider):
                                        raw_slots=self.raw_slots)
 
     def fetch_series(self, spec, secret=None):
-        if spec.cert == self.frozen_cert:
+        if spec.key == self.frozen_cert:
             return self._old.fetch_series(spec, secret)
         return super().fetch_series(spec, secret)
 
@@ -701,7 +707,7 @@ def test_raw_layout_mismatch_refused(xlsm, tmp_path):
 def test_class_c_stub():
     """The seam-contract stub. NOTE: class C is REFUSED by this template's
     gate 2 -- the stub only proves the fetch_series seam shape."""
-    spec = R.FieldSpec(slot=1, cert="628", fname="ASSET", id="s01_ASSET",
+    spec = R.FieldSpec(slot=1, key="628", fname="ASSET", id="s01_ASSET",
                        geo_segment="cert:628", units="USD_thousands",
                        source_class="C")
     prov = R.ClassCStubProvider(secret_env="FDIC_CLASS_C_SECRET")
