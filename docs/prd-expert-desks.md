@@ -139,6 +139,13 @@ allowed into the shared layer, and a test enforces that.
 4. **[P0]** Every source carries `may_store: full_text | citation_only | license_check`.
    Default is `license_check`, which stores nothing. Storing text under a
    `citation_only` or `license_check` source is a build failure.
+4a. **[P0]** Every source carries `access: public_fetch | headless_browser | signed_in_browser`,
+   and the engine uses the method named there. A source with no `access` is a parse
+   error, not a default — the same discipline as `checked`.
+4b. **[P0]** A denied fetch is **never** retried through a different client. It
+   refuses with `source_unreachable`. A transient failure retries the same method
+   once. A JS-rendered empty response may use a headless browser, because that
+   escalates rendering rather than authority.
 5. **[P0]** Every entry carries `tier: primary | secondary | tertiary`.
 6. **[P1]** A staleness check flags entries whose source has been amended since
    `checked`, using eCFR's `latest_amended_on`, and entries older than a
@@ -300,6 +307,49 @@ Settled by research, not assumption — `docs/research/accounting-authority-sour
 - **A licence the firm holds may permit an internal copy.** That is a per-source
   fact, which is why `may_store` is a field and `license_check` is the default.
   Offline storage does not change the analysis; a licence might.
+
+### 6.3a How a source is reached — declared, never discovered
+
+A source carries **`access`** beside `may_store`, and the engine uses the method
+named there. There is no try-then-escalate.
+
+```yaml
+- source: Treas. Reg. § 1.263(a)-3
+  access: public_fetch          # public, static, cheapest
+  may_store: full_text
+
+- source: <a JS-rendered public site>
+  access: headless_browser      # rendering, not permission — no login
+  may_store: full_text
+
+- source: FASB ASC
+  access: signed_in_browser     # the firm's own profile, on the Forge
+  requires: subscription
+  may_store: citation_only
+```
+
+**Why declared rather than discovered.** If a failed fetch is what triggers a
+heavier tool, then a site *refusing* automated access becomes the thing that makes
+us reach for one — retry-on-denial, which is precisely the pattern ruled out for
+the browser capability. Declaring it means the decision is made once, when someone
+actually read the source's terms, instead of every time under time pressure. It is
+also C8's test: a rule applied, not a judgement made.
+
+**A failure is handled by its cause, not by climbing.**
+
+| Failed because | Response |
+|---|---|
+| **Denied** — 403, blocked, terms forbid automation | Refuse. `source_unreachable`. Never a different client |
+| **Empty** — JS-rendered, the fetch got a shell | A headless browser is fine. Nothing was denied and no authority changed |
+| **Transient** — timeout, 5xx, reset | Retry the **same** method, once |
+| **Licensed** — needs to be the firm | Never discovered at runtime; declared or unavailable |
+
+Only the middle row is an escalation at all, and it escalates *capability*
+(rendering) rather than *authority* (identity). Those two must never be conflated.
+
+Cost ordering follows for free: a public fetch is milliseconds, a headless browser
+seconds, and the signed-in desktop browser needs the Forge awake with a profile
+actually logged in — the only rung that can be simply unavailable.
 
 ### 6.4 Authority tiers
 
