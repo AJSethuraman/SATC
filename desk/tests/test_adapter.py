@@ -14,8 +14,11 @@ from collections import Counter
 
 import pytest
 
+import engine
 import record
+import scoreboard
 from conftest import DESKS, ROOT
+from engine import Answer
 
 sys.path.insert(0, str(ROOT / "tools"))
 import scoreboard_run as sr        # noqa: E402
@@ -119,3 +122,65 @@ def test_the_script_records_what_was_shown_beside_the_baselines(tmp_path):
     assert f"citing {citation!r} every time matches {n} of {len(desk.problems)}" in board
     outcomes = json.loads((out / "outcomes.json").read_text(encoding="utf-8"))
     assert outcomes["frontier"]["counts"]["correct"] == len(desk.problems)
+
+
+# ── containment is measured, and never scored ────────────────────────────────
+
+def test_a_finer_path_under_the_governing_rule_is_counted_apart():
+    """Seven problems key to `(j)` because that is what the regulation's own
+    conclusion names. A desk answering "betterment, (j)(1)(iii)" has reached the
+    right rule by a finer path, and the engine refuses it — correctly, since
+    `_check` is shared with `serve()` and anything accepting a near-miss here
+    hands one to a client.
+
+    So it is reported rather than forgiven, and reported OUTSIDE the four
+    outcomes: containment admits 14 of 172 paths under `(j)` and exactly 1 under
+    `(k)(1)(vi)`, so scoring by it would grade seven problems fourteen times more
+    leniently than one for no reason but the regulation's prose.
+    """
+    desk = record.load(DESK)
+    coarse = next((p for p in desk.problems if p.citation.endswith("-3(j)")), None)
+    assert coarse is not None, "fixture has no coarsely-keyed problem"
+    finer = coarse.citation + "(1)(iii)"
+
+    answers = {p.id: Answer(position=p.answer, citation=p.citation)
+               for p in desk.problems}
+    answers[coarse.id] = Answer(position=coarse.answer, citation=finer)
+    run = scoreboard.run(desk, lambda p: answers[p.id], model="probe")
+    d = sr.diagnostic(desk, run, answers)
+
+    assert d["citation_within_governing_rule"] == 1, d
+    assert d["citation_matched"] == len(desk.problems) - 1, d
+    assert d["citation_off_index"] == 0, "a real subparagraph is in the index"
+
+    # And it stays out of every total the scoreboard reports.
+    counts = run.counts
+    assert sum(counts.values()) == len(desk.problems)
+    assert counts["correct"] == len(desk.problems) - 1, (
+        "a finer path was scored as correct; the engine must still refuse it")
+
+
+def test_wrongly_absorbed_is_reachable_at_all():
+    """The one outcome that costs anything, proved reachable rather than assumed.
+
+    `grade()` refuses a wrong citation BEFORE comparing the conclusion, so on a
+    run where citations are the weak part this number is structurally suppressed
+    — the first scoreboard reported 0 on both rows and said so: the trap was not
+    sprung, not proved unsprungable. Loosening the gate would expose it; proving
+    it directly costs nothing and loosens nothing.
+    """
+    desk = record.load(DESK)
+    p = desk.problems[0]
+    other = next(q.answer for q in desk.problems if q.answer != p.answer)
+
+    caught = engine.grade(Answer(position=other, citation=p.citation), p, desk)
+    assert caught.outcome is engine.Outcome.WRONGLY_ABSORBED, (
+        f"a wrong conclusion behind a citation that HELD graded {caught.outcome}; "
+        f"the costly outcome cannot be reached and every 0 reported for it is "
+        f"meaningless"
+    )
+    # The control: same wrong conclusion, wrong citation — caught earlier, so the
+    # suppression this test exists to characterise is real and not imagined.
+    wrong_cite = next(q.citation for q in desk.problems if q.citation != p.citation)
+    assert engine.grade(Answer(position=other, citation=wrong_cite), p, desk
+                        ).outcome is engine.Outcome.WRONG_CAUGHT

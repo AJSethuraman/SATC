@@ -448,6 +448,9 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
     """
     from engine import _same
 
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from extract_ecfr import _under
+
     problems = {p.id: p for p in desk.problems}
     right_position = sum(
         1 for pid, a in answers.items()
@@ -455,6 +458,25 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
     right_citation = sum(
         1 for pid, a in answers.items()
         if not a.escalated and a.citation.strip() == problems[pid].citation)
+    # WITHIN THE GOVERNING RULE'S SUBTREE, REPORTED AND NEVER SCORED.
+    #
+    # Seven problems key to (j) and five to (l), because that is the paragraph
+    # the regulation's own conclusion names. A desk that answers "betterment,
+    # (j)(1)(iii)" has reached the right rule by a finer path and the engine
+    # refuses it, correctly: `_check` is shared with `serve`, so anything that
+    # accepts a near-miss here also hands one to a client, and `Desk.passage`
+    # documents exact match as the thing stopping "an answer cit[ing] something
+    # adjacent to the rule it relied on and still verify".
+    #
+    # So the distinction is measured rather than forgiven. It is deliberately
+    # NOT a fifth outcome and not added to any total: containment admits 14 of
+    # 172 paths under (j) and exactly 1 under (k)(1)(vi), so scoring by it would
+    # grade seven problems fourteen times more leniently than one for no reason
+    # but how verbosely the regulation phrased its conclusion.
+    near_citation = sum(
+        1 for pid, a in answers.items()
+        if not a.escalated and a.citation.strip() != problems[pid].citation
+        and _under(a.citation.strip(), problems[pid].citation))
     off_index = sum(
         1 for pid, a in answers.items()
         if not a.escalated and a.citation.strip()
@@ -463,6 +485,7 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
         "answered": sum(1 for a in answers.values() if not a.escalated),
         "position_matched": right_position,
         "citation_matched": right_citation,
+        "citation_within_governing_rule": near_citation,
         "citation_off_index": off_index,
         "gave_up": run.gave_up,
     }
@@ -622,6 +645,8 @@ def _main(argv: list[str]) -> int:
         lines.append(f"  {label}: conclusion matched {d['position_matched']}/"
                      f"{len(desk.problems)}, citation matched "
                      f"{d['citation_matched']}/{len(desk.problems)}, "
+                     f"within the governing rule but not it "
+                     f"{d['citation_within_governing_rule']}, "
                      f"cited outside the index {d['citation_off_index']}, "
                      f"gave up {d['gave_up']}")
     lines.append("")
