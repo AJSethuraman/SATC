@@ -206,3 +206,21 @@ citation baseline is 7 of 16 (always citing `(j)`); and the engine matches a
 citation exactly, so a desk citing `(j)(1)(iii)` where the key is `(j)` is
 refused as `citation_does_not_support` — a limitation of the key, stated in
 `PROBLEMS.md`, not a finding about the brain.
+
+**How to read the citation number, and say it beside the number.** The
+`DIAGNOSTIC` line now reports `within the governing rule but not it` alongside
+the exact match: a desk that answered `(j)(1)(iii)` where the key is `(j)`
+reached the right rule by a finer path. It is counted apart and added to no
+total, on purpose — containment admits 14 of 172 paths under `(j)` and exactly 1
+under `(k)(1)(vi)`, so scoring by it would grade seven problems fourteen times
+more leniently than one for no reason but how verbosely the regulation phrased
+its conclusion.
+
+So the citation score measures **whether the desk picked the governing family
+and the paragraph the regulation names** — a real practitioner call — and not
+fine-grained retrieval. Write that sentence next to it. A reader given `9/16`
+with no gloss will take it for the second thing.
+
+The firm considered loosening the engine to accept containment and declined:
+`_check()` is shared by `serve()` and `grade()` deliberately, so anything that
+forgives a near-miss on the scoreboard also hands one to a client.
