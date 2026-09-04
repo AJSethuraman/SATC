@@ -697,24 +697,21 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
   (§6.3, §6.3a). The note below is kept because it records how the gap was
   actually closed.
 
-  **The allow-list was done and it was not enough** — verified 4 September
-  2026 by a re-test session: `asc.fasb.org` is reachable, and its content pages
-  return a **Cloudflare 403 from FASB's own origin**, which no network setting can
-  change. `viewpoint.pwc.com` fetches fine. So the remaining gap needs a person
-  opening <https://asc.fasb.org/copyright> and <https://asc.fasb.org/help> in an
-  ordinary browser and pasting what they say — which is precisely the
-  `signed_in_browser` case §6.3a already describes, arriving before the capability
-  that handles it.
+  **How it closed, because the route matters.** The allow-list was added and was
+  not enough: a re-test found `asc.fasb.org` reachable but its content pages
+  returning a **Cloudflare 403 from FASB's own origin**, which no network setting
+  can change. What closed it was a person — the firm opened the page in an
+  ordinary browser and read the licence. That is `human_only` in action, arriving
+  before the value existed to describe it.
 
-  **This does not block v1** — ASC is a non-goal — but the sentence *"content
-  copyrighted by Financial Accounting Foundation… may not be reproduced, stored in
-  a retrieval system, or transmitted"* carries the whole record design and is still
-  taken on trust from a search index. Confidence stays at medium until someone
-  reads it.
+  **What it changed:** the design had assumed a desk could read ASC live and cache
+  nothing. The licence forbids the content reaching a model by any route, so ASC
+  became `human_only` (§6.3) and a fourth access value now exists because of it.
+  Confidence on the FASB position is **high**, read at source.
 
 ## 11. Done Criteria
 
-- [ ] Requirements 1–24 met and user stories 1–14 satisfied
+- [ ] All requirements met (1–29, including 4a/4b, 11a/11b, 12a) and user stories 1–19 satisfied
 - [ ] Three gating test seams green in CI, with a new `pytest (<plugin>)` matrix entry
 - [ ] **Every assertion proved capable of failing** by mutation — no check that has only ever passed
 - [ ] The problem set extracted from § 1.263(a)-3, each entry citing its paragraph

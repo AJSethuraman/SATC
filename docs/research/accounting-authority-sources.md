@@ -330,8 +330,14 @@ address it does not distrust — or a human opening them by hand. Driving headle
 Chromium from this container was attempted and did not get through either.
 
 **This corrects the diagnosis only. It does not disturb the legal finding**, and
-it does not raise the confidence level: the copyright wording is still unread at
-its source.
+at the time it was written it did not raise the confidence level either.
+
+**Superseded within the hour** — see the next section. The firm opened
+`asc.fasb.org` in their own browser and read the **License Agreement**, which is
+a different and stricter document than the copyright notice, and which settles
+the question outright. Confidence there is high. The copyright notice at
+`/copyright` does remain unread, and no longer matters: the licence is the
+instrument that governs access.
 
 ### CLOSED 4 September 2026: the firm read the licence at its source
 
