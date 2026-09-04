@@ -468,6 +468,77 @@ def _remembered(sandbox: bool) -> str:
         return ""
 
 
+class LinkChoice:
+    """Whether this run may create a live payment link, and the reason.
+
+    `wanted` is the answer; `reason` is what to print. A suppression that
+    happens silently is the same bug in a quieter form -- somebody re-runs the
+    command wondering where the link went.
+    """
+
+    __slots__ = ("wanted", "reason")
+
+    def __init__(self, wanted: bool, reason: str) -> None:
+        self.wanted, self.reason = wanted, reason
+
+    def __repr__(self) -> str:                        # for test failures
+        return f"LinkChoice(wanted={self.wanted!r}, reason={self.reason!r})"
+
+
+def link_follows_the_store(*, store, default_store, no_link: bool = False,
+                           link: bool = False) -> LinkChoice:
+    """THE MONEY SEAM IS SCOPED BY `--store`, THE SAME WAY THE FILES ARE.
+
+    Until 4 September 2026 it was not. `--store` routed where the invoice JSON
+    was written; the processor and its token came from `registry/payments.yaml`
+    and the Windows credential store, so **a run scoped entirely to a scratch
+    directory still reached the firm's production Square account.** The
+    standing instruction on the machine this runs on is *point tests at a temp
+    store*; an agent obeying it believed it was isolated and was not.
+
+    It was caught by an assessment agent doing exactly that, which got back
+    `400 -- This idempotency key has already been used to create a Payment
+    Link` and therefore created nothing. **A 400 is not the reassurance it
+    looks like.** 400 is what a *differing body* returns. The key is
+    `satc-<invoice>` while the invoice number is scanned from the local store
+    only, so a fresh temp store starts at `2026-0001` and collides with keys
+    already spent on the live account -- and had the amount matched, Square
+    returns the EXISTING link. A fictional test client would have been handed a
+    real client's payment link.
+
+    So the default now follows the store, and the firm chose it that way:
+    *"--no-link defaults on any non-default --store"*, 4 September 2026.
+
+    Precedence, most explicit first:
+
+    - `--no-link` -- never, whatever the store. An explicit refusal.
+    - `--link` -- yes, whatever the store. **This is the escape hatch**, and it
+      has to exist: without it a firm that keeps its engagements somewhere other
+      than the default could never raise a real bill.
+    - otherwise -- the default store gets a link, any other store does not.
+
+    Both flags together is a contradiction rather than a precedence puzzle, and
+    is refused rather than silently resolved.
+    """
+    if no_link and link:
+        raise PaymentError(
+            "--link and --no-link ask for opposite things. Pass one.")
+    if no_link:
+        return LinkChoice(False, "no link: --no-link was passed")
+    if link:
+        return LinkChoice(True, "")
+    # `resolve()` on both sides: `engagements/.` and `engagements` are the same
+    # directory, and a comparison that says otherwise suppresses a link the
+    # firm asked for.
+    same = Path(store).resolve() == Path(default_store).resolve()
+    if same:
+        return LinkChoice(True, "")
+    return LinkChoice(False,
+                      f"no link: this run is scoped to {Path(store)}, which is "
+                      f"not the engagement store, so it does not touch live "
+                      f"payments. Pass --link if you meant to bill for real.")
+
+
 def processor(*, sandbox: bool = False, transport: Callable | None = None,
               reg: dict | None = None, token: str | None = None) -> Square:
     """The configured processor, or a refusal saying what is missing.
