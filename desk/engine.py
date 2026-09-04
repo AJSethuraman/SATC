@@ -59,6 +59,7 @@ REASONS = (
     "authority_absent",         # not in the record yet; add it, cited
     "authority_permits_choice",  # NOT fixable. the firm decides.
     "no_citation",              # the answer cited nothing that resolves
+    "citation_does_not_support",  # real authority, but not this question's
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
@@ -127,18 +128,25 @@ def _check(answer: Answer, desk: Desk):
             "or escalate with a reason",
         ), None, None
 
-    passage = desk.passage(answer.citation)
-    if passage is None:
+    backing = desk.authority_for(answer.citation)
+    if backing is None:
         return Refusal(
             "authority_absent",
             f"{answer.citation!r} is not in this desk's record; add it cited, "
             f"or escalate with reason 'authority_absent'",
         ), None, None
 
-    source = desk.source(passage.source_id)
+    kind, passage, source = backing
     if source is None:                                  # pragma: no cover
         raise EngineError(
-            f"passage {passage.citation!r} has no source; load() checks this")
+            f"{answer.citation!r} has no source; load() checks this")
+
+    # A ratified position IS the firm's answer, so tier does not gate it: the
+    # firm already made the choice that a secondary source would only have
+    # invited. This is the whole point of `human_only` — a source the engine
+    # may never read is reachable only through what the firm wrote about it.
+    if kind == "position":
+        return None, passage, source
 
     if not source.binding:
         return Refusal(
@@ -172,7 +180,12 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
         position=answer.position,
         citation=passage.citation,
         tier=source.tier,
-        checked=passage.checked,
+        # A passage records when someone last confirmed it against the source;
+        # a position records when the firm took it. Both answer "how old is
+        # this?", which is what a caller needs, and neither is allowed to be
+        # absent -- so read whichever this authority carries rather than
+        # defaulting one in.
+        checked=getattr(passage, "checked", None) or passage.recorded,
     )
 
 
@@ -206,6 +219,22 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
                           reason=refusal.reason, detail=refusal.detail)
         return Result(problem.id, Outcome.WRONG_CAUGHT,
                       reason=refusal.reason, detail=refusal.detail)
+
+    # THE CITATION MUST SUPPORT THIS PROBLEM, not merely exist.
+    #
+    # Written without this check, an answer that gave the right conclusion while
+    # citing any other primary passage in the desk was scored CORRECT — so a
+    # model could reach the right verdict from the wrong paragraph, or from a
+    # paragraph about something else entirely, and inflate the scoreboard. That
+    # contradicts this function's own stated distinction between a citation that
+    # resolves and a citation that is the right one, which had been written down
+    # and then not implemented.
+    if passage is not None and passage.citation != problem.citation:
+        return Result(
+            problem.id, Outcome.WRONG_CAUGHT, reason="citation_does_not_support",
+            detail=f"cited {answer.citation!r}, which is real authority but not "
+                   f"what this question turns on ({problem.citation!r})",
+        )
 
     if _same(answer.position, problem.answer):
         return Result(problem.id, Outcome.CORRECT)

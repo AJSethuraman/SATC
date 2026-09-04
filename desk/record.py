@@ -108,11 +108,19 @@ class Problem:
 
 @dataclass(frozen=True)
 class Desk:
-    """One expert: what it answers on, what it may rely on, how it is scored."""
+    """One expert: what it answers on, what it may rely on, how it is scored.
+
+    `positions` is not decoration. For a source the engine may never read --
+    FASB ASC, whose licence forbids the content reaching a model at all -- a
+    ratified position is the desk's ENTIRE knowledge of it. Loading only
+    `passages` made every such citation refuse as `authority_absent`, which
+    left the advertised position path unusable.
+    """
     name: str
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
+    positions: tuple = field(default_factory=tuple)
 
     def source(self, source_id: str) -> Source | None:
         return next((s for s in self.sources if s.id == source_id), None)
@@ -125,6 +133,30 @@ class Desk:
         citation check exists to catch.
         """
         return next((p for p in self.passages if p.citation == citation), None)
+
+    def position(self, citation: str):
+        """A ratified position resting on this citation, if the firm took one.
+
+        Only ratified ones answer. A proposal sitting in a pull request is not
+        yet the firm's word, and serving it would be recording an answer they
+        never gave.
+        """
+        return next((p for p in self.positions
+                     if p.citation == citation and not p.proposed), None)
+
+    def authority_for(self, citation: str):
+        """Whatever backs this citation: stored text, or the firm's own words.
+
+        Returns `(kind, obj, source)` or None. Both are real authority; they
+        differ in who wrote them, which is why they are stored apart.
+        """
+        if (p := self.passage(citation)) is not None:
+            return "passage", p, self.source(p.source_id)
+        if (pos := self.position(citation)) is not None:
+            src = next((s for s in self.sources
+                        if citation.startswith(s.citation_prefix)), None)
+            return "position", pos, src
+        return None
 
 
 # ── parsing ───────────────────────────────────────────────────────────────────
@@ -246,6 +278,13 @@ def load(desk_dir: Path) -> Desk:
         for f in sorted(extracted.glob("*.md")):
             passages.extend(parse_passages(f.read_text(encoding="utf-8")))
 
+    import positions as _positions          # local: positions imports record
+    pos: list = []
+    pdir = desk_dir / "positions"
+    if pdir.is_dir():
+        for f in sorted(pdir.glob("*.md")):
+            pos.extend(_positions.parse(f.read_text(encoding="utf-8")))
+
     known = {s.id for s in sources}
     for p in passages:
         if p.source_id not in known:
@@ -259,6 +298,7 @@ def load(desk_dir: Path) -> Desk:
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),
+        positions=tuple(pos),
     )
 
 

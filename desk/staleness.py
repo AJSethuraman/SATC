@@ -103,11 +103,17 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
             continue
 
         if moved is None:
+            # `continue`, not a fall-through. Without it an undated passage that
+            # is ALSO past the age limit was appended twice -- once here and
+            # once below -- so `total` overstated the denominator, and a report
+            # whose own count is wrong is the failure this file exists to catch.
             rep.unchecked.append(Finding(
                 p.citation, src.id, p.checked, "no amendment date published",
-                f"{src.title} publishes no amendment date; age is the only signal",
+                f"{src.title} publishes no amendment date; age is the only "
+                f"signal, and it is {_days(today, p.checked)} days old",
             ))
-        elif _days(moved, p.checked) > 0:
+            continue
+        if _days(moved, p.checked) > 0:
             rep.amended.append(Finding(
                 p.citation, src.id, p.checked, "amended",
                 f"amended {moved}, checked {p.checked}",
@@ -120,7 +126,7 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
                 p.citation, src.id, p.checked, "aged",
                 f"checked {p.checked}, {age} days ago",
             ))
-        elif moved is not None:
+        else:
             rep.fresh += 1
 
     return rep

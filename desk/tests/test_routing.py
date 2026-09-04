@@ -95,11 +95,18 @@ def test_canon_is_found_in_the_marketplace_cache_layout(monkeypatch, tmp_path):
 
 
 def test_the_newest_installed_version_wins(monkeypatch, tmp_path):
-    """Two versions can sit in the cache at once. Take the later one."""
+    """Two versions can sit in the cache at once. Take the later one.
+
+    The versions here are 1.9.0 and 1.10.0 DELIBERATELY. Written first with
+    1.3.0 and 1.4.0, this test could never fail: those sort the same as text or
+    as numbers, so it passed while `_candidates()` sorted lexicographically and
+    would have loaded the older canon. A fixture that agrees under both rules
+    tests neither.
+    """
     cache = tmp_path / "cache" / "satc"
     desk = cache / "desk" / "0.1.0"
     desk.mkdir(parents=True)
-    for v in ("1.3.0", "1.4.0"):
+    for v in ("1.9.0", "1.10.0"):
         d = cache / "canon" / v
         d.mkdir(parents=True)
         (d / "record.py").write_text("touches = None\n", encoding="utf-8")
@@ -107,7 +114,9 @@ def test_the_newest_installed_version_wins(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(desk))
     monkeypatch.setattr(_canon, "__file__", str(desk / "_canon.py"))
     found = [c for c in _canon._candidates() if (c / "record.py").is_file()]
-    assert found[0].name == "1.4.0"
+    assert found[0].name == "1.10.0", (
+        "sorted as text, 1.9.0 beats 1.10.0 and the older canon loads"
+    )
 
 
 def test_the_repository_layout_still_resolves():

@@ -26,6 +26,20 @@ import sys
 from pathlib import Path
 
 
+def _version(path: Path) -> tuple:
+    """Order version directories numerically, not as strings.
+
+    Sorted as text, "1.9.0" comes after "1.10.0", so a machine holding both
+    would load the OLDER canon while this module claimed to prefer the newer.
+    Non-numeric segments sort below numeric ones rather than raising, because a
+    directory named something unexpected should not break the search.
+    """
+    parts = []
+    for seg in path.name.split("."):
+        parts.append((1, int(seg)) if seg.isdigit() else (0, 0))
+    return tuple(parts)
+
+
 class CanonMissing(RuntimeError):
     """The declared dependency is not there. A broken install, not a fallback."""
 
@@ -62,7 +76,7 @@ def _candidates() -> list[Path]:
         peer = root.parent.parent / "canon"
         if peer.is_dir():
             out.extend(sorted((d for d in peer.iterdir() if d.is_dir()),
-                              reverse=True))
+                              key=_version, reverse=True))
     return out
 
 
