@@ -38,7 +38,8 @@ def test_every_skill_is_one_the_harness_can_load():
     that stops covering it the moment there are two.
     """
     skills = sorted(p for p in (CANON / "skills").iterdir() if p.is_dir())
-    assert {p.name for p in skills} == {"bassy", "canon-adopt", "canon-mine", "docket", "how-we-work"}
+    assert {p.name for p in skills} == {"adversarial", "bassy", "canon-adopt",
+                                        "canon-mine", "docket", "how-we-work"}
     for skill in skills:
         path = skill / "SKILL.md"
         assert path.is_file(), f"{skill.name} has no SKILL.md"

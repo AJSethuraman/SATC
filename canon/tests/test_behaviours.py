@@ -108,6 +108,12 @@ READS_THE_RECORD = ("bassy", "canon-mine", "canon-adopt")
 # hands anything conviction-shaped to bassy rather than reading or writing
 # CONVICTIONS.md itself, which is what keeps it on this side of the list.
 RUNS_NO_RECORD = ("how-we-work", "docket")
+# `adversarial` is a third thing and is named rather than forced into one of the
+# two above. It runs against a CHECKOUT of canon, not the installed plugin --
+# you cannot break code by reading the copy the plugin ships, and its findings
+# have to land where the source is. So the plugin-root rule does not apply to
+# it, and saying so here is cheaper than a reader wondering why.
+RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
@@ -159,8 +165,23 @@ def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
     """A list of exceptions with nothing asserting it is complete is a list
     that grows one skill at a time without anybody deciding."""
     every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
-    assert every == set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
+    assert every == (set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
+                     | set(RUNS_AGAINST_A_CHECKOUT))
     for name in RUNS_NO_RECORD:
         text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "CONVICTIONS.md" not in text, \
             f"{name} reads the record after all, and must say where it is"
+
+
+def test_the_adversarial_skill_carries_the_brief_and_the_way_back():
+    """A skill that describes a process without carrying the words to hand over
+    is a skill somebody still has to write the prompt for — which is the thing
+    it exists to stop having to remember."""
+    flat = " ".join((CANON / "skills" / "adversarial" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "You may not modify a single line of source code" in flat, "no brief"
+    assert "intake.py" in flat, "no way to take the result back"
+    assert "Mutation grades the guards you wrote" in flat, \
+        "it does not say why this is worth doing beside mutation testing"
+    assert "discarded unread" in flat, \
+        "the far side is not told its scratch is free"
