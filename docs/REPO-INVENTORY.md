@@ -69,8 +69,9 @@ looked at a proxy rather than the thing.
 
 ## 1 · The shape of it
 
-**18 project folders, 92 remote branches, 42 open PRs** (4 September 2026;
-was 16 / 76 / 34 on 22 August). Roughly half the tree is practice-operations
+**18 project folders, 91 remote branches, 41 open PRs** (4 September 2026,
+after #177/#179/#182/#183 merged; was 16 / 76 / 34 on 22 August, and 92 / 42
+four hours before this line was rewritten). Roughly half the tree is practice-operations
 software; the other half is credit and macro analytics for a separate
 consulting line.
 
@@ -78,8 +79,8 @@ consulting line.
 either row below: **`canon`** — the thirty-five tenets moved in as something
 testable, with its own suite and a plugin manifest — and **`cashew-institute`**.
 
-**Sixteen of the forty-two open pull requests are May–June prototypes** that
-have not moved in three months. A triage proposal covering all forty-two, sorted
+**Sixteen of the open pull requests are May–June prototypes** that have not
+moved in three months. A triage proposal covering all of them, sorted
 by which folders each one actually touches, is at
 `https://claude.ai/code/artifact/2ec1aebc-50a3-4fbc-80fe-9b8f577ac1bc` — the
 finding worth carrying here is that **three of them are `mergeable` while every
