@@ -1,6 +1,7 @@
 # PRD: Expert desks — a mechanism for building experts, and the first one
 
 **Status:** Draft · **Owner:** the firm · **Last updated:** 2026-09-04
+**Plugin:** `desk` (`satc/desk`), depending on `canon`
 
 > Grilled 4 September 2026. Authority research: `docs/research/accounting-authority-sources.md`.
 > Governed by C7, C8, C9 and C10 in `canon/CONVICTIONS.md`, the ten rules in
@@ -55,6 +56,8 @@ allowed into the shared layer, and a test enforces that.
 - The shared layer is domain-neutral by construction, so the second desk is a
   configuration exercise and not a rewrite.
 - Nothing enters the record that the firm did not ratify.
+- A new desk can be created by interview rather than by hand, and the interview
+  is written from what building the first one actually took.
 
 **Non-Goals / Out of scope for v1**
 
@@ -109,6 +112,14 @@ allowed into the shared layer, and a test enforces that.
 14. As a **future desk builder**, I want the shared layer to contain no
     accounting, so that building a legal or prompting desk does not mean
     untangling one.
+15. As **the firm**, I want to create a new desk by being interviewed about the
+    subject, so that adding an advisor does not require me to know the file
+    format.
+16. As **the firm**, I want the factory to research the authority for a new
+    subject and tell me which sources are binding and which are somebody's
+    reading, so that a desk does not launch treating a whitepaper as a rule.
+17. As **the firm**, I want a new desk to arrive as a pull request I approve,
+    so that creating an advisor is ratified the same way a position is.
 
 ## 5. Requirements
 
@@ -174,24 +185,60 @@ allowed into the shared layer, and a test enforces that.
 24. **[P0]** The plugin reaches outside its own directory for nothing, matching
     canon's rule — it must lift out whole.
 
+**The factory**
+
+25. **[P0]** A skill interviews the firm about a new subject and emits a complete
+    desk definition — subjects, sources, tiers, `may_store`, and a problem set.
+26. **[P0]** The factory **proposes**: it opens a pull request and writes nothing
+    to the record directly, matching `canon-mine`.
+27. **[P0]** For each source it proposes, the factory resolves the storage
+    question from the source's own terms and sets `may_store` accordingly,
+    defaulting to `license_check` when it cannot.
+28. **[P0]** A desk the factory emits passes the same record tests as a
+    hand-built one — no separate, weaker path.
+29. **[P1]** The factory refuses to emit a desk with no problem set, because a
+    desk that cannot be scored cannot be trusted, and that is the failure this
+    whole document exists to prevent.
+
 ## 6. Implementation Decisions
 
-### 6.1 Where it lives
+### 6.1 Where it lives, and how it arrives
 
-A sibling plugin in the existing `satc` marketplace, beside `canon`. **The
-marketplace is the umbrella, not the plugin.** `.claude-plugin/marketplace.json`
-already takes a `plugins` array; this adds a second entry.
+**Name: `desk`.** Settled 4 September 2026. A sibling plugin in the existing
+`satc` marketplace, beside `canon`; `.claude-plugin/marketplace.json` already
+takes a `plugins` array and this adds a second entry.
 
 Canon must stay neutral. `CONVICTIONS.md` is *what the firm believes, in their
 own words, challengeable*. An ASC or IRC citation is what an authority requires —
 not theirs, not challengeable. Merging them would have Bassy challenging the firm
 from FASB, which is precisely the failure its one rule exists to prevent.
 
-**Name — needs the firm's pick.** Recommendation: **`desk`** (`satc/desk`). It is
-the word already in use for the thing, it is plain rather than clever, and it
-generalises without strain: the standards desk, the credit desk, the legal desk.
-Alternatives considered: `counsel` (legal-sounding in a way that misleads),
-`authority` (claims more than it does), `bench` (opaque).
+**`desk` depends on `canon`, and the arrow runs that way on the merits.** Desk
+uses canon's `touches()` selector for routing (§6.6) and inherits Bassy's
+challenge duty. Canon uses nothing from desk, and must not — its own skill
+insists *"this folder lifts out whole."* A dependency in the other direction
+would make the record unobtainable without the expert layer.
+
+```json
+{ "name": "desk", "version": "1.0.0", "dependencies": ["canon"] }
+```
+
+Claude Code resolves and installs declared dependencies automatically, and
+enabling a plugin enables its dependencies. So **the session-start hook changes
+by one word** — `claude plugin install desk@satc` — and canon still arrives on
+every web session exactly as it does today.
+
+A bundle plugin (a manifest that is only a `dependencies` array) is the
+documented way to package several plugins behind one install. Not used here: a
+two-link chain does not need it, and C9 says do not add the mechanism until there
+is a third plugin to bundle.
+
+**Invocation is namespaced and there is no bare form.** Plugin skills resolve as
+`/plugin-name:skill-name`, so `desk` gives `/desk:ask`, `/desk:record`,
+`/desk:score`. `/desk` alone is not available and designing for it would produce
+`/desk:desk`. This matters less than it looks: the slash command is the third and
+least important path in (§6.6) — skills load by description the way `canon:bassy`
+does, and the engine's refusal routes a doer whether or not anyone remembers.
 
 ### 6.2 Record shape
 
@@ -322,7 +369,38 @@ some point we will have enough vram, for now we are limited."* This is what
 LOCAL-LLM-PATTERN already promises — *"a replaceable brain in a permanent
 machine… upgrading the model is `ollama pull` + re-running the scoreboard."*
 
-### 6.10 The seam into Occam
+### 6.10 The factory — what it actually is
+
+**A desk is a definition, not code.** That is what makes the factory cheap enough
+to sit in v1: it is an interview that fills in a form, not a compiler.
+
+```
+desks/fixed-assets/
+  subjects.yaml     depreciate, capitalize, improvement, basis, useful life
+  sources.yaml      Treas. Reg. §1.263(a)-3   primary   · full_text
+                    PwC Viewpoint PPE guide   secondary · license_check
+  problems.yaml     the graded set, with citations
+  extracted/        authority text, agent-written, PR-ratified
+  positions/        what the firm does where the rules allow a choice
+```
+
+The factory is a skill in the same shape as `grill-me` — one question at a time,
+recommendation first — but interviewing about a **subject** rather than a
+project: what does this desk answer on, where is the authority, which sources
+bind and which merely interpret, what may be stored, and what is the known-answer
+set that proves it works. It then opens a PR containing the folder above.
+
+**Sequencing is a hard constraint, not a preference.** The fixed-assets desk is
+built **by hand first**, and the factory is written from what that took. An
+interview authored before anyone has built a desk asks the wrong questions
+confidently, and the answers then have to be lived with. This is why the factory
+is M4 rather than M1 despite being in v1.
+
+**Its acceptance test is the second desk**, and that is also v2's metric: the
+factory produces a working desk in a non-accounting domain without the firm
+touching a file.
+
+### 6.11 The seam into Occam
 
 Occam already implements doer → reviewer → firm for bookkeeping.
 `principals.py` enforces role and assignment server-side, written after a real
@@ -359,6 +437,12 @@ recorded so v2 does not have to rediscover it.
    `canon/tests/test_installed_elsewhere.py`, which copies the tree into a fresh
    git repository and runs it there — the same idea, that a thing claiming to be
    portable must be proven outside its home.
+
+**The factory needs no fourth seam, and that is the point.** What it emits is a
+desk definition, so seam 2 grades it — a factory-built desk passes exactly the
+tests a hand-built one does, or it fails the build. Requirement 28 exists to stop
+a weaker parallel path being introduced for generated desks. The interview itself
+is not unit-tested; its output is, which is the higher seam.
 
 **Deliberately not a gating seam: the scoreboard against a real model.** It is
 measured, reported and committed — never asserted. A non-deterministic run cannot
@@ -401,8 +485,11 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
 - Every escalation carries a reason from the closed set; the proportion that are
   `authority_permits_choice` rises over time as the fixable ones get fixed.
 - The shared-layer purity test passes with the accounting desk installed.
+- A factory-built desk passes the same record tests as a hand-built one, with no
+  separate path.
 - **v2's metric, recorded now:** the number of changes the second desk forces on
-  the shared layer. Zero means the mechanism generalised.
+  the shared layer, and whether the firm had to touch a file to get it. Zero and
+  no, respectively, means the mechanism generalised.
 
 ## 9. Milestones / Rollout
 
@@ -414,8 +501,12 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
   committed with their denominators and their not-checked lists.
 - **M3** — routing from a doer: one tool schema, `touches()` lookup, engine
   refusal naming the desk.
+- **M4** — the factory: the interview, written *after* M1–M3, shaped by what
+  building the fixed-assets desk by hand actually required. It emits a desk
+  definition as a pull request and writes nothing directly.
 - **v2 (out of scope here)** — the second desk, in a domain that is not
-  accounting.
+  accounting, produced by the factory. Two things are measured: the changes it
+  forces on the shared layer, and whether the firm had to touch a file.
 
 ## 10. Risks & Open Questions
 
@@ -436,8 +527,11 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
   selector matches subjects, not shapes, so a question phrased without the
   subject word is not routed. Accepted; the fallback is that the doer asks
   directly (requirement 17).
-- **Open question (needs your decision):** the plugin's name. Recommendation
-  `desk`; see §6.1.
+- **Risk — the factory is written too early anyway.** The mitigation is a
+  sequencing rule (§6.10), and sequencing rules are the kind that get skipped
+  under time pressure. The check is concrete: M4 must not start before M1–M3 are
+  green, and the factory's questions must be traceable to something the hand-built
+  desk actually needed.
 - **Open question (needs you, and only you):** the egress allowlist. Verified
   blocked by test this session: `asc.fasb.org` and `viewpoint.pwc.com` both
   return `EGRESS_BLOCKED`. Add `asc.fasb.org`, `*.fasb.org`, `viewpoint.pwc.com`
@@ -459,4 +553,7 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
 - [ ] Shared-layer purity test passes with the accounting desk installed
 - [ ] The plugin installs from the `satc` marketplace into a repository that is not this one, and works there
 - [ ] `canon/projects/REGISTER.md` gains a card — what it IS, never what its code currently does
-- [ ] The three `[LOG]` items appended to `PLAN.md` and committed
+- [ ] The factory emits a desk definition as a PR, and that desk passes the same record tests as the hand-built one
+- [ ] The factory was written **after** the fixed-assets desk existed, and its questions trace to what that build needed
+- [ ] `desk` declares `dependencies: ["canon"]`, and the session-start hook installs `desk@satc`
+- [ ] The `[LOG]` items appended to `PLAN.md` and committed
