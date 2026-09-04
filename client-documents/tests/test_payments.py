@@ -165,6 +165,34 @@ def test_the_name_the_client_sees_is_the_firms_and_is_filled_in(square,
     assert rec.calls[0][3]["quick_pay"]["name"] == "SAT-C LLP — invoice 2027-0001"
 
 
+UNWRITTEN = "[CONFIRM: the location id (L...) from Square's console]"
+
+
+def _reg_waiting(**square):
+    """The registry as it read BEFORE the firm filled it in.
+
+    THE REGISTRY IS NOT A FIXTURE. These tests used to call
+    `payments.settings()` and rely on the shipped `payments.yaml` still
+    carrying a `[CONFIRM: ]` -- which was true for a month and stopped being
+    true on 4 September 2026, the moment the firm ran `payments --setup` and a
+    real location id was written and committed.
+
+    Three tests then failed and a fourth went QUIET: it kept passing while its
+    own comment ("production still [CONFIRM:]") had become false, so it was
+    asserting that a filled-in id is filled in. A test coupled to a transient
+    state does not fail when that state ends; it stops meaning anything, and
+    the passing ones are the dangerous half.
+
+    So the unwritten state is built here, on purpose, and survives the firm
+    filling in anything.
+    """
+    reg = json.loads(json.dumps(payments.settings()))
+    reg["square"]["location_id"] = UNWRITTEN
+    reg["square"]["sandbox_location_id"] = UNWRITTEN
+    reg["square"].update(square)
+    return reg
+
+
 def test_it_will_not_make_a_link_while_anything_is_unwritten(square):
     """The shipped registry still waits on the firm, so no link is made.
 
@@ -177,7 +205,7 @@ def test_it_will_not_make_a_link_while_anything_is_unwritten(square):
     """
     rec, api = square
     with pytest.raises(payments.PaymentError, match="waiting on the firm"):
-        payments.link_for(BILL, using=api, reg=payments.settings())
+        payments.link_for(BILL, using=api, reg=_reg_waiting())
     assert not rec.calls, "it called Square before checking"
 
 
@@ -185,7 +213,7 @@ def test_the_refusal_names_what_is_actually_missing(square):
     """A refusal that does not say which field is a puzzle, not a message."""
     _, api = square
     with pytest.raises(payments.PaymentError, match="square.location_id"):
-        payments.link_for(BILL, using=api, reg=payments.settings())
+        payments.link_for(BILL, using=api, reg=_reg_waiting())
 
 
 def test_unapproved_wording_alone_still_refuses(square):
@@ -469,7 +497,7 @@ def test_a_sandbox_run_is_not_blocked_by_the_unfilled_production_id(monkeypatch)
     Only the id for the run being made is waiting on anybody.
     """
     monkeypatch.setenv("SATC_SQUARE_TOKEN", "sandbox-token")
-    reg = _reg_with(sandbox_location_id="LSANDBOX")   # production still [CONFIRM:]
+    reg = _reg_waiting(sandbox_location_id="LSANDBOX")   # production unwritten
     api = payments.processor(sandbox=True, reg=reg)
     assert api.location_id == "LSANDBOX"
 
@@ -484,7 +512,7 @@ def test_a_sandbox_run_is_not_blocked_by_the_unfilled_production_id(monkeypatch)
 def test_a_production_run_is_still_blocked_by_the_unfilled_production_id(monkeypatch):
     """The other half. Filling in the SANDBOX id must not open the live door."""
     monkeypatch.setenv("SATC_SQUARE_TOKEN", "live-token")
-    reg = _reg_with(sandbox_location_id="LSANDBOX")   # production still [CONFIRM:]
+    reg = _reg_waiting(sandbox_location_id="LSANDBOX")   # production unwritten
     with pytest.raises(payments.PaymentError, match="square.location_id"):
         payments.processor(sandbox=False, reg=reg)
 

@@ -84,12 +84,21 @@ def test_the_two_location_keys_do_not_overwrite_each_other(text):
     """They are one word apart and both end in `location_id`. A loose match
     writes the production id over the sandbox one, and the next test run bills
     a real client against a test location."""
+    def line(txt, key):
+        return next(l for l in txt.splitlines()
+                    if l.strip().startswith(key + ":"))
+
+    # THE PROPERTY IS "THE OTHER LINE IS UNTOUCHED", not what it happens to say.
+    # This asserted `"CONFIRM" in` the production line, which held only while the
+    # firm had not filled it in — and on 4 September 2026 they did, so the test
+    # failed for a reason that had nothing to do with the behaviour it guards.
     out = setup.set_location("location_id", "LPRODABC123", text=text)
-    assert '  sandbox_location_id: "LM2T2W21MZ5CY"' in out
+    assert line(out, "location_id") == '  location_id: "LPRODABC123"'
+    assert line(out, "sandbox_location_id") == line(text, "sandbox_location_id")
+
     out2 = setup.set_location("sandbox_location_id", "LSANDBOXXYZ", text=text)
-    assert 'LSANDBOXXYZ' in out2
-    assert "CONFIRM" in next(l for l in out2.splitlines()
-                             if l.strip().startswith("location_id:"))
+    assert line(out2, "sandbox_location_id") == '  sandbox_location_id: "LSANDBOXXYZ"'
+    assert line(out2, "location_id") == line(text, "location_id")
 
 
 def test_a_bad_id_is_refused_before_anything_is_written(text):
