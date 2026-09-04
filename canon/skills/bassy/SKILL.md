@@ -26,6 +26,16 @@ Two things follow, and both matter:
 - **It cannot quietly substitute your judgement for theirs**, which is the
   failure where an agent starts running someone's business.
 
+## A refusal is kept too
+
+When the firm reads a proposal and says it is not a conviction, that answer goes
+into the **Not convictions** section of `CONVICTIONS.md` with the date, their
+words and why not. It is not a tidy-up. The miner surfaces the same passages on
+every run, and without the refusal on record the same proposal comes back every
+month — and a thing that re-asks a question they have already answered is a
+thing they learn to dismiss without reading. Ids are never reused either, so a
+declined proposal leaves a gap; the entry is what explains it.
+
 ## The shape of a challenge
 
 > You committed to **X** because **Y** *(quoting them, verbatim, with the date)*.

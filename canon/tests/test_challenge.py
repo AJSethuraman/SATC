@@ -99,9 +99,18 @@ def test_the_attribution_does_not_swallow_the_entry(held):
 
 def test_the_committed_record_round_trips():
     """`render(parse(x)) == x` for the real file, so a hand edit that breaks
-    the shape fails here rather than being silently dropped by the parser."""
+    the shape fails here rather than being silently dropped by the parser.
+
+    BOTH HALVES, and the second half is why this is worth restating: the
+    declined section was added and this test kept passing on the convictions
+    alone, which would have let the refusals be dropped on the next write with
+    nothing noticing. A round-trip that covers part of a file is a round-trip
+    that certifies the part nobody was going to lose.
+    """
     text = R.CONVICTIONS.read_text(encoding="utf-8")
-    assert R.render_convictions(R.parse_convictions(text)) == text
+    assert R.render_convictions(R.parse_convictions(text),
+                                R.parse_declined(text)) == text
+    assert R.parse_declined(text), "the fixture stopped covering the declined half"
 
 
 def test_an_unreadable_record_refuses_rather_than_returning_nothing():
@@ -362,3 +371,38 @@ def test_no_separator_was_carried_into_a_tenets_evidence():
     for t in got:
         for e in t.evidence:
             assert not e.detail.rstrip().endswith("---"), f"{t.id} carries a separator"
+
+
+def test_a_pair_is_not_called_a_disagreement(held):
+    """`conflicts` was the name, and the report said flatly "two things you
+    believe are pulling against each other here". Nothing checks whether they
+    pull against each other — all that is observed is that both were selected.
+
+    The moment the record grew C1 and C4, which AGREE about student pricing,
+    that sentence was simply false. A challenge the firm can see is false is
+    the one that teaches them to skip the next.
+    """
+    found = CH.candidates(held, CH.Decision(what="change the rate", scope="SATC pricing"))
+    said = CH.report(found, CH.both_bear_on(found))
+    assert "both bear on this" in said
+    assert "pulling against each other here" not in said
+    assert "They may point the same way" in said
+
+
+def test_the_two_convictions_that_agree_do_both_fire():
+    """C1 and C4 on the real record: a decision about a student package brings
+    both, and neither is reported as contradicting the other."""
+    real = R.parse_convictions(R.CONVICTIONS.read_text(encoding="utf-8"))
+    found = CH.candidates(real, CH.Decision(
+        what="drop the college student package because it loses money",
+        scope="SATC pricing"))
+    assert {c.conviction.id for c in found} == {"C1", "C4"}
+    said = CH.report(found, CH.both_bear_on(found))
+    assert "may point the same way" in said
+    assert "fine operating at a" in said, "C4 must be quoted, not paraphrased"
+
+
+def test_the_old_name_still_resolves_to_the_same_function():
+    """Renamed, not removed: callers exist and a silent AttributeError at the
+    moment a challenge should fire is worse than a bad name."""
+    assert CH.conflicts is CH.both_bear_on

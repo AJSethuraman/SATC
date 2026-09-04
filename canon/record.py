@@ -81,6 +81,28 @@ class Conviction:
 
 
 @dataclass(frozen=True)
+class Declined:
+    """A proposal the firm considered and said no to.
+
+    WHY A REFUSAL IS KEPT AT ALL. Without this, the miner surfaces the same
+    passage next month and the same proposal comes back -- and a thing that
+    re-asks a question you have already answered is a thing you learn to
+    dismiss without reading. The firm asked for something that pushes back only
+    when they contradict themselves; re-proposing a declined entry is the exact
+    opposite of that.
+
+    It also explains the gaps. Ids are never reused, so a declined proposal
+    leaves a hole in the sequence, and a hole with no explanation is an
+    invitation to fill it.
+    """
+    cid: str
+    on: str
+    source: str
+    quote: str
+    because: str
+
+
+@dataclass(frozen=True)
 class Evidence:
     project: str
     when: str
@@ -178,7 +200,36 @@ candidate is really a contradiction is made in the open, by a person reading.
 """
 
 
+_D_HEAD = re.compile(r"^### (C\d+) · declined ([\d-]+) · (.+)$", re.M)
+
+DECLINED_PREAMBLE = """## Not convictions
+
+Proposals the firm read and said no to. They are kept for two reasons. The
+miner surfaces the same passages every time it runs, and a thing that re-asks a
+question you have already answered is a thing you learn to dismiss without
+reading. And ids are never reused, so a declined proposal leaves a gap in the
+sequence — a gap with no explanation is an invitation to fill it.
+"""
+
+
+def parse_declined(text: str) -> list[Declined]:
+    out: list[Declined] = []
+    heads = list(_D_HEAD.finditer(text))
+    for i, head in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        block = text[head.end():end]
+        quote = re.search(r"^> (.+?)$", block, re.M)
+        if not quote:
+            raise RecordError(f"{head.group(1)} was declined without a quotation")
+        out.append(Declined(cid=head.group(1), on=head.group(2),
+                            source=head.group(3).strip(),
+                            quote=quote.group(1).strip().strip("*"),
+                            because=_field(block, "Not a conviction because")))
+    return out
+
+
 def render_convictions(items: list[Conviction],
+                       declined: list[Declined] | None = None,
                        preamble: str = CONVICTIONS_PREAMBLE) -> str:
     parts = [preamble.rstrip() + "\n"]
     for c in items:
@@ -196,6 +247,12 @@ def render_convictions(items: list[Conviction],
         if c.state == RETIRED:
             parts.append(f"\n**Retired:** {c.retired_on}\n")
             parts.append(f"\n**Retired because:** {c.retired_because}\n")
+    for i, d in enumerate(declined or ()):
+        if i == 0:
+            parts.append("\n---\n\n" + DECLINED_PREAMBLE)
+        parts.append(f"\n### {d.cid} · declined {d.on} · {d.source}\n\n")
+        parts.append(f"> *{d.quote}*\n\n")
+        parts.append(f"**Not a conviction because:** {d.because}\n")
     return "".join(parts)
 
 

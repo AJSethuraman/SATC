@@ -151,6 +151,13 @@ def read_repo(repo: Path, *, limit: int = 400, within: str = "") -> Reading:
     """
     repo = Path(repo).resolve()
     scope = [within] if within else []
+    # THE PROJECT IS NAMED FROM THE GIT ROOT, NOT FROM THE PATH HANDED IN.
+    # It was `repo.name`, so pointing the adopter at any subdirectory of a
+    # repository named the project after that subdirectory -- `vendor`, in the
+    # first install into a host repo, for a project called `unrelated-project`.
+    # Nothing was wrong enough to fail; the card would simply have carried the
+    # wrong name forever.
+    root = Path(_git(repo, "rev-parse", "--show-toplevel").strip())
     # THE RECORD SEPARATOR GOES FIRST, NOT LAST. Written last, git emits it
     # before the `--name-only` file list, so every chunk after the first
     # carried the previous commit's paths and the split blew up on the first
@@ -169,8 +176,8 @@ def read_repo(repo: Path, *, limit: int = 400, within: str = "") -> Reading:
         commits.append(Commit(sha=sha[:9], when=when, subject=subject,
                               paths=tuple(p for p in body.splitlines() if p.strip())))
 
-    root = repo / within if within else repo
-    docs = tuple(sorted(p.name for p in root.glob("*.md"))) if root.is_dir() else ()
+    where = root / within if within else root
+    docs = tuple(sorted(p.name for p in where.glob("*.md"))) if where.is_dir() else ()
 
     # HOW MUCH HISTORY EXISTS versus how much this branch can see. The first
     # real repository this was pointed at reported one commit, honestly -- and
@@ -195,7 +202,7 @@ def read_repo(repo: Path, *, limit: int = 400, within: str = "") -> Reading:
                          f"this branch is behind, and the reading is that much "
                          f"thinner than it looks")
     stamps = sorted(c.when for c in commits) or ["—", "—"]
-    return Reading(project=within or repo.name, commits=tuple(commits),
+    return Reading(project=within or root.name, commits=tuple(commits),
                    reachable=everywhere, docs=docs, unread=tuple(unread),
                    first=stamps[0], last=stamps[-1])
 

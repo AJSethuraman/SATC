@@ -9,7 +9,7 @@ Two records and one behaviour.
 | | |
 |---|---|
 | **`TENETS.md`** | How to build. Each rule carries the incidents that proved it, tagged by project. Evidence **accumulates**: the third time a rule bites in a third codebase, it carries three citations and is visibly a law rather than a local quirk |
-| **`CONVICTIONS.md`** | What the firm believes and why, in their own words. Held or retired — never deleted |
+| **`CONVICTIONS.md`** | What the firm believes and why, in their own words. Held or retired — never deleted. Proposals they turned down are kept too, so the same question is not asked twice |
 | **Count Bassy** | Called **Bassy**. The role any session steps into. Challenges the firm **from their own record and never from its own opinion** |
 
 ## What Bassy does, and does not
@@ -18,8 +18,10 @@ It challenges: *"You committed to X because Y. This is Z. Has Y changed?"* It
 quotes rather than paraphrases, because a conviction paraphrased is one you will
 disown the moment it is read back at you.
 
-It does **not** decide. It surfaces and stops. Where two convictions collide it
-names both and resolves neither — the disagreement is the finding, and a
+It does **not** decide. It surfaces and stops. Where two convictions both bear
+on a decision it names both and settles neither — and it does not claim they
+disagree, because all it can observe is that both were selected. Where they
+genuinely do pull against each other, that disagreement is the finding, and a
 disagreement resolved fluently is a finding destroyed.
 
 Silence is a behaviour, not an absence. A decision that contradicts nothing
@@ -78,10 +80,12 @@ a repository that predates canon can be adopted.
 | `skills/canon-mine/` | mining the corpus, one proposal at a time |
 | `skills/canon-adopt/` | adopting a repository, and writing its card |
 
-`python -m pytest -q tests` — 102 tests. Every guard has been mutation-checked:
-break it on purpose, and a test must go red. **37 mutants planted, 37 killed**,
-after two survivors that were both the test's fault rather than the code's — the
-fix and the reason are in the comment at each site.
+`python -m pytest -q tests` — 121 tests, including one that copies the whole
+tree into a fresh repository with no SATC above it and runs everything there.
+Every guard has been mutation-checked: break it on purpose, and a test must go
+red. **48 mutants planted, 48 killed**, after four survivors that were each the
+test's fault rather than the code's — the fix and the reason are in the comment
+at each site.
 
 `docs/prd-canon.md` is the spec, `docs/ISSUES.md` the slices in dependency
 order, and `LOG.md` what is deferred and what is still unknown. `corpus/` holds

@@ -40,7 +40,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from record import Conviction, RecordError, add, touches
+from record import (Conviction, Declined, RecordError, add,
+                    render_convictions, touches)
 
 HERE = Path(__file__).resolve().parent
 CORPUS = HERE / "corpus"
@@ -200,6 +201,20 @@ def surfaced(turns: list[Passage], decisions: list[Passage]
     return certain, guessed
 
 
+def already_declined(declined: list[Declined], passage: Passage) -> str:
+    """The id of a proposal the firm already said no to from this passage.
+
+    A RECORD OF REFUSALS THAT NOTHING READS IS A DOCUMENT, NOT A GUARD. This is
+    the half that makes keeping them worth anything: the miner surfaces the same
+    passages every run, and without this the same declined proposal comes back
+    every month until somebody stops reading the output entirely.
+    """
+    for d in declined:
+        if d.quote and d.quote in passage.text:
+            return d.cid
+    return ""
+
+
 def already_said(convictions: list[Conviction], passage: Passage) -> list[str]:
     """Which convictions already on the record this passage touches.
 
@@ -244,23 +259,24 @@ class Proposal:
     def ask(self) -> str:
         """The exact text that would be stored, then the question.
 
-        SHOWS WHAT WILL BE WRITTEN, not a summary of it. The firm is agreeing
-        to a specific set of words, and they can only agree to words they have
-        seen.
+        IT IS RENDERED BY THE RENDERER, not retyped beside it. This was a
+        hand-built list of labelled lines -- a second description of the same
+        entry, in a second place, with nothing comparing them (S31). It had
+        already drifted in one visible way: a quote containing quotation marks
+        came out as `"…a "loss""`, because the display wrapped what the file
+        does not. Showing the firm a rendering that is not the file is exactly
+        the misquote this whole mechanism is built to avoid.
         """
         where = f"{self.passage.source} · {self.passage.when}"
         asked = f"\nYou were asked: {self.passage.asked}\n" if self.passage.asked else ""
+        stored = render_convictions([self.draft], preamble="").strip()
         return (f"From {where}"
                 f"{' (you typed this rather than picking)' if self.passage.typed else ''}\n"
                 f"{asked}\n"
-                f"I would record this as {self.draft.id} · {self.draft.title}\n\n"
-                f"  State:     {self.draft.state}\n"
-                f"  Recorded:  {self.draft.recorded}\n"
-                f"  Applies:   {self.draft.applies}\n"
-                f"  Quote:     \"{self.draft.quote}\"\n"
-                f"  Why:       {self.draft.why}\n"
-                f"  Fires on:  {', '.join(self.draft.fires_on)}\n\n"
-                f"Is that right, in your words? Nothing is written until you say so.")
+                f"This is exactly what would be written to the record:\n\n"
+                + "\n".join(f"  {line}" if line else "" for line in stored.splitlines())
+                + "\n\nIs that right, in your words? "
+                  "Nothing is written until you say so.")
 
 
 def commit(items: list[Conviction], proposal: Proposal, *,
@@ -281,11 +297,19 @@ def load_corpus() -> tuple[list[Passage], list[Passage]]:
 
 def report(certain: list[Passage],
            guessed: list[tuple[Passage, tuple[str, ...]]],
-           s: Survey, convictions: list[Conviction]) -> str:
+           s: Survey, convictions: list[Conviction],
+           declined: list[Declined] | None = None) -> str:
+    declined = declined or []
     lines = [s.say(), ""]
     lines.append(f"— {len(certain)} answer(s) you typed rather than picked. "
                  f"Rejecting the framing is the signal; no judgement in this list.")
     for p in certain:
+        no = already_declined(declined, p)
+        if no:
+            # SAID ONCE, QUIETLY, AND NOT PROPOSED AGAIN. The passage stays
+            # visible so the count still adds up; what is gone is the proposal.
+            lines.append(f"\n  {p.when}  [you declined this as {no}]  {p.text}")
+            continue
         seen = already_said(convictions, p)
         note = f"   (touches {', '.join(seen)} already on the record)" if seen else ""
         lines.append(f"\n  {p.when}  {p.text}{note}")
@@ -293,17 +317,20 @@ def report(certain: list[Passage],
                  f"THIS HALF IS A GUESS about relevance, and is listed apart "
                  f"from the half that is not.")
     for p, hit in guessed:
-        lines.append(f"\n  {p.when}  [{', '.join(hit)}]\n"
+        no = already_declined(declined, p)
+        mark = f"you declined this as {no}" if no else ", ".join(hit)
+        lines.append(f"\n  {p.when}  [{mark}]\n"
                      f"    {around(p.text, hit[0])}")
     return "\n".join(lines)
 
 
 if __name__ == "__main__":  # pragma: no cover - the operator's entry point
-    from record import load
+    from record import CONVICTIONS, load, parse_declined
 
     convictions, _ = load()
+    declined = parse_declined(CONVICTIONS.read_text(encoding="utf-8"))
     turns, decisions = load_corpus()
     s = survey(turns, decisions)
     certain, guessed = surfaced(turns, decisions)
-    print(report(certain, guessed, s, convictions))
+    print(report(certain, guessed, s, convictions, declined))
     print("\nNothing above is recorded. Each one is a proposal until you say yes.")
