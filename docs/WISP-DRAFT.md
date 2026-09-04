@@ -7,8 +7,17 @@
 > ## ⚠️ THIS IS A DRAFT. IT IS NOT IN FORCE.
 >
 > **Prepared by software on 4 September 2026**, by reading this repository and
-> measuring this machine. It is **not legal advice**, it has **not** been
-> reviewed by a lawyer, and **nobody has signed it**.
+> measuring this machine. **Revised the same day** to record three decisions the
+> owner has since made — retention (A9), compensating controls in place of MFA
+> (A4a), and the cloud vision fallback (A5, control A5-C). It is **not legal
+> advice**, it has **not** been reviewed by a lawyer, and **nobody has signed
+> it**.
+>
+> **The three answers did not make this document shorter.** One gap closed (B7),
+> one narrowed to a missing signature (B3), one got *more* serious rather than
+> less (B4 — the seven-year destruction turns out to be a promise already made to
+> every client, which nothing keeps), and two new gaps surfaced while evidencing
+> the rest (B11, B12).
 >
 > It becomes SATC's WISP only when the owner has read every line, answered the
 > questions in **Part C**, corrected anything wrong, and signed it — ideally
@@ -107,10 +116,10 @@ the application. See **Gap B2**.
   encryption (`crypto.py:50`). Encryption is idempotent so a value is never
   double-encrypted (`crypto.py:48-49`).
 - **Applied on write** to every vault PII column —
-  `satc_system/src/satc/persistence/store.py:630-645` (`upsert_identity`), and
-  decrypted transparently on read (`store.py:646-659`).
+  `satc_system/src/satc/persistence/store.py:639-653` (`upsert_identity`), and
+  decrypted transparently on read (`store.py:655-668`).
 - **Legacy plaintext is migrated and the file VACUUMed** on open —
-  `store.py:569-599` (`_encrypt_vault_at_rest`), so a database written by a
+  `store.py:578-607` (`_encrypt_vault_at_rest`), so a database written by a
   pre-encryption build does not silently keep plaintext in freed pages.
 - **File permissions:** best-effort `0700` on the data directory and `0600` on
   each database — `store.py:32-45`. On Windows these are no-ops and NTFS ACLs
@@ -172,11 +181,13 @@ debug=False, ...)`, and the free-port probe also binds only `127.0.0.1`
 - The two auto-created `python.exe` inbound allow rules — the actual LAN path —
   are both **Enabled: False**.
 - Two inbound allow rules exist and are enabled: `Forge - Open WebUI (Tailnet
-  only)` and `Forge - Netdata (Tailnet only)`, which per
-  `C:\Users\ajish\Documents\Main\Claude\CLAUDE.md` are scoped to the Tailscale
-  ranges `100.64.0.0/10` and `fd7a:115c:a1e0::/48` only. *(The rules' presence
-  and enabled state were measured; the address scoping in them was read from
-  that document, not re-queried.)*
+  only)` (local port 8080) and `Forge - Netdata (Tailnet only)` (local port
+  19999). **Their address scoping was re-queried directly on 4 September 2026**
+  with `Get-NetFirewallAddressFilter`, and both carry exactly
+  `RemoteAddress = 100.64.0.0/255.192.0.0` (i.e. `100.64.0.0/10`, the Tailscale
+  CGNAT range) and `fd7a:115c:a1e0::/48`. *(The first draft could only cite
+  `CLAUDE.md` for these ranges. They are now measured from the firewall itself,
+  and they match.)*
 
 **A bind of `0.0.0.0` is therefore not evidence of exposure on this box, and a
 bind of `127.0.0.1` is not the thing doing the work.** Whoever maintains this
@@ -197,7 +208,96 @@ formerly hardcoded key (`server.py:38-56`).
 **There is no login. There is no user account, no password, and no MFA on either
 local app.** Anything running as this Windows user, or anyone at the keyboard,
 has full use of the vault through the app. This is Gap **B3** and it is the
-§314.4(c)(5) MFA question.
+§314.4(c)(5) MFA question. **The firm's answer to it is A4a, immediately below.**
+
+## A4a · Compensating controls in place of MFA (§314.4(c)(5)) — AWAITING WRITTEN APPROVAL
+
+**§314.4(c)(5) allows one of two things.** Either multi-factor authentication for
+anyone accessing an information system holding customer information, *or* the use
+of "reasonably equivalent or more secure access controls" — but only where those
+controls are **approved in writing by the Qualified Individual**. The written
+approval is the mechanism; without it the exception does not apply and the firm
+is simply non-compliant.
+
+**Owner's decision, 4 September 2026: do not build a login. Rely on the controls
+below, and document them.** His reasoning, in his own words: *"this is all local
+to here and you'd have to be literally on my lan."*
+
+### What actually protects access to customer information today
+
+Each row was verified — by opening the file, or by measuring this machine on
+4 September 2026. Nothing here is asserted from a policy document.
+
+| # | Control | Evidence | Verified |
+|---|---|---|---|
+| 1 | **A Windows account with a password is required to reach the desktop at all.** The account that owns the data, `ajish`, has `PasswordRequired = True`, password last set 29 July 2026. | `Get-LocalUser` | measured 4 Sep 2026 |
+| 2 | **Both applications bind loopback only**, so nothing off the machine can reach them at any address. | `satc_system/src/satc/app/server.py:347` (`host="127.0.0.1"`); free-port probe also loopback-only, `server.py:317-328`; `client-documents/web.py:3089` (no `host=`, so Flask's `127.0.0.1` default) | file + `Get-NetTCPConnection`, 4 Sep 2026 |
+| 3 | **The two non-loopback binds are firewalled to the Tailscale ranges only**, and the LAN path is disabled. `Forge - Open WebUI (Tailnet only)` and `Forge - Netdata (Tailnet only)` are Enabled, Inbound, Allow, `RemoteAddress = 100.64.0.0/255.192.0.0` and `fd7a:115c:a1e0::/48`. The two auto-created `python.exe` inbound rules — the actual LAN path — are **Enabled: False**. | `Get-NetFirewallRule` + `Get-NetFirewallAddressFilter` | **measured 4 Sep 2026** — the CIDR scoping is now read from the firewall itself, not from a document |
+| 4 | **Identity PII is encrypted at rest with AES-256-GCM**, per field, so possession of `satc_vault.db` alone yields nothing readable. | `satc_system/src/satc/persistence/crypto.py:30-59`; A2 above | file |
+| 5 | **The vault key is sealed with Windows DPAPI**, so it unseals only under this Windows user account. Copying the vault *and* the key to another machine or another user still does not decrypt it. **Caveat, stated because it matters:** the seal is best-effort — if `win32crypt` is unavailable the code catches the exception and falls back to storing the key **raw**, with only the file prefix (`DPAPI\0` vs `RAW\0`) to tell the two apart. Nothing warns. | `crypto.py:66-75` (`CryptProtectData`); fallback at `crypto.py:73-75`; `crypto.py:95-103` (`load_or_create_key`) | file |
+| 6 | **Request-level guards** reject a foreign `Host` with 400 and a cross-origin state-changing request with 403, so a browser the preparer is using cannot be turned into a path into the app. | `server.py:73-86`; tests at `satc_system/tests/test_app_security.py` | file + 20 tests passing |
+| 7 | **The MCP surface never registers a write tool** unless explicitly enabled; a caller cannot name one. | `satc_system/src/satc/api/mcp_server.py:44, 95, 137-147`; A6 above | file |
+| 8 | **Single machine, single operator.** One person uses this box; there is no shared workstation, no remote desktop path (the `Remote Desktop Users` group is **empty**, measured), and no second person with an account that reaches the data. | `Get-LocalGroupMember` | measured 4 Sep 2026 |
+| 9 | **The debug console is off.** The Werkzeug interactive debugger no longer runs by default — see closed Gap **B7**. | `client-documents/web.py:3076-3090` | file |
+
+### What these controls do NOT cover — read this before signing
+
+The controls above are a perimeter. **They are not authentication, and this
+document will not describe them as if they were.**
+
+1. **Anyone with the unlocked Windows session has everything.** There is no
+   second gate. Once that desktop is unlocked, the apps are open, the DPAPI seal
+   opens automatically because it is keyed to exactly that logged-in user, and
+   the vault decrypts transparently. The Windows password is the *only* factor,
+   and it protects the session, not the data.
+2. **There is no second factor anywhere in this chain.** Not on the Windows
+   account, not on the apps. What §314.4(c)(5) asks for by default is precisely
+   the thing that is absent.
+3. **No per-user identity means no attribution.** Nothing in the apps records
+   *who* did something, because there is only ever one "who." That interacts
+   directly with the §314.4(c)(8) logging requirement — see Gap **B6**.
+4. **⚠️ The screen does not demonstrably lock.** Measured 4 September 2026:
+   `ScreenSaveActive = 1`, but **no screensaver is configured**
+   (`SCRNSAVE.EXE` unset), `ScreenSaverIsSecure` is unset, and there is no
+   `ScreenSaveTimeOut` and no `InactivityTimeoutSecs` machine policy. An
+   unattended, unlocked session is therefore the realistic failure mode, and
+   control 1 above assumes a lock that could not be shown to exist. **This is the
+   weakest link in the whole list.** *(Windows may still lock on sleep/wake via a
+   power setting that could not be read without elevation — so this is
+   **unverified**, not proven absent. It should be checked and set.)* → new
+   Gap **B11**.
+5. **⚠️ A second enabled local account exists, and it has no password.**
+   `forge-readonly` (Enabled, `PasswordRequired = False`, description "Runs the
+   read-only MCP bridge", **never logged on** — `LastLogon` empty). It is **not**
+   in `Administrators`, **not** in `Users`, and **not** in `Remote Desktop
+   Users`, and the machine sets `LimitBlankPasswordUse = 1`, which confines
+   blank-password logons to the physical console — so this is materially
+   contained, not open. But it does mean claim 8 ("single operator") is true of
+   *practice*, not of *configuration*. → new Gap **B12**.
+6. **The perimeter is inherited, not owned.** Control 3 depends on the Tailscale
+   tailnet and the Google account behind it; control 1 depends on the Windows
+   account. Neither is administered by this software, and MFA on the account
+   behind Tailscale is recorded elsewhere as not yet done.
+7. **This says nothing about the OneDrive copy.** The backup leaves the machine
+   (A7). The compensating controls above are about *this box*; the Microsoft
+   tenant account is a separate perimeter with its own MFA question — C3.
+
+### The approval itself — NOT GIVEN
+
+**Everything above is drafted reasoning. It is not the approval.** §314.4(c)(5)
+requires the **Qualified Individual** to approve compensating controls **in
+writing**. Software describing why controls might be adequate is not that
+approval, and cannot become it by being well argued. The rule wants a named
+person to accept the residual risk in items 1–7 above and sign for it.
+
+- `[CONFIRM: the name and title of the Qualified Individual approving these compensating controls in place of MFA — see C1]`
+- `[CONFIRM: the QI's written approval, in his own words, that controls 1–9 are "reasonably equivalent or more secure access controls" under §314.4(c)(5), having read the seven limitations above]`
+- `[CONFIRM: the date of that approval, and where the signed approval is filed]`
+- `[CONFIRM: when this approval is re-examined — it is only valid while the facts hold, and items 4 and 5 above are currently open defects]`
+
+**Until those four are filled in and signed, Gap B3 remains open.** The controls
+are real and are described accurately; what is missing is a person's signature,
+and no amount of documentation substitutes for it.
 
 ## A5 · Where client data goes to be read — local inference (§314.4(f))
 
@@ -207,7 +307,7 @@ reader ladder is entirely local: fillable form fields → text layer → local O
 `satc_system/src/satc/app/state.py:448-506`.
 
 - Ollama is reached at `http://localhost:11434` —
-  `satc_system/src/satc/settings.py:55-56` — and Ollama on this machine is bound
+  `satc_system/src/satc/settings.py:73-74` — and Ollama on this machine is bound
   to `127.0.0.1:11434` (measured today, table in A4).
 - The whole posture is stated at `satc_system/src/satc/settings.py:1-13`.
 
@@ -216,23 +316,63 @@ reader ladder is entirely local: fillable form fields → text layer → local O
 (`vision.py:159`) to Anthropic's API (`vision.py:74-75`, `vision.py:109-121`).
 That is a real disclosure of a client's tax document to a third party.
 
-It is **off by default and requires two independent, deliberate opt-ins**:
-`SATC_ALLOW_CLOUD` set truthy **and** `ANTHROPIC_API_KEY` present —
-`satc_system/src/satc/settings.py:22-29`. A key alone is not enough
-(`settings.py:6-8`). Every call site routes through that one gate:
-`state.py:347-348`, `state.py:521`, `ingest/classify.py:338-339`,
-`ingest/scoreboard.py:222, 229`.
+### The two switches, and their measured state
 
-**If that switch is ever turned on, Anthropic becomes a service provider under
-§314.4(f)** and needs selection, a contract with safeguards terms, and periodic
-reassessment — and §301.7216 consent questions arise as well. See Part C.
+**Decided by the owner, 4 September 2026: the capability stays in the code, it
+stays off, and turning it on requires this WISP to be updated first.** It was not
+removed, because the ladder is designed around it as a last rung; it is governed
+instead.
+
+Enabling it takes **two independent environment variables**, and neither one
+alone is enough — `satc_system/src/satc/settings.py:40-47`:
+
+| # | Switch | Where it is read | Measured state, 4 Sep 2026 |
+|---|---|---|---|
+| 1 | `SATC_ALLOW_CLOUD` set to `1`/`true`/`yes`/`on` | `cloud_allowed()`, `settings.py:40-42` | **unset** — Process, User and Machine scope |
+| 2 | `ANTHROPIC_API_KEY` present | `cloud_vision_enabled()`, `settings.py:45-47` | **unset** — Process, User and Machine scope |
+
+Both were read on this machine on 4 September 2026 via
+`[Environment]::GetEnvironmentVariables()` at User and Machine scope and the
+process environment. **Both are absent at all three scopes, so cloud vision is
+off.** A key on its own does nothing: the module docstring states that opting in
+must be "a deliberate act, never an accident of having a key in the environment"
+(`settings.py:5-8`), and `cloud_vision_enabled()` requires the conjunction.
+
+Every call site routes through that one gate — `state.py:347-348`,
+`state.py:521`, `ingest/classify.py:338-339`, `ingest/scoreboard.py:222, 229` —
+so there is one place to check, not five.
+
+### Control A5-C · Enabling cloud vision requires a WISP update first
+
+> **Neither switch may be set on any machine holding real client data until this
+> WISP has been updated to cover it.** Setting either one makes **Anthropic a
+> service provider holding customer information under §314.4(f)**, which the
+> §314.6 small-firm exemption does **not** waive. Before it is turned on once,
+> the following must exist in writing: a provider selection/assessment, a
+> contract containing safeguards terms, a reassessment cadence, and a separate
+> **IRS §301.7216** disclosure-consent analysis (client consent for disclosure of
+> return information to a third party is a different question from §314.4(f),
+> and carries criminal exposure under §7216).
+
+This control is now stated **in the code as well as here**, as a comment sitting
+directly above the two switch functions — `satc_system/src/satc/settings.py:22-37`
+— so that whoever reaches for the switch sees the obligation without having to
+know this document exists.
+
+**Be clear about what that comment is.** It is a sign, not a lock. Nothing in the
+software refuses to run with the variables set; the last line of the comment says
+so (`settings.py:36`). The control is procedural and depends on a person honouring
+it. Building an actual gate was considered and deliberately not done — the switch
+is already off, doubly, and machinery to defend a switch nobody has touched is
+cost without benefit.
 
 **Known weakness in the "local" claim:** `ollama_host()` reads
 `SATC_OLLAMA_HOST` from the environment and **does not refuse a non-loopback
-value** — `settings.py:55-56`. The firm's own research document lists "refuses
+value** — `settings.py:73-74`. The firm's own research document lists "refuses
 non-loopback. No configurable inference base URL" as a non-negotiable invariant
 (`docs/research/tax-practice/03-ai-boundary.md:316`). It is not implemented.
-Gap **B5**.
+Gap **B5**. *(Measured 4 September 2026: `SATC_OLLAMA_HOST` is unset at Process,
+User and Machine scope, so the default loopback URL is in force today.)*
 
 ## A6 · The MCP surface is read-only by default (§314.4(c)(1))
 
@@ -320,7 +460,10 @@ satc_system:      test_vault_crypto.py test_validation.py test_persistence.py
 client-documents: tests/test_tins.py                      ->  17 passed
 ```
 
-**37 of 37 passed.** These suites run in CI on every pull request and on every
+**37 of 37 passed.** *(Re-run 4 September 2026 after merging PRs #186, #188 and
+#189 into this branch — still 20 + 17 = 37 of 37. A count in a compliance
+document is only true of the tree it was measured on, so it was re-measured
+rather than carried forward.)* These suites run in CI on every pull request and on every
 push to `main` — `.github/workflows/test.yml:17-20` (triggers),
 `:28-38` (the `satc_system` and `client-documents` jobs), `:65-66` (`pytest -q`).
 
@@ -334,34 +477,116 @@ of *no PII*.
 
 ## A9 · Retention and secure disposal (§314.4(c)(6))
 
-**Stated plainly: SATC does not implement a records retention and disposal
-schedule.** Three things exist, and none of them is one.
+### A9.1 · The retention period is seven years, and it is a promise to clients
+
+**This was recorded as an open question in the first draft. It is not open.** The
+firm has already set its retention period, and has already told every client what
+it is, in the engagement letter each of them signs.
+
+All four engagement letter templates carry the same sentence, **verbatim**:
+
+> "We return your original records at the end of the engagement; store them, and
+> everything supporting them, somewhere secure. **We keep copies of your records
+> and our work papers for seven years, after which they are destroyed.** Our work
+> papers are ours, not part of your records."
+
+| Template | Line |
+|---|---|
+| `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html` | `:100` |
+| `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Bookkeeping.html` | `:100` |
+| `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Business Return.html` | `:120` |
+| `satc-handoff/04-TEMPLATES/SATC Engagement Letter - C Corporation.html` | `:107` |
+
+*(Verified 4 September 2026 by reading all four files; the sentence is identical
+in each.)*
+
+It is corroborated by the delivery-letter field notes, which record the division
+of labour between the two documents —
+`satc-handoff/04-TEMPLATES/FIELDS - Tax Return Delivery Letter.md:153`: **"The
+engagement letter owns the firm's seven years."**
+
+**Three things follow, and they matter more than the number itself.**
+
+1. **The period is seven years** for copies of client records and for SATC work
+   papers. This satisfies the §314.4(c)(6) requirement to have a defined period,
+   and the "legitimate business need" carve-out that lets it exceed two years —
+   tax records are exactly the case the carve-out contemplates.
+2. **It is a published commitment, not an internal preference.** It is in a
+   signed contract with each client. The firm cannot quietly lengthen, shorten,
+   or ignore it; changing it means changing the engagement letters.
+3. **Work papers are SATC's property, not the client's records** — the same
+   sentence says so. That distinction governs what must be returned on
+   disengagement versus what SATC keeps and then destroys.
+
+### A9.2 · Nothing destroys anything at seven years
+
+**The promise says records "are destroyed." No mechanism in this software
+destroys them.** This was searched for specifically and exhaustively on
+4 September 2026, and the finding is a negative one:
+
+> There is **no** code anywhere in this repository that deletes, destroys,
+> expires, purges, or archives a client record — a return, a work paper, an
+> engagement, a document, a vault identity, or a mart row — **on a schedule or
+> automatically, based on age.**
+
+What the search covered, so that the negative can be trusted: every tracked file
+for `retention`/`retain`/`dispose`/`destroy`/`expire`/`purge`/`prune`/`TTL`/
+`older_than`/`cutoff`; every deletion primitive (`DELETE FROM`, `unlink`,
+`rmtree`, `os.remove`); and every scheduling mechanism (cron, APScheduler,
+`schedule`, `sched`, Celery, systemd, Windows Task Scheduler, `.ps1` installers,
+background threads and timers, `atexit`, and GitHub Actions `schedule:` triggers).
+
+What exists instead is three things, and **none of them is a seven-year clock**:
 
 1. **A 90-day purge of abandoned prospect intake drafts** —
    `client-documents/web.py:135-158` (`purge_drafts`), TTL at `web.py:112-116`,
    set by the firm on 3 September 2026. A draft that was **decided** (refused or
    declined) is kept deliberately (`web.py:119-132`), and a draft whose date will
    not parse is kept rather than destroyed (`web.py:152-153`). It runs
-   opportunistically on the index page because no scheduler exists
-   (`web.py:249-253`). **This covers pre-engagement prospects, not clients.**
+   opportunistically on the index page because no scheduler exists — the code
+   says exactly that at `web.py:249-253`. **This is pre-engagement prospect data,
+   not client records, and 90 days is not seven years.**
 2. **Manual deletion of one client, everywhere** —
-   `satc_system/src/satc/persistence/store.py:1205-1226` (`delete_client`),
+   `satc_system/src/satc/persistence/store.py:1216-1237` (`delete_client`),
    which clears every registered mart table and then the vault tables. Exposed
    as `POST /clients/<client_id>/discard`
    (`satc_system/src/satc/app/server.py:308-312`). Its docstring says what it is
    for — discarding a mistakenly-added client and clearing sample data
-   (`store.py:1208-1209`). **There is no age check and no schedule.**
+   (`store.py:1217-1220`). **It takes no date argument, has no age check, and no
+   caller runs it on a timer.**
 3. **Account deletion in the invoicer** — `invoice-generator/app.py:945-962`,
-   password-gated, user-initiated.
+   password-gated, user-initiated. *(The firm retired the invoicer on
+   4 September 2026 in favour of Square. The decision explicitly kept the branch
+   and deleted nothing, so the code — and any data it holds — is still on this
+   disk. Retired is not removed, and for a disposal question that difference is
+   the whole point.)*
 
-A full per-artifact retention design — a `configs/retention.yaml`, a
-`retention_until()` function, `retention_basis` on every artifact, and a
-disposal queue, citing §314.4(c)(6) by name — has been **specified and not
-built**: `docs/research/tax-practice/02-gap-analysis-and-roadmap.md:241-245`,
-and the same document's own status table marks "Retention clocks per artifact
-class" as **"none"** at `:68`, noting that a single tax-year purge would be the
-wrong design because each artifact class has a different basis. There is no
-`retention.py` and no `retention.yaml` in the repository. Gap **B4**.
+**Two near-misses, named so nobody mistakes them for the schedule.**
+
+- **The only scheduled job on this machine creates data; it does not destroy
+  client records.** `satc_system/scripts/install_backup_task.ps1:123-152`
+  registers the daily 12:30 backup. Its `prune()` step
+  (`satc_system/scripts/backup_client_data.py:166-173`, `--keep` default 14 at
+  `:189-190`, called at `:283-285`) is **count-based, not age-based** — it keeps
+  the newest 14 *copies* however old they are — and it operates only on the
+  OneDrive destination tree (`:222-232`), never on the live databases, which it
+  opens read-only (`:84`, `:99`, `:118`). It is backup rotation.
+- **The per-artifact retention design was specified and never built.** A
+  `configs/retention.yaml`, a `retention_until()` function, a `retention_basis`
+  on every artifact and a disposal queue, citing §314.4(c)(6) by name:
+  `docs/research/tax-practice/02-gap-analysis-and-roadmap.md:241-245`. The same
+  document's status table marks "Retention clocks per artifact class" as
+  **"none"** at `:68`, noting a single tax-year purge would be the wrong design
+  because each artifact class has a different basis. **Confirmed absent:** no
+  file matching `*retention*` exists in the repository, and
+  `satc_system/configs/firm_policy.yaml` contains no retention key.
+
+The firm's own defect register already carries this as open defect **W5** —
+`docs/DEFECT-REGISTER.md:57`.
+
+**So the gap is not "no retention schedule." The period is set and published.
+The gap is that a written promise made to every client is not kept by anything.**
+Gap **B4**, restated.
 
 ## A10 · Activity logging (§314.4(c)(8))
 
@@ -386,18 +611,29 @@ design) that the evidence does not support today.
 |---|---|---|---|
 | **B1** | **`vault.key` has no second copy, and lives beside the vault it decrypts.** | Two failures in one. (a) Anyone who can read the data directory has both halves — AES-256 is protecting against a stolen *file*, not a stolen *folder*. (b) If this disk dies, the backup restores a file **nobody can read**. The backup is working exactly as designed and is useless in the disaster it exists for. | `docs/satc-forge.md:156-158, 382-386, 436-438`; `crypto.py:95-103` |
 | **B2** | **The engagement store and the leads workbook are plaintext.** Real names, addresses and engagement details sit as JSON files and a spreadsheet, encrypted by nothing in the application. | Only the `satc_system` vault is encrypted. §314.4(c)(3) covers customer information at rest, not just the part that happens to be in SQLite. | `client-documents/engagements.py:9-11, 28`; `.gitignore:13, 20` |
-| **B3** | **No authentication on either local app, and no MFA.** No user, no password, no session identity. | §314.4(c)(5) requires MFA for anyone accessing an information system holding customer information — **or** a written approval by the Qualified Individual of a reasonably equivalent compensating control. Neither exists today. The firm's own research names this: *"A localhost Flask app with no authentication is a live gap... the written artifact must actually exist."* | `satc_system/src/satc/app/server.py:59-86` (no auth); `docs/research/tax-practice/03-ai-boundary.md:318` |
-| **B4** | **No retention or secure-disposal schedule for client records.** | §314.4(c)(6) — dispose of customer information no later than two years after the last use, unless retention is required by law or a legitimate business need. Tax records mostly *are* required to be kept, which is exactly why the schedule has to exist and be written down rather than being nothing. | A9 above; `02-gap-analysis-and-roadmap.md:68, 241-245` |
+| **B3** | **No authentication on either local app, and no MFA — and the §314.4(c)(5) written approval is unsigned.** *(Narrowed 4 Sep 2026.)* The owner has decided **not** to build a login and to rely on compensating controls instead, which are now enumerated and evidenced in **A4a**. That is a legitimate route under the rule. **What is still missing is the one thing the rule actually names: the Qualified Individual's written approval.** | §314.4(c)(5) permits "reasonably equivalent or more secure access controls" **only** where the QI approves them in writing. Software drafting the reasoning is not the approval. The firm's own research names this: *"A localhost Flask app with no authentication is a live gap... the written artifact must actually exist."* | A4a; `satc_system/src/satc/app/server.py:59-86` (no auth); `docs/research/tax-practice/03-ai-boundary.md:318` |
+| **B4** | **A published seven-year destruction promise that nothing implements.** *(Sharpened 4 Sep 2026 — this replaces "no retention schedule," which was the wrong finding.)* The **period is not an open question**: all four engagement letters tell the client "we keep copies of your records and our work papers for seven years, **after which they are destroyed**." **No code destroys anything on a schedule.** The only age-based purge is 90 days on pre-engagement prospect drafts; the only client-record deletion is manual and takes no date. | This is worse than a missing schedule and better documented: it is a **contractual commitment to every client** that the firm has no mechanism to keep. §314.4(c)(6) aside, an unkept written promise in a signed engagement letter is its own exposure. The remedy is either to build the clock or to stop promising it. | A9 above; four engagement letters (A9.1); `client-documents/web.py:135-158`; `store.py:1216-1237`; `02-gap-analysis-and-roadmap.md:68, 241-245`; `docs/DEFECT-REGISTER.md:57` (W5) |
 | **B5** | **`ollama_host()` accepts a non-loopback URL from the environment.** | The firm's own stated invariant is that it must refuse one. As written, a single environment variable redirects every "local" inference call — including document images — to an arbitrary host. | `satc_system/src/satc/settings.py:55-56` vs `03-ai-boundary.md:316` |
 | **B6** | **§314.4(c)(8) audit logging not established.** | Not proven absent — **not proven present**, which for a compliance claim is the same answer. | A10 above |
-| **B7** | **`client-documents/web.py` runs with `debug=True`.** | The Werkzeug interactive debugger is remote code execution to anyone who reaches the port. It is loopback-only today, so it is not exploitable now — but it is one `host=` argument away from being the worst hole in this repository. | `client-documents/web.py:3076-3077` |
+| ~~**B7**~~ | ✅ **CLOSED 4 Sep 2026 — `client-documents/web.py` no longer runs with `debug=True`.** The reported gap was real; it has been fixed. Debug is now **off unless `SATC_WEB_DEBUG=1`** is set for that run, and the commented rationale sits at the call site. Measured the same day: `SATC_WEB_DEBUG` is **unset** at Process, User and Machine scope, so the debugger is off on this machine. | *(Was: the Werkzeug interactive debugger is remote code execution to anyone who reaches the port — loopback-only, so never exploitable in practice, but one `host=` argument from being the worst hole in this repository.)* Now opt-in per run. | **Fix:** `client-documents/web.py:3089-3090` — `create_app().run(port=5051, debug=os.environ.get("SATC_WEB_DEBUG") == "1")`; rationale at `web.py:3077-3087`. Landed in **PR #186** (commit `cfcf152`). |
 | **B8** | **No disk-encryption status could be established.** BitLocker state could not be read — `Get-BitLockerVolume` and `manage-bde -status C:` both returned **access denied** without elevation. | The DPAPI seal and the `0600` fallback both assume the disk underneath is protected. `README.md:34` and `satc_system/docs/QUICKSTART_WINDOWS.md:84-86` *tell* the operator to keep BitLocker on; nothing checks. **This is unverified, not failed** — it may well be on. | measured 4 Sep 2026 |
 | **B9** | **A stray copy of real client data was recorded outside the store** and may still be there. | `docs/satc-forge.md:159-162` records a 160,585-byte workbook left behind by a one-off repair job on 30 July 2026. This draft **did not look**, deliberately. Somebody should. | `docs/satc-forge.md:159-162` |
 | **B10** | **Everything administrative.** No Qualified Individual is designated in writing, no incident response steps exist, no service provider has been assessed, no training has been recorded, and this document has no review cadence. | These are Part C, not defects in the software. They are listed here because a WISP without them is not a WISP. | Part C |
+| **B11** | **The workstation cannot be shown to lock when unattended.** *(New 4 Sep 2026.)* `ScreenSaveActive = 1`, but no screensaver is configured (`SCRNSAVE.EXE` unset), `ScreenSaverIsSecure` is unset, there is no `ScreenSaveTimeOut`, and no `InactivityTimeoutSecs` machine policy. | The **entire** compensating-controls argument in A4a rests on the Windows session being the gate. A session that never locks is not a gate — it is a gate propped open. This is the cheapest item in this document to fix and the one that most directly undermines the case for not building MFA. **Unverified rather than proven absent:** a lock-on-wake power setting could not be read without elevation. | measured 4 Sep 2026 (`HKCU:\Control Panel\Desktop`, `HKLM:\...\Policies\System`); A4a limitation 4 |
+| **B12** | **A second enabled local account with no password required.** *(New 4 Sep 2026.)* `forge-readonly` — Enabled, `PasswordRequired = False`, described as "Runs the read-only MCP bridge", `LastLogon` empty (never used). | It weakens the "single operator" claim in A4a control 8. **Materially contained, and said so honestly:** it is in none of `Administrators`, `Users` or `Remote Desktop Users`, and `LimitBlankPasswordUse = 1` restricts blank-password logon to the physical console. It should still either be given a password or disabled, since it has never been logged into. | measured 4 Sep 2026 (`Get-LocalUser`, `Get-LocalGroupMember`, `HKLM:\SYSTEM\CurrentControlSet\Control\Lsa`); A4a limitation 5 |
 
 **One structural note.** The §314.6 exemption waives the *written* risk
 assessment and the *written* incident response plan. It does not waive doing
 either. Nothing in this repository shows that either has been done in any form.
+
+**Scoreboard, 4 September 2026.** Of the ten gaps in the first draft: **one is
+closed** (B7, fixed in PR #186), **one is narrowed to a single missing signature**
+(B3 — the controls now exist and are evidenced in A4a; the QI's written approval
+does not), **one is sharpened into a more specific and more serious finding**
+(B4 — the retention *period* turned out to be already decided and published, so
+the defect is an unkept promise rather than an absent policy), and **two new ones
+were found** while evidencing the compensating controls (B11, B12). The rest are
+unchanged. A gap list that only ever shrinks is not being looked at properly.
 
 ---
 
@@ -416,7 +652,7 @@ without answering it.**
 - `[CONFIRM: who is designated as SATC's Qualified Individual — full name and title]`
 - `[CONFIRM: the date of that designation]`
 - `[CONFIRM: who covers the role if that person is unavailable for an extended period]`
-- `[CONFIRM: whether the Qualified Individual has issued the written approval of compensating controls that §314.4(c)(5) requires in place of MFA — and if so, where that written approval is stored. See Gap B3. If it does not exist, either write it or add MFA.]`
+- `[CONFIRM: the Qualified Individual's written approval of the compensating controls in §A4a, in place of MFA, as §314.4(c)(5) requires — and where that signed approval is filed. The controls have been enumerated and evidenced (A4a) and the owner has decided against building a login; **the signature is the only remaining piece**, and it must be his, not this document's. See Gap B3.]`
 
 ## C2 · Incident response (§314.4(h) — the *written plan* is waived; responding is not)
 
@@ -436,7 +672,7 @@ Known recipients of customer information, from Part A:
 |---|---|---|
 | **Microsoft (OneDrive / M365)** | `satc_vault.db` (encrypted) and `satc_mart.db` (not encrypted by SATC), daily | A7 |
 | **Drake** | The filed returns — the system of record | `CLAUDE.md` |
-| **Anthropic** | Client document images — **only if** the two-switch opt-in is turned on | A5 |
+| **Anthropic** | Client document images — **only if** the two-switch opt-in is turned on. **Measured off, 4 Sep 2026**, and governed by control **A5-C**: turning it on requires this WISP to be updated first. **No assessment is needed while it stays off.** | A5 |
 | **Stripe**, **the SMTP sender** | Invoice, customer and payment data, via the invoicer | `invoice-generator/stripe_utils.py`, `email_utils.py` |
 
 - `[CONFIRM: the complete list of service providers that touch client data, including any this repository cannot see — e-mail, phone, e-signature, portal, cloud storage, shredding]`
@@ -444,7 +680,15 @@ Known recipients of customer information, from Part A:
 - `[CONFIRM: which contracts contain a safeguards clause, and where those contracts are filed]`
 - `[CONFIRM: how often each provider is reassessed, and who does it]`
 - `[CONFIRM: whether MFA is enabled on the Microsoft account that holds the backup. That account is the entire perimeter for the off-machine copy of the vault.]`
-- `[CONFIRM: whether the cloud vision fallback (SATC_ALLOW_CLOUD) is to be permitted at all. If yes, it needs a §314.4(f) provider assessment AND a §301.7216 consent analysis before it is switched on once.]`
+**Answered, 4 September 2026 — the cloud vision fallback.** The owner's decision:
+**keep the capability, keep it off, and make turning it on require a WISP update
+first.** Both switches were measured unset at Process, User and Machine scope
+(A5), and the obligation is now stated in the code beside the switch itself
+(`satc_system/src/satc/settings.py:22-37`). No §314.4(f) assessment of Anthropic
+is required while it remains off, because no customer information is disclosed.
+See control **A5-C** for what must happen before it is ever enabled.
+
+- `[CONFIRM: that the owner accepts control A5-C as written — that neither SATC_ALLOW_CLOUD nor ANTHROPIC_API_KEY is set on a machine holding real client data until this WISP is updated to cover Anthropic as a §314.4(f) service provider and a §301.7216 consent analysis is done. This is a procedural commitment: the code comment is a sign, not a lock, and nothing prevents the variables being set.]`
 
 ## C4 · Training (§314.4(e) — **not waived**)
 
@@ -455,16 +699,28 @@ Known recipients of customer information, from Part A:
 
 ## C5 · Retention and disposal (§314.4(c)(6) — **not waived**)
 
-- `[CONFIRM: how long each class of record is kept, and the basis for each — Form 8879, the §1.6695-2 due-diligence bundle, engagement letters, source documents, working papers, e-mail, the leads workbook]`
+**Answered, 4 September 2026 — the headline period is settled.** SATC keeps
+copies of client records and its own work papers for **seven years**, after which
+they are destroyed. This is not a preference to be chosen here: it is already
+promised in writing in all four engagement letters (A9.1), so it binds. The
+remaining questions are about *classes*, *mechanism* and *proof*, not about the
+number.
+
+- `[CONFIRM: whether any class of record needs a period DIFFERENT from the blanket seven years — Form 8879 (§1.6695-2 sets 3 years from the later of due or received date), the §1.6695-2 due-diligence bundle, engagement letters themselves, e-mail, the leads workbook. The engagement letter promises seven years for "copies of your records and our work papers"; it does not speak to the rest, and a period that is longer than required is a choice with its own cost.]`
+- `[CONFIRM: **from what date the seven years runs** — the letter says "for seven years" without naming the trigger. End of engagement? Filing date? Tax year end? A promise with no clock start cannot be implemented or audited.]`
+- `[CONFIRM: how the destruction at seven years will actually happen, given that nothing does it today (Gap B4) -- build the retention clock at docs/research/tax-practice/02-gap-analysis-and-roadmap.md:241-245, or run it as a dated manual procedure with a written record of each disposal. Doing neither leaves a contractual promise unkept.]`
 - `[CONFIRM: what happens at the end of each period — deleted, or archived where?]`
+- `[CONFIRM: how the seven years applies to the OneDrive backup copies (A7), which are rotated by COUNT (newest 14), not by age. A restored backup could reintroduce a record the firm has already promised to have destroyed.]`
 - `[CONFIRM: how paper is destroyed, and by whom]`
 - `[CONFIRM: how a disk or machine is sanitised before it leaves the firm's control]`
-- `[CONFIRM: whether the firm wants the retention-clock design at docs/research/tax-practice/02-gap-analysis-and-roadmap.md:241-245 built, or whether this stays a manual, written schedule]`
+- `[CONFIRM: whether the firm wants the retention-clock design at docs/research/tax-practice/02-gap-analysis-and-roadmap.md:241-245 built, or whether this stays a manual, written schedule. **Note this is no longer optional in the way it looks:** the seven-year destruction is already promised to clients, so one of the two has to happen.]`
 
 ## C6 · Physical and administrative controls this document cannot see
 
 - `[CONFIRM: where the machine physically lives, and who can reach the keyboard]`
-- `[CONFIRM: whether the Windows account has a password and whether the screen locks, and after how long]`
+- **Partly measured, 4 September 2026.** The `ajish` account **does** require a password (`PasswordRequired = True`, last set 29 July 2026). **The screen lock could not be shown to work** — see Gap **B11**. Also found: a second enabled account, `forge-readonly`, requires **no** password — Gap **B12**.
+- `[CONFIRM: whether the session locks when unattended, and after how long — and if it does not, set it. A4a's whole argument for not building MFA assumes it does. See B11.]`
+- `[CONFIRM: whether the passwordless forge-readonly account is still needed. It has never been logged into. If it is not, disable it; if it is, give it a password. See B12.]`
 - `[CONFIRM: whether BitLocker is enabled on C: — see Gap B8; it could not be read without elevation]`
 - `[CONFIRM: where the second copy of vault.key will live — see Gap B1; this is the most urgent single item in this document]`
 - `[CONFIRM: how paper documents a client brings in are stored and secured]`
@@ -498,20 +754,38 @@ This document is **not in effect**.
 **Method.** Every technical claim in Part A was established by opening the file
 and citing `path:line`. Machine-state claims marked "measured 4 September 2026"
 were established by running a read-only query on this machine that day: the
-listening sockets, the firewall rules and their enabled state, the backup
-scheduled task's registration and last result, and the 37 guard tests.
+listening sockets, the firewall rules with their enabled state **and their
+address filters**, the backup scheduled task's registration and last result, the
+local accounts and their group memberships, the blank-password and screen-lock
+registry policies, the four relevant environment variables at Process/User/
+Machine scope, and the 37 guard tests.
 
 **Deliberately not done.** This draft **did not open, list, or glob the live
 engagement store or the leads workbook**, and contains **no real client name,
-e-mail, phone number, TIN, or engagement reference**. Nor does the commit that
-introduced it.
+e-mail, phone number, TIN, or engagement reference**. Nor does any commit that
+touches it.
+
+**How the retention negative was established (A9.2).** A negative finding is only
+worth as much as the search behind it, so: every git-tracked file was searched for
+`retention`/`retain`/`dispose`/`destroy`/`expire`/`purge`/`prune`/`TTL`/
+`older_than`/`cutoff`; for the deletion primitives `DELETE FROM`, `unlink`,
+`rmtree`, `os.remove`; and for every scheduling mechanism (cron, APScheduler,
+`schedule`, `sched`, Celery, systemd, Windows Task Scheduler, `.ps1` installers,
+background threads and timers, `atexit`, GitHub Actions `schedule:` triggers).
+Each hit was opened and classified. **One scheduler exists on this machine — the
+backup — and it creates and count-rotates copies rather than destroying records.
+One age-based purge exists — 90 days, on pre-engagement prospect drafts.** No
+file matching `*retention*` exists in the repository.
 
 **Could not be verified.**
 
-- BitLocker status on C: — access denied without elevation (Gap B8).
-- The address scoping inside the two Tailscale firewall rules. Their existence
-  and enabled state were measured; the CIDR ranges were read from
-  `C:\Users\ajish\Documents\Main\Claude\CLAUDE.md`.
+- BitLocker status on C: — access denied without elevation, **retried
+  4 September 2026 and still denied** (`Get-BitLockerVolume` and
+  `manage-bde -status C:` both return access denied). Gap B8 stands unverified.
+- Whether Windows locks the session on sleep/wake. The screensaver settings were
+  read and show no configured lock (Gap B11), but the `CONSOLELOCK` power setting
+  could not be read without elevation, so "does not lock" is **not proven** —
+  only "cannot be shown to lock."
 - Whether the §314.4(c)(8) audit log exists in a form that satisfies the rule
   (Gap B6).
 - Whether the stray client-data copy recorded at `docs/satc-forge.md:159-162` is
