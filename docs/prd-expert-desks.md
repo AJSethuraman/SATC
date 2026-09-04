@@ -320,6 +320,21 @@ Settled by research, not assumption — `docs/research/accounting-authority-sour
   whoever wants the text opens it themselves. That is the better artifact anyway:
   a client memo should carry SATC's position with the paragraph behind it, never
   FASB's prose filtered through a model.
+
+  **`human_only` is provisional, and the design is built to change it cheaply.**
+  The firm decided on 4 September 2026 to buy a Codification subscription and to
+  *"build as though we have it."* Two clauses then matter differently. §3(a)(j)'s
+  commercial-purposes bar is a free-tier term a paid licence presumably lifts.
+  **§3(b)'s AI prohibition is the binding one**, and whether Professional View
+  carries it is **unknown and unread** — it is the clause to look for on the
+  licence screen at purchase, because it alone decides the value.
+
+  If the paid licence permits it, ASC's line changes from `human_only` to
+  `signed_in_browser` and nothing else moves: `may_store: citation_only` still
+  holds, `positions/` still holds the firm's words, and §6.10's browser capability
+  already implements the path. **That is a one-field data change, not a rebuild**,
+  and it is the reason `access` is declared per source rather than branched in
+  code. It costs nothing today either way — ASC is a v1 non-goal.
 - **Federal authority** — 17 U.S.C. § 105 places IRC, Treasury Regulations and
   IRS publications in the public domain. **Storable in full.** The narrow
   exception: § 105 bars the government from *originating* copyright, not from
