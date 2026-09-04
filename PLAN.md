@@ -434,6 +434,29 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-04 — Docket answers (desk build).** Four decisions put to the firm as a
+  form and answered there; recorded here because an answer that lives only in a page
+  has to be asked again.
+
+  **Merge the desk build.** *"Merge it."* PR #235 — seven of eleven desk slices plus
+  the scoreboard harness. Merging is the precondition for issue #230, the hook switch.
+
+  **Issue #227 runs on the Forge, not from a cloud session.** *"Run it on the Forge."*
+  A cloud session reaches neither Ollama nor the GPU, and a frontier-only row would
+  answer none of what C10 asks — the whole question is what the local lean costs, and
+  one row cannot say. Remote Control on that machine is where both rows exist.
+
+  **The nine older draft pull requests get triaged.** *"Triage and report back."*
+  Read and report; close nothing without a further yes. The repository was carrying
+  ten open pull requests, all drafts, nine of them predating the desk work — a pile
+  nobody triages is where the next genuine thing stops being noticed.
+
+  **The Codification licence's AI clause is checked at purchase.** *"Will check the
+  clause and report."* §3(b) of the free licence bars use in connection with large
+  language models under any circumstances; whether Professional View carries the same
+  clause is unread. It decides one field: ASC stays `human_only` or becomes
+  `signed_in_browser`. The design is built so that is a data edit, not a rebuild.
+
 - **2026-09-04 — An agent reads what the firm pays for, on the machine that is already
   signed in.** Standing rule for any agent of this practice that reaches the web, recorded
   while specifying a browser capability for the desks (issue #231).
