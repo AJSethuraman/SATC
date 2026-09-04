@@ -1,0 +1,33 @@
+                    wrongly_absorbed             correct        wrong_caught           escalated
+qwen3:8b (Forge)                   0                   3                  18                   0
+frontier                           0                  17                   4                   0
+
+graded: qwen3:8b (Forge) 21, frontier 21
+
+NOT CHECKED:
+  21 of the section's 117 worked examples are usable as problems; PROBLEMS.md counts every one of the 96 exclusions. This scoreboard says nothing about the other 96.
+  The citation index handed to both brains holds exactly 21 strings for exactly 21 problems, one each. That is a bijection, and a brain that notices it can solve the citation as an assignment puzzle rather than by knowing the law. The frontier row used all 21 exactly once; on a real desk holding hundreds of passages no such structure exists, so its 17 correct is an upper bound and not a forecast.
+  Both brains were told the desk's two admissible conclusions, derived from the record. That was deliberate: the engine compares conclusions exactly, so an unconstrained phrasing would score wrongly_absorbed for punctuation. It discloses that the answer space is binary. Nothing measured here shows what either brain does when the space is open.
+  wrongly_absorbed is 0 on both rows, and it was never seriously tested. grade() refuses a wrong citation BEFORE comparing the conclusion, so a wrong conclusion only lands in wrongly_absorbed if the citation happened to be right. The Forge row's single wrong conclusion (P10) also cited the wrong example; the frontier row had no wrong conclusion at all. Zero here means the trap was not sprung, not that it cannot be.
+  Neither row is a measure of legal reasoning held apart from memory. Treas. Reg. 1.263(a)-3 and its examples are public and old enough to be in both models' training data. Nothing here separates recall of these specific examples from reasoning about the facts.
+  One run each, at temperature 0 and seed 0. Run-to-run variance was not measured, and the give-up tail rule 9 describes (roughly 1 run in 6 to 9) did not appear in a sample of one -- gave_up was 0 on both rows, which is a sample size, not a finding.
+  The local model was run with thinking disabled to keep the prompt and the answer inside the 8,192-token window. What qwen3:8b scores with thinking on, and whether it fits, was not measured.
+  Escalation is untested from both sides. Neither brain escalated once, so the escalation path was exercised by no real answer, and nothing here shows whether either can tell "the authority does not settle this" from "I do not know".
+  Every problem on this desk rests on one primary federal source. The secondary-and-tertiary path (authority_permits_choice), the human_only path, and the ratified-position path were not exercised at all: this desk records no positions and holds no non-primary source.
+  serve() was not exercised. The scoreboard calls grade(); nothing in this run went through the production path that hands an answer to a caller.
+  Freshness was not checked. Verification read stored text, as designed; whether the stored text still matches eCFR is the staleness check's job and was not run here.
+  The unsupported queue deduplicates on the refusal (question, conclusion, citation, reason) and ignores the model field, so the two rows are kept in separate files. A single shared queue would have silently collapsed a refusal both brains made identically.
+
+BASELINE, BESIDE THE RESULT AND NOT BELOW IT:
+  answering 'not required to capitalize' every time agrees with 12 of 21 conclusions (57%),
+  and through the engine scores 0 correct: a constant answer cites nothing.
+
+gap (correct): qwen3:8b (Forge) 3, frontier 17
+
+DIAGNOSTIC -- not one of the four outcomes, and not a score:
+  qwen3:8b (Forge): conclusion matched 20/21, citation matched 3/21, cited outside the index 0, gave up 0
+  frontier: conclusion matched 21/21, citation matched 17/21, cited outside the index 0, gave up 0
+
+UNSUPPORTED QUEUE (entries this run produced):
+  qwen3:8b (Forge): 18
+  frontier: 4
