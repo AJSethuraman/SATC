@@ -1,6 +1,6 @@
 ---
 name: docket
-description: The standing check-in, published as a form the firm fills in — what changed, what is open, and every decision waiting on them with both outcomes, a recommendation, and a box to answer in. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Reads their answers back and writes them into the log.
+description: The standing check-in, published as a form the firm fills in — what changed, what is open, and every decision waiting on them with both outcomes, a recommendation, and a box to answer in — written in plain English, with every technical term shown and then explained, tasks as numbered steps, and anything runnable copy-pastable. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Reads their answers back and writes them into the log.
 ---
 
 # docket
@@ -48,6 +48,47 @@ a page that opens with what went well is a page the firm skims.
 Every decision carries a recommendation with a one-line reason. Handing back
 three options and no opinion is handing back the work. The firm can overrule a
 recommendation in a word; they cannot overrule an absence.
+
+## Write it for the person who has to act on it
+
+Tenet S35 — *write for the person holding the screen, not the person who built
+it* — bites hardest here, because a docket has exactly one reader and they are
+the person who has to do something next.
+
+**Every task is numbered steps, not a description of work.** "Widen the active
+hours" is a sentence about a step. The step is what to open, what to click, what
+to type, in order. A paragraph the firm has to convert into steps before they
+can start is a paragraph that handed the work back.
+
+**Anything runnable is copy-pastable.** One command per fenced block, with the
+real values already in it — the actual path, the actual branch name, not
+`<your-repo>` or `[the file]`. A command they have to edit before running is a
+command they can get wrong, and the editing is the part an agent was there to
+remove.
+
+**Show the jargon, then say what it means.** Both, always — never one instead of
+the other. Stripping the term out leaves them unable to search for it, ask
+anyone about it, or recognise it the next time it appears on a screen. Leaving
+it bare assumes an expertise they never claimed. The shape is the term, then
+plain English:
+
+> **Bugcheck 0x7E** — a blue screen. Windows hit an error inside a driver that
+> nothing had written a handler for, so it stopped rather than keep running on
+> memory it could no longer trust.
+
+This is not a reading level. It is the difference between a docket the firm can
+act on tonight and one they have to go and research first.
+
+**Incident:** on 4 September 2026 a session was asked why a machine had
+restarted overnight. It answered correctly and unusably — `Kernel-Power 41`,
+`PowerButtonTimestamp`, `TrustedInstaller.exe`, `6008`, a bugcheck code in hex,
+every term used and none of them defined — and closed with a recommendation,
+"get the dump read", that carried no steps for getting it read. The firm:
+*"i want to see things in a step by step process, copy and pastable things when
+possible, the point of using AI to do this work is to make it easier right? it
+shouldn't assume i understand super super technical jargin. i want to see the
+jargin and i want to know what it means."* Correct and unusable is a failure,
+not a partial success.
 
 ## It is a form, not a report
 

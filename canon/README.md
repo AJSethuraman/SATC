@@ -140,7 +140,7 @@ a repository that predates canon can be adopted.
 | `skills/how-we-work/` | the fourteen standing behaviours |
 | `skills/canon-mine/` | mining the corpus, one proposal at a time |
 | `skills/canon-adopt/` | adopting a repository, and writing its card |
-| `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps |
+| `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps, in plain English |
 
 `python -m pytest -q tests` — 121 tests, including one that copies the whole
 tree into a fresh repository with no SATC above it and runs everything there.
