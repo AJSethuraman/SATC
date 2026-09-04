@@ -457,6 +457,14 @@ it with them.
   clause is unread. It decides one field: ASC stays `human_only` or becomes
   `signed_in_browser`. The design is built so that is a data edit, not a rebuild.
 
+  **Later the same day, the firm put it on the backburner:** *"backburner the paid cert,
+  we will test the process and see what we learn."* So ASC stays `human_only`, and the
+  first desk proves the mechanism on federal authority — public, binding, and free —
+  before anyone spends money to widen it. This is the right order and not merely the
+  cheap one: a licence bought to feed a process nobody has run yet is a bet on a design
+  that has produced no evidence. What the fixed-assets desk scores is the evidence, and
+  it decides whether the paid view is worth buying at all.
+
 - **2026-09-04 — An agent reads what the firm pays for, on the machine that is already
   signed in.** Standing rule for any agent of this practice that reaches the web, recorded
   while specifying a browser capability for the desks (issue #231).
