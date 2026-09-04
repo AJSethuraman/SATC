@@ -196,6 +196,23 @@ candidate is really a contradiction is made in the open, by a person reading.
 
 ---
 
+## C12 · The gate is on how hard the call is, not how serious it is
+
+**State:** held · **Recorded:** 2026-09-04 · **Applies:** every automated process the practice builds
+
+> *it will probably turn into something akin to underwriting... if it's really simple, the system can do it. if it needs help, someone might have to look.*
+> — the firm, 4 September 2026
+
+**Why:** It settles what C8 left open. C8 says a deterministic engine is not a brain; it does not say where the engine stops. This does: **the boundary is the difficulty of the call, not the size of its consequence.** Asked whether closing an accounting period — irreversible, on a client's books — should require a human, the firm did not weigh the stakes. They tiered the work, the way a credit file is tiered: clean ones go through, hard ones get looked at. So "this is serious, therefore a human" is not a reason on its own, and neither is "the checks passed, therefore automatic" — what decides is whether anything genuinely had to be judged.
+
+**Fires on:** autonomous, unattended, sign-off, approval, gate, escalate, review, judgement, threshold, exception, close, post, irreversible, underwriting, tier
+
+**A challenge looks like:** requiring a human on a step because its effects are serious, when nothing about it required judgement — or letting a process run unattended because its checks passed, when the checks were fed answers somebody guessed. Both are the same error: reading the consequence instead of the call.
+
+**How it could be wrong:** the tiering only works if the engine can tell which case it is in. An engine that cannot recognise a hard call will confidently route it down the simple path, and the tier boundary becomes the place bad work escapes rather than the place it is caught. Deciding "is this one simple?" is itself a judgement. This is not hypothetical in the practice's own software: Occam's period close runs sixteen deterministic checks over a review queue built from human categorisation decisions, so the engine's confidence is bounded by inputs it cannot audit — which is C8's recorded caveat arriving from the other direction.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The
