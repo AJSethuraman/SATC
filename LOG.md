@@ -17,6 +17,56 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Friday 4 September 2026, evening — the evening two agents read the code and one ran it
+
+Two agents got the byte-identical brief — *can a person run this end to end, can
+an agent* — one on Fable 5.1, one on Opus 5, as the honest test of whether Fable
+earns a place. **The comparison answered itself in a way I did not expect: the
+difference that mattered was not the model, it was that one of them ran the
+software.** Both serious findings came from the run that executed things, and
+neither is visible from reading.
+
+**`--store` isolates the files and not the money.** `cli.py invoice` reaches the
+firm's production Square account whichever store you point it at. The standing
+instruction on this machine is *point tests at a temp store*; an agent obeying it
+believes it is isolated and is not. It came back `400 — idempotency key already
+used`, so nothing was created — and a 400 is what a *differing* body returns. A
+matching amount returns the existing link, and the test client is handed a real
+client's payment link.
+
+**A script with no human in it is the owner.** `acting_actor()` returns
+`Actor.owner()` for anything holding a Flask request context, which
+`app.test_client()` creates. Its docstring promises the opposite in the sentence
+above it, naming *a script* as the case it catches. Reproduced here independently.
+
+Both are one shape: **a control that reads how a call arrived rather than who
+made it.** Neither was patched — a security gate and a money seam are the firm's
+call — and both are recorded as W9 and W10.
+
+**Then two of my own, found the same way.** `SATC_DATA_DIR` was documented as
+always winning and honoured by two callers out of eight; one of the six was
+`reset`, which deletes the vault, so a run scoped to a scratch directory would
+have deleted the live store. And a locked `pytest-of-<user>` directory on this
+machine — a DACL even `icacls` cannot read back — was erroring **467 tests here
+and 1,165 in client-documents** at setup. `canon/conftest.py` had already solved
+that one and written down both of its traps.
+
+**The number I would have reported was false.** I was carrying "1,712 passed" and
+"1,434 passed", both true when measured that morning, and the second was actually
+*zero passing* by evening. A green number goes stale the moment the machine under
+it changes — which is this repository's own first tenet pointed at its own test
+run. It only got caught because something else made me re-run them.
+
+**And my own walker was wrong four times out of four.** Written to walk the app
+like a person, it read the first `<form>` on each page — the sidebar's "clear
+sample data" form, on every screen — so it pressed that button and reported that
+`/clients/new` had no fields and created no client. Scoped to the page's own
+content, the app did the right thing at every step. That is the fourth time in
+two days a checker built to find faults produced the fault itself, and it is why
+the count above can be believed at all: **the walker's findings were checked
+before they were reported, and none of them survived.**
+
+
 ## 4 September 2026
 
 The day Square went live, the day the payment loop was proved with real money,
