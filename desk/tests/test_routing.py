@@ -58,6 +58,65 @@ def test_a_missing_canon_raises_rather_than_falling_back(monkeypatch, tmp_path):
         _canon.load_record()
 
 
+def test_canon_is_found_in_the_marketplace_cache_layout(monkeypatch, tmp_path):
+    """The layout the repository never exercises, and the one #230 turns on.
+
+    Installed from a marketplace, plugins are cached as
+    `<cache>/<marketplace>/<plugin>/<version>` — so canon's root is
+    `.../satc/canon/1.4.0` while desk's is `.../satc/desk/0.1.0`. A sibling
+    lookup from desk resolves to `.../satc/desk/canon`, which never exists.
+
+    Written sibling-only first and it passed everything, because the repository
+    is the only place the tests ran and there both rules agree. Found by opening
+    the real plugin cache. The fixture below is built here rather than read from
+    this machine, so the test proves the shape rather than the installation.
+    """
+    import sys
+
+    cache = tmp_path / "cache" / "satc"
+    canon = cache / "canon" / "1.4.0"
+    desk = cache / "desk" / "0.1.0"
+    canon.mkdir(parents=True)
+    desk.mkdir(parents=True)
+    real = (ROOT.parent / "canon" / "record.py").read_text(encoding="utf-8")
+    (canon / "record.py").write_text(real, encoding="utf-8")
+
+    monkeypatch.delenv("CANON_ROOT", raising=False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(desk))
+    monkeypatch.setattr(_canon, "__file__", str(desk / "_canon.py"))
+    monkeypatch.delitem(sys.modules, "canon_record", raising=False)
+
+    found = [c for c in _canon._candidates() if (c / "record.py").is_file()]
+    assert found, (
+        "canon is not findable in the marketplace cache layout; a sibling "
+        "lookup from desk resolves to .../desk/canon, which never exists"
+    )
+    assert found[0] == canon
+
+
+def test_the_newest_installed_version_wins(monkeypatch, tmp_path):
+    """Two versions can sit in the cache at once. Take the later one."""
+    cache = tmp_path / "cache" / "satc"
+    desk = cache / "desk" / "0.1.0"
+    desk.mkdir(parents=True)
+    for v in ("1.3.0", "1.4.0"):
+        d = cache / "canon" / v
+        d.mkdir(parents=True)
+        (d / "record.py").write_text("touches = None\n", encoding="utf-8")
+    monkeypatch.delenv("CANON_ROOT", raising=False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(desk))
+    monkeypatch.setattr(_canon, "__file__", str(desk / "_canon.py"))
+    found = [c for c in _canon._candidates() if (c / "record.py").is_file()]
+    assert found[0].name == "1.4.0"
+
+
+def test_the_repository_layout_still_resolves():
+    """The layout that already worked must keep working — this is how the suite
+    finds canon on every other test in this file."""
+    found = [c for c in _canon._candidates() if (c / "record.py").is_file()]
+    assert found, "canon is not findable from the repository checkout"
+
+
 # ── the wrapped-field regression ─────────────────────────────────────────────
 
 def test_a_wrapped_subject_list_is_read_in_full():

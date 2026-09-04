@@ -31,14 +31,38 @@ class CanonMissing(RuntimeError):
 
 
 def _candidates() -> list[Path]:
+    """Everywhere canon can legitimately be, in the order to try.
+
+    TWO LAYOUTS, AND ONLY ONE OF THEM IS OBVIOUS. In the repository, canon is a
+    sibling folder: `<repo>/canon`. **Installed from a marketplace it is not** --
+    the cache nests a version directory under each plugin, so canon's root is
+    `<cache>/<marketplace>/canon/<version>` while desk's is
+    `<cache>/<marketplace>/desk/<version>`. A sibling lookup from desk's own
+    directory resolves to `<...>/desk/canon`, which never exists.
+
+    Written sibling-only first, and it passed everything: the repository is the
+    only place the tests ran, and there the wrong rule and the right one agree.
+    It was found by opening the installed plugin cache rather than by a test --
+    which is why there is now a test for the installed shape too, built from a
+    fixture rather than from whatever this machine happens to have.
+    """
     here = Path(__file__).resolve().parent
+    roots = [here]
+    if env := os.environ.get("CLAUDE_PLUGIN_ROOT"):
+        roots.append(Path(env).resolve())
+
     out = []
     if env := os.environ.get("CANON_ROOT"):
         out.append(Path(env))
-    # Installed as plugins, canon sits beside desk; in the repo, so does it.
-    out.append(here.parent / "canon")
-    if root := os.environ.get("CLAUDE_PLUGIN_ROOT"):
-        out.append(Path(root).parent / "canon")
+    for root in roots:
+        # Repository: a sibling folder.
+        out.append(root.parent / "canon")
+        # Marketplace cache: ../../canon/<version>. Newest version first, so a
+        # machine holding two installed versions uses the later one.
+        peer = root.parent.parent / "canon"
+        if peer.is_dir():
+            out.extend(sorted((d for d in peer.iterdir() if d.is_dir()),
+                              reverse=True))
     return out
 
 
