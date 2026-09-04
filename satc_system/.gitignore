@@ -10,8 +10,16 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 .venv/
 venv/
 
 # LibreOffice transient
 .~lock.*#
+
+# Document corpus for the reading scoreboard — real client documents, never
+# committed. See corpus/README.md.
+corpus/
+!corpus/README.md

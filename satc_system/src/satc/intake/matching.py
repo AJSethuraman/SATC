@@ -51,10 +51,110 @@ _FAMILY_PATTERNS: dict[str, list[str]] = {
 _COMPILED = {fam: [re.compile(p, re.IGNORECASE) for p in pats] for fam, pats in _FAMILY_PATTERNS.items()}
 
 
+# The classifier's label for a page carrying several forms. A document that is
+# several forms satisfies no single request on its own: a consolidated brokerage
+# 1099 answers "1099-INT" to a core-income bundle and the 1099-B nobody has yet
+# is never asked for again. Measured 30 Aug 2026 -- $41,200 of proceeds, and the
+# packet reported complete.
+MULTI_PREFIX = "Several forms:"
+
+
+def is_multi(received_label: str) -> bool:
+    """True when this label names several forms rather than one."""
+    return str(received_label).strip().startswith(MULTI_PREFIX)
+
+
 def families(text: str) -> set[str]:
     """Reduce a label or request description to the form families it references."""
     blob = text or ""
     return {fam for fam, pats in _COMPILED.items() if any(p.search(blob) for p in pats)}
+
+
+# How a family is named to the firm. The keys above are storage; these are what
+# a note says out loud when a bundle is still waiting on something.
+FAMILY_LABELS: dict[str, str] = {
+    "W2": "W-2", "1099INT": "1099-INT", "1099DIV": "1099-DIV",
+    "1099B": "1099-B / brokerage", "1099G": "1099-G", "1099NEC": "1099-NEC",
+    "1099K": "1099-K", "1099R": "1099-R / retirement", "1095A": "1095-A",
+    "1098T": "1098-T", "MORTGAGE": "1098 mortgage interest",
+    "CLOSING": "closing statement", "K1": "Schedule K-1",
+    "PRIOR": "prior-year return", "STATEMOVE": "state move details",
+    "TRIALBAL": "trial balance", "MILEAGE": "mileage log", "W9": "W-9",
+    "PAYROLL": "payroll reports", "INVENTORY": "inventory",
+    "ASSET": "fixed asset detail", "FOREIGN": "foreign account details",
+    "ENGAGEMENT": "engagement letter", "ORGANIZER": "organizer",
+    "EFILE_AUTH": "signed 8879",
+}
+
+
+def name(family: str) -> str:
+    """A family as the firm reads it."""
+    return FAMILY_LABELS.get(family, family)
+
+
+def names(fams) -> str:
+    """A set of families as one readable list, in a stable order."""
+    return ", ".join(sorted(name(f) for f in fams))
+
+
+def is_bundle(*request_texts: str) -> bool:
+    """True when a request names MORE THAN ONE form.
+
+    THE BUG THIS EXISTS TO NAME. A request reading "Upload Forms 1099-INT,
+    1099-DIV and brokerage statements" was closed by the first document that
+    matched any of it: the 1099-DIV arrived, the request went Received, and the
+    1099-INT that came next found no open request to satisfy. Found in a live
+    run, 31 Aug 2026. It is the same shape as the consolidated-1099 bug the firm
+    had already paid for -- the packet reads complete while a named form is
+    still missing -- arriving from the other direction.
+    """
+    return len(families(" ".join(request_texts))) > 1
+
+
+# A LIST THAT SAYS IT IS NOT THE WHOLE LIST.
+#
+# `is_bundle` answers "does this name more than one form", which is the right
+# question for matching and specificity. It is the WRONG question for "must all
+# of them arrive before this closes", and the difference is not cosmetic:
+#
+#   "Upload Forms 1099-INT, 1099-DIV and brokerage statements"
+#       -- three forms the interview established this client HAS. Closing it on
+#          the first one loses the other two. This is the 31 Aug 2026 live bug.
+#
+#   "Upload Forms W-2, 1099-INT, 1099-DIV, 1099-B, 1099-G, and any other income
+#    forms received."
+#       -- the standing core-income ask in `personal_1040_core.yaml`, sent to
+#          EVERY 1040 client. It is a checklist of what might exist, not an
+#          inventory of what does. Most clients have no 1099-B and no 1099-G, so
+#          requiring every part would hold the request open forever and put a
+#          permanent entry on the chase list for documents that do not exist.
+#
+# The tell is in the request's own words. "and any other ... received" says the
+# enumeration is not exhaustive; a request cannot both admit it is incomplete
+# and demand every item on it.
+_OPEN_ENDED = re.compile(
+    r"\b(?:and\s+)?any\s+other\b|\band\s+other\b|\betc\b|\bas\s+applicable\b|"
+    r"\bif\s+applicable\b|\bamong\s+others\b",
+    re.I)
+
+
+def is_open_ended(*request_texts: str) -> bool:
+    """True when a request's own wording says its list is not exhaustive."""
+    return bool(_OPEN_ENDED.search(" ".join(t for t in request_texts if t)))
+
+
+def needs_every_part(*request_texts: str) -> bool:
+    """True when this request may close only once every form it names has arrived.
+
+    A CLOSED list of several forms. An open-ended checklist is excluded by its
+    own wording, and a single-form request has nothing to wait for.
+    """
+    return is_bundle(*request_texts) and not is_open_ended(*request_texts)
+
+
+def outstanding(request_texts, arrived) -> set[str]:
+    """Which of the families a request names have NOT arrived yet."""
+    return families(" ".join(t for t in request_texts if t)) - set(arrived or ())
 
 
 def _normalize(text: str) -> str:
@@ -67,6 +167,14 @@ def matches(received_label: str, *request_texts: str) -> bool:
     Family intersection first (handles bundles + form variants); falls back to a
     conservative exact normalized equality on the primary request text.
     """
+    # REFUSED AT THE SEAM, not left to the caller. The label names several
+    # forms, so it answers no single request: a page of DIV + INT + B is not
+    # "the 1099-INT you asked for". Guarding here rather than only at the one
+    # call site means a second caller cannot quietly reintroduce the bug -- and
+    # the composite label DOES intersect these families, so without this it
+    # would still match.
+    if is_multi(received_label):
+        return False
     received_families = families(received_label)
     requested_families: set[str] = set()
     for text in request_texts:

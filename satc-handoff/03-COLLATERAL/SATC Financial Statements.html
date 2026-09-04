@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — financial statements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+.page{padding:0.55in 0.7in 0.45in;font-family:var(--sans);color:var(--ink);font-size:9.5pt;line-height:1.45;display:flex;flex-direction:column}
+h1,h2,h3,p{margin:0}
+
+/* masthead — compact, since these pages are dense */
+.mast{display:flex;justify-content:space-between;align-items:center;gap:0.3in;padding-bottom:5pt;border-bottom:1.2pt solid var(--navy)}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:3pt;}
+.lock .wm{display:flex;align-items:flex-end;font-size:13pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:5pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:0}
+.mast .prep{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.1em;line-height:1.7;color:var(--ink-2);text-align:right}
+
+.head{margin-top:12pt;text-align:center}
+.head .co{font-size:12pt;font-weight:600;letter-spacing:-0.028em;color:var(--navy)}
+.head h1{font-size:13pt;font-weight:600;letter-spacing:-0.03em;color:var(--navy);margin-top:3pt}
+.head .as{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-2);margin-top:5pt}
+
+/* ── the statement table ──────────────────────────────────
+   STRICT currency convention: $ on the first row of each column and on
+   totals only. Intermediate rows carry no symbol. See
+   SATC Figures and Tables.html → "Currency · statements". */
+.fs{width:100%;border-collapse:collapse;margin-top:14pt}
+.fs col.money{width:1.15in}
+.fs th{font-family:var(--mono);font-size:6.8pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);font-weight:400;padding:0 0 5pt;border-bottom:0.8pt solid var(--navy);text-align:right}
+.fs th.lft{text-align:left}
+.fs td{padding:1.8pt 0;font-size:9pt;color:var(--ink)}
+.fs td.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:8.5pt;color:var(--navy);white-space:nowrap}
+.fs td.r.pos{padding-right:1ch}
+.fs td.r.nil{color:var(--ink-2)}
+/* section captions inside the statement */
+.fs tr.cap td{font-family:var(--mono);font-size:6.8pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--oxblood);padding:8pt 0 3.5pt}
+.fs tr.cap.first td{padding-top:4pt}
+.fs td.ind{padding-left:14pt}
+.fs td.ind2{padding-left:26pt}
+/* subtotal: single rule above */
+.fs tr.sub td{border-top:0.5pt solid var(--navy);padding-top:4pt;font-weight:600;color:var(--navy)}
+/* total: single rule above, double below */
+.fs tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.2pt double var(--navy);padding:4.5pt 0;font-weight:600;color:var(--navy);font-size:9.5pt}
+.fs tr.tot td.r{font-size:9.5pt}
+.fs tr.spacer td{height:4pt;padding:0}
+
+/* the AR-C 70 style legend — required on every page.
+   NOTE: these pages must fit the Letter box (overflow is clipped). Verify
+   scrollHeight === clientHeight on every .page after editing content. */
+.legend{margin-top:10pt;padding:7pt 9pt;border:0.6pt solid var(--navy);font-size:7pt;line-height:1.45;color:var(--ink-2)}
+.legend b{color:var(--navy);font-weight:600}
+.legend .ph{font-family:var(--mono);color:var(--oxblood)}
+
+.foot{margin-top:auto;padding-top:8pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
+.foot p{font-size:6.8pt;line-height:1.55;color:var(--ink-2);max-width:4.4in}
+.foot b{color:var(--ink-2);font-weight:500}
+.foot .pg{font-family:var(--mono);font-size:6.8pt;letter-spacing:0.12em;color:var(--ink-2);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<doc-page size="letter">
+
+<!-- ══════════════════ PAGE 1 · BALANCE SHEET ══════════════════ -->
+<section class="page" id="balance-sheet" data-screen-label="01">
+  <div class="mast">
+    <div class="lock">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+    <div class="prep">PREPARED BY SAT-C LLP<br/>08/13/2026</div>
+  </div>
+
+  <div class="head">
+    <div class="co">Clifton Millworks LLC</div>
+    <h1>Statement of Financial Position</h1>
+    <div class="as">As of July 31, 2026, with comparative figures at December 31, 2025</div>
+  </div>
+
+  <table class="fs">
+    <colgroup><col/><col class="money"/><col class="money"/></colgroup>
+    <thead>
+      <tr>
+        <th class="lft">&nbsp;</th>
+        <th>Jul 31, 2026</th>
+        <th>Dec 31, 2025</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="cap first"><td colspan="3">Assets</td></tr>
+      <tr><td class="ind">Cash and cash equivalents</td><td class="r pos">$284,190</td><td class="r pos">$212,455</td></tr>
+      <tr><td class="ind">Accounts receivable, net</td><td class="r pos">341,780</td><td class="r pos">298,120</td></tr>
+      <tr><td class="ind">Inventory</td><td class="r pos">176,430</td><td class="r pos">163,900</td></tr>
+      <tr><td class="ind">Prepaid expenses</td><td class="r pos">22,615</td><td class="r pos">19,240</td></tr>
+      <tr class="sub"><td class="ind">Total current assets</td><td class="r pos">825,015</td><td class="r pos">693,715</td></tr>
+      <tr><td class="ind">Property and equipment, at cost</td><td class="r pos">412,900</td><td class="r pos">389,400</td></tr>
+      <tr><td class="ind">Less accumulated depreciation</td><td class="r">(148,730)</td><td class="r">(121,960)</td></tr>
+      <tr><td class="ind">Security deposits</td><td class="r pos">8,400</td><td class="r pos">8,400</td></tr>
+      <tr class="sub"><td class="ind">Total non-current assets</td><td class="r pos">272,570</td><td class="r pos">275,840</td></tr>
+      <tr class="tot"><td>Total assets</td><td class="r pos">$1,097,585</td><td class="r pos">$969,555</td></tr>
+
+      <tr class="cap"><td colspan="3">Liabilities</td></tr>
+      <tr><td class="ind">Accounts payable</td><td class="r pos">$139,240</td><td class="r pos">$156,880</td></tr>
+      <tr><td class="ind">Accrued payroll and benefits</td><td class="r pos">61,475</td><td class="r pos">54,310</td></tr>
+      <tr><td class="ind">Sales and use tax payable</td><td class="r pos">18,905</td><td class="r pos">15,220</td></tr>
+      <tr><td class="ind">Current portion of long-term debt</td><td class="r pos">48,000</td><td class="r pos">48,000</td></tr>
+      <tr class="sub"><td class="ind">Total current liabilities</td><td class="r pos">267,620</td><td class="r pos">274,410</td></tr>
+      <tr><td class="ind">Note payable, net of current portion</td><td class="r pos">186,000</td><td class="r pos">234,000</td></tr>
+      <tr class="tot"><td>Total liabilities</td><td class="r pos">$453,620</td><td class="r pos">$508,410</td></tr>
+
+      <tr class="cap"><td colspan="3">Members' equity</td></tr>
+      <tr><td class="ind">Members' capital</td><td class="r pos">$150,000</td><td class="r pos">$150,000</td></tr>
+      <tr><td class="ind">Retained earnings</td><td class="r pos">311,145</td><td class="r pos">198,320</td></tr>
+      <tr><td class="ind">Current period earnings</td><td class="r pos">182,820</td><td class="r pos">112,825</td></tr>
+      <tr class="sub"><td class="ind">Total members' equity</td><td class="r pos">643,965</td><td class="r pos">461,145</td></tr>
+      <tr class="tot"><td>Total liabilities and members' equity</td><td class="r pos">$1,097,585</td><td class="r pos">$969,555</td></tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <b>No assurance is provided on these financial statements.</b> They were prepared from information supplied by management, which is responsible for the accuracy and completeness of that information and for the statements themselves. We have not audited, reviewed, or compiled these statements and express no opinion or conclusion on them. Substantially all disclosures required by accounting principles generally accepted in the United States have been omitted. <span class="ph">[CONFIRM exact legend wording against AR-C 70 and the engagement type.]</span>
+  </div>
+
+  <div class="foot">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP · a limited liability partnership registered in <b>Ohio</b> · arjun_sethuraman@satcllp.com</p>
+    <span class="pg">PAGE 1 OF 2</span>
+  </div>
+</section>
+
+<!-- ══════════════════ PAGE 2 · INCOME STATEMENT ══════════════════ -->
+<section class="page" id="income-statement" data-screen-label="02">
+  <div class="mast">
+    <div class="lock">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+    <div class="prep">PREPARED BY SAT-C LLP<br/>08/13/2026</div>
+  </div>
+
+  <div class="head">
+    <div class="co">Clifton Millworks LLC</div>
+    <h1>Statement of Operations</h1>
+    <div class="as">Seven months ended July 31, 2026, with comparative prior-year period</div>
+  </div>
+
+  <table class="fs">
+    <colgroup><col/><col class="money"/><col class="money"/></colgroup>
+    <thead>
+      <tr>
+        <th class="lft">&nbsp;</th>
+        <th>2026 · 7 mo</th>
+        <th>2025 · 7 mo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="cap first"><td colspan="3">Revenue</td></tr>
+      <tr><td class="ind">Millwork and fabrication</td><td class="r pos">$1,428,600</td><td class="r pos">$1,241,300</td></tr>
+      <tr><td class="ind">Installation services</td><td class="r pos">386,240</td><td class="r pos">341,780</td></tr>
+      <tr><td class="ind">Sales returns and allowances</td><td class="r">(18,410)</td><td class="r">(22,650)</td></tr>
+      <tr class="sub"><td class="ind">Net revenue</td><td class="r pos">1,796,430</td><td class="r pos">1,560,430</td></tr>
+      <tr class="spacer"><td colspan="3"></td></tr>
+      <tr><td class="ind">Cost of goods sold</td><td class="r">(1,092,180)</td><td class="r">(982,410)</td></tr>
+      <tr class="tot"><td>Gross profit</td><td class="r pos">$704,250</td><td class="r pos">$578,020</td></tr>
+
+      <tr class="cap"><td colspan="3">Operating expenses</td></tr>
+      <tr><td class="ind">Salaries, wages and benefits</td><td class="r pos">$318,940</td><td class="r pos">$289,600</td></tr>
+      <tr><td class="ind">Occupancy and utilities</td><td class="r pos">74,280</td><td class="r pos">71,150</td></tr>
+      <tr><td class="ind">Depreciation</td><td class="r pos">26,770</td><td class="r pos">24,310</td></tr>
+      <tr><td class="ind">Insurance</td><td class="r pos">31,450</td><td class="r pos">28,900</td></tr>
+      <tr><td class="ind">Professional fees</td><td class="r pos">22,600</td><td class="r pos">14,750</td></tr>
+      <tr><td class="ind">Vehicle and delivery</td><td class="r pos">18,930</td><td class="r pos">17,480</td></tr>
+      <tr><td class="ind">Other operating</td><td class="r pos">14,140</td><td class="r pos">12,905</td></tr>
+      <tr class="sub"><td class="ind">Total operating expenses</td><td class="r pos">507,110</td><td class="r pos">459,095</td></tr>
+      <tr class="tot"><td>Income from operations</td><td class="r pos">$197,140</td><td class="r pos">$118,925</td></tr>
+
+      <tr class="cap"><td colspan="3">Other income and expense</td></tr>
+      <tr><td class="ind">Interest expense</td><td class="r">(14,320)</td><td class="r">(17,140)</td></tr>
+      <tr><td class="ind">Interest and other income</td><td class="r pos">1,240</td><td class="r pos">1,040</td></tr>
+      <tr><td class="ind">Ohio commercial activity tax</td><td class="r">(1,240)</td><td class="r">(1,000)</td></tr>
+      <tr class="tot"><td>Net income</td><td class="r pos">$182,820</td><td class="r pos">$101,825</td></tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <b>No assurance is provided on these financial statements.</b> Prepared from information supplied by management. We have not audited, reviewed, or compiled these statements and express no opinion or conclusion on them. Figures in parentheses are deductions. The entity is taxed as a partnership; no provision for federal income tax is included. <span class="ph">[CONFIRM legend wording.]</span>
+  </div>
+
+  <div class="foot">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP · a limited liability partnership registered in <b>Ohio</b> · arjun_sethuraman@satcllp.com</p>
+    <span class="pg">PAGE 2 OF 2</span>
+  </div>
+</section>
+
+</doc-page>
+<script src="doc-page.js"></script>
+</body>
+</html>

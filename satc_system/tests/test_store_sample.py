@@ -37,5 +37,6 @@ def test_delete_client_removes_it_from_vault_and_mart(tmp_path):
 
     assert cid not in store.names()                                  # vault gone
     assert all(pc.client_id != cid for pc in store.load_mart().public_clients)
-    assert all(e.client_id != cid for e in store.load_intake_engagements())
-    assert all(d.client_id != cid for d in store.load_mart().documents)
+    assert all(e.client_id != cid for e in store.load_jobs())
+    assert all(i.client_id != cid for i in store.load_mart().requested_items)
+    assert all(d.client_id != cid for d in store.load_mart().received_documents)

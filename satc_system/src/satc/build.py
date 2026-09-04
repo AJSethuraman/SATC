@@ -38,6 +38,7 @@ from satc.workbook.mart_sheets import (
 from satc.workbook.reference import build_reference_sheet
 from satc.workbook.repository_sheet import build_repository_sheet
 from satc.workbook.staging_sheet import build_staging_sheet
+from satc.models.actor import INTAKE
 
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "build" / "SATC_Workbook.xlsx"
 
@@ -72,7 +73,7 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
         gate.add(MapExtractor(cfg).extract(
             document_id=doc["document_id"], client_id=client.client_id,
             tax_year=tax_year, labeled_fields=doc["labeled"]))
-    gate.auto_confirm_high()
+    gate.auto_confirm_high(INTAKE)
     confirmed_values = gate.to_line_values(MAPPING_1040)
 
     wb = Workbook()

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — restyle reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-restyle.css"/>
+<style>
+/* ===== REFERENCE-ONLY chrome. Delete this block and #ref-note when porting. ===== */
+#ref-note{background:#131A22;color:#fff;font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.7;padding:14px 20px;display:flex;gap:26px;flex-wrap:wrap;align-items:center}
+#ref-note b{color:#C0A265;font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:10px}
+#ref-note span{color:rgba(255,255,255,.62)}
+.ref-tag{position:absolute;top:0;right:0;background:#6A2833;color:#fff;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:4px 9px;z-index:5}
+.ref-anchor{position:relative}
+</style>
+</head>
+<body>
+
+<div id="ref-note">
+  <b>Restyle reference</b>
+  <span>Your real markup + <code>satc-restyle.css</code>. Cool palette · IBM Plex · oxblood action · square mark.</span>
+  <span>Lockup is the SAT-C wordmark — the notched square is the hyphen.</span>
+</div>
+
+<!-- ============================================================ NAV -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="lockup" href="#top" aria-label="SAT-C LLP — home">
+      <!-- SAT-C wordmark — the notched square is the hyphen -->
+      <span class="text">
+        <span class="name">SAT<span class="hy"></span>C<i>LLP</i></span>
+        <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+      </span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-cta ghost" href="#services">Services</a>
+      <a class="nav-cta" href="#intake">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================ HERO -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow eyebrow-light">Accounting · Tax · Consulting</p>
+      <h1>Everything you need, from <em>one</em> desk.</h1>
+      <p class="lede">
+        Accounting, tax, and consulting for small businesses and the people who
+        run them. Tell us about your situation and we&#39;ll come back with answers.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn gold" href="#intake">Tell us about your situation</a>
+        <a class="btn-link" href="#services">What we do</a>
+      </div>
+    </div>
+
+    <aside class="hero-card">
+      <div class="card-eyebrow">How This Works</div>
+      <div class="card-title">Five minutes now,<br/>a <em>real</em> answer next.</div>
+      <div class="card-row"><span class="k">Step 1</span><span class="v">You fill out the form</span></div>
+      <div class="card-row"><span class="k">Step 2</span><span class="v">We review and reply</span></div>
+      <div class="card-row"><span class="k">Step 3</span><span class="v">We talk it through</span></div>
+      <div class="card-row"><span class="k">Cost</span><span class="v">Nothing to start</span></div>
+    </aside>
+  </div>
+</header>
+
+<!-- ============================================================ SERVICES -->
+<section class="band ref-anchor" id="services">
+  <span class="ref-tag">credential promoted</span>
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">What We Do</p>
+        <h2 class="h2">Three disciplines,<br/><em>one</em> desk.</h2>
+      </div>
+      <div class="right">
+        <!-- PROMOTED: was a 13px footnote. Now the section's counterweight. -->
+        <p class="credential">
+          <span class="lic">Certified Public Accountant · Ohio</span>
+          Led by a <b>licensed CPA</b> with a background in large&#8209;bank credit risk and internal audit.
+        </p>
+      </div>
+    </div>
+
+    <div class="services">
+      <article class="service">
+        <span class="num">01</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <rect x="6" y="8" width="44" height="40" stroke="currentColor" stroke-width="1.4"/>
+          <line x1="6" y1="18" x2="50" y2="18" stroke="currentColor" stroke-width="1"/>
+          <line x1="14" y1="18" x2="14" y2="48" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="6" y1="28" x2="50" y2="28" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="6" y1="36" x2="50" y2="36" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+          <line x1="20" y1="42" x2="44" y2="42" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+        <h3>Accounting &amp; Bookkeeping</h3>
+        <p>Books closed monthly and presented in clean reports you can actually act on.</p>
+        <ul>
+          <li>Monthly close &amp; reconciliations</li>
+          <li>Financial statements &amp; reporting</li>
+          <li>Cash&#8209;flow &amp; KPI dashboards</li>
+          <li>Cleanup &amp; catch&#8209;up bookkeeping</li>
+        </ul>
+      </article>
+
+      <article class="service">
+        <span class="num">02</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <path d="M14 6 H38 L46 14 V50 H10 V6 Z" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M38 6 V14 H46" stroke="currentColor" stroke-width="1.4"/>
+          <line x1="16" y1="24" x2="40" y2="24" stroke="currentColor" stroke-width="1"/>
+          <line x1="16" y1="30" x2="40" y2="30" stroke="currentColor" stroke-width="1"/>
+          <line x1="16" y1="36" x2="32" y2="36" stroke="currentColor" stroke-width="1"/>
+          <circle cx="38" cy="42" r="3" stroke="currentColor" stroke-width="1.4"/>
+        </svg>
+        <h3>Tax &amp; Compliance</h3>
+        <p>Federal, state, and multi&#8209;jurisdictional filings — planned through the year and filed without the last&#8209;minute scramble.</p>
+        <ul>
+          <li>Business &amp; individual returns</li>
+          <li>Quarterly estimates &amp; planning</li>
+          <li>Sales tax &amp; multi&#8209;state</li>
+          <li>Notice response &amp; representation</li>
+        </ul>
+      </article>
+
+      <article class="service">
+        <span class="num">03</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <circle cx="14" cy="14" r="5" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="42" cy="14" r="5" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="28" cy="42" r="5" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="14" cy="42" r="3" stroke="currentColor" stroke-width="1"/>
+          <line x1="14" y1="19" x2="14" y2="39" stroke="currentColor" stroke-width="1"/>
+          <line x1="18" y1="16" x2="38" y2="16" stroke="currentColor" stroke-width="1"/>
+          <line x1="40" y1="19" x2="30" y2="38" stroke="currentColor" stroke-width="1"/>
+          <line x1="16" y1="42" x2="23" y2="42" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        <h3>Risk, Controls &amp; Advisory</h3>
+        <p>Risk and controls, right&#8209;sized for a small business — so the day&#8209;to&#8209;day runs without living in your head.</p>
+        <ul>
+          <li>Credit &amp; collections — get paid, cut bad debt</li>
+          <li>Controls design &amp; testing — protect your cash</li>
+          <li>Process design — document how you run</li>
+          <li>Automation &amp; analytics — end busywork, see clearly</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ WHO THIS IS FOR — NEW SECTION -->
+<section class="band tight fit ref-anchor" id="fit">
+  <span class="ref-tag">new section</span>
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Who This Is For</p>
+        <h2 class="h2">Worth five minutes,<br/>or worth <em>skipping</em>.</h2>
+      </div>
+      <div class="right">
+        <p class="lead">Before you fill anything in — here&#39;s who we&#39;re a good fit for, and who we honestly aren&#39;t.</p>
+      </div>
+    </div>
+
+    <div class="fit-grid">
+      <div class="fit-col yes">
+        <h3>Probably a fit</h3>
+        <p class="sub">Send the form</p>
+        <ul>
+          <li>Small businesses that want bookkeeping and tax handled in one place, by one person</li>
+          <li>Owners whose books have fallen behind and need catching up before anything else</li>
+          <li>Businesses filing in more than one state, or running more than one entity</li>
+          <li>Anyone who wants process and controls built, not just a return filed</li>
+          <li>Individuals with business, rental, or equity income that makes a return non&#8209;trivial</li>
+        </ul>
+      </div>
+      <div class="fit-col no">
+        <h3>Probably not a fit</h3>
+        <p class="sub">We&#39;ll point you elsewhere</p>
+        <ul>
+          <li>Companies needing a statutory financial&#8209;statement audit — we don&#39;t do audit work</li>
+          <li>Anyone shopping purely for the cheapest one&#8209;off return</li>
+          <li>Publicly traded companies and their subsidiaries</li>
+          <li>Anyone hoping for aggressive positions we couldn&#39;t defend in writing</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="fit-note"><b>Not sure which column you&#39;re in?</b> Send the form anyway. We&#39;ll read it and tell you straight — and if we&#39;re not the right firm for the work, we&#39;ll say so rather than take the engagement.</p>
+  </div>
+</section>
+
+<!-- ============================================================ INTAKE FORM -->
+<section class="band intake" id="intake">
+  <div class="wrap intake-grid">
+
+    <div class="intake-aside">
+      <p class="eyebrow">Get Started</p>
+      <h2 class="h2">Tell us where<br/>you&#39;re <em>starting</em> from.</h2>
+      <p class="lead">
+        The more we know beforehand, the more we can make of your time on the
+        call. Only your name and email are required — answer what you can and
+        skip the rest.
+      </p>
+
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <b>You send this</b>
+          <p>About five minutes. Nothing to dig up — just what you know off the top of your head.</p>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <b>We review it</b>
+          <p>We&#39;ll read through what you&#39;ve sent and be in touch as soon as we can to set up a time.</p>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <b>We talk it through</b>
+          <p>We go through your situation together, then discuss timeline and cost.</p>
+        </li>
+      </ol>
+
+      <div class="need-note">
+        <b>What we&#39;ll need later</b>
+        <p>For anything we file we&#39;ll need a Social Security number for
+        everyone on the return, photo ID (driver&#39;s license or state ID), and
+        a mobile number. Prior&#8209;year returns aren&#39;t required but help a
+        lot. <b>Nothing to send now</b> — this is just so none of it catches you
+        out later.</p>
+      </div>
+
+      <ul class="aside-direct">
+        <li>
+          <b>Email</b>
+          <a href="#">arjun_sethuraman@satcllp.com</a>
+        </li>
+        <li>
+          <b>Office</b>
+          <span>By appointment · Remote &amp; in&#8209;person</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="intake-form">
+      <div class="callout">
+        <b>Please don&#39;t enter Social Security numbers, ITINs, or bank account
+        numbers here</b>, and don&#39;t attach documents. This form travels over
+        the open internet. Anything sensitive comes later, once we&#39;ve spoken.
+      </div>
+
+      <!-- STATIC STAND-IN for #intakeMount so every form component is visible.
+           In the real page intake.js renders this from intake-config.js.
+           Do not port this markup — port the CSS only. -->
+      <div id="intakeMount">
+        <div class="wiz-bar"><span style="width:34%"></span></div>
+        <div class="wiz-reset"><button class="linkish" type="button">Start over</button></div>
+        <fieldset class="wiz-step">
+          <p class="wiz-hint">Question 3 of 9</p>
+          <legend class="wiz-q">What do you need help with?</legend>
+          <p class="fs-note">Pick everything that applies — this shapes the rest of the questions.</p>
+          <div class="chips">
+            <label class="chip on"><input type="checkbox" checked/>Bookkeeping</label>
+            <label class="chip on"><input type="checkbox" checked/>Business tax return</label>
+            <label class="chip"><input type="checkbox"/>Personal tax return</label>
+            <label class="chip"><input type="checkbox"/>Catch&#8209;up / cleanup</label>
+            <label class="chip"><input type="checkbox"/>Payroll</label>
+            <label class="chip"><input type="checkbox"/>Sales tax</label>
+            <label class="chip"><input type="checkbox"/>Not sure yet</label>
+          </div>
+
+          <div class="field" style="margin-top:26px">
+            <span class="lab">Business name <span class="req">*</span></span>
+            <input type="text" placeholder="Northwind Bakery LLC"/>
+          </div>
+          <div class="two">
+            <div class="field">
+              <span class="lab">Entity type</span>
+              <select><option>S corporation</option><option>LLC</option><option>Sole proprietor</option><option>Partnership</option></select>
+            </div>
+            <div class="field">
+              <span class="lab">States filed in</span>
+              <input type="number" value="2"/>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lab">Anything else we should know</span>
+            <textarea rows="3" placeholder="Optional — a sentence or two is plenty."></textarea>
+          </div>
+
+          <div class="checks one-col" style="margin-top:8px">
+            <label class="check"><input type="checkbox"/><span>My books are currently behind by more than a quarter</span></label>
+            <label class="check"><input type="checkbox"/><span>I&#39;ve received a notice from a tax authority</span></label>
+          </div>
+
+          <div class="wiz-nav">
+            <button class="btn-link" type="button">Back</button>
+            <button class="btn gold" type="button">Continue</button>
+          </div>
+        </fieldset>
+        <p class="form-status" role="status">Nothing is submitted until the last step.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer id="site-footer">
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <div class="lockup on-dark">
+          <span class="text">
+            <span class="name">SAT<span class="hy"></span>C<i>LLP</i></span>
+            <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </span>
+        </div>
+        <p>
+          Sethuraman Accounting, Tax &amp; Consulting — accounting, tax, and
+          consulting for small businesses, with the back&#8209;office processes
+          handled behind the scenes.
+        </p>
+      </div>
+
+      <div class="foot-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="#services">Accounting &amp; Bookkeeping</a></li>
+          <li><a href="#services">Tax &amp; Compliance</a></li>
+          <li><a href="#services">Risk, Controls &amp; Advisory</a></li>
+          <li><a href="#intake">Get Started</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h5>Get In Touch</h5>
+        <ul>
+          <li><b>Email</b><a href="#">arjun_sethuraman@satcllp.com</a></li>
+          <li><b>Office</b><span>By appointment</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© 2026 Sethuraman Accounting, Tax &amp; Consulting</span>
+      <div class="legal">
+        <a href="#intake">Get Started</a>
+        <a href="#">Email Us</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var nav=document.getElementById('nav'),btn=document.getElementById('navToggle');
+  if(!nav||!btn)return;
+  btn.addEventListener('click',function(){
+    var open=nav.classList.toggle('open');
+    btn.setAttribute('aria-expanded',String(open));
+  });
+})();
+// chip toggle — reference only; intake.js owns this in the real page
+document.querySelectorAll('.chip input').forEach(function(i){
+  i.addEventListener('change',function(){i.closest('.chip').classList.toggle('on',i.checked);});
+});
+</script>
+</body>
+</html>

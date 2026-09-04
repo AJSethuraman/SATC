@@ -28,11 +28,57 @@ class ConfigError(Exception):
     """Raised when a config file is missing or malformed."""
 
 
+def read_yaml(path: Path) -> Any:
+    """Parse a YAML file, turning a syntax error into a named refusal.
+
+    The shape check is the caller's — some of these files are a mapping, some a
+    list, some legitimately empty. What is NOT the caller's is deciding what a
+    stray space should do: every config here is hand-edited, so a parse error is
+    ordinary, and ten modules each letting ``yaml.YAMLError`` escape meant a
+    typo surfaced as a stack trace naming a line in "<unicode string>" rather
+    than as a sentence naming the file the owner just saved.
+    """
+    if not path.exists():
+        raise ConfigError(f"Config not found: {path}")
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as broken:
+        where = ""
+        mark = getattr(broken, "problem_mark", None)
+        if mark is not None:
+            where = f" at line {mark.line + 1}, column {mark.column + 1}"
+        detail = str(getattr(broken, "problem", "") or broken).strip()
+        raise ConfigError(
+            f"{path} is not readable as YAML{where}: {detail}. Nothing that "
+            f"depends on it can be worked out until it parses — check the "
+            f"indentation on that line, and that every quote and bracket is "
+            f"closed.") from None
+
+
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ConfigError(f"Config not found: {path}")
     with path.open("r", encoding="utf-8") as handle:
-        data = yaml.safe_load(handle)
+        try:
+            data = yaml.safe_load(handle)
+        except yaml.YAMLError as broken:
+            # EVERY config in this system is hand-edited on purpose — prices,
+            # promises, cutoffs, workflows — so a YAML syntax error is an
+            # ordinary event, not an exceptional one. Letting the parser's own
+            # exception escape meant a stray space took a screen down with a
+            # stack trace instead of a sentence, and the raw error names a line
+            # and column in an unnamed "<unicode string>" rather than the file
+            # the owner just edited (principles 5 and 10).
+            where = ""
+            mark = getattr(broken, "problem_mark", None)
+            if mark is not None:
+                where = f" at line {mark.line + 1}, column {mark.column + 1}"
+            detail = str(getattr(broken, "problem", "") or broken).strip()
+            raise ConfigError(
+                f"{path} is not readable as YAML{where}: {detail}. Nothing that "
+                f"depends on it can be worked out until it parses — check the "
+                f"indentation on that line, and that every quote and bracket is "
+                f"closed.") from None
     if not isinstance(data, dict):
         raise ConfigError(f"Config root must be a mapping: {path}")
     return data

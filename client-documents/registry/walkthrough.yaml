@@ -1,0 +1,289 @@
+# SATC — what every control on the browser front door is for
+#
+# The firm asked for a walkthrough somebody runs LIVE, with a client in the
+# chair, and set the calibration themselves:
+#
+#     "be very descriptive on what needs to be clicked and press stand all the
+#      options available like some of them will be so obvious you don't need to
+#      overexplain, but some things will be like why would I ever use this
+#      option?"
+#
+# So every control is answered here, and `null` is a real answer. It means
+# somebody looked at it and decided a preparer needs no help — "Next" is the
+# case it exists for. Explaining "Next" would teach the reader to skip the
+# notes, and the notes are where the ones that matter live.
+#
+# `capture.py` fails when a control on a screen has no entry, or when an entry
+# names a control that is not on the screen any more. That is the whole point:
+# a walkthrough of a screen that has changed is worse than none, because the
+# reader trusts it, follows it, and ends up somewhere the page does not go.
+#
+# THE REGISTER. Everything here is read by a person doing the work, not by
+# whoever built it. No term of art, no word anybody would have to look up, and
+# nothing that exists only to protect us.
+
+# On every screen, so it is said once.
+_everywhere:
+  "link:SAT-C": >-
+    The name at the top left goes back to the list of engagements. Nothing in
+    a sitting is lost by clicking it — every answer is saved as it is given,
+    and the sitting shows up again under "Unfinished sittings".
+
+home:
+  "button:Start an interview": null
+  "button:Pick it back up": >-
+    A sitting that was left part-finished. It reopens at the question it
+    stopped on, with everything already answered still answered. Use it when a
+    client had to leave, or when you started one and got pulled away.
+  "button:Leads": null
+  "button:Payments": >-
+    Every bill you have raised and whether the money has arrived. It shows what
+    was written down the last time the terminal asked the processor — this
+    screen never asks, so it cannot sit there waiting on them.
+  "button:Waiting to sign": >-
+    Every client still owing a signature, longest wait first, with anyone past
+    the date they were given at the top. This is the morning list — the one
+    screen worth opening before you do anything else in February.
+  "button:Letter wording": >-
+    The wording of the letters themselves. You almost never want this in front
+    of a client — it changes what every future client reads, not this one's.
+  "link[a|main||/engagement/<x>]": >-
+    Opens the engagement: everything the sitting recorded, the fee estimate,
+    and the button that builds the pack.
+
+leads:
+  "button:Start the interview": >-
+    Starts the sitting with what this person already told the website filled
+    in. You are asked about all of it anyway — nothing is taken on trust — but
+    you get one press to take each answer instead of typing it.
+  "disclosure[summary|blk.quiet]": >-
+    Everything the prospect typed on the website, in their words. Worth opening
+    before you dial: it is where you find out there is a rental, or that they
+    are a year behind, while there is still time to say so.
+  "disclosure:Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone": >-
+    For someone who rang instead of filling anything in. Opens a short form for
+    the little you have.
+
+lead-detail:
+  "button:Start the interview": null
+  "disclosure[summary|blk.quiet]": null
+  "disclosure:Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone": null
+
+by-phone:
+  "button:Start the interview": null
+  "button:Start an interview": >-
+    Starts the sitting from whatever you typed above. A name, an email or a
+    phone number is enough on its own — the interview asks the rest.
+  "text:NAME THEY GAVE": null
+  "text:EMAIL": null
+  "text:PHONE": null
+  "text:WHERE THEY ARE": >-
+    Town and state. It decides which state and local returns come up later, so
+    it is worth getting right on the call rather than guessing.
+  "textarea:WHAT THEY SAID": >-
+    Anything they mentioned that has nowhere else to go — "selling the rental
+    in spring", "brother handles the books". It rides along with the sitting
+    and you will be glad of it in March.
+  "disclosure[summary|blk.quiet]": null
+  "disclosure:Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone": null
+
+question:
+  "button:Next": null
+  "button:← Back": >-
+    Goes to the last question and shows what was answered, so a client who
+    corrects themselves does not cost you the sitting. Nothing is thrown away
+    by looking.
+  "answer[/interview/<id>]": null
+
+question-claim:
+  "button:Next": null
+  "answer[/interview/<id>]": null
+
+question-hardno:
+  "button:Next": null
+  "button:← Back": null
+  # THE KEY, AND THE FACT. The key collapsed to the stable one; the sentence
+  # was also out of date. It said ticking a HARD NO "does not end the
+  # sitting" — true until 2 September 2026, when the question moved to number
+  # four and the sitting was made to stop where it is ticked. The harness
+  # caught it because the key changed; nothing would have caught the wrong
+  # fact on its own.
+  "answer[/interview/<id>]": >-
+    Tick everything that is true; several can be. The top two carry a red
+    edge and say "the firm says no" — work the firm does not take. Ticking one
+    of those ends the sitting here: no engagement, no price, no documents, and
+    the screen says which one stopped it.
+
+question-back:
+  "button:← Back": null
+  "button:Save the change": >-
+    Keeps the new answer and puts you back where you were. If the change means
+    something else no longer applies, that answer goes with it — a spouse's
+    name has nowhere to sit on a return that is no longer joint.
+  "button:Never mind — nothing to change": >-
+    Leaves the answer exactly as it was and returns to where the sitting had
+    got to. This is the one to press when you went back to check something and
+    it was right.
+  "answer[/interview/<id>]": null
+
+review:
+  "button:Change": >-
+    Appears on the row you are pointing at, or the row you have tabbed to.
+    Jumps back to that one answer and returns here when you have saved it. This
+    is the last look before anything exists, so read the list out loud if the
+    client is still with you.
+  "button:Create the engagement": >-
+    Creates the record and prices it. Nothing has been written until this is
+    pressed; up to here you can abandon the sitting and nothing has happened.
+
+refused:
+  "link:Back to the interview": >-
+    Nothing was created. If the flag was ticked by mistake, go back, untick it
+    and finish — this page is not a dead end.
+  "link:Home": null
+
+engagement:
+  "button:Build the signing pack": null
+  "button:Signatures": >-
+    Who still has to sign, and where you write down one that has come back.
+    Also the one place that says what has to be true before the return can go
+    — including the two things this software cannot see for you.
+  "button:Documents": >-
+    Every document this client's file can produce, one at a time — to read, to
+    print, or to send. Nothing here asks for another interview; it all comes
+    from answers already on file. The ones that travel with the signing pack
+    say so rather than offering a send button that would be wrong.
+  "button:Update the quote": >-
+    For when the work has changed since you priced it — a second rental, a K-1
+    that turned up, a side business that turned out to be a real one. You are
+    shown every line that moves before anything is recorded, and you can back
+    out.
+
+package-before:
+  "button:Build the pack": null
+  "checkbox:Put the invoice in too": >-
+    Only for work that is being billed now. The opening pack normally goes out
+    without one — the estimate says what it will cost, and the bill follows the
+    work.
+  "checkbox:Also read the prose and tell me what it notices (nothing here can stop a pack)": >-
+    A second, softer read of the writing: sentences that run long, a paragraph
+    that has grown, a claim stated more firmly than we can stand behind. None
+    of it stops anything. Worth ticking on the first pack of a season, or after
+    someone has changed the wording.
+
+package-blocked:
+  "button:Send it past these checks": >-
+    Sends the pack past a check that failed. It needs the reason above, and
+    both the reason and the failed checks go into this engagement's record with
+    the date. Use it when you can see the check is wrong about this document —
+    not to get past one you have not read.
+  "textarea:WHY IS THIS GOING OUT AS IT IS?": >-
+    One sentence, for whoever reads this file next year. A reason names the
+    thing: the deleted line is inside a quoted excerpt from the client's own
+    letter. "Urgent" is not a reason.
+
+requote-form:
+  "button:See what changes": >-
+    Prices it again and shows you the result. Nothing is written by pressing
+    this — you get the before and after, and a box for the reason, and only
+    then does anything happen.
+  "disclosure[summary|blk]": >-
+    One answer, with what is on file beside it. Open the ones that have
+    changed and leave the rest alone. Opening one changes nothing on its own.
+  "number:the answer to one question": >-
+    The new number. You never type a price here — you say how many there are
+    now, and the fee schedule works out what that costs, the same way it did
+    in January.
+  "text:the answer to one question": >-
+    The same answer, where it is words rather than a count — the states, or
+    the line that says what else is filed alongside. Several go in separated
+    by commas. Change this one whenever you change a count it describes: if
+    you now bill six K-1s, the line a client reads has to say six too, and you
+    are stopped if it does not.
+
+requote-changes:
+  "button:Record the new quote": >-
+    Writes the new price, keeps the answers you changed, and puts the reason in
+    this engagement's file with today's date.
+  "link:or go back and change something else": null
+  "textarea:WHY DID THE PRICE MOVE?": >-
+    Required, and it is the whole point of the screen. In February somebody
+    will ask why this client was charged more than the letter says, and this
+    sentence is the answer. "Bought a second rental in April" works.
+    "Updated" does not.
+
+prices:
+  "link[a|main||/prices/<x>]": >-
+    Opens one price to change it. Changing a price here changes what the
+    website publishes and what every later estimate quotes — it does not touch
+    an estimate already sent.
+
+wording:
+  "link[a|main||/templates/<x>]": >-
+    Opens one letter for editing. What you change here is what every future
+    client of that kind reads.
+
+wording-section:
+  "button:Save this section": null
+  "textarea:the text of one section": >-
+    The sentences a client reads, exactly as they will read them. `**bold**`
+    makes a phrase bold. Anything in double angle brackets is filled in per
+    client and has to stay where it is — deleting one takes the client's name
+    or the fee off the letter.
+  "disclosure[summary|blk]": >-
+    One section of the letter, by the heading a client sees. The number is the
+    order it prints in.
+  "disclosure:ADD A SECTION NEW": >-
+    For a paragraph the letter does not have and should. Rare — most of what
+    you want is already a section whose wording needs changing.
+
+wording-add:
+  "button:Save this section": null
+  "button:Add it": null
+  "textarea:the text of one section": null
+  "text:HEADING — WHAT A CLIENT POINTS AT": >-
+    What the client sees above the paragraph, and what they will say on the
+    phone: "the bit about deadlines".
+  "textarea:WHAT IT SAYS": >-
+    The paragraph itself. Merge fields do not work in a new section — what is
+    filled in per client is set up with the letter, not typed in here.
+  "select:WHERE IT GOES": >-
+    Which existing section it follows. The rest renumber themselves; a client
+    should never see 03 followed by 05.
+  "disclosure[summary|blk]": null
+  "disclosure:ADD A SECTION NEW": null
+
+signatures-waiting:
+  "link[a|main||/engagement/<ref>/<x>]": >-
+    Opens that client's signatures, where you record one that has come back.
+
+signatures-one:
+  "disclosure[summary|blk]": >-
+    One signature that is still out. Open it to write down that it came back.
+    A line you cannot see here is one already signed — those are listed lower
+    down with the date.
+  "text:THE DAY THEY SIGNED": >-
+    The date on the page, not the day you found out. A letter that arrives on
+    Monday was signed on Friday, and the Friday is the one that counts. Both
+    are kept.
+  "radio[input|radio|how|/engagement/<ref>/signatures{line}]": >-
+    How it reached you, and it is the whole point of the record. "In front of
+    me" and "the portal said it completed" are different things to be sure of,
+    and which one it was is the first thing anybody asks. Choosing the signing
+    service asks for its reference, and will not save without one.
+  "text:REFERENCE, FOR A SIGNING SERVICE": >-
+    Whatever the service calls that request — an envelope or request id. It is
+    what somebody follows a year from now to find the audit trail, so a record
+    without it is worth much less. Leave it empty for a signature you took in
+    the room.
+  "button:Record it": >-
+    Writes it down. Nothing is undone by this — the file is added to, never
+    rewritten, so a mistake is corrected by recording the right one, not by
+    editing the last.
+
+payments:
+  "link[a|main||/engagement/<x>]": >-
+    Opens the engagement the bill belongs to. A bill with a payment link shows
+    it in the Status column instead of "no link". The one photographed here was
+    raised without one: the machine that takes these pictures cannot reach the
+    payment processor.

@@ -1,0 +1,77 @@
+# EXAMPLE ONLY — FICTIONAL NUMBERS. NOT THE FIRM'S PRICES.
+#
+# Exists so the pricing engine can be tested and so the fee estimate can be
+# seen filled in before the firm sets its own. `registry/fee-schedule.yaml` is
+# the real one and every amount in it is deliberately still `[CONFIRM:`.
+#
+# The figures echo samples/tax-opening-package.json, which has carried $450 /
+# $185 / $95 since before any of this was wired, so the two agree.
+currency: USD
+
+# Fictional too, but the shape is the real one's.
+basis:
+  rate: 200
+  round_time_to: 0.25
+  minimum_increment: 0.25
+
+base_covers: "federal_only"
+
+base:
+  "1040":  450
+  "1120S": 850
+  "1065":  850
+  "1120":  950
+
+per_unit:
+  state_return:
+    count_from: count_states
+    label: "State return"
+    detail: "Per state"
+    amount: 185
+  local_return:
+    count_from: count_localities
+    label: "Local return"
+    detail: "Municipal, RITA, CCA or school district"
+    amount: 95
+  rental:
+    count_from: count_rentals
+    label: "Rental property"
+    detail: "Schedule E, per property"
+    amount: 120
+  k1:
+    count_from: count_k1s
+    label: "Schedule K-1 received"
+    detail: "Per K-1 entered"
+    amount: 75
+  owner_k1:
+    count_from: count_owners
+    label: "Schedule K-1 issued"
+    detail: "Per owner — shareholder or partner"
+    amount: 85
+  schedule_c:
+    count_from: count_businesses
+    tier_from: schedule_c_kind
+    tiers:
+      simple:
+        label: "Gig or contract work"
+        detail: "Schedule C — standard mileage, no assets, inventory or payroll"
+        amount: 60
+      standard:
+        label: "Sole proprietorship"
+        detail: "Schedule C — actual expenses, a home office, or assets being depreciated"
+        amount: 225
+
+assumed:
+  brokerage:
+    label: "Brokerage activity"
+    assumes: "a single consolidated 1099-B that imports cleanly"
+    inside_base: true
+    trigger: "there is more than one broker, or a 1099-B will not import"
+    beyond: hourly
+  cleanup:
+    label: "Records cleanup"
+    assumes: "your records arrive complete and reconciled"
+    inside_base: false
+    trigger: "the records need reconciling before the return can be prepared"
+    beyond: hourly
+    raised_at: file_review

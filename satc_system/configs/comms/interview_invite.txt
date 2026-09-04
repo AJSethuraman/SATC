@@ -1,0 +1,23 @@
+Dear {salutation},
+
+Thank you for bringing your {tax_year} taxes to {firm_name}. The best first step is a
+short conversation — it lets us understand your situation and tell you exactly which
+documents to gather, instead of sending you a generic checklist.
+
+Here are some times that work on our end:
+
+{proposed_times}
+
+We can meet at {meeting_place}, whichever is easiest for you. If none of those times fit,
+reply with a couple that do and we'll make one work.
+
+Nothing to prepare in advance. Come as you are, and bring any questions you've been
+sitting on.
+
+Looking forward to it,
+{preparer_name}
+{firm_name}
+{firm_email}
+"{firm_tagline}"
+
+— DRAFT for preparer review. Not sent automatically. —

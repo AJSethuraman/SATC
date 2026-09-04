@@ -1,0 +1,77 @@
+# RATE PLANS — what a given client actually pays, and why.
+#
+# The practice bills on VALUE, adjusted for MEANS. Someone doing an ordinary
+# W-2 return on an ordinary income should not pay what a business owner with
+# three entities pays for the same hour of attention.
+#
+# Two rules make this honest rather than arbitrary:
+#
+# 1. THE DISCOUNT IS SHOWN, NOT HIDDEN. An invoice always states the standard
+#    rate, the reduction, and the reason. A client on a reduced plan sees what
+#    they were given. Quietly charging less is worse for everyone: they never
+#    learn what the work was worth, and the practice never gets the credit.
+#
+# 2. EVERY PLAN NEEDS A REASON RECORDED against the client. `requires_basis`
+#    forces it. A sliding scale with no stated basis is not a sliding scale, it
+#    is improvisation — and improvisation is what looks like discrimination
+#    when someone compares notes.
+#
+# Never expressible here, by design: a fee that depends on the refund or on a
+# tax position taken. Circular 230 §10.27 prohibits contingent fees for return
+# preparation. The engine refuses it structurally — a plan is a percentage off
+# a STANDARD RATE, and has no access to the outcome of the return.
+
+meta:
+  default_plan: standard
+
+plans:
+  - key: standard
+    name: "Standard"
+    discount_pct: 0
+    requires_basis: false
+    client_label: ""
+    note: "Full rate. The default; no basis needed."
+
+  - key: household
+    name: "Household rate"
+    discount_pct: 25
+    requires_basis: true
+    client_label: "Household rate applied"
+    note: >-
+      Ordinary personal returns for working households. The everyday case this
+      practice wants to stay affordable.
+
+  - key: fixed_income
+    name: "Fixed income"
+    discount_pct: 40
+    requires_basis: true
+    client_label: "Fixed-income rate applied"
+    note: "Retired or on a fixed income, where the fee matters more than the hour does."
+
+  - key: hardship
+    name: "Hardship"
+    discount_pct: 60
+    requires_basis: true
+    client_label: "Hardship rate applied"
+    note: >-
+      A rough year — job loss, illness, a death in the family. Offered rather
+      than waited for.
+
+  - key: pro_bono
+    name: "No charge"
+    discount_pct: 100
+    requires_basis: true
+    client_label: "No charge this year"
+    note: >-
+      Someone who needs the return done and cannot pay for it. The invoice is
+      still ITEMISED at full value, because the point is that they see what
+      they were given — a zero with no breakdown teaches nothing.
+
+  - key: commercial
+    name: "Commercial"
+    discount_pct: 0
+    requires_basis: false
+    client_label: ""
+    note: >-
+      Full rate, named separately from `standard` so the practice can tell at a
+      glance which side of the book a client sits on.

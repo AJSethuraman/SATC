@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — business cards, production artwork</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- ══════════════════════════════════════════════════════════════════
+     PRODUCTION ARTWORK — do not add captions, trim marks, or notes.
+
+     Each page IS one card face at BLEED size: 3.75 × 2.25 in.
+     Trim is 3.5 × 2 in, centred, so 0.125 in bleeds off every edge.
+     Page 1 Arjun front · Page 2 Brandi front · Page 3 shared back.
+
+     Export to PDF at 100%. Three pages, one face each — that is the
+     file the printer uploads. On screen the preview enlarges a page
+     this small; the PDF measures correctly. Verify with a ruler.
+     ══════════════════════════════════════════════════════════════════ -->
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--ink-2:#4A5360;--hairline:#D8D7D1;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace;
+/* bleed 0.125in + the card's own safe inset (0.22 top/bottom, 0.24 sides) */
+--pad-y:0.345in;--pad-x:0.365in}
+*,*::before,*::after{box-sizing:border-box}
+.page{font-family:var(--sans);position:relative;overflow:hidden}
+h1,h2,h3,p{margin:0}
+
+/* ── FRONT ───────────────────────────────────────────────── */
+/* PRINT FLOOR — 16pt uncoated has heavy dot gain: nothing below 6pt,
+   and anything a client must read (email, phone) is 7pt+. */
+.card-front{background:var(--shell);padding:var(--pad-y) var(--pad-x);display:flex;flex-direction:column;justify-content:space-between}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:3pt}
+.lock .wm{display:flex;align-items:flex-end;font-size:12pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block}
+.who{display:flex;flex-direction:column}
+.who .name{font-size:12pt;font-weight:600;letter-spacing:-0.032em;color:var(--navy);line-height:1.05}
+.who .role{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.13em;text-transform:uppercase;color:var(--oxblood);margin-top:4pt}
+.who .contact{font-family:var(--mono);font-size:7pt;line-height:1.65;color:var(--ink-2);margin-top:7pt;padding-top:6pt;border-top:0.5pt solid var(--hairline);white-space:nowrap}
+.who .contact b{color:var(--navy);font-weight:500}
+
+/* ── BACK — navy floods the full bleed ───────────────────── */
+.card-back{background:var(--navy);display:flex;flex-direction:column;justify-content:space-between;padding:var(--pad-y) var(--pad-x)}
+/* decorative squares: offsets shifted 0.125in from the trim-size values
+   so they land in the same place on the cut card */
+.card-back::before,.card-back::after{content:"";position:absolute;border:0.6pt solid rgba(192,162,101,0.16);pointer-events:none}
+.card-back::before{top:-0.215in;right:-0.215in;width:1.5in;height:1.5in}
+.card-back::after{top:0.185in;right:0.185in;width:1.5in;height:1.5in;border-color:rgba(192,162,101,0.08)}
+.card-back .bmark{position:relative;z-index:1}
+.card-back .bmark svg{width:30pt;height:30pt}
+.card-back .line{position:relative;z-index:1}
+.card-back .line .t{font-size:9.5pt;font-weight:600;letter-spacing:-0.028em;color:#fff;line-height:1.25;max-width:2.1in}
+.card-back .line .u{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);margin-top:7pt}
+a{color:var(--oxblood)}
+a:hover{color:var(--navy)}
+</style>
+</head>
+<body>
+
+<doc-page width="3.75in" height="2.25in" margin="0">
+
+  <section class="page card-front" data-screen-label="01">
+    <div class="lock"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+    <div class="who">
+      <div class="name">Arjun Sethuraman</div>
+      <div class="role">Managing Partner · CPA</div>
+      <div class="contact"><b>arjun_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+    </div>
+  </section>
+
+  <section class="page card-front" data-screen-label="02">
+    <div class="lock"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+    <div class="who">
+      <div class="name">Brandi Sethuraman</div>
+      <div class="role">Managing Partner</div>
+      <div class="contact"><b>brandi_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+    </div>
+  </section>
+
+  <section class="page card-back" data-screen-label="03">
+    <div class="bmark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#ffffff" stroke-width="2.6"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg></div>
+    <div class="line"><div class="t">Everything you need,<br/>from one desk.</div><div class="u">SATCLLP.COM</div></div>
+  </section>
+
+</doc-page>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

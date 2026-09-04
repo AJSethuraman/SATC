@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — new client onboarding letter (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">What we need from you to begin — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+  <p>Thank you for choosing <span class="f">&lt;&lt;FirmName&gt;&gt;</span>. This letter tells you what to send us, where to send it, and what happens next. <strong>Sign the engagement letter first</strong> — it outlines everything you should expect for the tax year.</p>
+
+  <div class="dateline">
+    <div>
+      <div class="k">Please send everything by</div>
+      <div class="v"><span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span></div>
+    </div>
+    <div style="text-align:right">
+      <div class="k">Your point of contact</div>
+      <div class="v"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What to send us</h2>
+    <span class="cond">[[EACH RequestList]]</span>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b><span class="f">&lt;&lt;Item.Document&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></span>
+      </li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <p>If something on this list does not apply to you, just tell us.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>Where to send it</h2>
+    <p>We will email a secure upload link to <span class="f">&lt;&lt;ClientEmail&gt;&gt;</span>. Use it to send us everything in section 01. Scans and clear photographs are both fine, and we prefer one document per file.</p>
+    <p><strong>Anything for signature comes to you by email, encrypted through Encyro</strong>, at the same address.</p>
+    <div class="callout">
+      <p><strong>Emailing or otherwise transmitting unprotected documents is done at your own risk.</strong></p>
+    </div>
+  </div>
+
+  <span class="cond">[[IF PriorFirm]]</span>
+  <div class="sec">
+    <h2><span class="n">03</span>Your previous accountant</h2>
+    <p><span data-encl="records-release">We have included a short authorization for you to sign.</span> Sign it and we will send it to <span class="f">&lt;&lt;PriorFirmName&gt;&gt;</span>, who will release your prior records to us. <strong>We will not wait on them to start</strong>, so send us what you already have either way.</p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <div class="sec">
+    <h2><span class="n">04</span>What happens next</h2>
+    <p>Once your documents are in, we can start. We will come back to you if something is missing. Our target for your first deliverable is <strong><span class="f">&lt;&lt;FirstDeliverableTarget&gt;&gt;</span></strong>.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">05</span>Questions</h2>
+    <p>Ask us early rather than guessing. Reach us at <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
+  <span class="id">ONBOARDING<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>Sent <b>with</b> the engagement letter and the fee estimate, as the third document in the opening package — it is the one a client actually acts on, so it carries the deadline and the checklist and nothing legal. Same conventions: <code>&lt;&lt;Field&gt;&gt;</code> substitutes, <code>[[IF Flag]]</code> … <code>[[END IF]]</code> keeps or drops, <code>[[EACH List]]</code> … <code>[[END EACH]]</code> repeats. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — the package's date. Same value across all three documents.</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key, byte-identical to the letter's and the estimate's</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td><b>Self-describing.</b> "2026 tax year" or "Monthly, from July 2027" — the same field the fee estimate uses, so the package reads as one thing. Appears twice.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes — the addressee block AND the salutation, so both read the same</td></tr>
+    <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
+    <tr><td>&lt;&lt;ClientEmail&gt;&gt;</td><td class="req">Required</td><td>dreyes@example.com — <b>printed on purpose.</b> Both the upload link and the Encyro signing invitation go to this address, and it is the first thing a client asks.</td></tr>
+    <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — a real date, never "early March". Set in one place; the tax letter's section 04 carries the same value.</td></tr>
+    <tr><td>[[EACH RequestList]]</td><td class="req">List</td><td>One or more. Two sub-fields per item. This is the whole point of the letter — <b>build it from the engagement type, not by hand</b>.</td></tr>
+    <tr><td>&lt;&lt;Item.Document&gt;&gt;</td><td class="req">Required</td><td>All W-2 forms — as a client would name it, not as the tax code does</td></tr>
+    <tr><td>&lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>For both of you, including any part-year employment — emit an empty string when there is nothing to add, never the word "None"</td></tr>
+    <tr><td>&lt;&lt;AckWindow&gt;&gt;</td><td class="req">Required</td><td>three business days — a duration, phrased to drop into the sentence</td></tr>
+    <tr><td>&lt;&lt;FirstDeliverableTarget&gt;&gt;</td><td class="req">Required</td><td>April 1, 2027 — a date or a phrase, whichever you can honour. It is the promise the client remembers.</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner. Name appears twice — the dateline and the sign-off.</td></tr>
+    <tr><td>&lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>arjun_sethuraman@satcllp.com — the only way the letter offers to reach us. No phone until the firm has a business line.</td></tr>
+    <tr><td>&lt;&lt;PriorFirmName&gt;&gt;</td><td class="opt">If PriorFirm</td><td>Halloran &amp; Reeve CPAs</td></tr>
+    <tr><td>[[IF PriorFirm]]</td><td class="req">Flag</td><td>Boolean. Drops section 04 entirely for a client with no previous accountant. <b>Renumber the remaining sections in code</b> — 05 and 06 must not follow 03.</td></tr>
+  </table>
+  <p><b>18 fields + 1 repeating list of 2 + 1 flag.</b></p>
+
+  <h3>Section numbering under a dropped block</h3>
+  <p>This is the first template where a conditional removes a <b>numbered</b> section. Two options, and the software must pick one: renumber sequentially after the merge (preferred — a client should never see 03 followed by 05), or make the numbers static and accept the gap. <span class="warn">Do not leave it to chance;</span> the numbers exist so a client can point at a clause on the phone.</p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No fee, no scope, no terms.</b> The letter and the estimate own those. This document is a to-do list with a date on it.</li>
+    <li><b>No signature line.</b> Three signature blocks in one package guarantees one comes back blank.</li>
+    <li><b>No "please don't hesitate to contact us".</b> Section 06 asks for the question outright, which is the behaviour you actually want.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li>The checkboxes are printed squares, for a client working on paper. <b>Do not turn them into form fields</b> — a half-completed PDF form is worse than a list.</li>
+    <li>The <code>[[EACH RequestList]]</code> markers sit outside <code>&lt;ul class="req-list"&gt;</code>: repeat the whole <code>ul</code> per item, or move the markers inside and repeat the <code>li</code>. Either works; <b>be consistent with how the fee estimate's row repeat is wired</b>.</li>
+    <li>Strip the <code>.f</code> class and the <code>.cond</code> markers on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C What We Need — Reyes — 2026.pdf</code>. Plain language beats "onboarding" on a client's desktop.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

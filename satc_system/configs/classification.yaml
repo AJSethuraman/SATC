@@ -81,6 +81,23 @@ doc_types:
       - ["1099-k", 9]
       - ["gross amount of payment card", 4]
 
+  # W-2G is BLOCKING under IRS Pub 1345 — an e-filed return cannot be
+  # originated until it is in hand (or a Form 4852 substitute is on file). It
+  # was named in configs/obligations/federal.yaml as blocking while no
+  # classifier could ever emit it, which made that guard decorative: the
+  # readiness check passed with a missing W-2G every time.
+  # `key: null` because there is no extraction map yet — it is filed, not read.
+  - key: null
+    label: "W-2G"
+    code: "W-2G"
+    filename_hints: ["w2g", "w-2g", "w2 g", "gambling winnings"]
+    keywords:
+      - ["certain gambling winnings", 10]
+      - ["form w-2g", 9]
+      - ["w-2g", 9]
+      - ["type of wager", 4]
+      - ["winnings from identical wagers", 4]
+
   - key: null
     label: "1099-R"
     code: "1099-R"
@@ -145,6 +162,62 @@ doc_types:
       - ["schedule k-1", 8]
 
   # Real documents that are filed but not data-extracted (key: null).
+
+  # ── ADDED 1 Sep 2026 ─────────────────────────────────────────────────────
+  # OUR OWN DISENGAGEMENT LETTER CAME BACK "Prior-year 1040", HIGH, and that
+  # verdict is good enough to CLOSE a request (Classification.may_close_a_request).
+  # A client who returns the whole packet puts this document into intake; the
+  # client's open prior-year request closes, and nobody asks for the return again.
+  #
+  # Measured 1 Sep 2026 on a letter rendered from the template's OWN documented
+  # example values -- no spec chrome, just the letter a client receives:
+  #     Prior-year 1040   17  =  "individual income tax return" 9 + "form 1040" 8
+  # Both come from section 02, which LISTS THE WORK THAT WAS DONE. `ScopeEnded`
+  # is specified as "the preparation of your 2026 individual income tax returns"
+  # and `Item.Work` as "2026 Federal Form 1040". A disengagement letter for a
+  # 1040 client NAMES THE 1040 -- that is the document doing its job, not a flaw
+  # to be normalised away.
+  #
+  # THE OBVIOUS KEYWORD DOES NOT EXIST. `disengagement` appears nowhere in the
+  # rendered letter -- the subject line is "Ending our engagement", and the word
+  # survives only in the template's on-screen title, which `@media print` hides
+  # and no client ever sees. A `["disengagement letter", 10]` entry would have
+  # read as the load-bearing signal and never once fired. So this type is built
+  # entirely from the firm's own sentences, and the two carrying most of the
+  # weight are the two that ARE the letter's identity: its subject line and its
+  # opening sentence. All eight were checked against the other eleven templates
+  # in `satc-handoff/04-TEMPLATES/` (body text and the on-screen spec table both)
+  # and against every blank in `corpus/blanks/`: zero collisions. A ninth
+  # candidate, "what we are not saying", was dropped -- it appears in the
+  # bookkeeping engagement letter's spec table.
+  #
+  # THE WEIGHTS ARE SIZED TO A MEASUREMENT, not to taste. 17 of Prior-year 1040
+  # is not merely something to beat: a runner-up scoring MULTI_SHARE (0.6) of the
+  # winner is reported as a second form, so at any total below 29 our own letter
+  # comes back "Several forms: Disengagement letter, Prior-year 1040". Safe --
+  # a MULTI verdict closes no request -- but it is still the wrong answer about
+  # our own document. These eight total 40, which leaves 17 at 0.43 of the winner
+  # and holds the margin if OCR loses two of the eight.
+  #
+  # ORDERED BEFORE "Engagement letter" ON PURPOSE, and the filename hint is why:
+  # "disengagement" CONTAINS "engagement", `_by_filename` returns the first type
+  # whose hint matches, and so `SATC Disengagement Letter.pdf` came back
+  # "Engagement letter [filename/LOW]". Specific before generic, as the header
+  # of this file says.
+  - key: null
+    label: "Disengagement letter"
+    code: "Disengagement"
+    filename_hints: ["disengagement"]
+    keywords:
+      - ["ending our engagement", 8]                          # the subject line
+      - ["this letter confirms that our engagement ends", 8]  # the opening sentence
+      - ["deadlines you now own", 5]
+      - ["either of us may end it in writing", 4]
+      - ["anything not marked complete above", 4]
+      - ["your original records are returned with this letter", 4]
+      - ["a new preparer needs time to read a file", 4]
+      - ["it is not a new engagement", 3]
+
   - key: null
     label: "Engagement letter"
     code: "Engagement"
@@ -152,6 +225,21 @@ doc_types:
     keywords:
       - ["engagement letter", 10]
       - ["terms of engagement", 8]
+      # THE TITLE ALONE IS NOT ENOUGH, and this type is where that was proved.
+      # A real letter matched exactly ONE keyword for its own type -- and, in
+      # passing, `form 1040` or `schedule k-1` once each, which scored 8 against
+      # its 10 and reported "Several forms: Engagement letter, Schedule K-1".
+      # Our own document, misfiled by our own classifier.
+      #
+      # These four are the firm's own sentences, taken verbatim from all four
+      # engagement letter templates and present in none of the other eight
+      # documents (measured 31 Aug 2026). Low weights on purpose: none of them
+      # can win alone, they exist to be the SECOND signal a real letter has and
+      # a passing mention of one never does.
+      - ["this letter outlines what", 4]
+      - ["the scope described in", 3]
+      - ["work papers for seven years", 4]
+      - ["without your written consent", 3]
 
   - key: null
     label: "Form 8879 (e-file authorization)"
@@ -168,3 +256,76 @@ doc_types:
     keywords:
       - ["tax organizer", 10]
       - ["client organizer", 8]
+
+  # ── ADDED 30 Aug 2026 ────────────────────────────────────────────────────
+  # Measured on an adversarial corpus: a mortgage 1098, a 1099-G state refund
+  # and an SSA-1099 all came back Unclassified. Safe (the classifier never
+  # guessed) but not harmless -- the file lands in a folder, no request closes,
+  # and nothing chases it, so the packet reads short for a reason nobody sees.
+  #
+  # All `key: null`: real documents we recognise and file, but do not read
+  # figures off. There is no extraction map for any of them and inventing one
+  # would be guessing at box numbers.
+
+  - key: null
+    label: "1098"
+    code: "1098"
+    # NOT a filename hint of "1098" alone -- 1098-T files are named that way too
+    # and the tuition form is a different document. Content decides; see
+    # test_1098_is_not_confused_with_1098_t.
+    filename_hints: ["mortgage interest"]
+    keywords:
+      - ["mortgage interest statement", 10]
+      - ["mortgage interest received from payer", 8]
+      - ["form 1098", 6]
+      - ["outstanding mortgage principal", 4]
+
+  - key: null
+    label: "1099-G"
+    code: "1099-G"
+    filename_hints: ["1099g", "1099-g", "1099 g"]
+    keywords:
+      - ["certain government payments", 10]
+      - ["form 1099-g", 9]
+      - ["1099-g", 9]
+      - ["state or local income tax refunds", 5]
+      - ["unemployment compensation", 4]
+
+  - key: null
+    label: "SSA-1099"
+    code: "SSA-1099"
+    filename_hints: ["ssa1099", "ssa-1099", "social security benefit"]
+    keywords:
+      - ["social security benefit statement", 10]
+      - ["ssa-1099", 9]
+      - ["net benefits for", 4]
+
+  - key: null
+    label: "1099-B"
+    code: "1099-B"
+    filename_hints: ["1099b", "1099-b", "1099 b"]
+    keywords:
+      - ["proceeds from broker and barter exchange transactions", 10]
+      - ["form 1099-b", 9]
+      - ["1099-b", 9]
+      - ["proceeds from broker", 6]
+
+  - key: null
+    label: "1099-MISC"
+    code: "1099-MISC"
+    filename_hints: ["1099misc", "1099-misc", "1099 misc"]
+    keywords:
+      - ["miscellaneous information", 9]
+      - ["miscellaneous income", 9]
+      - ["form 1099-misc", 9]
+      - ["1099-misc", 9]
+
+  - key: null
+    label: "W-2G"
+    code: "W-2G"
+    filename_hints: ["w2g", "w-2g"]
+    keywords:
+      - ["certain gambling winnings", 10]
+      - ["form w-2g", 9]
+      - ["w-2g", 9]
+      - ["reportable winnings", 5]

@@ -1,0 +1,130 @@
+# SERVICE CATALOGUE — what the practice bills for, and what it is worth.
+#
+# Data, not code. Adding a service, changing a rate, or renaming something a
+# client reads is a config edit.
+#
+# THE RATE HERE IS THE STANDARD RATE — what the work is worth, before any
+# adjustment for what a particular client can afford. That separation is
+# deliberate and is the whole point of the design: an invoice shows the client
+# the FULL value of what they received and then the discount applied, rather
+# than quietly showing a smaller number. Someone on a reduced rate should be
+# able to see that they were given something.
+#
+# `client_label` is what appears on the invoice. Write it as a person reads it,
+# not as a preparer files it — "Your federal tax return", not "Form 1040 prep".
+#
+# UNITS:
+#   fixed     — one charge, however long it took
+#   per_form  — multiplied by how many (three rentals = three Schedule Es)
+#   per_hour  — time-based, for work that genuinely varies
+#
+# NOT ALLOWED, anywhere, ever: a fee computed from the size of a refund or a
+# tax position. Circular 230 §10.27 prohibits contingent fees for return
+# preparation, and the loader REFUSES a service that tries.
+
+meta:
+  currency: USD
+  note: >-
+    Standard rates. What a given client actually pays is this crossed with
+    their rate plan — see rate_plans.yaml.
+
+services:
+  # -- returns --------------------------------------------------------------
+  - code: return_1040
+    name: "Individual return (1040)"
+    client_label: "Your federal individual tax return"
+    category: "Tax returns"
+    unit: fixed
+    standard_rate: 450
+    description: >-
+      Preparing and filing your federal return, including checking it against
+      last year and answering questions along the way.
+
+  - code: return_state
+    name: "State return"
+    client_label: "State tax return"
+    category: "Tax returns"
+    unit: per_form
+    standard_rate: 95
+    description: "One state return, prepared and filed alongside the federal."
+
+  - code: return_1065
+    name: "Partnership return (1065)"
+    client_label: "Partnership return, including partner K-1s"
+    category: "Tax returns"
+    unit: fixed
+    standard_rate: 1250
+
+  - code: return_1120s
+    name: "S corporation return (1120-S)"
+    client_label: "S corporation return, including shareholder K-1s"
+    category: "Tax returns"
+    unit: fixed
+    standard_rate: 1250
+
+  # -- schedules that genuinely add work ------------------------------------
+  - code: schedule_c
+    name: "Schedule C (self-employment)"
+    client_label: "Self-employment income and expenses"
+    category: "Schedules"
+    unit: per_form
+    standard_rate: 275
+    description: "Sorting business income and expenses into the right lines."
+
+  - code: schedule_e_rental
+    name: "Schedule E (rental)"
+    client_label: "Rental property"
+    category: "Schedules"
+    unit: per_form
+    standard_rate: 185
+    description: "One rental property, including depreciation."
+
+  - code: schedule_d
+    name: "Schedule D (investment sales)"
+    client_label: "Investment sales and capital gains"
+    category: "Schedules"
+    unit: fixed
+    standard_rate: 145
+
+  # -- advice and everything else -------------------------------------------
+  - code: planning_session
+    name: "Planning conversation"
+    client_label: "Tax planning conversation"
+    category: "Advice"
+    unit: per_hour
+    standard_rate: 200
+    description: >-
+      Looking ahead rather than back — what to do before year-end, how to set
+      estimates, what a decision would cost in tax.
+
+  - code: notice_response
+    name: "IRS or state notice"
+    client_label: "Responding to a letter from the IRS or your state"
+    category: "Advice"
+    unit: per_hour
+    standard_rate: 200
+    description: "Reading it, working out whether it is right, and replying."
+
+  - code: bookkeeping_cleanup
+    name: "Bookkeeping clean-up"
+    client_label: "Getting your books ready for the return"
+    category: "Bookkeeping"
+    unit: per_hour
+    standard_rate: 125
+
+  - code: amended_return
+    name: "Amended return"
+    client_label: "Amending a previously filed return"
+    category: "Tax returns"
+    unit: fixed
+    standard_rate: 350
+
+  - code: extension
+    name: "Extension"
+    client_label: "Filing your extension"
+    category: "Tax returns"
+    unit: fixed
+    standard_rate: 0
+    description: >-
+      No charge. Extending is routine and often the right call; charging for it
+      would discourage the thing we would advise anyway.

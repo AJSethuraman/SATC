@@ -1,8 +1,27 @@
 
-# Ephemeral subagent git worktrees (isolation mode) — never commit
+# Ephemeral subagent git worktrees (isolation mode) -- never commit
 .claude/worktrees/
 
-# Local dev virtualenv
-.venv/
+
+# Rendered client documents, wherever they land. `client-documents/.gitignore`
+# already covers its own; this covers the repository root, which
+# `exercise.py` wrote to on its first run before the default was changed.
+out/
+
+# Python bytecode. Added 30 Aug 2026 after a `__pycache__` from a one-off run of
+# website/build-pricing-config.py was committed by accident -- into website/, the
+# one directory the practice-ops side is not permitted to touch, and it made a
+# claim repeated several times in this PR ("0 files under website/") false.
+# Nothing served it and nothing broke; the point is that no rule existed to stop
+# it, which is why this is a line in a file rather than a note to be careful.
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Virtual environments at the repository root. Every project that has one
+# ignores its own (`client-documents/`, `satc_system/`, `invoice-generator/`),
+# but nothing covered the root, and on 3 September 2026 the first run on the
+# firm's own machine created one there -- `python -m venv .venv` at the top is
+# the obvious thing to type when three projects need dependencies at once.
+# ~200 MB, and `git add -A` would have taken all of it.
+.venv/
+venv/

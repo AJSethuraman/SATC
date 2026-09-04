@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAT-C practice app &mdash; the patterns, and what I would cut</title>
+<link rel="stylesheet" href="satc-app.css"><link rel="stylesheet" href="spec.css">
+</head><body><div class="sheet">
+<div class="wm">SAT<span class="hy"></span>C<i>LLP</i></div>
+<div class="rule"></div>
+<div class="meta"><span>Internal &mdash; the software that runs the practice</span><span>Design, 2 September 2026</span></div>
+<nav class="jobs"><a href="00 Patterns and cuts.html" aria-current="page">Patterns and cuts</a><a href="01 The day and the interview.html">The day, and the interview</a><a href="02 The file and the documents.html">One client&rsquo;s file, and the gate</a><a href="03 Money and settings.html">Money, and settings</a></nav>
+
+<h1>Six things had no visual language. Here they are.</h1>
+<p class="lede">Everything on the four pages of this set is real markup against one stylesheet, <code>satc-app.css</code>. Paste that file into the block at the bottom of the web app and put <code>class="app"</code> on the body; every screen after that is markup you can lift line for line. No webfonts &mdash; the system stack <em>is</em> the design, so the app looks the same on a laptop with no internet as it does here. No script except the two small pieces marked as such.</p>
+<p class="lede">One person operates this under time pressure. So the rule I designed to is: <b>the screen answers the question you opened it with, in the first inch.</b> Everything that is reference rather than answer moves down or folds away.</p>
+
+<section class="blk"><p class="no">Pattern 01</p>
+<h2>Stage: a count, a name, and how far along</h2>
+<p>An engagement has nine stages and no screen showed any of them. It reads as a count with the stage named beside it &mdash; the count says how far, the name says where. Nine ticks, filled to the stage. It appears on every row of every list and at the top of the client&rsquo;s own page, and it is the same object in both places, one size smaller in a row.</p>
+<div class="demo col app">
+<p class="stage big"><span class="n">4 of 9</span><span class="track" style="--to:4"><i></i></span><span class="nm">sent</span></p>
+<p class="stage"><span class="n">4 of 9</span><span class="track" style="--to:4"><i></i></span><span class="nm">sent</span></p>
+<p class="stage halt"><span class="n">3 of 9</span><span class="track" style="--to:3"><i></i></span><span class="nm">pack built, blocked</span></p>
+<p class="stage wait"><span class="n">2 of 9</span><span class="track" style="--to:2"><i></i></span><span class="nm">priced, waiting on you</span></p>
+<p class="stage"><span class="n">9 of 9</span><span class="track" style="--to:9"><i></i></span><span class="nm">closed</span></p>
+</div>
+<p class="cap"><b>Stage</b> &mdash; full size for a client&rsquo;s own page, row size for lists, and the two states that stop it moving</p>
+<pre>&lt;p class="stage"&gt;&lt;span class="n"&gt;4 of 9&lt;/span&gt;
+  &lt;span class="track" style="--to:4"&gt;&lt;i&gt;&lt;/i&gt;&lt;/span&gt;
+  &lt;span class="nm"&gt;sent&lt;/span&gt;&lt;/p&gt;
+
+<b>class="stage big"</b>   the client's own page
+<b>class="stage halt"</b>  something is blocking it   (oxblood)
+<b>class="stage wait"</b>  it is waiting on you      (the third colour)
+<b>--to</b>                which of the nine, 0 to 9</pre>
+<p>The nine names, as a client&rsquo;s file moves: <b>interviewed &middot; priced &middot; pack built &middot; sent &middot; signed &middot; filed &middot; billed &middot; paid &middot; closed</b>. Those are the words on screen. The bar has nine ticks whether or not you can name them all from memory, which is the point of the count.</p>
+</section>
+
+<section class="blk"><p class="no">Pattern 02</p>
+<h2>Every number says what it counted</h2>
+<p>The codebase already refuses to let a check that examined nothing look like a check that passed. On screen that rule was bare text. It is now one object, and a bare number cannot be written with it: the count and what was counted are the same element.</p>
+<div class="demo col app">
+<p class="tally"><b>1,249</b> words in 4 letters read</p>
+<p class="tally"><b>5 of 13</b> answers checked</p>
+<p class="tally empty">nothing to look at &mdash; no clause was cited</p>
+</div>
+<p class="cap"><b>Tally</b> &mdash; the third one is the case worth designing: examined nothing, so it says so in words and never shows a zero</p>
+<pre>&lt;p class="tally"&gt;&lt;b&gt;1,249&lt;/b&gt; words in 4 letters read&lt;/p&gt;
+&lt;p class="tally empty"&gt;nothing to look at &amp;mdash; no clause was cited&lt;/p&gt;</pre>
+<p><b>Wording, not styling:</b> <em>&ldquo;11 check(s)&rdquo;</em> has to go. A machine wrote that bracket and a person reads it. Say <b>&ldquo;11 checks&rdquo;</b>, and <b>&ldquo;1 check&rdquo;</b> when there is one &mdash; the plural is one line in Python and it is the difference between software that was written for you and software that was generated.</p>
+</section>
+
+<section class="blk"><p class="no">Pattern 03</p>
+<h2>Five things a line can be, and they do not look alike</h2>
+<p>Blocked, not-yet, waiting-on-you, fine, and nothing-to-look-at were three shades of the same grey. Five marks, one vocabulary, used on every screen and nowhere reinvented:</p>
+<div class="demo app">
+<span class="mk pass">fine</span><span class="mk stop">stops it</span><span class="mk wait">your call</span><span class="mk none">nothing to look at</span><span class="mk notyet">not built</span><span class="mk done">done</span>
+</div>
+<p class="cap"><b>Marks</b> &mdash; filled means it needs a person: oxblood for a refusal, the third colour for a decision. Outlines are facts.</p>
+<pre>&lt;span class="mk pass"&gt;fine&lt;/span&gt;                <b>a check that looked and was satisfied</b>
+&lt;span class="mk stop"&gt;stops it&lt;/span&gt;             <b>blocked: a fact is wrong or missing</b>
+&lt;span class="mk wait"&gt;your call&lt;/span&gt;            <b>the software is waiting on the firm</b>
+&lt;span class="mk none"&gt;nothing to look at&lt;/span&gt;   <b>examined nothing; not a pass</b>
+&lt;span class="mk notyet"&gt;not built&lt;/span&gt;          <b>nobody has made this yet</b>
+&lt;span class="mk done"&gt;done&lt;/span&gt;                 <b>finished and filed away</b></pre>
+<p><b>Blocked against not-yet</b> is carried by the border, not the chip, so it survives being seen from three feet away: a blocked thing has a <b>solid oxblood edge</b>, a thing nobody has built has a <b>dashed grey edge and no fill</b>. Both appear on the document shelf on page three of this set.</p>
+</section>
+
+<section class="blk"><p class="no">Pattern 04</p>
+<h2>The third colour, and it means one thing</h2>
+<p><code>[CONFIRM: &hellip;]</code> is not an error and must stop looking like one. It gets a colour of its own &mdash; burnt orange <b>#A8571C</b> &mdash; used for nothing else in the software, ever. Navy is the firm acting. Oxblood is a refusal. Orange is <b>the software declining to invent something and waiting on you</b>.</p>
+<ul class="tok"><li><i style="background:#132437"></i><b>Navy</b><span>#132437 &mdash; the firm acting</span></li><li><i style="background:#6A2833"></i><b>Oxblood</b><span>#6A2833 &mdash; a refusal</span></li><li><i style="background:#A8571C"></i><b>Waiting on you</b><span>#A8571C &mdash; new, one meaning</span></li><li><i style="background:#242C36"></i><b>Ink</b><span>#242C36 &mdash; body</span></li><li><i style="background:#4A5360"></i><b>Ink 2</b><span>#4A5360 &mdash; secondary</span></li><li><i style="background:#FCFCFA;box-shadow:inset 0 0 0 1px #D8D7D1"></i><b>Paper</b><span>#FCFCFA</span></li></ul>
+<p>It also carries the focus ring, which is the one honest overlap: a focus ring means <em>the software is waiting on you here</em>. On a keyboard-first tool in February that is worth the brightest colour in the set.</p>
+<div class="demo col app" style="display:block">
+<div class="ask"><h3>Waiting on you &mdash; one sentence</h3><p>The letter needs a line saying what happens if the extension is refused, and the software will not write it for you. It goes out with this in place of it:</p><p class="said">[CONFIRM: what the firm does if an extension is refused]</p></div>
+</div>
+<p class="cap"><b>Waiting on you</b> &mdash; the panel that shows what the software refused to invent, with the placeholder quoted exactly as it will print</p>
+<pre>&lt;div class="ask"&gt;
+  &lt;h3&gt;Waiting on you &amp;mdash; one sentence&lt;/h3&gt;
+  &lt;p&gt;The letter needs a line saying &hellip;&lt;/p&gt;
+  &lt;p class="said"&gt;[CONFIRM: what the firm does if an extension is refused]&lt;/p&gt;
+&lt;/div&gt;</pre>
+</section>
+
+<section class="blk"><p class="no">Pattern 05</p>
+<h2>The app knows what month it is</h2>
+<p>A standing line in the navy bar on every screen: today, the next date on the calendar, and how many of your clients are due before it. It is the smallest type in the software and the only thing that never changes position, which is what makes it readable rather than loud. Inside thirty days the deadline gets a struck underline in the third colour &mdash; the only time the chrome raises its voice.</p>
+<div class="frame app"><header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span><span class="sep"></span><a href="#">4 clients due before it</a></p></header></div>
+<p class="cap"><b>The chrome</b> &mdash; the mark still goes home; the line beside it is new</p>
+<pre>&lt;header class="bar"&gt;
+  &lt;a class="mark" href="/"&gt;SAT&lt;span class="hy"&gt;&lt;/span&gt;C&lt;/a&gt;
+  &lt;p class="today"&gt;&lt;b&gt;Wednesday 2 September&lt;/b&gt;&lt;span class="sep"&gt;&lt;/span&gt;
+    &lt;span class="soon"&gt;next: &lt;b&gt;15 September&lt;/b&gt; &amp;mdash; partnerships and S corporations on extension&lt;/span&gt;
+    &lt;span class="sep"&gt;&lt;/span&gt;&lt;a href="/due"&gt;4 clients due before it&lt;/a&gt;&lt;/p&gt;
+&lt;/header&gt;</pre>
+<p><b>Drop <code>class="soon"</code></b> when the next date is more than thirty days out and the line goes quiet on its own. The count links to the list of those four, which is the same list the day page opens with.</p>
+</section>
+
+<section class="blk"><p class="no">Wording</p>
+<h2>Where I changed a label</h2>
+<p>All of these are screen labels, none is a sentence a client reads. Held to the same bar as the letters.</p>
+<table class="words"><tr><th style="width:34%">Was</th><th style="width:34%">Now</th><th>Why</th></tr>
+<tr><td class="was">11 check(s), and what each one actually looked at.</td><td class="now">11 checks. What each one read is on the right.</td><td>A bracket-s is a machine talking. &ldquo;Actually&rdquo; is defending the software to the person who owns it.</td></tr>
+<tr><td class="was">ok &middot; FAIL &middot; NONE</td><td class="now">fine &middot; stops it &middot; nothing to look at</td><td>&ldquo;Fail&rdquo; describes the check. &ldquo;Stops it&rdquo; describes what happens to you, which is the thing you need to know.</td></tr>
+<tr><td class="was">4 document(s) in /tmp/&lt;run&gt;/store/2026-0001/pack</td><td class="now">Four documents, built and checked. Nothing has been sent.</td><td>A path on a client-facing screen &mdash; and the sentence answered a question nobody asked instead of the one everybody does.</td></tr>
+<tr><td class="was">1 of 1 bill(s) outstanding, as of the last time the card processor was asked.</td><td class="now">One bill unpaid. Last checked with the card processor at 08:14 this morning.</td><td>Same fact, and the timestamp is the reassurance the long paragraph underneath was trying to give.</td></tr>
+<tr><td class="was">Send it anyway, and record that</td><td class="now">Send it past this check</td><td>Kept short so the reason box beside it is the loud thing. &ldquo;And record that&rdquo; moves to the line under it, where it belongs as a consequence.</td></tr>
+<tr><td class="was">Build the signing pack</td><td class="now">Build the signing pack</td><td>Unchanged. It says what it does and everybody already calls it that.</td></tr>
+<tr><td class="was">Prices</td><td class="now">What the firm charges</td><td>Your own heading from the walkthrough, which is better than the one on the screen.</td></tr>
+</table>
+</section>
+
+<section class="blk"><p class="no">Two things the linter would fail if it looked</p>
+<h2>Found while reading the screens</h2>
+<ul>
+<li>The client&rsquo;s record prints <code>ClientFullName</code> and <code>TaxYear</code> under every label. You asked to keep them, quieter &mdash; they are now 10.5px in the palest grey the page allows and sit under the label rather than beside it, so the eye reads twenty-six labels and no codes unless it goes looking. They are on page three of this set.</li>
+<li>The gate names a failing document as <b>SAT-C Engagement Letter - Reyes - 2026.html</b>. That is a filename on a screen, and the file it names is the one thing on that page you cannot do anything about. It now reads <b>the engagement letter</b>, with the section named underneath, because that is what you would go and open.</li>
+</ul>
+</section>
+
+<section class="blk"><p class="no">Cuts</p>
+<h2>What I would cut, and what I drew anyway</h2>
+<p>Twenty-five screens, and about seventeen of them are screens a person needs. You asked me to list the cuts and draw them anyway, so all of them are in this set &mdash; but here is what I would delete, and every one of them is a page that exists because a step needed somewhere to land.</p>
+<div class="cut"><b>&ldquo;The engagement exists&rdquo;<span class="verdict">cut the page</span></b><p>A page whose whole content is three buttons, one of which you always press. Create the engagement and land on the client&rsquo;s file with a line at the top saying it was just made. Same information, one fewer press, and you arrive somewhere you can work.</p></div>
+<div class="cut"><b>&ldquo;The pack, and every check that passed&rdquo;<span class="verdict">cut the page</span></b><p>Marked <em>&ldquo;nothing to press. Read it and go on.&rdquo;</em> in your own walkthrough &mdash; which is the definition of a page that should be a line on the page you came from. The document shelf can say &ldquo;built this morning, eleven checks, all fine&rdquo; and that is the whole of it.</p></div>
+<div class="cut"><b>&ldquo;The new quote, recorded&rdquo;<span class="verdict">cut the page</span></b><p>Same shape. Record the quote and return to the file, with the new figure on it and the note that the letter still reads correctly.</p></div>
+<div class="cut"><b>&ldquo;Adding a section that is not there&rdquo;<span class="verdict">fold in</span></b><p>Not a screen. It is the section editor with an empty section open. Two pages of markup that differ by whether one field has a value.</p></div>
+<div class="cut"><b>Lead detail, and the phone lead<span class="verdict">fold in</span></b><p>Three walkthrough steps are one screen with a panel open, which the software already does with a disclosure. One screen, three states.</p></div>
+<div class="cut"><b>The review before creating<span class="verdict">keep, redraw</span></b><p>Thirty-seven <em>Change</em> buttons is thirty-seven of the same word down a page, and the eye cannot find the one answer that is wrong. The screen stays &mdash; it is the last look before anything exists and it earns its place &mdash; but the buttons go: the row itself is the control, and the word appears on the row you are pointing at.</p></div>
+<div class="cut"><b>&ldquo;A hard no&rdquo;<span class="verdict">keep</span></b><p>Keep it, unchanged in substance. It is a refusal with a way back and it is already the right shape. It gets the stage bar in oxblood and stops there.</p></div>
+<div class="cut"><b>The interview<span class="verdict">keep, barely touched</span></b><p>You said it was closest to right and it is. What it gains is a denominator on the progress bar and the running summary as a fixed rail rather than a list that grows down the page. Nothing else.</p></div>
+</section>
+
+<div class="foot">Four pages: this one, then the day and the interview, one client&rsquo;s file and the gate, then money and settings. Every screen is live markup against <code>satc-app.css</code> &mdash; read it in a browser, then lift it. Where a sentence is the firm&rsquo;s to write I have left <code>[CONFIRM: &hellip;]</code> rather than invent one.</div>
+</div></body></html>

@@ -15,6 +15,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
+from satc.models.actor import Actor
 from satc.models.provenance import Provenance
 
 StagingStatus = Literal["STAGED", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"]
@@ -51,7 +52,11 @@ class StagedField:
     note: str = ""
     confirmed_value_text: str = ""
     confirmed_value_amount: Decimal | None = None
-    confirmed_by: str = ""
+    confirmed_by: Actor | None = None
+    """WHO accepted this value — a typed Actor, never a caller-supplied string.
+
+    ``None`` means nobody has; there is no default that asserts a human.
+    """
     confirmed_at: datetime | None = None
 
     @property
@@ -83,6 +88,19 @@ class StagedDocument:
     extracted_at: datetime | None = None
     source_path: str = ""
     source_note: str = ""        # e.g. "part 2 of a combined PDF"
+    display_name: str = ""
+    """The human label for this document — usually the original filename.
+
+    Kept apart from ``document_id`` on purpose. The id is a content hash: stable,
+    collision-free, and safe to write into the mart and export to Excel. The
+    display name is what the preparer needs to recognise the document on screen,
+    and it routinely contains the client's own name — so it stays local and is
+    never written into an exported artifact.
+    """
+
+    def label(self) -> str:
+        """What to show on screen: the filename if known, else the id."""
+        return self.display_name or self.document_id
 
     def needs_review(self) -> list[StagedField]:
         return [f for f in self.fields if f.status in ("STAGED", "NEEDS_REVIEW")]

@@ -218,7 +218,7 @@ def test_regenerate_preserves_completion_and_task_id():
     eng = build_engagement(wf, client_id="SATC-PERSON", due_date="2026-04-15", answers=answers)
 
     tracked = eng.tasks[0]
-    tracked.completed = True
+    tracked.status = "done"
     tracked.notes = "Already uploaded."
     preserved_template = tracked.template_id
     preserved_task_id = tracked.task_id
@@ -228,12 +228,12 @@ def test_regenerate_preserves_completion_and_task_id():
     survivors = [t for t in regenerated.tasks if t.template_id == preserved_template]
     assert len(survivors) == 1
     survivor = survivors[0]
-    assert survivor.completed is True
+    assert survivor.is_done is True
     assert survivor.notes == "Already uploaded."
     # The stable identity (task_id) is carried across regeneration.
     assert survivor.task_id == preserved_task_id
     # The engagement id is preserved too (it is the same engagement, re-derived).
-    assert regenerated.engagement_id == eng.engagement_id
+    assert regenerated.job_id == eng.job_id
 
 
 def test_regenerate_adds_newly_gated_task_uncompleted():
@@ -246,5 +246,5 @@ def test_regenerate_adds_newly_gated_task_uncompleted():
     new_tasks = [t for t in regenerated.tasks
                  if t.template_id == "personal-1040-request-prior-year-returns"]
     assert len(new_tasks) == 1
-    assert new_tasks[0].completed is False
+    assert new_tasks[0].is_done is False
     assert new_tasks[0].notes == ""

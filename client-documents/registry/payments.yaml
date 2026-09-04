@@ -1,0 +1,94 @@
+# SATC — how a client pays, and how we find out that they did
+#
+# THE INVOICE PROMISED A LINK IT DID NOT CARRY. `firm-settings.yaml` has said
+# since August that "Payment is by card or bank transfer through the secure
+# Square link on your invoice" -- and the invoice had forty-one merge fields,
+# not one of them a URL. A client was told to click something that was not on
+# the page. This file is the other half of that sentence.
+#
+# WHY A PROCESSOR IS A SETTING AND NOT A DECISION IN CODE. Measured against the
+# firm's own fee schedule over 50 invoices -- $19,077 billed, median $325 -- the
+# spread between the processors is small and the spread between CARD and BANK
+# TRANSFER is not:
+#
+#     card at 3.3% + 30c      $642/yr     (Square online, from 13 Jan 2026)
+#     card at 2.9% + 30c      $566/yr
+#     bank transfer at ~1%    $190/yr
+#     nothing                 $0/yr, and no way to know a bill was paid
+#
+# The firm chose Square, 30 August 2026, having seen those figures. The seam
+# exists so that is a line in a file rather than a rewrite: `processor` selects
+# an adapter and nothing else in the software knows which one is running.
+
+processor: square
+
+square:
+  # NOT SECRET, and deliberately here rather than in the environment: it names
+  # which of the firm's Square locations the money belongs to, and getting it
+  # wrong is a reconciliation problem, not a breach. From the Square Developer
+  # Console.
+  #
+  # IT IS NOT THE APPLICATION ID. A location id looks like `LM2T2W21MZ5CY`;
+  # an application id looks like `sq0idp-...` in production and
+  # `sandbox-sq0idb-...` in the sandbox, and they name different things -- the
+  # application is the integration, the location is the business the money
+  # belongs to. The firm sent the application id on 2 September 2026, which is
+  # an easy and entirely reasonable mistake because the console shows them
+  # side by side. `python cli.py payments --check` now asks Square for the
+  # location list and prints the ids by name, so nobody has to go and look.
+  location_id: "[CONFIRM: the location id (L...) — run `payments --check --production` with the live token set and it will print yours]"
+
+  # TWO LOCATIONS, BECAUSE SQUARE GIVES YOU TWO. The sandbox is a separate
+  # account with its own locations, so the production location id names nothing
+  # there and the sandbox one names nothing in production. One field for both
+  # would mean editing this line to test and editing it back to bill -- and the
+  # day someone forgets, a real client gets a link against a test location.
+  # `--sandbox` picks this one, the same flag that picks `sandbox_host`; only
+  # the id for the run you are doing has to be filled in.
+  # SET 2 September 2026, read off the Sandbox tab of the firm's own
+  # console: "Default Test Account (Main)", the one mock location Square
+  # gives each application. No real money can reach it.
+  sandbox_location_id: "LM2T2W21MZ5CY"
+
+  # THE TOKEN IS NOT IN THIS FILE AND MUST NEVER BE. This names the environment
+  # variable to read it from. A token in the repository is a token in every
+  # clone, every backup and every screenshot -- and this repository is read back
+  # by agents.
+  token_env: "SATC_SQUARE_TOKEN"
+
+  # Sandbox has its own token and its own host, and no real money moves through
+  # it. `--sandbox` on the command line selects it; nothing here does, so a
+  # forgotten setting cannot quietly send real invoices to a test account.
+  api_host: "connect.squareup.com"
+  sandbox_host: "connect.squareupsandbox.com"
+  api_version: "2026-01-22"
+
+currency: USD
+
+# ── what the client reads ─────────────────────────────────────────────────
+#
+# BOTH OF THESE ARE COPY, AND COPY IS THE FIRM'S. The first shows on Square's
+# own payment page and on the client's card statement line; the second replaces
+# the sentence on the invoice, which currently promises a link that did not
+# exist and describes a bank transfer that a card link cannot take.
+#
+# TO ACCEPT: delete the `[CONFIRM: ` and its closing `]`, leaving the words.
+# The software refuses to create a link or render the sentence until then.
+
+# SET 30 August 2026. The firm: *"I think SATC might make sense. You can argue
+# but on statements it'll be very long."* Agreed on SATC -- the full legal name
+# is 44 characters and most statement lines truncate well before that.
+#
+# THE ONE ARGUMENT, made and left visible: the invoice number stays. A statement
+# line reading only "SATC" tells a client they paid us and nothing about which
+# bill, and the first thing anyone does with a card statement they do not
+# recognise is ring the merchant. "SATC 2026-0001" is fourteen characters and
+# answers the question. Say the word and it drops to "SATC".
+link_name: "SATC <<InvoiceNumber>>"
+
+# SETTLED 30 August 2026, in the firm's own words. Not a draft any more, so no
+# `[CONFIRM:`. The earlier draft ("If you would rather pay another way, tell us
+# and we will arrange it") was rewritten by the firm to this.
+payment_instruction: >-
+  Pay by card at the following link. Contact us if you need an alternative
+  method.

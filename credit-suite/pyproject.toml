@@ -16,7 +16,24 @@ dependencies = [
 credit-suite = "credit_suite.cli:main"
 
 [project.optional-dependencies]
-test = ["pytest>=7.4"]
+# Everything the suite needs to run offline, declared here rather than spelled
+# out in the CI workflow, so a missing dependency fails the same way on a runner
+# and on the desk instead of only on one of them.
+#
+# `oletools` decompiles the embedded VBA project (test_package_audit), `pandas`
+# and `numpy` carry the FRED series maths, and `fredapi` is imported by the FRED
+# runner at module scope. None of them touches the network in a test.
+#
+# Deliberately absent: pywin32 and xlwings. The real-Excel checks live in
+# `tools/` and are desk-run, never collected -- `testpaths` is `tests/` only --
+# so a Linux runner never imports them.
+test = [
+    "pytest>=7.4",
+    "oletools>=0.60",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "fredapi>=0.5",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

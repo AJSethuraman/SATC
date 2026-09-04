@@ -1,0 +1,538 @@
+# SYNTHETIC PAYSTUBS — a corpus of SHAPES, not of documents.
+#
+# NO CLIENT DOCUMENT MAY EVER BE ADDED HERE, and none has been. Every case
+# below is generated onto a blank page by `satc.ingest.paystub_corpus`, at real
+# x/y coordinates, and then read back through the same word-box extraction the
+# software uses on an upload. That last part is the whole point: a case written
+# as a block of text would prove nothing, because the failure this reader exists
+# to stop is a GEOMETRIC one — a number sitting under the wrong column heading.
+#
+# WHAT THIS PROVES AND WHAT IT DOES NOT, in the words `corpus/manifest.yaml`
+# already uses about the classifier corpus:
+#   IT PROVES     a change did not break a shape that used to read correctly,
+#                 and that a shape known to break a reader still refuses.
+#   IT DOES NOT   prove the reader works on a stub a client actually sent.
+#
+# HOW REPRESENTATIVE ARE THESE LAYOUTS? Partly grounded, partly not, and the
+# difference is written on each case as `found:`.
+#   * GROUNDED: the four-column earnings table (rate | hours | this period |
+#     year to date) is ADP's documented pay-statement layout, and the
+#     one-row-two-numbers (current, then year-to-date) convention is described
+#     the same way by ADP, Gusto and every payroll explainer consulted on
+#     2 September 2026.
+#   * NOT GROUNDED: the ORDER. No source found says any provider prints
+#     year-to-date to the LEFT of the current period. `ytd_before_current` is
+#     therefore an INVENTED shape, kept because a reader that reads a column
+#     heading is indifferent to order and one that counts positions is not —
+#     it costs nothing to be right about a case that may not exist, and the
+#     positional reader it replaces is wrong on it.
+#   * UNKNOWN: which of these shapes this firm's clients actually send, and in
+#     what proportion. Nobody has counted. Nothing here should be read as a
+#     frequency distribution.
+#
+# HOW THIS GROWS: exactly as the classifier corpus does. When a real stub fails
+# on the firm's own machine, you do NOT add the stub. You add a reconstruction
+# of what made it fail, and a `found:` note saying where the shape came from.
+#
+# `truth` is what a correct read produces. `REFUSE` means the right answer is to
+# stop and say so — refusing loudly and shrugging quietly look identical in a
+# form with an empty box in it, and are not the same thing at all.
+#
+# Cell syntax: [x, "text"] places text with its LEFT edge at x; "r:" prefixes a
+# right-aligned cell, which is how every payroll provider sets a money column.
+# An empty row is a blank line.
+
+cases:
+
+  - id: two_column_plain
+    provider: "Generic two-column stub"
+    found: "The convention every source describes: one row, two numbers, current then year-to-date."
+    pages:
+      - rows:
+          - [[45, "ACME WIDGETS LLC"]]
+          - [[45, "Employer Name: ACME WIDGETS LLC"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - [[45, "Pay Period: 06/01/2025 - 06/14/2025"], [330, "Pay Date: 06/20/2025"]]
+          - []
+          - [[45, "Earnings"], [430, "r:Current"], [545, "r:YTD"]]
+          - [[45, "Gross Pay"], [430, "r:2,500.00"], [545, "r:30,000.00"]]
+          - []
+          - [[45, "Deductions"], [430, "r:Current"], [545, "r:YTD"]]
+          - [[45, "401(k)"], [430, "r:250.00"], [545, "r:3,000.00"]]
+          - [[45, "Federal Income Tax"], [430, "r:300.00"], [545, "r:3,600.00"]]
+          - [[45, "Social Security"], [430, "r:155.00"], [545, "r:1,860.00"]]
+          - [[45, "Medicare"], [430, "r:36.25"], [545, "r:435.00"]]
+    truth:
+      gross_current: "2500.00"
+      gross_ytd: "30000.00"
+      fed_current: "300.00"
+      fed_ytd: "3600.00"
+      retirement_current: "250.00"
+      retirement_ytd: "3000.00"
+      pay_frequency: "biweekly"
+
+  - id: adp_four_column
+    provider: "ADP-style hourly stub"
+    found: "ADP's documented earnings table has four columns: rate, hours, this period, year to date."
+    pages:
+      - rows:
+          - [[45, "BUCKEYE MANUFACTURING LLC"]]
+          - [[45, "Employer: BUCKEYE MANUFACTURING LLC"]]
+          - [[45, "Pay Frequency: Weekly"]]
+          - []
+          - [[45, "Earnings"], [275, "r:rate"], [345, "r:hours"], [455, "r:this period"], [560, "r:year to date"]]
+          - [[45, "Regular"], [275, "r:31.25"], [345, "r:40.00"], [455, "r:1,250.00"], [560, "r:26,250.00"]]
+          - [[45, "Overtime"], [275, "r:46.88"], [345, "r:4.00"], [455, "r:187.52"], [560, "r:1,406.40"]]
+          - [[45, "Gross Pay"], [455, "r:1,437.52"], [560, "r:27,656.40"]]
+          - []
+          - [[45, "Deductions"], [455, "r:this period"], [560, "r:year to date"]]
+          - [[45, "Federal Income Tax"], [455, "r:142.10"], [560, "r:2,734.20"]]
+          - [[45, "401(k)"], [455, "r:71.88"], [560, "r:1,382.82"]]
+    truth:
+      gross_current: "1437.52"
+      gross_ytd: "27656.40"
+      fed_current: "142.10"
+      fed_ytd: "2734.20"
+      retirement_current: "71.88"
+      retirement_ytd: "1382.82"
+      pay_frequency: "weekly"
+
+  - id: ytd_before_current
+    provider: "INVENTED — order reversed"
+    found: "No source says any provider does this. Kept because reading the heading makes order irrelevant and counting positions does not."
+    pages:
+      - rows:
+          - [[45, "NORTHSIDE DENTAL PLLC"]]
+          - [[45, "Company: NORTHSIDE DENTAL PLLC"]]
+          - [[45, "Pay Cycle: Semi-Monthly"]]
+          - []
+          - [[45, "Earnings"], [430, "r:Year to Date"], [560, "r:This Period"]]
+          - [[45, "Gross Pay"], [430, "r:48,000.00"], [560, "r:4,000.00"]]
+          - []
+          - [[45, "Deductions"], [430, "r:Year to Date"], [560, "r:This Period"]]
+          - [[45, "Federal Income Tax"], [430, "r:5,760.00"], [560, "r:480.00"]]
+          - [[45, "403(b)"], [430, "r:2,880.00"], [560, "r:240.00"]]
+    truth:
+      gross_current: "4000.00"
+      gross_ytd: "48000.00"
+      fed_current: "480.00"
+      fed_ytd: "5760.00"
+      retirement_current: "240.00"
+      retirement_ytd: "2880.00"
+      pay_frequency: "semimonthly"
+
+  - id: gusto_two_tables
+    provider: "Gusto-style, separate earnings and deductions tables"
+    found: "Gusto's own guidance describes an earnings section and a deductions section, each with a current amount and a YTD figure."
+    pages:
+      - rows:
+          - [[45, "RIVERBEND CREATIVE LLC"]]
+          - [[45, "Employer Name: RIVERBEND CREATIVE LLC"]]
+          - [[45, "Pay period: 07/01/2025 to 07/15/2025"]]
+          - []
+          - [[45, "EARNINGS"], [440, "r:Amount"], [560, "r:YTD"]]
+          - [[45, "Salary"], [440, "r:3,125.00"], [560, "r:43,750.00"]]
+          - [[45, "Total Gross"], [440, "r:3,125.00"], [560, "r:43,750.00"]]
+          - []
+          - [[45, "TAXES"], [440, "r:Amount"], [560, "r:YTD"]]
+          - [[45, "Federal Withholding"], [440, "r:341.00"], [560, "r:4,774.00"]]
+          - [[45, "Social Security"], [440, "r:193.75"], [560, "r:2,712.50"]]
+          - []
+          - [[45, "BENEFITS"], [440, "r:Amount"], [560, "r:YTD"]]
+          - [[45, "401(k)"], [440, "r:156.25"], [560, "r:2,187.50"]]
+    truth:
+      gross_current: "3125.00"
+      gross_ytd: "43750.00"
+      fed_current: "341.00"
+      fed_ytd: "4774.00"
+      retirement_current: "156.25"
+      retirement_ytd: "2187.50"
+      pay_frequency: "semimonthly"
+
+  - id: paychex_hours_rate
+    provider: "Paychex-style, hours before rate"
+    found: "Same four-column idea as ADP with the two non-money columns swapped. Order of rate/hours is not standardised across providers."
+    pages:
+      - rows:
+          - [[45, "LAKEWOOD LOGISTICS INC"]]
+          - [[45, "Employer: LAKEWOOD LOGISTICS INC"]]
+          - [[45, "Pay Type: Bi-Weekly"]]
+          - []
+          - [[45, "Description"], [265, "r:Hours"], [340, "r:Rate"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Regular"], [265, "r:80.00"], [340, "r:28.75"], [450, "r:2,300.00"], [560, "r:41,400.00"]]
+          - [[45, "Gross Earnings"], [450, "r:2,300.00"], [560, "r:41,400.00"]]
+          - []
+          - [[45, "Withholding"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Fed W/H"], [450, "r:218.00"], [560, "r:3,924.00"]]
+          - [[45, "401k"], [450, "r:115.00"], [560, "r:2,070.00"]]
+    truth:
+      gross_current: "2300.00"
+      gross_ytd: "41400.00"
+      fed_current: "218.00"
+      fed_ytd: "3924.00"
+      retirement_current: "115.00"
+      retirement_ytd: "2070.00"
+      pay_frequency: "biweekly"
+
+  - id: multipage_total_on_page_three
+    provider: "Three-page stub, totals last"
+    found: "The firm: 'it needs to read all pages available'. A stub that details earnings on the early pages and totals on the last."
+    pages:
+      - rows:
+          - [[45, "GREATER OHIO HEALTH SYSTEM"]]
+          - [[45, "Employer Name: GREATER OHIO HEALTH SYSTEM"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Earnings detail"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Regular"], [450, "r:2,800.00"], [560, "r:36,400.00"]]
+          - [[45, "Shift differential"], [450, "r:150.00"], [560, "r:1,950.00"]]
+          - [[45, "Page 1 of 3"]]
+      - rows:
+          - [[45, "GREATER OHIO HEALTH SYSTEM"]]
+          - []
+          - [[45, "Leave balances"], [450, "r:Hours"], [560, "r:Balance"]]
+          - [[45, "Vacation"], [450, "r:12.00"], [560, "r:96.00"]]
+          - [[45, "Page 2 of 3"]]
+      - rows:
+          - [[45, "GREATER OHIO HEALTH SYSTEM"]]
+          - []
+          - [[45, "Summary"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:2,950.00"], [560, "r:38,350.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:312.00"], [560, "r:4,056.00"]]
+          - [[45, "403(b)"], [450, "r:147.50"], [560, "r:1,917.50"]]
+          - [[45, "Page 3 of 3"]]
+    truth:
+      gross_current: "2950.00"
+      gross_ytd: "38350.00"
+      fed_current: "312.00"
+      fed_ytd: "4056.00"
+      retirement_current: "147.50"
+      retirement_ytd: "1917.50"
+      pay_frequency: "biweekly"
+
+  - id: duplicate_employee_and_employer_copy
+    provider: "Two identical copies in one file"
+    found: "The same failure the W-2 page rule already documents: one document, several copies of the same face."
+    pages:
+      - rows:
+          - [[45, "SOLON PRECISION TOOL CO"]]
+          - [[45, "Employer: SOLON PRECISION TOOL CO"]]
+          - [[45, "Pay Frequency: Monthly"]]
+          - [[45, "EMPLOYEE COPY"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:7,000.00"], [560, "r:42,000.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:910.00"], [560, "r:5,460.00"]]
+      - rows:
+          - [[45, "SOLON PRECISION TOOL CO"]]
+          - [[45, "Employer: SOLON PRECISION TOOL CO"]]
+          - [[45, "Pay Frequency: Monthly"]]
+          - [[45, "EMPLOYER COPY"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:7,000.00"], [560, "r:42,000.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:910.00"], [560, "r:5,460.00"]]
+    truth:
+      gross_current: "7000.00"
+      gross_ytd: "42000.00"
+      fed_current: "910.00"
+      fed_ytd: "5460.00"
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: "monthly"
+
+  - id: pages_disagree
+    provider: "Two pages, two different year-to-date figures"
+    found: "Invented. It is the case where picking one page silently is indistinguishable from reading correctly, which is the whole reason to refuse."
+    pages:
+      - rows:
+          - [[45, "MAPLE RIDGE PARTNERS LLP"]]
+          - [[45, "Employer: MAPLE RIDGE PARTNERS LLP"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:2,000.00"], [560, "r:26,000.00"]]
+      - rows:
+          - [[45, "MAPLE RIDGE PARTNERS LLP"]]
+          - []
+          - [[45, "Summary"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:2,000.00"], [560, "r:24,000.00"]]
+    truth:
+      gross_current: "2000.00"
+      gross_ytd: REFUSE
+      fed_current: null
+      fed_ytd: null
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: "biweekly"
+    reasons:
+      gross_ytd: pages_disagree
+
+  - id: unlabelled_columns
+    provider: "A stub whose columns are not named"
+    found: "Invented. The case that decides whether the reader guesses. It must not."
+    pages:
+      - rows:
+          - [[45, "CUYAHOGA CUSTOM CABINETS"]]
+          - [[45, "Employer: CUYAHOGA CUSTOM CABINETS"]]
+          - [[45, "Pay Frequency: Weekly"]]
+          - []
+          - [[45, "Gross Pay"], [450, "r:1,100.00"], [560, "r:24,200.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:99.00"], [560, "r:2,178.00"]]
+          - [[45, "401(k)"], [450, "r:55.00"], [560, "r:1,210.00"]]
+    truth:
+      gross_current: REFUSE
+      gross_ytd: REFUSE
+      fed_current: REFUSE
+      fed_ytd: REFUSE
+      retirement_current: REFUSE
+      retirement_ytd: REFUSE
+      pay_frequency: "weekly"
+    reasons:
+      gross_current: no_columns
+      gross_ytd: no_columns
+      fed_current: no_columns
+      fed_ytd: no_columns
+      retirement_current: no_columns
+      retirement_ytd: no_columns
+
+  - id: excel_printout
+    provider: "A small firm's spreadsheet printout"
+    found: "The firm's own list of what arrives: 'a small firm's Excel printout'. Sparse labels, abbreviations, no provider branding."
+    pages:
+      - rows:
+          - [[45, "Sethuraman Test Bakery"]]
+          - [[45, "Company: Sethuraman Test Bakery"]]
+          - [[45, "Period Ending: 06/28/2025"], [300, "Paid: Weekly"]]
+          - []
+          - [[45, "Item"], [400, "r:Current"], [520, "r:YTD"]]
+          - [[45, "Gross"], [400, "r:940.00"], [520, "r:24,440.00"]]
+          - [[45, "Fed W/H"], [400, "r:71.00"], [520, "r:1,846.00"]]
+          - [[45, "FICA"], [400, "r:71.91"], [520, "r:1,869.66"]]
+          - [[45, "401k"], [400, "r:47.00"], [520, "r:1,222.00"]]
+    truth:
+      gross_current: "940.00"
+      gross_ytd: "24440.00"
+      fed_current: "71.00"
+      fed_ytd: "1846.00"
+      retirement_current: "47.00"
+      retirement_ytd: "1222.00"
+      pay_frequency: "weekly"
+
+  - id: dates_only_semimonthly
+    provider: "No frequency word anywhere; the dates are the only signal"
+    found: "Invented from the firm's requirement that the software use 'key words and phrases'. When the word is absent the dates are still printed."
+    pages:
+      - rows:
+          - [[45, "WESTLAKE ORTHODONTICS"]]
+          - [[45, "Employer: WESTLAKE ORTHODONTICS"]]
+          - [[45, "Period Beginning: 06/01/2025"], [300, "Period Ending: 06/15/2025"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:3,500.00"], [560, "r:38,500.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:420.00"], [560, "r:4,620.00"]]
+    truth:
+      gross_current: "3500.00"
+      gross_ytd: "38500.00"
+      fed_current: "420.00"
+      fed_ytd: "4620.00"
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: "semimonthly"
+
+  - id: frequency_conflict
+    provider: "The printed frequency and the printed dates disagree"
+    found: "Invented. A stub carried over from a schedule change, or a template nobody updated. Both signals are deterministic and they contradict."
+    pages:
+      - rows:
+          - [[45, "AVON LAKE FABRICATION"]]
+          - [[45, "Employer: AVON LAKE FABRICATION"]]
+          - [[45, "Pay Frequency: Monthly"]]
+          - [[45, "Period Beginning: 06/01/2025"], [300, "Period Ending: 06/14/2025"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:2,600.00"], [560, "r:31,200.00"]]
+          - [[45, "Federal Income Tax"], [450, "r:286.00"], [560, "r:3,432.00"]]
+    truth:
+      gross_current: "2600.00"
+      gross_ytd: "31200.00"
+      fed_current: "286.00"
+      fed_ytd: "3432.00"
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: REFUSE
+    reasons:
+      pay_frequency: frequency_conflict
+
+  - id: parenthesised_deductions
+    provider: "Deductions printed as negatives"
+    found: "Accounting convention; appears on spreadsheet-produced stubs. `paystub_layout.parse_currency` already handles parentheses and trailing minus."
+    pages:
+      - rows:
+          - [[45, "ROCKY RIVER VETERINARY"]]
+          - [[45, "Employer: ROCKY RIVER VETERINARY"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Earnings"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [450, "r:1,900.00"], [560, "r:24,700.00"]]
+          - []
+          - [[45, "Deductions"], [450, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Federal Income Tax"], [450, "r:(171.00)"], [560, "r:(2,223.00)"]]
+          - [[45, "401(k)"], [450, "r:(95.00)"], [560, "r:(1,235.00)"]]
+    truth:
+      gross_current: "1900.00"
+      gross_ytd: "24700.00"
+      fed_current: "171.00"
+      fed_ytd: "2223.00"
+      retirement_current: "95.00"
+      retirement_ytd: "1235.00"
+      pay_frequency: "biweekly"
+
+  - id: current_only_no_ytd
+    provider: "A stub with no year-to-date column at all"
+    found: "Invented. A known limitation, written down as a case so it cannot be rediscovered: with nothing to tell apart, this reader tells nothing apart."
+    pages:
+      - rows:
+          - [[45, "BAY VILLAGE LANDSCAPING"]]
+          - [[45, "Employer: BAY VILLAGE LANDSCAPING"]]
+          - [[45, "Pay Frequency: Weekly"]]
+          - []
+          - [[45, "Earnings"], [500, "r:Amount"]]
+          - [[45, "Gross Pay"], [500, "r:820.00"]]
+          - [[45, "Federal Income Tax"], [500, "r:66.00"]]
+    truth:
+      gross_current: REFUSE
+      gross_ytd: REFUSE
+      fed_current: REFUSE
+      fed_ytd: REFUSE
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: "weekly"
+    reasons:
+      gross_current: one_column_only
+      gross_ytd: one_column_only
+      fed_current: one_column_only
+      fed_ytd: one_column_only
+
+  - id: rate_and_hours_on_the_figure_rows
+    provider: "Four-column layout where the rows we want carry a rate and hours"
+    found: >-
+      INVENTED, and honestly so: the four-column earnings table is ADP's
+      documented layout, but no source consulted confirms that a GROSS PAY row
+      carries total hours or that a 401(k) row carries the deferral rate. Both
+      are plausible and both are the exact mechanism the positional reader
+      cannot survive — a number that is not money sitting where money goes.
+      Kept as the smallest complete statement of that mechanism, labelled as
+      unconfirmed so nobody later mistakes it for an observed layout.
+    pages:
+      - rows:
+          - [[45, "STRONGSVILLE MACHINE WORKS"]]
+          - [[45, "Employer: STRONGSVILLE MACHINE WORKS"]]
+          - [[45, "Pay Frequency: Weekly"]]
+          - []
+          - [[45, "Earnings"], [345, "r:hours"], [455, "r:this period"], [560, "r:year to date"]]
+          - [[45, "Gross Pay"], [345, "r:44.00"], [455, "r:1,437.52"], [560, "r:27,656.40"]]
+          - []
+          - [[45, "Deductions"], [345, "r:rate"], [455, "r:this period"], [560, "r:year to date"]]
+          - [[45, "401(k)"], [345, "r:5.00"], [455, "r:71.88"], [560, "r:1,382.82"]]
+          - [[45, "Federal Income Tax"], [455, "r:142.10"], [560, "r:2,734.20"]]
+    truth:
+      gross_current: "1437.52"
+      gross_ytd: "27656.40"
+      fed_current: "142.10"
+      fed_ytd: "2734.20"
+      retirement_current: "71.88"
+      retirement_ytd: "1382.82"
+      pay_frequency: "weekly"
+
+  - id: unheaded_extra_column
+    provider: "A column of figures with no heading over it"
+    found: >-
+      INVENTED but structurally ordinary: stubs commonly print a taxable-wages
+      or subject-wages figure beside the money columns without heading it, and
+      spreadsheet stubs print whatever column the author needed. This is the
+      case that decides whether a number has to sit UNDER a named heading or
+      merely near one. Added on 2 September 2026 after mutation testing showed
+      the corpus could not tell those two rules apart.
+    pages:
+      - rows:
+          - [[45, "MEDINA COUNTY SUPPLY CO"]]
+          - [[45, "Employer: MEDINA COUNTY SUPPLY CO"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Earnings"], [455, "r:this period"], [560, "r:year to date"]]
+          - [[45, "Gross Pay"], [350, "r:2,050.00"], [455, "r:1,900.00"], [560, "r:24,700.00"]]
+          - [[45, "Federal Income Tax"], [350, "r:2,050.00"], [455, "r:171.00"], [560, "r:2,223.00"]]
+    truth:
+      gross_current: "1900.00"
+      gross_ytd: "24700.00"
+      fed_current: "171.00"
+      fed_ytd: "2223.00"
+      retirement_current: null
+      retirement_ytd: null
+      pay_frequency: "biweekly"
+
+  - id: labels_that_contain_other_labels
+    provider: "Rows whose labels contain the label of a different figure"
+    found: >-
+      GROUNDED in what a stub carries: an employer's matching contribution is a
+      separate line from the employee's deferral on every stub that has a match,
+      and it is not the employee's pre-tax figure. "Adjusted gross" beside "gross
+      pay" is the same trap one row up. Added on 2 September 2026 after mutation
+      testing showed that matching a row label by substring instead of whole
+      label survived the whole corpus.
+    pages:
+      - rows:
+          - [[45, "HUDSON VALVE & FITTING"]]
+          - [[45, "Employer: HUDSON VALVE & FITTING"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Earnings"], [455, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Gross Pay"], [455, "r:1,900.00"], [560, "r:24,700.00"]]
+          - [[45, "Adjusted Gross"], [455, "r:1,805.00"], [560, "r:23,465.00"]]
+          - []
+          - [[45, "Deductions"], [455, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Federal Income Tax"], [455, "r:171.00"], [560, "r:2,223.00"]]
+          - [[45, "401(k)"], [455, "r:95.00"], [560, "r:1,235.00"]]
+          - [[45, "Employer 401(k) Match"], [455, "r:47.50"], [560, "r:617.50"]]
+    truth:
+      gross_current: "1900.00"
+      gross_ytd: "24700.00"
+      fed_current: "171.00"
+      fed_ytd: "2223.00"
+      retirement_current: "95.00"
+      retirement_ytd: "1235.00"
+      pay_frequency: "biweekly"
+
+  - id: side_by_side_blocks
+    provider: "An employee-details block printed beside the earnings table"
+    found: >-
+      GROUNDED in every real stub and in nothing in this corpus until now: a
+      paystub prints employee and employer details in a block at the left while
+      the earnings table runs down the right, so words from two unrelated blocks
+      share a line across the page. Added on 2 September 2026 after rendering a
+      case and LOOKING at it — every other case here is a single table down the
+      page, which is not what a stub looks like. The expected answer was first
+      written as "refuse", because that is what the reader did. IT THEN STOPPED
+      BEING A LIMITATION: reading a row's label as the words BESIDE the figures,
+      as well as the words at the start of the line, reads this layout, so the
+      expected answer moved to the figures the stub prints. The case stays,
+      because it is the only one here shaped like a real stub.
+    pages:
+      - rows:
+          - [[45, "PARMA HEIGHTS ELECTRIC INC"]]
+          - [[45, "Employer: PARMA HEIGHTS ELECTRIC INC"]]
+          - [[45, "Pay Frequency: Bi-Weekly"]]
+          - []
+          - [[45, "Employee No. 00417"], [455, "r:Current"], [560, "r:YTD"]]
+          - [[45, "Dept 22"], [200, "Gross Pay"], [455, "r:2,400.00"], [560, "r:31,200.00"]]
+          - [[45, "Check 88213"], [200, "Federal Income Tax"], [455, "r:264.00"], [560, "r:3,432.00"]]
+          - [[45, "Net 1,982.00"], [200, "401(k)"], [455, "r:120.00"], [560, "r:1,560.00"]]
+    truth:
+      gross_current: "2400.00"
+      gross_ytd: "31200.00"
+      fed_current: "264.00"
+      fed_ytd: "3432.00"
+      retirement_current: "120.00"
+      retirement_ytd: "1560.00"
+      pay_frequency: "biweekly"

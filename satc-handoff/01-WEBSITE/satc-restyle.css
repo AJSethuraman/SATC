@@ -1,0 +1,561 @@
+/* ============================================================================
+   SATC — WEBSITE RESTYLE
+   Drop-in replacement for the <style> block in website/index.html
+   ----------------------------------------------------------------------------
+   Direction:  "Modern practice" — cool ground, IBM Plex superfamily,
+               navy dominant, OXBLOOD as the single action colour,
+               gold demoted to hairlines only.
+
+   STRATEGY — why this is a small diff:
+   Every token name from the original :root is KEPT and simply re-pointed to a
+   new value. Swap the :root block and ~70% of the page restyles itself. The
+   rules after it handle the places that need a real change (serif→sans
+   headings, gold→oxblood actions, circular seal→square mark).
+
+   NOTE ON NAMES: --cream / --paper are now COOL, not warm. The names are kept
+   deliberately so no other rule has to change. Aliases are provided at the
+   bottom of :root if you'd rather migrate the names later.
+
+   FONT SWAP — replace the Google Fonts <link> in <head> with:
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+   ============================================================================ */
+
+:root {
+  /* ---- brand ---- */
+  --navy:        #132437;   /* was #0B1F3A — deeper, cooler */
+  --navy-deep:   #0D1926;   /* was #07172d */
+  --navy-soft:   #22374F;   /* was #15325c */
+
+  /* ---- text ---- */
+  --charcoal:    #242C36;   /* was #2B2F33 — body copy */
+  --charcoal-2:  #4A5360;   /* unchanged — secondary copy */
+  --mute:        #82817C;   /* NEW — labels, small caps, anything that used to be gold text */
+
+  /* ---- ACTION colour (new) ----
+     Oxblood replaces gold as the thing you click. Gold never fills again. */
+  --oxblood:     #6A2833;
+  --oxblood-lt:  #83323F;
+
+  /* ---- gold: hairlines and rules ONLY ---- */
+  --gold:        #C0A265;   /* was #B08D57 — more chroma, less brown */
+  --gold-light:  #D6BE8C;   /* was #D4B97E */
+  --gold-deep:   #8A7433;   /* was #8A6F44 — only for text on light, passes AA */
+
+  /* ---- ground: now COOL ---- */
+  --cream:       #F7F7F5;   /* was #F7F5F0 — page shell */
+  --cream-2:     #EFEFEC;   /* was #EFEBDF — intake band */
+  --paper:       #FFFFFF;   /* was #FBF9F4 — raised surfaces, crisp white */
+  --hairline:    #E6E5E0;   /* was #DED5C2 — cool, quieter */
+  --hairline-2:  #D8D7D1;   /* NEW — stronger divider */
+  --ink:         #131A22;   /* was #0E1726 — form input text */
+
+  /* ---- type: IBM Plex superfamily ---- */
+  --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --sans:  "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --pad: clamp(20px, 5vw, 56px);
+}
+
+*,*::before,*::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  color: var(--charcoal);
+  background: var(--cream);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+a { color: inherit; text-decoration: none; }
+img, svg { max-width: 100%; }
+:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+
+/* ─────────────── reusable bits ─────────────── */
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--pad); }
+
+/* Eyebrows go MONO and much tighter. 0.32em tracking is the single most
+   "heritage" thing in the old page; 0.18em reads current. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-2); font-weight: 400; margin: 0;
+}
+.eyebrow-light { color: var(--gold); }
+
+/* Headings: SANS, weight 600, negative tracking. This is the biggest single
+   change on the page — Cormorant→Plex Sans is most of the "modern" shift. */
+.h2 {
+  font-family: var(--sans); font-weight: 600;
+  font-size: clamp(30px, 4.4vw, 46px); line-height: 1.06;
+  letter-spacing: -0.038em; color: var(--navy);
+  margin: 14px 0 18px; text-wrap: pretty;
+}
+/* <em> inside a heading was gold italic serif — now it just goes quiet.
+   Emphasis by tone, not by ornament. */
+.h2 em { font-style: normal; font-weight: 600; color: var(--ink-2); }
+
+/* Lead paragraphs: was serif italic. Now sans, upright. */
+.lead {
+  font-family: var(--sans); font-style: normal;
+  font-size: clamp(16px, 2vw, 18px); line-height: 1.62;
+  color: var(--charcoal-2); max-width: 62ch; margin: 0;
+}
+
+/* ---- buttons ----
+   Was: 11px uppercase, 0.28em tracking. That spacing reads formal/traditional.
+   Now: 14px, sentence case, near-zero tracking. Oxblood is the primary. */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 24px; font-family: var(--sans); font-size: 14px;
+  letter-spacing: -0.005em; text-transform: none; font-weight: 600;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  border-radius: 2px;
+  transition: background .18s, color .18s, border-color .18s;
+}
+.btn::after { content: "→"; letter-spacing: 0; font-size: 14px; }
+/* .gold is kept as a CLASS NAME so the HTML doesn't change — but it is now
+   oxblood. Rename to .btn.primary later if you prefer. */
+.btn.gold { background: var(--oxblood); color: #fff; border-color: var(--oxblood); }
+.btn.gold:hover { background: var(--oxblood-lt); border-color: var(--oxblood-lt); }
+.btn.outline-navy { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
+.btn.outline-navy:hover { background: var(--paper); color: var(--navy); border-color: var(--ink-2); }
+
+.btn-link {
+  font-family: var(--sans); font-size: 14px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; color: var(--charcoal);
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 0;
+  white-space: nowrap;
+}
+.btn-link::after { content: "→"; letter-spacing: 0; font-size: 14px; color: var(--oxblood); }
+.btn-link:hover { color: var(--oxblood); }
+
+/* ---- lockup: the SAT-C wordmark ----
+   A small solid square stands in for the hyphen in SAT-C, with the full firm
+   name set beneath as the descriptor. The Notch symbol is NOT used here.
+   font-size lives on .name so the square's em resolves against it — do NOT
+   move the size onto a sibling, or the square silently collapses to 16px.
+   The standalone symbol (notched square + removed piece) is unchanged and
+   still used for the favicon, the app icon, and the OG image. */
+.lockup { display: inline-flex; align-items: center; color: var(--navy); }
+.lockup .text { display: flex; flex-direction: column; gap: 4px; }
+.lockup .name {
+  font-family: var(--sans); font-weight: 700; font-size: 21px;
+  letter-spacing: -0.04em; line-height: 0.74; text-indent: 0;
+  display: flex; align-items: flex-end; white-space: nowrap;
+}
+/* a plain solid square standing in for the hyphen — sized in em, so the
+   font-size MUST stay on .name (the element that contains it) */
+.lockup .name .hy { width: 0.3em; height: 0.3em; flex: 0 0 auto; background: var(--oxblood); margin: 0 0.18em 0.2em; }
+/* LLP set lighter and untracked so it reads as a suffix, not part of the name */
+.lockup .name i { font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em; }
+/* the old seal and gold divider are no longer part of the lockup */
+.lockup .seal, .lockup .divider { display: none; }
+.lockup .tag {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-2); text-indent: 0;
+  font-weight: 400; white-space: nowrap;
+}
+.lockup.on-dark { color: #fff; }
+.lockup.on-dark .tag { color: rgba(255,255,255,0.55); }
+.lockup.on-dark .name .hy { background: var(--gold); }
+
+/* ============================================================ STICKY NAV */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(247,247,245,0.92);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--hairline);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px var(--pad); max-width: 1480px; margin: 0 auto;
+}
+.nav-links {
+  display: flex; gap: 10px; align-items: center;
+  font-family: var(--sans); font-size: 14px; letter-spacing: -0.005em;
+  text-transform: none; color: var(--charcoal); font-weight: 500;
+}
+.nav-links a:hover { color: var(--navy); }
+.nav-cta {
+  background: var(--navy); color: #fff; padding: 11px 18px;
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; border: 1px solid var(--navy);
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  border-radius: 2px; transition: background .18s, border-color .18s;
+}
+.nav-cta::after { content: "→"; letter-spacing: 0; font-size: 13px; color: rgba(255,255,255,.55); }
+.nav-cta:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
+.nav-cta.ghost { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
+.nav-cta.ghost::after { color: var(--oxblood); }
+.nav-cta.ghost:hover { background: var(--paper); border-color: var(--ink-2); }
+.nav-toggle {
+  display: none; background: none; border: 0; cursor: pointer;
+  width: 44px; height: 44px; padding: 10px; color: var(--navy);
+}
+.nav-toggle span { display: block; height: 2px; background: currentColor; margin: 5px 0; transition: .25s; }
+.nav.open .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
+.nav.open .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ============================================================ HERO */
+.hero {
+  background: var(--navy); color: #fff;
+  padding: clamp(70px, 10vw, 118px) 0 clamp(64px, 9vw, 104px);
+  position: relative; overflow: hidden;
+}
+/* The two concentric gold CIRCLES were the most traditional flourish on the
+   page. Replaced with offset SQUARES that echo the new mark. */
+.hero::before, .hero::after {
+  content: ""; position: absolute; border-radius: 0; pointer-events: none;
+  border: 1px solid rgba(192,162,101,0.14);
+}
+.hero::before { top: -120px; right: -120px; width: 460px; height: 460px; }
+.hero::after  { top: 30px;  right: 30px;  width: 460px; height: 460px; border-color: rgba(192,162,101,0.07); }
+
+.hero-grid {
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(40px, 6vw, 76px);
+  align-items: center; position: relative; z-index: 1;
+}
+.hero h1 {
+  font-family: var(--sans); font-weight: 600;
+  font-size: clamp(38px, 6.4vw, 66px); line-height: 1.02;
+  letter-spacing: -0.045em; margin: 22px 0 24px; text-wrap: balance;
+}
+.hero h1 em { font-style: normal; font-weight: 600; color: rgba(255,255,255,0.5); }
+.hero p.lede {
+  font-family: var(--sans); font-style: normal;
+  font-size: clamp(17px, 2.2vw, 19px); line-height: 1.6;
+  color: rgba(255,255,255,0.72); margin: 0 0 32px; max-width: 46ch;
+}
+.hero-ctas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.hero-ctas .btn-link { color: rgba(255,255,255,0.8); padding: 14px 0; }
+.hero-ctas .btn-link::after { color: var(--gold); }
+.hero-ctas .btn-link:hover { color: #fff; }
+
+.hero-card {
+  position: relative; border: 1px solid rgba(255,255,255,0.16);
+  padding: 28px; background: rgba(255,255,255,0.04);
+  display: flex; flex-direction: column; gap: 14px; border-radius: 2px;
+}
+.hero-card .card-eyebrow {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold); font-weight: 400;
+}
+.hero-card .card-title {
+  font-family: var(--sans); font-weight: 600; font-size: clamp(20px, 2.6vw, 25px);
+  line-height: 1.16; color: #fff; letter-spacing: -0.03em;
+}
+.hero-card .card-title em { font-style: normal; color: rgba(255,255,255,0.55); font-weight: 600; }
+.hero-card .card-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 11px 0; border-top: 1px solid rgba(255,255,255,0.12); font-family: var(--sans);
+}
+.hero-card .card-row .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.45); font-weight: 400; }
+.hero-card .card-row .v { font-family: var(--sans); font-size: 14.5px; font-weight: 500; color: #fff; text-align: right; letter-spacing: -0.01em; }
+
+/* ============================================================ SECTION SCAFFOLD */
+section.band { padding: clamp(60px, 8vw, 100px) 0; }
+section.band.tight { padding: clamp(52px, 7vw, 84px) 0; }
+section.band .section-head {
+  display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 72px);
+  align-items: end; margin-bottom: clamp(36px, 5vw, 60px);
+}
+section.band .section-head .right { padding-bottom: 8px; }
+
+/* ---- CREDENTIAL — promoted ----
+   Was a 13px footnote with a gold left border. The CPA licence is the most
+   persuasive fact on the page, so it now reads as a statement. Understated
+   on purpose: no seal, no badge, no adjectives. */
+.credential {
+  font-family: var(--sans); font-size: 16px; line-height: 1.6;
+  color: var(--charcoal); margin: 20px 0 0; max-width: 48ch;
+  padding: 18px 0 0; border-top: 1px solid var(--hairline-2); border-left: 0;
+}
+.credential b { color: var(--navy); font-weight: 600; }
+/* the one place a mono micro-label earns its keep */
+.credential .lic {
+  display: block; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2);
+  margin-bottom: 8px;
+}
+
+/* ============================================================ CORE SERVICES */
+.services {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--hairline); border: 1px solid var(--hairline);
+}
+.service {
+  background: var(--paper); padding: 34px 30px 30px;
+  display: flex; flex-direction: column; gap: 14px; position: relative;
+}
+/* was serif italic gold */
+.service .num {
+  font-family: var(--mono); font-style: normal; color: var(--oxblood);
+  font-size: 10.5px; letter-spacing: 0.16em; position: absolute; top: 24px; right: 26px;
+}
+.service-icon { width: 40px; height: 40px; color: var(--navy); margin-bottom: 4px; opacity: .9; }
+.service h3 {
+  font-family: var(--sans); font-weight: 600; font-size: 22px; line-height: 1.18;
+  color: var(--navy); margin: 0; letter-spacing: -0.03em;
+}
+.service p { font-family: var(--sans); font-size: 14.5px; line-height: 1.62; color: var(--charcoal-2); margin: 0; flex: 1; }
+.service ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0; }
+.service ul li {
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: 0;
+  color: var(--charcoal-2); padding: 8px 0 8px 16px; position: relative;
+  border-top: 1px solid var(--hairline);
+}
+.service ul li::before { content: ""; width: 4px; height: 4px; background: var(--gold); position: absolute; left: 0; top: 15px; }
+
+/* ============================================================ WHO THIS IS FOR (NEW)
+   New section — sits between Services and Intake. Purpose is qualification:
+   let a wrong-fit visitor leave before spending five minutes on the form, and
+   let a right-fit visitor recognise themselves. The "probably not" column is
+   the point — it is the most trust-building block on the page. */
+section.fit { background: var(--paper); border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+.fit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
+.fit-col { background: var(--paper); padding: 32px 30px; }
+.fit-col.no { background: var(--cream); }
+.fit-col h3 {
+  font-family: var(--sans); font-size: 19px; font-weight: 600; letter-spacing: -0.028em;
+  color: var(--navy); margin: 0 0 4px;
+}
+.fit-col .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 20px; }
+.fit-col ul { list-style: none; margin: 0; padding: 0; }
+.fit-col li {
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.55; color: var(--charcoal-2);
+  padding: 12px 0 12px 22px; border-top: 1px solid var(--hairline); position: relative;
+}
+.fit-col li:first-child { border-top: 0; }
+/* a small filled square for yes, a rule for no — no icons, no emoji */
+.fit-col.yes li::before { content: ""; position: absolute; left: 0; top: 19px; width: 7px; height: 7px; background: var(--oxblood); }
+.fit-col.no  li::before { content: ""; position: absolute; left: 0; top: 22px; width: 9px; height: 1px; background: var(--mute); }
+.fit-note {
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.62; color: var(--charcoal-2);
+  margin: 26px 0 0; padding-top: 20px; border-top: 1px solid var(--hairline-2); max-width: 68ch;
+}
+.fit-note b { color: var(--navy); font-weight: 600; }
+
+/* ============================================================ INTAKE */
+.intake { background: var(--cream-2); }
+.intake-grid {
+  display: grid; grid-template-columns: 0.82fr 1.18fr;
+  gap: clamp(36px, 5vw, 64px); align-items: start;
+}
+.intake-aside { position: sticky; top: 104px; }
+.steps { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+.steps li { position: relative; padding-left: 42px; }
+/* was a gold-bordered box with serif italic numeral */
+.steps li .n {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px;
+  border: 0; background: var(--navy); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-style: normal; font-size: 12px;
+}
+.steps li b { display: block; font-family: var(--sans); font-size: 17px; font-weight: 600; color: var(--navy); margin-bottom: 4px; letter-spacing: -0.022em; }
+.steps li p { font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal-2); margin: 0; }
+
+.need-note {
+  margin: 30px 0 0; padding: 18px 20px;
+  border-left: 2px solid var(--gold); background: rgba(192,162,101,0.08);
+}
+.need-note > b {
+  display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold-deep); font-weight: 400; margin-bottom: 8px;
+}
+.need-note p { font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal-2); margin: 0; }
+.need-note p b { color: var(--navy); font-weight: 600; }
+
+.aside-direct { list-style: none; margin: 32px 0 0; padding: 24px 0 0; border-top: 1px solid var(--hairline-2); display: flex; flex-direction: column; gap: 15px; }
+.aside-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
+.aside-direct li b { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink-2); font-weight: 400; margin-bottom: 5px; }
+.aside-direct a { color: var(--oxblood); font-weight: 500; border-bottom: 1px solid rgba(106,40,51,0.3); }
+.aside-direct a:hover { color: var(--oxblood-lt); border-bottom-color: var(--oxblood); }
+
+/* ---- the form itself ---- */
+.intake-form { background: var(--paper); border: 1px solid var(--hairline); padding: clamp(24px, 4vw, 40px); }
+.intake-form fieldset { border: 0; margin: 0 0 36px; padding: 0; }
+.intake-form fieldset:last-of-type { margin-bottom: 24px; }
+.intake-form legend {
+  font-family: var(--sans); font-size: 21px; font-weight: 600; color: var(--navy);
+  padding: 0; margin-bottom: 6px; letter-spacing: -0.03em;
+}
+.fs-note { font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--charcoal-2); margin: 0 0 20px; }
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.field > .lab {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 400; color: var(--ink-2);
+}
+.field > .lab .req { color: var(--oxblood); }
+.intake-form input[type="text"], .intake-form input[type="email"],
+.intake-form input[type="tel"], .intake-form input[type="number"],
+.intake-form select, .intake-form textarea {
+  font-family: var(--sans); font-size: 15px; color: var(--ink); background: #fff;
+  border: 1px solid var(--hairline-2); padding: 13px 14px; width: 100%;
+  letter-spacing: normal; text-transform: none; font-weight: 400; border-radius: 2px;
+  -webkit-appearance: none; appearance: none;
+}
+.intake-form select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2382817C' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px;
+}
+.intake-form input:focus, .intake-form select:focus, .intake-form textarea:focus {
+  outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(19,36,55,0.08);
+}
+.intake-form textarea { resize: vertical; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 22px; margin: 2px 0 4px; }
+.checks.one-col { grid-template-columns: 1fr; }
+.check {
+  display: flex; gap: 11px; align-items: flex-start; cursor: pointer;
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.5; color: var(--charcoal);
+}
+.check input { flex: 0 0 auto; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--navy); cursor: pointer; }
+
+/* ---- answer chips ----
+   Selected state moves from gold to NAVY: chips are a form state, and oxblood
+   stays scarce so it always means "the button you press". */
+.chips { display: flex; flex-wrap: wrap; gap: 9px; margin: 4px 0 2px; }
+.chip {
+  position: relative; display: inline-flex; align-items: center;
+  min-height: 46px; padding: 12px 17px;
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.3;
+  color: var(--charcoal); background: #fff;
+  border: 1px solid var(--hairline-2); cursor: pointer; user-select: none;
+  border-radius: 2px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.chip:hover { border-color: var(--navy); color: var(--navy); }
+.chip.on { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 500; }
+.chip.on:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
+.chip:has(input:focus-visible) { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+
+.linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; color: var(--charcoal-2);
+  border-bottom: 1px solid var(--hairline-2);
+}
+.linkish:hover { color: var(--navy); border-bottom-color: var(--oxblood); }
+.linkish:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+.wiz-reset { margin: -14px 0 22px; text-align: right; }
+.done-again { margin: 26px 0 0; }
+.wiz-hint {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 400; color: var(--ink-2); margin: 0 0 12px;
+}
+.doc-group { margin-bottom: 24px; }
+.doc-group h5 {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase;
+  color: var(--ink-2); font-weight: 400; margin: 0 0 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--hairline);
+}
+.callout {
+  border-left: 2px solid var(--oxblood); background: rgba(106,40,51,0.05);
+  padding: 16px 18px; margin: 0 0 24px;
+  font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal);
+}
+.callout b { color: var(--navy); font-weight: 600; }
+.consent { margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline); }
+.consent .check { font-size: 14px; color: var(--charcoal-2); }
+.intake-form button[type="submit"] { border: 0; }
+.form-status { font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--charcoal-2); margin: 14px 0 0; min-height: 18px; }
+.form-status.err { color: #9B2C2C; }
+.intake-done { text-align: center; padding: clamp(30px, 6vw, 60px) 10px; }
+.intake-done h3 { font-family: var(--sans); font-weight: 600; font-size: clamp(24px, 3.4vw, 32px); color: var(--navy); margin: 0 0 14px; letter-spacing: -0.035em; }
+.intake-done p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: var(--charcoal-2); margin: 0 auto; max-width: 440px; }
+
+/* ---- step wizard chrome (rendered by intake.js) ----
+   These keep .intake-form in the selector for the same specificity reason as
+   the original — do not simplify them or they lose the cascade. */
+.wiz-bar { height: 2px; background: var(--hairline); margin-bottom: clamp(24px, 4vw, 32px); }
+.wiz-bar span { display: block; height: 100%; background: var(--oxblood); transition: width .3s ease; }
+.intake-form .wiz-step { border: 0; margin: 0; padding: 0; }
+.intake-form .wiz-q {
+  font-family: var(--sans); font-weight: 600; font-size: clamp(21px, 3vw, 27px);
+  line-height: 1.16; color: var(--navy); padding: 0; margin: 0 0 6px;
+  letter-spacing: -0.035em; text-wrap: pretty;
+}
+.wiz-step .fs-note { margin-bottom: 20px; }
+.wiz-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--hairline);
+}
+.intake-form .wiz-nav .btn { min-width: 180px; width: auto; justify-content: center; margin-top: 0; }
+.intake-form .wiz-nav .btn:disabled { opacity: .5; cursor: default; }
+.wiz-nav .btn-link { background: none; border: 0; cursor: pointer; font: inherit; }
+.wiz-nav .btn-link::after { content: "←"; order: -1; }
+
+.check input:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+.check:has(input:focus-visible) { color: var(--navy); }
+.check:has(input:focus-visible) span { box-shadow: 0 1px 0 var(--oxblood); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================================================ FOOTER */
+footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: clamp(52px, 7vw, 72px) 0 28px; }
+.foot-top { display: grid; grid-template-columns: 1.7fr 1fr 1.1fr; gap: clamp(32px, 5vw, 52px); margin-bottom: 46px; }
+.foot-brand .lockup { margin-bottom: 20px; }
+.foot-brand p { font-family: var(--sans); font-size: 13.5px; line-height: 1.68; margin: 0 0 18px; max-width: 36ch; color: rgba(255,255,255,0.5); }
+.foot-col h5 { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--gold); font-weight: 400; margin: 0 0 18px; }
+.foot-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+.foot-col ul li { font-family: var(--sans); font-size: 13.5px; color: rgba(255,255,255,0.66); }
+.foot-col ul li b { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.17em; text-transform: uppercase; color: rgba(255,255,255,0.38); font-weight: 400; margin-bottom: 4px; }
+.foot-col ul li a:hover { color: #fff; }
+.foot-bottom {
+  display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding-top: 26px; border-top: 1px solid rgba(255,255,255,0.12);
+  font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; color: rgba(255,255,255,0.42);
+}
+.foot-bottom .legal { display: flex; gap: 24px; flex-wrap: wrap; }
+.foot-bottom .legal a:hover { color: #fff; }
+[hidden] { display: none !important; }
+
+/* ============================================================ RESPONSIVE */
+@media (max-width: 1080px) {
+  .intake-grid { grid-template-columns: 1fr; }
+  .intake-aside { position: static; }
+}
+@media (max-width: 980px) {
+  html { scroll-padding-top: 70px; }
+  .nav-toggle { display: block; }
+  .nav-links {
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--cream); border-bottom: 1px solid var(--hairline);
+    padding: 8px var(--pad) 20px; font-size: 14px;
+    max-height: 0; overflow: hidden; visibility: hidden;
+    transition: max-height .28s ease, padding .28s ease;
+  }
+  .nav.open .nav-links { max-height: 420px; visibility: visible; }
+  .nav-links a { padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+  .nav-links .nav-cta { justify-content: center; margin-top: 12px; padding: 14px 20px; border-bottom: 0; }
+  .nav-links a:last-child { border-bottom: 0; }
+
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-card { max-width: 520px; }
+  .section-head { grid-template-columns: 1fr !important; align-items: start; }
+  .services { grid-template-columns: 1fr 1fr; }
+  .fit-grid { grid-template-columns: 1fr; }
+  .foot-top { grid-template-columns: 1fr 1fr; }
+  .foot-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .services { grid-template-columns: 1fr; }
+  .checks { grid-template-columns: 1fr; }
+  .two { grid-template-columns: 1fr; }
+  .intake-form .wiz-nav .btn { min-width: 0; flex: 1; padding-left: 14px; padding-right: 14px; }
+  .checks { gap: 0; }
+  .wiz-step .check { min-height: 44px; align-items: center; padding: 6px 0; }
+  .wiz-step .check input { width: 20px; height: 20px; margin: 0; }
+  .hero-ctas .btn { width: 100%; justify-content: center; }
+  .foot-top { grid-template-columns: 1fr; }
+  .foot-bottom { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *{ transition: none !important; } }

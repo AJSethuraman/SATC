@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — tax return delivery letter (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">Action required: please review your returns — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+  <p>We have completed our work on your returns. Below is a summary of what we prepared and your next steps.</p>
+
+  <div class="dateline">
+    <div>
+      <div class="k">Sign and return by</div>
+      <div class="v"><span class="f">&lt;&lt;SignatureDeadline&gt;&gt;</span></div>
+    </div>
+    <div style="text-align:right">
+      <div class="k">Prepared by</div>
+      <div class="v"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What we prepared</h2>
+    <span class="cond">[[EACH ReturnsDelivered]]</span>
+    <ul>
+      <li><b><span class="f">&lt;&lt;Item.Return&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>What you need to do</h2>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b>Review your returns</b><span>A figure that looks wrong before filing is a phone call. After filing it is an amended return.</span></span>
+      </li>
+    </ul>
+    <span class="cond">[[EACH ActionList]]</span>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b><span class="f">&lt;&lt;Item.Action&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></span>
+      </li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <p><strong>For your safety, pay each authority directly.</strong></p>
+  </div>
+
+  <span class="cond">[[IF EFiled]]</span>
+  <div class="sec">
+    <h2><span class="n">03</span>Signing the e-file authorization</h2>
+    <p>We cannot transmit anything until the signed authorization is back with us. On a joint return, <strong>both spouses sign</strong>, and one signature is not enough to file.</p>
+    <div class="callout">
+      <p><strong>Signing the authorization is not the same as paying.</strong> If a return shows a balance due, the payment is a separate step and it has its own deadline — see section 02. Signing on time and paying late still carries interest and penalties.</p>
+    </div>
+    <p>We will confirm in writing once each return has been transmitted and accepted. <strong>If you do not get that confirmation from us, assume nothing has been filed</strong> and call.</p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <span class="cond">[[IF PaperFiled]]</span>
+  <div class="sec">
+    <h2><span class="n">03</span>Filing the paper returns</h2>
+    <p>You chose to file on paper, so <strong>filing these returns is your responsibility</strong>, not ours. Sign each return where it is marked, mail it to the address printed on it, and keep proof of mailing — a certified-mail receipt is the only thing that proves the date if the return goes astray.</p>
+    <div class="callout">
+      <p><strong>Mail each return separately, to the address on that return.</strong> Federal, state and local go to different places, and a return sent to the wrong authority is not late — it is unfiled.</p>
+    </div>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <span class="cond">[[IF EstimatedPayments]]</span>
+  <div class="sec">
+    <h2><span class="n">04</span>Next year's estimated payments</h2>
+    <p><span data-encl="attachment:estimate-vouchers">Estimated payment vouchers are included with your copies.</span> The amounts and the four due dates are printed on them. They are calculated from this year's figures, so <strong>if your income changes materially, tell us and we will recalculate</strong> rather than leaving you to overpay or fall short.</p>
+    <p>Estimated payments are not optional for everyone. Where they apply, missing one carries an underpayment charge even if the return itself is filed and paid on time.</p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <div class="sec">
+    <h2><span class="n">05</span>What to keep</h2>
+    <p>Keep your complete copy of every return, and keep the records behind it. The <strong>Your records, our files, and delivery</strong> section of your engagement letter says how long we hold our copies and what happens to them; <strong>that is our retention, not yours</strong>, and it is not a substitute for keeping your own.</p>
+    <p>If a taxing authority writes to you about any of these returns, send us the letter before you reply to it.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">06</span>Where this engagement ends</h2>
+    <p>This delivery closes the work. As the <strong>Ending this engagement</strong> section of your engagement letter sets out, <strong>our engagement ends when we transmit the returns</strong> — not when a taxing authority accepts them, and not when a refund arrives.</p>
+    <p>Questions about what we prepared are part of the work. New work — an amended return, a notice, next year's returns — starts with a new engagement letter, so you know what it covers and what it costs before it begins.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">07</span>Questions</h2>
+    <p>Ask before you guess. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
+  <span class="id">DELIVERY LETTER<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>The last document of a tax engagement. Sent with the finished returns; it is the letter that tells a client what to sign, what to pay, and that the work is over. Clauses in the engagement letter are referenced <b>by name</b>, never by number — the responsibility clause is 03 in the individual letter and 04 in the business one. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>April 2, 2027 — the delivery date, and the date the signature clock starts from</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key back to the engagement letter, the estimate and the invoice</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — same field as everywhere else. Appears twice: subject and footer.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries, from the same record</td></tr>
+    <tr><td>&lt;&lt;SignatureDeadline&gt;&gt;</td><td class="req">Required</td><td>April 10, 2027 — <b>a real date, never "as soon as possible".</b> A deadline with no date is not one.</td></tr>
+    <tr><td>[[EACH ReturnsDelivered]]</td><td class="req">List</td><td>One or more. Two sub-fields. Every return in the package, in the order they are stacked.</td></tr>
+    <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 · Refund of $1,240, direct deposit to the account ending 4417. Detail is an empty string when there is nothing to add, never "None".</td></tr>
+    <tr><td>[[EACH ActionList]]</td><td class="req">List</td><td>One or more. Two sub-fields. The checklist a client works down. <b>Every amount in it is a pre-formatted string from the money formatter</b> — this template does no arithmetic.</td></tr>
+    <tr><td>&lt;&lt;Item.Action&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Pay the Ohio balance due · $412.00 to Ohio Treasurer of State by April 15, 2027</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
+    <tr><td>[[IF EFiled]]</td><td class="req">Flag</td><td>Boolean. The e-file branch: signing the authorisation, and the confirmation we owe you.</td></tr>
+    <tr><td>[[IF PaperFiled]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of EFiled</b> — see the note below. The paper branch puts filing on the client, which is the single most important sentence in the letter when it applies.</td></tr>
+    <tr><td>[[IF EstimatedPayments]]</td><td class="req">Flag</td><td>Boolean. Drops the next-year estimates section when there are no vouchers in the package.</td></tr>
+  </table>
+  <p><b>15 fields + 2 repeating lists of 2 + 3 flags.</b> Twelve of the fifteen come from the same records as the engagement letter; only <code>SignatureDeadline</code> and the two lists are new to this document.</p>
+
+  <h3>Section numbering</h3>
+  <p>Three conditionals, and two of them are numbered sections. <code>EFiled</code> and <code>PaperFiled</code> both render as <b>03</b> because <b>exactly one of them is ever true</b>; <code>EstimatedPayments</code> renders as <b>04</b> and can drop. <span class="warn">Renumber sequentially after the merge</span> — a client must never see 03 followed by 05, and must never see two sections numbered 03.</p>
+  <p>Assumption this template makes: <b>a return is either e-filed or paper-filed, never both and never neither.</b> If a package ever mixes the two — a federal e-file with a paper municipal return — this template is wrong for it, and the honest fix is a third branch rather than sending both.</p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No fee, and no amount payable to us.</b> The invoice owns that. A letter that mixes the tax you owe the government with the fee you owe your accountant makes both harder to read and one of them easier to miss.</li>
+    <li><b>No restated scope.</b> The engagement letter owns it. This letter points at two of its clauses by name and restates neither.</li>
+    <li><b>No signature block.</b> The thing being signed is the e-file authorisation, which is its own form. A signature line here invites a client to sign the wrong piece of paper.</li>
+    <li><b>No refund-timing promise.</b> "Refunds usually arrive in three weeks" is the taxing authority's schedule, not the firm's, and a client who does not get it in three weeks will remember who said it.</li>
+    <li><b>No congratulations.</b> A refund is the client's own money coming back. Saying "good news" about it is a habit worth not having.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li><code>EFiled</code> and <code>PaperFiled</code> must be derived from one stored value, not stored as two booleans. Two independent flags can both be false, and a delivery letter with no section 03 tells a client nothing about how their return gets filed.</li>
+    <li><code>ActionList</code> is built from the returns, not typed. Each item carries an amount, an authority and a date, all pre-formatted. <span class="warn">Never let a human type a tax figure into this letter</span> — it is the one document where a transcription error looks like advice.</li>
+    <li>Strip the <code>.f</code> class and the <code>.cond</code> markers on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C Return Delivery — Reyes — 2026.pdf</code>.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

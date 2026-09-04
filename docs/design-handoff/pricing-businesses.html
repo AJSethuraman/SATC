@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing — Businesses tab</title>
+<meta name="description" content="What SAT-C LLP charges to prepare an individual tax return, and what each price covers.">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#132437">
+
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+
+<style>
+/* Tokens lifted from index.html so the pages stay in step. If the palette moves
+   there, move it here — there is no build step to share it. */
+:root {
+  --navy:       #132437;
+  --navy-deep:  #0D1926;
+  --charcoal:   #242C36;
+  --charcoal-2: #4A5360;
+  --mute:       #82817C;
+  --oxblood:    #6A2833;
+  --oxblood-lt: #83323F;
+  --gold:       #C0A265;
+  --gold-deep:  #756228;   /* 5.22:1 on the tinted ground — see index.html */
+  --cream:      #F7F7F5;
+  --paper:      #FFFFFF;
+  --hairline:   #E6E5E0;
+  --hairline-2: #D8D7D1;
+  --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans); color: var(--charcoal); background: var(--cream);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+}
+a { color: var(--oxblood); text-decoration: none; }
+a:hover { color: var(--oxblood-lt); text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+
+/* ---- header: same lockup as the rest of the site ---- */
+.top {
+  background: var(--navy); padding: 20px clamp(20px, 5vw, 56px);
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+.top-back {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.66);
+  white-space: nowrap; flex: 0 0 auto;
+}
+.top-back:hover { color: #fff; text-decoration: none; }
+.top-back:focus-visible { outline-color: var(--gold); }
+.lockup { display: inline-flex; align-items: center; gap: 13px; color: #fff; }
+.lockup .seal { width: 30px; height: 30px; flex: 0 0 auto; }
+.lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
+.lockup .seal .s-i { fill: var(--gold); }
+.lockup .text { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.lockup .wm {
+  display: flex; align-items: flex-end;
+  font-size: 20px; font-weight: 700; letter-spacing: -0.04em;
+  line-height: 0.74; white-space: nowrap;
+}
+.lockup .wm .hy {
+  width: 0.3em; height: 0.3em; flex: 0 0 auto;
+  background: var(--gold); margin: 0 0.18em 0.2em;
+}
+.lockup .wm i { font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em; }
+.lockup .tag {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.55); font-weight: 400;
+}
+
+/* Wider than privacy.html — the package row needs the room. */
+.wrap { max-width: 1000px; margin: 0 auto; padding: clamp(40px, 6vw, 72px) clamp(20px, 5vw, 56px) 72px; }
+
+.eyebrow {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--mute); margin: 0;
+}
+h1 {
+  font-weight: 600; font-size: clamp(30px, 5vw, 42px); color: var(--navy);
+  letter-spacing: -0.038em; line-height: 1.06; margin: 12px 0 10px; text-wrap: balance;
+}
+.lede { font-size: 17px; color: var(--charcoal-2); margin: 0 0 30px; max-width: 62ch; }
+h2 {
+  font-weight: 600; font-size: 19px; color: var(--navy);
+  letter-spacing: -0.022em; margin: 46px 0 10px;
+}
+p, li { font-size: 15.5px; color: var(--charcoal-2); }
+p { margin: 0 0 14px; max-width: 68ch; }
+strong { color: var(--navy); font-weight: 600; }
+
+/* Same shape as .need-note on the main page. */
+.summary {
+  margin: 0 0 34px; padding: 18px 20px;
+  border-left: 2px solid var(--gold); background: rgba(192,162,101,0.08);
+}
+.summary > b {
+  display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold-deep); font-weight: 400; margin-bottom: 8px;
+}
+.summary p { font-size: 14.5px; line-height: 1.62; margin: 0 0 8px; max-width: none; }
+.summary p:last-child { margin-bottom: 0; }
+.summary p b { color: var(--navy); font-weight: 600; }
+
+/* ---- the four packages ----
+   Explicit breakpoints rather than auto-fit. auto-fit picks whatever number
+   fits, which at some widths is three — leaving the fourth alone on a second
+   row, with its bullets sitting under three empty columns. Four, then two,
+   then one: every row is always full. */
+.tiers {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin: 0 0 18px; padding: 0; list-style: none;
+}
+@media (max-width: 940px) { .tiers { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .tiers { grid-template-columns: 1fr; } }
+.tier {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-top: 2px solid var(--navy);
+  padding: 20px 20px 22px; display: flex; flex-direction: column;
+}
+.tier .name {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--mute); margin: 0 0 10px;
+}
+.tier .amt {
+  font-size: 34px; font-weight: 600; color: var(--navy);
+  letter-spacing: -0.04em; line-height: 1; margin: 0 0 10px;
+}
+.tier .who {
+  font-size: 14.5px; color: var(--navy); font-weight: 500;
+  margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--hairline);
+}
+.tier ul { list-style: none; padding: 0; margin: 0; }
+.tier li {
+  position: relative; padding-left: 15px; margin: 0 0 7px;
+  font-size: 14px; line-height: 1.55;
+}
+.tier li:last-child { margin-bottom: 0; }
+.tier li::before {
+  content: ""; position: absolute; left: 0; top: 8px;
+  width: 6px; height: 6px; background: var(--gold);
+}
+
+/* The sentence that makes the prices readable. Sits directly under the row. */
+.note { font-size: 13.5px; color: var(--mute); margin: 0 0 14px; }
+.included {
+  margin: 0 0 8px; padding: 13px 16px; background: var(--navy);
+  color: #fff; font-size: 14.5px; font-weight: 500; max-width: none;
+}
+
+/* ---- extras ---- */
+.rows { border-top: 1px solid var(--hairline-2); margin: 14px 0 0; }
+.row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  padding: 11px 2px; border-bottom: 1px solid var(--hairline);
+}
+.row span { font-size: 14.5px; color: var(--charcoal-2); }
+.row b {
+  font-family: var(--mono); font-size: 14px; color: var(--navy);
+  font-weight: 500; white-space: nowrap;
+}
+
+/* ---- the Individuals / Businesses switch ---- */
+.switch {
+  display: inline-flex; margin: 0 0 18px;
+  border: 1px solid var(--hairline-2); background: var(--paper);
+}
+.sw {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--charcoal-2);
+  background: none; border: 0; padding: 10px 20px; cursor: pointer;
+  border-right: 1px solid var(--hairline-2);
+}
+.sw:last-child { border-right: 0; }
+.sw[aria-selected="true"] { background: var(--navy); color: #fff; }
+.sw:focus-visible { outline: 2px solid var(--oxblood); outline-offset: -2px; }
+/* Without JS both panels show, which is the honest failure: all the prices,
+   just not switchable. */
+[role="tabpanel"][hidden] { display: none; }
+
+/* An entity card is the same card, with two differences that are the point:
+   the amount carries `from`, and its list is what costs EXTRA rather than what
+   is included. Gold rule instead of navy, so the two are never mistaken at a
+   glance. */
+.tier.ent { border-top-color: var(--gold); }
+.tier .amt i {
+  font-style: normal; font-family: var(--mono); font-size: 13px;
+  color: var(--mute); font-weight: 400; margin-right: 5px; letter-spacing: 0;
+}
+.tier .ontop {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--mute); margin: 0 0 8px;
+}
+.tier.ent li::before { background: var(--hairline-2); }
+
+/* ---- grouped extras ---- */
+.grp { margin: 0 0 22px; }
+.grp > h3 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--mute); font-weight: 400;
+  margin: 0 0 2px;
+}
+
+/* ---- entity returns: from prices, never styled like the flat packages ---- */
+.ents { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.ent {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-left: 2px solid var(--gold); padding: 16px 18px;
+}
+.ent .ehead { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
+.ent .who { font-size: 15px; color: var(--navy); font-weight: 600; margin: 0; }
+.ent .amt { font-family: var(--mono); font-size: 15px; color: var(--navy); font-weight: 500; white-space: nowrap; }
+.ent .amt i { font-style: normal; color: var(--mute); font-size: 12.5px; margin-right: 3px; }
+.ent ul { list-style: none; padding: 0; margin: 10px 0 0; }
+.ent li { position: relative; padding-left: 15px; margin: 4px 0; font-size: 13.5px; color: var(--charcoal-2); }
+.ent li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; background: var(--hairline-2); }
+.ent .lead-in { font-size: 12.5px; color: var(--mute); margin: 10px 0 0; }
+
+/* a row's second line, for the qualification a price would otherwise lose */
+.row .txt { display: flex; flex-direction: column; gap: 2px; }
+.row .det { font-size: 12.5px; color: var(--mute); line-height: 1.45; }
+.row b.free { color: var(--gold-deep); }
+
+/* ---- the six situations ---- */
+.sits {
+  list-style: none; padding: 0; margin: 12px 0 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 7px 22px;
+}
+.sits li { position: relative; padding-left: 15px; font-size: 14.5px; }
+.sits li::before {
+  content: ""; position: absolute; left: 0; top: 9px;
+  width: 6px; height: 6px; background: var(--gold);
+}
+
+.btn {
+  display: inline-block; margin-top: 6px;
+  background: var(--oxblood); color: #fff;
+  font-size: 15px; font-weight: 600; padding: 13px 26px;
+}
+.btn:hover { background: var(--oxblood-lt); color: #fff; text-decoration: none; }
+
+/* Block, not inline-block: it follows the Get started button and would
+   otherwise sit on the same line as it. */
+.back {
+  display: block; width: fit-content; margin-top: 46px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--navy);
+  border-bottom: 1px solid var(--hairline-2); padding-bottom: 3px;
+}
+.back:hover { color: var(--oxblood); border-bottom-color: var(--oxblood); text-decoration: none; }
+
+footer {
+  border-top: 1px solid var(--hairline-2); margin-top: 52px; padding-top: 20px;
+  font-size: 12.5px; color: var(--mute);
+}
+</style>
+</head>
+<body><div style="background:#132437;color:#fff;font:13px/1.5 system-ui;padding:10px 16px">STATIC SNAPSHOT for design work — Pricing — Businesses tab. Real copy and real prices, captured from the live page. No JavaScript: the tab switch is inert here.</div>
+
+<div class="top">
+  <a class="lockup" href="./" aria-label="SAT-C LLP — home">
+    <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"></path>
+      <rect class="s-i" x="22" y="22" width="8" height="8"></rect>
+    </svg>
+    <div class="text">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+      <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+  </a>
+  <a class="top-back" href="./">← Back to the site</a>
+</div>
+
+<div class="wrap">
+
+  <p class="eyebrow">Pricing</p>
+  <h1>What a return costs.</h1>
+  <p class="lede">We publish what we charge. Here are the numbers.</p>
+
+  <!-- Individual and entity returns are priced on different principles - one is
+       a flat price gated on what is on the return, the other a floor - so they
+       get a panel each rather than one list that blurs them. Both panels render
+       from pricing-config.js; no name or figure is hardcoded here. -->
+  <div class="switch" role="tablist" aria-label="Who the pricing is for">
+    <button class="sw" id="tabInd" role="tab" aria-selected="false" aria-controls="panelInd" tabindex="-1">Individuals</button>
+    <button class="sw" id="tabBiz" role="tab" aria-selected="true" aria-controls="panelBiz" tabindex="0">Businesses</button>
+  </div>
+
+  <section id="panelInd" role="tabpanel" aria-labelledby="tabInd" hidden="">
+    <ul class="tiers" id="tiers"><li class="tier"><p class="name">Simple Filer</p><p class="amt">$100</p><p class="who">Just a W‑2.</p><ul><li>One or two W‑2s</li><li>The standard deduction</li><li>Dependents</li><li>A 1098‑T education credit for yourself</li></ul></li><li class="tier"><p class="name">Essentials</p><p class="amt">$200</p><p class="who">The everyday return.</p><ul><li>Wages, interest and dividends</li><li>The standard deduction</li></ul></li><li class="tier"><p class="name">Standard</p><p class="amt">$325</p><p class="who">More than you'd file yourself.</p><ul><li>Everything in Essentials</li><li>Itemized deductions</li><li>One brokerage statement</li><li>Up to two K‑1s</li><li>A gig Schedule C, standard mileage</li></ul></li><li class="tier"><p class="name">Self-Employed</p><p class="amt">$500</p><p class="who">You work for yourself.</p><ul><li>Everything in Standard</li><li>One full Schedule C</li><li>Actual expenses, a home office, depreciation, inventory or payroll</li></ul></li></ul>
+    <p class="included" id="included">Every package covers your federal return, plus your first state and first local return.</p>
+  </section>
+
+  <section id="panelBiz" role="tabpanel" aria-labelledby="tabBiz">
+    <ul class="tiers" id="entities"><li class="tier ent"><p class="name">Partnership</p><p class="amt"><i>from</i>$800</p><p class="who">Form 1065</p><p class="ontop">On top of that:</p><ul><li>A balance sheet, where one is required</li><li>Inventory, where the business carries any</li><li>Each partner's K‑1 after the first two</li><li>Returns in more than one state</li></ul></li><li class="tier ent"><p class="name">S corporation</p><p class="amt"><i>from</i>$950</p><p class="who">Form 1120-S</p><p class="ontop">On top of that:</p><ul><li>A balance sheet, where one is required</li><li>Inventory, where the business carries any</li><li>Each shareholder's K‑1 after the first two</li><li>Returns in more than one state</li></ul></li><li class="tier ent"><p class="name">C corporation</p><p class="amt"><i>from</i>$950</p><p class="who">Form 1120</p><p class="ontop">On top of that:</p><ul><li>A balance sheet, where one is required</li><li>Inventory, where the business carries any</li><li>Returns in more than one state</li></ul></li></ul>
+    <p class="included" id="entityLead">Starting prices. Each one lists what gets added on top, and you'll see your own number before you agree to anything.</p>
+  </section>
+
+  <p>These prices assume your records arrive complete. Anything else is priced below, and you'll see it on your own price before you agree to it.</p>
+  <p class="note" id="current">These represent our pricing for the upcoming tax year and are subject to change.</p>
+
+  <h2>What costs extra</h2>
+  <p>Only what the price above doesn't already cover.</p>
+  <div id="extras"><div class="grp"><h3>More to file</h3><div class="rows"><div class="row"><span class="txt">State return<span class="det">Per state</span></span><b>$50</b></div><div class="row"><span class="txt">Local return<span class="det">Municipal, RITA, CCA or school district</span></span><b>$35</b></div><div class="row"><span class="txt">Extension with a payment estimate<span class="det">Computing what to pay by the original due date, from an incomplete file</span></span><b>$75</b></div><div class="row"><span class="txt">Amendment<span class="det">Amending the return we filed, from information that arrived later</span></span><b>$50</b></div><div class="row"><span class="txt">Amendment<span class="det">Amending a return prepared elsewhere, priced with the return itself</span></span><b>$50 + the return</b></div></div></div><div class="grp"><h3>What is on the return</h3><div class="rows"><div class="row"><span class="txt">Rental schedule<span class="det">Covers 3, then $45 each</span></span><b>$145</b></div><div class="row"><span class="txt">Schedule K‑1 received<span class="det">Per K‑1 entered</span></span><b>$15</b></div><div class="row"><span class="txt">Schedule K‑1 issued<span class="det">Per owner — shareholder or partner</span></span><b>$40</b></div><div class="row"><span class="txt">Brokerage statement<span class="det">Per 1099-B</span></span><b>$45</b></div><div class="row"><span class="txt">Brokerage entered by hand<span class="det">Per statement that cannot be summarized</span></span><b>$95</b></div><div class="row"><span class="txt">Gig or contract work<span class="det">Schedule C — standard mileage, no assets, inventory or payroll</span></span><b>$65</b></div><div class="row"><span class="txt">Sole proprietorship<span class="det">Schedule C — actual expenses, a home office, depreciation, inventory or employees</span></span><b>$200</b></div><div class="row"><span class="txt">Foreign account reporting<span class="det">Capped at 4 — past that the time is billed at $150 an hour</span></span><b>$50</b></div></div></div></div>
+  <p class="note">Filing an extension is free. The fee is for working out what you need to pay with it.</p>
+
+  <h2 id="sitsHead">The $50 situations</h2>
+  <p>One price for any of them.</p>
+  <ul class="sits" id="sits"><li>Sale of a home</li><li>Canceled debt</li><li>Digital assets</li><li>Marketplace health insurance</li><li>Health savings account</li><li>Early retirement withdrawal</li></ul>
+
+  <h2>What's hourly</h2>
+  <p id="hourly"><strong>$150 an hour</strong>, billed to the quarter hour. These are hourly because we can't price them until we see them:</p>
+  <ul class="sits" id="hourlyApplies"><li>Brokerage keying — a statement has to be entered by hand</li><li>Foreign entities — you hold an interest in a foreign corporation or partnership</li><li>Notices and correspondence — a notice arrives and you ask us to deal with it</li><li>Officer compensation — you ask us to determine or review it, and we agree in writing</li><li>Records cleanup — the records need reconciling before the return can be prepared</li></ul>
+  <p style="margin-top:14px">Hourly happens instead of the fixed price, not on top of it. We tell you what we're assuming before we start.</p>
+
+  <h2>Before we start</h2>
+  <p>You get your own price in writing, with your return's lines on it. Nothing begins until you've seen it and said yes. If something turns up we didn't expect, we tell you before we do the work — not on the bill.</p>
+
+  <h2>Where to start</h2>
+  <p>Tell us about your situation and we'll come back with an estimate.</p>
+  <a class="btn" href="./#intake">Get started</a>
+
+  <a class="back" href="./">← Back to the site</a>
+
+  <footer>
+    © <span id="year">2026</span> Sethuraman Accounting, Tax &amp; Consulting
+  </footer>
+
+</div>
+
+
+
+
+
+
+</body></html>

@@ -1,0 +1,107 @@
+{
+  "_comment": "A finished record. EVERY field the interview composes and every figure on the estimate is GENERATED from samples/interview-answers.json -- they were hand-written until 26 August 2026 and had drifted: the engagement letter's scope had lost Schedule E while the estimate billed a rental, so the two documents contradicted each other. test_pricing.py pins them to the engine. Fictional client.",
+  "_season": "2026",
+  "_return_type": "individual",
+  "LetterDate": "February 3, 2027",
+  "EstimateDate": "February 3, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "TaxYear": "2026",
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "ClientEmail": "dreyes@example.com",
+  "TaxpayerName": "Daniel Reyes",
+  "SpouseName": "Maria Reyes",
+  "JointReturn": true,
+  "FederalReturns": "Form 1040 with Schedules A, C, E, and SE",
+  "StateReturns": "Ohio — resident",
+  "LocalReturns": "Solon municipal",
+  "AdditionalForms": "Two K-1s as reported",
+  "MaterialsDeadline": "March 25, 2027",
+  "PriorFirm": true,
+  "PriorFirmName": "Halloran & Reeve CPAs",
+  "FirstDeliverableTarget": "April 1, 2027",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun_sethuraman@satcllp.com",
+  "LineItems": [
+    {
+      "Service": "Self-Employed",
+      "Detail": "You work for yourself",
+      "Includes": "Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
+      "Amount": "$500.00"
+    },
+    {
+      "Service": "Rental schedule",
+      "Detail": "Schedule E, covering up to 3",
+      "Includes": "",
+      "Amount": "$145.00"
+    }
+  ],
+  "Assumptions": [
+    {
+      "Text": "Records cleanup — your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
+    }
+  ],
+  "EstimateTotal": "$645.00",
+  "RequestList": [
+    {
+      "Document": "Every W-2 for the year",
+      "Detail": "One for each employer, for you and anyone filing with you"
+    },
+    {
+      "Document": "Photo ID",
+      "Detail": "Only if we have not seen it before"
+    },
+    {
+      "Document": "The Social Security number for everyone on the return",
+      "Detail": "The numbers themselves. We do not need the cards"
+    },
+    {
+      "Document": "Last year's tax return",
+      "Detail": "The complete copy, including every schedule"
+    },
+    {
+      "Document": "Any other income documents that arrived",
+      "Detail": "1099s of any kind, K-1s, 1098s, SSA-1099, and anything else that came in an envelope marked important tax document"
+    },
+    {
+      "Document": "Rental income and expenses for each property",
+      "Detail": "Rents received, and what you spent on each one. If a property was bought, sold or first rented this year, the closing statement too"
+    },
+    {
+      "Document": "Last year's depreciation schedule for each property",
+      "Detail": "So the basis and the lives carry forward unchanged. If you do not have it: what you paid, when it was first rented, and what you have spent on improvements since"
+    },
+    {
+      "Document": "Each K-1 you received",
+      "Detail": "Including its statements"
+    },
+    {
+      "Document": "Your business income and expenses",
+      "Detail": "Totals by category. If you claim actual vehicle expenses rather than mileage, the vehicle costs as well"
+    },
+    {
+      "Document": "Your itemized deduction records",
+      "Detail": "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
+    },
+    {
+      "Document": "Receipts for any large purchases",
+      "Detail": "A vehicle, a boat, or a major home renovation. The sales tax on a big purchase can be worth more than the tax withheld from your pay"
+    }
+  ],
+  "SCorpElection": false,
+  "ReturnScope": true,
+  "EntityIssuesK1s": false
+}

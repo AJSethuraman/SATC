@@ -1,0 +1,146 @@
+# SATC — the signatures an engagement needs, beyond the ones on our own paper
+#
+# MOST SIGNATURE LINES ARE READ OFF THE DOCUMENTS. `signing.lines_in` finds the
+# blocks in the templates themselves, so a block that moves or gains a signer is
+# followed without anybody editing anything. That covers the engagement letters
+# and the records release.
+#
+# IT CANNOT COVER THE ONE THAT MATTERS MOST. The e-file authorization is
+# produced by Drake, not by us, and no template here will ever be one — so the
+# census that reads our templates cannot see it. It is nonetheless the signature
+# the delivery letter's promise is about:
+#
+#     "We cannot transmit anything until the signed authorization is back with
+#      us. On a joint return, both spouses sign, and one signature is not
+#      enough to file."
+#
+# So it is declared here instead: a signature the ENGAGEMENT needs, whoever
+# printed the form.
+#
+# WHY A REGISTRY AND NOT A CONSTANT IN PYTHON. The IRS renames these. Forms
+# 8879-C and 8879-S were replaced by a single 8879-CORP first issued December
+# 2022, and 8879-PE carries a December 2025 revision. A form name typed into
+# code goes stale in a filing season and nobody notices until a document names
+# a form that no longer exists. Here, it is one line to change.
+#
+# `joint` marks a form both spouses sign. The delivery letter says one
+# signature is not enough, so the register asks for two.
+#
+# NOTHING HERE ASSERTS A COMPLIANCE RULE. What identity checking the IRS
+# requires before one of these may be signed electronically is in
+# `docs/research-e-signature.md`, and that document opens by saying its sources
+# could not be read from the primary text. This file names forms, nothing more.
+
+authorizations:
+  individual:
+    form: "Form 8879"
+    what: "the e-file authorization for the individual return"
+    joint: true
+
+  s_corp:
+    form: "Form 8879-CORP"
+    what: "the e-file authorization for the S corporation return"
+    joint: false
+
+  c_corp:
+    form: "Form 8879-CORP"
+    what: "the e-file authorization for the C corporation return"
+    joint: false
+
+  partnership:
+    form: "Form 8879-PE"
+    what: "the e-file authorization for the partnership return"
+    joint: false
+
+# How a pack reaches a client. Recorded so the chase has a start date -- "sent
+# eleven days ago, nothing back" is the useful line, and it cannot be said
+# without this.
+#
+# The firm's own letters name Encyro to the client: "We send documents for
+# signature through Encyro." It is first here because it is what the client was
+# promised.
+sent_by:
+  encyro: "through Encyro, which is what the letters tell the client"
+  email: "by ordinary email"
+  post: "on paper, in the post"
+  in-person: "handed over in the room"
+
+# ── the covering note the documents travel with ───────────────────────────
+#
+# THIS IS COPY, AND COPY IS THE FIRM'S. `CLAUDE.md`: "Change anything a test can
+# prove; change nothing a client reads or pays." So a draft is proposed here
+# inside a `[CONFIRM: ]` and the software REFUSES to compose anything until the
+# firm has accepted or rewritten it. A placeholder that shipped would be an
+# agent writing to a client in the firm's name.
+#
+# The draft below is not invented from nothing. It is assembled from sentences
+# the firm has already published:
+#
+#   the onboarding letter -- "Anything for signature comes to you by email,
+#   encrypted through Encyro, at the same address."
+#   the onboarding letter -- "Sign the engagement letter first -- it outlines
+#   everything you should expect for the tax year."
+#   every engagement letter -- "We send documents for signature through Encyro."
+#
+# TO ACCEPT IT: delete the `[CONFIRM: ` and its closing `]`, leaving the words.
+# To change it, replace the words. `<<ClientFullName>>`, `<<PeriodLabel>>` and
+# `<<EngagementRef>>` are filled per client; anything else is typed as it reads.
+
+covering_note:
+  # SETTLED 31 August 2026, in the firm's own words. No longer a `[CONFIRM: ]`,
+  # so `outgoing.py` will compose.
+  #
+  # TWO DRAFTS OF MINE WERE REJECTED BEFORE THIS, and the reason is worth
+  # keeping. The first ended "tell me before you sign and I will put it right" --
+  # the firm: *"This sounds awful. I can't explain why but it just does. I feel
+  # the tenets failed here. 'I will put it right'. That pathetic earnestness."*
+  # The second was flatter and still mine. This one is theirs.
+  #
+  # ONE EDIT MADE, AND ONLY ONE: the firm wrote "Please review thoroughly review
+  # and sign" -- a word duplicated while typing. Corrected to "Please thoroughly
+  # review and sign". Nothing else was touched, and if that word was deliberate,
+  # put it back.
+  #
+  # The subject was never commented on and is un-CONFIRMed too, so that a bill
+  # is not held up by a line nobody has objected to in three rounds. It reads
+  # "Your 2026 tax year engagement letter". Say the word and it changes.
+  subject: "Your <<PeriodLabel>> engagement letter"
+  # A LITERAL BLOCK (`|-`), NOT A FOLDED ONE. YAML's `>-` turns every line break
+  # into a space, which collapsed an earlier version into one paragraph.
+  body: |-
+    <<ClientFullName>>,
+
+    Attached is your engagement letter, with the fee estimate.
+
+    Please thoroughly review and sign. Reach out for any questions.
+
+    Arjun
+
+# THE ONE AUTOMATION HOOK ENCYRO APPEARS TO OFFER, and it is not an API.
+#
+# Encyro's Outlook add-in watches messages as they are sent and routes any
+# whose subject contains a keyword -- their release notes: *"Keyword based
+# secure send: Simply type '[Secure]' (with or without the quotes) in the email
+# subject line to automatically send the email securely."* That is the add-in
+# intercepting a send on your own machine, not a gateway anything can post to,
+# which is why there is no API here and never was one to find.
+#
+# It matters anyway. The `.eml` this software writes opens in Outlook already
+# addressed, attached and written; with the keyword in the subject, pressing
+# send routes it through Encyro. One press, no credential stored anywhere, no
+# website driven.
+#
+# OFF BY DEFAULT, AND DELIBERATELY. Two things are unverified: whether the
+# add-in STRIPS the keyword before the client sees the subject, and whether the
+# convention still holds in the current version. Encyro states elsewhere that a
+# subject line is not encrypted -- so if it is not stripped, the client reads
+# "[Secure]" on their mail. Send one to yourself, look at what arrives, and
+# turn this on if it is clean.
+#
+# A SECURE MESSAGE IS NOT A SIGNATURE REQUEST. Nothing suggests a keyword can
+# place signature fields on a page; an e-sign request is built in the web
+# interface, where a saved template can hold the field placements and only the
+# file changes. So this carries the documents securely and the signature is
+# still asked for the other way. See `docs/research-e-signature.md`.
+
+secure_keyword: ""

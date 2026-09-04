@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{{ headline }}</h2>
+  <div class="muted">
+    Ordered, not assigned. Nothing here has been started, reserved or handed to anyone —
+    the order is a <strong>proposal</strong>, and every one of these is a click you make.
+    Working on {{ tax_year }}, as of {{ as_of.strftime('%b %d, %Y') }}.
+  </div>
+</div>
+
+{% if refusal %}
+{# Principle 5: an unordered queue would answer "which one first?" with
+   "whichever", and look exactly like a considered answer. #}
+<div class="panel">
+  <h2>SATC will not order this queue</h2>
+  <div class="body">
+    <p class="flag">{{ refusal }}</p>
+  </div>
+</div>
+{% else %}
+
+<div class="panel">
+  <h2>Workable now <span class="muted">· {{ board.workable|length }}</span></h2>
+  <div class="body">
+    {% if not board.workable %}
+    <p class="flag">{{ empty_note }}</p>
+    {% else %}
+    <table>
+      <tr>
+        <th>#</th><th>Client</th><th>What it is</th><th>Stage</th>
+        <th>Why this one</th><th class="right">Next step</th>
+      </tr>
+      {# Rendered in the order the queue returned, and numbered with the queue's
+         OWN rank. There is deliberately no |sort here and no loop.index: a
+         template that re-orders or re-numbers makes the screen disagree with
+         the rule it claims to be showing, and nothing would ever catch it. #}
+      {% for item in board.workable %}
+      <tr>
+        <td class="mono">{{ item.rank }}</td>
+        <td>
+          <strong>{{ names.get(item.job.client_id, item.job.client_id) }}</strong>
+          <div class="muted mono">{{ item.job.client_id }}</div>
+        </td>
+        <td>
+          <div><strong>{{ kinds.get(item.job.engagement_type) or kinds.get(item.job.workflow_key) or item.job.engagement_type or 'Untitled job' }}</strong></div>
+          <div class="muted">
+            {% if item.job.tax_year %}TY{{ item.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
+            ·
+            {# The STATUTORY deadline, computed from cited rules. Never the
+               hand-typed Job.due_date standing in for one (principles 1 and 4). #}
+            {% if item.deadline_known %}due {{ item.deadline.strftime('%b %d') }}
+            {% else %}<span class="flag">no statutory deadline on file</span>{% endif %}
+          </div>
+        </td>
+        <td>
+          <span class="badge">{{ item.view.stage.replace('_', ' ') }}</span>
+          {% if item.view.undecidable %}
+          {# Never present this as finished. Principles 1 and 2: an unanswered
+             question is not an answer. #}
+          <div class="flag">Not known to be delivered</div>
+          <div class="muted">Every task on this job is settled, but SATC holds no record that
+            it went to the client — it will not guess at the step that matters most.</div>
+          {% endif %}
+        </td>
+        <td>
+          <div>{{ item.why }}</div>
+          {% if item.view.blocked_by %}
+          <div class="muted">on: {{ item.view.blocked_by|join(', ') }}</div>
+          {% endif %}
+        </td>
+        <td class="right">
+          <div class="muted">{{ item.view.next_step or 'Open it and decide.' }}</div>
+          <a class="btn sm primary" href="{{ url_for('work.job_detail', job_id=item.job.job_id) }}">Open the job →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if other_years %}
+    <p class="note"><span class="flag">{{ other_years }}</span>
+      job{{ '' if other_years == 1 else 's' }} on file {{ 'is' if other_years == 1 else 'are' }}
+      for another tax year and {{ 'is' if other_years == 1 else 'are' }} not ranked here.</p>
+    {% endif %}
+  </div>
+</div>
+
+{#  Split by WHO is actually blocking. "Waiting on somebody" over a job that is
+    finished and just needs its delivery recorded tells the owner to go chasing
+    a client who owes nothing — the screen asserting something it does not know.
+    A job ready to deliver is blocked on the OWNER, and saying so is the whole
+    difference between a useful row and a row that gets scrolled past. #}
+{% set on_you = board.not_workable
+     | selectattr('view.stage', 'in', ['ready_to_deliver', 'not_started'])
+     | list %}
+{% set on_others = board.not_workable | rejectattr('view.stage', 'in', ['ready_to_deliver', 'not_started']) | list %}
+
+<div class="panel">
+  <h2>Waiting on you <span class="muted">· {{ on_you|length }}</span></h2>
+  <div class="body">
+    <p class="note">Nobody else is holding these up. There is no preparing left to do on them —
+      what is outstanding is a fact only you can record.</p>
+    {% if not on_you %}
+    <p class="muted">Nothing is sitting on you.</p>
+    {% else %}
+    <table>
+      <tr><th>Client</th><th>What it is</th><th>Stage</th><th>Where it stands</th><th class="right">Next step</th></tr>
+      {% for blocked in on_you %}
+      <tr>
+        <td>{{ names.get(blocked.job.client_id, blocked.job.client_id) }}</td>
+        <td>
+          {{ kinds.get(blocked.job.engagement_type) or kinds.get(blocked.job.workflow_key) or blocked.job.engagement_type or 'Untitled job' }}
+          <div class="muted">
+            {% if blocked.job.tax_year %}TY{{ blocked.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
+          </div>
+        </td>
+        <td>
+          <span class="badge">{{ blocked.view.stage.replace('_', ' ') }}</span>
+          {% if blocked.view.undecidable %}<div class="flag">Not known to be delivered</div>{% endif %}
+        </td>
+        <td>{{ blocked.view.why }}</td>
+        <td class="right">
+          <div class="muted">{{ blocked.view.next_step }}</div>
+          <a class="btn sm" href="{{ url_for('work.job_detail', job_id=blocked.job.job_id) }}">Open →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Waiting on clients <span class="muted">· {{ on_others|length }}</span></h2>
+  <div class="body">
+    <p class="note">Second, and smaller, on purpose: none of this is work you can sit down and
+      do. It is here so what is missing stays visible — not so it can be scrolled past.</p>
+    {% if not on_others %}
+    <p class="muted">Nothing is blocked on a client.</p>
+    {% else %}
+    <table>
+      <tr><th>Client</th><th>What it is</th><th>Stage</th><th>Waiting on</th><th class="right">Next step</th></tr>
+      {% for blocked in on_others %}
+      <tr>
+        <td>{{ names.get(blocked.job.client_id, blocked.job.client_id) }}</td>
+        <td>
+          {{ kinds.get(blocked.job.engagement_type) or kinds.get(blocked.job.workflow_key) or blocked.job.engagement_type or 'Untitled job' }}
+          <div class="muted">
+            {% if blocked.job.tax_year %}TY{{ blocked.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
+          </div>
+        </td>
+        <td><span class="badge">{{ blocked.view.stage.replace('_', ' ') }}</span></td>
+        <td>
+          <div>{{ blocked.why }}</div>
+          {% if blocked.waiting_on %}
+          <div class="muted">on: {{ blocked.waiting_on|join(', ') }}</div>
+          {% else %}
+          <div class="muted">Nothing named — open it to see what is outstanding.</div>
+          {% endif %}
+        </td>
+        <td class="right">
+          <div class="muted">{{ blocked.next_step }}</div>
+          <a class="btn sm" href="{{ url_for('work.job_detail', job_id=blocked.job.job_id) }}">Open →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<p class="note">
+  {# Principle 4: a preference must never be rendered the way a statute is. #}
+  <strong>The order is firm policy, not law.</strong> It comes from the weights in
+  <span class="mono">configs/firm_policy.yaml</span>
+  {%- if not board.policy.configured %}, which the practice has not set — SATC's own defaults
+  are in use, and nobody has chosen them
+  {%- elif board.policy.defaulted_weights %}, where
+  {{ board.policy.defaulted_weights|join(', ') }}
+  {{ 'is' if board.policy.defaulted_weights|length == 1 else 'are' }} unset and running on
+  SATC's number
+  {%- endif %}. Deadlines are the exception: those are computed from the cited rules in
+  <span class="mono">configs/obligations/</span> and are not a preference.
+</p>
+
+<p class="note">
+  This screen orders work; it never takes it. Nothing above has been assigned, started or
+  reserved, and refreshing changes nothing — every stage is recomputed from the documents
+  and tasks on file each time you open it.
+</p>
+{% endif %}
+{% endblock %}

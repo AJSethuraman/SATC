@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SATC — Sethuraman Accounting, Tax &amp; Consulting</title>
+<meta name="description" content="Sethuraman Accounting, Tax &amp; Consulting — accounting, tax, and consulting for individuals and small businesses. Tell us about your situation and we'll be in touch.">
+<meta name="theme-color" content="#132437">
+
+<!-- Open Graph / link previews -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="SATC — Sethuraman Accounting, Tax &amp; Consulting">
+<meta property="og:description" content="Accounting, tax, and consulting for individuals and small businesses. Tell us about your situation and we'll be in touch.">
+<meta property="og:url" content="https://satcllp.com/">
+<meta property="og:image" content="https://satcllp.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://satcllp.com/og-image.png">
+<link rel="canonical" href="https://satcllp.com/">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Favicon: the S seal, inline so there's no extra file to host -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================================
+   SATC — WEBSITE RESTYLE
+   Drop-in replacement for the <style> block in website/index.html
+   ----------------------------------------------------------------------------
+   Direction:  "Modern practice" — cool ground, IBM Plex superfamily,
+               navy dominant, OXBLOOD as the single action color,
+               gold demoted to hairlines only.
+
+   STRATEGY — why this is a small diff:
+   Every token name from the original :root is KEPT and simply re-pointed to a
+   new value. Swap the :root block and ~70% of the page restyles itself. The
+   rules after it handle the places that need a real change (serif→sans
+   headings, gold→oxblood actions, circular seal→square mark).
+
+   NOTE ON NAMES: --cream / --paper are now COOL, not warm. The names are kept
+   deliberately so no other rule has to change. Aliases are provided at the
+   bottom of :root if you'd rather migrate the names later.
+
+   FONT SWAP — replace the Google Fonts <link> in <head> with:
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+   ============================================================================ */
+
+:root {
+  /* ---- brand ---- */
+  --navy:        #132437;   /* was #0B1F3A — deeper, cooler */
+  --navy-deep:   #0D1926;   /* was #07172d */
+  --navy-soft:   #22374F;   /* was #15325c */
+
+  /* ---- text ---- */
+  --charcoal:    #242C36;   /* was #2B2F33 — body copy */
+  --charcoal-2:  #4A5360;   /* unchanged — secondary copy */
+  --mute:        #82817C;   /* NEW — labels, small caps, anything that used to be gold text */
+
+  /* ---- ACTION color (new) ----
+     Oxblood replaces gold as the thing you click. Gold never fills again. */
+  --oxblood:     #6A2833;
+  --oxblood-lt:  #83323F;
+
+  /* ---- gold: hairlines and rules ONLY ---- */
+  --gold:        #C0A265;   /* was #B08D57 — more chroma, less brown */
+  --gold-light:  #D6BE8C;   /* was #D4B97E */
+  /* Was #8A7433, which the style spec lists as AA at 4.6:1 — that figure is
+     measured on WHITE. On --cream it is 4.23:1 and on the gold-tinted
+     .need-note ground 3.99:1, both under 4.5:1. Darkened so it passes on the
+     grounds actually used: 5.54:1 on cream, 5.22:1 on the tint. */
+  --gold-deep:   #756228;   /* the only gold approved for text on light */
+
+  /* ---- ground: now COOL ---- */
+  --cream:       #F7F7F5;   /* was #F7F5F0 — page shell */
+  --cream-2:     #EFEFEC;   /* was #EFEBDF — intake band */
+  --paper:       #FFFFFF;   /* was #FBF9F4 — raised surfaces, crisp white */
+  --hairline:    #E6E5E0;   /* was #DED5C2 — cool, quieter */
+  --hairline-2:  #D8D7D1;   /* NEW — stronger divider */
+  --ink:         #131A22;   /* was #0E1726 — form input text */
+
+  /* ---- type: IBM Plex superfamily ---- */
+  --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --sans:  "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --pad: clamp(20px, 5vw, 56px);
+}
+
+*,*::before,*::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  color: var(--charcoal);
+  background: var(--cream);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+a { color: inherit; text-decoration: none; }
+img, svg { max-width: 100%; }
+:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+
+/* ─────────────── reusable bits ─────────────── */
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--pad); }
+
+/* Eyebrows go MONO and much tighter. 0.32em tracking is the single most
+   "heritage" thing in the old page; 0.18em reads current. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--mute); font-weight: 400; margin: 0;
+}
+.eyebrow-light { color: var(--gold); }
+
+/* Headings: SANS, weight 600, negative tracking. This is the biggest single
+   change on the page — Cormorant→Plex Sans is most of the "modern" shift. */
+.h2 {
+  font-family: var(--sans); font-weight: 600;
+  font-size: clamp(30px, 4.4vw, 46px); line-height: 1.06;
+  letter-spacing: -0.038em; color: var(--navy);
+  margin: 14px 0 18px; text-wrap: pretty;
+}
+/* <em> inside a heading was gold italic serif — now it just goes quiet.
+   Emphasis by tone, not by ornament. */
+.h2 em { font-style: normal; font-weight: 600; color: var(--mute); }
+
+/* Lead paragraphs: was serif italic. Now sans, upright. */
+.lead {
+  font-family: var(--sans); font-style: normal;
+  font-size: clamp(16px, 2vw, 18px); line-height: 1.62;
+  color: var(--charcoal-2); max-width: 62ch; margin: 0;
+}
+
+/* ---- buttons ----
+   Was: 11px uppercase, 0.28em tracking. That spacing reads formal/traditional.
+   Now: 14px, sentence case, near-zero tracking. Oxblood is the primary. */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 24px; font-family: var(--sans); font-size: 14px;
+  letter-spacing: -0.005em; text-transform: none; font-weight: 600;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  border-radius: 2px;
+  transition: background .18s, color .18s, border-color .18s;
+}
+.btn::after { content: "→"; letter-spacing: 0; font-size: 14px; }
+/* .gold is kept as a CLASS NAME so the HTML doesn't change — but it is now
+   oxblood. Rename to .btn.primary later if you prefer. */
+.btn.gold { background: var(--oxblood); color: #fff; border-color: var(--oxblood); }
+.btn.gold:hover { background: var(--oxblood-lt); border-color: var(--oxblood-lt); }
+.btn.outline-navy { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
+.btn.outline-navy:hover { background: var(--paper); color: var(--navy); border-color: var(--mute); }
+
+.btn-link {
+  font-family: var(--sans); font-size: 14px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; color: var(--charcoal);
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 0;
+  white-space: nowrap;
+}
+.btn-link::after { content: "→"; letter-spacing: 0; font-size: 14px; color: var(--oxblood); }
+.btn-link:hover { color: var(--oxblood); }
+
+/* ---- lockup: the Notch symbol + the SAT-C wordmark ----
+   The mark spec contradicts itself on this: §04 and §06 say the symbol is
+   favicon/app-icon/OG only, while §02 captions the oxblood-piece variant
+   "website nav, app chrome". §02 is the one we're following — the nav carries
+   the symbol with the oxblood piece, beside the wordmark.
+
+   The wordmark is a solid square standing in for the hyphen in SAT-C, LLP set
+   lighter after it, and the firm name beneath as the descriptor. */
+.lockup { display: inline-flex; align-items: center; gap: 13px; color: var(--navy); }
+.lockup .seal { width: 32px; height: 32px; flex: 0 0 auto; }
+/* the outer square takes currentColor so it inverts on dark with no second file */
+.lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
+.lockup .seal .s-i { fill: var(--oxblood); }
+.lockup .divider { display: none; }
+.lockup .text {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+}
+.lockup .wm {
+  display: flex; align-items: flex-end;
+  font-family: var(--sans); font-size: 22px; font-weight: 700;
+  letter-spacing: -0.04em; line-height: 0.74; white-space: nowrap;
+}
+/* The square is sized in em, so font-size has to stay on .wm itself. Move it
+   to a parent and the square silently collapses to the inherited 16px while
+   the letters stay large — em would have no ancestor to resolve against. */
+.lockup .wm .hy {
+  width: 0.3em; height: 0.3em; flex: 0 0 auto;
+  background: var(--oxblood);
+  margin: 0 0.18em 0.2em;      /* the bottom margin lifts it to hyphen height */
+}
+/* LLP reads as a suffix, not part of the name */
+.lockup .wm i {
+  font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em;
+}
+.lockup .tag {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--mute); text-indent: 0;
+  font-weight: 400; white-space: nowrap;
+}
+/* Reversed: outline goes white via currentColor, and BOTH squares — the
+   removed piece and the wordmark's hyphen — go gold. */
+.lockup.on-dark { color: #fff; }
+.lockup.on-dark .tag { color: rgba(255,255,255,0.55); }
+.lockup.on-dark .seal .s-i { fill: var(--gold); }
+.lockup.on-dark .wm .hy { background: var(--gold); }
+
+/* ============================================================ STICKY NAV */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(247,247,245,0.92);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--hairline);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px var(--pad); max-width: 1480px; margin: 0 auto;
+}
+.nav-links {
+  display: flex; gap: 10px; align-items: center;
+  font-family: var(--sans); font-size: 14px; letter-spacing: -0.005em;
+  text-transform: none; color: var(--charcoal); font-weight: 500;
+}
+.nav-links a:hover { color: var(--navy); }
+.nav-cta {
+  background: var(--navy); color: #fff; padding: 11px 18px;
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; border: 1px solid var(--navy);
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  border-radius: 2px; transition: background .18s, border-color .18s;
+}
+.nav-cta::after { content: "→"; letter-spacing: 0; font-size: 13px; color: rgba(255,255,255,.55); }
+.nav-cta:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
+.nav-cta.ghost { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
+.nav-cta.ghost::after { color: var(--oxblood); }
+.nav-cta.ghost:hover { background: var(--paper); border-color: var(--mute); }
+.nav-toggle {
+  display: none; background: none; border: 0; cursor: pointer;
+  width: 44px; height: 44px; padding: 10px; color: var(--navy);
+}
+.nav-toggle span { display: block; height: 2px; background: currentColor; margin: 5px 0; transition: .25s; }
+.nav.open .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
+.nav.open .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ============================================================ HERO */
+.hero {
+  background: var(--navy); color: #fff;
+  padding: clamp(70px, 10vw, 118px) 0 clamp(64px, 9vw, 104px);
+  position: relative; overflow: hidden;
+}
+/* The two concentric gold CIRCLES were the most traditional flourish on the
+   page. Replaced with offset SQUARES that echo the new mark. */
+.hero::before, .hero::after {
+  content: ""; position: absolute; border-radius: 0; pointer-events: none;
+  border: 1px solid rgba(192,162,101,0.14);
+}
+.hero::before { top: -120px; right: -120px; width: 460px; height: 460px; }
+.hero::after  { top: 30px;  right: 30px;  width: 460px; height: 460px; border-color: rgba(192,162,101,0.07); }
+
+.hero-grid {
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(40px, 6vw, 76px);
+  align-items: center; position: relative; z-index: 1;
+}
+.hero h1 {
+  font-family: var(--sans); font-weight: 600;
+  font-size: clamp(38px, 6.4vw, 66px); line-height: 1.02;
+  letter-spacing: -0.045em; margin: 22px 0 24px; text-wrap: balance;
+}
+.hero h1 em { font-style: normal; font-weight: 600; color: rgba(255,255,255,0.5); }
+.hero p.lede {
+  font-family: var(--sans); font-style: normal;
+  font-size: clamp(17px, 2.2vw, 19px); line-height: 1.6;
+  color: rgba(255,255,255,0.72); margin: 0 0 32px; max-width: 46ch;
+}
+.hero-ctas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.hero-ctas .btn-link { color: rgba(255,255,255,0.8); padding: 14px 0; }
+.hero-ctas .btn-link::after { color: var(--gold); }
+.hero-ctas .btn-link:hover { color: #fff; }
+
+.hero-card {
+  position: relative; border: 1px solid rgba(255,255,255,0.16);
+  padding: 28px; background: rgba(255,255,255,0.04);
+  display: flex; flex-direction: column; gap: 14px; border-radius: 2px;
+}
+.hero-card .card-eyebrow {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold); font-weight: 400;
+}
+.hero-card .card-title {
+  font-family: var(--sans); font-weight: 600; font-size: clamp(20px, 2.6vw, 25px);
+  line-height: 1.16; color: #fff; letter-spacing: -0.03em;
+}
+.hero-card .card-title em { font-style: normal; color: rgba(255,255,255,0.55); font-weight: 600; }
+.hero-card .card-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 11px 0; border-top: 1px solid rgba(255,255,255,0.12); font-family: var(--sans);
+}
+.hero-card .card-row .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.45); font-weight: 400; }
+.hero-card .card-row .v { font-family: var(--sans); font-size: 14.5px; font-weight: 500; color: #fff; text-align: right; letter-spacing: -0.01em; }
+
+/* ============================================================ SECTION SCAFFOLD */
+section.band { padding: clamp(60px, 8vw, 100px) 0; }
+section.band.tight { padding: clamp(52px, 7vw, 84px) 0; }
+section.band .section-head {
+  display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 72px);
+  align-items: end; margin-bottom: clamp(36px, 5vw, 60px);
+}
+section.band .section-head .right { padding-bottom: 8px; }
+
+/* ---- CREDENTIAL — promoted ----
+   Was a 13px footnote with a gold left border. The CPA license is the most
+   persuasive fact on the page, so it now reads as a statement. Understated
+   on purpose: no seal, no badge, no adjectives. */
+.credential {
+  font-family: var(--sans); font-size: 16px; line-height: 1.6;
+  color: var(--charcoal); margin: 20px 0 0; max-width: 48ch;
+  padding: 18px 0 0; border-top: 1px solid var(--hairline-2); border-left: 0;
+}
+.credential b { color: var(--navy); font-weight: 600; }
+/* the one place a mono micro-label earns its keep */
+.credential .lic {
+  display: block; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute);
+  margin-bottom: 8px;
+}
+
+/* ============================================================ CORE SERVICES */
+.services {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--hairline); border: 1px solid var(--hairline);
+}
+.service {
+  background: var(--paper); padding: 34px 30px 30px;
+  display: flex; flex-direction: column; gap: 14px; position: relative;
+}
+/* was serif italic gold */
+.service .num {
+  font-family: var(--mono); font-style: normal; color: var(--oxblood);
+  font-size: 10.5px; letter-spacing: 0.16em; position: absolute; top: 24px; right: 26px;
+}
+.service-icon { width: 40px; height: 40px; color: var(--navy); margin-bottom: 4px; opacity: .9; }
+.service h3 {
+  font-family: var(--sans); font-weight: 600; font-size: 22px; line-height: 1.18;
+  color: var(--navy); margin: 0; letter-spacing: -0.03em;
+}
+.service p { font-family: var(--sans); font-size: 14.5px; line-height: 1.62; color: var(--charcoal-2); margin: 0; flex: 1; }
+.service ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0; }
+.service ul li {
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: 0;
+  color: var(--charcoal-2); padding: 8px 0 8px 16px; position: relative;
+  border-top: 1px solid var(--hairline);
+}
+.service ul li::before { content: ""; width: 4px; height: 4px; background: var(--gold); position: absolute; left: 0; top: 15px; }
+
+/* ============================================================ WHO THIS IS FOR (NEW)
+   New section — sits between Services and Intake. Purpose is qualification:
+   let a wrong-fit visitor leave before spending five minutes on the form, and
+   let a right-fit visitor recognize themselves. The "probably not" column is
+   the point — it is the most trust-building block on the page. */
+section.fit { background: var(--paper); border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+.fit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
+.fit-col { background: var(--paper); padding: 32px 30px; }
+.fit-col.no { background: var(--cream); }
+.fit-col h3 {
+  font-family: var(--sans); font-size: 19px; font-weight: 600; letter-spacing: -0.028em;
+  color: var(--navy); margin: 0 0 4px;
+}
+.fit-col .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--mute); margin: 0 0 20px; }
+.fit-col ul { list-style: none; margin: 0; padding: 0; }
+.fit-col li {
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.55; color: var(--charcoal-2);
+  padding: 12px 0 12px 22px; border-top: 1px solid var(--hairline); position: relative;
+}
+.fit-col li:first-child { border-top: 0; }
+/* a small filled square for yes, a rule for no — no icons, no emoji */
+.fit-col.yes li::before { content: ""; position: absolute; left: 0; top: 19px; width: 7px; height: 7px; background: var(--oxblood); }
+/* Same square as the "yes" column, deliberately — a dash here read as a
+   different kind of list rather than the other half of the same one. */
+.fit-col.no  li::before { content: ""; position: absolute; left: 0; top: 19px; width: 7px; height: 7px; background: var(--mute); }
+.fit-note {
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.62; color: var(--charcoal-2);
+  margin: 26px 0 0; padding-top: 20px; border-top: 1px solid var(--hairline-2); max-width: 68ch;
+}
+.fit-note b { color: var(--navy); font-weight: 600; }
+
+/* ============================================================ INTAKE */
+.intake { background: var(--cream-2); }
+.intake-grid {
+  display: grid; grid-template-columns: 0.82fr 1.18fr;
+  gap: clamp(36px, 5vw, 64px); align-items: start;
+}
+.intake-aside { position: sticky; top: 104px; }
+.steps { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+.steps li { position: relative; padding-left: 42px; }
+/* was a gold-bordered box with serif italic numeral */
+.steps li .n {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px;
+  border: 0; background: var(--navy); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-style: normal; font-size: 12px;
+}
+.steps li b { display: block; font-family: var(--sans); font-size: 17px; font-weight: 600; color: var(--navy); margin-bottom: 4px; letter-spacing: -0.022em; }
+.steps li p { font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal-2); margin: 0; }
+
+.need-note {
+  margin: 30px 0 0; padding: 18px 20px;
+  border-left: 2px solid var(--gold); background: rgba(192,162,101,0.08);
+}
+.need-note > b {
+  display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold-deep); font-weight: 400; margin-bottom: 8px;
+}
+.need-note p { font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal-2); margin: 0; }
+.need-note p b { color: var(--navy); font-weight: 600; }
+
+.aside-direct { list-style: none; margin: 32px 0 0; padding: 24px 0 0; border-top: 1px solid var(--hairline-2); display: flex; flex-direction: column; gap: 15px; }
+.aside-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
+.aside-direct li b { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--mute); font-weight: 400; margin-bottom: 5px; }
+.aside-direct a { color: var(--oxblood); font-weight: 500; border-bottom: 1px solid rgba(106,40,51,0.3); }
+.aside-direct a:hover { color: var(--oxblood-lt); border-bottom-color: var(--oxblood); }
+
+/* ---- the form itself ---- */
+.intake-form { background: var(--paper); border: 1px solid var(--hairline); padding: clamp(24px, 4vw, 40px); }
+.intake-form fieldset { border: 0; margin: 0 0 36px; padding: 0; }
+.intake-form fieldset:last-of-type { margin-bottom: 24px; }
+.intake-form legend {
+  font-family: var(--sans); font-size: 21px; font-weight: 600; color: var(--navy);
+  padding: 0; margin-bottom: 6px; letter-spacing: -0.03em;
+}
+.fs-note { font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--charcoal-2); margin: 0 0 20px; }
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.field > .lab {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 400; color: var(--mute);
+}
+.field > .lab .req { color: var(--oxblood); }
+.intake-form input[type="text"], .intake-form input[type="email"],
+.intake-form input[type="tel"], .intake-form input[type="number"],
+.intake-form select, .intake-form textarea {
+  font-family: var(--sans); font-size: 15px; color: var(--ink); background: #fff;
+  border: 1px solid var(--hairline-2); padding: 13px 14px; width: 100%;
+  letter-spacing: normal; text-transform: none; font-weight: 400; border-radius: 2px;
+  -webkit-appearance: none; appearance: none;
+}
+.intake-form select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2382817C' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px;
+}
+.intake-form input:focus, .intake-form select:focus, .intake-form textarea:focus {
+  outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(19,36,55,0.08);
+}
+.intake-form textarea { resize: vertical; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 22px; margin: 2px 0 4px; }
+.checks.one-col { grid-template-columns: 1fr; }
+.check {
+  display: flex; gap: 11px; align-items: flex-start; cursor: pointer;
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.5; color: var(--charcoal);
+}
+.check input { flex: 0 0 auto; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--navy); cursor: pointer; }
+
+/* ---- answer chips ----
+   Selected state moves from gold to NAVY: chips are a form state, and oxblood
+   stays scarce so it always means "the button you press". */
+/* Grid rather than wrapped flex. Flex sized each chip to its own label, so a
+   question landed three-then-two-then-four across the rows and every step
+   looked like a different form. Equal columns mean the answers line up, and a
+   chip that wraps to two lines takes its whole row with it instead of leaving
+   a step in the middle. */
+.chips {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 9px; margin: 4px 0 2px;
+}
+.chip {
+  position: relative; display: flex; align-items: center;
+  min-height: 46px; padding: 12px 17px;
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.3;
+  color: var(--charcoal); background: #fff;
+  border: 1px solid var(--hairline-2); cursor: pointer; user-select: none;
+  border-radius: 2px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.chip:hover { border-color: var(--navy); color: var(--navy); }
+.chip.on { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 500; }
+.chip.on:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
+.chip:has(input:focus-visible) { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+
+.linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--sans); font-size: 13.5px; letter-spacing: -0.005em;
+  text-transform: none; font-weight: 600; color: var(--charcoal-2);
+  border-bottom: 1px solid var(--hairline-2);
+}
+.linkish:hover { color: var(--navy); border-bottom-color: var(--oxblood); }
+.linkish:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+.wiz-reset { margin: -14px 0 22px; text-align: right; }
+.done-book { margin: 24px 0 0; }
+.done-again { margin: 26px 0 0; }
+.wiz-hint {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 400; color: var(--mute); margin: 0 0 12px;
+}
+.doc-group { margin-bottom: 24px; }
+.doc-group h5 {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase;
+  color: var(--mute); font-weight: 400; margin: 0 0 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--hairline);
+}
+.callout {
+  border-left: 2px solid var(--oxblood); background: rgba(106,40,51,0.05);
+  padding: 16px 18px; margin: 0 0 24px;
+  font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal);
+}
+.callout b { color: var(--navy); font-weight: 600; }
+.consent { margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline); }
+.consent .check { font-size: 14px; color: var(--charcoal-2); }
+.intake-form button[type="submit"] { border: 0; }
+.form-status { font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--charcoal-2); margin: 14px 0 0; min-height: 18px; }
+.form-status.err { color: #9B2C2C; }
+.intake-done { text-align: center; padding: clamp(30px, 6vw, 60px) 10px; }
+.intake-done h3 { font-family: var(--sans); font-weight: 600; font-size: clamp(24px, 3.4vw, 32px); color: var(--navy); margin: 0 0 14px; letter-spacing: -0.035em; }
+.intake-done p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: var(--charcoal-2); margin: 0 auto; max-width: 440px; }
+
+/* ---- step wizard chrome (rendered by intake.js) ----
+   These keep .intake-form in the selector for the same specificity reason as
+   the original — do not simplify them or they lose the cascade. */
+.wiz-bar { height: 2px; background: var(--hairline); margin-bottom: clamp(24px, 4vw, 32px); }
+.wiz-bar span { display: block; height: 100%; background: var(--oxblood); transition: width .3s ease; }
+.intake-form .wiz-step { border: 0; margin: 0; padding: 0; }
+.intake-form .wiz-q {
+  font-family: var(--sans); font-weight: 600; font-size: clamp(21px, 3vw, 27px);
+  line-height: 1.16; color: var(--navy); padding: 0; margin: 0 0 6px;
+  letter-spacing: -0.035em; text-wrap: pretty;
+}
+.wiz-step .fs-note { margin-bottom: 20px; }
+.wiz-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--hairline);
+}
+.intake-form .wiz-nav .btn { min-width: 180px; width: auto; justify-content: center; margin-top: 0; }
+.intake-form .wiz-nav .btn:disabled { opacity: .5; cursor: default; }
+.wiz-nav .btn-link { background: none; border: 0; cursor: pointer; font: inherit; }
+.wiz-nav .btn-link::after { content: "←"; order: -1; }
+
+.check input:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+.check:has(input:focus-visible) { color: var(--navy); }
+.check:has(input:focus-visible) span { box-shadow: 0 1px 0 var(--oxblood); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================================================ FOOTER */
+footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: clamp(52px, 7vw, 72px) 0 28px; }
+.foot-top { display: grid; grid-template-columns: 1.7fr 1fr 1.1fr; gap: clamp(32px, 5vw, 52px); margin-bottom: 46px; }
+.foot-brand .lockup { margin-bottom: 20px; }
+.foot-brand p { font-family: var(--sans); font-size: 13.5px; line-height: 1.68; margin: 0 0 18px; max-width: 36ch; color: rgba(255,255,255,0.5); }
+.foot-col h5 { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--gold); font-weight: 400; margin: 0 0 18px; }
+.foot-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+.foot-col ul li { font-family: var(--sans); font-size: 13.5px; color: rgba(255,255,255,0.66); }
+.foot-col ul li b { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.17em; text-transform: uppercase; color: rgba(255,255,255,0.38); font-weight: 400; margin-bottom: 4px; }
+.foot-col ul li a:hover { color: #fff; }
+.foot-bottom {
+  display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding-top: 26px; border-top: 1px solid rgba(255,255,255,0.12);
+  font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; color: rgba(255,255,255,0.42);
+}
+.foot-bottom .legal { display: flex; gap: 24px; flex-wrap: wrap; }
+.foot-bottom .legal a:hover { color: #fff; }
+[hidden] { display: none !important; }
+
+/* ============================================================ RESPONSIVE */
+@media (max-width: 1080px) {
+  .intake-grid { grid-template-columns: 1fr; }
+  .intake-aside { position: static; }
+}
+@media (max-width: 980px) {
+  html { scroll-padding-top: 70px; }
+  .nav-toggle { display: block; }
+  .nav-links {
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--cream); border-bottom: 1px solid var(--hairline);
+    padding: 8px var(--pad) 20px; font-size: 14px;
+    max-height: 0; overflow: hidden; visibility: hidden;
+    transition: max-height .28s ease, padding .28s ease;
+  }
+  .nav.open .nav-links { max-height: 420px; visibility: visible; }
+  .nav-links a { padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+  .nav-links .nav-cta { justify-content: center; margin-top: 12px; padding: 14px 20px; border-bottom: 0; }
+  .nav-links a:last-child { border-bottom: 0; }
+
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-card { max-width: 520px; }
+  .section-head { grid-template-columns: 1fr !important; align-items: start; }
+  .services { grid-template-columns: 1fr 1fr; }
+  .fit-grid { grid-template-columns: 1fr; }
+  .foot-top { grid-template-columns: 1fr 1fr; }
+  .foot-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .services { grid-template-columns: 1fr; }
+  .checks { grid-template-columns: 1fr; }
+  .two { grid-template-columns: 1fr; }
+  .intake-form .wiz-nav .btn { min-width: 0; flex: 1; padding-left: 14px; padding-right: 14px; }
+  .checks { gap: 0; }
+  .wiz-step .check { min-height: 44px; align-items: center; padding: 6px 0; }
+  .wiz-step .check input { width: 20px; height: 20px; margin: 0; }
+  .hero-ctas .btn { width: 100%; justify-content: center; }
+  .foot-top { grid-template-columns: 1fr; }
+  .foot-bottom { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *{ transition: none !important; } }
+</style>
+
+</head>
+<body><div style="background:#132437;color:#fff;font:13px/1.5 system-ui;padding:10px 16px">STATIC SNAPSHOT for design work — Home — for the shared shell and type scale. Real copy and real prices, captured from the live page. No JavaScript: the tab switch is inert here.</div>
+
+<!-- ============================================================ NAV -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="lockup" href="#top" aria-label="SAT-C LLP — home">
+      <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"></path>
+        <rect class="s-i" x="22" y="22" width="8" height="8"></rect>
+      </svg>
+      <div class="text">
+        <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+        <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+      </div>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-cta ghost" href="#services">Services</a>
+      <a class="nav-cta ghost" href="pricing.html">Pricing</a>
+      <a class="nav-cta" href="#intake">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================ HERO -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow eyebrow-light">Accounting · Tax · Consulting</p>
+      <!-- Occam pointed at us rather than at the reader: the razor is that a
+           client should not need three separate people. "one" carries it, so
+           that is the word set in gold italic. -->
+      <h1>Everything you need, from <em>one</em> desk.</h1>
+      <p class="lede">
+        Accounting, tax, and consulting for individuals and small businesses
+        alike — a first job or a fourth entity. Tell us what you need and
+        we'll be in touch.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn gold" href="#intake">Tell Us About Your Situation</a>
+        <a class="btn-link" href="#services">What We Do</a>
+      </div>
+    </div>
+
+    <aside class="hero-card">
+      <div class="card-eyebrow">How This Works</div>
+      <div class="card-title">Five minutes now,<br>a <em>conversation</em> next.</div>
+      <div class="card-row"><span class="k">Step 1</span><span class="v">You fill out the form</span></div>
+      <div class="card-row"><span class="k">Step 2</span><span class="v">We review and reply</span></div>
+      <div class="card-row"><span class="k">Step 3</span><span class="v">We talk it through</span></div>
+      <div class="card-row"><span class="k">Cost</span><span class="v">Nothing to start</span></div>
+    </aside>
+  </div>
+</header>
+
+<!-- ============================================================ SERVICES -->
+<section class="band" id="services">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">What We Do</p>
+        <h2 class="h2">Three disciplines,<br>no <em>handoffs</em>.</h2>
+      </div>
+      <div class="right">
+        <p class="credential">
+          <span class="lic">Certified Public Accountant · Ohio</span>
+          Led by a <b>licensed CPA</b> with a background in large‑bank credit risk and internal audit.
+        </p>
+      </div>
+    </div>
+
+    <div class="services">
+      <article class="service">
+        <span class="num">01</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <rect x="6" y="8" width="44" height="40" stroke="currentColor" stroke-width="1.4"></rect>
+          <line x1="6" y1="18" x2="50" y2="18" stroke="currentColor" stroke-width="1"></line>
+          <line x1="14" y1="18" x2="14" y2="48" stroke="currentColor" stroke-width="1" opacity="0.5"></line>
+          <line x1="6" y1="28" x2="50" y2="28" stroke="currentColor" stroke-width="1" opacity="0.5"></line>
+          <line x1="6" y1="36" x2="50" y2="36" stroke="currentColor" stroke-width="1" opacity="0.5"></line>
+          <line x1="20" y1="42" x2="44" y2="42" stroke="currentColor" stroke-width="1.6"></line>
+        </svg>
+        <h3>Accounting &amp; Bookkeeping</h3>
+        <p>Books closed on whatever cycle suits you, presented in clean reports you can act on.</p>
+        <ul>
+          <li>Recurring close &amp; reconciliations</li>
+          <li>Financial statements &amp; reporting</li>
+          <li>Cash‑flow tracking</li>
+          <li>Cleanup &amp; catch‑up bookkeeping</li>
+        </ul>
+      </article>
+
+      <article class="service">
+        <span class="num">02</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <path d="M14 6 H38 L46 14 V50 H10 V6 Z" stroke="currentColor" stroke-width="1.4"></path>
+          <path d="M38 6 V14 H46" stroke="currentColor" stroke-width="1.4"></path>
+          <line x1="16" y1="24" x2="40" y2="24" stroke="currentColor" stroke-width="1"></line>
+          <line x1="16" y1="30" x2="40" y2="30" stroke="currentColor" stroke-width="1"></line>
+          <line x1="16" y1="36" x2="32" y2="36" stroke="currentColor" stroke-width="1"></line>
+          <circle cx="38" cy="42" r="3" stroke="currentColor" stroke-width="1.4"></circle>
+        </svg>
+        <h3>Tax &amp; Compliance</h3>
+        <p>Federal, state, and multi‑jurisdictional filings — planned through the year and filed without the last‑minute scramble.</p>
+        <ul>
+          <li>Business &amp; individual returns</li>
+          <li>Quarterly estimates &amp; planning</li>
+          <li>Sales tax &amp; multi‑state</li>
+          <li>Notice response &amp; representation</li>
+        </ul>
+      </article>
+
+      <article class="service">
+        <span class="num">03</span>
+        <svg class="service-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <circle cx="14" cy="14" r="5" stroke="currentColor" stroke-width="1.4"></circle>
+          <circle cx="42" cy="14" r="5" stroke="currentColor" stroke-width="1.4"></circle>
+          <circle cx="28" cy="42" r="5" stroke="currentColor" stroke-width="1.4"></circle>
+          <circle cx="14" cy="42" r="3" stroke="currentColor" stroke-width="1"></circle>
+          <line x1="14" y1="19" x2="14" y2="39" stroke="currentColor" stroke-width="1"></line>
+          <line x1="18" y1="16" x2="38" y2="16" stroke="currentColor" stroke-width="1"></line>
+          <line x1="40" y1="19" x2="30" y2="38" stroke="currentColor" stroke-width="1"></line>
+          <line x1="16" y1="42" x2="23" y2="42" stroke="currentColor" stroke-width="1"></line>
+        </svg>
+        <h3>Risk, Controls &amp; Advisory</h3>
+        <p>Risk and controls, right‑sized for your business — so the day‑to‑day runs without living in your head.</p>
+        <ul>
+          <li>Risk assessment</li>
+          <li>Controls design &amp; testing</li>
+          <li>Process design &amp; documentation</li>
+          <li>Automation &amp; analytics</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ WHO THIS IS FOR -->
+<section class="band tight fit" id="fit">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Who This Is For</p>
+        <h2 class="h2">Worth five minutes,<br>or worth <em>skipping</em>.</h2>
+      </div>
+      <div class="right">
+        <p class="lead">Before you fill anything in — here's who we're a good fit for, and who we aren't.</p>
+      </div>
+    </div>
+
+    <div class="fit-grid">
+      <div class="fit-col yes">
+        <h3>Probably a fit</h3>
+        <p class="sub">Send the form</p>
+        <ul>
+          <li>Businesses that want bookkeeping, tax, and controls in one place</li>
+          <li>Owners whose books have fallen behind</li>
+          <li>Businesses in more than one state, or running more than one entity</li>
+          <li>Individuals at any stage — a first job, a first rental, a first entity</li>
+        </ul>
+      </div>
+      <div class="fit-col no">
+        <h3>Probably not a fit</h3>
+        <p class="sub">We'll point you elsewhere</p>
+        <ul>
+          <li>Anyone who needs assurance work — coming soon</li>
+          <li>Anyone after a one‑off filing rather than a relationship</li>
+          <li>Anyone who needs a lawyer more than an accountant</li>
+          <li>Anyone who wants a position we wouldn't put our name to</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="fit-note"><b>Not sure which column you're in?</b> Send the form anyway. If we're not the right firm for the work, we'll say so.</p>
+  </div>
+</section>
+
+<!-- ============================================================ INTAKE FORM -->
+<section class="band intake" id="intake">
+  <div class="wrap intake-grid">
+
+    <!-- ---------- left rail: what happens next + direct contact ---------- -->
+    <div class="intake-aside">
+      <p class="eyebrow">Get Started</p>
+      <h2 class="h2">Tell us where<br>you're <em>starting</em> from.</h2>
+      <p class="lead">
+        The more we know beforehand, the more we can make of your time when we
+        talk. We only need your name and email, but everything else helps.
+      </p>
+
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <b>You send this</b>
+          <p>About five minutes. Nothing to dig up — just what you know off the top of your head.</p>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <b>We review it</b>
+          <p>We'll read through what you've sent and be in touch as soon as we can to set up a time.</p>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <b>We talk it through</b>
+          <p>We go through your situation together, then discuss timeline and cost.</p>
+        </li>
+      </ol>
+
+      <div class="need-note">
+        <b>What we'll need later</b>
+        <p>For anything we file we'll need a Social Security number for
+        everyone on the return, photo ID (driver's license or state ID), and
+        a mobile number. Prior‑year returns aren't required but help a
+        lot. <b>Nothing to send now.</b></p>
+      </div>
+
+      <!-- No "book a time" row here on purpose. Offered beside the form it is a
+           way to skip the form, and a booked call with no answers is the thing
+           the intake exists to prevent. The booking link appears on the
+           confirmation screen instead — see done() in intake.js. -->
+      <ul class="aside-direct">
+        <li>
+          <b>Email</b>
+          <a data-email="" href="mailto:arjun_sethuraman@satcllp.com?subject=Enquiry%20%E2%80%94%20SATC">arjun_sethuraman@satcllp.com</a>
+        </li>
+        <li data-phone-row="" hidden="">
+          <b>Phone</b>
+          <a data-phone-link="" href="#">phone</a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ---------- the form ---------- -->
+    <div class="intake-form">
+
+      <div class="callout">
+        <b>Please don't enter Social Security numbers, ITINs, or bank account
+        numbers here.</b> This form travels over the open internet.
+      </div>
+
+      <!-- The intake is rendered here by intake.js, one step at a time, from
+           the questions and branching rules in intake-config.js. -->
+      <!-- Deliberately NOT aria-live: intake.js replaces this whole subtree on
+           every step, which would make a screen reader re-announce the entire
+           form. The status line inside carries role="status" instead. -->
+      <div id="intakeMount"><div class="wiz-bar" role="presentation"><span style="width:25%"></span></div><form class="wiz-form" id="intakeForm" novalidate=""><fieldset class="wiz-step"><legend class="wiz-q">What can we help you with?</legend><p class="wiz-hint">Select all that apply</p><div class="chips" role="group" aria-label="What can we help you with?"><label class="chip"><input type="checkbox" name="services" value="individual_tax"><span>Individual tax preparation</span></label><label class="chip"><input type="checkbox" name="services" value="business_tax"><span>Business tax preparation</span></label><label class="chip"><input type="checkbox" name="services" value="bookkeeping"><span>Bookkeeping</span></label><label class="chip"><input type="checkbox" name="services" value="tax_planning"><span>Tax planning</span></label><label class="chip"><input type="checkbox" name="services" value="business_advisory"><span>Business advisory / fractional CFO</span></label><label class="chip"><input type="checkbox" name="services" value="tax_resolution"><span>An IRS or state notice / tax issue</span></label><label class="chip"><input type="checkbox" name="services" value="entity_setup"><span>New business or entity setup</span></label><label class="chip"><input type="checkbox" name="services" value="unsure" data-exclusive="1"><span>I'm not sure yet</span></label></div></fieldset><input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;"><p class="form-status" id="formStatus" role="status" aria-live="polite"></p><div class="wiz-nav"><span></span><button type="submit" class="btn gold">Continue</button></div></form></div>
+
+      <noscript>
+        <p class="fs-note">This form needs JavaScript. Email
+          <a data-email href="#">us</a> and we&#39;ll pick it up from there.</p>
+      </noscript>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer id="site-footer">
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <div class="lockup on-dark">
+          <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"></path>
+            <rect class="s-i" x="22" y="22" width="8" height="8"></rect>
+          </svg>
+          <div class="text">
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+            <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+          </div>
+        </div>
+        <p>
+          Accounting, tax, and consulting for individuals and small businesses,
+          with the back‑office processes handled behind the scenes.
+        </p>
+      </div>
+
+      <div class="foot-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="#services">Accounting &amp; Bookkeeping</a></li>
+          <li><a href="#services">Tax &amp; Compliance</a></li>
+          <li><a href="#services">Risk, Controls &amp; Advisory</a></li>
+          <li><a href="#intake">Get Started</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h5>Get In Touch</h5>
+        <ul>
+          <li>
+            <b>Email</b>
+            <a data-email="" href="mailto:arjun_sethuraman@satcllp.com?subject=Enquiry%20%E2%80%94%20SATC">arjun_sethuraman@satcllp.com</a>
+          </li>
+          <li data-phone-row="" hidden="">
+            <b>Phone</b>
+            <a data-phone-link="" href="#">phone</a>
+          </li>
+          <li>
+            <b>Office</b>
+            <span data-location="">By appointment · Remote &amp; in‑person</span>
+          </li>
+          <li data-linkedin-row="" hidden="">
+            <b>LinkedIn</b>
+            <a data-linkedin="" href="#" target="_blank" rel="noopener">Connect</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> Sethuraman Accounting, Tax &amp; Consulting</span>
+      <div class="legal">
+        <a href="#intake">Get Started</a>
+        <a data-email="" href="mailto:arjun_sethuraman@satcllp.com?subject=Enquiry%20%E2%80%94%20SATC">Email Us</a>
+        <a href="privacy.html">Privacy</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<!-- Config lives in site-config.js so privacy.html can read the same values.
+     Loaded before the wiring below, and before intake.js, both of which read
+     window.SATC_CONFIG. -->
+
+
+
+
+<!-- Intake: questions and branching rules live in intake-config.js; the
+     engine that renders them lives in intake.js. Loaded after SATC_CONFIG
+     because intake.js reads contact.formspreeId from it. -->
+
+
+
+
+</body></html>

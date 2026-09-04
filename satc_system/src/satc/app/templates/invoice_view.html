@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Invoice {{ invoice.invoice_id }} — {{ client_name }}</h2>
+  <div class="muted">
+    This is the invoice as the client reads it. It was issued
+    {{ invoice.issued_on.strftime('%B %d, %Y') if invoice.issued_on else '—' }} and cannot be
+    edited; correcting it means a new invoice or a credit.
+  </div>
+</div>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+{% if note %}<p class="note">{{ note }}</p>{% endif %}
+
+<div class="panel">
+  <h2>The invoice</h2>
+  <div class="body">
+    <div class="kv">
+      <div><b>Client</b> {{ client_name }} <span class="mono muted">{{ invoice.client_id }}</span></div>
+      <div><b>Tax year</b> {{ invoice.tax_year }}</div>
+      <div><b>Rate plan</b> {{ invoice.rate_plan.name }}
+        {% if invoice.plan_basis %}<span class="muted">— {{ invoice.plan_basis }}</span>{% endif %}</div>
+      <div><b>Issued</b> {{ invoice.issued_on.strftime('%Y-%m-%d') if invoice.issued_on else '—' }}</div>
+      <div><b>Due</b> {{ invoice.due_on.strftime('%Y-%m-%d') if invoice.due_on else '—' }}
+        {% if money.settled %}<span class="tie">· paid {{ money.settled.strftime('%Y-%m-%d') }}</span>
+        {% elif invoice.is_overdue(today) %}<span class="flag">· overdue</span>{% endif %}</div>
+      <div><b>Amount due</b> <span class="mono"><strong>{{ '{:,.2f}'.format(invoice.total) }}</strong></span></div>
+      {# Two different facts can fill this line, and they must not read alike.
+         A ledger figure is a sum of recorded payments and can be interrogated;
+         a pre-ledger figure is the invoice total, because the flag it comes
+         from says "this bill was settled" and nothing finer. Each is labelled
+         with which it is. #}
+      {% if money.pre_ledger %}
+      <div><b>Recorded paid</b> <span class="mono">{{ money.settled.strftime('%Y-%m-%d') }}</span>
+        <span class="hint">— {{ money.how_we_know }}</span></div>
+      <div><b>Still outstanding</b> <span class="mono tie">nothing owed</span>
+        <span class="hint">— recorded settled, though not payment by payment</span></div>
+      {% else %}
+      <div><b>Paid to date</b> <span class="mono">{{ '{:,.2f}'.format(paid) }}</span>
+        <span class="hint">— {{ money.how_we_know }}</span></div>
+      <div><b>Still outstanding</b>
+        <span class="mono {{ 'tie' if owed == 0 else 'flag' }}">{{ '{:,.2f}'.format(owed) }}</span></div>
+      {% endif %}
+    </div>
+
+    <textarea class="codebox" rows="16" readonly>{{ invoice.summary_block() }}</textarea>
+
+    {# Why each line reads the way it does. A line billed below what it is worth
+       is a reduction, and a reduction the client cannot see is the thing this
+       invoice exists to prevent — the same reason the rate plan is shown by
+       name rather than folded into a smaller total. #}
+    <table style="margin-top:12px">
+      {# The right-hand column is the line's OWN value — the catalogue rate, or
+         the rate this line was recorded at when it was worth something else.
+         It was headed "Full value", which is the catalogue's number and not
+         what is underneath it the moment a line carries an override. #}
+      <tr><th>What</th><th>Why it reads that way</th><th class="right">What it was worth</th></tr>
+      {% for line in invoice.lines %}
+      <tr>
+        <td>{{ line.describe() }} <span class="muted mono">{{ line.service_code }}</span></td>
+        <td class="muted">{{ line.note or '—' }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(line.standard_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <p>{{ invoice.client_sentence() }}</p>
+
+    <p style="margin-top:12px">
+      <a class="btn primary" href="{{ url_for('billing.print_invoice', invoice_id=invoice.invoice_id) }}">Printable copy</a>
+      <a class="btn" href="{{ url_for('comms.comms', client=invoice.client_id, template='invoice_cover', tax_year=invoice.tax_year) }}">Draft the covering email →</a>
+      <a class="btn" href="{{ url_for('billing.invoices') }}">← All invoices</a>
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Money in</h2>
+  <div class="body">
+    {% if over > 0 %}
+    {# An overpayment is owed a conversation, not silence. It is the one state
+       a paid/unpaid flag cannot express at all, so it is said first and in the
+       loudest place on the page. #}
+    <p class="flag">
+      {{ client_name }} has paid {{ '{:,.2f}'.format(paid) }} against a bill of
+      {{ '{:,.2f}'.format(invoice.total) }} — <strong>{{ '{:,.2f}'.format(over) }} more than
+      was due</strong>. That is a credit to talk to them about: apply it to the next invoice
+      or return it. SATC will not do either on its own.
+    </p>
+    {% elif money.pre_ledger %}
+    {# A recorded fact, just a coarser one. It used to be recomputed from an
+       empty ledger, which answered "never paid" and quietly lost two years of
+       the practice's own record — in the client's favour. It is kept, and it
+       says exactly what it can and cannot answer, and what would replace it. #}
+    <p class="tie">Recorded paid in full on {{ money.settled.strftime('%B %d, %Y') }}.</p>
+    <p class="hint">
+      This invoice was marked paid <strong>before the payment ledger existed</strong>, so there
+      is no payment recorded against it. The date is the practice's own record and stands; how
+      much arrived, in how many parts and by what rail are not on file and are not guessed at
+      here. Recording the payment below replaces this with the ledger's own answer.
+    </p>
+    {% elif owed == 0 and payments %}
+    <p class="tie">Settled in full{% if settled %} on {{ settled.strftime('%B %d, %Y') }}{% endif %}.</p>
+    {% elif payments %}
+    <p class="flag">
+      Part paid: {{ '{:,.2f}'.format(paid) }} of {{ '{:,.2f}'.format(invoice.total) }}.
+      <strong>{{ '{:,.2f}'.format(owed) }} is still outstanding</strong>, so this invoice is not
+      paid and the balance is still chaseable.
+    </p>
+    {% elif invoice.rate_plan.is_free %}
+    <p class="note">Nothing to collect — this invoice is itemised at full value so the client can
+      see what they were given, but there is no charge.</p>
+    {% else %}
+    <p class="muted">Nothing recorded against this invoice yet.</p>
+    {% endif %}
+
+    {% if payments %}
+    <table style="margin-top:6px">
+      <tr><th>Received</th><th class="right">Amount</th><th>How</th><th>Reference</th>
+        <th>How we know it's this invoice</th></tr>
+      {% for p in payments %}
+      <tr>
+        <td>{{ p.received_on.strftime('%Y-%m-%d') }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(p.amount) }}</td>
+        <td>{{ method_label[p.method] }}</td>
+        <td class="mono muted">{{ p.reference or '—' }}</td>
+        <td class="{{ 'muted' if p.basis.is_automatic else 'hint' }}">{{ how_matched[p.basis] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('billing.mark_paid', invoice_id=invoice.invoice_id) }}"
+          style="margin-top:14px">
+      <p>
+        <label class="muted">How much arrived</label>
+        <span class="hint"> — the balance is only a starting figure; write what actually came in</span><br>
+        <input class="field-input" type="text" name="amount"
+               value="{{ '{:.2f}'.format(owed) if owed > 0 else '' }}" style="width:160px">
+      </p>
+      <p>
+        <label class="muted">The day it arrived</label><br>
+        <input class="field-input" type="date" name="received_on"
+               value="{{ today.isoformat() }}" style="width:180px">
+      </p>
+      <p>
+        <label class="muted">How it arrived</label><br>
+        <select class="field-input" name="method" style="width:180px">
+          {% for m in methods %}
+          <option value="{{ m.value }}">{{ method_label[m] }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">Reference</label>
+        <span class="hint"> — optional: a cheque number, a memo line, whatever the rail gave you</span><br>
+        <input class="field-input" type="text" name="reference"
+               placeholder="e.g. check 1042, or {{ invoice.invoice_id }}">
+      </p>
+      <button class="btn primary" type="submit">Record this payment</button>
+      <a class="btn" href="{{ url_for('billing.payments') }}">All payments →</a>
+    </form>
+    <p class="note">
+      SATC records that the money arrived; it does not take it. Nothing here charges a card,
+      sends a request or moves a balance — collection lives in Invoicer, and this machine holds
+      the identity vault and stays off the public network.
+    </p>
+  </div>
+</div>
+{% endblock %}

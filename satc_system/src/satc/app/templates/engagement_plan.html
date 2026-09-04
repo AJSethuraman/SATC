@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+{#
+  THE ENGAGEMENT PLAN. Everything on this page came out of one call to
+  satc.intake.fanout.fan_out, from one set of interview answers — so no two
+  panels can disagree about the client.
+
+  Four kinds of statement live here and they must never look alike (principle 4).
+  The kind is carried in `data-kind` as well as in the words, so a rewrite of the
+  prose cannot quietly make a promise read like a statute:
+
+    data-kind="statute"      computed from a cited rule; it has teeth
+    data-kind="firm_policy"  the owner's own cutoff, no citation
+    data-kind="promise"      an SLA — an apology if broken, never a penalty
+    data-kind="estimate"     a quote. Not a bill.
+
+  Three more mark WHERE THE BLOCKING SPLIT COMES FROM, which is the same obligation on a
+  different axis: what is being said about a document rather than about a date.
+
+    data-kind="cited_rule"          the duty rule's own blocking_docs + blocking_source
+    data-kind="uncited_judgement"   a Python literal nobody sourced. Says so.
+    data-kind="default"             what is left when neither claimed it
+
+  Nothing on this page writes anything.
+#}
+{% block content %}
+
+{% if not workflow %}
+<div class="hero">
+  <h2>Answer the interview once, and see the whole engagement.</h2>
+  <div class="muted">What we will need from the client, what it will cost, when it is due,
+    and what we have promised — all derived from the same answers. Nothing is generated,
+    sent or billed from this screen.</div>
+</div>
+<div class="panel"><h2>Which engagement?</h2><div class="body">
+  {% if not client_id %}
+  <p class="note">Pick a client first — a plan is for somebody, and the rate plan and the
+    filing history are read off them.</p>
+  {% endif %}
+  {% if workflows %}
+  <table>
+    <tr><th>Workflow</th><th>What it covers</th><th class="right"></th></tr>
+    {% for w in workflows %}
+    <tr>
+      <td><strong>{{ w.name }}</strong><div class="muted mono">{{ w.key }}</div></td>
+      <td class="muted">{{ w.description }}</td>
+      <td class="right">
+        <a class="btn sm" href="{{ url_for('intake.engagement_plan', client=client_id,
+                                           workflow=w.key, tax_year=tax_year) }}">Plan it →</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="note">No workflows are on file for this client type.</p>
+  {% endif %}
+</div></div>
+
+{% else %}
+
+<div class="hero">
+  <h2>{{ workflow.name }}{% if client_name %} · {{ client_name }}{% endif %}</h2>
+  <div class="muted">
+    Everything below fell out of the interview answers — the requests, the fee, the deadline
+    and the promise. <strong>Nothing here has been generated, sent or billed.</strong>
+    Generating the engagement is still a click you make.
+  </div>
+  {% if plan and plan.job.risk_flags %}
+  <p class="note" style="margin-top:10px">Flagged for review:
+    {% for f in plan.job.risk_flags %}<span class="flag">{{ f }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</div>
+
+{% if refusal %}
+{# The engine's own words, never rewritten. They already name the next step. #}
+<div class="panel"><h2>SATC will not plan this engagement</h2><div class="body">
+  <p class="note flag">{{ refusal }}</p>
+  <p class="note">Nothing has been generated, and no date has been guessed at. A plausible
+    deadline — against work the law has no opinion about, or computed from whichever of two
+    disagreeing facts happened to win — is the confident wrong answer this system is built
+    not to give.</p>
+</div></div>
+{% else %}
+
+{# ------------------------------------------------------------------ needs #}
+<div class="panel">
+  <h2>What we need from {{ client_name or 'the client' }} <span class="muted">· {{ needs_total }}</span></h2>
+  <div class="body">
+    {% if not needs_total %}
+    <p class="note">These answers ask the client for nothing at all. That is either a very
+      simple return or an interview nobody has answered yet.</p>
+    {% endif %}
+
+    {% if blocking_basis %}
+    {# THE LEGEND, ABOVE THE TABLE IT EXPLAINS — three classes, three DIFFERENT
+       provenances, and only one of them has a citation at all. Attributing all three
+       to the deadline's citation was principle 4 upside down: an uncited judgement in
+       Python dressed as a sourced rule. Each is marked for what it is, in `data-kind`
+       as well as in the words. Deliberately worded so as never to repeat a class
+       heading verbatim — one phrase, one place, or the page says it twice. #}
+    <div class="kv" style="margin-bottom:14px">
+      <div data-kind="cited_rule">
+        <b style="display:block;min-width:0">Blocking, on this rule's own authority</b>
+        <span class="muted">
+          {% if blocking_basis.docs %}
+          The documents the Form {{ blocking_basis.form }} rule itself lists —
+          {{ blocking_basis.docs|join(', ') }} — cited to
+          <em>{{ blocking_basis.source or 'no source recorded on the rule' }}</em>.
+          A different citation from the deadline's ({{ plan.citation }}): when a return
+          is due and what must be in hand before it is originated are two rules
+          answering two questions.
+          {% else %}
+          The Form {{ blocking_basis.form }} rule names no such documents at all, so
+          nothing on this engagement can land in that class. That is the rule's answer,
+          not a gap.
+          {% endif %}
+        </span>
+      </div>
+      <div data-kind="uncited_judgement">
+        <b style="display:block;min-width:0">Expected late, on nobody's authority</b>
+        <span class="muted"><span class="flag">No citation — a judgement, not a rule.</span>
+          A K&#8209;1, a 1099&#8209;B or a consolidated 1099 genuinely cannot exist early in
+          the season. That is true, and nobody sourced it: it is a Python literal in
+          <span class="mono">satc.models.readiness.blocking_class_for</span>, and it is said
+          here so it cannot be mistaken for law.</span>
+      </div>
+      <div data-kind="default">
+        <b style="display:block;min-width:0">Everything else, by default</b>
+        <span class="muted">What neither of the two above claimed. A default, which is why a
+          document landing there proves nothing on its own. The split is what lets work start
+          on a file that is complete apart from something which cannot exist yet.</span>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if blocking_basis and blocking_basis.gap %}
+    {# An empty first class is not "the file is clean" — it is the classifier never
+       firing. Said out loud, because a split whose top bucket can never fill is the
+       row that teaches the owner to scroll past it (principle 13). #}
+    <p class="note flag">{{ blocking_basis.gap }}</p>
+    {% endif %}
+
+    {% for heading, rows, tone in [
+         ('Blocks starting prep', blocking, 'flag'),
+         ('Blocks filing, not prep', expected_late, 'tie'),
+         ('Useful, not load-bearing', other_needs, 'muted')] %}
+    {% if rows %}
+    <h3 style="margin:14px 0 4px;font-size:13.5px">
+      <span class="{{ tone }}">{{ heading }}</span> <span class="muted">· {{ rows|length }}</span>
+    </h3>
+    <table>
+      <tr><th>Document</th><th>What we ask for</th><th>Why it is on the list</th><th class="right">By</th></tr>
+      {% for n in rows %}
+      <tr>
+        <td><strong>{{ n.doc_type }}</strong>
+          <div class="muted">{{ n.title }}</div></td>
+        <td class="muted">{{ n.ask }}
+          {% if n.alternatives %}<div class="muted">Also accepted: {{ n.alternatives }}</div>{% endif %}
+          {% if n.why %}<div class="muted">{{ n.why }}</div>{% endif %}</td>
+        {# The CAUSE. A request whose answer cannot be named is one nobody can
+           defend to the client who asks why we want it. #}
+        <td class="muted because">{{ n.because }}</td>
+        <td class="right mono">{% if n.by %}{{ n.by.strftime('%b %d') }}{% else %}<span class="muted">no date on file</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{# ------------------------------------------------------------------ money #}
+<div class="panel">
+  <h2>What it will cost <span class="muted">· an estimate</span></h2>
+  <div class="body">
+    {% if not plan.quote %}
+    <p class="note flag">{{ plan.quote_unavailable or 'There is no quote for these answers.' }}</p>
+    {% else %}
+    <div class="well" data-kind="estimate" style="border-left:4px solid var(--gold)">
+      <strong>ESTIMATE — NOT AN INVOICE.</strong>
+      <span class="muted">Nobody has been billed, nothing has been recorded, and no invoice
+      exists. This is what these answers imply the work is worth; a bill is raised on the
+      Invoices screen once the work has been done.</span>
+    </div>
+
+    {% if plan.quote.lines %}
+    <table>
+      <tr><th>Work</th><th>Because</th><th class="right">How many</th><th class="right">Full value</th></tr>
+      {% for line in plan.quote.lines %}
+      <tr>
+        <td><strong>{{ line.label }}</strong><div class="muted mono">{{ line.service_code }}</div></td>
+        <td class="muted">{{ line.because }}</td>
+        <td class="right mono">{{ '{:g}'.format(line.quantity) }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(line.standard_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    {# Every figure comes off the engine's Quote. A total added up in this
+       template would be a second opinion about a client's fee. #}
+    <div class="kv" style="max-width:480px;margin-top:12px">
+      <div><b>Full value of the work</b>
+        <span class="mono right">{{ '{:,.2f}'.format(plan.quote.standard_total) }}</span></div>
+      {% if plan.quote.shows_a_discount %}
+      <div><b>{{ plan.quote.plan.client_label or plan.quote.plan.name }}
+        · {{ '{:g}'.format(plan.quote.plan.discount_pct) }}%</b>
+        <span class="mono right">-{{ '{:,.2f}'.format(plan.quote.discount_total) }}</span></div>
+      {% endif %}
+      <div><b>Estimated total</b>
+        <span class="mono right"><strong>{{ '{:,.2f}'.format(plan.quote.total) }}</strong></span></div>
+    </div>
+    {% else %}
+    {# A total of 0.00 would read as "free" when it means "not priced yet". #}
+    <p class="note flag">Nothing these answers imply has a catalogue price, so there is no
+      total — which is not the same thing as no charge.</p>
+    {% endif %}
+
+    {% if plan.quote.plan_is_fallback %}
+    <p class="note">{{ plan.quote.plan_why }} That is a gap, not an agreement.</p>
+    {% endif %}
+
+    {% if plan.quote.unpriced %}
+    {# Shown, never hidden. Work the catalogue cannot price is exactly the work
+       a client should hear about BEFORE it turns up on an invoice. #}
+    <h3 style="margin:14px 0 4px;font-size:13.5px"><span class="flag">Not in the total — not priced yet</span>
+      <span class="muted">· {{ plan.quote.unpriced|length }}</span></h3>
+    <table>
+      <tr><th>Work the answers imply</th><th>Why there is no number</th><th>Because</th></tr>
+      {% for u in plan.quote.unpriced %}
+      <tr>
+        <td><strong>{{ u.label }}</strong><div class="muted mono">{{ u.service_code }}</div></td>
+        <td class="muted">{{ u.reason }}</td>
+        <td class="muted">{{ u.because }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note">Real work with no price yet. Say so to the client now — the alternative
+      is a number appearing on an invoice they never agreed to.</p>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{# ----------------------------------------------------------------- the law #}
+<div class="panel">
+  <h2>When it is due</h2>
+  <div class="body">
+    {% if not plan.files_something %}
+    {# Bookkeeping, a cleanup, onboarding. Real work with real dates — but the
+       dates are the PRACTICE'S, so this must not carry the statute styling, the
+       badge, or a citation. Principle 4 is a UI obligation: the absence of a
+       statutory deadline is the true answer here, not a gap to fill. #}
+    <div class="dateline" data-kind="none"
+         style="border-left:4px solid var(--gold, #b8964f);background:var(--paper);padding:10px 14px;border-radius:6px">
+      <div><span class="badge">NO STATUTORY DEADLINE</span></div>
+      <div class="muted">This engagement files nothing, so no statute has an opinion about
+        when it is due. Its dates are the practice's own — no date has been guessed at.</div>
+    </div>
+    {% else %}
+    <div class="dateline statute" data-kind="statute"
+         style="border-left:4px solid var(--navy);background:var(--paper);padding:10px 14px;border-radius:6px">
+      <div><span class="badge b-Sent">STATUTE</span>
+        <strong class="mono">{{ plan.duty.due.strftime('%B %d, %Y') }}</strong>
+        — Form {{ plan.duty.form }}, {{ plan.duty.jurisdiction }} · period {{ plan.duty.period_key }}</div>
+      <div class="muted">Computed from a cited rule, never stored: {{ plan.citation }}.
+        {% if plan.duty.statutory_due != plan.duty.due %}
+        Statutory date {{ plan.duty.statutory_due.strftime('%B %d, %Y') }};
+        {{ plan.duty.shift_reason }} (IRC §7503).{% endif %}</div>
+      {% if plan.duty.extended_due %}
+      <div class="muted">Extendable to {{ plan.duty.extended_due.strftime('%B %d, %Y') }}
+        {% if plan.duty.extension_form %}on Form {{ plan.duty.extension_form }}{% endif %} —
+        an extension of time to file, never to pay.
+        {% if plan.duty.extension_condition %}{{ plan.duty.extension_condition }}{% endif %}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if plan.files_something and plan.duty.documents_due %}
+    <div class="dateline firm-policy" data-kind="firm_policy"
+         style="border-left:4px dashed var(--gold-deep);background:var(--cream);padding:10px 14px;
+                border-radius:6px;margin-top:10px">
+      <div><span class="badge b-STAGED">FIRM POLICY — NOT LAW</span>
+        <strong class="mono">{{ plan.duty.documents_due.strftime('%B %d, %Y') }}</strong>
+        — documents to us, or we extend</div>
+      <div class="muted">Your own cutoff. It carries no citation because nothing behind it has
+        an authority; change it in <span class="mono">configs/firm_policy.yaml</span>.</div>
+    </div>
+    {% endif %}
+
+    {% if plan.files_something %}
+    <p class="note">Those two dates are different kinds of thing. The first cannot be argued
+      with and missing it costs a penalty; the second you can move over coffee.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ------------------------------------------------------------- what we said #}
+{#
+  EVERY ROW HERE CAN CHANGE, AND EVERY ROW IS ABOUT THIS CLIENT.
+
+  It used to carry five rows that were byte-identical on every plan for every
+  client forever — "SATC cannot tell you whether this was met: nothing records
+  when the documents went complete" and four more like it. Those refusals are
+  RIGHT and they are not deleted; they are statements about what this BUILD
+  records, so they are said once, on the capability screen linked below, and not
+  once per engagement. A table whose rows never move is what teaches somebody to
+  scroll past the row that mattered (principle 13).
+
+  What is left is the promises SATC can actually answer, one row per RETURN with
+  a live clock, each carrying the verdict the engine reached and the return it is
+  about. A row appears when a fact starts a clock and clears when a fact stops
+  it — the retransmission being recorded clears the retransmission promise, which
+  is the whole difference between a queue and a monument.
+
+  `data-kind="promise"` sits on the panel as well as on each row: this is a
+  PROMISE panel whether or not any clock is running, and principle 4's marking
+  cannot be allowed to disappear along with the rows.
+#}
+<div class="panel" data-kind="promise">
+  {# The kind is said ONCE, at the top. Repeating it on every row would be two
+     rows saying the same thing (principle 13); the rows keep the distinction in
+     `data-kind` and in the dashed rule down their left edge. #}
+  <h2>What we promised <span class="badge b-Signed">OUR PROMISE — NOT LAW</span></h2>
+  <div class="body">
+    {% if promise_refusal %}
+    <p class="note flag">{{ promise_refusal }}</p>
+    {% elif not promises %}
+    {# NOT "no promises exist" — the practice makes several. Nothing has STARTED
+       one on this engagement, which is a different answer and a true one, and it
+       changes the day something does. #}
+    <p class="note">Nothing on this engagement has started one of our promise clocks.
+      Nothing is owed and nothing is late — and this is an answer rather than a blank:
+      the day a fact starts a clock, a return coming back rejected say, a row appears
+      here with the date we owe by.</p>
+    {% else %}
+    <table>
+      <tr><th>Promise</th><th>About</th><th class="right">Where it stands</th></tr>
+      {% for row in promises %}{% set p = row.outcome %}
+      <tr class="dateline promise" data-kind="promise" data-status="{{ p.status }}">
+        <td style="border-left:4px dotted var(--gold-deep);padding-left:10px">
+          <strong>{{ p.label }}</strong>
+          <div class="muted mono">{{ p.kind }}</div></td>
+        {# WHICH RETURN. A client with a federal and a state rejection has two rows,
+           and without this they read as the same row printed twice. #}
+        <td class="muted">{{ row.about }}</td>
+        <td class="right">
+          {% if p.promise %}
+          {# THE STATUS, NOT JUST THE DATE. `compliance` has already judged this one;
+             rendering the bare date threw the judgement away and made a promise the
+             engine calls MISSED read exactly like one still on track. The sentence
+             comes with it wherever the answer is not simply "still running", because
+             that is where the date alone does not say what happened.
+
+             An UNKNOWN status falls to gold and its own name rather than to the calm
+             blue of "on track": a status this screen has not been taught yet is not
+             evidence that nothing is wrong. #}
+          <span class="badge {{ {'missed': 'b-Requested', 'met': 'b-Received',
+                                 'open': 'b-Sent'}.get(p.status, 'b-STAGED') }}">{{
+            {'missed': 'MISSED', 'met': 'KEPT', 'open': 'ON TRACK'}.get(p.status, p.status|upper) }}</span>
+          <span class="mono">{{ p.promise.promised_date.strftime('%B %d, %Y') }}</span>
+          <div class="muted">{{ p.promise.duration }} from
+            {{ p.promise.started_on.strftime('%b %d, %Y') }}</div>
+          {% if p.status != 'open' %}
+          <div class="{{ 'flag' if p.is_missed else 'muted' }}">{{ p.why }}</div>
+          {% endif %}
+          {% else %}
+          {# A promise with no landed date at all. Nothing on this screen can produce
+             one today — both ends are resolved before the row is built — but a
+             refusal reaching a reader must still say what it is rather than render
+             as an empty cell (principle 1). #}
+          <span class="muted">{{ p.why }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <p class="note">A promise is neither a statute nor a cutoff. It is something this practice
+      offered, and breaking one costs an apology rather than a penalty. It is only answerable
+      at all where both ends of its clock are written down.</p>
+    {% if promise_gaps %}
+    {# SAID ONCE, AS A FOOTNOTE, AND NOT AS ROWS. The count is about SATC, not about
+       this client, so it is a sentence pointing at the screen where it belongs —
+       not {{ promise_gaps }} table rows repeated on every plan forever. #}
+    <p class="note muted">{{ promise_gaps }} of the turnarounds this practice promises cannot be
+      checked here at all — not for {{ client_name or 'this client' }}, but for anybody,
+      because nothing in SATC records the fact their clock starts or stops at. That is the
+      same on every plan, so it is said in one place:
+      <a href="{{ promise_gaps_url }}">what SATC can and cannot check →</a></p>
+    {% endif %}
+  </div>
+</div>
+
+{# ------------------------------------------------------------------ the act #}
+<div class="panel">
+  <h2>Nothing above has happened yet</h2>
+  <div class="body">
+    <p class="note">Two clicks exist on this page. One drafts a letter for you to read. The
+      other generates the engagement and opens the document requests. Neither sends anything.</p>
+
+    <a class="btn" href="{{ letter_url }}">Draft the engagement letter →</a>
+    <span class="muted">Prefilled from this plan. It drafts; you send it.</span>
+
+    {% if plan.letter_facts.get('scope_of_services') %}
+    <div class="well" style="margin-top:12px">
+      <div class="muted">The letter's scope, derived from these same answers:</div>
+      <pre class="mono" style="white-space:pre-wrap;margin:6px 0 0">{{ plan.letter_facts['scope_of_services'] }}</pre>
+    </div>
+    {% endif %}
+    {% if fee_slot %}
+    {# Principle 1 reaching a document a client signs: the slot is visibly
+       empty rather than filled with a number nobody agreed. #}
+    <p class="note flag">{{ fee_slot }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ generate_url }}" style="margin-top:14px">
+      <input type="hidden" name="client" value="{{ client_id }}">
+      <input type="hidden" name="workflow_key" value="{{ workflow.key }}">
+      {% if plan.files_something %}<input type="hidden" name="due_date" value="{{ plan.duty.due.isoformat() }}">{% endif %}
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
+      {# Whether this is a new SAT-C client is a RECORDED FACT, and `mode or 'new'`
+         invented it: an owner who never touched the new/returning switch posted "new"
+         for a returning client, flipping the gate the whole interview branches on and
+         generating a different engagement from the plan they had just read. Posted only
+         when the owner actually said so; absent, /intake/new reads it off the record —
+         which is exactly what this screen's own plan was derived from. #}
+      {% if mode in ('new', 'returning') %}
+      <input type="hidden" name="mode" value="{{ mode }}">
+      {% endif %}
+      {% for qid, given in answers.items() %}
+      <input type="hidden" name="q_{{ qid }}" value="{{ given }}">
+      {% endfor %}
+      <button class="btn primary" type="submit">Generate this engagement →</button>
+      <span class="muted">Opens {{ needs_total }} document request{{ '' if needs_total == 1 else 's' }}.
+        Re-running the interview keeps whatever progress exists.</span>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+{% endif %}
+{% endblock %}
