@@ -45,6 +45,14 @@ jobs:
           # and say so, rather than passing quietly.
           - project: canon
             install: pip install pytest
+          # desk depends on canon and, like it, deliberately has no dependency
+          # beyond pytest: a plugin that lifts out whole is worth more than one
+          # with conveniences, and that is why its record is Markdown rather
+          # than YAML. Its suite is offline by construction -- conftest replaces
+          # the socket layer -- so a government website being down never turns
+          # this red.
+          - project: desk
+            install: pip install pytest
           # credit-suite had NO CI entry until 4 September 2026, which meant its
           # 240 tests, 68 mutations and cell-for-cell parity checks ran only on
           # the one machine that built them. A verification bar nobody else can
