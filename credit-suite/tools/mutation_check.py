@@ -45,6 +45,7 @@ class Mutation:
 
 T = "tests/test_parity.py::"
 M = "tests/test_fred_series_ids.py::"
+V = "tests/test_vba_compression.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
@@ -597,6 +598,40 @@ MUTATIONS: list[Mutation] = [
         '    "41740": ("41740", "San Diego-Chula Vista-Carlsbad, CA"),\n',
         (M + "test_the_seed_covers_exactly_the_verified_metros",),
         "a metro added without confirming its id against FRED is refused",
+    ),
+    # ---- issue #180: the VBA module stream --------------------------------
+    # The shipped bug made every ExtractFiles button dead in every monitor and
+    # nothing offline noticed, because olevba decodes the broken output fine.
+    # The first mutation IS the shipped bug, restored.
+    Mutation(
+        "vba-compressor-emits-literals-only", SRC / "engine/vba.py",
+        "    if best_length < 3:",
+        "    if True:",
+        (V + "test_no_non_final_chunk_is_short",
+         V + "test_the_compressor_actually_uses_copy_tokens"),
+        "the exact regression of #180 -- a literal-only stream Excel refuses",
+    ),
+    Mutation(
+        "vba-match-reaches-into-the-previous-chunk", SRC / "engine/vba.py",
+        "    for candidate in range(at - 1, chunk_start - 1, -1):",
+        "    for candidate in range(at - 1, -1, -1):",
+        (V + "test_every_shipped_macro_round_trips_through_the_reference_decoder",
+         V + "test_round_trips_at_and_around_every_chunk_boundary"),
+        "a copy token never points outside its own chunk",
+    ),
+    Mutation(
+        "vba-copy-token-bit-split-fixed", SRC / "engine/vba.py",
+        "    bit_count = max(int(ceil(log2(difference))), 4) if difference > 0 else 4",
+        "    bit_count = 4",
+        (V + "test_every_shipped_macro_round_trips_through_the_reference_decoder",),
+        "the position-dependent offset/length bit split is computed, not assumed",
+    ),
+    Mutation(
+        "vba-raw-chunk-at-an-illegal-size", SRC / "engine/vba.py",
+        "    if consumed == MAX_CHUNK and len(body) >= MAX_CHUNK:",
+        "    if len(body) >= MAX_CHUNK:",
+        (V + "test_round_trips_incompressible_data",),
+        "a RawChunk is emitted only at its one legal size, 4096",
     ),
 ]
 
