@@ -45,6 +45,19 @@ jobs:
           # and say so, rather than passing quietly.
           - project: canon
             install: pip install pytest
+          # credit-suite had NO CI entry until 4 September 2026, which meant its
+          # 240 tests, 68 mutations and cell-for-cell parity checks ran only on
+          # the one machine that built them. A verification bar nobody else can
+          # run is a claim, not a check -- and the branch that added the package
+          # also carried a stale workflow naming a folder it had itself deleted,
+          # which is exactly the kind of thing this entry is here to catch.
+          #
+          # Offline only: every test uses the deterministic demo provider, so
+          # there is no network and no FRED key. The live pulls and the
+          # real-Excel acceptance are `tools/` scripts run at the desk, marked
+          # `live`, and never collected.
+          - project: credit-suite
+            install: pip install -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
