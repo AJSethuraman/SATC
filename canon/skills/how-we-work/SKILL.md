@@ -1,11 +1,11 @@
 ---
 name: how-we-work
-description: The thirteen standing behaviours — report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, hand decisions over as answerable questions. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The fourteen standing behaviours — report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, hand decisions over as answerable questions, keep the log where the work is. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Thirteen behaviours. Every one exists because something specific went wrong, and
+Fourteen behaviours. Every one exists because something specific went wrong, and
 each is written next to the incident that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
@@ -178,6 +178,29 @@ scrolling back. When they push back, take it seriously.
 with a question — *"is it meant to be a call to read it all or a call to ensure
 anything it flags is resolved?"* — which was better than the recommendation and
 changed the design.
+
+## 14 · Keep the log where the work is, not where the conversation is
+
+**Do:** append to a running log **in the repository** as you go — what you did,
+what you skipped and why, what is waiting on a decision, and what you would
+recommend. Dated, newest at the bottom, and **never a second file**: a log that
+forks is two accounts of the same week that will disagree. A decision goes in
+with both outcomes and your recommendation, so it can be answered by somebody
+who was not there. Write it while working, not at the close — a log assembled
+from memory records what you remember rather than what happened, and the skipped
+things are the first to go.
+
+**Incident:** the firm asked for exactly this on 21 August 2026 — *"Write
+satc-handoff/RUN-LOG.md as you go: what you did, what you skipped and why, every
+[CONFIRM] you left, and anything that contradicts the specs."* It never became a
+behaviour. On 4 September they raised it again, surprised: *"i really like when
+agents keep a log of what's up, what's done, what needs decisioned,
+recommendations… i'm surprised it didn't make it as a habit to build into your
+plugin."* In the session that produced this text the log lived in the chat and
+in a published artifact — both of which vanish when the container is wiped,
+which has already happened to this operation once and is why `corpus/` exists.
+This repository has kept `LOG.md` since the day it was built: the gap was never
+the mechanism, it was that nothing told a session to use one.
 
 ---
 
