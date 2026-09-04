@@ -19,6 +19,24 @@ import os
 _TRUE = {"1", "true", "yes", "on"}
 
 
+# ---------------------------------------------------------------------------
+# ⚠️  TURNING THIS ON IS A COMPLIANCE EVENT, NOT A CONFIGURATION CHANGE.
+#
+# Setting SATC_ALLOW_CLOUD (or adding ANTHROPIC_API_KEY to the environment with
+# it already set) sends client tax-document IMAGES to Anthropic. That makes
+# Anthropic a service provider holding customer information under the FTC
+# Safeguards Rule §314.4(f) -- which is NOT waived by the small-firm exemption
+# in §314.6 -- and raises a separate IRS §301.7216 disclosure-consent question.
+#
+# The firm's decision, recorded in docs/WISP-DRAFT.md §A5 (control A5-C): the
+# WISP must be updated FIRST -- provider assessment, contract with safeguards
+# terms, reassessment cadence, and the §301.7216 analysis -- before either
+# switch is set on any machine holding real client data.
+#
+# Nothing here enforces that. This comment is the whole of the gate.
+# ---------------------------------------------------------------------------
+
+
 def cloud_allowed() -> bool:
     """True only if the practice has explicitly opted into cloud processing."""
     return os.environ.get("SATC_ALLOW_CLOUD", "").strip().lower() in _TRUE
