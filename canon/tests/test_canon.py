@@ -387,6 +387,63 @@ def test_the_digest_covers_the_code_a_session_actually_runs():
         rel = str(skill.relative_to(CANON)).replace("\\", "/")
         assert rel in covered, f"{rel} is not hashed"
 
+    # The manifest ships, so its content is hashed too -- everything but the
+    # version, which is the label this digest sits beside.
+    assert release.MANIFEST in covered, "plugin.json's content is not hashed"
+
     # And the exclusions stay a short, stated list rather than growing quietly.
-    assert set(release.EXCLUDED) == {".claude-plugin", "tests", "__pycache__",
-                                     ".pytest_cache"}, release.EXCLUDED
+    assert set(release.EXCLUDED) == {"tests", "__pycache__", ".pytest_cache",
+                                     ".git"}, release.EXCLUDED
+
+
+def test_the_digest_survives_canon_being_lifted_into_its_own_repository(tmp_path):
+    """`README.md`: "It is built to be lifted out." At the root of its own git
+    repository the walk reached `.git` and died on the first binary object —
+    UnicodeDecodeError, in the one layout the plugin exists to support. Even
+    text-only metadata would have moved the digest on every commit."""
+    import release
+    root = tmp_path / "canon"
+    for rel in release.files():
+        dst = root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes((CANON / rel).read_bytes())
+    clean = release.digest(root)
+
+    # Now make it a repository, as the README's destination describes.
+    git = root / ".git" / "objects"
+    git.mkdir(parents=True)
+    (git / "pack").mkdir()
+    (git / "pack" / "p.idx").write_bytes(bytes(range(256)))   # not utf-8
+    (root / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    assert release.digest(root) == clean, (
+        "repository metadata reached the hash; the digest would move on every "
+        "commit, and binary objects would raise before it got that far"
+    )
+
+
+def test_the_manifest_is_hashed_for_everything_but_its_version(tmp_path):
+    """Excluding the whole `.claude-plugin` directory to keep the version out of
+    the hash took `description`, `author` and `homepage` with it — all installed
+    content, all able to change without moving the digest. Only the version is
+    dropped, because a bump must not look like a change."""
+    import json
+    import release
+    root = tmp_path / "canon"
+    for rel in release.files():
+        dst = root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes((CANON / rel).read_bytes())
+    before = release.digest(root)
+    manifest = root / release.MANIFEST
+
+    got = json.loads(manifest.read_text(encoding="utf-8"))
+    got["version"] = "9.9.9"
+    manifest.write_text(json.dumps(got, indent=2), encoding="utf-8")
+    assert release.digest(root) == before, "a version bump moved the digest"
+
+    got["description"] = "something else entirely"
+    manifest.write_text(json.dumps(got, indent=2), encoding="utf-8")
+    assert release.digest(root) != before, (
+        "the manifest's shipped content changed and the digest did not notice"
+    )
