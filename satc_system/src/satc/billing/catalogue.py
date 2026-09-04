@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
+import hashlib
 from pathlib import Path
 from typing import Literal
 
@@ -199,16 +200,32 @@ _cache: dict[str, tuple[object, object]] = {}
 
 
 def _stamp(path: Path) -> tuple:
-    """A cheap fingerprint of a file: does it look the way it did last time?
+    """A fingerprint of a file's CONTENTS: is it the same file it was?
 
-    mtime and size together, because an editor that rewrites in place can leave
-    a same-second mtime on a file whose contents changed.
+    THIS USED TO BE `(mtime_ns, size)` AND THAT LOST A PRICE EDIT.
+
+    The size was there because "an editor that rewrites in place can leave a
+    same-second mtime on a file whose contents changed" -- correct, and it does
+    not help for the edit this config actually receives. Changing a rate from
+    450 to 495 changes no bytes of length, and two writes from the same process
+    can land inside one filesystem timestamp tick. Same mtime, same size,
+    different price: the cache reported UNCHANGED and served the old rate.
+
+    It surfaced as an order-dependent test -- `test_changing_a_rate_takes_effect
+    _without_a_restart` passed alone and failed after a slower test shifted the
+    timing -- which is the worst way for a money bug to present, because the
+    obvious reading is "flaky test" and the actual reading is "the owner
+    invoices at the old rate."
+
+    Hashing the bytes costs nothing here: these are hand-edited config files of
+    a few kilobytes, read once per change, and the alternative is a heuristic
+    that is wrong precisely when the edit is a price.
     """
     try:
-        st = path.stat()
+        data = path.read_bytes()
     except OSError:
         return ()
-    return (st.st_mtime_ns, st.st_size)
+    return (len(data), hashlib.blake2b(data, digest_size=16).digest())
 
 
 def _fresh(name: str, path: Path, loader):

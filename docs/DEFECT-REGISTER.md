@@ -36,7 +36,6 @@ git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.
 | **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
 | **S3** | **`engagement_ref`** — the join between what a client sees (`2026-0001`) and what the system keys on (`SATC-001000`). The firm asked for it on 31 Aug: *"ADD THE FIELD"*. Main's `Engagement` has no such field, and `collect.py` still prints an error naming it. Parked: `test_engagement_ref.py` | the collector cannot close the request a document satisfies | a field on `Engagement`, a store column, a migration. **No product question — the firm already decided** |
 | **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
-| **S6** | `test_changing_a_rate_takes_effect_without_a_restart` is order-dependent — passes alone, fails after `test_price_editor`. **Confirmed on untouched main**, so it predates all of this | a green suite that is green by ordering | find the shared state and isolate it |
 
 **Suggested order: S3, then S2.** (S4 closed 4 September.) S3 is decided and blocking a feature
 that half-exists — `collect.py` already prints an error about the missing field.
@@ -78,6 +77,22 @@ and the live C-corp path.
 ---
 
 ## Fixed
+
+### 4 September 2026 — a price edit that was silently ignored
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S6** | Filed as "an order-dependent test". It was a **money bug**: `catalogue._stamp` fingerprinted a config file as `(mtime_ns, size)`, so changing a rate from `450` to `495` — same length — inside one filesystem timestamp tick read as UNCHANGED, and the catalogue served the old rate | `_stamp` hashes the contents. These are hand-edited files of a few kilobytes read once per change; the heuristic it replaces was wrong precisely when the edit was a price |
+
+**The presentation is the lesson.** It surfaced as
+`test_changing_a_rate_takes_effect_without_a_restart` passing alone and failing
+after a slower test shifted the timing. The obvious reading is "flaky test". The
+true reading is the sentence already in that test: *"the owner would invoice at
+the old rate."* A test whose failure depends on the clock is still reporting
+something, and the something here was real.
+
+The new test forces the collision with `os.utime` rather than racing for it, so
+it fails for its own reason on any machine instead of when the clock obliges.
 
 ### 4 September 2026 — the page reaches the workpaper
 
