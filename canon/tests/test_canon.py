@@ -38,7 +38,8 @@ def test_every_skill_is_one_the_harness_can_load():
     that stops covering it the moment there are two.
     """
     skills = sorted(p for p in (CANON / "skills").iterdir() if p.is_dir())
-    assert {p.name for p in skills} == {"bassy", "canon-adopt", "canon-mine", "docket", "how-we-work"}
+    assert {p.name for p in skills} == {"adversarial", "bassy", "canon-adopt",
+                                        "canon-mine", "docket", "how-we-work"}
     for skill in skills:
         path = skill / "SKILL.md"
         assert path.is_file(), f"{skill.name} has no SKILL.md"
@@ -224,3 +225,28 @@ def test_the_marketplace_lists_canon_and_the_installer_accepts_it():
     ran = subprocess.run([cli, "plugin", "validate", str(CANON.parent)],
                          capture_output=True, text=True, timeout=120)
     assert ran.returncode == 0, ran.stdout + ran.stderr
+
+
+def test_the_marketplace_and_the_manifest_agree_about_the_version():
+    """THE THIRD TIME THE VERSION DRIFTED IN ONE DAY, and the first one a test
+    could have caught.
+
+    Two files carry canon's version. On `main`, on 4 September 2026, the plugin
+    manifest said 1.5.0 and the marketplace entry beside it said 1.4.0 — a
+    claim in one place, a claim in another, and nothing comparing them, which
+    is the shape this whole repository exists to close (S31).
+
+    It matters more than a wrong number looks: the marketplace is what an
+    install reads, so a stale entry there is what every other machine believes
+    canon is.
+    """
+    market = CANON.parent / ".claude-plugin" / "marketplace.json"
+    if not market.is_file():
+        pytest.skip("no marketplace above this copy — canon has been lifted out")
+    listed = json.loads(market.read_text(encoding="utf-8"))
+    entry = next(p for p in listed["plugins"] if p["name"] == "canon")
+    manifest = json.loads(
+        (CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert entry["version"] == manifest["version"], (
+        f"the marketplace advertises canon {entry['version']} while the plugin "
+        f"itself is {manifest['version']}; an install reads the marketplace")

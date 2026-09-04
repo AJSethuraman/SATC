@@ -29,3 +29,7 @@ venv/
 # Editable-install metadata. Created by `pip install -e .` and committed by
 # accident on 4 Sep 2026 while verifying the credit-suite CI recipe locally.
 *.egg-info/
+
+# Findings from an adversarial pass: taken by intake.py, never committed.
+# They are red by design; the suite is red only when something broke.
+canon/findings/
