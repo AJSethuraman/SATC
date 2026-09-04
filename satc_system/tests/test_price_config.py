@@ -107,3 +107,39 @@ services:
     with pytest.raises(ConfigError) as refusal:
         catalogue.services()
     assert "10.27" in str(refusal.value)
+
+
+def test_a_same_length_price_edit_in_one_clock_tick_is_still_seen(prices, monkeypatch):
+    """THE BUG THE ORDER-DEPENDENT FAILURE WAS ACTUALLY REPORTING.
+
+    `_stamp` fingerprinted `(mtime_ns, size)`. Changing a rate from 450 to 495
+    changes no bytes of length, and two writes from one process can land inside
+    a single filesystem timestamp tick — so the fingerprint said UNCHANGED and
+    the catalogue served the old rate.
+
+    It surfaced as `test_changing_a_rate_takes_effect_without_a_restart` passing
+    alone and failing after a slower test shifted the timing, which is the worst
+    way for a money bug to present: the obvious reading is "flaky test" and the
+    true reading is "the owner invoices at the old rate".
+
+    This forces the collision with `os.utime` instead of racing for it, so it
+    fails for its own reason on any machine rather than when the clock obliges.
+    """
+    import os
+
+    write_rate(prices, 450)
+    assert catalogue.service("return_1040").standard_rate == Decimal(450)
+
+    before = (prices / "services.yaml").stat()
+    write_rate(prices, 495)                       # same length as 450
+    os.utime(prices / "services.yaml",
+             ns=(before.st_atime_ns, before.st_mtime_ns))   # same tick
+
+    after = (prices / "services.yaml").stat()
+    assert after.st_mtime_ns == before.st_mtime_ns, "the collision was not forced"
+    assert after.st_size == before.st_size, "the edit changed the file's length"
+
+    assert catalogue.service("return_1040").standard_rate == Decimal(495), (
+        "same mtime, same size, different price — and the catalogue served the "
+        "old rate. A price edit that is silently ignored is an invoice at the "
+        "wrong number.")

@@ -34,12 +34,13 @@ git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.
 | # | What | Costs | Needs |
 |---|---|---|---|
 | **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
-| **S4** | **Page provenance.** The page is read and reported; it is not carried into the record. `source_ref.page` is `None`. `test_intake_carries_the_page_all_the_way_into_the_workpaper` is `xfail(strict=True)` — it fails loudly the moment this is fixed | a field cannot be cited to the page it came from | carrying `page` through `MapExtractor` into provenance. Smallest of the three |
 | **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
-| **S6** | `test_changing_a_rate_takes_effect_without_a_restart` is order-dependent — passes alone, fails after `test_price_editor`. **Confirmed on untouched main**, so it predates all of this | a green suite that is green by ordering | find the shared state and isolate it |
 
-**Suggested order: S4, then S2.** S4 is the smallest. S2 needs the firm before
-any code is worth writing, and S5 is only a decision.
+**Nothing left here is pure code.** S3, S4 and S6 all closed 4 September. What
+remains is two decisions, not two builds: S2 needs the firm to say whether a
+bundle request stays open when one part arrives, and S5 needs the firm to
+settle the reader-ladder disagreement. Neither is worth a line of code until
+that happens.
 
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
@@ -95,6 +96,44 @@ fields that would sit permanently unpopulated. Run for real end to end —
 `satc collect --apply` against a seeded store — not just against the unit
 tests: it filed the document, closed the request, and printing the closed
 line matched what the code path used to be able to only claim.
+
+### 4 September 2026 — a price edit that was silently ignored
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S6** | Filed as "an order-dependent test". It was a **money bug**: `catalogue._stamp` fingerprinted a config file as `(mtime_ns, size)`, so changing a rate from `450` to `495` — same length — inside one filesystem timestamp tick read as UNCHANGED, and the catalogue served the old rate | `_stamp` hashes the contents. These are hand-edited files of a few kilobytes read once per change; the heuristic it replaces was wrong precisely when the edit was a price |
+
+**The presentation is the lesson.** It surfaced as
+`test_changing_a_rate_takes_effect_without_a_restart` passing alone and failing
+after a slower test shifted the timing. The obvious reading is "flaky test". The
+true reading is the sentence already in that test: *"the owner would invoice at
+the old rate."* A test whose failure depends on the clock is still reporting
+something, and the something here was real.
+
+The new test forces the collision with `os.utime` rather than racing for it, so
+it fails for its own reason on any machine instead of when the clock obliges.
+
+### 4 September 2026 — the page reaches the workpaper
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S4** | The page a value came off was READ and REPORTED and never reached the record: `SourceRef.page` was `None` on every staged field, so a workpaper citation read `Doc <id>` with no page | One argument. `state.py` did not pass `pages=result.pages` to `MapExtractor.extract` |
+
+**Everything else was already built** — `ReadResult.pages` maps label to page,
+`TextAnchorReader` anchors page by page *precisely so it can fill it*, and
+`MapExtractor.extract` has always taken `pages=`. One call site did not pass it,
+and that was enough to make the whole chain useless.
+
+The cost of that gap is on the record: **$200,000 of wages lifted off page 7 of a
+blank W-2 — an instructions page — was cited to the preparer identically to a
+figure read off the form.** The page is the one fact that would have made those
+two look different at review instead of in a measurement three weeks later.
+
+`test_intake_carries_the_page_all_the_way_into_the_workpaper` was
+`xfail(strict=True)` and **that is what caught it**: the moment the argument was
+added the test XPASSed, and strict turned an XPASS into a failure. A plain skip
+would have stayed quiet. Verified both ways — green with the argument, red
+without it.
 
 ### 3 September 2026 — the interview stops accepting answers it cannot mean
 
