@@ -63,7 +63,14 @@ tr:hover td{background:#faf7f0}
 .b-Signed{background:#efe7d6;color:var(--gold-deep)}
 .b-CONFIRMED{background:#e2efe5;color:var(--green)}
 .b-NEEDS_REVIEW{background:#f7e3e1;color:var(--red)}
-.b-STAGED{background:#efe7d6;color:var(--gold-deep)}
+/* `--gold-deep` (#8A6F44) on this badge's own #efe7d6 measures 3.85:1, under
+   WCAG AA's 4.5. It reads on the STAGING screen -- where a preparer confirms
+   an extracted figure before it reaches a workpaper -- so it is small print
+   that matters. #7A6039 is the same gold two steps down and measures 4.80:1.
+   `--gold-deep` is left alone: it is legible everywhere else it is used, and
+   moving the variable to fix one badge would change links and headings that
+   were never wrong. */
+.b-STAGED{background:#efe7d6;color:#7A6039}
 .b-REJECTED{background:#eee;color:#777}
 .status-Filed,.status-Accepted{color:var(--green);font-weight:600}
 .status-In.review,.status-In.prep{color:var(--gold-deep)}

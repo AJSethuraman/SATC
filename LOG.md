@@ -73,6 +73,36 @@ and the day the firm asked whether anything actually presses the buttons.
   healthy. Both checkouts now read 1,434 / 2, and the two remaining skips are a
   real data condition rather than a missing capability.
 
+### The Square payout field, and what it cannot tell you
+
+The firm: *"that $482 is in my bank right now, i'm unsure you can see it through
+this but that is certainly interesting."*
+
+They were right to doubt it. Square's Payouts API reports
+`destination.type: SQUARE_STORED_BALANCE` for **all three** payouts — including
+the April and May ones the firm confirms reached their bank. The field reads
+identically for money that arrived and money that has not, so it cannot answer
+"did the transfer land". The suggestion to add it to `payments --check` is
+withdrawn: it would have been a line that looks like an answer and is not one.
+
+### Every screen, opened
+
+*"it's time to work through all of the screens — like for real."*
+`tests/test_every_screen_in_a_browser.py` now opens all 27 of them in Chromium,
+with the list discovered from the app's own `url_map` so a screen added next
+month is covered the day it lands. Two findings, and **two of the first three
+were my own test being wrong**, which is the reason to check the checker:
+
+- the contrast walker never read an element's own background, so it reported a
+  badge that was dark red on pale pink as 2.08:1 red on navy — a colour that
+  was never wrong and would have been "fixed";
+- the STAGED badge is genuinely 3.85:1, on the screen where a preparer confirms
+  an extracted figure before it reaches a workpaper. Darkened to 4.80:1;
+- `/source` was flagged as a broken screen. It is not a screen: it serves an
+  original client document and refuses any path the last intake did not read.
+  The 404 was the allow-list working, and it is now asserted rather than merely
+  excluded — an exclusion outlives the guard it was written around.
+
 ### Still open at the end of the day
 
 - **W5 / B4** — the seven-year destruction promise has no mechanism. Deferred
@@ -80,4 +110,4 @@ and the day the firm asked whether anything actually presses the buttons.
 - **W8** — written notice is recorded nowhere. Gated to the bookkeeping launch.
 - **B8** — the disk is not encrypted. Measured, recorded, not acted on.
 - **The WISP** — 49 open questions and no signature.
-- **Every screen except Documents** has still never been opened by anything.
+- ~~Every screen except Documents has never been opened by anything.~~ **Closed 4 September.** All 27 open in a browser on every run. What is still unasserted is what the BUTTONS on them do: only the Documents screen has had anything pressed, and there are 48 POST endpoints.
