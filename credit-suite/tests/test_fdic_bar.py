@@ -964,10 +964,38 @@ def test_provenance_tab(populated):
     assert "RCOA7204" in rows["RBC1AAJ"]["mdrm"]
 
 
+def _tieout_blocks(out):
+    """Split the tie-out into one block per metric.
+
+    The output became a block per metric on 4 Sep 2026 -- a single dense line
+    per metric was correct and unreadable, and the columns truncated mid-word.
+    This test moved with it rather than being loosened: every metric must still
+    carry its value AND its MDRM code, they must simply now be found in the
+    same block rather than on the same line.
+    """
+    blocks, current, name = {}, [], None
+    for line in out.splitlines():
+        stripped = line.strip()
+        head = re.match(r"^([A-Z0-9]+) = (-?[\d,]+\.\d\d|\(blank\))$", stripped)
+        if head:
+            if name:
+                blocks[name] = current
+            name, current = head.group(1), [stripped]
+        elif name:
+            if stripped:
+                current.append(stripped)
+            elif current:
+                blocks[name] = current
+                name, current = None, []
+    if name:
+        blocks[name] = current
+    return blocks
+
+
 def test_tieout_mode(populated, capsys):
-    """`--tieout CERT [REPDTE]` in demo mode: clearly labeled demo values,
-    one line per metric carrying value + MDRM, and the facsimile + BankFind
-    URLs for the bank-quarter."""
+    """`--tieout CERT [REPDTE]` in demo mode: clearly labeled demo values, a
+    block per metric carrying value + MDRM + what it means in plain English,
+    and the facsimile + BankFind URLs for the bank-quarter."""
     rc = R.main(["--workbook", populated, "--demo", "--tieout", "6548"])
     out = capsys.readouterr().out
     assert rc == 0
@@ -976,20 +1004,32 @@ def test_tieout_mode(populated, capsys):
             "&idType=fdiccert&id=6548&date=03312026") in out
     assert R.bankfind_url("6548") in out
     cfg = R.parse_config(BW.config_rows())
-    lines = out.splitlines()
+    blocks = _tieout_blocks(out)
     for spec in cfg.series:                       # value + MDRM per metric
-        ln = next((l for l in lines if l.strip().startswith(spec.id + " ")),
-                  None)
-        assert ln is not None, spec.id
-        assert re.search(r"(-?[\d,]+\.\d\d|\(blank\))", ln), spec.id
-    # values on the tieout lines match the engine (demo determinism)
+        block = blocks.get(spec.id)
+        assert block is not None, spec.id
+        assert re.search(r"(-?[\d,]+\.\d\d|\(blank\))", block[0]), spec.id
+        assert any(l.startswith("Checked") for l in block), spec.id
+
+    # THE CODES SURVIVE THE PLAIN ENGLISH. The whole risk of rewriting this for
+    # readability was quietly dropping the identifiers that make a number
+    # checkable, so that is asserted rather than assumed.
     prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
     fields = prov._profile("6548")[-1][1]
-    tex_line = next(l for l in lines if l.strip().startswith("TEXAS "))
-    assert f"{R.metric_value('TEXAS', fields):,.2f}" in tex_line
-    assert "(1407+1403) / (3210+3123)" in tex_line
-    uni_line = next(l for l in lines if l.strip().startswith("UNINSDEPR"))
-    assert "RCON5597" in uni_line
+    texas = blocks["TEXAS"]
+    assert f"{R.metric_value('TEXAS', fields):,.2f}" in texas[0]
+    assert any("(1407+1403) / (3210+3123)" in l for l in texas)
+    assert any("RCON5597" in l for l in blocks["UNINSDEPR"])
+
+    # ... and the plain English is actually there, for every metric.
+    from credit_suite.sources.fdic import plain
+    assert plain.describe("NCLNLSR"), "headline metric lost its description"
+    undescribed = [s.id for s in cfg.series if not plain.describe(s.id)]
+    assert not undescribed, (
+        "no plain-English description for %s -- a reader who does not know "
+        "MDRM codes cannot act on these rows" % undescribed)
+    for term, _meaning in plain.GLOSSARY[:3]:
+        assert term in out, "glossary term %r missing from the tie-out" % term
     # explicit REPDTE selects the quarter; a bad one refuses clearly
     rc = R.main(["--workbook", populated, "--demo", "--tieout", "6548",
                  "2025-12-31"])
