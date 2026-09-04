@@ -5,6 +5,9 @@ in a git repository and shipped as a plugin. May that record hold the *text* of
 the authority, or only *citations* to it?
 
 **Researched:** 4 September 2026 · for the standards-desk design
+**Re-tested:** 4 September 2026 — automated-access and eCFR questions closed; the
+FASB copyright wording is *still* unread, and the previously recorded reason for
+that was wrong (see "Correction" below)
 **Short answer:** **citations only for FASB and AICPA; full text for anything
 federal.** The line is not "free vs paid" — it is who wrote it.
 
@@ -72,6 +75,63 @@ material into the public domain. The carve-out is narrow and rarely bites on
 IRC/Treas. Reg. text, but the record should not assume a `.gov` URL is
 self-certifying.
 
+### eCFR: terms for automated access
+
+Checked 4 September 2026. The API is open and needs no key — both
+`https://www.ecfr.gov/api/versioner/v1/titles.json` and
+`https://www.ecfr.gov/api/admin/v1/agencies.json` return HTTP 200 to a plain
+request, and neither carries a rate-limit header or an in-band terms notice.
+
+`https://www.ecfr.gov/robots.txt` reads, in full:
+
+```
+# See http://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+
+User-agent: *
+
+  Sitemap: https://www.ecfr.gov/sitemaps/sitemap.xml.gz
+  Disallow: /search
+  Disallow: /recent-changes
+  Disallow: /on/
+  Disallow: /compare/
+  Disallow: /my/
+  Disallow: /auth/ofr
+  Disallow: /auth/sign_in
+
+  # Don't index developer tool links
+  Disallow: /api/renderer/v1/content/
+  Disallow: /api/versioner/v1/full/
+```
+
+**Read this precisely, because it is easy to over-read.** The two `Disallow`
+lines cover the bulk full-text endpoints — including
+`/api/versioner/v1/full/`, which is the natural way to pull 26 CFR text. But
+they sit under the comment *"Don't index developer tool links"*, and
+`robots.txt` binds *crawlers deciding what to index*, not a client calling a
+documented API for a specific citation. The endpoints answer direct requests
+normally. So this is **not** a prohibition on using the API; it is eCFR saying
+it does not want those URLs in search indexes.
+
+The practical rule it does support: **fetch the citations the record needs, do
+not crawl the corpus.** Pulling `§ 1.263(a)-3(k)` on demand is ordinary API use;
+walking `/api/versioner/v1/full/` across a whole title to build a local mirror is
+the behaviour these lines are aimed at.
+
+**Rate limiting exists; its numbers were not readable from here.** Both
+developer-documentation pages —
+`https://www.ecfr.gov/developers/documentation/api/v1` and
+`https://www.ecfr.gov/reader-aids/understanding-the-ecfr/developer-resources` —
+answer with `302 Found` to `https://unblock.federalregister.gov/`, the Federal
+Register's bot-mitigation landing page. That redirect is itself evidence that
+automated clients are throttled and diverted, but **this environment's egress
+proxy blocks `unblock.federalregister.gov`, so the page stating the actual
+limits could not be opened.** The numeric policy therefore remains unread — see
+the not-checked list.
+
+Note the asymmetry, which is useful: eCFR bot-blocks its *HTML documentation*
+while serving its *JSON API* normally. The data path the record would actually
+use is the one that works.
+
 ## AICPA: same posture as FASB
 
 The Code of Professional Conduct and AICPA frameworks are copyrighted, all
@@ -79,6 +139,50 @@ rights reserved, with reproduction handled through a permissions desk
 (`copyright-permissions@aicpa-cima.com`)
 ([AICPA Code of Professional Conduct](https://www.aicpa-cima.com/topic/ethics/code-of-professional-conduct)).
 Treat as citation-only, same as FASB, absent written permission.
+
+---
+
+## Automated access is a separate question, and FASB answers it at the door
+
+Copyright and scraping are different questions; a site can permit one and forbid
+the other. Checked 4 September 2026:
+
+**Neither FASB host publishes a `robots.txt` at all.**
+
+| URL | Result |
+|---|---|
+| `https://asc.fasb.org/robots.txt` | HTTP **200**, but the body is the Angular single-page-app shell (`<title>FASB Accounting Standards Codification®</title>`, `<app-root></app-root>`) — the SPA catch-all, not a robots file |
+| `https://www.fasb.org/robots.txt` | HTTP **404** |
+
+So there is no `robots.txt` directive either granting or refusing crawl
+permission. **The refusal is enforced a layer up instead.** Every ASC content
+path tried returns an origin-served Cloudflare block:
+
+```
+HTTP/2 403
+server: cloudflare
+cf-ray: a35ebfa5a855d6c9-IAD
+set-cookie: __cf_bm=...; Domain=fasb.org; ...
+
+  <title>Attention Required! | Cloudflare</title>
+  <h1>Sorry, you have been blocked</h1>
+  <h2>You are unable to access fasb.org</h2>
+```
+
+— observed on `asc.fasb.org/copyright`, `asc.fasb.org/help`, `asc.fasb.org/`,
+`www.fasb.org/copyright` and `www.fasb.org/standards`.
+
+**The answer to "is automated access separately prohibited" is therefore: yes in
+practice, though not by `robots.txt`.** FASB runs bot management that refuses
+non-browser clients on the content paths. This matters to the design
+independently of copyright: **a desk that fetches ASC at answer time — the one
+thing §6.3 of the PRD does permit — will be blocked from a datacenter address,**
+so "fetch to answer, never cache" is sound as a legal posture but is not
+something the software can rely on working unattended.
+
+This *reinforces* the citation-only shape rather than disturbing it. There are
+now two independent reasons not to build an ASC-text pipeline: the copyright
+notice, and the fact that the door is shut.
 
 ---
 
@@ -104,32 +208,107 @@ the record is the prohibited act. The distinction is storage, not reading.
 
 ---
 
+## Flagged for the PRD — not edited here
+
+`docs/prd-expert-desks.md` **§6.3 stands.** Nothing found on re-test disturbs
+"citation only for FASB and AICPA, full text for federal authority." The
+automated-access finding *supports* it.
+
+**But §6.5 has a defect this re-test exposed, and it is not this file's to
+fix.** That table gives one fix for `source_unreachable`:
+
+> | `source_unreachable` | yes | grant the domain in the environment's network policy |
+
+**That fix is wrong for FASB, and FASB is the case the desk will actually hit.**
+`asc.fasb.org` is *already granted and already reachable*; it fails anyway,
+because the refusal is Cloudflare's at the origin. A desk that emits
+`source_unreachable` and points a human at the network policy sends them to
+change a setting that is already correct — and §6.5's own closing line says a
+desk that keeps emitting the same fixable reason is reporting a defect in
+itself. This one would emit it forever.
+
+The two conditions are genuinely different and want different handling:
+
+| What happened | Signature | Who can fix it |
+|---|---|---|
+| Egress proxy refuses the domain | structured `EGRESS_BLOCKED` error | the environment's allowed-domains list |
+| Origin/CDN refuses the client | HTTP 403 + `server: cloudflare` + `cf-ray` | **nobody, from a container** — needs a human with a browser |
+
+Whether that becomes a second escalation reason or a corrected "fix" column is a
+design call for whoever owns the PRD. **Flagged, deliberately not edited.**
+
+---
+
 ## Confidence, and what was not checked
 
 **High confidence:** 17 U.S.C. § 105 and the public-domain status of IRC,
 Treasury Regulations and IRS publications. Read from the statute itself.
 
-**Medium confidence, and the reason:** the FASB restriction language above was
-recovered through a search index rather than by fetching
-`asc.fasb.org` directly — **this session's network egress proxy blocks
-`asc.fasb.org`**, so the copyright page could not be opened and read. The quoted
-sentence is consistent across sources and is standard "all rights reserved"
-boilerplate, but **it has not been read at its source by this session.** Before
-anything is built on it, open <https://asc.fasb.org/copyright> and
-<https://asc.fasb.org/help> in a browser and confirm the wording.
+### Correction, 4 September 2026: the reason for the FASB gap was wrong
+
+An earlier revision of this file said the gap existed because **"this session's
+network egress proxy blocks `asc.fasb.org`."** **That is not true, and it was
+not true then either.** A re-test on 4 September 2026 establishes:
+
+- `asc.fasb.org` **is** reachable through the egress proxy.
+  `https://asc.fasb.org/robots.txt` returned **HTTP 200** with FASB's own
+  application shell in the body.
+- `https://www.fasb.org/robots.txt` returned a genuine origin **404**.
+- The failures on the content pages are **HTTP 403 served by Cloudflare at
+  FASB's origin** — `server: cloudflare`, a `cf-ray` header, and a `__cf_bm`
+  cookie scoped to `Domain=fasb.org`. That is FASB's bot management refusing
+  this client, not the environment refusing the domain.
+- The egress proxy, when it *does* block a host, says so in a completely
+  different shape — a structured error, as `unblock.federalregister.gov`
+  returned during this same session:
+  `{"error_type":"EGRESS_BLOCKED","domain":"unblock.federalregister.gov", ...}`.
+  No FASB request produced one.
+
+**The practical consequence, so the next session does not waste an
+intervention:** adding `asc.fasb.org` or `*.fasb.org` to an allowed-domains
+list **will not fix this.** The domain is already allowed and already reachable.
+Reading these pages needs a client Cloudflare will accept — a real browser on an
+address it does not distrust — or a human opening them by hand. Driving headless
+Chromium from this container was attempted and did not get through either.
+
+**This corrects the diagnosis only. It does not disturb the legal finding**, and
+it does not raise the confidence level: the copyright wording is still unread at
+its source.
+
+### The FASB wording is still unverified — deliberately left at medium
+
+**Medium confidence, and the reason:** the FASB restriction language quoted at
+the top of this file was recovered through a search index, not by fetching
+`asc.fasb.org`. A re-test on 4 September 2026 tried again and **still could not
+open the page** — for the corrected reason above. The quoted sentence is
+consistent across sources and is standard "all rights reserved" boilerplate, but
+**it has still not been read at its source.**
+
+This matters more than an ordinary citation gap: **the whole shape of the record
+rests on the phrase "stored in a retrieval system,"** and that phrase is
+currently taken on trust from a secondary rendering. It is not a phrase to
+paraphrase from memory. Before anything further is built on it, a human should
+open <https://asc.fasb.org/copyright> and <https://asc.fasb.org/help> in an
+ordinary browser and confirm the wording verbatim.
 
 **Not checked at all:**
 
-- **The Basic View vs Professional View tiers** — what registration requires, and
-  whether the free Basic View's terms differ from the general copyright notice.
-  Blocked by the same egress restriction.
-- **Whether automated access is separately prohibited.** `asc.fasb.org/robots.txt`
-  was not readable from here. Copyright and scraping are different questions and
-  a site may permit one and forbid the other.
-- **eCFR rate limits and terms.** The API is documented and public; the specific
-  request-rate policy was not read (the developer docs redirected through
-  `unblock.federalregister.gov`, which suggests rate limiting exists).
+- **The FASB copyright wording, at its source.** Re-tested 4 September 2026 and
+  still blocked — Cloudflare 403, not egress. Needs a human with a browser.
+- **The Basic View vs Professional View / academic tiers** — what registration
+  requires, and whether the free Basic View's terms differ from the general
+  copyright notice. `asc.fasb.org/help` is behind the same Cloudflare 403.
+  Nothing about the tiers has been read, and nothing here should be assumed
+  about them.
+- **eCFR's numeric rate limits.** The `robots.txt` and the open API behaviour
+  *were* read (see "eCFR: terms for automated access" above), but the pages
+  stating the actual request-rate policy redirect to
+  `unblock.federalregister.gov`, which this environment's egress proxy blocks —
+  a real `EGRESS_BLOCKED`, unlike the FASB case.
 - **State-level authority** entirely — no state DOR or state board material was
   researched.
 - **FRF for SMEs specifically.** Inferred from AICPA's general posture, not
   confirmed against its own terms.
+- **AICPA's terms at their source.** The posture recorded above came from the
+  Code of Professional Conduct landing page; `aicpa-cima.com` was not re-tested
+  in this session.
