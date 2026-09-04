@@ -12,20 +12,16 @@ import pytest
 import unsupported
 from engine import Answer, Outcome, Refusal, Served, grade, serve
 
-CITATION = "26 CFR 1.263(a)-3(k)(7) Example 3"
 
 
-@pytest.fixture
-def problem(fixed_assets):
-    return fixed_assets.problems[0]
 
 
 # ── nothing leaves without authority ─────────────────────────────────────────
 
 def test_a_cited_answer_is_served_with_its_authority(fixed_assets, problem):
-    out = serve(Answer(position=problem.answer, citation=CITATION), fixed_assets)
+    out = serve(Answer(position=problem.answer, citation=problem.citation), fixed_assets)
     assert isinstance(out, Served)
-    assert out.citation == CITATION
+    assert out.citation == problem.citation
     assert out.tier == "primary"
     assert out.checked, "an answer with no checked date is a claim about the present"
 
@@ -62,7 +58,7 @@ def test_an_interpretive_source_is_refused_rather_than_served(tmp_path):
 def test_the_gate_and_the_scoreboard_agree(fixed_assets, problem):
     """They share one verification on purpose. If they drifted, the scoreboard
     would stop measuring what the gate actually does."""
-    for citation in ("", "26 CFR 9.9-9", CITATION):
+    for citation in ("", "26 CFR 9.9-9", problem.citation):
         a = Answer(position=problem.answer, citation=citation)
         served = not isinstance(serve(a, fixed_assets), Refusal)
         scored_ok = grade(a, problem, fixed_assets).outcome is Outcome.CORRECT
@@ -74,8 +70,9 @@ def test_the_gate_and_the_scoreboard_agree(fixed_assets, problem):
 
 # ── retained is not accepted ──────────────────────────────────────────────────
 
-def test_a_refusal_becomes_an_entry_carrying_its_reasoning(fixed_assets, problem):
-    a = Answer(position="not required to capitalize", citation="26 CFR 9.9-9",
+def test_a_refusal_becomes_an_entry_carrying_its_reasoning(
+        fixed_assets, problem, wrong_position):
+    a = Answer(position=wrong_position, citation="26 CFR 9.9-9",
                working="thought it was a repair")
     r = grade(a, problem, fixed_assets)
     entry = unsupported.from_refusal("is storm damage capitalised?", a, r,

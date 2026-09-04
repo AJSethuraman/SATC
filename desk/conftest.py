@@ -45,3 +45,23 @@ def no_network(monkeypatch):
 def fixed_assets():
     import record
     return record.load(DESKS / "fixed-assets")
+
+
+@pytest.fixture
+def problem(fixed_assets):
+    """A problem chosen by its conclusion, never by its position in the file.
+
+    An earlier version took `problems[0]`, and regenerating the set moved a
+    different example into that slot -- turning the answer a test called wrong
+    into the right one. A fixture that depends on file order is a test that
+    passes for the wrong reason on the day the record grows.
+    """
+    return next(p for p in fixed_assets.problems
+                if p.answer == "must capitalize")
+
+
+@pytest.fixture
+def wrong_position(problem):
+    """The other conclusion this desk can state. Derived, not hardcoded."""
+    return ("not required to capitalize" if problem.answer == "must capitalize"
+            else "must capitalize")

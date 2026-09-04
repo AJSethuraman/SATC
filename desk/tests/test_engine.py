@@ -15,12 +15,8 @@ import record
 from conftest import NetworkUsed
 from engine import Answer, EngineError, Outcome, REASONS, grade, report, tally
 
-CITATION = "26 CFR 1.263(a)-3(k)(7) Example 3"
 
 
-@pytest.fixture
-def problem(fixed_assets):
-    return fixed_assets.problems[0]
 
 
 # ── the guard on the guard ────────────────────────────────────────────────────
@@ -34,33 +30,34 @@ def test_the_no_network_guard_can_actually_fail():
 # ── the two outcomes that look alike and are not ──────────────────────────────
 
 def test_a_right_answer_with_authority_that_holds_is_correct(fixed_assets, problem):
-    r = grade(Answer(position=problem.answer, citation=CITATION), problem, fixed_assets)
+    r = grade(Answer(position=problem.answer, citation=problem.citation), problem, fixed_assets)
     assert r.outcome is Outcome.CORRECT
     assert not r.costly
 
 
 def test_a_wrong_answer_the_engine_cannot_fault_is_wrongly_absorbed(
-        fixed_assets, problem):
+        fixed_assets, problem, wrong_position):
     """The citation resolves, the source binds, and the answer is still wrong.
 
     Nothing in the engine can catch this, which is exactly why it is counted
     separately: in production it ships.
     """
     r = grade(
-        Answer(position="not required to capitalize", citation=CITATION),
+        Answer(position=wrong_position, citation=problem.citation),
         problem, fixed_assets)
     assert r.outcome is Outcome.WRONGLY_ABSORBED
     assert r.costly, "this is the only outcome that costs anything"
     assert problem.answer in r.detail, "the report must say what the authority concluded"
 
 
-def test_wrong_but_caught_is_not_counted_as_wrongly_absorbed(fixed_assets, problem):
+def test_wrong_but_caught_is_not_counted_as_wrongly_absorbed(
+        fixed_assets, problem, wrong_position):
     """A wrong answer whose citation does not resolve was stopped, not shipped.
 
     Folding these two together would hide the number the firm actually reads.
     """
     r = grade(
-        Answer(position="not required to capitalize", citation="26 CFR 9.9-9"),
+        Answer(position=wrong_position, citation="26 CFR 9.9-9"),
         problem, fixed_assets)
     assert r.outcome is Outcome.WRONG_CAUGHT
     assert not r.costly
@@ -158,7 +155,7 @@ def test_authority_that_only_interprets_escalates_rather_than_answers(
 
 def test_the_report_puts_wrongly_absorbed_first_and_states_zero(
         fixed_assets, problem):
-    results = [grade(Answer(position=problem.answer, citation=CITATION),
+    results = [grade(Answer(position=problem.answer, citation=problem.citation),
                      problem, fixed_assets)]
     text = report(results)
     lines = [l.strip() for l in text.splitlines()]
@@ -171,7 +168,7 @@ def test_the_report_puts_wrongly_absorbed_first_and_states_zero(
 
 def test_the_tally_counts_every_outcome_even_the_absent_ones(
         fixed_assets, problem):
-    counts = tally([grade(Answer(position=problem.answer, citation=CITATION),
+    counts = tally([grade(Answer(position=problem.answer, citation=problem.citation),
                           problem, fixed_assets)])
     assert set(counts) == {o.value for o in Outcome}
     assert counts["correct"] == 1
@@ -188,7 +185,7 @@ def test_outcomes_are_never_summed_into_one_figure():
 
 def test_case_and_surrounding_space_do_not_change_the_verdict(
         fixed_assets, problem):
-    r = grade(Answer(position=f"  {problem.answer.upper()}  ", citation=CITATION),
+    r = grade(Answer(position=f"  {problem.answer.upper()}  ", citation=problem.citation),
               problem, fixed_assets)
     assert r.outcome is Outcome.CORRECT
 
@@ -196,6 +193,6 @@ def test_case_and_surrounding_space_do_not_change_the_verdict(
 def test_a_near_miss_is_not_treated_as_a_match(fixed_assets, problem):
     """A looser comparison would quietly turn wrong answers into right ones —
     the one direction this code must never fail in."""
-    r = grade(Answer(position=problem.answer + " partially", citation=CITATION),
+    r = grade(Answer(position=problem.answer + " partially", citation=problem.citation),
               problem, fixed_assets)
     assert r.outcome is Outcome.WRONGLY_ABSORBED
