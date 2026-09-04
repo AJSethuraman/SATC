@@ -120,6 +120,11 @@ allowed into the shared layer, and a test enforces that.
     reading, so that a desk does not launch treating a whitepaper as a rule.
 17. As **the firm**, I want a new desk to arrive as a pull request I approve,
     so that creating an advisor is ratified the same way a position is.
+18. As **the firm**, I want to read *why* a desk could not cite an answer, so
+    that I can tell a missing source from a missing position from an invention —
+    three different problems that look identical from outside.
+19. As **the firm**, I want a refused answer's reasoning kept rather than thrown
+    away, so that the desk's failures are the list of what to add next.
 
 ## 5. Requirements
 
@@ -151,8 +156,21 @@ allowed into the shared layer, and a test enforces that.
     **not an answer** — it is an escalation. That is the case where authority
     permits a choice, and choices belong to the firm.
 11. **[P0]** An answer with no resolvable citation is refused by the engine.
+11a. **[P0]** A refused answer is **retained, with its reasoning**, in an
+    `unsupported/` queue — never served to the caller, never scored correct.
+    The entry records what it concluded, what authority it believed applied, and
+    why verification failed. Discarding it throws away the best evidence of what
+    the record is missing.
+11b. **[P1]** An `unsupported/` entry can be promoted two ways, both by pull
+    request: to a **source** (the authority existed and was not loaded) or to a
+    **position** (the rules permit a choice and the firm takes one). Neither
+    happens automatically. An entry that was simply invented is left where it is,
+    which is itself the finding.
 12. **[P0]** Every escalation carries a diagnosed reason from a closed set
     (§6.5), and whether that reason is fixable.
+12a. **[P1]** The `unsupported/` queue is reported alongside the scoreboard: how
+    many entries, and how many resolved into a source or a position since the
+    last run. A queue that only grows is a desk nobody is feeding.
 13. **[P1]** A desk restates the firm's own challenge duty: when the firm pushes
     back, it engages rather than folding, from the record.
 
@@ -180,8 +198,12 @@ allowed into the shared layer, and a test enforces that.
 
 **The shared layer**
 
-23. **[P0]** A test fails the build if accounting vocabulary appears anywhere in
-    the shared layer.
+23. **[P0]** A test fails the build if the shared layer knows what domain it
+    serves. The rule is **not** "accounting is forbidden" — it is that a shared
+    interface or code path must not be meaningful only to an accountant. Prose
+    explaining a concept is fine; a shared function that presupposes a domain is
+    not. The firm, 4 September 2026: *"accounting-specific isn't the problem,
+    it's just like… me saying it shouldn't be total jargin."*
 24. **[P0]** The plugin reaches outside its own directory for nothing, matching
     canon's rule — it must lift out whole.
 
@@ -309,6 +331,38 @@ Only `authority_permits_choice` should reach the firm twice. The others are work
 items, and a desk that keeps emitting the same fixable reason is reporting a
 defect in itself.
 
+### 6.5a Refused, but kept — the `unsupported/` queue
+
+A refusal is a **finding**, and throwing away the reasoning behind it destroys
+the finding. The engine refuses to *serve* an uncited answer; it does not delete
+it.
+
+```yaml
+# unsupported/2026-09-04-hvac-unit.yaml
+question:   Is a replacement HVAC unit a repair or an improvement?
+concluded:  Improvement — a betterment to the HVAC system.
+believed_authority: "§1.263(a)-3(j), betterment"
+failed_because: citation_not_resolvable   # the paragraph does not say this
+model:      qwen3:8b
+recorded:   2026-09-04
+```
+
+Three resolutions, none automatic, all by pull request:
+
+| What the reasoning shows | Resolution |
+|---|---|
+| Real authority that was never loaded | promote to a **source** |
+| A defensible call the rules do not settle | promote to a **position**, in the firm's words |
+| An invention | leave it. Its visibility *is* the finding |
+
+**Retained is not accepted.** An `unsupported/` entry is never returned to a
+caller and never counted as correct. It exists so that the desk's failures become
+the list of what to add next, rather than a number that goes down for reasons
+nobody can inspect.
+
+This is `canon-mine`'s discipline applied to answers instead of convictions —
+propose, never write — and Occam already holds the shape in its review queue.
+
 ### 6.6 Routing — reuse, do not invent
 
 `canon/record.py` already implements exactly this. `Conviction.fires_on` is a
@@ -432,8 +486,10 @@ recorded so v2 does not have to rediscover it.
    `canon/tests/test_canon.py` parses and validates the record the same way, and
    `record.py` raises rather than defaulting on a malformed block.
 
-3. **The shared layer, as a purity check.** `pytest` asserting no accounting
-   vocabulary appears in the shared layer. Prior art:
+3. **The shared layer, as a domain-blindness check.** `pytest` asserting that no
+   shared interface or code path presupposes a domain — checked at the seam of
+   the shared layer's own API, not by grepping comments for banned words. Prior
+   art:
    `canon/tests/test_installed_elsewhere.py`, which copies the tree into a fresh
    git repository and runs it there — the same idea, that a thing claiming to be
    portable must be proven outside its home.
@@ -550,7 +606,9 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
 - [ ] The problem set extracted from § 1.263(a)-3, each entry citing its paragraph
 - [ ] Both scoreboards run and committed, with denominators and not-checked lists
 - [ ] Wrongly-absorbed count reported first, and stated even when zero
-- [ ] Shared-layer purity test passes with the accounting desk installed
+- [ ] Shared-layer domain-blindness test passes with the accounting desk installed
+- [ ] A refused answer appears in `unsupported/` with its reasoning, is not served to the caller, and is not scored correct
+- [ ] An `unsupported/` entry has been promoted to a source and another to a position, both by PR
 - [ ] The plugin installs from the `satc` marketplace into a repository that is not this one, and works there
 - [ ] `canon/projects/REGISTER.md` gains a card — what it IS, never what its code currently does
 - [ ] The factory emits a desk definition as a PR, and that desk passes the same record tests as the hand-built one
