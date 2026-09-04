@@ -484,3 +484,59 @@ test that names it. 138 passed.
 
 Convictions are read from the plugin cache, which keys on version, so this is
 **1.5.0** — without the bump `claude plugin update` pulls nothing.
+
+---
+## 2026-09-04 · C11, and the bump that was made and still did not arrive
+
+**The conviction.** C11 was recorded from the firm's own words:
+
+> *i am a firm believer in the simplest answer being doing the work upfront and
+> testing to ensure it works when you know you will eventually do it anyway.
+> that's what makes AI so useful as a tool, it wildly changes my view of
+> complexity*
+
+It refines C9 rather than repeating it. C9 is *one mechanism, not two beside each
+other*; C11 is about **when** — that the work you know is coming is cheapest done
+now, and that AI changes the arithmetic of what "too complex for now" means. It
+fires on `defer`, `simplest`, `scale` and `hardcode`, and it is the conviction to
+raise whenever a session proposes a stub it intends to replace.
+
+**What actually went wrong, which is the entry worth reading.** C11 was merged to
+`main` in a commit that touched five files and neither manifest. Nothing failed.
+The entry above this one, written the same day, ends: *"Convictions are read from
+the plugin cache, which keys on version, so this is 1.5.0 — without the bump
+`claude plugin update` pulls nothing."*
+
+**That session knew the rule, bumped `plugin.json`, and the record still did not
+arrive** — because the number the cache keys on is the one in the MARKETPLACE
+entry, one level up, and that stayed at 1.4.0. So for most of a day the installed
+copy stopped at C10 while the repository had eleven, and no test in a 138-test
+suite could tell: the only version check asserted the string matched semver.
+
+A rule stated correctly in a log, followed, and still missed — because it was
+followed at the wrong file. Knowing a rule is not a mechanism.
+
+**Three checks, each proved able to fail:**
+
+| | |
+|---|---|
+| the marketplace and the manifest must agree on the version | mutated back to 1.4.0 → red |
+| the record's digest must match the version that claims it | a conviction appended with no release → red |
+| a count stated in a manifest must be a count somebody made | the marketplace said *fifteen* standing behaviours; there are eighteen → red |
+
+`canon/release.py` writes `RELEASED.json` — a hash over `CONVICTIONS.md`,
+`TENETS.md` and the two skills a session actually reads. **It cannot force a
+bump, and it does not claim to.** What it does is make the omission loud: change
+the record and the suite goes red until the digest is rewritten, and the line you
+rewrite sits beside the version number, so *"should this be 1.6.0?"* lands in a
+diff somebody is reading.
+
+Also recorded to `PLAN.md` this session: the expert-desks decision, the Forge as
+a flag rather than a gate, and D4 — the paid Codification licence — put on the
+backburner by the firm: *"backburner the paid cert, we will test the process and
+see what we learn."* ASC stays `human_only`; the fixed-assets desk proves the
+mechanism on federal authority, which is public, binding and free, before anyone
+spends money to widen it.
+
+141 passed. Version stays at **1.5.0** — the record did not change here; what
+changed is that the version now travels.
