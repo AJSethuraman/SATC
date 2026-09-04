@@ -147,7 +147,20 @@ def save_location(key: str, value: str) -> Path:
 # the same protection `satc_system` gives the vault key. The environment
 # variable still wins where it is set, so nothing that works today stops.
 
-TOKEN_FILE = Path.home() / ".satc" / "square-token"
+TOKEN_DIR = Path.home() / ".satc"
+
+# ONE SLOT PER ENVIRONMENT, because they are different credentials against
+# different accounts and mixing them is the mistake that is easy to make and
+# hard to see: a sandbox token cannot see production locations, and Square's
+# answer either way is a 401 that reads like "bad token".
+TOKEN_FILES = {
+    True:  TOKEN_DIR / "square-token-sandbox",
+    False: TOKEN_DIR / "square-token-production",
+}
+
+
+def token_file(sandbox: bool) -> Path:
+    return TOKEN_FILES[bool(sandbox)]
 
 
 def _dpapi(data: bytes, *, unprotect: bool = False) -> bytes | None:
@@ -182,7 +195,7 @@ def _dpapi(data: bytes, *, unprotect: bool = False) -> bytes | None:
         return None
 
 
-def remember_token(token: str) -> Path:
+def remember_token(token: str, *, sandbox: bool) -> Path:
     """Seal a token into the user's profile. REFUSES if it cannot seal it."""
     raw = (token or "").strip().encode("utf-8")
     if not raw:
@@ -194,29 +207,34 @@ def remember_token(token: str) -> Path:
             "written anywhere. Storing a live payment token in the clear is "
             "worse than typing it again -- set $SATC_SQUARE_TOKEN in your shell "
             "instead.")
-    TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    TOKEN_FILE.write_bytes(sealed)
+    path = token_file(sandbox)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(sealed)
     try:
-        os.chmod(TOKEN_FILE, 0o600)      # a no-op on Windows; the ACL does it
+        os.chmod(path, 0o600)            # a no-op on Windows; the ACL does it
     except OSError:
         pass
-    return TOKEN_FILE
+    return path
 
 
-def stored_token() -> str:
-    """The remembered token, or "" if there is none this account can read."""
+def stored_token(sandbox: bool) -> str:
+    """The remembered token for this environment, or "" if there is none."""
     try:
-        sealed = TOKEN_FILE.read_bytes()
+        sealed = token_file(sandbox).read_bytes()
     except OSError:
         return ""
     raw = _dpapi(sealed, unprotect=True)
     return raw.decode("utf-8").strip() if raw else ""
 
 
-def forget_token() -> bool:
-    """Delete the remembered token. True if there was one to delete."""
-    try:
-        TOKEN_FILE.unlink()
-        return True
-    except OSError:
-        return False
+def forget_token(sandbox: bool | None = None) -> list[Path]:
+    """Delete remembered tokens. None means both. Returns what was deleted."""
+    which = TOKEN_FILES.values() if sandbox is None else [token_file(sandbox)]
+    gone = []
+    for p in which:
+        try:
+            p.unlink()
+            gone.append(p)
+        except OSError:
+            pass
+    return gone

@@ -651,130 +651,125 @@ def cmd_invoice(args) -> int:
     return 0
 
 
-def _payments_setup(args) -> int:
-    """Fill in the location id and, if asked, remember the token. Interactive.
-
-    THE FIRM, 4 September 2026: *"i can get the location and prod IDs if that's
-    what we need - i want it to be simple for me to update these figures."*
-
-    Before this, the two remaining facts were "find them in a web console, then
-    edit YAML by hand", and that produced the mistake it was always going to: on
-    2 September the firm sent an APPLICATION id instead of a LOCATION id,
-    because Square's console shows them side by side and nothing said which was
-    wanted.
-
-    NOTHING HERE IS GUESSED. The list comes from Square, and what gets written
-    is what the firm picks off that list.
-    """
+def _one_account(sandbox: bool, *, reg, env, offer_to_remember: bool) -> bool:
+    """Set up one Square account. True if the location id ended up written."""
     import getpass
     import square_setup as setup
 
-    which = "location_id" if args.production else "sandbox_location_id"
-    where = "the LIVE Square account" if args.production else "Square's test account"
-    reg = payments.settings()
-    env = ((reg.get("square") or {}).get("token_env")) or "SATC_SQUARE_TOKEN"
+    which = "sandbox_location_id" if sandbox else "location_id"
+    label = "TEST" if sandbox else "LIVE"
 
-    print("\nSetting up %s.\n" % where)
+    print("-" * 68)
+    print(f"  {label} account")
+    print("-" * 68)
 
-    # THE ENVIRONMENT STILL WINS, so somebody who has already set it correctly
-    # is not asked again and cannot end up with two tokens that disagree.
-    from_env = os.environ.get(env, "").strip()
-    token = from_env or setup.stored_token()
-    had_one = bool(token)
+    token = os.environ.get(env, "").strip() or setup.stored_token(sandbox)
     if token:
-        print("  Using the token already available %s."
-              % ("in $" + env if from_env else "(remembered on this account)"))
-        print("  Its value is not shown, here or anywhere else.\n")
+        print("  Already have this token. Not asking again.\n")
     else:
-        print("  A Square access token is needed to ask which locations exist.")
-        print("  Square dashboard -> Developer -> your application -> Credentials.")
-        print("  Nothing is echoed as you paste it.\n")
+        print(f"  Paste the {label} ACCESS TOKEN (not an id — this finds the id "
+              f"for you).")
+        print("  Square dashboard -> Developer -> your app -> Credentials, "
+              f"{label} tab.")
+        print("  Nothing appears as you paste. Press Enter on its own to skip.\n")
         try:
             token = getpass.getpass("  Token: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n  Stopped. Nothing was changed.\n")
-            return 1
+            print("\n  Skipped.\n")
+            return False
         if not token:
-            print("\n  No token entered, so nothing could be looked up.\n")
-            return 1
-
-    os.environ[env] = token          # this process only; never written down
+            print("\n  Skipped — no token given.\n")
+            return False
 
     try:
         api = payments.processor(
-            sandbox=not args.production,
-            reg={**reg, "square": {**(reg.get("square") or {}), which: "unknown"}})
+            sandbox=sandbox,
+            reg={**reg, "square": {**(reg.get("square") or {}), which: "unknown"}},
+            token=token)
         found = api.locations()
     except payments.PaymentError as exc:
-        print("\n  Square would not answer: %s\n" % exc)
-        print("  Nothing was written. The commonest cause is a token for the "
-              "other\n  account -- a sandbox token cannot see production "
-              "locations, nor the\n  other way round.\n")
-        return 1
+        print(f"\n  Square would not answer: {exc}")
+        print(f"  Nothing written for the {label} account. The usual cause is "
+              f"the other\n  account's token — they cannot see each other.\n")
+        return False
 
     if not found:
-        print("\n  This token can see NO locations at all. That is a question "
-              "for the\n  Square account, not for this software. Nothing was "
-              "written.\n")
-        return 1
-
-    print("  Square says this token can see %d location%s:\n"
-          % (len(found), "" if len(found) == 1 else "s"))
-    for n, loc in enumerate(found, 1):
-        print("    %d.  %s" % (n, loc.get("name") or "(unnamed)"))
-        print("        %s%s" % (loc.get("id"),
-                                "   " + loc["status"] if loc.get("status") else ""))
-    print()
+        print(f"\n  This token can see no locations. Nothing written.\n")
+        return False
 
     if len(found) == 1:
         chosen = found[0]
-        print("  Only one, so that is the one: %s\n" % chosen.get("id"))
+        print(f"  One location: {chosen.get('name') or '(unnamed)'}\n")
     else:
+        for n, loc in enumerate(found, 1):
+            print(f"    {n}.  {loc.get('name') or '(unnamed)'}      {loc.get('id')}")
+        print()
         try:
-            raw = input("  Which one holds the firm's money? [1-%d] "
-                        % len(found)).strip()
+            raw = input(f"  Which one holds the firm's money? [1-{len(found)}] ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n  Stopped. Nothing was changed.\n")
-            return 1
+            print("\n  Skipped.\n")
+            return False
         if not raw.isdigit() or not 1 <= int(raw) <= len(found):
-            print("\n  That is not one of the numbers offered. Nothing was "
-                  "changed.\n")
-            return 1
+            print("\n  Not one of the numbers offered. Nothing written.\n")
+            return False
         chosen = found[int(raw) - 1]
 
     try:
-        path = setup.save_location(which, str(chosen.get("id", "")))
+        setup.save_location(which, str(chosen.get("id", "")))
     except setup.SetupError as exc:
-        print("\n  Not written: %s\n" % exc)
-        return 1
-    print("  Written to %s:  square.%s = %s" % (path.name, which, chosen.get("id")))
-    print("  Every comment in that file is untouched.\n")
+        print(f"\n  Not written: {exc}\n")
+        return False
+    print(f"  Written:  {which} = {chosen.get('id')}")
 
-    # OFFERED, NEVER ASSUMED. A live payment token at rest is the owner's call
-    # and it belongs in the WISP either way.
-    if not had_one and not args.no_remember:
+    if offer_to_remember and not setup.stored_token(sandbox):
         try:
-            ans = input("  Remember this token on this Windows account, sealed so "
-                        "no other\n  account on this machine can read it? [y/N] "
-                        ).strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            ans = "n"
-        if ans.startswith("y"):
-            try:
-                kept = setup.remember_token(token)
-                print("\n  Sealed into %s." % kept)
-                print("  Forget it again with:  "
-                      "python cli.py payments --forget-token\n")
-            except setup.SetupError as exc:
-                print("\n  %s\n" % exc)
-        else:
-            print("\n  Not stored. Set $%s in your shell before invoicing, or "
-                  "run this\n  again and say yes.\n" % env)
+            keep = setup.remember_token(token, sandbox=sandbox)
+            print(f"  Remembered, sealed to this Windows account: {keep.name}")
+        except setup.SetupError as exc:
+            print(f"  Token not stored: {exc}")
+    print()
+    return True
 
-    print("Now prove it end to end:")
-    print("  python cli.py payments --check%s\n"
-          % (" --production" if args.production else ""))
-    return 0
+
+def _payments_setup(args) -> int:
+    """Both Square accounts, both location ids, both tokens — in one run.
+
+    THE FIRM, 4 September 2026: *"i dont want to have to do this in multiple
+    places or keep track of multiple things."*
+
+    So there are no flags to choose between and no second command to remember.
+    It asks for the test token and the live token, finds each account's
+    locations itself, writes both ids, and seals both tokens so nothing has to
+    be typed again. Either half can be skipped with Enter and filled in later
+    by running it again -- what is already there is never asked for twice.
+    """
+    import square_setup as setup
+
+    reg = payments.settings()
+    env = ((reg.get("square") or {}).get("token_env")) or "SATC_SQUARE_TOKEN"
+
+    print("\n  Setting up Square. Two accounts, asked for once each.\n")
+    ok_test = _one_account(True, reg=reg, env=env,
+                           offer_to_remember=not args.no_remember)
+    reg = payments.settings()          # re-read: the first half wrote to it
+    ok_live = _one_account(False, reg=reg, env=env,
+                           offer_to_remember=not args.no_remember)
+
+    print("=" * 68)
+    print(f"  TEST account   {'ready' if ok_test else 'not set up'}")
+    print(f"  LIVE account   {'ready' if ok_live else 'not set up'}")
+    print("=" * 68)
+    if ok_test:
+        print("\n  Proving the test account end to end now.\n")
+        return _payments_check(_Args(production=False, cents=100))
+    print("\n  Run this again when you have a token for the missing one.\n")
+    return 0 if (ok_test or ok_live) else 1
+
+
+class _Args:
+    """The two fields `_payments_check` reads, so setup can call it directly."""
+    def __init__(self, *, production: bool, cents: int):
+        self.production, self.cents = production, cents
 
 
 def _payments_check(args) -> int:
@@ -865,8 +860,9 @@ def cmd_payments(args) -> int:
         return _payments_setup(args)
     if getattr(args, "forget_token", False):
         import square_setup as setup
-        if setup.forget_token():
-            print("\nForgotten. %s is gone.\n" % setup.TOKEN_FILE)
+        gone = setup.forget_token()          # both slots
+        if gone:
+            print("\nForgotten: " + ", ".join(p.name for p in gone) + "\n")
         else:
             print("\nThere was no remembered token to forget.\n")
         return 0

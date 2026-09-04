@@ -702,7 +702,15 @@ def test_it_does_not_pretend_to_look_up_an_id_with_no_token(approved,
 
     steps, _, _ = payments.live_check(sandbox=True, reg=reg, transport=never)
     assert len(steps) == 1 and not steps[0].ok
-    assert "is empty" in steps[0].detail
+    # ASSERTED ON WHAT IT BLAMES, not on the wording. This read `"is empty" in
+    # detail`, which was the old message's phrasing for an unset environment
+    # variable -- and a token can now also come from the owner's remembered
+    # store, so that sentence stopped being the true one to say.
+    assert "no token" in steps[0].detail.lower()
+    # And it says what to do. The `never` transport is what proves it did not
+    # call Square; this proves the reader is sent to their own setup rather
+    # than to their Square account.
+    assert "--setup" in steps[0].detail or "SATC_SQUARE_TOKEN" in steps[0].detail
     assert "failed" not in steps[0].detail
 
 

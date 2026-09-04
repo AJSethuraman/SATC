@@ -13,6 +13,8 @@ run itself.
 
 from __future__ import annotations
 
+import pytest
+
 _LEFT_OUT: list = []
 
 
@@ -43,3 +45,24 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
           "pytest`")
     write("  before pushing; CI runs the whole suite either way.")
     write("=" * 70)
+
+
+# ── no test may see the owner's real Square token ────────────────────────────
+#
+# `payments.processor` now falls back to a token the owner sealed into their own
+# profile with `payments --setup`. That is right for the app and poison for a
+# suite: whether a test sees a token would depend on whether the person running
+# it happens to have set Square up, so the same commit would pass on this
+# machine and fail on a clean one -- or, worse, pass here for the wrong reason.
+#
+# Autouse and unconditional. A test that WANTS a remembered token points
+# `square_setup.TOKEN_FILES` somewhere itself.
+@pytest.fixture(autouse=True)
+def _no_remembered_square_token(tmp_path_factory, monkeypatch):
+    try:
+        import square_setup
+    except ImportError:                     # not every checkout has it yet
+        return
+    nowhere = tmp_path_factory.mktemp("no-square-token")
+    monkeypatch.setattr(square_setup, "TOKEN_FILES",
+                        {True: nowhere / "sandbox", False: nowhere / "production"})
