@@ -2,7 +2,7 @@
 
 A skill file is a claim about how a session conducts itself. Nothing compares
 the claim to the file, so the file drifts: a behaviour loses its incident and
-becomes a slogan, or a fourteenth arrives with nothing behind it. That is the
+becomes a slogan, or a fifteenth arrives with nothing behind it. That is the
 one bug shape this whole repository exists to close (S31), and a document about
 it is not exempt.
 
@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_fourteen_are_here_and_numbered_without_a_gap():
+def test_all_fifteen_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 15)]
-    assert "Fourteen behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 16)]
+    assert "Fifteen behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
