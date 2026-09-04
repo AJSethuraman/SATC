@@ -41,3 +41,17 @@ originally named the documents that govern them, and both read better without.
 **Where it lives:** Its own folder in the SATC monorepo. Part of the consulting line, not the practice.
 
 **Convictions that apply:** none recorded
+
+---
+
+## occam
+
+**What it is:** A double-entry bookkeeping engine whose source of record is one Excel workbook per client, driven through an HTTP API, with an AI staff accountant that proposes work the engine verifies or refuses.
+
+**What it is for:** The bookkeeping the practice does for its clients. A local model onboards a client, categorises a period, reconciles against statements and posts approved work; a human reviewer owns the ledger decisions and the client relationship, and the engine — not a prompt — is what holds that line.
+
+**Stack:** Python, FastAPI, openpyxl, Ollama via MCP; a Vite/TypeScript client
+
+**Where it lives:** Its own repository, separate from the SATC monorepo. Runs on the Forge, bound to loopback, and published across the private tailnet by Tailscale Serve rather than by binding a public interface.
+
+**Convictions that apply:** none recorded
