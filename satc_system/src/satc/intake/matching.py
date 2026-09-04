@@ -111,6 +111,47 @@ def is_bundle(*request_texts: str) -> bool:
     return len(families(" ".join(request_texts))) > 1
 
 
+# A LIST THAT SAYS IT IS NOT THE WHOLE LIST.
+#
+# `is_bundle` answers "does this name more than one form", which is the right
+# question for matching and specificity. It is the WRONG question for "must all
+# of them arrive before this closes", and the difference is not cosmetic:
+#
+#   "Upload Forms 1099-INT, 1099-DIV and brokerage statements"
+#       -- three forms the interview established this client HAS. Closing it on
+#          the first one loses the other two. This is the 31 Aug 2026 live bug.
+#
+#   "Upload Forms W-2, 1099-INT, 1099-DIV, 1099-B, 1099-G, and any other income
+#    forms received."
+#       -- the standing core-income ask in `personal_1040_core.yaml`, sent to
+#          EVERY 1040 client. It is a checklist of what might exist, not an
+#          inventory of what does. Most clients have no 1099-B and no 1099-G, so
+#          requiring every part would hold the request open forever and put a
+#          permanent entry on the chase list for documents that do not exist.
+#
+# The tell is in the request's own words. "and any other ... received" says the
+# enumeration is not exhaustive; a request cannot both admit it is incomplete
+# and demand every item on it.
+_OPEN_ENDED = re.compile(
+    r"\b(?:and\s+)?any\s+other\b|\band\s+other\b|\betc\b|\bas\s+applicable\b|"
+    r"\bif\s+applicable\b|\bamong\s+others\b",
+    re.I)
+
+
+def is_open_ended(*request_texts: str) -> bool:
+    """True when a request's own wording says its list is not exhaustive."""
+    return bool(_OPEN_ENDED.search(" ".join(t for t in request_texts if t)))
+
+
+def needs_every_part(*request_texts: str) -> bool:
+    """True when this request may close only once every form it names has arrived.
+
+    A CLOSED list of several forms. An open-ended checklist is excluded by its
+    own wording, and a single-form request has nothing to wait for.
+    """
+    return is_bundle(*request_texts) and not is_open_ended(*request_texts)
+
+
 def outstanding(request_texts, arrived) -> set[str]:
     """Which of the families a request names have NOT arrived yet."""
     return families(" ".join(t for t in request_texts if t)) - set(arrived or ())

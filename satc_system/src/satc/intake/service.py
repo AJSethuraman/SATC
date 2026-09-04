@@ -399,6 +399,27 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
                        doc_year=doc_year)
     if match is None:
         return None
+
+    # A REQUEST NAMING SEVERAL FORMS IS SEVERAL ASKS WEARING ONE ROW.
+    #
+    # "Upload Forms 1099-INT, 1099-DIV and brokerage statements" used to be
+    # closed by whichever of the three arrived first. The 1099-INT that came
+    # next then found nothing open to satisfy, and the brokerage statement was
+    # never chased at all -- the firm hit this in a live run on 31 Aug 2026.
+    #
+    # The firm's decision, 4 September 2026: it stays open until every named
+    # part has arrived. So record what came, and only close when nothing is
+    # left outstanding. A single-form request has no parts and takes the same
+    # path it always did -- and so does a standing checklist that ends "and any
+    # other income forms received", which names five forms and requires none of
+    # them in particular. See `matching.needs_every_part`.
+    if match.needs_every_part:
+        arriving = matching.families(doc_type)
+        match.parts = set(match.parts or set()) | arriving
+        if match.outstanding_parts:
+            store.save_requested_items([match])
+            return match          # still open, and the caller can say what is left
+
     match.status = "satisfied"
     store.save_requested_items([match])
     for eng in store.load_jobs():
@@ -407,6 +428,16 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
                 task.status = "done"
                 store.save_task(task)
     return match
+
+
+def outstanding_parts(item) -> set[str]:
+    """Which forms a request still names and has not received.
+
+    Empty for an ordinary single-form request, and empty for a bundle once the
+    last part lands -- so ``not outstanding_parts(item)`` reads as "nothing
+    left to chase" in both cases.
+    """
+    return item.outstanding_parts if item is not None else set()
 
 
 # ---------------------------------------------------------------------------

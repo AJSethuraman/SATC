@@ -28,7 +28,7 @@ that comes with Filing. Until then those rows stay in the old register.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Literal
 
@@ -79,9 +79,46 @@ class RequestedItem:
     task_id: str = ""
     follow_up_round: int = 0
 
+    parts: set[str] = field(default_factory=set)
+    """Which form families named by this request have ARRIVED so far.
+
+    Only meaningful when the request names more than one form. A request
+    reading *"Upload Forms 1099-INT, 1099-DIV and brokerage statements"* is
+    three asks wearing one row, and before this field existed the first
+    document to match any of it closed the whole thing: the 1099-DIV arrived,
+    the request went satisfied, and the 1099-INT that came next found nothing
+    open to satisfy. Nobody was asked for the brokerage statement again.
+    Found in a live run, 31 August 2026.
+
+    Held here rather than derived from the received documents because the
+    question "what are we still waiting on" has to survive a restart, and
+    because a document can be received against a request without our being
+    able to say which of its named forms it was.
+    """
+
     @property
     def is_open(self) -> bool:
         return self.status == "outstanding"
+
+    @property
+    def needs_every_part(self) -> bool:
+        """True when this may close only once every form it names has arrived.
+
+        NOT the same question as "does it name several forms". A standing
+        checklist that ends "and any other income forms received" names five and
+        requires none of them in particular -- see `matching.needs_every_part`.
+        """
+        from satc.intake import matching
+        return matching.needs_every_part(str(self.doc_type), self.request_text)
+
+    @property
+    def outstanding_parts(self) -> set[str]:
+        """The named forms that have NOT arrived. Empty for a single-form request."""
+        from satc.intake import matching
+        if not self.needs_every_part:
+            return set()
+        return matching.outstanding((str(self.doc_type), self.request_text),
+                                    self.parts or set())
 
     @property
     def blocks_prep(self) -> bool:

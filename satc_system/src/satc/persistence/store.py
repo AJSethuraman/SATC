@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS requested_items (
   request_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
   request_text TEXT, blocking TEXT, status TEXT, not_applicable_reason TEXT,
   requested_at TEXT, satisfied_by_document_id TEXT, task_id TEXT,
-  follow_up_round INTEGER);
+  follow_up_round INTEGER, parts TEXT);
 CREATE TABLE IF NOT EXISTS received_documents (
   document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
   obtained_how TEXT, obtained_at TEXT, furnished_by TEXT, channel TEXT,
@@ -502,6 +502,15 @@ class SATCStore:
         # which relies on a blank ref never being matched.
         if "engagement_ref" not in eng_cols:
             self.mart.execute("ALTER TABLE engagements ADD COLUMN engagement_ref TEXT")
+
+        # WHICH FORMS OF A BUNDLE HAVE ARRIVED. A request naming several forms
+        # was closed by the first one that matched, so the rest were never
+        # chased. Existing rows get NULL, which reads as "nothing recorded" --
+        # correct, because before this column nothing WAS recorded, and a
+        # single-form request ignores it entirely.
+        ri_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(requested_items)")}
+        if "parts" not in ri_cols:
+            self.mart.execute("ALTER TABLE requested_items ADD COLUMN parts TEXT")
             self.mart.commit()
 
         # The facts a job's STAGE is derived from. Without blocked_by, a task
@@ -1152,10 +1161,11 @@ class SATCStore:
     def save_requested_items(self, items) -> None:
         for i in items:
             self.mart.execute(
-                "INSERT OR REPLACE INTO requested_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO requested_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (i.request_id, i.client_id, i.tax_year, i.doc_type, i.request_text,
                  i.blocking, i.status, i.not_applicable_reason, _dt(i.requested_at),
-                 i.satisfied_by_document_id, i.task_id, int(i.follow_up_round)))
+                 i.satisfied_by_document_id, i.task_id, int(i.follow_up_round),
+                 ",".join(sorted(getattr(i, "parts", None) or ()))))
         self.mart.commit()
 
     def load_requested_items(self, client_id: str = "") -> list:
@@ -1173,7 +1183,8 @@ class SATCStore:
             not_applicable_reason=r["not_applicable_reason"] or "",
             requested_at=_pdt(r["requested_at"]),
             satisfied_by_document_id=r["satisfied_by_document_id"] or "",
-            task_id=r["task_id"] or "", follow_up_round=r["follow_up_round"] or 0)
+            task_id=r["task_id"] or "", follow_up_round=r["follow_up_round"] or 0,
+            parts={p for p in (_col(r, "parts") or "").split(",") if p})
             for r in self.mart.execute(sql, args)]
 
     def save_received_documents(self, docs) -> None:
