@@ -1,0 +1,162 @@
+# The Forge run — the prompt for the session that finds out (#227)
+
+Everything in `desk/` so far is deterministic code proving deterministic
+machinery. **No model has answered a single problem.** This is the run that finds
+out whether a desk can do the job, and what the local lean costs.
+
+Paste the block below into a Claude Code session **on the Forge** — the machine
+that holds the local model. It is written to stand alone: it assumes no memory of
+the session that built the desk.
+
+---
+
+## The prompt
+
+```text
+You are running the first real scoreboard for the SATC `desk` plugin, on the
+Forge. Issue #227 in AJSethuraman/SATC is the spec; read it. Everything built so
+far is deterministic and no model has ever answered one of these problems, so
+every number you produce is the first of its kind. Do not guess any of them.
+
+READ FIRST, BEFORE WRITING CODE:
+  - docs/LOCAL-LLM-PATTERN.md — ten rules, each paid for by a measured failure
+    on this exact hardware. Rules 1, 3, 9 and 10 govern what you are about to
+    build.
+  - desk/scoreboard.py — read the module docstring in full. It states the
+    contract you are implementing and one constraint that is easy to violate.
+  - desk/engine.py — you are NOT changing this. It already verifies and grades.
+
+WHAT TO BUILD
+
+One thing: an adapter `ask(problem) -> Answer` and a script that runs it.
+
+    from record import load
+    from scoreboard import run, render, gap
+    from engine import Answer
+
+    desk = load("desks/fixed-assets")        # 21 problems
+    forge = run(desk, ask_forge, model="qwen3:8b (Forge)")
+    front = run(desk, ask_frontier, model="frontier")
+    print(render([forge, front], notes=[...]))
+
+`scoreboard.run` already handles grading, the give-up tail and the denominator.
+You are writing `ask`, and the script that prints and commits the result.
+
+WHAT THE MODEL MAY SEE — THIS IS THE PART THAT IS EASY TO GET WRONG
+
+Give it exactly:
+  - `problem.facts`
+  - the desk's sources (id, title, tier, citation prefix) from SOURCES.md
+  - the list of citation STRINGS the desk holds, as an index to cite from
+
+Give it none of:
+  - `problem.answer` — obviously
+  - `desk.passage(problem.citation).text` — the stored authority is the same
+    regulation example COMPLETE, conclusion included. `scoreboard.py` says this
+    in its docstring: the leak closed in the extractor reopens the moment an
+    adapter passes the passage for the problem's own citation in as context.
+    Eight review rounds went into withholding those conclusions. Do not hand
+    them back.
+  - `problem.title` — several titles name the outcome.
+
+A model that cannot answer without the passage is a finding, not a bug to route
+around. Record it and move on.
+
+WHAT `ask` RETURNS
+
+    Answer(position=..., citation=..., escalated=False, reason="", working=...)
+
+  - `position` — its conclusion, in its own words. The engine compares it to the
+    known answer, normalised for case and surrounding space only.
+  - `citation` — must resolve in the desk's record or the engine refuses it.
+  - `escalated=True` + `reason` — when the desk declines. `reason` MUST be one of
+    engine.REASONS; anything else raises. That set is closed on purpose: an open
+    one becomes prose and prose cannot be counted.
+  - `working` — its reasoning, verbatim. Kept for refusals; it is the evidence of
+    what the record is missing.
+
+Do not post-process the model's answer to make it parse. If it will not produce
+a citation, that is `no_citation` and the engine will say so. Rule 6: policy
+lives at the choke point, not in the prompt you write for it.
+
+THE TWO ROWS
+
+  - `qwen3:8b (Forge)` — the local model.
+  - `frontier` — a frontier model. Say in the report HOW you obtained it: your
+    own session acting as the adapter, or an API call, and which model.
+
+Never sum them. `gap()` reports the distance, which is the finding: what the
+local lean actually costs, measured rather than argued about.
+
+A FORGE FAILURE IS A FLAG, NOT A GATE. The firm, 4 September 2026: "it's also
+acceptable that it would not work on our current hardware, that should just be
+flagged. at some point we will have enough vram, for now we are limited." If the
+local model cannot run this, report it WITH THE VRAM CEILING STATED and produce
+the frontier row anyway. Do not block, do not shrink the problem set to fit.
+
+WHAT TO REPORT
+
+`render()` already puts wrongly_absorbed first and states it at zero. It is the
+only outcome that costs anything: an answer that was wrong, that the engine could
+not fault, and that would have reached a client.
+
+Fill `notes` with what was NOT checked — in its own list, never omitted. At
+minimum: that 21 of 117 examples are usable and why (PROBLEMS.md counts every
+exclusion), and that always answering "not required to capitalize" scores 12 of
+21, 57%. THAT IS THE NUMBER A RUN HAS TO BEAT BEFORE IT HAS SHOWN ANYTHING. Print
+it beside the result, not below it.
+
+Also report the `unsupported/` queue: how many entries the run produced, and how
+many resolved into a source or a position. Use `unsupported.from_refusal(...)`
+and `unsupported.append(...)` — `append` allocates the id against the queue on
+disk, so call it per refusal and do not pre-number them.
+
+RULE 10 IS THE ONE THAT MATTERS MOST HERE: every number is read from engine
+state, never from the model's account of what it did. `Run.counts` reads
+`Result` objects. If you find yourself parsing the model's prose to decide
+whether it was right, stop — that is the failure mode this whole plugin exists
+to prevent.
+
+WHAT NOT TO DO
+
+  - Do not assert the scoreboard in a test. Do not let it gate CI. It is
+    measured and committed as a record, the way credit-suite marks its live
+    pulls. A non-deterministic run cannot gate a build without either flaking or
+    being weakened until it proves nothing.
+  - Do not change `engine.py`, `record.py` or the problem set to improve the
+    numbers. If a problem looks wrong, that is a finding to report, not to edit.
+    (Three rows were already removed for exactly that reason — they punished the
+    better answer — so this is not hypothetical.)
+  - Do not retry until it looks good. Report the first honest run, and say how
+    many runs you did.
+
+WHEN IT IS DONE
+
+Commit the scoreboard output to the repository as a record, on a branch, with a
+draft PR. Write in the PR body: both rows, the gap, the baseline beside them,
+the NOT CHECKED list, the unsupported queue counts, and — if the Forge row did
+not run — the VRAM ceiling and what it would take.
+
+Then say, in one line at the end, what the numbers mean for whether this
+mechanism is worth building out. That is the question the firm is actually
+asking.
+```
+
+---
+
+## Why the prompt is shaped this way
+
+**The window is the first constraint, not the last.** Rule 1: 8 GB VRAM is an
+8,192-token context, and loading every tool schema (~11k tokens) silently
+truncates the model's own instructions — it then "ignores" rules it never
+received. The adapter hands the model one fact pattern and a citation index, and
+nothing else, for that reason as much as for the leak.
+
+**The leak is the thing most likely to be undone here.** The problem set went
+34 → 21 across eight review rounds, mostly to stop the facts disclosing their own
+answer. All of that is undone by one line in an adapter that passes
+`desk.passage(problem.citation)` as helpful context.
+
+**The baseline is printed beside the result because 57% is beatable by not
+reading.** A scoreboard whose baseline is unstated reads as skill when it may be
+arithmetic.
