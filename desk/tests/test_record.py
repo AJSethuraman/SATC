@@ -30,8 +30,16 @@ def test_every_problem_cites_authority_the_desk_actually_holds(fixed_assets):
         )
 
 
-def test_stored_text_is_verbatim_from_the_authority(fixed_assets):
-    """Every passage must state the conclusion its problem attributes to it.
+def test_a_problems_authority_is_a_rule_and_its_conclusion_is_the_examples(
+        fixed_assets):
+    """Two halves, and they used to be one assertion.
+
+    This test asserted that every problem's stored passage STATED the problem's
+    conclusion -- which was true, because the passage was the worked example
+    itself, and that identity is the defect #244 removed: an authority corpus
+    that is its own answer key. Now the passage backing a problem is the rule
+    its analysis names, and it must NOT state the outcome for these facts; the
+    conclusion is still the regulation's, read from the example on a rebuild.
 
     Matched through the classifier's spellings rather than against the answer
     string, because `answer` is a canonical LABEL covering four framings: the
@@ -45,15 +53,24 @@ def test_stored_text_is_verbatim_from_the_authority(fixed_assets):
     """
     sys.path.insert(0, str(ROOT / "tools"))
     import extract_ecfr as ex
+    xml = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
+    _, kept, _, _, _ = ex.build(xml, DESKS / "fixed-assets", checked="2026-09-04")
+    example_of = {e["facts"]: e for e, _ in kept}
     assert fixed_assets.problems, "no problems; this would pass vacuously"
     for p in fixed_assets.problems:
         passage = fixed_assets.passage(p.citation)
         assert passage is not None, f"problem {p.id} has no stored authority"
         spellings = [rx for answer, rx in ex.CLASSIFY if answer == p.answer]
         assert spellings, f"{p.answer!r} is not an answer the classifier states"
-        assert any(rx.search(passage.text) for rx in spellings), (
-            f"problem {p.id} claims {p.answer!r}, and the stored authority for "
-            f"{p.citation} says no such thing — one of the two is wrong"
+        announces = [s for s in ex._SENTENCE.split(passage.text)
+                     if ex.CONNECTIVE.search(s.strip()) and ex.conclusions_in(s)]
+        assert not announces, (
+            f"problem {p.id}'s authority {p.citation} announces a conclusion: "
+            f"it is a worked example, not a rule")
+        example = example_of[p.facts]["text"]
+        assert any(rx.search(example) for rx in spellings), (
+            f"problem {p.id} claims {p.answer!r}, and its example says no such "
+            f"thing — one of the two is wrong"
         )
 
 

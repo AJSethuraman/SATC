@@ -157,8 +157,14 @@ def test_the_extraction_is_reproducible_from_the_committed_source():
     section is amended, this still runs and the diff shows what moved."""
     _, kept, _, problems, passages = ex.build(XML, DESKS / "fixed-assets",
                                               checked="2026-09-04")
-    assert len(problems) == len(passages) == len(kept)
+    assert len(problems) == len(kept)
     assert problems, "the fixture produced nothing; it is not the section"
+    # This line used to read `len(problems) == len(passages)`, and it was
+    # asserting the defect: one passage per problem, the worked example itself.
+    # The passages are the section's rules now, and their count has nothing to
+    # do with the count of problems.
+    assert len(passages) != len(problems)
+    assert len(passages) > 100, "the rules of the section are not all here"
 
 
 def test_problems_md_cannot_lie_about_its_own_count():
@@ -277,9 +283,13 @@ def test_no_shipped_problem_rests_on_a_conditional_conclusion():
     desk = record.load(DESKS / "fixed-assets")
     assert desk.problems, "no problems loaded; this would pass vacuously"
     hedged = re.compile(r"\b(?:if|unless|to the extent|only if)\b", re.I)
+    # The stored passage is no longer the example, so the conclusion has to be
+    # read from a rebuild: each problem is matched to its example by its facts.
+    _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", checked="2026-09-04")
+    example_of = {e["facts"]: e["text"] for e, _ in kept}
     bad = []
     for p in desk.problems:
-        text = desk.passage(p.citation).text
+        text = example_of[p.facts]
         for s in ex._SENTENCE.split(text):
             if ex.CONNECTIVE.search(s.strip()) and ex.conclusions_in(s) \
                     and hedged.search(s):

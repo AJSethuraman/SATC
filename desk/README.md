@@ -35,7 +35,8 @@ single figure** — a percentage hides exactly the number worth reading.
 desks/<name>/
   SOURCES.md    what it may rely on: tier, access, may_store, checked
   PROBLEMS.md   the denominator — worked examples whose answers are not ours
-  extracted/    public-domain authority text. an agent may write this.
+  extracted/    public-domain authority text — the RULES, never the examples.
+                an agent may write this.
   positions/    what the firm decided. an agent only PROPOSES here.
 ```
 
