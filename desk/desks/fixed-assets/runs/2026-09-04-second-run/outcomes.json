@@ -1,0 +1,234 @@
+{
+  "qwen3:8b (Forge)": {
+    "counts": {
+      "wrongly_absorbed": 0,
+      "correct": 1,
+      "wrong_caught": 15,
+      "escalated": 0
+    },
+    "gave_up": 0,
+    "results": [
+      {
+        "problem": "P1",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(i)(3)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(i)(1)(ii)')"
+      },
+      {
+        "problem": "P2",
+        "outcome": "correct",
+        "reason": "",
+        "detail": ""
+      },
+      {
+        "problem": "P3",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(i)(1)(i)')"
+      },
+      {
+        "problem": "P4",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(i)(3)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P5",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(i)(3)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P6",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P7",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P8",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P9",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P10",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P11",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(k)(1)(vi)')"
+      },
+      {
+        "problem": "P12",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P13",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P14",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(i)(3)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P15",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P16",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(d)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      }
+    ],
+    "diagnostic": {
+      "answered": 16,
+      "position_matched": 11,
+      "citation_matched": 1,
+      "citation_within_governing_rule": 0,
+      "citation_off_index": 0,
+      "gave_up": 0
+    },
+    "queued": 15
+  },
+  "frontier": {
+    "counts": {
+      "wrongly_absorbed": 0,
+      "correct": 4,
+      "wrong_caught": 12,
+      "escalated": 0
+    },
+    "gave_up": 0,
+    "results": [
+      {
+        "problem": "P1",
+        "outcome": "correct",
+        "reason": "",
+        "detail": ""
+      },
+      {
+        "problem": "P2",
+        "outcome": "correct",
+        "reason": "",
+        "detail": ""
+      },
+      {
+        "problem": "P3",
+        "outcome": "correct",
+        "reason": "",
+        "detail": ""
+      },
+      {
+        "problem": "P4",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P5",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(i)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P6",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(iii)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P7",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(ii)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P8",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(ii)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P9",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(iii)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P10",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(j)(1)(iii)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(j)')"
+      },
+      {
+        "problem": "P11",
+        "outcome": "correct",
+        "reason": "",
+        "detail": ""
+      },
+      {
+        "problem": "P12",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(l)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P13",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(l)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P14",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(l)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P15",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(l)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      },
+      {
+        "problem": "P16",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.263(a)-3(l)(1)', which is real authority but not what this question turns on ('26 CFR 1.263(a)-3(l)')"
+      }
+    ],
+    "diagnostic": {
+      "answered": 16,
+      "position_matched": 14,
+      "citation_matched": 4,
+      "citation_within_governing_rule": 12,
+      "citation_off_index": 0,
+      "gave_up": 0
+    },
+    "queued": 12
+  }
+}
