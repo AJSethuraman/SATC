@@ -124,11 +124,17 @@ class Arrival:
     tax_year: int | None
     filed_to: str = ""            # relative to the library root, "" on preview
     note: str = ""
+    satisfied: str = ""           # the request this closed, "" if none
+    # Whether this verdict was good enough to CLOSE a request rather than just
+    # to file the document. Carried from the classification so the rule stays
+    # in one place -- see Classification.may_close_a_request.
+    may_close: bool = False
 
 
 @dataclass
 class DropReport:
     drop: Drop
+    client_id: str = ""           # resolved from the folder's ref, "" if unknown
     arrivals: list[Arrival] = field(default_factory=list)
     not_downloaded: list[str] = field(default_factory=list)
     unresolved: str = ""          # why this folder could not be placed
@@ -187,7 +193,7 @@ def _unique(folder: Path, name: str) -> Path:
 
 
 def collect(source: Source, *, library: str | Path, apply: bool = False,
-            classifier: DocumentClassifier | None = None) -> Report:
+            classifier: DocumentClassifier | None = None, store=None) -> Report:
     """Walk the source's drop folders and file what has arrived.
 
     ``apply=False`` previews: it reads and classifies but writes nothing, so the
@@ -197,6 +203,14 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
     Refusals do NOT enter the ledger. A file with no bytes on the disk has not
     been collected, and recording it as done would mean the real document, once
     OneDrive hydrates it, is never picked up.
+
+    ``store`` is OPTIONAL and closing the loop depends on it. Given one, a
+    folder's ref is resolved to a client (``SATCStore.client_for_ref``) and
+    each document good enough to trust is marked against the request it
+    satisfies. Without one -- or when the ref is not in the store -- documents
+    are still filed and the report says plainly that nothing was closed.
+    Filing is useful on its own; guessing which client a document belongs to
+    never is.
     """
     classifier = classifier or load_classifier()
     lib = Path(library)
@@ -205,6 +219,13 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
     for drop in source.drops():
         dr = DropReport(drop=drop)
         report.drops.append(dr)
+        if store is not None and drop.ref:
+            dr.client_id = store.client_for_ref(drop.ref) or ""
+            if not dr.client_id:
+                dr.unresolved = (
+                    f"no engagement in the store carries the ref {drop.ref!r} -- "
+                    f"the documents are filed, but nothing was marked Received. "
+                    f"Set `engagement_ref` on that engagement and run this again.")
         if not drop.placed:
             dr.unresolved = (
                 f"no engagement ref in the folder name {drop.path.name!r} -- name it "
@@ -213,7 +234,7 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
 
         # Documents land under the ref when there is one; otherwise in a holding
         # folder of their own, still filed and still visible, never discarded.
-        dest_root = lib / (drop.ref or "_unplaced") 
+        dest_root = lib / (drop.ref or "_unplaced")
         seen = _ledger(dest_root) if apply else set()
         fresh: set[str] = set()
 
@@ -227,6 +248,19 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 continue
             fresh.add(digest)
             for arrival in _file_one(path, c, dest_root, lib, classifier, apply):
+                # CLOSE THE LOOP, and only when we are sure whose it is AND sure
+                # enough what it is. Gating on `may_close` matters: a LOW verdict
+                # off the file's name is good enough to FILE but not to tell a
+                # client their request is satisfied -- see
+                # Classification.may_close_a_request, the one place that rule
+                # is written.
+                if apply and store is not None and dr.client_id and arrival.may_close:
+                    from satc.intake.service import reconcile_received
+                    matched = reconcile_received(
+                        store, client_id=dr.client_id, doc_type=arrival.label,
+                        doc_year=arrival.tax_year)
+                    if matched is not None:
+                        arrival.satisfied = matched.doc_type
                 dr.arrivals.append(arrival)
 
         if apply and fresh:
@@ -276,6 +310,7 @@ def _file_one(path: Path, c: Classification, dest_root: Path, lib: Path,
             out.append(Arrival(
                 name=path.name, label=part_c.label, confidence=part_c.confidence,
                 method=part_c.method, tax_year=part_c.tax_year, filed_to=filed,
+                may_close=part_c.may_close_a_request,
                 note="from a combined upload" if len(parts) > 1 else "",
             ))
         return out

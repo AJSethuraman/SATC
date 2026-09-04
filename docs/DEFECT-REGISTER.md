@@ -34,15 +34,12 @@ git show parked/satc-system-pre-schema-port:satc_system/src/satc/intake/chasing.
 | # | What | Costs | Needs |
 |---|---|---|---|
 | **S2** | **The chase panel** — "who owes us a document, longest wait first" — needs the bundle mechanism (`parts`, `is_bundle`, `outstanding`). Main did not rename it, it **deleted** it. Parked: `chasing.py` (171 lines), `test_chasing.py`, `test_bundle_stays_open.py` | the firm loses its morning list | a **product decision** first: does a bundle request ("core income documents") stay open when one part arrives? Then a `parts` column and a migration |
-| **S3** | **`engagement_ref`** — the join between what a client sees (`2026-0001`) and what the system keys on (`SATC-001000`). The firm asked for it on 31 Aug: *"ADD THE FIELD"*. Main's `Engagement` has no such field, and `collect.py` still prints an error naming it. Parked: `test_engagement_ref.py` | the collector cannot close the request a document satisfies | a field on `Engagement`, a store column, a migration. **No product question — the firm already decided** |
 | **S4** | **Page provenance.** The page is read and reported; it is not carried into the record. `source_ref.page` is `None`. `test_intake_carries_the_page_all_the_way_into_the_workpaper` is `xfail(strict=True)` — it fails loudly the moment this is fixed | a field cannot be cited to the page it came from | carrying `page` through `MapExtractor` into provenance. Smallest of the three |
 | **S5** | **The reader ladder disagreement.** A text-layer PDF our anchors miss: #162 says never summon a model, main says fall through but say *"our anchors, not the document"*. Both argued, both defensible. `test_the_ladder_reaches_no_model_while_a_deterministic_rung_can_still_read` is skipped pending a decision | — | **a decision, not code.** A question about client documents |
 | **S6** | `test_changing_a_rate_takes_effect_without_a_restart` is order-dependent — passes alone, fails after `test_price_editor`. **Confirmed on untouched main**, so it predates all of this | a green suite that is green by ordering | find the shared state and isolate it |
 
-**Suggested order: S3, then S4, then S2.** S3 is decided and blocking a feature
-that half-exists — `collect.py` already prints an error about the missing field.
-S4 is the smallest. S2 needs the firm before any code is worth writing, and S5
-is only a decision.
+**Suggested order: S4, then S2.** S4 is the smallest. S2 needs the firm before
+any code is worth writing, and S5 is only a decision.
 
 **What is NOT at risk:** `client-documents/`, `canon/`, `docs/` and
 `satc-handoff/` had zero conflicts and shipped separately in PR #172.
@@ -79,6 +76,25 @@ and the live C-corp path.
 ---
 
 ## Fixed
+
+### 4 September 2026 — the join the collector was waiting on
+
+| # | Defect | Closed by |
+|---|---|---|
+| **S3** | **`engagement_ref`** — the join between what a client sees (`2026-0001`) and what the system keys on (`SATC-001000`) did not exist, so `collect` could file a document but never mark the request it satisfied. The firm's instruction, 31 Aug 2026: *"ADD THE FIELD"* | `Engagement.engagement_ref` (`satc/models/work.py`), a store column and migration (`satc/persistence/store.py`), and `SATCStore.client_for_ref` — a blank ref never matches, same rule as `rate_plan_key`. `collect()` takes an optional `store`, resolves a drop folder's ref, and calls the existing `reconcile_received` for any arrival good enough to trust (`Classification.may_close_a_request`). Ported from the pre-schema-port test onto `Engagement` rather than the now-gone `IntakeEngagement` — see `test_engagement_ref.py` |
+
+**`cli.py`'s `collect` command already called `collect(..., store=store)`** —
+wired ahead of the field it depended on, in the same port that deleted S2, so
+the one path a person runs was silently broken (`TypeError`, unexpected
+keyword). It also printed `a.awaiting`, `a.wrong_year_for` and `dr.aged` —
+fields that were never built here; `awaiting`/`wrong_year_for` need S2's
+bundle mechanism and a year-mismatch check that did not survive the port
+either, and `dr.aged`'s retention reporting was never part of this ticket.
+Trimmed back to what actually exists (`a.satisfied`) rather than adding
+fields that would sit permanently unpopulated. Run for real end to end —
+`satc collect --apply` against a seeded store — not just against the unit
+tests: it filed the document, closed the request, and printing the closed
+line matched what the code path used to be able to only claim.
 
 ### 3 September 2026 — the interview stops accepting answers it cannot mean
 
