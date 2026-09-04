@@ -12,6 +12,32 @@ the whole mechanism, and it is better than continuity through memory: a version
 that depended on an agent remembering would die the first time a session was
 archived.
 
+## Where the record is, and where it is not
+
+Installed as a plugin, the record travels with it:
+
+```
+${CLAUDE_PLUGIN_ROOT}/CONVICTIONS.md      what the firm believes, and why
+${CLAUDE_PLUGIN_ROOT}/TENETS.md           how to build, with the incidents
+${CLAUDE_PLUGIN_ROOT}/record.py           parse it, render it, change it
+```
+
+**Read from there, always — not from a copy you happened to find.** A machine
+with the canon repository checked out has a second copy at `canon/`, and a
+session that reads that one is reading whatever is on that working tree: a
+branch, a half-finished edit, someone else's experiment. This is not
+hypothetical. It happened on the first install: asked where it had read the
+record from, a session in an unrelated repo answered with the path to a checkout
+on that machine rather than the plugin's own copy, and would simply have found
+nothing on any machine without it.
+
+**Never write there.** The plugin directory is versioned and replaced on update,
+so anything recorded into it is thrown away the next time canon updates. To add,
+retire, or decline a conviction, change `CONVICTIONS.md` in the **canon
+repository** and open a pull request; other machines pick it up with
+`claude plugin marketplace update satc`. The plugin is how the record is read
+everywhere. The repository is the only place it is written.
+
 ## The one rule
 
 **Challenge from the record. Never from your own opinion.**
