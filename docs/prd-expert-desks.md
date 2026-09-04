@@ -143,8 +143,10 @@ allowed into the shared layer, and a test enforces that.
    and the engine uses the method named there. A source with no `access` is a parse
    error, not a default — the same discipline as `checked`.
 4b. **[P0]** A denied fetch is **never** retried through a different client. It
-   refuses with `source_unreachable`. A transient failure retries the same method
-   once. A JS-rendered empty response may use a headless browser, because that
+   refuses — with `source_blocked_by_us` when our own egress policy refused the
+   domain, and `source_refuses_us` when the source's origin refused this client.
+   The two carry different fixes and must not be one reason. A transient failure
+   retries the same method once. A JS-rendered empty response may use a headless browser, because that
    escalates rendering rather than authority.
 5. **[P0]** Every entry carries `tier: primary | secondary | tertiary`.
 6. **[P1]** A staleness check flags entries whose source has been amended since
@@ -339,7 +341,8 @@ also C8's test: a rule applied, not a judgement made.
 
 | Failed because | Response |
 |---|---|
-| **Denied** — 403, blocked, terms forbid automation | Refuse. `source_unreachable`. Never a different client |
+| **Denied by our own policy** — the egress proxy refuses the domain | Refuse with `source_blocked_by_us`. The allow-list is the fix |
+| **Denied by the source** — 403 from its origin, bot management, terms forbid automation | Refuse with `source_refuses_us`. The allow-list is **not** the fix, and a different client is not the answer |
 | **Empty** — JS-rendered, the fetch got a shell | A headless browser is fine. Nothing was denied and no authority changed |
 | **Transient** — timeout, 5xx, reset | Retry the **same** method, once |
 | **Licensed** — needs to be the firm | Never discovered at runtime; declared or unavailable |
@@ -372,10 +375,30 @@ escalate.
 
 | Reason | Fixable | The fix |
 |---|---|---|
-| `source_unreachable` | yes | grant the domain in the environment's network policy |
+| `source_blocked_by_us` | yes | grant the domain in the environment's network policy |
+| `source_refuses_us` | sometimes | **not** the allow-list. The source's own origin is refusing this client — change the source's `access`, have a person open it, or accept that it is not automatable |
 | `authority_absent` | yes | add it to the record, cited, via PR |
 | `model_gave_up` | yes | shrink the problem (LOCAL-LLM-PATTERN rule 8) |
 | `authority_permits_choice` | **no** | this is a position, and positions are the firm's |
+
+**The first two were one reason, and collapsing them produced a real defect —
+in this document, within hours of it being written.** A re-test session found
+that `asc.fasb.org` was reachable and returning a **Cloudflare 403 from FASB's
+own origin**, while the escalation table offered exactly one remedy: grant the
+domain. The domain was already granted. A desk would have emitted that reason
+forever and sent a person to a settings page to change something already
+correct.
+
+Telling them apart is mechanical, not a judgement — which is what makes it an
+engine's job. **Our block** arrives as a structured refusal from the egress
+proxy naming the domain. **Their refusal** arrives as an ordinary HTTP response
+from the origin, carrying that origin's headers (`server: cloudflare`, a
+`cf-ray`, a `__cf_bm` cookie scoped to their domain). Two different senders, two
+different fixes.
+
+This is the closed reason set doing the job it exists for: a diagnosis whose
+stated fix cannot resolve the case is worse than no diagnosis, because somebody
+acts on it.
 
 Only `authority_permits_choice` should reach the firm twice. The others are work
 items, and a desk that keeps emitting the same fixable reason is reporting a
@@ -638,15 +661,21 @@ fact pattern and never the identity: no names, no TINs, no account numbers.
   under time pressure. The check is concrete: M4 must not start before M1–M3 are
   green, and the factory's questions must be traceable to something the hand-built
   desk actually needed.
-- **Open question (needs you, and only you):** the egress allowlist. Verified
-  blocked by test this session: `asc.fasb.org` and `viewpoint.pwc.com` both
-  return `EGRESS_BLOCKED`. Add `asc.fasb.org`, `*.fasb.org`, `viewpoint.pwc.com`
-  and `*.aicpa-cima.com` at claude.ai/code → cloud icon → gear → Network access →
-  Custom → Allowed domains, keeping *"also include defaults"* checked. Until then
-  the FASB restriction language is sourced from a search index rather than read
-  at its source, and `docs/research/accounting-authority-sources.md` says so.
-  **This does not block v1** — ASC is a non-goal — but it blocks closing the
-  research properly.
+- **Open question (needs you, and only you):** reading FASB's terms at their
+  source. **The allow-list is done and it was not enough** — verified 4 September
+  2026 by a re-test session: `asc.fasb.org` is reachable, and its content pages
+  return a **Cloudflare 403 from FASB's own origin**, which no network setting can
+  change. `viewpoint.pwc.com` fetches fine. So the remaining gap needs a person
+  opening <https://asc.fasb.org/copyright> and <https://asc.fasb.org/help> in an
+  ordinary browser and pasting what they say — which is precisely the
+  `signed_in_browser` case §6.3a already describes, arriving before the capability
+  that handles it.
+
+  **This does not block v1** — ASC is a non-goal — but the sentence *"content
+  copyrighted by Financial Accounting Foundation… may not be reproduced, stored in
+  a retrieval system, or transmitted"* carries the whole record design and is still
+  taken on trust from a search index. Confidence stays at medium until someone
+  reads it.
 
 ## 11. Done Criteria
 

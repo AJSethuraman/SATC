@@ -281,8 +281,22 @@ Treasury Regulations and IRS publications. Read from the statute itself.
 ### Correction, 4 September 2026: the reason for the FASB gap was wrong
 
 An earlier revision of this file said the gap existed because **"this session's
-network egress proxy blocks `asc.fasb.org`."** **That is not true, and it was
-not true then either.** A re-test on 4 September 2026 establishes:
+network egress proxy blocks `asc.fasb.org`."** **That was true where it was
+written and is not true now, and the difference is the finding.**
+
+The original session tested `asc.fasb.org` three times and got a structured
+`EGRESS_BLOCKED` on each — the distinctive shape described below. The firm then
+added the domain to the environment's allowed-domains list. **A cloud
+environment's network policy is loaded when the container is provisioned**, so
+the re-test session picked the change up and the original session did not: asked
+again at 18:05 UTC, after the re-test had already reached FASB, that first
+container still returned `EGRESS_BLOCKED` for the same URL.
+
+So both readings are correct, in different containers, and neither supersedes the
+other as a matter of fact. What supersedes it is *time*: the domain is allowed
+now. Everything below describes the current state, which is the one that matters.
+
+A re-test on 4 September 2026 establishes:
 
 - `asc.fasb.org` **is** reachable through the egress proxy.
   `https://asc.fasb.org/robots.txt` returned **HTTP 200** with FASB's own
