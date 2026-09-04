@@ -221,8 +221,10 @@ same legal duties either way — Phase 0 below stands regardless.
   `client-documents/docs/prd-1040-fee-estimate.md`. Reshape `fee-schedule.yaml` to hold
   the four-package ladder, the $50 per-form rule and the allowances, fill in the signed
   prices, and prove a real estimate out of both front doors.
-- **Phase B — the invoice bridge.** Estimate line items → an invoice. Its first question
-  is the one deliberately left open below: which processor the client actually sees.
+- **Phase B — the invoice bridge.** Estimate line items → an invoice **carrying a Square
+  payment link**. Its first question — which processor the client sees — was answered
+  2026-09-04 (Square; Invoicer retired). What is left is the wiring: `payments.py` builds
+  the link and nothing calls it, while the delivery letter already promises it.
 - **Phase C — entity returns.** The `1120S/1065/1120` bases and the five business-return
   gates (balance sheet $350, payroll $150, inventory $125, assets bought this year $95,
   first year $250), on the pattern Phase A establishes.
@@ -376,12 +378,25 @@ it with them.
       from-source `satc-mcp` and future `SATC.exe --mcp` paths)
 
 ### Explicitly deferred (decided against for now)
-- **Square vs Stripe — `delivery.payment_instruction`.** The firm takes Square; Invoicer
-  is Stripe end to end (`stripe_utils.py`, a webhook, four templates). One has to move
-  before that sentence can be written honestly. Confirmed 2026-08-25 that it blocks the
-  **invoice** template only — the fee estimate references neither `PaymentInstruction`
-  nor `MaterialsDeadline` — so it was fenced out of the estimate work rather than
-  decided under time pressure. It is Phase B's first question.
+- ~~**Square vs Stripe — `delivery.payment_instruction`.**~~ **DECIDED 2026-09-04:
+  Invoicer is retired.** The firm takes Square, Invoicer is Stripe end to end
+  (`invoice-generator/stripe_utils.py`, `stripe==10.5.0`, and no Square anywhere in it),
+  and the document pipeline is where invoicing actually lives. PR #139 — the Invoicer
+  restyle — was closed with the decision. The branch is kept; nothing was deleted.
+
+  **What the decision did NOT do, and this is the part that matters.** Retiring Invoicer
+  removes the *conflict*; it does not build the link. Three facts, each verified in
+  source rather than read off a document:
+
+  | | |
+  |---|---|
+  | `registry/firm-settings.yaml:101` | promises the client *"the secure Square link on your invoice"* |
+  | `invoicing.py:35` | says it deliberately **"does not take payment"** — the bridge stops at the document |
+  | `payments.py:303` | can build a Square payment link, **and nothing outside that file calls it** |
+
+  So a client reading a delivery letter today is told to pay through a link the invoice
+  does not carry. That is now the whole of Phase B, and it was never Invoicer's to close.
+  The Stripe-vs-Square question is answered; the wiring is not written.
 - **The 2026 materials deadlines** — four firm settings that block the engagement and
   organizer letters, not the estimate. Each needs a lead time chosen against the filing
   date, which is its own conversation (2026-08-25).
