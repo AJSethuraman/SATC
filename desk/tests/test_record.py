@@ -6,10 +6,12 @@ false passes, and a check that has only ever passed is not evidence.
 """
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 import record
-from conftest import DESKS
+from conftest import DESKS, ROOT
 
 
 # ── it loads at all ───────────────────────────────────────────────────────────
@@ -29,13 +31,30 @@ def test_every_problem_cites_authority_the_desk_actually_holds(fixed_assets):
 
 
 def test_stored_text_is_verbatim_from_the_authority(fixed_assets):
-    """The passage must contain the conclusion the problem claims it states."""
-    p = fixed_assets.problems[0]
-    passage = fixed_assets.passage(p.citation)
-    assert p.answer.casefold() in passage.text.casefold(), (
-        "the stored authority does not contain the conclusion the problem "
-        "attributes to it — one of the two was transcribed wrong"
-    )
+    """Every passage must state the conclusion its problem attributes to it.
+
+    Matched through the classifier's spellings rather than against the answer
+    string, because `answer` is a canonical LABEL covering four framings: the
+    regulation writes "not required to be capitalized" where the label reads
+    "not required to capitalize". Asserting the label literally passed only while
+    the classifier knew two spellings, and it was that same two-spelling reading
+    that recorded a wrong answer for § 1.263(a)-3(l)(3) Example 4.
+
+    Over every problem, not `problems[0]` -- regenerating the set has already
+    moved a different example into that slot once.
+    """
+    sys.path.insert(0, str(ROOT / "tools"))
+    import extract_ecfr as ex
+    assert fixed_assets.problems, "no problems; this would pass vacuously"
+    for p in fixed_assets.problems:
+        passage = fixed_assets.passage(p.citation)
+        assert passage is not None, f"problem {p.id} has no stored authority"
+        spellings = [rx for answer, rx in ex.CLASSIFY if answer == p.answer]
+        assert spellings, f"{p.answer!r} is not an answer the classifier states"
+        assert any(rx.search(passage.text) for rx in spellings), (
+            f"problem {p.id} claims {p.answer!r}, and the stored authority for "
+            f"{p.citation} says no such thing — one of the two is wrong"
+        )
 
 
 # ── it raises rather than defaulting ──────────────────────────────────────────
@@ -152,4 +171,34 @@ def test_a_position_whose_citation_matches_no_source_is_refused_at_load(tmp_path
         "**Position:** must capitalize\n\n"
         "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
     with pytest.raises(record.RecordError, match="matches 0 recorded sources"):
+        record.load(d)
+
+
+def test_a_date_that_is_not_a_day_on_the_calendar_is_refused(tmp_path):
+    """`2026-02-31` matched the shape regex, loaded clean, and then crashed
+    `staleness.check` at `date.fromisoformat`. This parser's promise is that a
+    malformed record fails while being READ; stopping at the digit layout keeps
+    half of it."""
+    with pytest.raises(record.RecordError, match="not a day on the calendar"):
+        record.parse_sources(BASE.replace("2026-09-04", "2026-02-31"))
+    # And a real leap day still loads, so the check is not just "reject 31".
+    assert record.parse_sources(BASE.replace("2026-09-04", "2024-02-29"))
+
+
+def test_the_same_source_id_defined_twice_is_refused(tmp_path):
+    """A set hid the duplicate and `Desk.source()` takes the first match, so a
+    passage's tier, access policy and storage permission changed by REORDERING
+    two blocks -- with every test green, because the id was "known" either way."""
+    d = tmp_path / "dup"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        BASE + "\n" + BASE.replace("**Tier:** primary", "**Tier:** tertiary"),
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1.263(a)-3(a)\n\n"
+        "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1.263(a)-3(a)\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+        "> text\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match="more than once"):
         record.load(d)

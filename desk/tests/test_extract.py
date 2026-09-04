@@ -72,17 +72,22 @@ def test_an_example_stating_no_conclusion_is_left_out():
     assert why == "states no conclusion this desk can score"
 
 
-def test_the_leak_vocabulary_can_never_be_narrower_than_the_classifier():
-    """THE ONE CHECK THAT IS NOT CIRCULAR. Every earlier leak test asked the
-    splitter's own vocabulary whether the splitter had leaked, so a phrasing the
-    splitter did not know was invisible to both -- which is exactly how "must be
-    capitalized" survived into a fact pattern after the leak was called fixed.
+def test_the_disclosure_rule_needs_no_vocabulary_to_stay_ahead_of():
+    """THE CHECK THAT IS NOT CIRCULAR, AND NO LONGER A LIST.
 
-    `LEAKS` is deliberately wider than `CLASSIFY`, and this asserts the
-    containment holds for every phrase the classifier can match. Erring wide
-    costs an example; erring narrow costs the scoreboard its meaning."""
-    for answer, rx in ex.CLASSIFY:
-        sample = f"Therefore, the amount {rx.pattern}"
+    Three review rounds were spent widening a list of framings, and each round
+    found one the last had missed -- "must be capitalized", then "capitalize
+    these amounts", then the affirmative "is required to capitalize" sitting in
+    three fact patterns after the leak had twice been called fixed. Worse, the
+    check asked the splitter's OWN vocabulary whether the splitter had leaked, so
+    a phrasing neither knew was invisible to both.
+
+    `DISCLOSES` is now a total ban on the two stems rather than an enumeration of
+    how English can arrange them. This asserts the property that makes that
+    sound: every phrase the classifier can score is caught by it, necessarily,
+    because the stem is what is banned.
+    """
+    for _answer, rx in ex.CLASSIFY:
         probe = {
             r"\bmust capitaliz\w*": "Therefore, A must capitalize it.",
             r"\bmust be capitaliz\w*": "Therefore, it must be capitalized.",
@@ -90,9 +95,17 @@ def test_the_leak_vocabulary_can_never_be_narrower_than_the_classifier():
             r"\bnot required to be capitaliz\w*": "Therefore, it is not required to be capitalized.",
         }[rx.pattern]
         assert rx.search(probe), f"probe does not exercise {rx.pattern}"
-        assert ex.LEAKS.search(probe), (
-            f"{rx.pattern!r} is scorable but not treated as a leak: a fact "
-            f"pattern could keep it and every leak check would pass"
+        assert ex.DISCLOSES.search(probe), (
+            f"{rx.pattern!r} is scorable but not treated as a disclosure"
+        )
+    # And the forms that slipped past three successive enumerations, none of
+    # which the classifier itself matches -- the whole point of banning the stem.
+    for missed in ("T is required to capitalize the amount.",
+                   "the amounts must be capitalized under paragraph (x)",
+                   "and capitalize these amounts",
+                   "which X properly treats as deductible expenses"):
+        assert ex.DISCLOSES.search(missed), (
+            f"{missed!r} discloses an outcome and would reach a model"
         )
 
 
@@ -211,7 +224,12 @@ def test_no_problem_hands_the_model_its_own_answer():
     import record
     desk = record.load(DESKS / "fixed-assets")
     assert desk.problems, "no problems loaded; this check would pass vacuously"
-    leaking = [p.id for p in desk.problems if ex.LEAKS.search(p.facts)]
+    # WRITTEN HERE, NOT IMPORTED. Asking `ex.DISCLOSES` whether the extractor
+    # leaked is asking the extractor to mark its own work: narrow the module's
+    # pattern and this check narrows with it, which is exactly how the leak
+    # survived two commits that called it fixed. The stems live in the test.
+    independent = re.compile(r"capitaliz|deduct", re.I)
+    leaking = [p.id for p in desk.problems if independent.search(p.facts)]
     assert not leaking, (
         f"{len(leaking)} problems state their own answer in the facts: {leaking}"
     )

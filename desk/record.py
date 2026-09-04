@@ -22,6 +22,7 @@ difference between a field that was empty and a field that was never read.
 from __future__ import annotations
 
 import re
+from datetime import date as _date_cls
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -208,8 +209,22 @@ def _one_of(value: str, allowed: tuple[str, ...], label: str, where: str) -> str
 
 
 def _date(value: str, label: str, where: str) -> str:
+    """A real day, not a string shaped like one.
+
+    The regex accepts 2026-02-31, which then reached `date.fromisoformat` inside
+    `staleness.check` and crashed the report instead of failing the load. This
+    parser's whole promise is that a malformed record fails while being read, so
+    a check that stops at the digit layout is the promise half-kept.
+    """
     if not _DATE.match(value):
         raise RecordError(f"{where}: {label} is {value!r}; must be YYYY-MM-DD")
+    try:
+        _date_cls.fromisoformat(value)
+    except ValueError as exc:
+        raise RecordError(
+            f"{where}: {label} is {value!r}, which is not a day on the calendar "
+            f"({exc}); a date that only looks right fails later, somewhere else"
+        ) from exc
     return value
 
 
@@ -294,7 +309,20 @@ def load(desk_dir: Path) -> Desk:
         for f in sorted(pdir.glob("*.md")):
             pos.extend(_positions.parse(f.read_text(encoding="utf-8")))
 
-    known = {s.id for s in sources}
+    # A SET WOULD HIDE A DUPLICATE, AND `Desk.source()` TAKES THE FIRST MATCH. So
+    # defining one id twice let a passage's binding tier, access policy and
+    # storage permission change by reordering two blocks in SOURCES.md -- with
+    # every test still green, because the id was "known" either way.
+    seen_ids = set()
+    for s_ in sources:
+        if s_.id in seen_ids:
+            raise RecordError(
+                f"SOURCES.md defines {s_.id!r} more than once; which block wins "
+                f"would decide the tier and the storage rule, by file order"
+            )
+        seen_ids.add(s_.id)
+
+    known = seen_ids
     for p in passages:
         if p.source_id not in known:
             raise RecordError(

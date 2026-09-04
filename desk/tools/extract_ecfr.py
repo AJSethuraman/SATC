@@ -42,17 +42,24 @@ CLASSIFY = (
 CONNECTIVE = re.compile(
     r"^\(?[ivx]*\)?\s*(?:Therefore|Accordingly|Thus|As a result|Consequently)\b", re.I)
 
-#: WHAT COUNTS AS LEAKING AN ANSWER. Deliberately WIDER than `CLASSIFY`, and it
-#: must stay that way -- `test_extract.py` asserts the containment, so the
-#: vocabulary that withholds can never be narrower than the one that checks.
-#: Erring wide costs an example and can never cost a leak, which is the only
-#: direction this trade may run.
-LEAKS = re.compile(
-    r"\b(?:must|shall|need not|(?:is|are|was|were) not required to|not required to)"
-    r"\s+(?:be\s+)?capitaliz\w*"
-    r"|\bmust treat[^.]{0,140}?\bcapitaliz\w*"
-    r"|\bcapitaliz\w+\s+(?:these|those|such)\s+amounts"
-    r"|\b(?:may|must)\s+deduct\b|\b(?:is|are)\s+deductible\b", re.I)
+#: WHAT COUNTS AS DISCLOSING THE ANSWER: the words themselves, anywhere in the
+#: fact pattern. Not a list of framings -- a TOTAL ban on the two stems this desk
+#: reasons about.
+#:
+#: Three rounds of review were spent widening a list of phrasings, and each round
+#: found another the last had missed: first "must be capitalized", then
+#: "capitalize these amounts", then the affirmative "is required to capitalize"
+#: sitting in three fact patterns after the leak had twice been called fixed. A
+#: rule that must enumerate how English can say a thing will always be one
+#: phrasing behind, and every gap in it is a silently inflated score.
+#:
+#: So the rule stops enumerating. A fact pattern may not contain "capitaliz" or
+#: "deduct" in ANY form, conclusive or incidental. It costs examples whose facts
+#: merely mention the words in passing -- 31 usable became 24 -- and it cannot
+#: have a gap, because there is no vocabulary left to be incomplete. The cost
+#: bought something too: the surviving set is 12 and 12, so a constant answer
+#: scores 50% rather than 58%.
+DISCLOSES = re.compile(r"capitaliz|deduct", re.I)
 
 #: An example that leans on one not shown cannot be answered from what the desk
 #: is given. Three spellings, because the regulation uses each -- a filter
@@ -63,7 +70,7 @@ DEPENDENT = re.compile(
     r"same facts as(?: in)? Example|Assume the same facts|the facts are the same as", re.I)
 
 #: A sentence boundary, kept crude on purpose. Its correctness is NOT what makes
-#: the split safe: whatever it does, `LEAKS` re-checks what survives.
+#: the split safe: whatever it does, `DISCLOSES` re-checks what survives.
 _SENTENCE = re.compile(r"(?<=\.)\s+(?=[A-Z(])")
 
 
@@ -108,7 +115,7 @@ def split_conclusion(text: str):
     if len(found) > 1:
         return None, None, "states more than one conclusion"
     kept = " ".join(facts).strip()
-    if not kept or LEAKS.search(kept):
+    if not kept or DISCLOSES.search(kept):
         return None, None, "conclusion cannot be separated from the facts"
     return kept, " ".join(held).strip(), found.pop()
 

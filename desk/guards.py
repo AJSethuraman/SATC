@@ -78,16 +78,26 @@ def readable_sources_only_are_fetched(desk: record.Desk) -> None:
 
 
 def every_problem_has_authority(desk: record.Desk) -> None:
-    """A problem whose citation the desk does not hold cannot be scored honestly."""
+    """A problem whose citation the desk does not hold cannot be scored honestly.
+
+    ASKED THROUGH THE ENGINE'S OWN LOOKUP, NOT BY SOURCE COVERAGE. This used to
+    accept a `human_only` citation on the strength of its SOURCE being
+    unreadable, which is not the same question: with no ratified position for
+    that exact citation, `authority_for()` still returns None, so every attempt at
+    that row graded `wrong_caught / authority_absent` and the denominator counted
+    a problem nothing could ever answer. It failed in the other direction too --
+    a readable citation-only source WITH a position was rejected here for having
+    no stored passage, though the engine would have served it.
+
+    Two ways of answering "does the desk hold this?" drift, and the guard was the
+    one that was wrong. So it now asks exactly what `_check` asks.
+    """
     for p in desk.problems:
-        if desk.passage(p.citation) is None:
-            src = next((s for s in desk.sources
-                        if p.citation.startswith(s.citation_prefix)), None)
-            if src is not None and not src.readable:
-                continue          # human_only: cited by reference, never stored
+        if desk.authority_for(p.citation) is None:
             raise GuardFailure(
-                f"problem {p.id} cites {p.citation!r}, which is not in extracted/ "
-                f"and not covered by a human_only source"
+                f"problem {p.id} cites {p.citation!r}, which resolves to no "
+                f"authority this desk holds -- neither stored text nor a ratified "
+                f"position. Every attempt at it would grade as authority_absent"
             )
 
 

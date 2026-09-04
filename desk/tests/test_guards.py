@@ -22,14 +22,23 @@ GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
                 "> must capitalize\n")
 
 
+GOOD_POSITION = ("## POS1 · What we do here\n\n"
+                 "**Citation:** 26 CFR 1 · **Recorded:** 2026-09-04\n\n"
+                 "**Position:** must capitalize\n\n"
+                 "**Ratified:** the firm, 4 September 2026\n")
+
+
 def build(tmp_path, *, source=GOOD_SOURCE, problem=GOOD_PROBLEM,
-          passage=GOOD_PASSAGE, name="d"):
+          passage=GOOD_PASSAGE, position=None, name="d"):
     d = tmp_path / name
     (d / "extracted").mkdir(parents=True)
     (d / "SOURCES.md").write_text(source, encoding="utf-8")
     (d / "PROBLEMS.md").write_text(problem, encoding="utf-8")
     if passage is not None:
         (d / "extracted" / "a.md").write_text(passage, encoding="utf-8")
+    if position is not None:
+        (d / "positions").mkdir(parents=True)
+        (d / "positions" / "POSITIONS.md").write_text(position, encoding="utf-8")
     return d
 
 
@@ -81,19 +90,36 @@ def test_stored_text_from_a_human_only_source_fails_the_build(tmp_path):
         guards.check(d)
 
 
-def test_a_human_only_source_may_still_be_cited_by_a_problem(tmp_path):
-    """Cited by reference, never read. That is the whole point of the value."""
+def test_a_human_only_source_is_reachable_only_through_a_ratified_position(tmp_path):
+    """Cited by reference, never read -- but "never read" is not "no authority".
+
+    The guard used to wave a `human_only` citation through on the strength of its
+    SOURCE being unreadable, which is a different question from whether the desk
+    holds anything. With no position for that exact citation, `authority_for`
+    still returns None, so every attempt at the problem graded
+    `wrong_caught / authority_absent`: a row in the denominator that nothing
+    could ever answer.
+    """
+    d = build(tmp_path,
+              source=GOOD_SOURCE.replace("public_fetch", "human_only"),
+              passage=None, position=GOOD_POSITION)
+    assert guards.check(d)
+
+
+def test_a_human_only_citation_with_no_position_is_not_authority(tmp_path):
+    """The case the old guard admitted. Unanswerable, and counted as a problem."""
     d = build(tmp_path,
               source=GOOD_SOURCE.replace("public_fetch", "human_only"),
               passage=None)
-    assert guards.check(d)
+    with pytest.raises(guards.GuardFailure, match="resolves to no authority"):
+        guards.check(d)
 
 
 # ── a problem the desk cannot support cannot be scored honestly ──────────────
 
 def test_a_problem_citing_authority_the_desk_lacks_fails_the_build(tmp_path):
     d = build(tmp_path, problem=GOOD_PROBLEM.replace("26 CFR 1", "26 CFR 9"))
-    with pytest.raises(guards.GuardFailure, match="not in extracted"):
+    with pytest.raises(guards.GuardFailure, match="resolves to no authority"):
         guards.check(d)
 
 

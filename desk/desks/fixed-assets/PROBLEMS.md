@@ -27,12 +27,12 @@ out and counted below.
 | | |
 |---|---|
 | Examples in the section | **117** |
-| Usable as problems | **31** |
-| Left out | **86** |
+| Usable as problems | **24** |
+| Left out | **93** |
 
 | Left out | Because |
 |---|---|
-| 1 | conclusion cannot be separated from the facts |
+| 8 | conclusion cannot be separated from the facts |
 | 27 | depends on an example not shown |
 | 1 | states more than one conclusion |
 | 57 | states no conclusion this desk can score |
@@ -41,10 +41,10 @@ out and counted below.
 
 | Answer | Problems |
 |---|---|
-| must capitalize | 18 |
-| not required to capitalize | 13 |
+| must capitalize | 12 |
+| not required to capitalize | 12 |
 
-**Always answering the most common one scores 18 of 31 (58%).** That is the number any
+**Always answering the most common one scores 12 of 24 (50%).** That is the number any
 run has to beat before it has shown anything, and it is printed here because a
 scoreboard whose baseline is unstated reads as skill when it may be arithmetic.
 
@@ -55,17 +55,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P1 · Lessee improvements; additions to building
-
-**Citation:** 26 CFR 1.263(a)-3(f)(4) Example 1
-
-**Answer:** must capitalize
-
-**Facts:** (i) T is a retailer of consumer products. In Year 1, T leases a building from L, which T intends to use as a retail sales facility. The leased building consists of the building structure under paragraph (e)(2)(ii)(A) of this section and various building systems under paragraph (e)(2)(ii)(B) of this section, including a plumbing system, an electrical system, and an HVAC system. Under the terms of the lease, T is permitted to improve the building at its own expense. Under paragraph (e)(2)(v)(A) of this section, because T leases the entire building, T must treat the leased building and its structural components as a single unit of property. As provided under paragraph (e)(2)(v)(B)(1) of this section, an amount is paid to improve a leased building property if the amount is paid for an improvement to the leased building structure or to any building system within the leased building. Therefore, under paragraphs (e)(2)(v)(B)(1) and (e)(2)(ii) of this section, if T pays an amount that improves the building structure, the plumbing system, the electrical system, or the HVAC system, then T must treat this amount as an improvement to the entire leased building property. (ii) In Year 2, T pays an amount to construct an extension to the building to be used for additional warehouse space. Assume that this amount is for a betterment (as defined under paragraph (j) of this section) to T's leased building structure and does not affect any building systems. Accordingly, the amount that T pays for the building extension is for a betterment to the leased building structure, and thus, under paragraph (e)(2)(v)(B)(1) of this section, is treated as an improvement to the entire leased building under paragraph (d) of this section. Because T, the lessee, paid an amount to improve a leased building property, T is required to capitalize the amount paid for the building extension as a leasehold improvement under paragraph (f)(2)(i) of this section. In addition, paragraph (f)(2)(i) of this section requires T to treat the amount paid for the improvement as the acquisition or production of a unit of property (leasehold improvement property) under § 1.263(a)-2(d)(1). (iii) In Year 5, T pays an amount to add a large overhead door to the building extension that it constructed in Year 2 to accommodate the loading of larger products into the warehouse space. Under paragraph (f)(2)(ii) of this section, to determine whether the amount paid by T is for a leasehold improvement, the unit of property and the improvement rules are applied in accordance with paragraph (e)(2)(v) of this section and include T's previous improvements to the leased property. Therefore, under paragraph (e)(2)(v)(A) of this section, the unit of property is the entire leased building, including the extension built in Year 2. In addition, under paragraph (e)(2)(v)(B) of this section, the leased building property is improved if the amount is paid for an improvement to the building structure or any building system. Assume that the amount paid to add the overhead door is for a betterment, under paragraph (j) of this section, to the building structure, which includes the extension. In addition, paragraph (f)(2)(i) of this section requires T to treat the amount paid for the improvement as the acquisition or production of a unit of property (leasehold improvement property) under § 1.263(a)-2(d)(1). However, to determine whether a future amount paid by T is for a leasehold improvement to the leased building, the unit of property and the improvement rules are again applied in accordance with paragraph (e)(2)(v) of this section and include the new overhead door.
-
----
-
-## P2 · Routine maintenance on component
+## P1 · Routine maintenance on component
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 1
 
@@ -75,7 +65,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P3 · Routine maintenance resulting from prior owner's use
+## P2 · Routine maintenance resulting from prior owner's use
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 4
 
@@ -85,17 +75,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P4 · Routine maintenance; replacement of substantial structural part; coordination with section 263A
-
-**Citation:** 26 CFR 1.263(a)-3(i)(6) Example 6
-
-**Answer:** not required to capitalize
-
-**Facts:** C is in the business of producing commercial products for sale. As part of the production process, C places raw materials into lined containers in which a chemical reaction is used to convert raw materials into the finished product. The lining, which comprises 60 percent of the total physical structure of the container, is a substantial structural part of the container. Assume that each container, including its lining, is the unit of property and that a container has a class life of 12 years. At the time that C placed the container into service, C was aware that approximately every three years, the container lining would need to be replaced with comparable and commercially available replacement materials. At the end of three years, the container will continue to function, but will become less efficient and the replacement of the lining will be necessary to keep the container in an ordinarily efficient operating condition. In Year 1, C acquired 10 new containers and placed them into service. In Year 4, Year 7, Year 9, and Year 12, C pays amounts to replace the containers' linings with comparable and commercially available replacement parts. Assume that none of the exceptions set out in paragraph (i)(3) of this section apply to the amounts paid for the replacement linings. Because the replacement of the linings involves recurring activities that C expects to perform as a result of its use of the containers to keep the containers in their ordinarily efficient operating condition and consists of maintenance activities that C expects to perform more than once during the 12-year class life of the containers, C's lining replacement costs are within the routine maintenance safe harbor under paragraph (i)(1)(ii) of this section. However, the amounts paid to replace the lining may be subject to capitalization under section 263A if the amounts paid for this maintenance comprise the direct or allocable indirect costs of the property produced by C. See § 1.263A-1(e)(3)(ii)(O).
-
----
-
-## P5 · Routine maintenance once during class life
+## P3 · Routine maintenance once during class life
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 7
 
@@ -105,7 +85,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P6 · Routine maintenance on non-rotable part
+## P4 · Routine maintenance on non-rotable part
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 9
 
@@ -115,7 +95,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P7 · Exceptions to routine maintenance
+## P5 · Exceptions to routine maintenance
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 12
 
@@ -125,7 +105,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P8 · Routine maintenance on a building; escalator system
+## P6 · Routine maintenance on a building; escalator system
 
 **Citation:** 26 CFR 1.263(a)-3(i)(6) Example 13
 
@@ -135,7 +115,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P9 · Not amelioration of pre-existing material condition or defect
+## P7 · Not amelioration of pre-existing material condition or defect
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 3
 
@@ -145,7 +125,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P10 · Not amelioration of pre-existing material condition or defect
+## P8 · Not amelioration of pre-existing material condition or defect
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 4
 
@@ -155,37 +135,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P11 · Amelioration of material condition or defect
-
-**Citation:** 26 CFR 1.263(a)-3(j)(3) Example 5
-
-**Answer:** must capitalize
-
-**Facts:** (i) E acquires a building for use in its business of providing assisted living services. Before and after the purchase, the building functions as an assisted living facility. However, at the time of the purchase, E is aware that the building is in a condition that is below the standards that E requires for facilities used in its business. Immediately after the acquisition and during the following two years, while E continues to use the building as an assisted living facility, E pays amounts for extensive repairs and maintenance, and the acquisition of new property to bring the facility into the high-quality condition for which E's facilities are known. The work on E's building includes repairing damaged drywall, repainting, re-wallpapering, replacing windows, repairing and replacing doors, replacing and regrouting tile, repairing millwork, and repairing and replacing roofing materials. The work also involves the replacement of section 1245 property, including window treatments, furniture, and cabinets. The work that E performs affects only the building structure under paragraph (e)(2)(ii)(A) of this section and does not affect any of the building systems described in paragraph (e)(2)(ii)(B) of this section. Assume that each section 1245 property is a separate unit of property. (ii) Under paragraphs (e)(2)(ii) and (j)(2)(ii) of this section, an amount is paid to improve a building unit of property if the amount is paid for a betterment to the building structure or any building system. Considering the purpose of the expenditure and the effect of the expenditures on the building structure, the amounts that E paid for repairs and maintenance to the building structure comprise a betterment to the building structure under paragraph (j)(1)(i) of this section because the amounts ameliorate material conditions that existed prior to E's acquisition of the building. Moreover, E is required to capitalize the amounts paid to acquire and install each section 1245 property, including each window treatment, each item of furniture, and each cabinet, in accordance with § 1.263(a)-2(d)(1).
-
----
-
-## P12 · Betterment; building remodel
-
-**Citation:** 26 CFR 1.263(a)-3(j)(3) Example 8
-
-**Answer:** must capitalize
-
-**Facts:** (i) G owns a large chain of retail stores that sell a variety of items. G determines that due to changes in the retail market, it can no longer compete in its current store class and decides to upgrade its stores to offer higher end products to a different type of customer. To offer these products and attract different types of customers, G must substantially remodel its stores. Thus, G pays amounts to remodel its stores by performing work on the buildings' structures and systems as defined under paragraphs (e)(2)(ii)(A) and (e)(2)(ii)(B) of this section. This work includes replacing large parts of the exterior walls with windows, replacing the escalators with a monumental staircase, adding a new glass enclosed elevator, rebuilding the interior and exterior facades, replacing vinyl floors with ceramic flooring, replacing ceiling tiles with acoustical tiles, and removing and rebuilding walls to move changing rooms and create specialty departments. The work also includes upgrades to increase the capacity of the buildings' electrical system to accommodate the structural changes and the addition of new section 1245 property, such as new product information kiosks and point of sale systems. The work to the electrical system also involves the installation of new more efficient and mood enhancing lighting fixtures. In addition, the work includes remodeling all bathrooms by replacing contractor-grade plumbing fixtures with designer-grade fixtures that conserve water and energy. Finally, G also pays amounts to clean debris resulting from construction during the remodel, patch holes in walls that were made to upgrade the electrical system, repaint existing walls with a new color scheme to match the new interior construction, and to power wash building exteriors to enhance the new exterior facade. (ii) Under paragraphs (e)(2)(ii) and (j)(2)(ii) of this section, an amount is paid to improve a building unit of property if the amount is paid for a betterment to the building structure or any building system. Considering the facts and circumstances, including the purpose of the expenditure, the physical nature of the work performed, and the effect of the work on the buildings' structures and buildings' systems, the amounts that G pays for the remodeling of its stores result in betterments to the buildings' structures and several of its systems under paragraph (j) of this section. Specifically, the amounts paid to replace large parts of the exterior walls with windows, replace the escalators with a monumental staircase, add a new elevator, rebuild the interior and exterior facades, replace vinyl floors with ceramic flooring, replace the ceiling tiles with acoustical tiles, and to remove and rebuild walls are for material additions, that is the addition of major components, to the building structure under paragraph (j)(1)(ii) of this section and are reasonably expected to increase the quality of the building structure under paragraph (j)(1)(iii) of this section. Similarly, the amounts paid to upgrade the electrical system are to materially increase the capacity of the electrical system under paragraph (j)(1)(ii) of this section and are reasonably expected to increase the quality of this system under paragraph (j)(1)(iii) of this section. In addition, the amounts paid to remodel the bathrooms with higher grade and more resource-efficient materials are reasonably expected to increase the efficiency and quality of the plumbing system under paragraph (j)(1)(iii) of this section. Finally, the amounts paid to clean debris, patch and repaint existing walls with a new color scheme, and to power wash building exteriors, while not betterments by themselves, directly benefitted and were incurred by reason of the improvements to G's store buildings' structures and electrical systems under paragraph (g)(1) of this section. Moreover, G is required to capitalize the amounts paid to acquire and install each section 1245 property in accordance with § 1.263(a)-2(d)(1). For the treatment of amounts paid to remove components of property, see paragraph (g)(2) of this section.
-
----
-
-## P13 · Betterment; relocation and reinstallation of equipment
-
-**Citation:** 26 CFR 1.263(a)-3(j)(3) Example 10
-
-**Answer:** must capitalize
-
-**Facts:** J operates a manufacturing facility in Building A, which contains various machines that J uses in its manufacturing business. J decides to expand part of its operations by relocating a machine to Building B to reconfigure the machine with additional components. Assume that the machine is a single unit of property under paragraph (e)(3) of this section. J pays amounts to disassemble the machine, to move the machine to the new location, and to reinstall the machine in a new configuration with additional components. Assume that the reinstallation, including the reconfiguration and the addition of components, is for an increase in capacity of the machine, and therefore is for a betterment to the machine under paragraph (j)(1)(ii) of this section. J is also required to capitalize the costs of disassembling and moving the machine to Building B because these costs directly benefit and are incurred by reason of the improvement to the machine under paragraph (g)(1) of this section.
-
----
-
-## P14 · Betterment; regulatory requirement
+## P9 · Betterment; regulatory requirement
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 11
 
@@ -195,7 +145,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P15 · Material increase in capacity; building
+## P10 · Material increase in capacity; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 14
 
@@ -205,7 +155,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P16 · Material increase in capacity; building
+## P11 · Material increase in capacity; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 19
 
@@ -215,7 +165,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P17 · Not material increase in efficiency; HVAC system
+## P12 · Not material increase in efficiency; HVAC system
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 20
 
@@ -225,7 +175,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P18 · Material increase in efficiency; building
+## P13 · Material increase in efficiency; building
 
 **Citation:** 26 CFR 1.263(a)-3(j)(3) Example 21
 
@@ -235,27 +185,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P19 · Material addition; building
-
-**Citation:** 26 CFR 1.263(a)-3(j)(3) Example 22
-
-**Answer:** must capitalize
-
-**Facts:** T owns and operates a restaurant, which provides a variety of prepared foods to its customers. To better accommodate its customers and increase customer traffic, T decides to add a drive-through service area. As a result, T pays amounts to partition an area within its restaurant for a drive-through service counter, to construct a service window with necessary security features, to build an overhang for vehicles, and to construct a drive-up menu board. Assume that the drive-up menu board is section 1245 property that is a separate unit of property under paragraph (e)(3) of this section. Under paragraphs (e)(2)(ii) and (j)(2)(ii) of this section, an amount is paid to improve a building unit of property if the amount is paid for a betterment to the building structure or any building system. The amounts paid for the partition, service window and overhang are betterments to the building structure because they comprise a material addition (that is, a physical expansion, extension, and addition of a major component) to the building structure under paragraph (j)(1)(ii) of this section. T is also required to capitalize the amounts paid to acquire and install each section 1245 property in accordance with § 1.263(a)-2(d)(1).
-
----
-
-## P20 · Restoration after casualty loss
-
-**Citation:** 26 CFR 1.263(a)-3(k)(7) Example 3
-
-**Answer:** must capitalize
-
-**Facts:** B owns an office building that it uses in its trade or business. A storm damages the office building at a time when the building has an adjusted basis of $500,000. B deducts under section 165 a casualty loss in the amount of $50,000, and properly reduces its basis in the office building to $450,000. B hires a contractor to repair the damage to the building, including the repair of the building roof and the removal of debris from the building premises. B pays the contractor $50,000 for the work. Under paragraph (k)(1)(iii) of this section, B must treat the $50,000 amount paid to the contractor as a restoration of the building structure because B properly adjusted its basis in that amount as a result of a casualty loss under section 165, and the amount does not exceed the limit in paragraph (k)(4) of this section.
-
----
-
-## P21 · Restoration of property in a state of disrepair
+## P14 · Restoration of property in a state of disrepair
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 6
 
@@ -265,7 +195,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P22 · Replacement of major component or substantial structural part; personal property
+## P15 · Replacement of major component or substantial structural part; personal property
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 10
 
@@ -275,7 +205,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P23 · Not replacement of major component; incidental
+## P16 · Not replacement of major component; incidental
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 13
 
@@ -285,7 +215,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P24 · Replacement of major component or substantial structural part; roof
+## P17 · Replacement of major component or substantial structural part; roof
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 14
 
@@ -295,7 +225,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P25 · Not replacement of major component or substantial structural part; roof membrane
+## P18 · Not replacement of major component or substantial structural part; roof membrane
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 15
 
@@ -305,7 +235,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P26 · Replacement of major component or substantial structural part; plumbing system
+## P19 · Replacement of major component or substantial structural part; plumbing system
 
 **Citation:** 26 CFR 1.263(a)-3(k)(7) Example 22
 
@@ -315,7 +245,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P27 · New or different use; change in building use
+## P20 · New or different use; change in building use
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 1
 
@@ -325,7 +255,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P28 · Not a new or different use; leased building
+## P21 · Not a new or different use; leased building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 2
 
@@ -335,7 +265,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P29 · Not a new or different use; preparing building for sale
+## P22 · Not a new or different use; preparing building for sale
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 3
 
@@ -345,7 +275,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P30 · Not a new or different use; part of building
+## P23 · Not a new or different use; part of building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 6
 
@@ -355,7 +285,7 @@ the single thing this whole plugin exists to prevent.
 
 ---
 
-## P31 · Not a new or different use; part of building
+## P24 · Not a new or different use; part of building
 
 **Citation:** 26 CFR 1.263(a)-3(l)(3) Example 7
 
