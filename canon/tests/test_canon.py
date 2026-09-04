@@ -224,3 +224,83 @@ def test_the_marketplace_lists_canon_and_the_installer_accepts_it():
     ran = subprocess.run([cli, "plugin", "validate", str(CANON.parent)],
                          capture_output=True, text=True, timeout=120)
     assert ran.returncode == 0, ran.stdout + ran.stderr
+
+
+# ── what is installed is what is written ─────────────────────────────────────
+
+def test_the_marketplace_and_the_manifest_agree_on_the_version():
+    """THE BUG THIS CLOSES, which happened twice in one day.
+
+    C11 was recorded and merged with no bump at all. A later commit bumped
+    `plugin.json` to 1.5.0 for three behaviours and left the marketplace entry
+    at 1.4.0. The plugin cache is keyed by the version the MARKETPLACE declares,
+    so there was nothing new to fetch either time: every installed session kept
+    reading a record that stopped at C10 while the repository had eleven.
+
+    Nothing failed. Bassy simply could not challenge from a conviction the firm
+    had given, and no test here could tell — the only version check asserted the
+    string matched semver.
+    """
+    market = CANON.parent / ".claude-plugin" / "marketplace.json"
+    if not market.is_file():
+        pytest.skip("no marketplace above this copy — canon has been lifted out")
+    entry = next(p for p in json.loads(market.read_text(encoding="utf-8"))["plugins"]
+                 if p["name"] == "canon")
+    manifest = json.loads(
+        (CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert entry["version"] == manifest["version"], (
+        f"the marketplace offers canon {entry['version']} while the plugin is "
+        f"{manifest['version']}; the cache is keyed by the marketplace's number, "
+        f"so installed sessions would never see the difference"
+    )
+
+
+def test_the_version_says_what_the_record_actually_contains():
+    """A digest of the record, written beside the version it belongs to.
+
+    WHAT THIS CANNOT DO, said rather than implied: it cannot force anyone to
+    bump a version. No test can. What it does is make the omission loud —
+    change `CONVICTIONS.md` and this goes red until the digest is rewritten,
+    and the line you rewrite sits directly beside the version number, so
+    "should this be 1.6.0?" appears in the diff a reviewer is reading instead
+    of being a thing nobody thought about.
+    """
+    import release
+    stated = json.loads(release.RELEASED.read_text(encoding="utf-8"))
+    assert stated["version"] == release.version(), (
+        f"RELEASED.json describes {stated['version']} and the manifest says "
+        f"{release.version()}"
+    )
+    assert stated["record_sha256"] == release.digest(), (
+        "the record has changed since this version was released. Run "
+        "`python canon/release.py`, then decide whether the version should move "
+        "— an installed session reads whatever the marketplace's number fetches"
+    )
+
+
+def test_a_count_stated_in_a_manifest_is_a_count_somebody_made():
+    """Both manifests describe canon in prose, and the prose carries a number.
+    The marketplace said "fifteen standing behaviours" while the file held
+    eighteen — a claim about the product, drifting where nothing compared it."""
+    words = {"fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+             "nineteen": 19, "twenty": 20}
+    real = len(re.findall(r"^## \d+ · ",
+                          (CANON / "skills" / "how-we-work" / "SKILL.md")
+                          .read_text(encoding="utf-8"), re.M))
+    assert real, "no behaviours found; this check would pass vacuously"
+
+    texts = {"plugin.json": json.loads(
+        (CANON / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )["description"]}
+    market = CANON.parent / ".claude-plugin" / "marketplace.json"
+    if market.is_file():
+        texts["marketplace.json"] = next(
+            p for p in json.loads(market.read_text(encoding="utf-8"))["plugins"]
+            if p["name"] == "canon")["description"]
+
+    for where, text in texts.items():
+        for word, n in words.items():
+            if re.search(rf"\b{word} standing behaviours\b", text, re.I):
+                assert n == real, (
+                    f"{where} claims {word} standing behaviours; there are {real}"
+                )

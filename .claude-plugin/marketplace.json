@@ -8,8 +8,8 @@
     {
       "name": "canon",
       "source": "./canon",
-      "description": "Tenets \u2014 how to build, each carrying the incidents that proved it, ratified by the firm \u2014 convictions in the firm's own words, and fifteen standing behaviours. Bassy challenges from that record and never from an opinion, and the docket hands back open decisions as a form. Holds no client data.",
-      "version": "1.4.0",
+      "description": "Tenets \u2014 how to build, each carrying the incidents that proved it, ratified by the firm \u2014 convictions in the firm's own words, and eighteen standing behaviours. Bassy challenges from that record and never from an opinion, and the docket hands back open decisions as a form. Holds no client data.",
+      "version": "1.5.0",
       "displayName": "canon \u2014 the practice brain",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"
