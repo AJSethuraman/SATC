@@ -1,2 +1,0 @@
-[console_scripts]
-credit-suite = credit_suite.cli:main

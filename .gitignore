@@ -25,3 +25,7 @@ __pycache__/
 # ~200 MB, and `git add -A` would have taken all of it.
 .venv/
 venv/
+
+# Editable-install metadata. Created by `pip install -e .` and committed by
+# accident on 4 Sep 2026 while verifying the credit-suite CI recipe locally.
+*.egg-info/
