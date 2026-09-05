@@ -234,9 +234,15 @@ def test_one_requested_field_does_not_exist_at_the_fdic():
     The FDIC omits a field name it does not have rather than rejecting the
     request, so `NTRENREQ` -- quarterly net charge-offs on nonfarm
     nonresidential CRE -- comes back absent from all 480 bank-quarters and looks
-    exactly like a bank that had nothing to report. The FDIC publishes the same
-    charge-off year-to-date as `NTRENROT`; it publishes no quarterly version,
-    though it publishes quarterly versions for the other seven categories.
+    exactly like a bank that had nothing to report.
+
+    The QUANTITY is published; the field is not. `DRRENRSQ` (gross charge-offs
+    for the quarter) and `CRRENRSQ` (recoveries for the quarter) both come back
+    populated, and their difference is the net figure. The identity `DR - CR ==
+    NT` was checked against the two categories where the FDIC does publish the
+    net and held in 200 of 200 bank-quarters. So this is the LNLSGR finding
+    again -- the FDIC publishes the halves and not the total -- and whether to
+    add the two halves to the feed is the firm's decision, not a test's.
 
     This test does not fix that. It stops the count from drifting: if a second
     field goes quiet, the arithmetic below stops holding.

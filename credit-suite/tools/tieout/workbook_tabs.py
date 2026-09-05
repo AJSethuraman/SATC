@@ -180,10 +180,14 @@ LIMITS = [
                 "bank-quarter and returned for none. The FDIC omits a field "
                 "name it does not have instead of rejecting the request, so "
                 "this looked exactly like banks reporting nothing. The FDIC "
-                "does publish the same charge-off year-to-date, as NTRENROT; "
-                "it publishes no quarterly version, though it does for the "
-                "other seven loan categories. That is why this workbook has "
-                "%d fields per bank-quarter and not %d."
+                "does publish the quantity, as two lines rather than one: "
+                "DRRENRSQ, the quarter's gross charge-offs, and CRRENRSQ, "
+                "the quarter's recoveries. Their difference is the net "
+                "figure, and that identity holds in 200 of 200 bank-quarters "
+                "on the categories where the FDIC does publish the net. "
+                "Adding those two lines is a change to the feed and is the "
+                "firm's decision. Until then this workbook has %d fields per "
+                "bank-quarter and not %d."
      % (len(FIELDS), len(FIELDS) + 1)),
     ("", ""),
     ("h2", "What this still does not prove"),

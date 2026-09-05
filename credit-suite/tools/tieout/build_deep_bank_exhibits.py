@@ -67,9 +67,17 @@ def esc(x):
 
 
 def money(v):
+    """A figure as the reader should see it: exact, and no invented precision.
+
+    An exact zero prints as `0`, not `0.0000`. A difference of nothing is the
+    most important number in this document and it should not look like a
+    rounding residue.
+    """
     if v is None:
         return "&mdash;"
     v = float(v)
+    if v == 0:
+        return "0"
     return "{:,.0f}".format(v) if abs(v) >= 1000 else "{:,.4f}".format(v)
 
 
@@ -227,13 +235,19 @@ def build(cert, year):
                                   else float(r["ours"]) - float(r["theirs"]))))
             if r.get("how"):
                 parts.append("<p class='cap'>%s</p>" % esc(r["how"]))
+            # The header identifies the filing -- bank, form, period. Several
+            # codes for one field usually sit on the SAME page, and repeating
+            # the same header strip under each of them doubles the file and
+            # reads as noise. Show it once per page inside a field block.
+            seen_header = set()
             for comp in qshots.get(r["field"], []):
                 if not comp.get("png"):
                     parts.append("<p class='cap'>%s: %s</p>"
                                  % (esc(comp.get("code")),
                                     esc(comp.get("why", "no image"))))
                     continue
-                h = uri(comp["header"])
+                h = uri(comp["header"]) if comp["header"] not in seen_header else None
+                seen_header.add(comp["header"])
                 img = uri(comp["png"])
                 if h:
                     parts.append("<div class='shot hdr'><img src='%s'></div>" % h)

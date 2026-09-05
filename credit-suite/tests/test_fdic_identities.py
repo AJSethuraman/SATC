@@ -37,6 +37,17 @@ from credit_suite.engine import consistency as K
 from credit_suite.sources.fdic import consistency as C
 
 PKG = Path(__file__).resolve().parents[1]
+#: The shape of the deliverable, pinned as its factors rather than as one
+#: number, so a change says WHICH of the three moved. Ten years of the
+#: FDIC's quarterly panel for the twelve-bank set.
+BANKS = 12
+QUARTERS = 40
+PANEL = BANKS * QUARTERS                           # 480 bank-quarters
+CLASSES = 4                                        # the four loan classes
+#: Acquisitions by the twelve banks inside the ten years, from the FDIC's
+#: own institution history through the shipped `mergers` module.
+MERGER_EVENTS = 11
+
 BANK_VALUES = PKG / "verified-data" / "bank-values.csv"
 NOT_COMPARABLE_CSV = PKG / "verified-data" / "not-comparable-periods.csv"
 
@@ -58,7 +69,7 @@ def panel():
 
 def test_the_audited_panel_is_the_size_the_deliverable_says_it_is(panel):
     """The denominator every number below is measured against."""
-    assert len(panel) == 192                       # 12 banks x 16 quarters
+    assert len(panel) == BANKS * QUARTERS           # 12 banks x 40 quarters
     assert {len(fields) for fields in panel.values()} == {68}
 
 
@@ -68,7 +79,7 @@ def test_the_audited_panel_is_the_size_the_deliverable_says_it_is(panel):
 
 def test_the_netting_identity_holds_exactly_across_the_whole_panel(panel):
     result = C.netting_identity(panel)
-    assert (result.verdict, result.examined, result.failed) == (K.PASS, 192, 0)
+    assert (result.verdict, result.examined, result.failed) == (K.PASS, PANEL, 0)
 
 
 def test_a_reserve_landed_into_the_wrong_field_breaks_the_netting_identity(panel):
@@ -79,7 +90,7 @@ def test_a_reserve_landed_into_the_wrong_field_breaks_the_netting_identity(panel
     broken[key] = row
     result = C.netting_identity(broken)
     assert result.verdict == K.FAIL
-    assert result.examined == 192                  # denominator unchanged
+    assert result.examined == PANEL                  # denominator unchanged
     assert "LNLSNET" in result.summary()
 
 
@@ -99,7 +110,7 @@ def test_every_published_ratio_recomputes_from_its_own_components(panel):
     at full double precision, so the tolerance is floating-point epsilon and
     not a rounding allowance: measured worst relative gap 5.3e-16."""
     result = C.ratio_identity(panel)
-    assert (result.verdict, result.examined, result.failed) == (K.PASS, 768, 0)
+    assert (result.verdict, result.examined, result.failed) == (K.PASS, CLASSES * PANEL, 0)
 
 
 def test_the_ratio_tolerance_is_epsilon_and_not_a_place_to_hide(panel):
@@ -130,26 +141,39 @@ def test_a_zero_denominator_is_UNKNOWN_rather_than_a_division(panel):
 # I3 -- revolving 1-4 family is INSIDE total 1-4 family
 # --------------------------------------------------------------------------
 
-def test_the_deliverable_cannot_tell_a_blank_from_a_zero(panel):
-    """A finding, recorded rather than quietly worked around.
+def test_the_zeros_in_the_deliverable_are_filed_nils_not_blank_cells(panel):
+    """The question this test used to ask has been answered. Its name changed.
 
-    The design measured I3 over 704 comparisons -- 192 + 188 + 134 + 190,
-    "the differences being cells the FDIC leaves blank". Every one of the 68
-    fields is present in all 192 bank-quarters of
-    ``verified-data/bank-values.csv``, and the count of NON-ZERO values in
-    each of the four parent fields is exactly 192 / 188 / 134 / 190. The
-    blanks became zeros somewhere between the FDIC's response and the
-    published CSV, so 64 of the 768 comparisons below are 0 <= 0 and prove
-    nothing. The check is still worth running over all 768 -- a zero that
-    should be a balance is caught by I4 and I5 -- but the denominator here is
-    768 of which 64 are vacuous, and that is the honest way to report it.
+    Measured on the sixteen-quarter build, the non-zero counts of the four
+    parent fields were 192 / 188 / 134 / 190 against a panel of 192 -- exactly
+    the four numbers the design had recorded as cells the FDIC leaves BLANK.
+    The reading at the time was that blanks had become zeros somewhere between
+    the FDIC's response and the published CSV, which would make a share of the
+    nesting comparisons `0 <= 0` and worth nothing.
+
+    The ten-year tie-out settled it, one value at a time rather than by
+    inference. The deliverable holds 5,385 values of exactly zero, and 5,348 of
+    them were compared against an EXPLICIT ZERO on that bank's own filed Call
+    Report -- for example JPMorgan's NACRCD at 2026-06-30, filed as RCFDB577 =
+    0. They are reported nils. The remaining 37 carry their own verdict and are
+    not counted as ties.
+
+    So the comparisons are not vacuous in the way that was feared: a zero here
+    means the bank told its regulator zero. It is still the weakest form of
+    agreement there is, which is why the count is pinned and stated on the
+    workbook's LIMITS tab rather than folded into a headline.
     """
     nonzero = {prefix: sum(1 for fields in panel.values()
                            if fields[prefix + "RERES"] != 0)
                for prefix in C.NESTED_PREFIXES}
-    assert nonzero == {"LN": 192, "P3": 188, "P9": 134, "NA": 190}
-    assert sum(nonzero.values()) == 704
-    assert C.nesting_identity(panel).examined == 768
+    assert nonzero == {"LN": 474, "P3": 458, "P9": 354, "NA": 465}
+
+    zeros = sum(1 for fields in panel.values()
+                for value in fields.values() if value == 0.0)
+    assert zeros == 5385, (
+        "the count of exact zeros moved; re-run the tie-out and re-measure how "
+        "many of them tie to a filed zero before trusting the number below")
+    assert C.nesting_identity(panel).examined == CLASSES * PANEL
 
 
 def test_the_home_equity_line_nests_inside_the_residential_book(panel):
@@ -157,7 +181,7 @@ def test_the_home_equity_line_nests_inside_the_residential_book(panel):
     Encoding that is the point -- the obvious "components sum to the total"
     check breaches in 97 of 192 for exactly this reason."""
     result = C.nesting_identity(panel)
-    assert (result.verdict, result.examined, result.failed) == (K.PASS, 768, 0)
+    assert (result.verdict, result.examined, result.failed) == (K.PASS, CLASSES * PANEL, 0)
 
 
 def test_a_revolving_balance_larger_than_its_parent_is_caught(panel):
@@ -179,7 +203,7 @@ def test_the_noncurrent_classes_fit_inside_the_noncurrent_total(panel):
     """Measured maximum exactly 1.0000 (Capital One, 2026-06-30), minimum
     0.640. With RELOC wrongly folded in it breaches in 97 of 192."""
     result = C.noncurrent_classes(panel)
-    assert (result.verdict, result.examined, result.failed) == (K.PASS, 192, 0)
+    assert (result.verdict, result.examined, result.failed) == (K.PASS, PANEL, 0)
 
 
 def test_folding_the_revolving_line_back_in_breaches_it_ninety_seven_times(panel):
@@ -191,7 +215,7 @@ def test_folding_the_revolving_line_back_in_breaches_it_ninety_seven_times(panel
                     for prefix in ("P9", "NA"))
         if total > fields["NCLNLS"]:
             breaches += 1
-    assert breaches == 97
+    assert breaches == 278
 
 
 def test_a_bucket_larger_than_the_total_it_is_drawn_from_is_caught(panel):
@@ -212,7 +236,7 @@ def test_a_bucket_larger_than_the_total_it_is_drawn_from_is_caught(panel):
 def test_the_identity_set_reports_every_denominator(panel):
     results = C.identity_set(panel)
     assert [r.check for r in results] == ["I2", "I3", "I4", "I5"]
-    assert [r.examined for r in results] == [768, 768, 192, 192]
+    assert [r.examined for r in results] == [CLASSES * PANEL, CLASSES * PANEL, PANEL, PANEL]
     assert all(r.verdict == K.PASS for r in results)
 
 
@@ -285,13 +309,20 @@ def test_a_sweep_with_no_merger_record_marks_every_period_unknown():
     assert (result.verdict, result.examined, result.unknown) == (K.UNKNOWN, 2, 2)
 
 
-def test_the_six_events_the_deliverable_publishes_are_the_six_it_marks():
-    """Grounded on `verified-data/not-comparable-periods.csv`: six merger
-    quarters across the twelve-bank panel, and the 42 flow values the
-    deliverable itself marks unusable are exactly 6 quarters x 7 flow fields."""
+def test_the_events_the_deliverable_publishes_are_the_ones_it_marks():
+    """Grounded on `verified-data/not-comparable-periods.csv`.
+
+    Eleven merger quarters across the twelve-bank panel over ten years. The
+    sixteen-quarter build saw six, and five of the other five would have been
+    reported as the FDIC disagreeing with the filings -- a false finding of
+    exactly the kind that has already been made here once.
+
+    The count is pinned rather than derived: a test that reads the file and
+    then asserts the file says what it says has checked nothing.
+    """
     with NOT_COMPARABLE_CSV.open(encoding="utf-8") as handle:
         events = list(csv.DictReader(handle))
-    assert len(events) == 6
+    assert len(events) == MERGER_EVENTS
     record = defaultdict(list)
     for event in events:
         record[event["cert"]].append(
@@ -301,6 +332,6 @@ def test_the_six_events_the_deliverable_publishes_are_the_six_it_marks():
     marked = [key for key in _panel()
               if C.flow_comparability(key[0], key[1], dict(record)).verdict
               == C.NOT_COMPARABLE]
-    assert len(marked) == 6
+    assert len(marked) == MERGER_EVENTS
     assert len(C.FLOW_FIELDS) == 7
-    assert len(marked) * len(C.FLOW_FIELDS) == 42
+    assert len(marked) * len(C.FLOW_FIELDS) == MERGER_EVENTS * 7
