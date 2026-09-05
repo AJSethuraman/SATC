@@ -778,3 +778,46 @@ Bassy challenges *from* the record; it does not get to close a question with it.
 
 `1.7.1 → 1.8.0`, both manifests: the record gained an entry, and convictions are
 read from a plugin cache that keys on the marketplace number.
+
+---
+
+## 5 September 2026 — the deliverable was the thing that was wrong
+
+`tie-out` and `walk` both told a session what to prove and neither told it what
+to hand over. A tie-out ran end to end — five links executed, the source
+photographed, the roster with its denominator — and was filed as a Markdown note
+with six loose files beside it. Nothing was missing and it could not be given to
+anybody. The firm:
+
+> i assumed that you understood the final product of tie out and walk would
+> basically be a PDF that shows how everything tied out? and explains it and
+> makes it easy to follow? Is that not?
+
+and, on what the document has to do:
+
+> A sample of one and a walk through or a… procedure document should literally,
+> like, visually and verbally easily show you how all the dots connect. How to
+> use the system? How it works. How it tied out.
+
+Both skills now say the deliverable is **one self-contained file with every
+image embedded**, rendered from the Markdown rather than being it, opening on a
+picture of the mechanism — for `tie-out`, the same fact travelling two roads and
+meeting at difference 0; for `walk`, the route through the screens.
+
+Three other things the reworked exhibit did that the skill had not asked for,
+now asked for: the source page **marked and enlarged** rather than merely
+captured, with the entity, form and period in the same shot as the number; every
+figure **read twice** where a second rendering of the same source exists — which
+caught a digit misread on the day; and **what running it found** as a section of
+its own, because that tie-out turned up three lines citing codes from the wrong
+version of a regulatory form, right values behind a citation that pointed at a
+line that does not exist.
+
+And the one that changes a verdict: **a `COULD NOT` is a hypothesis about the
+source and gets attacked once.** Five of them were recorded with true obstacles
+named. Pushed, all five closed on one pass. Naming an obstacle is not testing
+it, and the skill had been accepting the name.
+
+Four new tests pin the shape (175 → 179 passing). `1.10.0 → 1.11.0`, both manifests:
+skill text is installed behaviour, and an installed session reads whatever the
+marketplace's number fetches.
