@@ -167,6 +167,120 @@ Phased (one effort, sequenced):
 - [ ] **M4 bench:** NCUA, HMDA, SBA, FHFA NMDB adapters; cross-monitor peer sync
       (one entity list across FDIC CERT + EDGAR CIK via a name crosswalk).
 
+## 6b · credit-suite — the ten-year tie-out (5 September 2026)
+
+Everything the feed holds, checked against a document this firm does not
+control. **67,970 values. 52,759 tied. Nothing disagreed.**
+
+| | values | tied to an outside source | differed |
+|---|---|---|---|
+| Banks — 12 × 40 quarters × 68 fields | 32,640 | 28,667 | 0 |
+| Macro — 142 series, 1943 to 2026 | 35,330 | 24,092 | 0 |
+
+The 3,973 bank values not tied: 3,840 ratios the FDIC computes rather than banks
+filing them, 77 flows in a quarter spanning a merger, 56 lines the form did not
+carry that quarter. The 11,238 macro observations not tied are **24 whole
+series**, not scattered gaps — Case-Shiller's paywalled history (10,091), a
+percent change the Board never tabulates (1,001), and the loan officer survey's
+large-bank split (146). Each row says which.
+
+**Evidence.** 480 facsimile PDFs fetched, 0 failures. **49,066 rows
+photographed** — every bank, every quarter, the filing's own page header in the
+shot so *same entity, same period* is read off the picture rather than trusted.
+**132 exhibits**, one per bank-year, 664 MB, in
+`credit-suite/docs/tie-out/banks-10y-2026-09-05/`. The PDFs are gitignored with
+one specimen kept and `manifest.csv` as the record; the builder regenerates all
+of them in six minutes.
+
+### What running it found
+
+1. **`LNLSGR` cited a line the FDIC does not use.** Nine of 480 bank-quarters
+   came back as differences, always exactly $1,000, on a $200bn balance, across
+   three unrelated banks in six unrelated quarters. The bank files that total
+   twice: RC-C Part I line 12 as one rounded figure, and RC 4.a + 4.b as two
+   separately rounded halves. The FDIC publishes the sum of the halves in all
+   480; line 12 agrees in 471. Right value, wrong citation — invisible until
+   somebody follows it. Fixed, two guard tests, guard mutated and confirmed red.
+2. **Five merger quarters** would have been reported as the FDIC disagreeing
+   with the filings. Ten years hold **eleven** acquisitions; the sixteen-quarter
+   window had seen six. Now gathered through the shipped `mergers` module rather
+   than a hand-rolled history query on the wrong date field.
+3. **The Fed charge-off parser could not read an `n.a.` cell.** It matched runs
+   of digits, so a 1985 row gave one value instead of eleven and 304 real
+   observations were reported as "no source for this period".
+4. **Two obstacles fell when tested rather than described** — +1,306
+   observations. The G.19 unadjusted total has no single Board table but is the
+   sum of two the Board does publish, tying to the cent for all 1,002 months.
+5. **One requested field does not exist.** `NTRENREQ` has been asked of the FDIC
+   in every run this software has made and returned never; the FDIC omits a name
+   it does not have rather than rejecting the request.
+
+### What I got wrong, in the same session
+
+- Wrote that the FDIC "publishes no quarterly version" of the CRE charge-off,
+  committed it as a test comment, and it was wrong four hours later. The FIELD
+  does not exist; the QUANTITY does, as `DRRENRSQ` − `CRRENRSQ`, an identity
+  that held 200 of 200 on the categories where the FDIC publishes the net. Same
+  finding as #1 above, which is a reason to have looked harder the first time.
+- The deep macro pull reported **"50 of 50 series"** when the seed defines 142.
+  A denominator that counts what it found rather than what there was.
+- The export built its unit and title table from three attribute names, two of
+  which exist; 92 generated geography series fell through to a stale snapshot.
+  Third artifact in one session bitten by reading a copy of the source of truth.
+  The explanation tabs now contain **no typed number at all** — every count in
+  the prose is computed from the delivered CSVs at build time.
+
+### Docket answers (form `0b2cae0b`, answered 5 Sep 2026)
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| D1 | Resolve the merge conflict on `canon/LOG.md`? | Yes, resolve it | |
+| D2 | Rebuild the shipped monitors now or at next release? | Rebuild now | |
+| D3 | Keep the unverifiable Case-Shiller history, shaded? | Keep, shaded | |
+| D4 | Keep the eight FDIC-computed ratios in a raw feed? | Keep them | *"keep them especially if they can be tied to. like we have done."* |
+| D5 | How deep should the first scheduled run go? | Widen it | *"yeah why not, this is going to also help me with another project so that adds value / also... datapoints... things like home owner insurance premiums can be important. maybe you should poke around at things that don't sound important and throw suggestions out"* |
+| D6 | Build the consistency flags? | Build the top five | |
+| D7 | Swap the twelve banks for a real peer group? | Keep these twelve | *"I can get them but honestly i won't use the data until i have you swap stuff out and there is no reason to throw away data we've already verified"* |
+
+D5 produced the ten years above **and** the opportunity scan D5's second half
+asked for. D6 landed as five checks and 66 tests, merged here; its verdict type
+refuses to hold "PASS over nothing", and its `Comparability` record has no field
+a repaired number could go in.
+
+### The opportunity scan (D5, second half)
+
+23 candidates, ranked, each fetched live rather than assumed. 83 FDIC field
+names requested, 82 returned; 115 FRED ids requested, 102 returned. **Seven of
+the twelve bank candidates were tied to a bank's own filed XBRL**, not merely to
+the FDIC. Report: `scratchpad/opportunities.md` (session-local).
+
+- **Utilization exists and is not in the feed.** `UCCRCD` and `UCLOC`, 480 of
+  480 bank-quarters, tied to the filed report to the dollar. Card utilization
+  19.99% (2016Q4) → 16.79% (2020Q4) → 20.35% (2025Q4), now above
+  pre-pandemic; Capital One 26.3% against JPMorgan 16.2%.
+- **Homeowners insurance** is `PCU9241269241262`, the BLS producer price series,
+  +9.1% in 2024 after two flat decades. **The CPI has no homeowners insurance
+  item at all** — `SEHD` is tenants' and contents cover, and
+  `PCU5241265241262` is the insurer's price net of expected losses. Both look
+  right and are not.
+
+### Open — docket `47179bd6`, seven decisions
+
+1. Add `UCCRCD` + `UCLOC` (utilization). *Recommend: both.*
+2. Close the `NTRENREQ` blank with `DRRENRSQ` + `CRRENRSQ`. *Recommend: the two
+   halves, not their difference — a subtraction is a calculation even when it
+   is obviously right.*
+3. Add `PCU9241269241262`, and record its two look-alikes as not-to-use.
+4. How far down the ranked 23. *Recommend: rows 1–13.*
+5. New fields re-cut `raw_slots`, which is built into every dashboard formula.
+   *Recommend: feed only for now.*
+6. The recurring schedule. *Recommend: quarterly on the newest quarter reporting
+   only what moved; annual full ten-year re-fetch and re-tie.*
+7. Where 664 MB of exhibits live. *Recommend: the machine, with the manifest in
+   git — I will not pick a destination for the firm's work product alone.*
+
+Suite **611 passed, 0 failed** (545 + 66 merged).
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
