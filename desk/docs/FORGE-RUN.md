@@ -240,3 +240,85 @@ authority read as 16 gaps when 4 was the number. `queue_refusals` now returns
 `{"filed": n, "near_miss": m}` and the run prints both. Nothing is subtracted:
 every entry is still filed, still refused, and still never served. The firm, 5
 September 2026: **yes — record the near miss.**
+
+
+---
+
+## The cash desk — the run that finds out whether a desk can decline (#245)
+
+Both earlier runs measured **zero escalations across 58 answers**, and not
+because either brain declined to escalate. On the fixed-assets desk they *could
+not*: every source is binding primary authority, so `authority_permits_choice`
+had nothing to fire on. `SCOREBOARD.md` records the half of the design that was
+never tested — *"nothing here shows whether either can tell 'the authority does
+not settle this' from 'I do not know'."*
+
+`desks/cash-and-bank` exists to fire it. Its only on-point source is an IRS
+publication, which is **secondary**, so every problem reaches the escalation
+path. The measurement is not the escalated total — that will be 4 of 4 whatever
+happens. **It is `escalated_by`.**
+
+```
+cd desk
+python tools/scoreboard_run.py \
+  --desk desks/cash-and-bank \
+  --corpus index \
+  --dump-prompts desks/cash-and-bank/runs/<today>/prompts.json
+```
+
+Hand `prompts.json` to a fresh frontier context that has seen nothing else, then:
+
+```
+python tools/scoreboard_run.py \
+  --desk              desks/cash-and-bank \
+  --corpus            index \
+  --frontier-replies  desks/cash-and-bank/runs/<today>/frontier-replies.json \
+  --notes             desks/cash-and-bank/runs/<today>/NOT-CHECKED.txt \
+  --out               desks/cash-and-bank/runs/<today>
+```
+
+`--out` is not optional in practice: the default is `runs/<today>/` and
+`run_dir` refuses a directory that already holds a run, so a second run on one
+day needs a directory of its own and the record has to say it was two runs on
+one day rather than two days.
+
+**It fits the Forge comfortably.** `--corpus index` is about 2,600 tokens against
+the 8,192-token window 8 GB of VRAM allows — a third of the fixed-assets prompt,
+because this desk holds 47 paragraphs rather than 172. `--corpus text` is about
+10,600 and does **not** fit.
+
+### How to read the result, and say it beside the number
+
+**The escalated column will be 4 of 4 on both rows, and that means nothing on its
+own.** A problem keyed to a secondary source can only grade escalated: the engine
+refuses `authority_permits_choice` before any conclusion is compared. So the
+`DIAGNOSTIC` line reports the split, and the split is the entire finding:
+
+| | |
+|---|---|
+| `escalated by the desk` | the brain declined. It read the authority, saw the rules did not settle it, and said so. **This is the number that has never been above zero.** |
+| `escalated by the engine` | the brain answered confidently on interpretive authority and was stopped. Rescued by the record's tier, not by its own judgement. |
+
+**Baselines, printed beside the result.** A desk that escalates every question
+scores 4 of 4 escalated and 4 of 4 escalated-by-desk. That is the ceiling here
+and it is reached by refusing to think, so **this run cannot show that a desk is
+good — only that it is not reckless.** The number starts separating good from
+lazy when `positions/POS1` is ratified: at that point three of the four problems
+have a servable answer, always-escalating scores zero, and the same run measures
+something else entirely. **Say which of the two states the record was in.**
+
+### What to put in NOT-CHECKED.txt, at minimum
+
+- The denominator is **4**, not 16 and not 21. Nothing here is comparable to
+  either earlier run on any axis.
+- **POS1 was unratified at the time of the run** (or was not — say which). While
+  it is unratified the desk holds no ratified position and every problem
+  escalates by construction.
+- The four problems' answers are read off Publication 583's own worked bank
+  reconciliation — which side of the reconciliation it puts an item on. **The
+  facts are composed and the answers are not ours**, and that asymmetry is
+  weaker than the fixed-assets desk, whose facts are verbatim.
+- The subject is an **accounting** convention and both stored sources are **tax**
+  sources. They are what can be reached, not what governs; the literature that
+  governs is FASB ASC, which is `human_only` by licence. That gap is why POS1
+  exists and it is not closed by this run.
