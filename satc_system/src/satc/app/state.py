@@ -708,7 +708,15 @@ class AppState:
         self.store.delete_intake_line_items(rk)
         self.store.save_mart(self.mart)
         self.reload()
+        # WHAT BECAME OF EVERY CONFIRMED VALUE, not just how many lines came
+        # out. D8: the button said "Post 10 confirmed" and the result said
+        # "posted 6", with nothing on the page explaining the four. Nothing was
+        # lost -- two W-2s aggregate onto shared 1040 lines -- but a count that
+        # shrinks without an explanation cannot be told apart from one that did
+        # lose something, and the reviewer's question had no answer anywhere.
+        account = self.gate.posting_account(MAPPING_1040)
         self.posted_summary = {"return_key": rk, "client_id": client_id, "posted": len(items),
+                               "account": account,
                                "lines": [(li.label, float(li.amount) if li.amount is not None
                                           else li.text_value) for li in items]}
         return self.posted_summary

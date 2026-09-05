@@ -267,6 +267,76 @@ class StagingGate:
                 values[m.line_id] = float(sum(amounts))
         return values
 
+    def posting_account(self, mappings: Iterable[LineMapping]) -> dict:
+        """Every confirmed value, and WHAT BECAME OF IT.
+
+        D8, from the walk of 5 September 2026: the button read **"Post 10
+        confirmed"** and the result read **"posted 6 confirmed values"**. Nothing
+        was lost -- two W-2s aggregate onto shared 1040 lines -- but the screen
+        never said so, and the reviewer's obvious question, *"which four did not
+        make it?"*, had no answer anywhere on the page.
+
+        A count that shrinks with no explanation is indistinguishable from a
+        count that lost something. So this returns an account that ADDS UP: every
+        confirmed field lands in exactly one bucket, and the buckets sum back to
+        the number the button promised. There are four ways a confirmed value
+        does not become its own line, and until now all four looked identical
+        from the outside:
+
+          combined       folded into a line with others (the ordinary case)
+          workpaper_only its mapping has no `line_code`, so it feeds the
+                         workpaper and is deliberately not posted to the mart
+          unmapped       no mapping names its path at all
+          no_amount      a money field whose confirmed amount is still empty
+
+        The last two are the ones worth seeing. `unmapped` means a document
+        carried a value nothing knows where to put; `no_amount` means a field
+        was confirmed without a number, which the gate's own edit refusal now
+        makes hard but does not make impossible.
+        """
+        by_path = self.confirmed_by_path()
+        mappings = list(mappings)
+        claimed: set[str] = set()
+
+        posted: list[dict] = []
+        workpaper_only: list[str] = []
+        no_amount: list[str] = []
+
+        for m in mappings:
+            fields = [f for p in m.paths for f in by_path.get(p, [])]
+            if not fields:
+                continue
+            for f in fields:
+                claimed.add(f.field_id)
+            labels = [f.label for f in fields]
+            if not m.line_code:
+                workpaper_only.extend(labels)
+                continue
+            if m.kind != "text":
+                with_amounts = [f for f in fields if f.effective_amount() is not None]
+                if not with_amounts:
+                    no_amount.extend(labels)
+                    continue
+                # A field on a posted line that carries no amount still did not
+                # reach the mart, and saying otherwise is the same overcount in
+                # miniature.
+                no_amount.extend(f.label for f in fields
+                                 if f.effective_amount() is None)
+                labels = [f.label for f in with_amounts]
+            posted.append({"line": m.label or m.line_id, "from": labels})
+
+        unmapped = [f.label for f in self.confirmed() if f.field_id not in claimed]
+
+        return {
+            "confirmed": len(self.confirmed()),
+            "lines": len(posted),
+            "posted": posted,
+            "combined": [p for p in posted if len(p["from"]) > 1],
+            "workpaper_only": workpaper_only,
+            "unmapped": unmapped,
+            "no_amount": no_amount,
+        }
+
     def to_line_items(self, return_key_value: str, mappings: Iterable[LineMapping],
                       *, extractor: str = "intake (confirmed)") -> list:
         """Project confirmed fields onto data-mart ``LineItem`` records.

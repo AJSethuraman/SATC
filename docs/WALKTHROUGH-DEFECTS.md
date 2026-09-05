@@ -175,7 +175,7 @@ and nothing warned.
 
 ![the sentence with the hole in it](walkthrough/satc-front-to-back-2026-09-05/defect-06b-empty-client-key-sentence.png)
 
-## D7 · Two nav items highlight at once
+## D7 · Two nav items highlight at once — **FIXED**
 
 **LOW**, but it is on every intake screen. On `/intake`, `/intake/new` and
 `/intake/plan`, both **Intake** and **Engagements** carry the active background
@@ -184,12 +184,18 @@ on.
 
 ![two highlights](walkthrough/satc-front-to-back-2026-09-05/defect-01-nav-two-highlights.png)
 
-## D8 · "Post 10 confirmed" reports "posted 6 confirmed values"
+## D8 · "Post 10 confirmed" reports "posted 6 confirmed values" — **FIXED**
 
 **LOW.** The button promises ten and the result says six, with nothing
 explaining the difference. It is not a loss — two W-2s aggregate into shared
 1040 lines — but the screen never says so, and the reviewer's question ("which
 four did not make it?") has no answer on the page.
+
+**Fixed with an account that adds up.** `StagingGate.posting_account` puts every
+confirmed value in exactly one bucket — combined, workpaper-only, unmapped, or
+confirmed-without-an-amount — and the buckets sum back to the number the button
+promised. The last two are the ones worth seeing, and until now all four looked
+identical from the outside: a smaller number.
 
 ## D9 · `Box 15 — State` holds the words "income tax" — **FIXED**
 

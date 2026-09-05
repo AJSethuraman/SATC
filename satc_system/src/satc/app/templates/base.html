@@ -13,24 +13,24 @@
       <div class="subtag">ACCOUNTING · TAX · CONSULTING</div>
     </div>
     <nav class="nav">
-      <a href="{{ url_for('today.today') }}" class="{{ 'active' if title=='Today' }}"><span class="ic">★</span> Today</a>
-      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if title=='Dashboard' }}"><span class="ic">▦</span> Dashboard</a>
-      <a href="{{ url_for('intake') }}" class="{{ 'active' if title=='Intake' }}"><span class="ic">⤓</span> Intake</a>
-      <a href="{{ url_for('sort') }}" class="{{ 'active' if 'Sort' in title }}"><span class="ic">⇅</span> Sort &amp; re-label</a>
-      <a href="{{ url_for('staging') }}" class="{{ 'active' if 'Staging' in title }}"><span class="ic">✓</span> Staging</a>
-      <a href="{{ url_for('documents') }}" class="{{ 'active' if title=='Documents' }}"><span class="ic">▤</span> Documents
+      <a href="{{ url_for('today.today') }}" class="{{ 'active' if nav=='today' }}"><span class="ic">★</span> Today</a>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if nav=='dashboard' }}"><span class="ic">▦</span> Dashboard</a>
+      <a href="{{ url_for('intake') }}" class="{{ 'active' if nav=='intake' }}"><span class="ic">⤓</span> Intake</a>
+      <a href="{{ url_for('sort') }}" class="{{ 'active' if nav=='sort' }}"><span class="ic">⇅</span> Sort &amp; re-label</a>
+      <a href="{{ url_for('staging') }}" class="{{ 'active' if nav=='staging' }}"><span class="ic">✓</span> Staging</a>
+      <a href="{{ url_for('documents') }}" class="{{ 'active' if nav=='documents' }}"><span class="ic">▤</span> Documents
         {% if outstanding %}<span class="pill">{{ outstanding }}</span>{% endif %}</a>
-      <a href="{{ url_for('clients_index') }}" class="{{ 'active' if title=='Clients' }}"><span class="ic">◷</span> Clients</a>
-      <a href="{{ url_for('intake.engagements') }}" class="{{ 'active' if title in ['Engagements','New client','Intake'] }}"><span class="ic">☑</span> Engagements</a>
-      <a href="{{ url_for('workflows.workflows_index') }}" class="{{ 'active' if title=='Questionnaires' }}"><span class="ic">?</span> Questionnaires</a>
-      <a href="{{ url_for('comms.comms') }}" class="{{ 'active' if title=='Client comms' }}"><span class="ic">✉</span> Client comms</a>
-      <a href="{{ url_for('work.work') }}" class="{{ 'active' if 'Work' in title }}"><span class="ic">⚒</span> Work queue</a>
-      <a href="{{ url_for('billing.invoices') }}" class="{{ 'active' if 'nvoice' in title }}"><span class="ic">$</span> Invoices</a>
-      <a href="{{ url_for('pricing.pricing') }}" class="{{ 'active' if 'Pricing' in title }}"><span class="ic">≡</span> Pricing</a>
-      <a href="{{ url_for('withholding.withholding') }}" class="{{ 'active' if title=='Withholding' }}"><span class="ic">％</span> Withholding</a>
+      <a href="{{ url_for('clients_index') }}" class="{{ 'active' if nav=='clients' }}"><span class="ic">◷</span> Clients</a>
+      <a href="{{ url_for('intake.engagements') }}" class="{{ 'active' if nav=='engagements' }}"><span class="ic">☑</span> Engagements</a>
+      <a href="{{ url_for('workflows.workflows_index') }}" class="{{ 'active' if nav=='questionnaires' }}"><span class="ic">?</span> Questionnaires</a>
+      <a href="{{ url_for('comms.comms') }}" class="{{ 'active' if nav=='comms' }}"><span class="ic">✉</span> Client comms</a>
+      <a href="{{ url_for('work.work') }}" class="{{ 'active' if nav=='work' }}"><span class="ic">⚒</span> Work queue</a>
+      <a href="{{ url_for('billing.invoices') }}" class="{{ 'active' if nav=='invoices' }}"><span class="ic">$</span> Invoices</a>
+      <a href="{{ url_for('pricing.pricing') }}" class="{{ 'active' if nav=='pricing' }}"><span class="ic">≡</span> Pricing</a>
+      <a href="{{ url_for('withholding.withholding') }}" class="{{ 'active' if nav=='withholding' }}"><span class="ic">％</span> Withholding</a>
       <a href="{{ url_for('export') }}"><span class="ic">⬇</span> Export to Excel</a>
-      <a href="{{ url_for('autonomy.ladder') }}" class="{{ 'active' if 'Autonomy' in title }}"><span class="ic">▲</span> Autonomy</a>
-      <a href="{{ url_for('setup') }}" class="{{ 'active' if title=='Setup' }}"><span class="ic">⚙</span> Setup</a>
+      <a href="{{ url_for('autonomy.ladder') }}" class="{{ 'active' if nav=='autonomy' }}"><span class="ic">▲</span> Autonomy</a>
+      <a href="{{ url_for('setup') }}" class="{{ 'active' if nav=='setup' }}"><span class="ic">⚙</span> Setup</a>
     </nav>
   </aside>
   <main class="main">
