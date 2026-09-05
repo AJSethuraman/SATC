@@ -16,6 +16,37 @@ measured: the same policy written as skill prose was obeyed *"100%, 4%, 0% of
 runs"*; at the API choke point it *"is obeyed always, from every path"*
 (`docs/LOCAL-LLM-PATTERN.md`, rule 6).
 
+## How you actually reach one
+
+```python
+import os, sys
+sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])
+import ask
+
+for desk, brief in ask.consult("the statement shows a $10 service charge and "
+                               "nothing for it is in the books"):
+    ...                                     # read `brief`, then answer from it
+
+ask.answer(question, desk, position="an entry in the books",
+           citation="...", working="why that paragraph settles it")
+```
+
+`skills/ask-desk` is the same thing written for an agent to follow.
+
+**The split is the mechanism.** A model does not choose the desk — routing is a
+comparison, not a judgement. A model does not decide whether its own citation
+holds — the engine does, and refuses. What the model does is the one thing it is
+good at: reading the authority it was handed and proposing a conclusion from it.
+
+**`consult` shows the sources, the firm's RATIFIED positions and the stored
+authority.** Never `PROBLEMS.md`, which is the answer key. Never a PROPOSED
+position, which is one agent's suggestion nobody has said yes to — shown, it
+would let a guess become the next agent's premise.
+
+**Every refusal is kept**, in that desk's `unsupported/` queue with the caller's
+reasoning intact. That queue is the only thing that says what authority is
+missing, so a refusal thrown away is a finding destroyed.
+
 ## Four outcomes, and the order they are reported in
 
 ```
