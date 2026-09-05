@@ -451,37 +451,45 @@ def test_a_served_answer_says_whether_its_subject_could_be_checked():
         "compared — and that must not read as a clean check")
 
 
-def test_most_fixed_assets_problems_touch_none_of_the_desks_own_subjects():
-    """THE THIRD REASON WORD OVERLAP CANNOT DO THIS JOB, and a finding in its
-    own right.
+def test_no_desks_problems_are_invisible_to_its_own_subjects():
+    """THIS TEST USED TO PIN NINE, and closing that is what it was for.
 
-    Nine of the sixteen fixed-assets problems mention not one of that desk's
-    twenty-four declared subjects. So the subject gate could only ever judge
-    seven of them — and it got four of those seven wrong.
+    It read `test_most_fixed_assets_problems_touch_none_of_the_desks_own_subjects`
+    and asserted the exact nine — because nine of `fixed-assets`' sixteen
+    problems mentioned not one of its twenty-four declared subjects, so the
+    subject gate could judge only seven of them and got four of those wrong.
 
-    The cause is that `fires_on` describes how a QUESTION arrives ("should I
-    capitalize this?") while the problems are the regulation's own worked
-    examples, phrased as fact patterns ("A owns a building..."). Two different
-    registers, and nobody had compared them.
+    The cause, once looked at: the subjects were the REGULATION'S vocabulary and
+    the problems are the SITUATION'S. It declared `betterment`, `restoration`,
+    `adaptation`, `unit of property` — the words § 1.263(a)-3 uses to name its
+    tests — and none of the words it uses to name the things the tests are about.
+    `building` appears 117 times in the authority that desk holds and was not a
+    subject of it.
 
-    It also means routing would not reach this desk for nine of its own
-    problems. Whether that matters depends on whether a person's question reads
-    like a regulation example — but it is a fact about the record that was
-    unmeasured until #266 forced the question.
+    Fixed 5 September 2026 by declaring what the authority itself names, measured
+    both ways: nine blind became zero, and the candidates pulled in nothing from
+    any other desk once `plumbing` was dropped — every problem it reached was
+    about a plumbing COMPANY rather than a plumbing SYSTEM.
+
+    So the assertion is now the general one, across every desk. A problem its own
+    desk's subjects cannot see is a row `serve()` reports `checked_subject=False`
+    on: the gate that exists to catch a wrong citation never runs for it.
     """
     touches = engine._canon_touches()
-    desk = record.load(DESKS / "fixed-assets")
-    silent = [p.id for p in desk.problems
-              if not any(touches(p.facts, s) for s in desk.fires_on)]
-    assert silent == ["P3", "P6", "P7", "P8", "P9", "P10", "P12", "P13", "P14"], (
-        f"the set moved to {silent}; re-measure before trusting any check that "
-        f"compares a question to this desk's subjects")
-
-    cash = record.load(DESKS / "cash-and-bank")
-    assert not [p.id for p in cash.problems
-                if not any(touches(p.facts, s) for s in cash.fires_on)], (
-        "every cash problem touches a subject — its facts were composed, and "
-        "that is exactly why it cannot stand in for the measurement above")
+    blind = {}
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        silent = [p.id for p in desk.problems
+                  if not any(touches(p.facts, s) for s in desk.fires_on)]
+        if silent:
+            blind[d.name] = silent
+    assert blind == {}, (
+        f"{blind} touch none of their own desk's subjects. `serve()` cannot "
+        f"check the subject on those rows and says so — declare what the "
+        f"authority itself names, and measure what the new subjects pull in "
+        f"from other desks before keeping them.")
 
 
 def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
@@ -506,28 +514,39 @@ def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
 
 
 def test_off_subject_is_measured_and_the_cost_is_pinned_here():
-    """WHY IT IS NOT WIRED INTO `_check`, as a number rather than an opinion.
+    """WHY IT IS NOT WIRED INTO `_check`, as a number rather than an opinion —
+    AND THE NUMBER GOT WORSE WHEN THE RECORD GOT BETTER, which is the strongest
+    thing anyone has said against this gate.
 
-    Blocking on it would refuse a quarter of the fixed-assets problems answered
-    with their OWN recorded citation — P4 and P5 (the question says only "unit
-    of property"; § 1.263(a)-3(j) does not use the phrase) and P15 and P16 (the
-    question triggers only `263` and `263(a)`, which are routing hooks for a
-    section number, not subjects any authority text repeats).
+    It was 4 of 16: P4 and P5 (the question says only "unit of property", which
+    § 1.263(a)-3(j) does not use) and P15 and P16 (only `263` and `263(a)` fire,
+    and those are routing hooks for a section number, not subjects any authority
+    text repeats). Nine other problems could not be judged at all, because they
+    touched none of that desk's subjects — the gate simply passed on them.
 
-    Comparing against the DESK's subjects instead of the QUESTION's drops that
-    to zero and stops catching the Forge answer, which mentions "cash". Word
-    overlap over-refuses or under-catches; neither is exact enough to block on,
-    and `guards.py` draws the line exactly there.
+    On 5 September 2026 those nine were fixed, by declaring the words the
+    regulation itself uses for the things it governs (`building` appears 117
+    times in the stored authority and was not a subject). The nine became
+    judgeable, and word overlap got **all nine of them wrong**:
 
-    This test exists so the cost cannot be forgotten and the gate cannot be
-    switched on without someone watching this number move.
+        before the subjects were fixed     4 of 16 refused
+        after                             12 of 16 refused
+
+    So it is not merely imprecise. **It degrades as the record improves** — every
+    subject added correctly gives it another right answer to refuse. A gate whose
+    cost rises when the thing it guards gets better is one that measures
+    vocabulary rather than meaning, and `guards.py` draws the line exactly there.
+
+    Kept public, tested and unused, with the cost pinned, so nobody wires it in
+    without watching this number.
     """
     desk = record.load(DESKS / "fixed-assets")
     refused = [p.id for p in desk.problems
                if engine.off_subject(
                    Answer(position=p.answer, citation=p.citation),
                    desk, p.facts)[0]]
-    assert refused == ["P4", "P5", "P15", "P16"], (
+    assert refused == ["P4", "P5", "P6", "P7", "P8", "P9", "P10", "P12", "P13",
+                       "P14", "P15", "P16"], (
         f"the measured false-refusal set moved to {refused}. That is a finding "
         f"either way: the gate got better, or the record changed under it. "
         f"Re-measure before wiring it in."
