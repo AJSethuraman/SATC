@@ -29,7 +29,7 @@ asked in those words.
 
 ## capitalization-and-de-minimis · When a purchase is expensed under the de minimis safe harbour and when it is capitalised
 
-**Answered from S1:** de minimis, de minimis safe harbor, de minimis safe harbour,
+**Answered from S1:** de minimis, de minimis safe harbor, de minimis safe harbour
 safe harbor election, safe harbour election, capitalization threshold,
 capitalisation threshold, capitalize, capitalise, capitalized, capitalised,
 capitalization, capitalisation, capital expenditure, capital expenditures,
@@ -44,6 +44,6 @@ spare parts, standby emergency spare part, consumable, consumables, consumed,
 economic useful life, fuel, lubricants, toner, cartridge, cartridges, 1.162-3,
 162-3
 
-**Answered from S3:** $2,500, $5,000, threshold, thresholds, ceiling, audit
+**Answered from S3:** threshold, thresholds, ceiling, audit
 protection, Notice 2015-82, final tangibles regulations, tangible property
 regulations, Form 3115

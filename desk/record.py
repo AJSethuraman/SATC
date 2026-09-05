@@ -211,6 +211,31 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
     for source_id, listed in declared:
         terms = tuple(t.strip().lower()
                       for t in " ".join(listed.split()).split(",") if t.strip())
+        # A SUBJECT MAY NOT BE A BARE NUMBER, AND THE REASON IS THE SEPARATOR.
+        # This list is comma-separated and a written figure carries a comma, so
+        # `$2,500` was silently parsed as TWO subjects, `$2` and `500` -- and the
+        # figure the firm actually asked about ("What is the capitalisation
+        # threshold?") became a term no question could ever match, while `500`
+        # became a token firing on any question that mentions any $500. Found by
+        # `tools/subject_gaps.py` reporting 276 declared subjects that caught
+        # nothing across 43 real questions.
+        #
+        # Refusing the wreckage is exact and so may block: whole-word matching
+        # makes a bare number a real subject, and `463` declared on one desk fired
+        # on every question containing it. Write `2500`, or name the rule instead
+        # of its figure. Two characters or fewer goes the same way -- there is no
+        # subject that short which is not an accident.
+        for term in terms:
+            bare = term.lstrip("$").replace(".", "")
+            if bare.isdigit() or len(term) < 3:
+                raise RecordError(
+                    f"{desk_name}/SUBJECTS.md declares {term!r} as a subject "
+                    f"answered from {source_id}. A bare number is a whole word, "
+                    f"so it fires on any question that happens to contain it — "
+                    f"and this list is comma-separated, so a written figure like "
+                    f"'$2,500' arrives here already split into '$2' and '500'. "
+                    f"Write the figure without its comma, or name the rule."
+                )
         if not terms:
             raise RecordError(
                 f"{desk_name}: 'Answered from {source_id}' names no subjects")

@@ -11,6 +11,7 @@ import sys
 import pytest
 
 import record
+from record import RecordError
 from conftest import DESKS, ROOT
 
 
@@ -351,3 +352,50 @@ def test_from_source_is_not_under_and_the_difference_is_load_bearing():
     assert not record.under(pub, "IRS Pub. 583 (12/2024)")
     assert record.from_source("IRS Pub. 463 (2025)", "IRS Pub. 463 (2025)")
     assert not record.under("IRS Pub. 463 (2025)", "IRS Pub. 463 (2025)")
+
+
+# ── a subject may not be a bare number, and the separator is why ─────────────
+
+def _subjects(terms: str) -> str:
+    return (f"## demo · A desk\n\n**Answered from S1:** {terms}\n")
+
+
+@pytest.mark.parametrize("terms,offender", [
+    # THE ONE THAT PRODUCED THIS. The list is comma-separated and a written
+    # figure carries a comma, so `$2,500` arrives already split -- and the figure
+    # the firm actually asked about became a subject no question could match,
+    # while `500` became a token firing on any question mentioning any $500.
+    ("$2,500, threshold", "500"),
+    ("$5,000, ceiling", "000"),
+    # a bare section number is a whole word under canon's rule, so one desk
+    # declaring `463` fired on every question containing it
+    ("463, travel", "463"),
+    ("threshold, 263", "263"),
+    ("cash, 446", "446"),
+    # a figure is a bad subject WITH its dollar sign too: whole-word matching
+    # will not reach "$2,500" written the way anybody writes it
+    ("$2500, ceiling", "$2500"),
+])
+def test_a_bare_number_is_refused_as_a_subject(terms, offender):
+    with pytest.raises(RecordError, match="bare number"):
+        record.parse_subjects(_subjects(terms), "demo")
+
+
+@pytest.mark.parametrize("term", ["threshold", "1.263(a)-1", "263(a)",
+                                  "notice 2015-82", "162-3", "form 3115"])
+def test_a_qualified_citation_is_still_a_subject(term):
+    """The guard is exact and so may block — but it must not eat a real subject.
+    `263(a)` and `1.263(a)-1` are not bare numbers and neither is `$2500`."""
+    reg = record.parse_subjects(_subjects(f"{term}, threshold"), "demo")
+    assert term in reg.fires_on
+
+
+def test_no_shipped_desk_declares_a_subject_this_short_or_this_numeric():
+    """Written as a guard over the real record rather than only over a fixture:
+    four of six desks were declaring one when this was added."""
+    from pathlib import Path
+    for d in sorted((Path(__file__).resolve().parents[1] / "desks").iterdir()):
+        if not (d / "SUBJECTS.md").is_file():
+            continue
+        desk = record.load(d)          # raises if any term is degenerate
+        assert all(len(t) >= 3 for t in desk.fires_on), d.name

@@ -19,5 +19,5 @@ false positive is what teaches somebody to stop reading the output.
 **Answered from S1:** capitalize, capitalise, capitalized, capitalised, capitalization,
 depreciate, depreciation, depreciable, improvement, improvements, betterment,
 restoration, repair, repairs, adaptation, basis, useful life, unit of property,
-placed in service, materials and supplies, routine maintenance, 263, 263(a),
+placed in service, materials and supplies, routine maintenance, 263(a),
 1.263(a)-3

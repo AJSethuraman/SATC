@@ -14,6 +14,6 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 ## cash-and-bank · When a difference between the books and the bank is a reconciling item rather than an entry in the books
 
-**Answered from S1:** 1.446-1, 446, method of accounting, clearly reflect income
+**Answered from S1:** 1.446-1, method of accounting, clearly reflect income
 
 **Answered from S2:** cash, bank, bank statement, reconcile, reconciled, reconciles, reconciling, reconciliation, outstanding check, outstanding checks, deposit in transit, deposits in transit, uncleared, cleared, checkbook, service charge, bank charge, petty cash
