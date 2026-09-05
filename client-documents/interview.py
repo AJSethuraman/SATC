@@ -508,6 +508,15 @@ class Interview:
 
     def answer(self, qid: str, value) -> None:
         q = self.question(qid)
+        # THE QUESTION, THEN THE ID -- for EVERY refusal, not just the first
+        # one anybody looked at. On 5 Sep 2026 the required message was fixed
+        # to name the question rather than `federal_form`, and the four
+        # refusals below it were left saying `tax_year needs a tax year
+        # between 2023 and 2027`. A defect fixed on the door somebody walked
+        # and left on the four beside it is the shape this repository keeps
+        # finding, so the phrase is built once here and the raises use it.
+        named = f"“{q.get('question') or qid}”"
+        ident = f" ({qid})"
         # COERCE HERE, NOT ONLY AT THE DOOR. `web.py` coerced before calling
         # this and `cli.py --set` did too, which meant the type rules below
         # held for the two callers that remembered and for nobody else --
@@ -523,8 +532,7 @@ class Interview:
             # The id is kept in parentheses because the CLI's `--set` takes it
             # and somebody debugging needs to be able to search for it: show the
             # jargon AND say what it means, rather than one instead of the other.
-            asked = q.get("question") or qid
-            raise InterviewError(f"“{asked}” needs an answer ({qid}).")
+            raise InterviewError(f"{named} needs an answer{ident}.")
         # A BLANK IS NOT AN ILLEGAL OPTION, it is the absence of one. An
         # optional multiple-choice question left empty has to stay storable, so
         # the offered-values check runs only on an answer that is actually there.
@@ -552,7 +560,8 @@ class Interview:
         if (q.get("type") in ("number", "year") and value not in (None, "", [])
                 and (isinstance(value, bool) or not isinstance(value, int))):
             raise InterviewError(
-                f"{qid} needs a whole number -- that answer is not one")
+                f"{named} needs a whole number -- that answer is not one"
+                f"{ident}")
         # A MINIMUM THE QUESTION DECLARES. Required-ness is
         # `value in (None, "", [])`, and 0 is none of those, so `count_owners: 0`
         # satisfied a required question and printed as `OwnerCount` on the
@@ -561,7 +570,7 @@ class Interview:
         if (q.get("min") is not None and isinstance(value, int)
                 and not isinstance(value, bool) and value < q["min"]):
             raise InterviewError(
-                f"{qid} cannot be less than {q['min']}")
+                f"{named} cannot be less than {q['min']}{ident}")
         # A YEAR IS A DOMAIN TYPE, NOT A NUMBER THAT HAPPENS TO BE FOUR DIGITS.
         # `tax_year` was free text: `x`, `-5`, `99999` and `0` were all accepted
         # and all reached documents. `0` was the worst -- it rendered a return
@@ -573,8 +582,9 @@ class Interview:
                 and not deadlines.plausible_year(value)):
             now = date.today().year
             raise InterviewError(
-                f"{qid} needs a tax year between "
-                f"{now - deadlines.YEARS_BACK} and {now + deadlines.YEARS_FORWARD}")
+                f"{named} needs a tax year between "
+                f"{now - deadlines.YEARS_BACK} and "
+                f"{now + deadlines.YEARS_FORWARD}{ident}")
         # A SHAPE THE QUESTION DECLARES. `client_email` and `client_zip` were
         # free text, and the way a mistyped email fails is silent -- the
         # signing invitation simply never arrives. `pattern_says` carries what
@@ -582,7 +592,8 @@ class Interview:
         if q.get("pattern") and isinstance(value, str) and value.strip():
             if not re.match(q["pattern"], value.strip()):
                 raise InterviewError(
-                    f"{qid} should be {q.get('pattern_says') or 'a valid value'}")
+                    f"{named} should be "
+                    f"{q.get('pattern_says') or 'a valid value'}{ident}")
         if value not in (None, "", []) and not is_offered(q, value):
             # THE REFUSAL MUST NOT REPEAT WHAT WAS SENT. The first version of
             # this message quoted the rejected value, which reads as helpful
@@ -594,7 +605,8 @@ class Interview:
             # knows what it sent.
             offered = ", ".join(o["value"] for o in q.get("options") or [])
             raise InterviewError(
-                f"{qid} does not offer that answer -- it offers: {offered}")
+                f"{named} does not offer that answer -- it offers: "
+                f"{offered}{ident}")
         self.answers[qid] = value
         # DERIVE BEFORE PRUNING. `federal_schedules` is worked out from the
         # facts, and half the fee questions below are gated on it -- change

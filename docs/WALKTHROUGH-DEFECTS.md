@@ -624,11 +624,21 @@ in the code that *displays* the result.
 *Isolated:* with the checkbox clear, the same build succeeds. The option's own
 label promises *"nothing here can stop a pack"*. It stops the pack.
 
-## E2 · An out-of-range tax year is refused in complete silence
+## E2 · An out-of-range tax year is refused in complete silence — **FIXED, and the diagnosis was wrong**
 
 **HIGH.** The interview's third question is *"Which tax year?"*. I answered
 **`1`** and pressed **Next**. The page re-rendered on the same question, with
 `1` still in the box, **no error message of any kind**, and did not advance.
+
+**Corrected on inspection: the page did not re-render, and nothing was refused.**
+No request was made at all. The box carried `min=2023 max=2027`, so Chrome's own
+constraint validation cancelled the submit before it left the machine. The
+engine refuses an out-of-range year correctly and always has — it was never
+reached. Verified in the browser, not inferred: after typing `1` and clicking
+Next, `input.validationMessage` read *"Value must be greater than or equal to
+2023."* and no navigation occurred. Fixed with `novalidate` on the question
+form, so every refusal comes from `Interview.answer` — the door the JSON API and
+`cli.py --set` also meet.
 
 Compare question 1 on the same screen, which at least says something when left
 blank. Here there is nothing to read, so the only available theory is that the
