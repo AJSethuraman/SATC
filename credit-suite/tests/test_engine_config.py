@@ -1,21 +1,19 @@
-"""The engine's `_config` parser must agree with the one it replaces.
+"""The engine's `_config` parser, pinned against the shipped workbook.
 
-Hand-written expectations would prove the parser agrees with what I *believed*
-the legacy parser did. These tests run both implementations over the real
-shipped `_config` tab and compare them field by field, which proves agreement
-with what it actually does -- the only version that matters, because parity is
-measured against the workbook the legacy code produced.
-
-The differential tests are scaffolding with a known end: they are skipped once
-the legacy module is deleted (issue #165 removes it), and the hardcoded-value
-tests below them are what survives. Both are here on purpose -- see the note on
-``test_thresholds_are_numeric_typed`` for why the surviving ones are not merely
-a copy of the differential ones.
+Until 5 September 2026 this file also carried twenty differential tests that
+ran the engine beside the legacy FDIC runner and compared them field by
+field. The legacy runner was deleted by the migration (#166), so every one of
+those tests skipped on every run -- twenty permanent skips that read like an
+environment limit and hid any new skip among them. The firm's answer on the
+docket was "delete them"; the engine-versus-legacy agreement they proved is
+preserved by the Slice-0 parity goldens, which is what `check_parity.py`
+measures. What survives here are the hardcoded-value tests -- see the note on
+``test_thresholds_are_numeric_typed`` for why they are not merely a copy of
+the differential ones.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -26,49 +24,7 @@ from credit_suite.engine import config as engine_config
 from credit_suite.parity import repo_root
 from credit_suite.sources.fdic.spec import FDIC
 
-LEGACY_RUNNER = repo_root() / "fdic-peer-monitor" / "runner.py"
 WORKBOOK = repo_root() / "fdic-peer-monitor" / "Bank_Peer_Monitor.xlsm"
-
-
-_LEGACY_CACHE = {}
-
-
-def _load_legacy():
-    """Import the legacy FDIC runner under its own name, once.
-
-    Two things this has to get right. Its folder must be importable for the
-    duration, because it imports `series_seed` and friends as top-level
-    modules. And the module must be in ``sys.modules`` *before* it executes:
-    ``@dataclass`` resolves its annotations through
-    ``sys.modules[cls.__module__]``, so a module that is not registered yet
-    blows up on its first dataclass.
-    """
-    if "module" in _LEGACY_CACHE:
-        return _LEGACY_CACHE["module"]
-
-    folder = str(LEGACY_RUNNER.parent)
-    added = folder not in sys.path
-    if added:
-        sys.path.insert(0, folder)
-    try:
-        spec = importlib.util.spec_from_file_location("legacy_fdic_runner",
-                                                      LEGACY_RUNNER)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        try:
-            spec.loader.exec_module(module)
-        except Exception:
-            del sys.modules[spec.name]
-            raise
-    finally:
-        if added:
-            sys.path.remove(folder)
-    _LEGACY_CACHE["module"] = module
-    return module
-
-
-legacy = pytest.mark.skipif(not LEGACY_RUNNER.is_file(),
-                            reason="legacy FDIC runner deleted by the migration")
 
 
 @pytest.fixture(scope="module")
@@ -86,58 +42,7 @@ def parsed(config_rows):
 
 
 # --------------------------------------------------------------------------
-# differential: the engine agrees with the code it replaces
-# --------------------------------------------------------------------------
-
-@legacy
-def test_settings_match_the_legacy_parser(config_rows, parsed):
-    assert parsed.settings == _load_legacy().parse_config(config_rows).settings
-
-
-@legacy
-def test_every_threshold_matches_the_legacy_parser(config_rows, parsed):
-    old = _load_legacy().parse_config(config_rows).thresholds
-    assert set(parsed.thresholds) == set(old)
-    assert old, "no thresholds parsed at all -- the comparison proves nothing"
-    for key, want in old.items():
-        got = parsed.thresholds[key]
-        assert (got.watch, got.alert, got.direction) == \
-               (want.watch, want.alert, want.direction), key
-
-
-@legacy
-def test_every_series_field_matches_the_legacy_parser(config_rows, parsed):
-    old = _load_legacy().parse_config(config_rows).series
-    assert len(parsed.series) == len(old)
-    assert old, "no series parsed at all -- the comparison proves nothing"
-    for want, got in zip(old, parsed.series):
-        for name in engine_config.SERIES_HEADER:
-            assert getattr(got, name) == getattr(want, name), \
-                "%s.%s" % (want.id, name)
-
-
-@legacy
-def test_every_entity_row_matches_the_legacy_peer_row(config_rows, parsed):
-    old = _load_legacy().parse_config(config_rows).peers
-    assert len(parsed.entities) == len(old)
-    assert old, "no peers parsed at all -- the comparison proves nothing"
-    for want, got in zip(old, parsed.entities):
-        assert (got.slot, got.key, got.name, got.group, got.active) == \
-               (want.slot, want.cert, want.name, want.group, want.active)
-        assert got.entity_key == want.entity_key
-        assert got.has_entity == want.has_bank
-
-
-@legacy
-def test_derived_settings_match_the_legacy_parser(config_rows, parsed):
-    old = _load_legacy().parse_config(config_rows)
-    assert parsed.raw_slots == old.raw_slots
-    assert parsed.entity_slots == old.peer_slots
-    assert parsed.stale_multiplier == old.stale_multiplier
-
-
-# --------------------------------------------------------------------------
-# what survives the legacy module's deletion
+# the hardcoded-value tests
 # --------------------------------------------------------------------------
 
 def test_the_shipped_config_parses_to_something_worth_comparing(parsed):

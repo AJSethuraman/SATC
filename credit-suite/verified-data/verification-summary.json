@@ -1,0 +1,13 @@
+{
+ "bank_values": 32640,
+ "bank_verified": 28667,
+ "bank_fdic_computed": 3840,
+ "bank_not_comparable": 77,
+ "bank_differs": 0,
+ "macro_observations": 35330,
+ "macro_verified": 24092,
+ "macro_no_source": 11238,
+ "macro_differs": 0,
+ "total_values": 67970,
+ "total_verified": 52759
+}

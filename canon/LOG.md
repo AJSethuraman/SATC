@@ -601,6 +601,357 @@ the docket says so beside the recommendation to merge.
 XBRL; amend L4; ship the chart workbook as an M2 slice; document the red banner
 in `_readme`. Answers to be written here when given.
 
+## 4 September 2026 (night) — the third docket's five answers, and the chain reaches the filing
+
+Five answers, all on the recommendation, all acted on. Recorded here because the
+form is where an answer is given and the log is where it lives.
+
+| decision | answer | what it caused |
+|---|---|---|
+| Merge PR #248 | *Merge it* | `d16e326`. Trends, charts, readable tie-out on main. |
+| Download the filed XBRL | *Yes — download it*, with a question back: *"is this to tie out our api pull to that so we can prove it worked?"* | Yes. The chain now runs filing → components → ratio → workbook. Built into `--tieout --filing`, repeatable for any bank and quarter. |
+| Amend L4 | *Amend L4, cite the tests* | Amended in `TEMPLATE_CONTRACT.md` with both tests cited and the half that still holds kept binding. |
+| Chart workbook ships | *Ship it as an M2 slice* | Issue #252, placed after #208. |
+| The red banner | *Runbook only* | A "Before you start" section in `docs/runbook-live-acceptance.md`: Mark of the Web shown and explained, the one-time unblock, the trusted-folder fix, copy-pastable. Not in `_readme`, per the answer. |
+
+**What the filing check found, in the order it found it.** Capital One (CERT
+4297) and KeyBank (CERT 17534), 2026-06-30, XBRL fetched from `cdr.ffiec.gov`
+by replaying the page's own postback — to the form's *action* URL, which is a
+different page from the one displayed; posting to the displayed page returns the
+page, politely, with no file.
+
+- **The filing is in dollars; the API and workbook are in thousands.** Total
+  assets read 662,157,000,000 in one and 662,157,000 in the others.
+- **Banks with foreign offices file consolidated lines under `RCFD`.** The
+  provenance map cites `RCON` codes and annotates the 031 variant only for
+  total assets. Capital One's `RCON2122` is 449.65 bn; `RCFD2122` is 457.43 bn,
+  and the FDIC's figure is the consolidated one. A reviewer following the map
+  literally to the facsimile would see a 7.78 bn "discrepancy" that is not one.
+- **The map's parentheticals were right and my first parser threw them away.**
+  `RCON2200 (+RCFN2200 031)` — deposits tie only with the 150,000 k$ of
+  foreign-office deposits added. `RCON1766 (031: RCFD1763+1764)` — C&I loans
+  are a different sum for an 031 filer, and it ties to the thousand.
+- **Twelve "raw" fields are ratios and the charge-off flows are year-to-date.**
+  The first run tied a percent to a dollar line and reported a 98 bn
+  difference. Now skipped by unit, and by shape, each with its reason printed.
+- **A regression of my own, caught by the tests and the live run at once:**
+  treating the map's `RCON` as a fixed prefix rather than the convention sent
+  every 031 line to the wrong box. Fixed; `RCON`/`RCFD` are the default
+  resolved consolidated-first, and only `RCFN`/`RIAD` are instructions.
+
+**Result:** 32 of 32 raw dollar lines tie for both banks, 0 differ, 0 absent, 5
+skipped with a stated reason. `RCFD1407 + RCFD1403 = 6,822,000 = NCLNLS`;
+`100 × 6,822,000 / 457,432,000 = 1.4913692089753` = the FDIC's published ratio
+= the workbook. The chain is closed at the source of record for two banks.
+
+**Opened the artifact, three times.** The chart workbook "opened with zero
+dialogs" and a harness read a cell out of it. Exporting charts to PNG through
+Excel and *looking* found: no axis numbers on any chart (openpyxl 3.1 hides
+axes by default); the legend drawn over the data; and on the second pass, the
+legend over the x-axis labels and the y-axis title over the tick numbers. Three
+builds to get a chart a person could read. The harness could not have found any
+of it. The peer overview is now grey context with the median in colour, plus one
+small chart per bank — twelve hues were never going to be readable.
+
+**The four unmigrated monitors, buttons pressed at last.** All day they were
+"verified by file identity". Built from their own folders in a scratch copy and
+driven through real Excel: all four `ran=True`, all four extracted their files.
+
+**Tests written for the tools that had none:** `test_trend.py`, `test_chartbook.py`,
+`test_filing.py` — 41 tests, 15 mutations, including the one that IS the
+consolidated-first regression restored. 278 → 319 passed. 77 → 92 mutations.
+
+**Behaviour 2, again.** "32 open pull requests" was read off a listing. A
+limit-free count says 9; 65 of mine closed since noon. Recorded on the docket.
+
+**Not done, stated:** FRED has no chart workbook (#252). The trend tool trends
+FDIC only. The provenance tab still cites bare `RCON` codes — the tool now
+compensates, but the tab a reviewer reads has not been corrected; that is a
+golden change and wants its own decision.
+
+## 2026-09-04 (evening) — the 670 that nobody believed
+
+**The firm looked at the Capital One stage chart and said:** *"hard for me to
+believe the 670 here is right."* It was right and it was wrong. `NTCONOTQ`
+5,300 k$ charged off against an `LNCONOTH` book of 3,173 k$ at 2022-12-31,
+× 400 = 670.41% annualised — the engine's arithmetic, the FDIC's raw cells,
+tied to the thousand. The book was $3–7M for three years before it grew to
+$8.6B in 2025. A ratio on a near-empty book is arithmetic, not information,
+and the chart drew it faithfully.
+
+**What changed.** `tools/trend.py` now carries a materiality floor:
+`MATERIALITY_FLOOR_K = 100_000` (thousands, so $100M). Every loan-class
+ratio (card, auto, other consumer, C&I, each real-estate class) is blanked
+for a quarter where the bank's book in that class is under the floor. Totals
+and capital ratios are never blanked. On the example monitor that is **625
+bank-metric-quarter values** blanked out of the panel (BNY Mellon 192,
+Morgan Stanley 156 — no card or auto book at all; Capital One 88; Goldman
+80; Citi 69; KeyBank 40). Capital One's other-consumer stage chart now
+starts at 25Q2, the first quarter the book cleared $100M; the stage sheet
+says how many values are blank and why, and the About sheet explains what a
+blank means ("too small to read", not "no data").
+
+**Checked:** 331 passed, 20 skipped (full suite, 176 s) — the 20 are being
+read, see the docket; parity 2/2; conformance 3 notes, all the known M2
+single-sourcing items; the three new mutations (`trend-no-materiality-floor`,
+`trend-materiality-blanks-nothing`, `chartbook-about-forgets-the-blanks`)
+killed; full 95-mutation sweep running as this is written. Opened the
+artifact: Capital One, KeyBank and the peer NCO chart exported through Excel
+and looked at.
+
+**Not decided by me, filed:** #258 — the FDIC's own published `NTCONOTQR`
+(0.0044) does not match the value derived from its raw cells (670.41), and I
+could not reproduce the FDIC's definition (YTD ÷ average balance gave 1.22).
+#259 — a bank with no book in a class reads "OK" on the dashboard rather than
+N/A. Both are output/golden changes; the firm's call. The $100M floor itself
+is a judgement and is on the docket as a decision, not reported as settled.
+
+## 2026-09-05 — the 670 docket, answered
+
+Read back from the docket store at 01:05–01:09 UTC.
+
+- **D1, the $100M floor — no pick.** *"hold on - it's just odd because that
+  calc was all of a sudden really high and inconsistent with the others - it
+  reads like an abnormality. make me believe you recognized the cause."* The
+  floor is not accepted on the strength of a threshold; the cause of the spike
+  has to be shown first. Investigating: the raw series either side of
+  2022-12-31, and the FDIC's own definition of the ratio.
+- **D2, #258 FDIC's published rate vs our derivation — "Investigate first."**
+  *"if we use different data sources how do we either make sure it's still
+  useful or separate it into views that can't be contaminated? like i think
+  FDIC makes more sense if we can't reproduce … we can have multiple sources of
+  data that have diff numbers and mean diff things. if a ratio is calculated
+  using certain numbers, they will always be different."* Lean: use the FDIC's
+  figure if ours cannot be made to reproduce it, and never put the two in one
+  view. And: *"it would help if everything was said in more plain terms - i
+  have no idea what LNCONOTH means without really thinking about it."*
+- **D3, #259 — "Change to N/A."**
+- **D4, the 20 dead skips — "Delete them."**
+- **D5, provenance tab — "Fix the tab."** *"general thing - i dont know what
+  RCON2200 means without looking it up so lets start making things have plain
+  definitions in addition to the code."*
+
+**Standing instruction from D2 and D5, applied from here on:** every code a
+person reads — MDRM, FDIC field, metric id — carries its plain meaning beside
+it, in chart titles, the provenance tab, the tie-out and dockets. The plain
+description is not a substitute for the code (behaviour 15: show the jargon
+and say what it means); it sits next to it.
+
+**Candidate conviction, not yet entered:** *numbers from different sources
+that mean different things never share a column* — from D2's note. To be
+drafted in their words and taken to bassy; nothing enters the record without a
+yes.
+
+## 2026-09-05 — the cause of the 670, and the four decided items built
+
+**D1 — the cause, from the FDIC's own records, not from a threshold.** Capital
+One Bank (USA), N.A. (CERT 33954) merged into Capital One, N.A. (CERT 4297)
+on 3 October 2022 — FDIC `/history`, change code 223 "Merger - Without
+Assistance", acquiring CERT 4297. The spike sits in that quarter. The
+mechanism, proved on the card book to the dollar: the FDIC builds a quarter's
+charge-off flow as the merged bank's December year-to-date **minus both
+banks' September year-to-date** (card: 2,926,715 − 140,331 − 1,767,237 =
+1,019,147 = the published `NTCRCDQ`). For other consumer loans the acquired
+bank had reported **no** other-consumer book and **no** other-consumer
+charge-offs, yet the merged year-end total was $6.3M against the survivor's
+$1.0M through September and a $0.3M-a-quarter run rate. The extra $5.3M is
+the acquired bank's activity landing in a category it never used in its own
+filings, divided by the survivor's $3.2M residual book. A merger artefact,
+not a credit event. Which loans exactly cannot be read from public filings;
+that is stated, not guessed.
+
+**D2 — the FDIC's definition, reproduced.** The FDIC's `NTCONOTQR` is
+quarterly other-consumer net charge-offs × 4 **over average total assets**
+(this and the prior quarter-end), merger-adjusted: it reproduces the
+published figure exactly in 8 of 8 non-merger quarters, and in the merger
+quarter once the acquired bank's $127.6B of September assets are added to the
+prior-quarter base (implied 486.36B = (391.81 + 127.60 + 453.31) / 2). Our
+`NTCONOTQR` divides by the class book. Same code, different ratio. #258 is
+therefore a naming collision, not a data mismatch, and the fix is a decision:
+rename ours so it cannot be mistaken for theirs.
+
+**Built, on the firm's answers:** D3 (#259) — a ratio on a book that does
+not exist reads `N/A`: guarded direct metrics in the engine registry,
+`metric_status` in the digest, the value cell and the Watchlist helper in the
+workbook; FDIC demo golden re-banked after it detected 3,366 cells. D4 — the
+twenty legacy-runner tests deleted with their scaffolding; the suite now
+reports 0 skipped. D5 — the provenance tab's seventeen bare RCON rows carry
+the code that tied live for an 031 filer (JPMorgan, CERT 17534, 2026-06-30);
+a "what it is" column renders every row's plain meaning; 23 raw dollar fields
+got plain descriptions; chart titles say the words and the code.
+
+**A recovery, recorded.** At 21:30 another session auto-stashed this
+checkout's working tree for a scoreboard run and switched the branch. Seventeen
+files of uncommitted work and one untracked test went into `stash@{0}`. All of
+it was recovered into a separate worktree (`C:\Users\ajish\SATC-cs`) and
+verified there; three files touched in the shared tree after the reset were
+put back. One shared checkout between two live sessions is the defect; the
+worktree is the fix from here on.
+
+## 2026-09-05 (later) — the two answers built, and a third thing found
+
+**D1 answered "merger flag only" — so the floor came out.** The firm took the
+cause over the threshold, and they were right to: a $100M floor hid the 670 by
+luck of the book size. On a $500M book the same $5.3M draws a plausible 4.3%
+that nobody questions. `tools/trend.py` now blanks quarterly-flow rates for a
+quarter that spans a merger, from the FDIC's own record, and nothing else:
+balances and 30-89 / 90+ / nonaccrual rates are correct as at the date and are
+left alone.
+
+New `sources/fdic/mergers.py` reads the FDIC history endpoint (one request for
+the whole peer set, `ACQ_CERT:(...)`), keeps six acquisition change codes as an
+allowlist, discards the four known non-acquisition codes by name, and
+**reports** anything else rather than dropping it. A truncated page is refused:
+a merger nobody sees is a quarter nobody marks. The record lands on a new
+`_mergers` tab — contract §2 amended the same day to name it — written by the
+runner on every run, and read back by the tool, so nothing infers a merger
+from the shape of the numbers. Three answers, drawn apart: records, "asked and
+none found", and "never asked" (the demo provider, honestly).
+
+Six real mergers sit in the sixteen-quarter window for these twelve banks:
+Citibank 2022Q3, **Capital One 2022Q4 (the 670)**, JPMorgan and US Bank
+2023Q2, **Capital One 2025Q2 (Discover)**, PNC 2026Q2. Both discontinuities in
+the chart the firm questioned are mergers.
+
+**D2 answered "rename ours" — and the reason turned out to be worse than
+stated.** The FDIC publishes nineteen of the twenty class ratios we compute,
+under exactly our names, over **average total assets** where ours are over the
+loan class. Ours are now `<numerator>_BOOK`. While checking that, the same
+question was put to the fifteen class rates we *land* directly: they are the
+FDIC's, so they are over total assets too — sitting on the loan-book dashboard
+beside ours, under thresholds calibrated for book rates. `P3CRCDR` watches at
+2.5% where the number it watches is 0.86% of assets, so eight early-warning
+flags have been effectively dead. Filed as #268 with two options and a
+recommendation; not changed, because it moves shipped numbers.
+
+**A stale claim, corrected.** `series_seed.py` said these were computed
+because "the R-twin name would exceed the 8-char field limit (unverified)".
+The twins exist and are published. The note now says what is true.
+
+**Checked:** 366 passed, 0 skipped. Parity 2/2 after re-banking the FDIC demo
+golden (158 cells: the ids on `_config` and `_provenance`, 20 Watchlist
+headers, the new tab; no dashboard value moved, flag counts unchanged).
+Conformance clean but for the four known single-sourcing notes. Mutation sweep
+run after all of it.
+
+## 2026-09-05 (night) — both guards, and every rate over its own book
+
+**D3 answered "add the floor back at $100M".** The firm saw what the merger
+flag alone ships — Capital One's other-consumer book was $2–8M for every
+quarter before mid-2025, so the chart drew 28%, −7.8% and 21% — and put the
+size floor back beside it. The two guards are independent and neither is the
+other: the flag says *this quarter mixes two banks*, the floor says *this book
+is too small to read a rate from*. The stage sheet now prints both reasons and
+the size of the largest blanked book, so the reason can be checked rather than
+taken on trust.
+
+**D4 (#268) answered "compute over the book".** The fifteen class rates this
+template landed were the FDIC's own — over average TOTAL ASSETS — sitting on
+the loan-book dashboard beside the twenty computed over the class, under
+thresholds set for book rates. Card 30-89 watched at 2.5% against a number
+that reads 0.86%, so eight early-warning flags could not trip. All fifteen are
+now computed: the dollar numerators are landed (their MDRM codes were already
+in the provenance map, inside the twin rows they were the numerator of), plus
+`LNRELOC`, which gives HELOC a book for the first time. 68 → 69 landed fields;
+35 loan-class rates, every one over its own class.
+
+**The demo values did not move, and that is the proof it was a re-derivation
+rather than a recalibration.** The demo profile seeded a percentage and landed
+it; it now lands `rate/100 × balance` and the engine divides by the same
+balance. 11,332 cells moved in the golden — almost all `Raw_FDIC` column
+identity — and the flag counts held exactly: 50 ALERT, 47 WATCH, 2 alert
+banks, 2 watch banks. On live data the numbers do change, which is the point.
+
+**Deleted: the guarded-direct metric**, one day old. It existed so a landed
+rate could read None on a zero book (#259); a ratio does that by construction,
+so with all fifteen converted it had no users. Removed with its tests, and its
+two mutations re-pointed at the ratio's own zero-denominator guard and at the
+balance a ratio records. A guard with no users is decoration.
+
+**Two bugs the live run caught before any of this shipped:** the history
+endpoint returns a bank's whole life (Wells Fargo to 1972), so the merger
+request now asks only for the charted window — and that window must start on
+the FIRST DAY of the oldest charted quarter, or Citibank's 1 July 2022 merger
+is missed by two months. It was. Both are pinned by tests now.
+
+## 2026-09-05 (late) — a tie-out on KeyBank, and what it found
+
+The firm asked for KeyBank's values tied out. One figure taken the whole way,
+plus the roster: `credit-suite/docs/TIE-OUT-keybank-card-30-89-2026-09-05.md`.
+
+**The figure:** KeyBank's card 30-89 delinquency rate, `Dashboard_LoanBook!D16`
+= **0.92**. Chosen because it is the number #268 moved — it read 0.005 the day
+before, when it was the FDIC's own rate over total assets.
+
+**The chain, every link executed:** the workbook cell and its formula; the one
+FDIC API call with its response; the two raw cells and the arithmetic by hand
+(8,528 / 926,589 x 100 = 0.9203649082818812); and the independent source —
+KeyBank's own **FFIEC 031 Call Report as filed for 6/30/2026**, fetched from
+the FFIEC CDR, with **Schedule RC-N line 5.a column A (RCFDB575) = 8,528** and
+**Schedule RC-C Pt I line 6.a column A (RCFDB538) = 926,589** captured as
+images with the bank name, form type and report date in the same shot. Diff: 0.
+
+**What it found, which is the point.** Three C&I past-due lines came back NOT
+IN FILING. The map cited `1606/1607/1608` — the **form 041** codes. KeyBank
+files **031**, which splits C&I into 4.a US and 4.b non-US, and the filing
+carries our exact landed values under `RCFD1251/1252/1253`. The C&I balance row
+had carried the 031 alternative all along; the past-due rows had never been
+given it. Fixed, pinned by a test, golden re-banked (9 cells, all citations, no
+value moved). **45 of 48 became 48 of 48.**
+
+**Recorded against myself:** reading the HELOC balance off the page image I
+wrote 2,929,670; the filing's XBRL says 2,929,570. The image is small and the
+error was mine. It is in the exhibit, because a tie-out that hides its own
+misreads is worth nothing.
+
+**Marked as not proven:** one bank, one quarter; the chart workbook link is
+asserted rather than executed; and the FFIEC's embedded viewer could not be
+driven by automation, so the two pages were captured from a locally served copy
+of the same filing rather than from the FFIEC page itself.
+
+## 2026-09-05 (night) — the standard: prove the source to the WORKBOOK
+
+The firm, on a roster that reported 53 of 53 tied:
+
+> "ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard"
+
+They were right and it was the sharpest correction of the day. `--tieout`
+called `provider.fetch_series` and compared THAT to the filing. So the roster
+proved *the FDIC's API agrees with the bank's filing* — true, and silent about
+the number in the cell a person opens. The last hop was the one hop it skipped.
+One figure had been checked against the workbook by hand; the other 52 rested
+on "same build, same day", which is an inference wearing a verdict's clothes.
+
+**Fixed.** `engine/workbook.py` gained `read_slot_block`, the mirror of
+`write_slot_block`; the tie-out reads the landed value out of the workbook's
+own raw block, refuses when that block was never filled, prints the exact rows
+it read, and takes the demo/live mode from the status panel the runner writes
+into the workbook rather than from a command-line flag — a fact about the cells
+instead of a claim about the invocation.
+
+**And then:** *"not only that, i want to literally see the screenshot of the
+excel sheet where i can find it, too. like it has to prove it."* So every line
+now carries its cell, printed by Excel with row numbers and column letters
+showing, so the caption's `Raw_FDIC!X164` is a reference you can type into the
+Name Box. 53 cell pictures and 93 filing rows in one 54-page PDF.
+
+**Checked:** 375 passed, 0 skipped; parity 2/2 (the `_code_py` tab is already
+forgiven by MIGRATION_IGNORE, which is why a runner change does not move the
+golden); two new tests and two new mutations, both killed.
+
+**Told the canon agent**, which is updating the tie-out and walk skills: the
+ours-side of a comparison must be read out of the artifact the reader opens,
+and every hop not executed must be listed as assumed.
+
+---
+
+*Two sessions wrote to this log on the same day and the merge conflicted on
+this seam. Both accounts are kept, in the order they were written, because a
+log that drops one session's entries to resolve a conflict is a log that lies
+about what happened. The credit-suite entries above and the canon entries
+below are the same day from two desks.*
+
 ---
 
 ## 5 September 2026 — two sessions wrote to the record at once, and it broke in two ways

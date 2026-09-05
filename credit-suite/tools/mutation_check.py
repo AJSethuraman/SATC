@@ -30,6 +30,7 @@ HERE = Path(__file__).resolve().parent
 PKG = HERE.parent
 SRC = PKG / "src" / "credit_suite"
 GOLDENS = PKG / "tests" / "goldens"
+TOOLS = PKG / "tools"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,12 +48,23 @@ T = "tests/test_parity.py::"
 M = "tests/test_fred_series_ids.py::"
 V = "tests/test_vba_compression.py::"
 S = "tests/test_fred_staleness.py::"
+G = "tests/test_filing.py::"
+R = "tests/test_trend.py::"
+B = "tests/test_chartbook.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
+N = "tests/test_fred_labels.py::"
+F = "tests/test_fred_bar.py::"
+F2 = "tests/test_fred_bar.py::"
 W = "tests/test_engine_workbook.py::"
+N = "tests/test_not_applicable.py::"
+G2 = "tests/test_mergers.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
 N = "tests/test_conformance.py::"
+CY = "tests/test_consistency.py::"
+ID = "tests/test_fdic_identities.py::"
+FC = "tests/test_fred_consistency.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -379,11 +391,164 @@ MUTATIONS: list[Mutation] = [
         "a null component blanks a composite instead of understating it",
     ),
     Mutation(
-        "zero-pull-reported-as-success", SRC / "engine" / "runtime.py",
-        '    return not (expected > 0 and status.get("entities_landed", 0) == 0)',
-        "    return True",
-        (W + "test_zero_pulls_where_pulls_were_expected_is_a_failure",),
-        "a total outage is a failure, not a quiet success over a blank workbook",
+        "partial-pull-reported-as-success", SRC / "engine" / "consistency.py",
+        "    short = expected - landed",
+        "    short = 0",
+        (W + "test_every_entity_that_was_admitted_has_to_land",
+         F2 + "test_run_succeeded_needs_every_pullable_series_to_land",
+         CY + "test_one_series_short_of_the_expected_count_is_a_failure",
+         CY + "test_fred_run_succeeded_refuses_a_partial_pull",
+         CY + "test_engine_run_succeeded_refuses_a_partial_landing"),
+        "C1: a run that landed 141 of 142 is a failure, not a quiet success "
+        "-- the Nebraska hole, in both runners",
+    ),
+    Mutation(
+        "landing-measured-against-the-refusals", SRC / "engine" / "runtime.py",
+        '    expected = status.get("entities_admitted")',
+        '    expected = status.get("entities_active")',
+        (CY + "test_a_refused_entity_is_not_expected_to_land",
+         CY + "test_an_engine_status_with_no_admitted_count_is_UNKNOWN"),
+        "C1 counts the entities that were ADMITTED, not the ones a watchlist "
+        "gate refused and that never land by design",
+    ),
+    Mutation(
+        "pass-over-an-empty-population", SRC / "engine" / "consistency.py",
+        "        if self.verdict == PASS and self.examined == 0:",
+        "        if False:",
+        (CY + "test_a_PASS_over_an_empty_population_is_refused_at_construction",),
+        "the result type refuses to hold PASS over nothing examined",
+    ),
+    Mutation(
+        "nothing-examined-reads-as-ok", SRC / "engine" / "consistency.py",
+        "    if examined == 0:\n        verdict = NONE",
+        "    if False:\n        verdict = NONE",
+        (CY + "test_a_check_that_examined_nothing_says_NONE_and_never_PASS",
+         ID + "test_a_bank_quarter_missing_a_leg_is_not_counted_as_a_pass"),
+        "a check with nothing to look at answers NONE",
+    ),
+    Mutation(
+        "unknown-collapsed-into-pass", SRC / "engine" / "consistency.py",
+        "    elif unknowns:\n        verdict = UNKNOWN",
+        "    elif False:\n        verdict = UNKNOWN",
+        (CY + "test_unknown_alone_is_its_own_verdict_not_a_pass",
+         ID + "test_a_zero_denominator_is_UNKNOWN_rather_than_a_division",
+         ID + "test_the_comparability_sweep_reports_its_denominator",
+         FC + "test_no_previous_run_to_compare_against_is_UNKNOWN"),
+        "UNKNOWN is a third verdict and does not read as PASS",
+    ),
+    Mutation(
+        "merger-record-absent-reads-as-none-found",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "    if record is None:\n        return Comparability(\n            verdict=K.UNKNOWN,",
+        "    if record is None:\n        return Comparability(\n            verdict=COMPARABLE,",
+        (ID + "test_no_merger_record_at_all_is_UNKNOWN_and_never_a_quiet_pass",
+         ID + "test_a_sweep_with_no_merger_record_marks_every_period_unknown"),
+        "`None` (nobody asked) is not `{}` (asked, none found) -- collapsing "
+        "them is how the 670% got onto a chart",
+    ),
+    Mutation(
+        "merger-quarter-reads-as-a-quarter",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "    if not events:",
+        "    if True:",
+        (ID + "test_a_merger_quarter_is_not_comparable_and_carries_the_acquired_bank",
+         ID + "test_the_comparability_sweep_reports_its_denominator",
+         ID + "test_the_six_events_the_deliverable_publishes_are_the_six_it_marks"),
+        "a quarter that spans a whole-bank acquisition is marked NOT "
+        "COMPARABLE and the acquired bank is named",
+    ),
+    Mutation(
+        "ratio-tolerance-wide-open",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "RATIO_TOLERANCE = 1e-12",
+        "RATIO_TOLERANCE = 1.0",
+        (ID + "test_the_ratio_tolerance_is_epsilon_and_not_a_place_to_hide",
+         ID + "test_a_ratio_wearing_the_wrong_denominator_is_caught"),
+        "I2's tolerance is floating-point epsilon, not a place a real fault "
+        "can hide",
+    ),
+    Mutation(
+        "netting-identity-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "        if gross - reserve != net:",
+        "        if False:",
+        (ID + "test_a_reserve_landed_into_the_wrong_field_breaks_the_netting_identity",),
+        "I5: gross less the reserve is net loans, exactly",
+    ),
+    Mutation(
+        "nesting-identity-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "            if inner > outer:",
+        "            if False:",
+        (ID + "test_a_revolving_balance_larger_than_its_parent_is_caught",),
+        "I3: the revolving line is INSIDE the 1-4 family book",
+    ),
+    Mutation(
+        "noncurrent-bucket-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "        if summed > total:",
+        "        if False:",
+        (ID + "test_a_bucket_larger_than_the_total_it_is_drawn_from_is_caught",),
+        "I4: a bucket cannot exceed the total it is drawn from",
+    ),
+    Mutation(
+        "config-cell-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            elif got != want:",
+        "            elif False:",
+        (FC + "test_a_units_label_the_source_corrected_is_caught",),
+        "S1: a units label the artifact still carries and the seed corrected "
+        "is reported",
+    ),
+    Mutation(
+        "config-roster-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    ids = sorted(set(seed) | set(found))",
+        "    ids = sorted(set(seed) & set(found))",
+        (FC + "test_a_series_missing_from_the_artifact_is_caught",
+         FC + "test_a_series_the_seed_does_not_carry_is_caught"),
+        "S1 compares the UNION, so a series on one side only is a finding "
+        "rather than a row nobody examined",
+    ),
+    Mutation(
+        "vintage-skew-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    if len(stamps) > 1:",
+        "    if False:",
+        (FC + "test_a_series_that_did_not_refresh_shows_as_skew",),
+        "C3: two vintages in one run means part of the workbook did not "
+        "refresh",
+    ),
+    Mutation(
+        "vintage-backwards-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            if value and was and value < was:",
+        "            if False:",
+        (FC + "test_a_vintage_that_went_backwards_is_a_failure",),
+        "C3: a vintage that moved backwards refreshed from an older release",
+    ),
+    Mutation(
+        "date-grid-duplicate-blind", SRC / "engine" / "consistency.py",
+        "            if current == previous:",
+        "            if False:",
+        (FC + "test_a_duplicated_date_is_a_failure",),
+        "C5: a duplicated date is a merge fault, and every transform over it "
+        "silently gives a wrong answer",
+    ),
+    Mutation(
+        "date-grid-step-blind", SRC / "engine" / "consistency.py",
+        "            if gap % size:",
+        "            if False:",
+        (FC + "test_a_step_that_is_not_the_declared_cadence_is_a_failure",),
+        "C5: a step that is not the declared cadence is caught",
+    ),
+    Mutation(
+        "date-grid-hole-silent", SRC / "engine" / "consistency.py",
+        "            elif gap // size > 1:",
+        "            elif False:",
+        (FC + "test_an_interior_hole_is_UNKNOWN_rather_than_a_refusal",),
+        "C5: an interior hole is reported as UNKNOWN rather than passing "
+        "silently -- the DRTSSP question nobody has answered",
     ),
     Mutation(
         "secret-invented-when-unset", SRC / "engine" / "provider.py",
@@ -675,6 +840,289 @@ MUTATIONS: list[Mutation] = [
         "",
         (S + "test_every_category_that_was_permanently_stale_now_ships_a_lag",),
         "a category losing its shipped lag is caught, not silently re-flagged",
+    ),
+    # ---- the filing tie-out: the four lessons, each restored as a bug --------
+    Mutation(
+        "filing-forgets-the-units", SRC / "sources/fdic/filing.py",
+        '        return total // DOLLARS_PER_UNIT, "".join(used).lstrip("+")',
+        '        return total, "".join(used).lstrip("+")',
+        (G + "test_the_filing_is_dollars_and_the_workbook_is_thousands",),
+        "filed dollars are compared in thousands, like the API and the workbook",
+    ),
+    Mutation(
+        "filing-domestic-first", SRC / "sources/fdic/filing.py",
+        'PREFIXES = ("RCFD", "RCON")',
+        'PREFIXES = ("RCON", "RCFD")',
+        (G + "test_consolidated_wins_over_domestic_for_an_031_filer",),
+        "consolidated lines are tried before domestic ones",
+    ),
+    Mutation(
+        "filing-treats-rcon-as-an-instruction", SRC / "sources/fdic/filing.py",
+        "        explicit = prefix if prefix and prefix not in PREFIXES else None",
+        "        explicit = prefix or None",
+        (G + "test_consolidated_wins_over_domestic_for_an_031_filer",
+         G + "test_the_mdrm_column_parses_into_primary_alternative_and_optional"),
+        "a bare RCON in the map is the convention, not a fixed prefix",
+    ),
+    Mutation(
+        # The anchor carried a two-argument `_resolve` and the domestic-marker
+        # work gave it a third, so this raised "the code moved" and ABORTED the
+        # whole harness -- every mutation after it went unrun, and the run
+        # still exited through a pipe with status 0. Found 5 Sep 2026 by
+        # running the full set rather than a selection.
+        "filing-drops-the-foreign-office-line", SRC / "sources/fdic/filing.py",
+        "        for opt in expression.optional:\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
+        "        for opt in ():\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
+        (G + "test_a_plus_parenthetical_adds_the_foreign_office_line_when_present",),
+        "the map's (+RCFN... 031) addition is honoured",
+    ),
+    Mutation(
+        "filing-ignores-the-031-alternative", SRC / "sources/fdic/filing.py",
+        "    for terms in ((expression.alternative, True), (expression.primary, False)):",
+        "    for terms in ((expression.primary, False),):",
+        (G + "test_an_031_alternative_is_tried_first_and_used_when_it_resolves",),
+        "the map's (031: ...) alternative is tried first",
+    ),
+    Mutation(
+        "filing-reports-a-partial-sum", SRC / "sources/fdic/filing.py",
+        '            if is_alt:\n                continue\n            return None, ""',
+        '            if is_alt:\n                continue\n            resolved = [r for r in resolved if r]',
+        (G + "test_a_partial_sum_is_refused_not_reported",),
+        "a sum with a missing term is refused, never reported smaller",
+    ),
+    Mutation(
+        "filing-ties-a-ratio-to-a-dollar-line", SRC / "sources/fdic/filing.py",
+        "        if units is not None and units.get(fieldname, DOLLAR_UNIT) != DOLLAR_UNIT:",
+        "        if False:",
+        (G + "test_a_ratio_is_never_reported_as_a_fifteen_billion_difference",
+         G + "test_tie_reports_verdicts_and_skips_ratios_and_flows_with_reasons"),
+        "a percent is never compared to a dollar line",
+    ),
+    # ---- the trend tool ------------------------------------------------------
+    Mutation(
+        "trend-polarity-ignored", TOOLS / "trend.py",
+        '        bad = change if polarity == "up" else -change',
+        '        bad = change',
+        (R + "test_deteriorating_reads_polarity_not_direction",),
+        "deterioration is read from the metric's declared polarity",
+    ),
+    Mutation(
+        "trend-run-length-unsigned", TOOLS / "trend.py",
+        "        return run * sign",
+        "        return run",
+        (R + "test_run_length_is_signed_and_stops_at_the_first_reversal",),
+        "a run of falls is distinguishable from a run of rises",
+    ),
+    Mutation(
+        "trend-derive-guard-inside-the-loop", TOOLS / "trend.py",
+        "                if metric in already_raw:\n                    continue",
+        "                if metric in already_raw or (metric in panels and bank in panels[metric].series):\n                    continue",
+        (R + "test_every_dashboard_metric_is_trendable_not_just_the_raw_fields",),
+        "every derived quarter is filled, not only the first",
+    ),
+    Mutation(
+        "trend-derives-with-its-own-formula", TOOLS / "trend.py",
+        "                    computed = metric_value(metric, values)",
+        "                    computed = (metric_value(metric, values) or 0) + 0.001",
+        (R + "test_derived_metrics_equal_the_engines_own_definition",),
+        "a derived metric is the engine's number, not the tool's",
+    ),
+    # ---- #259: a ratio on a book that does not exist is N/A, not OK ----------
+    Mutation(
+        "engine-ratio-divides-by-an-empty-book", SRC / "engine/metrics.py",
+        "    if num is None or den is None or den == 0:",
+        "    if num is None or den is None:",
+        (N + "test_a_class_ratio_on_a_zero_book_reads_none_not_zero",
+         N + "test_no_book_is_not_applicable_and_no_number_is_blank"),
+        "a rate on a book of zero is None, never a number",
+    ),
+    Mutation(
+        "digest-no-book-reads-blank", SRC / "engine/digest.py",
+        "        return NOT_APPLICABLE\n    return \"\"",
+        "        return \"\"\n    return \"\"",
+        (N + "test_no_book_is_not_applicable_and_no_number_is_blank",),
+        "the digest draws no-book apart from no-number",
+    ),
+    Mutation(
+        "layout-watchlist-forgets-na", SRC / "sources/fdic/layout.py",
+        '                blank = f"IF(OR({bal}=\\"\\",{bal}=0),\\"N/A\\",\\"\\")"',
+        '                blank = "\\"\\""',
+        (N + "test_the_watchlist_helper_says_na_when_the_book_is_zero",),
+        "the Watchlist helper says N/A when the book is zero",
+    ),
+    Mutation(
+        "engine-ratio-forgets-its-book", SRC / "engine/metrics.py",
+        "    fn.balance = den          # the book the ratio stands on (balance_field)",
+        "    fn.balance = None         # the book the ratio stands on (balance_field)",
+        (N + "test_every_metric_knows_the_book_it_stands_on",
+         N + "test_the_watchlist_helper_says_na_when_the_book_is_zero"),
+        "a ratio records the book it stands on, so N/A can be told from blank",
+    ),
+    # ---- the chart workbook --------------------------------------------------
+    Mutation(
+        "chartbook-about-forgets-the-blanks", TOOLS / "chartbook.py",
+        '        "  _mergers tab, never from the shape of the numbers. Balances and 30-89 / 90+ /",',
+        '        "",',
+        (B + "test_the_about_sheet_explains_what_a_blank_means",),
+        "the About sheet a chart's blank points at actually explains the blank",
+    ),
+    Mutation(
+        "chartbook-hides-the-axes", TOOLS / "chartbook.py",
+        "    chart.x_axis.delete = False\n    chart.y_axis.delete = False",
+        "    chart.x_axis.delete = True\n    chart.y_axis.delete = True",
+        (B + "test_every_chart_draws_its_axes",),
+        "every chart draws its axis numbers -- the first build did not",
+    ),
+    Mutation(
+        "chartbook-legend-over-the-data", TOOLS / "chartbook.py",
+        "    chart.legend.overlay = False",
+        "    chart.legend.overlay = True",
+        (B + "test_no_legend_sits_on_top_of_the_plot",),
+        "the legend is given its own space, never drawn over the plot",
+    ),
+    Mutation(
+        "chartbook-twelve-hues", TOOLS / "chartbook.py",
+        "            _style(series, CONTEXT, 1.0)",
+        "            _style(series, HUES[i % len(HUES)], 1.0)",
+        (B + "test_the_peer_overview_is_grey_context_with_one_coloured_median",),
+        "the peer overview is grey context plus one coloured median",
+    ),
+    Mutation(
+        "chartbook-median-is-a-mean", TOOLS / "chartbook.py",
+        "        out.append(statistics.median(got) if got else None)",
+        "        out.append(sum(got) / len(got) if got else None)",
+        (B + "test_the_median_row_is_the_median_of_the_banks",),
+        "the peer line is the median, which one outlier cannot drag",
+    ),
+    # ---- (domestic): the column the FDIC actually publishes ---------------
+    Mutation(
+        "filing-ignores-the-domestic-marker", SRC / "sources/fdic/filing.py",
+        "    order = tuple(reversed(PREFIXES)) if domestic else PREFIXES",
+        "    order = PREFIXES",
+        (G + "test_a_domestic_line_resolves_rcon_before_rcfd",),
+        "a line pinned to domestic offices reads the domestic column",
+    ),
+    Mutation(
+        "filing-marks-every-line-domestic", SRC / "sources/fdic/filing.py",
+        '    domestic = "(domestic)" in expr',
+        "    domestic = True",
+        (G + "test_without_the_marker_the_same_line_reads_consolidated",),
+        "only the lines that carry the marker read domestic-first",
+    ),
+    Mutation(
+        "provenance-drops-the-domestic-pin", SRC / "sources/fdic/provenance_seed.py",
+        '"F160+F161 (domestic)"',
+        '"F160+F161"',
+        (G + "test_the_five_real_estate_balances_are_pinned_to_domestic",),
+        "the five real-estate balances stay pinned to the domestic column",
+    ),
+    # ---- a transient server error must not blank a series -----------------
+    Mutation(
+        "fred-retries-nothing-transient", SRC / "sources/fred/runner.py",
+        "                if _is_transient(exc) and attempt < self._max_retries:",
+        "                if False and attempt < self._max_retries:",
+        (F + "test_transient_server_errors_are_retried",
+         F + "test_the_provider_asks_again_after_a_five_hundred"),
+        "a 5xx or a timeout is asked again instead of blanking the series",
+    ),
+    Mutation(
+        "fred-retries-everything", SRC / "sources/fred/runner.py",
+        "def _is_transient(exc: Exception) -> bool:",
+        "def _is_transient(exc: Exception) -> bool:\n    return True",
+        (F + "test_a_dead_series_id_still_fails_on_the_first_try",),
+        "a dead series id still fails on the first try, as #181 needs",
+    ),
+    # ---- a label has to describe the series it sits next to ---------------
+    Mutation(
+        "labels-swap-the-two-cre-series", SRC / "sources/fred/series_seed.py",
+        '_sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Construction & Land Loans"',
+        '_sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Nonfarm Nonresidential Loans"',
+        (N + "test_the_two_commercial_real_estate_labels_are_not_each_other",
+         N + "test_the_title_says_what_the_publisher_says_it_is[SUBLPDRCSC]"),
+        "the construction and nonfarm-nonresidential labels stay apart",
+    ),
+    Mutation(
+        "labels-tightening-wired-as-demand", SRC / "sources/fred/series_seed.py",
+        '_sloos("SUBLPDHMSENQ", "Net % Banks Tightening Standards for GSE-Eligible Mortgage Loans", "consumer"),',
+        '_sloos("SUBLPDHMSENQ", "Net % Banks Reporting Stronger Demand for Consumer Loans", "consumer", demand=True),',
+        (N + "test_a_tightening_series_is_not_wired_up_as_a_demand_series[SUBLPDHMSENQ]",
+         N + "test_the_title_says_what_the_publisher_says_it_is[SUBLPDHMSENQ]"),
+        "a tightening series keeps its alert instead of being filed as demand",
+    ),
+    # ---- the tie-out reads the workbook, not a fresh fetch ----------------
+    Mutation(
+        "workbook-block-read-as-empty", SRC / "engine/workbook.py",
+        "            if any(v is not None for v in values.values()):\n                out.append((str(period)[:10], values))",
+        "            if False:\n                out.append((str(period)[:10], values))",
+        (G + "test_the_tieout_reads_the_landed_value_out_of_the_workbook",),
+        "the ours-side of a tie-out is read from the workbook's own cells",
+    ),
+    Mutation(
+        "workbook-block-reads-the-wrong-column", SRC / "engine/workbook.py",
+        "                cell = ws.cell(row, rawlayout.field_col(name, self.fields)).value",
+        "                cell = ws.cell(row, rawlayout.field_col(name, self.fields) + 1).value",
+        (G + "test_the_tieout_reads_the_landed_value_out_of_the_workbook",),
+        "each field is read from its own column, not its neighbour's",
+    ),
+    # ---- the merger flag: the 670 recognised, rather than hidden ---------
+    Mutation(
+        "trend-merger-flag-off", TOOLS / "trend.py",
+        "        if metric not in flows:\n            continue",
+        "        if False:\n            continue",
+        (R + "test_the_670_is_blanked_because_the_quarter_spans_a_merger",
+         R + "test_only_the_flow_is_blanked_not_the_balances_or_the_arrears"),
+        "only quarterly-flow rates are blanked, and they ARE blanked",
+    ),
+    Mutation(
+        "trend-unknown-record-treated-as-none", TOOLS / "trend.py",
+        "    if MERGERS_TAB not in wb.sheetnames:\n        return None",
+        "    if MERGERS_TAB not in wb.sheetnames:\n        return {}",
+        (G2 + "test_a_workbook_with_no_merger_tab_reports_unknown",),
+        "a workbook that cannot answer reports UNKNOWN, not 'no mergers'",
+    ),
+    Mutation(
+        "mergers-branch-purchase-counted", SRC / "sources/fdic/mergers.py",
+        "        if code in NOT_AN_ACQUISITION:\n            continue",
+        "        if False:\n            continue",
+        (G2 + "test_a_branch_purchase_is_not_a_merger",),
+        "a branch purchase and the FDIC's mirror rows are not mergers",
+    ),
+    Mutation(
+        "mergers-unknown-code-dropped", SRC / "sources/fdic/mergers.py",
+        "        if code not in ACQUISITIONS:\n            unclassified.append(row)\n            continue",
+        "        if code not in ACQUISITIONS:\n            continue",
+        (G2 + "test_an_unrecognised_change_code_is_reported_not_dropped",),
+        "an unrecognised change code is reported, never silently dropped",
+    ),
+    Mutation(
+        "mergers-quarter-off-by-one", SRC / "sources/fdic/mergers.py",
+        "    end_month = ((month - 1) // 3) * 3 + 3",
+        "    end_month = month",
+        (G2 + "test_the_effective_date_maps_to_the_quarter_that_contains_it",),
+        "the merger lands in the quarter that contains its effective date",
+    ),
+    Mutation(
+        "mergers-truncation-accepted", SRC / "sources/fdic/mergers.py",
+        "    if total is not None and int(total) > limit:",
+        "    if False:",
+        (G2 + "test_a_truncated_history_page_is_refused",),
+        "a truncated merger record is refused, never quietly shortened",
+    ),
+    Mutation(
+        "runner-merger-block-not-written", SRC / "sources/fdic/runner.py",
+        "    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, rows,",
+        "    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, [],",
+        (G2 + "test_the_runner_writes_the_merger_record_onto_the_tab",),
+        "the run writes its merger record where the tools read it",
+    ),
+    Mutation(
+        "runner-unknown-record-reads-as-none", SRC / "sources/fdic/runner.py",
+        '        rows = [["(this run did not fetch a merger record -- nothing here "',
+        '        rows = [["(the FDIC history was read and reports no mergers "',
+        (G2 + "test_a_run_that_never_asked_says_so_rather_than_showing_an_empty_tab",),
+        "a run that never asked says UNKNOWN on the tab, not 'none'",
     ),
 ]
 

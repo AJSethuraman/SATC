@@ -47,12 +47,25 @@ ROOT = os.path.dirname(HERE)
 
 ASOF = date(2026, 3, 31)
 
+#: The FDIC history endpoint's shape, with one real merger in it (Capital One
+#: absorbed its card bank on 3 October 2022 -- the 670% quarter). The provider
+#: asks for this on every prime; a fixture that did not answer would leave the
+#: merger record UNKNOWN and quietly stop testing the path.
+HISTORY_FIXTURE = json.dumps({
+    "meta": {"total": 1},
+    "data": [{"data": {"CERT": 33954, "EFFDATE": "2022-10-03T00:00:00",
+                       "CHANGECODE": 223,
+                       "CHANGECODE_DESC": "Merger -Without Assistance",
+                       "ACQ_CERT": 4297, "OUT_CERT": 33954,
+                       "OUT_NAME": "Capital One Bank (USA), NA"}}],
+}).encode("utf-8")
+
 # v1.1 tab order: LoanBook after Funding_Concentration, _provenance after
 # _config (SPEC_COMPETITOR_PACK.md sec 3 / contract sec 12)
 TABS = ("Dashboard_AssetQuality", "Dashboard_Capital_Earnings",
         "Dashboard_Funding_Concentration", "Dashboard_LoanBook", "Watchlist",
-        "Raw_FDIC", "_config", "_provenance", "_code_py", "_code_vba",
-        "_readme")
+        "Raw_FDIC", "_config", "_provenance", "_mergers", "_code_py",
+        "_code_vba", "_readme")
 
 N_METRICS = 53          # 15 core + 38 v1.1 pack
 
@@ -163,7 +176,7 @@ def test_config_parse():
     unit_ids = {f"s{p.slot:02d}_{s.id}" for p in admitted for s in cfg.series}
     assert len(unit_ids) == 12 * N_METRICS
     assert {"s01_TEXAS", "s12_CRECONR", "s05_RBCRWAJ",
-            "s03_NTCRCDQR", "s07_UNRLZCAPR"} <= unit_ids
+            "s03_NTCRCDQ_BOOK", "s07_UNRLZCAPR"} <= unit_ids
     # capacity is validated, never truncated: a 41st bank refuses with the
     # exact rebuild command (the flexible-peers USER REQUIREMENT)
     cfg.entities.append(_peer(slot=41, cert="99999", name="Overflow Bank"))
@@ -262,13 +275,17 @@ def test_fdic_provider_parse_and_cache(monkeypatch):
 
     def fake_get(self, url):
         calls.append(url)
+        if "history" in url:
+            return HISTORY_FIXTURE
         return ROSTER_FIXTURE if "institutions" in url else _fin_fixture()
 
     monkeypatch.setattr(R.FdicProvider, "_http_get", fake_get)
     prov = R.FdicProvider(min_interval=0.0)
     prov.prime(["628", "3511"], ASOF, names={})
-    # ONE bulk financials call + one roster call -- never per-series requests
-    assert len(calls) == 2
+    # ONE bulk financials call + one roster call + one merger-history call --
+    # never per-series and never per-bank requests
+    assert len(calls) == 3
+    assert sum("history" in c for c in calls) == 1
     fin_url = calls[0]
     assert "financials" in fin_url and "format=json" in fin_url
     assert "CERT%3A%28628+OR+3511%29" in fin_url          # CERT:(628 OR 3511)
@@ -299,7 +316,7 @@ def test_fdic_provider_parse_and_cache(monkeypatch):
     assert prov.roster["628"]["ACTIVE"] == 1
     # cache hit: re-priming the same request makes NO further call
     prov.prime(["628", "3511"], ASOF, names={})
-    assert len(calls) == 2
+    assert len(calls) == 3
     # meta.total > limit refuses CLEARLY -- never silent truncation
     def fat_get(self, url):
         return _fin_fixture(total=20000)
@@ -323,6 +340,8 @@ def test_fdic_provider_backoff(monkeypatch):
         if len(attempts) < 3:
             raise urllib.error.HTTPError(url, 429, "Too Many Requests",
                                          None, None)
+        if "history" in url:
+            return HISTORY_FIXTURE
         return ROSTER_FIXTURE if "institutions" in url else _fin_fixture()
 
     sleeps = []
@@ -330,7 +349,7 @@ def test_fdic_provider_backoff(monkeypatch):
     monkeypatch.setattr(R.time, "sleep", lambda s: sleeps.append(s))
     prov = R.FdicProvider(min_interval=0.0, max_retries=4)
     prov.prime(["628", "3511"], ASOF)
-    assert len(attempts) == 4              # 2 x 429 + financials + roster
+    assert len(attempts) == 5              # 2 x 429 + financials + roster + history
     assert sleeps                          # backoff actually slept
     rows = prov.fetch_series(
         R.make_field_spec(_peer(slot=1, cert="628", name="JPM"), "ASSET"))
@@ -735,12 +754,14 @@ def test_pack_fields_in_bulk_request(monkeypatch):
 
     def fake_get(self, url):
         calls.append(url)
+        if "history" in url:
+            return HISTORY_FIXTURE
         return ROSTER_FIXTURE if "institutions" in url else _fin_fixture()
 
     monkeypatch.setattr(R.FdicProvider, "_http_get", fake_get)
     prov = R.FdicProvider(min_interval=0.0)
     prov.prime(["628", "3511"], ASOF)
-    assert len(calls) == 2                        # STILL one bulk + roster
+    assert len(calls) == 3                        # STILL one bulk + roster + history
     qs = parse_qs(urlparse(calls[0]).query)
     fields = qs["fields"][0].split(",")
     assert fields[:2] == ["CERT", "REPDTE"]
@@ -748,15 +769,18 @@ def test_pack_fields_in_bulk_request(monkeypatch):
     assert len(fields) < 250                      # the FDIC fields= cap
     # spot the pack families: consumer twins, dollar triples, truncated NCO
     # names, balances, SVB fields
-    for f in ("P3CRCDR", "NAAUTOR", "P3RELOCR", "P3CONOTH", "LNCRCD",
+    for f in ("P3CRCD", "NAAUTO", "P3RELOC", "LNRELOC", "P3CONOTH", "LNCRCD",
               "NTCRCDQ", "NTCONOTQ", "NTRECONQ", "NTRENREQ", "NTREMULQ",
               "NTCIQ", "P3RECONS", "NAREMULT", "LNCI", "DEPUNINS", "SCHA",
               "SCHF", "SCAA", "SCAF", "OTHBFHLB"):
         assert f in fields, f
     # the YTD NCO fields are NEVER requested (trap F1) and no un-truncated
     # 9-char name slipped in
+    # the YTD NCO fields, the FDIC's over-total-assets ratio twins (#268),
+    # and any metric id that is not itself a landed field
     for banned in ("NTCRCD", "NTAUTO", "NTCI", "NTRECONS", "NTRECONSQ",
-                   "P3CONOTHR", "EQCCOMPI"):
+                   "P3CRCDR", "NAAUTOR", "P3RELOCR", "NACIR",
+                   "P3CONOTH_BOOK", "P3CRCD_BOOK", "EQCCOMPI"):
         assert banned not in fields, banned
     # every [SERIES] metric's inputs are landed fields (audit trail intact)
     cfg = R.parse_config(BW.config_rows())
@@ -764,38 +788,45 @@ def test_pack_fields_in_bulk_request(monkeypatch):
 
 
 def test_consumer_track_rates():
-    """Hardcoded expectations for the consumer-track transforms: R twins pass
-    through; computed rates are num/den*100; quarterly NCO rates are the Q
-    dollar flow ANNUALIZED x4 over balances; None-tolerant throughout."""
-    # verified R twins are direct (the metric id IS the field)
-    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51}) == pytest.approx(2.51)
-    assert R.metric_value("NARELOCR", {"NARELOCR": 0.7}) == pytest.approx(0.7)
-    assert R.metric_value("P9AUTOR", {}) is None
+    """Hardcoded expectations for the consumer-track transforms: every class
+    rate is num/den*100 over its OWN BOOK, since #268 -- the FDIC's ratio
+    twins divide by total assets and are no longer landed. Quarterly NCO
+    rates are the Q dollar flow ANNUALIZED x4 over balances. None-tolerant
+    throughout."""
+    # the card triple, over the card book
+    assert R.metric_value("P3CRCD_BOOK", {"P3CRCD": 25.1, "LNCRCD": 1000.0}) \
+        == pytest.approx(2.51)
+    assert R.metric_value("NARELOC_BOOK", {"NARELOC": 7.0, "LNRELOC": 1000.0}) \
+        == pytest.approx(0.7)
+    # no book, no rate -- and never a zero (trap F3)
+    assert R.metric_value("P3CRCD_BOOK", {"P3CRCD": 25.1, "LNCRCD": 0}) is None
+    assert R.metric_value("P9AUTO_BOOK", {}) is None
+
     # card NCOq: 10/1000 * 400 = 4.0 (annualized, NTLNLSQR convention)
-    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": 1000.0}) \
+    assert R.metric_value("NTCRCDQ_BOOK", {"NTCRCDQ": 10.0, "LNCRCD": 1000.0}) \
         == pytest.approx(4.0)
-    assert R.metric_value("NTAUTOQR", {"NTAUTOQ": 2.5, "LNAUTO": 1000.0}) \
+    assert R.metric_value("NTAUTOQ_BOOK", {"NTAUTOQ": 2.5, "LNAUTO": 1000.0}) \
         == pytest.approx(1.0)
     # computed PD rates: dollar triple over balance x100
-    assert R.metric_value("P3CONOTHR",
+    assert R.metric_value("P3CONOTH_BOOK",
                           {"P3CONOTH": 15.0, "LNCONOTH": 1000.0}) \
         == pytest.approx(1.5)
-    assert R.metric_value("NACONOTHR",
+    assert R.metric_value("NACONOTH_BOOK",
                           {"NACONOTH": 8.0, "LNCONOTH": 400.0}) \
         == pytest.approx(2.0)
     # commercial floor: truncated-name NCO flows annualize identically
-    assert R.metric_value("NTRECONQR",
+    assert R.metric_value("NTRECONQ_BOOK",
                           {"NTRECONQ": 5.0, "LNRECONS": 1000.0}) \
         == pytest.approx(2.0)
-    assert R.metric_value("NARENRESR",
+    assert R.metric_value("NARENRES_BOOK",
                           {"NARENRES": 12.0, "LNRENRES": 600.0}) \
         == pytest.approx(2.0)
     # None-tolerance: null flow, null balance, zero balance -> blank never 0
-    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": None, "LNCRCD": 1000.0}) is None
-    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": None}) is None
-    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": 0.0}) is None
+    assert R.metric_value("NTCRCDQ_BOOK", {"NTCRCDQ": None, "LNCRCD": 1000.0}) is None
+    assert R.metric_value("NTCRCDQ_BOOK", {"NTCRCDQ": 10.0, "LNCRCD": None}) is None
+    assert R.metric_value("NTCRCDQ_BOOK", {"NTCRCDQ": 10.0, "LNCRCD": 0.0}) is None
     # Excel side is generated from the SAME declarative table (trap F5)
-    fx = BW.metric_formula("NTCRCDQR", 1, 16)
+    fx = BW.metric_formula("NTCRCDQ_BOOK", 1, 16)
     assert "*400))" in fx
     n_ref = BW._fref(1, "NTCRCDQ", 16)
     d_ref = BW._fref(1, "LNCRCD", 16)
@@ -804,9 +835,9 @@ def test_consumer_track_rates():
     # demo determinism: the stress bank trips the consumer bands (spec sec 3)
     prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
     f6548 = prov._profile("6548")[-1][1]
-    assert R.metric_value("NTCRCDQR", f6548) > 4.0        # card NCO ALERT
-    assert R.metric_value("P3AUTOR", f6548) > 4.0         # auto PD ALERT
-    assert R.metric_value("NARERESR", f6548) > 2.0        # resi NA ALERT
+    assert R.metric_value("NTCRCDQ_BOOK", f6548) > 4.0        # card NCO ALERT
+    assert R.metric_value("P3AUTO_BOOK", f6548) > 4.0     # auto PD ALERT
+    assert R.metric_value("NARERES_BOOK", f6548) > 2.0    # resi NA ALERT
 
 
 def test_svb_derived_metrics():
@@ -888,7 +919,7 @@ def test_loanbook_tab(populated):
         # identity flows by formula from [PEERS]
         assert "_config" in str(ws.cell(band_hdr + 1, 1).value)
     # NCO columns annualize x4; twin columns are blank-guarded directs
-    assert "*400))" in str(ws.cell(BW.DASH_HDR + 1, 7).value)   # NTCRCDQR
+    assert "*400))" in str(ws.cell(BW.DASH_HDR + 1, 7).value)   # NTCRCDQ_BOOK
     # Watchlist helpers cover all 53 metrics and point pack metrics at the
     # LoanBook tab (commercial band rows offset below the consumer band)
     wl = wb["Watchlist"]
@@ -896,12 +927,12 @@ def test_loanbook_tab(populated):
     mids = [s.id for s in cfg.series]
     for k, mid in enumerate(mids):
         assert wl.cell(BW.WL_HDR, BW.WL_HELPER_COL0 + k).value == mid
-    k_cons = mids.index("NTCRCDQR")
+    k_cons = mids.index("NTCRCDQ_BOOK")
     h = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_cons).value)
     assert "Dashboard_LoanBook!" in h and "ALERT" in h
-    k_comm = mids.index("NACIR")
+    k_comm = mids.index("NACI_BOOK")
     h2 = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_comm).value)
-    tab, col, first = BW.metric_home("NACIR", 40)
+    tab, col, first = BW.metric_home("NACI_BOOK", 40)
     from openpyxl.utils import get_column_letter
     assert f"Dashboard_LoanBook!{get_column_letter(col)}{first}" in h2
     assert first == hdr2 + 1                     # the commercial band offset
@@ -909,17 +940,17 @@ def test_loanbook_tab(populated):
     # digest statuses agree with the seeded thresholds (values -> statuses)
     status = R.run(populated, demo=True, asof=ASOF)
     b5 = next(b for b in status["digest"]["banks"] if b["cert"] == "6548")
-    assert b5["metrics"]["NTCRCDQR"]["status"] == "ALERT"
-    assert b5["metrics"]["NARENRESR"]["status"] == "ALERT"
+    assert b5["metrics"]["NTCRCDQ_BOOK"]["status"] == "ALERT"
+    assert b5["metrics"]["NARENRES_BOOK"]["status"] == "ALERT"
     b6 = next(b for b in status["digest"]["banks"] if b["cert"] == "6384")
-    assert b6["metrics"]["NTCRCDQR"]["status"] == "WATCH"
+    assert b6["metrics"]["NTCRCDQ_BOOK"]["status"] == "WATCH"
     b4 = next(b for b in status["digest"]["banks"] if b["cert"] == "7213")
     assert b4["metrics"]["UNINSDEPR"]["value"] is None
     assert b4["metrics"]["UNINSDEPR"]["status"] == ""     # blank, not OK/0
     assert any("DEPUNINS" in n for n in b4["notes"])      # the blank+note
     # per-band medians exist in the digest too (peer-median per column)
-    assert status["digest"]["medians"]["NTCRCDQR"] is not None
-    assert status["digest"]["medians"]["NACIR"] is not None
+    assert status["digest"]["medians"]["NTCRCDQ_BOOK"] is not None
+    assert status["digest"]["medians"]["NACI_BOOK"] is not None
 
 
 def test_provenance_tab(populated):
@@ -953,15 +984,31 @@ def test_provenance_tab(populated):
     # spot-verify content against PROVENANCE_MAP_FDIC.md
     assert rows["DEPUNINS"]["mdrm"] == "RCON5597"
     assert rows["DEPUNINS"]["schedule"] == "RC-O Mem 2"
-    assert rows["SCHA"]["mdrm"] == "RCON1754"
+    assert rows["SCHA"]["mdrm"] == "RCON1754 (RCFD1754 031)"
     assert rows["NTRECONQ"]["flag"] == "[V]"
     assert "NTRECONSQ" in rows["NTRECONQ"]["notes"]       # truncation quirk
-    # honesty flags carried: unmapped MDRMs say so instead of inventing
-    assert rows["NTRERESQ"]["flag"] == "[~]"
-    assert "not in tie-out map" in rows["NTRERESQ"]["mdrm"]
+    # Honesty flags are still carried -- but the example changed on
+    # 5 September 2026. NTRERESQ used to be the unmapped one, and being
+    # unmapped is exactly why the tie-out never reached it: it only checks
+    # fields the map cites. It now carries its real citation and [V].
+    assert rows["NTRERESQ"]["flag"] == "[V]"
+    assert rows["NTRERESQ"]["mdrm"] == \
+        "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218"
+    # The one remaining [~] is a field the FDIC publishes no quarterly
+    # variant of, so the column is blank for every bank. The citation says
+    # where the number would come from; the flag says it was never
+    # confirmed against a landed value, because there is none.
+    assert rows["NTRENREQ"]["flag"] == "[~]"
+    assert "NOT PUBLISHED" in rows["NTRENREQ"]["notes"]
+    # And no row anywhere still claims to have no citation at all.
+    assert not [f for f, r in rows.items()
+                if "not in tie-out map" in (r["mdrm"] or "")]
     assert rows["UNRLZCAPR"]["mdrm"] == \
         "((1754-1771)+(1772-1773)) / (3210+3123)"
-    assert "RCOA7204" in rows["RBC1AAJ"]["mdrm"]
+    # RCOA is the form-041 prefix; these banks file 031, where the code is
+    # RCFA. Cited without the 031 twin it parsed and then resolved to
+    # nothing on all twelve filings.
+    assert rows["RBC1AAJ"]["mdrm"] == "RCOA7204 (031: RCFA7204)"
 
 
 def _tieout_blocks(out):
@@ -976,7 +1023,7 @@ def _tieout_blocks(out):
     blocks, current, name = {}, [], None
     for line in out.splitlines():
         stripped = line.strip()
-        head = re.match(r"^([A-Z0-9]+) = (-?[\d,]+\.\d\d|\(blank\))$", stripped)
+        head = re.match(r"^([A-Z0-9_]+) = (-?[\d,]+\.\d\d|\(blank\))$", stripped)
         if head:
             if name:
                 blocks[name] = current

@@ -16,13 +16,14 @@ inside it as plain-text tabs. Emailing the workbook transfers the whole tool.
 
 | Tab | Content |
 |-----|---------|
-| `Dashboard_<Lane>` (1..n) | Formula-driven panels; no native charts (L4) |
+| `Dashboard_<Lane>` (1..n) | Formula-driven panels; no native charts in the refreshed workbook (L4, amended 4 Sep 2026 — charts live in a generated secondary workbook) |
 | `Watchlist` | The gated lane (FRED template: `Watchlist_Geo` — grandfathered) |
 | `Raw_<PROVIDER>` (1..n) | Fixed-anchor raw blocks, newest-first; runner writes, formulas read |
 | `_config` | `[SETTINGS]` / `[THRESHOLDS]` / `[SERIES]` — the knob panel, source of truth |
 | `_code_py` | The FULL runner source, one line per cell in column A, pure ASCII (L3) |
 | `_code_vba` | The macro source (minus `Attribute` lines), paste-ready |
 | `_readme` | Setup, run steps, provider notes, compliance/UNKNOWN flags |
+| `_mergers` (optional) | The provider's own merger record for the monitored entities, and the quarters whose flows it makes uncomparable. Added 5 Sep 2026: a chart drew a 670% charge-off rate that was a merger artefact, and the guard has to be the merger record rather than a size threshold. Written by the runner each run; a tool reads it rather than inferring a merger from the numbers. |
 
 ## 3. `_config` schema
 
@@ -157,3 +158,26 @@ append there and to this contract.
   `number >= text` comparison is silently FALSE: a `"0.5"` text cell
   downgraded every ALERT to WATCH in the macro build. Recalc verification
   must compare statuses, not just values.
+- **L4, amended 4 September 2026 — tested, half of it did not reproduce.**
+  L4 as written (BUILD_SPEC_BUREAU.md) gives two grounds for "no native
+  charts": they are *"the top unreadable-content / recovered trigger"*, and
+  they *"re-emit on every refresh"*. Both were tested on the Windows build
+  PC in Excel 16.0 (Click-to-Run, 16.0.20326) rather than inherited:
+  - A native openpyxl `LineChart` in a bare `.xlsx` opened with **zero
+    dialogs**. The same chart added to the real `Bank_Peer_Monitor.xlsm`
+    beside its VBA project also opened with **zero dialogs, and the
+    ExtractFiles macro still ran** afterwards. The corruption ground does
+    not reproduce on this Excel. Recorded as a test result, not a proof
+    for every Excel that exists.
+  - The refresh ground is still true and is the binding one: the runner
+    rewrites the monitor on every run, so any chart in it is regenerated
+    each time and an analyst's customisation is lost.
+  **So L4 now reads:** no native charts in the *refreshed* workbook. A
+  **generated secondary chart workbook** — rebuilt wholesale, never edited
+  in place, no macros — is the sanctioned home for charts
+  (`credit-suite/tools/chartbook.py`). Its own carried lesson, learned the
+  same day: **look at a rendered chart before calling it done.** The first
+  two builds "opened with zero dialogs" and had no axis numbers and a legend
+  drawn over the data; a harness reading a cell cannot see either. Export
+  a chart to PNG through Excel and read it. Decided by the firm on the
+  4 September docket: *"Amend L4, cite the tests."*

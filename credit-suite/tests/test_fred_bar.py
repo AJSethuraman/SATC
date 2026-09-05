@@ -464,13 +464,81 @@ def test_evaluate_alert_zscore_fires_on_or_above_band():
 
 
 # --------------------------------------------------------------------------
-# A total-fetch failure must NOT read as success (never trust the exit code)
+# A PARTIAL fetch failure must NOT read as success either (the Nebraska hole)
 # --------------------------------------------------------------------------
-def test_run_succeeded_flags_zero_pull():
-    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 5}) is True
+def test_run_succeeded_needs_every_pullable_series_to_land():
+    """The first line read ``is True`` until 5 September 2026. The gate asked
+    for AT LEAST ONE, so one HTTP 500 on the Nebraska house price index gave
+    pulled = 141 of 142, exit code 0, and a workbook on the desk with a state
+    missing from it."""
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 5}) is False
     assert R.run_succeeded({"series_pullable": 10, "series_pulled": 0}) is False   # total failure
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 10}) is True
     assert R.run_succeeded({"series_pullable": 0, "series_pulled": 0}) is True     # nothing to pull
 
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# --------------------------------------------------------------------------
+# a transient server error is asked again; a dead series id is not
+# --------------------------------------------------------------------------
+
+def test_transient_server_errors_are_retried():
+    """Nebraska's house price index shipped BLANK in a live workbook because
+    FRED answered one request with `Internal Server Error` and nothing asked
+    twice. The run recorded the error honestly and passed anyway, so the hole
+    reached the artifact.
+    """
+    import urllib.error
+
+    assert R._is_transient(Exception("Internal Server Error"))
+    assert R._is_transient(Exception("HTTP Error 503: Service Unavailable"))
+    assert R._is_transient(Exception("The read operation timed out"))
+    assert R._is_transient(urllib.error.HTTPError("u", 500, "x", None, None))
+    assert R._is_transient(urllib.error.HTTPError("u", 502, "x", None, None))
+
+
+def test_a_dead_series_id_still_fails_on_the_first_try():
+    """Retrying "the series does not exist" would hide exactly what #181 was
+    caught by: eleven metro ids FRED does not publish, failing loudly."""
+    import urllib.error
+
+    assert not R._is_transient(Exception("Bad Request. The series does not exist."))
+    assert not R._is_transient(urllib.error.HTTPError("u", 400, "x", None, None))
+    assert not R._is_transient(Exception("404 series not found"))
+    # rate limits keep their own, longer, backoff
+    assert not R._is_transient(Exception("429 Too Many Requests"))
+    assert R._is_rate_limit(Exception("429 Too Many Requests"))
+
+
+def test_the_provider_asks_again_after_a_five_hundred():
+    """Drive it: fail once with a 500, succeed on the retry, and the caller
+    gets the series rather than a blank."""
+    import pandas as pd
+
+    calls = []
+
+    class Flaky:
+        def get_series(self, series_id, **kwargs):
+            calls.append(series_id)
+            if len(calls) == 1:
+                raise Exception("Internal Server Error")
+            return pd.Series([551.5], index=pd.to_datetime(["2026-04-01"]))
+
+    provider = R.FredProvider.__new__(R.FredProvider)
+    provider._fred = Flaky()
+    provider._max_retries = 2
+    provider._realtime_end = None
+    provider._throttle = lambda: None
+    import time as _time
+    slept = []
+    original, _time.sleep = _time.sleep, slept.append
+    try:
+        got = provider.fetch("NESTHPI")
+    finally:
+        _time.sleep = original
+    assert len(calls) == 2, "the 500 was not retried"
+    assert float(got.iloc[0]) == 551.5
+    assert slept and slept[0] > 0, "it retried without backing off"
