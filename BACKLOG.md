@@ -179,7 +179,7 @@ research pass before a spec, no exceptions.
 ## Done log
 
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
-  857 of 862 tie.** Each figure on the ours side read out of the shipped
+  862 of 862 tie.** Each figure on the ours side read out of the shipped
   workbook -- the cell a person opens, never re-fetched -- and each on the
   other side taken off a document published by somebody else: a bank's own
   filed Call Report, or the agency that computes a macro series (FHFA, the
@@ -219,6 +219,16 @@ research pass before a spec, no exceptions.
   Still owed: the eight FDIC-computed ratios per bank (now named, not
   omitted), the alert logic built on these figures, and every period except
   the latest.
+  **Third edition: the PNC finding was withdrawn.** Two editions reported
+  five PNC lines as differences and said the FDIC disagreed with itself.
+  PNC absorbed FirstBank of Lakewood CO (cert 18714) on 18 June 2026, and a
+  quarterly flow across a merger must also subtract the acquired bank's
+  prior year-to-date. Every gap equalled FirstBank's figure to the dollar,
+  and the two fields that tied are the two where it was zero. The
+  workbook's own `_mergers` tab recorded the merger and explained the
+  arithmetic; the tie-out queried an API, filtered on the wrong date field,
+  and believed the empty answer. All 862 data points tie. The flow
+  derivation now consults the merger record.
 
 - 2026-09-03 -- FRED template (#1) hardening + contract-alignment pass (part of
   the §2 debt): adversarial re-verification (4 agents: test+mutation, hazard

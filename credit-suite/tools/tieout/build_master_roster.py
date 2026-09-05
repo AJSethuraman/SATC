@@ -90,8 +90,8 @@ p.append('<div class="headline"><b>%d of %d data points tie. %d differ. '
          'of the shipped workbook &mdash; the cell a person opens &mdash; and '
          'never re-fetched. Every figure on the other side came off a document '
          'published by somebody else: a bank\'s own filed Call Report, or the '
-         'agency that computes a series. The five that differ are set out '
-         'first.</p>'
+         'agency that computes a series. Nothing differs. What the check '
+         'found, and what I got wrong, are set out below.</p>'
          '<p style="margin:10px 0 0"><b>What that denominator is made of.</b> '
          'Each bank has %d raw fields, so the bank monitor holds %d of them; '
          '%d are compared here. The rest, per bank, are %d ratios the FDIC '
@@ -122,30 +122,33 @@ p.append('<div class="note"><b>The first edition said 776 of 778, and did '
          'omitted.</p></div>')
 
 p.append("<h2>What does not tie</h2>")
-p.append('<div class="note"><b>Five lines, all PNC Bank, and the workbook is not '
-         'the side that is wrong.</b>'
-         '<p style="margin:10px 0 0">Every quarterly net-charge-off field '
-         'PNC reports differs from the bank\'s own filed report: credit cards '
-         'by 515, C&amp;I by 652, other consumer by 102, residential real '
-         'estate by 6 and construction by 188 thousand dollars. The first '
-         'edition found two of them, because the other three were not being '
-         'checked at all. The workbook '
-         'carries the FDIC\'s published quarterly figure to the dollar, and the '
-         'FDIC\'s own year-to-date figure matches PNC\'s filing exactly. What '
-         'does not reconcile is the FDIC\'s own arithmetic:</p>'
-         '<pre>' + esc(TABLE) + '</pre>'
-         '<p>' + RECON + ' '
-         'No merger explains it: PNC\'s only 2026 acquisition events are branch '
-         'transfers dated 6 July 2026, after the reporting date.</p>'
-         '<p><b>I believe the filing</b>, because it is the document the bank '
-         'signed and the FDIC\'s own annual figure agrees with it. Nothing was '
-         'adjusted. The workbook faithfully carries what its source published, '
-         'and this is written down rather than plugged.</p></div>')
+p.append('<div class="note win"><b>Nothing. All %d tie.</b>'
+         '<p style="margin:10px 0 0">The first two editions of this roster '
+         'reported five PNC lines as differences and said the FDIC disagreed '
+         'with itself. <b>That was my error.</b> PNC merged FirstBank of '
+         'Lakewood, Colorado (cert 18714) into itself on 18 June 2026, twelve '
+         'days before the reporting date. A quarterly flow is the year-to-date '
+         'total less the previous quarter&rsquo;s &mdash; and across a merger '
+         'the acquired bank&rsquo;s prior year-to-date has to come off too, '
+         'because the survivor&rsquo;s total already contains it. I subtracted '
+         'only PNC&rsquo;s own, so every gap equalled FirstBank&rsquo;s figure '
+         'to the dollar, and the two fields that did tie are the two where '
+         'FirstBank&rsquo;s figure was zero.</p>'
+         '<p>The workbook had already worked this out. Its <code>_mergers</code> '
+         'tab records the acquisition and says the quarter &ldquo;spans a '
+         'merger &hellip; and is not a quarter of anything&rdquo;. I never '
+         'opened it &mdash; I queried the regulator&rsquo;s history API instead, '
+         'filtered on processing date, saw only branch transfers dated 6 July '
+         '2026, and wrote &ldquo;no merger explains it&rdquo; into twelve '
+         'exhibits and this roster. PNC&rsquo;s own exhibit sets it out in '
+         'full.</p></div>' % total)
 
 p.append("<h2>What the tie-out found</h2>")
-p.append("<p>Nine defects, and every one of them left the numbers correct, "
-         "which is why a suite that now runs 541 tests had never seen any "
-         "of them.</p>")
+p.append("<p>Eight defects, and every one of them left the numbers "
+         "correct, which is why a suite that now runs 541 tests had never "
+         "seen any of them. A ninth was reported in the first two "
+         "editions and has been withdrawn: it was my arithmetic, not a "
+         "defect, and it is in <i>what I got wrong</i> instead.</p>")
 p.append("""<ol>
 <li><b>A shipped workbook with a state missing from it.</b> Nebraska's house
 price index was blank. One <code>Internal Server Error</code> from the data
@@ -163,9 +166,6 @@ them. <i>Fixed.</i></li>
 <li><b>Four series declaring &ldquo;billions&rdquo; beside a figure in
 millions</b> &mdash; a factor of a thousand on the line a person reads.
 <i>Fixed.</i></li>
-<li><b>The FDIC's own quarterly and annual figures for PNC do not
-reconcile</b>, on all five of its quarterly charge-off fields. Reported above;
-nothing changed, because our side is right.</li>
 <li><b>Seven fields had no citation at all</b> &mdash; the workbook landed a
 value and nothing recorded where it came from, so the tie-out never reached
 them. <i>Fixed: all seven cited and tied.</i></li>
@@ -228,6 +228,28 @@ p.append('<tr><td class="mono">keybank-card-30-89-2026-09-05/</td>'
          'KeyBank lines</td></tr>')
 p.append("</tbody></table>")
 
+p.append("<h2>What I got wrong</h2>")
+p.append("""<ul>
+<li><b>The PNC finding, which was the headline of two editions.</b> I
+reported that five of PNC's quarterly charge-off lines did not tie and that
+the FDIC disagreed with itself. PNC had absorbed FirstBank of Lakewood,
+Colorado twelve days before the reporting date, and a quarterly flow across a
+merger must also subtract the acquired bank's prior year-to-date. Every gap
+equalled FirstBank's figure exactly. <b>The workbook's own merger tab said so
+and I never opened it</b> &mdash; I queried an API, filtered on the wrong
+date field, and trusted the answer that came back empty.</li>
+<li><b>I reported complete coverage while checking 53 of 69 fields per
+bank</b>, and only found out because the firm asked.</li>
+<li><b>Six of my first twelve source photographs were blank</b> and reported
+success, because <code>window.scrollBy</code> captures empty in headless
+Chrome. I only know because I opened them.</li>
+<li><b>A patch that said &ldquo;four defects&rdquo; above a list of five</b>
+shipped in the macro exhibit, because the edit that should have changed it
+matched nothing and said nothing.</li>
+<li><b>Three citation errors of my own</b>: C&amp;I charge-offs to U.S.
+addressees only, the wrong column of the capital ratio for the one bank that
+files two, and the archived debt-service page instead of the current one.</li>
+</ul>""")
 p.append("<h2>What this does not prove</h2>")
 p.append("""<ul>
 <li><b>One quarter for the banks, one observation for the macro series.</b> The

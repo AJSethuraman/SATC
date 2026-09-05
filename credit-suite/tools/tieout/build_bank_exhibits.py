@@ -232,35 +232,7 @@ def roster_table(bank):
     return "\n".join(rows)
 
 
-PNC_FINDING = """
-<h2>What this found</h2>
-<div class="note"><b>Five lines do not tie, and the workbook is not the one that
-is wrong.</b>
-<p style="margin:10px 0 0">Every quarterly net-charge-off field PNC reports
-differs from the bank's own filed report: credit cards by 515, C&amp;I by 652,
-other consumer by 102, residential real estate by 6 and construction by 188
-thousand dollars. The first edition of this document found two of these,
-because the other three fields were not being checked at all. The workbook carries the FDIC's published
-quarterly figure to the dollar, and the FDIC's own year-to-date figure agrees
-with PNC's filing exactly. What does not add up is the FDIC's own arithmetic:</p>
-<pre>field       FDIC Q1 + FDIC Q2   =   sum      FDIC year-to-date   gap
-NTCRCDQ       43,842 +  47,617  =   91,459          91,974       515
-NTCIQ        101,857 + 109,201  =  211,058         211,710       652
-NTCONOTQ      15,470 +  10,994  =   26,464          26,566       102
-NTRERESQ       1,113 +   1,880  =    2,993           2,999         6
-NTRECONQ         -48 +    -571  =     -619            -431       188
-
-and PNC's own filed Call Report agrees with the year-to-date column,
-not with the sum of the two quarters.</pre>
-<p>The same reconciliation across all twelve banks and all seven quarterly flow fields the FDIC publishes holds <b>79 times out of 84</b>. The five that fail are all PNC, and they are exactly the five lines above. There is no merger in the quarter to explain it: PNC's
-only 2026 acquisition events are branch transfers dated 6 July 2026,
-after the reporting date.</p>
-<p><b>Which side do I believe?</b> The filing. It is the document the bank
-signed, and the FDIC's own year-to-date agrees with it. The quarterly field is
-derived, and for these two lines the derivation does not reconcile to its own
-annual figure. <b>I did not adjust anything.</b> The workbook faithfully carries
-what its source published, and this is written down rather than plugged.</p></div>
-"""
+MERGER_CORRECTION = '<div class="note"><b>What I got wrong on this bank, and it was the headline of the first two editions.</b><p style="margin:10px 0 0">Those editions reported that five of PNC\'s quarterly charge-off lines did not tie, that the FDIC\'s own quarterly and annual figures disagreed with each other, and that I believed the filing over the FDIC. <b>All of that was mine.</b> PNC merged <b>FirstBank</b> of Lakewood, Colorado (cert 18714) into itself on <b>18 June 2026</b>, twelve days before the reporting date. A quarterly flow is the year-to-date total less the previous quarter\'s &mdash; and across a merger the acquired bank\'s prior year-to-date has to come off as well, because the survivor\'s total already contains it. I subtracted only PNC\'s own.</p><pre>field      Q2 year-to-date   less PNC Q1   less FirstBank Q1   = quarter   FDIC\nNTCRCDQ             91,974        43,842                 515      47,617  47,617\nNTCIQ              211,710       101,857                 652     109,201 109,201\nNTCONOTQ            26,566        15,470                 102      10,994  10,994\nNTRERESQ             2,999         1,113                   6       1,880   1,880\nNTRECONQ              -431           -48                 188        -571    -571\nNTAUTOQ             17,837        10,233                   0       7,604   7,604\nNTREMULQ              -273          -286                   0          13      13</pre><p>Every gap equalled FirstBank\'s Q1 figure exactly, and the two fields that did tie are the two where FirstBank\'s figure was zero. That is not a coincidence; it is the shape of the mistake.</p><p><b>The workbook had already worked this out.</b> Its <code>_mergers</code> tab records the acquisition and says, in its own words, that the quarter ending 2026-06-30 &ldquo;spans a merger &hellip; a quarterly flow is the year-to-date total less the previous quarter\'s, so across a merger it mixes two banks and is not a quarter of anything.&rdquo; I never opened that tab. I queried the regulator\'s history API instead, filtered on processing date, saw only branch transfers dated 6 July 2026, and wrote &ldquo;no merger explains it&rdquo; into twelve exhibits and a roster.</p><p><b>So all 60 lines tie.</b> And the workbook is still right to treat this quarter as not comparable: the figure is arithmetically correct and it mixes two banks, which is why the trend tooling blanks flows across a merger rather than charting them.</p></div>'
 
 
 def build(bank):
@@ -353,8 +325,9 @@ form-041 prefix, on twelve banks that all file 031, where it is
             % esc(unpublished[0]["field"]))
     parts.append("<h2>Every line</h2>")
     parts.append(roster_table(bank))
-    if bad:
-        parts.append(PNC_FINDING if cert == "6384" else "")
+    if bank.get("merger_in_quarter"):
+        parts.append("<h2>A correction, and a merger</h2>")
+        parts.append(MERGER_CORRECTION)
     parts.append("<h2>The evidence, line by line</h2>")
     parts.append("<p>For each line: the cell as it appears in the workbook, with "
                  "Excel's own row numbers and column letters, then the row of "

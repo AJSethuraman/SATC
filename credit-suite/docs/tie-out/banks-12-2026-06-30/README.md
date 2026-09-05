@@ -1,6 +1,6 @@
 # Tie-out: all twelve banks against their own Call Reports — 30 June 2026
 
-**715 of 720 lines tie. 5 differ. 0 could not.**
+**720 of 720 lines tie. 0 differ. 0 could not.**
 
 One PDF per bank, each self-contained: 60 lines, and for every line both the
 workbook cell photographed out of Excel and the row of that bank's own filed
@@ -70,41 +70,66 @@ citation must parse, and must find its line on a real filed Call Report.
 
 ## What does not tie
 
-**PNC Bank, five lines.** Every quarterly net-charge-off field PNC reports
-differs from its own filed report:
+Nothing. All 720 lines agree with the banks' own filed Call Reports.
+
+**A withdrawn finding.** The first two editions reported five PNC lines as
+differences and concluded that the FDIC's own quarterly and annual figures
+disagreed with each other. **That was my error, not a defect.**
+
+PNC merged **FirstBank** of Lakewood, Colorado (cert 18714) into itself on
+**18 June 2026**, twelve days before the reporting date. A quarterly flow is the
+year-to-date total less the previous quarter's — and across a merger the
+acquired bank's prior year-to-date has to come off too, because the survivor's
+total already contains it. I subtracted only PNC's own.
 
 ```
-field       FDIC Q1 + FDIC Q2   =   sum      FDIC year-to-date   gap
-NTCRCDQ       43,842 +  47,617  =   91,459          91,974       515
-NTCIQ        101,857 + 109,201  =  211,058         211,710       652
-NTCONOTQ      15,470 +  10,994  =   26,464          26,566       102
-NTRERESQ       1,113 +   1,880  =    2,993           2,999         6
-NTRECONQ         -48 +    -571  =     -619            -431       188
+field      Q2 year-to-date   less PNC Q1   less FirstBank Q1   = quarter   FDIC
+NTCRCDQ             91,974        43,842                 515      47,617  47,617
+NTCIQ              211,710       101,857                 652     109,201 109,201
+NTCONOTQ            26,566        15,470                 102      10,994  10,994
+NTRERESQ             2,999         1,113                   6       1,880   1,880
+NTRECONQ              -431           -48                 188        -571    -571
+NTAUTOQ             17,837        10,233                   0       7,604   7,604
+NTREMULQ              -273          -286                   0          13      13
 ```
 
-PNC's filed Call Report agrees with the year-to-date column, not with the sum of
-the two quarters. The workbook carries the FDIC's quarterly figure to the
-dollar. The same reconciliation across twelve banks and seven flow fields holds
-**79 times out of 84**, and the five that fail are exactly these. No merger
-explains it — PNC's only 2026 acquisition events are branch transfers dated
-6 July 2026, after the reporting date.
+Every gap equalled FirstBank's Q1 figure to the dollar, and the two fields that
+did tie are the two where FirstBank's figure was zero. That is not coincidence;
+it is the shape of the mistake.
 
-**I believe the filing**, and nothing was adjusted.
+**The workbook had already worked this out.** Its `_mergers` tab records the
+acquisition and says, in its own words, that the quarter ending 2026-06-30
+"spans a merger … a quarterly flow is the year-to-date total less the previous
+quarter's, so across a merger it mixes two banks and is not a quarter of
+anything." I never opened that tab. I queried the FDIC's history API instead,
+filtered on processing date, saw only branch transfers dated 6 July 2026, and
+wrote "no merger explains it" into twelve exhibits and a roster.
 
-## Three defects in the checking itself
+The flow derivation now consults the merger record for every bank.
 
-The instrument is a likelier culprit than the data, and was:
+**Still true, and worth keeping:** the figure is arithmetically correct *and* it
+mixes two banks, so this quarter is not comparable with PNC's other quarters.
+That is why the trend tooling blanks flows across a merger rather than charting
+them.
 
-1. I first cited **C&I charge-offs to U.S. addressees only**. The measure is
+## Four defects in the checking itself
+
+The instrument is a likelier culprit than the data, and was — four times:
+
+1. **The PNC merger, above.** The biggest of them, and the one that reached the
+   firm as a finding before it was caught.
+2. I first cited **C&I charge-offs to U.S. addressees only**. The measure is
    U.S. *and* non-U.S. Ten of twelve banks failed, by 9% at JPMorgan and 57% at
    Goldman Sachs.
-2. I took **the first column of the total capital ratio**. An advanced-approaches
+3. I took **the first column of the total capital ratio**. An advanced-approaches
    bank that has exited parallel run files two and must meet the lower. Only
    Citibank files both.
-3. My first twelve source photographs included **six blank white rectangles that
+4. My first twelve source photographs included **six blank white rectangles that
    reported "ok"**, because `window.scrollBy` captures empty in headless Chrome.
 
-Each announced itself as an implausibly uniform failure across every entity.
+Numbers 2 to 4 announced themselves as an implausibly uniform failure across
+every entity. Number 1 did the opposite — it looked like a finding about exactly
+one bank, which is precisely why it was believable.
 
 ## Reproducing it
 

@@ -4450,41 +4450,44 @@
    {
     "field": "NTCRCDQ",
     "ours": 47617.0,
-    "filed": 48132.0,
-    "used": "RIADB514-RIADB515 at 2026-06-30 minus the same at 2026-03-31",
-    "verdict": "DIFFERS",
+    "filed": 47617.0,
+    "used": "RIADB514-RIADB515 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
+    "verdict": "TIES",
     "note": "",
     "schedule": "RI-B Part I line 5.a: charge-offs less recoveries, credit cards",
     "caption": "credit card net charge-offs",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "ytd_q2": 91974.0,
-    "ytd_q1": 43842.0
+    "ytd_q1": 43842.0,
+    "merger_adjustment": 515.0
    },
    {
     "field": "NTAUTOQ",
     "ours": 7604.0,
     "filed": 7604.0,
-    "used": "RIADK129-RIADK133 at 2026-06-30 minus the same at 2026-03-31",
+    "used": "RIADK129-RIADK133 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
     "verdict": "TIES",
     "note": "",
     "schedule": "RI-B Part I line 5.c: charge-offs less recoveries, auto loans",
     "caption": "auto loan net charge-offs",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "ytd_q2": 17837.0,
-    "ytd_q1": 10233.0
+    "ytd_q1": 10233.0,
+    "merger_adjustment": 0.0
    },
    {
     "field": "NTCIQ",
     "ours": 109201.0,
-    "filed": 109853.0,
-    "used": "RIAD4645+RIAD4646-RIAD4617-RIAD4618 at 2026-06-30 minus the same at 2026-03-31",
-    "verdict": "DIFFERS",
+    "filed": 109201.0,
+    "used": "RIAD4645+RIAD4646-RIAD4617-RIAD4618 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
+    "verdict": "TIES",
     "note": "",
     "schedule": "RI-B Part I line 4.a and 4.b: charge-offs less recoveries, C&I loans to U.S. and non-U.S. addressees",
     "caption": "C&I net charge-offs",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "ytd_q2": 211710.0,
-    "ytd_q1": 101857.0
+    "ytd_q1": 101857.0,
+    "merger_adjustment": 652.0
    },
    {
     "field": "RBC1AAJ",
@@ -4548,41 +4551,44 @@
    {
     "field": "NTCONOTQ",
     "ours": 10994.0,
-    "filed": 11096.0,
-    "used": "RIADK205-RIADK206 at 2026-06-30 minus the same at 2026-03-31",
-    "verdict": "DIFFERS",
+    "filed": 10994.0,
+    "used": "RIADK205-RIADK206 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
+    "verdict": "TIES",
     "schedule": "RI-B I 5.c",
     "caption": "Other consumer loans, charge-offs less recoveries",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "note": "",
     "ytd_q2": 26566.0,
-    "ytd_q1": 15470.0
+    "ytd_q1": 15470.0,
+    "merger_adjustment": 102.0
    },
    {
     "field": "NTRERESQ",
     "ours": 1880.0,
-    "filed": 1886.0,
-    "used": "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218 at 2026-06-30 minus the same at 2026-03-31",
-    "verdict": "DIFFERS",
+    "filed": 1880.0,
+    "used": "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
+    "verdict": "TIES",
     "schedule": "RI-B I 1.c.1 + 1.c.2.a + 1.c.2.b",
     "caption": "1-4 family residential: revolving open-end plus closed-end first and junior liens, charge-offs less recoveries",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "note": "",
     "ytd_q2": 2999.0,
-    "ytd_q1": 1113.0
+    "ytd_q1": 1113.0,
+    "merger_adjustment": 6.0
    },
    {
     "field": "NTRECONQ",
     "ours": -571.0,
-    "filed": -383.0,
-    "used": "RIADC891+RIADC893-RIADC892-RIADC894 at 2026-06-30 minus the same at 2026-03-31",
-    "verdict": "DIFFERS",
+    "filed": -571.0,
+    "used": "RIADC891+RIADC893-RIADC892-RIADC894 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
+    "verdict": "TIES",
     "schedule": "RI-B I 1.a.1 + 1.a.2",
     "caption": "Construction and land development, charge-offs less recoveries",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "note": "",
     "ytd_q2": -431.0,
-    "ytd_q1": -48.0
+    "ytd_q1": -48.0,
+    "merger_adjustment": 188.0
    },
    {
     "field": "NTRENREQ",
@@ -4601,14 +4607,15 @@
     "field": "NTREMULQ",
     "ours": 13.0,
     "filed": 13.0,
-    "used": "RIAD3588-RIAD3589 at 2026-06-30 minus the same at 2026-03-31",
+    "used": "RIAD3588-RIAD3589 at 2026-06-30 minus the same at 2026-03-31, minus the year-to-date of the bank(s) merged in this quarter (cert 18714)",
     "verdict": "TIES",
     "schedule": "RI-B I 1.d",
     "caption": "Multifamily residential, charge-offs less recoveries",
-    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one",
+    "how": "the filing reports this year-to-date, so the quarter is one filing minus the previous one -- and across a merger the acquired bank's prior year-to-date must come off too, because the survivor's total already contains it",
     "note": "",
     "ytd_q2": -273.0,
-    "ytd_q1": -286.0
+    "ytd_q1": -286.0,
+    "merger_adjustment": 0.0
    }
   ],
   "computed_ratios_out_of_scope": [
@@ -4623,7 +4630,10 @@
   ],
   "raw_fields_total": 69,
   "compared": 60,
-  "tied": 55
+  "tied": 60,
+  "merger_in_quarter": [
+   "18714"
+  ]
  },
  {
   "cert": "9846",
