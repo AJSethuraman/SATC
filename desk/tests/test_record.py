@@ -313,3 +313,41 @@ def test_nothing_is_beneath_an_empty_citation():
     the right rule by a finer path."""
     assert not record.under("", "26 CFR 1.263(a)-3(j)")
     assert not record.under("26 CFR 1.263(a)-3(j)(1)", "")
+
+
+# ── the second boundary rule, and why it is not `under` ──────────────────────
+
+@pytest.mark.parametrize("citation,prefix,expected", [
+    # THE COLLISION THAT PRODUCED THIS. A desk holding a regulation and its
+    # temporary counterpart is an ordinary pairing, and every temporary paragraph
+    # resolved to BOTH sources, so `load()` refused the desk outright.
+    ("26 CFR 1.274-5T(b)(2)", "26 CFR 1.274-5", False),
+    ("26 CFR 1.274-5T(b)(2)", "26 CFR 1.274-5T", True),
+    ("26 CFR 1.274-5(c)(1)", "26 CFR 1.274-5", True),
+    # the same collision without the letter, and without the punctuation
+    ("26 CFR 1.274-11(a)", "26 CFR 1.274-1", False),
+    ("26 CFR 1.4461", "26 CFR 1.446", False),
+    ("26 CFR 1.446-1(a)(4)", "26 CFR 1.446-1", True),
+    # a publication continues with a comma, not a label -- which is why this is
+    # NOT `under`, whose remainder must open with "("
+    ('IRS Pub. 583 (12/2024), "Reconciling the checking account"',
+     "IRS Pub. 583 (12/2024)", True),
+    # and a citation may be the prefix exactly
+    ("IRS Pub. 463 (2025)", "IRS Pub. 463 (2025)", True),
+    ("", "26 CFR 1.446", False),
+    ("26 CFR 1.446", "", False),
+])
+def test_a_citation_belongs_to_a_source_only_at_a_boundary(citation, prefix, expected):
+    assert record.from_source(citation, prefix) is expected
+
+
+def test_from_source_is_not_under_and_the_difference_is_load_bearing():
+    """`under` asks whether one paragraph sits INSIDE another, so its remainder
+    must open a label. A source prefix is answered against whole citations that
+    continue with a comma, or do not continue at all. Collapsing the two would
+    resolve no publication citation to its own source."""
+    pub = 'IRS Pub. 583 (12/2024), "Reconciling the checking account"'
+    assert record.from_source(pub, "IRS Pub. 583 (12/2024)")
+    assert not record.under(pub, "IRS Pub. 583 (12/2024)")
+    assert record.from_source("IRS Pub. 463 (2025)", "IRS Pub. 463 (2025)")
+    assert not record.under("IRS Pub. 463 (2025)", "IRS Pub. 463 (2025)")

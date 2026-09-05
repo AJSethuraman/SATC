@@ -42,7 +42,14 @@ property that costs $200 or less" is half the answer.
 compared, so these rows grade `escalated` whatever is answered — they can never
 grade `correct`. They are here because they are the only rows on this desk that
 exercise the escalation half of the design at all. Read them as a test of the
-tier gate, not as questions the desk answers. If the firm ratifies POS2, the
+tier gate, not as questions the desk answers. **Their FACTS are this session's,
+not the IRS's** — the page poses each as a question rather than as a worked
+example, so the fact pattern is a restatement of the IRS's own question and only
+the CONCLUSION is read off the page. That is exactly the shape the other thirteen
+rows avoid, and it is survivable only because the tier gate stops these rows
+before any conclusion is compared. If the firm ratifies POS2 and these rows begin
+to grade against a position, they need real fact patterns first or they must
+go. If the firm ratifies POS2, the
 position outranks the passage and TP-row grading changes shape; that is the
 mechanism working, and it is why the proposal exists.
 

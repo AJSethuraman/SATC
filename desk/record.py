@@ -106,6 +106,43 @@ def under(path: str, ancestor: str) -> bool:
     return path.startswith(ancestor) and path[len(ancestor):].startswith("(")
 
 
+def from_source(citation: str, prefix: str) -> bool:
+    """Whether `citation` comes from the source whose citations begin `prefix`.
+
+    A SECOND BOUNDARY RULE, AND IT IS NOT `under`. `under` asks whether one
+    paragraph sits inside another and so demands the remainder open a label with
+    `(`. A source prefix is answered against whole citations that continue in
+    other ways -- `IRS Pub. 583 (12/2024), "Reconciling the checking account"`
+    continues with a comma, and a citation may BE the prefix exactly. So the rule
+    is the weaker one that is still exact: the prefix must end where the citation
+    stops being the same identifier.
+
+    WHY IT IS NOT `startswith`. It was a bare `startswith` in three places, and
+    `meals-and-entertainment` holds both `26 CFR 1.274-5` and its temporary
+    counterpart `26 CFR 1.274-5T` -- an ordinary pairing, since the permanent
+    section reserves whole paragraphs to the temporary one. Under `startswith`
+    every `-5T` citation belongs to BOTH sources.
+
+    SAID EXACTLY, BECAUSE THE SHAPE MATTERS MORE THAN THE SCARE. Only two paths
+    resolve a citation by prefix, and both are position paths: `load()`'s
+    uniqueness check and `authority_for`'s lookup. A stored PASSAGE carries its
+    `source_id` and never asks. So today the desk loads either way -- none of its
+    four positions happens to cite the reserved pair -- and the collision is one
+    ratified position away, at which point `load()` refuses a desk that is
+    correct. The session that hit it while building worked around it in the
+    record, ending two prefixes at an open parenthesis; that holds only while
+    every citation on that desk names a paragraph, and a rule six records each
+    have to remember is not a rule.
+
+    `1.274-1` against `1.274-11` is the same collision with no letter involved,
+    and `1.446` against `1.4461` with no punctuation. All three are boundaries.
+    """
+    if not citation or not prefix or not citation.startswith(prefix):
+        return False
+    rest = citation[len(prefix):]
+    return not rest or not rest[0].isalnum()
+
+
 @dataclass(frozen=True)
 class Passage:
     """One piece of authority text, stored because its source permits it."""
@@ -266,7 +303,7 @@ class Desk:
         """
         if (pos := self.position(citation)) is not None:
             src = next((s for s in self.sources
-                        if citation.startswith(s.citation_prefix)), None)
+                        if from_source(citation, s.citation_prefix)), None)
             return "position", pos, src
         if (p := self.passage(citation)) is not None:
             return "passage", p, self.source(p.source_id)
@@ -490,7 +527,8 @@ def load(desk_dir: Path) -> Desk:
         ratified.add(q.citation)
 
     for q in pos:
-        matched = [s for s in sources if q.citation.startswith(s.citation_prefix)]
+        matched = [s for s in sources
+                   if from_source(q.citation, s.citation_prefix)]
         if len(matched) != 1:
             raise RecordError(
                 f"position {q.id} cites {q.citation!r}, which matches "

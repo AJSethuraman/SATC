@@ -59,7 +59,7 @@ first.
 
 **Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-05
 
-**Citation prefix:** 26 CFR 1.274-5(
+**Citation prefix:** 26 CFR 1.274-5
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.274-5
 
@@ -71,7 +71,7 @@ first.
 
 **Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-05
 
-**Citation prefix:** 26 CFR 1.274-5T(
+**Citation prefix:** 26 CFR 1.274-5T
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.274-5T
 
