@@ -23,6 +23,8 @@ thing that can close it.
 
 **Position:** an adjustment to the price paid, booked against the cost it arose from, and not income
 
+**Needs:** taxpayer
+
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"it's interesting because the answer to this I'm pretty sure is card points are
 not income they're not taxed they are rebates and you get to just take those

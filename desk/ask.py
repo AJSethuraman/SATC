@@ -48,7 +48,8 @@ DESKS = HERE / "desks"
 SHOWN = ("sources", "ratified positions", "stored authority")
 
 
-def consult(question: str, desks: Path = DESKS) -> list[tuple[str, str]]:
+def consult(question: str, desks: Path = DESKS,
+            context: record.Context | None = None) -> list[tuple[str, str]]:
     """`[(desk name, everything it will let you answer from)]`. Possibly empty.
 
     SILENCE IS A RESULT. A question touching no desk's subjects comes back empty
@@ -57,17 +58,32 @@ def consult(question: str, desks: Path = DESKS) -> list[tuple[str, str]]:
     """
     out = []
     for r in routing.route(question, routing.registry(desks)):
-        out.append((r.desk, brief(question, record.load(desks / r.desk))))
+        out.append((r.desk, brief(question, record.load(desks / r.desk), context)))
     return out
 
 
-def brief(question: str, desk: record.Desk) -> str:
+def brief(question: str, desk: record.Desk,
+          context: record.Context | None = None) -> str:
     """Everything the desk will let an answerer see, and nothing else."""
     ratified = [q for q in desk.positions if not q.proposed]
+    context = context or record.NOTHING_ON_FILE
     out = [f"# {desk.name}", "", f"**Asked:** {question}", "",
            "Answer ONLY from what follows. A citation to anything not printed",
-           "here is refused by the engine, however real it is.", "",
-           "## Sources this desk may rely on", ""]
+           "here is refused by the engine, however real it is.", ""]
+    if desk.records:
+        # WHAT WE WERE TOLD, AND -- THE HALF THAT MATTERS -- WHAT WE WERE NOT.
+        # Printing only the facts on file leaves an answerer to assume the rest
+        # were not needed. Printing the gaps by name is what lets it escalate
+        # `context_not_on_file` instead of reasoning from the vendor, which is
+        # the failure this whole input exists to stop.
+        out += ["## What the file already says", ""]
+        for name in desk.records:
+            value = str(context.facts.get(name, "")).strip()
+            out.append(f"- **{name}:** {value}" if value
+                       else f"- **{name}:** NOT ON FILE — do not infer it, and do "
+                            f"not answer from a rule that needs it")
+        out.append("")
+    out += ["## Sources this desk may rely on", ""]
     out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**" for s in desk.sources]
     if ratified:
         out += ["", "## The firm's own positions — binding, and quoted exactly", ""]
@@ -81,7 +97,8 @@ def brief(question: str, desk: record.Desk) -> str:
 
 def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
-           working: str = "", desks: Path = DESKS, keep: bool = True):
+           working: str = "", desks: Path = DESKS, keep: bool = True,
+           context: record.Context | None = None):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
@@ -104,7 +121,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)
 
-    out = engine.serve(proposed, desk, question=question)
+    out = engine.serve(proposed, desk, question=question, context=context)
     if isinstance(out, engine.Refusal) and keep:
         path = desks / desk_name / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))

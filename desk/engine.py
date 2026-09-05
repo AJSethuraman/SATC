@@ -63,9 +63,24 @@ REASONS = (
     "contradicts_ratified_position",  # cited the firm's words, said the opposite
     "facts_not_established",    # the rule is clear; what was bought is not. ASK.
     "document_not_requested",   # a named document settles it and nobody asked
+    "context_not_on_file",      # the rule needs a fact the FILE should hold. not the client.
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
+# WHY `context_not_on_file` IS A THIRD THING, and it is the firm's own reasoning.
+# `facts_not_established` is answered by asking the client; `document_not_requested`
+# by obtaining a document that already exists. This one is answered by NEITHER,
+# because the fact should already be in the engagement record and its absence is
+# a gap in our own file.
+#
+# The firm, 5 September 2026, on the question they held rather than ratified:
+# "the Accountant should've already recorded and known what sort of business
+# we're dealing with. That's something we find out during the engagement and if
+# they're missing that piece of information, something was just missing from the
+# file." Filed as `facts_not_established` it would join the queue whose
+# resolution is ASK THE CLIENT -- and the client is not the one who failed to
+# write down that they are a contractor.
+#
 # WHY `document_not_requested` IS NOT `facts_not_established`, and why the firm
 # had to say so before it existed. Both mean the rule is clear and a fact is
 # missing. They differ in WHAT MAKES THE FACT ARRIVE, and that is the whole of
@@ -355,7 +370,7 @@ def _canon_touches():
     return load_record().touches
 
 
-def _check(answer: Answer, desk: Desk, question: str = ""):
+def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
     If serving and grading each had their own copy, they would drift, and the
@@ -384,6 +399,28 @@ def _check(answer: Answer, desk: Desk, question: str = ""):
     if source is None:                                  # pragma: no cover
         raise EngineError(
             f"{answer.citation!r} has no source; load() checks this")
+
+    # THE RULE MAY NEED A FACT NOBODY PUT ON THE FILE, and then it does not
+    # matter how good the citation is. Checked against the RATIFIED position
+    # resting on this citation, so a desk whose positions declare nothing --
+    # which is all of them but two -- behaves exactly as it did.
+    #
+    # It is checked HERE rather than in `serve` so the scoreboard sees the same
+    # gate the caller does. That is the standing rule of this function and the
+    # shape of nearly every real bug in this operation is a claim in one place
+    # and the behaviour in another.
+    ruling = desk.position(answer.citation)
+    if ruling is not None and ruling.needs:
+        import record as _record
+
+        absent = (context or _record.NOTHING_ON_FILE).missing(ruling.needs)
+        if absent:
+            return Refusal(
+                "context_not_on_file",
+                f"{answer.citation!r} is answered by the firm's position {ruling.id}, "
+                f"which cannot be applied without {', '.join(absent)} on file. "
+                f"That is the engagement's to record, not the client's to be asked",
+            ), passage, source
 
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
     # the source the line above resolved, rather than working it out again from
@@ -433,7 +470,8 @@ def _check(answer: Answer, desk: Desk, question: str = ""):
     return None, passage, source
 
 
-def serve(answer: Answer, desk: Desk, *, question: str) -> Served | Refusal:
+def serve(answer: Answer, desk: Desk, *, question: str,
+          context=None) -> Served | Refusal:
     """The production path: hand back an answer, or refuse and say why.
 
     **Nothing leaves here without authority behind it.** An uncited answer is
@@ -463,7 +501,7 @@ def serve(answer: Answer, desk: Desk, *, question: str) -> Served | Refusal:
         _reason(answer.reason)
         return Refusal(answer.reason, "escalated by the desk")
 
-    refusal, passage, source = _check(answer, desk, question)
+    refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:
         return refusal
     return Served(
@@ -511,7 +549,10 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
         return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason),
                       escalated_by=DESK)
 
-    refusal, passage, source = _check(answer, desk, problem.facts)
+    # THE PROBLEM'S OWN CONTEXT, not the caller's. A worked example carries the
+    # facts it was written with, and grading it against anything else would
+    # measure the harness rather than the desk.
+    refusal, passage, source = _check(answer, desk, problem.facts, problem.context)
 
     if refusal is not None:
         # An interpretive source is not an error, it is the case where authority

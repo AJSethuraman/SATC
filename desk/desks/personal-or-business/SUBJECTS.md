@@ -22,6 +22,11 @@ no desk to reach.
 
 ## personal-or-business · Whether a cost incurred on a business account is the business's at all
 
+**Records:** trade
+
+*What the client does, in the firm's words — "general contractor", "hairstylist". The desk is told it; it never works it out from the vendor, which is the reasoning POS1 exists to forbid.*
+
+
 **Answered from S1:** personal, personal expense, personal expenses, living expenses, family, household, housekeeping, domestic service, residential, residence, dwelling, commute, commuting, commuter, life insurance, clothing, clothes, workwear, uniform, uniforms, sword, armed services, education, groceries, grocery, supermarket, meals, lodging, rent, vendor, merchant, retailer, outfitter, store, subscription, streaming
 
 **Answered from S2:** business expense, business expenses, ordinary and necessary, trade or business, management expenses, commissions, supplies, incidental repairs, advertising, selling expenses, insurance premiums, rental

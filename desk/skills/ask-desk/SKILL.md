@@ -26,6 +26,23 @@ for desk, brief in ask.consult("the bank statement shows a $10 service charge "
     ...  # read `brief`, then answer from it
 ```
 
+**Pass what your own file already says.** Some rules cannot be applied without a
+fact the engagement should already have recorded — what the client does, whose
+return it is. Hand it over; the desk will not work it out, deliberately.
+
+```python
+import record
+
+for desk, brief in ask.consult(
+        "they bought clothing at that store — is it a personal expense?",
+        context=record.Context(facts={"trade": "general contractor"})):
+    ...
+```
+
+The same `context=` goes to `ask.answer(...)`. Leave it off and you get a desk
+that answers everything it can and refuses the rules that need what you did not
+say — which is the correct behaviour, not a degraded one.
+
 `consult` routes the question and hands back **everything that desk will let you
 answer from** — its sources, the firm's own ratified positions, and its stored
 authority. Nothing else.
@@ -60,6 +77,14 @@ that was correct. The reasons:
 | `facts_not_established` | the rule is clear; a fact about the client is missing | ask the client |
 | `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
 | `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
+| `document_not_requested` | a document that already exists settles it and nobody asked for it | request it by name |
+| `context_not_on_file` | the rule needs a fact about the engagement that our own file should hold | read the file — and fix the intake that skipped it |
+
+**`context_not_on_file` is not the client's fault and not the desk's.** The firm,
+5 September 2026: *"the Accountant should've already recorded and known what sort
+of business we're dealing with ... if they're missing that piece of information,
+something was just missing from the file."* Sending it to the client as a
+question is the wrong queue.
 
 **Do not stretch.** A desk that reaches for the nearest paragraph and calls it an
 answer is the exact failure this system was built to prevent. The origin case: an

@@ -81,7 +81,7 @@ class AdapterGaveUp(Exception):
 #: harness's word for an abandoned run, not a choice.
 OFFERABLE = ("authority_absent", "authority_permits_choice", "no_citation",
              "citation_does_not_support", "facts_not_established",
-             "document_not_requested")
+             "document_not_requested", "context_not_on_file")
 
 _TEMPLATE = """\
 You are a desk. You answer only from the authority listed below, and you cite it.

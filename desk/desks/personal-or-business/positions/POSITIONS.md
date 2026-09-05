@@ -29,6 +29,8 @@ unanswerable, because it does not sit on their citation.
 
 **Position:** ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer
 
+**Needs:** trade
+
 **Why:** The firm, on an agent that classified a client's J.Crew purchases as
 personal — quoted in the brief that commissioned this desk, and recorded in
 `engine.py` as the firm, 5 September 2026:
