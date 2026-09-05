@@ -232,6 +232,23 @@ And where a book figure is simply an error, correcting it IS the right move. Thi
 
 ---
 
+## C15 · Invoicer is for the firm's clients, and it sends for them
+
+**State:** held · **Recorded:** 2026-09-05 · **Applies:** invoice-generator
+
+> *the point of this will actually be to eventually roll out to our clients and maybe even as a website how cool would it be to say hey, we'll just invoice for you look it's pretty much automatic … we do want this to be client facing potentially but also automate sending invoices for our clients*
+> — the firm, 5 September 2026
+
+**Why:** It reverses two decisions taken on 4 September 2026 and recorded in `LOG.md`: *"Retire Invoicer"* (PR #139 closed, on the grounds that *"The firm takes Square; Invoicer was Stripe end to end"*) and *"Delete it"* for the Render deploy workflow. It also meets `PLAN.md`'s positioning rather than breaking it: that document says to skip client-product features **"unless the owner specifically wants them"**, and here the owner specifically wants them. What changes is the audience. Invoicer stops being a tool the firm might use and becomes something the firm's clients touch, and then something that acts on their behalf. Both raise the bar on it.
+
+**Fires on:** invoicer, invoice, invoicing, client-facing, clients, saas, stripe, square, payment, rail, automate, automatic, send, sending, retire, roll out, product
+
+**A challenge looks like:** any move that treats Invoicer as retired, internal-only or a throwaway — and, in the other direction, any move that puts it in front of a client while the two things this conviction depends on are still open. Those are: (1) **the payment rail.** The firm takes Square; Invoicer is Stripe end to end, so "we'll just invoice for you" runs on a rail the firm does not use. (2) **`amount_paid` is one mutable float with no ledger** (`docs/REPO-INVENTORY.md:116`) — one click of "mark as unpaid" destroys a Stripe-confirmed payment and replaying the webhook will not restore it. Recorded there as "one thing to fix before real money", and a client's money is real money. Bassy names whichever of the two a decision touches and asks whether it has been settled since.
+
+**How it could be wrong:** if the Square answer turns out to be that Invoicer cannot take the firm's own payments, this is two products rather than one: a document generator the firm ships to clients, and a payment system the firm itself does not use. That may still be worth building — the editor is rail-agnostic — but it should be decided rather than discovered. If the firm settles it, the resolution becomes its own entry, because how a collision is settled says more than either side.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The
