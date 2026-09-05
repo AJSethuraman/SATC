@@ -840,3 +840,17 @@ workbook→provider on exactly one line, by hand; the other 52 rested on *same
 build, same day*, which is an inference.
 
 175 → 180 passing.
+
+**And the release digest could never have been green.** `main` was already red
+when this branch started, on the check that exists to make a stale version
+loud. `release.py` sorted `Path` objects, and pathlib compares them the way the
+filesystem does — case-insensitively on Windows, byte for byte on Linux. So
+`adopt.py` came before `CONVICTIONS.md` on the box that cut 1.10.0 and after it
+on the runner that checked it; the path text goes into the hash, so the same
+commit had two digests. The failure read as *somebody forgot to run
+release.py*, which is exactly what it would say if somebody had, and nobody
+looked past the message. `_content` had fixed the same class of bug for line
+endings and its own docstring names the rule: **a check whose result depends on
+the machine running it is not a check.** Line endings were the half that got
+noticed. Now sorted on the path text, with a test that fails on Windows if the
+key is ever dropped.

@@ -275,6 +275,28 @@ def test_the_version_says_what_the_record_actually_contains():
     )
 
 
+def test_the_digest_hashes_the_files_in_the_same_order_everywhere():
+    """The digest above only means something if two machines compute it the same.
+
+    canon 1.10.0 shipped with `main` red and nobody looking, because
+    `sorted(root.rglob("*"))` sorts `Path` objects and pathlib compares them the
+    way the filesystem does — case-insensitively on Windows, byte for byte on
+    Linux. `adopt.py` came before `CONVICTIONS.md` on the box that cut the
+    release and after it on the runner that checked it, and the path text goes
+    into the hash. Same commit, two digests, and the failure read as "somebody
+    forgot to run release.py" on every run.
+
+    So the order is asserted against the path TEXT, which is the same string on
+    both. This test fails on Windows if the sort key is ever dropped, and would
+    have failed on the release that shipped.
+    """
+    import release
+    order = [str(rel).replace("\\", "/") for rel in release.files()]
+    assert order == sorted(order), (
+        "the hash order depends on how this platform compares paths; sort on "
+        "the path text instead")
+
+
 #: Spellings a manifest might use for the behaviour count. Asserted to cover the
 #: real count, so growing past the end of it fails loudly instead of silently.
 NUMBER_WORDS = {
