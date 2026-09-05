@@ -15,6 +15,37 @@
   <div class="card{{ ' alert' if eng.risk_flags }}"><div class="n">{{ eng.risk_flags | length }}</div><div class="l">Risk flags</div></div>
 </div>
 
+{% if refused %}
+<div class="panel">
+  <h2>That ref was not recorded</h2>
+  <div class="body"><p>{{ refused }}</p></div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Engagement ref <span class="muted">— the number the client sees on their own paperwork</span></h2>
+  <div class="body">
+    <p class="note">
+      This is the join to the engagement record: the client's letters, estimate
+      and invoices all carry <span class="mono">YYYY-NNNN</span>, while this
+      system keys on <span class="mono">{{ eng.client_id }}</span>, which a
+      client is never shown. A drop folder named for the ref can only be
+      matched to this client once it is recorded here.
+    </p>
+    <form method="post" action="{{ url_for('intake.set_engagement_ref', job_id=eng.job_id) }}">
+      <input class="field-input" type="text" name="engagement_ref"
+             value="{{ engagement_ref }}" placeholder="2026-0001"
+             style="max-width:160px" aria-label="Engagement ref">
+      <button class="btn primary" type="submit">Record ref</button>
+      {% if engagement_ref %}
+      <span class="muted">Recorded. Clearing the box and saving removes it.</span>
+      {% else %}
+      <span class="muted">Not set — an arriving document cannot be matched to this client yet.</span>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
 {% if eng.risk_flags %}
 <div class="panel">
   <h2>Risk flags</h2>
