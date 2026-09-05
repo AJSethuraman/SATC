@@ -745,11 +745,30 @@ def _build_screen(*, error: str = "", note: str = ""):
                           f"discard it and start again.")
 
     year = int(draft.get("tax_year") or _working_year())
+    on_file = _plan_on_file((draft.get("client_id") or "").strip(), year)
+
+    # WHAT THIS INVOICE APPLIES vs WHAT THE ENGAGEMENT AGREED are two different
+    # facts, and the screen used to show only the second while the totals used
+    # the first. Walking it: the picker was set to Hardship with a reason, the
+    # totals read "Hardship rate applied 60% -270.00, total due 180.00", and the
+    # line above them still said "No rate plan agreed for 2025 -- the practice
+    # default 'standard' applies until one is recorded." Both sentences were
+    # true. Read together they say the client is being billed full price, which
+    # is the one thing a billing screen must never get wrong.
+    #
+    # `_set_header` writes the plan to the session DRAFT; `rate_plan_for` reads
+    # the ENGAGEMENT. Nothing was stale -- they were answering different
+    # questions, and only one of them was on screen.
+    applied_key = (draft.get("plan_key") or default_plan_key()).strip()
+    plan_differs = bool(draft.get("client_id")) and applied_key != on_file.plan_key
+    applied_plan = plans().get(applied_key)
+
     return render_template(
         "invoice_build.html", title="New invoice",
         draft=draft, invoice=invoice, catalogue=by_category(), plans=plans(),
         clients=STATE.client_choices(), tax_year=year,
-        on_file=_plan_on_file((draft.get("client_id") or "").strip(), year),
+        on_file=on_file, plan_differs=plan_differs, applied_plan=applied_plan,
+        applied_key=applied_key,
         today=date.today(), error=error, note=note)
 
 
