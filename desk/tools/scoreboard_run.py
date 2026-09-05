@@ -58,6 +58,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import engine                                            # noqa: E402
 import scoreboard                                        # noqa: E402
 from engine import REASONS, Answer                       # noqa: E402
 from record import Desk, Problem                         # noqa: E402
@@ -550,6 +551,15 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
         "citation_matched": right_citation,
         "citation_within_governing_rule": near_citation,
         "citation_off_index": off_index,
+        # WHO ESCALATED, because the escalation column cannot be read otherwise.
+        # A problem keyed to a secondary source can ONLY grade `escalated`: the
+        # engine refuses `authority_permits_choice` before any conclusion is
+        # compared. So a desk that answered confidently and one that knew it did
+        # not know land in the same cell, and only this tells them apart.
+        "escalated_by_desk": sum(1 for r in run.results
+                                 if r.escalated_by == engine.DESK),
+        "escalated_by_engine": sum(1 for r in run.results
+                                   if r.escalated_by == engine.ENGINE),
         "gave_up": run.gave_up,
     }
 
@@ -755,6 +765,8 @@ def _main(argv: list[str]) -> int:
                      f"within the governing rule but not it "
                      f"{d['citation_within_governing_rule']}, "
                      f"cited outside the index {d['citation_off_index']}, "
+                     f"escalated by the desk {d['escalated_by_desk']}, "
+                     f"escalated by the engine {d['escalated_by_engine']}, "
                      f"gave up {d['gave_up']}")
     lines.append("")
     lines.append("UNSUPPORTED QUEUE (entries this run produced):")
@@ -775,7 +787,8 @@ def _main(argv: list[str]) -> int:
         r.model: {"counts": r.counts, "gave_up": r.gave_up,
                   "results": [{"problem": x.problem_id,
                                "outcome": x.outcome.value,
-                               "reason": x.reason, "detail": x.detail}
+                               "reason": x.reason, "detail": x.detail,
+                               "escalated_by": x.escalated_by}
                               for x in r.results],
                   "diagnostic": diags[r.model],
                   "queued": queues[r.model]}

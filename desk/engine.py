@@ -75,6 +75,10 @@ class Answer:
     working: str = ""
 
 
+#: The two things that can escalate, named once so a typo is not a third value.
+DESK, ENGINE = "desk", "engine"
+
+
 @dataclass(frozen=True)
 class Result:
     """One graded answer, and why it landed where it did."""
@@ -82,6 +86,18 @@ class Result:
     outcome: Outcome
     reason: str = ""
     detail: str = ""
+    #: WHO ESCALATED: "desk" when the thing answering declined, "engine" when
+    #: `_check` stopped a confident answer resting on non-binding authority.
+    #: Empty for every other outcome.
+    #:
+    #: WITHOUT THIS THE ESCALATION COLUMN CANNOT BE READ, and on a desk built to
+    #: exercise escalation it is the only column that matters. A problem keyed to
+    #: a secondary source can ONLY grade `escalated`: `_check` refuses with
+    #: `authority_permits_choice` before any conclusion is compared, so a desk
+    #: that answered confidently and a desk that knew it did not know land in the
+    #: same cell. The first was rescued by the record's tier; the second made the
+    #: call. Reporting them as one number measures the record, not the brain.
+    escalated_by: str = ""
 
     @property
     def costly(self) -> bool:
@@ -228,7 +244,8 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
     the same thing.
     """
     if answer.escalated:
-        return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason))
+        return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason),
+                      escalated_by=DESK)
 
     refusal, passage, source = _check(answer, desk)
 
@@ -237,7 +254,8 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
         # permits a choice — so it escalates rather than counting as wrong.
         if refusal.reason == "authority_permits_choice":
             return Result(problem.id, Outcome.ESCALATED,
-                          reason=refusal.reason, detail=refusal.detail)
+                          reason=refusal.reason, detail=refusal.detail,
+                          escalated_by=ENGINE)
         return Result(problem.id, Outcome.WRONG_CAUGHT,
                       reason=refusal.reason, detail=refusal.detail)
 

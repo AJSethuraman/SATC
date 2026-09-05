@@ -29,6 +29,14 @@ escalated          the desk knew it did not know — a SUCCESS
 a little time, that one costs the reason to trust the rest. **Never summed into a
 single figure** — a percentage hides exactly the number worth reading.
 
+**And `escalated` is two things, so the run reports which.** A problem resting on
+a secondary source can *only* grade escalated: `_check` refuses
+`authority_permits_choice` before any conclusion is compared. So a desk that
+answered confidently and one that knew it did not know land in the same cell —
+the first was stopped by the record's tier, the second made the call. `Result`
+carries `escalated_by`, and without it a desk built to exercise escalation
+measures its own tiers rather than the brain.
+
 ## What is in a desk
 
 ```
