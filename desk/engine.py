@@ -228,6 +228,59 @@ def off_subject(answer: Answer, desk: Desk, question: str) -> tuple[bool, str]:
     )
 
 
+def cited_off_source(answer: Answer, desk: Desk,
+                     question: str) -> tuple[bool, str]:
+    """`(refuse, detail)` — the citation comes from a source that does not
+    answer what was asked.
+
+    THE FACT IS RECORDED, NOT INFERRED, and that is the whole difference. A desk
+    declares in SUBJECTS.md which source answers which subject. So the check is
+    a lookup: which subjects does the question touch, which sources are declared
+    to answer them, and did the citation come from one of those. No word overlap
+    between the question and the authority, no relevance judgement, nothing to
+    tune -- which is why this one may BLOCK where `off_subject` may not.
+
+    MEASURED, 5 SEPTEMBER 2026 (#266). qwen3:8b answered four bank-reconciliation
+    questions on the cash desk by citing § 1.446-1(a)(4) -- accounting records --
+    by explicit "extension". Real, resolvable, primary, and `serve()` handed all
+    four out stamped `tier='primary'`, because it had no key and no equivalent of
+    `grade()`'s citation check. Comparing words instead either refused four of
+    the sixteen fixed-assets problems answered with their OWN citation, or caught
+    nothing at all. This refuses those four and none of fixed-assets.
+
+    IT REFUSES ONLY WHEN IT COULD LOOK. A question touching no declared subject
+    gives it nothing, and it passes -- `Served.checked_subject` says which
+    happened, because "I could not check" and "I checked and it is fine" must
+    never be the same answer.
+
+    THE COST IS THE FIRM'S TO CONTROL AND IS VISIBLE WHEN PAID. Under-declare a
+    subject and a right answer is refused; the refusal names the sources that
+    were declared, so the record says how to fix itself, and the entry lands in
+    `unsupported/` with the working intact.
+    """
+    if not desk.answered_from:
+        return False, ""
+    touches = _canon_touches()
+    asked = [t for t in desk.fires_on if touches(question, t)]
+    if not asked:
+        return False, ""
+    allowed = {sid for sid, terms in desk.answered_from.items()
+               if any(t in asked for t in terms)}
+    if not allowed:
+        return False, ""
+    cited = next((s.id for s in desk.sources
+                  if answer.citation.startswith(s.citation_prefix)), None)
+    if cited is None or cited in allowed:
+        return False, ""
+    named = ", ".join(sorted(allowed))
+    return True, (
+        f"the question is about {', '.join(asked)}, which this desk answers from "
+        f"{named}; {answer.citation!r} comes from {cited}. A citation from a "
+        f"source the desk does not use for this subject is not this question's "
+        f"authority, however real it is"
+    )
+
+
 def _canon_touches():
     """Whole-word matching, borrowed rather than rewritten.
 
@@ -262,6 +315,11 @@ def _check(answer: Answer, desk: Desk, question: str = ""):
             f"{answer.citation!r} is not in this desk's record; add it cited, "
             f"or escalate with reason 'authority_absent'",
         ), None, None
+
+    # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266).
+    astray, why = cited_off_source(answer, desk, question)
+    if astray:
+        return Refusal("citation_does_not_support", why), None, None
 
     # `off_subject` IS NOT WIRED IN HERE, AND THE MEASUREMENT IS WHY (#266).
     # It refuses 4 of the 16 fixed-assets problems answered with their own

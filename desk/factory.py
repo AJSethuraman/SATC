@@ -82,7 +82,7 @@ QUESTIONS: tuple[Question, ...] = (
         id="Q2",
         asks="Which words in a question mean it belongs to this desk? List the "
              "inflections you actually expect, not the stems.",
-        records=("subject.fires_on",),
+        records=("subject.fires_on", "subject.answered_from"),
         why="Routing matches whole words only, so it under-fires on purpose: "
             "`defer` does not fire on `deferring`, and substring matching once "
             "made *extension* fire on *extensive*. fixed-assets lists capitalize, "
@@ -293,7 +293,9 @@ class DeskDraft:
     """A whole proposed desk. Refuses to exist incomplete."""
     name: str
     title: str
-    fires_on: tuple[str, ...]
+    #: `{source_id: subjects}` — which source answers which subject. Their union
+    #: is what routing fires on, so there is no second list to keep in step.
+    answered_from: dict = field(default_factory=dict)
     sources: tuple[SourceDraft, ...] = field(default_factory=tuple)
     problems: tuple[ProblemDraft, ...] = field(default_factory=tuple)
     passages: tuple[PassageDraft, ...] = field(default_factory=tuple)
@@ -305,10 +307,11 @@ class DeskDraft:
                 f"is the desk's identity and a refusal hands it back to a caller")
         if not self.title.strip():
             raise FactoryError(f"{self.name}: no one-line subject")
-        if not self.fires_on:
+        if not self.answered_from or not any(self.answered_from.values()):
             raise FactoryError(
-                f"{self.name}: no subjects to fire on. A desk nothing routes to "
-                f"is a desk nobody asks.")
+                f"{self.name}: no subjects answered from any source. A desk "
+                f"nothing routes to is a desk nobody asks -- and a subject with "
+                f"no source named is one no citation can be checked against.")
         if not self.sources:
             raise FactoryError(
                 f"{self.name}: no sources. A desk with no authority cannot "
@@ -324,8 +327,10 @@ class DeskDraft:
 
 _SUBJECTS_PREAMBLE = """# Subjects — what brings this desk into play
 
-`Fires on` is what makes routing deterministic: the subjects that bring a desk
-into play. It matches **whole words only** — substring matching once made
+`Answered from <source id>` is what makes routing deterministic AND what makes a
+citation checkable: it names the subjects that bring a desk into play, and which
+source answers each of them. Their union is what routing fires on, so there is no
+second list to drift. It matches **whole words only** — substring matching once made
 *"extension"* fire on *"extensive"*.
 
 **It under-fires, and that is worth knowing.** The list matches a question's
@@ -384,7 +389,8 @@ def render(draft: DeskDraft) -> dict[str, str]:
     """The files this proposal would add, keyed by name. Writes nothing."""
     subjects = _SUBJECTS_PREAMBLE + (
         f"## {draft.name} · {draft.title}\n\n"
-        f"**Fires on:** {', '.join(draft.fires_on)}\n"
+        + "\n".join(f"**Answered from {sid}:** {', '.join(terms)}\n"
+                    for sid, terms in sorted(draft.answered_from.items()))
     )
 
     sources = _SOURCES_PREAMBLE + "\n---\n\n".join(

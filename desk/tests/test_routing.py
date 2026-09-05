@@ -17,7 +17,7 @@ from record import RecordError
 
 SUBJECTS = """## demo · A demo desk
 
-**Fires on:** alpha, beta, gamma
+**Answered from S1:** alpha, beta, gamma
 """
 
 
@@ -133,7 +133,7 @@ def test_a_wrapped_subject_list_is_read_in_full():
     and reported success. A silent partial read is worse than an error, because
     routing then works for some questions and quietly misses others."""
     wrapped = ("## demo · A demo desk\n\n"
-               "**Fires on:** alpha, beta,\ngamma, delta,\nepsilon\n")
+               "**Answered from S1:** alpha, beta,\ngamma, delta,\nepsilon\n")
     r = routing.parse_subjects(wrapped, "demo")
     assert r.fires_on == ("alpha", "beta", "gamma", "delta", "epsilon")
 
@@ -146,7 +146,7 @@ def test_the_shipped_desk_declares_more_subjects_than_one_line_would_hold(regs):
 
 def test_a_desk_with_no_subjects_is_an_error():
     """A desk nothing routes to is a desk nobody asks."""
-    with pytest.raises(RecordError, match="Fires on"):
+    with pytest.raises(RecordError, match="Answered from"):
         routing.parse_subjects("## demo · x\n\n**Other:** y\n", "demo")
 
 
@@ -216,10 +216,10 @@ def test_a_desk_registering_under_another_name_is_refused(tmp_path):
     record that produced it."""
     with pytest.raises(routing.RecordError, match="registers itself as"):
         routing.parse_subjects(
-            "## fixed-asset · Fixed assets\n\n**Fires on:** roof, elevator\n",
+            "## fixed-asset · Fixed assets\n\n**Answered from S1:** roof, elevator\n",
             "fixed-assets")
     # The control: matching name and directory parses.
     r = routing.parse_subjects(
-        "## fixed-assets · Fixed assets\n\n**Fires on:** roof, elevator\n",
+        "## fixed-assets · Fixed assets\n\n**Answered from S1:** roof, elevator\n",
         "fixed-assets")
     assert r.desk == "fixed-assets"

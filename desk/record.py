@@ -132,10 +132,14 @@ class Problem:
 
 @dataclass(frozen=True)
 class Registration:
-    """One desk, and the subjects that bring it into play."""
+    """One desk, the subjects that bring it into play, and who answers them."""
     desk: str
     title: str
     fires_on: tuple[str, ...]
+    #: `{source_id: subjects}` — WHICH SOURCE ANSWERS WHICH SUBJECT, declared by
+    #: the firm rather than inferred by anybody. `fires_on` is its union, so the
+    #: two cannot drift: there is no second list to forget to update.
+    answered_from: dict = field(default_factory=dict)
 
 
 def parse_subjects(text: str, desk_name: str) -> Registration:
@@ -147,13 +151,38 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
     # there because its fields are short -- but this list is long enough to wrap,
     # and a single-line read of a wrapped value truncates it SILENTLY. Written
     # that way first, this parsed 5 subjects out of 30 and reported success.
-    m = re.search(r"^\*\*Fires on:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
-                  block, re.M | re.S)
-    if not m or not m.group(1).strip():
+    #
+    # `Answered from <id>` AND NOT A BARE `Fires on`, and the difference is the
+    # whole of #266. A desk recorded its sources and its subjects and nothing
+    # said which source answers which -- so when qwen3:8b answered four
+    # bank-reconciliation questions by citing a CFR paragraph about accounting
+    # records, nothing exact could refuse it, and `serve()` handed all four out
+    # stamped `tier='primary'`. Word overlap was measured in its place and either
+    # refused a quarter of the working desk's own correct answers or missed the
+    # case entirely. This is the fact recorded instead of guessed at.
+    declared = re.findall(
+        r"^\*\*Answered from (\S+):\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+        block, re.M | re.S)
+    if not declared:
         raise RecordError(
-            f"{desk_name}: no 'Fires on' subjects. A desk nothing routes to is "
-            f"a desk nobody asks."
+            f"{desk_name}: no 'Answered from <source id>' lines. A desk nothing "
+            f"routes to is a desk nobody asks -- and a subject with no source "
+            f"named is one no citation can be checked against."
         )
+
+    answered_from, order = {}, []
+    for source_id, listed in declared:
+        terms = tuple(t.strip().lower()
+                      for t in " ".join(listed.split()).split(",") if t.strip())
+        if not terms:
+            raise RecordError(
+                f"{desk_name}: 'Answered from {source_id}' names no subjects")
+        if source_id in answered_from:
+            raise RecordError(
+                f"{desk_name}: 'Answered from {source_id}' appears twice; which "
+                f"list wins would be decided by file order")
+        answered_from[source_id] = terms
+        order.extend(t for t in terms if t not in order)
     # THE DIRECTORY IS THE IDENTITY. A typo or stale name in the heading became
     # `Registration.desk`, so routing still matched while
     # `refusal_naming_the_desk()` sent the caller to a desk that does not exist
@@ -168,11 +197,8 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
     return Registration(
         desk=head.group(1),
         title=head.group(2).strip(),
-        fires_on=tuple(
-            t.strip().lower()
-            for t in " ".join(m.group(1).split()).split(",")
-            if t.strip()
-        ),
+        fires_on=tuple(order),
+        answered_from=answered_from,
     )
 
 
@@ -194,6 +220,8 @@ class Desk:
     #: desk declares none, and the engine then says it could not check rather
     #: than passing the answer as verified.
     fires_on: tuple[str, ...] = field(default_factory=tuple)
+    #: `{source_id: subjects}` from SUBJECTS.md — see `Registration`.
+    answered_from: dict = field(default_factory=dict)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
@@ -471,14 +499,21 @@ def load(desk_dir: Path) -> Desk:
             )
 
     subjects = desk_dir / "SUBJECTS.md"
-    fires_on = ()
+    fires_on, answered_from = (), {}
     if subjects.is_file():
-        fires_on = parse_subjects(
-            subjects.read_text(encoding="utf-8"), desk_dir.name).fires_on
+        reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
+        fires_on, answered_from = reg.fires_on, reg.answered_from
+        unknown = sorted(set(answered_from) - {s.id for s in sources})
+        if unknown:
+            raise RecordError(
+                f"{desk_dir.name}/SUBJECTS.md answers subjects from {unknown}, "
+                f"which SOURCES.md does not define. A mapping to a source that "
+                f"does not exist refuses every citation for those subjects")
 
     return Desk(
         name=desk_dir.name,
         fires_on=fires_on,
+        answered_from=answered_from,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

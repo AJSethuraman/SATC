@@ -14,7 +14,7 @@ import pytest
 import engine
 import record
 from conftest import DESKS, NetworkUsed
-from engine import (Answer, EngineError, Outcome, REASONS, grade, report,
+from engine import (Answer, EngineError, Outcome, REASONS, Refusal, grade, report,
                     serve, tally)
 
 
@@ -522,3 +522,101 @@ def test_off_subject_is_measured_and_the_cost_is_pinned_here():
                            desk, p.facts)[0]
         for p in record.load(DESKS / "cash-and-bank").problems
     ), "no cash-desk problem is falsely refused; the cost is on fixed-assets"
+
+
+# ── #266: the declared mapping, which is exact and therefore blocks ──────────
+
+def test_the_forge_answer_is_refused_by_serve_and_not_only_by_grade():
+    """THE POINT OF #266, and the path with a client on the end of it.
+
+    qwen3:8b answered four bank-reconciliation questions by citing
+    § 1.446-1(a)(4) — accounting records — by explicit "extension". `grade()`
+    caught all four on `passage.citation != problem.citation`, a check it can
+    only make because it holds an answer key. `serve()` holds none and returned
+    the accounting conclusion stamped `tier='primary'`, so the scoreboard
+    reported `wrongly_absorbed = 0` while the shipping path let four through.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = next(q for q in desk.problems if q.id == "CB2")
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
+
+    out = serve(Answer(position=p.answer, citation=cited), desk,
+                question=p.facts)
+    assert isinstance(out, Refusal)
+    assert out.reason == "citation_does_not_support"
+    assert "S2" in out.detail and "S1" in out.detail, (
+        "the refusal must name what the desk declared and what was cited, so "
+        "the record says how to fix itself")
+
+    right = serve(Answer(position=p.answer, citation=p.citation), desk,
+                  question=p.facts)
+    assert not isinstance(right, Refusal), "the correct citation must survive"
+    assert right.checked_subject
+
+
+def test_the_declared_mapping_refuses_nothing_that_is_right():
+    """The cost, pinned. Word overlap refused 4 of the 16 fixed-assets problems
+    answered with their OWN recorded citation (#266). A declared mapping refuses
+    none, on either desk, because it compares a citation's SOURCE against what
+    the firm said answers that subject rather than guessing from vocabulary."""
+    for name in ("fixed-assets", "cash-and-bank"):
+        desk = record.load(DESKS / name)
+        refused = [p.id for p in desk.problems
+                   if engine.cited_off_source(
+                       Answer(position=p.answer, citation=p.citation),
+                       desk, p.facts)[0]]
+        assert refused == [], (
+            f"{name}: {refused} answered with their own recorded citation and "
+            f"were refused. Either the declaration is wrong or the gate is.")
+
+
+def test_it_refuses_only_when_it_could_look():
+    """"I could not check" and "I checked and it is fine" must never be the
+    same answer. A question touching no declared subject gives the gate nothing
+    to compare, so it passes — and `checked_subject` records that it did."""
+    desk = record.load(DESKS / "cash-and-bank")
+    p = desk.problems[0]
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR"))
+
+    astray, _ = engine.cited_off_source(
+        Answer(position=p.answer, citation=cited), desk, "what time is the train")
+    assert not astray, "nothing was asked about, so nothing could be refused"
+
+    out = serve(Answer(position=p.answer, citation=p.citation), desk,
+                question="what time is the train")
+    assert not isinstance(out, Refusal)
+    assert not out.checked_subject, "it could not look, and must say so"
+
+
+def test_a_mapping_to_a_source_that_does_not_exist_fails_the_load(tmp_path):
+    """A subject answered from a source SOURCES.md never defines would refuse
+    every citation for that subject, forever, and read as a strict desk."""
+    d = tmp_path / "broken"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## broken · A desk\n\n**Answered from S9:** widgets\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match=r"\['S9'\]"):
+        record.load(d)
+
+
+def test_the_subjects_are_the_mapping_and_not_a_second_list():
+    """`fires_on` is the union of what each source answers. There is no separate
+    list to forget to update, which is how two lists of the same thing drift."""
+    for name in ("fixed-assets", "cash-and-bank"):
+        desk = record.load(DESKS / name)
+        declared = {t for terms in desk.answered_from.values() for t in terms}
+        assert set(desk.fires_on) == declared
+        assert len(desk.fires_on) == len(set(desk.fires_on)), "a subject twice"

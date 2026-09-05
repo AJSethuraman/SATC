@@ -49,7 +49,7 @@ PASSAGES = tuple(
 
 def draft(**over) -> factory.DeskDraft:
     kw = dict(name="widgets", title="When a widget is a widget",
-              fires_on=("widget", "widgets"), sources=(SOURCE,),
+              answered_from={"S1": ("widget", "widgets")}, sources=(SOURCE,),
               problems=PROBLEMS, passages=PASSAGES)
     kw.update(over)
     return factory.DeskDraft(**kw)
@@ -143,8 +143,15 @@ def test_a_desk_with_no_sources_is_refused():
 
 
 def test_a_desk_nothing_routes_to_is_refused():
-    with pytest.raises(factory.FactoryError, match="no subjects to fire on"):
-        draft(fires_on=())
+    with pytest.raises(factory.FactoryError, match="no subjects answered"):
+        draft(answered_from={})
+
+
+def test_a_source_that_answers_nothing_is_refused():
+    """A named source with an empty subject list declares nothing, and would
+    silently make every citation for those subjects uncheckable."""
+    with pytest.raises(factory.FactoryError, match="no subjects answered"):
+        draft(answered_from={"S1": ()})
 
 
 # ── what it emits goes through the shipped desk's own three gates ────────────
@@ -170,6 +177,7 @@ def test_an_emitted_desk_loads_gates_and_grades_like_a_hand_built_one(checkout):
     reg = routing.parse_subjects(
         (desk_dir / "SUBJECTS.md").read_text(encoding="utf-8"), "widgets")
     assert reg.fires_on == ("widget", "widgets")
+    assert reg.answered_from == {"S1": ("widget", "widgets")}
 
 
 def test_the_emitted_record_carries_the_licence_term_into_the_diff(checkout):

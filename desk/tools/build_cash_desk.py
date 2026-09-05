@@ -364,13 +364,20 @@ def draft(cfr: list[tuple[str, str]], pub: list[tuple[str, str]],
         name="cash-and-bank",
         title="When a difference between the books and the bank is a "
               "reconciling item rather than an entry in the books",
-        fires_on=(
-            "cash", "bank", "bank statement", "reconcile", "reconciled",
-            "reconciles", "reconciling", "reconciliation", "outstanding check",
-            "outstanding checks", "deposit in transit", "deposits in transit",
-            "uncleared", "cleared", "checkbook", "service charge", "bank charge",
-            "petty cash", "1.446-1", "446",
-        ),
+        # WHICH SOURCE ANSWERS WHICH SUBJECT, declared rather than inferred.
+        # A question about a bank statement is answered from the publication
+        # that discusses one; a question naming the section number is answered
+        # from the section. Without this, qwen3:8b's four bank-reconciliation
+        # answers citing § 1.446-1(a)(4) had nothing exact to refuse them (#266).
+        answered_from={
+            "S1": ("1.446-1", "446", "method of accounting", "clearly reflect income"),
+            "S2": ("cash", "bank", "bank statement", "reconcile", "reconciled",
+                   "reconciles", "reconciling", "reconciliation",
+                   "outstanding check", "outstanding checks",
+                   "deposit in transit", "deposits in transit", "uncleared",
+                   "cleared", "checkbook", "service charge", "bank charge",
+                   "petty cash"),
+        },
         sources=sources,
         problems=problems,
         passages=passages,
