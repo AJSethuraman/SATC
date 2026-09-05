@@ -250,3 +250,56 @@ the guy."*
 **It is not in `CONVICTIONS.md` and will not be until the firm says yes to
 recording it as one.** They wrote the words under a different question; that is
 not the same as ratifying them as a standing rule.
+
+---
+
+# Answered — the second docket, 5 September 2026, 11:39–11:45 UTC
+
+Returned at `claude.ai/code/artifact/2baf0b4f`. Their words are quoted exactly.
+
+| | Matter | Answer |
+|---|---|---|
+| D1 | Three finished pull requests unmerged | **Drive all three** |
+| D2 | Four website pull requests since August | **Something else** — they are taking it |
+| D3 | Three scoreboard drafts | **Keep them as history** |
+| D4 | Seventeen positions still proposals | **Walk me through them one at a time** |
+| D5 | Anikeev | *answered by handing over the opinion itself* |
+| D6 | The conviction | **No** |
+
+## D6 · Declined, and the reason is worth more than the entry would have been
+
+> *"No, this isn't a particular conviction. I'm trying to write out. This is just
+> point of fact."*
+
+**It does not go in `CONVICTIONS.md`, and that is correct.** They are drawing a
+line the record did not have: between a **conviction** — something they believe,
+which could turn out to be wrong, and which Bassy is meant to challenge them
+from — and a **point of fact** about what the firm is. *"We don't provide
+assurance services"* is not a belief about accounting. It is a description of the
+business, true whether or not anybody agrees with it.
+
+**The distinction is load-bearing for the desk anyway.** What a desk may treat as
+evidence still turns on it: the threshold is *what we must ask to know it's
+right*, not *what would survive an audit*, because an audit is not the product.
+That belongs somewhere — but somewhere for facts about the practice, not in a
+file whose whole discipline is that every line is a belief the firm chose to hold.
+
+**Recorded as declined. Nothing was written to the record.**
+
+## D2 · Theirs, with one observation left for them
+
+> *"Confused because pricing is already live on the site. In any case this isn't
+> your problem I'll look and come back maybe"*
+
+Their confusion is worth keeping: **if the published prices are already live,
+then #158 and #160 may describe work that reached the site another way**, which
+would make them stale rather than pending. Not checked here — `website/` belongs
+to another agent and this session does not touch it.
+
+## D5 · Answered by handing over the opinion
+
+They did not tick a box. They pasted the full text of *Anikeev v. Commissioner*,
+T.C. Memo. 2021-23 — the case no host reachable from this environment would
+serve. **The wall was real and a person walked through it in the time it takes to
+paste.** Digested separately; what it changes is recorded with the rewards
+position.
