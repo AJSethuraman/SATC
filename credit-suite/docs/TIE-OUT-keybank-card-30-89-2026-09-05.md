@@ -243,3 +243,38 @@ The reusable half, invisible once the numbers agree:
   the fetch is the same postback the tie-out tool uses, but the capture is of a
   locally served copy rather than of the FFIEC page itself. Marked, because it
   is a step performed differently from how it reads.
+
+---
+
+## Every line, with a picture — and the five could-nots closed
+
+`TIE-OUT-KeyBank-all-53-lines-2026-06-30.pdf` (23 pages) shows all 53 landed
+figures on the filing itself: **93 strips cut out of KeyBank's own Call Report,
+each one verified before it was shown.** A strip is only included if the filed
+value is printed on the same row as the MDRM code that cites it; the generator
+reads the row's words and checks. 93 of 93 checked out, and the manifest of what
+was found is `roster-manifest.json`.
+
+**The five COULD NOTs were chased, and all five closed.** They were a statement
+about the first attempt, not about the filing.
+
+| line | why it was skipped | how it ties |
+|---|---|---|
+| `RBC1AAJ` | "a ratio, not a dollar line" | the filing prints it: **RCFA7204 = 9.9169%** on Schedule RC-R Part I item 31, against our 9.91691020708172 — equal to every decimal the filing carries |
+| `RBCRWAJ` | same | **RCFA7205 = 14.0482%**, item 51, against our 14.048229230202255 |
+| `NTCRCDQ` | "a quarterly flow; the filing carries year-to-date" | (B514−B515) for June **less** the same for March: 17,472 − 8,452 = **9,020**, our landed figure to the dollar |
+| `NTAUTOQ` | same | (K129−K133) differenced: −8 − 96 = **−104**, sign and all |
+| `NTCIQ` | same | (4645+4646−4617−4618) differenced: 121,636 − 69,250 = **52,386** |
+
+So the roster is **53 of 53 tied, 0 differ, 0 could not**. Two filings were
+opened to do it, June and March, because a quarterly flow is a subtraction
+between them.
+
+**The lesson, which is the reusable half:** a COULD NOT is a hypothesis about
+the source, not a property of it. Each of these named a real obstacle and each
+obstacle had an answer one step further on — look for the filed *percentage*
+rather than a dollar line, and open the *previous* filing rather than only this
+one. The tie-out tool still reports these five as skipped, because it reads one
+filing and refuses to compare a percentage with a dollar line. Teaching it the
+two moves above is filed as a follow-up; until then this exhibit is the record
+that they do tie.
