@@ -370,26 +370,41 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
     assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
 
 
-def test_every_reason_but_one_is_about_authority_rather_than_facts():
-    """The gap, asserted so it cannot quietly reopen.
+#: The reasons that are about something OTHER than the authority, and what
+#: resolves each. The set is meant to stay legible in exactly these groups: a
+#: reason that fits none of them has been added without anyone deciding which
+#: kind of problem it names, and it is the kind that decides who has to move.
+NOT_ABOUT_AUTHORITY = {
+    "facts_not_established": "ask the client",
+    "document_not_requested": "obtain a document nobody requested",
+}
 
-    `facts_not_established` is the only reason in the set that is about what the
-    rule asks for rather than about the rule. If it is removed, or if the set
-    grows another facts-shaped reason without anyone noticing, this says so.
+
+def test_every_reason_is_legibly_about_authority_facts_or_a_document():
+    """The gap, asserted so it cannot quietly reopen — and it has widened once.
+
+    It read "every reason but one", because `facts_not_established` was the only
+    entry about what the rule asks for rather than about the rule. On 5 September
+    2026 the firm named a third kind: "there should be something telling us to
+    get like loan statements and stuff to make sure we understand the deal."
+    A document that exists and was never requested is not the same problem as a
+    fact nobody knows — one is answered by asking a person, the other by
+    obtaining a thing — and filing them together sends eight of forty-three real
+    questions to the wrong queue.
+
+    So the assertion is no longer "one exception". It is that every reason falls
+    in a named group, and that adding one forces a decision about which.
     """
-    about_facts = {"facts_not_established"}
-    assert about_facts <= set(REASONS), (
-        "the set has nothing for a rule that is clear and a fact that is missing; "
-        "a desk in that position can only guess or blame the record")
-    about_authority = set(REASONS) - about_facts - {"model_gave_up"}
-    assert all(
-        w in r for r in about_authority
-        for w in ("authority", "citation", "source", "position")
-        if w in r), "unreachable; the loop below is the real assertion"
+    assert set(NOT_ABOUT_AUTHORITY) <= set(REASONS), (
+        "a named non-authority reason has been dropped from the engine; the "
+        "desk in that position can only guess or blame the record")
+    about_authority = set(REASONS) - set(NOT_ABOUT_AUTHORITY) - {"model_gave_up"}
     for r in about_authority:
         assert any(w in r for w in ("authority", "citation", "source", "position")), (
-            f"{r!r} is neither about the authority nor named as being about the "
-            f"facts; the set's two halves have to stay legible")
+            f"{r!r} is about neither the authority nor anything named in "
+            f"NOT_ABOUT_AUTHORITY. Say which kind of problem it is: the groups "
+            f"decide who has to move, and a reason in none of them decides "
+            f"nothing")
 
 
 def test_a_reason_outside_the_closed_set_is_still_refused(fixed_assets, problem):

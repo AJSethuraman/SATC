@@ -506,11 +506,12 @@ def test_the_preamble_names_a_resolution_for_every_reason_the_queue_accepts():
     A queue that cannot say what to do with its own largest category is a list,
     not a queue.
     """
-    assert "ask the client" in unsupported.PREAMBLE.lower(), (
-        "`facts_not_established` is a reason `from_question` accepts and the "
-        "preamble offers no resolution for it")
+    for phrase in ("ask the client", "request it"):
+        assert phrase in unsupported.PREAMBLE.lower(), (
+            f"{phrase!r} is missing: a reason `from_question` accepts has no "
+            f"resolution offered anywhere the reader will look")
     rows = [l for l in unsupported.PREAMBLE.splitlines()
             if l.startswith("|") and "---" not in l][1:]
-    assert len(rows) == 4, f"the preamble lists {len(rows)} resolutions"
+    assert len(rows) == 5, f"the preamble lists {len(rows)} resolutions"
     assert f"{len(rows)} resolutions" in unsupported.PREAMBLE.replace(
-        "Four", "4"), "the count in the sentence disagrees with the table"
+        "Five", "5"), "the count in the sentence disagrees with the table"

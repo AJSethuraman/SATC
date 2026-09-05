@@ -116,8 +116,11 @@ def test_a_secondary_kind_is_never_the_primary_one():
 
 # ── the queue this corpus actually produced ──────────────────────────────────
 
-def test_only_the_two_kinds_the_queue_holds_were_filed():
-    """22 of 43, and the other 21 stayed out.
+def test_only_the_kinds_the_queue_holds_were_filed():
+    """30 of 43, and the other 13 stay out. It was 22 and 21 until the firm
+    answered the docket: kind C had no reason to file under, so this tool named
+    its owner and refused. `document_not_requested` gave it one, with their
+    constraint in it — the request is raised to the preparer, never the client.
 
     THIS IS THE POINT OF THE EXERCISE, not a side effect of it. `from_question`
     takes two reasons because they are the two a question can honestly be in.
@@ -131,7 +134,8 @@ def test_only_the_two_kinds_the_queue_holds_were_filed():
     queue = Path(__file__).resolve().parents[1] / "unfiled" / "CLOSE-2026-09-05.md"
     entries = unsupported.parse(queue.read_text(encoding="utf-8"))
 
-    expected = {"A": "authority_absent", "B": "facts_not_established"}
+    expected = {"A": "authority_absent", "B": "facts_not_established",
+                "C": "document_not_requested"}
     should_file = [n for n, k, _ in
                    ((n, k, s) for n, k, s in _rows()) if k in expected]
     assert len(entries) == len(should_file), (

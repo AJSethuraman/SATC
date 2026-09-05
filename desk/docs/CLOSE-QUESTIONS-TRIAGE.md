@@ -27,14 +27,21 @@ reason set or is the firm's own phrasing from `CLOSE-QUESTIONS-2026-09-05.md`.
 |---|---|---|---|
 | **A · a rule settles it** | citable authority | a desk | `authority_absent`, already in `engine.REASONS` |
 | **B · only the client has the fact** | asking the client | the preparer | `facts_not_established`, added from the J.Crew case |
-| **C · a document settles it** | requesting it | the engagement's document list | *"there should be something telling us to get like loan statements and stuff to make sure we understand the deal"* (Q26) |
+| **C · a document settles it** | requesting it, **raised to the preparer** | `document_not_requested`, added 5 Sep 2026 on the firm's answer | *"there should be something telling us to get like loan statements and stuff to make sure we understand the deal"* (Q26) |
 | **D · the firm decides once** | one ratified position | the firm | *"it's a good question and it has the answer in it ... to ratify on the spot if you can"* (Q4) |
 | **E · a software defect** | a bug fix | this repository | *"is this an authority question or is this like the problem with the software kind of question"* (Q23) |
 | **F · it changes nothing** | saying so | the desk, if it could | *"it's also useful for an agent to tell someone something doesn't matter is if that's possible"* (Q28) |
 
-**Three of these six have nowhere to go today.** `unsupported.py` holds A and B.
-C, D and F have no queue, no field and no outcome. E belongs on the issue
-tracker and is not a desk matter at all.
+**Two of these six still have nowhere to go.** `unsupported.py` holds A, B and —
+since the firm answered the docket — C. D and F have no queue, no field and no
+outcome. E belongs on the issue tracker and is not a desk matter at all.
+
+**C was the first to get one, and the firm set its shape.** They answered *"wire
+it up properly"* and then bounded it: *"but not direct to client - things would
+be wired to go to me as the last resort right now."* So a desk that concludes
+*request the loan statement* raises it to the **preparer**, who decides whether
+to ask the client. Nothing this engine produces reaches a client without a person
+in between.
 
 ---
 
