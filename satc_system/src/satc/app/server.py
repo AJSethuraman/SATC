@@ -201,7 +201,17 @@ def create_app() -> Flask:
         elif action == "delete":
             STATE.delete_field(field_id)
         elif action == "edit":
-            STATE.edit_field(field_id, request.form.get("value", ""))
+            # A refused correction comes back on the screen it happened on,
+            # naming the value and what would post instead. Redirecting would
+            # drop the message, and the row would look unchanged for no visible
+            # reason -- which is the failure this refusal exists to end.
+            problem = STATE.edit_field(field_id, request.form.get("value", ""))
+            if problem:
+                return render_template("staging.html", title="Staging & confirmation",
+                                       documents=STATE.gate.documents,
+                                       summary=STATE.gate.summary(),
+                                       intake=STATE.intake_summary,
+                                       refused=problem), 200
         return redirect(url_for("staging"))
 
     @app.route("/sample/clear", methods=["POST"])
