@@ -12,9 +12,15 @@ The order of operations here is the design, not an implementation detail:
    goes out.
 3. **A per-entity fetch failure blanks that slot and continues.** One bank's
    outage must not cost the analyst the other eleven.
-4. **Zero pulls where pulls were expected is a failure**, not a quiet success.
-   Without that check a total outage exits 0 over a workbook of blanks, which
-   reads as "nothing is wrong".
+4. **Every entity that was admitted must land**, not merely one of them.
+   Until 5 September 2026 this read "zero pulls where pulls were expected is a
+   failure" and the gate asked for *at least one*. The same shape on the FRED
+   side shipped a workbook with Nebraska missing under exit code 0: one HTTP
+   500 out of 142 series, the error recorded honestly in the status dict, and
+   nothing read it. The comparison is arithmetic on two numbers the run
+   already carries. A refused entity is excluded from the expectation --
+   ``entities_active`` counts admitted PLUS watchlist refusals, and a refused
+   bank never lands by design.
 """
 
 from __future__ import annotations
@@ -22,7 +28,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from credit_suite.engine import gates, metrics as metrics_mod, rawlayout
+from credit_suite.engine import (consistency, gates, metrics as metrics_mod,
+                                 rawlayout)
 from credit_suite.engine.config import Config, EntityRow
 from credit_suite.engine.digest import Annotator, compute_digest
 from credit_suite.engine.metrics import Registry
@@ -89,6 +96,12 @@ def run_refresh(backend: OpenpyxlBackend, cfg: Config, provider: Provider,
         "pack_version": spec.pack_version,
         "entity_slots": cfg.entity_slots,
         "entities_active": len(admitted) + len(refusals),
+        # What C1 measures against. `entities_active` counts the refusals too,
+        # and a refused entity never lands by design, so measuring landing
+        # against it would refuse every build that legitimately refused a bank.
+        "entities_admitted": len(admitted),
+        "entities_missing": ["s%02d %s" % (row.slot, row.entity_key)
+                             for row in admitted if row.slot not in landed],
         "entities_landed": len(landed),
         "entities_excluded": len(excluded),
         # Staleness excludes an entity from every alert KPI.
@@ -106,16 +119,37 @@ def run_refresh(backend: OpenpyxlBackend, cfg: Config, provider: Provider,
     }
 
 
-def run_succeeded(status: dict) -> bool:
-    """False when entities were expected to land and none did.
+def landing_result(status: dict) -> consistency.CheckResult:
+    """C1 -- every admitted entity landed, with the denominator attached.
 
-    Per-entity fetch failures are collected rather than raised, so without this
-    a total outage would exit 0 over a workbook of blanks under a fresh
-    timestamp -- which reads as "checked, nothing wrong". Carried from the FRED
-    hardening and promoted into the engine so every monitor gets it.
+    Per-entity fetch failures are collected rather than raised, so without
+    this a partial outage exits 0 over a workbook with holes in it under a
+    fresh timestamp -- which reads as "checked, nothing wrong". It asked for
+    *at least one* until 5 September 2026; the FRED side of the same shape
+    shipped a workbook with Nebraska missing.
+
+    A status that cannot say how many were admitted gets UNKNOWN rather than a
+    silent pass: refuse to default. ``run_refresh`` always writes the count, so
+    this is reachable only from a hand-built dict.
     """
-    expected = status.get("entities_active", 0)
-    return not (expected > 0 and status.get("entities_landed", 0) == 0)
+    expected = status.get("entities_admitted")
+    if expected is None:
+        return consistency.undetermined(
+            "C1", "the run status carries no admitted count, so how many "
+                  "entities were expected to land could not be established",
+            unit="entities")
+    return consistency.landing_check(
+        expected=expected, landed=status.get("entities_landed", 0),
+        missing=status.get("entities_missing") or (), unit="entities")
+
+
+def run_succeeded(status: dict) -> bool:
+    """False when an entity that was expected to land did not.
+
+    Only a FAIL blocks. An UNKNOWN ships and is printed -- a gate that refuses
+    on "could not establish" trains the operator to bypass it.
+    """
+    return not landing_result(status).blocking
 
 
 #: The runner CLI's exit codes (TEMPLATE_CONTRACT section 4).

@@ -55,12 +55,16 @@ L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 N = "tests/test_fred_labels.py::"
 F = "tests/test_fred_bar.py::"
+F2 = "tests/test_fred_bar.py::"
 W = "tests/test_engine_workbook.py::"
 N = "tests/test_not_applicable.py::"
 G2 = "tests/test_mergers.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
 N = "tests/test_conformance.py::"
+CY = "tests/test_consistency.py::"
+ID = "tests/test_fdic_identities.py::"
+FC = "tests/test_fred_consistency.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -387,11 +391,50 @@ MUTATIONS: list[Mutation] = [
         "a null component blanks a composite instead of understating it",
     ),
     Mutation(
-        "zero-pull-reported-as-success", SRC / "engine" / "runtime.py",
-        '    return not (expected > 0 and status.get("entities_landed", 0) == 0)',
-        "    return True",
-        (W + "test_zero_pulls_where_pulls_were_expected_is_a_failure",),
-        "a total outage is a failure, not a quiet success over a blank workbook",
+        "partial-pull-reported-as-success", SRC / "engine" / "consistency.py",
+        "    short = expected - landed",
+        "    short = 0",
+        (W + "test_every_entity_that_was_admitted_has_to_land",
+         F2 + "test_run_succeeded_needs_every_pullable_series_to_land",
+         CY + "test_one_series_short_of_the_expected_count_is_a_failure",
+         CY + "test_fred_run_succeeded_refuses_a_partial_pull",
+         CY + "test_engine_run_succeeded_refuses_a_partial_landing"),
+        "C1: a run that landed 141 of 142 is a failure, not a quiet success "
+        "-- the Nebraska hole, in both runners",
+    ),
+    Mutation(
+        "landing-measured-against-the-refusals", SRC / "engine" / "runtime.py",
+        '    expected = status.get("entities_admitted")',
+        '    expected = status.get("entities_active")',
+        (CY + "test_a_refused_entity_is_not_expected_to_land",
+         CY + "test_an_engine_status_with_no_admitted_count_is_UNKNOWN"),
+        "C1 counts the entities that were ADMITTED, not the ones a watchlist "
+        "gate refused and that never land by design",
+    ),
+    Mutation(
+        "pass-over-an-empty-population", SRC / "engine" / "consistency.py",
+        "        if self.verdict == PASS and self.examined == 0:",
+        "        if False:",
+        (CY + "test_a_PASS_over_an_empty_population_is_refused_at_construction",),
+        "the result type refuses to hold PASS over nothing examined",
+    ),
+    Mutation(
+        "nothing-examined-reads-as-ok", SRC / "engine" / "consistency.py",
+        "    if examined == 0:\n        verdict = NONE",
+        "    if False:\n        verdict = NONE",
+        (CY + "test_a_check_that_examined_nothing_says_NONE_and_never_PASS",
+         ID + "test_a_bank_quarter_missing_a_leg_is_not_counted_as_a_pass"),
+        "a check with nothing to look at answers NONE",
+    ),
+    Mutation(
+        "unknown-collapsed-into-pass", SRC / "engine" / "consistency.py",
+        "    elif unknowns:\n        verdict = UNKNOWN",
+        "    elif False:\n        verdict = UNKNOWN",
+        (CY + "test_unknown_alone_is_its_own_verdict_not_a_pass",
+         ID + "test_a_zero_denominator_is_UNKNOWN_rather_than_a_division",
+         ID + "test_the_comparability_sweep_reports_its_denominator",
+         FC + "test_no_previous_run_to_compare_against_is_UNKNOWN"),
+        "UNKNOWN is a third verdict and does not read as PASS",
     ),
     Mutation(
         "secret-invented-when-unset", SRC / "engine" / "provider.py",
@@ -708,9 +751,16 @@ MUTATIONS: list[Mutation] = [
         "a bare RCON in the map is the convention, not a fixed prefix",
     ),
     Mutation(
+        # The anchor carried a two-argument `_resolve` and the domestic-marker
+        # work gave it a third, so this raised "the code moved" and ABORTED the
+        # whole harness -- every mutation after it went unrun, and the run
+        # still exited through a pipe with status 0. Found 5 Sep 2026 by
+        # running the full set rather than a selection.
         "filing-drops-the-foreign-office-line", SRC / "sources/fdic/filing.py",
-        "        for opt in expression.optional:\n            got = _resolve(facts, opt)",
-        "        for opt in ():\n            got = _resolve(facts, opt)",
+        "        for opt in expression.optional:\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
+        "        for opt in ():\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
         (G + "test_a_plus_parenthetical_adds_the_foreign_office_line_when_present",),
         "the map's (+RCFN... 031) addition is honoured",
     ),

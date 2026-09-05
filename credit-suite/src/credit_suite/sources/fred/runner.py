@@ -34,6 +34,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 
 import pandas as pd
 
+from credit_suite.engine import consistency
 from credit_suite.engine.provider import NormalizedRow
 
 # Lane -> raw tab name. Presentation tabs read from these.
@@ -964,6 +965,8 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
             f"Pulling {len(pullable)} series from FRED, paced at "
             f"{cfg.fred_min_interval:.2f}s each (~{est/60:.1f} min). One request "
             f"per series; please let it finish.\n")
+    missing: List[str] = []
+    grids: Dict[str, tuple] = {}
     for i, spec in enumerate(pullable, 1):
         try:
             # Through the contract seam (section 6), not around it: the adapter
@@ -971,10 +974,16 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
             s = rows_to_series(provider.fetch_series(spec))
         except Exception as exc:
             errors.append(f"{spec.series_id}: {exc}")
+            missing.append(f"{spec.series_id}: {exc}")
             continue
         block = blocks[spec.series_id]
         backend.write_raw_block(block, spec, s, vintage=vintage)
         pulled += 1
+        # C5: the grid the transforms will run over. Checked on what was
+        # PULLED, not on what was written, so a reader of the report is not
+        # asking the workbook whether the workbook is right.
+        grids[spec.series_id] = ([str(idx)[:10] for idx in s.index],
+                                 spec.frequency, False)
         if mode == "live" and i % 25 == 0:
             sys.stderr.write(f"  ... {i}/{len(pullable)} pulled\n")
         # Stale check from the data we already have -- no second API call.
@@ -995,24 +1004,70 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
         "series_in_dict": len(cfg.series),
         "series_pullable": len(pullable),
         "series_pulled": pulled,
+        # What C1 measures against. Not truncated the way `errors` is: a
+        # report that names 25 of 42 holes and stops is the shape of the
+        # defect, not the fix.
+        "series_missing": missing,
         "alert_count": len(alerts),
         "alerts": alerts[:25],
         "stale": stale,
         "errors": errors[:25],
+        # C5, reported and not gating. Duplicates, reversals and irregular
+        # steps have no innocent explanation and the design says refuse; this
+        # does not, yet, because no live FRED pull has been run through it --
+        # the 142-of-142 baseline was measured on a workbook, and an unverified
+        # rule that blocks the desk's only refresh path is the false alarm the
+        # design spends a page warning about. Wire it to the exit code after
+        # one live run confirms it, and say so here when you do.
+        "date_grid": consistency.date_grid_all(grids).summary(),
     }
     backend.write_status(status)
     backend.finalize()
     return status
 
 
+def landing_result(status: dict):
+    """C1 -- every pullable series must land, with the denominator attached.
+
+    **The Nebraska defect.** This asked whether ZERO came back until
+    5 September 2026::
+
+        return not (pullable > 0 and status.get("series_pulled", 0) == 0)
+
+    The gate was *at least one*, not *all*. One HTTP 500 on the Nebraska house
+    price index gave ``pulled = 141``, ``errors = ["NESTHPI: ..."]``, exit 0,
+    a shipped workbook with a state missing from it, and a passing test suite.
+    The error was recorded honestly and nothing read it.
+
+    Exact equality, nothing to tune, and it cannot produce a false alarm. The
+    trade it does make is stated: a transient 500 on one of 142 series now
+    fails the whole run. That is the correct trade -- a monitor with a silent
+    hole is worse than a monitor that did not ship -- so the refusal names the
+    series and the error, and the runner already paces and retries requests.
+
+    A status that cannot say how many were pullable gets UNKNOWN rather than a
+    quiet pass. A run with nothing pullable (every series retired in the seed)
+    is a configuration, not an outage, and is not a failure.
+    """
+    pullable = status.get("series_pullable", status.get("series_in_dict"))
+    if pullable is None:
+        return consistency.undetermined(
+            "C1", "the run status carries no pullable count, so how many "
+                  "series were expected could not be established",
+            unit="series")
+    return consistency.landing_check(expected=pullable,
+                                     landed=status.get("series_pulled", 0),
+                                     missing=status.get("series_missing") or (),
+                                     unit="series")
+
+
 def run_succeeded(status: dict) -> bool:
-    """False when there were series to pull but ZERO came back -- a total-fetch
-    failure (FRED unreachable, key revoked, network blocked). Individual fetch
-    errors are collected rather than raised, so without this check main() would
-    return exit 0 while the workbook silently kept stale raw data. A run with
-    nothing pullable (all series dead) is not a failure."""
-    pullable = status.get("series_pullable", status.get("series_in_dict", 0))
-    return not (pullable > 0 and status.get("series_pulled", 0) == 0)
+    """False when a series that was expected to land did not.
+
+    Only a FAIL blocks. UNKNOWN ships and is printed -- a gate that refuses on
+    "could not establish" trains the operator to bypass it.
+    """
+    return not landing_result(status).blocking
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -1038,14 +1093,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         sys.stderr.write(f"RUN ERROR: {exc}\n")
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1
-    ok = run_succeeded(status)
+    landing = landing_result(status)
+    ok = not landing.blocking
     print(json.dumps({"ok": ok, **status}))
+    sys.stderr.write(landing.summary() + "\n")
+    if status.get("date_grid"):
+        sys.stderr.write(status["date_grid"] + "\n")
     if not ok:
         sys.stderr.write(
-            f"FAIL: pulled 0/{status.get('series_pullable', 0)} series -- every "
-            f"fetch failed (FRED unreachable, key revoked, or network blocked). "
-            f"The workbook was NOT refreshed with new data; it retains prior raw "
-            f"values. Do not treat this run as current.\n")
+            f"FAIL: pulled {status.get('series_pulled', 0)}/"
+            f"{status.get('series_pullable', 0)} series. Every pullable series "
+            f"must land: a workbook missing one series is a monitor with a "
+            f"silent hole in it, which is worse than one that did not ship. "
+            f"Rerun, or mark the series dead in series_seed.py and say why.\n")
         return 4
     sys.stderr.write(
         f"OK: {status['series_pulled']}/{status['series_in_dict']} series, "
