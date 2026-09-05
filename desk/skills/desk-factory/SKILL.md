@@ -38,6 +38,19 @@ Ask them **one at a time**, `AskUserQuestion`, **your recommended answer first**
 and marked so. The firm should be able to accept the default and move on; you are
 doing the thinking, not handing it back. Two rules on top of `grill-me`'s:
 
+**Look where the authority is, not where the fetch succeeds.** Building the
+cash-and-bank desk, the sources reached first were *tax* sources for an
+*accounting* question — because eCFR and irs.gov answered and everything else
+was refused by the environment's network policy. The firm, 5 September 2026:
+*"there is a difference between tax and something like GAAP."* A streetlight
+search produces a desk whose record is about the wrong subject and reads as
+thorough. Two facts to carry: **eCFR serves every CFR title**, so accounting and
+banking authority is there too (Reg S-X is 17 CFR 210, FDIC deposit rules are
+12 CFR 330); and **reachable is not a reason to store** — Reg S-X came back
+clean and mentions reconciliation and outstanding checks zero times, so it was
+left out. Authority that does not bear on the question is padding that reads as
+rigour.
+
 **Research the source before asking about it, never ask the firm to recall it.**
 Tier, access and the licence are facts about a document. Go and read the
 document's own terms and bring the finding back as the basis for the question —

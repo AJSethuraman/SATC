@@ -97,7 +97,22 @@ QUESTIONS: tuple[Question, ...] = (
         why="`parse_sources` raises rather than loading a desk with none: a desk "
             "with no authority cannot answer, and an empty source list is the "
             "shape that would otherwise reach the engine as a desk that escalates "
-            "everything and looks disciplined doing it.",
+            "everything and looks disciplined doing it.\n\n"
+            "LOOK WHERE THE AUTHORITY IS, NOT WHERE THE FETCH SUCCEEDS. Building "
+            "the cash-and-bank desk on 5 September 2026, the sources reached "
+            "first were tax sources, for an accounting question -- because "
+            "eCFR and irs.gov answered and everything else did not. The firm: "
+            "\"there is a difference between tax and something like GAAP.\" A "
+            "streetlight search produces a desk whose record is about the wrong "
+            "subject and reads as thorough.\n\n"
+            "Two facts worth carrying to the next desk. eCFR serves EVERY CFR "
+            "title, so accounting and banking authority is there too -- SEC "
+            "Regulation S-X is 17 CFR 210, FDIC deposit rules are 12 CFR 330 -- "
+            "and both fetch as easily as title 26. And a source being reachable "
+            "is not a reason to store it: Reg S-X 210.5-02 came back clean and "
+            "mentions reconciliation, outstanding checks and deposits in transit "
+            "exactly zero times, so it was left out. Authority that does not "
+            "bear on the question is padding that reads as rigour.",
     ),
     Question(
         id="Q4",
