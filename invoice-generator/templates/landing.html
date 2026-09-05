@@ -109,6 +109,7 @@
       <span class="logo__name">Invoicer</span>
     </a>
     <nav class="lnav__links">
+      <a href="{{ url_for('generator') }}">Make an invoice</a>
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
@@ -128,10 +129,10 @@
       <h1>Send invoices.<br/>Get paid in <em>60 seconds</em>.</h1>
       <p class="hero__sub">The dead-simple invoicing tool for freelancers and small firms. Connect <strong>your own Stripe</strong>, send a polished invoice by email, and collect payment online — keeping 100% of your money.</p>
       <div class="hero__cta">
-        <a class="btn btn--lg" href="{{ url_for('signup') }}">Create your first invoice →</a>
-        <a class="btn btn--lg btn--secondary" href="{{ url_for('login') }}">Log in</a>
+        <a class="btn btn--lg" href="{{ url_for('generator') }}">Make an invoice now →</a>
+        <a class="btn btn--lg btn--secondary" href="{{ url_for('signup') }}">Create an account</a>
       </div>
-      <p class="hero__note">No card required · Free while self-hosted · Up and running in minutes</p>
+      <p class="hero__note">No account. Nothing to install. Type it, pick a look, download the PDF.</p>
     </div>
 
     <div style="position:relative;">
@@ -244,7 +245,7 @@
       <p class="small muted" style="margin-top:var(--space-4)">Self-hosted invoicing for people who'd rather keep their money. Open, simple, yours.</p>
     </div>
     <div class="foot__cols">
-      <div class="foot__col"><h4>Product</h4><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a></div>
+      <div class="foot__col"><h4>Product</h4><a href="{{ url_for('generator') }}">Make an invoice</a><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a></div>
       <div class="foot__col"><h4>Account</h4><a href="{{ url_for('login') }}">Log in</a><a href="{{ url_for('signup') }}">Sign up</a></div>
       <div class="foot__col"><h4>Company</h4><a href="{{ url_for('privacy') }}">Privacy</a><a href="{{ url_for('terms') }}">Terms</a></div>
     </div>

@@ -1,0 +1,306 @@
+{#
+  ============================================================
+  INVOICER · THE INVOICE DOCUMENT
+  ONE template, TWO modes.
+
+    editable=False  -> plain text. This is what pdf.py renders.
+    editable=True   -> the same markup with <input>/<textarea> in
+                       the text positions. This is the editor.
+
+  Both callers include _invoice_css.html with the same resolved
+  `design`, so the editor is a genuine preview rather than a
+  lookalike: the sender types into the document that will be
+  printed, in the face and at the size it will print at.
+
+  Keeping the two modes in one file is the whole point. The
+  previous shape -- a form on one page, a PDF template on
+  another -- is how you end up showing a client one layout and
+  emailing them a different one, and nobody notices because
+  each artifact looks fine on its own.
+
+  TABLE-SAFE ONLY in this file: it is rendered by xhtml2pdf,
+  which has no flexbox, no grid and no absolute positioning.
+  Editor-only chrome that needs those lives in generator.html
+  and is never seen by the PDF.
+  ============================================================
+#}
+
+{# ---- field primitives ------------------------------------------- #}
+
+{% macro field(editable, name, value, placeholder='', cls='', kind='text') -%}
+  {%- if editable -%}
+    <input class="f {{ cls }}" type="{{ kind }}" name="{{ name }}" value="{{ value if value is not none else '' }}" placeholder="{{ placeholder }}" autocomplete="off"/>
+  {%- else -%}
+    {{ value if value is not none else '' }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro nameline(editable, name, value, placeholder='') -%}
+  {%- if editable -%}
+    <textarea class="f" name="{{ name }}" rows="1" placeholder="{{ placeholder }}"
+              data-autogrow data-oneline>{{ value if value is not none else '' }}</textarea>
+  {%- else -%}
+    {{ value if value is not none else '' }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro block(editable, name, value, placeholder='', rows=3) -%}
+  {%- if editable -%}
+    <textarea class="f" name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}" data-autogrow>{{ value if value is not none else '' }}</textarea>
+  {%- else -%}
+    {%- for line in (value or '').splitlines() -%}{{ line }}{% if not loop.last %}<br/>{% endif %}{%- endfor -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{# One line-item row. Used for the seeded rows AND cloned by the editor's
+   JS from a <template> that renders this same macro -- so an added row
+   cannot drift from a loaded one. #}
+{% macro line_row(editable, invoice, description='', quantity='', rate='', amount_text='') -%}
+<tr>
+  <td class="desc">
+    {%- if editable -%}
+      <button type="button" class="delrow" title="Remove this line" tabindex="-1">&times;</button>
+      <input class="f" name="item_description" value="{{ description }}" placeholder="Description of work or goods" autocomplete="off"/>
+    {%- else -%}{{ description }}{%- endif -%}
+  </td>
+  <td class="r num">{{ field(editable, 'item_quantity', quantity, '1', 'r qty') }}</td>
+  <td class="r num">{{ field(editable, 'item_rate', rate, '0.00', 'r rate') }}</td>
+  <td class="r num amt">{{ amount_text }}</td>
+</tr>
+{%- endmacro %}
+
+
+{# ---- the masthead, shared by every family ------------------------ #}
+
+{% macro masthead(editable, invoice, business, design, doc_title) -%}
+<table class="mast">
+  <tr>
+    {# Always present, and collapsed to zero width unless the design asks for
+       it. The DOM is IDENTICAL for all 48 designs on purpose: switching a
+       design in the editor swaps the stylesheet and nothing else, so it
+       cannot disturb a half-typed line, and the editor's markup stays the
+       same markup the PDF renders. #}
+    <td class="stripe-bar"></td>
+    <td class="mast-main" width="55%">
+      {% if business.logo_uri %}
+      <div class="logo-box"><img src="{{ business.logo_uri }}" alt="{{ business.name }}"/></div>
+      {% elif editable %}
+      <div class="logo-box" id="logo-slot" data-empty="1"></div>
+      {% endif %}
+      <div class="mast-name">{{ nameline(editable, 'from_name', business.name, 'Your business name') }}</div>
+      <div class="mast-from">
+        {%- if editable -%}
+          {{ block(editable, 'from_address', business.address_text, 'Street\nCity, State ZIP\nyou@business.com', 3) }}
+        {%- else -%}
+          {% for line in business.lines %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+        {%- endif -%}
+      </div>
+    </td>
+    <td class="mast-meta" width="45%" style="text-align:right;">
+      <div class="doc-title">{{ field(editable, 'doc_title', doc_title, 'INVOICE', 'r') }}</div>
+      {% if not editable %}
+        {% if invoice.display_status == 'Overdue' %}
+        <div class="doc-badge overdue">Overdue</div>
+        {% elif invoice.display_status == 'Paid' %}
+        <div class="doc-badge paid">Paid in full</div>
+        {% else %}
+        <div class="doc-badge">{{ invoice.display_status }}</div>
+        {% endif %}
+      {% endif %}
+      <table class="meta" style="margin-top:8pt;">
+        <tr>
+          <td class="k">{{ doc_title|title }} #</td>
+          <td class="v">{{ field(editable, 'invoice_number', invoice.invoice_number, 'INV-0001', 'r') }}</td>
+        </tr>
+        {% if editable or invoice.invoice_date %}
+        <tr>
+          <td class="k">Issue date</td>
+          <td class="v">{{ field(editable, 'invoice_date', invoice.invoice_date.isoformat() if invoice.invoice_date else '', '', 'r', 'date') if editable else invoice.invoice_date | fmtdate }}</td>
+        </tr>
+        {% endif %}
+        {% if editable or invoice.due_date %}
+        <tr>
+          <td class="k">Due date</td>
+          <td class="v">{{ field(editable, 'due_date', invoice.due_date.isoformat() if invoice.due_date else '', '', 'r', 'date') if editable else invoice.due_date | fmtdate }}</td>
+        </tr>
+        {% endif %}
+        {% if editable or invoice.payment_terms %}
+        <tr><td class="k">Terms</td><td class="v">{{ field(editable, 'payment_terms', invoice.payment_terms, 'Net 14', 'r') }}</td></tr>
+        {% endif %}
+        {% if editable or invoice.po_number %}
+        <tr><td class="k">PO #</td><td class="v">{{ field(editable, 'po_number', invoice.po_number, 'optional', 'r') }}</td></tr>
+        {% endif %}
+      </table>
+    </td>
+  </tr>
+</table>
+{%- endmacro %}
+
+
+{# ---- the document ------------------------------------------------ #}
+
+{% macro document(invoice, business, design, editable=False, pay_url=None, doc_title='INVOICE') -%}
+{% set bill_lines = (invoice.bill_to or '').splitlines() | select | list %}
+{% set ship_lines = (invoice.ship_to or '').splitlines() | select | list %}
+{% set cur = invoice.currency or 'USD' %}
+<div class="sheet">
+  <div class="pad">
+
+    {{ masthead(editable, invoice, business, design, doc_title) }}
+
+    <table style="margin-top:7mm;"><tr class="rule"><td></td></tr></table>
+
+    <!-- BILL TO / SHIP TO -->
+    <table style="margin-top:6mm;">
+      <tr>
+        <td width="50%" style="padding-right:8mm;">
+          <div class="label">Bill to</div>
+          {%- if editable -%}
+            <div class="party-name">{{ nameline(editable, 'bill_to_name', bill_lines[0] if bill_lines else '', "Client's name") }}</div>
+            <div class="party">{{ block(editable, 'bill_to_address', bill_lines[1:] | join('\n'), 'Street\nCity, State ZIP', 2) }}</div>
+            <div class="party">{{ field(editable, 'client_email', invoice.client_email, 'accounts@client.com', '', 'email') }}</div>
+          {%- else -%}
+            {% if bill_lines %}
+            <div class="party-name">{{ bill_lines[0] }}</div>
+            {% if bill_lines[1:] %}
+            <div class="party">{% for line in bill_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
+            {% endif %}
+            {% endif %}
+            {% if invoice.client_email %}<div class="party">{{ invoice.client_email }}</div>{% endif %}
+          {%- endif -%}
+        </td>
+        <td width="50%">
+          {%- if editable -%}
+            <div class="label">Ship to <span style="font-weight:normal;text-transform:none;letter-spacing:0;color:#94a3b8">(optional)</span></div>
+            <div class="party-name">{{ nameline(editable, 'ship_to_name', ship_lines[0] if ship_lines else '', 'Same as billing') }}</div>
+            <div class="party">{{ block(editable, 'ship_to_address', ship_lines[1:] | join('\n'), '', 2) }}</div>
+          {%- elif ship_lines -%}
+            <div class="label">Ship to</div>
+            <div class="party-name">{{ ship_lines[0] }}</div>
+            {% if ship_lines[1:] %}
+            <div class="party">{% for line in ship_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
+            {% endif %}
+          {%- endif -%}
+        </td>
+      </tr>
+    </table>
+
+    <!-- LINE ITEMS -->
+    <table class="items">
+      <thead>
+        <tr>
+          <th width="50%">Description</th>
+          <th class="r" width="12%">Qty</th>
+          <th class="r" width="19%">Unit price</th>
+          <th class="r" width="19%">Amount</th>
+        </tr>
+      </thead>
+      <tbody id="lines">
+        {%- if editable -%}
+          {%- if invoice.items -%}
+            {%- for item in invoice.items -%}
+              {{ line_row(true, invoice, item.description, '%g' % (item.quantity or 0), '%g' % (item.rate or 0), format_money(item.amount, cur)) }}
+            {%- endfor -%}
+          {%- else -%}
+            {{ line_row(true, invoice, '', '1', '', format_money(0, cur)) }}
+          {%- endif -%}
+        {%- else -%}
+          {%- for item in invoice.items -%}
+          <tr{% if loop.index0 % 2 == 1 %} class="zebra"{% endif %}>
+            <td class="desc">{{ item.description }}</td>
+            <td class="r num">{{ "%g"|format(item.quantity or 0) }}</td>
+            <td class="r num">{{ format_money(item.rate, cur) }}</td>
+            <td class="r num">{{ format_money(item.amount, cur) }}</td>
+          </tr>
+          {%- endfor -%}
+        {%- endif -%}
+      </tbody>
+    </table>
+    {% if editable %}
+    <button type="button" id="addline">+ Add a line</button>
+    {% endif %}
+
+    <!-- TOTALS + NOTES -->
+    <table style="margin-top:5mm;">
+      <tr>
+        <td width="52%" style="padding-right:8mm;">
+          {% if editable or invoice.notes %}
+          <div class="notes-h">Notes</div>
+          <div class="notes" style="margin-bottom:5mm;">{{ block(editable, 'notes', invoice.notes, 'Thank you for your business.', 2) }}</div>
+          {% endif %}
+          {% if editable or invoice.terms %}
+          <div class="notes-h">Terms</div>
+          <div class="notes">{{ block(editable, 'terms', invoice.terms, 'Payment due within 14 days.', 2) }}</div>
+          {% endif %}
+        </td>
+        <td width="48%">
+          <table class="totals">
+            <tr><td class="k">Subtotal</td><td class="v" id="t-sub">{{ format_money(invoice.subtotal, cur) }}</td></tr>
+
+            {% if editable %}
+            <tr class="discount">
+              <td class="k">Discount <input class="f r adj" name="discount" value="{{ '%g' % (invoice.discount_value or 0) }}" style="width:44px"/><select class="f pctsel" name="discount_is_percent" style="width:34px"><option value="1" {{ 'selected' if invoice.discount_is_percent }}>%</option><option value="0" {{ 'selected' if not invoice.discount_is_percent }}>{{ symbol_for(cur) }}</option></select></td>
+              <td class="v" id="t-disc">−{{ format_money(invoice.discount_amount, cur) }}</td>
+            </tr>
+            <tr>
+              <td class="k">Tax <input class="f r adj" name="tax" value="{{ '%g' % (invoice.tax_value or 0) }}" style="width:44px"/><select class="f pctsel" name="tax_is_percent" style="width:34px"><option value="1" {{ 'selected' if invoice.tax_is_percent }}>%</option><option value="0" {{ 'selected' if not invoice.tax_is_percent }}>{{ symbol_for(cur) }}</option></select></td>
+              <td class="v" id="t-tax">{{ format_money(invoice.tax_amount, cur) }}</td>
+            </tr>
+            <tr>
+              <td class="k">Shipping <input class="f r adj" name="shipping" value="{{ '%g' % (invoice.shipping or 0) }}" style="width:60px"/></td>
+              <td class="v" id="t-ship">{{ format_money(invoice.shipping, cur) }}</td>
+            </tr>
+            {% else %}
+            {% if invoice.discount_amount %}
+            <tr class="discount"><td class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</td><td class="v">−{{ format_money(invoice.discount_amount, cur) }}</td></tr>
+            {% endif %}
+            {% if invoice.tax_amount or invoice.tax_value %}
+            <tr><td class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</td><td class="v">{{ format_money(invoice.tax_amount, cur) }}</td></tr>
+            {% endif %}
+            {% if invoice.shipping %}
+            <tr><td class="k">Shipping</td><td class="v">{{ format_money(invoice.shipping, cur) }}</td></tr>
+            {% endif %}
+            {% endif %}
+
+            <tr class="grand"><td class="k">Total</td><td class="v" id="t-tot">{{ format_money(invoice.total, cur) }}</td></tr>
+
+            {% if editable %}
+            <tr>
+              <td class="k">Amount paid <input class="f r adj" name="amount_paid" value="{{ '%g' % (invoice.amount_paid or 0) }}" style="width:60px"/></td>
+              <td class="v" id="t-paid">−{{ format_money(invoice.amount_paid, cur) }}</td>
+            </tr>
+            {% elif invoice.amount_paid %}
+            <tr><td class="k">Amount paid</td><td class="v">−{{ format_money(invoice.amount_paid, cur) }}</td></tr>
+            {% endif %}
+
+            <tr class="balance{% if invoice.balance_due <= 0 and not editable %} paid{% endif %}">
+              <td class="k">Balance due</td><td class="v" id="t-bal">{{ format_money(invoice.balance_due, cur) }}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- PAY ONLINE -->
+    {% if pay_url and invoice.balance_due > 0 %}
+    <table class="pay" style="margin-top:6mm;">
+      <tr>
+        <td width="64%">
+          <div class="pay-h">Pay online in seconds</div>
+          <div class="pay-p">Pay securely by card or bank transfer. No account required.</div>
+          <div class="pay-link">{{ pay_url }}</div>
+        </td>
+        <td width="36%" style="text-align:right; vertical-align:middle;">
+          <a class="pay-btn" href="{{ pay_url }}">Pay {{ format_money(invoice.balance_due, cur) }} &rarr;</a>
+        </td>
+      </tr>
+    </table>
+    {% endif %}
+
+    <div class="foot">
+      <strong>{{ business.name }}</strong>{% if invoice.invoice_number %} &middot; {{ invoice.invoice_number }}{% endif %}
+    </div>
+
+  </div>
+</div>
+{%- endmacro %}

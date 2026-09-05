@@ -14,11 +14,13 @@ import math
 import mimetypes
 import os
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
 from flask import (
     Flask,
+    Response,
     abort,
     current_app,
     flash,
@@ -44,6 +46,8 @@ from markupsafe import Markup, escape
 import email_utils
 import stripe_utils
 from config import Config
+from currencies import CURRENCY_CHOICES, CURRENCIES, symbol_for
+from designs import DEFAULT_DESIGN, FAMILIES, all_designs, resolve
 from helpers import (
     currency_symbol,
     format_money,
@@ -159,6 +163,23 @@ def _ensure_schema():
         )
     if not column_exists("invoices", "client_email"):
         safe_exec(["ALTER TABLE invoices ADD COLUMN client_email VARCHAR(255)"])
+    # The design gallery (designs.py). Both are nullable with no backfill:
+    # designs.resolve(None) returns the pre-gallery look, so an existing row
+    # needs no value to keep printing exactly as it always did. Nullable is
+    # also what makes these safe under a rolling deploy — gunicorn runs two
+    # workers and _ensure_schema runs per worker at boot, so for a moment one
+    # worker is inserting rows without these columns.
+    #
+    # NOTE FOR THE NEXT COLUMN: this function knows nothing about the models.
+    # It ALTERs only the names hardcoded here, and db.create_all() creates
+    # missing TABLES but never alters an existing one. A column added to
+    # models.py without a block here brings down every query against the table
+    # in production Postgres with UndefinedColumn, while passing every local
+    # test on a SQLite file that was created fresh from the models.
+    if not column_exists("invoices", "design"):
+        safe_exec(["ALTER TABLE invoices ADD COLUMN design VARCHAR(64)"])
+    if not column_exists("invoices", "doc_title"):
+        safe_exec(["ALTER TABLE invoices ADD COLUMN doc_title VARCHAR(40)"])
     if not column_exists("invoices", "stripe_account_id"):
         safe_exec(
             ["ALTER TABLE invoices ADD COLUMN stripe_account_id VARCHAR(64)"]
@@ -285,7 +306,12 @@ def create_app(config_class=Config):
         return db.session.get(User, int(user_id))
 
     app.jinja_env.globals.update(
-        format_money=format_money, currency_symbol=currency_symbol
+        format_money=format_money,
+        currency_symbol=currency_symbol,
+        # The 157-currency table. `currency_symbol` only knows 14 and returns
+        # an empty string for anything else, which would print a bare number
+        # with no indication of what money it is.
+        symbol_for=symbol_for,
     )
     app.jinja_env.filters["nl2br"] = nl2br
     app.jinja_env.filters["fmtdate"] = fmtdate
@@ -371,17 +397,40 @@ def _due_from_terms(issue_date, terms, custom):
     return None
 
 
-def _populate_invoice_from_form(invoice, form, files=None):
+def _populate_invoice_from_form(
+    invoice, form, files=None, sender=None, currency=None
+):
     """Fill an Invoice instance from submitted form data (create or edit).
-
-    The sender block is taken from the user's business profile (snapshot),
-    and the currency from their default — neither is collected per invoice.
 
     Returns a list of validation errors raised by the *parsing* itself (a
     money box that was filled in but does not hold a number, or line-item
     arrays that do not line up). They are handed to ``_validate_invoice``
     rather than raised, so the owner gets them alongside the other messages
     on the re-rendered form.
+
+    ## Two front doors, one function
+
+    ``sender`` and ``currency`` used to be read straight off ``current_user``
+    here. They are parameters now because the anonymous generator has no
+    logged-in user: it collects the sender block and the currency on the
+    document itself. Passing them in is what lets the signed-out editor reuse
+    this function *exactly* — the same coercion, the same refusals, the same
+    line-item reconstruction — instead of growing a second parser beside it.
+    That mattered before: the web form and the JSON API once had separate
+    money coercion with separate holes, which is why ``helpers.parse_money``
+    exists at all. A third one would have been a third set of holes.
+
+    Both default to the logged-in user's values when omitted, so the owner's
+    form calls this exactly as it always did.
+
+    ## Fields are only written when the form actually carries them
+
+    Several fields below are guarded by ``in form`` rather than read with a
+    default. That guard is load-bearing for money: the owner's form does not
+    post ``amount_paid``, so reading it with a default of 0.0 would silently
+    zero a Stripe-confirmed payment every time somebody edited a part-paid
+    invoice — the edit would look successful and the balance due would jump
+    back to the full amount. Absent means "leave alone", not "set to zero".
     """
     errors = []
 
@@ -395,9 +444,13 @@ def _populate_invoice_from_form(invoice, form, files=None):
         return value
 
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
-    invoice.from_info = current_user.from_info
+    invoice.from_info = (
+        current_user.from_info if sender is None else (sender or "").strip()
+    )
     invoice.bill_to = (form.get("bill_to") or "").strip()
     invoice.client_email = (form.get("client_email") or "").strip()
+    if "ship_to" in form:
+        invoice.ship_to = (form.get("ship_to") or "").strip()
 
     invoice.invoice_date = parse_date(form.get("invoice_date")) or date.today()
     invoice.payment_terms = (form.get("payment_terms") or "").strip()
@@ -405,14 +458,36 @@ def _populate_invoice_from_form(invoice, form, files=None):
         invoice.invoice_date, invoice.payment_terms, form.get("due_date")
     )
     invoice.po_number = (form.get("po_number") or "").strip()
-    invoice.currency = (current_user.default_currency or "USD").strip().upper()
+    invoice.currency = (
+        (current_user.default_currency if currency is None else currency)
+        or "USD"
+    ).strip().upper()
 
-    # Tax and discount are entered as percentages in the UI.
+    # Tax and discount default to percentages, which is what the owner's form
+    # posts (it has no flat/percent control). The generator does have one, so
+    # honour it when the form carries it. A missing box is not "flat" — it is
+    # the older front door not asking, and flipping the meaning of a tax value
+    # because a checkbox was absent would restate the tax on every edit.
     invoice.tax_value = money("tax", "Tax")
-    invoice.tax_is_percent = True
+    if "tax_is_percent" in form:
+        invoice.tax_is_percent = form.get("tax_is_percent") == "1"
+    else:
+        invoice.tax_is_percent = True
     invoice.discount_value = money("discount", "Discount")
-    invoice.discount_is_percent = True
+    if "discount_is_percent" in form:
+        invoice.discount_is_percent = form.get("discount_is_percent") == "1"
+    else:
+        invoice.discount_is_percent = True
     invoice.shipping = money("shipping", "Shipping")
+    # See the docstring: absent means leave alone, never zero.
+    if "amount_paid" in form:
+        invoice.amount_paid = money("amount_paid", "Amount paid")
+
+    if "design" in form:
+        invoice.design = resolve(form.get("design"))["id"]
+    if "doc_title" in form:
+        title = (form.get("doc_title") or "").strip().upper()[:40]
+        invoice.doc_title = title or "INVOICE"
 
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
@@ -487,7 +562,7 @@ def _populate_invoice_from_form(invoice, form, files=None):
     return errors
 
 
-def _validate_invoice(invoice, parse_errors=None):
+def _validate_invoice(invoice, parse_errors=None, anonymous=False):
     """Return a list of human-readable validation errors.
 
     ``parse_errors`` carries anything ``_populate_invoice_from_form`` could
@@ -499,7 +574,14 @@ def _validate_invoice(invoice, parse_errors=None):
     if not invoice.invoice_number:
         errors.append("Invoice number is required.")
     if not invoice.from_info:
-        errors.append("Add your business profile in Account first.")
+        # The fix differs by front door, and "go to Account" is useless advice
+        # to somebody who has no account and is looking straight at the box
+        # they need to fill in.
+        errors.append(
+            "Add your business name at the top of the invoice."
+            if anonymous
+            else "Add your business profile in Account first."
+        )
     if not invoice.bill_to:
         errors.append("'Bill To' client information is required.")
     if not invoice.items:
@@ -1398,6 +1480,187 @@ def register_routes(app):
             invoice.balance_due, invoice.currency,
         )
         return redirect(session.url)
+
+    # ---- the signed-out invoice generator ------------------------------
+    #
+    # The app's front door used to be a login wall: you could not see an
+    # invoice, never mind make one, without signing up first. This is the
+    # other order — make the invoice, then decide whether you want an account
+    # to send it and be paid for it. Nothing here writes to the database, and
+    # nothing here needs an email address.
+
+    def _join_block(name, rest):
+        """Join a name line and an address block into one stored field.
+
+        The document splits a party into a bold name line and the address
+        under it, because that is how the printed invoice sets it. The model
+        stores one text field. Joining here rather than in
+        ``_populate_invoice_from_form`` keeps that function free of a branch
+        it would only ever take for one caller.
+        """
+        parts = [(name or "").strip(), (rest or "").strip()]
+        return "\n".join(p for p in parts if p)
+
+    def _generator_invoice(raw, files=None):
+        """Build an UNSAVED Invoice from the generator's form.
+
+        Returns ``(invoice, errors)``. The invoice is transient: it is never
+        added to a session, so nothing reaches the database on this path.
+        ``tests/test_generator.py`` asserts the row count does not move.
+        """
+        form = raw.copy()
+        form["bill_to"] = _join_block(
+            raw.get("bill_to_name"), raw.get("bill_to_address")
+        )
+        form["ship_to"] = _join_block(
+            raw.get("ship_to_name"), raw.get("ship_to_address")
+        )
+        sender = _join_block(raw.get("from_name"), raw.get("from_address"))
+
+        invoice = Invoice()
+        # Column defaults are applied by the database on INSERT, and this row
+        # is never inserted — so a transient invoice starts with None in every
+        # one of them. Set what the document reads before it is rendered.
+        invoice.status = "Draft"
+        invoice.amount_paid = 0.0
+        invoice.tax_is_percent = True
+        invoice.discount_is_percent = True
+        errors = _populate_invoice_from_form(
+            invoice,
+            form,
+            files=files,
+            sender=sender,
+            currency=raw.get("currency"),
+        )
+        return invoice, _validate_invoice(invoice, errors, anonymous=True)
+
+    def _generator_context(invoice, errors=None):
+        from pdf import _business_context
+
+        design = resolve(
+            invoice.design if invoice is not None else DEFAULT_DESIGN
+        )
+        return {
+            "invoice": invoice,
+            "business": _business_context(invoice, allow_svg=True),
+            "design": design,
+            "designs": all_designs(),
+            "design_count": len(all_designs()),
+            "families": FAMILIES,
+            "doc_title": invoice.doc_title or "INVOICE",
+            "currency_choices": CURRENCY_CHOICES,
+            # Symbol and minor units for the live totals. The preview has to
+            # know that the yen takes no decimals for the same reason the
+            # gateway does.
+            "currency_js": {
+                c["code"]: {"s": c["symbol"], "d": c["decimals"]}
+                for c in CURRENCIES.values()
+            },
+            "zero_money": format_money(0, invoice.currency or "USD"),
+            "errors": errors or [],
+        }
+
+    @app.route("/generator")
+    def generator():
+        invoice = Invoice()
+        invoice.status = "Draft"
+        invoice.invoice_date = date.today()
+        invoice.currency = (
+            current_user.default_currency
+            if current_user.is_authenticated
+            else "USD"
+        )
+        invoice.design = DEFAULT_DESIGN
+        invoice.doc_title = "INVOICE"
+        invoice.amount_paid = 0.0
+        # Stated, not left to the column defaults — this row is never inserted,
+        # so those defaults never run and both flags would arrive as None. The
+        # document renders the flat/percent control from them, and `not None`
+        # is True, so a fresh page came up with BOTH set to flat: an 8.25 typed
+        # into the tax box was billed as 8.25 of currency rather than 8.25%.
+        # Percent for both matches what the signed-in form has always posted.
+        invoice.tax_is_percent = True
+        invoice.discount_is_percent = True
+        invoice.tax_value = 0.0
+        invoice.discount_value = 0.0
+        invoice.shipping = 0.0
+        invoice.payment_terms = "Net 14"
+        invoice.due_date = _due_from_terms(date.today(), "Net 14", None)
+        if current_user.is_authenticated:
+            invoice.from_info = current_user.from_info
+            invoice.invoice_number = next_invoice_number(current_user.id)
+        return render_template("generator.html", **_generator_context(invoice))
+
+    @app.route("/generator/theme.css")
+    def generator_theme():
+        """The document stylesheet for one design.
+
+        The gallery fetches this and swaps it in, which is what makes a design
+        change keep everything already typed: the markup is identical for
+        every design, so only these rules move.
+        """
+        css = render_template(
+            "_invoice_css.html", design=resolve(request.args.get("design"))
+        )
+        return Response(css, mimetype="text/css")
+
+    @app.route("/generator/pdf", methods=["POST"])
+    # An unauthenticated endpoint that renders a PDF is real work for anyone
+    # who asks, so it is capped. The limit is generous enough that a person
+    # iterating on one invoice will not meet it.
+    @limiter.limit("40 per hour")
+    def generator_pdf():
+        invoice, errors = _generator_invoice(request.form, request.files)
+        if errors:
+            return (
+                render_template(
+                    "generator.html", **_generator_context(invoice, errors)
+                ),
+                422,
+            )
+        # Rendered into a temporary directory and returned as bytes: the
+        # shared INVOICES_DIR names its files after the invoice id, and an
+        # unsaved invoice has none — two anonymous senders would have written
+        # over each other's file and downloaded the wrong invoice.
+        from pdf import render_invoice_pdf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "invoice.pdf"
+            render_invoice_pdf(invoice, out)
+            data = out.read_bytes()
+
+        import re as _re
+
+        stem = _re.sub(r"[^A-Za-z0-9._-]", "-", invoice.invoice_number or "")
+        stem = stem.strip(".-") or "invoice"
+        return Response(
+            data,
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{stem}.pdf"',
+                "Content-Length": str(len(data)),
+            },
+        )
+
+    @app.route("/generator/save", methods=["POST"])
+    @login_required
+    def generator_save():
+        """Keep a generated invoice against the signed-in account."""
+        invoice, errors = _generator_invoice(request.form, request.files)
+        if errors:
+            return (
+                render_template(
+                    "generator.html", **_generator_context(invoice, errors)
+                ),
+                422,
+            )
+        invoice.user_id = current_user.id
+        if not invoice.invoice_number:
+            invoice.invoice_number = next_invoice_number(current_user.id)
+        db.session.add(invoice)
+        db.session.commit()
+        flash("Invoice saved.", "success")
+        return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
     @app.route("/history")
     @login_required
