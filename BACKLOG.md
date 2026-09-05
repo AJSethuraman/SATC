@@ -178,6 +178,34 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-05 -- **Tie-out of every data point in both credit monitors:
+  776 of 778 tie.** Each figure on the ours side read out of the shipped
+  workbook -- the cell a person opens, never re-fetched -- and each on the
+  other side taken off a document published by somebody else: a bank's own
+  filed Call Report, or the agency that computes a macro series (FHFA, the
+  Federal Reserve Board, S&P Dow Jones Indices), never FRED, which only
+  redistributes. Twelve bank exhibits (53 lines each, 685 pages, 1,116 strips
+  cut from the filings), one macro exhibit (142 series, six publishers), and a
+  master roster: `credit-suite/docs/tie-out/`. Scripts in
+  `credit-suite/tools/tieout/`.
+  **Found six defects, every one of which left the numbers correct** and so was
+  invisible to 414 passing tests: a shipped workbook with Nebraska blank after
+  one unretried 5xx (fixed, `1b03896`); two series wearing each other's
+  description; a mortgage-tightening indicator filed as a demand series and so
+  wired to never alert; two more labels naming a different series (fixed,
+  `a9411a1`); four series declaring "billions" beside a figure in millions
+  (fixed, `94d431f`); and the FDIC's own quarterly and annual charge-off
+  figures for PNC failing to reconcile by 515 and 652 thousand dollars -- our
+  side is faithful to what the FDIC published, so nothing was adjusted.
+  **Three more defects were in the checking, not the data**, each announcing
+  itself as an implausibly uniform failure across every entity: C&I charge-offs
+  cited to U.S. addressees only; the wrong column of the total capital ratio
+  for the one bank filing two; and six blank source photographs that reported
+  "ok". New guard `tests/test_fred_labels.py` checks a label against its
+  publisher's own definition -- 414 tests, 4 mutations killed. PR #257.
+  Still owed: the ratios and alert logic built on these figures are not
+  checked, and only the latest period of each series was compared.
+
 - 2026-09-03 -- FRED template (#1) hardening + contract-alignment pass (part of
   the §2 debt): adversarial re-verification (4 agents: test+mutation, hazard
   hunt, adversarial compute, cell-level workbook open) + fixes — engine-level
