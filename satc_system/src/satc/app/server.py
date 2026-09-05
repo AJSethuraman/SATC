@@ -294,6 +294,10 @@ def create_app() -> Flask:
             STATE.close_request(
                 request_id,
                 how=request.form.get("how", ""),
+                # How it reached us -- optional, and left EMPTY rather than
+                # invented when nobody says. The arrival row then flags its own
+                # gap instead of looking complete.
+                channel=request.form.get("channel", "").strip(),
                 reason=request.form.get("reason", "").strip())
         except EvidenceError as exc:
             return _documents_page(refused=str(exc), request_id=request_id), 400
