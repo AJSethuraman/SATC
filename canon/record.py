@@ -127,16 +127,21 @@ class Tenet:
 _C_HEAD = re.compile(r"^## (C\d+) · (.+)$", re.M)
 
 
-#: Where a field's value stops: the next FIELD, the next entry, or a rule.
-#:
-#: `\*\*[^*\n]+:\*\*` and not a bare `\*\*`, and the difference is not
-#: theoretical. The reason that exposed this bug ends with a line beginning
-#: `**Proposed and declined within the hour,` -- bold prose, mid-sentence, not a
-#: field. A stop on any bold-at-line-start would have truncated the value there
-#: and round-tripped clean, because what it dropped was the tail rather than the
-#: middle. A field label is bold text ending in a colon INSIDE the bold; nothing
-#: else is.
-_FIELD_END = re.compile(r"^(?:\*\*[^*\n]+:\*\*|### |## |---\s*$)", re.M)
+#: EVERY LABEL THE RECORD USES, and the closed set a field's value may stop at.
+#: The value on a wrapped line is prose the firm wrote, and prose contains bold
+#: text: a stop on any bold phrase ending in a colon reads `**Operational note:**
+#: still part of the reason` as a new field and silently truncates the value and
+#: everything after it. Only a label this record actually defines terminates a
+#: field, and `test_the_terminator_set_covers_every_label_the_renderer_writes`
+#: derives the set from what `render_convictions` emits, so a field added to the
+#: record without being added here fails rather than truncating quietly.
+FIELDS = ("State", "Recorded", "Applies", "Why", "Fires on",
+          "A challenge looks like", "How it could be wrong",
+          "Retired", "Retired because", "Not a conviction because")
+
+_FIELD_END = re.compile(
+    r"^(?:\*\*(?:" + "|".join(re.escape(f) for f in FIELDS) + r"):\*\*"
+    r"|### |## |---\s*$)", re.M)
 
 
 def _field(block: str, label: str, *, prose: bool = False) -> str:
@@ -154,6 +159,13 @@ def _field(block: str, label: str, *, prose: bool = False) -> str:
     reporting success". A silent partial read is worse than an error, because
     nothing downstream can tell it happened -- an empty field and a field that
     was never fully read look identical to every caller.
+
+    IT STOPS AT A LABEL THIS RECORD DEFINES, not at any bold phrase with a
+    colon. A wrapped value is prose the firm wrote and prose contains bold text:
+    `**Operational note:** still part of the reason` is a sentence, not a field,
+    and treating it as one truncates the value and everything after it -- while
+    round-tripping clean, because what it drops is the tail rather than the
+    middle. Found in review of the pull request that added the wrapped read.
 
     WRAPPING IS OPT-IN, AND THE LINE IS PROSE AGAINST STRUCTURE. `Fires on` is a
     comma list this module writes on one line; `Recorded` and `Retired` are

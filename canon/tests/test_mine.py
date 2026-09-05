@@ -530,3 +530,54 @@ def test_a_well_formed_declined_entry_parses_from_hand_written_markdown():
     assert got[0].cid == "C7" and got[0].on == "2026-09-04"
     assert got[0].quote == "You shouldn't ever touch the website itself."
     assert got[0].because.startswith("it was a call")
+
+
+def test_bold_prose_inside_a_wrapped_value_is_not_read_as_a_new_field():
+    """Found in review: a stop on any bold phrase ending in a colon.
+
+    A wrapped value is prose the firm wrote, and prose contains bold text.
+    `**Operational note:** still part of the reason` is a sentence, not a field —
+    and reading it as one truncates the value and everything after it while
+    round-tripping clean, because what it drops is the tail rather than the
+    middle. Asserted through render → parse, which is the path that loses the
+    data.
+    """
+    draft = R.Conviction(
+        id="C99", title="A title", state=R.HELD, recorded="2026-09-05",
+        applies="everything", quote="their words", said_by="the firm, today",
+        why=("the reason, and then\n"
+             "**Operational note:** which is still part of the reason\n"
+             "and it carries on after that too"),
+        fires_on=("alpha",))
+    assert draft.why.count("\n") == 2, "bad fixture: the value must wrap"
+    assert "\n**Operational note:**" in draft.why, (
+        "bad fixture: the bold prose must OPEN a line, which is the only case "
+        "a terminator could mistake for a field")
+    back = R.parse_convictions(R.render_convictions([draft], preamble=""))
+    assert len(back) == 1
+    assert back[0] == draft, "a valid draft lost data on the way back"
+
+
+def test_the_terminator_set_covers_every_label_the_renderer_writes():
+    """Derived from what `render_convictions` emits, never listed twice.
+
+    A field added to the record but not to `FIELDS` would not terminate the
+    value before it — so the new field's own line would be swallowed into the
+    previous one, silently. This goes red instead.
+    """
+    import re
+
+    full = R.Conviction(
+        id="C99", title="t", state=R.RETIRED, recorded="2026-09-05",
+        applies="everything", quote="q", said_by="the firm, today", why="w",
+        fires_on=("a",), challenge_note="c", wrong_note="x",
+        retired_on="2026-09-06", retired_because="r")
+    declined = R.Declined(cid="C98", on="2026-09-05", source="s",
+                          quote="q", because="b")
+    text = R.render_convictions([full], [declined], preamble="")
+    written = set(re.findall(r"\*\*([^*\n]+?):\*\*", text))
+    assert written, "the fixture rendered no fields at all"
+    assert written <= set(R.FIELDS), (
+        f"{sorted(written - set(R.FIELDS))} is written to the record but is not "
+        f"in FIELDS, so it does not terminate the value before it"
+    )
