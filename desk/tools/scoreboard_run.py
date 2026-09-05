@@ -132,7 +132,7 @@ def build_prompt(problem: Problem, desk: Desk, *, shape: str = "index") -> str:
         positions=" | ".join(admissible(desk)),
         reasons=", ".join(OFFERABLE),
     )
-    check_no_leak(prompt, problem, desk)
+    check_no_leak(prompt, problem, desk, shape=shape)
     return prompt
 
 
@@ -190,7 +190,8 @@ class Leak(scoreboard.HarnessError):
     """
 
 
-def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
+def check_no_leak(prompt: str, problem: Problem, desk: Desk,
+                  *, shape: str = "index") -> None:
     """Re-read the finished prompt for the three things it must never carry.
 
     A whitelist that is only enforced by how the template was written is a
@@ -231,12 +232,39 @@ def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
             f"{problem.id}: the prompt carries the problem's title "
             f"({problem.title!r}); several titles name the outcome"
         )
-    # The answer may appear only where the template lists the admissible
-    # conclusions, once per conclusion. Anywhere else it is the answer key.
-    if _bare(prompt).count(_bare(problem.answer)) > 1:
+    # THE ANSWER'S OWN WORDS MAY APPEAR IN THE AUTHORITY, AND NOWHERE ELSE.
+    #
+    # This counted over the whole prompt and refused 15 problems across three
+    # desks on `not deductible` -- because § 1.274-11(a) says entertainment is
+    # not deductible. That is a rule stating its own outcome, which is what a
+    # rule is for, and a model that reads it and concludes that has reasoned
+    # correctly from authority. The check could not tell the desk working from
+    # the answer key leaking, so it called both a leak and made 15 problems
+    # unmeasurable.
+    #
+    # NARROWED, NOT RELAXED, and the difference is where a leak could actually
+    # live. The authority is the one part of this prompt the model is TOLD to
+    # read and cite. Everywhere else -- the facts, the source titles, the
+    # citation index, the template itself -- the conclusion has no business
+    # appearing, and all of it is still counted. `test_scoreboard.py` proves
+    # each of those is still caught.
+    # AND THE LIST OF CONCLUSIONS IS CUT OUT RATHER THAN ALLOWED FOR. The rule
+    # was "at most one occurrence in the whole prompt", which refused four more
+    # problems for a reason that was not a leak at all: one admissible
+    # conclusion is a substring of another. `an allowable deduction` occurs
+    # inside `not an allowable deduction`, `a qualified business use` inside
+    # `not a qualified business use` -- two occurrences, one list, no leak.
+    #
+    # Removing both blocks and requiring ZERO is exact, and it is stricter than
+    # the count it replaces: a single stray occurrence anywhere else used to be
+    # within budget and now is not.
+    outside = _bare(prompt).replace(
+        _bare("\n".join(corpus_lines(desk, shape))), " ")
+    outside = outside.replace(_bare(" | ".join(admissible(desk))), " ")
+    if _bare(problem.answer) in outside:
         raise Leak(
             f"{problem.id}: {problem.answer!r} appears in the prompt outside the "
-            f"list of admissible conclusions"
+            f"list of admissible conclusions and outside the quoted authority"
         )
 
 

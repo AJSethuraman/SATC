@@ -177,10 +177,22 @@ the sizing did not account for either.
 |---|---|---|
 | capitalization-and-de-minimis | 4,020 | **8,978** |
 | cash-and-bank | 3,460 | **15,367** |
-| fixed-assets | 6,171 | leaks before it can be measured |
+| fixed-assets | 6,171 | **23,054** |
+| meals-and-entertainment | 2,439 | **11,654** |
+| personal-or-business | 3,201 | 4,388 |
+| rewards-and-information-returns | 4,184 | **10,599** |
+| vehicle-expense | 5,082 | **21,148** |
 
-**The index shape fits all seven desks. The full-text shape fits none**, and it
-was reachable from the command line. `check_fits` now runs at the API choke
+**The index shape fits all seven desks. The full-text shape fits one of them**,
+and it was reachable from the command line for the other six.
+
+> **This said "fits none" for about an hour, and it was wrong.** It was measured
+> while four desks could not be prompted at all — the leak check was refusing
+> them — so their full-text size was never taken, and `personal-or-business`
+> turns out to fit at 4,388. **A denominator taken over the rows that happened to
+> be readable** is the failure this repository is named for, and it caught me on
+> the same afternoon I wrote the guard against it. The corrected figures are
+> above and `test_prompt_window.py` now asserts the set by name. `check_fits` now runs at the API choke
 point — LOCAL-LLM-PATTERN rule 6, the same reason the citation rule lives in
 `engine.serve` rather than in a prompt — and raises `PromptTooLong`, naming the
 estimate, the room, and the three things that would fix it.
@@ -228,23 +240,36 @@ that exactness is what stops a model handing back the firm's position with the
 conclusion reversed. **Reconciling them is the firm's wording to choose, not
 mine**, so nothing was changed.
 
-### 15 of them are the leak check being too strict, and the record is fine
+### The other 15 were the check, not the record — and 15 was itself two things
+
+**Fixed, after saying it was only proposed.** Both halves turned out to be
+defects in the check with the record innocent, and both are provable rather than
+arguable — so leaving them written up would have left 15 problems unmeasurable
+for no reason. **34 blocked before, 19 after**, and the 19 that remain are the
+three stored passages above, which are genuinely the record's.
+
+**11 of them: the rule stating its own outcome.**
 
 `'not deductible' appears in the prompt outside the list of admissible
-conclusions` — on 15 problems across meals, personal-or-business and vehicle.
-
-But § 1.274-11(a) *does* say entertainment is not deductible. **That is the rule
+conclusions` — across meals, personal-or-business and vehicle. But § 1.274-11(a) *does* say entertainment is not deductible. **That is the rule
 stating its own outcome, which is what a rule is for.** A model that reads it and
 concludes "not deductible" has reasoned correctly from authority; that is the
 desk working, not the answer key leaking.
 
-The check cannot tell those apart today, and it should not simply be relaxed: an
-admissible conclusion appearing verbatim does let a model pattern-match without
-reading. **Proposed, not done:** distinguish the conclusion appearing *inside a
-quoted passage* — where it is the rule's own words — from it appearing anywhere
-else in the prompt, which is where a leak would actually live.
+The check counted the whole prompt and could not tell those apart. It now cuts
+out the quoted authority — the one block the model is *told* to read and cite —
+and counts everywhere else. **Narrowed, not relaxed**: the facts, the source
+titles, the citation index and the template are all still counted, and
+`test_prompt_window.py` proves each of them still catches a planted answer.
 
-**Nothing here loosens a check to obtain a number.** The three passages and the
-fifteen strict refusals are recorded in `tests/test_corpus_is_rules.py`, which
-goes red if a fourth appears and equally red when one is fixed and left on the
-list.
+**4 of them were not a leak of any kind.** One admissible conclusion is a
+substring of another — `an allowable deduction` inside `not an allowable
+deduction`, `a qualified business use` inside `not a qualified business use` —
+so the old "at most one occurrence" rule saw two in a single list. The list is
+now cut out rather than budgeted for, and the requirement is **zero** occurrences
+outside those two blocks, which is *stricter* than the count it replaces: one
+stray occurrence anywhere used to be within budget.
+
+**Nothing was loosened to obtain a number.** The three remaining passages are
+recorded in `tests/test_corpus_is_rules.py`, which goes red if a fourth appears
+and equally red when one is fixed and left on the list.
