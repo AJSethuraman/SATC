@@ -654,7 +654,7 @@ That is the internal field id. The question directly above it reads *"Which
 federal return?"*. Tenet S35 — write for the person holding the screen — and
 this is the one app in the build that is otherwise scrupulous about it.
 
-## E4 · Every document in the signing pack is titled "(template)"
+## E4 · Every document in the signing pack is titled "(template)" — **FIXED**
 
 **MEDIUM**, and it reaches the client. All three finished PDFs carry this in
 their document metadata — the string a PDF reader shows in its title bar and in
@@ -667,7 +667,15 @@ file properties:
 | SAT-C Onboarding Letter - Raghavan - 2025.pdf | `SATC — new client onboarding letter (template)` |
 
 The `<title>` is inherited from the source template and never rewritten at
-render time. The **filenames** are exactly right — *"SAT-C Engagement Letter -
+render time. **Fixed in `merge.render`** — the one function `sending`,
+`previewing`, `cli render` and the browser all pass through, so it is not a fix
+on the one door that was walked. Verified by reading `/Title` out of freshly
+built PDFs, not only in tests:
+
+```
+SAT-C Engagement Letter - Reyes - 2026.pdf
+    /Title = SATC — tax preparation engagement letter — Mr. and Mrs. Daniel Reyes — 2026 — 2027-0114
+``` The **filenames** are exactly right — *"SAT-C Engagement Letter -
 Raghavan - 2025"* — so this is the one identifier that was missed. A client
 opening the letter they are being asked to sign sees it described as a template,
 and none of the three titles names the client or the reference.
