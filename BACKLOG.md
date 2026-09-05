@@ -179,7 +179,7 @@ research pass before a spec, no exceptions.
 ## Done log
 
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
-  776 of 778 tie.** Each figure on the ours side read out of the shipped
+  857 of 862 tie.** Each figure on the ours side read out of the shipped
   workbook -- the cell a person opens, never re-fetched -- and each on the
   other side taken off a document published by somebody else: a bank's own
   filed Call Report, or the agency that computes a macro series (FHFA, the
@@ -203,8 +203,22 @@ research pass before a spec, no exceptions.
   for the one bank filing two; and six blank source photographs that reported
   "ok". New guard `tests/test_fred_labels.py` checks a label against its
   publisher's own definition -- 414 tests, 4 mutations killed. PR #257.
-  Still owed: the ratios and alert logic built on these figures are not
-  checked, and only the latest period of each series was compared.
+  **Second edition, same day.** The first said 776 of 778 and did not say
+  what 778 was: only 53 of each bank's 69 raw fields were being compared.
+  Seven fields carried the literal text "(not in tie-out map)" where their
+  MDRM code belongs, and the tie-out only checks fields the map cites -- a
+  check that examines what the map documents cannot discover what the map
+  omits. Behind that: bracketed expressions parse as nothing, bare
+  income-statement codes resolve against the balance-sheet prefixes and find
+  nothing, the capital ratios cited the form-041 prefix on twelve 031
+  filers, and `parse_facts` discarded every ratio in every filing by keeping
+  whole numbers only. All fixed; new guard `test_provenance_citations.py`
+  requires every citation to parse AND to find its line on a real filed Call
+  Report. Suite 414 -> 541. PNC's disagreement grew from two lines to five
+  once the unchecked fields were checked.
+  Still owed: the eight FDIC-computed ratios per bank (now named, not
+  omitted), the alert logic built on these figures, and every period except
+  the latest.
 
 - 2026-09-03 -- FRED template (#1) hardening + contract-alignment pass (part of
   the §2 debt): adversarial re-verification (4 agents: test+mutation, hazard
