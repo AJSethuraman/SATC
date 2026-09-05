@@ -63,8 +63,13 @@ def test_one_answer_produces_its_task_its_request_and_its_quote_line():
     assert request is not None, "the same answer must open its document request"
     assert request.doc_type == "Brokerage 1099 / crypto exports"
 
-    codes = [line.service_code for line in plan.quote.lines]
-    assert "schedule_d" in codes, "the same answer must put its price on the quote"
+    # LINES AND UNPRICED BOTH. Since 5 September 2026 this catalogue does not
+    # price a return -- the ladder does, read back through the engagement ref --
+    # so the work lands in `unpriced` carrying the same `because` and the same
+    # `from_questions`. The claim under test is that the ANSWER puts the work on
+    # the quote, and that never changed.
+    codes = [i.service_code for i in (*plan.quote.lines, *plan.quote.unpriced)]
+    assert "schedule_d" in codes, "the same answer must put the work on the quote"
 
     # And the three agree about WHY they exist: the task, the request and the
     # line all trace to the one answer.
@@ -367,8 +372,12 @@ def test_the_letter_states_no_bare_amount_while_work_is_unpriced():
     plan = a_plan(INVESTMENTS, engagements=agreed_plan())
     assert plan.quote.unpriced
     assert "fee_terms" in plan.letter_facts
+    # No ref recorded on this engagement and no engagements store configured,
+    # so there is no figure to state and the key stays ABSENT -- the draft then
+    # renders `[[ Fee: fill in ]]`, which is what "we do not know yet" should
+    # look like on a document somebody signs.
     assert "fee_amount_text" not in plan.letter_facts
-    assert "does not include" in plan.letter_facts["fee_terms"]
+    assert "cannot put a number on this in advance" in plan.letter_facts["fee_terms"]
 
 
 def test_a_letter_fact_the_practice_lacks_is_absent_so_the_draft_marks_it():
@@ -716,15 +725,31 @@ def _priced_practice(tmp_path, workflow_key="personal_schedule_c"):
     from satc.intake.service import create_engagement_from_intake, create_person_client
     from satc.persistence import SATCStore
 
+    import json
+    import os
+
     store = SATCStore(tmp_path)
     cid = create_person_client(store, first_name="Dana", last_name="Reyes",
                                ssn="123-45-6789", client_id=CLIENT)
     mart = store.load_mart()
     mart.engagements.extend(agreed_plan(client_id=cid))
     store.save_mart(mart)
+
+    # AN ENGAGEMENT RECORD TO READ THE PRICE FROM. Since 5 September 2026 the
+    # letter's fee comes from the engagement, through the ref, and not from
+    # this catalogue -- so a "priced practice" is one where that ref resolves.
+    # INVENTED: no real client, no real figure.
+    refs = tmp_path / "engagements"
+    (refs / "2026-0001").mkdir(parents=True, exist_ok=True)
+    (refs / "2026-0001" / "record.json").write_text(json.dumps({
+        "EngagementRef": "2026-0001", "ClientFullName": "Dana Reyes",
+        "EstimateTotal": "$645.00"}), encoding="utf-8")
+    os.environ["SATC_ENGAGEMENTS"] = str(refs)
+
     create_engagement_from_intake(
         store, client_id=cid, workflow_key=workflow_key, tax_year=YEAR,
-        answers={"newSatcClient": "no"}, today=TODAY)
+        answers={"newSatcClient": "no"}, today=TODAY,
+        engagement_ref="2026-0001")
     return store, cid, store.load_jobs()[0]
 
 

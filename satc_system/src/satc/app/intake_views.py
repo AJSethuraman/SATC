@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -38,7 +39,12 @@ from flask import (
 )
 
 from satc.app.state import STATE
+from satc.models.work import engagement_for
 from satc.config import ConfigError
+
+#: `YYYY-NNNN`, the format `client-documents` allocates and every client
+#: letter already carries. Stated here so a typo is refused at the keyboard.
+_REF = re.compile(r"^\d{4}-\d{4}$")
 from satc.intake.workflows import NEW_CLIENT_GATE
 
 bp = Blueprint("intake", __name__)
@@ -852,6 +858,16 @@ def engagement_plan():
 
 @bp.route("/engagements/<job_id>", endpoint="engagement_detail")
 def engagement_detail(job_id: str):
+    return _engagement_page(job_id)
+
+
+def _engagement_page(job_id: str, refused: str = ""):
+    """The engagement screen, optionally carrying a refusal it must explain.
+
+    Follows the shape `server.py` already uses for a refused document close:
+    re-render the page the person is looking at with the reason on it, rather
+    than a separate error screen that loses their place.
+    """
     eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
@@ -892,7 +908,79 @@ def engagement_detail(job_id: str):
         eng=eng, groups=groups, doc_status=doc_status,
         client_tasks=client_tasks, internal_tasks=internal_tasks,
         received=received, total_requests=total_requests,
-        done_count=done_count, settled=settled, total=total)
+        done_count=done_count, settled=settled, total=total,
+        engagement_ref=_ref_on_file(eng), refused=refused)
+
+
+@bp.route("/engagements/<job_id>/ref", methods=["POST"])
+def set_engagement_ref(job_id: str):
+    """Record the ref this engagement carries in `client-documents`.
+
+    **THE JOIN THE WHOLE PRACTICE DEPENDS ON, AND IT HAD NO WRITER.** The
+    client sees "2026-0001" on every letter, estimate and invoice; this system
+    keys on "SATC-001000", which a client is never shown. `Engagement.
+    engagement_ref` exists to hold the first so the second can be found from it
+    -- added on the firm's instruction, 31 Aug 2026, *"ADD THE FIELD"*. The
+    column migrates, saves, loads, and `SATCStore.client_for_ref` reads it.
+    Nothing set it, and `collect` sent the preparer to set a field they could
+    not reach.
+
+    A DUPLICATE IS REFUSED HERE rather than discovered later.
+    `client_for_ref` uses `SELECT DISTINCT` and returns None when the ref
+    names more than one client -- correctly, because picking one arbitrarily
+    would close the WRONG client's document request. But that refusal is
+    silent at collection time and looks like "the ref was never set". A typo
+    caught at the keyboard costs a sentence; the same typo caught in the drop
+    folder costs an afternoon of wondering why nothing is being marked
+    Received.
+    """
+    job = STATE.engagement(job_id)
+    if job is None:
+        return redirect(url_for("intake.engagements"))
+
+    ref = (request.form.get("engagement_ref") or "").strip()
+    back = redirect(url_for("intake.engagement_detail", job_id=job_id))
+    year = job.tax_year
+    if year is None:
+        return _ref_problem(job_id, "this job carries no tax year, and an "
+                                    "engagement is a contract for a year")
+    if ref and not _REF.match(ref):
+        return _ref_problem(job_id,
+                            f"{ref!r} is not an engagement ref. The format is "
+                            f"YYYY-NNNN -- the number on the client's own "
+                            f"paperwork, e.g. 2026-0001")
+
+    owner = STATE.store.client_for_ref(ref) if ref else None
+    if ref and owner and owner != job.client_id:
+        return _ref_problem(job_id,
+                            f"{ref} already belongs to {owner}. One ref names "
+                            f"one engagement -- if this is a typo, correct it; "
+                            f"if the other one is wrong, clear that one first")
+
+    eng = engagement_for(STATE.mart.engagements, client_id=job.client_id,
+                         tax_year=year, create=True)
+    eng.engagement_ref = ref
+    STATE.store.save_mart(STATE.mart)
+    STATE.reload()
+    return back
+
+
+def _ref_problem(job_id: str, why: str):
+    """Say what is wrong on the screen it happened on, and change nothing."""
+    return _engagement_page(job_id, refused=why), 400
+
+
+def _ref_on_file(job) -> str:
+    """The ref recorded for this job's client and year, or blank.
+
+    Blank is a real answer and reads as one on the screen. Nothing is invented
+    for a client nobody has joined to an engagement yet.
+    """
+    if job.tax_year is None:
+        return ""
+    found = engagement_for(STATE.mart.engagements, client_id=job.client_id,
+                           tax_year=job.tax_year)
+    return (found.engagement_ref or "") if found else ""
 
 
 @bp.route("/engagements/<job_id>/tasks/<task_id>", methods=["POST"])

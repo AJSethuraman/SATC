@@ -943,3 +943,303 @@ golden); two new tests and two new mutations, both killed.
 **Told the canon agent**, which is updating the tie-out and walk skills: the
 ours-side of a comparison must be read out of the artifact the reader opens,
 and every hop not executed must be listed as assumed.
+
+---
+
+*Two sessions wrote to this log on the same day and the merge conflicted on
+this seam. Both accounts are kept, in the order they were written, because a
+log that drops one session's entries to resolve a conflict is a log that lies
+about what happened. The credit-suite entries above and the canon entries
+below are the same day from two desks.*
+
+---
+
+## 5 September 2026 — two sessions wrote to the record at once, and it broke in two ways
+
+`main` was red for about an hour and every open pull request was stuck behind it
+— 253, 254 and 257, two of them not this session's. Four failing tests, two
+causes, neither of them the four tests' own fault.
+
+**A silent partial read, in the place canon's own log already names.** `_field`
+took the first line of a field and nothing else. The C11 decline recorded the
+night before carries a ten-line `Not a conviction because:`; **nine lines were
+dropped by every read**, and the record still parsed. Nothing downstream could
+tell — an empty field and a field that was never fully read look identical to
+every caller — and the only check that could notice is the round trip, which
+compares the committed file against a re-render of the parse. It noticed.
+
+This is the same defect the entry of 4 September records one field over: *"a
+single-line reader on a value that had grown, parsing 5 of 24 subjects and
+reporting success."* Fixed there, in `desk/record.py`, whose comment names canon
+as where it was first found. Not fixed here, because nothing had wrapped yet.
+
+**Two sessions, two ideas, one id.** `61b04c9` recorded C11 as a conviction the
+firm holds. `ae23978`, an hour later, recorded a different C11 as a proposal they
+declined. Both merged. The record whose own rule is that ids are never reused
+held one number against two ideas, and *"what did we decide about C11"* became a
+question with two answers. The declined entry — the later claimant — is now C13.
+
+**The test that should have caught it was the reason it wasn't caught.**
+
+```python
+assert [d.cid for d in declined] == ["C3"]
+```
+
+A literal like that fails on the second declined entry whatever it is called, so
+it reads as a tripwire for exactly this. It is not one. Whoever adds an entry
+updates the literal, the suite goes green, and the collision is untouched — which
+is what happened. It now asserts the RULE, over whatever the record holds:
+
+```python
+twice = sorted({i for i in ids if ids.count(i) > 1})
+assert not twice
+```
+
+**It needs no editing when the record grows, and cannot be satisfied by editing
+it.** That is the difference between a check and a note.
+
+**Two things the fix taught, which were not in the brief.**
+
+*Prose wraps; structure does not.* Making `_field` multi-line for everything was
+over-broad and broke a passing test immediately: `Fires on` is a comma list this
+module writes on one line, and read as prose it swallowed `Proposal.ask()`'s own
+closing question as two subjects the conviction fires on. A run-on read of a
+structured field does not lose data, **it invents it**. Wrapping is now opt-in,
+and only a field whose value is a sentence takes it.
+
+*A rendered entry has to be closed.* `ask()` printed the entry and then asked the
+firm to confirm it, with nothing between. A field's value runs to the next field
+or a rule, so prose appended straight after an entry is structurally part of its
+last field. `ask()` now ends the entry with `---`, which also does the thing it
+looks like it does.
+
+Eight mutations, all red. Two survived a first attempt and both were the test's
+fault rather than the code's: one asserted `_field`'s default in isolation and
+left the real call site in `parse_convictions` free to pass `prose=True` with the
+suite still green — **the helper proved and its caller not, for the fourth time
+in this repository** — and one "empty reason" fixture was not actually empty.
+
+168 passed. **1.7.0 → 1.7.1**, both manifests, because the record changed and the
+plugin cache keys on the marketplace number.
+
+### What the firm answered on the 5 September docket
+
+Published as a form rather than as prose, per the docket skill; answers read back
+out of it with `read_db`.
+
+| | Answered |
+|---|---|
+| Fix the canon record, and on which branch | **Yes — new branch.** This entry is that work. |
+| Which subject the second desk covers (#245) | **Cash and bank reconciliation** — the firm's own example, and a firm convention rather than a citable rule, which is the shape that makes escalation fire. |
+| May a desk's question leave the network | **Yes — de-identified only.** In their words: *"sure build that in and de-identify, i still want it measured against real so we can see how much is able to be saved and automated"* |
+| Should a near-miss citation stop being filed as a refusal | **Yes — record the near miss.** |
+
+**Open against that third answer:** *measured against real* has two readings —
+against real client work, to see what proportion a desk can take over; or the
+de-identified input against the real one, to see what de-identification costs in
+accuracy. They are not the same measurement. Asked rather than assumed.
+
+**Not proposed as a conviction, yet.** *"i still want it measured against real"*
+may be a standing belief about evidence rather than a scoping call on this
+project. It is noted here so it is not lost, and it is not in `CONVICTIONS.md`,
+because nothing enters that file without an explicit yes.
+
+---
+
+## 5 September 2026 (later) — what the docket's answers caused, and one correction
+
+The four answers are in the entry above. What they turned into:
+
+| Answered | Landed as |
+|---|---|
+| Fix canon on a new branch | #260, merged. `main` was red for roughly an hour and a half and had #253, #254 and #257 stacked behind it; 168 pass on `main` again. |
+| Cash and bank reconciliation | `desk/desks/cash-and-bank` — 47 passages, 4 problems, the first desk built through `factory.emit` rather than by hand. |
+| De-identified only | Noted; nothing built yet. |
+| Record the near miss | `Unsupported.falls_under`, and the run prints `n filed, m of them citing a finer path inside a rule the desk holds`. |
+
+**Two clarifications the firm gave after the form was filled in**, recorded here
+because an answer that lives only in a conversation has to be asked again.
+
+*On measuring against real.* The written answer read two ways — against real
+client work, or de-identified input against real input. The firm: **"Against real
+work. Run the desk on actual engagement questions, de-identified, and measure
+what share of them it can take over. That measures the labour saved."** And on
+the other reading: *"other is cool but let's not overcomplicate at this point."*
+
+*On which body of law the cash desk belongs to, which is the correction.* The
+desk was built on tax sources — § 1.446-1 and IRS Publication 583 — because those
+are what this environment can reach. The firm:
+
+> there is a difference between tax and something like GAAP. i account like an
+> accountant, even in cash basis though we would record what happened. cash in
+> and cash out. cash balance doesn't change for tax purposes. i feel like i'm
+> going crazy here having to explain this. it's not just bull shit i'm making up
+
+They are right, and the session was wrong about which body of law the question
+lives in. Bank reconciliation is bookkeeping: the books record the transaction
+when it happened, the bank records it when it processed it, and the difference is
+timing. It holds on cash basis too — cash basis governs when income and expense
+are RECOGNISED, not whether a check that was written was written.
+
+**The mistake was a streetlight search**, and it has a name now: the sources
+reached first were the ones that answered, not the ones that govern. Recorded in
+`factory.QUESTIONS` Q3 and in the desk-factory skill so the next desk does not
+repeat it, along with the two facts that came out of chasing it — eCFR serves
+EVERY CFR title, so accounting and banking authority is reachable too; and
+reachable is not a reason to store, because SEC Regulation S-X came back clean
+and mentions reconciliation, outstanding checks and deposits in transit exactly
+zero times, so it was left out.
+
+**What the correction did NOT change is the desk.** The literature that states
+the convention is FASB ASC, which is `human_only` by licence — no network policy
+reaches it, and neither would the Forge. So the desk holds the firm's words
+instead, as `positions/POS1`, unratified. That is not a workaround; it is the
+case the two-store split was written for, and this is the first time it has been
+the actual answer rather than an illustration.
+
+**Standing and unrecorded:** the tax-against-GAAP stance above looks like a
+conviction rather than a decision — it would hold next year, it carries a reason
+about principle, and the firm has now had to explain it more than once, which is
+the exact cost `CONVICTIONS.md` exists to remove. It is drafted and put to them
+as a proposal. **Nothing enters that file without an explicit yes**, so it is
+named here and not there.
+
+---
+
+## 5 September 2026 — C14, and the qualification that came with the yes
+
+The tax-against-GAAP stance was proposed as a conviction and confirmed. **C14 ·
+Tax treatment does not move the books; the books record what happened.**
+
+It was proposed because the firm had explained it more than once in one evening —
+*"i feel like i'm going crazy here having to explain this. it's not just bull
+shit i'm making up"* — and removing that cost is the whole reason this file
+exists. A session had just built a desk on the wrong body of law for want of it.
+
+**The qualification is the part worth recording separately**, because it names a
+failure mode this record could otherwise create. The firm, confirming:
+
+> that is a conviction but it does not mean i want to avoid looking stuff up
+> about it
+
+So it went into `How it could be wrong` rather than being noted and lost. **A
+conviction that ends research is worse than none** — it turns a belief into a
+reason not to read, which is the opposite of what a record of reasons is for.
+Bassy challenges *from* the record; it does not get to close a question with it.
+
+`1.7.1 → 1.8.0`, both manifests: the record gained an entry, and convictions are
+read from a plugin cache that keys on the marketplace number.
+
+---
+
+## 5 September 2026 — two sessions' canon work met in a merge
+
+`main` reached **1.10.0** on another session's work — the `walk` and `tie-out`
+skills — while this branch carried **C14** at 1.8.0 and had not merged. Bringing
+`main` in produced a record that was the union of both and that **neither release
+had hashed**, so `test_the_version_says_what_the_record_actually_contains` went
+red on the merge commit.
+
+That is the check doing precisely its job. Nothing was wrong with either side;
+what was wrong was a version claiming to describe a record that had grown since
+it was stamped. **1.10.0 → 1.11.0**, digest re-released.
+
+Worth recording because it will happen again: two sessions can each release
+correctly and still leave `main` holding a record no version describes, and the
+only thing that notices is a digest computed over what actually ships.
+
+---
+
+## 5 September 2026 — it happened again, on the same day, at the same number
+
+The entry above said it would. Two sessions each cut **1.11.0** — one carrying
+C14 and the desk work, one carrying the tie-out and walk deliverables — and the
+merge produced a record that is the union of both, described by neither. Same
+shape, same afternoon, and the digest caught it again.
+
+**1.11.0 → 1.12.0**, re-released over the union, with the other session's
+`release.py` fix in it: it sorted `Path` objects, which compare
+case-insensitively on Windows and byte for byte on Linux, so the same commit
+hashed two ways depending on the machine. Their ordering by path text is the
+correct one and is what this release is computed with.
+
+What the two entries together say is that a version number is not a lock. Two
+sessions can both be right, both release correctly, and still leave a record no
+version describes — and the only thing standing between that and a silently
+stale plugin is a digest computed over what actually ships.
+
+---
+
+## 5 September 2026 — the deliverable was the thing that was wrong
+
+`tie-out` and `walk` both told a session what to prove and neither told it what
+to hand over. A tie-out ran end to end — five links executed, the source
+photographed, the roster with its denominator — and was filed as a Markdown note
+with six loose files beside it. Nothing was missing and it could not be given to
+anybody. The firm:
+
+> i assumed that you understood the final product of tie out and walk would
+> basically be a PDF that shows how everything tied out? and explains it and
+> makes it easy to follow? Is that not?
+
+and, on what the document has to do:
+
+> A sample of one and a walk through or a… procedure document should literally,
+> like, visually and verbally easily show you how all the dots connect. How to
+> use the system? How it works. How it tied out.
+
+Both skills now say the deliverable is **one self-contained file with every
+image embedded**, rendered from the Markdown rather than being it, opening on a
+picture of the mechanism — for `tie-out`, the same fact travelling two roads and
+meeting at difference 0; for `walk`, the route through the screens.
+
+Three other things the reworked exhibit did that the skill had not asked for,
+now asked for: the source page **marked and enlarged** rather than merely
+captured, with the entity, form and period in the same shot as the number; every
+figure **read twice** where a second rendering of the same source exists — which
+caught a digit misread on the day; and **what running it found** as a section of
+its own, because that tie-out turned up three lines citing codes from the wrong
+version of a regulatory form, right values behind a citation that pointed at a
+line that does not exist.
+
+And the one that changes a verdict: **a `COULD NOT` is a hypothesis about the
+source and gets attacked once.** Five of them were recorded with true obstacles
+named. Pushed, all five closed on one pass. Naming an obstacle is not testing
+it, and the skill had been accepting the name.
+
+Four new tests pin the shape (175 → 179 passing). `1.10.0 → 1.11.0`, both manifests:
+skill text is installed behaviour, and an installed session reads whatever the
+marketplace's number fetches.
+
+**Added the same day, and it is the sharper half.** The roster behind that
+exhibit reported 53 of 53 tied against the filing, in a column labelled
+`landed` — and the tool had re-fetched every value from the data provider's API
+at the moment it ran, never opening the workbook. The firm:
+
+> ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard
+
+It proved `provider = filing`. A tie-out has to prove `the artifact the firm
+reads = the independent source`. Everything in the document was executed and
+true and it was checking the wrong pair. So the skill now carries a **second
+question** beside *could this disagree with me?* — **is this the thing my reader
+actually looks at?** — and the corollary: a tie-out proves one chain, and every
+hop it did not execute is listed as assumed. That roster proved
+workbook→provider on exactly one line, by hand; the other 52 rested on *same
+build, same day*, which is an inference.
+
+175 → 180 passing.
+
+**And the release digest could never have been green.** `main` was already red
+when this branch started, on the check that exists to make a stale version
+loud. `release.py` sorted `Path` objects, and pathlib compares them the way the
+filesystem does — case-insensitively on Windows, byte for byte on Linux. So
+`adopt.py` came before `CONVICTIONS.md` on the box that cut 1.10.0 and after it
+on the runner that checked it; the path text goes into the hash, so the same
+commit had two digests. The failure read as *somebody forgot to run
+release.py*, which is exactly what it would say if somebody had, and nobody
+looked past the message. `_content` had fixed the same class of bug for line
+endings and its own docstring names the rule: **a check whose result depends on
+the machine running it is not a check.** Line endings were the half that got
+noticed. Now sorted on the path text, with a test that fails on Windows if the
+key is ever dropped.

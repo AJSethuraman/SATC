@@ -1,3 +1,35 @@
+# ── RETIRED, NOT DELETED — read this before using anything below ───────────
+#
+# **THESE PLANS DO NOT PRICE ANYTHING, AND THEY NEVER REACHED A CLIENT.**
+#
+# `rate_plan_key` was written by exactly two things: this store's own loader,
+# and four test files. No route, no form, no command has ever set a plan on an
+# engagement — and until 4 September 2026 the product never created the
+# `Engagement` row a plan would sit on either.
+#
+# THE SLIDING SCALE WAS SOMEWHERE ELSE THE WHOLE TIME. The firm, 5 September
+# 2026, asked what the student rate meant:
+#
+#   "when i say college student gets it cheaper, i literally mean hey if you
+#    are in college and working that's rough, we have the simple filer deal
+#    just for you - same with someone not in college."
+#
+# It is a cheap TIER, not a percentage off. `client-documents`'
+# `pricing.derive_tier` returns "the tier that costs this client LEAST", and it
+# runs inside the path the client's own estimate comes from. Measured: a
+# working student with one W-2 is quoted $100, $150 with a second state, and
+# `cli.py ladder` reports Essentials eligible 24 times and chosen 12 — beaten
+# by Simple Filer the other twelve.
+#
+# WHAT IS KEPT, AND WHY. `requires_basis` — a reduction must carry a recorded
+# reason — is good design whichever file does the arithmetic, and it is the
+# mechanism you would want back if the practice ever offers a hardship
+# reduction ON TOP of the cheapest package. `Invoice.issue` still refuses a
+# reduced plan with no recorded basis, and a test still proves it.
+#
+# So: nothing here is deleted, nothing here is reachable, and none of it is the
+# price. The price is `client-documents/registry/fee-schedule.yaml`.
+#
 # RATE PLANS — what a given client actually pays, and why.
 #
 # The practice bills on VALUE, adjusted for MEANS. Someone doing an ordinary

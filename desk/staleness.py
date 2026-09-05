@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from record import Desk, Source, RecordError
+from record import Desk, Source, RecordError, from_source
 
 #: How long an entry may go unre-examined before it is flagged regardless of any
 #: amendment date. Not a deadline -- a prompt to look.
@@ -119,7 +119,8 @@ def check(desk: Desk, amended_on, *, today: str | None = None,
                  for p in desk.passages]
     checkable += [
         (q.citation,
-         next((s for s in desk.sources if q.citation.startswith(s.citation_prefix)), None),
+         next((s for s in desk.sources
+               if from_source(q.citation, s.citation_prefix)), None),
          q.recorded, "position")
         for q in desk.positions if not q.proposed
     ]

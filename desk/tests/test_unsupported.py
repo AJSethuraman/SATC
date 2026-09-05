@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 import unsupported
+from record import RecordError
 from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
 
@@ -19,7 +20,8 @@ from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 # ── nothing leaves without authority ─────────────────────────────────────────
 
 def test_a_cited_answer_is_served_with_its_authority(fixed_assets, problem):
-    out = serve(Answer(position=problem.answer, citation=problem.citation), fixed_assets)
+    out = serve(Answer(position=problem.answer, citation=problem.citation),
+                fixed_assets, question=problem.facts)
     assert isinstance(out, Served)
     assert out.citation == problem.citation
     assert out.tier == "primary"
@@ -29,7 +31,8 @@ def test_a_cited_answer_is_served_with_its_authority(fixed_assets, problem):
 def test_an_uncited_answer_is_never_served_even_when_it_is_right(
         fixed_assets, problem):
     """The rule the whole plugin rests on. Enforced here, not in a prompt."""
-    out = serve(Answer(position=problem.answer, citation=""), fixed_assets)
+    out = serve(Answer(position=problem.answer, citation=""), fixed_assets,
+                question=problem.facts)
     assert isinstance(out, Refusal)
     assert not out, "a Refusal must be falsy so `if served:` cannot pass by accident"
     assert out.reason == "no_citation"
@@ -50,7 +53,8 @@ def test_an_interpretive_source_is_refused_rather_than_served(tmp_path):
     (d / "extracted" / "g.md").write_text(
         "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n> reading\n",
         encoding="utf-8")
-    out = serve(Answer(position="a", citation="G 1"), record.load(d))
+    out = serve(Answer(position="a", citation="G 1"), record.load(d),
+                question="a question")
     assert isinstance(out, Refusal)
     assert out.reason == "authority_permits_choice"
 
@@ -60,7 +64,8 @@ def test_the_gate_and_the_scoreboard_agree(fixed_assets, problem):
     would stop measuring what the gate actually does."""
     for citation in ("", "26 CFR 9.9-9", problem.citation):
         a = Answer(position=problem.answer, citation=citation)
-        served = not isinstance(serve(a, fixed_assets), Refusal)
+        served = not isinstance(serve(a, fixed_assets, question=problem.facts),
+                                Refusal)
         scored_ok = grade(a, problem, fixed_assets).outcome is Outcome.CORRECT
         assert served == scored_ok, (
             f"citation {citation!r}: gate says served={served}, "
@@ -262,3 +267,251 @@ def test_the_heading_stays_one_line_and_scannable(tmp_path):
     text = path.read_text(encoding="utf-8")
     assert "## U1 · is a roof a unit of property?" in text, text
     assert unsupported.parse(text)[0].question == "is a roof\na unit\nof property?"
+
+
+# ── which kind of refusal this is, so the queue can be read ──────────────────
+
+def _desk_holding(*citations):
+    """A desk whose authority is exactly these citations. Nothing else is used
+    by `from_refusal`, so nothing else is built."""
+    from record import Desk, Passage
+    return Desk(name="d", passages=tuple(
+        Passage(citation=c, source_id="S1", checked="2026-09-04", text="rule")
+        for c in citations))
+
+
+def _refusal(citation, desk=None):
+    from engine import Answer, Outcome, Result
+    return unsupported.from_refusal(
+        "some facts",
+        Answer(position="must capitalize", citation=citation),
+        Result(problem_id="P1", outcome=Outcome.WRONG_CAUGHT,
+               reason="citation_does_not_support"),
+        desk=desk, today="2026-09-05")
+
+
+def test_a_finer_path_inside_the_desks_authority_is_filed_as_a_near_miss():
+    """Measured on the second scoreboard, 4 September 2026: the frontier row
+    cited the governing rule in 16 of 16 and named the paragraph the regulation
+    itself names in 4, so 12 answers landed here as undifferentiated refusals.
+    The queue exists to say what authority is MISSING, and 12 of its 16 entries
+    were not missing authority at all."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    u = _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk)
+    assert u.near_miss
+    assert u.falls_under == "26 CFR 1.263(a)-3(j)"
+
+
+def test_a_citation_outside_the_desks_authority_is_not_a_near_miss():
+    """The control. Without it the label could be unconditional and every test
+    above would still pass."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    assert not _refusal("26 CFR 1.263(a)-3(k)(1)(vi)", desk).near_miss
+    assert not _refusal("26 CFR 1.263(a)-3(k)(1)(vi)", desk).falls_under
+
+
+def test_the_nearest_containing_rule_is_the_one_kept():
+    """A desk holding both `(j)` and `(j)(1)` contains the answer twice. The
+    nearest ancestor says more about where the desk actually got to."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)", "26 CFR 1.263(a)-3(j)(1)")
+    assert _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk).falls_under \
+        == "26 CFR 1.263(a)-3(j)(1)"
+
+
+def test_the_exact_citation_is_not_a_near_miss_because_it_is_not_a_miss():
+    """`under` is strict. An answer citing what the desk holds exactly was
+    refused for some other reason, and labelling it a near miss would say the
+    citation was the problem when it was not."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    assert not _refusal("26 CFR 1.263(a)-3(j)", desk).near_miss
+
+
+def test_a_ratified_position_counts_as_authority_held():
+    """`Desk.authority_for` treats a stored passage and a ratified position
+    alike -- they differ in who wrote them, not in whether the desk holds the
+    rule -- and this must not disagree with it."""
+    from record import Desk
+    from positions import Position
+    desk = Desk(name="d", positions=(
+        Position(id="POS1", title="t", citation="26 CFR 1.263(a)-3(j)",
+                 recorded="2026-09-04", position="we capitalise",
+                 ratified="PR #999"),))
+    assert _refusal("26 CFR 1.263(a)-3(j)(1)", desk).falls_under \
+        == "26 CFR 1.263(a)-3(j)"
+
+
+def test_an_unratified_position_is_not_authority_held():
+    """A proposal sitting in a pull request is not yet the firm's word, and
+    `Desk.position()` already ignores it. The queue must agree."""
+    from record import Desk
+    from positions import Position
+    desk = Desk(name="d", positions=(
+        Position(id="POS1", title="t", citation="26 CFR 1.263(a)-3(j)",
+                 recorded="2026-09-04", position="we capitalise"),))
+    assert not _refusal("26 CFR 1.263(a)-3(j)(1)", desk).falls_under
+
+
+def test_without_a_desk_nothing_is_claimed_either_way():
+    """`from_refusal` is called from places that have no desk to hand. An empty
+    label there means "not asked", and it must not read as "not a near miss"."""
+    assert not _refusal("26 CFR 1.263(a)-3(j)(1)").falls_under
+
+
+def test_the_label_survives_the_round_trip(tmp_path):
+    """It is written into the file a person reads, so it has to come back out."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk))
+    back = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(back) == 1
+    assert back[0].falls_under == "26 CFR 1.263(a)-3(j)"
+    assert back[0].near_miss
+
+
+def test_a_near_miss_is_still_refused_and_still_kept():
+    """The firm declined loosening the citation check, and the reason stands:
+    `_check` is shared by `serve()` and `grade()`, so anything that forgives a
+    near miss on a scoreboard hands one to a client. This is a label on a
+    retained refusal, never a pass."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    u = _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk)
+    assert u.failed_because == "citation_does_not_support"
+    assert u.concluded == "must capitalize"     # kept, not served
+
+
+# ── the front door for a question nobody has answered yet ────────────────────
+
+def test_a_stuck_agents_question_lands_in_the_queue(tmp_path):
+    """The firm, 5 September 2026, on an agent failing to close a set of books:
+    "i am going to stop it from working and instead have it come up with
+    questions to ask and see what we can do from there."
+
+    That is what this is for. `from_refusal` needs an answer and a grade because
+    it records a desk that TRIED; this records one that could not start.
+    """
+    path = tmp_path / "UNSUPPORTED.md"
+    u = unsupported.from_question(
+        "Client paid a supplier in December for goods delivered in January. "
+        "Which period does the expense belong to?",
+        why="the close agent stopped here; no desk holds a cutoff rule",
+        model="occam", today="2026-09-05")
+    unsupported.append(path, u)
+
+    back = unsupported.parse(path.read_text(encoding="utf-8"))[0]
+    assert back == u, "what was written is not what comes back"
+    assert back.failed_because == "authority_absent"
+    assert "close agent stopped here" in back.working
+    assert "question, not an answer" in back.concluded
+
+
+def test_a_question_may_be_filed_as_a_missing_fact_instead(tmp_path):
+    """`authority_absent` resolves by loading authority; `facts_not_established`
+    resolves by ASKING. Which one it is changes what somebody does next, so it
+    is recorded rather than assumed."""
+    u = unsupported.from_question(
+        "Were the J.Crew purchases work clothing or personal?",
+        because="facts_not_established", today="2026-09-05")
+    assert u.failed_because == "facts_not_established"
+
+
+def test_a_question_is_never_an_answer(tmp_path):
+    """Retained is not accepted — the queue's own rule, and it must hold for
+    entries that never carried an answer at all."""
+    u = unsupported.from_question("anything", today="2026-09-05")
+    assert u.believed_authority == ""
+    assert not u.near_miss
+
+
+def test_the_same_question_filed_twice_is_one_entry(tmp_path):
+    """A stuck agent re-runs. A queue that grows a row per attempt stops being
+    readable, which is what `_same_refusal` exists to prevent."""
+    path = tmp_path / "UNSUPPORTED.md"
+    for _ in range(3):
+        current = (unsupported.parse(path.read_text(encoding="utf-8"))
+                   if path.exists() else [])
+        unsupported.append(path, unsupported.from_question(
+            "the same question", existing=current, today="2026-09-05"))
+    assert len(unsupported.parse(path.read_text(encoding="utf-8"))) == 1
+
+
+def test_an_entry_with_no_citation_survives_the_round_trip(tmp_path):
+    """THE BUG THIS FOUND, and it was already there.
+
+    `render` wrote "(none offered)" for an empty citation and `parse` did not
+    know the word, so an entry came back carrying that phrase AS its citation.
+    `_same_refusal` compares that field — so the idempotency guard stopped
+    recognising the entry it had just written, and the same finding would be
+    filed again on every run. A question has no citation by definition, so this
+    would have bitten every single one.
+    """
+    u = unsupported.Unsupported(
+        id="U1", question="q", concluded="c", believed_authority="",
+        failed_because="authority_absent", recorded="2026-09-05")
+    back = unsupported.parse(u.render())[0]
+    assert back.believed_authority == "", "the display sentinel came back as data"
+    assert back == u
+
+    real = unsupported.Unsupported(
+        id="U2", question="q", concluded="c", believed_authority="26 CFR 1",
+        failed_because="authority_absent", recorded="2026-09-05")
+    assert unsupported.parse(real.render())[0].believed_authority == "26 CFR 1"
+
+
+# ── the closed vocabulary the escape rule rests on ───────────────────────────
+
+def test_a_question_reason_outside_the_set_is_refused():
+    """`failed_because` is one of only two fields written into the queue's
+    Markdown UNESCAPED, on the stated grounds that it is a closed vocabulary.
+    `from_question` took it from a caller with a default and no check, so a
+    heading in it writes a queue `parse()` then refuses to read — and an
+    ordinary typo files the entry under a category nothing counts."""
+    with pytest.raises(RecordError, match="closed vocabulary"):
+        unsupported.from_question("what is this charge",
+                                  because="authority_absent\n## U99 · injected")
+    with pytest.raises(RecordError, match="authority_absent"):
+        unsupported.from_question("what is this charge", because="autority_absent")
+
+
+def test_the_question_reasons_are_the_engines_reasons():
+    """Two sets, one vocabulary. Written apart, a reason could be renamed in the
+    engine and go on being accepted here, or accepted here and rejected the
+    moment the same entry reached `serve()`."""
+    import engine
+    extra = set(unsupported.QUESTION_REASONS) - set(engine.REASONS)
+    assert not extra, f"{sorted(extra)} is not an escalation reason the engine knows"
+
+
+def test_both_question_reasons_round_trip_through_the_queue(tmp_path):
+    """The two a question can honestly be in, written and read back. A reason
+    the parser cannot recover is a queue entry nobody can sort."""
+    path = tmp_path / "q.md"
+    for reason in unsupported.QUESTION_REASONS:
+        unsupported.append(path, unsupported.from_question(
+            f"a question failing for {reason}", why="asked by the close",
+            because=reason, existing=unsupported.parse(
+                path.read_text(encoding="utf-8")) if path.exists() else []))
+    back = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert [u.failed_because for u in back] == list(unsupported.QUESTION_REASONS)
+
+
+def test_the_preamble_names_a_resolution_for_every_reason_the_queue_accepts():
+    """FOUND BY USING IT. The queue was written for refused ANSWERS, and its
+    preamble offered three resolutions: load the authority, take a position, or
+    leave the invention visible. Then 43 real questions from a real close were
+    filed through `from_question`, eleven of them `facts_not_established` — and
+    the file told every reader there were three ways out, none of which was
+    *ask the client*. The most common reason in the queue had no resolution
+    written anywhere near it.
+
+    A queue that cannot say what to do with its own largest category is a list,
+    not a queue.
+    """
+    for phrase in ("ask the client", "request it"):
+        assert phrase in unsupported.PREAMBLE.lower(), (
+            f"{phrase!r} is missing: a reason `from_question` accepts has no "
+            f"resolution offered anywhere the reader will look")
+    rows = [l for l in unsupported.PREAMBLE.splitlines()
+            if l.startswith("|") and "---" not in l][1:]
+    assert len(rows) == 5, f"the preamble lists {len(rows)} resolutions"
+    assert f"{len(rows)} resolutions" in unsupported.PREAMBLE.replace(
+        "Five", "5"), "the count in the sentence disagrees with the table"

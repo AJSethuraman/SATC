@@ -36,6 +36,9 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from record import under as _under                        # noqa: E402
+
 #: HOW THE REGULATION ACTUALLY STATES A CONCLUSION, read off the corpus rather
 #: than guessed at. Across § 1.263(a)-3's 117 examples, 112 sentences open with a
 #: conclusion connective, and every scorable outcome in them is one of four
@@ -397,19 +400,6 @@ def cited_paths(text: str) -> set[str]:
 
 def _parts(path: str) -> tuple[str, ...]:
     return tuple(re.findall(r"\(([a-zA-Z0-9]{1,4})\)", path))
-
-
-def _under(path: str, ancestor: str) -> bool:
-    """Whether `path` lies strictly beneath `ancestor`, compared label by label.
-
-    Compared as labels because that is what containment means. On paths written
-    with their parentheses a string prefix test happens to agree -- "(j)(10)"
-    does not begin with "(j)(1)" because of the closing bracket -- and a
-    mutation confirmed the two are equivalent here. The label form is kept for
-    being the meaning, not for behaving differently.
-    """
-    p, a = _parts(path), _parts(ancestor)
-    return len(p) > len(a) and p[:len(a)] == a
 
 
 def governing(withheld: str, family: str, held: set[str]) -> tuple[str, str]:

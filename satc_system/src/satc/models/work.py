@@ -387,6 +387,49 @@ class RatePlanOnFile:
         return f"{self.plan_key!r} agreed on the {self.tax_year} engagement."
 
 
+def engagement_for(engagements: list, *, client_id: str, tax_year: int,
+                   create: bool = False) -> Engagement | None:
+    """The contract row for this client and year — found, or brought into being.
+
+    **NOTHING IN THIS PRODUCT EVER CREATED ONE.** Until 4 September 2026 every
+    single use of ``mart.engagements`` in `src/` was a READ: `rate_plan_for`,
+    the comms screen, the intake fan-out, the workbook, the dashboard totals.
+    The only writers were `fixtures/synthetic.py` and the store's own loader.
+    So an `Engagement` existed for the four demo clients and for nobody else,
+    and every engagement-level fact — the rate plan agreed, the fee, invoiced,
+    paid, and `engagement_ref` — was unreachable for a real client.
+
+    That is what made `engagement_ref` look like a missing setter when it was
+    a missing row. The field was added on the firm's instruction, 31 Aug 2026,
+    verbatim *"ADD THE FIELD"*; the column exists, migrates, saves, loads, and
+    `SATCStore.client_for_ref` reads it. `collect` sends the preparer to set
+    it. There was nothing to set it on.
+
+    ``create=False`` by default, deliberately. Most callers are asking a
+    question and must keep getting SILENCE for a client nobody has engaged —
+    `rate_plan_for` distinguishes "nothing was agreed" from "the default
+    applies" and would be wrong if a lookup quietly manufactured a row. Only
+    the paths that genuinely mean *this client now has a contract for this
+    year* pass ``create=True``.
+
+    Idempotent by the primary key ``(client_id, tax_year)``: called twice it
+    returns the same row rather than adding a second, so a re-run of the
+    engagement generator is a re-run and not a duplicate.
+    """
+    found = next((e for e in engagements
+                  if e.client_id == client_id and e.tax_year == tax_year), None)
+    if found is not None or not create:
+        return found
+    # Every optional field left at its default ON PURPOSE. A new row says
+    # "there is a contract for this year", which is what generating an
+    # engagement means. It must not also say a rate was agreed, a fee was
+    # settled or a letter went out -- see `rate_plan_key`'s own note on why
+    # blank is the answer and "standard" is not.
+    fresh = Engagement(client_id=client_id, tax_year=tax_year)
+    engagements.append(fresh)
+    return fresh
+
+
 def rate_plan_for(engagements: Iterable[Engagement], *, client_id: str,
                   tax_year: int) -> RatePlanOnFile:
     """What plan this client is on for this year, and why.

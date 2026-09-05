@@ -206,7 +206,8 @@ def _job_jurisdiction(job) -> str:
 def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
                                   tax_year: int, answers: dict | None = None,
                                   today: date | None = None, jurisdiction: str = "US",
-                                  fiscal_year_end: date | None = None):
+                                  fiscal_year_end: date | None = None,
+                                  engagement_ref: str = ""):
     """Create an engagement from the interview alone — no keyed-in due date.
 
     The preferred door. :func:`create_engagement` above takes a ``due_date``
@@ -223,8 +224,22 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
 
     Returns the whole :class:`~satc.intake.fanout.EngagementPlan`, not just the
     job, so the caller does not re-derive any of it.
+
+    **IT ALSO CREATES THE CONTRACT ROW, which nothing used to.** Every use of
+    ``mart.engagements`` in `src/` was a read until 4 September 2026: an
+    :class:`~satc.models.work.Engagement` existed for the four demo clients and
+    for nobody else. Generating an engagement here is the moment a real client
+    acquires one for the year, so it is the moment the row comes into being.
+
+    ``engagement_ref`` is the join to `client-documents` — the "2026-0001" the
+    client sees on every letter, estimate and invoice. Optional, and blank is a
+    legitimate state: `SATCStore.client_for_ref` refuses a blank rather than
+    resolving an unplaced drop folder to whichever engagement loaded first.
+    Passing one here is simply the earliest place it can be set; the engagement
+    screen sets it afterwards for everything already on file.
     """
     from satc.intake.fanout import fan_out
+    from satc.models.work import engagement_for
 
     workflow = load_workflow(workflow_key)
     names = store.names()
@@ -286,6 +301,15 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
         # are derived, so this is a re-run guard rather than an error path.
         mart.requested_items.extend(r for r in plan.requests if r.request_id not in known)
         store.save_mart(mart)
+    # THE CONTRACT ROW. `create=True` because this call is the one place that
+    # genuinely means "this client has an engagement for this year" -- every
+    # other reader must keep seeing silence for a client nobody has engaged.
+    engagement = engagement_for(mart.engagements, client_id=client_id,
+                                tax_year=tax_year, create=True)
+    ref = (engagement_ref or "").strip()
+    if ref and engagement.engagement_ref != ref:
+        engagement.engagement_ref = ref
+    store.save_mart(mart)
     store.save_job(plan.job)
     return plan
 

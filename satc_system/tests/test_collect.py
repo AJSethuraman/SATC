@@ -88,7 +88,13 @@ def test_a_ref_the_store_does_not_know_is_reported_not_guessed(drop_root, tmp_pa
                   store=store)
     dr = rep.drops[0]
     assert dr.client_id == ""
-    assert "engagement_ref" in dr.unresolved
+    # NAMES A PLACE, NOT A FIELD. It used to say "Set `engagement_ref` on that
+    # engagement", which named a database column with no setter anywhere in the
+    # product -- advice that could not be followed. Now there is a box on the
+    # engagement screen, so the message says to go and use it. Asserted on what
+    # a preparer can act on rather than on the old wording.
+    assert "Engagement ref box" in dr.unresolved
+    assert "2026-0001" in dr.unresolved, "the refusal must name the ref it means"
 
 
 def test_a_known_ref_resolves_to_its_client(drop_root, tmp_path):

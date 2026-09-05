@@ -241,3 +241,45 @@ def pytest_report_header(config):
     for name, present, changes in rows:
         lines.append(f"  {'yes' if present else 'NO ':4} {name:<{width}}   {changes}")
     return lines
+
+
+# ── no test may leave a role behind ──────────────────────────────────────────
+#
+# `SATC_ROLE` decides whether the caller is the owner or an agent, so a test
+# that leaks one turns every later test into a different principal. **THAT
+# HAPPENED**, 4 September 2026: two tests of the MCP entry point let
+# `SATC_ROLE=ai_staff` escape -- `main()` writes `os.environ` directly with
+# `setdefault`, so `monkeypatch` never learned the key was touched -- and 29
+# unrelated tests went red across pricing, staging and delivery, every one of
+# them refusing the owner because the owner had quietly become an agent. They
+# passed alone and failed in a full run.
+#
+# **THIS RESTORES; IT DOES NOT ASSERT, and the difference is deliberate.** The
+# first version raised on any change and was immediately wrong: an autouse
+# fixture tears down BEFORE the `monkeypatch` a test requested, so it saw every
+# legitimate `monkeypatch.setenv` as a leak and errored seven honest tests.
+# Ordering cannot be fixed from this side -- `monkeypatch` would have to depend
+# on this fixture, not the other way round.
+#
+# So it is a repair rather than a check, and is named as one. A check that
+# cannot tell a leak from a correct use is not a check worth having; putting
+# the value back removes the whole class of failure either way.
+# SATC_ENGAGEMENTS joined the list on 5 Sep 2026: it decides where the
+# engagement PRICE is read from, so a test that leaves one set changes what
+# every later quote says a client was charged. A fixture set it directly
+# through os.environ the same afternoon -- the same shape as the SATC_ROLE
+# leak that turned 29 unrelated tests red.
+_PRINCIPAL_KEYS = ("SATC_ROLE", "SATC_ASSIGNMENT", "SATC_PRINCIPALS",
+                   "SATC_ENGAGEMENTS")
+
+
+@pytest.fixture(autouse=True)
+def _principals_are_put_back():
+    """Restore the principal environment after every test, whatever touched it."""
+    before = {k: os.environ.get(k) for k in _PRINCIPAL_KEYS}
+    yield
+    for k, v in before.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
