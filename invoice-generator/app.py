@@ -180,6 +180,35 @@ def _ensure_schema():
         safe_exec(["ALTER TABLE invoices ADD COLUMN design VARCHAR(64)"])
     if not column_exists("invoices", "doc_title"):
         safe_exec(["ALTER TABLE invoices ADD COLUMN doc_title VARCHAR(40)"])
+
+    # THE PAYMENT LEDGER'S OPENING BALANCES.
+    #
+    # `db.create_all()` above makes the `payments` table itself -- it creates
+    # missing TABLES, which is why this one needs no ALTER while a new COLUMN
+    # does. What it cannot do is populate it, and an invoice carrying
+    # amount_paid = 400 with an empty ledger would read as unpaid the moment
+    # anything asked the ledger instead of the cache. So every invoice that
+    # already has money against it gets one entry standing for it.
+    #
+    # `source = 'migrated'` rather than 'manual' because that is what it is:
+    # a figure carried over, whose origin (card, cheque, mark-as-paid) the old
+    # schema did not record and this cannot invent. It counts as manual for
+    # reversal, since treating an unknown origin as confirmed would let a
+    # mistyped total masquerade as a card payment nobody may reverse.
+    #
+    # Idempotent by the NOT IN: once an invoice has any ledger row it is
+    # skipped, so this is safe to run per worker at every boot, which is
+    # exactly how _ensure_schema runs.
+    safe_exec([
+        "INSERT INTO payments "
+        "(invoice_id, amount, currency, source, external_id, note, created_at) "
+        "SELECT id, amount_paid, currency, 'migrated', NULL, "
+        "'Opening balance carried over when the payment ledger was added', "
+        "created_at "
+        "FROM invoices "
+        "WHERE amount_paid > 0 "
+        "AND id NOT IN (SELECT invoice_id FROM payments)"
+    ])
     if not column_exists("invoices", "stripe_account_id"):
         safe_exec(
             ["ALTER TABLE invoices ADD COLUMN stripe_account_id VARCHAR(64)"]
@@ -479,9 +508,22 @@ def _populate_invoice_from_form(
     else:
         invoice.discount_is_percent = True
     invoice.shipping = money("shipping", "Shipping")
-    # See the docstring: absent means leave alone, never zero.
+    # See the docstring: absent means leave alone, never zero. When it IS
+    # present it states a total, which the ledger reconciles to by appending
+    # the difference -- an assignment here would be the very overwrite the
+    # Payment table exists to remove, and it could reduce the figure below a
+    # confirmed card payment.
     if "amount_paid" in form:
-        invoice.amount_paid = money("amount_paid", "Amount paid")
+        requested_paid = money("amount_paid", "Amount paid")
+        if requested_paid < 0:
+            # A negative "paid" is not a refund: it makes the balance due
+            # LARGER than the total, so a $100 invoice with -500 reads as $600
+            # owed and puts $500 nobody will ever pay into the outstanding KPI.
+            # The JSON API has refused this since before the ledger; the form
+            # let it through.
+            errors.append("Amount paid cannot be negative.")
+        else:
+            invoice.set_manual_paid_total(requested_paid)
 
     if "design" in form:
         invoice.design = resolve(form.get("design"))["id"]
@@ -1298,8 +1340,17 @@ def register_routes(app):
     @login_required
     def mark_paid(invoice_id):
         invoice = owned_or_404(invoice_id)
+        # Record the SHORTFALL as a manual entry, rather than overwriting the
+        # total. On an invoice already part-paid by card, assigning the total
+        # turned "400.00 by card and 700.00 by cheque" into one indistinguishable
+        # 1100.00 -- and if the card payment was later disputed there was
+        # nothing left to say which part of it was the card's.
+        outstanding = round(invoice.total - invoice.ledger_total, 2)
+        if outstanding > 0:
+            invoice.record_payment(
+                outstanding, source="manual", note="Marked as paid"
+            )
         invoice.status = "Paid"
-        invoice.amount_paid = invoice.total
         db.session.commit()
         flash("Invoice marked as paid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1307,17 +1358,40 @@ def register_routes(app):
     @app.route("/invoice/<int:invoice_id>/mark-unpaid", methods=["POST"])
     @login_required
     def mark_unpaid(invoice_id):
-        # Reverse a "mark as paid": clear the recorded payment and reopen the
-        # invoice. We keep paid_session_ids so a stale Stripe webhook retry of
-        # an already-seen session can't silently re-credit it.
+        # Reverse a "mark as paid" -- and ONLY that.
+        #
+        # This used to set `amount_paid = 0` outright, which meant one click
+        # erased money Stripe had really taken, and the erasure was permanent:
+        # the spent session id stayed in `paid_session_ids`, so replaying the
+        # very webhook that recorded the payment hit the "already credited"
+        # branch and did nothing. Recorded in docs/REPO-INVENTORY.md as the
+        # last money bug in this app; the firm's answer on 5 September 2026
+        # was "Fix it before any client sees it."
+        #
+        # A card payment is a fact about the world and a button in our UI does
+        # not get to undo it. Reversing one is a refund; that happens at the
+        # processor and comes back as its own event.
         invoice = owned_or_404(invoice_id)
-        invoice.status = "Sent"
-        invoice.amount_paid = 0.0
+        invoice.reverse_manual_payments(note="Reopened with 'mark as unpaid'")
+        # Reopen only if reversing the manual part actually leaves a balance.
+        # A card payment covering the whole invoice survives this button, so
+        # the invoice is still settled and must not come back reading "Sent"
+        # with nothing owing.
+        invoice.status = "Paid" if invoice.balance_due <= 0 else "Sent"
         # Drop the spent Checkout Session so nothing copies/sends a dead link;
         # a fresh session is created on demand when the invoice is paid again.
         invoice.stripe_session_id = None
         invoice.stripe_payment_url = None
         db.session.commit()
+        if invoice.confirmed_paid > 0:
+            flash(
+                "Reopened. "
+                f"{format_money(invoice.confirmed_paid, invoice.currency)} "
+                "confirmed by Stripe is still recorded against this invoice — "
+                "reversing a card payment is a refund, which is done in Stripe.",
+                "success",
+            )
+            return redirect(url_for("view_invoice", invoice_id=invoice.id))
         flash("Invoice marked as unpaid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
@@ -1894,15 +1968,12 @@ def register_routes(app):
                 paid_cents = session.get("amount_total") or 0
                 sess_currency = (session.get("currency") or "").lower()
                 inv_currency = (invoice.currency or "usd").lower()
-                counted = [
-                    s for s in (invoice.paid_session_ids or "").split(",") if s
-                ]
                 if not session_id:
                     logger.warning(
                         "stripe webhook: event missing session id for "
                         "invoice=%s — not credited", invoice.id,
                     )
-                elif session_id in counted:
+                elif invoice.has_credited(session_id):
                     logger.info(
                         "stripe webhook: session %s already credited to "
                         "invoice=%s — no change", session_id, invoice.id,
@@ -1914,11 +1985,20 @@ def register_routes(app):
                         invoice.id, sess_currency, inv_currency,
                     )
                 else:
-                    invoice.amount_paid = round(
-                        (invoice.amount_paid or 0.0) + paid_cents / 100.0, 2
+                    # Appended to the ledger, which is also where the
+                    # idempotency key now lives (Payment.external_id). The
+                    # legacy comma-joined `paid_session_ids` is still READ by
+                    # `has_credited`, for invoices paid before this table
+                    # existed, but is no longer written -- two records of the
+                    # same fact drift, and this one drifting means crediting
+                    # a payment twice.
+                    invoice.record_payment(
+                        paid_cents / 100.0,
+                        source="stripe",
+                        external_id=session_id,
+                        currency=sess_currency.upper(),
+                        note="Stripe Checkout",
                     )
-                    counted.append(session_id)
-                    invoice.paid_session_ids = ",".join(counted)
                     logger.info(
                         "stripe webhook: credited %.2f %s to invoice=%s "
                         "(session=%s)", paid_cents / 100.0, inv_currency,

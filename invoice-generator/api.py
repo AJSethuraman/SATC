@@ -111,9 +111,19 @@ def _populate_invoice_from_json(invoice, data):
     invoice.shipping, ok = parse_money(data.get("shipping"), 0.0)
     if not ok:
         errors.append("shipping must be a finite number.")
-    invoice.amount_paid, ok = parse_money(data.get("amount_paid"), 0.0)
+    # Parsed, refused, and only THEN recorded -- the refusal has to happen on
+    # the requested figure, because `set_manual_paid_total` floors a negative
+    # at the confirmed total and a floored value would look valid by the time
+    # `_validate` saw it.
+    requested_paid, ok = parse_money(data.get("amount_paid"), 0.0)
     if not ok:
         errors.append("amount_paid must be a finite number.")
+    elif requested_paid < 0:
+        errors.append("amount_paid cannot be negative.")
+    elif requested_paid:
+        invoice.set_manual_paid_total(
+            requested_paid, note="Recorded when the invoice was created"
+        )
 
     invoice.notes = str(data.get("notes", "")).strip()
     invoice.terms = str(data.get("terms", "")).strip()

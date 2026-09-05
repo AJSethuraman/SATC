@@ -17,6 +17,100 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Saturday 5 September 2026, night — Invoicer comes back, and the last money bug goes
+
+The firm asked for InvoiceHome's front door — *"basically just completely rip
+off this site make it work for us"* — and in doing so reversed the previous
+day's *"Retire Invoicer"*. Five decisions went out on a docket; five came back.
+
+| | Asked | Answered |
+|---|---|---|
+| **D-1** | Square or Stripe — does the Stripe dependency block a client rollout? | *"Keep Stripe only"* |
+| **D-2** | fix the destroyable payment record before or after a client sees it | *"Fix it before any client sees it"* |
+| **D-3** | who can open the signed-out generator | *"Open to anyone"* |
+| **D-4** | revive Render | **asked back** — *"How much can tested without. Alternatives??"* |
+| **D-5** | whose branding on the invoice a client sends | *"Client's branding only"* |
+
+### The reversal, recorded
+
+*"the point of this will actually be to eventually roll out to our clients and
+maybe even as a website how cool would it be to say hey, we'll just invoice for
+you look it's pretty much automatic"* — and later, *"we do want this to be
+client facing potentially but also automate sending invoices for our clients"*.
+
+Recorded as **C15**, canon 1.13.0 (both the plugin manifest and the marketplace
+entry, because the cache is keyed by the marketplace's number and C11 shipped
+invisible on 4 September for exactly that reason). It reverses two entries from
+the day before: *"Retire Invoicer"* and *"Delete it"* about the Render deploy
+workflow.
+
+### D-1 settled a question C15 had left open
+
+C15's "How it could be wrong" said the Square/Stripe collision would become its
+own entry once the firm settled it. They settled it: **Stripe only**. The
+reasoning behind the retirement had a hole in it — Invoicer is Stripe
+**Connect**, so each user links their *own* Stripe and their customers pay
+*them* directly. "The firm takes Square" and "the product runs on Stripe" were
+never in conflict; they are two different businesses on two different rails.
+Square becomes necessary only if the firm wants to send its *own* invoices
+through this tool, which is not what was asked for.
+
+### D-2 was the real work
+
+`docs/REPO-INVENTORY.md` had carried *"one thing to fix before real money"*
+since 27 August. Three ways money was destroyed; two are now closed.
+
+- **"Mark as unpaid" erased a Stripe-confirmed payment, permanently.** It set
+  `amount_paid = 0` outright, and the spent session id stayed in
+  `paid_session_ids`, so replaying the very webhook that recorded the payment
+  hit the "already credited" branch and did nothing. It now reverses only what
+  a person typed. A card payment is a fact about the world; reversing one is a
+  refund, and that happens at the processor.
+- **"Mark as paid" over a part-paid invoice lost the provenance.** $400 by card
+  and $700 by cheque became one `1100.00`. It now records the shortfall.
+- **Deleting a paid invoice still destroys the record.** NOT fixed, and left
+  open deliberately rather than folded into a heading that says FIXED — the fix
+  is a soft delete, which is a separate decision about what "delete" means.
+
+A `Payment` ledger, entries appended and never edited, a reversal its own row.
+`amount_paid` stays as a **cache** because a dozen readers use it, one of them
+raw SQL — and `tests/test_payment_ledger.py` ties the two together after every
+operation, the way a control account ties to its subsidiary ledger.
+
+### What the harness caught that the tests did not
+
+`exercise.py` had not been run in this checkout before tonight, and it was
+named as the biggest gap in the docket's own "what I did not check" list. Run
+after the ledger: **288 checks, 276 ok, 0 failed, 607 things compared, 53 PDFs
+opened, no surprises.** On the first run it found six, and one of them was
+**my own bad assertion** — I had asserted an invoice paid in full by card would
+read "Partial" after mark-unpaid. It reads "Paid", correctly: the card settled
+it and the button did not change that.
+
+The other five were the currency fix's downstream expectations. The harness
+demanded `¥1,000.00` — decimals the yen does not have — and its PDF verifier's
+money regex hard-coded two decimal places, so a correct `¥1,000` total was
+reported as "no line labelled Total" on a PDF that was perfectly good.
+
+### Two money bugs nobody had asked about
+
+Found while building, both live before tonight:
+
+- **Stripe was overcharging 100x in 23 currencies.** `int(round(amount * 100))`
+  for every currency; a ¥1,500 invoice was charged **¥150,000**. JPY has been
+  in the currency list the whole time. KWD went the other way — a tenfold
+  undercharge that never settled.
+- **Every PDF printed in the wrong typeface.** Jinja escaped the quotes in the
+  font stack, invalidating the declaration, so both engines silently fell back
+  to a serif. Caught only by rasterising a PDF and looking at it.
+
+### Still open
+
+**D-4 was a question, not an answer, and it is owed a reply.** Also: the
+`amount_paid` cache is still a binary float, `PLATFORM_FEE_FLAT_CENTS` is
+denominated in cents and would mean 50 *yen* on a zero-decimal currency (it is
+dormant), and `main` was red from #288 until the one-line `pythonpath` fix.
+
 ## Saturday 5 September 2026 — the docket after the walk, five for five
 
 Every decision answered. Three took the recommendation, one overruled it, and
