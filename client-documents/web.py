@@ -3085,6 +3085,33 @@ if __name__ == "__main__":
     #
     # Opt in per run when you actually want the reloader:
     #     SATC_WEB_DEBUG=1 python web.py
+    import argparse
     import os
-    create_app().run(port=5051,
-                     debug=os.environ.get("SATC_WEB_DEBUG") == "1")
+
+    # THE BROWSER FRONT DOOR COULD NOT BE POINTED ANYWHERE.
+    # `create_app(store=...)` has always taken one; this line called it with no
+    # argument, so `make web` always opened the REAL engagement store and there
+    # was no flag that changed it. That is the same shape as the Square bug
+    # found the day before -- a way to run against live client data with no way
+    # to scope it -- and it is why an assessment agent read twenty-eight routes
+    # instead of driving them: it could not open the app safely.
+    #
+    # The firm, 5 September 2026: *"Let make web take a store"*.
+    #
+    # `--store` beats the environment beats the default, the same precedence
+    # `satc_system` uses: a path typed on this command line is more specific
+    # than a variable exported hours ago.
+    ap = argparse.ArgumentParser(description="SATC engagement browser")
+    ap.add_argument("--store", default=None,
+                    help="engagements directory (default: the real one, or "
+                         "$SATC_ENGAGEMENTS)")
+    ap.add_argument("--port", type=int, default=5051)
+    args = ap.parse_args()
+
+    chosen = args.store or os.environ.get("SATC_ENGAGEMENTS") or None
+    if chosen:
+        # SAID OUT LOUD. Somebody who meant to open the real store and did not
+        # will otherwise spend a while wondering where their clients went.
+        print(f"engagements: {Path(chosen).resolve()}")
+    create_app(store=chosen).run(
+        port=args.port, debug=os.environ.get("SATC_WEB_DEBUG") == "1")

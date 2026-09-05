@@ -17,6 +17,97 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Saturday 5 September 2026 — I raised a collision that was not there
+
+I told the firm their price decision collided with two things they believe, and
+stopped D10 one step from finished to say so. **The challenge was wrong, and it
+was wrong because I had invented what "the student rate" meant.**
+
+The firm, asked:
+
+> *when i say college student gets it cheaper, i literally mean hey if you are
+> in college and working that's rough, we have the simple filer deal just for
+> you - same with someone not in college.*
+>
+> *so like the estimate generator is supposed to find the lowest cost we can for
+> someone based on their situation whether that be starting with one of our 4
+> packages and adding to it, or making some sort of weird custom package that is
+> lower than a standard package but gets you what you need*
+>
+> *this was assured that it was done to me... is it not??*
+
+**It is a cheap tier, not a percentage off.** I had assumed the reduction lived
+in `satc_system/configs/billing/rate_plans.yaml` — `household`, `hardship`,
+`pro_bono` — and built a whole Bassy challenge on the fee schedule having no
+discounts. The fee schedule is right not to have discounts. The deal *is* the
+ladder finding the cheapest package that covers the client.
+
+**And it is built.** `pricing.derive_tier` returns "the tier that costs this
+client LEAST", its docstring quotes the firm from 25 August saying to put it in
+the mechanism rather than a test, and it runs inside `line_items()` → `price()`
+→ `intake.finish`, which is the path the client's own estimate comes from.
+Measured, not read:
+
+| the client | the estimate |
+|---|---|
+| working student, W-2 only | **$100.00** Simple Filer |
+| the same person plus a brokerage statement | $200.00 Essentials |
+| student with a second state | **$150.00** — Simple Filer plus one state |
+| self-employed, standard books | $500.00 Self-Employed |
+
+The $150 is exactly the *"weird custom package that is lower than a standard
+package"*. And `cli.py ladder` sweeps the shapes and reports Essentials eligible
+24 times and chosen 12 — **beaten by Simple Filer the other twelve**, which is
+the guarantee working out loud.
+
+**Then the second half of the mistake.** `rate_plan_key` — the percentage
+mechanism I stopped work to protect — is written by nothing but the store's own
+loader and four test files. No route, no form, no command sets a rate plan on an
+engagement, and until last night the product never created the row it sits on.
+**I halted a decision to defend a mechanism that has never been reachable.**
+
+What I should have done before raising it: price a student. It took one command.
+
+
+## Friday 4 September 2026, late — the second docket, and one overrule
+
+Asked directly whether I was trying to say the work was finished. I was not, but
+the reporting read that way: shipping one decision at a time and calling each
+verified is accurate per item and misleading in aggregate.
+
+| | Asked | Answered |
+|---|---|---|
+| **D7** | five client documents ship past the pre-send gate | *"Gate the five documents next"* |
+| **D8** | nothing records that a return was filed, so the 7-year clock never starts | **overruled me** — *"Defer with W5/W8 to the bookkeeping launch"* |
+| **D9** | `make web` always opens the real client store | *"Let make web take a store"* |
+| **D10** | the price, with the third option D3 unlocked | *"Show the engagement price via the ref"* |
+
+**D8 is the one I was wrong to raise, and the overrule was already on record.**
+I argued the filing writer should come next because it is the missing piece
+under W5 and W8. The firm deferred it to the same place — and W8's own entry
+already carried their words for it: *"note those as things to deal with when we
+are ready to market the bookkeeping officially."* The answer was in the register
+before I asked the question. Nothing is destroyed today, so nothing is at risk
+today, and the three pieces of the retention promise get built together rather
+than one at a time.
+
+**The false gate claim was corrected without asking**, and that half was never a
+decision. `CLAUDE.md` told every session that every client document passes a
+blocking pre-send gate; the gate has two callers and neither is on the `event`
+path. A wrong safety claim in the file every session loads is worse than the gap
+it describes, because a gap invites a look and a claim forecloses one.
+
+**Then closing the gap caught something my own test did not.** The first version
+applied the pack gate wholesale and refused an ordinary single-document render:
+the fee estimate promises the engagement letter as an enclosure, and a
+one-document render does not hold one. That is the estimate being correct.
+**A gate that refuses correct everyday use is a gate everybody learns to
+`--force` past, and then it protects nothing.** Exactly one of the nine checks
+is about completeness rather than about the documents, so that one is skipped
+for a deliberate subset — and *named* as skipped, never dropped. Nine checks for
+a chosen document, ten for a whole pack, and a test pins the difference at one.
+
+My test had only asserted that a gate was mentioned. Running it found the rest.
 ## Friday 4 September 2026, late — the join, and who is calling
 
 **D3 first, because its answer dissolved D4's fork.** Both assessment agents

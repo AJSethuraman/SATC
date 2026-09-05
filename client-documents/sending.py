@@ -103,6 +103,109 @@ def previous_pack(outdir: Path) -> str | None:
         return "an earlier engagement"
 
 
+@dataclass
+class GateOutcome:
+    """What the gate said about a staged set of documents, and what to do."""
+
+    status: str = "passed"      # passed | refused-gate | no-reason | not-logged
+    check: object = None
+    override: str = ""
+    detail: str = ""
+
+    @property
+    def may_write(self) -> bool:
+        return self.status in ("passed", "overridden")
+
+    @property
+    def was_overridden(self) -> bool:
+        return self.status == "overridden"
+
+
+def gate_staged(staging: Path, record: dict, *, rendered: dict[str, str],
+                documents: list[str], written: dict[str, list],
+                ref: str = "", store: Path | None = None,
+                command: str = "render", force: bool = False,
+                reason: str = "", skip_render: bool = False,
+                whole_pack: bool = True,
+                attach: "list[str] | None" = None) -> GateOutcome:
+    """Run the pre-send gate over documents staged but not yet delivered.
+
+    **THE SECOND FRONT DOOR HAD NO GATE AT ALL.** `presend.gate` had exactly two
+    callers -- `build` below and `previewing.preview` -- and neither was on the
+    path `cli.py event` takes. So the delivery letter, the organizer cover, the
+    extension notice, the disengagement letter and the invoice via `render`
+    reached clients unchecked. `docs/WHERE-THINGS-STAND.md` called it "the
+    biggest hole still open"; `CLAUDE.md` and `docs/REPO-INVENTORY.md`
+    meanwhile both asserted that *every* document a client receives passes a
+    blocking gate, which was the more dangerous half -- a gap invites a look and
+    a false claim forecloses one.
+
+    Extracted rather than duplicated. `build` had the whole discipline already
+    -- manifest before gate, blocking refusal, an override that must carry a
+    reason and must be logged or it does not happen -- and a second copy of that
+    in `cli` would be two implementations of one policy, drifting apart from the
+    day it was written.
+
+    THE MANIFEST GOES IN FIRST, for the reason `build` states: a rendered
+    document is named for the client, so nothing about the file says which
+    template it came from, and `compliance_floor` and `pointer_test` refuse
+    without it.
+
+    AN OVERRIDE THAT CANNOT BE LOGGED IS REFUSED. Forcing past a gate with no
+    trace is the thing this design exists to prevent, so a run with no
+    engagement ref -- a one-off render from a record file -- cannot be forced at
+    all, and says so rather than silently allowing it.
+    """
+    book = packaging.manifest(record, documents, written, attach)
+    (staging / "MANIFEST.json").write_text(
+        json.dumps(book, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    check = presend.gate(staging, record, rendered=rendered,
+                         skip_render=skip_render, whole_pack=whole_pack)
+    out = GateOutcome(check=check)
+    if not check.blocking:
+        return out
+    if not force:
+        out.status = "refused-gate"
+        return out
+
+    why = (reason or "").strip()
+    if not why:
+        out.status = "no-reason"
+        return out
+    if not ref or store is None:
+        out.status = "not-logged"
+        out.detail = ("there is no engagement to record the override against -- "
+                      "a forced send with no trace is exactly what the log "
+                      "exists to prevent. Render from --engagement, not a "
+                      "record file, if this has to go out.")
+        return out
+
+    entry = {
+        "at": _dt.datetime.now(_dt.timezone.utc)
+              .replace(microsecond=0).isoformat(),
+        "command": command,
+        "reason": why,
+        "failed": [{"check": f.check, "document": f.document,
+                    "detail": f.detail} for f in check.blocking],
+    }
+    try:
+        out.override = str(engagements.record_override(ref, entry, store))
+        # "overridden", NOT "passed". The first version left `status` at its
+        # default here, so a forced send through a BLOCKING gate reported
+        # itself as "nothing blocking": the override was logged, and the
+        # sentence a person actually reads said the opposite of what happened.
+        # Found by forcing one by hand to inspect what it had refused, and
+        # watching the output claim there was nothing to refuse.
+        #
+        # A gate that can be walked past quietly is a gate that will be.
+        out.status = "overridden"
+    except Exception as exc:                                # noqa: BLE001
+        out.status = "not-logged"
+        out.detail = str(exc)
+    return out
+
+
 def build(record: dict, outdir: Path, *, render, ref: str, store: Path,
           template_dir: Path, documents: list[str], want_pdf: bool = True,
           attach=None, skip_render: bool = False, readings: bool = False,
