@@ -114,7 +114,11 @@ class GateOutcome:
 
     @property
     def may_write(self) -> bool:
-        return self.status == "passed"
+        return self.status in ("passed", "overridden")
+
+    @property
+    def was_overridden(self) -> bool:
+        return self.status == "overridden"
 
 
 def gate_staged(staging: Path, record: dict, *, rendered: dict[str, str],
@@ -187,6 +191,15 @@ def gate_staged(staging: Path, record: dict, *, rendered: dict[str, str],
     }
     try:
         out.override = str(engagements.record_override(ref, entry, store))
+        # "overridden", NOT "passed". The first version left `status` at its
+        # default here, so a forced send through a BLOCKING gate reported
+        # itself as "nothing blocking": the override was logged, and the
+        # sentence a person actually reads said the opposite of what happened.
+        # Found by forcing one by hand to inspect what it had refused, and
+        # watching the output claim there was nothing to refuse.
+        #
+        # A gate that can be walked past quietly is a gate that will be.
+        out.status = "overridden"
     except Exception as exc:                                # noqa: BLE001
         out.status = "not-logged"
         out.detail = str(exc)

@@ -2227,10 +2227,21 @@ def _report_gate(outcome, outdir) -> bool:
     gate people learn to pass --force to without reading.
     """
     check = outcome.check
+    n = len(getattr(check, "checked", []) or []) if check is not None else 0
     if outcome.status == "passed":
         if check is not None:
-            n = len(getattr(check, "checked", []) or [])
             print(f"  pre-send gate: {n} check(s), nothing blocking")
+        return True
+    if outcome.status == "overridden":
+        # SAID LOUDLY, AND ON STDERR. These documents failed a blocking check
+        # and are going out anyway. The log records it; this is the half a
+        # person reads at the time.
+        print(f"  PRE-SEND GATE OVERRIDDEN. {len(check.blocking)} of {n} "
+              f"check(s) failed and these documents are being written anyway:",
+              file=sys.stderr)
+        for f in check.blocking:
+            where = f" [{f.document}]" if getattr(f, "document", "") else ""
+            print(f"    {f.check}{where}: {f.detail}", file=sys.stderr)
         return True
     if outcome.status == "refused-gate":
         print("  REFUSED BY THE PRE-SEND GATE. Nothing was written to "

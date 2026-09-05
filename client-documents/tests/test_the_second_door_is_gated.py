@@ -245,6 +245,34 @@ def test_a_logged_override_lets_it_through_and_leaves_a_trace(
     assert logged[-1]["failed"][0]["check"] == "the compliance floor is on the page"
 
 
+def test_an_override_is_announced_and_never_reads_as_a_clean_pass(
+        tmp_path, monkeypatch, capsys):
+    """**THE DEFECT THIS FILE ALMOST SHIPPED WITH.**
+
+    `gate_staged` left `status` at its default when a forced override
+    succeeded, so a send through a BLOCKING gate printed *"pre-send gate: 10
+    check(s), nothing blocking"*. The override was logged correctly; the
+    sentence a person actually reads said the opposite of what had happened.
+
+    Found by forcing one by hand to inspect what the gate had refused, and
+    watching the output claim there was nothing to refuse. **A gate that can be
+    walked past quietly is a gate that will be.**
+    """
+    monkeypatch.setattr(sending.presend, "gate", lambda *a, **k: _Blocked())
+    store = tmp_path / "engagements"
+    engagements.save({"EngagementRef": "2026-0001",
+                      "ClientFullName": "Walkthrough Fixture"},
+                     "2026-0001", store)
+    cli.cmd_render(_args(tmp_path / "out", force=True, reason="signed off",
+                         _gate_ref="2026-0001", _gate_store=store))
+    seen = capsys.readouterr()
+    assert "nothing blocking" not in seen.out, (
+        "a forced override reported itself as a clean pass: " + seen.out)
+    assert "OVERRIDDEN" in seen.err, seen.err
+    assert "compliance floor" in seen.err, (
+        "the override must still name what it walked past")
+
+
 # ── check the checker ────────────────────────────────────────────────────────
 
 def test_the_gate_this_calls_is_the_same_one_package_calls():
