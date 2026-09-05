@@ -821,3 +821,22 @@ it, and the skill had been accepting the name.
 Four new tests pin the shape (175 → 179 passing). `1.10.0 → 1.11.0`, both manifests:
 skill text is installed behaviour, and an installed session reads whatever the
 marketplace's number fetches.
+
+**Added the same day, and it is the sharper half.** The roster behind that
+exhibit reported 53 of 53 tied against the filing, in a column labelled
+`landed` — and the tool had re-fetched every value from the data provider's API
+at the moment it ran, never opening the workbook. The firm:
+
+> ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard
+
+It proved `provider = filing`. A tie-out has to prove `the artifact the firm
+reads = the independent source`. Everything in the document was executed and
+true and it was checking the wrong pair. So the skill now carries a **second
+question** beside *could this disagree with me?* — **is this the thing my reader
+actually looks at?** — and the corollary: a tie-out proves one chain, and every
+hop it did not execute is listed as assumed. That roster proved
+workbook→provider on exactly one line, by hand; the other 52 rested on *same
+build, same day*, which is an inference.
+
+175 → 180 passing.

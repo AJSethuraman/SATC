@@ -305,6 +305,25 @@ def test_the_tie_out_deliverable_is_one_document_that_shows_the_mechanism():
         "what running it changed is not a section of the document"
 
 
+def test_the_tie_out_ours_side_is_read_from_the_artifact():
+    """The failure that got past a finished exhibit. A roster reported 53 of 53
+    tied against a filing, in a column labelled "landed", where every value had
+    been re-fetched from the provider's API and the workbook was never opened.
+    It proved provider = filing. The firm, 5 September 2026: "your doc here needs
+    to prove the external source to your workbook values not what you said
+    landed. that's the standard." """
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "the artifact the reader opens" in flat, \
+        "the ours side may still be an intermediate"
+    assert "which artifact you opened and how you read the value out of it" in flat, \
+        "the exhibit need not say what it read the figure from"
+    assert "upstream of the artifact" in flat, \
+        "checking the source against an intermediate is not ruled out"
+    assert "every hop it did not execute is assumed" in flat, \
+        "an unexecuted hop may still pass as proved"
+
+
 def test_the_tie_out_skill_marks_and_enlarges_the_source():
     """A captured page satisfies "screenshot the source" and still leaves the
     reader hunting a row on a dense regulatory form. Marking and enlarging is

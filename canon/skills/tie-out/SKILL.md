@@ -36,6 +36,40 @@ come back red. The tie-out that would have caught it in one line was never run:
 compare `1110 Operating Checking` to the closing balance on the bank statement.
 The bank can disagree with you. Your own totals cannot.
 
+## The second question: is this the thing my reader actually looks at?
+
+The first question protects the **source** side of the comparison. This one
+protects the other side, and it is the one that got past a finished exhibit.
+
+**The "ours" figure must be read out of the artifact the reader opens** — the
+cell in the workbook, the field on the screen, the line on the report. Not
+re-fetched. Not recomputed. Not the value the code *would* produce. Say **which
+artifact you opened and how you read the value out of it**.
+
+Comparing the source against something **upstream of the artifact** — the API
+response, the cache, the dataframe, the intermediate the software builds on the
+way — proves that the intermediate agrees with the source. It says nothing about
+the number on the screen, and the last hop is the one the reader depends on. It
+is the mirror problem wearing a third hat: instead of checking yourself against
+yourself, you have checked the source against something that is not the answer.
+
+**Incident:** on 5 September 2026 a roster reported 53 of 53 lines tied against a
+bank's filed Call Report. The column was labelled *landed*. It was not: the tool
+had re-fetched each value from the data provider's API at the moment it ran, and
+never opened the workbook. The firm: *"ok, here is the thing - your doc here
+needs to prove the external source to your workbook values not what you said
+landed. that's the standard."* What had been proved was `provider = filing`. What
+a tie-out has to prove is `the artifact the firm reads = the independent source`.
+Everything in that document was executed and true, and it was checking the wrong
+pair.
+
+**A tie-out proves one chain, and every hop it did not execute is assumed.** The
+same roster proved provider→filing on 53 lines and workbook→provider on exactly
+one, by hand. The other 52 rested on *same build, same day* — an inference, not
+an execution. Inferences of that shape belong in **what this does not prove**,
+per line where it matters, and they are cheap to write down and expensive to
+discover later.
+
 ## What comes out is one document, not a note and a folder
 
 **The deliverable is a single self-contained file a person can open, read and
@@ -101,7 +135,10 @@ Each one recorded, in order, in the exhibit source `docs/TIE-OUT-<figure>-<date>
 and each one visible in the document that renders from it.
 
 **1 · The figure.** Exactly which number, and where a reader sees it — the
-screen, the report line, the field. Quote it as displayed, to the cent.
+screen, the report line, the field. Quote it as displayed, to the cent. **Open
+that artifact and read the value out of it**, and say how: which file, which tab,
+which cell, and what you had to do to make it show a number. This value, and no
+substitute for it, is the one that goes on the `ours` side in link 5.
 
 **2 · The call.** The exact request that produced it, **copy-pastable, with the
 real parameters in it** — not a description of a call. A reader who cannot rerun
@@ -322,6 +359,10 @@ the citation** — which is what this skill is.
   nothing and costs the same.
 - **Do not tie out to your own fixture, cache, or a copy you control.** That is
   the mirror, and it is the commonest way this goes wrong.
+- **Do not put an intermediate on the `ours` side.** A re-fetched value, a cache,
+  a dataframe, or the number the code would produce is not the number the reader
+  opens, and a column labelled `landed` that was never read out of the artifact
+  is a label doing the work of a check.
 - **Do not stop at the match.** Record what you had to *know* to make the right
   call — which endpoint, which period convention, which sign. That knowledge is
   the reusable half, and it is invisible once the number agrees.
