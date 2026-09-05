@@ -117,8 +117,17 @@
             {% if returning and ans %}<span class="hint"> · last year: {{ ans|capitalize }}</span>{% endif %}
           </td>
           <td class="right">
+            {# THREE ANSWERS, AND NONE OF THEM PRE-SELECTED.
+               This was two radios and the No carried `checked if ans != 'yes'`,
+               so every question a preparer did not touch was submitted as a
+               definite No -- and the printed internal checklist showed it as the
+               client's own answer. On `Foreign accounts or foreign financial
+               assets?` and `Digital asset or crypto activity?` a wrong no is not
+               a blank; it is an answer with its own penalty regime, given on the
+               client's behalf by a form. #}
             <label style="margin-right:14px"><input type="radio" name="q_{{ q.id }}" value="yes" {{ 'checked' if ans == 'yes' }}> Yes</label>
-            <label><input type="radio" name="q_{{ q.id }}" value="no" {{ 'checked' if ans != 'yes' }}> No</label>
+            <label style="margin-right:14px"><input type="radio" name="q_{{ q.id }}" value="no" {{ 'checked' if ans == 'no' }}> No</label>
+            <label class="muted"><input type="radio" name="q_{{ q.id }}" value="" {{ 'checked' if ans == '' }}> Not asked</label>
           </td>
         </tr>
         {% endfor %}

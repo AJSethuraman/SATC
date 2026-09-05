@@ -17,6 +17,68 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Saturday 5 September 2026 — the docket after the walk, five for five
+
+Every decision answered. Three took the recommendation, one overruled it, and
+one went somewhere better than either option I had offered.
+
+| | Asked | Answered |
+|---|---|---|
+| **A** | merge #262 / #263 / #267 | *"Merge all three, then a docs PR"* |
+| **B** | fix the three data-corrupting defects now | *"Fix all three now"* |
+| **C** | what an invoice does with no estimate — refuse, or fall back | **neither** — see below |
+| **D** | give the interview an "unknown" answer | *"Add it, start unanswered"* |
+| **E** | the three security preconditions | **overruled me** — *"Defer to the bookkeeping launch"* |
+
+**C is the one worth writing down, because I asked the wrong question.** I
+offered refuse-or-fall-back at the moment of billing. The firm:
+
+> *"the final invoice is what really should be made after we do the return and
+> can actually compute it so like I would expect us to be able to feed a final
+> return to our software and have it identify the schedules and stuff that we
+> filled out and price the engagement at the end and then you know it would
+> pretty much need to ask if there was hourly work and stuff"*
+
+So the estimate and the final invoice are **two different acts on two different
+days**, and the invoice is derived from what was actually filed rather than from
+what was predicted. That does not collide with *"one price, and it's the one on
+the client's estimate"* — that decision was about which price LIST governs, not
+about when the amount is fixed. The same fee schedule prices both; one prices a
+prediction, the other prices the work. `CLAUDE.md` already names the seam this
+needs — `cli.py close` records what was filed, in-house — and the engagement
+letter already promises the client a written estimate before any additional work
+begins, so a final invoice above the estimate is a promise to check rather than a
+surprise to allow. Not built; scoped only.
+
+**E is the second overrule onto the bookkeeping launch**, and the position is
+consistent: W5 and W8 went there on 4 September for the same reason. Worth
+recording what I checked rather than assumed, because the Autonomy screen reads
+*"never recorded"* for all three and the machine is further along than that:
+`SATC - Back up client data to OneDrive` last ran 4 Sep 12:30 and the Occam books
+backup at 03:00 today, **both result 0**. Tailnet Lock is genuinely off —
+`Tailnet Lock is NOT enabled`, read off the box. The real gaps are Tailnet Lock
+and a restore nobody has ever tested, not the absence of a backup.
+
+**What B produced:** three stacked pull requests, #276 → #277 → #278, and
+**1,779 → 1,797 passing, 0 failing.** Each guard sits on the engine rather than
+the view, so every caller meets it instead of the one door the walk happened to
+use.
+
+**The mutation runs earned their place three times over.** The headline test for
+#276 was decorative in two successive drafts — first it handed the client in
+explicitly, which the old code honoured too; then it asserted on the set of
+returns, which cannot change because the demo client already has that return and
+the post reuses it; then it counted line items, which cannot change either
+because the post is idempotent and REPLACES them. Only a value-by-value ledger
+comparison could see it. In #278 the control would have passed for the wrong
+reason, because `client_choices()[0]` is a partnership the personal workflow
+refuses anyway.
+
+**And one existing test was passing because of the defect.** `test_filing` read
+the global `STATE`, which the button-walker empties by pressing "Clear sample
+data" — and then refilled, because pressing `/intake/run` and `/staging/post`
+manufactured a `SATC-001000` / 2024 return out of the very defaults being
+removed. It builds its own state now.
 ## Saturday 5 September 2026, small hours — the walk, and the two prices
 
 The firm: *"It's time for you to literally use the browser, use all of the

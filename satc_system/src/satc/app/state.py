@@ -321,12 +321,26 @@ class AppState:
     def delete_field(self, field_id: str) -> None:
         self.gate.delete_field(field_id)
 
-    def edit_field(self, field_id: str, raw_value: str) -> None:
-        """Hand-correct a staged value (parses money the same conservative way reads do)."""
+    def edit_field(self, field_id: str, raw_value: str) -> str:
+        """Hand-correct a staged value (parses money the same conservative way reads do).
+
+        Returns ``""`` when the correction was taken, or a sentence saying why it
+        was not. The gate refuses a non-numeric correction to a field that holds an
+        amount; before it did, the correction was displayed as confirmed and the
+        machine's original figure was posted instead. See ``StagingGate.edit``.
+        """
         from satc.ingest.extractors.base import parse_money
         amount, _conf, _note = parse_money(raw_value)   # None if it isn't a clean number
-        self.gate.edit(field_id, acting_actor(),
-                       value_text=raw_value.strip(), value_amount=amount)
+        if self.gate.edit(field_id, acting_actor(),
+                          value_text=raw_value.strip(), value_amount=amount):
+            return ""
+        field = next((f for f in self.gate.all_fields() if f.field_id == field_id), None)
+        if field is None:
+            return "That row is no longer on this screen."
+        return (f"“{raw_value.strip()}” is not an amount, and {field.label} holds one. "
+                f"Nothing was changed: the figure read off the document "
+                f"({field.value_amount}) is still what would post. Type a number, or "
+                f"use Delete if the row does not belong here at all.")
 
     def auto_confirm(self) -> int:
         return self.gate.auto_confirm_high(INTAKE)

@@ -173,6 +173,25 @@ class StagingGate:
         f = self._find(field_id)
         if f is None:
             return False
+
+        # A CORRECTION THAT IS NOT A NUMBER IS REFUSED, NOT ABSORBED.
+        #
+        # This used to set `confirmed_value_amount = value_amount` unconditionally,
+        # so an unparseable correction stored None -- and `effective_amount()` then
+        # fell back to `self.value_amount`, the machine's original read. The row
+        # went on displaying the typed text as CONFIRMED / human:owner while the
+        # workpaper carried the number the preparer thought they had replaced.
+        # Found by walking it on 5 September 2026: typing `not a number` over a
+        # W-2 wage posted the machine's 92,400 and said nothing.
+        #
+        # Refusing here rather than in the view puts it in front of every caller
+        # -- the screen, the API and the MCP tools -- instead of only the one that
+        # happened to be walked. The narrow test is deliberate: a field the reader
+        # never got a number out of may legitimately take text (Box 15 is a state
+        # code), so only a field that ALREADY holds an amount refuses one.
+        if value_amount is None and f.value_amount is not None:
+            return False
+
         if value_text is not None:
             f.confirmed_value_text = value_text
         f.confirmed_value_amount = value_amount
