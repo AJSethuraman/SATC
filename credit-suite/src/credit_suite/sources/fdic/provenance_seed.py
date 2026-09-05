@@ -199,38 +199,59 @@ FIELD_ROWS = [
     ("NAREMULT", "RC-N 1.d col C", "Multifamily nonaccrual", "RCON3501",
      "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("P3CONOTH", "RC-N 5.c col A", "Other consumer 30-89 still accruing",
-     "(not in tie-out map)", "[~]",
-     "match by caption on the facsimile; MDRM row not captured in "
-     "PROVENANCE_MAP_FDIC.md"),
+     "K216", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     ("P9CONOTH", "RC-N 5.c col B", "Other consumer 90+ still accruing",
-     "(not in tie-out map)", "[~]", "match by caption on the facsimile"),
+     "K217", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     ("NACONOTH", "RC-N 5.c col C", "Other consumer nonaccrual",
-     "(not in tie-out map)", "[~]", "match by caption on the facsimile"),
+     "K218", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     # ---- D. quarterly net charge-off flows (Schedule RI-B Part I) ----
+    # Written FLAT and RIAD-prefixed, deliberately. The expression parser
+    # has no notion of a bracketed group and returns None for anything it
+    # cannot rebuild character-for-character, and a bare code resolves
+    # against RCFD/RCON only -- right for a balance-sheet line, useless for
+    # an income-statement one. Every row here cited a line the software
+    # could not follow until 5 Sep 2026, and nothing noticed because the
+    # tie-out skips flows with a stated reason, so the expression was never
+    # exercised. A citation nobody follows is a citation nobody checks.
     # RIAD cols: A = YTD charge-offs, B = YTD recoveries; NT* = DR-CR;
     # quarterly Q variants are DIFFERENCED YTD (Q2-Q4). 8-char truncation
     # verified: NTRECONQ, never NTRECONSQ.
     ("NTCRCDQ", "RI-B Pt I 5.a cols A-B", "Credit card NCO (qtr differenced)",
-     "B514 - B515", "[V]", "quarterly = YTD differenced (Q2-Q4)"),
+     "RIADB514-RIADB515", "[V]", "quarterly = YTD differenced (Q2-Q4)"),
     ("NTAUTOQ", "RI-B Pt I 5.b cols A-B", "Automobile NCO (qtr differenced)",
-     "K129 - K133", "[V]", ""),
+     "RIADK129-RIADK133", "[V]", ""),
     ("NTRECONQ", "RI-B Pt I 1.a.(1)+(2) cols A-B",
      "Construction NCO (qtr differenced)",
-     "(C891+C893) - (C892+C894)", "[V]",
+     "RIADC891+RIADC893-RIADC892-RIADC894", "[V]",
      "8-char truncated name (NTRECONQ, never NTRECONSQ)"),
+    # 4638/4608 are not on form 031, which every bank in this workbook
+    # files. The correct expression sat in this row's NOTE while the expression
+    # the software reads pointed at a line that does not exist on their form.
+    # Moved into the 031-alternative syntax so it resolves for either form.
     ("NTCIQ", "RI-B Pt I 4 cols A-B", "C&I NCO (qtr differenced)",
-     "4638 - 4608", "[V]", "031: (4645+4646) - (4617+4618)"),
+     "RIAD4638-RIAD4608 (031: RIAD4645+RIAD4646-RIAD4617-RIAD4618)", "[V]",
+     "C&I is split by borrower on 031: 4.a U.S. addressees and 4.b non-U.S.; "
+     "US-only understated ten of twelve banks. Tied live against all 12 "
+     "banks' filed Call Reports, 2026-06-30"),
     ("NTCONOTQ", "RI-B Pt I 5.c cols A-B",
-     "Other consumer NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; MDRM row not captured in the map"),
-    ("NTRERESQ", "RI-B Pt I 1.c cols A-B", "Resi NCO (qtr differenced)",
-     "(not in tie-out map)", "[~]", "match by caption"),
-    ("NTRENREQ", "RI-B Pt I 1.e cols A-B",
-     "Nonfarm nonres NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; 8-char truncated name"),
+     "Other consumer NCO (qtr differenced)", "RIADK205-RIADK206", "[V]",
+     "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
+    ("NTRERESQ", "RI-B Pt I 1.c.(1)+1.c.(2) cols A-B",
+     "Resi NCO (qtr differenced)",
+     "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218", "[V]",
+     "revolving open-end plus closed-end first and junior liens; tied live against all 12 banks' filed Call Reports, 2026-06-30"),
+    # The FDIC publishes no quarterly variant of this field: the API
+    # returns NTRENRES (year-to-date) and no NTRENREQ, so the column is blank
+    # for every bank. The citation records where the number WOULD come from.
+    ("NTRENREQ", "RI-B Pt I 1.e.(1)+(2) cols A-B",
+     "Nonfarm nonres NCO (qtr differenced)",
+     "RIADC895+RIADC897-RIADC896-RIADC898", "[~]",
+     "owner-occupied plus other nonfarm nonresidential. NOT PUBLISHED by the "
+     "FDIC as a quarterly field -- lands blank for all 12 banks; the filing "
+     "carries the components and they were checked, 2026-06-30"),
     ("NTREMULQ", "RI-B Pt I 1.d cols A-B",
-     "Multifamily NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; 8-char truncated name"),
+     "Multifamily NCO (qtr differenced)", "RIAD3588-RIAD3589", "[V]",
+     "8-char truncated name; tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     # ---- E. securities (Schedule RC-B line 8, four columns) ----
     ("SCHA", "RC-B 8 col A", "HTM securities, amortized cost", "RCON1754 (RCFD1754 031)",
      "[V]",
@@ -251,9 +272,9 @@ FIELD_ROWS = [
      "[V]", ""),
     ("LNRESNCR", "FDIC-computed ratio", "100 x 3123/(1407+1403)",
      "3123 / 1407,1403", "[V]", ""),
-    ("RBC1AAJ", "FILED: RC-R Pt I 31", "Leverage ratio", "RCOA7204", "[V]",
+    ("RBC1AAJ", "FILED: RC-R Pt I 31", "Leverage ratio", "RCOA7204 (031: RCFA7204)", "[V]",
      "filed directly by all banks incl. CBLR electors"),
-    ("RBCRWAJ", "FILED: RC-R Pt I ~51", "Total capital ratio", "RCOA7205",
+    ("RBCRWAJ", "FILED: RC-R Pt I ~51", "Total capital ratio", "RCOA7205 (031: RCFA7205)",
      "[V]", "BLANK for CBLR electors (null, never 0); Tier1 = 7206"),
     ("EQV", "FDIC-computed ratio", "100 x 3210/2170", "3210 / 2170", "[V]",
      ""),

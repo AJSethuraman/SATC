@@ -118,24 +118,34 @@ def fetch_xbrl(cert: str, repdte_iso: str, timeout: float = 180.0) -> bytes:
 _FACT = re.compile(r'<[A-Za-z]+:(R[CI][A-Z]{2}[A-Z0-9]{4})\b[^>]*contextRef="([^"]+)"[^>]*>([^<]*)<')
 
 
-def parse_facts(xbrl: bytes, repdte_iso: str) -> Dict[str, int]:
+def parse_facts(xbrl: bytes, repdte_iso: str) -> Dict[str, float]:
     """Every numeric fact for the period context, keyed by its full code.
 
     The instance carries a context per period; the one whose id ends in the
     report date is the one that matters. If none does, every context is
     accepted rather than nothing -- a filing with one context and an unusual
     id should still tie.
+
+    Whole numbers come back as ``int`` and decimals as ``float``. Until
+    5 September 2026 this kept only ``-?\\d+`` and silently discarded
+    everything else -- which is every RATIO the bank files. Dollar amounts are
+    whole numbers, so no dollar comparison ever looked wrong and nothing
+    flagged it; but the two capital ratios could not be tied from the filing at
+    all, because their values were thrown away before any tie-out could see
+    them. They were in the XBRL the whole time.
     """
     text = xbrl.decode("utf-8", "replace")
     contexts = set(re.findall(r'<(?:xbrli:)?context id="([^"]+)"', text))
     wanted = {c for c in contexts if c.endswith(repdte_iso[:10])} or contexts
-    out: Dict[str, int] = {}
+    out: Dict[str, float] = {}
     for code, context, raw in _FACT.findall(text):
         if context not in wanted:
             continue
         raw = raw.strip()
         if re.fullmatch(r"-?\d+", raw):
             out[code] = int(raw)
+        elif re.fullmatch(r"-?\d+\.\d+", raw):
+            out[code] = float(raw)
     return out
 
 

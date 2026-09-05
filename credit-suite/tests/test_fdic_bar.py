@@ -987,12 +987,28 @@ def test_provenance_tab(populated):
     assert rows["SCHA"]["mdrm"] == "RCON1754 (RCFD1754 031)"
     assert rows["NTRECONQ"]["flag"] == "[V]"
     assert "NTRECONSQ" in rows["NTRECONQ"]["notes"]       # truncation quirk
-    # honesty flags carried: unmapped MDRMs say so instead of inventing
-    assert rows["NTRERESQ"]["flag"] == "[~]"
-    assert "not in tie-out map" in rows["NTRERESQ"]["mdrm"]
+    # Honesty flags are still carried -- but the example changed on
+    # 5 September 2026. NTRERESQ used to be the unmapped one, and being
+    # unmapped is exactly why the tie-out never reached it: it only checks
+    # fields the map cites. It now carries its real citation and [V].
+    assert rows["NTRERESQ"]["flag"] == "[V]"
+    assert rows["NTRERESQ"]["mdrm"] == \
+        "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218"
+    # The one remaining [~] is a field the FDIC publishes no quarterly
+    # variant of, so the column is blank for every bank. The citation says
+    # where the number would come from; the flag says it was never
+    # confirmed against a landed value, because there is none.
+    assert rows["NTRENREQ"]["flag"] == "[~]"
+    assert "NOT PUBLISHED" in rows["NTRENREQ"]["notes"]
+    # And no row anywhere still claims to have no citation at all.
+    assert not [f for f, r in rows.items()
+                if "not in tie-out map" in (r["mdrm"] or "")]
     assert rows["UNRLZCAPR"]["mdrm"] == \
         "((1754-1771)+(1772-1773)) / (3210+3123)"
-    assert "RCOA7204" in rows["RBC1AAJ"]["mdrm"]
+    # RCOA is the form-041 prefix; these banks file 031, where the code is
+    # RCFA. Cited without the 031 twin it parsed and then resolved to
+    # nothing on all twelve filings.
+    assert rows["RBC1AAJ"]["mdrm"] == "RCOA7204 (031: RCFA7204)"
 
 
 def _tieout_blocks(out):
