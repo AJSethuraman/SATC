@@ -600,3 +600,95 @@ the docket says so beside the recommendation to merge.
 **Docket published**, five decisions: merge #248; permission to download the
 XBRL; amend L4; ship the chart workbook as an M2 slice; document the red banner
 in `_readme`. Answers to be written here when given.
+
+---
+
+## 5 September 2026 — two sessions wrote to the record at once, and it broke in two ways
+
+`main` was red for about an hour and every open pull request was stuck behind it
+— 253, 254 and 257, two of them not this session's. Four failing tests, two
+causes, neither of them the four tests' own fault.
+
+**A silent partial read, in the place canon's own log already names.** `_field`
+took the first line of a field and nothing else. The C11 decline recorded the
+night before carries a ten-line `Not a conviction because:`; **nine lines were
+dropped by every read**, and the record still parsed. Nothing downstream could
+tell — an empty field and a field that was never fully read look identical to
+every caller — and the only check that could notice is the round trip, which
+compares the committed file against a re-render of the parse. It noticed.
+
+This is the same defect the entry of 4 September records one field over: *"a
+single-line reader on a value that had grown, parsing 5 of 24 subjects and
+reporting success."* Fixed there, in `desk/record.py`, whose comment names canon
+as where it was first found. Not fixed here, because nothing had wrapped yet.
+
+**Two sessions, two ideas, one id.** `61b04c9` recorded C11 as a conviction the
+firm holds. `ae23978`, an hour later, recorded a different C11 as a proposal they
+declined. Both merged. The record whose own rule is that ids are never reused
+held one number against two ideas, and *"what did we decide about C11"* became a
+question with two answers. The declined entry — the later claimant — is now C13.
+
+**The test that should have caught it was the reason it wasn't caught.**
+
+```python
+assert [d.cid for d in declined] == ["C3"]
+```
+
+A literal like that fails on the second declined entry whatever it is called, so
+it reads as a tripwire for exactly this. It is not one. Whoever adds an entry
+updates the literal, the suite goes green, and the collision is untouched — which
+is what happened. It now asserts the RULE, over whatever the record holds:
+
+```python
+twice = sorted({i for i in ids if ids.count(i) > 1})
+assert not twice
+```
+
+**It needs no editing when the record grows, and cannot be satisfied by editing
+it.** That is the difference between a check and a note.
+
+**Two things the fix taught, which were not in the brief.**
+
+*Prose wraps; structure does not.* Making `_field` multi-line for everything was
+over-broad and broke a passing test immediately: `Fires on` is a comma list this
+module writes on one line, and read as prose it swallowed `Proposal.ask()`'s own
+closing question as two subjects the conviction fires on. A run-on read of a
+structured field does not lose data, **it invents it**. Wrapping is now opt-in,
+and only a field whose value is a sentence takes it.
+
+*A rendered entry has to be closed.* `ask()` printed the entry and then asked the
+firm to confirm it, with nothing between. A field's value runs to the next field
+or a rule, so prose appended straight after an entry is structurally part of its
+last field. `ask()` now ends the entry with `---`, which also does the thing it
+looks like it does.
+
+Eight mutations, all red. Two survived a first attempt and both were the test's
+fault rather than the code's: one asserted `_field`'s default in isolation and
+left the real call site in `parse_convictions` free to pass `prose=True` with the
+suite still green — **the helper proved and its caller not, for the fourth time
+in this repository** — and one "empty reason" fixture was not actually empty.
+
+168 passed. **1.7.0 → 1.7.1**, both manifests, because the record changed and the
+plugin cache keys on the marketplace number.
+
+### What the firm answered on the 5 September docket
+
+Published as a form rather than as prose, per the docket skill; answers read back
+out of it with `read_db`.
+
+| | Answered |
+|---|---|
+| Fix the canon record, and on which branch | **Yes — new branch.** This entry is that work. |
+| Which subject the second desk covers (#245) | **Cash and bank reconciliation** — the firm's own example, and a firm convention rather than a citable rule, which is the shape that makes escalation fire. |
+| May a desk's question leave the network | **Yes — de-identified only.** In their words: *"sure build that in and de-identify, i still want it measured against real so we can see how much is able to be saved and automated"* |
+| Should a near-miss citation stop being filed as a refusal | **Yes — record the near miss.** |
+
+**Open against that third answer:** *measured against real* has two readings —
+against real client work, to see what proportion a desk can take over; or the
+de-identified input against the real one, to see what de-identification costs in
+accuracy. They are not the same measurement. Asked rather than assumed.
+
+**Not proposed as a conviction, yet.** *"i still want it measured against real"*
+may be a standing belief about evidence rather than a scoping call on this
+project. It is noted here so it is not lost, and it is not in `CONVICTIONS.md`,
+because nothing enters that file without an explicit yes.
