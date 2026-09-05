@@ -17,6 +17,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Iterable, Literal
 
+from satc.ingest import shapes
 from satc.models.actor import INTAKE, Actor, ActorRefused, require_human
 from satc.models.provenance import Provenance
 from satc.models.staging import StagedDocument, StagedField
@@ -190,6 +191,20 @@ class StagingGate:
         # never got a number out of may legitimately take text (Box 15 is a state
         # code), so only a field that ALREADY holds an amount refuses one.
         if value_amount is None and f.value_amount is not None:
+            return False
+
+        # AND A CORRECTION THAT COULD NOT BE THE FIELD'S VALUE IS REFUSED TOO.
+        #
+        # D9's other half. The reader is now held to the field's declared shape,
+        # so "income tax" can no longer auto-confirm into Box 15 - State. This
+        # method both SETS a value and CONFIRMS it in one move, so without the
+        # same check here the correction screen is simply the way around the
+        # one that was just added -- and it is the more dangerous door, because
+        # `edit` marks the result PREPARER_ENTRY / HIGH and clears every taint.
+        #
+        # A typo is the ordinary case, not an attack: "Ohio" and "OH " are what
+        # somebody actually types into a state box.
+        if value_text is not None and not shapes.fits(f.shape, value_text):
             return False
 
         if value_text is not None:
