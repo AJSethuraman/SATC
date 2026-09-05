@@ -11,7 +11,16 @@
 
 <div class="cards">
   <div class="card accent"><div class="n">{{ received }}/{{ total_requests }}</div><div class="l">Requests received</div></div>
-  <div class="card"><div class="n">{{ done_count }}/{{ eng.tasks | length }}</div><div class="l">Tasks complete</div></div>
+  {# D15: this read "0/3 Tasks complete" three inches above "No internal tasks
+     for this checklist", and the two were produced by different passes with
+     nothing comparing them. Both were true -- all three tasks are the CLIENT's
+     -- but the tile never said which side of the work it was counting, so the
+     only reading available was that three things exist and none is listed.
+     The split is named here, so the tile and the two panels below cannot
+     disagree without the tile saying so. #}
+  <div class="card"><div class="n">{{ done_count }}/{{ eng.tasks | length }}</div>
+    <div class="l">Tasks complete{% if eng.tasks %} ·
+      {{ client_tasks | length }} theirs, {{ internal_tasks | length }} ours{% endif %}</div></div>
   {# "0 Risk flags" used to be the same number whether the risk questions had
      been answered No or never asked at all -- and with every question
      pre-selected No, it was a green that could not go red. The tile says which
@@ -134,7 +143,11 @@
       {% endfor %}
     </table>
     {% else %}
-    <p class="note">No internal tasks for this checklist.</p>
+    {# And say what that means beside the count above, rather than leaving a
+       reader to reconcile "0/3" with "none". #}
+    <p class="note">No internal tasks for this checklist{% if client_tasks %} &mdash;
+      all {{ client_tasks | length }} on this engagement are the client's, and they
+      are listed above{% endif %}.</p>
     {% endif %}
   </div>
 </div>

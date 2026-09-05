@@ -16,7 +16,7 @@ ports 57986 and 5061.
 
 ## Where this stands — reconciled against `main`, 5 September 2026
 
-**25 fixed, 1 withdrawn, 7 open** of 33.
+**31 fixed, 1 withdrawn, 1 open** of 33.
 
 Every heading below carries its state, and a fixed one names the commit on
 `main` that closed it. This section exists because for most of a day the
@@ -30,7 +30,7 @@ D21 was matched to #267 on the strength of the commit subject; #267 is what D21
 and it is recorded here rather than quietly fixed, because a register nobody can
 audit is worth about as much as no register.
 
-Still open: **D22, D23, D21, D25, D26, D15, D17**.
+Still open: **D26**.
 
 Two of those are not mine to close — **D26** (what an intake folder scan may
 honestly claim about how a document was obtained) and the final invoice derived
@@ -368,7 +368,9 @@ Two smaller things on the same screen:
   paystubs will fill in automatically."* Nothing on screen shows which employer
   the layout was filed under.
 
-## D22 · An overpayment is on the client's copy and on none of the firm's screens
+## D22 · An overpayment is on the client's copy and on none of the firm's screens — **FIXED**
+
+> **FIXED.** The invoice summary line and the payments rows now say the credit. What was already right and is kept: the Money in panel's loud flag, and `/today` naming it.
 
 **MEDIUM.** Invoice 2026-0001 was raised at **180.00**. I recorded a part payment
 of **100.00** — handled perfectly, *"Paid to date 100.00 — computed from the
@@ -424,7 +426,9 @@ because the worklist is where the firm actually works.
 a screen I had not opened *in the state I was describing*. Behaviour 11 is "open
 the artifact", and looking at `/today` an hour earlier is not looking at it.
 
-## D23 · The payment screen points at Invoicer, which the firm retired
+## D23 · The payment screen points at Invoicer, which the firm retired — **FIXED**
+
+> **FIXED.** Collection is Square. Both the screen and `billing/payment.py` named the retired product.
 
 **LOW.** The Money in panel closes with:
 
@@ -437,7 +441,9 @@ The division of duties is right and worth keeping. The name is not: **Invoicer
 was retired by the firm's own docket decision.** Whatever collection is called
 now, this sentence sends the reader to a product that no longer exists.
 
-## D21 · The invoice bills the 1040 from the catalogue that #267 said does not price it
+## D21 · The invoice bills the 1040 from the catalogue that #267 said does not price it — **FIXED**
+
+> **FIXED, narrowly and deliberately.** `Invoice.add` now refuses to price a `priced_by` service from the catalogue **when the engagement carries a price that differs** — naming both figures. The first attempt refused every `priced_by` service outright; that reddened **159 tests across twelve files**, because it makes a return unbillable until somebody types a figure, which is a change to how the firm bills and so the firm's to make. The narrow rule is the module's own sentence: the failure is a *second* number.
 
 > **OPEN.** Reconciling this register on 5 Sep 2026 I first marked this closed by
 > `67cdc38` (#267) on the strength of the commit subject. That is backwards:
@@ -489,7 +495,9 @@ The estimate is also the more considered of the two: it picked the **Simple
 Filer** tier, which is the cheap-tier behaviour the firm described (*"we have the
 simple filer deal just for you"*) working correctly.
 
-## D25 · A fee below the stated minimum is silently rounded up, not refused
+## D25 · A fee below the stated minimum is silently rounded up, not refused — **FIXED**
+
+> **FIXED by showing the override, not by refusing.** The raise is the firm's own instruction; the silence was the defect. The review page — the last one anybody reads before the estimate goes out — now says what will actually be billed, derived from the schedule so any floored line reports the same way.
 
 **MEDIUM.** The interview asks *"How much for the sorting? **($175 minimum)**"*.
 I answered **100**. It was accepted with no message, and the Review page shows
@@ -615,7 +623,9 @@ Name the input that makes it red: somebody actively choosing `Yes`. Nothing else
 can. Until "unknown" exists as an answer, that tile should say *"no risk
 questions were answered"* rather than *"0 risk flags"*.
 
-## D15 · The engagement counts 3 tasks and lists none
+## D15 · The engagement counts 3 tasks and lists none — **FIXED**
+
+> **FIXED.** The tile now names which side of the work it counted (`3 theirs, 0 ours`) and the empty panel points at where they are. Both figures were already correct; neither said whose.
 
 **LOW.** The scoreboard tile reads **0/3 TASKS COMPLETE**. The panel below it,
 headed *"Internal tasks — our side of the work"*, reads **"No internal tasks for
@@ -638,7 +648,9 @@ appears as **"Sethuraman Accounting, Tax & Consulting"** on the invoice and
 **"SAT-C LLP"** in the emails. Worth settling which name faces clients, but it
 is a preference, not a defect.
 
-## D17 · A client who said "no crypto" is asked for crypto exports
+## D17 · A client who said "no crypto" is asked for crypto exports — **FIXED**
+
+> **FIXED.** Split into two templates, one per answer, so each closes on its own arrival rather than one bundle closing on whichever document turns up first.
 
 **LOW.** Priya answered **No** to *"Digital asset or crypto activity?"*. The
 generated request reads:

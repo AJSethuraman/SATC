@@ -39,7 +39,14 @@
       <div><b>Paid to date</b> <span class="mono">{{ '{:,.2f}'.format(paid) }}</span>
         <span class="hint">— {{ money.how_we_know }}</span></div>
       <div><b>Still outstanding</b>
-        <span class="mono {{ 'tie' if owed == 0 else 'flag' }}">{{ '{:,.2f}'.format(owed) }}</span></div>
+        <span class="mono {{ 'tie' if owed == 0 else 'flag' }}">{{ '{:,.2f}'.format(owed) }}</span>
+        {# D22's remainder. `owed` is floored at zero, so an overpayment renders
+           here as a clean 0.00 -- the same figure a bill paid to the penny
+           shows. The Money in panel below says it loudly and `/today` raises
+           it by name; this line, the one somebody reads first, did not, and a
+           summary that contradicts the panel under it is worse than either. #}
+        {% if over > 0 %}<span class="hint flag">— and
+        {{ '{:,.2f}'.format(over) }} over. Not a settled bill: a credit.</span>{% endif %}</div>
       {% endif %}
     </div>
 
@@ -160,10 +167,14 @@
       <button class="btn primary" type="submit">Record this payment</button>
       <a class="btn" href="{{ url_for('billing.payments') }}">All payments →</a>
     </form>
+    {# D25's neighbour, D23: this named Invoicer, which the firm RETIRED by its
+       own docket decision -- "the firm takes Square; Invoicer was Stripe end to
+       end" (LOG.md). The division of duties is right and worth keeping; the
+       name sent the reader to a product that no longer exists. #}
     <p class="note">
       SATC records that the money arrived; it does not take it. Nothing here charges a card,
-      sends a request or moves a balance — collection lives in Invoicer, and this machine holds
-      the identity vault and stays off the public network.
+      sends a request or moves a balance — the client pays through Square, and this machine
+      holds the identity vault and stays off the public network.
     </p>
   </div>
 </div>

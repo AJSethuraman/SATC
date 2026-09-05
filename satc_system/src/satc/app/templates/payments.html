@@ -103,7 +103,19 @@
            stale, with what is wrong on the row itself (principle 13). #}
         {% if row.on_file %}
         <td><a class="mono"
-               href="{{ url_for('billing.view', invoice_id=row.payment.invoice_id) }}">{{ row.payment.invoice_id }}</a></td>
+               href="{{ url_for('billing.view', invoice_id=row.payment.invoice_id) }}">{{ row.payment.invoice_id }}</a>
+          {# D22's remainder. This screen listed a 100.00 and a 500.00 against a
+             180.00 bill, both attributed, with nothing saying they come to more
+             than was billed. Said on the row, not once at the top, because the
+             row is what somebody reads when they are reconciling. It names the
+             INVOICE's credit rather than calling this payment the overpayment:
+             no single payment is the overpayment -- the total is. #}
+          {% if row.over %}
+          <div class="flag">{{ '{:,.2f}'.format(row.over) }} over</div>
+          <div class="hint">Payments against this invoice come to more than the
+            {{ '{:,.2f}'.format(row.billed) }} billed. It is a credit, not a
+            settled bill &mdash; refund it or hold it against the next one.</div>
+          {% endif %}</td>
         {% else %}
         <td><span class="mono">{{ row.payment.invoice_id }}</span>
           <div class="flag">not on file</div>

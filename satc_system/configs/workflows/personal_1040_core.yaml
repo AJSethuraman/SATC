@@ -240,19 +240,42 @@ tasks:
       Upload Forms 1099-R and 5498 for retirement activity, plus Forms 1099-SA and
       5498-SA for HSA or MSA activity.
 
-  - template_id: personal-1040-brokerage-crypto-documents
-    title: Request brokerage and digital asset support
+  # ONE ASK PER ANSWER. D17, from the walk of 5 September 2026: this was a
+  # single template whose condition was `brokerageActivity OR digitalAssets`
+  # and whose text named both, so a client who had just answered NO to
+  # "Digital asset or crypto activity?" was asked to upload "crypto exchange
+  # transaction exports or CSV files".
+  #
+  # Harmless in the sense that nothing was mispriced. Not harmless in the sense
+  # that matters: the first thing this client reads from the firm asks for
+  # something they have already said they do not have, which is how somebody
+  # decides the questionnaire was not read.
+  #
+  # It is also the exact shape the product's own plan screen warns about -- "a
+  # request typed as a BUCKET rather than as the form the rule names" -- and
+  # the shape `RequestedItem.parts` exists to cope with. Two answers, two asks,
+  # so each closes on its own arrival and neither is a bundle.
+  - template_id: personal-1040-brokerage-documents
+    title: Request brokerage support
     category: Investments
     audience: client
     days_before_due: 14
-    doc_type: Brokerage 1099 / crypto exports
-    condition:
-      any:
-        - {question_id: brokerageActivity, equals: "yes"}
-        - {question_id: digitalAssets, equals: "yes"}
+    doc_type: Brokerage 1099
+    condition: {question_id: brokerageActivity, equals: "yes"}
     client_request_text: >-
-      Upload your consolidated brokerage 1099 package, realized gain detail, basis
-      support, and crypto exchange transaction exports or CSV files.
+      Upload your consolidated brokerage 1099 package, realized gain detail and
+      basis support.
+
+  - template_id: personal-1040-digital-asset-documents
+    title: Request digital asset support
+    category: Investments
+    audience: client
+    days_before_due: 14
+    doc_type: Crypto exports
+    condition: {question_id: digitalAssets, equals: "yes"}
+    client_request_text: >-
+      Upload your crypto exchange transaction exports or CSV files, and any
+      basis records you hold for coins bought before this year.
 
   - template_id: personal-1040-foreign-account-details
     title: Request foreign account details
