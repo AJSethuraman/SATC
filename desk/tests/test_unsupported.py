@@ -376,3 +376,81 @@ def test_a_near_miss_is_still_refused_and_still_kept():
     u = _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk)
     assert u.failed_because == "citation_does_not_support"
     assert u.concluded == "must capitalize"     # kept, not served
+
+
+# ── the front door for a question nobody has answered yet ────────────────────
+
+def test_a_stuck_agents_question_lands_in_the_queue(tmp_path):
+    """The firm, 5 September 2026, on an agent failing to close a set of books:
+    "i am going to stop it from working and instead have it come up with
+    questions to ask and see what we can do from there."
+
+    That is what this is for. `from_refusal` needs an answer and a grade because
+    it records a desk that TRIED; this records one that could not start.
+    """
+    path = tmp_path / "UNSUPPORTED.md"
+    u = unsupported.from_question(
+        "Client paid a supplier in December for goods delivered in January. "
+        "Which period does the expense belong to?",
+        why="the close agent stopped here; no desk holds a cutoff rule",
+        model="occam", today="2026-09-05")
+    unsupported.append(path, u)
+
+    back = unsupported.parse(path.read_text(encoding="utf-8"))[0]
+    assert back == u, "what was written is not what comes back"
+    assert back.failed_because == "authority_absent"
+    assert "close agent stopped here" in back.working
+    assert "question, not an answer" in back.concluded
+
+
+def test_a_question_may_be_filed_as_a_missing_fact_instead(tmp_path):
+    """`authority_absent` resolves by loading authority; `facts_not_established`
+    resolves by ASKING. Which one it is changes what somebody does next, so it
+    is recorded rather than assumed."""
+    u = unsupported.from_question(
+        "Were the J.Crew purchases work clothing or personal?",
+        because="facts_not_established", today="2026-09-05")
+    assert u.failed_because == "facts_not_established"
+
+
+def test_a_question_is_never_an_answer(tmp_path):
+    """Retained is not accepted — the queue's own rule, and it must hold for
+    entries that never carried an answer at all."""
+    u = unsupported.from_question("anything", today="2026-09-05")
+    assert u.believed_authority == ""
+    assert not u.near_miss
+
+
+def test_the_same_question_filed_twice_is_one_entry(tmp_path):
+    """A stuck agent re-runs. A queue that grows a row per attempt stops being
+    readable, which is what `_same_refusal` exists to prevent."""
+    path = tmp_path / "UNSUPPORTED.md"
+    for _ in range(3):
+        current = (unsupported.parse(path.read_text(encoding="utf-8"))
+                   if path.exists() else [])
+        unsupported.append(path, unsupported.from_question(
+            "the same question", existing=current, today="2026-09-05"))
+    assert len(unsupported.parse(path.read_text(encoding="utf-8"))) == 1
+
+
+def test_an_entry_with_no_citation_survives_the_round_trip(tmp_path):
+    """THE BUG THIS FOUND, and it was already there.
+
+    `render` wrote "(none offered)" for an empty citation and `parse` did not
+    know the word, so an entry came back carrying that phrase AS its citation.
+    `_same_refusal` compares that field — so the idempotency guard stopped
+    recognising the entry it had just written, and the same finding would be
+    filed again on every run. A question has no citation by definition, so this
+    would have bitten every single one.
+    """
+    u = unsupported.Unsupported(
+        id="U1", question="q", concluded="c", believed_authority="",
+        failed_because="authority_absent", recorded="2026-09-05")
+    back = unsupported.parse(u.render())[0]
+    assert back.believed_authority == "", "the display sentinel came back as data"
+    assert back == u
+
+    real = unsupported.Unsupported(
+        id="U2", question="q", concluded="c", believed_authority="26 CFR 1",
+        failed_because="authority_absent", recorded="2026-09-05")
+    assert unsupported.parse(real.render())[0].believed_authority == "26 CFR 1"
