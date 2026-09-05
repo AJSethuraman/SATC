@@ -113,12 +113,26 @@ class Result:
     #: Empty for every other outcome.
     #:
     #: WITHOUT THIS THE ESCALATION COLUMN CANNOT BE READ, and on a desk built to
-    #: exercise escalation it is the only column that matters. A problem keyed to
-    #: a secondary source can ONLY grade `escalated`: `_check` refuses with
-    #: `authority_permits_choice` before any conclusion is compared, so a desk
-    #: that answered confidently and a desk that knew it did not know land in the
-    #: same cell. The first was rescued by the record's tier; the second made the
-    #: call. Reporting them as one number measures the record, not the brain.
+    #: exercise escalation it is the only column that matters. Where `_check`
+    #: refuses with `authority_permits_choice` it does so before any conclusion
+    #: is compared, so a desk that answered confidently and a desk that knew it
+    #: did not know land in the same cell. The first was rescued by the record's
+    #: tier; the second made the call. Reporting them as one number measures the
+    #: record, not the brain.
+    #:
+    #: THE TIER GATE KEYS OFF WHAT THE BRAIN CITES, NOT WHAT THE QUESTION IS
+    #: ABOUT, and this comment said otherwise until a run disproved it. It read
+    #: "a problem keyed to a secondary source can ONLY grade escalated". False:
+    #: on the cash desk, 5 September 2026, qwen3:8b cited § 1.446-1(a)(4) -- a
+    #: PRIMARY paragraph, about inventory -- on all four problems, reasoning by
+    #: explicit "extension". The tier gate never fired and the row graded
+    #: wrong_caught 4/4 with zero escalations.
+    #:
+    #: The consequence is larger than the wording. ESCALATION CANNOT BE FORCED
+    #: THROUGH THE RECORD. Keying problems to a secondary source does not compel
+    #: the path; a brain routes around it by citing something binding. The
+    #: escalation has to come from the brain's judgement, which is the thing
+    #: measuring zero -- so a desk cannot be built that makes a brain decline.
     escalated_by: str = ""
 
     @property

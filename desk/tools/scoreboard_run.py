@@ -552,10 +552,12 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
         "citation_within_governing_rule": near_citation,
         "citation_off_index": off_index,
         # WHO ESCALATED, because the escalation column cannot be read otherwise.
-        # A problem keyed to a secondary source can ONLY grade `escalated`: the
-        # engine refuses `authority_permits_choice` before any conclusion is
-        # compared. So a desk that answered confidently and one that knew it did
-        # not know land in the same cell, and only this tells them apart.
+        # Where the engine refuses `authority_permits_choice` it does so before
+        # any conclusion is compared, so a desk that answered confidently and one
+        # that knew it did not know land in the same cell, and only this tells
+        # them apart. The gate keys off what the brain CITES, not what the
+        # question is about -- a row can miss it entirely by citing something
+        # binding, which is what qwen3:8b did on all four cash problems.
         "escalated_by_desk": sum(1 for r in run.results
                                  if r.escalated_by == engine.DESK),
         "escalated_by_engine": sum(1 for r in run.results
