@@ -303,8 +303,8 @@ parts.append('<div class="headline"><b>%d of %d tied. 0 differ. 0 could not.</b>
              'comparison below was read out of the shipped workbook, '
              '<code>FRED_Credit_Risk_Dashboard.xlsm</code>, and every figure on '
              'the right came off a document published by the agency that '
-             'computed it. The tie-out found four defects, one of which was '
-             'shipping a state with no data in it, and all four are in '
+             'computed it. The tie-out found five defects, one of which was '
+             'shipping a state with no data in it, and all five are in '
              '&ldquo;What this found&rdquo; below.</p></div>' % (tied, tot))
 
 parts.append("<h2>How the two roads meet</h2>")
@@ -479,7 +479,7 @@ the adjusted changes:
 
 # ---- what it found ----------------------------------------------------------
 parts.append("<h2>What this found</h2>")
-parts.append("<p>Four things, none of which any test in the suite could have "
+parts.append("<p>Five things, none of which any test in the suite could have "
              "caught, because every one of them left the numbers correct.</p>")
 parts.append("""
 <h3>1 &middot; A shipped workbook with a state missing from it</h3>
