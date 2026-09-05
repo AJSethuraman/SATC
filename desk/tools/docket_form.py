@@ -10,6 +10,19 @@ does not hold.
 The five non-position decisions are hand-written here because they are not in
 the record: they are choices the authority leaves open, drafted from the firm's
 own close questions in `docs/DECISIONS-WAITING-2026-09-05.md`.
+
+ONE PAGE, ONE STORE. An artifact's store belongs to that artifact, so two pages
+asking the same question cannot see each other's answers whatever the collection
+is called -- renaming the collection would not have joined them. The docket is
+therefore the only page that asks; the walkthrough and the earlier ratification
+page were replaced with pointers to it rather than left live to collect a second,
+invisible answer.
+
+NOTHING ON THIS PAGE IS COUNTED BY HAND. Every total, filter label and figure in
+the preface is derived from the rows generated above, because the first thing
+that happens after a ratification is that this file gets run again -- and a page
+that says seventeen when the record holds sixteen is the exact failure the
+generator exists to prevent.
 """
 from __future__ import annotations
 
@@ -22,6 +35,7 @@ HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE / "tools"))
 sys.path.insert(0, str(HERE))
 
+import record                                               # noqa: E402
 from position_walkthrough import positions                  # noqa: E402
 
 DATE = "5 September 2026"
@@ -121,12 +135,13 @@ OTHERS = [
   "picks": ["Keep them closed", "Open the court hosts", "Not yet"]},
 ]
 
+#: Measured by running the suites, not remembered. The last row is counted from
+#: the record at generation time; the rest are stated with what produced them.
 CHANGED = [
  ("368", "desk tests passing", "run just now, <code>python -B -m pytest -q</code>"),
  ("181", "canon tests passing", "run just now; the plugin is at 1.12.0"),
  ("533", "passages of stored authority", "across 31 declared sources and 7 desks"),
  ("98", "scored problems", "every one a worked example from public authority"),
- ("2 / 17", "positions ratified / proposed", "the seventeen are below"),
 ]
 
 LANDED = [
@@ -199,13 +214,80 @@ def items():
     return rows
 
 
+#: Small numbers read as words in a sentence and as digits on a control. Stops at
+#: what a docket plausibly holds; above that the digits are clearer anyway.
+_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight",
+          "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+          "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+          "twenty-one", "twenty-two", "twenty-three", "twenty-four",
+          "twenty-five", "twenty-six", "twenty-seven", "twenty-eight",
+          "twenty-nine", "thirty")
+
+
+def _word(n: int) -> str:
+    return _WORDS[n] if n < len(_WORDS) else str(n)
+
+
+def _counted():
+    """Every figure the page states, measured from what it is about to show."""
+    rows = items()
+    pos = [r for r in rows if r["kind"] == "position"]
+    rules = [r for r in pos if r["shape"] == "rule"]
+    turns = [r for r in pos if r["unlocks"] > 0]
+    blind = len(pos) - len(turns)
+    ratified = sum(len([q for q in record.load(d).positions if not q.proposed])
+                   for d in sorted((HERE / "desks").iterdir())
+                   if (d / "SOURCES.md").is_file())
+    return {
+        "rows": rows, "n": len(rows), "pos": len(pos), "dec": len(rows) - len(pos),
+        "rules": len(rules), "concl": len(pos) - len(rules),
+        "turns": len(turns), "blind": blind, "ratified": ratified,
+    }
+
+
 def render() -> str:
-    return _PAGE % (_CSS, DATE, _blocks(), json.dumps(items()), _JS)
+    c = _counted()
+    headline = _word(c["n"]).capitalize()
+    # The claim this page opens by retracting, restated from the measurement
+    # rather than from what I said last time -- which was itself off by two.
+    if c["turns"] == 0:
+        measured = ("<b>Not one of them</b> sits on a citation any of its own "
+                    "desk's scored problems turn on")
+    else:
+        measured = ("Only <b>%s</b> of them sits on a citation its own desk's "
+                    "scored problems turn on" % _word(c["turns"]))
+    preface = (
+      "<p><b>Read this before the %(posw)s.</b> I have been telling you that "
+      "ratifying them is the difference between a desk that defers and one that "
+      "helps. <b>That is wrong for %(blind)s of them.</b> %(measured)s — the "
+      "cash desk's %(ratw)s ratified ones do, %(rat)d of %(rat)d, which is why "
+      "those made all four of its problems answerable. Ratifying these changes "
+      "<b>no score</b>.</p>"
+      "<p><b>What they change is what a desk says when it cannot answer.</b> "
+      "%(rulesw)s of the %(posw)s are not conclusions about tax law — they are "
+      "rules about how you work: <i>hold it, ask who owns it, request these "
+      "documents by name, obtain the figure rather than assume it.</i> Which is "
+      "what you asked for. They already were that; nobody had said so.</p>"
+      "<p>So each card says which kind it is. <b>A conclusion can be wrong about "
+      "the law. A rule can only be wrong about the practice</b> — and only you "
+      "can say whether a rule is how you actually work.</p>"
+    ) % {"posw": _word(c["pos"]), "measured": measured,
+         "blind": ("all " + _word(c["blind"]) if c["blind"] == c["pos"]
+                   else _word(c["blind"])),
+         "ratw": _word(c["ratified"]), "rat": c["ratified"],
+         "rulesw": _word(c["rules"]).capitalize()}
+    lede = ("%s of them are positions to approve or reject. %s are choices no rule "
+            "settles." % (_word(c["pos"]).capitalize(), _word(c["dec"]).capitalize()))
+    return _PAGE % (_CSS, DATE, headline, lede, preface, c["n"], c["n"], c["pos"],
+                    c["dec"], _blocks(c), json.dumps(c["rows"]), _JS)
 
 
-def _blocks() -> str:
+def _blocks(c) -> str:
+    stats = CHANGED + [("%d / %d" % (c["ratified"], c["pos"]),
+                        "positions ratified / proposed",
+                        "the %s are above" % _word(c["pos"]))]
     changed = "".join(
-        '<div class="stat"><b>%s</b><span>%s</span><i>%s</i></div>' % r for r in CHANGED)
+        '<div class="stat"><b>%s</b><span>%s</span><i>%s</i></div>' % r for r in stats)
     landed = "".join('<li><code class="pr">%s</code> %s</li>' % r for r in LANDED)
     unchecked = "".join('<li><b>%s</b> %s</li>' % r for r in UNCHECKED)
     wrong = "".join('<li><b>%s</b> %s</li>' % r for r in WRONG)
@@ -332,37 +414,21 @@ _PAGE = """<title>Docket · The Seventeen</title>
 <div class="wrap">
 <header class="mast">
   <div class="eyebrow">Docket · desk · %s</div>
-  <h1>Twenty-two things waiting on you</h1>
-  <p>Seventeen of them are positions to approve or reject. Five are choices no rule
-  settles. Every one carries what I would do and why. It saves as you type, so a
+  <h1>%s things waiting on you</h1>
+  <p>%s Every one carries what I would do and why. It saves as you type, so a
   docket half-answered at midnight is still half-answered in the morning.</p>
 </header>
 
 <div id="offline" class="banner">Answers are not saving — this view could not reach the store. Tell me in the conversation instead.</div>
 
-<div class="preface">
-  <p><b>Read this before the seventeen.</b> I have been telling you that ratifying
-  them is the difference between a desk that defers and one that helps. <b>That is
-  wrong for fifteen of them.</b> Not one sits on a citation any of its own desk's
-  scored problems turn on — the cash desk's two ratified ones do, 2 of 2, which is
-  why those made all four of its problems answerable. Ratifying these changes
-  <b>no score</b>.</p>
-  <p><b>What they change is what a desk says when it cannot answer.</b> Twelve of
-  the seventeen are not conclusions about tax law — they are rules about how you
-  work: <i>hold it, ask who owns it, request these documents by name, obtain the
-  figure rather than assume it.</i> Which is what you asked for. They already were
-  that; nobody had said so.</p>
-  <p>So each card says which kind it is. <b>A conclusion can be wrong about the law.
-  A rule can only be wrong about the practice</b> — and only you can say whether a
-  rule is how you actually work.</p>
-</div>
+<div class="preface">%s</div>
 
 <div class="bar">
-  <span class="tally" id="tally">0 of 22 answered</span>
+  <span class="tally" id="tally">0 of %d answered</span>
   <span class="grow"></span>
-  <button class="filt" type="button" data-filt="all" aria-pressed="true">All 22</button>
-  <button class="filt" type="button" data-filt="position" aria-pressed="false">Positions 17</button>
-  <button class="filt" type="button" data-filt="decision" aria-pressed="false">Other 5</button>
+  <button class="filt" type="button" data-filt="all" aria-pressed="true">All %d</button>
+  <button class="filt" type="button" data-filt="position" aria-pressed="false">Positions %d</button>
+  <button class="filt" type="button" data-filt="decision" aria-pressed="false">Other %d</button>
   <button class="filt" type="button" data-filt="open" aria-pressed="false">Unanswered</button>
 </div>
 
