@@ -53,6 +53,8 @@ R = "tests/test_trend.py::"
 B = "tests/test_chartbook.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
+N = "tests/test_fred_labels.py::"
+F = "tests/test_fred_bar.py::"
 W = "tests/test_engine_workbook.py::"
 N = "tests/test_not_applicable.py::"
 G2 = "tests/test_mergers.py::"
@@ -851,6 +853,39 @@ MUTATIONS: list[Mutation] = [
         '"F160+F161"',
         (G + "test_the_five_real_estate_balances_are_pinned_to_domestic",),
         "the five real-estate balances stay pinned to the domestic column",
+    ),
+    # ---- a transient server error must not blank a series -----------------
+    Mutation(
+        "fred-retries-nothing-transient", SRC / "sources/fred/runner.py",
+        "                if _is_transient(exc) and attempt < self._max_retries:",
+        "                if False and attempt < self._max_retries:",
+        (F + "test_transient_server_errors_are_retried",
+         F + "test_the_provider_asks_again_after_a_five_hundred"),
+        "a 5xx or a timeout is asked again instead of blanking the series",
+    ),
+    Mutation(
+        "fred-retries-everything", SRC / "sources/fred/runner.py",
+        "def _is_transient(exc: Exception) -> bool:",
+        "def _is_transient(exc: Exception) -> bool:\n    return True",
+        (F + "test_a_dead_series_id_still_fails_on_the_first_try",),
+        "a dead series id still fails on the first try, as #181 needs",
+    ),
+    # ---- a label has to describe the series it sits next to ---------------
+    Mutation(
+        "labels-swap-the-two-cre-series", SRC / "sources/fred/series_seed.py",
+        '_sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Construction & Land Loans"',
+        '_sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Nonfarm Nonresidential Loans"',
+        (N + "test_the_two_commercial_real_estate_labels_are_not_each_other",
+         N + "test_the_title_says_what_the_publisher_says_it_is[SUBLPDRCSC]"),
+        "the construction and nonfarm-nonresidential labels stay apart",
+    ),
+    Mutation(
+        "labels-tightening-wired-as-demand", SRC / "sources/fred/series_seed.py",
+        '_sloos("SUBLPDHMSENQ", "Net % Banks Tightening Standards for GSE-Eligible Mortgage Loans", "consumer"),',
+        '_sloos("SUBLPDHMSENQ", "Net % Banks Reporting Stronger Demand for Consumer Loans", "consumer", demand=True),',
+        (N + "test_a_tightening_series_is_not_wired_up_as_a_demand_series[SUBLPDHMSENQ]",
+         N + "test_the_title_says_what_the_publisher_says_it_is[SUBLPDHMSENQ]"),
+        "a tightening series keeps its alert instead of being filed as demand",
     ),
     # ---- the tie-out reads the workbook, not a fresh fetch ----------------
     Mutation(
