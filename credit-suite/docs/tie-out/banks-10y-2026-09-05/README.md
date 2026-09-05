@@ -7,6 +7,32 @@ regulator's own copy of the filing.
 
 **28,667 tied. 0 differed.**
 
+## What a facsimile is
+
+The word appears throughout this folder and it is worth ten seconds.
+
+A **facsimile** is an exact copy — the same word as a fax machine, from the
+Latin for *make alike*. The FFIEC's Central Data Repository serves one for every
+Call Report ever filed: **the filled-in form itself**, page by page, with the
+schedule headings, the printed line numbers, the MDRM codes in their little
+boxes and the bank's own figures typed into the columns. It is not a summary, a
+re-typeset table, or a database rendered to look like a form. It is a
+reproduction of the document the bank signed and sent.
+
+That is why the photographs in these exhibits are worth taking. A screenshot of
+a database is a picture of somebody's copy. A screenshot of the facsimile is a
+picture of the filing.
+
+Every quarter heading in every exhibit carries the link to its own:
+
+```
+https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&idType=fdiccert&id=17534&date=06302026
+```
+
+Change the `id` to any bank's FDIC certificate number and the `date` to any
+quarter-end in `MMDDYYYY`, and you have that bank's filing for that quarter. No
+login, no account. It is a public record.
+
 ## Why photographs
 
 The firm's reason, in their words:
@@ -33,35 +59,51 @@ Every exhibit is **self-contained** — each image is embedded in the PDF, not
 linked to a folder beside it — so it survives being forwarded to an auditor who
 does not have this machine.
 
-## What is in git, and what is not
+## What is in git
 
-The 132 exhibits total **664 MB**, which does not belong in a repository. What
-is committed:
+**All of it.** The firm's instruction, on being told the exhibits had been
+gitignored: *"I think there is adequate space to literally store your output.
+All of it."* They are right about the disk — 825 GB free — and about the
+principle: evidence you have to regenerate before you can look at it is evidence
+with a step between you and it.
 
-| File | What it is |
-|---|---|
-| `manifest.csv` | one row per exhibit: bank, year, values, ties, photographs, size |
-| `TIE-OUT-17534-KeyBank-NA-2025.pdf` | one specimen, so the shape is visible without rebuilding |
-| `.gitignore` | keeps the other 131 out |
+So the 132 exhibits are committed, along with `manifest.csv` (one row each:
+bank, year, values, ties, photographs, size).
 
-Rebuild all of them in about six minutes:
+They are **greyscale, sixteen levels**, which is 36% of the size of the colour
+originals. That was measured rather than assumed, and then looked at: a Call
+Report page is black text and hairline rules on white, so the colour channels
+were carrying nothing. Rendered side by side, greyscale is indistinguishable
+from the original at reading size. Nothing is cropped and nothing is scaled
+down — the same pixels, in fewer shades. The colour strips stay on the machine
+and `build_deep_bank_exhibits.py --colour` puts them back.
+
+**The one cost a disk does not show:** a git repository never forgets. Anything
+committed is paid for by every clone, forever, and this is a quarterly job. The
+answer is not to store less but to add less: a quarterly run rebuilds only the
+newest quarter's exhibits, which is about 20 MB, rather than the world.
+
+## Rebuilding any of it
+
+Six minutes for all 132:
 
 ```
 python tools/tieout/build_deep_bank_exhibits.py
 ```
 
-One at a time, if that is all you want:
+One, if that is all you want:
 
 ```
 python tools/tieout/build_deep_bank_exhibits.py 17534 2025
 ```
 
-Both need the strips, which are cut from 480 facsimile PDFs. In order, from the
-repository root:
+Both need the strips, which are cut from the 480 facsimiles. In order, from the
+repository root — about thirty-five minutes from nothing:
 
 ```
 python tools/tieout/fetch_all_facsimile_pdfs.py
 python tools/tieout/deep_bank_strips.py
+python tools/tieout/shrink_strips.py
 python tools/tieout/build_deep_bank_exhibits.py
 ```
 

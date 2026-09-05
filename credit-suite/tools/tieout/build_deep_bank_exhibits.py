@@ -29,7 +29,13 @@ import time
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
 SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
                   r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
-STRIPS = SB / "deepstrips"
+#: The 16-level greyscale strips, which are 36% of the colour ones and
+#: indistinguishable at reading size -- a Call Report page is black text
+#: on white, so the colour channels were carrying nothing. The colour
+#: originals stay on disk and `--colour` still uses them.
+STRIPS = SB / ("deepstrips" if "--colour" in sys.argv else "deepstrips-grey")
+if not STRIPS.exists():
+    STRIPS = SB / "deepstrips"
 OUT = CS / "docs" / "tie-out" / "banks-10y-2026-09-05"
 OUT.mkdir(parents=True, exist_ok=True)
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"

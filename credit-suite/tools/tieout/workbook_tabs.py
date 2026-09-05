@@ -201,9 +201,16 @@ SOURCES = [
     ("h1", "Who publishes what"),
     ("", ""),
     ("h2", "The banks -- FFIEC Call Reports"),
-    ("p", "Every US bank files a Call Report every quarter with its regulators. "
-          "It is public. cdr.ffiec.gov serves an image of the exact form each "
-          "bank filed, and every bank row here links to its own."),
+    ("p", "Every US bank files a Call Report every quarter with its "
+          "regulators. It is public. cdr.ffiec.gov serves a FACSIMILE of "
+          "each one, and every bank row here links to its own."),
+    ("p", "A facsimile is an exact copy -- the same word as a fax machine. "
+          "It is the filled-in form itself, page by page: the schedule "
+          "headings, the printed line numbers, the codes in their boxes and "
+          "the bank's own figures typed into the columns. Not a summary and "
+          "not a database made to look like a form. It is a reproduction of "
+          "the document the bank signed and sent, which is why a picture of "
+          "it counts as evidence and a picture of somebody's copy does not."),
     ("p", "%s of the %s bank values were checked against these, line by line. "
           "This is the strongest provenance in the workbook."
      % (n(BANK_TIED), n(len(BANK)))),
