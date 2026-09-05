@@ -86,22 +86,29 @@ def engagements():
 def new_client():
     if request.method == "POST":
         kind = request.form.get("kind", "person")
-        if kind == "business":
-            cid = STATE.create_business_client(
-                legal_name=request.form.get("legal_name", "").strip(),
-                entity_type=request.form.get("entity_type", "SCORP"),
-                ein=request.form.get("ein", "").strip(),
-                email=request.form.get("email", "").strip(),
-                phone=request.form.get("phone", "").strip(),
-            )
-        else:
-            cid = STATE.create_person_client(
-                first_name=request.form.get("first_name", "").strip(),
-                last_name=request.form.get("last_name", "").strip(),
-                ssn=request.form.get("ssn", "").strip(),
-                email=request.form.get("email", "").strip(),
-                phone=request.form.get("phone", "").strip(),
-            )
+        # A REFUSED TIN IS RENDERED, NOT RAISED. `checked_tin` refuses a value
+        # that is not nine digits; letting that reach Flask would turn a typo
+        # into a 500 and lose the half-filled form with it.
+        try:
+            if kind == "business":
+                cid = STATE.create_business_client(
+                    legal_name=request.form.get("legal_name", "").strip(),
+                    entity_type=request.form.get("entity_type", "SCORP"),
+                    ein=request.form.get("ein", "").strip(),
+                    email=request.form.get("email", "").strip(),
+                    phone=request.form.get("phone", "").strip(),
+                )
+            else:
+                cid = STATE.create_person_client(
+                    first_name=request.form.get("first_name", "").strip(),
+                    last_name=request.form.get("last_name", "").strip(),
+                    ssn=request.form.get("ssn", "").strip(),
+                    email=request.form.get("email", "").strip(),
+                    phone=request.form.get("phone", "").strip(),
+                )
+        except ValueError as refused:
+            return render_template("client_new.html", title="New client",
+                                   refused=str(refused), form=request.form), 200
         return redirect(url_for("intake.client_start", client_id=cid))
     return render_template("client_new.html", title="New client")
 

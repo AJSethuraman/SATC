@@ -5,6 +5,16 @@
   <div class="muted">Set up a person or a business. The name lives only in the vault — everything downstream is de-identified.</div>
 </div>
 
+{% if refused %}
+{# A refused TIN comes back on the form it was typed into, with the values still
+   in the boxes. Losing a half-filled form to a typo teaches people to leave the
+   field empty, which is the opposite of what the check is for. #}
+<div class="panel">
+  <h2>Nothing was created</h2>
+  <div class="body"><p class="note" style="color:var(--red,#a3402f)">{{ refused }}</p></div>
+</div>
+{% endif %}
+
 <div class="panel">
   <h2>Client details</h2>
   <div class="body">
@@ -16,16 +26,16 @@
 
       <div id="person-fields">
         <p><label class="muted">First name</label><br>
-          <input class="field-input" type="text" name="first_name"></p>
+          <input class="field-input" type="text" name="first_name" value="{{ form.get('first_name', '') if form else '' }}"></p>
         <p><label class="muted">Last name</label><br>
-          <input class="field-input" type="text" name="last_name"></p>
+          <input class="field-input" type="text" name="last_name" value="{{ form.get('last_name', '') if form else '' }}"></p>
         <p><label class="muted">SSN</label><br>
           <input class="field-input" type="text" name="ssn" placeholder="optional"></p>
       </div>
 
       <div id="business-fields" style="display:none">
         <p><label class="muted">Legal name</label><br>
-          <input class="field-input" type="text" name="legal_name"></p>
+          <input class="field-input" type="text" name="legal_name" value="{{ form.get('legal_name', '') if form else '' }}"></p>
         <p><label class="muted">Entity type</label><br>
           <select class="field-input" name="entity_type">
             <option value="SCORP">S-corporation</option>
