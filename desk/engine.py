@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from record import Desk, Problem
+from record import Desk, Problem, Source
 
 
 class Outcome(str, Enum):
@@ -61,8 +61,55 @@ REASONS = (
     "no_citation",              # the answer cited nothing that resolves
     "citation_does_not_support",  # real authority, but not this question's
     "contradicts_ratified_position",  # cited the firm's words, said the opposite
+    "facts_not_established",    # the rule is clear; what was bought is not. ASK.
+    "document_not_requested",   # a named document settles it and nobody asked
     "model_gave_up",            # ran out of window or abandoned the task
 )
+
+# WHY `document_not_requested` IS NOT `facts_not_established`, and why the firm
+# had to say so before it existed. Both mean the rule is clear and a fact is
+# missing. They differ in WHAT MAKES THE FACT ARRIVE, and that is the whole of
+# their usefulness: one is answered by asking a person a question, the other by
+# obtaining a document that already exists and that nobody requested.
+#
+# The firm, 5 September 2026, on a loan hiding in a year of deposits: "there
+# should be something telling us to get like loan statements and stuff to make
+# sure we understand the deal." Eight of their forty-three close questions
+# resolve exactly that way -- the town's bill, the policy schedule, the cheque
+# image, the payroll register, the marketplace order history -- and the closing
+# agent's note on one of them is the whole argument: "the order history resolves
+# every one of them and nobody asks for it."
+#
+# Filed as `facts_not_established` all eight would have gone to the queue whose
+# resolution is ASK THE CLIENT, and the thing that actually settles them -- one
+# document request -- would never have been raised.
+#
+# WHERE IT GOES IS THE FIRM'S CONSTRAINT AND IT IS LOAD-BEARING: "but not direct
+# to client - things would be wired to go to me as the last resort right now."
+# A desk naming a document raises it to the PREPARER, who decides whether to ask
+# the client. Nothing this engine produces reaches a client without a person in
+# between.
+
+# WHY `facts_not_established` EXISTS, and why the set went eight rounds without
+# it. Every other reason here is about the AUTHORITY -- absent, non-binding,
+# uncited, unsupporting, contradicted. Not one was about the FACTS, so a desk
+# holding exactly the right rule and missing the thing the rule asks about had
+# no way to say so, and its only options were to guess or to blame the record.
+#
+# The firm, 5 September 2026, on an agent that classified a client's J.Crew
+# purchases as personal: "no matter what, its answer was wrong." The lookup was
+# not the error -- knowing J.Crew sells clothing is real evidence about WHAT WAS
+# BOUGHT. The error was going from "sells clothing" to "personal expense"
+# without reaching the test, which is § 1.262-1(b)(8): whether the item is
+# "especially required by his profession and does not merely take the place of
+# articles required in civilian life". Their client was a laborer who could
+# legitimately need protective clothing, and the regulation has no vendor test
+# in it at all -- its own example deducts a sword and refuses a uniform.
+#
+# What the firm does instead: "i could even flag it to ask the client." That is
+# a real outcome and it was inexpressible. It is FIXABLE, like `authority_absent`
+# and unlike `authority_permits_choice`: the answer exists, nobody has asked for
+# it yet, and the working says what to ask.
 
 
 @dataclass(frozen=True)
@@ -75,6 +122,10 @@ class Answer:
     working: str = ""
 
 
+#: The two things that can escalate, named once so a typo is not a third value.
+DESK, ENGINE = "desk", "engine"
+
+
 @dataclass(frozen=True)
 class Result:
     """One graded answer, and why it landed where it did."""
@@ -82,6 +133,32 @@ class Result:
     outcome: Outcome
     reason: str = ""
     detail: str = ""
+    #: WHO ESCALATED: "desk" when the thing answering declined, "engine" when
+    #: `_check` stopped a confident answer resting on non-binding authority.
+    #: Empty for every other outcome.
+    #:
+    #: WITHOUT THIS THE ESCALATION COLUMN CANNOT BE READ, and on a desk built to
+    #: exercise escalation it is the only column that matters. Where `_check`
+    #: refuses with `authority_permits_choice` it does so before any conclusion
+    #: is compared, so a desk that answered confidently and a desk that knew it
+    #: did not know land in the same cell. The first was rescued by the record's
+    #: tier; the second made the call. Reporting them as one number measures the
+    #: record, not the brain.
+    #:
+    #: THE TIER GATE KEYS OFF WHAT THE BRAIN CITES, NOT WHAT THE QUESTION IS
+    #: ABOUT, and this comment said otherwise until a run disproved it. It read
+    #: "a problem keyed to a secondary source can ONLY grade escalated". False:
+    #: on the cash desk, 5 September 2026, qwen3:8b cited § 1.446-1(a)(4) -- a
+    #: PRIMARY paragraph, about inventory -- on all four problems, reasoning by
+    #: explicit "extension". The tier gate never fired and the row graded
+    #: wrong_caught 4/4 with zero escalations.
+    #:
+    #: The consequence is larger than the wording. ESCALATION CANNOT BE FORCED
+    #: THROUGH THE RECORD. Keying problems to a secondary source does not compel
+    #: the path; a brain routes around it by citing something binding. The
+    #: escalation has to come from the brain's judgement, which is the thing
+    #: measuring zero -- so a desk cannot be built that makes a brain decline.
+    escalated_by: str = ""
 
     @property
     def costly(self) -> bool:
@@ -100,6 +177,12 @@ class Served:
     citation: str
     tier: str
     checked: str
+    #: Whether the citation was checked against the question's subject. False
+    #: means nobody could look -- the desk declares no subjects, or the question
+    #: touched none of them -- NOT that it was checked and found fine. Those two
+    #: were the same answer until 5 September 2026, and the difference is four
+    #: served answers on that day's Forge row.
+    checked_subject: bool = False
 
 
 @dataclass(frozen=True)
@@ -112,7 +195,167 @@ class Refusal:
         return False
 
 
-def _check(answer: Answer, desk: Desk):
+def _text_of(backing) -> str:
+    """Whatever words back a citation, whichever store it came from."""
+    kind, obj, _ = backing
+    if kind == "position":
+        return f"{obj.position} {getattr(obj, 'why', '')}"
+    return obj.text
+
+
+def off_subject(answer: Answer, desk: Desk, question: str) -> tuple[bool, str]:
+    """`(refuse, detail)` — the cited authority shares no subject with the ask.
+
+    MEASURED, 5 SEPTEMBER 2026, AND THIS IS WHY IT EXISTS. On the cash desk
+    qwen3:8b answered four bank-reconciliation questions by citing
+    § 1.446-1(a)(4) -- a real, resolvable, PRIMARY paragraph about keeping
+    accounting records -- reasoning by explicit "extension". `grade()` caught all
+    four on `passage.citation != problem.citation`, a check it can only make
+    because it holds an answer key. `serve()` holds none, had no equivalent, and
+    returned the accounting conclusion stamped `tier='primary'`. So the scoreboard
+    reported `wrongly_absorbed = 0` while the path with a client on the end of it
+    would have shipped four.
+
+    THE CHECK IS EXACT AND THE JUDGEMENT IS THE FIRM'S. It computes one thing:
+    of the desk's declared subjects, which appear in the question, and does the
+    cited authority mention any of them. Whole words only, through `touches` --
+    the one matching rule in this codebase. Zero overlap is the signal; anything
+    above zero passes. It does not score relevance, rank citations or read
+    meaning, because none of that is checkable and `guards.py` draws the line
+    where a machine stops being exact.
+
+    IT REFUSES ONLY WHEN IT COULD ACTUALLY LOOK. A desk with no declared subjects,
+    or a question touching none of them, gives it nothing to compare -- and it
+    passes rather than blocks, because "I could not check" and "I checked and it
+    is fine" must never be the same answer. `Served.checked_subject` carries which
+    of the two happened.
+
+    THE COST IS REAL AND IS NOT HIDDEN: an authority whose text is written in
+    pronouns, or in vocabulary the desk never declared, is refused though it may
+    be exactly right. That shows up as `citation_does_not_support` in the queue
+    with the working intact, which is where a wrongly refused answer is meant to
+    be found.
+    """
+    touches = _canon_touches()
+    asked = tuple(t for t in desk.fires_on if touches(question, t))
+    if not asked:
+        return False, ""
+    backing = desk.authority_for(answer.citation)
+    if backing is None:
+        return False, ""
+    text = _text_of(backing)
+    if any(touches(text, t) for t in asked):
+        return False, ""
+    return True, (
+        f"the question is about {', '.join(asked)}; {answer.citation!r} is real "
+        f"authority this desk holds and mentions none of them. A citation that "
+        f"shares no subject with the question is not this question's authority"
+    )
+
+
+def cited_off_source(answer: Answer, desk: Desk, question: str,
+                     *, source: Source | None = None) -> tuple[bool, str]:
+    """`(refuse, detail)` — the citation comes from a source that does not
+    answer what was asked.
+
+    THE FACT IS RECORDED, NOT INFERRED, and that is the whole difference. A desk
+    declares in SUBJECTS.md which source answers which subject. So the check is
+    a lookup: which subjects does the question touch, which sources are declared
+    to answer them, and did the citation come from one of those. No word overlap
+    between the question and the authority, no relevance judgement, nothing to
+    tune -- which is why this one may BLOCK where `off_subject` may not.
+
+    MEASURED, 5 SEPTEMBER 2026 (#266). qwen3:8b answered four bank-reconciliation
+    questions on the cash desk by citing § 1.446-1(a)(4) -- accounting records --
+    by explicit "extension". Real, resolvable, primary, and `serve()` handed all
+    four out stamped `tier='primary'`, because it had no key and no equivalent of
+    `grade()`'s citation check. Comparing words instead either refused four of
+    the sixteen fixed-assets problems answered with their OWN citation, or caught
+    nothing at all. This refuses those four and none of fixed-assets.
+
+    IT REFUSES ONLY WHEN IT COULD LOOK. A question touching no declared subject
+    gives it nothing, and it passes -- `Served.checked_subject` says which
+    happened, because "I could not check" and "I checked and it is fine" must
+    never be the same answer.
+
+    THE COST IS THE FIRM'S TO CONTROL AND IS VISIBLE WHEN PAID. Under-declare a
+    subject and a right answer is refused; the refusal names the sources that
+    were declared, so the record says how to fix itself, and the entry lands in
+    `unsupported/` with the working intact.
+    """
+    if not desk.answered_from:
+        return False, ""
+    touches = _canon_touches()
+    asked = [t for t in desk.fires_on if touches(question, t)]
+    if not asked:
+        return False, ""
+    allowed = {sid for sid, terms in desk.answered_from.items()
+               if any(t in asked for t in terms)}
+    if not allowed:
+        return False, ""
+    # THE SOURCE IS THE RESOLVED ONE, NEVER RE-INFERRED. This matched the
+    # citation against every source's prefix and took the first hit, which is a
+    # second, weaker copy of a resolution `record.authority_for` has already
+    # made exactly -- by `source_id` for a passage, and by a prefix match
+    # `load()` proves is unique for a position. Two ways of answering the same
+    # question disagree in two directions: overlapping prefixes (`G` and `G 1`)
+    # named the wrong source and refused a right answer, and a stored passage
+    # whose citation starts with no prefix at all named NO source, so the gate
+    # passed silently on the case it exists to catch. A gate that opens when it
+    # cannot identify the source is worse than no gate, because `serve()` then
+    # stamps the answer `checked_subject=True`.
+    if source is None:
+        backing = desk.authority_for(answer.citation)
+        source = backing[2] if backing is not None else None
+    # THE FINER DECLARATION FIRST, AND ONLY WHERE THE DESK MADE ONE (M8).
+    #
+    # A source-level mapping cannot separate two rules living in one source, and
+    # the cash desk holds exactly that pair: the timing rule and the correction
+    # rule, both Publication 583, opposite answers. Measured 5 September 2026 --
+    # handed CB4's facts and the TIMING citation, `serve()` returned "a
+    # reconciling item, no entry in the books" with `checked_subject=True`. The
+    # right source. The wrong paragraph. The opposite treatment.
+    #
+    # It narrows and never widens: only the asked subjects a desk has actually
+    # declared per citation are gated, so a desk declaring none is unaffected and
+    # the cost of this gate can only be paid by a desk that opted in.
+    covered = [t for t in asked
+               if any(t in terms for terms in desk.answered_by.values())]
+    if covered:
+        narrowed = {c for c, terms in desk.answered_by.items()
+                    if any(t in covered for t in terms)}
+        if answer.citation not in narrowed:
+            named = ", ".join(sorted(narrowed))
+            return True, (
+                f"the question is about {', '.join(covered)}, which this desk "
+                f"answers at {named}; {answer.citation!r} is a different rule in "
+                f"the same source. Two paragraphs of one publication can carry "
+                f"opposite answers, and the source alone cannot tell them apart"
+            )
+
+    if source is None or source.id in allowed:
+        return False, ""
+    cited = source.id
+    named = ", ".join(sorted(allowed))
+    return True, (
+        f"the question is about {', '.join(asked)}, which this desk answers from "
+        f"{named}; {answer.citation!r} comes from {cited}. A citation from a "
+        f"source the desk does not use for this subject is not this question's "
+        f"authority, however real it is"
+    )
+
+
+def _canon_touches():
+    """Whole-word matching, borrowed rather than rewritten.
+
+    It lives in one place because it was briefly written twice, once whole-word
+    and once not, and the two disagreed for a day with nothing comparing them.
+    """
+    from _canon import load_record
+    return load_record().touches
+
+
+def _check(answer: Answer, desk: Desk, question: str = ""):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
     If serving and grading each had their own copy, they would drift, and the
@@ -141,6 +384,22 @@ def _check(answer: Answer, desk: Desk):
     if source is None:                                  # pragma: no cover
         raise EngineError(
             f"{answer.citation!r} has no source; load() checks this")
+
+    # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
+    # the source the line above resolved, rather than working it out again from
+    # the citation: one resolution, one answer.
+    astray, why = cited_off_source(answer, desk, question, source=source)
+    if astray:
+        return Refusal("citation_does_not_support", why), None, None
+
+    # `off_subject` IS NOT WIRED IN HERE, AND THE MEASUREMENT IS WHY (#266).
+    # It refuses 4 of the 16 fixed-assets problems answered with their own
+    # recorded citation -- a quarter of the working desk, wrongly. Comparing the
+    # cited text against the DESK's subjects instead of the QUESTION's drops that
+    # to zero and stops catching the case it exists for. Word overlap either
+    # over-refuses or under-catches; neither is exact enough to block on, which
+    # is the line `guards.py` draws. Left public, tested and unused until the
+    # firm picks a shape.
 
     # A ratified position IS the firm's answer, so tier does not gate it: the
     # firm already made the choice that a secondary source would only have
@@ -174,7 +433,7 @@ def _check(answer: Answer, desk: Desk):
     return None, passage, source
 
 
-def serve(answer: Answer, desk: Desk) -> Served | Refusal:
+def serve(answer: Answer, desk: Desk, *, question: str) -> Served | Refusal:
     """The production path: hand back an answer, or refuse and say why.
 
     **Nothing leaves here without authority behind it.** An uncited answer is
@@ -184,12 +443,27 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
 
     A refusal is not a dead end. Pair it with `unsupported.from_refusal` to keep
     the reasoning, which is the best evidence of what the record is missing.
+
+    `question` IS REQUIRED, AND THAT IS THE FIX. Without it this function could
+    verify that the cited authority exists and binds, and nothing at all about
+    whether it had anything to do with what was asked -- so it served four
+    bank-reconciliation answers citing a rule about accounting records, stamped
+    primary, on 5 September 2026. `grade()` caught them only because it holds an
+    answer key. There is no key here and there never will be; the question is
+    what stands in for one.
+
+    WHAT IS STILL NOT VERIFIED, said plainly because `Served` used to imply
+    otherwise: that the cited paragraph is the BEST authority, that it is the one
+    the regulation itself would name, or that the conclusion follows from it.
+    Only that it exists, that it binds or carries the firm's word, and that it
+    shares a subject with the question. `checked_subject` says whether even that
+    last one could be looked at.
     """
     if answer.escalated:
         _reason(answer.reason)
         return Refusal(answer.reason, "escalated by the desk")
 
-    refusal, passage, source = _check(answer, desk)
+    refusal, passage, source = _check(answer, desk, question)
     if refusal is not None:
         return refusal
     return Served(
@@ -207,6 +481,12 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
         # absent -- so read whichever this authority carries rather than
         # defaulting one in.
         checked=getattr(passage, "checked", None) or passage.recorded,
+        # Stated rather than implied. `tier='primary'` used to be the whole
+        # story a caller got, and it read as "this is solid" when all that had
+        # been verified was that the authority exists and binds.
+        checked_subject=bool(
+            question and any(_canon_touches()(question, t) for t in desk.fires_on)
+        ),
     )
 
 
@@ -228,16 +508,18 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
     the same thing.
     """
     if answer.escalated:
-        return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason))
+        return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason),
+                      escalated_by=DESK)
 
-    refusal, passage, source = _check(answer, desk)
+    refusal, passage, source = _check(answer, desk, problem.facts)
 
     if refusal is not None:
         # An interpretive source is not an error, it is the case where authority
         # permits a choice — so it escalates rather than counting as wrong.
         if refusal.reason == "authority_permits_choice":
             return Result(problem.id, Outcome.ESCALATED,
-                          reason=refusal.reason, detail=refusal.detail)
+                          reason=refusal.reason, detail=refusal.detail,
+                          escalated_by=ENGINE)
         return Result(problem.id, Outcome.WRONG_CAUGHT,
                       reason=refusal.reason, detail=refusal.detail)
 

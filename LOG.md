@@ -108,6 +108,70 @@ for a deliberate subset — and *named* as skipped, never dropped. Nine checks f
 a chosen document, ten for a whole pack, and a test pins the difference at one.
 
 My test had only asserted that a gate was mentioned. Running it found the rest.
+## Friday 4 September 2026, late — the join, and who is calling
+
+**D3 first, because its answer dissolved D4's fork.** Both assessment agents
+reported that `engagement_ref` had no writer. Reading it here found something
+larger: **every use of `mart.engagements` in `src/` was a read.** The only
+writers were the synthetic fixtures and the store's own loader, so an
+`Engagement` existed for the four demo clients and for nobody else — the rate
+plan agreed, the fee, invoiced, paid and the ref were all unreachable for a real
+client. It was not a missing setter. It was a missing row.
+
+`engagement_for` is the producer now, `create=False` by default so a lookup
+cannot quietly manufacture one, and only the call that genuinely means *this
+client has a contract for this year* asks for it. The ref gets a box on the
+engagement screen, because **a route with no control on any page is a route
+nobody can reach**, which was the whole defect in the first place.
+
+**The guard worth keeping is the duplicate one.** `client_for_ref` returns
+nothing when a ref names two clients — correct, since picking one arbitrarily
+closes the wrong client's document request. But at collection time that silence
+is indistinguishable from "nobody set it". Refused at the keyboard it costs a
+sentence; found in the drop folder it costs an afternoon.
+
+**D2 turned out to be one line.** `require_human` was never wrong; sixteen
+choke points call it and all sixteen are fine. Only `acting_actor` was wrong,
+and only in how it decided: it asked Flask whether a request existed rather than
+asking who was calling. Pointing it at a principal fixed every one of the
+sixteen without touching any of them.
+
+**One case is deliberately still open, and saying so is the point.** A caller
+*in a live request* that declares no role is still the owner — Occam's own call,
+for the reason its module states: no authentication here, the tailnet is the
+perimeter, and a restrictive default only teaches everybody to pass `owner`
+everywhere. Written into the docstring so a later session does not "improve" it.
+
+**But I first applied that rule too widely, and it was a loosening.** The
+version I described a message earlier sent *every* undeclared caller to the
+environment — so a headless script, no request and no role, came back as the
+owner. `acting_actor` had refused that caller since the day it was written. I
+had closed the agent hole and opened a wider one, and said so out loud before
+noticing.
+
+`test_actor_gate.py` caught it: two tests that existed for exactly this,
+failing on exactly this. **A security change that makes any previously-refused
+caller permitted is a regression however good its intent**, and the intent was
+the thing that made it easy to miss — I was looking at whether the new hole was
+closed, not at whether an old one had opened. There are three cases now, not
+two, and the invariant is its own test: for every combination of request and
+role, the new answer may be stricter than the old and never looser.
+
+**And I broke twenty-nine tests with an environment variable.** The two tests of
+the MCP entry point let `SATC_ROLE=ai_staff` escape, because `main()` writes
+`os.environ` directly and `monkeypatch` never learned the key had been touched.
+Pricing, staging and delivery all went red, every one of them refusing the owner
+because the owner had quietly become an agent. **They passed alone and failed in
+a full run**, which is the shape of every order-dependent test anybody has ever
+had to debug.
+
+The repair for it went wrong in the opposite direction first. Written as an
+assertion, it errored seven honest tests: an autouse fixture tears down *before*
+the `monkeypatch` a test requested, so it read every legitimate `setenv` as a
+leak. Ordering cannot be fixed from that side. **So it restores rather than
+asserts, and is named as a repair rather than a check** — a check that cannot
+tell a leak from a correct use is not a check worth having, and putting the
+value back removes the whole class either way.
 
 
 ## Friday 4 September 2026, evening — the docket came back, six for six

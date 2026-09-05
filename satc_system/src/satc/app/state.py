@@ -44,26 +44,48 @@ _READER_LABELS = {
 
 
 def acting_actor() -> Actor:
-    """WHO is acting right now — derived from context, never accepted as an argument.
+    """WHO is acting right now — derived from the PRINCIPAL, never from the
+    transport, and never accepted as an argument.
 
-    This is the enforcement point the whole actor model rests on. The old shape
-    let a caller pass ``by="preparer"`` and be believed; here nothing can claim
-    to be the owner, it can only *be* in a live browser request.
+    **THIS LINE USED TO BE THE DEFECT.** It read::
 
-    A request context means a real person is driving the local UI: the app binds
-    to loopback only, rejects non-loopback Host headers, and blocks cross-origin
-    state changes (``server.py``), so a live request is the single human.
+        return Actor.owner() if has_request_context() else Actor.system("headless")
 
-    Anything else — a script, a scheduled sweep, an API tool, a model rung —
-    gets a system actor and is refused by :func:`~satc.models.actor.require_human`
-    at the gate. That refusal is the point: it holds from every path, including
-    paths that do not exist yet.
+    and the docstring above it promised the opposite — *"Anything else — a
+    script, a scheduled sweep, an API tool, a model rung — gets a system actor
+    and is refused."* **A script is exactly what it did not catch**, because
+    `app.test_client()` creates a request context in one line, with no browser
+    and no person. Reproduced 4 September 2026: inside a test request context
+    this returned `Actor(kind='human', name='owner')`, `require_human` passed,
+    and a Python script issued an invoice and recorded a payment. The gate read
+    **how the call arrived** rather than **who made it**.
+
+    Now it asks :mod:`satc.principals`, which reads a role the LAUNCHER set —
+    a header on the request or a variable in the environment — and which the
+    caller cannot widen for itself. The firm chose that shape on 4 September
+    2026: *"Adopt the Occam shape — launcher-set role and assignment."*
+
+    Still true, and still the point: nothing can CLAIM to be the owner. What
+    changed is that being in a request is no longer proof of being one.
+
+    A caller that declares nothing is the owner — the desktop UI and the
+    owner's own scripts. That is deliberate and documented in
+    :mod:`satc.principals`; this box has no authentication and a restrictive
+    default would only teach everyone to pass ``owner`` everywhere.
     """
-    try:
-        from flask import has_request_context
-    except ImportError:          # app extras not installed — headless use
+    from satc.principals import current
+
+    principal = current()
+    if principal.is_owner:
+        return Actor.owner()
+    if principal.role == "headless":
+        # Unchanged from before this module existed: a process with no request
+        # and no declared role is not a person and never was.
         return Actor.system("headless")
-    return Actor.owner() if has_request_context() else Actor.system("headless")
+    # NOT a model actor unless the role says so. `Actor.model` demands a model
+    # name and carries "may propose, never accept"; a role is not a model, and
+    # inventing a name here would put a fiction in the provenance record.
+    return Actor.system(principal.role)
 
 # How much text a PDF must carry before we call its text layer usable. A page of
 # a real form runs to hundreds of characters; a stray watermark or a scanner's

@@ -114,6 +114,15 @@ RUNS_NO_RECORD = ("how-we-work", "docket")
 # have to land where the source is. So the plugin-root rule does not apply to
 # it, and saying so here is cheaper than a reader wondering why.
 RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
+# `walk` is a fourth thing, named for the same reason. It runs against the
+# PRODUCT -- a running build in a browser -- not against canon at all, and its
+# two documents land in whatever repository it was pointed at. It never reads
+# the record, so the plugin-root rule has nothing to bite on here either.
+RUNS_AGAINST_THE_PRODUCT = ("walk", "tie-out")
+# `tie-out` sits here with `walk` for the same reason and one more: it runs
+# against the product AND against something outside it entirely -- a statement,
+# a publication, a filed return. The record is not what it reads and not what
+# it checks against.
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
@@ -166,7 +175,8 @@ def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
     that grows one skill at a time without anybody deciding."""
     every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
     assert every == (set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
-                     | set(RUNS_AGAINST_A_CHECKOUT))
+                     | set(RUNS_AGAINST_A_CHECKOUT)
+                     | set(RUNS_AGAINST_THE_PRODUCT))
     for name in RUNS_NO_RECORD:
         text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "CONVICTIONS.md" not in text, \
@@ -185,3 +195,158 @@ def test_the_adversarial_skill_carries_the_brief_and_the_way_back():
         "it does not say why this is worth doing beside mutation testing"
     assert "discarded unread" in flat, \
         "the far side is not told its scratch is free"
+
+
+def test_the_walk_skill_demands_both_documents():
+    """The skill exists because a real walk produced only one of them. If the
+    file stops saying so, it stops being the fix and becomes a description of
+    browsing."""
+    flat = " ".join((CANON / "skills" / "walk" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Two documents come out" in flat, "the two outputs are not the rule"
+    assert "Neither is optional" in flat, "one of them can still be skipped"
+    assert "A test knows the answer before it runs" in flat,         "it does not say why a walk finds what the suite cannot"
+    assert "Do not fix anything mid-walk" in flat,         "nothing stops the walk repairing the thing it was measuring"
+    assert "docs/PROCEDURE-" in flat and "docs/WALKTHROUGH-DEFECTS.md" in flat,         "the two documents are not named where they go"
+
+
+def test_the_walk_procedure_arrives_as_one_document():
+    """The procedure was correct and unforwardable: a Markdown file whose every
+    picture was a path that resolves only on the machine that wrote it. The firm
+    named this skill and `tie-out` together on 5 September 2026. If the file
+    stops saying the deliverable is one self-contained thing, the next walk
+    hands over a folder again and it will read as compliance."""
+    flat = " ".join((CANON / "skills" / "walk" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "single self-contained file" in flat, \
+        "the procedure may still be handed over as a note plus a folder"
+    assert "embedded in it" in flat, "the screenshots may still be linked by path"
+    assert "a picture of the route" in flat, \
+        "the procedure need not show the shape of the job before step 1"
+    assert "The defects document stays separate" in flat, \
+        "the two documents may be merged back into one"
+
+
+def test_the_tie_out_skill_keeps_the_source_independent():
+    """The whole skill is one rule -- a number confirmed by your own system is
+    confirmed by nothing. Everything else is procedure around it. If that rule
+    leaves the file the document becomes a screenshot of a number agreeing with
+    itself, which is the failure it was written for."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "confirmed only by your own system is confirmed by nothing" in flat,         "the independence rule is gone"
+    assert "could this disagree with me" in flat,         "no test is given for whether a source is independent"
+    assert "Never plug it" in flat,         "nothing forbids closing a difference rather than reporting it"
+    assert "a finding, not a failure" in flat,         "a difference is not framed as the valuable outcome"
+    assert "docs/TIE-OUT-" in flat, "the exhibit is not named where it goes"
+
+
+def test_the_tie_out_skill_carries_all_five_links():
+    """Four links out of five is a chain that does not reach the ground. The
+    one most likely to be dropped is the derivation, because it is the only one
+    that cannot be pasted from somewhere."""
+    text = (CANON / "skills" / "tie-out" / "SKILL.md").read_text(encoding="utf-8")
+    for link in ("1 · The figure", "2 · The call", "3 · The derivation",
+                 "4 · The independent source", "5 · The comparison"):
+        assert link in text, f"link missing from the chain: {link}"
+    flat = " ".join(text.split())
+    assert "is not a derivation" in flat,         "nothing rules out 'then the system computes it'"
+
+
+def test_the_tie_out_skill_refuses_an_unexecuted_link():
+    """The failure this guards is not a wrong number -- it is a document that
+    was never run and reads exactly like one that was. The firm named it: an
+    agent that has not figured out how to tie something out, reporting as
+    though it had."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "A tie-out you did not run is not a tie-out" in flat,         "nothing forbids describing a step instead of doing it"
+    assert "Paste the real response" in flat, "the evidence is not required to be real"
+    for verdict in ("TIED", "DIFFERS", "COULD NOT"):
+        assert verdict in flat, f"verdict missing: {verdict}"
+    assert "I do not know where the authority for this number is" in flat,         "the most useful COULD NOT reason is not offered"
+    assert "Report the denominator" in flat, "a roster with no denominator"
+
+
+def test_the_tie_out_skill_makes_you_look_at_the_source():
+    """The firm's own catch. "Name and quote the source" can be completed
+    truthfully by somebody who glanced at a page and found A number -- nothing
+    in it requires looking at THE number. The image and the cell reference are
+    what make the mismatch impossible to write past."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Capture it. Do not summarise it" in flat,         "the source may still be described rather than captured"
+    assert "Screenshot the page" in flat, "no image of the source is required"
+    assert "is not locating a figure" in flat,         "nothing rules out a vague citation of the source"
+    assert "before** writing any verdict" in flat,         "the verdict may still be written ahead of the comparison"
+    for same in ("the same entity", "the same date or period", "the same basis",
+                 "the same units and scale"):
+        assert same in flat, f"the four sameness checks are incomplete: {same}"
+
+
+def test_the_tie_out_deliverable_is_one_document_that_shows_the_mechanism():
+    """The first exhibit executed all five links and was still unusable: a
+    Markdown note with six loose files beside it. The firm, 5 September 2026 --
+    "i assumed that you understood the final product of tie out and walk would
+    basically be a PDF". The shape is the requirement, not a presentation
+    preference, so it is pinned here."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "single self-contained file" in flat, \
+        "the exhibit may still be handed over as a note plus a folder"
+    assert "embedded in it" in flat, "the images may still be referenced by path"
+    assert "travelling **two roads**" in flat, \
+        "nothing requires the diagram of how the fact reaches the screen twice"
+    assert "before reading a word" in flat, \
+        "the mechanism need not be visible ahead of the prose"
+    assert "How to run it yourself" in flat, \
+        "the reader is not given a way to reproduce it without the author"
+    assert "What it found" in flat, \
+        "what running it changed is not a section of the document"
+
+
+def test_the_tie_out_ours_side_is_read_from_the_artifact():
+    """The failure that got past a finished exhibit. A roster reported 53 of 53
+    tied against a filing, in a column labelled "landed", where every value had
+    been re-fetched from the provider's API and the workbook was never opened.
+    It proved provider = filing. The firm, 5 September 2026: "your doc here needs
+    to prove the external source to your workbook values not what you said
+    landed. that's the standard." """
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "the artifact the reader opens" in flat, \
+        "the ours side may still be an intermediate"
+    assert "which artifact you opened and how you read the value out of it" in flat, \
+        "the exhibit need not say what it read the figure from"
+    assert "upstream of the artifact" in flat, \
+        "checking the source against an intermediate is not ruled out"
+    assert "every hop it did not execute is assumed" in flat, \
+        "an unexecuted hop may still pass as proved"
+
+
+def test_the_tie_out_skill_marks_and_enlarges_the_source():
+    """A captured page satisfies "screenshot the source" and still leaves the
+    reader hunting a row on a dense regulatory form. Marking and enlarging is
+    what makes the check take a glance, and a check that takes work does not
+    happen."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Mark it, and enlarge it" in flat, \
+        "the capture may still be an unmarked page"
+    assert "zoomed crop of that row" in flat, "no enlargement of the located row"
+    assert "same shot as the number" in flat, \
+        "entity, form and period may still be taken on trust"
+    assert "Read every figure twice" in flat, \
+        "a second rendering of the same source is not read"
+
+
+def test_the_tie_out_skill_attacks_a_could_not_before_recording_it():
+    """Five COULD NOTs, each with a true obstacle named, all five of which
+    closed on one pass of being pushed. Naming an obstacle is not testing it,
+    and this skill previously accepted the name as the verdict."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "hypothesis about the source" in flat, \
+        "a COULD NOT may still be recorded on a described obstacle"
+    assert "ask what it would take to get past it, and try that" in flat, \
+        "nothing says to attempt the obstacle before recording the verdict"

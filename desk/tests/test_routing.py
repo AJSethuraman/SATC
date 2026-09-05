@@ -17,7 +17,7 @@ from record import RecordError
 
 SUBJECTS = """## demo · A demo desk
 
-**Fires on:** alpha, beta, gamma
+**Answered from S1:** alpha, beta, gamma
 """
 
 
@@ -133,7 +133,7 @@ def test_a_wrapped_subject_list_is_read_in_full():
     and reported success. A silent partial read is worse than an error, because
     routing then works for some questions and quietly misses others."""
     wrapped = ("## demo · A demo desk\n\n"
-               "**Fires on:** alpha, beta,\ngamma, delta,\nepsilon\n")
+               "**Answered from S1:** alpha, beta,\ngamma, delta,\nepsilon\n")
     r = routing.parse_subjects(wrapped, "demo")
     assert r.fires_on == ("alpha", "beta", "gamma", "delta", "epsilon")
 
@@ -146,7 +146,7 @@ def test_the_shipped_desk_declares_more_subjects_than_one_line_would_hold(regs):
 
 def test_a_desk_with_no_subjects_is_an_error():
     """A desk nothing routes to is a desk nobody asks."""
-    with pytest.raises(RecordError, match="Fires on"):
+    with pytest.raises(RecordError, match="Answered from"):
         routing.parse_subjects("## demo · x\n\n**Other:** y\n", "demo")
 
 
@@ -165,12 +165,28 @@ def test_route_itself_matches_whole_words_not_substrings(regs):
     That is canon's own recorded failure -- the rule written twice, once
     whole-word and once not, with nothing comparing them -- reproduced here.
 
-    "repair" is one of this desk's subjects, so a substring matcher fires on
-    "repairman" and a whole-word one does not.
+    "repair" is one desk's subject, so a substring matcher fires on "repairman"
+    and a whole-word one does not.
+
+    THE REGISTRY IS BUILT HERE AND IS NOT THE SHIPPED ONE, which took two goes
+    to learn. It first asked whether the WHOLE live registry stayed silent on
+    "the repairman called about parking" -- and failed the day a desk declared
+    `parking`, on a rule working perfectly. Cutting the question down to the one
+    baited word looked like the fix and was not: a desk about paying individuals
+    for services then declared `repairman` itself, which is entirely correct of
+    it. Every word of a question asked against the live record is a claim that no
+    desk anywhere answers it, and desks are added by people who will never read
+    this file. So the fixture is two lines of made-up subjects, and the only
+    thing under test is the matcher.
     """
-    assert any("repair" in r.fires_on for r in regs), "fixture no longer proves it"
-    assert routing.route("the repairman called about parking", regs) == [], (
+    made_up = [routing.Registration(desk="d", title="t",
+                                    fires_on=("repair", "gasket"),
+                                    answered_from={"S1": ("repair", "gasket")})]
+    assert routing.route("repairman", made_up) == [], (
         "route() is matching substrings; it must use canon's whole-word rule"
+    )
+    assert [r.desk for r in routing.route("a repair is needed", made_up)] == ["d"], (
+        "the whole word must still route, or the line above proves nothing"
     )
 
 
@@ -216,10 +232,10 @@ def test_a_desk_registering_under_another_name_is_refused(tmp_path):
     record that produced it."""
     with pytest.raises(routing.RecordError, match="registers itself as"):
         routing.parse_subjects(
-            "## fixed-asset · Fixed assets\n\n**Fires on:** roof, elevator\n",
+            "## fixed-asset · Fixed assets\n\n**Answered from S1:** roof, elevator\n",
             "fixed-assets")
     # The control: matching name and directory parses.
     r = routing.parse_subjects(
-        "## fixed-assets · Fixed assets\n\n**Fires on:** roof, elevator\n",
+        "## fixed-assets · Fixed assets\n\n**Answered from S1:** roof, elevator\n",
         "fixed-assets")
     assert r.desk == "fixed-assets"

@@ -5,10 +5,43 @@ a Claude agent as structured tools, so you can drive SATC in plain English —
 look up clients and run withholding checkups, and (only if you turn it on) create
 clients and post intake.
 
-**Safe by default.** The agent gets only **read + compute** tools. It **cannot**
-create clients, post to a return, run intake, or change a document's status unless
-you explicitly enable writes with `SATC_MCP_ALLOW_WRITES=1`. An agent can't call a
-tool that was never registered, so this is enforced by the wiring, not by trust.
+**Safe by default, and the safety is not the tool list.**
+
+This page used to say: *"An agent can't call a tool that was never registered,
+so this is enforced by the wiring, not by trust."* That sentence was the whole
+control, and it was the wrong shape twice over. It is **all-or-nothing** — one
+environment variable and the same process gains every write tool, for every
+client in the practice — and a list of registered tools is a convention rather
+than a gate. The Forge's own standing rule says as much: *a skill's `tools:`
+list is not a security boundary.*
+
+Since 4 September 2026 the server **declares what it is**. It launches as the
+role `ai_staff` unless something set a role for it, and the engine enforces that
+role at every gate — the sixteen `require_human` choke points, the staging gate,
+the invoice and payment routes. The model calls tools; it does not control the
+process that sets the role, so **it cannot widen its own scope**.
+
+What `ai_staff` cannot do, whatever tools are registered:
+
+| | why |
+|---|---|
+| confirm a staged value | confirming says a machine-read figure is true; the staging gate already refused this and the role now agrees with it |
+| issue an invoice | a claim on somebody's bank account |
+| record a payment | an assertion that money arrived |
+| change a price | a rate nobody agreed |
+| contact a client | cannot be recalled |
+
+What it keeps: reading, creating a client, running intake, posting confirmed
+intake, generating an engagement. That is preparation, which is the job — a role
+stripped so far the work cannot be done is a role that gets worked around.
+
+`SATC_MCP_ALLOW_WRITES=1` still decides which tools are **offered**, which is
+worth keeping so a read-only session is not shown five tools it will only be
+refused for calling. It is no longer what makes the dangerous ones safe.
+
+`SATC_ASSIGNMENT=SATC-001000,SATC-004*` narrows a session to named clients —
+the half a tool list cannot express at all. Set `SATC_ROLE=observer` for a
+briefing that must not write anything.
 
 It shares the **same local store** as the desktop app (`~/.satc/data`, or
 `SATC_DATA_DIR`), so the agent reads the app's data, and anything you commit in the

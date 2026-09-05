@@ -51,12 +51,15 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import engine                                            # noqa: E402
+import scoreboard                                        # noqa: E402
 from engine import REASONS, Answer                       # noqa: E402
 from record import Desk, Problem                         # noqa: E402
 
@@ -77,7 +80,8 @@ class AdapterGaveUp(Exception):
 #: neither of which the thing answering can observe, and `model_gave_up` is the
 #: harness's word for an abandoned run, not a choice.
 OFFERABLE = ("authority_absent", "authority_permits_choice", "no_citation",
-             "citation_does_not_support")
+             "citation_does_not_support", "facts_not_established",
+             "document_not_requested")
 
 _TEMPLATE = """\
 You are a desk. You answer only from the authority listed below, and you cite it.
@@ -350,15 +354,62 @@ def forge_adapter(desk: Desk, model: str, transcript: Path, *, num_ctx: int,
     return ask
 
 
+class ReplayMismatch(scoreboard.HarnessError):
+    """The replayed replies did not answer the prompts being rebuilt.
+
+    A `HarnessError` rather than a plain one, because `scoreboard.run` absorbs
+    every ordinary exception into `model_gave_up`: raised as a plain exception
+    this refusal produced sixteen false give-ups, a scoreboard claiming an
+    authority shape nobody saw, and an exit code of zero. Found in review of
+    the pull request that added it.
+    """
+
+
 def replay_adapter(desk: Desk, replies: dict, transcript: Path, *,
-                   shape: str = "index"):
+                   shape: str = "index", shown: dict | None = None):
     """`ask(problem) -> Answer` reading replies a brain already produced.
 
     The frontier row is obtained this way: the prompts `build_prompt` composes
     are written out, answered, and read back through the SAME parser the local
     model's replies go through. Two brains graded by one code path, which is the
     only way the gap between the rows means anything.
+
+    THE REBUILT PROMPT IS CHECKED AGAINST THE ONE THE BRAIN ACTUALLY SAW.
+    A `.jsonl` transcript stores the prompt beside every reply, and this used to
+    discard it and rebuild the evidence from whatever `--corpus` the replay was
+    invoked with. Regrade a `text`-corpus transcript without `--corpus text` and
+    the record's own `AUTHORITY SHOWN` line then claimed `index` over replies
+    that had seen something else -- a claim in one place and the behaviour in
+    another, which is the failure this repository exists to close.
+
+    Deriving the shape from the stored prompt would fix that one case. Comparing
+    the whole prompt fixes the category: a changed desk, a changed template, a
+    reordered index and a wrong `--corpus` all diverge here, and any of them
+    makes these replies un-regradable rather than merely mislabelled. So it
+    refuses instead of recording a number nobody can check.
     """
+    shown = shown or {}
+
+    # CHECKED BEFORE THE RUN STARTS, NOT PER PROBLEM ON THE WAY PAST. Whether a
+    # transcript answers the prompts being rebuilt is a property of the
+    # transcript, known here; discovering it on problem seven is late for no
+    # reason, and it is late in the one way that matters -- by then the refusal
+    # is being raised inside `scoreboard.run`, whose catch-all is what turned it
+    # into sixteen `model_gave_up` escalations and a scoreboard that shipped.
+    by_id = {p.id: p for p in desk.problems}
+    for pid, was in sorted(shown.items()):
+        if pid not in by_id or not was:
+            continue
+        rebuilt = build_prompt(by_id[pid], desk, shape=shape)
+        if was != rebuilt:
+            raise ReplayMismatch(
+                f"{pid}: the reply being replayed answered a different prompt "
+                f"({len(was)} chars) than the one rebuilt here ({len(rebuilt)} "
+                f"chars). These replies cannot be regraded against this desk and "
+                f"this --corpus shape; the record would state an authority shape "
+                f"the brain never saw."
+            )
+
     transcript.parent.mkdir(parents=True, exist_ok=True)
     transcript.write_text("", encoding="utf-8")
 
@@ -404,18 +455,25 @@ def watched(ask, seen: dict):
     return ask_and_keep
 
 
-def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> int:
+def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> dict:
     """Keep every answer the engine would not serve, with its reasoning.
 
     Refused means `wrong_caught` or `escalated`: those are the outcomes where
     `serve()` hands back a Refusal. A `wrongly_absorbed` answer was served -- it
     is a scoreboard finding, not a queue entry, and putting it here would say the
     desk had caught something it did not.
+
+    Returns `{"filed": n, "near_miss": m}`. The split is the point: the queue
+    exists to say what authority is MISSING, and on the second run 12 of the
+    frontier row's 16 entries cited a finer point inside a rule the desk already
+    held. A single total reads as sixteen gaps in the record when four is the
+    number. `m` is never subtracted from `n` -- every entry is still filed, still
+    refused, and still never served.
     """
     from engine import Outcome
     import unsupported
 
-    refused = 0
+    refused = near = 0
     problems = {p.id: p for p in desk.problems}
     for result in run.results:
         if result.outcome not in (Outcome.WRONG_CAUGHT, Outcome.ESCALATED):
@@ -423,13 +481,20 @@ def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> int:
         answer = answers.get(result.problem_id)
         if answer is None:                 # the harness caught a give-up
             answer = Answer(position="", escalated=True, reason=result.reason)
-        unsupported.append(path, unsupported.from_refusal(
+        entry = unsupported.from_refusal(
             problems[result.problem_id].facts, answer, result, model=run.model,
             existing=unsupported.parse(path.read_text(encoding="utf-8"))
             if path.exists() else [],
-        ))
+            # THE DESK, SO A NEAR MISS IS FILED AS ONE. Without it every refusal
+            # reads the same, and on the second run 12 of 16 frontier entries
+            # were not missing authority at all -- they cited a finer point
+            # inside a rule the desk holds.
+            desk=desk,
+        )
+        unsupported.append(path, entry)
         refused += 1
-    return refused
+        near += entry.near_miss
+    return {"filed": refused, "near_miss": near}
 
 
 def diagnostic(desk: Desk, run, answers: dict) -> dict:
@@ -487,6 +552,17 @@ def diagnostic(desk: Desk, run, answers: dict) -> dict:
         "citation_matched": right_citation,
         "citation_within_governing_rule": near_citation,
         "citation_off_index": off_index,
+        # WHO ESCALATED, because the escalation column cannot be read otherwise.
+        # Where the engine refuses `authority_permits_choice` it does so before
+        # any conclusion is compared, so a desk that answered confidently and one
+        # that knew it did not know land in the same cell, and only this tells
+        # them apart. The gate keys off what the brain CITES, not what the
+        # question is about -- a row can miss it entirely by citing something
+        # binding, which is what qwen3:8b did on all four cash problems.
+        "escalated_by_desk": sum(1 for r in run.results
+                                 if r.escalated_by == engine.DESK),
+        "escalated_by_engine": sum(1 for r in run.results
+                                   if r.escalated_by == engine.ENGINE),
         "gave_up": run.gave_up,
     }
 
@@ -519,25 +595,69 @@ def constant_control(desk: Desk) -> dict:
             "of": len(desk.problems), "through_the_engine": tally(graded)}
 
 
-def _replies(path: str) -> dict:
-    """Replies keyed by problem id, from a plain map or from a transcript.
+def _replies(path: str) -> tuple[dict, dict]:
+    """`(replies, prompts)` keyed by problem id, from a map or a transcript.
 
     A run's own `.jsonl` transcript is accepted so a committed record can be
     regraded from the evidence it shipped with -- which is the difference
-    between a scoreboard a reader can check and one they have to believe.
+    between a scoreboard a reader can check and one they have to believe. That
+    transcript also stores the prompt each reply answered, and it is returned
+    beside the replies so `replay_adapter` can refuse a regrade against a prompt
+    the brain never saw. A plain map carries no prompts and yields `{}`, which
+    is not an error: it is how a fresh frontier context hands answers back.
     """
     text = Path(path).read_text(encoding="utf-8")
     if path.endswith(".jsonl"):
         rows = [json.loads(l) for l in text.splitlines() if l.strip()]
-        return {r["problem"]: r["reply"] for r in rows if r["reply"]}
-    return json.loads(text)
+        return ({r["problem"]: r["reply"] for r in rows if r["reply"]},
+                {r["problem"]: r.get("prompt", "") for r in rows if r["reply"]})
+    return json.loads(text), {}
+
+
+#: What a finished run leaves behind. Any one of these means the directory holds
+#: a measured record, and a measured record is not overwritten.
+RUN_RECORDS = ("SCOREBOARD.md", "SCOREBOARD.txt", "outcomes.json")
+
+
+class RunWouldOverwrite(Exception):
+    """The output directory already holds a run. Refused rather than replaced."""
+
+
+def run_dir(out: str, desk_name: str, today: date) -> Path:
+    """Where this run writes, refusing a directory that already holds one.
+
+    FOUND BY THE SECOND FORGE RUN, 4 SEPTEMBER 2026. The default is
+    `runs/<today>/` and both runs happened on the same day, so the documented
+    command would have written the second run's scoreboard over the first run's
+    measured record -- the one thing in this directory that cannot be
+    regenerated, since the brain that produced it is not deterministic. The
+    session running it noticed and passed `--out` by hand. A default whose
+    safety depends on somebody noticing is the mechanism absent.
+
+    It refuses on an EXPLICIT `--out` too. Deriving the date differently would
+    fix the day-collision and leave `--out runs/2026-09-04` pointed at the same
+    record with the same result; what must not happen is a measured record being
+    replaced, whichever argument named it. There is deliberately no `--force`:
+    moving the old directory costs one command, and the record costs a rerun
+    that cannot reproduce it.
+    """
+    d = Path(out) if out else ROOT / "desks" / desk_name / "runs" / today.isoformat()
+    held = [n for n in RUN_RECORDS if (d / n).is_file()]
+    if held:
+        raise RunWouldOverwrite(
+            f"{d} already holds a run ({', '.join(held)}). A scoreboard is a "
+            f"measured record and the brain that produced it is not "
+            f"deterministic, so it cannot be regenerated. Two runs on one day "
+            f"is the case this catches: pass --out with a directory of its own "
+            f"(runs/{today.isoformat()}-second-run, say), and say in the record "
+            f"that they are two runs on one day rather than two days."
+        )
+    return d
 
 
 def _main(argv: list[str]) -> int:
     import argparse
-    from datetime import date
 
-    import scoreboard
     from record import load
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -577,8 +697,7 @@ def _main(argv: list[str]) -> int:
         print(f"{len(desk.problems)} prompts ({args.corpus}) -> {out}")
         return 0
 
-    out_dir = Path(args.out or ROOT / "desks" / desk.name / "runs"
-                   / date.today().isoformat())
+    out_dir = run_dir(args.out, desk.name, date.today())
     out_dir.mkdir(parents=True, exist_ok=True)
     queue_dir = Path(args.desk) / "unsupported"
 
@@ -588,9 +707,10 @@ def _main(argv: list[str]) -> int:
         label = f"{args.forge_model} (Forge)"
         seen: dict = {}
         if args.forge_replies:
-            backend = replay_adapter(desk, _replies(args.forge_replies),
+            forge_replies, forge_shown = _replies(args.forge_replies)
+            backend = replay_adapter(desk, forge_replies,
                                      out_dir / "forge-regraded.jsonl",
-                                     shape=args.corpus)
+                                     shape=args.corpus, shown=forge_shown)
         else:
             backend = forge_adapter(desk, args.forge_model,
                                     out_dir / "forge.jsonl",
@@ -605,11 +725,11 @@ def _main(argv: list[str]) -> int:
 
     if args.frontier_replies:
         label = args.frontier_label
-        replies = _replies(args.frontier_replies)
+        replies, front_shown = _replies(args.frontier_replies)
         seen = {}
         ask = watched(replay_adapter(desk, replies,
                                      out_dir / "frontier.jsonl",
-                                     shape=args.corpus), seen)
+                                     shape=args.corpus, shown=front_shown), seen)
         r = scoreboard.run(desk, ask, model=label)
         runs.append(r)
         answers[label] = seen
@@ -648,11 +768,20 @@ def _main(argv: list[str]) -> int:
                      f"within the governing rule but not it "
                      f"{d['citation_within_governing_rule']}, "
                      f"cited outside the index {d['citation_off_index']}, "
+                     f"escalated by the desk {d['escalated_by_desk']}, "
+                     f"escalated by the engine {d['escalated_by_engine']}, "
                      f"gave up {d['gave_up']}")
     lines.append("")
     lines.append("UNSUPPORTED QUEUE (entries this run produced):")
-    for label, n in queues.items():
-        lines.append(f"  {label}: {n}")
+    for label, q in queues.items():
+        # THE SPLIT IS PRINTED, NOT THE TOTAL ALONE. A near miss cited a finer
+        # point inside a rule the desk already holds, so it is not a gap in the
+        # record -- and a total that blends the two says the desk is missing
+        # authority it has. Still filed, still refused, never subtracted.
+        lines.append(f"  {label}: {q['filed']} filed, "
+                     f"{q['near_miss']} of them citing a finer path inside a "
+                     f"rule the desk holds (not missing authority), "
+                     f"{q['filed'] - q['near_miss']} reaching outside it")
     body = "\n".join(lines)
     print(body)
     (out_dir / "SCOREBOARD.txt").write_text(body + "\n", encoding="utf-8")
@@ -661,7 +790,8 @@ def _main(argv: list[str]) -> int:
         r.model: {"counts": r.counts, "gave_up": r.gave_up,
                   "results": [{"problem": x.problem_id,
                                "outcome": x.outcome.value,
-                               "reason": x.reason, "detail": x.detail}
+                               "reason": x.reason, "detail": x.detail,
+                               "escalated_by": x.escalated_by}
                               for x in r.results],
                   "diagnostic": diags[r.model],
                   "queued": queues[r.model]}

@@ -15,7 +15,9 @@ from conftest import DESKS
 GOOD_SOURCE = ("## S1 · A source\n\n"
                "**Tier:** primary · **Access:** public_fetch · "
                "**May store:** full_text · **Checked:** 2026-09-04\n\n"
-               "**Citation prefix:** 26 CFR\n")
+               "**Citation prefix:** 26 CFR\n\n"
+               "**Why:** 17 U.S.C. § 105 places a work of the United States "
+               "Government in the public domain.\n")
 GOOD_PROBLEM = ("## P1 · x\n\n**Citation:** 26 CFR 1\n\n"
                 "**Answer:** must capitalize\n\n**Facts:** f\n")
 GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
@@ -48,9 +50,120 @@ def test_a_well_formed_desk_passes_every_guard(tmp_path):
     assert guards.check(build(tmp_path)).name == "d"
 
 
-def test_the_shipped_desk_passes_every_guard():
-    """The one that actually matters: the record in this repo is legal."""
-    assert guards.check(DESKS / "fixed-assets")
+def shipped_desks(root=DESKS):
+    """Every desk in the repository, enumerated rather than named.
+
+    COMPARED AGAINST THE RAW DIRECTORY LISTING, because `>= 1` was not enough:
+    pinning this to `[fixed-assets]` left the second desk unguarded with the
+    suite still green. The count is not the check — the set is.
+    """
+    desks = sorted(d for d in root.iterdir() if (d / "SOURCES.md").is_file())
+    on_disk = {d.name for d in root.iterdir()
+               if d.is_dir() and not d.name.startswith("_")}
+    assert {d.name for d in desks} == on_disk, (
+        f"{sorted(on_disk - {d.name for d in desks})} is a desk directory that "
+        f"this enumeration skipped, so nothing below checks it"
+    )
+    assert desks, "no desks found; every test below would pass vacuously"
+
+    # AND A DESK THAT IS PART-WRITTEN FAILS BY NAME, NOT BY STACK TRACE. The
+    # filter above admits a directory the moment it has a SOURCES.md, and
+    # `record.load` then raises inside whichever test happened to reach it first
+    # -- so several sessions building desks into one tree turned "PROBLEMS.md has
+    # not been written yet" into a `RecordError` pointing at `record.py`, five
+    # times, with nothing naming the directory. The reader's first question is
+    # always which desk; answer it here.
+    incomplete = {d.name: [f for f in ("SOURCES.md", "PROBLEMS.md")
+                           if not (d / f).is_file()] for d in desks}
+    incomplete = {k: v for k, v in incomplete.items() if v}
+    if incomplete:
+        # RAISED, NOT ASSERTED, so the message is the one written here. Under
+        # pytest's assertion rewriting the locals are appended to the output, so
+        # a test checking that the directory is NAMED passed even after the name
+        # was taken out of the message -- the rewriting was supplying it. A test
+        # that cannot fail for the reason it claims to check is not a test.
+        raise AssertionError(
+            f"part-written desk(s): {incomplete}. A desk is loaded whole or not "
+            f"at all — finish it, or move it out of `desks/` until it is"
+        )
+    return desks
+
+
+def test_the_enumeration_names_a_part_written_desk(tmp_path):
+    """A desk half-written is the ordinary state of a tree several sessions are
+    building into, and it used to surface as a `RecordError` from `record.py`
+    repeated across five tests with the directory named in none of them."""
+    d = tmp_path / "half-done"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text("## S1 · x\n", encoding="utf-8")
+    with pytest.raises(AssertionError, match="part-written desk") as caught:
+        shipped_desks(tmp_path)
+    assert "half-done" in str(caught.value), (
+        "the message must name the directory — that is the reader's first "
+        "question and the whole reason this check exists")
+    assert "PROBLEMS.md" in str(caught.value), "and say what is missing"
+
+
+def test_the_enumeration_notices_a_desk_it_would_skip(tmp_path):
+    """The guard on the guard, which a mutation showed was missing.
+
+    Dropping the set comparison from `shipped_desks` broke nothing today — every
+    directory under `desks/` has a SOURCES.md, so the filter and the listing
+    agree. It breaks the day somebody adds a desk directory that does not, which
+    would then be skipped by every check below it, silently. So the case is
+    constructed rather than waited for.
+    """
+    (tmp_path / "real").mkdir()
+    (tmp_path / "real" / "SOURCES.md").write_text(GOOD_SOURCE, encoding="utf-8")
+    (tmp_path / "halfbuilt").mkdir()            # a desk directory with no sources
+    with pytest.raises(AssertionError, match="this enumeration skipped"):
+        shipped_desks(tmp_path)
+
+
+def test_the_enumeration_refuses_to_pass_vacuously(tmp_path):
+    """An empty `desks/` would make every check below it green while checking
+    nothing — the failure mode `check_record.py` states in its own docstring."""
+    with pytest.raises(AssertionError, match="pass vacuously"):
+        shipped_desks(tmp_path)
+
+
+def test_every_shipped_desk_passes_every_guard():
+    """The one that actually matters: the record in this repo is legal.
+
+    ENUMERATED FROM DISK, NEVER NAMED. This asserted `fixed-assets` by name, so
+    the second desk shipped unguarded — and the whole claim of the factory is
+    that a generated desk passes exactly the gates a hand-built one does. A test
+    that names its subject cannot make that claim about a desk added later.
+    """
+    for d in shipped_desks():
+        assert guards.check(d).name == d.name
+
+
+def test_every_shipped_desk_is_routable():
+    """A desk nothing routes to is a desk nobody asks. `SUBJECTS.md` is not read
+    by `guards.check`, so without this a desk can be legal and unreachable."""
+    import routing
+
+    for d in shipped_desks():
+        reg = routing.parse_subjects(
+            (d / "SUBJECTS.md").read_text(encoding="utf-8"), d.name)
+        assert reg.fires_on, f"{d.name} registers no subjects"
+
+
+def test_a_proposal_does_not_answer_on_any_shipped_desk():
+    """#245: the record must show that a proposal does not answer.
+
+    The cash desk ships with an unratified position drafted from what the firm
+    typed. If `position()` returned it, an agent's draft would be being served as
+    the firm's word — which is the one failure the two-store design exists to
+    make impossible.
+    """
+    proposals = [(d.name, q) for d in shipped_desks()
+                 for q in record.load(d).positions if q.proposed]
+    for name, q in proposals:
+        desk = record.load(DESKS / name)
+        assert desk.position(q.citation) is None, (
+            f"{name}/{q.id} is a proposal and it answered")
 
 
 # ── a judgement must not ride along inside an extraction ─────────────────────
@@ -115,6 +228,70 @@ def test_a_human_only_citation_with_no_position_is_not_authority(tmp_path):
         guards.check(d)
 
 
+# ── a storage permission is a claim about a licence, and carries its term ────
+
+def test_permission_to_store_with_no_licence_term_fails_the_build(tmp_path):
+    """`may_store` above `license_check` is a claim about somebody else's terms.
+
+    A claim with no term behind it is a guess that reaches outside this
+    repository, and the whole point of recording the permission per source is
+    that it was READ rather than assumed.
+    """
+    d = build(tmp_path, source=GOOD_SOURCE[:GOOD_SOURCE.index("\n\n**Why:**")] + "\n")
+    with pytest.raises(guards.GuardFailure, match="no 'Why'"):
+        guards.check(d)
+
+
+def test_license_check_needs_no_term_because_it_stores_nothing(tmp_path):
+    """The default is the one permission that needs no evidence."""
+    d = build(tmp_path,
+              source=(GOOD_SOURCE.replace("full_text", "license_check")
+                      .replace("\n\n**Why:** 17 U.S.C. § 105 places a work of "
+                               "the United States Government in the public "
+                               "domain.\n", "\n")),
+              passage=None, position=GOOD_POSITION)
+    assert guards.check(d)
+
+
+# ── the authority corpus must not be the answer key ──────────────────────────
+
+def test_a_corpus_that_is_exactly_the_answer_key_fails_the_build(tmp_path):
+    """Measured on fixed-assets, 4 Sep 2026: 21 problems, 21 stored passages,
+    the same citation on both sides. Citing correctly was an assignment puzzle,
+    so the run's citation number could not be read at all (#244)."""
+    two_problems = (GOOD_PROBLEM
+                    + "\n## P2 · y\n\n**Citation:** 26 CFR 2\n\n"
+                      "**Answer:** must capitalize\n\n**Facts:** g\n")
+    two_passages = (GOOD_PASSAGE
+                    + "\n## 26 CFR 2\n\n**Source:** S1 · "
+                      "**Checked:** 2026-09-04\n\n> must capitalize\n")
+    d = build(tmp_path, problem=two_problems, passage=two_passages)
+    with pytest.raises(guards.GuardFailure, match="authority corpus IS the answer key"):
+        guards.check(d)
+
+
+def test_one_rule_stored_beside_the_keyed_ones_is_enough(tmp_path):
+    """The bijection is the defect, not the overlap. A corpus that holds
+    anything the problems are not keyed to is retrieval again."""
+    two_problems = (GOOD_PROBLEM
+                    + "\n## P2 · y\n\n**Citation:** 26 CFR 2\n\n"
+                      "**Answer:** must capitalize\n\n**Facts:** g\n")
+    three_passages = (GOOD_PASSAGE
+                      + "\n## 26 CFR 2\n\n**Source:** S1 · "
+                        "**Checked:** 2026-09-04\n\n> must capitalize\n"
+                      + "\n## 26 CFR 3\n\n**Source:** S1 · "
+                        "**Checked:** 2026-09-04\n\n> some other rule\n")
+    d = build(tmp_path, problem=two_problems, passage=three_passages)
+    assert guards.check(d)
+
+
+def test_a_one_problem_tracer_is_exempt_because_there_is_nothing_to_assign(tmp_path):
+    """#221's tracer desk is one problem and one passage. That is a bijection
+    with no assignment in it, and failing it would make the guard fire on the
+    smallest honest desk there is."""
+    assert guards.check(build(tmp_path))
+
+
 # ── a problem the desk cannot support cannot be scored honestly ──────────────
 
 def test_a_problem_citing_authority_the_desk_lacks_fails_the_build(tmp_path):
@@ -146,3 +323,63 @@ def test_an_unratified_position_is_marked_proposed():
 def positions_parse(text):
     import positions
     return positions.parse(text)
+
+
+# ── a problem must be answerable with the answer the record gives it ─────────
+
+def test_every_problem_on_every_desk_is_answerable_from_its_own_record():
+    """THE CHECK THAT WOULD HAVE CAUGHT IT, and it applies to every desk.
+
+    A problem's recorded citation and recorded answer are what a perfect desk
+    would produce. Put those two through `engine.grade` and the result must be
+    `correct` — anything else means the record cannot be satisfied, so no brain
+    could ever score on that row and the denominator counts a problem nothing
+    can answer.
+
+    Measured on the cash desk before this existed: all four problems shared one
+    citation, so ratifying a position gave them one servable answer between them
+    and two of the four were refused as contradicting it — including the two
+    whose recorded answer was right. Every attempt at them, forever, would have
+    graded `wrong_caught`.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        for p in desk.problems:
+            r = engine.grade(
+                engine.Answer(position=p.answer, citation=p.citation), p, desk)
+            assert r.outcome in (engine.Outcome.CORRECT, engine.Outcome.ESCALATED), (
+                f"{d.name}/{p.id}: answering with the record's own citation and "
+                f"its own answer grades {r.outcome.value} ({r.reason}). The "
+                f"record cannot be satisfied, so nothing can ever score here."
+            )
+
+
+def test_a_desk_with_ratified_positions_is_not_beaten_by_escalating(fixed_assets):
+    """Escalating everything is the ceiling only while nothing is ratified.
+
+    On the cash desk before its positions were ratified, declining every
+    question scored a perfect 4 of 4 — the run could show a desk was not
+    reckless and nothing more. Once a position answers, the same behaviour
+    scores zero, and the number starts separating good from lazy. Asserted so
+    the collapse of that baseline is a fact rather than a claim in a docstring.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        ratified = [q for q in desk.positions if not q.proposed]
+        if not ratified:
+            continue
+        answerable = [p for p in desk.problems
+                      if any(q.citation == p.citation for q in ratified)]
+        assert answerable, f"{d.name} ratified a position no problem rests on"
+        scored = sum(
+            1 for p in answerable
+            if engine.grade(engine.Answer(position="", escalated=True,
+                                          reason="authority_permits_choice"),
+                            p, desk).outcome is engine.Outcome.CORRECT)
+        assert scored == 0, (
+            f"{d.name}: declining every question still scored {scored} of "
+            f"{len(answerable)} on problems a ratified position answers")
