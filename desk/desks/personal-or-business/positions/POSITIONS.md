@@ -64,6 +64,26 @@ The firm's own reading, that a contractor might legitimately shop where the
 preparer would not expect, is the same proposition from the other end: the seller
 narrows what was probably bought and settles nothing.
 
+**WHAT THIS DOES NOT REACH, AND IT IS THE CASE THAT PROMPTED THE DESK.**
+§ 1.262-1(b)(8) is written about **members of the armed services** and nothing
+else. Every sentence of it — the equipment test, the sword, the uniform, the
+reservist — is that paragraph's subject. It is the clearest statement anywhere in
+this desk's corpus of the principle that the item and the profession decide and
+the seller does not, and PB4/PB5 prove a desk can hold that principle without
+reasoning from a vendor.
+
+It is **not** the authority that decides whether a contractor's shirt is
+deductible. That question runs through § 162's "ordinary and necessary" and the
+adaptability-to-general-wear line of cases, and **this desk holds neither**. So
+what is proposed here is the SHAPE of the argument, demonstrated on the
+regulation's own facts. Ratifying it as a general rule about clothing would be
+ratifying a reading of a paragraph that is not about clothing in general — which
+is the same move as reasoning from the vendor, made one level up.
+
+A desk that closes the contractor case needs § 162 and the case law. Until it has
+them, the honest outcome on a contractor's clothing is POS2: flag it and ask what
+was bought.
+
 ---
 
 ## POS2 · Where the rule is clear and what was bought is not, flag it and ask

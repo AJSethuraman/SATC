@@ -159,3 +159,70 @@ def test_every_filed_question_kept_its_reasoning():
     bare = [u.id for u in unsupported.parse(queue.read_text(encoding="utf-8"))
             if not u.working.strip()]
     assert bare == [], f"{bare} were filed with no working"
+
+
+# ── does a real question reach the desk built for it ─────────────────────────
+
+#: The desk each question was commissioned to answer. Written down because it is
+#: the only ground truth available: without it, "the question routed somewhere"
+#: is indistinguishable from "the question routed correctly".
+COMMISSIONED = {
+    1: "vehicle-expense", 2: "vehicle-expense", 3: "vehicle-expense",
+    17: "vehicle-expense",
+    4: "capitalization-and-de-minimis", 16: "capitalization-and-de-minimis",
+    18: "capitalization-and-de-minimis",
+    5: "meals-and-entertainment", 6: "meals-and-entertainment",
+    7: "meals-and-entertainment", 13: "meals-and-entertainment",
+    8: "personal-or-business", 31: "personal-or-business",
+    33: "personal-or-business", 34: "personal-or-business",
+    35: "personal-or-business",
+}
+
+
+def _asked() -> dict[int, str]:
+    """Each question as the close actually wrote it. NOT rephrased.
+
+    Rephrasing to help a match is how a router passes a test and fails a person.
+    Measured while building: "Where is the line between a tool and a fixed
+    asset?" routed to NO desk, while "what is our capitalisation threshold"
+    routed correctly -- same question, and only one of them was ever asked.
+    """
+    text = CORPUS.read_text(encoding="utf-8")
+    titles = {int(m.group(1)): m.group(2)
+              for m in re.finditer(r"^\*\*Q(\d+) · (.+?)\*\*$", text, re.M)}
+    why = {int(m.group(1)): m.group(2).split("\n")[0] for m in
+           re.finditer(r"^\*\*Q(\d+) · .+?\*\*\n\*Why it matters:\* (.+?)$",
+                       text, re.M)}
+    return {n: f"{t}. {why.get(n, '')}" for n, t in titles.items()}
+
+
+def test_every_commissioned_question_reaches_its_own_desk():
+    """16 of 16, on the close's own words. A desk that answers the question
+    nobody asked in those words is a desk nobody reaches."""
+    import routing
+
+    regs = routing.registry(Path(__file__).resolve().parents[1] / "desks")
+    asked = _asked()
+    missed = [n for n, desk in sorted(COMMISSIONED.items())
+              if desk not in {r.desk for r in routing.route(asked[n], regs)}]
+    assert missed == [], (
+        f"Q{missed} no longer reach the desk built for them; either a subject "
+        f"was removed or the question's own wording drifted from the corpus")
+
+
+def test_the_spurious_firing_is_recorded_rather_than_believed():
+    """A question reaching a desk with nothing to say costs a round trip, not a
+    wrong answer — but it is a real cost and it is the number a better router has
+    to beat. Pinned loosely: this fails when it roughly doubles, not when one
+    subject is added, because a hard equality here would be a test nobody could
+    change a desk without editing."""
+    import routing
+
+    regs = routing.registry(Path(__file__).resolve().parents[1] / "desks")
+    asked = _asked()
+    extra = sum(len({r.desk for r in routing.route(asked[n], regs)} - {desk})
+                for n, desk in COMMISSIONED.items())
+    assert extra <= 28, (
+        f"{extra} spurious desks fire across {len(COMMISSIONED)} questions; it "
+        f"was 14 when measured on 5 September 2026. Routing has got much noisier "
+        f"— see docs/ROUTING-MEASURED-2026-09-05.md before raising this")
