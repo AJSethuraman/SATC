@@ -35,6 +35,19 @@ from satc.persistence import export_mart_to_excel
 _LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
+def _working_year_now() -> int:
+    """The tax year the practice is on, derived rather than assumed.
+
+    One helper so the header, the export and the billing screen cannot disagree
+    about which year the owner is in the middle of.
+    """
+    from datetime import date
+
+    from satc.app.today_views import working_tax_year
+    rows = list(STATE.received_documents()) + list(STATE.requested_items())
+    return working_tax_year(rows, date.today())
+
+
 def _resolve_secret_key() -> bytes:
     """Per-install random Flask secret (persisted, 0600), overridable via env.
 
@@ -87,7 +100,15 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"state": STATE, "outstanding": len(STATE.outstanding())}
+        # THE HEADER SAID `TY2024` AS A HARDCODED LITERAL, on every screen of the
+        # app, in September 2026. `working_tax_year` has existed the whole time
+        # and its own docstring says why -- "rather than hardcoded, because a
+        # constant here goes stale silently". The header was that constant.
+        #
+        # Walked past it about forty times on 5 September 2026 without seeing it:
+        # it is in the corner of every screenshot taken that night.
+        return {"state": STATE, "outstanding": len(STATE.outstanding()),
+                "working_year": _working_year_now()}
 
     @app.route("/")
     def dashboard():
@@ -286,7 +307,7 @@ def create_app() -> Flask:
     @app.route("/export")
     def export():
         out = Path(STATE.store.dir) / "SATC_DataMart_export.xlsx"
-        export_mart_to_excel(STATE.store, out)
+        export_mart_to_excel(STATE.store, out, tax_year=_working_year_now())
         return send_file(out, as_attachment=True, download_name="SATC_DataMart.xlsx")
 
     # --- JSON API: withholding compute (localhost, stateless, no PII) ---

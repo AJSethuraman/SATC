@@ -37,7 +37,7 @@
     <div class="topbar">
       <h1>{{ header or title }}</h1>
       <span class="tag">{{ tagline or '"Complex work, made clear."' }}</span>
-      <span class="who">A. Sethuraman · TY2024</span>
+      <span class="who">A. Sethuraman · TY{{ working_year }}</span>
     </div>
     {% if state.has_sample_data() %}
     <div class="samplebar">
