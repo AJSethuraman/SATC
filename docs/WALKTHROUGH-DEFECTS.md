@@ -14,6 +14,28 @@ gitignored. Two of the firm's own app instances were already running on ports
 5050 and 5051 against the real stores; neither was touched. The walk ran on
 ports 57986 and 5061.
 
+## Where this stands — reconciled against `main`, 5 September 2026
+
+**25 fixed, 1 withdrawn, 7 open** of 33.
+
+Every heading below carries its state, and a fixed one names the commit on
+`main` that closed it. This section exists because for most of a day the
+register said nothing about what had been fixed: a dozen defects were closed and
+merged while their entries still read as open, which is how the next session
+re-does work somebody already did.
+
+**One entry was marked closed wrongly during that reconciliation and corrected.**
+D21 was matched to #267 on the strength of the commit subject; #267 is what D21
+*contradicts*. Reading the entry rather than the subject line is what caught it,
+and it is recorded here rather than quietly fixed, because a register nobody can
+audit is worth about as much as no register.
+
+Still open: **D22, D23, D21, D25, D26, D15, D17**.
+
+Two of those are not mine to close — **D26** (what an intake folder scan may
+honestly claim about how a document was obtained) and the final invoice derived
+from the filed return, which is decision **C** in `LOG.md`.
+
 ## The denominator
 
 | Suite | Result | Caught any of these |
@@ -32,7 +54,9 @@ tests is red because of any of them.
 
 Ranked by what each would cost a real client.
 
-## D1 · Documents post to whichever client the app was last looking at
+## D1 · Documents post to whichever client the app was last looking at — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **CRITICAL.** Intake's folder scan never asks whose documents these are, and
 `Post confirmed → workpaper & data mart` writes them to a client the preparer
@@ -74,7 +98,9 @@ D11).
 it does, `run_intake` should require `client_id` rather than default it, and the
 post should refuse rather than fall back.
 
-## D1b · …and to tax year 2024, whatever the document says
+## D1b · …and to tax year 2024, whatever the document says — **FIXED**
+
+> Closed on `main` by `ab71cd8` — *Two hardcoded 2024s: one on every screen, one on the doors a model uses*.
 
 **CRITICAL**, same line. `tax_year: int = 2024` is defaulted the same way.
 Every PDF I scanned is a **2025** form — `Form W-2 … 2025`, `Form 1099-INT …
@@ -85,7 +111,9 @@ silence.
 
 ![posted to the wrong client](walkthrough/satc-front-to-back-2026-09-05/defect-04-posted-to-wrong-client.jpg)
 
-## D2 · A correction that is not a number is silently thrown away
+## D2 · A correction that is not a number is silently thrown away — **FIXED**
+
+> Closed on `main` by `4372823` — *A correction that is not a number is refused, not absorbed*.
 
 **CRITICAL.** The preparer's confirmed value is discarded and the machine's
 original read is posted in its place, while the screen goes on showing the
@@ -103,7 +131,9 @@ They get a screen saying their value is confirmed, and a workpaper carrying the
 number they meant to replace. This is the worst shape a data defect can take:
 the record and the display disagree, and the display is the reassuring one.
 
-## D3 · Money fields accept arbitrary text, and keep the machine's HIGH badge
+## D3 · Money fields accept arbitrary text, and keep the machine's HIGH badge — **FIXED**
+
+> Closed on `main` by `4372823` — *A correction that is not a number is refused, not absorbed*.
 
 **HIGH.** Typing `not a number` into *Box 1 — Wages, tips, other comp* and
 pressing **Save** is accepted without complaint. The row then reads `not a
@@ -113,7 +143,9 @@ describing something no longer on the row.
 
 ![a money field holding text](walkthrough/satc-front-to-back-2026-09-05/defect-03-money-field-accepts-text.jpg)
 
-## D4 · A folder that does not exist returns six documents
+## D4 · A folder that does not exist returns six documents — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **HIGH.** `/intake` → **Scan folder** on a path that is not on the disk gives a
 confident, itemised, wrong answer instead of saying the folder is missing.
@@ -139,7 +171,9 @@ preview and the read disagree, and the preview is the one with the button on it.
 
 ![six documents in a folder that isn't there](walkthrough/satc-front-to-back-2026-09-05/defect-02-intake-invented-path.jpg)
 
-## D5 · "Pick a client first" — on a screen with no way to pick a client
+## D5 · "Pick a client first" — on a screen with no way to pick a client — **FIXED**
+
+> Closed on `main` by `8bb9b72` — *An engagement belongs to somebody, and nothing used to check*.
 
 **HIGH.** `/intake/plan` opens with *"Pick a client first — a plan is for
 somebody, and the rate plan and the filing history are read off them."* The page
@@ -156,7 +190,9 @@ against answers no client ever gave.
 
 ![a plan for nobody](walkthrough/satc-front-to-back-2026-09-05/defect-05-plan-renders-with-no-client.jpg)
 
-## D6 · And then it will generate the engagement anyway
+## D6 · And then it will generate the engagement anyway — **FIXED**
+
+> Closed on `main` by `8bb9b72` — *An engagement belongs to somebody, and nothing used to check*.
 
 **CRITICAL**, and the consequence of D5. On that clientless plan, **Generate
 this engagement →** is live. Pressing it created a real, stored engagement —
@@ -217,7 +253,9 @@ the preparer can see what the document said.
 move, marks the result PREPARER_ENTRY at HIGH, and clears every model taint —
 without the check there, the correction screen is the way around the reader's.
 
-## D10 · A missing folder and an empty folder are both reported as nothing at all
+## D10 · A missing folder and an empty folder are both reported as nothing at all — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **MEDIUM**, and it is the other half of D4. With the sample data cleared — the
 state a real practice runs in — pressing **Scan folder** on
@@ -252,7 +290,9 @@ created is assigned `SATC-001000`, which is a demo id, so the practice's own
 client is detected as sample data for ever. The banner then invites them to
 press **Clear sample data**, which is a button that deletes their client.
 
-## D20 · The invoice says no discount is agreed while applying a 60% discount
+## D20 · The invoice says no discount is agreed while applying a 60% discount — **FIXED**
+
+> Closed on `main` by `4ff0f37` — *The invoice says which plan it is applying, not only which was agreed*.
 
 **CRITICAL.** One screen, two elements, flatly contradicting each other about
 money.
@@ -289,7 +329,9 @@ on the same build, which refuses beautifully — *"That ref was not recorded —
 
 ![no plan agreed, 60% applied](walkthrough/satc-front-to-back-2026-09-05/defect-20-discount-contradiction.jpg)
 
-## D24 · "Load client" does not load the one field it promises to load
+## D24 · "Load client" does not load the one field it promises to load — **FIXED**
+
+> Closed on `main` by `2327389` — *"Load client" loads the one field it promises to load*.
 
 **HIGH**, because filing status drives the brackets and the standard deduction.
 
@@ -396,6 +438,11 @@ was retired by the firm's own docket decision.** Whatever collection is called
 now, this sentence sends the reader to a product that no longer exists.
 
 ## D21 · The invoice bills the 1040 from the catalogue that #267 said does not price it
+
+> **OPEN.** Reconciling this register on 5 Sep 2026 I first marked this closed by
+> `67cdc38` (#267) on the strength of the commit subject. That is backwards:
+> **#267 is what this defect contradicts, not what fixed it.** Reading the entry
+> rather than the subject line is what caught it.
 
 **HIGH**, and it is the seam #267 was about.
 
@@ -524,7 +571,9 @@ chase."* That is good judgement. The headline is just the wrong sentence for it:
 five things **are** outstanding, and none is **due to be chased**. *"Nothing to
 chase yet"* would be true; *"Nothing outstanding"* is not.
 
-## D13 · Every interview question defaults to "No", and the file records it as the client's answer
+## D13 · Every interview question defaults to "No", and the file records it as the client's answer — **FIXED**
+
+> Closed on `main` by `52c9691` — *A question nobody asked is not a question answered "no"*.
 
 **HIGH**, and the risk questions are the reason.
 
@@ -550,7 +599,9 @@ Priya was never asked. The form answered for her, and the printout presents it
 as her answer. Foreign accounts and digital assets are two of the questions
 where a wrong "no" carries its own penalty regime.
 
-## D14 · "0 RISK FLAGS" is a green that cannot go red
+## D14 · "0 RISK FLAGS" is a green that cannot go red — **FIXED**
+
+> Closed on `main` by `52c9691` — *A question nobody asked is not a question answered "no"*.
 
 **HIGH**, and it is D13's consequence. The engagement scoreboard shows **0 RISK
 FLAGS**, and the internal checklist prints *"No risk flags generated."*
