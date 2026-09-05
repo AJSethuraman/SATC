@@ -177,6 +177,20 @@ class Registration:
     #: the firm rather than inferred by anybody. `fires_on` is its union, so the
     #: two cannot drift: there is no second list to forget to update.
     answered_from: dict = field(default_factory=dict)
+    #: `{citation: subjects}` — the FINER declaration, and it is optional.
+    #:
+    #: A source-level mapping cannot separate two rules that live in one source,
+    #: and the cash desk holds exactly that: the timing rule and the correction
+    #: rule are both Publication 583, with opposite answers. So `serve()` would
+    #: hand back "no entry in the books" for an unentered bank charge if given
+    #: the timing citation -- the right source, the wrong paragraph, stamped
+    #: checked. Measured 5 September 2026; it is why this exists.
+    #:
+    #: NARROWING ONLY, WHICH IS WHAT MAKES IT SAFE TO ADD. A desk that declares
+    #: none of these behaves exactly as it did, so the cost of the new gate can
+    #: only ever be paid by a desk that opted into it. The shape it replaces was
+    #: chosen on a measurement and this one has to earn its place the same way.
+    answered_by: dict = field(default_factory=dict)
 
 
 def parse_subjects(text: str, desk_name: str) -> Registration:
@@ -206,6 +220,16 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
             f"routes to is a desk nobody asks -- and a subject with no source "
             f"named is one no citation can be checked against."
         )
+
+    # THE CITATION IS FENCED IN BACKTICKS BECAUSE IT CONTAINS COMMAS. A real
+    # citation reads `IRS Pub. 583 (12/2024), "Reconciling the checking
+    # account" -- what the books are updated for`, and the subject list on the
+    # same line is comma-separated. Written without a fence, the citation's own
+    # comma would split it into a citation nothing matches and a subject nobody
+    # meant -- the same defect that turned `$2,500` into `$2` and `500`.
+    by_citation = re.findall(
+        r"^\*\*Answered by `([^`]+)`:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+        block, re.M | re.S)
 
     answered_from, order = {}, []
     for source_id, listed in declared:
@@ -245,6 +269,30 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
                 f"list wins would be decided by file order")
         answered_from[source_id] = terms
         order.extend(t for t in terms if t not in order)
+
+    answered_by = {}
+    for citation, listed in by_citation:
+        terms = tuple(t.strip().lower()
+                      for t in " ".join(listed.split()).split(",") if t.strip())
+        if not terms:
+            raise RecordError(
+                f"{desk_name}: 'Answered by `{citation}`' names no subjects")
+        if citation in answered_by:
+            raise RecordError(
+                f"{desk_name}: 'Answered by `{citation}`' appears twice; which "
+                f"list wins would be decided by file order")
+        # EVERY TERM MUST ALREADY BE A SUBJECT OF THIS DESK. This is a NARROWING
+        # of the source-level declaration, so a term appearing only here would
+        # widen what the desk fires on through a back door -- and `fires_on` is
+        # the union of the source lines precisely so there is no second list.
+        unknown = sorted(set(terms) - set(order))
+        if unknown:
+            raise RecordError(
+                f"{desk_name}: 'Answered by `{citation}`' names {unknown}, which "
+                f"no 'Answered from' line declares. A per-citation line narrows "
+                f"what a source already answers; it cannot introduce a subject."
+            )
+        answered_by[citation] = terms
     # THE DIRECTORY IS THE IDENTITY. A typo or stale name in the heading became
     # `Registration.desk`, so routing still matched while
     # `refusal_naming_the_desk()` sent the caller to a desk that does not exist
@@ -261,6 +309,7 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
         title=head.group(2).strip(),
         fires_on=tuple(order),
         answered_from=answered_from,
+        answered_by=answered_by,
     )
 
 
@@ -282,6 +331,10 @@ class Desk:
     #: desk declares none, and the engine then says it could not check rather
     #: than passing the answer as verified.
     fires_on: tuple[str, ...] = field(default_factory=tuple)
+    #: `{citation: subjects}` — the optional per-citation NARROWING of
+    #: `answered_from`. See `Registration.answered_by` for why it exists and
+    #: why it may only ever narrow.
+    answered_by: dict = field(default_factory=dict)
     #: `{source_id: subjects}` from SUBJECTS.md — see `Registration`.
     answered_from: dict = field(default_factory=dict)
     sources: tuple[Source, ...] = field(default_factory=tuple)
@@ -562,10 +615,22 @@ def load(desk_dir: Path) -> Desk:
             )
 
     subjects = desk_dir / "SUBJECTS.md"
-    fires_on, answered_from = (), {}
+    fires_on, answered_from, answered_by = (), {}, {}
     if subjects.is_file():
         reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
         fires_on, answered_from = reg.fires_on, reg.answered_from
+        answered_by = reg.answered_by
+        # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
+        # for those subjects and reads as a strict desk -- the same failure the
+        # source-level check was given, for the same reason.
+        held = {q.citation for q in passages} | {q.citation for q in pos}
+        missing = sorted(set(answered_by) - held)
+        if missing:
+            raise RecordError(
+                f"{desk_dir.name}/SUBJECTS.md narrows subjects to {missing}, "
+                f"which this desk holds no passage or position for. A narrowing "
+                f"to a citation that does not exist refuses every answer for "
+                f"those subjects.")
         unknown = sorted(set(answered_from) - {s.id for s in sources})
         if unknown:
             raise RecordError(
@@ -577,6 +642,7 @@ def load(desk_dir: Path) -> Desk:
         name=desk_dir.name,
         fires_on=fires_on,
         answered_from=answered_from,
+        answered_by=answered_by,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

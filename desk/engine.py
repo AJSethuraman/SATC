@@ -282,6 +282,32 @@ def cited_off_source(answer: Answer, desk: Desk, question: str,
     if source is None:
         backing = desk.authority_for(answer.citation)
         source = backing[2] if backing is not None else None
+    # THE FINER DECLARATION FIRST, AND ONLY WHERE THE DESK MADE ONE (M8).
+    #
+    # A source-level mapping cannot separate two rules living in one source, and
+    # the cash desk holds exactly that pair: the timing rule and the correction
+    # rule, both Publication 583, opposite answers. Measured 5 September 2026 --
+    # handed CB4's facts and the TIMING citation, `serve()` returned "a
+    # reconciling item, no entry in the books" with `checked_subject=True`. The
+    # right source. The wrong paragraph. The opposite treatment.
+    #
+    # It narrows and never widens: only the asked subjects a desk has actually
+    # declared per citation are gated, so a desk declaring none is unaffected and
+    # the cost of this gate can only be paid by a desk that opted in.
+    covered = [t for t in asked
+               if any(t in terms for terms in desk.answered_by.values())]
+    if covered:
+        narrowed = {c for c, terms in desk.answered_by.items()
+                    if any(t in covered for t in terms)}
+        if answer.citation not in narrowed:
+            named = ", ".join(sorted(narrowed))
+            return True, (
+                f"the question is about {', '.join(covered)}, which this desk "
+                f"answers at {named}; {answer.citation!r} is a different rule in "
+                f"the same source. Two paragraphs of one publication can carry "
+                f"opposite answers, and the source alone cannot tell them apart"
+            )
+
     if source is None or source.id in allowed:
         return False, ""
     cited = source.id
