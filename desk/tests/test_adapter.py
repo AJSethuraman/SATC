@@ -416,3 +416,43 @@ def test_a_refusal_reaching_outside_the_desk_is_not_counted_as_a_near_miss(tmp_p
     counts = sr.queue_refusals(desk, run, {p.id: answer},
                                tmp_path / "UNSUPPORTED.md")
     assert counts == {"filed": 1, "near_miss": 0}
+
+
+# ── what a brain may offer must track what the engine accepts ────────────────
+
+#: The reasons a brain CANNOT observe about itself, named here so the relation
+#: below is derived from the engine's set rather than restated beside it.
+#:
+#: The two fetch reasons describe our own egress and the source's origin;
+#: `contradicts_ratified_position` is the engine comparing an answer against the
+#: firm's words, which the brain has not been shown; and `model_gave_up` is the
+#: harness's word for an abandoned run, never a choice.
+UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
+                "contradicts_ratified_position", "model_gave_up"}
+
+
+def test_a_brain_is_offered_every_reason_it_could_observe():
+    """DERIVED FROM `engine.REASONS`, not listed beside it.
+
+    A reason the engine accepts and the prompt never mentions is one no brain
+    will ever use — it exists in the vocabulary and not in the language. Adding
+    `facts_not_established` to the engine while leaving `OFFERABLE` alone broke
+    nothing and would have shipped a reason nothing could reach; this is what
+    caught it, and it goes red for the next one too.
+    """
+    assert set(sr.OFFERABLE) == set(engine.REASONS) - UNOBSERVABLE, (
+        f"offered but not accepted: "
+        f"{sorted(set(sr.OFFERABLE) - set(engine.REASONS))}; "
+        f"accepted, observable, and never offered: "
+        f"{sorted(set(engine.REASONS) - UNOBSERVABLE - set(sr.OFFERABLE))}"
+    )
+
+
+def test_the_offered_reasons_reach_the_prompt(): 
+    """And the set is not merely computed — it is printed where a brain reads
+    it. `build_prompt` renders `OFFERABLE` into the template; a set that never
+    reached the text would satisfy the test above and change nothing."""
+    desk = record.load(DESK)
+    prompt = sr.build_prompt(desk.problems[0], desk, shape="index")
+    for reason in sr.OFFERABLE:
+        assert reason in prompt, f"{reason} is offered but never shown"

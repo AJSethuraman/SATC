@@ -781,6 +781,44 @@ read from a plugin cache that keys on the marketplace number.
 
 ---
 
+## 5 September 2026 — two sessions' canon work met in a merge
+
+`main` reached **1.10.0** on another session's work — the `walk` and `tie-out`
+skills — while this branch carried **C14** at 1.8.0 and had not merged. Bringing
+`main` in produced a record that was the union of both and that **neither release
+had hashed**, so `test_the_version_says_what_the_record_actually_contains` went
+red on the merge commit.
+
+That is the check doing precisely its job. Nothing was wrong with either side;
+what was wrong was a version claiming to describe a record that had grown since
+it was stamped. **1.10.0 → 1.11.0**, digest re-released.
+
+Worth recording because it will happen again: two sessions can each release
+correctly and still leave `main` holding a record no version describes, and the
+only thing that notices is a digest computed over what actually ships.
+
+---
+
+## 5 September 2026 — it happened again, on the same day, at the same number
+
+The entry above said it would. Two sessions each cut **1.11.0** — one carrying
+C14 and the desk work, one carrying the tie-out and walk deliverables — and the
+merge produced a record that is the union of both, described by neither. Same
+shape, same afternoon, and the digest caught it again.
+
+**1.11.0 → 1.12.0**, re-released over the union, with the other session's
+`release.py` fix in it: it sorted `Path` objects, which compare
+case-insensitively on Windows and byte for byte on Linux, so the same commit
+hashed two ways depending on the machine. Their ordering by path text is the
+correct one and is what this release is computed with.
+
+What the two entries together say is that a version number is not a lock. Two
+sessions can both be right, both release correctly, and still leave a record no
+version describes — and the only thing standing between that and a silently
+stale plugin is a digest computed over what actually ships.
+
+---
+
 ## 5 September 2026 — the deliverable was the thing that was wrong
 
 `tie-out` and `walk` both told a session what to prove and neither told it what

@@ -35,6 +35,30 @@ from record import (RecordError, _blocks, _date, _field, _inline,
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 
+#: What an EMPTY citation looks like on the page, in ONE place because render
+#: and parse both need it and two copies of a sentinel drift. Written literally
+#: in `render` and not recognised by `parse`, an entry with no citation came
+#: back carrying the words "(none offered)" as its citation -- so
+#: `_same_refusal`, which compares that field, stopped matching the entry it had
+#: just written, and the idempotency guard would file the same finding twice.
+NO_CITATION = "(none offered)"
+
+#: WHAT A QUESTION MAY FAIL FOR, and the reason this is a closed set rather than
+#: a string. `failed_because` is one of only two fields `render` writes into
+#: Markdown structure UNESCAPED, and the docstring there says why that is safe:
+#: it is a closed vocabulary. `from_refusal` gets it from the engine, which
+#: validates. `from_question` is a NEW front door that took it from a caller
+#: with a default and no check, so the premise the escape rule rests on stopped
+#: being true the moment that function was added -- `because="authority_absent\n
+#: ## U99 · injected"` writes a queue `parse()` then refuses to read, and an
+#: ordinary typo files the entry under a category nothing counts.
+#:
+#: It is the two a question can honestly be in. The rest of `engine.REASONS`
+#: describe an ANSWER that was tried -- uncited, unsupported, contradicted --
+#: and a question has not been answered. `test_unsupported` proves this is a
+#: subset of the engine's set, so the two cannot drift apart.
+QUESTION_REASONS = ("authority_absent", "facts_not_established")
+
 
 @dataclass(frozen=True)
 class Unsupported:
@@ -89,7 +113,7 @@ class Unsupported:
             "**Concluded:**", "", *_quote(self.concluded),
             "",
             "**Believed authority:**", "",
-            *_quote(self.believed_authority or "(none offered)"),
+            *_quote(self.believed_authority or NO_CITATION),
         ]
         if self.falls_under:
             lines += ["", f"**Falls under:** {_oneline(self.falls_under)}"]
@@ -114,12 +138,17 @@ def parse(text: str) -> list[Unsupported]:
             failed_because=_inline(block, "Failed because", where),
             recorded=_date(_inline(block, "Recorded", where), "recorded", where),
             concluded=_quoted(block, "Concluded", where),
-            believed_authority=_quoted(block, "Believed authority", where),
+            believed_authority=_uncite(_quoted(block, "Believed authority", where)),
             falls_under=_field(block, "Falls under", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
     return out
+
+
+def _uncite(value: str) -> str:
+    """The sentinel back to the empty string it stands for. See `NO_CITATION`."""
+    return "" if value.strip() == NO_CITATION else value
 
 
 def _oneline(value: str) -> str:
@@ -152,18 +181,24 @@ def _quoted(block: str, label: str, where: str = "") -> str:
     return "\n".join(out)
 
 
-PREAMBLE = """# Unsupported — answers the engine would not serve, kept with their reasoning
+PREAMBLE = """# Unsupported — what the desk could not answer, kept with the reasoning
 
 **Retained is not accepted.** Nothing here was returned to a caller and nothing
 here is counted as correct. It is kept because a refusal is a finding, and the
 reasoning behind it is the best evidence of what this desk's record is missing.
 
-Three resolutions, none automatic, all by pull request:
+Two things land here and they read differently. An **answer the engine refused**
+carries what was concluded and what it cited. A **question nobody has answered**
+— an agent that stopped mid-close and wrote down what it needed — carries no
+conclusion at all, and `Concluded` says so rather than being left blank.
+
+Four resolutions, none automatic, all by pull request:
 
 | What the reasoning shows | Resolution |
 |---|---|
 | Real authority that was never loaded | promote to a **source** |
 | A defensible call the rules do not settle | promote to a **position**, in the firm's words |
+| The rule is clear and a FACT is missing | **ask the client.** No amount of authority closes it |
 | An invention | leave it. Its visibility *is* the finding |
 
 A queue that only grows is a desk nobody is feeding.
@@ -237,6 +272,52 @@ def next_id(existing: list[Unsupported]) -> str:
     used = {int(m.group(1)) for u in existing
             if (m := re.fullmatch(r"U(\d+)", u.id))}
     return f"U{max(used, default=0) + 1}"
+
+
+def from_question(question: str, *, why: str = "", model: str = "",
+                  because: str = "authority_absent",
+                  existing: list[Unsupported] | None = None,
+                  today: str | None = None) -> Unsupported:
+    """A question nobody has answered yet. The front door for a stuck agent.
+
+    `from_refusal` needs an answer and a grade, because it records a desk that
+    TRIED. This records one that could not start: an agent working a close, or a
+    person at the desk, holding a question the record has nothing to say about.
+
+    THE QUEUE ALREADY KNOWS WHAT TO DO WITH IT. Its three resolutions are the
+    three things a stuck question can turn out to be -- authority that exists and
+    was never loaded, a call the rules do not settle, or a thing nobody should be
+    asking -- and each is promoted by pull request, never automatically. So a
+    stuck agent's questions land where the resolution path already is, rather
+    than in a list somebody has to re-read.
+
+    `because` defaults to `authority_absent`, which is the honest reading of "no
+    desk holds this": the resolution is to add the authority, cited. Pass
+    `facts_not_established` where the rule is clear and what is missing is a fact
+    -- what was bought, which entity, which period -- because that resolves by
+    ASKING rather than by loading anything.
+
+    NOTHING HERE IS AN ANSWER, and the queue's own rule holds: an entry is never
+    returned to a caller and never counted as correct. Retained is not accepted.
+    """
+    if because not in QUESTION_REASONS:
+        raise RecordError(
+            f"a question fails for one of {', '.join(QUESTION_REASONS)}, not "
+            f"{because!r}. The rest of the engine's reasons describe an answer "
+            f"that was tried, and this field is written into the queue "
+            f"unescaped because it is a closed vocabulary"
+        )
+    existing = existing or []
+    return Unsupported(
+        id=next_id(existing),
+        question=question,
+        concluded="(nothing offered — this is a question, not an answer)",
+        believed_authority="",
+        failed_because=because,
+        recorded=today or date.today().isoformat(),
+        model=model,
+        working=why,
+    )
 
 
 def from_refusal(question: str, answer, result, *, model: str = "",

@@ -13,8 +13,8 @@ import pytest
 
 import engine
 import record
-from conftest import NetworkUsed
-from engine import (Answer, EngineError, Outcome, REASONS, grade, report,
+from conftest import DESKS, NetworkUsed
+from engine import (Answer, EngineError, Outcome, REASONS, Refusal, grade, report,
                     serve, tally)
 
 
@@ -252,7 +252,7 @@ def test_agreeing_with_the_position_serves_the_firms_own_wording(tmp_path):
     """Not the model's restatement of it, however close. The engine disposes."""
     desk = _human_only_desk(tmp_path, position="not required to capitalize")
     served = serve(Answer(position="  NOT REQUIRED TO CAPITALIZE  ",
-                          citation="ASC 360-10"), desk)
+                          citation="ASC 360-10"), desk, question="a question")
     assert served, f"a matching position should serve: {served}"
     assert served.position == "not required to capitalize"
 
@@ -343,3 +343,373 @@ def test_nothing_but_an_escalation_records_who_escalated(fixed_assets, problem):
                      problem, fixed_assets)
     assert r.outcome is engine.Outcome.CORRECT
     assert r.escalated_by == ""
+
+
+# ── the reason set had nothing for a missing FACT ────────────────────────────
+
+def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, problem):
+    """The firm, 5 September 2026, on an agent that called a client's J.Crew
+    purchases personal: "no matter what, its answer was wrong."
+
+    The lookup was not the error — knowing J.Crew sells clothing is real evidence
+    about WHAT WAS BOUGHT. The error was going from "sells clothing" to "personal
+    expense" without reaching the test, which asks whether an item is "especially
+    required by his profession and does not merely take the place of articles
+    required in civilian life" and contains no vendor test at all.
+
+    What the firm does instead: "i could even flag it to ask the client." That
+    outcome was inexpressible — every other reason in the set is about the
+    authority, and none about the facts the authority asks for.
+    """
+    r = grade(Answer(position="", escalated=True,
+                     reason="facts_not_established",
+                     working="the rule is 1.262-1(b)(8); ask what was bought"),
+              problem, fixed_assets)
+    assert r.outcome is Outcome.ESCALATED
+    assert r.reason == "facts_not_established"
+    assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
+
+
+def test_every_reason_but_one_is_about_authority_rather_than_facts():
+    """The gap, asserted so it cannot quietly reopen.
+
+    `facts_not_established` is the only reason in the set that is about what the
+    rule asks for rather than about the rule. If it is removed, or if the set
+    grows another facts-shaped reason without anyone noticing, this says so.
+    """
+    about_facts = {"facts_not_established"}
+    assert about_facts <= set(REASONS), (
+        "the set has nothing for a rule that is clear and a fact that is missing; "
+        "a desk in that position can only guess or blame the record")
+    about_authority = set(REASONS) - about_facts - {"model_gave_up"}
+    assert all(
+        w in r for r in about_authority
+        for w in ("authority", "citation", "source", "position")
+        if w in r), "unreachable; the loop below is the real assertion"
+    for r in about_authority:
+        assert any(w in r for w in ("authority", "citation", "source", "position")), (
+            f"{r!r} is neither about the authority nor named as being about the "
+            f"facts; the set's two halves have to stay legible")
+
+
+def test_a_reason_outside_the_closed_set_is_still_refused(fixed_assets, problem):
+    """The control. Adding one reason must not have opened the set."""
+    with pytest.raises(EngineError, match="not one of"):
+        grade(Answer(position="", escalated=True, reason="ask_the_client"),
+              problem, fixed_assets)
+
+
+# ── #266: serve() could not judge a citation because it never saw the question ─
+
+def test_serving_requires_the_question(fixed_assets, problem):
+    """The signature change IS the fix.
+
+    Without the question this function could verify that the cited authority
+    exists and binds, and nothing whatever about whether it had anything to do
+    with what was asked. On 5 September 2026 it served four bank-reconciliation
+    answers citing a rule about accounting records, stamped `tier='primary'`.
+    `grade()` caught them only because it holds an answer key; there is no key
+    here and never will be, so the question is what stands in for one.
+    """
+    with pytest.raises(TypeError, match="question"):
+        serve(Answer(position=problem.answer, citation=problem.citation),
+              fixed_assets)
+
+
+def test_a_served_answer_says_whether_its_subject_could_be_checked():
+    """"I could not look" and "I looked and it is fine" were the same answer.
+
+    `tier='primary'` was the whole story a caller got, and it reads as *this is
+    solid* when all that was verified is that the authority exists and binds.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = desk.problems[0]
+
+    on = serve(Answer(position=p.answer, citation=p.citation), desk,
+               question=p.facts)
+    assert on.checked_subject, "the question touches this desk's subjects"
+
+    off = serve(Answer(position=p.answer, citation=p.citation), desk,
+                question="what time is the train")
+    assert not off.checked_subject, (
+        "nothing in that question touches a subject, so nothing could be "
+        "compared — and that must not read as a clean check")
+
+
+def test_most_fixed_assets_problems_touch_none_of_the_desks_own_subjects():
+    """THE THIRD REASON WORD OVERLAP CANNOT DO THIS JOB, and a finding in its
+    own right.
+
+    Nine of the sixteen fixed-assets problems mention not one of that desk's
+    twenty-four declared subjects. So the subject gate could only ever judge
+    seven of them — and it got four of those seven wrong.
+
+    The cause is that `fires_on` describes how a QUESTION arrives ("should I
+    capitalize this?") while the problems are the regulation's own worked
+    examples, phrased as fact patterns ("A owns a building..."). Two different
+    registers, and nobody had compared them.
+
+    It also means routing would not reach this desk for nine of its own
+    problems. Whether that matters depends on whether a person's question reads
+    like a regulation example — but it is a fact about the record that was
+    unmeasured until #266 forced the question.
+    """
+    touches = engine._canon_touches()
+    desk = record.load(DESKS / "fixed-assets")
+    silent = [p.id for p in desk.problems
+              if not any(touches(p.facts, s) for s in desk.fires_on)]
+    assert silent == ["P3", "P6", "P7", "P8", "P9", "P10", "P12", "P13", "P14"], (
+        f"the set moved to {silent}; re-measure before trusting any check that "
+        f"compares a question to this desk's subjects")
+
+    cash = record.load(DESKS / "cash-and-bank")
+    assert not [p.id for p in cash.problems
+                if not any(touches(p.facts, s) for s in cash.fires_on)], (
+        "every cash problem touches a subject — its facts were composed, and "
+        "that is exactly why it cannot stand in for the measurement above")
+
+
+def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
+    """The regression fixture is a real answer a real model produced.
+
+    qwen3:8b, cash desk, 5 September 2026: four bank-reconciliation questions
+    answered by citing § 1.446-1(a)(4) — accounting records — by explicit
+    "extension". Real, resolvable, primary, and served.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = next(q for q in desk.problems if q.id == "CB2")
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
+
+    astray, why = engine.off_subject(
+        Answer(position=p.answer, citation=cited), desk, p.facts)
+    assert astray and "shares no subject" in why
+
+    right, _ = engine.off_subject(
+        Answer(position=p.answer, citation=p.citation), desk, p.facts)
+    assert not right, "the correct citation must survive it"
+
+
+def test_off_subject_is_measured_and_the_cost_is_pinned_here():
+    """WHY IT IS NOT WIRED INTO `_check`, as a number rather than an opinion.
+
+    Blocking on it would refuse a quarter of the fixed-assets problems answered
+    with their OWN recorded citation — P4 and P5 (the question says only "unit
+    of property"; § 1.263(a)-3(j) does not use the phrase) and P15 and P16 (the
+    question triggers only `263` and `263(a)`, which are routing hooks for a
+    section number, not subjects any authority text repeats).
+
+    Comparing against the DESK's subjects instead of the QUESTION's drops that
+    to zero and stops catching the Forge answer, which mentions "cash". Word
+    overlap over-refuses or under-catches; neither is exact enough to block on,
+    and `guards.py` draws the line exactly there.
+
+    This test exists so the cost cannot be forgotten and the gate cannot be
+    switched on without someone watching this number move.
+    """
+    desk = record.load(DESKS / "fixed-assets")
+    refused = [p.id for p in desk.problems
+               if engine.off_subject(
+                   Answer(position=p.answer, citation=p.citation),
+                   desk, p.facts)[0]]
+    assert refused == ["P4", "P5", "P15", "P16"], (
+        f"the measured false-refusal set moved to {refused}. That is a finding "
+        f"either way: the gate got better, or the record changed under it. "
+        f"Re-measure before wiring it in."
+    )
+    assert not any(
+        engine.off_subject(Answer(position=p.answer, citation=p.citation),
+                           desk, p.facts)[0]
+        for p in record.load(DESKS / "cash-and-bank").problems
+    ), "no cash-desk problem is falsely refused; the cost is on fixed-assets"
+
+
+# ── #266: the declared mapping, which is exact and therefore blocks ──────────
+
+def test_the_forge_answer_is_refused_by_serve_and_not_only_by_grade():
+    """THE POINT OF #266, and the path with a client on the end of it.
+
+    qwen3:8b answered four bank-reconciliation questions by citing
+    § 1.446-1(a)(4) — accounting records — by explicit "extension". `grade()`
+    caught all four on `passage.citation != problem.citation`, a check it can
+    only make because it holds an answer key. `serve()` holds none and returned
+    the accounting conclusion stamped `tier='primary'`, so the scoreboard
+    reported `wrongly_absorbed = 0` while the shipping path let four through.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = next(q for q in desk.problems if q.id == "CB2")
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
+
+    out = serve(Answer(position=p.answer, citation=cited), desk,
+                question=p.facts)
+    assert isinstance(out, Refusal)
+    assert out.reason == "citation_does_not_support"
+    assert "S2" in out.detail and "S1" in out.detail, (
+        "the refusal must name what the desk declared and what was cited, so "
+        "the record says how to fix itself")
+
+    right = serve(Answer(position=p.answer, citation=p.citation), desk,
+                  question=p.facts)
+    assert not isinstance(right, Refusal), "the correct citation must survive"
+    assert right.checked_subject
+
+
+def test_the_declared_mapping_refuses_nothing_that_is_right():
+    """The cost, pinned. Word overlap refused 4 of the 16 fixed-assets problems
+    answered with their OWN recorded citation (#266). A declared mapping refuses
+    none, on either desk, because it compares a citation's SOURCE against what
+    the firm said answers that subject rather than guessing from vocabulary."""
+    for name in ("fixed-assets", "cash-and-bank"):
+        desk = record.load(DESKS / name)
+        refused = [p.id for p in desk.problems
+                   if engine.cited_off_source(
+                       Answer(position=p.answer, citation=p.citation),
+                       desk, p.facts)[0]]
+        assert refused == [], (
+            f"{name}: {refused} answered with their own recorded citation and "
+            f"were refused. Either the declaration is wrong or the gate is.")
+
+
+def test_it_refuses_only_when_it_could_look():
+    """"I could not check" and "I checked and it is fine" must never be the
+    same answer. A question touching no declared subject gives the gate nothing
+    to compare, so it passes — and `checked_subject` records that it did."""
+    desk = record.load(DESKS / "cash-and-bank")
+    p = desk.problems[0]
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR"))
+
+    astray, _ = engine.cited_off_source(
+        Answer(position=p.answer, citation=cited), desk, "what time is the train")
+    assert not astray, "nothing was asked about, so nothing could be refused"
+
+    out = serve(Answer(position=p.answer, citation=p.citation), desk,
+                question="what time is the train")
+    assert not isinstance(out, Refusal)
+    assert not out.checked_subject, "it could not look, and must say so"
+
+
+def test_a_mapping_to_a_source_that_does_not_exist_fails_the_load(tmp_path):
+    """A subject answered from a source SOURCES.md never defines would refuse
+    every citation for that subject, forever, and read as a strict desk."""
+    d = tmp_path / "broken"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## broken · A desk\n\n**Answered from S9:** widgets\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match=r"\['S9'\]"):
+        record.load(d)
+
+
+def test_the_subjects_are_the_mapping_and_not_a_second_list():
+    """`fires_on` is the union of what each source answers. There is no separate
+    list to forget to update, which is how two lists of the same thing drift."""
+    for name in ("fixed-assets", "cash-and-bank"):
+        desk = record.load(DESKS / name)
+        declared = {t for terms in desk.answered_from.values() for t in terms}
+        assert set(desk.fires_on) == declared
+        assert len(desk.fires_on) == len(set(desk.fires_on)), "a subject twice"
+
+
+def _overlapping_desk(tmp_path, *, prefixes, passage_citation, passage_source,
+                      answers_from):
+    """A desk written by hand so the gate's SOURCE RESOLUTION can be exercised.
+
+    The two real desks cannot show this: their prefixes do not overlap and every
+    stored citation starts with one, so a gate that re-infers the source from a
+    prefix and a gate that uses the resolved one agree on every row.
+    """
+    d = tmp_path / "overlap"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text("".join(
+        f"## {sid} · Source {sid}\n\n"
+        f"**Tier:** primary · **Access:** public_fetch · "
+        f"**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        f"**Citation prefix:** {pref}\n\n**Why:** public domain.\n\n"
+        for sid, pref in prefixes), encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        f"## P1 · a widget question\n\n**Citation:** {passage_citation}\n\n"
+        f"**Answer:** yes\n\n**Facts:** how do widgets work\n", encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        f"## {passage_citation}\n\n**Source:** {passage_source} · "
+        f"**Checked:** 2026-09-05\n\n> a rule about widgets\n", encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        f"## overlap · A desk\n\n**Answered from {answers_from}:** widgets\n",
+        encoding="utf-8")
+    return record.load(d)
+
+
+def test_the_gate_reads_the_resolved_source_not_the_first_matching_prefix(tmp_path):
+    """S1's prefix is `G` and S2's is `G 1`, so `G 1.1` matches BOTH — and the
+    first match is S1. Re-inferring the source from the citation named S1,
+    refused an answer the desk is declared to give from S2, and did it on a
+    passage whose `source_id` says S2 in the record. One fact, resolved twice,
+    two answers."""
+    desk = _overlapping_desk(
+        tmp_path, prefixes=(("S1", "G"), ("S2", "G 1")),
+        passage_citation="G 1.1", passage_source="S2", answers_from="S2")
+
+    astray, why = engine.cited_off_source(
+        Answer(position="yes", citation="G 1.1"), desk, "how do widgets work")
+    assert not astray, f"a right answer from the declared source was refused: {why}"
+
+
+def test_a_citation_matching_no_prefix_does_not_slip_past_the_gate(tmp_path):
+    """The same defect wearing the other face, and the worse one. A stored
+    passage carries its source by id, so its citation need not begin with any
+    prefix — and prefix matching then named NO source, which the gate read as
+    "I could not look" and passed. `serve()` stamps that `checked_subject=True`.
+    A gate that opens when it cannot identify the source is worse than none."""
+    desk = _overlapping_desk(
+        tmp_path, prefixes=(("S1", "G"), ("S2", "H")),
+        passage_citation="Z 9", passage_source="S1", answers_from="S2")
+
+    astray, why = engine.cited_off_source(
+        Answer(position="yes", citation="Z 9"), desk, "how do widgets work")
+    assert astray, "S1 does not answer widgets; the citation came from S1"
+    assert "S1" in why and "S2" in why
+
+
+def test_serve_still_cannot_tell_two_positions_from_one_source_apart():
+    """THE HALF OF CODEX'S #264 FINDING THE SPLIT DOES NOT CLOSE, pinned so it
+    is measured rather than believed.
+
+    Dividing the passage fixed the RECORD: no stored authority now says an
+    unentered bank charge is a timing difference. It does not fix `serve()`,
+    which reads a citation and never a passage's text. Handed CB4's facts and
+    POS1's citation, it still returns "a reconciling item, no entry in the
+    books" — the opposite treatment — stamped `checked_subject=True`.
+
+    The gate it would have to run through is `cited_off_source`, and #266's
+    measured shape declares subjects per SOURCE. Both positions rest on S2, so
+    no source-level mapping can separate them. Closing this means declaring the
+    mapping per CITATION, which is a second shape needing its own measurement on
+    both desks — the firm's call, not a review round's.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    cb4 = next(p for p in desk.problems if p.id == "CB4")
+    timing = next(q.citation for q in desk.positions
+                  if q.position == "a reconciling item, no entry in the books")
+
+    out = serve(Answer(position="a reconciling item, no entry in the books",
+                       citation=timing), desk, question=cb4.facts)
+    assert not isinstance(out, Refusal), (
+        "if this now refuses, the limit has been closed — delete this test and "
+        "say which change closed it")
+    assert out.checked_subject, "and it says it checked, which is the sting"
+
+    held = next(q.text for q in desk.passages if q.citation == timing)
+    assert "bank charges" not in held, (
+        "what the split DID fix: the desk no longer holds authority placing an "
+        "unentered bank charge under the timing position")

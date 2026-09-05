@@ -9,7 +9,7 @@
       "name": "canon",
       "source": "./canon",
       "description": "Tenets — how to build, each carrying the incidents that proved it, ratified by the firm — convictions in the firm's own words, and eighteen standing behaviours. Bassy challenges from that record and never from an opinion, the docket hands back open decisions as a form, and an adversarial pass hands the code to another model to break and takes back only its tests. Holds no client data.",
-      "version": "1.11.0",
+      "version": "1.12.0",
       "displayName": "canon — the practice brain",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"
@@ -27,7 +27,7 @@
       "name": "desk",
       "source": "./desk",
       "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from cited authority, says how binding that authority is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, and reports four outcomes with the costly one first. Depends on canon. Holds no client data.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "displayName": "desk — experts an agent can ask",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"

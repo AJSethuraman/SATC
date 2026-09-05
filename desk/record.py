@@ -106,6 +106,43 @@ def under(path: str, ancestor: str) -> bool:
     return path.startswith(ancestor) and path[len(ancestor):].startswith("(")
 
 
+def from_source(citation: str, prefix: str) -> bool:
+    """Whether `citation` comes from the source whose citations begin `prefix`.
+
+    A SECOND BOUNDARY RULE, AND IT IS NOT `under`. `under` asks whether one
+    paragraph sits inside another and so demands the remainder open a label with
+    `(`. A source prefix is answered against whole citations that continue in
+    other ways -- `IRS Pub. 583 (12/2024), "Reconciling the checking account"`
+    continues with a comma, and a citation may BE the prefix exactly. So the rule
+    is the weaker one that is still exact: the prefix must end where the citation
+    stops being the same identifier.
+
+    WHY IT IS NOT `startswith`. It was a bare `startswith` in three places, and
+    `meals-and-entertainment` holds both `26 CFR 1.274-5` and its temporary
+    counterpart `26 CFR 1.274-5T` -- an ordinary pairing, since the permanent
+    section reserves whole paragraphs to the temporary one. Under `startswith`
+    every `-5T` citation belongs to BOTH sources.
+
+    SAID EXACTLY, BECAUSE THE SHAPE MATTERS MORE THAN THE SCARE. Only two paths
+    resolve a citation by prefix, and both are position paths: `load()`'s
+    uniqueness check and `authority_for`'s lookup. A stored PASSAGE carries its
+    `source_id` and never asks. So today the desk loads either way -- none of its
+    four positions happens to cite the reserved pair -- and the collision is one
+    ratified position away, at which point `load()` refuses a desk that is
+    correct. The session that hit it while building worked around it in the
+    record, ending two prefixes at an open parenthesis; that holds only while
+    every citation on that desk names a paragraph, and a rule six records each
+    have to remember is not a rule.
+
+    `1.274-1` against `1.274-11` is the same collision with no letter involved,
+    and `1.446` against `1.4461` with no punctuation. All three are boundaries.
+    """
+    if not citation or not prefix or not citation.startswith(prefix):
+        return False
+    rest = citation[len(prefix):]
+    return not rest or not rest[0].isalnum()
+
+
 @dataclass(frozen=True)
 class Passage:
     """One piece of authority text, stored because its source permits it."""
@@ -131,6 +168,104 @@ class Problem:
 
 
 @dataclass(frozen=True)
+class Registration:
+    """One desk, the subjects that bring it into play, and who answers them."""
+    desk: str
+    title: str
+    fires_on: tuple[str, ...]
+    #: `{source_id: subjects}` — WHICH SOURCE ANSWERS WHICH SUBJECT, declared by
+    #: the firm rather than inferred by anybody. `fires_on` is its union, so the
+    #: two cannot drift: there is no second list to forget to update.
+    answered_from: dict = field(default_factory=dict)
+
+
+def parse_subjects(text: str, desk_name: str) -> Registration:
+    blocks = _blocks(text, _SUBJ_HEAD)
+    if not blocks:
+        raise RecordError(f"{desk_name}: SUBJECTS.md declares no desk")
+    head, block = blocks[0]
+    # NOT `.*?$`. Canon's own field reader takes a single line, which is right
+    # there because its fields are short -- but this list is long enough to wrap,
+    # and a single-line read of a wrapped value truncates it SILENTLY. Written
+    # that way first, this parsed 5 subjects out of 30 and reported success.
+    #
+    # `Answered from <id>` AND NOT A BARE `Fires on`, and the difference is the
+    # whole of #266. A desk recorded its sources and its subjects and nothing
+    # said which source answers which -- so when qwen3:8b answered four
+    # bank-reconciliation questions by citing a CFR paragraph about accounting
+    # records, nothing exact could refuse it, and `serve()` handed all four out
+    # stamped `tier='primary'`. Word overlap was measured in its place and either
+    # refused a quarter of the working desk's own correct answers or missed the
+    # case entirely. This is the fact recorded instead of guessed at.
+    declared = re.findall(
+        r"^\*\*Answered from (\S+):\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+        block, re.M | re.S)
+    if not declared:
+        raise RecordError(
+            f"{desk_name}: no 'Answered from <source id>' lines. A desk nothing "
+            f"routes to is a desk nobody asks -- and a subject with no source "
+            f"named is one no citation can be checked against."
+        )
+
+    answered_from, order = {}, []
+    for source_id, listed in declared:
+        terms = tuple(t.strip().lower()
+                      for t in " ".join(listed.split()).split(",") if t.strip())
+        # A SUBJECT MAY NOT BE A BARE NUMBER, AND THE REASON IS THE SEPARATOR.
+        # This list is comma-separated and a written figure carries a comma, so
+        # `$2,500` was silently parsed as TWO subjects, `$2` and `500` -- and the
+        # figure the firm actually asked about ("What is the capitalisation
+        # threshold?") became a term no question could ever match, while `500`
+        # became a token firing on any question that mentions any $500. Found by
+        # `tools/subject_gaps.py` reporting 276 declared subjects that caught
+        # nothing across 43 real questions.
+        #
+        # Refusing the wreckage is exact and so may block: whole-word matching
+        # makes a bare number a real subject, and `463` declared on one desk fired
+        # on every question containing it. Write `2500`, or name the rule instead
+        # of its figure. Two characters or fewer goes the same way -- there is no
+        # subject that short which is not an accident.
+        for term in terms:
+            bare = term.lstrip("$").replace(".", "")
+            if bare.isdigit() or len(term) < 3:
+                raise RecordError(
+                    f"{desk_name}/SUBJECTS.md declares {term!r} as a subject "
+                    f"answered from {source_id}. A bare number is a whole word, "
+                    f"so it fires on any question that happens to contain it — "
+                    f"and this list is comma-separated, so a written figure like "
+                    f"'$2,500' arrives here already split into '$2' and '500'. "
+                    f"Write the figure without its comma, or name the rule."
+                )
+        if not terms:
+            raise RecordError(
+                f"{desk_name}: 'Answered from {source_id}' names no subjects")
+        if source_id in answered_from:
+            raise RecordError(
+                f"{desk_name}: 'Answered from {source_id}' appears twice; which "
+                f"list wins would be decided by file order")
+        answered_from[source_id] = terms
+        order.extend(t for t in terms if t not in order)
+    # THE DIRECTORY IS THE IDENTITY. A typo or stale name in the heading became
+    # `Registration.desk`, so routing still matched while
+    # `refusal_naming_the_desk()` sent the caller to a desk that does not exist
+    # -- the deterministic recovery path pointing away from the record that
+    # produced it. Refuse the mismatch rather than pick a winner.
+    if head.group(1) != desk_name:
+        raise RecordError(
+            f"{desk_name}/SUBJECTS.md registers itself as {head.group(1)!r}; a "
+            f"desk named differently from its directory cannot be reached by "
+            f"the name a refusal gives out"
+        )
+    return Registration(
+        desk=head.group(1),
+        title=head.group(2).strip(),
+        fires_on=tuple(order),
+        answered_from=answered_from,
+    )
+
+
+
+@dataclass(frozen=True)
 class Desk:
     """One expert: what it answers on, what it may rely on, how it is scored.
 
@@ -141,6 +276,14 @@ class Desk:
     left the advertised position path unusable.
     """
     name: str
+    #: The subjects that bring this desk into play, from SUBJECTS.md. Held here
+    #: because `engine._check` needs to ask what a QUESTION is about before it
+    #: can judge whether a citation has anything to do with it. Empty when the
+    #: desk declares none, and the engine then says it could not check rather
+    #: than passing the answer as verified.
+    fires_on: tuple[str, ...] = field(default_factory=tuple)
+    #: `{source_id: subjects}` from SUBJECTS.md — see `Registration`.
+    answered_from: dict = field(default_factory=dict)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
@@ -185,7 +328,7 @@ class Desk:
         """
         if (pos := self.position(citation)) is not None:
             src = next((s for s in self.sources
-                        if citation.startswith(s.citation_prefix)), None)
+                        if from_source(citation, s.citation_prefix)), None)
             return "position", pos, src
         if (p := self.passage(citation)) is not None:
             return "passage", p, self.source(p.source_id)
@@ -195,6 +338,7 @@ class Desk:
 # ── parsing ───────────────────────────────────────────────────────────────────
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
+_SUBJ_HEAD = _HEAD
 _BARE_HEAD = re.compile(r"^## (.+)$", re.M)
 
 
@@ -408,7 +552,8 @@ def load(desk_dir: Path) -> Desk:
         ratified.add(q.citation)
 
     for q in pos:
-        matched = [s for s in sources if q.citation.startswith(s.citation_prefix)]
+        matched = [s for s in sources
+                   if from_source(q.citation, s.citation_prefix)]
         if len(matched) != 1:
             raise RecordError(
                 f"position {q.id} cites {q.citation!r}, which matches "
@@ -416,8 +561,22 @@ def load(desk_dir: Path) -> Desk:
                 f"position must rest on exactly one, or it cannot be served"
             )
 
+    subjects = desk_dir / "SUBJECTS.md"
+    fires_on, answered_from = (), {}
+    if subjects.is_file():
+        reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
+        fires_on, answered_from = reg.fires_on, reg.answered_from
+        unknown = sorted(set(answered_from) - {s.id for s in sources})
+        if unknown:
+            raise RecordError(
+                f"{desk_dir.name}/SUBJECTS.md answers subjects from {unknown}, "
+                f"which SOURCES.md does not define. A mapping to a source that "
+                f"does not exist refuses every citation for those subjects")
+
     return Desk(
         name=desk_dir.name,
+        fires_on=fires_on,
+        answered_from=answered_from,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

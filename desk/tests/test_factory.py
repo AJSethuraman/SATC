@@ -49,7 +49,7 @@ PASSAGES = tuple(
 
 def draft(**over) -> factory.DeskDraft:
     kw = dict(name="widgets", title="When a widget is a widget",
-              fires_on=("widget", "widgets"), sources=(SOURCE,),
+              answered_from={"S1": ("widget", "widgets")}, sources=(SOURCE,),
               problems=PROBLEMS, passages=PASSAGES)
     kw.update(over)
     return factory.DeskDraft(**kw)
@@ -78,7 +78,8 @@ def test_the_interview_covers_every_field_the_record_requires():
         for kind, cls in (("source", record.Source), ("problem", record.Problem))
         for f in fields(cls)
         if f.default is MISSING and f.default_factory is MISSING
-    } | {"desk.name", "subject.title", "subject.fires_on"}
+    } | {"desk.name", "subject.title", "subject.fires_on",
+         "subject.answered_from"}
 
     asked = {r for q in factory.QUESTIONS for r in q.records}
     assert not (required - asked), (
@@ -143,8 +144,15 @@ def test_a_desk_with_no_sources_is_refused():
 
 
 def test_a_desk_nothing_routes_to_is_refused():
-    with pytest.raises(factory.FactoryError, match="no subjects to fire on"):
-        draft(fires_on=())
+    with pytest.raises(factory.FactoryError, match="no subjects answered"):
+        draft(answered_from={})
+
+
+def test_a_source_that_answers_nothing_is_refused():
+    """A named source with an empty subject list declares nothing, and would
+    silently make every citation for those subjects uncheckable."""
+    with pytest.raises(factory.FactoryError, match="no subjects answered"):
+        draft(answered_from={"S1": ()})
 
 
 # ── what it emits goes through the shipped desk's own three gates ────────────
@@ -170,6 +178,7 @@ def test_an_emitted_desk_loads_gates_and_grades_like_a_hand_built_one(checkout):
     reg = routing.parse_subjects(
         (desk_dir / "SUBJECTS.md").read_text(encoding="utf-8"), "widgets")
     assert reg.fires_on == ("widget", "widgets")
+    assert reg.answered_from == {"S1": ("widget", "widgets")}
 
 
 def test_the_emitted_record_carries_the_licence_term_into_the_diff(checkout):
@@ -288,3 +297,35 @@ def test_the_factory_ships_as_a_skill():
     assert skill.is_file(), "desk-factory/SKILL.md is missing"
     text = skill.read_text(encoding="utf-8")
     assert text.startswith("---\nname: desk-factory\n"), "no skill frontmatter"
+
+
+def test_the_skills_worked_example_names_fields_the_draft_actually_has():
+    """A skill IS the interface for an agent following it, so a renamed field is
+    a broken interface even with every test green.
+
+    `DeskDraft` lost `fires_on` when a desk started declaring which SOURCE
+    answers which subject (#266), and the skill's Phase 2 example went on
+    passing it — `TypeError: unexpected keyword argument 'fires_on'` before an
+    agent could render a single proposal. Found by Codex on #264.
+    """
+    import dataclasses
+    import re
+    from pathlib import Path
+
+    import factory
+
+    text = (Path(__file__).resolve().parents[1] / "skills" / "desk-factory"
+            / "SKILL.md").read_text(encoding="utf-8")
+    call = re.search(r"factory\.DeskDraft\((.*?)\)\n", text, re.S)
+    assert call, "the skill no longer shows a DeskDraft call; show the real one"
+
+    named = set(re.findall(r"(\w+)=", call.group(1)))
+    fields = {f.name for f in dataclasses.fields(factory.DeskDraft)}
+    assert named <= fields, (
+        f"the skill passes {sorted(named - fields)}, which DeskDraft does not "
+        f"have; an agent following it gets a TypeError")
+    required = {f.name for f in dataclasses.fields(factory.DeskDraft)
+                if f.default is dataclasses.MISSING
+                and f.default_factory is dataclasses.MISSING}
+    assert required <= named, (
+        f"the skill omits {sorted(required - named)}, which has no default")
