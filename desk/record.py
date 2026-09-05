@@ -131,6 +131,53 @@ class Problem:
 
 
 @dataclass(frozen=True)
+class Registration:
+    """One desk, and the subjects that bring it into play."""
+    desk: str
+    title: str
+    fires_on: tuple[str, ...]
+
+
+def parse_subjects(text: str, desk_name: str) -> Registration:
+    blocks = _blocks(text, _SUBJ_HEAD)
+    if not blocks:
+        raise RecordError(f"{desk_name}: SUBJECTS.md declares no desk")
+    head, block = blocks[0]
+    # NOT `.*?$`. Canon's own field reader takes a single line, which is right
+    # there because its fields are short -- but this list is long enough to wrap,
+    # and a single-line read of a wrapped value truncates it SILENTLY. Written
+    # that way first, this parsed 5 subjects out of 30 and reported success.
+    m = re.search(r"^\*\*Fires on:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+                  block, re.M | re.S)
+    if not m or not m.group(1).strip():
+        raise RecordError(
+            f"{desk_name}: no 'Fires on' subjects. A desk nothing routes to is "
+            f"a desk nobody asks."
+        )
+    # THE DIRECTORY IS THE IDENTITY. A typo or stale name in the heading became
+    # `Registration.desk`, so routing still matched while
+    # `refusal_naming_the_desk()` sent the caller to a desk that does not exist
+    # -- the deterministic recovery path pointing away from the record that
+    # produced it. Refuse the mismatch rather than pick a winner.
+    if head.group(1) != desk_name:
+        raise RecordError(
+            f"{desk_name}/SUBJECTS.md registers itself as {head.group(1)!r}; a "
+            f"desk named differently from its directory cannot be reached by "
+            f"the name a refusal gives out"
+        )
+    return Registration(
+        desk=head.group(1),
+        title=head.group(2).strip(),
+        fires_on=tuple(
+            t.strip().lower()
+            for t in " ".join(m.group(1).split()).split(",")
+            if t.strip()
+        ),
+    )
+
+
+
+@dataclass(frozen=True)
 class Desk:
     """One expert: what it answers on, what it may rely on, how it is scored.
 
@@ -141,6 +188,12 @@ class Desk:
     left the advertised position path unusable.
     """
     name: str
+    #: The subjects that bring this desk into play, from SUBJECTS.md. Held here
+    #: because `engine._check` needs to ask what a QUESTION is about before it
+    #: can judge whether a citation has anything to do with it. Empty when the
+    #: desk declares none, and the engine then says it could not check rather
+    #: than passing the answer as verified.
+    fires_on: tuple[str, ...] = field(default_factory=tuple)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
@@ -195,6 +248,7 @@ class Desk:
 # ── parsing ───────────────────────────────────────────────────────────────────
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
+_SUBJ_HEAD = _HEAD
 _BARE_HEAD = re.compile(r"^## (.+)$", re.M)
 
 
@@ -416,8 +470,15 @@ def load(desk_dir: Path) -> Desk:
                 f"position must rest on exactly one, or it cannot be served"
             )
 
+    subjects = desk_dir / "SUBJECTS.md"
+    fires_on = ()
+    if subjects.is_file():
+        fires_on = parse_subjects(
+            subjects.read_text(encoding="utf-8"), desk_dir.name).fires_on
+
     return Desk(
         name=desk_dir.name,
+        fires_on=fires_on,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

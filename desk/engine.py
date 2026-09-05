@@ -152,6 +152,12 @@ class Served:
     citation: str
     tier: str
     checked: str
+    #: Whether the citation was checked against the question's subject. False
+    #: means nobody could look -- the desk declares no subjects, or the question
+    #: touched none of them -- NOT that it was checked and found fine. Those two
+    #: were the same answer until 5 September 2026, and the difference is four
+    #: served answers on that day's Forge row.
+    checked_subject: bool = False
 
 
 @dataclass(frozen=True)
@@ -164,7 +170,75 @@ class Refusal:
         return False
 
 
-def _check(answer: Answer, desk: Desk):
+def _text_of(backing) -> str:
+    """Whatever words back a citation, whichever store it came from."""
+    kind, obj, _ = backing
+    if kind == "position":
+        return f"{obj.position} {getattr(obj, 'why', '')}"
+    return obj.text
+
+
+def off_subject(answer: Answer, desk: Desk, question: str) -> tuple[bool, str]:
+    """`(refuse, detail)` — the cited authority shares no subject with the ask.
+
+    MEASURED, 5 SEPTEMBER 2026, AND THIS IS WHY IT EXISTS. On the cash desk
+    qwen3:8b answered four bank-reconciliation questions by citing
+    § 1.446-1(a)(4) -- a real, resolvable, PRIMARY paragraph about keeping
+    accounting records -- reasoning by explicit "extension". `grade()` caught all
+    four on `passage.citation != problem.citation`, a check it can only make
+    because it holds an answer key. `serve()` holds none, had no equivalent, and
+    returned the accounting conclusion stamped `tier='primary'`. So the scoreboard
+    reported `wrongly_absorbed = 0` while the path with a client on the end of it
+    would have shipped four.
+
+    THE CHECK IS EXACT AND THE JUDGEMENT IS THE FIRM'S. It computes one thing:
+    of the desk's declared subjects, which appear in the question, and does the
+    cited authority mention any of them. Whole words only, through `touches` --
+    the one matching rule in this codebase. Zero overlap is the signal; anything
+    above zero passes. It does not score relevance, rank citations or read
+    meaning, because none of that is checkable and `guards.py` draws the line
+    where a machine stops being exact.
+
+    IT REFUSES ONLY WHEN IT COULD ACTUALLY LOOK. A desk with no declared subjects,
+    or a question touching none of them, gives it nothing to compare -- and it
+    passes rather than blocks, because "I could not check" and "I checked and it
+    is fine" must never be the same answer. `Served.checked_subject` carries which
+    of the two happened.
+
+    THE COST IS REAL AND IS NOT HIDDEN: an authority whose text is written in
+    pronouns, or in vocabulary the desk never declared, is refused though it may
+    be exactly right. That shows up as `citation_does_not_support` in the queue
+    with the working intact, which is where a wrongly refused answer is meant to
+    be found.
+    """
+    touches = _canon_touches()
+    asked = tuple(t for t in desk.fires_on if touches(question, t))
+    if not asked:
+        return False, ""
+    backing = desk.authority_for(answer.citation)
+    if backing is None:
+        return False, ""
+    text = _text_of(backing)
+    if any(touches(text, t) for t in asked):
+        return False, ""
+    return True, (
+        f"the question is about {', '.join(asked)}; {answer.citation!r} is real "
+        f"authority this desk holds and mentions none of them. A citation that "
+        f"shares no subject with the question is not this question's authority"
+    )
+
+
+def _canon_touches():
+    """Whole-word matching, borrowed rather than rewritten.
+
+    It lives in one place because it was briefly written twice, once whole-word
+    and once not, and the two disagreed for a day with nothing comparing them.
+    """
+    from _canon import load_record
+    return load_record().touches
+
+
+def _check(answer: Answer, desk: Desk, question: str = ""):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
     If serving and grading each had their own copy, they would drift, and the
@@ -188,6 +262,15 @@ def _check(answer: Answer, desk: Desk):
             f"{answer.citation!r} is not in this desk's record; add it cited, "
             f"or escalate with reason 'authority_absent'",
         ), None, None
+
+    # `off_subject` IS NOT WIRED IN HERE, AND THE MEASUREMENT IS WHY (#266).
+    # It refuses 4 of the 16 fixed-assets problems answered with their own
+    # recorded citation -- a quarter of the working desk, wrongly. Comparing the
+    # cited text against the DESK's subjects instead of the QUESTION's drops that
+    # to zero and stops catching the case it exists for. Word overlap either
+    # over-refuses or under-catches; neither is exact enough to block on, which
+    # is the line `guards.py` draws. Left public, tested and unused until the
+    # firm picks a shape.
 
     kind, passage, source = backing
     if source is None:                                  # pragma: no cover
@@ -226,7 +309,7 @@ def _check(answer: Answer, desk: Desk):
     return None, passage, source
 
 
-def serve(answer: Answer, desk: Desk) -> Served | Refusal:
+def serve(answer: Answer, desk: Desk, *, question: str) -> Served | Refusal:
     """The production path: hand back an answer, or refuse and say why.
 
     **Nothing leaves here without authority behind it.** An uncited answer is
@@ -236,12 +319,27 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
 
     A refusal is not a dead end. Pair it with `unsupported.from_refusal` to keep
     the reasoning, which is the best evidence of what the record is missing.
+
+    `question` IS REQUIRED, AND THAT IS THE FIX. Without it this function could
+    verify that the cited authority exists and binds, and nothing at all about
+    whether it had anything to do with what was asked -- so it served four
+    bank-reconciliation answers citing a rule about accounting records, stamped
+    primary, on 5 September 2026. `grade()` caught them only because it holds an
+    answer key. There is no key here and there never will be; the question is
+    what stands in for one.
+
+    WHAT IS STILL NOT VERIFIED, said plainly because `Served` used to imply
+    otherwise: that the cited paragraph is the BEST authority, that it is the one
+    the regulation itself would name, or that the conclusion follows from it.
+    Only that it exists, that it binds or carries the firm's word, and that it
+    shares a subject with the question. `checked_subject` says whether even that
+    last one could be looked at.
     """
     if answer.escalated:
         _reason(answer.reason)
         return Refusal(answer.reason, "escalated by the desk")
 
-    refusal, passage, source = _check(answer, desk)
+    refusal, passage, source = _check(answer, desk, question)
     if refusal is not None:
         return refusal
     return Served(
@@ -259,6 +357,12 @@ def serve(answer: Answer, desk: Desk) -> Served | Refusal:
         # absent -- so read whichever this authority carries rather than
         # defaulting one in.
         checked=getattr(passage, "checked", None) or passage.recorded,
+        # Stated rather than implied. `tier='primary'` used to be the whole
+        # story a caller got, and it read as "this is solid" when all that had
+        # been verified was that the authority exists and binds.
+        checked_subject=bool(
+            question and any(_canon_touches()(question, t) for t in desk.fires_on)
+        ),
     )
 
 
@@ -283,7 +387,7 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
         return Result(problem.id, Outcome.ESCALATED, reason=_reason(answer.reason),
                       escalated_by=DESK)
 
-    refusal, passage, source = _check(answer, desk)
+    refusal, passage, source = _check(answer, desk, problem.facts)
 
     if refusal is not None:
         # An interpretive source is not an error, it is the case where authority

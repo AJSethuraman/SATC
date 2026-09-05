@@ -13,7 +13,7 @@ import pytest
 
 import engine
 import record
-from conftest import NetworkUsed
+from conftest import DESKS, NetworkUsed
 from engine import (Answer, EngineError, Outcome, REASONS, grade, report,
                     serve, tally)
 
@@ -252,7 +252,7 @@ def test_agreeing_with_the_position_serves_the_firms_own_wording(tmp_path):
     """Not the model's restatement of it, however close. The engine disposes."""
     desk = _human_only_desk(tmp_path, position="not required to capitalize")
     served = serve(Answer(position="  NOT REQUIRED TO CAPITALIZE  ",
-                          citation="ASC 360-10"), desk)
+                          citation="ASC 360-10"), desk, question="a question")
     assert served, f"a matching position should serve: {served}"
     assert served.position == "not required to capitalize"
 
@@ -397,3 +397,128 @@ def test_a_reason_outside_the_closed_set_is_still_refused(fixed_assets, problem)
     with pytest.raises(EngineError, match="not one of"):
         grade(Answer(position="", escalated=True, reason="ask_the_client"),
               problem, fixed_assets)
+
+
+# ── #266: serve() could not judge a citation because it never saw the question ─
+
+def test_serving_requires_the_question(fixed_assets, problem):
+    """The signature change IS the fix.
+
+    Without the question this function could verify that the cited authority
+    exists and binds, and nothing whatever about whether it had anything to do
+    with what was asked. On 5 September 2026 it served four bank-reconciliation
+    answers citing a rule about accounting records, stamped `tier='primary'`.
+    `grade()` caught them only because it holds an answer key; there is no key
+    here and never will be, so the question is what stands in for one.
+    """
+    with pytest.raises(TypeError, match="question"):
+        serve(Answer(position=problem.answer, citation=problem.citation),
+              fixed_assets)
+
+
+def test_a_served_answer_says_whether_its_subject_could_be_checked():
+    """"I could not look" and "I looked and it is fine" were the same answer.
+
+    `tier='primary'` was the whole story a caller got, and it reads as *this is
+    solid* when all that was verified is that the authority exists and binds.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = desk.problems[0]
+
+    on = serve(Answer(position=p.answer, citation=p.citation), desk,
+               question=p.facts)
+    assert on.checked_subject, "the question touches this desk's subjects"
+
+    off = serve(Answer(position=p.answer, citation=p.citation), desk,
+                question="what time is the train")
+    assert not off.checked_subject, (
+        "nothing in that question touches a subject, so nothing could be "
+        "compared — and that must not read as a clean check")
+
+
+def test_most_fixed_assets_problems_touch_none_of_the_desks_own_subjects():
+    """THE THIRD REASON WORD OVERLAP CANNOT DO THIS JOB, and a finding in its
+    own right.
+
+    Nine of the sixteen fixed-assets problems mention not one of that desk's
+    twenty-four declared subjects. So the subject gate could only ever judge
+    seven of them — and it got four of those seven wrong.
+
+    The cause is that `fires_on` describes how a QUESTION arrives ("should I
+    capitalize this?") while the problems are the regulation's own worked
+    examples, phrased as fact patterns ("A owns a building..."). Two different
+    registers, and nobody had compared them.
+
+    It also means routing would not reach this desk for nine of its own
+    problems. Whether that matters depends on whether a person's question reads
+    like a regulation example — but it is a fact about the record that was
+    unmeasured until #266 forced the question.
+    """
+    touches = engine._canon_touches()
+    desk = record.load(DESKS / "fixed-assets")
+    silent = [p.id for p in desk.problems
+              if not any(touches(p.facts, s) for s in desk.fires_on)]
+    assert silent == ["P3", "P6", "P7", "P8", "P9", "P10", "P12", "P13", "P14"], (
+        f"the set moved to {silent}; re-measure before trusting any check that "
+        f"compares a question to this desk's subjects")
+
+    cash = record.load(DESKS / "cash-and-bank")
+    assert not [p.id for p in cash.problems
+                if not any(touches(p.facts, s) for s in cash.fires_on)], (
+        "every cash problem touches a subject — its facts were composed, and "
+        "that is exactly why it cannot stand in for the measurement above")
+
+
+def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
+    """The regression fixture is a real answer a real model produced.
+
+    qwen3:8b, cash desk, 5 September 2026: four bank-reconciliation questions
+    answered by citing § 1.446-1(a)(4) — accounting records — by explicit
+    "extension". Real, resolvable, primary, and served.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    p = next(q for q in desk.problems if q.id == "CB2")
+    cited = next(x.citation for x in desk.passages
+                 if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
+
+    astray, why = engine.off_subject(
+        Answer(position=p.answer, citation=cited), desk, p.facts)
+    assert astray and "shares no subject" in why
+
+    right, _ = engine.off_subject(
+        Answer(position=p.answer, citation=p.citation), desk, p.facts)
+    assert not right, "the correct citation must survive it"
+
+
+def test_off_subject_is_measured_and_the_cost_is_pinned_here():
+    """WHY IT IS NOT WIRED INTO `_check`, as a number rather than an opinion.
+
+    Blocking on it would refuse a quarter of the fixed-assets problems answered
+    with their OWN recorded citation — P4 and P5 (the question says only "unit
+    of property"; § 1.263(a)-3(j) does not use the phrase) and P15 and P16 (the
+    question triggers only `263` and `263(a)`, which are routing hooks for a
+    section number, not subjects any authority text repeats).
+
+    Comparing against the DESK's subjects instead of the QUESTION's drops that
+    to zero and stops catching the Forge answer, which mentions "cash". Word
+    overlap over-refuses or under-catches; neither is exact enough to block on,
+    and `guards.py` draws the line exactly there.
+
+    This test exists so the cost cannot be forgotten and the gate cannot be
+    switched on without someone watching this number move.
+    """
+    desk = record.load(DESKS / "fixed-assets")
+    refused = [p.id for p in desk.problems
+               if engine.off_subject(
+                   Answer(position=p.answer, citation=p.citation),
+                   desk, p.facts)[0]]
+    assert refused == ["P4", "P5", "P15", "P16"], (
+        f"the measured false-refusal set moved to {refused}. That is a finding "
+        f"either way: the gate got better, or the record changed under it. "
+        f"Re-measure before wiring it in."
+    )
+    assert not any(
+        engine.off_subject(Answer(position=p.answer, citation=p.citation),
+                           desk, p.facts)[0]
+        for p in record.load(DESKS / "cash-and-bank").problems
+    ), "no cash-desk problem is falsely refused; the cost is on fixed-assets"

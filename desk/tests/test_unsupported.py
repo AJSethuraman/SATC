@@ -19,7 +19,8 @@ from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 # ── nothing leaves without authority ─────────────────────────────────────────
 
 def test_a_cited_answer_is_served_with_its_authority(fixed_assets, problem):
-    out = serve(Answer(position=problem.answer, citation=problem.citation), fixed_assets)
+    out = serve(Answer(position=problem.answer, citation=problem.citation),
+                fixed_assets, question=problem.facts)
     assert isinstance(out, Served)
     assert out.citation == problem.citation
     assert out.tier == "primary"
@@ -29,7 +30,8 @@ def test_a_cited_answer_is_served_with_its_authority(fixed_assets, problem):
 def test_an_uncited_answer_is_never_served_even_when_it_is_right(
         fixed_assets, problem):
     """The rule the whole plugin rests on. Enforced here, not in a prompt."""
-    out = serve(Answer(position=problem.answer, citation=""), fixed_assets)
+    out = serve(Answer(position=problem.answer, citation=""), fixed_assets,
+                question=problem.facts)
     assert isinstance(out, Refusal)
     assert not out, "a Refusal must be falsy so `if served:` cannot pass by accident"
     assert out.reason == "no_citation"
@@ -50,7 +52,8 @@ def test_an_interpretive_source_is_refused_rather_than_served(tmp_path):
     (d / "extracted" / "g.md").write_text(
         "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n> reading\n",
         encoding="utf-8")
-    out = serve(Answer(position="a", citation="G 1"), record.load(d))
+    out = serve(Answer(position="a", citation="G 1"), record.load(d),
+                question="a question")
     assert isinstance(out, Refusal)
     assert out.reason == "authority_permits_choice"
 
@@ -60,7 +63,8 @@ def test_the_gate_and_the_scoreboard_agree(fixed_assets, problem):
     would stop measuring what the gate actually does."""
     for citation in ("", "26 CFR 9.9-9", problem.citation):
         a = Answer(position=problem.answer, citation=citation)
-        served = not isinstance(serve(a, fixed_assets), Refusal)
+        served = not isinstance(serve(a, fixed_assets, question=problem.facts),
+                                Refusal)
         scored_ok = grade(a, problem, fixed_assets).outcome is Outcome.CORRECT
         assert served == scored_ok, (
             f"citation {citation!r}: gate says served={served}, "
