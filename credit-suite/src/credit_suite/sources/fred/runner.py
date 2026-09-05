@@ -553,6 +553,28 @@ def _is_rate_limit(exc: Exception) -> bool:
             or "exceeded" in s)
 
 
+#: Conditions that say "ask again", as opposed to "this will never work".
+#: A 5xx, a timeout or a dropped connection is the server having a moment; a
+#: 400 "series does not exist" is a dead id, and retrying that would hide the
+#: very thing #181 was caught by. So the split is deliberate and narrow.
+_TRANSIENT = ("internal server error", "bad gateway", "service unavailable",
+              "gateway timeout", "timed out", "timeout",
+              "connection reset", "connection aborted", "temporarily")
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for a server-side hiccup worth one more attempt.
+
+    Nebraska's house price index was blank in a shipped workbook because FRED
+    answered one request with `Internal Server Error` and nothing asked twice.
+    """
+    text = str(exc).lower()
+    if any(marker in text for marker in _TRANSIENT):
+        return True
+    code = getattr(exc, "code", None)
+    return isinstance(code, int) and 500 <= code < 600
+
+
 class FredProvider(Provider):
     """FRED adapter via the `fredapi` library (BUILD SPEC sec 1).
 
@@ -595,6 +617,14 @@ class FredProvider(Provider):
                     sys.stderr.write(
                         f"[rate-limit] {series_id}: backing off {backoff:.0f}s "
                         f"(attempt {attempt + 1}/{self._max_retries})\n")
+                    time.sleep(backoff)
+                    continue
+                if _is_transient(exc) and attempt < self._max_retries:
+                    backoff = 2.0 * (attempt + 1)         # 2s, 4s, 6s, 8s
+                    sys.stderr.write(
+                        f"[transient] {series_id}: {exc} -- retrying in "
+                        f"{backoff:.0f}s (attempt {attempt + 1}/"
+                        f"{self._max_retries})\n")
                     time.sleep(backoff)
                     continue
                 raise
