@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from record import Desk, Problem
+from record import Desk, Problem, Source
 
 
 class Outcome(str, Enum):
@@ -228,8 +228,8 @@ def off_subject(answer: Answer, desk: Desk, question: str) -> tuple[bool, str]:
     )
 
 
-def cited_off_source(answer: Answer, desk: Desk,
-                     question: str) -> tuple[bool, str]:
+def cited_off_source(answer: Answer, desk: Desk, question: str,
+                     *, source: Source | None = None) -> tuple[bool, str]:
     """`(refuse, detail)` — the citation comes from a source that does not
     answer what was asked.
 
@@ -268,10 +268,23 @@ def cited_off_source(answer: Answer, desk: Desk,
                if any(t in asked for t in terms)}
     if not allowed:
         return False, ""
-    cited = next((s.id for s in desk.sources
-                  if answer.citation.startswith(s.citation_prefix)), None)
-    if cited is None or cited in allowed:
+    # THE SOURCE IS THE RESOLVED ONE, NEVER RE-INFERRED. This matched the
+    # citation against every source's prefix and took the first hit, which is a
+    # second, weaker copy of a resolution `record.authority_for` has already
+    # made exactly -- by `source_id` for a passage, and by a prefix match
+    # `load()` proves is unique for a position. Two ways of answering the same
+    # question disagree in two directions: overlapping prefixes (`G` and `G 1`)
+    # named the wrong source and refused a right answer, and a stored passage
+    # whose citation starts with no prefix at all named NO source, so the gate
+    # passed silently on the case it exists to catch. A gate that opens when it
+    # cannot identify the source is worse than no gate, because `serve()` then
+    # stamps the answer `checked_subject=True`.
+    if source is None:
+        backing = desk.authority_for(answer.citation)
+        source = backing[2] if backing is not None else None
+    if source is None or source.id in allowed:
         return False, ""
+    cited = source.id
     named = ", ".join(sorted(allowed))
     return True, (
         f"the question is about {', '.join(asked)}, which this desk answers from "
@@ -316,8 +329,15 @@ def _check(answer: Answer, desk: Desk, question: str = ""):
             f"or escalate with reason 'authority_absent'",
         ), None, None
 
-    # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266).
-    astray, why = cited_off_source(answer, desk, question)
+    kind, passage, source = backing
+    if source is None:                                  # pragma: no cover
+        raise EngineError(
+            f"{answer.citation!r} has no source; load() checks this")
+
+    # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
+    # the source the line above resolved, rather than working it out again from
+    # the citation: one resolution, one answer.
+    astray, why = cited_off_source(answer, desk, question, source=source)
     if astray:
         return Refusal("citation_does_not_support", why), None, None
 
@@ -329,11 +349,6 @@ def _check(answer: Answer, desk: Desk, question: str = ""):
     # over-refuses or under-catches; neither is exact enough to block on, which
     # is the line `guards.py` draws. Left public, tested and unused until the
     # firm picks a shape.
-
-    kind, passage, source = backing
-    if source is None:                                  # pragma: no cover
-        raise EngineError(
-            f"{answer.citation!r} has no source; load() checks this")
 
     # A ratified position IS the firm's answer, so tier does not gate it: the
     # firm already made the choice that a secondary source would only have

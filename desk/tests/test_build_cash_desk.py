@@ -37,15 +37,21 @@ def _write(tmp_path, text) -> Path:
     return p
 
 
-GOOD = ("The statement may not include checks that did not clear. "
+GOOD = ("When you receive your bank statement, make sure the statement, your "
+        "checkbook, and your books agree. The statement balance may not agree "
+        "with the balance in your checkbook and books "
+        + bcd.RECONCILING_LEAD
+        + " Includes bank charges you did not enter in your books, "
+        + bcd.CHARGE_SPLIT + " or checks that did not clear. "
         + bcd.RECONCILING_SPLIT
         + " Update your checkbook and journals for items not recorded.")
 
 
-def test_the_reconciliation_section_is_split_into_its_two_rules(tmp_path):
-    """One citation admits one ratified position, and this section states two
-    rules with opposite answers. Keyed to one citation, two of the desk's four
-    problems are refused as contradicting the position whatever a desk says."""
+def test_the_reconciliation_section_is_split_into_its_three_rules(tmp_path):
+    """One citation admits one ratified position, and this section states three
+    rules that do not share an answer. Keyed to one citation, two of the desk's
+    four problems are refused as contradicting the position whatever a desk
+    says."""
     out = dict(bcd.pub583_sections(_write(tmp_path, _html(GOOD))))
     timing = next(c for c in out if c.endswith(bcd.TIMING))
     updating = next(c for c in out if c.endswith(bcd.UPDATING))
@@ -54,6 +60,44 @@ def test_the_reconciliation_section_is_split_into_its_two_rules(tmp_path):
     assert bcd.RECONCILING_SPLIT not in out[timing]
     assert out[updating].startswith(bcd.RECONCILING_SPLIT)
     assert "not recorded" in out[updating]
+
+
+def test_the_bank_charge_rule_is_not_stored_under_the_timing_citation(tmp_path):
+    """THE BUG THIS SPLIT EXISTS FOR, found by Codex on #264.
+
+    Splitting only at `RECONCILING_SPLIT` divides the publication's DIAGNOSIS
+    from its PROCEDURE — not its timing rule from its correction rule. So the
+    head kept both causes, including "Includes bank charges you did not enter in
+    your books", which is CB4. POS1 then ratified that head as "a reconciling
+    item, no entry in the books", and the desk's own record held authority
+    saying an unentered bank charge is a timing difference.
+    """
+    out = dict(bcd.pub583_sections(_write(tmp_path, _html(GOOD))))
+    timing = next(c for c in out if c.endswith(bcd.TIMING))
+    charge = next(c for c in out if c.endswith(bcd.UNENTERED))
+
+    assert "bank charges" not in out[timing], (
+        "the timing passage carries POS1, whose answer is 'no entry in the "
+        "books'. A bank charge nobody entered is an ENTRY.")
+    assert "bank charges" in out[charge]
+    assert "did not clear" not in out[charge]
+
+    lead = "The statement balance may not agree"
+    assert lead in out[timing] and lead in out[charge], (
+        "both causes hang off one sentence stem; a fragment starting 'Includes "
+        "bank charges' cannot be checked line by line against the page")
+    assert f"{bcd.RECONCILING_LEAD} Does not include" in out[timing], (
+        "the conjunction joining the two causes belongs to neither of them: "
+        "spliced on, this stores 'if the statement: or Does not include "
+        "deposits', which no reader can match against the page")
+
+
+def test_a_moved_charge_marker_is_refused_rather_than_matched_loosely(tmp_path):
+    """The second cut refuses on the same terms as the first. A publication that
+    reworded its enumeration would otherwise silently store one rule again."""
+    body = GOOD.replace(bcd.CHARGE_SPLIT, "or omits deposits")
+    with pytest.raises(ValueError, match="not in the reconciliation section"):
+        bcd.pub583_sections(_write(tmp_path, _html(body)))
 
 
 def test_a_moved_split_marker_is_refused_rather_than_matched_loosely(tmp_path):

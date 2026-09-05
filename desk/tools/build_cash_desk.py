@@ -165,20 +165,52 @@ PUB_SECTIONS = (
     "Bookkeeping System",
 )
 
-#: THE RECONCILIATION SECTION IS SPLIT IN TWO, because it states two rules and
-#: they have opposite answers. The publication itself makes the division: it
-#: first names what the STATEMENT did not yet include, and later says which
-#: items the BOOKS are updated for. A single citation over both cannot carry a
-#: position -- one citation admits one ratified answer, and these need two.
+#: THE RECONCILIATION SECTION IS SPLIT IN THREE, because it states three rules
+#: and they do not all have the same answer. The publication makes both
+#: divisions itself. A single citation over any two of them cannot carry a
+#: position -- one citation admits one ratified answer.
 #:
-#: Split at the sentence the publication turns on, and REFUSE if it has moved.
+#: Split at the sentences the publication turns on, and REFUSE if one has moved.
 #: The publication is revised; a marker that no longer matches must be re-read
 #: by a person, never matched loosely, because a loose match here would store
 #: half a rule under a citation naming the whole one.
 RECONCILING_SPLIT = "By reconciling your checking account, you will:"
 
-#: What each half is cited as. The suffix is part of the citation, not a
+#: THE SECOND CUT, AND WHY IT WAS MISSING. The first version split only at
+#: `RECONCILING_SPLIT`, which divides the publication's DIAGNOSIS from its
+#: PROCEDURE -- not its timing rule from its correction rule. So the head kept
+#: both of the diagnosis's causes: "Includes bank charges you did not enter in
+#: your books", which is CB4, and "Does not include deposits made after the
+#: statement date or checks that did not clear", which is CB1 and CB2. That head
+#: was then cited by POS1, "a reconciling item, no entry in the books".
+#:
+#: The desk's own record therefore held authority saying a bank charge nobody
+#: entered is a timing difference, and `serve()` returned exactly that for CB4's
+#: facts -- `checked_subject=True`, the firm's ratified position, the opposite
+#: accounting treatment. Found by Codex on #264, reproduced before fixing.
+#:
+#: The heading was wrong about its own contents as well: a bank charge IS on the
+#: statement. It is the BOOKS that do not have it.
+CHARGE_SPLIT = "or Does not include deposits made after the statement date"
+
+#: THE JOINING "or" IS DROPPED AND NOTHING ELSE IS. The two causes are items of
+#: one enumeration, so the conjunction belongs to neither of them: spliced onto
+#: the front of the second, it stores "if the statement: or Does not include
+#: deposits", which no reader can match against the page. Each half is otherwise
+#: verbatim -- the first keeps its trailing comma, which is honest evidence that
+#: it is one item of a list rather than a whole sentence.
+CHARGE_JOIN = "or "
+
+#: Where the shared lead-in stops. Both causes hang off one sentence stem, so
+#: each stored passage carries it and each reads as the publication wrote it --
+#: a fragment beginning "Includes bank charges" is not checkable line by line.
+RECONCILING_LEAD = "if the statement:"
+
+#: What each part is cited as. The suffix is part of the citation, not a
 #: comment: a reader following it has to land on the rule, not the section.
+#: It names the FACT PATTERN and never the treatment -- `UNENTERED` is not "an
+#: entry in the books", which is the answer and belongs to the firm.
+UNENTERED = "a bank charge the books do not have"
 TIMING = "what the statement did not yet include"
 UPDATING = "what the books are updated for"
 
@@ -238,15 +270,29 @@ def pub583_sections(html_path: Path) -> list[tuple[str, str]]:
         cite = f'IRS Pub. 583 (12/2024), "{heading.rstrip(".")}"'
 
         if heading.startswith("Reconciling"):
-            if RECONCILING_SPLIT not in text:
-                raise ValueError(
-                    f"{RECONCILING_SPLIT!r} is not in the reconciliation "
-                    f"section any more. The publication has been revised and "
-                    f"the split has to be re-read by a person; matching loosely "
-                    f"would store half a rule under a citation naming the whole."
-                )
-            head, tail = text.split(RECONCILING_SPLIT, 1)
-            out.append((f"{cite} — {TIMING}", head.strip()))
+            def _cut(where: str, marker: str) -> tuple[str, str]:
+                # EACH MARKER IS CHECKED AGAINST THE PART IT DIVIDES, not
+                # against the whole section. Checked against the section, a
+                # marker that had moved into the OTHER half would pass the guard
+                # and then split into one piece, and the reader would die
+                # unpacking a tuple instead of saying which sentence moved.
+                if marker not in where:
+                    raise ValueError(
+                        f"{marker!r} is not in the reconciliation section any "
+                        f"more. The publication has been revised and the split "
+                        f"has to be re-read by a person; matching loosely would "
+                        f"store half a rule under a citation naming the whole."
+                    )
+                a, b = where.split(marker, 1)
+                return a, b
+
+            head, tail = _cut(text, RECONCILING_SPLIT)
+            lead, causes = _cut(head, RECONCILING_LEAD)
+            lead = (lead + RECONCILING_LEAD).strip()
+            charge, timing = _cut(causes, CHARGE_SPLIT)
+            second = CHARGE_SPLIT.removeprefix(CHARGE_JOIN) + timing
+            out.append((f"{cite} — {UNENTERED}", f"{lead} {charge.strip()}"))
+            out.append((f"{cite} — {TIMING}", f"{lead} {second.strip()}"))
             out.append((f"{cite} — {UPDATING}",
                         (RECONCILING_SPLIT + tail).strip()))
             continue

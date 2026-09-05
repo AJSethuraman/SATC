@@ -620,3 +620,96 @@ def test_the_subjects_are_the_mapping_and_not_a_second_list():
         declared = {t for terms in desk.answered_from.values() for t in terms}
         assert set(desk.fires_on) == declared
         assert len(desk.fires_on) == len(set(desk.fires_on)), "a subject twice"
+
+
+def _overlapping_desk(tmp_path, *, prefixes, passage_citation, passage_source,
+                      answers_from):
+    """A desk written by hand so the gate's SOURCE RESOLUTION can be exercised.
+
+    The two real desks cannot show this: their prefixes do not overlap and every
+    stored citation starts with one, so a gate that re-infers the source from a
+    prefix and a gate that uses the resolved one agree on every row.
+    """
+    d = tmp_path / "overlap"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text("".join(
+        f"## {sid} · Source {sid}\n\n"
+        f"**Tier:** primary · **Access:** public_fetch · "
+        f"**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        f"**Citation prefix:** {pref}\n\n**Why:** public domain.\n\n"
+        for sid, pref in prefixes), encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        f"## P1 · a widget question\n\n**Citation:** {passage_citation}\n\n"
+        f"**Answer:** yes\n\n**Facts:** how do widgets work\n", encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        f"## {passage_citation}\n\n**Source:** {passage_source} · "
+        f"**Checked:** 2026-09-05\n\n> a rule about widgets\n", encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        f"## overlap · A desk\n\n**Answered from {answers_from}:** widgets\n",
+        encoding="utf-8")
+    return record.load(d)
+
+
+def test_the_gate_reads_the_resolved_source_not_the_first_matching_prefix(tmp_path):
+    """S1's prefix is `G` and S2's is `G 1`, so `G 1.1` matches BOTH — and the
+    first match is S1. Re-inferring the source from the citation named S1,
+    refused an answer the desk is declared to give from S2, and did it on a
+    passage whose `source_id` says S2 in the record. One fact, resolved twice,
+    two answers."""
+    desk = _overlapping_desk(
+        tmp_path, prefixes=(("S1", "G"), ("S2", "G 1")),
+        passage_citation="G 1.1", passage_source="S2", answers_from="S2")
+
+    astray, why = engine.cited_off_source(
+        Answer(position="yes", citation="G 1.1"), desk, "how do widgets work")
+    assert not astray, f"a right answer from the declared source was refused: {why}"
+
+
+def test_a_citation_matching_no_prefix_does_not_slip_past_the_gate(tmp_path):
+    """The same defect wearing the other face, and the worse one. A stored
+    passage carries its source by id, so its citation need not begin with any
+    prefix — and prefix matching then named NO source, which the gate read as
+    "I could not look" and passed. `serve()` stamps that `checked_subject=True`.
+    A gate that opens when it cannot identify the source is worse than none."""
+    desk = _overlapping_desk(
+        tmp_path, prefixes=(("S1", "G"), ("S2", "H")),
+        passage_citation="Z 9", passage_source="S1", answers_from="S2")
+
+    astray, why = engine.cited_off_source(
+        Answer(position="yes", citation="Z 9"), desk, "how do widgets work")
+    assert astray, "S1 does not answer widgets; the citation came from S1"
+    assert "S1" in why and "S2" in why
+
+
+def test_serve_still_cannot_tell_two_positions_from_one_source_apart():
+    """THE HALF OF CODEX'S #264 FINDING THE SPLIT DOES NOT CLOSE, pinned so it
+    is measured rather than believed.
+
+    Dividing the passage fixed the RECORD: no stored authority now says an
+    unentered bank charge is a timing difference. It does not fix `serve()`,
+    which reads a citation and never a passage's text. Handed CB4's facts and
+    POS1's citation, it still returns "a reconciling item, no entry in the
+    books" — the opposite treatment — stamped `checked_subject=True`.
+
+    The gate it would have to run through is `cited_off_source`, and #266's
+    measured shape declares subjects per SOURCE. Both positions rest on S2, so
+    no source-level mapping can separate them. Closing this means declaring the
+    mapping per CITATION, which is a second shape needing its own measurement on
+    both desks — the firm's call, not a review round's.
+    """
+    desk = record.load(DESKS / "cash-and-bank")
+    cb4 = next(p for p in desk.problems if p.id == "CB4")
+    timing = next(q.citation for q in desk.positions
+                  if q.position == "a reconciling item, no entry in the books")
+
+    out = serve(Answer(position="a reconciling item, no entry in the books",
+                       citation=timing), desk, question=cb4.facts)
+    assert not isinstance(out, Refusal), (
+        "if this now refuses, the limit has been closed — delete this test and "
+        "say which change closed it")
+    assert out.checked_subject, "and it says it checked, which is the sting"
+
+    held = next(q.text for q in desk.passages if q.citation == timing)
+    assert "bank charges" not in held, (
+        "what the split DID fix: the desk no longer holds authority placing an "
+        "unentered bank charge under the timing position")

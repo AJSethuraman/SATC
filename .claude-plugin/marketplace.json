@@ -27,7 +27,7 @@
       "name": "desk",
       "source": "./desk",
       "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from cited authority, says how binding that authority is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, and reports four outcomes with the costly one first. Depends on canon. Holds no client data.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "displayName": "desk — experts an agent can ask",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"

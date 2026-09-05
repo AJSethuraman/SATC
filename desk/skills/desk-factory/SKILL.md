@@ -96,8 +96,9 @@ cheaper to answer here, where the corpus is still being chosen.
 ## Phase 2 — show them exactly what would be written
 
 ```python
-draft = factory.DeskDraft(name=..., title=..., fires_on=(...),
-                          sources=(...), problems=(...), passages=(...))
+draft = factory.DeskDraft(name=..., title=..., sources=(...),
+                          answered_from={"S1": (...), "S2": (...)},
+                          problems=(...), passages=(...))
 for name, text in factory.render(draft).items():
     print(f"── {name} ──\n{text}")
 ```

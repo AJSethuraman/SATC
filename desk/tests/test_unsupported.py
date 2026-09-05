@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 import unsupported
+from record import RecordError
 from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
 
@@ -454,3 +455,40 @@ def test_an_entry_with_no_citation_survives_the_round_trip(tmp_path):
         id="U2", question="q", concluded="c", believed_authority="26 CFR 1",
         failed_because="authority_absent", recorded="2026-09-05")
     assert unsupported.parse(real.render())[0].believed_authority == "26 CFR 1"
+
+
+# ── the closed vocabulary the escape rule rests on ───────────────────────────
+
+def test_a_question_reason_outside_the_set_is_refused():
+    """`failed_because` is one of only two fields written into the queue's
+    Markdown UNESCAPED, on the stated grounds that it is a closed vocabulary.
+    `from_question` took it from a caller with a default and no check, so a
+    heading in it writes a queue `parse()` then refuses to read — and an
+    ordinary typo files the entry under a category nothing counts."""
+    with pytest.raises(RecordError, match="closed vocabulary"):
+        unsupported.from_question("what is this charge",
+                                  because="authority_absent\n## U99 · injected")
+    with pytest.raises(RecordError, match="authority_absent"):
+        unsupported.from_question("what is this charge", because="autority_absent")
+
+
+def test_the_question_reasons_are_the_engines_reasons():
+    """Two sets, one vocabulary. Written apart, a reason could be renamed in the
+    engine and go on being accepted here, or accepted here and rejected the
+    moment the same entry reached `serve()`."""
+    import engine
+    extra = set(unsupported.QUESTION_REASONS) - set(engine.REASONS)
+    assert not extra, f"{sorted(extra)} is not an escalation reason the engine knows"
+
+
+def test_both_question_reasons_round_trip_through_the_queue(tmp_path):
+    """The two a question can honestly be in, written and read back. A reason
+    the parser cannot recover is a queue entry nobody can sort."""
+    path = tmp_path / "q.md"
+    for reason in unsupported.QUESTION_REASONS:
+        unsupported.append(path, unsupported.from_question(
+            f"a question failing for {reason}", why="asked by the close",
+            because=reason, existing=unsupported.parse(
+                path.read_text(encoding="utf-8")) if path.exists() else []))
+    back = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert [u.failed_because for u in back] == list(unsupported.QUESTION_REASONS)

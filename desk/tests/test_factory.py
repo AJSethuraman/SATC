@@ -297,3 +297,35 @@ def test_the_factory_ships_as_a_skill():
     assert skill.is_file(), "desk-factory/SKILL.md is missing"
     text = skill.read_text(encoding="utf-8")
     assert text.startswith("---\nname: desk-factory\n"), "no skill frontmatter"
+
+
+def test_the_skills_worked_example_names_fields_the_draft_actually_has():
+    """A skill IS the interface for an agent following it, so a renamed field is
+    a broken interface even with every test green.
+
+    `DeskDraft` lost `fires_on` when a desk started declaring which SOURCE
+    answers which subject (#266), and the skill's Phase 2 example went on
+    passing it — `TypeError: unexpected keyword argument 'fires_on'` before an
+    agent could render a single proposal. Found by Codex on #264.
+    """
+    import dataclasses
+    import re
+    from pathlib import Path
+
+    import factory
+
+    text = (Path(__file__).resolve().parents[1] / "skills" / "desk-factory"
+            / "SKILL.md").read_text(encoding="utf-8")
+    call = re.search(r"factory\.DeskDraft\((.*?)\)\n", text, re.S)
+    assert call, "the skill no longer shows a DeskDraft call; show the real one"
+
+    named = set(re.findall(r"(\w+)=", call.group(1)))
+    fields = {f.name for f in dataclasses.fields(factory.DeskDraft)}
+    assert named <= fields, (
+        f"the skill passes {sorted(named - fields)}, which DeskDraft does not "
+        f"have; an agent following it gets a TypeError")
+    required = {f.name for f in dataclasses.fields(factory.DeskDraft)
+                if f.default is dataclasses.MISSING
+                and f.default_factory is dataclasses.MISSING}
+    assert required <= named, (
+        f"the skill omits {sorted(required - named)}, which has no default")

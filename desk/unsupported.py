@@ -43,6 +43,22 @@ _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 #: just written, and the idempotency guard would file the same finding twice.
 NO_CITATION = "(none offered)"
 
+#: WHAT A QUESTION MAY FAIL FOR, and the reason this is a closed set rather than
+#: a string. `failed_because` is one of only two fields `render` writes into
+#: Markdown structure UNESCAPED, and the docstring there says why that is safe:
+#: it is a closed vocabulary. `from_refusal` gets it from the engine, which
+#: validates. `from_question` is a NEW front door that took it from a caller
+#: with a default and no check, so the premise the escape rule rests on stopped
+#: being true the moment that function was added -- `because="authority_absent\n
+#: ## U99 · injected"` writes a queue `parse()` then refuses to read, and an
+#: ordinary typo files the entry under a category nothing counts.
+#:
+#: It is the two a question can honestly be in. The rest of `engine.REASONS`
+#: describe an ANSWER that was tried -- uncited, unsupported, contradicted --
+#: and a question has not been answered. `test_unsupported` proves this is a
+#: subset of the engine's set, so the two cannot drift apart.
+QUESTION_REASONS = ("authority_absent", "facts_not_established")
+
 
 @dataclass(frozen=True)
 class Unsupported:
@@ -278,6 +294,13 @@ def from_question(question: str, *, why: str = "", model: str = "",
     NOTHING HERE IS AN ANSWER, and the queue's own rule holds: an entry is never
     returned to a caller and never counted as correct. Retained is not accepted.
     """
+    if because not in QUESTION_REASONS:
+        raise RecordError(
+            f"a question fails for one of {', '.join(QUESTION_REASONS)}, not "
+            f"{because!r}. The rest of the engine's reasons describe an answer "
+            f"that was tried, and this field is written into the queue "
+            f"unescaped because it is a closed vocabulary"
+        )
     existing = existing or []
     return Unsupported(
         id=next_id(existing),
