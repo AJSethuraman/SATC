@@ -18,6 +18,13 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 touches both, and two desks answering the same question from two sections is the
 firm consulting two experts, not a collision — `route()` returns the list.
 
+**`tool`, `asset` and `equipment` are in the S1 list because Q16 was measured.**
+Written without them, the close's own words — *"Where is the line between a tool
+and a fixed asset?"* — routed to **no desk at all**, while the same question
+rephrased as *"what is our capitalisation threshold"* routed here. A desk that
+only fires on the vocabulary of its own regulation answers the question nobody
+asked in those words.
+
 ---
 
 ## capitalization-and-de-minimis · When a purchase is expensed under the de minimis safe harbour and when it is capitalised
@@ -28,7 +35,8 @@ capitalisation threshold, capitalize, capitalise, capitalized, capitalised,
 capitalization, capitalisation, capital expenditure, capital expenditures,
 expense, expensed, expensing, applicable financial statement, AFS, invoice,
 invoices, per invoice, per item, accounting procedures, accounting procedure,
-accounting policy, book policy, anti-abuse, componentize, 1.263(a)-1, 263(a)-1
+accounting policy, book policy, anti-abuse, componentize, 1.263(a)-1, 263(a)-1,
+tool, tools, asset, assets, fixed asset, fixed assets, equipment
 
 **Answered from S2:** materials and supplies, material or supply, materials or
 supplies, supply, supplies, incidental, non-incidental, rotable, spare part,
