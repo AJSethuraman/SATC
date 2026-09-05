@@ -62,8 +62,33 @@ REASONS = (
     "citation_does_not_support",  # real authority, but not this question's
     "contradicts_ratified_position",  # cited the firm's words, said the opposite
     "facts_not_established",    # the rule is clear; what was bought is not. ASK.
+    "document_not_requested",   # a named document settles it and nobody asked
     "model_gave_up",            # ran out of window or abandoned the task
 )
+
+# WHY `document_not_requested` IS NOT `facts_not_established`, and why the firm
+# had to say so before it existed. Both mean the rule is clear and a fact is
+# missing. They differ in WHAT MAKES THE FACT ARRIVE, and that is the whole of
+# their usefulness: one is answered by asking a person a question, the other by
+# obtaining a document that already exists and that nobody requested.
+#
+# The firm, 5 September 2026, on a loan hiding in a year of deposits: "there
+# should be something telling us to get like loan statements and stuff to make
+# sure we understand the deal." Eight of their forty-three close questions
+# resolve exactly that way -- the town's bill, the policy schedule, the cheque
+# image, the payroll register, the marketplace order history -- and the closing
+# agent's note on one of them is the whole argument: "the order history resolves
+# every one of them and nobody asks for it."
+#
+# Filed as `facts_not_established` all eight would have gone to the queue whose
+# resolution is ASK THE CLIENT, and the thing that actually settles them -- one
+# document request -- would never have been raised.
+#
+# WHERE IT GOES IS THE FIRM'S CONSTRAINT AND IT IS LOAD-BEARING: "but not direct
+# to client - things would be wired to go to me as the last resort right now."
+# A desk naming a document raises it to the PREPARER, who decides whether to ask
+# the client. Nothing this engine produces reaches a client without a person in
+# between.
 
 # WHY `facts_not_established` EXISTS, and why the set went eight rounds without
 # it. Every other reason here is about the AUTHORITY -- absent, non-binding,
@@ -282,6 +307,32 @@ def cited_off_source(answer: Answer, desk: Desk, question: str,
     if source is None:
         backing = desk.authority_for(answer.citation)
         source = backing[2] if backing is not None else None
+    # THE FINER DECLARATION FIRST, AND ONLY WHERE THE DESK MADE ONE (M8).
+    #
+    # A source-level mapping cannot separate two rules living in one source, and
+    # the cash desk holds exactly that pair: the timing rule and the correction
+    # rule, both Publication 583, opposite answers. Measured 5 September 2026 --
+    # handed CB4's facts and the TIMING citation, `serve()` returned "a
+    # reconciling item, no entry in the books" with `checked_subject=True`. The
+    # right source. The wrong paragraph. The opposite treatment.
+    #
+    # It narrows and never widens: only the asked subjects a desk has actually
+    # declared per citation are gated, so a desk declaring none is unaffected and
+    # the cost of this gate can only be paid by a desk that opted in.
+    covered = [t for t in asked
+               if any(t in terms for terms in desk.answered_by.values())]
+    if covered:
+        narrowed = {c for c, terms in desk.answered_by.items()
+                    if any(t in covered for t in terms)}
+        if answer.citation not in narrowed:
+            named = ", ".join(sorted(narrowed))
+            return True, (
+                f"the question is about {', '.join(covered)}, which this desk "
+                f"answers at {named}; {answer.citation!r} is a different rule in "
+                f"the same source. Two paragraphs of one publication can carry "
+                f"opposite answers, and the source alone cannot tell them apart"
+            )
+
     if source is None or source.id in allowed:
         return False, ""
     cited = source.id

@@ -57,7 +57,8 @@ NO_CITATION = "(none offered)"
 #: describe an ANSWER that was tried -- uncited, unsupported, contradicted --
 #: and a question has not been answered. `test_unsupported` proves this is a
 #: subset of the engine's set, so the two cannot drift apart.
-QUESTION_REASONS = ("authority_absent", "facts_not_established")
+QUESTION_REASONS = ("authority_absent", "facts_not_established",
+                    "document_not_requested")
 
 
 @dataclass(frozen=True)
@@ -192,13 +193,14 @@ carries what was concluded and what it cited. A **question nobody has answered**
 — an agent that stopped mid-close and wrote down what it needed — carries no
 conclusion at all, and `Concluded` says so rather than being left blank.
 
-Four resolutions, none automatic, all by pull request:
+Five resolutions, none automatic, all by pull request:
 
 | What the reasoning shows | Resolution |
 |---|---|
 | Real authority that was never loaded | promote to a **source** |
 | A defensible call the rules do not settle | promote to a **position**, in the firm's words |
 | The rule is clear and a FACT is missing | **ask the client.** No amount of authority closes it |
+| A named DOCUMENT settles it and nobody asked | **request it** — raised to the preparer, never to the client |
 | An invention | leave it. Its visibility *is* the finding |
 
 A queue that only grows is a desk nobody is feeding.

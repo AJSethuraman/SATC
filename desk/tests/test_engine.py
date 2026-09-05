@@ -370,26 +370,41 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
     assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
 
 
-def test_every_reason_but_one_is_about_authority_rather_than_facts():
-    """The gap, asserted so it cannot quietly reopen.
+#: The reasons that are about something OTHER than the authority, and what
+#: resolves each. The set is meant to stay legible in exactly these groups: a
+#: reason that fits none of them has been added without anyone deciding which
+#: kind of problem it names, and it is the kind that decides who has to move.
+NOT_ABOUT_AUTHORITY = {
+    "facts_not_established": "ask the client",
+    "document_not_requested": "obtain a document nobody requested",
+}
 
-    `facts_not_established` is the only reason in the set that is about what the
-    rule asks for rather than about the rule. If it is removed, or if the set
-    grows another facts-shaped reason without anyone noticing, this says so.
+
+def test_every_reason_is_legibly_about_authority_facts_or_a_document():
+    """The gap, asserted so it cannot quietly reopen — and it has widened once.
+
+    It read "every reason but one", because `facts_not_established` was the only
+    entry about what the rule asks for rather than about the rule. On 5 September
+    2026 the firm named a third kind: "there should be something telling us to
+    get like loan statements and stuff to make sure we understand the deal."
+    A document that exists and was never requested is not the same problem as a
+    fact nobody knows — one is answered by asking a person, the other by
+    obtaining a thing — and filing them together sends eight of forty-three real
+    questions to the wrong queue.
+
+    So the assertion is no longer "one exception". It is that every reason falls
+    in a named group, and that adding one forces a decision about which.
     """
-    about_facts = {"facts_not_established"}
-    assert about_facts <= set(REASONS), (
-        "the set has nothing for a rule that is clear and a fact that is missing; "
-        "a desk in that position can only guess or blame the record")
-    about_authority = set(REASONS) - about_facts - {"model_gave_up"}
-    assert all(
-        w in r for r in about_authority
-        for w in ("authority", "citation", "source", "position")
-        if w in r), "unreachable; the loop below is the real assertion"
+    assert set(NOT_ABOUT_AUTHORITY) <= set(REASONS), (
+        "a named non-authority reason has been dropped from the engine; the "
+        "desk in that position can only guess or blame the record")
+    about_authority = set(REASONS) - set(NOT_ABOUT_AUTHORITY) - {"model_gave_up"}
     for r in about_authority:
         assert any(w in r for w in ("authority", "citation", "source", "position")), (
-            f"{r!r} is neither about the authority nor named as being about the "
-            f"facts; the set's two halves have to stay legible")
+            f"{r!r} is about neither the authority nor anything named in "
+            f"NOT_ABOUT_AUTHORITY. Say which kind of problem it is: the groups "
+            f"decide who has to move, and a reason in none of them decides "
+            f"nothing")
 
 
 def test_a_reason_outside_the_closed_set_is_still_refused(fixed_assets, problem):
@@ -681,35 +696,118 @@ def test_a_citation_matching_no_prefix_does_not_slip_past_the_gate(tmp_path):
     assert "S1" in why and "S2" in why
 
 
-def test_serve_still_cannot_tell_two_positions_from_one_source_apart():
-    """THE HALF OF CODEX'S #264 FINDING THE SPLIT DOES NOT CLOSE, pinned so it
-    is measured rather than believed.
+# `test_serve_still_cannot_tell_two_positions_from_one_source_apart` STOOD HERE
+# and was deleted on 5 September 2026, on its own instructions. It pinned the
+# half of Codex's #264 finding that the passage split did not close -- `serve()`
+# returning the timing position for CB4's facts -- and said: "if this now
+# refuses, the limit has been closed -- delete this test and say which change
+# closed it." The per-citation narrowing closed it. Its replacement is
+# `test_the_wrong_paragraph_of_the_right_source_is_refused` below, which asserts
+# the refusal this one asserted the absence of.
 
-    Dividing the passage fixed the RECORD: no stored authority now says an
-    unentered bank charge is a timing difference. It does not fix `serve()`,
-    which reads a citation and never a passage's text. Handed CB4's facts and
-    POS1's citation, it still returns "a reconciling item, no entry in the
-    books" — the opposite treatment — stamped `checked_subject=True`.
 
-    The gate it would have to run through is `cited_off_source`, and #266's
-    measured shape declares subjects per SOURCE. Both positions rest on S2, so
-    no source-level mapping can separate them. Closing this means declaring the
-    mapping per CITATION, which is a second shape needing its own measurement on
-    both desks — the firm's call, not a review round's.
+def test_the_wrong_paragraph_of_the_right_source_is_refused():
+    """THE HOLE THIS CLOSES, and it was pinned open in a test above until now.
+
+    A source-level mapping cannot separate two rules living in one source, and
+    the cash desk holds exactly that pair: the timing rule and the correction
+    rule are both Publication 583, with opposite answers. Handed CB4's facts —
+    a service charge nobody entered — together with the TIMING citation,
+    `serve()` returned "a reconciling item, no entry in the books" and stamped
+    it `checked_subject=True`. Right source, wrong paragraph, opposite treatment.
     """
     desk = record.load(DESKS / "cash-and-bank")
     cb4 = next(p for p in desk.problems if p.id == "CB4")
-    timing = next(q.citation for q in desk.positions
-                  if q.position == "a reconciling item, no entry in the books")
+    timing = next(c for c in desk.answered_by if "did not yet include" in c)
 
     out = serve(Answer(position="a reconciling item, no entry in the books",
                        citation=timing), desk, question=cb4.facts)
-    assert not isinstance(out, Refusal), (
-        "if this now refuses, the limit has been closed — delete this test and "
-        "say which change closed it")
-    assert out.checked_subject, "and it says it checked, which is the sting"
+    assert isinstance(out, Refusal)
+    assert out.reason == "citation_does_not_support"
+    assert "what the books are updated for" in out.detail, (
+        "the refusal must name the paragraph that DOES answer it, or the record "
+        "does not say how to fix itself")
 
-    held = next(q.text for q in desk.passages if q.citation == timing)
-    assert "bank charges" not in held, (
-        "what the split DID fix: the desk no longer holds authority placing an "
-        "unentered bank charge under the timing position")
+    right = serve(Answer(position=cb4.answer, citation=cb4.citation), desk,
+                  question=cb4.facts)
+    assert not isinstance(right, Refusal), "the correct citation must survive"
+
+
+def test_the_narrowing_costs_nothing_on_any_desk():
+    """WHAT "BUILD AND MEASURE IT" MEANT. The shape this extends was chosen on a
+    measurement — word overlap refused 4 of 16 right answers on `fixed-assets`
+    and was rejected for it — so this one earns its place the same way: every
+    problem on every desk, answered with its OWN recorded citation and its OWN
+    recorded answer, and the gate must refuse none of them.
+
+    98 problems, 0 refused, 5 September 2026.
+    """
+    refused = []
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        refused += [f"{d.name}/{p.id}" for p in desk.problems
+                    if engine.cited_off_source(
+                        Answer(position=p.answer, citation=p.citation),
+                        desk, p.facts)[0]]
+    assert refused == [], (
+        f"{refused} answered with their own recorded citation and were refused. "
+        f"Either the narrowing is wrong or the declaration is.")
+
+
+def test_a_desk_that_declares_no_narrowing_is_unaffected():
+    """The property that makes this safe to add at all: it only ever removes.
+    A desk declaring none of these lines behaves exactly as it did, so the cost
+    can only be paid by a desk that opted in."""
+    plain = [d.name for d in sorted(DESKS.iterdir())
+             if (d / "SOURCES.md").is_file() and not record.load(d).answered_by]
+    assert plain, "no desk left to prove it on"
+    assert "cash-and-bank" not in plain, "the desk that opted in must be excluded"
+
+
+def test_a_narrowing_may_not_introduce_a_subject(tmp_path):
+    """It NARROWS what a source already answers. A term appearing only on a
+    per-citation line would widen `fires_on` through a back door — and the union
+    of the source lines is `fires_on` precisely so there is no second list."""
+    d = tmp_path / "widen"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## widen · A desk\n\n**Answered from S1:** widgets\n\n"
+        "**Answered by `26 CFR 1`:** widgets, sprockets\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match="cannot introduce a subject"):
+        record.load(d)
+
+
+def test_a_narrowing_to_a_citation_the_desk_lacks_fails_the_load(tmp_path):
+    """It would refuse every answer for those subjects, forever, and read as a
+    strict desk — the same failure the source-level check was given."""
+    d = tmp_path / "ghost"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## ghost · A desk\n\n**Answered from S1:** widgets\n\n"
+        "**Answered by `26 CFR 999`:** widgets\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match="holds no passage or position"):
+        record.load(d)

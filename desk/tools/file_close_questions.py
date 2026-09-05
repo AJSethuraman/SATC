@@ -36,16 +36,23 @@ CORPUS = HERE / "docs" / "CLOSE-QUESTIONS-2026-09-05.md"
 TRIAGE = HERE / "docs" / "CLOSE-QUESTIONS-TRIAGE.md"
 QUEUE = HERE / "unfiled" / "CLOSE-2026-09-05.md"
 
-#: The two kinds the queue holds, and the reason each files under. Written as a
+#: The kinds the queue holds, and the reason each files under. Written as a
 #: mapping rather than an if/else because the point of the exercise is that the
-#: other four kinds have NO entry here -- a missing key is the finding, and a
+#: remaining kinds have NO entry here -- a missing key is the finding, and a
 #: default would hide it.
-FILES_AS = {"A": "authority_absent", "B": "facts_not_established"}
+#:
+#: C WAS NOT HERE UNTIL 5 SEPTEMBER 2026. Eight questions resolved by requesting
+#: a document nobody had asked for, and the queue had no reason for it, so this
+#: tool named their owner and refused to file them. The firm answered the docket
+#: -- "wire it up properly", and "but not direct to client - things would be
+#: wired to go to me as the last resort right now" -- and `document_not_requested`
+#: is that, with the constraint in it: the request is raised to the PREPARER.
+FILES_AS = {"A": "authority_absent", "B": "facts_not_established",
+            "C": "document_not_requested"}
 
 #: What resolves the kinds this queue cannot hold. Named so the report says who
 #: has to move, rather than leaving 21 questions described only as "not filed".
 OWNED_BY = {
-    "C": "a document request — nobody has asked for it",
     "D": "one decision from the firm, ratified once",
     "E": "a defect in the software, not a question",
     "F": "nobody: it changes nothing",

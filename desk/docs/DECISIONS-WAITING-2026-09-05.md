@@ -148,3 +148,105 @@ That is broader than any of these seven — it is a rule about how the firm
 approaches every election in the code. It belongs in `canon/CONVICTIONS.md` and
 **not one word of it goes there without an explicit yes**, which is the whole
 discipline of that file.
+
+---
+
+# Answered — the firm, 5 September 2026
+
+All nine returned on the docket at `claude.ai/code/artifact/b3bbfa5b`. Their words
+are quoted exactly; what each caused is recorded beside it.
+
+| | Matter | Answer |
+|---|---|---|
+| M1 | Merge #264 | **Merge it** |
+| M2 | Vehicle accounts | **Split it** |
+| M3 | Meals accounts | **Three accounts** |
+| M4 | Unreceipted cash | **Always a draw** — *"draw and client confirm"* |
+| M5 | Deposit income evidence | **Bank deposit detail** — and a conviction, below |
+| M6 | Transaction or post date | **Transaction date** |
+| M7 | Card rewards | **"I'll read it first"** |
+| M8 | Per-citation subject mapping | **Build and measure it** |
+| M9 | Document requests | **Wire it up properly** — *"but not direct to client"* |
+
+## What each one caused
+
+**M1 · Merged**, as `9a976ce`. It ratifies POS1 and POS2 on the cash desk and
+closes #266. `main` had moved twice under us and the merge conflicted; resolved
+by taking the other session's `release.py` fix, keeping both log entries, and
+re-releasing canon at **1.12.0** over the union — because two sessions had each
+cut 1.11.0 on the same afternoon, which is the second time in one day that a
+version described a record it did not contain.
+
+**M2 · Split.** The chart is theirs and the split is decided. **What goes in each
+account is now desk work**, because Publication 463 names the categories itself:
+depreciation, lease payments, registration fees, licenses, insurance, repairs,
+gas, garage rent, tires, oil, tolls, parking fees. The firm's own reasoning for
+splitting, which is better than the one this file first offered:
+
+> *"hopefully if i split it into more accounts the agent is then smart enough to
+> ask what goes where which an authority should be able to help with"*
+
+Splitting turns one unanswerable question into twelve answerable ones. **And the
+publication splits parking against itself** — business parking deducts, parking
+at your own place of work is a nondeductible commuting expense. Same merchant,
+two answers, and the deciding fact is where he parked: `facts_not_established`,
+not an authority gap.
+
+**M3 · Three.** 50% under § 1.274-12(a)(2), 100% under a named § 1.274-12(c)
+exception, 0% for entertainment under § 1.274-11(a). Held on the last docket
+until the meals desk reported what the regulation actually makes; it made three.
+
+**M4 · A draw, and the client is told.** *"draw and client confirm"* — so the
+draw is booked and the client is asked what would change it, rather than the row
+being held open.
+
+**M5 · The bank's deposit detail**, plus the reasoning that matters more than
+the answer. See the conviction below.
+
+**M6 · Transaction date.** The books say when the money was spent. The timing
+difference at each year end is the ordinary kind, explained on the reconciliation.
+
+**M7 · Held, correctly.** *Anikeev v. Commissioner*, T.C. Memo. 2021-23 is the
+only place the rewards answer has been tested, and no host carrying court
+opinions is reachable from this environment. **POS1 on the rewards desk stays a
+proposal until the firm has read it.** Nothing else on that desk is blocked.
+
+**M8 · Build and measure it.** The last known way the engine can serve a
+confidently wrong answer. To be built the same way the shape it replaces was
+chosen: build, run against every desk, count the right answers it wrongly
+refuses, and only let it block at zero.
+
+**M9 · Wire it properly — and route it to the firm, not the client.**
+
+> *"but not direct to client - things would be wired to go to me as the last
+> resort right now"*
+
+That is a constraint on the design, not a detail of it. A desk that concludes
+*request the loan statement* raises it to the preparer, who decides whether to
+ask the client. Nothing reaches a client without a person in between.
+
+---
+
+## A conviction, proposed and NOT recorded
+
+M5's note is not an answer about deposits. It is a statement about what the firm
+is, and it bears on far more than the matter it was written under:
+
+> *"and if we use their csv - i assume it's real, my clients are not trying to
+> pay tax on money to look like they make more and we don't provide assurance
+> services. we record things and ask what we must to know it's right"*
+
+**Why it matters beyond M5.** It settles what a desk may treat as evidence.
+`facts_not_established` was added because a rule can be clear while a fact is
+missing — and this says how that fact is allowed to arrive. The client's own
+statement is evidence. The threshold is *what we must ask to know it is right*,
+not *what would survive an audit*, because the firm does not sell assurance.
+
+It also resolves, in one line, a question three desks escalated tonight and one
+the firm already answered by instinct on the groceries — *"the client had already
+told me that he could guarantee they were deductible and honestly I will believe
+the guy."*
+
+**It is not in `CONVICTIONS.md` and will not be until the firm says yes to
+recording it as one.** They wrote the words under a different question; that is
+not the same as ratifying them as a standing rule.
