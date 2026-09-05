@@ -170,8 +170,21 @@ class ReceivedDocument:
 
     @property
     def has_known_provenance(self) -> bool:
-        """Whether the §1.6695-2 record is actually complete for this document."""
-        return self.obtained_how != "unknown" and bool(self.obtained_at)
+        """Whether the §1.6695-2 record is actually complete for this document.
+
+        THE REGULATION NAMES THREE THINGS -- how, when, and from whom -- and this
+        checked two of them. `furnished_by` and `channel` were not looked at, so a
+        row with no idea who supplied a document, or by what means, still reported
+        complete provenance and the screen's "provenance incomplete" flag never
+        fired for it.
+
+        It went unnoticed because until 5 September 2026 **nothing in `src/` ever
+        wrote to this register at all** -- every row came from the synthetic
+        fixtures, and those set every field. A check whose only inputs are
+        fixtures is a check that has never been asked a real question.
+        """
+        return (self.obtained_how != "unknown" and bool(self.obtained_at)
+                and bool(self.furnished_by) and bool(self.channel))
 
 
 class EvidenceError(Exception):

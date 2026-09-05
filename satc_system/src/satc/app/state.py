@@ -271,7 +271,7 @@ class AppState:
 
     # -- mutations (write through to the store) ---------------------------
     def close_request(self, request_id: str, *, reason: str = "",
-                      how: str = "") -> None:
+                      how: str = "", channel: str = "") -> None:
         """Close an open request — satisfied, or not applicable WITH A REASON.
 
         Replaces set_document_status(). The old call took any of five statuses
@@ -306,8 +306,63 @@ class AppState:
                 mark_not_applicable(item, reason)      # raises on a blank reason
             else:
                 item.status = "satisfied"
+                # THE ARRIVAL IS WRITTEN BEFORE THE REQUEST IS CLOSED, and the
+                # order is deliberate: if the arrival write fails, the request
+                # stays open, which is the safe direction to fail in. The other
+                # way round leaves a closed ask with nothing recorded against
+                # it -- the very defect this exists to end.
+                #
+                # And the reload belongs AFTER the save, not inside the record.
+                # The first version reloaded the mart from the store while
+                # `item` was still unsaved, so the freshly-closed request came
+                # back OPEN in memory and the tracker never counted down.
+                # `test_closing_a_request_drops_it_off_the_tracker` caught it.
+                self._record_arrival(item, channel=channel)
             self.store.save_requested_items([item])
+            self.reload()
             return
+
+    def _record_arrival(self, item, *, channel: str = "") -> None:
+        """Write the ARRIVAL, not just the closed request.
+
+        THE SCREEN KEEPS TWO REGISTERS AND SAYS WHY -- "what we asked for, and
+        what has arrived" -- and the second one carries its own justification:
+        "How and when a document was obtained, and from whom, is required by
+        26 CFR 1.6695-2(b)(4)(i)(C) -- not a nicety."
+
+        Pressing **Received** closed the first register and wrote nothing to the
+        second. The ask went to `satisfied`, the nav badge counted down, and
+        `Arrived` still read "Nothing has arrived yet." So the one button on the
+        screen meaning "it came in" left no record of the three things the
+        citation names. Found by walking it, 5 September 2026.
+
+        WHAT IS DERIVED AND WHAT IS NOT. `furnished_by_client` and the client are
+        derived, not guessed: this request was made TO that client, and closing
+        it as received is the statement that they answered it. The DATE is now,
+        which is when the preparer recorded it. The CHANNEL -- email, portal,
+        paper -- is genuinely unknown unless somebody says, so it is left empty
+        and the row flags itself `provenance incomplete` rather than inventing
+        one. An arrival that is honest about its gap is worth more than a
+        complete-looking record nobody can rely on.
+
+        Idempotent: the id is derived from the request, so pressing Received
+        twice records one arrival rather than two.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        self.store.save_received_documents([ReceivedDocument(
+            document_id=f"received-{item.request_id}",
+            client_id=item.client_id,
+            tax_year=item.tax_year,
+            doc_type=item.doc_type,
+            obtained_how="furnished_by_client",
+            obtained_at=datetime.now(),
+            furnished_by=self.name(item.client_id),
+            channel=(channel or "").strip(),
+            satisfies_request_id=item.request_id,
+        )])
 
     def confirm_field(self, field_id: str) -> None:
         self.gate.confirm(field_id, acting_actor())

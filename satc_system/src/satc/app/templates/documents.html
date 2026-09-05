@@ -81,7 +81,12 @@
         </td>
         <td class="right">
           {% if i.is_open %}
+          {# HOW IT ARRIVED, asked here because the register below cites a
+             regulation that requires it. Optional on purpose: an unrecorded
+             channel flags itself as incomplete on the arrival, which is more
+             use than a mandatory box people learn to fill with a full stop. #}
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
+            <input class="field-input" type="text" name="channel" placeholder="how it arrived — email, portal, paper…" style="width:190px">
             <button class="btn sm" type="submit" name="how" value="received">Received</button>
           </form>
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">

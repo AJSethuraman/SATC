@@ -442,7 +442,7 @@ checked before sending still says 100.
 Refuse it at the keyboard, the way the engagement ref does, or show the
 override — but not silence.
 
-## D18 · The button marked "Received" does not record that anything was received
+## D18 · The button marked "Received" does not record that anything was received — **FIXED, and it was the smaller half**
 
 **HIGH.** The Documents screen exists to keep **two** registers, and says so:
 
@@ -462,6 +462,38 @@ So the one button on the screen that means "it came in" closes the first
 register and writes nothing to the second — the second being the one the page
 says a regulation requires. Nothing asks *how* it arrived, *when*, or *from
 whom*, which are precisely the three fields the citation names.
+
+## D26 · Nothing has ever written the arrivals register
+
+**HIGH**, and found while fixing D18 rather than by walking.
+
+D18 said the **Received** button did not write to the arrivals register. Fixing
+it turned up the larger fact: `state.py` was the **only** place in `src/` that
+constructed a `ReceivedDocument` once the fix was in, and before it there were
+none at all. The other two writers are `store.py`'s bulk mart save — which is
+fixture seeding — and the store's own loader.
+
+So `Arrived` has only ever contained the six synthetic demo rows. **Intake does
+not write one either:** `run_intake` reads a folder, classifies each document,
+and `reconcile_received` flips the matching request to satisfied — closing the
+first register without ever touching the second. The register the screen says
+26 CFR §1.6695-2(b)(4)(i)(C) requires has, in the product's whole history,
+recorded no real document.
+
+*Fixed here:* the **Received** button, which now records how, when and from whom.
+*Not fixed here:* **intake**. A document read out of a folder genuinely raises a
+question the code cannot answer on its own — a scan drop is not self-evidently
+"furnished by the client", and guessing is what this codebase refuses to do. It
+needs a decision, not a patch.
+
+*And it hid a second defect.* `ReceivedDocument.has_known_provenance` claimed to
+say "whether the §1.6695-2 record is actually complete" while checking only
+`obtained_how` and `obtained_at` — never `furnished_by` or `channel`. A row with
+no idea who supplied a document reported complete provenance and the screen's
+`provenance incomplete` flag never fired. It went unnoticed **because every row
+came from fixtures, and fixtures fill in every field**: a check whose only inputs
+are fixtures has never been asked a real question. Tightened to all three things
+the regulation names.
 
 ## D19 · "Nothing outstanding" sits directly above five outstanding items
 
