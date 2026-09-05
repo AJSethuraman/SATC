@@ -736,6 +736,7 @@ def engagement_plan():
             "engagement_plan.html", title="Engagement plan", workflow=None, plan=None,
             client_id=client_id, public_client=public_client,
             workflows=STATE.workflow_catalog().get(client_type, []),
+            clients=STATE.client_choices(),
             tax_year="" if year is None else year, today=today)
 
     try:
@@ -762,6 +763,7 @@ def engagement_plan():
                                template="engagement_letter",
                                tax_year="" if year is None else year),
             mode=(src.get("mode") or "").strip(),
+            clients=STATE.client_choices(),
             plan=None, refusal="", blocking=(), expected_late=(), other_needs=(),
             needs_total=0, blocking_basis=None,
             promises=(), promise_refusal="", fee_slot="",
@@ -771,6 +773,20 @@ def engagement_plan():
             promise_gaps_url=url_for("intake.promise_capability"))
         context.update(extra)
         return render_template("engagement_plan.html", **context)
+
+    if not client_id:
+        # THE PAGE ALREADY SAID THIS AND NOTHING ENFORCED IT.
+        #
+        # "Pick a client first -- a plan is for somebody" is the screen's own
+        # opening line, and the only guard below was on the tax year. Supply a
+        # year in the URL and the whole plan rendered for nobody: dated document
+        # requests, a cost section, statutory and firm-policy deadlines, and
+        # "Because you answered 'yes' to New SAT-C client?" against answers no
+        # client ever gave -- with Generate this engagement live underneath it.
+        return screen(refusal=(
+            "Pick the client this engagement is for. The rate plan, the filing "
+            "history and the deadlines are all read off them, so a plan without "
+            "one is a page of dates that belong to nobody."))
 
     if year is None:
         # A deadline is a rule landed on a PERIOD. Without the year there is no

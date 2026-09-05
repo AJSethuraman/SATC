@@ -241,6 +241,29 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
     from satc.intake.fanout import fan_out
     from satc.models.work import engagement_for
 
+    # AN ENGAGEMENT BELONGS TO SOMEBODY, and nothing used to check.
+    #
+    # `/intake/plan` opens with "Pick a client first -- a plan is for somebody",
+    # offers no control that picks one, and guarded only the tax year. Supply a
+    # year and the full plan rendered for nobody: document requests with dates, a
+    # cost section, statutory and firm-policy deadlines, and "Because you answered
+    # 'yes' to New SAT-C client?" against answers no client ever gave. Generate
+    # this engagement was live on it, and pressing it created a real stored
+    # engagement with an empty client key, plus two document requests that then
+    # survived a sample-data clear.
+    #
+    # The engagement screen showed the hole in its own sentence -- "this system
+    # keys on , which a client is never shown" -- and `/engagements` listed the
+    # row with an empty CLIENT column. Found by walking it, 5 September 2026.
+    #
+    # The check is here rather than in the two views because this is the single
+    # producer (see the docstring above); a view-level check protects the door it
+    # is written on and no other.
+    if not (client_id or "").strip():
+        raise ValueError(
+            "An engagement belongs to a client, and none was chosen. Nothing was "
+            "created -- pick the client this work is for and generate it again.")
+
     workflow = load_workflow(workflow_key)
     names = store.names()
     relationships = store.load_relationships()
