@@ -1,0 +1,114 @@
+# Unsupported — answers the engine would not serve, kept with their reasoning
+
+**Retained is not accepted.** Nothing here was returned to a caller and nothing
+here is counted as correct. It is kept because a refusal is a finding, and the
+reasoning behind it is the best evidence of what this desk's record is missing.
+
+Three resolutions, none automatic, all by pull request:
+
+| What the reasoning shows | Resolution |
+|---|---|
+| Real authority that was never loaded | promote to a **source** |
+| A defensible call the rules do not settle | promote to a **position**, in the firm's words |
+| An invention | leave it. Its visibility *is* the finding |
+
+A queue that only grows is a desk nobody is feeding.
+
+---
+
+## U1 · A deposit of $516.08 was made on 31 January and recorded in the books that day. It does not appear on the bank statement for the month ended 31 January.
+
+**Failed because:** authority_permits_choice · **Recorded:** 2026-09-04
+
+**Question:**
+
+> A deposit of $516.08 was made on 31 January and recorded in the books that day. It does not appear on the bank statement for the month ended 31 January.
+
+**Concluded:**
+
+> a reconciling item, no entry in the books
+
+**Believed authority:**
+
+> IRS Pub. 583 (12/2024), "Reconciling the checking account"
+
+**Model:** frontier
+
+**Working:**
+
+> The books already record the 31 January deposit correctly and only the bank has not yet posted it, so the gap is a timing difference cleared on the reconciliation that makes the statement, the checkbook and the books agree. Nothing in the books is wrong, so no book entry is called for.
+
+---
+
+## U2 · Check number 94 for $150.00 was written on 20 January, sent to the payee, and recorded in the books. The bank statement for the month ended 31 January does not show it among the checks paid.
+
+**Failed because:** authority_permits_choice · **Recorded:** 2026-09-04
+
+**Question:**
+
+> Check number 94 for $150.00 was written on 20 January, sent to the payee, and recorded in the books. The bank statement for the month ended 31 January does not show it among the checks paid.
+
+**Concluded:**
+
+> a reconciling item, no entry in the books
+
+**Believed authority:**
+
+> IRS Pub. 583 (12/2024), "Reconciling the checking account"
+
+**Model:** frontier
+
+**Working:**
+
+> Check 94 was written, issued and recorded correctly; it is simply not yet presented to the bank, so it is an outstanding check shown on the reconciliation that brings the statement, the checkbook and the books into agreement. The book record needs no change.
+
+---
+
+## U3 · A deposit of $600.40 made on 8 January was entered in the checkbook and the books as $594.40. The bank statement shows the deposit at $600.40.
+
+**Failed because:** authority_permits_choice · **Recorded:** 2026-09-04
+
+**Question:**
+
+> A deposit of $600.40 made on 8 January was entered in the checkbook and the books as $594.40. The bank statement shows the deposit at $600.40.
+
+**Concluded:**
+
+> an entry in the books
+
+**Believed authority:**
+
+> IRS Pub. 583 (12/2024), "Reconciling the checking account"
+
+**Model:** frontier
+
+**Working:**
+
+> The bank shows the correct $600.40 while the checkbook and books show $594.40, so the error is in the records, not a timing difference. Making the statement, the checkbook and the books agree requires correcting the books by the $6.00 understatement.
+
+---
+
+## U4 · The bank statement for the month ended 31 January shows a service charge of $10.00. Nothing for it appears in the checkbook or the books.
+
+**Failed because:** authority_permits_choice · **Recorded:** 2026-09-04
+
+**Question:**
+
+> The bank statement for the month ended 31 January shows a service charge of $10.00. Nothing for it appears in the checkbook or the books.
+
+**Concluded:**
+
+> an entry in the books
+
+**Believed authority:**
+
+> IRS Pub. 583 (12/2024), "Reconciling the checking account"
+
+**Model:** frontier
+
+**Working:**
+
+> The $10.00 service charge is a real bank deduction that the books have never recorded, so the books are incomplete rather than merely out of step in timing. Agreement of the statement, the checkbook and the books is reached by entering the charge in the books.
+
+---
+
