@@ -168,21 +168,25 @@ def test_route_itself_matches_whole_words_not_substrings(regs):
     "repair" is one desk's subject, so a substring matcher fires on "repairman"
     and a whole-word one does not.
 
-    THE QUESTION IS ONE WORD, AND THAT IS DELIBERATE. It read "the repairman
-    called about parking" and asserted the WHOLE registry stayed silent -- so the
-    day a desk declared `parking` as a subject, this test failed for a reason
-    that had nothing to do with substrings, on a rule that was working perfectly.
-    A test over the live registry may not put filler in its question: every word
-    is a claim that no desk anywhere answers it, and desks are added by people
-    who will never read this file.
+    THE REGISTRY IS BUILT HERE AND IS NOT THE SHIPPED ONE, which took two goes
+    to learn. It first asked whether the WHOLE live registry stayed silent on
+    "the repairman called about parking" -- and failed the day a desk declared
+    `parking`, on a rule working perfectly. Cutting the question down to the one
+    baited word looked like the fix and was not: a desk about paying individuals
+    for services then declared `repairman` itself, which is entirely correct of
+    it. Every word of a question asked against the live record is a claim that no
+    desk anywhere answers it, and desks are added by people who will never read
+    this file. So the fixture is two lines of made-up subjects, and the only
+    thing under test is the matcher.
     """
-    baited = [r.desk for r in regs if "repair" in r.fires_on]
-    assert baited, "fixture no longer proves it: no desk declares `repair`"
-    assert routing.route("repairman", regs) == [], (
+    made_up = [routing.Registration(desk="d", title="t",
+                                    fires_on=("repair", "gasket"),
+                                    answered_from={"S1": ("repair", "gasket")})]
+    assert routing.route("repairman", made_up) == [], (
         "route() is matching substrings; it must use canon's whole-word rule"
     )
-    assert set(r.desk for r in routing.route("repair", regs)) >= set(baited), (
-        "the whole word must still route, or this proves nothing"
+    assert [r.desk for r in routing.route("a repair is needed", made_up)] == ["d"], (
+        "the whole word must still route, or the line above proves nothing"
     )
 
 
