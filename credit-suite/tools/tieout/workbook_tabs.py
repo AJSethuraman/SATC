@@ -135,44 +135,73 @@ SOURCES = [
 
 def proven_tab(audit):
     """The honest account of how each number was checked."""
-    a = audit
     return [
         ("h1", "What was proven, and how"),
         ("", ""),
         ("warn", "THE HONEST ANSWER FIRST. 22,819 values were checked against the "
-                 "document that published them, and none disagreed. But they were "
-                 "NOT all checked the same way, and only a minority were checked "
-                 "by photograph. The difference matters and is set out below."),
+                 "document that published them and none disagreed -- but they "
+                 "were NOT all checked the same way, and only a small minority "
+                 "were checked by eye. These counts come from an independent "
+                 "audit of the scripts and images, not from me."),
         ("", ""),
-        ("h2", "Two kinds of checking"),
-        ("p", "PHOTOGRAPHED -- an image of the source document AND an image of the "
-              "workbook cell, both embedded in a PDF exhibit, with the row ringed. "
-              "A person can look at the two pictures and see the same number. "
-              "Roughly %s values." % a.get("photographed", "see below")),
-        ("p", "CHECKED IN CODE -- the agency's own file was downloaded, parsed, "
-              "and every number compared with the workbook in software. Real, "
-              "repeatable, and against a genuinely independent document -- but "
-              "there is no picture of each individual value. Roughly %s values."
-              % a.get("programmatic", "see below")),
-        ("p", "NOT CHECKED -- %s values. Case-Shiller history behind a paywall, "
-              "two consumer-credit series with no historical table, one survey "
-              "split published one quarter at a time, plus the FDIC's own computed "
-              "ratios which are not a line on any form."
-              % a.get("unverified", "4,078")),
+        ("h2", "How the 26,897 values break down"),
+        ("p", "773   PHOTOGRAPHED, BOTH SIDES. An image of the source document "
+              "AND an image of the workbook cell, both embedded in a PDF "
+              "exhibit, with the row ringed in red. A person can look at the "
+              "two pictures and see the same number."),
+        ("p", "82    PHOTOGRAPHED, ONE SIDE. The workbook cell was photographed "
+              "but that period does not appear in any source image."),
+        ("p", "21,964  CHECKED IN CODE ONLY. The agency's own file was "
+              "downloaded, parsed, and every number compared with the workbook "
+              "in software. No picture of that individual value exists."),
+        ("p", "4,078  NOT CHECKED. 1,536 ratios the FDIC computes rather than "
+              "banks filing them, 2,500 with no free historical source, and 42 "
+              "merger-quarter flows."),
+        ("", ""),
+        ("warn", "So: about 3 percent of the data has a picture. The photographic "
+                 "layer is ONE PERIOD DEEP -- the newest quarter for banks and "
+                 "the newest observation for the macro series. Fifteen of the "
+                 "sixteen bank quarters and 13,699 of the 13,841 macro "
+                 "observations have never been photographed on either side."),
         ("", ""),
         ("h2", "Why the code check is still worth something"),
-        ("p", "It compares against a file published by the body that computes the "
-              "number -- FHFA's own CSV, the Federal Reserve's own HTML table, the "
-              "bank's own XBRL filing. It is not the software checking itself. If "
-              "a number had been wrong, the comparison would have said so, and on "
-              "22,819 comparisons it never did."),
-        ("p", "What it is not is a photograph of each one. If you want a picture "
-              "of a specific value, the exhibits under docs/tie-out/ have them for "
-              "the most recent period, and the pictures below show the tables "
-              "every other comparison was made against."),
+        ("p", "It compares against a file published by the body that COMPUTES "
+              "the number -- FHFA's own CSV, the Federal Reserve's own table, "
+              "the bank's own filing from the regulator. The audit confirmed "
+              "there is no FRED file anywhere in the comparison, so the system "
+              "is not being checked against itself."),
+        ("ok", "The audit then tried to make the comparison produce a FALSE tie, "
+               "four ways. Matching a series against a different series on the "
+               "same date: 0 false ties out of 11,341. Matching against the "
+               "wrong period: 1.4%. No series has a constant source-side value. "
+               "Spot checks mid-history matched exactly. It could not fool it."),
+        ("ok", "The bank checker was then mutation-tested directly: ten known-"
+               "wrong values planted -- off by a thousand, off by one percent, "
+               "digits transposed, sign flipped -- and it called all ten "
+               "DIFFERS, and the unchanged control TIES. It can still say no."),
         ("", ""),
-        ("h2", "Pictures of the macro source tables, with the proved rows ringed"),
-        ("p", "These are in docs/tie-out/macro-sources/. They are the answer to "
-              "'show me that it matched' for the macro side, where the row-level "
-              "link is only a landing page."),
+        ("h2", "Two weaknesses in the tie count, stated plainly"),
+        ("caution", "2,178 of the 11,478 bank ties (19%) are ZERO MATCHED "
+                    "AGAINST ZERO -- categories where a bank has no exposure. "
+                    "True, and the weakest possible form of agreement."),
+        ("caution", "The macro source pictures ring a ROW, and a row holds "
+                    "eleven columns. The picture shows you where the number "
+                    "lives; it does not circle the individual figure."),
+        ("", ""),
+        ("h2", "The pictures"),
+        ("p", "docs/tie-out/macro-sources/ -- ten images of the agencies' own "
+              "tables with the proved rows ringed, including the Federal "
+              "Reserve charge-off and delinquency tables. 55 series map to one."),
+        ("p", "docs/tie-out/banks-12-2026-06-30/ -- twelve PDFs, one per bank, "
+              "824 pages, every line with its workbook cell and its filing row "
+              "as images."),
+        ("p", "docs/tie-out/fred-142-series-2026-09-05/ -- the macro exhibit, "
+              "142 workbook cells photographed."),
+        ("", ""),
+        ("h2", "The one sentence to keep"),
+        ("warn", "Every one of these was compared against the agency's own file "
+                 "by software, and the software was attacked and could not be "
+                 "fooled. But eyes-on-the-page proof covers the most recent "
+                 "period only -- 862 figures. The other 21,957 are a code "
+                 "comparison you have to trust the code for."),
     ]

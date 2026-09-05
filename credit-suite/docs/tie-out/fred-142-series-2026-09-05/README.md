@@ -1,4 +1,6 @@
-# Tie-out: every number in the FRED credit monitor — 5 September 2026
+# Tie-out: the latest observation of all 142 macro series — 5 September 2026
+
+*(This heading said "every number" until an audit pointed out that the document covers 142 figures out of 13,841 observations — the newest of each series. The body always said "142 of 142 series"; the title did not, and the title is the line a reader sees first.)*
 
 **142 of 142 series tied. 0 differ. 0 could not.**
 
