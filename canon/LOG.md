@@ -540,3 +540,155 @@ spends money to widen it.
 
 141 passed. Version stays at **1.5.0** — the record did not change here; what
 changed is that the version now travels.
+
+## 4 September 2026 (evening) — trends, charts, a readable tie-out, and a lesson re-tested
+
+Written while working, not at the close. Session moved to Fable 5.1 mid-afternoon
+by the firm's choice; canon 1.6.0 loaded, and behaviours 16–18 were applied to
+this session before the docket was built rather than after.
+
+**Built, in PR #248 (draft, CI 7/7 green):**
+
+- `tools/trend.py` — the history was already in the workbook. `Raw_FDIC` holds
+  16 quarters × 12 banks × 68 fields back to 2022-Q3, and every dashboard read one
+  column. Change over 4q/8q, run length, divergence from the peer median move.
+  Lights no flags; thresholds stay in `_config`.
+- `tools/chartbook.py` — a second workbook with 18 native Excel line charts, no
+  macros, so it opens with no Mark-of-the-Web banner. FDIC only.
+- `--tieout` rewritten to a block per metric: what it is, how built, where on the
+  form, the code, the verification state in words. All 53 metrics described; the
+  codes kept, because stripping them makes the number unsearchable.
+
+**A carried lesson tested rather than inherited.** L4 forbids native charts on
+two grounds. The corruption ground did not reproduce in Excel 16.0 — a library
+chart opened with zero dialogs, bare and inside the real `.xlsm` with its macro
+still running. The refresh ground still holds and is the binding one. Amendment
+is on the docket, not made.
+
+**What an auditor asked for, and got most of.** *"i want to see the validation
+process work, and believe it."* Capital One (CERT 4297, 2026-06-30), pulled with
+raw `urllib` and no monitor code: RCON1407 + RCON1403 = 6,822,000 = NCLNLS as
+reported; 100 × 6,822,000 / 457,432,000 = 1.4913692089753 = the FDIC's published
+ratio = the workbook. The one ratio that does not tie (NTLNLSQR, 1.1% off) is
+explained by RC-K average loans, as the provenance note already said. The filed
+Call Report was opened at `cdr.ffiec.gov` and its cover confirmed — bank, quarter,
+form 031 — but the viewer would not surface the line item. **The chain reaches
+the FDIC's API, not the filing.** Closing it needs the XBRL download, which
+needs the firm's permission; it is decision 2 on the docket.
+
+**Behaviour 2, caught in the act.** This session reported "32 open pull requests"
+off a listing. A limit-free count says 9, with 65 of mine closed since noon (35
+merged) — main took 75 commits in an afternoon. Whether 32 was ever right cannot
+be told from here. Recorded on the docket as wrong, not absorbed.
+
+**Behaviour 16, applied.** The 20 skips are all the legacy-runner differential
+tests. What is therefore unproven: that the engine still matches an
+implementation that no longer exists. That proof now rests on the parity
+goldens — a different proof — and the docket says so instead of calling the
+skips inert.
+
+**Behaviour 17, applied.** Cleared before the docket: a data export left at the
+repo root, two scratch files in `/tmp`, a Chrome tab, and stray Excel processes
+(none found). `credit-suite/example-output/` is now ignored so `git add -A`
+cannot sweep two live workbooks into a commit.
+
+**Not tested, stated.** `trend.py` and `chartbook.py` carry no tests. They are
+hand-verified against raw cells and the workbook's own recalculated formulas,
+and they write nothing into the monitor. That is below this project's bar, and
+the docket says so beside the recommendation to merge.
+
+**Docket published**, five decisions: merge #248; permission to download the
+XBRL; amend L4; ship the chart workbook as an M2 slice; document the red banner
+in `_readme`. Answers to be written here when given.
+
+---
+
+## 5 September 2026 — two sessions wrote to the record at once, and it broke in two ways
+
+`main` was red for about an hour and every open pull request was stuck behind it
+— 253, 254 and 257, two of them not this session's. Four failing tests, two
+causes, neither of them the four tests' own fault.
+
+**A silent partial read, in the place canon's own log already names.** `_field`
+took the first line of a field and nothing else. The C11 decline recorded the
+night before carries a ten-line `Not a conviction because:`; **nine lines were
+dropped by every read**, and the record still parsed. Nothing downstream could
+tell — an empty field and a field that was never fully read look identical to
+every caller — and the only check that could notice is the round trip, which
+compares the committed file against a re-render of the parse. It noticed.
+
+This is the same defect the entry of 4 September records one field over: *"a
+single-line reader on a value that had grown, parsing 5 of 24 subjects and
+reporting success."* Fixed there, in `desk/record.py`, whose comment names canon
+as where it was first found. Not fixed here, because nothing had wrapped yet.
+
+**Two sessions, two ideas, one id.** `61b04c9` recorded C11 as a conviction the
+firm holds. `ae23978`, an hour later, recorded a different C11 as a proposal they
+declined. Both merged. The record whose own rule is that ids are never reused
+held one number against two ideas, and *"what did we decide about C11"* became a
+question with two answers. The declined entry — the later claimant — is now C13.
+
+**The test that should have caught it was the reason it wasn't caught.**
+
+```python
+assert [d.cid for d in declined] == ["C3"]
+```
+
+A literal like that fails on the second declined entry whatever it is called, so
+it reads as a tripwire for exactly this. It is not one. Whoever adds an entry
+updates the literal, the suite goes green, and the collision is untouched — which
+is what happened. It now asserts the RULE, over whatever the record holds:
+
+```python
+twice = sorted({i for i in ids if ids.count(i) > 1})
+assert not twice
+```
+
+**It needs no editing when the record grows, and cannot be satisfied by editing
+it.** That is the difference between a check and a note.
+
+**Two things the fix taught, which were not in the brief.**
+
+*Prose wraps; structure does not.* Making `_field` multi-line for everything was
+over-broad and broke a passing test immediately: `Fires on` is a comma list this
+module writes on one line, and read as prose it swallowed `Proposal.ask()`'s own
+closing question as two subjects the conviction fires on. A run-on read of a
+structured field does not lose data, **it invents it**. Wrapping is now opt-in,
+and only a field whose value is a sentence takes it.
+
+*A rendered entry has to be closed.* `ask()` printed the entry and then asked the
+firm to confirm it, with nothing between. A field's value runs to the next field
+or a rule, so prose appended straight after an entry is structurally part of its
+last field. `ask()` now ends the entry with `---`, which also does the thing it
+looks like it does.
+
+Eight mutations, all red. Two survived a first attempt and both were the test's
+fault rather than the code's: one asserted `_field`'s default in isolation and
+left the real call site in `parse_convictions` free to pass `prose=True` with the
+suite still green — **the helper proved and its caller not, for the fourth time
+in this repository** — and one "empty reason" fixture was not actually empty.
+
+168 passed. **1.7.0 → 1.7.1**, both manifests, because the record changed and the
+plugin cache keys on the marketplace number.
+
+### What the firm answered on the 5 September docket
+
+Published as a form rather than as prose, per the docket skill; answers read back
+out of it with `read_db`.
+
+| | Answered |
+|---|---|
+| Fix the canon record, and on which branch | **Yes — new branch.** This entry is that work. |
+| Which subject the second desk covers (#245) | **Cash and bank reconciliation** — the firm's own example, and a firm convention rather than a citable rule, which is the shape that makes escalation fire. |
+| May a desk's question leave the network | **Yes — de-identified only.** In their words: *"sure build that in and de-identify, i still want it measured against real so we can see how much is able to be saved and automated"* |
+| Should a near-miss citation stop being filed as a refusal | **Yes — record the near miss.** |
+
+**Open against that third answer:** *measured against real* has two readings —
+against real client work, to see what proportion a desk can take over; or the
+de-identified input against the real one, to see what de-identification costs in
+accuracy. They are not the same measurement. Asked rather than assumed.
+
+**Not proposed as a conviction, yet.** *"i still want it measured against real"*
+may be a standing belief about evidence rather than a scoping call on this
+project. It is noted here so it is not lost, and it is not in `CONVICTIONS.md`,
+because nothing enters that file without an explicit yes.

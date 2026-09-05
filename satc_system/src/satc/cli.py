@@ -413,8 +413,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "reset":
-        from satc.persistence.store import DEFAULT_DIR
-        d = Path(args.dir) if args.dir else DEFAULT_DIR
+        # `resolve_dir`, not `DEFAULT_DIR`: this command DELETES the vault,
+        # and it used to ignore SATC_DATA_DIR entirely -- so scoping a run to a
+        # temp store and then resetting it destroyed the real one instead.
+        from satc.persistence.store import resolve_dir
+        d = resolve_dir(args.dir)
         if not args.yes:
             print(f"This permanently deletes the SATC databases in {d}")
             print("(including the identity vault — client names and SSNs). This cannot be undone.")
