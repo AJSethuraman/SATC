@@ -288,19 +288,23 @@ def test_keep_vba_is_never_used_on_an_xlsx(tmp_path):
 # the run guards
 # --------------------------------------------------------------------------
 
-def test_zero_pulls_where_pulls_were_expected_is_a_failure():
-    """Without this a total outage exits 0 over a workbook of blanks under a
-    fresh timestamp, which reads as 'checked, nothing wrong'."""
-    assert runtime.run_succeeded({"entities_active": 12, "entities_landed": 0}) \
-        is False
-    assert runtime.run_succeeded({"entities_active": 12, "entities_landed": 1}) \
-        is True
+def test_every_entity_that_was_admitted_has_to_land():
+    """The second line read ``is True`` until 5 September 2026: the gate asked
+    for AT LEAST ONE. The same shape on the FRED side shipped a workbook with
+    Nebraska missing under exit code 0 -- one HTTP 500 out of 142 series, the
+    error recorded honestly in the status dict, and nothing read it."""
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 0}) is False
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 1}) is False
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 12}) is True
 
 
 def test_a_monitor_with_nothing_to_pull_is_not_a_failure():
     """An empty peer list is a configuration, not an outage."""
-    assert runtime.run_succeeded({"entities_active": 0, "entities_landed": 0}) \
-        is True
+    assert runtime.run_succeeded(
+        {"entities_admitted": 0, "entities_landed": 0}) is True
 
 
 def test_the_exit_codes_are_the_ones_the_contract_names():

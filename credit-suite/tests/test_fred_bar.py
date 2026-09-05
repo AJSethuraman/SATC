@@ -464,11 +464,16 @@ def test_evaluate_alert_zscore_fires_on_or_above_band():
 
 
 # --------------------------------------------------------------------------
-# A total-fetch failure must NOT read as success (never trust the exit code)
+# A PARTIAL fetch failure must NOT read as success either (the Nebraska hole)
 # --------------------------------------------------------------------------
-def test_run_succeeded_flags_zero_pull():
-    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 5}) is True
+def test_run_succeeded_needs_every_pullable_series_to_land():
+    """The first line read ``is True`` until 5 September 2026. The gate asked
+    for AT LEAST ONE, so one HTTP 500 on the Nebraska house price index gave
+    pulled = 141 of 142, exit code 0, and a workbook on the desk with a state
+    missing from it."""
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 5}) is False
     assert R.run_succeeded({"series_pullable": 10, "series_pulled": 0}) is False   # total failure
+    assert R.run_succeeded({"series_pullable": 10, "series_pulled": 10}) is True
     assert R.run_succeeded({"series_pullable": 0, "series_pulled": 0}) is True     # nothing to pull
 
 

@@ -121,6 +121,8 @@ def _to_published_status(status: dict) -> dict:
     out = dict(status)
     out["peer_slots"] = out.pop("entity_slots")
     out["banks_active"] = out.pop("entities_active")
+    out["banks_admitted"] = out.pop("entities_admitted")
+    out["banks_missing"] = out.pop("entities_missing")
     out["banks_landed"] = out.pop("entities_landed")
     out["banks_excluded"] = out.pop("entities_excluded")
     out["alert_banks"] = out.pop("alert_entities")
@@ -665,9 +667,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("RUN ERROR: %s" % exc, file=sys.stderr)
         return runtime.EXIT_RUN_ERROR
 
-    ok = runtime.run_succeeded({
-        "entities_active": status["banks_active"],
+    # C1: every ADMITTED bank must land, not merely one of them. Measured
+    # against the admitted count and not `banks_active`, which counts the
+    # watchlist refusals that never land by design.
+    landing = runtime.landing_result({
+        "entities_admitted": status["banks_admitted"],
+        "entities_missing": status["banks_missing"],
         "entities_landed": status["banks_landed"]})
+    ok = not landing.blocking
     payload = {"ok": ok, **{k: v for k, v in status.items() if k != "digest"}}
     print(json.dumps(payload))
 
@@ -679,6 +686,7 @@ def main(argv: Optional[List[str]] = None) -> int:
              status["stale_banks"], status["alert_flags"],
              len(status["watchlist_refusals"]), status["vintage"]),
           file=sys.stderr)
+    print(landing.summary(), file=sys.stderr)
     return runtime.EXIT_OK if ok else runtime.EXIT_NOTHING_PULLED
 
 

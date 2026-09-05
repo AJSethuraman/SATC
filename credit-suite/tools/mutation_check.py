@@ -55,12 +55,16 @@ L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 N = "tests/test_fred_labels.py::"
 F = "tests/test_fred_bar.py::"
+F2 = "tests/test_fred_bar.py::"
 W = "tests/test_engine_workbook.py::"
 N = "tests/test_not_applicable.py::"
 G2 = "tests/test_mergers.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
 N = "tests/test_conformance.py::"
+CY = "tests/test_consistency.py::"
+ID = "tests/test_fdic_identities.py::"
+FC = "tests/test_fred_consistency.py::"
 
 MUTATIONS: list[Mutation] = [
     Mutation(
@@ -387,11 +391,164 @@ MUTATIONS: list[Mutation] = [
         "a null component blanks a composite instead of understating it",
     ),
     Mutation(
-        "zero-pull-reported-as-success", SRC / "engine" / "runtime.py",
-        '    return not (expected > 0 and status.get("entities_landed", 0) == 0)',
-        "    return True",
-        (W + "test_zero_pulls_where_pulls_were_expected_is_a_failure",),
-        "a total outage is a failure, not a quiet success over a blank workbook",
+        "partial-pull-reported-as-success", SRC / "engine" / "consistency.py",
+        "    short = expected - landed",
+        "    short = 0",
+        (W + "test_every_entity_that_was_admitted_has_to_land",
+         F2 + "test_run_succeeded_needs_every_pullable_series_to_land",
+         CY + "test_one_series_short_of_the_expected_count_is_a_failure",
+         CY + "test_fred_run_succeeded_refuses_a_partial_pull",
+         CY + "test_engine_run_succeeded_refuses_a_partial_landing"),
+        "C1: a run that landed 141 of 142 is a failure, not a quiet success "
+        "-- the Nebraska hole, in both runners",
+    ),
+    Mutation(
+        "landing-measured-against-the-refusals", SRC / "engine" / "runtime.py",
+        '    expected = status.get("entities_admitted")',
+        '    expected = status.get("entities_active")',
+        (CY + "test_a_refused_entity_is_not_expected_to_land",
+         CY + "test_an_engine_status_with_no_admitted_count_is_UNKNOWN"),
+        "C1 counts the entities that were ADMITTED, not the ones a watchlist "
+        "gate refused and that never land by design",
+    ),
+    Mutation(
+        "pass-over-an-empty-population", SRC / "engine" / "consistency.py",
+        "        if self.verdict == PASS and self.examined == 0:",
+        "        if False:",
+        (CY + "test_a_PASS_over_an_empty_population_is_refused_at_construction",),
+        "the result type refuses to hold PASS over nothing examined",
+    ),
+    Mutation(
+        "nothing-examined-reads-as-ok", SRC / "engine" / "consistency.py",
+        "    if examined == 0:\n        verdict = NONE",
+        "    if False:\n        verdict = NONE",
+        (CY + "test_a_check_that_examined_nothing_says_NONE_and_never_PASS",
+         ID + "test_a_bank_quarter_missing_a_leg_is_not_counted_as_a_pass"),
+        "a check with nothing to look at answers NONE",
+    ),
+    Mutation(
+        "unknown-collapsed-into-pass", SRC / "engine" / "consistency.py",
+        "    elif unknowns:\n        verdict = UNKNOWN",
+        "    elif False:\n        verdict = UNKNOWN",
+        (CY + "test_unknown_alone_is_its_own_verdict_not_a_pass",
+         ID + "test_a_zero_denominator_is_UNKNOWN_rather_than_a_division",
+         ID + "test_the_comparability_sweep_reports_its_denominator",
+         FC + "test_no_previous_run_to_compare_against_is_UNKNOWN"),
+        "UNKNOWN is a third verdict and does not read as PASS",
+    ),
+    Mutation(
+        "merger-record-absent-reads-as-none-found",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "    if record is None:\n        return Comparability(\n            verdict=K.UNKNOWN,",
+        "    if record is None:\n        return Comparability(\n            verdict=COMPARABLE,",
+        (ID + "test_no_merger_record_at_all_is_UNKNOWN_and_never_a_quiet_pass",
+         ID + "test_a_sweep_with_no_merger_record_marks_every_period_unknown"),
+        "`None` (nobody asked) is not `{}` (asked, none found) -- collapsing "
+        "them is how the 670% got onto a chart",
+    ),
+    Mutation(
+        "merger-quarter-reads-as-a-quarter",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "    if not events:",
+        "    if True:",
+        (ID + "test_a_merger_quarter_is_not_comparable_and_carries_the_acquired_bank",
+         ID + "test_the_comparability_sweep_reports_its_denominator",
+         ID + "test_the_six_events_the_deliverable_publishes_are_the_six_it_marks"),
+        "a quarter that spans a whole-bank acquisition is marked NOT "
+        "COMPARABLE and the acquired bank is named",
+    ),
+    Mutation(
+        "ratio-tolerance-wide-open",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "RATIO_TOLERANCE = 1e-12",
+        "RATIO_TOLERANCE = 1.0",
+        (ID + "test_the_ratio_tolerance_is_epsilon_and_not_a_place_to_hide",
+         ID + "test_a_ratio_wearing_the_wrong_denominator_is_caught"),
+        "I2's tolerance is floating-point epsilon, not a place a real fault "
+        "can hide",
+    ),
+    Mutation(
+        "netting-identity-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "        if gross - reserve != net:",
+        "        if False:",
+        (ID + "test_a_reserve_landed_into_the_wrong_field_breaks_the_netting_identity",),
+        "I5: gross less the reserve is net loans, exactly",
+    ),
+    Mutation(
+        "nesting-identity-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "            if inner > outer:",
+        "            if False:",
+        (ID + "test_a_revolving_balance_larger_than_its_parent_is_caught",),
+        "I3: the revolving line is INSIDE the 1-4 family book",
+    ),
+    Mutation(
+        "noncurrent-bucket-blind",
+        SRC / "sources" / "fdic" / "consistency.py",
+        "        if summed > total:",
+        "        if False:",
+        (ID + "test_a_bucket_larger_than_the_total_it_is_drawn_from_is_caught",),
+        "I4: a bucket cannot exceed the total it is drawn from",
+    ),
+    Mutation(
+        "config-cell-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            elif got != want:",
+        "            elif False:",
+        (FC + "test_a_units_label_the_source_corrected_is_caught",),
+        "S1: a units label the artifact still carries and the seed corrected "
+        "is reported",
+    ),
+    Mutation(
+        "config-roster-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    ids = sorted(set(seed) | set(found))",
+        "    ids = sorted(set(seed) & set(found))",
+        (FC + "test_a_series_missing_from_the_artifact_is_caught",
+         FC + "test_a_series_the_seed_does_not_carry_is_caught"),
+        "S1 compares the UNION, so a series on one side only is a finding "
+        "rather than a row nobody examined",
+    ),
+    Mutation(
+        "vintage-skew-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    if len(stamps) > 1:",
+        "    if False:",
+        (FC + "test_a_series_that_did_not_refresh_shows_as_skew",),
+        "C3: two vintages in one run means part of the workbook did not "
+        "refresh",
+    ),
+    Mutation(
+        "vintage-backwards-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            if value and was and value < was:",
+        "            if False:",
+        (FC + "test_a_vintage_that_went_backwards_is_a_failure",),
+        "C3: a vintage that moved backwards refreshed from an older release",
+    ),
+    Mutation(
+        "date-grid-duplicate-blind", SRC / "engine" / "consistency.py",
+        "            if current == previous:",
+        "            if False:",
+        (FC + "test_a_duplicated_date_is_a_failure",),
+        "C5: a duplicated date is a merge fault, and every transform over it "
+        "silently gives a wrong answer",
+    ),
+    Mutation(
+        "date-grid-step-blind", SRC / "engine" / "consistency.py",
+        "            if gap % size:",
+        "            if False:",
+        (FC + "test_a_step_that_is_not_the_declared_cadence_is_a_failure",),
+        "C5: a step that is not the declared cadence is caught",
+    ),
+    Mutation(
+        "date-grid-hole-silent", SRC / "engine" / "consistency.py",
+        "            elif gap // size > 1:",
+        "            elif False:",
+        (FC + "test_an_interior_hole_is_UNKNOWN_rather_than_a_refusal",),
+        "C5: an interior hole is reported as UNKNOWN rather than passing "
+        "silently -- the DRTSSP question nobody has answered",
     ),
     Mutation(
         "secret-invented-when-unset", SRC / "engine" / "provider.py",
@@ -708,9 +865,16 @@ MUTATIONS: list[Mutation] = [
         "a bare RCON in the map is the convention, not a fixed prefix",
     ),
     Mutation(
+        # The anchor carried a two-argument `_resolve` and the domestic-marker
+        # work gave it a third, so this raised "the code moved" and ABORTED the
+        # whole harness -- every mutation after it went unrun, and the run
+        # still exited through a pipe with status 0. Found 5 Sep 2026 by
+        # running the full set rather than a selection.
         "filing-drops-the-foreign-office-line", SRC / "sources/fdic/filing.py",
-        "        for opt in expression.optional:\n            got = _resolve(facts, opt)",
-        "        for opt in ():\n            got = _resolve(facts, opt)",
+        "        for opt in expression.optional:\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
+        "        for opt in ():\n"
+        "            got = _resolve(facts, opt, expression.domestic)",
         (G + "test_a_plus_parenthetical_adds_the_foreign_office_line_when_present",),
         "the map's (+RCFN... 031) addition is honoured",
     ),
