@@ -495,7 +495,7 @@ came from fixtures, and fixtures fill in every field**: a check whose only input
 are fixtures has never been asked a real question. Tightened to all three things
 the regulation names.
 
-## D19 · "Nothing outstanding" sits directly above five outstanding items
+## D19 · "Nothing outstanding" sits directly above five outstanding items — **FIXED**
 
 **LOW.** The chase panel's headline reads **"Nothing outstanding."** while the
 register beneath it reads **"Asked for · 5 open"**, every row badged

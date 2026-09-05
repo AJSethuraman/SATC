@@ -19,6 +19,19 @@
       there is nothing here to chase yet. That is a different report from
       "nothing outstanding", and only one of them is good news.
     </p>
+    {% elif not chase.rows and chase.opened_today %}
+    {# THE HEADLINE HAS TO MATCH THE REGISTER UNDERNEATH IT. This said
+       "Nothing outstanding." while the register below read "Asked for · 5
+       open", every row badged `outstanding`. The behaviour is right -- a
+       same-day ask is held back, because chasing on the morning you asked is
+       noise -- but five things ARE outstanding and none is DUE TO BE CHASED,
+       and those are different sentences. `waiting()` already counts what it
+       held back; nothing was reading the count. #}
+    <p class="note tie">
+      Nothing to chase yet &mdash; {{ chase.opened_today }} asked for today, and
+      chasing on the morning you asked is noise rather than a chase. They appear
+      here tomorrow. Nothing else is outstanding.
+    </p>
     {% elif not chase.rows %}
     <p class="note tie">Nothing outstanding.</p>
     {% else %}
