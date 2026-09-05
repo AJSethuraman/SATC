@@ -52,6 +52,32 @@ class Service:
     unit: Unit
     standard_rate: Decimal
     description: str = ""
+    priced_by: str = ""
+    """Where this service's price is decided, when it is not decided here.
+
+    THE PRACTICE HAD TWO PRICE LISTS AND THEY DISAGREED BY 55%. On identical
+    facts, `client-documents` quoted $645 from its package ladder and this
+    catalogue totalled $1,005 from its per-service rates. Nothing in either
+    repository said which was the firm's price.
+
+    They were never two numbers for one service -- they are two pricing
+    *models*. The ladder bundles (a `starter` 1040 at $100 covers the federal
+    return, the first state, the first local and the standard deduction, with
+    additions priced separately); this catalogue itemises (a 1040 at $450
+    standing alone, whatever its complexity). $450 and $100 were never
+    comparable, which is why the disagreement went unnoticed for so long.
+
+    The firm settled it on 4 September 2026: **`registry/fee-schedule.yaml` is
+    the price.** So a service that the ladder prices carries the path here, and
+    this catalogue refuses to put a number on it -- the refusal being the point,
+    because the failure mode is not a wrong number, it is a second confident
+    one. The firm's own operating procedure already says what happens then:
+    *"the one the client keeps is the one that says the larger number."*
+
+    `standard_rate` is deliberately still read and kept. It is what this
+    catalogue used to claim, and deleting it would destroy the evidence of the
+    disagreement while it is still being reconciled.
+    """
 
     @property
     def label_for_client(self) -> str:
@@ -140,6 +166,7 @@ def load_services(config_root: Path | None = None) -> dict[str, Service]:
             category=str(entry.get("category", "Other")),
             unit=unit,  # type: ignore[arg-type]
             standard_rate=rate,
+            priced_by=str(entry.get("priced_by", "") or ""),
             description=" ".join(str(entry.get("description", "")).split()))
     if not out:
         raise ConfigError("The service catalogue is empty")

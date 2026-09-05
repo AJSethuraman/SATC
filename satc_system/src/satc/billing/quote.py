@@ -250,6 +250,20 @@ class Quote:
     of one. A fallback that reads like an agreement is the specific wrong answer
     this field exists to prevent."""
 
+    engagement_price: object = None
+    """What the client was ACTUALLY quoted, read from the engagement record.
+
+    An `EngagementPrice` when the ref resolves, a `NoPrice` saying why not
+    otherwise, and `None` when nothing was looked up at all — three states, not
+    two, because "not asked" and "asked and there is nothing" are different
+    facts and a screen that shows them the same way is lying about one of them.
+
+    **THIS IS THE PRICE.** The firm settled it on 4 September 2026
+    (`registry/fee-schedule.yaml` is the price) and 5 September (show it via
+    the ref). Everything in `lines` below is this catalogue's own view of work
+    it does not price; where the two would disagree, this field is the one the
+    client is holding."""
+
     # -- what it is, and is not -------------------------------------------
 
     @property
@@ -407,7 +421,8 @@ def _because(rule: ServiceRule, workflow: WorkflowDef,
 
 def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
               tax_year: int, engagements: Iterable[Engagement] = (),
-              config_root: Path | None = None) -> Quote:
+              config_root: Path | None = None,
+              engagements_root: Path | str | None = None) -> Quote:
     """Price an engagement from the interview answers. Always an estimate.
 
     Deterministic: the lines come out in the order the workflow config lists
@@ -449,7 +464,23 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
             f"engagement, or move the client to a plan that needs no basis.")
     rate_plan = plan(on_file.plan_key)
 
+    from satc.billing.engagement_price import price_for_ref
+    from satc.models.work import engagement_for
+
     path = workflow_path(workflow.key, config_root)
+
+    # THE PRICE THE CLIENT IS ACTUALLY HOLDING, looked up ONCE. Read through
+    # the `engagement_ref` recorded on this year's engagement -- the same seam
+    # `collect` resolves a drop folder on. `None` when the caller gave no
+    # engagements to look in, which is a different fact from "looked and found
+    # nothing" and reads differently on the screen.
+    found = engagement_for(list(engagements), client_id=client_id,
+                           tax_year=tax_year)
+    priced = None
+    if found is not None:
+        priced = price_for_ref(getattr(found, "engagement_ref", ""),
+                               root=engagements_root)
+
     lines: list[QuoteLine] = []
     unpriced: list[UnpricedWork] = []
     for rule in load_service_map(workflow.key, config_root):
@@ -470,7 +501,25 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
                    "nothing on file yet says whether this applies")
 
         reason = ""
-        if svc.unit == "per_hour":
+        if svc.priced_by:
+            # NOT OURS TO PRICE, AND NOW WE CAN SAY WHOSE IT IS. A number
+            # invented here is a second source for money somebody else already
+            # decided, and the client keeps whichever one says more. Where the
+            # ref resolves, the refusal carries the real figure rather than a
+            # file path -- the firm's answer on 5 September 2026 was "show the
+            # engagement price via the ref", and a reason a person can act on
+            # beats a reason they have to go and look up.
+            if priced is not None and getattr(priced, "is_priced", False):
+                reason = (f"covered by engagement {priced.ref} at "
+                          f"{priced.total}, which is the figure the client was "
+                          f"quoted")
+            elif priced is not None:
+                reason = (f"priced by the engagement, not by this catalogue — "
+                          f"{priced.reason}")
+            else:
+                reason = (f"priced by {svc.priced_by}, not by this catalogue — "
+                          f"the engagement carries the figure")
+        elif svc.unit == "per_hour":
             # Principle 1. The hours are the whole price here, and nobody knows
             # them before the work — a "typical" number would be a guess wearing
             # a dollar sign.
@@ -500,7 +549,8 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
     return Quote(
         client_id=client_id, tax_year=tax_year, workflow_key=workflow.key,
         lines=tuple(lines), unpriced=tuple(unpriced), plan=rate_plan,
-        plan_is_fallback=on_file.is_fallback, plan_why=on_file.why())
+        plan_is_fallback=on_file.is_fallback, plan_why=on_file.why(),
+        engagement_price=priced)
 
 
 def _check_quantity_fits_the_unit(rule: ServiceRule, svc: Service,
