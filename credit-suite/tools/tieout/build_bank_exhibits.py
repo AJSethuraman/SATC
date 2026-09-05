@@ -234,24 +234,27 @@ def roster_table(bank):
 
 PNC_FINDING = """
 <h2>What this found</h2>
-<div class="note"><b>Two lines do not tie, and the workbook is not the one that
+<div class="note"><b>Five lines do not tie, and the workbook is not the one that
 is wrong.</b>
-<p style="margin:10px 0 0">PNC's credit card and C&amp;I net charge-offs for the
-quarter differ from the bank's own filed report by 515 and 652 thousand dollars
-&mdash; about half a percent. The workbook carries the FDIC's published
+<p style="margin:10px 0 0">Every quarterly net-charge-off field PNC reports
+differs from the bank's own filed report: credit cards by 515, C&amp;I by 652,
+other consumer by 102, residential real estate by 6 and construction by 188
+thousand dollars. The first edition of this document found two of these,
+because the other three fields were not being checked at all. The workbook carries the FDIC's published
 quarterly figure to the dollar, and the FDIC's own year-to-date figure agrees
 with PNC's filing exactly. What does not add up is the FDIC's own arithmetic:</p>
-<pre>FDIC NTCRCDQ  Q1  43,842  +  Q2  47,617  =  91,459
-FDIC NTCRCD   year-to-date at Q2         =  91,974   off by 515
-PNC's filed Call Report, same measure    =  91,974
+<pre>field       FDIC Q1 + FDIC Q2   =   sum      FDIC year-to-date   gap
+NTCRCDQ       43,842 +  47,617  =   91,459          91,974       515
+NTCIQ        101,857 + 109,201  =  211,058         211,710       652
+NTCONOTQ      15,470 +  10,994  =   26,464          26,566       102
+NTRERESQ       1,113 +   1,880  =    2,993           2,999         6
+NTRECONQ         -48 +    -571  =     -619            -431       188
 
-FDIC NTCIQ    Q1 101,857  +  Q2 109,201  = 211,058
-FDIC NTCI     year-to-date at Q2         = 211,710   off by 652
-PNC's filed Call Report, same measure    = 211,710</pre>
-<p>The same check across all twelve banks and all three quarterly flow fields
-reconciles 34 times out of 36. Only these two fail, and only for PNC. There is
-no merger in the quarter to explain it: PNC's only 2026 acquisition events are
-branch transfers dated 6 July 2026, after the reporting date.</p>
+and PNC's own filed Call Report agrees with the year-to-date column,
+not with the sum of the two quarters.</pre>
+<p>The same reconciliation across all twelve banks and all seven quarterly flow fields the FDIC publishes holds <b>79 times out of 84</b>. The five that fail are all PNC, and they are exactly the five lines above. There is no merger in the quarter to explain it: PNC's
+only 2026 acquisition events are branch transfers dated 6 July 2026,
+after the reporting date.</p>
 <p><b>Which side do I believe?</b> The filing. It is the document the bank
 signed, and the FDIC's own year-to-date agrees with it. The quarterly field is
 derived, and for these two lines the derivation does not reconcile to its own
@@ -262,7 +265,10 @@ what its source published, and this is written down rather than plugged.</p></di
 
 def build(bank):
     cert, name = bank["cert"], bank["name"]
-    counted = [l for l in bank["lines"] if not l["note"]]
+    counted = [l for l in bank["lines"]
+               if not l["note"] and l["verdict"] != "NOT PUBLISHED"]
+    unpublished = [l for l in bank["lines"] if l["verdict"] == "NOT PUBLISHED"]
+    ratios = bank.get("computed_ratios_out_of_scope", [])
     tied = sum(1 for l in counted if l["verdict"] == "TIES")
     bad = [l for l in counted if l["verdict"] != "TIES"]
     parts = [CSS, '<div class="wrap">']
@@ -274,20 +280,77 @@ def build(bank):
                  '<p style="margin:8px 0 0">The left of every comparison is a '
                  'cell read out of <code>%s</code> &mdash; not re-fetched, not '
                  'recomputed. The right is the bank\'s own Call Report as the '
-                 'FFIEC serves it. %s</p></div>'
+                 'FFIEC serves it. %s</p>'
+                 '<p style="margin:8px 0 0"><b>The denominator.</b> This bank '
+                 'has <b>%d</b> raw fields in the workbook. %d are compared '
+                 'here; %d are ratios the FDIC computes from lines proved '
+                 'below, named rather than omitted; and 1 is a field the FDIC '
+                 'publishes no quarterly figure for, so it is blank for every '
+                 'bank. %d + %d + 1 = %d.</p></div>'
                  % (" bad" if bad else "", tied, len(counted), WB,
                     ("All of them agree." if not bad else
                      "%d do not, and that is a finding, set out below."
-                     % len(bad))))
+                     % len(bad)),
+                    bank.get("raw_fields_total", 69), len(counted), len(ratios),
+                    len(counted), len(ratios), bank.get("raw_fields_total", 69)))
     parts.append("<h2>How the two roads meet</h2>")
     parts.append(diagram(bank, tied, len(counted)))
     parts.append("<h3>Go and check it yourself</h3>")
     parts.append("<p>The facsimile is public. This is the exact filing every "
                  "figure on the right came from:</p>")
     parts.append("<pre>%s</pre>" % esc(bank["facsimile"]))
-    parts.append("<p>And the previous quarter, which the three quarterly flows "
-                 "are differenced against:</p>")
+    parts.append("<p>And the previous quarter. Five of these lines are "
+                 "quarterly net charge-offs, which the filing reports "
+                 "year-to-date, so the quarter is this filing minus that "
+                 "one:</p>")
     parts.append("<pre>%s</pre>" % esc(bank["facsimile_prior"]))
+    parts.append("<h2>What this edition covers that the first one did not</h2>")
+    parts.append(
+        "<p>The first edition of this document, earlier the same day, said "
+        "<i>53 of 53 lines tie</i> and did not mention that a bank has 69 raw "
+        "fields. Sixteen per bank were never compared, and the document did "
+        "not say so &mdash; which is the exact failure these documents exist "
+        "to prevent, committed by the document itself. The firm asked whether "
+        "every base data point had really been done. It had not.</p>")
+    parts.append(
+        "<p>Chasing the missing sixteen found three faults in the provenance "
+        "map, every one in a row already flagged <code>[V]</code> for "
+        "verified:</p>")
+    parts.append("""<ul>
+<li><b>Seven rows had no citation at all.</b> Their code column held the
+literal text <code>(not in tie-out map)</code>. The workbook landed a value and
+nothing recorded where it came from, so the tie-out &mdash; which only checks
+fields the map cites &mdash; walked straight past them.</li>
+<li><b>Parentheses do not parse.</b> The expression reader has no notion of a
+bracketed group, so <code>(C891+C893) - (C892+C894)</code> silently became
+nothing. Written flat, it reads.</li>
+<li><b>A bare code resolves against the balance-sheet prefixes only.</b> Right
+for a Schedule RC line, useless for an income-statement one, which needs
+<code>RIAD</code>. And the two capital ratios cited <code>RCOA</code>, the
+form-041 prefix, on twelve banks that all file 031, where it is
+<code>RCFA</code>.</li>
+</ul>""")
+    parts.append(
+        "<p>Separately, the filing parser kept only whole numbers, discarding "
+        "every <b>ratio</b> in every filing before any tie-out could see it. "
+        "Dollar amounts are whole numbers, so nothing dollar-denominated ever "
+        "looked wrong. The two capital ratios were in the XBRL the whole time, "
+        "as fractions. They now agree three ways: the XBRL times 100, the "
+        "rendered facsimile, and the workbook.</p>")
+    if ratios:
+        parts.append("<h3>What is still not checked, by name</h3>")
+        parts.append(
+            "<p>These %d are ratios the FDIC computes from raw lines proved in "
+            "this document. Checking them is arithmetic over figures already "
+            "proved, and it is not done here &mdash; said plainly rather than "
+            "left to inference: <code>%s</code>.</p>"
+            % (len(ratios), esc(", ".join(ratios))))
+    if unpublished:
+        parts.append(
+            "<p>And one more, <code>%s</code>, is blank for every bank because "
+            "the FDIC publishes no quarterly figure for it. Its citation is "
+            "recorded anyway, so the next reader does not repeat the hunt.</p>"
+            % esc(unpublished[0]["field"]))
     parts.append("<h2>Every line</h2>")
     parts.append(roster_table(bank))
     if bad:

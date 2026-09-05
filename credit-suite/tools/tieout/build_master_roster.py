@@ -20,6 +20,8 @@ CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 banks = json.loads((SB / "bank_rosters.json").read_text())
+TABLE = "field       FDIC Q1 + FDIC Q2   =   sum      FDIC year-to-date   gap\nNTCRCDQ       43,842 +  47,617  =   91,459          91,974       515\nNTCIQ        101,857 + 109,201  =  211,058         211,710       652\nNTCONOTQ      15,470 +  10,994  =   26,464          26,566       102\nNTRERESQ       1,113 +   1,880  =    2,993           2,999         6\nNTRECONQ         -48 +    -571  =     -619            -431       188\n\nand PNC's own filed Call Report agrees with the year-to-date column,\nnot with the sum of the two quarters."
+RECON = 'The same reconciliation across all twelve banks and all seven quarterly flow fields the FDIC publishes holds <b>79 times out of 84</b>. The five that fail are all PNC, and they are exactly the five lines above.'
 fred = json.loads((SB / "fred_roster.json").read_text())
 
 
@@ -27,7 +29,11 @@ def esc(x):
     return html.escape("" if x is None else str(x))
 
 
-bank_lines = [(b, l) for b in banks for l in b["lines"] if not l["note"]]
+bank_lines = [(b, l) for b in banks for l in b["lines"]
+              if not l["note"] and l["verdict"] != "NOT PUBLISHED"]
+RAW_PER_BANK = banks[0].get("raw_fields_total", 69)
+RATIOS = banks[0].get("computed_ratios_out_of_scope", [])
+PER_BANK_COMPARED = len(bank_lines) // len(banks)
 bank_tied = sum(1 for _b, l in bank_lines if l["verdict"] == "TIES")
 bank_bad = [(b, l) for b, l in bank_lines if l["verdict"] != "TIES"]
 fred_tied = sum(1 for r in fred if r["verdict"] == "TIED")
@@ -84,26 +90,51 @@ p.append('<div class="headline"><b>%d of %d data points tie. %d differ. '
          'of the shipped workbook &mdash; the cell a person opens &mdash; and '
          'never re-fetched. Every figure on the other side came off a document '
          'published by somebody else: a bank\'s own filed Call Report, or the '
-         'agency that computes a series. The two that differ are set out '
-         'first.</p></div>' % (tied, total, len(bank_bad)))
+         'agency that computes a series. The five that differ are set out '
+         'first.</p>'
+         '<p style="margin:10px 0 0"><b>What that denominator is made of.</b> '
+         'Each bank has %d raw fields, so the bank monitor holds %d of them; '
+         '%d are compared here. The rest, per bank, are %d ratios the FDIC '
+         'computes from lines proved below and 1 field it publishes no '
+         'quarterly figure for. The macro monitor holds 142 series and all '
+         '142 are compared, at their latest observation.</p></div>'
+         % (tied, total, len(bank_bad), RAW_PER_BANK,
+            RAW_PER_BANK * len(banks), len(bank_lines), len(RATIOS)))
+
+p.append("<h2>A correction to the first edition of this roster</h2>")
+p.append('<div class="note"><b>The first edition said 776 of 778, and did '
+         'not say what 778 was.</b>'
+         '<p style="margin:10px 0 0">It was not every base data point. Each '
+         'bank has 69 raw fields and only 53 were being compared; sixteen '
+         'per bank went unmentioned. The firm asked directly whether every '
+         'point had been done, and it had not.</p>'
+         '<p>The cause is why a tie-out can look complete while missing a '
+         'fifth of its subject: <b>seven fields carried no citation at all</b>, '
+         'and the tie-out only checks fields the provenance map cites. A '
+         'check that examines what the map documents cannot discover what '
+         'the map omits. Two further faults sat behind that one &mdash; '
+         'bracketed expressions the reader silently returns nothing for, and '
+         'income-statement codes cited without the prefix that finds them.</p>'
+         '<p>All eight fields are now compared, their citations are recorded, '
+         'and a new guard checks that every citation parses and finds its '
+         'line on a real filed Call Report. The eight FDIC-computed ratios '
+         'per bank stay out of scope and are now named rather than '
+         'omitted.</p></div>')
 
 p.append("<h2>What does not tie</h2>")
-p.append('<div class="note"><b>Two lines, both PNC Bank, and the workbook is not '
+p.append('<div class="note"><b>Five lines, all PNC Bank, and the workbook is not '
          'the side that is wrong.</b>'
-         '<p style="margin:10px 0 0">PNC\'s credit card and C&amp;I net '
-         'charge-offs for the quarter differ from the bank\'s own filed report '
-         'by 515 and 652 thousand dollars, about half a percent. The workbook '
+         '<p style="margin:10px 0 0">Every quarterly net-charge-off field '
+         'PNC reports differs from the bank\'s own filed report: credit cards '
+         'by 515, C&amp;I by 652, other consumer by 102, residential real '
+         'estate by 6 and construction by 188 thousand dollars. The first '
+         'edition found two of them, because the other three were not being '
+         'checked at all. The workbook '
          'carries the FDIC\'s published quarterly figure to the dollar, and the '
          'FDIC\'s own year-to-date figure matches PNC\'s filing exactly. What '
          'does not reconcile is the FDIC\'s own arithmetic:</p>'
-         '<pre>FDIC quarterly  Q1  43,842 + Q2  47,617 =  91,459\n'
-         'FDIC year-to-date at Q2                  =  91,974    off by 515\n'
-         "PNC's filed Call Report                  =  91,974\n\n"
-         'FDIC quarterly  Q1 101,857 + Q2 109,201 = 211,058\n'
-         'FDIC year-to-date at Q2                  = 211,710    off by 652\n'
-         "PNC's filed Call Report                  = 211,710</pre>"
-         '<p>The same reconciliation across all twelve banks and all three '
-         'quarterly flow fields holds 34 times out of 36. Only these two fail. '
+         '<pre>' + esc(TABLE) + '</pre>'
+         '<p>' + RECON + ' '
          'No merger explains it: PNC\'s only 2026 acquisition events are branch '
          'transfers dated 6 July 2026, after the reporting date.</p>'
          '<p><b>I believe the filing</b>, because it is the document the bank '
@@ -112,9 +143,9 @@ p.append('<div class="note"><b>Two lines, both PNC Bank, and the workbook is not
          'and this is written down rather than plugged.</p></div>')
 
 p.append("<h2>What the tie-out found</h2>")
-p.append("<p>Six defects, and every one of them left the numbers correct, which "
-         "is why a test suite of 414 passing tests had never seen any of "
-         "them.</p>")
+p.append("<p>Nine defects, and every one of them left the numbers correct, "
+         "which is why a suite that now runs 541 tests had never seen any "
+         "of them.</p>")
 p.append("""<ol>
 <li><b>A shipped workbook with a state missing from it.</b> Nebraska's house
 price index was blank. One <code>Internal Server Error</code> from the data
@@ -133,7 +164,17 @@ them. <i>Fixed.</i></li>
 millions</b> &mdash; a factor of a thousand on the line a person reads.
 <i>Fixed.</i></li>
 <li><b>The FDIC's own quarterly and annual figures for PNC do not
-reconcile.</b> Reported above; nothing changed, because our side is right.</li>
+reconcile</b>, on all five of its quarterly charge-off fields. Reported above;
+nothing changed, because our side is right.</li>
+<li><b>Seven fields had no citation at all</b> &mdash; the workbook landed a
+value and nothing recorded where it came from, so the tie-out never reached
+them. <i>Fixed: all seven cited and tied.</i></li>
+<li><b>Bracketed expressions read as nothing</b>, silently. Every quarterly
+charge-off citation was affected, including one already flagged verified.
+<i>Fixed.</i></li>
+<li><b>The filing parser discarded every ratio in every filing</b>, keeping
+whole numbers only. Dollar amounts are whole numbers, so nothing ever looked
+wrong; the capital ratios were in the data the whole time. <i>Fixed.</i></li>
 </ol>""")
 p.append('<div class="note win"><b>And three defects in the checking itself,</b> '
          'which is the likelier culprit than the code and was here too. My first '
