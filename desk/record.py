@@ -83,6 +83,29 @@ class Source:
         return self.access != "human_only"
 
 
+def under(path: str, ancestor: str) -> bool:
+    """Whether `path` lies strictly beneath `ancestor`. THE ONLY CONTAINMENT
+    RULE IN THIS PLUGIN.
+
+    It lives here rather than in whichever tool needed it first because it was
+    briefly written once, in `tools/extract_ecfr.py`, comparing only the
+    parenthesised labels and ignoring everything before them. Inside one section
+    that is right and a mutation confirmed it. Outside one it is not: the labels
+    of `26 CFR 1.263(a)-3(j)(1)` and `26 CFR 1.999(a)-3(j)(1)` are identical, so
+    a citation from an unrelated section read as contained. A desk holding two
+    sources is all it takes, and the queue below asks this question about
+    arbitrary citations a model produced.
+
+    Compared as a prefix ending at a label boundary, which is exact on citations
+    written with their parentheses and carries no cross-section hole: `(j)(10)`
+    begins with the characters of `(j)(1)`, and the remainder `0)` does not open
+    a label, so it is correctly not beneath it.
+    """
+    if not path or not ancestor or path == ancestor:
+        return False
+    return path.startswith(ancestor) and path[len(ancestor):].startswith("(")
+
+
 @dataclass(frozen=True)
 class Passage:
     """One piece of authority text, stored because its source permits it."""

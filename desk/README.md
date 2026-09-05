@@ -29,10 +29,19 @@ escalated          the desk knew it did not know — a SUCCESS
 a little time, that one costs the reason to trust the rest. **Never summed into a
 single figure** — a percentage hides exactly the number worth reading.
 
+**And `escalated` is two things, so the run reports which.** A problem resting on
+a secondary source can *only* grade escalated: `_check` refuses
+`authority_permits_choice` before any conclusion is compared. So a desk that
+answered confidently and one that knew it did not know land in the same cell —
+the first was stopped by the record's tier, the second made the call. `Result`
+carries `escalated_by`, and without it a desk built to exercise escalation
+measures its own tiers rather than the brain.
+
 ## What is in a desk
 
 ```
 desks/<name>/
+  SUBJECTS.md   what brings it into play — whole-word subjects, deliberately
   SOURCES.md    what it may rely on: tier, access, may_store, checked
   PROBLEMS.md   the denominator — worked examples whose answers are not ours
   extracted/    public-domain authority text — the RULES, never the examples.
@@ -43,6 +52,33 @@ desks/<name>/
 The two stores have different gates on purpose. Every line in `extracted/` is
 checkable against a public source, so a large diff can be skimmed. `positions/`
 holds judgement, so its diffs are read. **The pull request is the firm's yes.**
+
+## A second desk is built by interview, not by hand
+
+`skills/desk-factory` asks ten questions and opens a pull request containing the
+desk. Every question carries the thing that taught us to ask it — what building
+`fixed-assets` by hand actually required — and a test refuses one that does not.
+
+**It proposes and never writes.** `factory.emit` writes into a git checkout on a
+branch that is not `main` and refuses everything else, then runs `guards.check`
+over what it wrote and **deletes it on failure**. A factory-built desk passes
+exactly the gates the shipped one passes, or it does not exist; there is
+deliberately no weaker path for generated records.
+
+Two of the ten questions decide whether the desk is worth building at all:
+
+- **Tier.** `authority_permits_choice` fires only on secondary or tertiary
+  authority. A desk built entirely on binding primary sources cannot escalate —
+  measured on `fixed-assets`, where that half of the design could not trigger
+  once across 42 answers.
+- **The corpus.** If the stored authority is the same text the answers are read
+  from, citing correctly is an assignment puzzle and the citation score measures
+  nothing. Measured on `fixed-assets`, 4 September 2026: 21 problems, 21 stored
+  passages, a bijection between them. `guards.authority_is_more_than_the_answer_key`
+  now fails the build on it.
+
+Nothing in the factory is accounting-specific. `fixed-assets` is where the
+questions came from, not what they are limited to.
 
 ## Why Markdown and not YAML
 

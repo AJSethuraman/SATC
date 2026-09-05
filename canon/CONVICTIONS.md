@@ -213,6 +213,25 @@ candidate is really a contradiction is made in the open, by a person reading.
 
 ---
 
+## C14 · Tax treatment does not move the books; the books record what happened
+
+**State:** held · **Recorded:** 2026-09-05 · **Applies:** everything the practice books, reconciles or reports on
+
+> *there is a difference between tax and something like GAAP. i account like an accountant, even in cash basis though we would record what happened. cash in and cash out. cash balance doesn't change for tax purposes.*
+> — the firm, 5 September 2026
+
+**Why:** The books are a record of transactions that occurred; tax is a question about when income and expense are recognised. Cash basis does not mean the books pretend a check that was written was not written. Where the two disagree the difference is explained rather than booked — which is why a difference against a bank statement is a reconciling item and not an entry, and why the cash balance does not move to match a statement, a return or a tax position.
+Recorded because the firm has had to explain it more than once: "i feel like i'm going crazy here having to explain this. it's not just bull shit i'm making up." Removing that cost is what this file is for.
+
+**Fires on:** cash, cash basis, gaap, book, books, bookkeeping, reconcile, reconciling, reconciliation, adjust cash, tax basis, accrual, bank statement, outstanding check
+
+**A challenge looks like:** an agent proposing to adjust a book balance so it matches a statement, a return or a tax position, rather than recording the difference; or treating a tax-basis figure as the thing the books must be made to say.
+
+**How it could be wrong:** HOLDING IT IS NOT A REASON TO STOP CHECKING IT. The firm, on confirming it: "that is a conviction but it does not mean i want to avoid looking stuff up about it." A conviction that ends research is worse than none — it turns a belief into a reason not to read, which is the opposite of what a record of reasons is for.
+And where a book figure is simply an error, correcting it IS the right move. This is about timing and about tax treatment, not about mistakes.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The

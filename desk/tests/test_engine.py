@@ -11,6 +11,7 @@ import socket
 
 import pytest
 
+import engine
 import record
 from conftest import NetworkUsed
 from engine import (Answer, EngineError, Outcome, REASONS, grade, report,
@@ -267,3 +268,78 @@ def test_a_ratified_position_outranks_a_passage_on_the_same_citation(tmp_path):
               desk.problems[0], desk)
     assert r.outcome is Outcome.CORRECT, (
         f"the firm had spoken and the desk refused anyway: {r.reason} {r.detail}")
+
+
+# ── who escalated, which is the only thing the escalation column can mean ────
+
+def _secondary_desk(tmp_path):
+    """A desk whose one source is interpretive, so the engine escalates.
+
+    Built here rather than reused, because every other desk in this suite rests
+    on binding authority and the whole point of this case is that it does not.
+    """
+    d = tmp_path / "interp"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · Somebody's reading of the rule\n\n"
+        "**Tier:** secondary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** GUIDE\n\n"
+        "**Why:** a work of the United States Government, public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** GUIDE 1\n\n"
+        "**Answer:** treat it as a reconciling item\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## GUIDE 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n"
+        "> the guide's reading\n\n"
+        "## GUIDE 2\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n"
+        "> another paragraph\n",
+        encoding="utf-8")
+    return record.load(d)
+
+
+def test_a_confident_answer_on_interpretive_authority_is_escalated_by_the_engine(tmp_path):
+    """It reached the right conclusion and cited real authority. The engine
+    escalated it anyway, because a secondary source is somebody's reading and
+    the choice belongs to the firm — the desk did not decline, it was stopped."""
+    desk = _secondary_desk(tmp_path)
+    p = desk.problems[0]
+    r = engine.grade(Answer(position=p.answer, citation=p.citation), p, desk)
+    assert r.outcome is engine.Outcome.ESCALATED
+    assert r.escalated_by == engine.ENGINE
+    assert r.reason == "authority_permits_choice"
+
+
+def test_a_desk_that_declines_is_recorded_as_the_one_that_declined(tmp_path):
+    """The same cell, the opposite meaning. Without this distinction a desk
+    built to exercise escalation measures its own record's tiers rather than
+    whether the brain knew it did not know."""
+    desk = _secondary_desk(tmp_path)
+    p = desk.problems[0]
+    r = engine.grade(Answer(position="", escalated=True,
+                            reason="authority_permits_choice"), p, desk)
+    assert r.outcome is engine.Outcome.ESCALATED
+    assert r.escalated_by == engine.DESK
+
+
+def test_the_two_escalations_are_distinguishable_at_all(tmp_path):
+    """The assertion the two tests above exist to make jointly: same outcome,
+    same reason, and still tellable apart."""
+    desk = _secondary_desk(tmp_path)
+    p = desk.problems[0]
+    stopped = engine.grade(Answer(position=p.answer, citation=p.citation), p, desk)
+    declined = engine.grade(Answer(position="", escalated=True,
+                                   reason="authority_permits_choice"), p, desk)
+    assert stopped.outcome is declined.outcome
+    assert stopped.reason == declined.reason
+    assert stopped.escalated_by != declined.escalated_by
+
+
+def test_nothing_but_an_escalation_records_who_escalated(fixed_assets, problem):
+    """An empty label on a correct answer must not read as "the engine did it"."""
+    r = engine.grade(Answer(position=problem.answer, citation=problem.citation),
+                     problem, fixed_assets)
+    assert r.outcome is engine.Outcome.CORRECT
+    assert r.escalated_by == ""

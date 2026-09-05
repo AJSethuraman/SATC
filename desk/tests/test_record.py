@@ -267,3 +267,49 @@ def test_two_ratified_positions_on_one_citation_are_refused(tmp_path):
         .replace("**Ratified:** the firm, 4 September 2026\n", ""),
         encoding="utf-8")
     assert record.load(d).position("26 CFR 1.263(a)-3(a)").position == "must capitalize"
+
+
+# ── the one containment rule ─────────────────────────────────────────────────
+
+def test_containment_stops_at_a_label_boundary():
+    """A continuation that is not a label is not a child.
+
+    `26 CFR 1.263(a)-30` begins with every character of `26 CFR 1.263(a)-3` and
+    is a DIFFERENT SECTION, not a paragraph inside it. A plain prefix test calls
+    it contained; requiring the remainder to open a label is what makes it not.
+    A desk holding two sections with a shared stem is all it takes for this to
+    matter, and the queue asks this question about citations a model produced.
+    """
+    assert not record.under("26 CFR 1.263(a)-30", "26 CFR 1.263(a)-3")
+    assert not record.under("26 CFR 1.263(a)-3T(j)", "26 CFR 1.263(a)-3")
+    assert record.under("26 CFR 1.263(a)-3(j)", "26 CFR 1.263(a)-3")
+
+
+def test_a_sibling_numbered_ten_is_not_beneath_the_one_numbered_one():
+    """`(j)(10)` starts with the characters of `(j)(1)`. The closing bracket in
+    the ancestor is what separates them — asserted rather than assumed, because
+    it is the reason a prefix comparison is safe here at all."""
+    assert record.under("26 CFR 1.263(a)-3(j)(1)(iii)", "26 CFR 1.263(a)-3(j)(1)")
+    assert not record.under("26 CFR 1.263(a)-3(j)(10)", "26 CFR 1.263(a)-3(j)(1)")
+    assert record.under("26 CFR 1.263(a)-3(j)(10)", "26 CFR 1.263(a)-3(j)")
+
+
+def test_containment_does_not_cross_sections():
+    """The copy this replaced compared only the parenthesised labels, so the
+    identical labels of two different sections read as contained. A desk holding
+    two sources is all it takes."""
+    assert not record.under("26 CFR 1.999(a)-3(j)(1)", "26 CFR 1.263(a)-3(j)")
+
+
+def test_a_citation_is_not_beneath_itself():
+    """Strict, because "the desk cited exactly what it holds" is a different
+    fact from "the desk cited a finer point inside it", and only the second is
+    a near miss."""
+    assert not record.under("26 CFR 1.263(a)-3(j)", "26 CFR 1.263(a)-3(j)")
+
+
+def test_nothing_is_beneath_an_empty_citation():
+    """An answer that offered no citation must not be filed as having reached
+    the right rule by a finer path."""
+    assert not record.under("", "26 CFR 1.263(a)-3(j)")
+    assert not record.under("26 CFR 1.263(a)-3(j)(1)", "")

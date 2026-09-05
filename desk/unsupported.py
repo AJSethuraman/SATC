@@ -30,7 +30,8 @@ from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
-from record import RecordError, _blocks, _date, _field, _inline
+from record import (RecordError, _blocks, _date, _field, _inline,
+                    under as record_under)
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 
@@ -46,6 +47,20 @@ class Unsupported:
     recorded: str
     model: str = ""
     working: str = ""
+    #: A citation THIS DESK HOLDS that contains the one the answer offered --
+    #: empty when it reached outside the desk's authority altogether. See
+    #: `from_refusal` for why the queue records it.
+    falls_under: str = ""
+
+    @property
+    def near_miss(self) -> bool:
+        """The desk reached a finer point inside its own authority.
+
+        Not a resolution and not a pass: the entry stays in the queue and is
+        still never served. It is a label on WHICH KIND of refusal this is, so
+        the queue can be read.
+        """
+        return bool(self.falls_under)
 
     def render(self) -> str:
         """The exact text stored. Written so a person can read the diff.
@@ -76,6 +91,8 @@ class Unsupported:
             "**Believed authority:**", "",
             *_quote(self.believed_authority or "(none offered)"),
         ]
+        if self.falls_under:
+            lines += ["", f"**Falls under:** {_oneline(self.falls_under)}"]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -98,6 +115,7 @@ def parse(text: str) -> list[Unsupported]:
             recorded=_date(_inline(block, "Recorded", where), "recorded", where),
             concluded=_quoted(block, "Concluded", where),
             believed_authority=_quoted(block, "Believed authority", where),
+            falls_under=_field(block, "Falls under", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
@@ -190,6 +208,18 @@ def append(path: Path, entry: Unsupported) -> Path:
     return path
 
 
+def _held_citations(desk) -> tuple[str, ...]:
+    """Every citation this desk can actually answer from.
+
+    Both stores, because both are authority: a stored passage and a ratified
+    position differ in who wrote them, not in whether the desk holds the rule.
+    `Desk.authority_for` already treats them alike and this must not disagree
+    with it.
+    """
+    return tuple([p.citation for p in desk.passages]
+                 + [q.citation for q in desk.positions if not q.proposed])
+
+
 def _same_refusal(a: Unsupported, b: Unsupported) -> bool:
     """Idempotency is about the REFUSAL, not the row.
 
@@ -211,10 +241,35 @@ def next_id(existing: list[Unsupported]) -> str:
 
 def from_refusal(question: str, answer, result, *, model: str = "",
                  existing: list[Unsupported] | None = None,
-                 today: str | None = None) -> Unsupported:
-    """Build the entry the engine keeps when it refuses to serve an answer."""
+                 today: str | None = None, desk=None) -> Unsupported:
+    """Build the entry the engine keeps when it refuses to serve an answer.
+
+    IT RECORDS WHICH KIND OF REFUSAL THIS IS, WHEN THE DESK IS HANDED IN.
+    Measured on the second scoreboard, 4 September 2026: the frontier row cited
+    the governing rule in 16 of 16 problems and named the paragraph the
+    regulation's own conclusion names in 4 -- so 12 answers reached a finer
+    point INSIDE the desk's authority and all 12 were filed here as
+    undifferentiated refusals. The queue's whole job is to say what authority is
+    missing, and 12 of its 16 entries were not missing authority at all.
+
+    So it asks the question that is answerable at serve time as well as on a
+    scoreboard: is there a citation this desk HOLDS that contains the one
+    offered? There is no answer key for a client's question; there is always the
+    record. The closest containing citation is the one kept -- the nearest
+    ancestor says more than the broadest.
+
+    NOTHING ABOUT GRADING OR SERVING CHANGES. The firm declined loosening the
+    citation check, and the reason stands: `_check` is shared by `serve()` and
+    `grade()` on purpose, so anything that forgives a near miss on a scoreboard
+    hands one to a client. This is a label on a retained refusal, not a pass.
+    """
     existing = existing or []
+    held = ()
+    if desk is not None and answer.citation:
+        held = tuple(c for c in _held_citations(desk)
+                     if record_under(answer.citation, c))
     return Unsupported(
+        falls_under=max(held, key=len) if held else "",
         id=next_id(existing),
         question=question,
         concluded=answer.position or "(no position offered)",

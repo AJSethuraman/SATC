@@ -262,3 +262,113 @@ def test_the_heading_stays_one_line_and_scannable(tmp_path):
     text = path.read_text(encoding="utf-8")
     assert "## U1 · is a roof a unit of property?" in text, text
     assert unsupported.parse(text)[0].question == "is a roof\na unit\nof property?"
+
+
+# ── which kind of refusal this is, so the queue can be read ──────────────────
+
+def _desk_holding(*citations):
+    """A desk whose authority is exactly these citations. Nothing else is used
+    by `from_refusal`, so nothing else is built."""
+    from record import Desk, Passage
+    return Desk(name="d", passages=tuple(
+        Passage(citation=c, source_id="S1", checked="2026-09-04", text="rule")
+        for c in citations))
+
+
+def _refusal(citation, desk=None):
+    from engine import Answer, Outcome, Result
+    return unsupported.from_refusal(
+        "some facts",
+        Answer(position="must capitalize", citation=citation),
+        Result(problem_id="P1", outcome=Outcome.WRONG_CAUGHT,
+               reason="citation_does_not_support"),
+        desk=desk, today="2026-09-05")
+
+
+def test_a_finer_path_inside_the_desks_authority_is_filed_as_a_near_miss():
+    """Measured on the second scoreboard, 4 September 2026: the frontier row
+    cited the governing rule in 16 of 16 and named the paragraph the regulation
+    itself names in 4, so 12 answers landed here as undifferentiated refusals.
+    The queue exists to say what authority is MISSING, and 12 of its 16 entries
+    were not missing authority at all."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    u = _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk)
+    assert u.near_miss
+    assert u.falls_under == "26 CFR 1.263(a)-3(j)"
+
+
+def test_a_citation_outside_the_desks_authority_is_not_a_near_miss():
+    """The control. Without it the label could be unconditional and every test
+    above would still pass."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    assert not _refusal("26 CFR 1.263(a)-3(k)(1)(vi)", desk).near_miss
+    assert not _refusal("26 CFR 1.263(a)-3(k)(1)(vi)", desk).falls_under
+
+
+def test_the_nearest_containing_rule_is_the_one_kept():
+    """A desk holding both `(j)` and `(j)(1)` contains the answer twice. The
+    nearest ancestor says more about where the desk actually got to."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)", "26 CFR 1.263(a)-3(j)(1)")
+    assert _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk).falls_under \
+        == "26 CFR 1.263(a)-3(j)(1)"
+
+
+def test_the_exact_citation_is_not_a_near_miss_because_it_is_not_a_miss():
+    """`under` is strict. An answer citing what the desk holds exactly was
+    refused for some other reason, and labelling it a near miss would say the
+    citation was the problem when it was not."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    assert not _refusal("26 CFR 1.263(a)-3(j)", desk).near_miss
+
+
+def test_a_ratified_position_counts_as_authority_held():
+    """`Desk.authority_for` treats a stored passage and a ratified position
+    alike -- they differ in who wrote them, not in whether the desk holds the
+    rule -- and this must not disagree with it."""
+    from record import Desk
+    from positions import Position
+    desk = Desk(name="d", positions=(
+        Position(id="POS1", title="t", citation="26 CFR 1.263(a)-3(j)",
+                 recorded="2026-09-04", position="we capitalise",
+                 ratified="PR #999"),))
+    assert _refusal("26 CFR 1.263(a)-3(j)(1)", desk).falls_under \
+        == "26 CFR 1.263(a)-3(j)"
+
+
+def test_an_unratified_position_is_not_authority_held():
+    """A proposal sitting in a pull request is not yet the firm's word, and
+    `Desk.position()` already ignores it. The queue must agree."""
+    from record import Desk
+    from positions import Position
+    desk = Desk(name="d", positions=(
+        Position(id="POS1", title="t", citation="26 CFR 1.263(a)-3(j)",
+                 recorded="2026-09-04", position="we capitalise"),))
+    assert not _refusal("26 CFR 1.263(a)-3(j)(1)", desk).falls_under
+
+
+def test_without_a_desk_nothing_is_claimed_either_way():
+    """`from_refusal` is called from places that have no desk to hand. An empty
+    label there means "not asked", and it must not read as "not a near miss"."""
+    assert not _refusal("26 CFR 1.263(a)-3(j)(1)").falls_under
+
+
+def test_the_label_survives_the_round_trip(tmp_path):
+    """It is written into the file a person reads, so it has to come back out."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    path = tmp_path / "UNSUPPORTED.md"
+    unsupported.append(path, _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk))
+    back = unsupported.parse(path.read_text(encoding="utf-8"))
+    assert len(back) == 1
+    assert back[0].falls_under == "26 CFR 1.263(a)-3(j)"
+    assert back[0].near_miss
+
+
+def test_a_near_miss_is_still_refused_and_still_kept():
+    """The firm declined loosening the citation check, and the reason stands:
+    `_check` is shared by `serve()` and `grade()`, so anything that forgives a
+    near miss on a scoreboard hands one to a client. This is a label on a
+    retained refusal, never a pass."""
+    desk = _desk_holding("26 CFR 1.263(a)-3(j)")
+    u = _refusal("26 CFR 1.263(a)-3(j)(1)(iii)", desk)
+    assert u.failed_because == "citation_does_not_support"
+    assert u.concluded == "must capitalize"     # kept, not served
