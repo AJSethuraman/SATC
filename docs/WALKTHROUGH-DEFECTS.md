@@ -212,7 +212,7 @@ the three had happened to me, and I was the one who had just pressed the button.
 A screen whose answer to "that folder isn't there" is silence teaches the
 preparer to press again.
 
-## D11 · The first real client makes the app announce its data is fake
+## D11 · The first real client makes the app announce its data is fake — **FIXED, and it was worse than the banner**
 
 **MEDIUM.** After clearing the sample data — banner gone, panel gone — I created
 the practice's first real client. The banner came straight back, and now sits
@@ -495,7 +495,7 @@ came from fixtures, and fixtures fill in every field**: a check whose only input
 are fixtures has never been asked a real question. Tightened to all three things
 the regulation names.
 
-## D19 · "Nothing outstanding" sits directly above five outstanding items
+## D19 · "Nothing outstanding" sits directly above five outstanding items — **FIXED**
 
 **LOW.** The chase panel's headline reads **"Nothing outstanding."** while the
 register beneath it reads **"Asked for · 5 open"**, every row badged
@@ -583,7 +583,7 @@ product's own plan screen warns about (*"A request typed as a BUCKET rather than
 as the form the rule names"*). Harmless here, but it asks a client for something
 they have just said they do not have.
 
-## D12 · An SSN of `hello` is accepted without a word
+## D12 · An SSN of `hello` is accepted without a word — **FIXED**
 
 **MEDIUM.** `/clients/new` took `hello` in the SSN field and created the client.
 No format check, no warning, no flag on the record afterwards. The same field is
@@ -624,11 +624,21 @@ in the code that *displays* the result.
 *Isolated:* with the checkbox clear, the same build succeeds. The option's own
 label promises *"nothing here can stop a pack"*. It stops the pack.
 
-## E2 · An out-of-range tax year is refused in complete silence
+## E2 · An out-of-range tax year is refused in complete silence — **FIXED, and the diagnosis was wrong**
 
 **HIGH.** The interview's third question is *"Which tax year?"*. I answered
 **`1`** and pressed **Next**. The page re-rendered on the same question, with
 `1` still in the box, **no error message of any kind**, and did not advance.
+
+**Corrected on inspection: the page did not re-render, and nothing was refused.**
+No request was made at all. The box carried `min=2023 max=2027`, so Chrome's own
+constraint validation cancelled the submit before it left the machine. The
+engine refuses an out-of-range year correctly and always has — it was never
+reached. Verified in the browser, not inferred: after typing `1` and clicking
+Next, `input.validationMessage` read *"Value must be greater than or equal to
+2023."* and no navigation occurred. Fixed with `novalidate` on the question
+form, so every refusal comes from `Interview.answer` — the door the JSON API and
+`cli.py --set` also meet.
 
 Compare question 1 on the same screen, which at least says something when left
 blank. Here there is nothing to read, so the only available theory is that the
@@ -644,7 +654,7 @@ That is the internal field id. The question directly above it reads *"Which
 federal return?"*. Tenet S35 — write for the person holding the screen — and
 this is the one app in the build that is otherwise scrupulous about it.
 
-## E4 · Every document in the signing pack is titled "(template)"
+## E4 · Every document in the signing pack is titled "(template)" — **FIXED**
 
 **MEDIUM**, and it reaches the client. All three finished PDFs carry this in
 their document metadata — the string a PDF reader shows in its title bar and in
@@ -657,7 +667,15 @@ file properties:
 | SAT-C Onboarding Letter - Raghavan - 2025.pdf | `SATC — new client onboarding letter (template)` |
 
 The `<title>` is inherited from the source template and never rewritten at
-render time. The **filenames** are exactly right — *"SAT-C Engagement Letter -
+render time. **Fixed in `merge.render`** — the one function `sending`,
+`previewing`, `cli render` and the browser all pass through, so it is not a fix
+on the one door that was walked. Verified by reading `/Title` out of freshly
+built PDFs, not only in tests:
+
+```
+SAT-C Engagement Letter - Reyes - 2026.pdf
+    /Title = SATC — tax preparation engagement letter — Mr. and Mrs. Daniel Reyes — 2026 — 2027-0114
+``` The **filenames** are exactly right — *"SAT-C Engagement Letter -
 Raghavan - 2025"* — so this is the one identifier that was missed. A client
 opening the letter they are being asked to sign sees it described as a template,
 and none of the three titles names the client or the reference.

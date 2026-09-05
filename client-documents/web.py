@@ -1982,7 +1982,27 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
                        f"<b>{esc(claim)}</b> &mdash; not a valid answer here, "
                        f"so it needs a real one.</p>")
 
-    out.append(f"<form method=post action='/interview/{esc(sid)}'>")
+    # `novalidate` -- THE BROWSER MUST NOT ANSWER FOR THE ENGINE.
+    #
+    # Without it, `min=2023` on the year box below meant Chrome refused the
+    # submit itself: typing `1` and pressing Next made NO REQUEST AT ALL. The
+    # engine's sentence -- "Which tax year? needs a tax year between 2023 and
+    # 2027" -- was correct, was already written, and was never reached. What a
+    # preparer saw was a button that did nothing, twice, three times. Chrome
+    # does show a bubble, but it is transient, it sits by the field rather than
+    # in the page, and it is in the BROWSER's language, not the firm's.
+    #
+    # The comment on that input read "`min`/`max` are a convenience, never the
+    # control". In a browser they ARE the control -- they are the only check
+    # that runs, and they run INSTEAD of the real one. The attributes stay, so
+    # the spinner arrows stay bounded and the range is discoverable; what goes
+    # is their power to swallow the answer.
+    #
+    # This applies to `required` and `pattern` too, deliberately. Every refusal
+    # on this screen now comes from `Interview.answer`, which is the one the
+    # JSON door and `cli.py --set` also meet -- so all three doors refuse the
+    # same things, in the same words, and a message we fix is fixed everywhere.
+    out.append(f"<form method=post action='/interview/{esc(sid)}' novalidate>")
     # WHICH QUESTION THIS ANSWER IS FOR. Without it the server worked the
     # target out AFTER reading the draft, so a double-click, a browser resubmit
     # or a second tab applied the value to whatever question was current by the
@@ -2023,10 +2043,15 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
         # control -- `Interview.answer` is the control, and the JSON door has
         # no HTML to obey.
         now = date.today().year
+        lo, hi = now - deadlines.YEARS_BACK, now + deadlines.YEARS_FORWARD
         out.append(f"<input type=number name=answer autofocus "
-                   f"min={now - deadlines.YEARS_BACK} "
-                   f"max={now + deadlines.YEARS_FORWARD} "
-                   f"value='{esc(shown_value)}'>")
+                   f"min={lo} max={hi} value='{esc(shown_value)}'>")
+        # SAY THE RANGE BEFORE THEY TYPE, not after. The engine refuses an
+        # out-of-range year with the bounds in it, but a refusal a preparer
+        # reads mid-sitting is one they had to earn; the bounds are not a
+        # secret and cost one line to give away.
+        out.append(f"<p class=help>{lo} to {hi}. A year outside that is more "
+                   f"likely a typo than a return we are preparing.</p>")
     elif t == "number":
         out.append(f"<input type=number name=answer min=0 "
                    f"value='{esc(shown_value)}'>")

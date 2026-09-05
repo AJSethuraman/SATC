@@ -218,6 +218,48 @@ def _dangling_section_refs(text: str) -> set[str]:
     return cited - have
 
 
+
+# --- the document's own name -----------------------------------------------
+# A PDF carries a title as well as a filename, and until 5 Sep 2026 every
+# delivered document carried the TEMPLATE's:
+#
+#     SATC -- tax preparation engagement letter (template)
+#
+# That is what a PDF reader shows in its title bar, what Windows shows under
+# File properties, and what several mail clients show when the attachment is
+# previewed. The filenames were exactly right -- "SAT-C Engagement Letter -
+# Raghavan - 2025" -- so the title is the one identifier nobody rewrote, and a
+# client opening the letter they are being asked to SIGN saw it described as a
+# template. It also named neither the client nor the engagement, so three
+# documents from three different clients were indistinguishable once open.
+#
+# Rewritten here rather than at the callers, because here is where a template
+# stops being a template. `sending`, `previewing`, `cli render` and the browser
+# all pass through this function; a fix in any one of them is a fix on one door.
+_TITLE = re.compile(r"(?is)<title>(.*?)</title>")
+_TEMPLATE_SUFFIX = re.compile(r"\s*\(template\)\s*$", re.I)
+
+
+def _retitle(text: str, record: dict) -> str:
+    """Give the rendered document its own name, not the template's."""
+    m = _TITLE.search(text)
+    if not m:
+        return text
+    base = _TEMPLATE_SUFFIX.sub("", m.group(1).strip())
+    # WHAT A PERSON WOULD USE TO TELL TWO OPEN TABS APART: whose it is, which
+    # year, and the reference that ties the letter to the estimate and the
+    # invoice. Each part is dropped if the record does not have it rather than
+    # printed empty -- an honest short title beats "-- -- 2025".
+    parts = [base]
+    for key in ("ClientFullName", "_season", "EngagementRef"):
+        value = str(record.get(key) or "").strip()
+        if value:
+            parts.append(value)
+    return _TITLE.sub(
+        lambda _: "<title>" + html.escape(" — ".join(parts)) + "</title>",
+        text, count=1)
+
+
 def render(template_html: str, record: dict, *, strict: bool = True,
            required_lists: "tuple[str, ...] | list[str]" = (),
            inverse_flags: "tuple[tuple[str, str], ...]" = ()) -> MergeResult:
@@ -243,6 +285,7 @@ def render(template_html: str, record: dict, *, strict: bool = True,
     not decided in this module.
     """
     text = _REF_BLOCK.sub("", template_html)     # screen-only docs never ship
+    text = _retitle(text, record)
 
     kept: set = set()
     dropped: set = set()
