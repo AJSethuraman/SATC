@@ -114,3 +114,78 @@ source answer instead.
 secondary source reaches, answer from it and mark the answer as guidance rather
 than rule, so the reader sees which they are relying on. That is a change to what
 `Served` carries, not a hole in the gate. **Not built: it needs their yes first.**
+
+---
+
+# Found while checking the local-model constraint: a desk that fails completely publishes as a careful one
+
+The firm, deferring the desk-size decision on 5 September 2026: *"their
+development should still work on a local model, even if we can't technically run
+it in the sense that none of the script or prompting or anything would mess it
+up."* Checking that turned up two defects in the harness, neither of which needed
+a model running to find.
+
+## 1 · `Leak` was a plain exception, so four desks scored as careful ones
+
+`forge_adapter` builds the prompt inside `ask()`, and `scoreboard.run` catches
+anything `ask` raises and records it as an escalation with reason
+`model_gave_up` — which is rule 9 working exactly as designed, for the failure it
+was written for. `Leak` is not that failure. It is ours: the harness refusing to
+build a prompt because the stored authority carries the answer.
+
+**Reproduced with no model running at all**, on the rewards desk:
+
+```
+problems: 19
+recorded as the model giving up: 19
+outcomes: {'ESCALATED': 19}
+```
+
+**Escalation is a success on this scoreboard.** A desk whose every single prompt
+the harness refused to build would have published as a perfectly careful one.
+
+| desk | problems the harness cannot prompt |
+|---|---|
+| rewards-and-information-returns | **19 of 19** |
+| meals-and-entertainment | 6 of 16 |
+| vehicle-expense | 5 of 15 |
+| personal-or-business | 4 of 12 |
+| | **34 of 98** |
+
+**Nothing published was wrong, and that is luck rather than a control.** Both
+Forge runs were on `fixed-assets` and `cash-and-bank`, the two desks that do not
+leak. `Leak` is now a `HarnessError`, which `scoreboard.run` re-raises — the
+class was already there, written on this same file after the identical bug turned
+sixteen refusals into give-ups.
+
+**The 34 leaks are a separate, real finding and are NOT fixed here.** They mean
+the stored authority for those desks carries the conclusions its own problems
+turn on. That is a corpus question, and quietly loosening the leak check to get a
+number would be the worst available move.
+
+## 2 · The full-text prompt could never have run on the box it was written for
+
+`ollama()`'s docstring has said since it was written that a request over the
+window *"does not error — it silently drops the front of the prompt"*, and the
+front of this prompt is the instruction to cite. Nothing checked it.
+
+An 8,192-token window leaves **7,616** for a prompt once 512 is reserved for the
+reply and a little for overhead — and the reply comes *out* of the window, which
+the sizing did not account for either.
+
+| desk | `--corpus index` | `--corpus text` |
+|---|---|---|
+| capitalization-and-de-minimis | 4,020 | **8,978** |
+| cash-and-bank | 3,460 | **15,367** |
+| fixed-assets | 6,171 | leaks before it can be measured |
+
+**The index shape fits all seven desks. The full-text shape fits none**, and it
+was reachable from the command line. `check_fits` now runs at the API choke
+point — LOCAL-LLM-PATTERN rule 6, the same reason the citation rule lives in
+`engine.serve` rather than in a prompt — and raises `PromptTooLong`, naming the
+estimate, the room, and the three things that would fix it.
+
+The token figures are **estimates and are called that everywhere**: there is no
+tokeniser here, so the ratio is deliberately pessimistic (3.2 characters to the
+token, where English prose is nearer 4) because under-counting is the one
+direction that would let a prompt be cut anyway.
