@@ -226,7 +226,8 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 dr.unresolved = (
                     f"no engagement in the store carries the ref {drop.ref!r} -- "
                     f"the documents are filed, but nothing was marked Received. "
-                    f"Set `engagement_ref` on that engagement and run this again.")
+                    f"Open the engagement in Engagements, put {drop.ref!r} in "
+                    f"the Engagement ref box, and run this again.")
         if not drop.placed:
             dr.unresolved = (
                 f"no engagement ref in the folder name {drop.path.name!r} -- name it "

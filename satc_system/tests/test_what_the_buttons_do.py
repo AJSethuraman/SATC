@@ -251,6 +251,7 @@ def test_dismissing_something_takes_it_off_today_and_restore_puts_it_back(client
 # "every button proven".
 NOT_ASSERTED = {
     "/clients/import":            "needs a CSV upload; the parse is covered by test_importer",
+    "/engagements/<job_id>/ref":  "asserted end to end by test_the_join_has_a_writer -- recorded, refused on a bad shape, refused on a duplicate, and resolving a drop folder afterwards",
     "/clients/import/confirm":    "needs an import previewed first",
     "/clients/new":               "covered end to end by test_intake",
     "/clients/quick-add":         "covered end to end by test_intake",
