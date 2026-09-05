@@ -249,3 +249,19 @@ def test_the_tie_out_skill_refuses_an_unexecuted_link():
         assert verdict in flat, f"verdict missing: {verdict}"
     assert "I do not know where the authority for this number is" in flat,         "the most useful COULD NOT reason is not offered"
     assert "Report the denominator" in flat, "a roster with no denominator"
+
+
+def test_the_tie_out_skill_makes_you_look_at_the_source():
+    """The firm's own catch. "Name and quote the source" can be completed
+    truthfully by somebody who glanced at a page and found A number -- nothing
+    in it requires looking at THE number. The image and the cell reference are
+    what make the mismatch impossible to write past."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Capture it. Do not summarise it" in flat,         "the source may still be described rather than captured"
+    assert "Screenshot the page" in flat, "no image of the source is required"
+    assert "is not locating a figure" in flat,         "nothing rules out a vague citation of the source"
+    assert "before** writing any verdict" in flat,         "the verdict may still be written ahead of the comparison"
+    for same in ("the same entity", "the same date or period", "the same basis",
+                 "the same units and scale"):
+        assert same in flat, f"the four sameness checks are incomplete: {same}"

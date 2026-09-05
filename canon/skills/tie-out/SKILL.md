@@ -56,8 +56,48 @@ derivation** — it is the exact gap this document exists to close.
 which statement, which publication, which series, as at what date. Say how they
 get it themselves. A source only you can see is not independent of you.
 
-**5 · The comparison.** Both numbers side by side and the difference. Zero, or
-explained line by line.
+**Capture it. Do not summarise it.** Screenshot the page, the statement, the
+filing — with the figure visible in the shot — and file it beside the exhibit:
+
+```
+docs/tie-out/<figure>-<date>/source-fdic-total-assets.png
+```
+
+Then **locate the figure on it**, precisely enough that a reader can put their
+finger on the same one: which table, which row, which column, which label, as at
+which date, in what units and at what scale. *"The FDIC reports 12.4%"* is not
+locating a figure. *"Table 3, row `Total assets`, column `2026-Q2`, in thousands,
+as filed 2026-08-15"* is.
+
+This is the link that catches you. Writing *"the source agrees"* is something you
+can do while believing it. Pasting the image and pointing at the cell is not —
+either the number is there or it is not, and you find out at the moment you look
+rather than at the moment somebody else does.
+
+**5 · The comparison.** Put the two numbers adjacent, digit for digit, **before**
+writing any verdict:
+
+```
+ours    (GET /api/v1/institutions/12345/summary → total_assets)   4,182,663
+source  (FDIC BankFind, Table 3, 2026-Q2, $000s, filed 08/15)     4,182,663
+diff                                                                      0
+```
+
+The verdict is **read off that block**, never written ahead of it. A verdict
+written first is a conclusion looking for evidence.
+
+Before you may write `TIED`, four things must be the same, and each is a real way
+a number that looks right is wrong:
+
+- **the same entity** — the same institution, client, account, ticker
+- **the same date or period** — an as-of that differs by a quarter matches nothing
+- **the same basis** — gross or net, accrual or cash, consolidated or standalone,
+  restated or as-originally-filed
+- **the same units and scale** — thousands against units is the failure that
+  looks closest to correct
+
+If any of the four is not the same, the verdict is `DIFFERS` or `COULD NOT`, not
+`TIED` with a note.
 
 ## A difference is a finding, not a failure
 
@@ -159,8 +199,21 @@ what anybody needs to read.
   the reusable half, and it is invisible once the number agrees.
 - **Do not write a link you did not execute** without marking it as assumed. The
   only thing worse than a missing tie-out is a convincing one nobody ran.
+- **Do not write "the source agrees" without the image and the location.** That
+  sentence is the one that can be typed while assuming, which is why it is the
+  one this skill does not accept on its own.
 - **Do not pad the roster with the easy figures** to lift the ratio. A roster of
   cheap wins reports a number that is true and a picture that is false.
+
+**Incident:** the firm, 5 September 2026, on why the source has to be captured
+rather than described: *"they would catch themselves and say, oh, shit. It
+doesn't actually tie out. I've been lying this whole time because there was a
+number there. I just assumed, yeah, of course, it's good. But now that I'm
+looking at the screen, taking a screenshot and circling this and saying, look,
+it's right here. I can see plainly it doesn't match."* The first draft of this
+skill asked for the source to be **named and quoted**, which is a step that can
+be completed truthfully by somebody who glanced at a page and found *a* number.
+Nothing in it required looking.
 
 **Incident:** on 5 September 2026 an agent proposed a new conviction and numbered
 it **C13**. On `main`, C13 was a proposal the firm had already *declined* — and
