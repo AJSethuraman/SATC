@@ -37,8 +37,11 @@ def entity(slot, key):
 # --------------------------------------------------------------------------
 
 def test_the_field_table_is_the_size_the_pack_declares():
-    assert len(fields.RAW_FIELDS) == 68
-    assert len(set(fields.RAW_FIELDS)) == 68, "a duplicated field shifts columns"
+    # 69 since #268: fifteen FDIC ratio twins (over total assets) were
+    # dropped and sixteen dollar lines landed in their place, so every class
+    # rate is computed over its own book
+    assert len(fields.RAW_FIELDS) == 69
+    assert len(set(fields.RAW_FIELDS)) == 69, "a duplicated field shifts columns"
     assert len(fields.RAW_FIELDS) + 2 < fields.MAX_REQUEST_FIELDS
 
 

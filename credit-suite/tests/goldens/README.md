@@ -168,3 +168,52 @@ their formulas), 20 Watchlist helper headers, 17 on the new tab, plus the
 sheet itself. No dashboard value moved and the flag counts the spine test pins
 (50 ALERT, 47 WATCH) did not change: a rename is not a recalculation. The
 golden was confirmed to DETECT all of it before it was re-banked.
+
+### `fdic-demo.json`, 2026-09-05 (third re-bank) — #268, every class rate over its own book
+
+The FDIC's published loan-class rates divide by **average total assets**. This
+template landed fifteen of them — card, auto, resi, HELOC and C&I 30-89 / 90+
+/ nonaccrual — and showed them on the loan-book dashboard beside the twenty it
+computes over the class, under thresholds set for book rates. Capital One's
+card 30-89 read 0.86 (of assets) where the card-book rate is 2.21, and card
+30-89 watches at 2.5, so eight early-warning flags could not trip. The firm's
+answer on the docket: compute over the book.
+
+The fifteen ratio twins are no longer landed. In their place: the fifteen
+dollar numerators (their MDRM codes were already in the provenance map, inside
+the twin rows) plus `LNRELOC`, so HELOC finally has a book to stand on. 68 →
+69 landed fields, and every one of the 35 loan-class rates is now
+`numerator / its own class balance × 100`.
+
+11,332 cells moved. Most of that is `Raw_FDIC` (8,755) where fifteen columns
+changed identity and one was added, plus the formulas and ids on
+`Dashboard_LoanBook`, `_provenance`, `Watchlist` and `_config`.
+
+**No demo value actually changed.** The demo profile built each class rate
+from a seeded percentage and landed the percentage; it now lands
+`rate/100 × balance` and the engine divides by the same balance, so the
+numbers come back identical — the 192 dashboard "value" diffs are the same
+figures at full precision instead of the FDIC's four decimal places (1.6434 →
+1.64341584569). The flag counts the spine test pins did not move: 50 ALERT,
+47 WATCH, 2 alert banks, 2 watch banks. On live data the values do change,
+because that is the point of the issue.
+
+Also gone: the *guarded direct* metric added the day before for #259. It
+existed to make a landed rate read None on a zero book; a ratio does that by
+construction, so the machinery had no users and was removed with its tests
+and mutations re-pointed at the ratio.
+
+### `fdic-demo.json`, 2026-09-05 (fourth re-bank) — a tie-out found three wrong citations
+
+Tying out one KeyBank figure end to end against the bank's own filed Call
+Report (`docs/TIE-OUT-keybank-card-30-89-2026-09-05.md`) ran the filing check
+over all 48 landed dollar lines. Three came back **NOT IN FILING**: `P3CI`,
+`P9CI`, `NACI`. The provenance map cited MDRM `1606` / `1607` / `1608`, the
+**form 041** codes. KeyBank files form **031**, which splits commercial and
+industrial loans into 4.a (US) and 4.b (non-US), and the filing carries the
+landed values under `RCFD1251` / `1252` / `1253`. The C&I *balance* row already
+carried that 031 alternative; the past-due rows never had it.
+
+9 cells moved, all on `_provenance` — three MDRM citations and their notes.
+No value moved anywhere: the numbers were right and the citation was wrong,
+which is exactly the failure a tie-out exists to find. 45 of 48 became 48 of 48.

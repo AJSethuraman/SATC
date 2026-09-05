@@ -173,6 +173,7 @@ class FdicDemoProvider(Provider):
         oc_sh = 0.02 + (s % 4) * 0.01                # other consumer 2-5%
         rr_sh = 0.18 + (s % 8) * 0.02                # 1-4 family 18-32%
         ci_sh = 0.18 + (s % 9) * 0.02                # C&I 18-34%
+        reloc_sh = 0.20 + (s % 5) * 0.02             # HELOC 20-28% of resi
         htm_sh = 0.10 + (s % 6) * 0.02               # HTM securities / assets
         afs_sh = 0.12 + (s % 7) * 0.02               # AFS securities / assets
         # F-trap vintages/coverage: one bank reports NO auto book (fields null
@@ -222,22 +223,23 @@ class FdicDemoProvider(Provider):
                    "ci": round(ci_sh * loans),
                    "recons": f["LNRECONS"], "renres": f["LNRENRES"],
                    "remult": f["LNREMULT"]}
+            # HELOC is a component of the 1-4 family book (RC-C 1.c.(1) of the
+            # 1.c composite), landed for #268 so the HELOC rates have a book
+            bal["reloc"] = round(reloc_sh * bal["reres"])
             f["LNCRCD"], f["LNAUTO"] = bal["crcd"], bal["auto"]
             f["LNCONOTH"], f["LNRERES"] = bal["conoth"], bal["reres"]
-            f["LNCI"] = bal["ci"]
+            f["LNCI"], f["LNRELOC"] = bal["ci"], bal["reloc"]
 
             def rw(cls, k):                          # ramped+wobbled class rate
                 return rate[cls][k] * ramp * wob
-            # verified R-twin rate fields land as percents directly
-            for cls, pre in (("crcd", "CRCD"), ("auto", "AUTO"),
+            # EVERY class lands its dollar triple off the same seeded rate, and
+            # the engine divides by the same balance -- so the demo's metric
+            # values are unchanged by #268, only the landed fields are.
+            for cls, suf in (("crcd", "CRCD"), ("auto", "AUTO"),
                              ("reres", "RERES"), ("reloc", "RELOC"),
-                             ("ci", "CI")):
-                f["P3" + pre + "R"] = round(rw(cls, 0), 4)
-                f["P9" + pre + "R"] = round(rw(cls, 1), 4)
-                f["NA" + pre + "R"] = round(rw(cls, 2), 4)
-            # computed classes land the dollar triple off the same rates
-            for cls, suf in (("conoth", "CONOTH"), ("recons", "RECONS"),
-                             ("renres", "RENRES"), ("remult", "REMULT")):
+                             ("ci", "CI"), ("conoth", "CONOTH"),
+                             ("recons", "RECONS"), ("renres", "RENRES"),
+                             ("remult", "REMULT")):
                 f["P3" + suf] = round(rw(cls, 0) / 100.0 * bal[cls])
                 f["P9" + suf] = round(rw(cls, 1) / 100.0 * bal[cls])
                 f["NA" + suf] = round(rw(cls, 2) / 100.0 * bal[cls])
@@ -248,7 +250,7 @@ class FdicDemoProvider(Provider):
                              ("remult", "NTREMULQ"), ("ci", "NTCIQ")):
                 f[fld] = round(rw(cls, 3) / 400.0 * bal[cls])
             if auto_none:                            # not an auto lender
-                for fld in ("LNAUTO", "P3AUTOR", "P9AUTOR", "NAAUTOR",
+                for fld in ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO",
                             "NTAUTOQ"):
                     f[fld] = None
             # SVB pack: uninsured share, HTM/AFS unrealized (60/40 split so

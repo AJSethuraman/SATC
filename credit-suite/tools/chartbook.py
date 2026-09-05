@@ -264,6 +264,12 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         "  that arrives by email. Nothing here needs to be enabled or unblocked.",
         "",
         "What was left blank, and why",
+        "  A class rate is left blank for any quarter where that bank's book in the class",
+        "  was under $100M. A rate on a near-empty book is arithmetic, not information:",
+        "  a $560k recovery on a $2M book is -28% annualised, drawn as faithfully as a",
+        "  real number. The sheet says how many quarters went, and how big the largest",
+        "  blanked book was, so the reason can be checked rather than taken on trust.",
+        "",
         "  A charge-off rate is left blank for any quarter in which that bank absorbed",
         "  another bank. A Call Report reports charge-offs as a running total from 1",
         "  January, and a quarter's figure is that total less the previous quarter's --",
@@ -342,20 +348,36 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         ws["A3"] = ("Charge-offs are annualised (a quarter's flow x4); the others "
                     "are point-in-time balances. Compare shapes, not heights.")
         ws["A3"].font = NOTE_FONT
+        stage_ids = {m for m, _ in STAGES}
         gaps = [b for b in trend.LAST_MERGER_BLANKS if b[0] == bank
-                and b[1] in {m for m, _ in STAGES}]
+                and b[1] in stage_ids]
+        small = [b for b in trend.LAST_MATERIALITY_BLANKS if b[0] == bank
+                 and b[1] in stage_ids]
+        row = 4
+        if small:
+            quarters = sorted({b[2][:10] for b in small})
+            biggest = max((b[3] or 0) for b in small)
+            ws["A%d" % row] = (
+                "%d quarter%s left blank because the book was under $%dM: %s. "
+                "The largest book blanked was $%.1fM. A rate on a book that "
+                "size is arithmetic, not information."
+                % (len(quarters), "" if len(quarters) == 1 else "s",
+                   trend.MATERIALITY_FLOOR_K // 1000, ", ".join(quarters),
+                   biggest / 1000.0))
+            ws["A%d" % row].font = NOTE_FONT
+            row += 1
         if gaps:
-            ws["A4"] = ("Charge-offs are left blank for %s: %s"
-                        % (", ".join(sorted({g[2][:10] for g in gaps})),
-                           gaps[0][3]))
-            ws["A4"].font = NOTE_FONT
+            ws["A%d" % row] = ("Charge-offs are left blank for %s: %s"
+                               % (", ".join(sorted({g[2][:10] for g in gaps})),
+                                  gaps[0][3]))
+            ws["A%d" % row].font = NOTE_FONT
         elif trend.LAST_MERGERS_UNKNOWN:
-            ws["A4"] = ("No merger record was available for this workbook, so "
-                        "no quarter is marked. A quarter that spans a merger "
-                        "mixes two banks and its charge-off rate is not "
-                        "comparable -- run the monitor live to fetch the "
-                        "record.")
-            ws["A4"].font = NOTE_FONT
+            ws["A%d" % row] = (
+                "No merger record was available for this workbook, so no "
+                "quarter is marked. A quarter that spans a merger mixes two "
+                "banks and its charge-off rate is not comparable -- run the "
+                "monitor live to fetch the record.")
+            ws["A%d" % row].font = NOTE_FONT
         rows = []
         for metric, label in STAGES:
             panel = panels.get(metric)

@@ -833,3 +833,78 @@ golden (158 cells: the ids on `_config` and `_provenance`, 20 Watchlist
 headers, the new tab; no dashboard value moved, flag counts unchanged).
 Conformance clean but for the four known single-sourcing notes. Mutation sweep
 run after all of it.
+
+## 2026-09-05 (night) — both guards, and every rate over its own book
+
+**D3 answered "add the floor back at $100M".** The firm saw what the merger
+flag alone ships — Capital One's other-consumer book was $2–8M for every
+quarter before mid-2025, so the chart drew 28%, −7.8% and 21% — and put the
+size floor back beside it. The two guards are independent and neither is the
+other: the flag says *this quarter mixes two banks*, the floor says *this book
+is too small to read a rate from*. The stage sheet now prints both reasons and
+the size of the largest blanked book, so the reason can be checked rather than
+taken on trust.
+
+**D4 (#268) answered "compute over the book".** The fifteen class rates this
+template landed were the FDIC's own — over average TOTAL ASSETS — sitting on
+the loan-book dashboard beside the twenty computed over the class, under
+thresholds set for book rates. Card 30-89 watched at 2.5% against a number
+that reads 0.86%, so eight early-warning flags could not trip. All fifteen are
+now computed: the dollar numerators are landed (their MDRM codes were already
+in the provenance map, inside the twin rows they were the numerator of), plus
+`LNRELOC`, which gives HELOC a book for the first time. 68 → 69 landed fields;
+35 loan-class rates, every one over its own class.
+
+**The demo values did not move, and that is the proof it was a re-derivation
+rather than a recalibration.** The demo profile seeded a percentage and landed
+it; it now lands `rate/100 × balance` and the engine divides by the same
+balance. 11,332 cells moved in the golden — almost all `Raw_FDIC` column
+identity — and the flag counts held exactly: 50 ALERT, 47 WATCH, 2 alert
+banks, 2 watch banks. On live data the numbers do change, which is the point.
+
+**Deleted: the guarded-direct metric**, one day old. It existed so a landed
+rate could read None on a zero book (#259); a ratio does that by construction,
+so with all fifteen converted it had no users. Removed with its tests, and its
+two mutations re-pointed at the ratio's own zero-denominator guard and at the
+balance a ratio records. A guard with no users is decoration.
+
+**Two bugs the live run caught before any of this shipped:** the history
+endpoint returns a bank's whole life (Wells Fargo to 1972), so the merger
+request now asks only for the charted window — and that window must start on
+the FIRST DAY of the oldest charted quarter, or Citibank's 1 July 2022 merger
+is missed by two months. It was. Both are pinned by tests now.
+
+## 2026-09-05 (late) — a tie-out on KeyBank, and what it found
+
+The firm asked for KeyBank's values tied out. One figure taken the whole way,
+plus the roster: `credit-suite/docs/TIE-OUT-keybank-card-30-89-2026-09-05.md`.
+
+**The figure:** KeyBank's card 30-89 delinquency rate, `Dashboard_LoanBook!D16`
+= **0.92**. Chosen because it is the number #268 moved — it read 0.005 the day
+before, when it was the FDIC's own rate over total assets.
+
+**The chain, every link executed:** the workbook cell and its formula; the one
+FDIC API call with its response; the two raw cells and the arithmetic by hand
+(8,528 / 926,589 x 100 = 0.9203649082818812); and the independent source —
+KeyBank's own **FFIEC 031 Call Report as filed for 6/30/2026**, fetched from
+the FFIEC CDR, with **Schedule RC-N line 5.a column A (RCFDB575) = 8,528** and
+**Schedule RC-C Pt I line 6.a column A (RCFDB538) = 926,589** captured as
+images with the bank name, form type and report date in the same shot. Diff: 0.
+
+**What it found, which is the point.** Three C&I past-due lines came back NOT
+IN FILING. The map cited `1606/1607/1608` — the **form 041** codes. KeyBank
+files **031**, which splits C&I into 4.a US and 4.b non-US, and the filing
+carries our exact landed values under `RCFD1251/1252/1253`. The C&I balance row
+had carried the 031 alternative all along; the past-due rows had never been
+given it. Fixed, pinned by a test, golden re-banked (9 cells, all citations, no
+value moved). **45 of 48 became 48 of 48.**
+
+**Recorded against myself:** reading the HELOC balance off the page image I
+wrote 2,929,670; the filing's XBRL says 2,929,570. The image is small and the
+error was mine. It is in the exhibit, because a tie-out that hides its own
+misreads is worth nothing.
+
+**Marked as not proven:** one bank, one quarter; the chart workbook link is
+asserted rather than executed; and the FFIEC's embedded viewer could not be
+driven by automation, so the two pages were captured from a locally served copy
+of the same filing rather than from the FFIEC page itself.

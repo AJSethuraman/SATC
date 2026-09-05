@@ -769,15 +769,18 @@ def test_pack_fields_in_bulk_request(monkeypatch):
     assert len(fields) < 250                      # the FDIC fields= cap
     # spot the pack families: consumer twins, dollar triples, truncated NCO
     # names, balances, SVB fields
-    for f in ("P3CRCDR", "NAAUTOR", "P3RELOCR", "P3CONOTH", "LNCRCD",
+    for f in ("P3CRCD", "NAAUTO", "P3RELOC", "LNRELOC", "P3CONOTH", "LNCRCD",
               "NTCRCDQ", "NTCONOTQ", "NTRECONQ", "NTRENREQ", "NTREMULQ",
               "NTCIQ", "P3RECONS", "NAREMULT", "LNCI", "DEPUNINS", "SCHA",
               "SCHF", "SCAA", "SCAF", "OTHBFHLB"):
         assert f in fields, f
     # the YTD NCO fields are NEVER requested (trap F1) and no un-truncated
     # 9-char name slipped in
+    # the YTD NCO fields, the FDIC's over-total-assets ratio twins (#268),
+    # and any metric id that is not itself a landed field
     for banned in ("NTCRCD", "NTAUTO", "NTCI", "NTRECONS", "NTRECONSQ",
-                   "P3CONOTH_BOOK", "EQCCOMPI"):
+                   "P3CRCDR", "NAAUTOR", "P3RELOCR", "NACIR",
+                   "P3CONOTH_BOOK", "P3CRCD_BOOK", "EQCCOMPI"):
         assert banned not in fields, banned
     # every [SERIES] metric's inputs are landed fields (audit trail intact)
     cfg = R.parse_config(BW.config_rows())
@@ -785,15 +788,20 @@ def test_pack_fields_in_bulk_request(monkeypatch):
 
 
 def test_consumer_track_rates():
-    """Hardcoded expectations for the consumer-track transforms: R twins pass
-    through; computed rates are num/den*100; quarterly NCO rates are the Q
-    dollar flow ANNUALIZED x4 over balances; None-tolerant throughout."""
-    # verified R twins are direct (the metric id IS the field) -- and since
-    # #259 a class rate is guarded by its book: no LNCRCD, no card rate
-    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51, "LNCRCD": 1000.0})         == pytest.approx(2.51)
-    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51}) is None
-    assert R.metric_value("NARELOCR", {"NARELOCR": 0.7}) == pytest.approx(0.7)
-    assert R.metric_value("P9AUTOR", {}) is None
+    """Hardcoded expectations for the consumer-track transforms: every class
+    rate is num/den*100 over its OWN BOOK, since #268 -- the FDIC's ratio
+    twins divide by total assets and are no longer landed. Quarterly NCO
+    rates are the Q dollar flow ANNUALIZED x4 over balances. None-tolerant
+    throughout."""
+    # the card triple, over the card book
+    assert R.metric_value("P3CRCD_BOOK", {"P3CRCD": 25.1, "LNCRCD": 1000.0}) \
+        == pytest.approx(2.51)
+    assert R.metric_value("NARELOC_BOOK", {"NARELOC": 7.0, "LNRELOC": 1000.0}) \
+        == pytest.approx(0.7)
+    # no book, no rate -- and never a zero (trap F3)
+    assert R.metric_value("P3CRCD_BOOK", {"P3CRCD": 25.1, "LNCRCD": 0}) is None
+    assert R.metric_value("P9AUTO_BOOK", {}) is None
+
     # card NCOq: 10/1000 * 400 = 4.0 (annualized, NTLNLSQR convention)
     assert R.metric_value("NTCRCDQ_BOOK", {"NTCRCDQ": 10.0, "LNCRCD": 1000.0}) \
         == pytest.approx(4.0)
@@ -828,8 +836,8 @@ def test_consumer_track_rates():
     prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
     f6548 = prov._profile("6548")[-1][1]
     assert R.metric_value("NTCRCDQ_BOOK", f6548) > 4.0        # card NCO ALERT
-    assert R.metric_value("P3AUTOR", f6548) > 4.0         # auto PD ALERT
-    assert R.metric_value("NARERESR", f6548) > 2.0        # resi NA ALERT
+    assert R.metric_value("P3AUTO_BOOK", f6548) > 4.0     # auto PD ALERT
+    assert R.metric_value("NARERES_BOOK", f6548) > 2.0    # resi NA ALERT
 
 
 def test_svb_derived_metrics():
@@ -922,9 +930,9 @@ def test_loanbook_tab(populated):
     k_cons = mids.index("NTCRCDQ_BOOK")
     h = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_cons).value)
     assert "Dashboard_LoanBook!" in h and "ALERT" in h
-    k_comm = mids.index("NACIR")
+    k_comm = mids.index("NACI_BOOK")
     h2 = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_comm).value)
-    tab, col, first = BW.metric_home("NACIR", 40)
+    tab, col, first = BW.metric_home("NACI_BOOK", 40)
     from openpyxl.utils import get_column_letter
     assert f"Dashboard_LoanBook!{get_column_letter(col)}{first}" in h2
     assert first == hdr2 + 1                     # the commercial band offset
@@ -942,7 +950,7 @@ def test_loanbook_tab(populated):
     assert any("DEPUNINS" in n for n in b4["notes"])      # the blank+note
     # per-band medians exist in the digest too (peer-median per column)
     assert status["digest"]["medians"]["NTCRCDQ_BOOK"] is not None
-    assert status["digest"]["medians"]["NACIR"] is not None
+    assert status["digest"]["medians"]["NACI_BOOK"] is not None
 
 
 def test_provenance_tab(populated):

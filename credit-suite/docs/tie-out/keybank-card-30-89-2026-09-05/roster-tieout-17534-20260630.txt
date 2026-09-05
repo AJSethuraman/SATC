@@ -1,0 +1,610 @@
+TIE-OUT  cert 17534  REPDTE 2026-06-30  (pack 1.1, live mode)
+  Call Report facsimile : https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&idType=fdiccert&id=17534&date=06302026
+  BankFind (pull check) : https://banks.data.fdic.gov/bankfind-suite/bankfind/details/17534
+  Data vintage          : 2026-08-19T18:58:33Z
+  Tie-out is two-step: API value <-> BankFind page (pull check) <-> CDR facsimile schedule/line (filing check).
+
+  WHAT THE TERMS MEAN
+    Call Report -    the quarterly financial report every US bank must file with its regulators. FFIEC forms
+                     031, 041 and 051 -- which one depends on the bank's size and whether it has foreign
+                     offices.
+    Schedule / line - where on that form the number sits. 'RC-N line 9 column B' is a specific box on a
+                     specific page, the same for every bank.
+    MDRM code -      the Federal Reserve's permanent identifier for one filed line, like RCON1407. Quote it
+                     to a bank's finance team and they know exactly which number you mean. RCON = domestic
+                     offices, RCFD = consolidated including foreign, RCOA = the capital schedule.
+    Facsimile -      an image of the actual form the bank filed, on the regulator's own site. The link below
+                     opens this bank's, for this quarter.
+    Still accruing - the loan is late, but the bank still expects to collect and is still booking the
+                     interest.
+    Nonaccrual -     the bank has stopped booking interest because it no longer expects to collect in full.
+                     Worse than 'late'.
+    Noncurrent -     90+ days past due AND still accruing, plus everything on nonaccrual. The standard
+                     regulatory measure of loans that have gone bad.
+
+  NCLNLSR = 0.86
+      What it is     Noncurrent loans as a share of all loans. Money the bank is owed that has stopped
+                     being paid properly -- the headline asset-quality number.
+      How built      FDIC-computed ratio
+        ... also     100 x (1407+1403)/2122
+      Code           1407,1403 / 2122
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         all components filed
+
+  NTLNLSQR = 0.41
+      What it is     All loans: net charge-offs, annualised, as a share of the bank's TOTAL ASSETS -- the
+                     FDIC's own denominator for this published field, not the size of the loan book, so
+                     it reads far smaller than a book rate and is not comparable with one. Loans actually
+                     written off during the quarter, less anything recovered, scaled to a yearly rate.
+      How built      FDIC-computed ratio
+        ... also     100 x annualized qtr (4635-4605 differenced) / RC-K avg loans
+      Code           4635,4605 / 3360
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         ties to ~rounding (annualization)
+
+  PD3089R = 0.13
+      What it is     Loans 30-89 days late as a share of all loans. The early-warning bucket: these have
+                     not gone bad yet, and a rise here tends to show up in the noncurrent number two or
+                     three quarters later.
+      How built      derived: P3LNLS/LNLSGR*100
+      Where on form  RC-N 9 col A over RC-C Pt I 12
+      Code           1406 / 2122
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         no API ratio field exists
+
+  LNATRESR = 1.30
+      What it is     The money set aside for expected loan losses, as a share of all loans. Higher is not
+                     simply better -- it means either more caution or a worse book.
+      How built      FDIC-computed ratio
+        ... also     100 x 3123/2122
+      Code           3123 / 2122
+      Checked        VERIFIED against the FFIEC form caption
+
+  LNRESNCR = 151.88
+      What it is     How far the money set aside stretches to cover the loans that have already gone bad.
+                     150% means the reserve is one and a half times the bad loans; below 100% means it is
+                     not enough to cover them.
+      How built      FDIC-computed ratio
+        ... also     100 x 3123/(1407+1403)
+      Code           3123 / 1407,1403
+      Checked        VERIFIED against the FFIEC form caption
+
+  TEXAS = 4.75
+      What it is     Bad loans measured against the money available to absorb them (equity plus
+                     reserves). A rough solvency stress gauge -- the higher, the less room. NOTE: a
+                     variant, not the canonical Texas ratio.
+      How built      derived VARIANT: NCLNLS/(EQ+LNATRES)*100
+        ... also     RC-N 9 cols B+C over RC 27.a + RC 4.c
+      Code           (1407+1403) / (3210+3123)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         canonical adds OREO and nets intangibles -- ORE/INTAN UNVERIFIED
+
+  RBC1AAJ = 9.92
+      What it is     Tier 1 leverage ratio -- core capital as a share of assets, with no adjustment for
+                     how risky those assets are. A regulatory minimum.
+      Where on form  FILED: RC-R Pt I 31
+      Filed as       Leverage ratio
+      Code           RCOA7204
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         filed directly by all banks incl. CBLR electors
+
+  RBCRWAJ = 14.05
+      What it is     Total capital as a share of assets weighted by how risky each one is. Blank for
+                     banks that elected the simplified regime.
+      Where on form  FILED: RC-R Pt I ~51
+      Filed as       Total capital ratio
+      Code           RCOA7205
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         BLANK for CBLR electors (null, never 0); Tier1 = 7206
+
+  EQV = 9.93
+      What it is     Equity as a share of assets. The simplest measure of how much of the bank is funded
+                     by its owners rather than borrowed.
+      How built      FDIC-computed ratio
+        ... also     100 x 3210/2170
+      Code           3210 / 2170
+      Checked        VERIFIED against the FFIEC form caption
+
+  ROAQ = 1.29
+      What it is     Profit as a share of assets, annualised. How much the bank earns on what it holds.
+      How built      FDIC-computed ratio
+        ... also     100 x annualized qtr RIAD4340 (RI 14, differenced) / RC-K avg assets
+      Code           4340 / 3368
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         ties to ~rounding
+
+  NIMY = 3.11
+      What it is     Net interest margin -- the gap between what the bank earns on loans and pays on
+                     deposits, as a share of earning assets.
+      How built      FDIC-computed ratio
+        ... also     100 x annualized RIAD4074 / avg earning assets
+      Code           4074 / (RC-K)
+      Checked        VERIFIED against the FFIEC form caption
+      Caveat         avg earning assets FDIC-computed from RC-K
+
+  EEFFR = 54.78
+      What it is     Efficiency ratio: running costs as a share of revenue. LOWER is better here, unlike
+                     most of this list.
+      How built      FDIC-computed ratio
+        ... also     100 x (4093 - C232) / (4074 + 4079)
+      Code           4093,C232 / 4074,4079
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         C232 is RI 7.c.(2) by 041 layout -- match by caption
+
+  LNDEPR = 69.63
+      What it is     Loans as a share of deposits. How much of the deposit base is lent out; higher means
+                     less spare liquidity.
+      How built      derived: LNLSNET/DEP*100
+        ... also     RC 4.a+4.b-4.c over RC 13
+      Code           (5369+B528-3123) / 2200
+      Checked        VERIFIED (computed from verified lines)
+
+  BRODEPR = 2.93
+      What it is     Brokered deposits as a share of deposits. Deposits bought through intermediaries
+                     rather than gathered from the bank's own customers -- they tend to leave faster when
+                     rates move.
+      How built      derived: BRO/DEP*100
+      Where on form  RC-E Mem 1.b over RC 13
+      Code           2365 / 2200
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         BRO null -> blank, never 0
+
+  CRECONR = 84.99
+      What it is     Commercial property lending as a share of capital. Regulators watch concentration
+                     here because these loans move together in a downturn. NOTE: uses a documented proxy
+                     denominator, not the guidance one.
+      How built      derived PROXY: (LNRECONS+LNRENRES+LNREMULT)/(EQ+LNATRES)*100
+        ... also     RC-C Pt I 1.a+1.e+1.d over RC 27.a + RC 4.c
+      Code           (F158+F159+F160+F161+1460) / (3210+3123)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         guidance uses total RBC; documented proxy denominator
+
+  P3CRCD_BOOK = 0.92
+      What it is     Credit cards: 30-89 days past due, as a share of that loan book -- this template's
+                     own calculation, which is the question a credit reviewer asks. An early-warning
+                     bucket -- late, but not yet seriously so.
+      How built      derived: P3CRCD/LNCRCD*100
+      Where on form  RC-N 5.a col A over RC-C Pt I 6.a
+      Code           (B575) / (RCONB538 (RCFDB538 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [credit card]
+
+  P9CRCD_BOOK = 1.01
+      What it is     Credit cards: 90+ days past due, still accruing, as a share of that loan book --
+                     this template's own calculation, which is the question a credit reviewer asks.
+                     Seriously late, though the bank still expects to collect.
+      How built      derived: P9CRCD/LNCRCD*100
+      Where on form  RC-N 5.a col B over RC-C Pt I 6.a
+      Code           (B576) / (RCONB538 (RCFDB538 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [credit card]
+
+  NACRCD_BOOK = 0.69
+      What it is     Credit cards: on nonaccrual, as a share of that loan book -- this template's own
+                     calculation, which is the question a credit reviewer asks. The bank has stopped
+                     booking interest -- it does not expect to collect in full.
+      How built      derived: NACRCD/LNCRCD*100
+      Where on form  RC-N 5.a col C over RC-C Pt I 6.a
+      Code           (B577) / (RCONB538 (RCFDB538 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [credit card]
+
+  NTCRCDQ_BOOK = 3.89
+      What it is     Credit cards: net charge-offs, annualised, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. Loans
+                     actually written off during the quarter, less anything recovered, scaled to a yearly
+                     rate.
+      How built      derived: NTCRCDQ/LNCRCD*400
+      Where on form  RI-B Pt I 5.a cols A-B over RC-C Pt I 6.a
+      Code           (B514 - B515) / (RCONB538 (RCFDB538 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [credit card] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3AUTO_BOOK = 0.49
+      What it is     Car loans: 30-89 days past due, as a share of that loan book -- this template's own
+                     calculation, which is the question a credit reviewer asks. An early-warning bucket
+                     -- late, but not yet seriously so.
+      How built      derived: P3AUTO/LNAUTO*100
+      Where on form  RC-N 5.b col A over RC-C Pt I 6.c
+      Code           (K213) / (RCONK137 (RCFDK137 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [auto]
+
+  P9AUTO_BOOK = 0.04
+      What it is     Car loans: 90+ days past due, still accruing, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. Seriously
+                     late, though the bank still expects to collect.
+      How built      derived: P9AUTO/LNAUTO*100
+      Where on form  RC-N 5.b col B over RC-C Pt I 6.c
+      Code           (K214) / (RCONK137 (RCFDK137 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [auto]
+
+  NAAUTO_BOOK = 0.60
+      What it is     Car loans: on nonaccrual, as a share of that loan book -- this template's own
+                     calculation, which is the question a credit reviewer asks. The bank has stopped
+                     booking interest -- it does not expect to collect in full.
+      How built      derived: NAAUTO/LNAUTO*100
+      Where on form  RC-N 5.b col C over RC-C Pt I 6.c
+      Code           (K215) / (RCONK137 (RCFDK137 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [auto]
+
+  NTAUTOQ_BOOK = -0.67
+      What it is     Car loans: net charge-offs, annualised, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. Loans
+                     actually written off during the quarter, less anything recovered, scaled to a yearly
+                     rate.
+      How built      derived: NTAUTOQ/LNAUTO*400
+      Where on form  RI-B Pt I 5.b cols A-B over RC-C Pt I 6.c
+      Code           (K129 - K133) / (RCONK137 (RCFDK137 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [auto] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3CONOTH_BOOK = 0.66
+      What it is     Other consumer loans: 30-89 days past due, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. An
+                     early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3CONOTH/LNCONOTH*100
+      Where on form  RC-N 5.c col A over RC-C Pt I 6.d
+      Code           ((not in tie-out map)) / (RCONK207 (RCFDK207 031))
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [other consumer]
+
+  P9CONOTH_BOOK = 0.50
+      What it is     Other consumer loans: 90+ days past due, still accruing, as a share of that loan
+                     book -- this template's own calculation, which is the question a credit reviewer
+                     asks. Seriously late, though the bank still expects to collect.
+      How built      derived: P9CONOTH/LNCONOTH*100
+      Where on form  RC-N 5.c col B over RC-C Pt I 6.d
+      Code           ((not in tie-out map)) / (RCONK207 (RCFDK207 031))
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [other consumer]
+
+  NACONOTH_BOOK = 0.11
+      What it is     Other consumer loans: on nonaccrual, as a share of that loan book -- this template's
+                     own calculation, which is the question a credit reviewer asks. The bank has stopped
+                     booking interest -- it does not expect to collect in full.
+      How built      derived: NACONOTH/LNCONOTH*100
+      Where on form  RC-N 5.c col C over RC-C Pt I 6.d
+      Code           ((not in tie-out map)) / (RCONK207 (RCFDK207 031))
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [other consumer]
+
+  NTCONOTQ_BOOK = 1.14
+      What it is     Other consumer loans: net charge-offs, annualised, as a share of that loan book --
+                     this template's own calculation, which is the question a credit reviewer asks. Loans
+                     actually written off during the quarter, less anything recovered, scaled to a yearly
+                     rate.
+      How built      derived: NTCONOTQ/LNCONOTH*400
+      Where on form  RI-B Pt I 5.c cols A-B over RC-C Pt I 6.d
+      Code           ((not in tie-out map)) / (RCONK207 (RCFDK207 031))
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [other consumer] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3RERES_BOOK = 0.17
+      What it is     Home loans (1-4 family): 30-89 days past due, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. An
+                     early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3RERES/LNRERES*100
+        ... also     RC-N 1.c (3 rows) col A over RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)
+      Code           (5398+C236+C238) / (1797+5367+5368)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [resi 1-4 fam]
+
+  P9RERES_BOOK = 0.07
+      What it is     Home loans (1-4 family): 90+ days past due, still accruing, as a share of that loan
+                     book -- this template's own calculation, which is the question a credit reviewer
+                     asks. Seriously late, though the bank still expects to collect.
+      How built      derived: P9RERES/LNRERES*100
+        ... also     RC-N 1.c (3 rows) col B over RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)
+      Code           (5399+C237+C239) / (1797+5367+5368)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [resi 1-4 fam]
+
+  NARERES_BOOK = 0.75
+      What it is     Home loans (1-4 family): on nonaccrual, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. The bank
+                     has stopped booking interest -- it does not expect to collect in full.
+      How built      derived: NARERES/LNRERES*100
+        ... also     RC-N 1.c (3 rows) col C over RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)
+      Code           (5400+C229+C230) / (1797+5367+5368)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [resi 1-4 fam]
+
+  NTRERESQ_BOOK = -0.01
+      What it is     Home loans (1-4 family): net charge-offs, annualised, as a share of that loan book
+                     -- this template's own calculation, which is the question a credit reviewer asks.
+                     Loans actually written off during the quarter, less anything recovered, scaled to a
+                     yearly rate.
+      How built      derived: NTRERESQ/LNRERES*400
+        ... also     RI-B Pt I 1.c cols A-B over RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)
+      Code           ((not in tie-out map)) / (1797+5367+5368)
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [resi 1-4 fam] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3RELOC_BOOK = 0.53
+      What it is     Home equity lines: 30-89 days past due, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. An
+                     early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3RELOC/LNRELOC*100
+      Where on form  RC-N 1.c.(1) col A over RC-C Pt I 1.c.(1)
+      Code           (5398) / (1797)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [HELOC]
+
+  P9RELOC_BOOK = 0.07
+      What it is     Home equity lines: 90+ days past due, still accruing, as a share of that loan book
+                     -- this template's own calculation, which is the question a credit reviewer asks.
+                     Seriously late, though the bank still expects to collect.
+      How built      derived: P9RELOC/LNRELOC*100
+      Where on form  RC-N 1.c.(1) col B over RC-C Pt I 1.c.(1)
+      Code           (5399) / (1797)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [HELOC]
+
+  NARELOC_BOOK = 1.85
+      What it is     Home equity lines: on nonaccrual, as a share of that loan book -- this template's
+                     own calculation, which is the question a credit reviewer asks. The bank has stopped
+                     booking interest -- it does not expect to collect in full.
+      How built      derived: NARELOC/LNRELOC*100
+      Where on form  RC-N 1.c.(1) col C over RC-C Pt I 1.c.(1)
+      Code           (5400) / (1797)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [HELOC]
+
+  P3RECONS_BOOK = 0.00
+      What it is     Construction and land loans: 30-89 days past due, as a share of that loan book --
+                     this template's own calculation, which is the question a credit reviewer asks. An
+                     early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3RECONS/LNRECONS*100
+        ... also     RC-N 1.a.(1)+(2) col A over RC-C Pt I 1.a.(1)+(2)
+      Code           (F172+F173) / (F158+F159)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [construction]
+
+  P9RECONS_BOOK = 0.03
+      What it is     Construction and land loans: 90+ days past due, still accruing, as a share of that
+                     loan book -- this template's own calculation, which is the question a credit
+                     reviewer asks. Seriously late, though the bank still expects to collect.
+      How built      derived: P9RECONS/LNRECONS*100
+        ... also     RC-N 1.a.(1)+(2) col B over RC-C Pt I 1.a.(1)+(2)
+      Code           (F174+F175) / (F158+F159)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [construction]
+
+  NARECONS_BOOK = 0.00
+      What it is     Construction and land loans: on nonaccrual, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. The bank
+                     has stopped booking interest -- it does not expect to collect in full.
+      How built      derived: NARECONS/LNRECONS*100
+        ... also     RC-N 1.a.(1)+(2) col C over RC-C Pt I 1.a.(1)+(2)
+      Code           (F176+F177) / (F158+F159)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [construction]
+
+  NTRECONQ_BOOK = 0.00
+      What it is     Construction and land loans: net charge-offs, annualised, as a share of that loan
+                     book -- this template's own calculation, which is the question a credit reviewer
+                     asks. Loans actually written off during the quarter, less anything recovered, scaled
+                     to a yearly rate.
+      How built      derived: NTRECONQ/LNRECONS*400
+        ... also     RI-B Pt I 1.a.(1)+(2) cols A-B over RC-C Pt I 1.a.(1)+(2)
+      Code           ((C891+C893) - (C892+C894)) / (F158+F159)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [construction] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3RENRES_BOOK = 0.19
+      What it is     Commercial property loans (offices, shops, warehouses): 30-89 days past due, as a
+                     share of that loan book -- this template's own calculation, which is the question a
+                     credit reviewer asks. An early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3RENRES/LNRENRES*100
+        ... also     RC-N 1.e.(1)+(2) col A over RC-C Pt I 1.e.(1)+(2)
+      Code           (F178+F179) / (F160+F161)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [CRE nonfarm]
+
+  P9RENRES_BOOK = 0.07
+      What it is     Commercial property loans (offices, shops, warehouses): 90+ days past due, still
+                     accruing, as a share of that loan book -- this template's own calculation, which is
+                     the question a credit reviewer asks. Seriously late, though the bank still expects
+                     to collect.
+      How built      derived: P9RENRES/LNRENRES*100
+        ... also     RC-N 1.e.(1)+(2) col B over RC-C Pt I 1.e.(1)+(2)
+      Code           (F180+F181) / (F160+F161)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [CRE nonfarm]
+
+  NARENRES_BOOK = 0.47
+      What it is     Commercial property loans (offices, shops, warehouses): on nonaccrual, as a share of
+                     that loan book -- this template's own calculation, which is the question a credit
+                     reviewer asks. The bank has stopped booking interest -- it does not expect to
+                     collect in full.
+      How built      derived: NARENRES/LNRENRES*100
+        ... also     RC-N 1.e.(1)+(2) col C over RC-C Pt I 1.e.(1)+(2)
+      Code           (F182+F183) / (F160+F161)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [CRE nonfarm]
+
+  NTRENREQ_BOOK = (blank)
+      What it is     Commercial property loans (offices, shops, warehouses): net charge-offs, annualised,
+                     as a share of that loan book -- this template's own calculation, which is the
+                     question a credit reviewer asks. Loans actually written off during the quarter, less
+                     anything recovered, scaled to a yearly rate.
+      How built      derived: NTRENREQ/LNRENRES*400
+        ... also     RI-B Pt I 1.e cols A-B over RC-C Pt I 1.e.(1)+(2)
+      Code           ((not in tie-out map)) / (F160+F161)
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [CRE nonfarm] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3REMULT_BOOK = 0.21
+      What it is     Apartment-building loans (5+ units): 30-89 days past due, as a share of that loan
+                     book -- this template's own calculation, which is the question a credit reviewer
+                     asks. An early-warning bucket -- late, but not yet seriously so.
+      How built      derived: P3REMULT/LNREMULT*100
+      Where on form  RC-N 1.d col A over RC-C Pt I 1.d
+      Code           (RCON3499) / (RCON1460 (RCFD1460 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [multifamily]
+
+  P9REMULT_BOOK = 1.02
+      What it is     Apartment-building loans (5+ units): 90+ days past due, still accruing, as a share
+                     of that loan book -- this template's own calculation, which is the question a credit
+                     reviewer asks. Seriously late, though the bank still expects to collect.
+      How built      derived: P9REMULT/LNREMULT*100
+      Where on form  RC-N 1.d col B over RC-C Pt I 1.d
+      Code           (RCON3500) / (RCON1460 (RCFD1460 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [multifamily]
+
+  NAREMULT_BOOK = 3.94
+      What it is     Apartment-building loans (5+ units): on nonaccrual, as a share of that loan book --
+                     this template's own calculation, which is the question a credit reviewer asks. The
+                     bank has stopped booking interest -- it does not expect to collect in full.
+      How built      derived: NAREMULT/LNREMULT*100
+      Where on form  RC-N 1.d col C over RC-C Pt I 1.d
+      Code           (RCON3501) / (RCON1460 (RCFD1460 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [multifamily]
+
+  NTREMULQ_BOOK = 1.32
+      What it is     Apartment-building loans (5+ units): net charge-offs, annualised, as a share of that
+                     loan book -- this template's own calculation, which is the question a credit
+                     reviewer asks. Loans actually written off during the quarter, less anything
+                     recovered, scaled to a yearly rate.
+      How built      derived: NTREMULQ/LNREMULT*400
+      Where on form  RI-B Pt I 1.d cols A-B over RC-C Pt I 1.d
+      Code           ((not in tie-out map)) / (RCON1460 (RCFD1460 031))
+      Checked        PARTIAL - matched by caption, not by code
+      Caveat         [multifamily] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  P3CI_BOOK = 0.09
+      What it is     Business loans: 30-89 days past due, as a share of that loan book -- this template's
+                     own calculation, which is the question a credit reviewer asks. An early-warning
+                     bucket -- late, but not yet seriously so.
+      How built      derived: P3CI/LNCI*100
+      Where on form  RC-N 4 col A over RC-C Pt I 4
+      Code           (RCON1606 (031: RCFD1251+1254)) / (RCON1766 (031: RCFD1763+1764))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [C&I]
+
+  P9CI_BOOK = 0.09
+      What it is     Business loans: 90+ days past due, still accruing, as a share of that loan book --
+                     this template's own calculation, which is the question a credit reviewer asks.
+                     Seriously late, though the bank still expects to collect.
+      How built      derived: P9CI/LNCI*100
+      Where on form  RC-N 4 col B over RC-C Pt I 4
+      Code           (RCON1607 (031: RCFD1252+1255)) / (RCON1766 (031: RCFD1763+1764))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [C&I]
+
+  NACI_BOOK = 0.79
+      What it is     Business loans: on nonaccrual, as a share of that loan book -- this template's own
+                     calculation, which is the question a credit reviewer asks. The bank has stopped
+                     booking interest -- it does not expect to collect in full.
+      How built      derived: NACI/LNCI*100
+      Where on form  RC-N 4 col C over RC-C Pt I 4
+      Code           (RCON1608 (031: RCFD1253+1256)) / (RCON1766 (031: RCFD1763+1764))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [C&I]
+
+  NTCIQ_BOOK = 0.56
+      What it is     Business loans: net charge-offs, annualised, as a share of that loan book -- this
+                     template's own calculation, which is the question a credit reviewer asks. Loans
+                     actually written off during the quarter, less anything recovered, scaled to a yearly
+                     rate.
+      How built      derived: NTCIQ/LNCI*400
+      Where on form  RI-B Pt I 4 cols A-B over RC-C Pt I 4
+      Code           (4638 - 4608) / (RCON1766 (031: RCFD1763+1764))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         [C&I] annualized x4 quarterly flow (NTLNLSQR convention)
+
+  UNINSDEPR = 51.83
+      What it is     Estimated deposits above the FDIC insurance limit, as a share of deposits. Uninsured
+                     money is the money most likely to run.
+      How built      derived: DEPUNINS/DEP*100
+        ... also     RC-O Mem 2 over RC 13.a (+13.b 031)
+      Code           (RCON5597) / (RCON2200 (+RCFN2200 031))
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         null numerator -> blank, never 0
+
+  UNRLZCAPR = 14.42
+      What it is     Unrealised losses on securities, against capital. Paper losses the bank has not
+                     taken yet -- the 2023 regional-bank problem.
+      How built      derived: ((SCHA-SCHF)+(SCAA-SCAF))/(EQ+LNATRES)*100
+        ... also     RC-B 8 cols A-D over RC 27.a + RC 4.c
+      Code           ((1754-1771)+(1772-1773)) / (3210+3123)
+      Checked        VERIFIED (computed from verified lines)
+      Caveat         both legs COMPUTED (no named unrealized field); EQCCOMPI is the YTD OCI FLOW, not
+                     AOCI stock -- not used
+
+  FHLBASSR = 2.28
+      What it is     Federal Home Loan Bank borrowings as a share of assets. A wholesale funding source;
+                     a sharp rise can mean deposits are leaving.
+      How built      derived: OTHBFHLB/ASSET*100
+      Where on form  RC-M 5.a.(1)(a)-(d) over RC 12
+      Code           (F055+F056+F057+F058) / (RCON2170 (RCFD2170 031))
+      Checked        VERIFIED (computed from verified lines)
+
+
+  Per-FIELD rows (every raw input's schedule/line/MDRM) are on the workbook's _provenance tab.
+
+  FILING CHECK -- the bank's own XBRL from cdr.ffiec.gov, not the FDIC's republication
+  1884 facts in the filing for 2026-06-30
+  48 raw dollar lines compared: 48 tie, 0 differ, 0 not in the filing; 5 skipped with a stated reason
+  filed values are DOLLARS; landed values are THOUSANDS -- shown in thousands
+  field              filed (k$)        landed (k$)  filed as               verdict
+  ASSET             188,555,486        188,555,486  RCFD2170               TIES
+  DEP               158,480,379        158,480,379  RCON2200+RCFN2200      TIES
+  LNLSGR            111,809,579        111,809,579  RCFD2122               TIES
+  LNLSNET           110,354,992        110,354,992  RCFD5369+RCFDB528-RCFD3123 TIES
+  BRO                 4,645,209          4,645,209  RCON2365               TIES
+  EQ                 18,727,875         18,727,875  RCFD3210               TIES
+  NCLNLS                957,721            957,721  RCFD1407+RCFD1403      TIES
+  LNATRES             1,454,587          1,454,587  RCFD3123               TIES
+  P3LNLS                142,786            142,786  RCFD1406               TIES
+  LNRECONS            2,895,663          2,895,663  RCFDF158+RCFDF159      TIES
+  LNRENRES            8,812,575          8,812,575  RCFDF160+RCFDF161      TIES
+  LNREMULT            5,444,590          5,444,590  RCFD1460               TIES
+  RBC1AAJ                     -                 10  -                      SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead
+  RBCRWAJ                     -                 14  -                      SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead
+  P3CRCD                  8,528              8,528  RCFDB575               TIES
+  P9CRCD                  9,346              9,346  RCFDB576               TIES
+  NACRCD                  6,401              6,401  RCFDB577               TIES
+  P3AUTO                    302                302  RCFDK213               TIES
+  P9AUTO                     23                 23  RCFDK214               TIES
+  NAAUTO                    371                371  RCFDK215               TIES
+  P3RERES                40,402             40,402  RCON5398+RCONC236+RCONC238 TIES
+  P9RERES                17,380             17,380  RCON5399+RCONC237+RCONC239 TIES
+  NARERES               179,543            179,543  RCON5400+RCONC229+RCONC230 TIES
+  P3RELOC                15,639             15,639  RCON5398               TIES
+  P9RELOC                 2,072              2,072  RCON5399               TIES
+  NARELOC                54,307             54,307  RCON5400               TIES
+  LNCRCD                926,589            926,589  RCFDB538               TIES
+  LNAUTO                 62,212             62,212  RCFDK137               TIES
+  LNCONOTH            4,200,208          4,200,208  RCFDK207               TIES
+  LNRERES            23,789,703         23,789,703  RCFD1797+RCFD5367+RCFD5368 TIES
+  LNRELOC             2,929,570          2,929,570  RCFD1797               TIES
+  NTCRCDQ                     -              9,020  -                      SKIPPED: a quarterly flow; the filing carries year-to-date
+  NTAUTOQ                     -               -104  -                      SKIPPED: a quarterly flow; the filing carries year-to-date
+  P3CI                   32,260             32,260  RCFD1251+RCFD1254      TIES
+  P9CI                   32,424             32,424  RCFD1252+RCFD1255      TIES
+  NACI                  295,171            295,171  RCFD1253+RCFD1256      TIES
+  P3RECONS                    0                  0  RCONF172+RCONF173      TIES
+  P9RECONS                  797                797  RCONF174+RCONF175      TIES
+  NARECONS                    0                  0  RCONF176+RCONF177      TIES
+  P3RENRES               17,063             17,063  RCONF178+RCONF179      TIES
+  P9RENRES                6,465              6,465  RCONF180+RCONF181      TIES
+  NARENRES               41,347             41,347  RCONF182+RCONF183      TIES
+  P3REMULT               11,300             11,300  RCON3499               TIES
+  P9REMULT               55,565             55,565  RCON3500               TIES
+  NAREMULT              214,334            214,334  RCON3501               TIES
+  LNCI               37,374,689         37,374,689  RCFD1763+RCFD1764      TIES
+  NTCIQ                       -             52,386  -                      SKIPPED: a quarterly flow; the filing carries year-to-date
+  DEPUNINS           82,138,192         82,138,192  RCON5597               TIES
+  SCHA                9,514,990          9,514,990  RCFD1754               TIES
+  SCHF                9,124,191          9,124,191  RCFD1771               TIES
+  SCAA               40,978,212         40,978,212  RCFD1772               TIES
+  SCAF               38,458,612         38,458,612  RCFD1773               TIES
+  OTHBFHLB            4,306,453          4,306,453  RCFDF055+RCFDF056+RCFDF057+RCFDF058 TIES
+  RCFD = consolidated (form 031, foreign offices); RCON = domestic only. The FDIC's totals are the consolidated ones -- following a bare RCON code to the facsimile for this bank lands on the wrong line.

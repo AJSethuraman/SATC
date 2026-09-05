@@ -765,11 +765,12 @@ MUTATIONS: list[Mutation] = [
     ),
     # ---- #259: a ratio on a book that does not exist is N/A, not OK ----------
     Mutation(
-        "engine-guard-ignores-the-book", SRC / "engine/metrics.py",
-        "        if len(consumed) > 1 and not fields.get(consumed[1]):\n            return None",
-        "        if False:\n            return None",
-        (N + "test_a_direct_class_ratio_on_a_zero_book_reads_none_not_zero",),
-        "a guarded direct ratio reads None on a zero or missing book",
+        "engine-ratio-divides-by-an-empty-book", SRC / "engine/metrics.py",
+        "    if num is None or den is None or den == 0:",
+        "    if num is None or den is None:",
+        (N + "test_a_class_ratio_on_a_zero_book_reads_none_not_zero",
+         N + "test_no_book_is_not_applicable_and_no_number_is_blank"),
+        "a rate on a book of zero is None, never a number",
     ),
     Mutation(
         "digest-no-book-reads-blank", SRC / "engine/digest.py",
@@ -786,11 +787,12 @@ MUTATIONS: list[Mutation] = [
         "the Watchlist helper says N/A when the book is zero",
     ),
     Mutation(
-        "layout-value-cell-keeps-the-fdic-zero", SRC / "sources/fdic/layout.py",
-        "    if len(flds) > 1:\n        # guarded direct",
-        "    if False:\n        # guarded direct",
-        (N + "test_the_value_cell_blanks_a_guarded_ratio_on_a_zero_book",),
-        "the value cell blanks the FDIC's 0.00 on a book that does not exist",
+        "engine-ratio-forgets-its-book", SRC / "engine/metrics.py",
+        "    fn.balance = den          # the book the ratio stands on (balance_field)",
+        "    fn.balance = None         # the book the ratio stands on (balance_field)",
+        (N + "test_every_metric_knows_the_book_it_stands_on",
+         N + "test_the_watchlist_helper_says_na_when_the_book_is_zero"),
+        "a ratio records the book it stands on, so N/A can be told from blank",
     ),
     # ---- the chart workbook --------------------------------------------------
     Mutation(

@@ -184,3 +184,25 @@ def test_the_facsimile_url_is_the_shape_the_provenance_tab_already_uses():
     assert F.facsimile_page("4297", "2026-06-30") == (
         "https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
         "?ds=call&idType=fdiccert&id=4297&date=06302026")
+
+
+def test_the_c_and_i_past_due_rows_carry_the_031_codes():
+    """A tie-out found these pointing at the form 041 codes.
+
+    KeyBank files form 031, which splits commercial and industrial loans into
+    4.a (US addressees) and 4.b (non-US). The map cited 1606/1607/1608, which
+    are the 041 codes, so all three came back NOT IN FILING while the landed
+    values were sitting in RCFD1251/1252/1253 on the filing. The C&I *balance*
+    row had carried the 031 alternative all along; the past-due rows had not.
+    """
+    from credit_suite.sources.fdic import provenance_seed as PROV
+
+    rows = {r[0]: r for r in PROV.ALL_ROWS}
+    for field, primary, alt in (("P3CI", "1606", "1251"),
+                                ("P9CI", "1607", "1252"),
+                                ("NACI", "1608", "1253")):
+        mdrm = rows[field][3]
+        assert mdrm == "RCON%s (031: RCFD%s+%s)" % (primary, alt, int(alt) + 3), field
+        expression = F.parse_mdrm(mdrm)
+        assert [t[1] for t in expression.alternative] == [alt, str(int(alt) + 3)], field
+        assert [t[1] for t in expression.primary] == [primary], field

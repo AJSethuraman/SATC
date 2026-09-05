@@ -59,12 +59,12 @@ WORSE_WHEN = {
     "ROAQ": "down",      "NIMY": "down",     "EEFFR": "up",
     "LNDEPR": "up",      "BRODEPR": "up",    "CRECONR": "up",
     "UNINSDEPR": "up",   "UNRLZCAPR": "up",  "FHLBASSR": "up",
-    "P3CRCDR": "up",     "P9CRCDR": "up",    "NACRCDR": "up",  "NTCRCDQ_BOOK": "up",
-    "P3AUTOR": "up",     "P9AUTOR": "up",    "NAAUTOR": "up",  "NTAUTOQ_BOOK": "up",
+    "P3CRCD_BOOK": "up",     "P9CRCD_BOOK": "up",    "NACRCD_BOOK": "up",  "NTCRCDQ_BOOK": "up",
+    "P3AUTO_BOOK": "up",     "P9AUTO_BOOK": "up",    "NAAUTO_BOOK": "up",  "NTAUTOQ_BOOK": "up",
     "P3CONOTH_BOOK": "up",   "P9CONOTH_BOOK": "up",  "NACONOTH_BOOK": "up", "NTCONOTQ_BOOK": "up",
-    "P3RERESR": "up",    "P9RERESR": "up",   "NARERESR": "up",
+    "P3RERES_BOOK": "up",    "P9RERES_BOOK": "up",   "NARERES_BOOK": "up",
     "P3RENRES_BOOK": "up",   "P9RENRES_BOOK": "up",  "NARENRES_BOOK": "up",
-    "P3CIR": "up",       "P9CIR": "up",      "NACIR": "up",    "NTCIQ_BOOK": "up",
+    "P3CI_BOOK": "up",       "P9CI_BOOK": "up",      "NACI_BOOK": "up",    "NTCIQ_BOOK": "up",
 }
 
 #: What each headline metric is, in words, so a reader who does not live in
@@ -198,8 +198,67 @@ def read_panel(path: Path, raw_tab: str = "Raw_FDIC",
     LAST_MERGERS_UNKNOWN = mergers is None
     if derive:
         _add_derived(panels, _metric_ids(wb))
+        # two independent guards: the book has to be big enough to read a rate
+        # from, and the quarter has to be one bank's quarter
+        apply_materiality(panels)
         apply_merger_flags(panels, mergers)
     return panels
+
+
+#: A loan-class ratio is only a ratio when there is a book to ratio.
+#:
+#: Built 4 September 2026, removed 5 September when the firm chose the merger
+#: flag over it, and restored the same day when they saw what the flag alone
+#: ships: the merger flag blanks the two quarters Capital One absorbed a bank,
+#: and leaves 28%, -7.8% and 21% standing on a book of $2-8M. True arithmetic,
+#: unreadable as a trend.
+#:
+#: The two guards are independent and neither is the other. A merger is a
+#: reason a quarter cannot be compared; a near-empty book is a reason a RATE
+#: cannot be read. $100M is the firm's number, set on the docket, and it lives
+#: here as a constant so it can be changed in one place.
+MATERIALITY_FLOOR_K = 100_000
+
+#: What the last `apply_materiality` blanked -- (bank, metric, period,
+#: balance) -- so a sheet can say why the gap is there, with the book size in
+#: it rather than a bare assertion.
+LAST_MATERIALITY_BLANKS: List[tuple] = []
+
+
+def class_balance_field(metric: str) -> Optional[str]:
+    """'NTCONOTQ_BOOK' -> 'LNCONOTH'; 'NCLNLSR' -> None.
+
+    The engine's map, not a second one here: a class ratio stands on the book
+    the engine says it does, so the floor and the workbook's own N/A rule
+    cannot disagree about which balance a ratio is measured against.
+    """
+    from credit_suite.sources.fdic import engine_api as R
+    if metric not in R.LOANBOOK_CLASS:
+        return None
+    return R.balance_field(metric)
+
+
+def apply_materiality(panels: Dict[str, Panel],
+                      floor_k: float = MATERIALITY_FLOOR_K) -> List[tuple]:
+    """Blank every class ratio whose book is under the floor that quarter."""
+    blanked: List[tuple] = []
+    for metric, panel in panels.items():
+        balance_field = class_balance_field(metric)
+        if not balance_field or balance_field not in panels:
+            continue
+        for bank, series in panel.series.items():
+            balances = panels[balance_field].series.get(bank)
+            if balances is None:
+                continue
+            for i, value in enumerate(series.values):
+                if value is None:
+                    continue
+                bal = balances.values[i] if i < len(balances.values) else None
+                if bal is None or bal < floor_k:
+                    series.values[i] = None
+                    blanked.append((bank, metric, series.periods[i], bal))
+    LAST_MATERIALITY_BLANKS[:] = blanked
+    return blanked
 
 
 #: The quarters a merger makes uncomparable, and the metrics it touches.

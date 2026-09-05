@@ -140,17 +140,17 @@ LANES = [
 # --------------------------------------------------------------------------
 LB_TAB = "Dashboard_LoanBook"
 LB_CONSUMER = [
-    "P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQ_BOOK",
-    "P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQ_BOOK",
+    "P3CRCD_BOOK", "P9CRCD_BOOK", "NACRCD_BOOK", "NTCRCDQ_BOOK",
+    "P3AUTO_BOOK", "P9AUTO_BOOK", "NAAUTO_BOOK", "NTAUTOQ_BOOK",
     "P3CONOTH_BOOK", "P9CONOTH_BOOK", "NACONOTH_BOOK", "NTCONOTQ_BOOK",
-    "P3RERESR", "P9RERESR", "NARERESR", "NTRERESQ_BOOK",
-    "P3RELOCR", "P9RELOCR", "NARELOCR",
+    "P3RERES_BOOK", "P9RERES_BOOK", "NARERES_BOOK", "NTRERESQ_BOOK",
+    "P3RELOC_BOOK", "P9RELOC_BOOK", "NARELOC_BOOK",
 ]
 LB_COMMERCIAL = [
     "P3RECONS_BOOK", "P9RECONS_BOOK", "NARECONS_BOOK", "NTRECONQ_BOOK",
     "P3RENRES_BOOK", "P9RENRES_BOOK", "NARENRES_BOOK", "NTRENREQ_BOOK",
     "P3REMULT_BOOK", "P9REMULT_BOOK", "NAREMULT_BOOK", "NTREMULQ_BOOK",
-    "P3CIR", "P9CIR", "NACIR", "NTCIQ_BOOK",
+    "P3CI_BOOK", "P9CI_BOOK", "NACI_BOOK", "NTCIQ_BOOK",
 ]
 LB_CONSUMER_CAPTION = (
     "CONSUMER TRACK -- the DQ/NCO story IS the classification story: retail "
@@ -174,23 +174,23 @@ METRIC_LABEL = {
     "UNINSDEPR": "Uninsured Dep %", "UNRLZCAPR": "Unrlz Loss/Cap %",
     "FHLBASSR": "FHLB/Assets %",
     # v1.1 loan-book pack (class prefix + rate kind)
-    "P3CRCDR": "Card 30-89", "P9CRCDR": "Card 90+", "NACRCDR": "Card NA",
+    "P3CRCD_BOOK": "Card 30-89", "P9CRCD_BOOK": "Card 90+", "NACRCD_BOOK": "Card NA",
     "NTCRCDQ_BOOK": "Card NCOq",
-    "P3AUTOR": "Auto 30-89", "P9AUTOR": "Auto 90+", "NAAUTOR": "Auto NA",
+    "P3AUTO_BOOK": "Auto 30-89", "P9AUTO_BOOK": "Auto 90+", "NAAUTO_BOOK": "Auto NA",
     "NTAUTOQ_BOOK": "Auto NCOq",
     "P3CONOTH_BOOK": "OthCons 30-89", "P9CONOTH_BOOK": "OthCons 90+",
     "NACONOTH_BOOK": "OthCons NA", "NTCONOTQ_BOOK": "OthCons NCOq",
-    "P3RERESR": "Resi 30-89", "P9RERESR": "Resi 90+", "NARERESR": "Resi NA",
+    "P3RERES_BOOK": "Resi 30-89", "P9RERES_BOOK": "Resi 90+", "NARERES_BOOK": "Resi NA",
     "NTRERESQ_BOOK": "Resi NCOq",
-    "P3RELOCR": "HELOC 30-89", "P9RELOCR": "HELOC 90+",
-    "NARELOCR": "HELOC NA",
+    "P3RELOC_BOOK": "HELOC 30-89", "P9RELOC_BOOK": "HELOC 90+",
+    "NARELOC_BOOK": "HELOC NA",
     "P3RECONS_BOOK": "Constr 30-89", "P9RECONS_BOOK": "Constr 90+",
     "NARECONS_BOOK": "Constr NA", "NTRECONQ_BOOK": "Constr NCOq",
     "P3RENRES_BOOK": "CRE 30-89", "P9RENRES_BOOK": "CRE 90+", "NARENRES_BOOK": "CRE NA",
     "NTRENREQ_BOOK": "CRE NCOq",
     "P3REMULT_BOOK": "Multif 30-89", "P9REMULT_BOOK": "Multif 90+",
     "NAREMULT_BOOK": "Multif NA", "NTREMULQ_BOOK": "Multif NCOq",
-    "P3CIR": "C&I 30-89", "P9CIR": "C&I 90+", "NACIR": "C&I NA",
+    "P3CI_BOOK": "C&I 30-89", "P9CI_BOOK": "C&I 90+", "NACI_BOOK": "C&I NA",
     "NTCIQ_BOOK": "C&I NCOq",
 }
 
@@ -441,12 +441,6 @@ def metric_formula(metric_id, slot, raw_slots):
     # direct API ratio: the metric id IS the field
     flds, fn = R.METRICS[metric_id]
     assert fn is None, f"unhandled derived metric {metric_id}"
-    if len(flds) > 1:
-        # guarded direct (engine.metrics.build_registry): the FDIC publishes
-        # 0.00 for a delinquency rate on a book that does not exist; blank
-        # it when the book is zero or missing, exactly as metric_value does
-        ref, bal = f(flds[0]), f(flds[1])
-        return f"=IF(OR({ref}=\"\",{bal}=\"\",{bal}=0),\"\",{ref})"
     return _direct(f(flds[0]))
 
 
@@ -1031,7 +1025,7 @@ THE v1.1 COMPETITOR PACK (SPEC_COMPETITOR_PACK.md; fields verified 93/93)
     a public Call-Report PROXY; commercial risk ratings lead delinquency;
     the criticized/classified view arrives via the EDGAR tracker (#6).
   - Naming honesty: verified R ratio twins consumed directly ONLY where
-    the twin name fits the legacy 8-char field limit (P3CRCDR yes,
+    the twin name fits the legacy 8-char field limit (P3CRCD_BOOK yes,
     P3CONOTH_BOOK no -- computed from the verified dollar triple + balance);
     quarterly NCO names are 8-char truncated (NTRECONQ, never NTRECONSQ).
   - HELOC has NO NCO column: LNRELOC is not in the verified balance list.
