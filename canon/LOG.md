@@ -692,3 +692,63 @@ accuracy. They are not the same measurement. Asked rather than assumed.
 may be a standing belief about evidence rather than a scoping call on this
 project. It is noted here so it is not lost, and it is not in `CONVICTIONS.md`,
 because nothing enters that file without an explicit yes.
+
+---
+
+## 5 September 2026 (later) — what the docket's answers caused, and one correction
+
+The four answers are in the entry above. What they turned into:
+
+| Answered | Landed as |
+|---|---|
+| Fix canon on a new branch | #260, merged. `main` was red for roughly an hour and a half and had #253, #254 and #257 stacked behind it; 168 pass on `main` again. |
+| Cash and bank reconciliation | `desk/desks/cash-and-bank` — 47 passages, 4 problems, the first desk built through `factory.emit` rather than by hand. |
+| De-identified only | Noted; nothing built yet. |
+| Record the near miss | `Unsupported.falls_under`, and the run prints `n filed, m of them citing a finer path inside a rule the desk holds`. |
+
+**Two clarifications the firm gave after the form was filled in**, recorded here
+because an answer that lives only in a conversation has to be asked again.
+
+*On measuring against real.* The written answer read two ways — against real
+client work, or de-identified input against real input. The firm: **"Against real
+work. Run the desk on actual engagement questions, de-identified, and measure
+what share of them it can take over. That measures the labour saved."** And on
+the other reading: *"other is cool but let's not overcomplicate at this point."*
+
+*On which body of law the cash desk belongs to, which is the correction.* The
+desk was built on tax sources — § 1.446-1 and IRS Publication 583 — because those
+are what this environment can reach. The firm:
+
+> there is a difference between tax and something like GAAP. i account like an
+> accountant, even in cash basis though we would record what happened. cash in
+> and cash out. cash balance doesn't change for tax purposes. i feel like i'm
+> going crazy here having to explain this. it's not just bull shit i'm making up
+
+They are right, and the session was wrong about which body of law the question
+lives in. Bank reconciliation is bookkeeping: the books record the transaction
+when it happened, the bank records it when it processed it, and the difference is
+timing. It holds on cash basis too — cash basis governs when income and expense
+are RECOGNISED, not whether a check that was written was written.
+
+**The mistake was a streetlight search**, and it has a name now: the sources
+reached first were the ones that answered, not the ones that govern. Recorded in
+`factory.QUESTIONS` Q3 and in the desk-factory skill so the next desk does not
+repeat it, along with the two facts that came out of chasing it — eCFR serves
+EVERY CFR title, so accounting and banking authority is reachable too; and
+reachable is not a reason to store, because SEC Regulation S-X came back clean
+and mentions reconciliation, outstanding checks and deposits in transit exactly
+zero times, so it was left out.
+
+**What the correction did NOT change is the desk.** The literature that states
+the convention is FASB ASC, which is `human_only` by licence — no network policy
+reaches it, and neither would the Forge. So the desk holds the firm's words
+instead, as `positions/POS1`, unratified. That is not a workaround; it is the
+case the two-store split was written for, and this is the first time it has been
+the actual answer rather than an illustration.
+
+**Standing and unrecorded:** the tax-against-GAAP stance above looks like a
+conviction rather than a decision — it would hold next year, it carries a reason
+about principle, and the firm has now had to explain it more than once, which is
+the exact cost `CONVICTIONS.md` exists to remove. It is drafted and put to them
+as a proposal. **Nothing enters that file without an explicit yes**, so it is
+named here and not there.
