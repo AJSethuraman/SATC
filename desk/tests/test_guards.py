@@ -50,9 +50,84 @@ def test_a_well_formed_desk_passes_every_guard(tmp_path):
     assert guards.check(build(tmp_path)).name == "d"
 
 
-def test_the_shipped_desk_passes_every_guard():
-    """The one that actually matters: the record in this repo is legal."""
-    assert guards.check(DESKS / "fixed-assets")
+def shipped_desks(root=DESKS):
+    """Every desk in the repository, enumerated rather than named.
+
+    COMPARED AGAINST THE RAW DIRECTORY LISTING, because `>= 1` was not enough:
+    pinning this to `[fixed-assets]` left the second desk unguarded with the
+    suite still green. The count is not the check — the set is.
+    """
+    desks = sorted(d for d in root.iterdir() if (d / "SOURCES.md").is_file())
+    on_disk = {d.name for d in root.iterdir()
+               if d.is_dir() and not d.name.startswith("_")}
+    assert {d.name for d in desks} == on_disk, (
+        f"{sorted(on_disk - {d.name for d in desks})} is a desk directory that "
+        f"this enumeration skipped, so nothing below checks it"
+    )
+    assert desks, "no desks found; every test below would pass vacuously"
+    return desks
+
+
+def test_the_enumeration_notices_a_desk_it_would_skip(tmp_path):
+    """The guard on the guard, which a mutation showed was missing.
+
+    Dropping the set comparison from `shipped_desks` broke nothing today — every
+    directory under `desks/` has a SOURCES.md, so the filter and the listing
+    agree. It breaks the day somebody adds a desk directory that does not, which
+    would then be skipped by every check below it, silently. So the case is
+    constructed rather than waited for.
+    """
+    (tmp_path / "real").mkdir()
+    (tmp_path / "real" / "SOURCES.md").write_text(GOOD_SOURCE, encoding="utf-8")
+    (tmp_path / "halfbuilt").mkdir()            # a desk directory with no sources
+    with pytest.raises(AssertionError, match="this enumeration skipped"):
+        shipped_desks(tmp_path)
+
+
+def test_the_enumeration_refuses_to_pass_vacuously(tmp_path):
+    """An empty `desks/` would make every check below it green while checking
+    nothing — the failure mode `check_record.py` states in its own docstring."""
+    with pytest.raises(AssertionError, match="pass vacuously"):
+        shipped_desks(tmp_path)
+
+
+def test_every_shipped_desk_passes_every_guard():
+    """The one that actually matters: the record in this repo is legal.
+
+    ENUMERATED FROM DISK, NEVER NAMED. This asserted `fixed-assets` by name, so
+    the second desk shipped unguarded — and the whole claim of the factory is
+    that a generated desk passes exactly the gates a hand-built one does. A test
+    that names its subject cannot make that claim about a desk added later.
+    """
+    for d in shipped_desks():
+        assert guards.check(d).name == d.name
+
+
+def test_every_shipped_desk_is_routable():
+    """A desk nothing routes to is a desk nobody asks. `SUBJECTS.md` is not read
+    by `guards.check`, so without this a desk can be legal and unreachable."""
+    import routing
+
+    for d in shipped_desks():
+        reg = routing.parse_subjects(
+            (d / "SUBJECTS.md").read_text(encoding="utf-8"), d.name)
+        assert reg.fires_on, f"{d.name} registers no subjects"
+
+
+def test_a_proposal_does_not_answer_on_any_shipped_desk():
+    """#245: the record must show that a proposal does not answer.
+
+    The cash desk ships with an unratified position drafted from what the firm
+    typed. If `position()` returned it, an agent's draft would be being served as
+    the firm's word — which is the one failure the two-store design exists to
+    make impossible.
+    """
+    proposals = [(d.name, q) for d in shipped_desks()
+                 for q in record.load(d).positions if q.proposed]
+    for name, q in proposals:
+        desk = record.load(DESKS / name)
+        assert desk.position(q.citation) is None, (
+            f"{name}/{q.id} is a proposal and it answered")
 
 
 # ── a judgement must not ride along inside an extraction ─────────────────────
