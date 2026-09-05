@@ -12,7 +12,7 @@ a government agency published it in that form.
 | File | What's in it | Rows |
 |---|---|---|
 | `bank-values.csv` | Twelve large US banks, sixteen quarters, every reported field | 13,056 |
-| `macro-observations.csv` | 142 national and regional series, full history | 13,841 |
+| `macro-observations.csv` | 142 national and regional series, most recent 100 observations each | 13,841 |
 | `field-dictionary.csv` | What each bank field means, in plain English | 68 |
 | `not-comparable-periods.csv` | Quarters you should not chart as a trend, and why | 6 |
 | `ratios-worth-building.csv` | Ratios that make sense, and the traps — **descriptions only, nothing computed** | 18 |
@@ -99,6 +99,38 @@ carry their own units per row.
 - **The eight ratios the FDIC computes** are still here, because the FDIC
   published them — but they are labelled `computed_by = the FDIC` so you always
   know whose arithmetic you are looking at.
+
+## Cautions — read these before you chart anything
+
+**1. This is a window, not a history.** The macro series are capped at the most
+recent **100 observations** each. That is about 25 years for a quarterly series
+and only about **8 years for a monthly one** — monthly series start in early
+2018. The publishers hold far more: FHFA back to 1975, consumer credit to 1943,
+Case-Shiller to 1987. If you want the long run, it exists and this file does not
+have it. Bank data is **16 quarters**, from 2022 Q3.
+
+**2. There is no vintage.** These are the figures as published when they were
+pulled. Banks amend Call Reports and agencies revise series, so a value verified
+today may not match the same source in six months. Nothing here records when a
+figure was fetched or which revision it is. Treat the whole folder as a snapshot
+dated 5 September 2026.
+
+**3. Provenance is much stronger on the bank side.** Every one of the 13,056
+bank rows names its exact line (the MDRM code) and links to the exact filing —
+you can click through and put a finger on the number. On the macro side the
+link is the agency's **landing page**, not the row: 10,941 of 11,241 verified
+rows point at a page you would then have to search. The check was done against
+the exact file; the link in the CSV is coarser than the check.
+
+**4. Eight of the bank fields are ratios.** They are the FDIC's ratios, not
+ones this software built, and they are labelled `computed_by = the FDIC`. But
+they are still ratios sitting in a raw-data feed. If you want the feed to be
+purely filed lines, drop the 1,536 rows where `verified_meaning` mentions the
+FDIC calculating them.
+
+**5. The twelve banks are not a like-for-like peer group.** Two are custody
+banks and two are broker-dealer banks. Their balance sheets are shaped nothing
+like a commercial lender's, and a peer ranking that mixes them will mislead.
 
 ## What this still does not prove
 
