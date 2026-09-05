@@ -519,6 +519,15 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
             else:
                 reason = (f"priced by {svc.priced_by}, not by this catalogue — "
                           f"the engagement carries the figure")
+            # AND THE QUANTITY GAP IS STILL WORTH SAYING. The first version
+            # made `priced_by` win the whole branch, so "the interview does not
+            # record how many states" stopped being said at all the moment the
+            # engagement took over the price. That fact is not about who
+            # prices it: the ENGAGEMENT needs to know how many states too, and
+            # the interview is where that would have been asked.
+            if rule.quantity is None:
+                reason += (" — and the interview does not record how many, "
+                           "which the engagement needs as well")
         elif svc.unit == "per_hour":
             # Principle 1. The hours are the whole price here, and nobody knows
             # them before the work — a "typical" number would be a guess wearing

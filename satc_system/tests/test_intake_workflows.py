@@ -426,7 +426,14 @@ def test_a_per_form_service_still_loads_at_a_quantity_of_two(tmp_path):
     assert rules[0].quantity == Decimal("2")
     priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
                        tax_year=YEAR, config_root=tmp_path)
-    assert priced.total == Decimal("190.00")
+    # It used to total 190.00 here. Since 5 September 2026 the ladder prices
+    # the return; the QUANTITY is the part this test was protecting, and the
+    # engagement needs to know two states as much as this catalogue ever did.
+    assert priced.total == Decimal("0.00")
+    listed = next(i for i in (*priced.lines, *priced.unpriced)
+                  if i.service_code == "return_state")
+    assert "does not record how many" not in listed.reason, (
+        "the config said 2, so nothing about the count is unknown")
 
 
 def test_every_shipped_services_block_survives_being_read():

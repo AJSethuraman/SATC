@@ -17,6 +17,58 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Saturday 5 September 2026 — one price, and the second list is retired
+
+The firm, after correcting me on what the student rate means:
+
+> *yes — retire it. Rewrite the 28 tests so they assert satc_system identifies
+> the work and shows the engagement's price, rather than pricing it. One price,
+> and it's the one on the client's estimate.*
+
+**The rewrite turned on one word.** Almost every failing test asked what was on
+`quote.lines`, and every one of them meant *what work is on this quote* rather
+than *what did this file charge for it*. Redefining the helper to read both
+buckets fixed a dozen of them without changing a single claim — the answers
+still put the work on the quote, the work still names the answer that put it
+there, the order is still the config's.
+
+**Reading `lines` alone would have been worse than red.** A dozen assertions
+of the form "this work is NOT on the quote" would have passed because nothing
+is ever on `lines` now: green, vacuous, and silently no longer testing
+anything. That is the failure this repository names first, arriving through a
+test edit.
+
+**Two things nearly got lost, and both were caught by rewriting rather than
+deleting.**
+
+`priced_by` won the whole branch, so the moment the engagement took over the
+figure, *"the interview does not record how many states"* stopped being said at
+all. That fact is not about who prices it — the engagement needs the number
+too. The reasons compose now.
+
+And `letter_facts` states a fee only when the total is the whole price, which
+is never true here any more. Left alone, **every engagement letter would have
+rendered `[[ Fee: fill in ]]`** — technically honest, useless in practice, and
+a good way to have somebody type a number in by hand. The letter reads the
+engagement's own figure now, through the ref.
+
+**One principle had to be restated rather than repaired.** A test held that an
+unpriced entry is a warning, so an ordinary one-state client must not get one.
+Every service is unpriced now, so being on that list is not a warning any more —
+it is just the quote. What still separates them is the REASON, and that is what
+it asserts.
+
+`rate_plans.yaml` keeps its plans and says at the top what it is: retired, never
+reachable, and not the price. `requires_basis` stays, because a reduction
+needing a recorded reason is good design whichever file does the arithmetic.
+
+**And I leaked an environment variable again, inside the hour.** A fixture set
+`SATC_ENGAGEMENTS` through `os.environ` to give the letter a price to read —
+the same shape as the `SATC_ROLE` leak that turned 29 unrelated tests red last
+night. This one decides where a client's PRICE is read from. Added to the
+conftest guard that already existed for exactly this.
+
+
 ## Friday 4 September 2026, late — the join, and who is calling
 
 **D3 first, because its answer dissolved D4's fork.** Both assessment agents

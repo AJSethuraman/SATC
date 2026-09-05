@@ -766,4 +766,26 @@ def _letter_facts(workflow: WorkflowDef, job: Job, duty: ObligationInstance,
             facts["fee_amount_text"] = (
                 f"${Decimal(str(quote.total)):,.2f} (estimate — not a bill)")
 
+    # THE ENGAGEMENT'S OWN FIGURE, WHICH IS NOW THE ONLY ONE THERE IS.
+    #
+    # This catalogue stopped pricing returns on 5 September 2026 -- the package
+    # ladder is the price, and `client-documents` owns the engagement. So
+    # `_total_is_whole` is never true any more, and without this every letter
+    # would render `[[ Fee: fill in ]]`: technically honest, useless in
+    # practice, and a good way to have somebody type a number in by hand.
+    #
+    # Read back through the engagement ref, which is the same seam `collect`
+    # resolves a drop folder on. It OVERWRITES anything set above, because a
+    # figure the client is already holding outranks one derived here -- that
+    # precedence is the whole point of settling which file is the price.
+    #
+    # Silence when the ref is not recorded or the record cannot be read: the
+    # letter falls back to `[[ Fee: fill in ]]`, which is what "we do not know
+    # yet" should look like on a document somebody signs.
+    engagement_price = getattr(quote, "engagement_price", None)
+    if engagement_price is not None and getattr(engagement_price, "is_priced", False):
+        facts["fee_amount_text"] = (
+            f"{engagement_price.total} (estimate — not a bill)")
+        facts["fee_source"] = f"engagement {engagement_price.ref}"
+
     return facts

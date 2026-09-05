@@ -323,8 +323,16 @@ def test_an_agreed_rate_plan_states_the_fee_and_says_it_is_an_estimate(
     _with_agreed_plan(monkeypatch)
     body = _letter(client)
 
-    assert "$275.00 (estimate — not a bill)" in body
-    assert "[[ Fee: fill in ]]" not in body
+    # THE FEE IN A LETTER NOW COMES FROM THE ENGAGEMENT, not from this
+    # catalogue -- the firm settled that on 5 September 2026. No ref is
+    # recorded on this fixture's engagement and no engagements store is
+    # configured, so there is no figure to state and the letter says so
+    # LOUDLY rather than quietly inventing one. `$275.00` came from a second
+    # price list that no longer prices anything.
+    assert "$275.00" not in body, "a retired price list reached a client letter"
+    assert "[[ Fee: fill in ]]" in body, (
+        "with no engagement figure the letter must be visibly unfinished, "
+        "not silently fee-less")
 
 
 def test_an_incomplete_quote_states_no_fee_even_on_an_agreed_plan(
