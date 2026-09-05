@@ -492,6 +492,65 @@ MUTATIONS: list[Mutation] = [
         "I4: a bucket cannot exceed the total it is drawn from",
     ),
     Mutation(
+        "config-cell-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            elif got != want:",
+        "            elif False:",
+        (FC + "test_a_units_label_the_source_corrected_is_caught",),
+        "S1: a units label the artifact still carries and the seed corrected "
+        "is reported",
+    ),
+    Mutation(
+        "config-roster-diff-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    ids = sorted(set(seed) | set(found))",
+        "    ids = sorted(set(seed) & set(found))",
+        (FC + "test_a_series_missing_from_the_artifact_is_caught",
+         FC + "test_a_series_the_seed_does_not_carry_is_caught"),
+        "S1 compares the UNION, so a series on one side only is a finding "
+        "rather than a row nobody examined",
+    ),
+    Mutation(
+        "vintage-skew-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "    if len(stamps) > 1:",
+        "    if False:",
+        (FC + "test_a_series_that_did_not_refresh_shows_as_skew",),
+        "C3: two vintages in one run means part of the workbook did not "
+        "refresh",
+    ),
+    Mutation(
+        "vintage-backwards-blind",
+        SRC / "sources" / "fred" / "consistency.py",
+        "            if value and was and value < was:",
+        "            if False:",
+        (FC + "test_a_vintage_that_went_backwards_is_a_failure",),
+        "C3: a vintage that moved backwards refreshed from an older release",
+    ),
+    Mutation(
+        "date-grid-duplicate-blind", SRC / "engine" / "consistency.py",
+        "            if current == previous:",
+        "            if False:",
+        (FC + "test_a_duplicated_date_is_a_failure",),
+        "C5: a duplicated date is a merge fault, and every transform over it "
+        "silently gives a wrong answer",
+    ),
+    Mutation(
+        "date-grid-step-blind", SRC / "engine" / "consistency.py",
+        "            if gap % size:",
+        "            if False:",
+        (FC + "test_a_step_that_is_not_the_declared_cadence_is_a_failure",),
+        "C5: a step that is not the declared cadence is caught",
+    ),
+    Mutation(
+        "date-grid-hole-silent", SRC / "engine" / "consistency.py",
+        "            elif gap // size > 1:",
+        "            elif False:",
+        (FC + "test_an_interior_hole_is_UNKNOWN_rather_than_a_refusal",),
+        "C5: an interior hole is reported as UNKNOWN rather than passing "
+        "silently -- the DRTSSP question nobody has answered",
+    ),
+    Mutation(
         "secret-invented-when-unset", SRC / "engine" / "provider.py",
         "    return os.environ.get(name) or None",
         '    return os.environ.get(name) or "default-secret"',

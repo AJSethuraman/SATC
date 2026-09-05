@@ -885,3 +885,102 @@ Ordered by value per unit of effort. Sizes are rough: **S** ≈ under a day,
   establish which is right. It is written up there as unresolved and it stays
   unresolved here. S1 must therefore treat those two as **UNKNOWN** rather than
   asserting either answer.
+
+---
+
+## 9 · What was built, and where it departs from the above
+
+Built 5 September 2026, test-first. Five items, in the order §7 ranks them.
+Everything below was run; every number in it is from a run, not from a plan.
+
+| Rank | Check | Built | Where it lives |
+|---|---|---|---|
+| 1 | **C1** every pullable series must land | yes | `engine/consistency.py`, wired into `engine/runtime.run_succeeded` and `sources/fred/runner.run_succeeded` |
+| 2 | **I1** merger quarters | **reframed — see below** | `sources/fdic/consistency.flow_comparability` |
+| 3 | **S1** `_config` against `series_seed.py` | yes | `sources/fred/consistency.config_matches_seed` + `tools/consistency_check.py` |
+| 4 | **C3 + C5** vintage and date grid | yes | `sources/fred/consistency.vintage_check`, `engine/consistency.date_grid` |
+| 5 | **I2 I3 I4 I5** the FDIC identity set | yes | `sources/fdic/consistency.identity_set` |
+
+Each has a mutation in `tools/mutation_check.py` and each mutation was killed.
+
+### The four departures, and why
+
+**I1 does not reconstruct anything, and cannot.** §1 above works PNC through as
+if the merger adjustment were well defined. **That finding was withdrawn.** Two
+mergers in this same twelve-bank panel consolidate opposite ways — PNC's
+year-to-date contains the acquired bank's prior year-to-date and Capital One's
+does not — so there is no single arithmetic that turns two year-to-dates into a
+quarter. `flow_comparability` therefore answers COMPARABLE / NOT COMPARABLE /
+UNKNOWN and hands back no number. `Comparability` has no field to put one in,
+and a test pins its field list so adding one starts a conversation.
+
+**The arithmetic leg of I1 is not implementable here anyway.** It needs the
+year-to-date figures `NTCRCD`, `NTCI` and their siblings. The panel lands the
+*quarterly* variants only — 68 fields, of which the eight `NT*` are all `*Q`.
+Nothing in `verified-data/bank-values.csv` or in the workbook carries a
+year-to-date charge-off. The identity cannot be computed without new fields and
+new API calls, and per the paragraph above it should not be repaired even then.
+
+**C5 is reported, not gating.** Duplicates, reversals and irregular steps have
+no innocent explanation and §5 says refuse. It does not, yet: no live FRED pull
+has been run through it. The 142-of-142 baseline was measured on a workbook,
+and an unverified rule that blocks the desk's only refresh path is the false
+alarm this document spends a page warning about. `run()` writes
+`status["date_grid"]` and the runner prints it; `tools/consistency_check.py`
+exits 2 on it. Wire it to the runner's exit code after one live run confirms
+it, and change this paragraph when you do.
+
+**An interior HOLE in a date grid is UNKNOWN, not a failure.** §C2 records
+`DRTSSP`'s 19 interior blanks as unresolved. A gap that is a whole number of
+steps is named and reported; a gap that is *not* a multiple of the step is a
+failure, because that is a merge fault rather than a survey that did not ask.
+
+### Two things found while grounding the thresholds
+
+**The audited deliverable cannot tell a blank from a zero.** Every one of the
+68 fields is present in all 192 bank-quarters of
+`verified-data/bank-values.csv`, with no empty cells. But the count of
+**non-zero** `xxRERES` values is exactly 192 / 188 / 134 / 190 for `LN` / `P3` /
+`P9` / `NA` — the same four numbers §I3 above measured as the count of cells the
+FDIC leaves *blank*. The blanks became zeros somewhere between the FDIC's
+response and the published CSV. So I3's denominator is 768, of which 64 are
+`0 <= 0` and prove nothing, and that is how
+`test_the_deliverable_cannot_tell_a_blank_from_a_zero` reports it. A reader of
+that CSV cannot distinguish "the bank reported nothing here" from "the bank
+reported zero".
+
+**The demo provider does not satisfy the publisher's identities.** Pointed at
+the workbook `monitorbuild` produces, I2 failed 630 of 636, I5 44 of 156 and I4
+20 of 44. None of it is a defect in the monitor: the synthetic provider rounds
+each published ratio to four decimal places independently of its components
+(`NCLNLSR = 0.8706` against `NCLNLS/LNLSGR = 0.87063304`), rounds net loans
+independently of gross less reserve, and draws each loan class independently of
+the noncurrent total. These identities are assertions about the **FDIC's**
+numbers and a demo build has no publisher, so `tools/consistency_check.py`
+reports them as UNKNOWN over the full 192 bank-quarters rather than refusing.
+The thresholds themselves are grounded on the real panel, where all four hold
+768 / 768, 768 / 768, 192 / 192 and 192 / 192.
+
+### What running it found
+
+```
+tools/consistency_check.py Bank_Peer_Monitor.xlsm        (demo build)
+  I2/I3/I4/I5 UNKNOWN  0 of 192 bank-quarters  -- synthetic provider
+  I1          PASS   192 of 192 bank-quarters
+tools/consistency_check.py FRED_Credit_Risk_Dashboard.xlsm
+  S1          PASS  2130 of 2130 cells
+  C3          UNKNOWN  0 of 142 series  -- no previous run recorded
+  C5          PASS   142 of 142 series
+same file with the four G.19 units put back to "billions $":
+  S1          FAIL  2126 of 2130 cells (4 failed)     exit 2
+```
+
+### Still not built, and why
+
+- **C2 coverage manifest, C4 publication lag, P1–P5, S2, S3, X1.** Outside the
+  five this session was asked for.
+- **P4's FRED bands, P1's 25% and P2's [−2, +10].** Grounded in §3 above, but
+  measured against the workbook rather than against `verified-data/*.csv`; the
+  CSV holds levels, not the period-on-period moves those bands are set over.
+  They are re-measurable, but they were not re-measured here, and nothing is
+  implemented on a number this session did not check.
