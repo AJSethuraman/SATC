@@ -14,7 +14,7 @@ from satc.fixtures import create_sample_folder  # noqa: E402
 
 def test_intake_reads_real_fillable_pdfs(tmp_path):
     folder = create_sample_folder(tmp_path / "Clients" / "Maplewood" / "2024")
-    summary = AppState().run_intake(str(folder))
+    summary = AppState().run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
 
     # The W-2 and 1099-INT are read; the engagement letter is filed, not extracted.
     assert summary["files_read"] == 2
@@ -24,7 +24,7 @@ def test_intake_reads_real_fillable_pdfs(tmp_path):
 def test_intake_extracts_real_values_and_masks_tins(tmp_path):
     folder = create_sample_folder(tmp_path / "docs")
     state = AppState()
-    state.run_intake(str(folder))
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
     by_path = {f.field_path: f for f in state.gate.all_fields()}
 
     # Real values pulled from the actual PDF form fields.

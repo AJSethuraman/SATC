@@ -171,16 +171,31 @@ def test_return_status_does_not_shadow_client_filing_status():
     definition silently broke the interview screen, and only a test that
     asserted on the real value caught it.
     """
-    from satc.app.state import STATE
+    # A FRESH AppState, not the module-level STATE, and that matters.
+    #
+    # This read the global `STATE`, which by the time it runs has been through
+    # every other test file in the suite -- including the button-walker, which
+    # presses "Clear sample data" and empties it. It passed anyway because the
+    # walker went on to press `/intake/run` and `/staging/post`, and intake used
+    # to DEFAULT to client `SATC-001000` in tax year 2024, quietly manufacturing
+    # a return for this test to find.
+    #
+    # Removing that default (5 September 2026 -- documents were posting to a
+    # hardcoded demo client) left this test with an empty store and an
+    # IndexError. The test was never about global state; it is about two
+    # accessors that both want the word "filing". A fresh state gives it the
+    # seeded store and no dependency on what ran first.
+    from satc.app.state import AppState
 
-    client_id = STATE.client_choices()[0][0]
-    tax_status = STATE.filing_status(client_id)
+    state = AppState()
+    client_id = state.client_choices()[0][0]
+    tax_status = state.filing_status(client_id)
     assert tax_status in ("", "Single", "Married filing jointly",
                           "Married filing separately", "Head of household",
                           "Qualifying surviving spouse")
 
-    ret = STATE.returns()[0]
-    assert STATE.return_status(ret.return_key) in (
+    ret = state.returns()[0]
+    assert state.return_status(ret.return_key) in (
         "Not transmitted", "Awaiting IRS", "Accepted", "Rejected",
         "Duplicate", "Transmission failed")
 

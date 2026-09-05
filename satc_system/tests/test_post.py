@@ -18,7 +18,7 @@ RK = return_key("SATC-001000", 2024, "1040", "US")
 def test_confirmed_intake_posts_line_items(tmp_path):
     folder = create_sample_folder(tmp_path / "docs")
     state = AppState()
-    state.run_intake(str(folder))            # reads + auto-confirms HIGH-confidence
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)   # reads + auto-confirms HIGH-confidence
     summary = state.post_confirmed()
 
     assert summary["return_key"] == RK
@@ -34,7 +34,7 @@ def test_confirmed_intake_posts_line_items(tmp_path):
 def test_posting_is_idempotent(tmp_path):
     folder = create_sample_folder(tmp_path / "docs")
     state = AppState()
-    state.run_intake(str(folder))
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
     state.post_confirmed()
     before = len([li for li in state.mart.line_items if li.return_key == RK])
     state.post_confirmed()                   # re-post the same confirmed values
@@ -45,7 +45,7 @@ def test_posting_is_idempotent(tmp_path):
 def test_no_full_tin_reaches_the_mart(tmp_path):
     folder = create_sample_folder(tmp_path / "docs")
     state = AppState()
-    state.run_intake(str(folder))
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
     state.post_confirmed()
     blob = " ".join((li.text_value or "") + str(li.amount) for li in state.mart.line_items)
     assert "400551234" not in blob and "400-55-1234" not in blob

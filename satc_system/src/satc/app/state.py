@@ -360,19 +360,42 @@ class AppState:
         self.reload()
 
     # -- intake: actually read the files in a folder ----------------------
-    def run_intake(self, folder: str, *, client_id: str = "SATC-001000",
-                   tax_year: int = 2024) -> dict:
+    def run_intake(self, folder: str, *, client_id: str, tax_year: int) -> dict:
         """Read every file in ``folder`` and stage the values. Returns a summary.
 
         Each file is classified by *content* — not its name — so a W-2 named
         ``scan001.pdf`` is still recognized. A combined multi-form PDF is split into
         its parts first, and each document is read by the cheapest sufficient
         backend: fillable form fields, then the free text layer, then vision.
+
+        ``client_id`` AND ``tax_year`` ARE REQUIRED, AND THAT IS THE FIX.
+        This signature read ``client_id: str = "SATC-001000", tax_year: int = 2024``
+        until 5 September 2026. Nothing on the ``/intake`` screen ever supplied
+        either, so **every document any preparer scanned was posted to a hardcoded
+        demo client, in the prior tax year.** A walk found it by scanning two
+        invented W-2s and watching 92,400 + 58,150 land as ``Wages 150,550.00`` on a
+        third party's 1040 workpaper — 2025 forms, filed into 2024. 3,247 passing
+        tests did not catch it, because several of them *passed the default in*.
+
+        Defaulting is the wrong shape for both. A client is not a preference with a
+        sensible fallback; there is no such thing as a document that belongs to
+        whoever the system happened to think of first. `DESIGN-PRINCIPLES.md` already
+        says it — refuse rather than default — and this is the case it was written
+        for.
         """
         import os
         import tempfile
 
         from satc.intake import reconcile_received
+
+        if not client_id:
+            raise ValueError(
+                "run_intake needs a client: reading documents without one used to "
+                "post them to SATC-001000, whoever that turned out to be.")
+        if not tax_year:
+            raise ValueError(
+                "run_intake needs a tax year: it decides which return the figures "
+                "land on, and it is never safe to assume last year's.")
 
         # L8: if an intake root is configured, refuse folders outside it so an
         # agent-supplied path can't reach arbitrary directories. No-op when unset.
@@ -583,8 +606,17 @@ class AppState:
         1040 line ids with aggregation (every W-2 box 1 summed into wages, etc.).
         The return is created if it doesn't exist; re-posting is idempotent.
         """
-        client_id = client_id or self.intake_context.get("client_id") or "SATC-001000"
-        tax_year = tax_year or self.intake_context.get("tax_year") or 2024
+        # The same defect as `run_intake`, one step further downstream: this used to
+        # end `or "SATC-001000"` / `or 2024`, so a post with no context of its own
+        # wrote the figures onto a demo client's return in the prior year. The
+        # context is set by `run_intake`, which now cannot run without both.
+        client_id = client_id or self.intake_context.get("client_id")
+        tax_year = tax_year or self.intake_context.get("tax_year")
+        if not client_id or not tax_year:
+            raise ValueError(
+                "post_confirmed needs a client and a tax year. Nothing was staged "
+                "by an intake run that recorded them, and guessing is how staged "
+                "figures used to land on somebody else's return.")
         rk = return_key(client_id, tax_year, return_type, jurisdiction)
         ret = next((r for r in self.mart.returns if r.return_key == rk), None)
         if ret is None:
