@@ -189,3 +189,62 @@ The token figures are **estimates and are called that everywhere**: there is no
 tokeniser here, so the ratio is deliberately pessimistic (3.2 characters to the
 token, where English prose is nearer 4) because under-counting is the one
 direction that would let a prompt be cut anyway.
+
+## The 34 leaks, diagnosed — two causes, and only one of them is the record's fault
+
+Not one number: **two separate defects that happen to share a symptom.**
+
+### 19 of them are three stored passages, all on one desk
+
+A single worked example in the corpus is a **desk-wide outage**, because the leak
+check sweeps every problem for every prompt. Three passages therefore cost all
+nineteen scores on `rewards-and-information-returns`.
+
+| passage | what it is | what it costs |
+|---|---|---|
+| `IRS Pub. 525 (2025), "Cash rebates"` | the rule **and** Example 36 in one passage — and Example 36 *is* problem RW2 | the rule stands alone; trimming at `Example 36.` leaves it verbatim |
+| `26 CFR 1.6041-1(a)(1)(v), Example 1` | an example end to end; the citation says so | it is problems IR4's fact pattern |
+| `26 CFR 1.6041-1(a)(1)(v), Example 2` | the same | IR5's |
+
+**The obvious fix is not free, which is why it is recorded rather than made.**
+Both regulation examples name the paragraph they apply — *"Under paragraph
+(a)(1)(iv) of this section, A, as payor, is not required to file"* — and the desk
+already holds `§ 1.6041-1(a)(1)(iv)` as a rule. So IR4 and IR5 should cite the
+rule and the examples should leave the corpus. **But the firm ratified POS2 on
+that same paragraph this morning.** A ratified position is served verbatim and
+`_check` refuses an answer that restates it, so the moment those problems cite
+it, their own recorded answers refuse as `contradicts_ratified_position` unless
+the two wordings are reconciled:
+
+> **POS2, the firm's:** *no Form 1099-NEC for a payment settled by card or
+> through a third party payment network; track the rest against $2,000 per payee
+> per calendar year*
+>
+> **IR4 and IR5, the regulation's:** *the payor is not required to file an
+> information return under section 6041*
+
+They say the same thing in different words, and the engine is exact on purpose —
+that exactness is what stops a model handing back the firm's position with the
+conclusion reversed. **Reconciling them is the firm's wording to choose, not
+mine**, so nothing was changed.
+
+### 15 of them are the leak check being too strict, and the record is fine
+
+`'not deductible' appears in the prompt outside the list of admissible
+conclusions` — on 15 problems across meals, personal-or-business and vehicle.
+
+But § 1.274-11(a) *does* say entertainment is not deductible. **That is the rule
+stating its own outcome, which is what a rule is for.** A model that reads it and
+concludes "not deductible" has reasoned correctly from authority; that is the
+desk working, not the answer key leaking.
+
+The check cannot tell those apart today, and it should not simply be relaxed: an
+admissible conclusion appearing verbatim does let a model pattern-match without
+reading. **Proposed, not done:** distinguish the conclusion appearing *inside a
+quoted passage* — where it is the rule's own words — from it appearing anywhere
+else in the prompt, which is where a leak would actually live.
+
+**Nothing here loosens a check to obtain a number.** The three passages and the
+fifteen strict refusals are recorded in `tests/test_corpus_is_rules.py`, which
+goes red if a fourth appears and equally red when one is fixed and left on the
+list.
