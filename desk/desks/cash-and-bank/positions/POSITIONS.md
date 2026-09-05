@@ -9,41 +9,60 @@ date. Where a source cannot be read by a desk at all — a licence forbidding th
 content reaching a model — a position here is the desk's entire knowledge of it,
 and the citation is how a reader gets to the text themselves.
 
+**Two entries, because there are two rules.** A position carries one answer, and
+one citation admits one position. The publication states what the statement did
+not yet include and, separately, what the books are updated for; those have
+opposite answers, so they are cited and answered apart. Written as one entry over
+the whole section, every problem on this desk — including the correct ones — came
+back refused as contradicting it.
+
 ---
 
-## POS1 · The books record what happened; the bank's timing is a reconciling item
+## POS1 · What the bank has not processed yet is a reconciling item
 
-**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" · **Recorded:** 2026-09-05
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the statement did not yet include · **Recorded:** 2026-09-05
 
-**Position:** We would not normally adjust cash. We would make it a reconciling
-item, because we don't have cash — we don't say we have cash. I account like an
-accountant: even on cash basis we record what happened, cash in and cash out.
-The cash balance doesn't change for tax purposes.
+**Position:** a reconciling item, no entry in the books
 
-**Why:** This is an accounting convention, not a tax rule, and the distinction is
-the whole point. A check written and sent is a disbursement that happened; the
-bank not having processed it yet is the bank's timing, not ours. Writing the
-books down to the statement balance would assert money we do not control, and
-writing them up would assert money we have already spent. The difference is
-explained on the reconciliation and the books are left alone.
+**Why:** In the firm's own words, 5 September 2026: *"we would not normally
+adjust cash ever in accounting when we would make it a reconciling item because
+we don't have cash. We don't say we have cash."* And: *"i account like an
+accountant, even in cash basis though we would record what happened. cash in and
+cash out. cash balance doesn't change for tax purposes."*
 
-The authority that states this is accounting literature the desk may never read —
-FASB ASC is `human_only` and the paid Codification is on the backburner
-(`PLAN.md`, 4 September 2026). Every other accounting-side source is unreachable
-from the build environment: fasab.gov, tfm.fiscal.treasury.gov, ffiec.gov,
-pcaobus.org and gao.gov are all refused by its network policy. **So this desk
-cannot cite the rule, and this position is its entire knowledge of it** — which
-is the case the two-store design was built for, written down before it came up.
+A check written and sent is a disbursement that happened; the bank not having
+processed it is the bank's timing, not ours. Writing the books down to the
+statement would assert money already spent is still there, and writing them up
+would assert money we do not control. The difference is explained on the
+reconciliation and the books are left alone.
 
-What the reachable tax authority does is defer, not decide. § 1.446-1(a)(2): a
-method "which reflects the consistent application of generally accepted
-accounting principles in a particular trade or business in accordance with
-accepted conditions or practices in that trade or business will ordinarily be
-regarded as clearly reflecting income." § 1.446-1(a)(4) requires the records
-including "a reconciliation of any differences." The Code's own regulations point
-at the trade's practice; the practice is the firm's.
+This rests on an accounting convention, not on the citation above. The literature
+that states it is FASB ASC, which is `human_only` by licence and unreachable by
+any route this desk has — so **this position is the desk's entire knowledge of
+the rule**, which is the case the two-store split was built for. The citation is
+where a reader goes to see the publication describe the same timing differences;
+it is not what settles them.
 
-**NOT RATIFIED. This entry has no `Ratified` field, so `Desk.position()` ignores
-it and the desk still escalates every question it would answer.** It was drafted
-from what the firm typed on 5 September 2026 and it is a proposal until they
-merge it. An agent never writes a ratified position.
+**Ratified:** the firm, 5 September 2026 — answered on the second docket, Matter 1: "Reads right — ratify it"
+
+---
+
+## POS2 · What was never recorded, or recorded wrong, is an entry
+
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the books are updated for · **Recorded:** 2026-09-05
+
+**Position:** an entry in the books
+
+**Why:** The other half of the same convention, and the half that keeps it from
+being a rule against ever touching cash. A bank charge nobody entered, or a
+deposit entered for the wrong amount, is not a timing difference — it is
+something the books do not yet say correctly, and correcting it is exactly what
+the books are for.
+
+The publication says so in its own words at this citation: *"Update your
+checkbook and journals for items shown on the reconciliation as not recorded
+(such as service charges) or recorded incorrectly."* The firm, on the conviction
+this sits under: *"where a book figure is simply an error, correcting it IS the
+right move."*
+
+**Ratified:** the firm, 5 September 2026 — answered on the second docket, Matter 1: "Reads right — ratify it"

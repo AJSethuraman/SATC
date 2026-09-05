@@ -165,6 +165,31 @@ PUB_SECTIONS = (
     "Bookkeeping System",
 )
 
+#: THE RECONCILIATION SECTION IS SPLIT IN TWO, because it states two rules and
+#: they have opposite answers. The publication itself makes the division: it
+#: first names what the STATEMENT did not yet include, and later says which
+#: items the BOOKS are updated for. A single citation over both cannot carry a
+#: position -- one citation admits one ratified answer, and these need two.
+#:
+#: Split at the sentence the publication turns on, and REFUSE if it has moved.
+#: The publication is revised; a marker that no longer matches must be re-read
+#: by a person, never matched loosely, because a loose match here would store
+#: half a rule under a citation naming the whole one.
+RECONCILING_SPLIT = "By reconciling your checking account, you will:"
+
+#: What each half is cited as. The suffix is part of the citation, not a
+#: comment: a reader following it has to land on the rule, not the section.
+TIMING = "what the statement did not yet include"
+UPDATING = "what the books are updated for"
+
+#: A section longer than this is REFUSED, not trimmed. The first version capped
+#: the body at 2,400 characters and returned what fitted -- which silently
+#: dropped "Update your checkbook and journals for items shown on the
+#: reconciliation as not recorded (such as service charges) or recorded
+#: incorrectly", the single sentence this desk most depends on. A cap that
+#: truncates is a partial read wearing a limit's clothes.
+SECTION_LIMIT = 8000
+
 #: NOT STORED, ON PURPOSE. The worked reconciliation is where the answers are
 #: read from, so it is the answer key and never authority.
 PUB_WORKED_EXAMPLE = "7. Bank Reconciliation"
@@ -201,10 +226,32 @@ def pub583_sections(html_path: Path) -> list[tuple[str, str]]:
             if line.startswith(("Table ", "How To Get Tax Help")):
                 break
             body.append(line)
-            if len(" ".join(body)) > 2400:
-                break
-        out.append((f'IRS Pub. 583 (12/2024), "{heading.rstrip(".")}"',
-                    " ".join(body)))
+        text = " ".join(body)
+        if len(text) > SECTION_LIMIT:
+            raise ValueError(
+                f"section {heading!r} is {len(text)} characters, over the "
+                f"{SECTION_LIMIT} this reader will store. It REFUSES rather "
+                f"than trimming: the first version capped the body and silently "
+                f"dropped the sentence this desk turns on. Split it or raise "
+                f"the limit deliberately."
+            )
+        cite = f'IRS Pub. 583 (12/2024), "{heading.rstrip(".")}"'
+
+        if heading.startswith("Reconciling"):
+            if RECONCILING_SPLIT not in text:
+                raise ValueError(
+                    f"{RECONCILING_SPLIT!r} is not in the reconciliation "
+                    f"section any more. The publication has been revised and "
+                    f"the split has to be re-read by a person; matching loosely "
+                    f"would store half a rule under a citation naming the whole."
+                )
+            head, tail = text.split(RECONCILING_SPLIT, 1)
+            out.append((f"{cite} — {TIMING}", head.strip()))
+            out.append((f"{cite} — {UPDATING}",
+                        (RECONCILING_SPLIT + tail).strip()))
+            continue
+
+        out.append((cite, text))
     return out
 
 
@@ -225,23 +272,31 @@ BANK_SIDE = "a reconciling item, no entry in the books"
 BOOKS_SIDE = "an entry in the books"
 
 RECONCILING = 'IRS Pub. 583 (12/2024), "Reconciling the checking account"'
+BY_TIMING = f"{RECONCILING} — {TIMING}"
+BY_UPDATING = f"{RECONCILING} — {UPDATING}"
 
+#: EACH PROBLEM CITES THE RULE ITS FACTS FALL UNDER, not the section both sit
+#: in. Keyed to one shared citation, all four would rest on one ratified
+#: position -- and a position carries one answer, so two of the four would be
+#: refused as contradicting it whatever a desk said. Measured before ratifying:
+#: with a single citation, every problem including the correct ones came back
+#: `wrong_caught / contradicts_ratified_position`.
 PROBLEMS = (
-    ("CB1", "A deposit made on the last day of the month",
+    ("CB1", "A deposit made on the last day of the month", BY_TIMING,
      BANK_SIDE,
      "A deposit of $516.08 was made on 31 January and recorded in the books "
      "that day. It does not appear on the bank statement for the month ended "
      "31 January."),
-    ("CB2", "A check that has not cleared",
+    ("CB2", "A check that has not cleared", BY_TIMING,
      BANK_SIDE,
      "Check number 94 for $150.00 was written on 20 January, sent to the payee, "
      "and recorded in the books. The bank statement for the month ended "
      "31 January does not show it among the checks paid."),
-    ("CB3", "A deposit recorded for the wrong amount",
+    ("CB3", "A deposit recorded for the wrong amount", BY_UPDATING,
      BOOKS_SIDE,
      "A deposit of $600.40 made on 8 January was entered in the checkbook and "
      "the books as $594.40. The bank statement shows the deposit at $600.40."),
-    ("CB4", "A charge the bank made and nobody entered",
+    ("CB4", "A charge the bank made and nobody entered", BY_UPDATING,
      BOOKS_SIDE,
      "The bank statement for the month ended 31 January shows a service charge "
      "of $10.00. Nothing for it appears in the checkbook or the books."),
@@ -293,9 +348,9 @@ def draft(cfr: list[tuple[str, str]], pub: list[tuple[str, str]],
     )
 
     problems = tuple(
-        factory.ProblemDraft(id=pid, title=title, citation=RECONCILING,
+        factory.ProblemDraft(id=pid, title=title, citation=citation,
                              answer=answer, facts=facts)
-        for pid, title, answer, facts in PROBLEMS
+        for pid, title, citation, answer, facts in PROBLEMS
     )
 
     passages = tuple(

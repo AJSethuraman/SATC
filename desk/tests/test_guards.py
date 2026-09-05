@@ -287,3 +287,63 @@ def test_an_unratified_position_is_marked_proposed():
 def positions_parse(text):
     import positions
     return positions.parse(text)
+
+
+# ── a problem must be answerable with the answer the record gives it ─────────
+
+def test_every_problem_on_every_desk_is_answerable_from_its_own_record():
+    """THE CHECK THAT WOULD HAVE CAUGHT IT, and it applies to every desk.
+
+    A problem's recorded citation and recorded answer are what a perfect desk
+    would produce. Put those two through `engine.grade` and the result must be
+    `correct` — anything else means the record cannot be satisfied, so no brain
+    could ever score on that row and the denominator counts a problem nothing
+    can answer.
+
+    Measured on the cash desk before this existed: all four problems shared one
+    citation, so ratifying a position gave them one servable answer between them
+    and two of the four were refused as contradicting it — including the two
+    whose recorded answer was right. Every attempt at them, forever, would have
+    graded `wrong_caught`.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        for p in desk.problems:
+            r = engine.grade(
+                engine.Answer(position=p.answer, citation=p.citation), p, desk)
+            assert r.outcome in (engine.Outcome.CORRECT, engine.Outcome.ESCALATED), (
+                f"{d.name}/{p.id}: answering with the record's own citation and "
+                f"its own answer grades {r.outcome.value} ({r.reason}). The "
+                f"record cannot be satisfied, so nothing can ever score here."
+            )
+
+
+def test_a_desk_with_ratified_positions_is_not_beaten_by_escalating(fixed_assets):
+    """Escalating everything is the ceiling only while nothing is ratified.
+
+    On the cash desk before its positions were ratified, declining every
+    question scored a perfect 4 of 4 — the run could show a desk was not
+    reckless and nothing more. Once a position answers, the same behaviour
+    scores zero, and the number starts separating good from lazy. Asserted so
+    the collapse of that baseline is a fact rather than a claim in a docstring.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        ratified = [q for q in desk.positions if not q.proposed]
+        if not ratified:
+            continue
+        answerable = [p for p in desk.problems
+                      if any(q.citation == p.citation for q in ratified)]
+        assert answerable, f"{d.name} ratified a position no problem rests on"
+        scored = sum(
+            1 for p in answerable
+            if engine.grade(engine.Answer(position="", escalated=True,
+                                          reason="authority_permits_choice"),
+                            p, desk).outcome is engine.Outcome.CORRECT)
+        assert scored == 0, (
+            f"{d.name}: declining every question still scored {scored} of "
+            f"{len(answerable)} on problems a ratified position answers")
