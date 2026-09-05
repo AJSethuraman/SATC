@@ -88,7 +88,8 @@ class MapExtractor:
                 field_id=f"{document_id}:{field_path}",
                 document_id=document_id, client_id=client_id, tax_year=tax_year,
                 field_path=field_path, label=spec.get("label", field_path),
-                raw_value=value, is_money=is_money, extractor=f"MapExtractor[{self.doc_type}]",
+                raw_value=value, is_money=is_money, shape=str(spec.get("shape", "")),
+                extractor=f"MapExtractor[{self.doc_type}]",
                 page=pages.get(source_label, page),
                 sharepoint_link=sharepoint_link, base_confidence=base_conf,
             )

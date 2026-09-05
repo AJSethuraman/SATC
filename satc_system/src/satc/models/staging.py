@@ -49,6 +49,15 @@ class StagedField:
     provenance: Provenance
     value_amount: Decimal | None = None
     status: StagingStatus = "STAGED"
+    shape: str = ""
+    """What this field is ALLOWED to hold -- declared in `configs/extraction/*`.
+
+    Carried on the row rather than looked up again at review time, so the gate
+    can hold a hand-correction to the same rule the reader was held to without
+    reaching back into the configs for a document it no longer has open. Empty
+    means no rule was declared, which fits everything -- see `ingest.shapes`.
+    """
+
     note: str = ""
     confirmed_value_text: str = ""
     confirmed_value_amount: Decimal | None = None

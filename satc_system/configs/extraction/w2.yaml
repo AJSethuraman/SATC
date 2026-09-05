@@ -8,7 +8,7 @@ fields:
   - {field_path: w2.box6_medicare_tax, label: "Box 6 - Medicare tax", aliases: ["box6"], money: true}
   - {field_path: w2.box12_code,        label: "Box 12 - Code", money: false}
   - {field_path: w2.box12_amount,      label: "Box 12 - Amount", money: true}
-  - {field_path: w2.box15_state,       label: "Box 15 - State", money: false}
+  - {field_path: w2.box15_state,       label: "Box 15 - State", money: false, shape: state}
   - {field_path: w2.box16_state_wages, label: "Box 16 - State wages", money: true}
   - {field_path: w2.box17_state_wh,    label: "Box 17 - State income tax", money: true}
   - {field_path: w2.employer_name,     label: "Employer name", money: false}

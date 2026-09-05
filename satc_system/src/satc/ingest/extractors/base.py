@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from satc.ingest import shapes
 from satc.models.provenance import Confidence, Provenance, SourceRef
 from satc.models.staging import StagedField
 
@@ -47,7 +48,8 @@ def parse_money(raw: object | None) -> tuple[Decimal | None, Confidence, str]:
 def make_staged_field(
     *, field_id: str, document_id: str, client_id: str, tax_year: int,
     field_path: str, label: str, raw_value: object | None, is_money: bool,
-    extractor: str, page: int | None = None, worksheet_title: str | None = None,
+    extractor: str, shape: str = "", page: int | None = None,
+    worksheet_title: str | None = None,
     sharepoint_link: str | None = None, base_confidence: Confidence = "HIGH",
 ) -> StagedField:
     """Build a :class:`StagedField` with provenance, parsing money conservatively."""
@@ -66,6 +68,26 @@ def make_staged_field(
         else:
             confidence = base_confidence if base_confidence != "HIGH" else money_conf
 
+    # WHAT THE FIELD IS ALLOWED TO HOLD, which is a different question from how
+    # sure the reader was. D9: reading `Box 17  State income tax  2,679.00` put
+    # the string "income tax" into Box 15 - State. It was caught, but by
+    # CONFIDENCE -- the read happened to come back LOW. Nothing on the row knew
+    # a state field cannot hold a verb phrase, so the same read at HIGH would
+    # have auto-confirmed and gone into the Drake input as `box15_state`.
+    #
+    # Here, because this is where every reader converges: the map extractor, the
+    # vision rung, the paystub path and the form reader all build their fields
+    # through this function. A check on any one of them is a check on one door.
+    #
+    # The value is KEPT, not blanked. The preparer has to see what the document
+    # actually said to decide, and a cleared field loses the evidence that the
+    # reader went wrong.
+    if not shapes.fits(shape, text):
+        confidence = "UNCERTAIN"
+        status = "NEEDS_REVIEW"
+        why = shapes.refusal(shape, text)
+        note = f"{note} · {why}".lstrip(" ·") if note else why
+
     source_ref = SourceRef(
         document_id=document_id, sharepoint_link=sharepoint_link,
         page=page, worksheet_title=worksheet_title, field_label=label,
@@ -78,4 +100,5 @@ def make_staged_field(
         field_id=field_id, document_id=document_id, client_id=client_id,
         tax_year=tax_year, field_path=field_path, label=label, value_text=text,
         provenance=provenance, value_amount=amount, status=status, note=note,
+        shape=shape,
     )

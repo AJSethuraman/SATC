@@ -191,7 +191,7 @@ explaining the difference. It is not a loss — two W-2s aggregate into shared
 1040 lines — but the screen never says so, and the reviewer's question ("which
 four did not make it?") has no answer on the page.
 
-## D9 · `Box 15 — State` holds the words "income tax"
+## D9 · `Box 15 — State` holds the words "income tax" — **FIXED**
 
 **MEDIUM.** Reading `Box 17 State income tax 2,679.00` put the string `income
 tax` into **Box 15 — State**, a field whose only legal values are state codes.
@@ -199,6 +199,17 @@ It was caught — LOW confidence, left STAGED for review — but it was caught b
 *confidence*, not by *validity*: nothing on the row knows a state field cannot
 hold a verb phrase. Had the read come back HIGH, "income tax" would have been
 auto-confirmed as the state.
+
+**Fixed by giving a field a declared shape, separate from confidence.**
+`configs/extraction/w2.yaml` says `shape: state`; `ingest/shapes.py` says what
+that admits; `make_staged_field` — the one function every reader converges on
+— forces NEEDS_REVIEW at UNCERTAIN when the value cannot be the field's,
+whatever the reader's confidence was. The value is kept rather than blanked, so
+the preparer can see what the document said.
+
+**And `edit()` is held to the same rule**, because it sets *and* confirms in one
+move, marks the result PREPARER_ENTRY at HIGH, and clears every model taint —
+without the check there, the correction screen is the way around the reader's.
 
 ## D10 · A missing folder and an empty folder are both reported as nothing at all
 
