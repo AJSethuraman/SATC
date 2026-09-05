@@ -133,3 +133,43 @@ def test_the_two_commercial_real_estate_labels_are_not_each_other():
     assert "Construction" in construction and "Nonfarm" not in construction
     assert "Nonfarm" in nonfarm and "Construction" not in nonfarm
     assert construction != nonfarm
+
+
+#: series id -> the unit its publisher states. Listed for series where a wrong
+#: unit is invisible to arithmetic and glaring to a reader.
+#:
+#: Found 5 September 2026, photographing the workbook cell for a tie-out: four
+#: G.19 series declared "billions $" beside values in millions. The Board's own
+#: table prints 5,166,907.71 for June 2026 and so does the workbook -- calling
+#: that billions is five quadrillion dollars of consumer credit. Nothing
+#: computes with this field, so no numeric test could see it.
+#:
+#: The two Z.1 commercial-property series are deliberately absent. Our config
+#: calls both "millions $", FRED labels one "Mil. of $" and the other "%", and
+#: the Board describes both identically as price indexes. Three authorities,
+#: three answers; pinning one here would be inventing a fact.
+PUBLISHED_UNITS = {
+    "TOTALSL": "millions $",
+    "TOTALNS": "millions $",
+    "REVOLSL": "millions $",
+    "NONREVSL": "millions $",
+    "TOTALSLAR": "percent (annual rate)",
+}
+
+
+def _all_rows():
+    rows = {}
+    for name in ("CONSUMER", "COMMERCIAL", "PRICE"):
+        for row in getattr(S, name, []):
+            rows[row["series_id"]] = row
+    return rows
+
+
+@pytest.mark.parametrize("sid", sorted(PUBLISHED_UNITS))
+def test_the_declared_unit_is_the_unit_the_publisher_uses(sid):
+    row = _all_rows()[sid]
+    assert row["units"] == PUBLISHED_UNITS[sid], (
+        "%s is published in %r and the workbook declares %r. These said "
+        "'billions $' beside millions until 5 Sep 2026 -- a factor of a "
+        "thousand on the line a person reads, with the number itself correct."
+        % (sid, PUBLISHED_UNITS[sid], row["units"]))

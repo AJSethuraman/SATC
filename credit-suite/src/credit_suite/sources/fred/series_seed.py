@@ -76,16 +76,20 @@ CONSUMER = [
     _co_dr("DRSFRMOBS", "Delinquency Rate on Single-Family Residential Mortgages, Other Banks", "sf_mortgage", "consumer"),
     # Leases
     _co_dr("DRLFRACBS", "Delinquency Rate on Leases, All Commercial Banks", "leases", "consumer"),
-    # G.19 consumer credit (monthly, dollar levels / flow)
+    # G.19 consumer credit (monthly, dollar levels / flow).
+    # MILLIONS, not billions: the Board prints 5,166,907.71 for June 2026
+    # and so does the workbook. These four declared the wrong unit until
+    # 5 Sep 2026 -- a factor of a thousand on the line a reader reads,
+    # with the number itself correct, which is why nothing caught it.
     row("TOTALSL", "Total Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none",
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none",
         "G.19 dropped the nonfinancial-business sector from the May 2025 release; do not read as a break."),
     row("TOTALNS", "Total Consumer Credit Owned and Securitized (NSA)", "g19", "consumer", "level",
-        "monthly", "NSA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "NSA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("REVOLSL", "Revolving Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("NONREVSL", "Nonrevolving Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("TOTALSLAR", "Total Consumer Credit, Percent Change at Annual Rate", "g19", "consumer", "flow",
         "monthly", "SA", "percent (annual rate)", "rate", "national", True, False, "level", "none",
         "Already a rate of change -- passthrough, do not re-difference."),
