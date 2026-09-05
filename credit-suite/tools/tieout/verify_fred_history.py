@@ -27,7 +27,29 @@ SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
 C = SB / "sources"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
-ours = json.loads((SB / "fred_ours.json").read_text())
+#: `--deep` reads the ours side out of the deep feed's own CSV instead of the
+#: dashboard workbook. The dashboard keeps a 100-observation window because
+#: that is what a chart needs; the feed keeps everything the publisher holds.
+#: Same lookups, same tolerances, a different artifact on the ours side -- and
+#: the artifact is named in the output, so a reader knows which was opened.
+DEEP = "--deep" in sys.argv
+
+if DEEP:
+    ours = {}
+    with (SB / "deep" / "macro-observations-raw.csv").open(encoding="utf-8") as fh:
+        for rec in csv.DictReader(fh):
+            blk = ours.setdefault(rec["series_id"],
+                                  {"tab": "macro-observations.csv",
+                                   "title": "", "observations": []})
+            blk["observations"].append({"date": rec["date"],
+                                        "value": float(rec["value"]),
+                                        "row": None})
+    ARTIFACT = "the deep feed CSV, macro-observations-raw.csv"
+    OUT_ROWS, OUT_SUM = "fred_deep_rows.json", "fred_deep_summary.json"
+else:
+    ours = json.loads((SB / "fred_ours.json").read_text())
+    ARTIFACT = "the dashboard workbook, FRED_Credit_Risk_Dashboard.xlsm"
+    OUT_ROWS, OUT_SUM = "fred_history_rows.json", "fred_history_summary.json"
 series_meta = {r["series_id"]: r for r in json.loads((SB / "fred_series.json").read_text())}
 
 
@@ -102,7 +124,17 @@ def fhfa_monthly_lookup(sid, iso):
 # ------------------------------------------------------------- Fed tables ---
 FED_PAGES = ("chgallsa", "delallsa", "chgtop100sa", "deltop100sa",
              "chgothersa", "delothersa")
-ROW = re.compile(r"(\d{4}):(\d)((?:\s*-?\d+\.\d+&nbsp;)+)")
+#: A period row is the label, then one cell per loan category, each ending in
+#: a hard space. The cell is a number or the release's own "n.a." -- and the
+#: n.a. has to be KEPT, as a hole, because the columns are read by position.
+#:
+#: The first version matched a contiguous run of numbers, so a row reading
+#: `1985:1 0.28 n.a. n.a. n.a. 0.82 ...` yielded one value instead of eleven
+#: and every column past the third fell off the end. That turned 304 real
+#: observations, 1985 to 1990, into "no source for this period" -- which
+#: looks exactly like a publisher who did not publish, and was a parser that
+#: did not read.
+ROW = re.compile(r"(\d{4}):(\d)((?:\s*(?:-?\d+\.\d+|n\.a\.)&nbsp;)+)")
 
 
 def fed_tables():
@@ -114,7 +146,8 @@ def fed_tables():
         rows = {}
         for m in ROW.finditer(flat):
             yy, qq, body = m.groups()
-            rows[(yy, qq)] = [float(v) for v in re.findall(r"-?\d+\.\d+", body)]
+            cells = re.findall(r"(-?\d+\.\d+|n\.a\.)&nbsp;", body)
+            rows[(yy, qq)] = [None if c == "n.a." else float(c) for c in cells]
         out[name] = rows
     return out
 
@@ -141,7 +174,7 @@ def fed_lookup(sid, iso):
     row = FED[table].get(q_of(iso))
     if not row or col >= len(row):
         return None
-    return row[col]
+    return row[col]                    # None where the release prints n.a.
 
 
 # ------------------------------------------------------------------ G.19 ----
@@ -167,7 +200,46 @@ G19 = g19_hist()
 G19_COL = {"TOTALSL": 0, "REVOLSL": 1, "NONREVSL": 2}
 
 
+def g19_nsa():
+    """The unadjusted total, from the Board's two unadjusted level tables.
+
+    There is no single Board table for TOTALNS. The release publishes the
+    unadjusted level split by type -- `cc_hist_r_levels.html` for revolving
+    and `cc_hist_nr_levels.html` for non-revolving -- and the total is their
+    sum. Adding two published columns is one arithmetic step, the same shape
+    as differencing two year-to-date filings to get a quarter. It is a step
+    taken on the SOURCE side so a comparison can exist; no delivered value
+    is computed from it.
+
+    Revolving credit is not a category before January 1968. For those months
+    the unadjusted total is the non-revolving column alone -- which is what
+    the Board's own table shows, not a figure it withheld.
+    """
+    def rows(name):
+        html = (C / name).read_text(encoding="utf-8", errors="replace")
+        out = {}
+        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
+            cells = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", c)).strip().replace(",", "")
+                     for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S)]
+            if len(cells) > 1 and re.fullmatch(r"[A-Z][a-z]{2} \d{4}", cells[0]):
+                try:
+                    out[cells[0]] = float(cells[1])
+                except ValueError:
+                    pass
+        return out
+    return rows("g19_cc_hist_r_levels.html"), rows("g19_cc_hist_nr_levels.html")
+
+
+G19_REV, G19_NONREV = g19_nsa()
+
+
 def g19_lookup(sid, iso):
+    if sid == "TOTALNS":
+        key = "%s %s" % (MONTHS[int(iso[5:7]) - 1], iso[:4])
+        nonrev = G19_NONREV.get(key)
+        if nonrev is None:
+            return None
+        return nonrev + G19_REV.get(key, 0.0)
     col = G19_COL.get(sid)
     if col is None:
         return None
@@ -274,7 +346,7 @@ LOOKUPS = [
     ("Federal Reserve Board charge-off / delinquency table", fed_lookup,
      lambda s: s in FED_LAYOUT),
     ("Federal Reserve Board G.19 historical table", g19_lookup,
-     lambda s: s in G19_COL),
+     lambda s: s in G19_COL or s == "TOTALNS"),
     ("Federal Reserve Board Household Debt Service Ratio release", dsr_lookup,
      lambda s: s in DSR_COL),
     ("Federal Reserve Board Senior Loan Officer Opinion Survey chart data",
@@ -302,7 +374,12 @@ for sid, block in sorted(ours.items()):
             nosrc += 1
             verdict = "NO SOURCE FOR THIS PERIOD"
         else:
-            ok = abs(float(val) - float(theirs)) < 0.005
+            # 0.005 is half of the last digit the publishers print. The one
+            # exception is the unadjusted total, which is the sum of two
+            # separately-rounded two-decimal columns, so its residual can
+            # reach a whole cent in either direction and does -- never more.
+            tol = 0.02 if sid == "TOTALNS" else 0.005
+            ok = abs(float(val) - float(theirs)) < tol
             verdict = "TIED" if ok else "DIFFERS"
             tied += ok
             differ += (not ok)
@@ -312,14 +389,15 @@ for sid, block in sorted(ours.items()):
     per_series[sid] = {"n": n, "tied": tied, "differs": differ, "no_source": nosrc,
                        "source": src_name or "no full-history source"}
 
-(SB / "fred_history_rows.json").write_text(json.dumps(rows), encoding="utf-8")
-(SB / "fred_history_summary.json").write_text(json.dumps(per_series, indent=1), encoding="utf-8")
+(SB / OUT_ROWS).write_text(json.dumps(rows), encoding="utf-8")
+(SB / OUT_SUM).write_text(json.dumps(per_series, indent=1), encoding="utf-8")
 
 tot = sum(v["n"] for v in per_series.values())
 tied = sum(v["tied"] for v in per_series.values())
 differ = sum(v["differs"] for v in per_series.values())
 nosrc = sum(v["no_source"] for v in per_series.values())
-print("observations in the workbook : %d" % tot)
+print("ours read from  : %s" % ARTIFACT)
+print("observations    : %d" % tot)
 print("  tied to the agency's file  : %d" % tied)
 print("  DIFFER                     : %d" % differ)
 print("  no source for that period  : %d" % nosrc)

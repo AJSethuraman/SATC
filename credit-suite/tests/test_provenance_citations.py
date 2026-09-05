@@ -39,6 +39,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from credit_suite.sources.fdic import fields as FF              # noqa: E402
 from credit_suite.sources.fdic import filing as F               # noqa: E402
 from credit_suite.sources.fdic import provenance_seed as PS     # noqa: E402
 
@@ -170,3 +171,93 @@ def test_the_filing_states_the_ratio_as_a_fraction_not_a_percent():
     facts = F.parse_facts(XBRL_WITH_A_RATIO, "2026-06-30")
     assert facts["RCFA7204"] < 1.0
     assert round(facts["RCFA7204"] * 100, 4) == 9.9169
+
+# --------------------------------------------------------------------------
+
+#: PNC Bank NA, CERT 6384, 30 June 2018, as filed. The three lines that matter:
+#: the two halves the FDIC adds, and the bank's own total of them.
+PNC_2018Q2 = {
+    "RCFD5369": 1324576000,        # RC 4.a  loans and leases held for sale
+    "RCFDB528": 222800170000,      # RC 4.b  held for investment, net of unearned
+    "RCFD2122": 224124745000,      # RC-C Pt I 12  the bank's own total
+}
+
+
+def test_total_loans_cites_the_two_halves_not_the_banks_own_total():
+    """The FDIC's LNLSGR is 4.a + 4.b, and only agrees with line 12 by luck.
+
+    The bank files the same quantity twice: once as two halves, each rounded on
+    its own, and once as a single total rounded once. They land a thousand
+    dollars apart in nine of 480 bank-quarters, and the FDIC follows the halves
+    in all 480 -- so a tie-out that cites line 12 reports the FDIC as differing
+    from the filing on a quarter where nothing is wrong with either number.
+
+    Found 5 September 2026 by the ten-year run. Right value, wrong citation, is
+    invisible until somebody follows the citation.
+    """
+    row = next(r for r in PS.ALL_ROWS if r[0] == "LNLSGR")
+    expression = row[3]
+    assert "2122" not in expression, (
+        "LNLSGR cites RC-C Part I line 12, which is the bank's own total and "
+        "not what the FDIC publishes; it disagrees by $1k in 9 of 480 "
+        "bank-quarters")
+    assert "5369" in expression and "B528" in expression, (
+        "LNLSGR must cite the two halves the FDIC actually adds, RC 4.a "
+        "(5369) and RC 4.b (B528)")
+
+
+def test_the_two_halves_and_the_banks_own_total_really_do_disagree():
+    """The fixture is the incident, so the guard cannot outlive its reason.
+
+    If this ever stops holding, the citation above was corrected for a cause
+    that no longer exists and somebody should find out why.
+    """
+    halves = (PNC_2018Q2["RCFD5369"] + PNC_2018Q2["RCFDB528"]) // 1000
+    own_total = PNC_2018Q2["RCFD2122"] // 1000
+    assert halves == 224124746
+    assert own_total == 224124745
+    assert halves - own_total == 1, (
+        "the two published figures agree here, so the citation fix has no "
+        "incident behind it any more")
+
+# --------------------------------------------------------------------------
+
+#: Measured 5 September 2026 against the FDIC's financials API: twelve banks,
+#: forty quarters, every field in RAW_FIELDS requested in every call.
+FIELDS_THE_FDIC_RETURNED = 68
+FIELDS_THE_FDIC_NEVER_RETURNED = {"NTRENREQ"}
+
+
+def test_one_requested_field_does_not_exist_at_the_fdic():
+    """69 fields are asked for; 68 exist. The API's answer to the 69th is silence.
+
+    The FDIC omits a field name it does not have rather than rejecting the
+    request, so `NTRENREQ` -- quarterly net charge-offs on nonfarm
+    nonresidential CRE -- comes back absent from all 480 bank-quarters and looks
+    exactly like a bank that had nothing to report. The FDIC publishes the same
+    charge-off year-to-date as `NTRENROT`; it publishes no quarterly version,
+    though it publishes quarterly versions for the other seven categories.
+
+    This test does not fix that. It stops the count from drifting: if a second
+    field goes quiet, the arithmetic below stops holding.
+    """
+    assert (len(FF.RAW_FIELDS) - len(FIELDS_THE_FDIC_NEVER_RETURNED)
+            == FIELDS_THE_FDIC_RETURNED), (
+        "RAW_FIELDS has changed size without this record being re-measured; "
+        "re-run tools/tieout/deep_pull_banks.py and count what came back")
+    assert FIELDS_THE_FDIC_NEVER_RETURNED <= set(FF.RAW_FIELDS)
+
+
+def test_the_unavailable_field_still_carries_a_citation():
+    """Its provenance row is not deleted, because the line does exist on the form.
+
+    The bank files these charge-offs; the FDIC just does not republish them
+    quarterly. Deleting the citation would say the opposite -- that there is
+    nothing to cite -- and the next person to want this number would start from
+    zero instead of from the four RIAD codes that carry it.
+    """
+    row = next((r for r in PS.ALL_ROWS if r[0] == "NTRENREQ"), None)
+    assert row is not None, "NTRENREQ lost its provenance row"
+    assert "RIAD" in row[3], (
+        "NTRENREQ's citation should still name the filed RIAD lines, even "
+        "though the FDIC does not republish the quarterly figure")

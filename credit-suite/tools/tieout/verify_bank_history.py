@@ -19,6 +19,7 @@ Three kinds of field, handled differently and labelled differently:
 Nothing is adjusted. Every comparison is a value in the workbook against a value
 in a document the bank filed.
 """
+import csv
 import json
 import pathlib
 import re
@@ -41,9 +42,22 @@ from credit_suite.sources.fdic.runner import (FDIC, OpenpyxlBackend,
                                               read_provenance_rows)  # noqa: E402
 from credit_suite.sources.fdic import provenance_seed as PS      # noqa: E402
 
+DEEP = "--deep" in sys.argv
 WB = CS / "example-output" / "Bank_Peer_Monitor.xlsm"
-quarters = json.loads((SB / "bank_quarters.json").read_text())     # newest first
-mergers = json.loads((SB / "merger_records.json").read_text())
+if DEEP:
+    quarters = json.loads((SB / "deep" / "deep_quarters.json").read_text())
+    ARTIFACT = "the deep feed CSV, bank-values-raw.csv"
+    OUT_ROWS = "bank_deep_rows.json"
+else:
+    quarters = json.loads((SB / "bank_quarters.json").read_text())  # newest first
+    ARTIFACT = "the dashboard workbook, Bank_Peer_Monitor.xlsm"
+    OUT_ROWS = "bank_history_rows.json"
+# Ten years hold eleven acquisitions, not the six the sixteen-quarter run
+# saw. Five more quarters would otherwise have been reported as the FDIC
+# disagreeing with the filings, which is the exact false finding this
+# record exists to prevent.
+mergers = json.loads((SB / ("merger_records_deep.json" if DEEP
+                           else "merger_records.json")).read_text())
 index = json.loads((SB / "banks" / "index.json").read_text())
 
 #: quarterly flow field -> the year-to-date field the filing actually reports
@@ -127,13 +141,24 @@ prov = {r[0]: {"schedule": r[1], "caption": r[2], "mdrm": r[3],
         for r in PS.ALL_ROWS}
 backend = OpenpyxlBackend(str(WB), FDIC, FF.RAW_FIELDS)
 
+#: The deep feed's ours side, read back off the CSV that was written before
+#: anything was verified -- {cert: {report_date: {field: value}}}.
+DEEP_VALUES = {}
+if DEEP:
+    with (SB / "deep" / "bank-values-raw.csv").open(encoding="utf-8") as _fh:
+        for _r in csv.DictReader(_fh):
+            (DEEP_VALUES.setdefault(_r["cert"], {})
+                        .setdefault(_r["report_date"], {}))[_r["field"]] = \
+                float(_r["value"])
+
 rows = []
 for entry in index:
     cert, name = entry["cert"], entry["name"]
     ent = next(e for e in cfg.entities if getattr(e, "has_entity", False)
                and str(e.entity_key).split(":")[-1] == cert)
-    landed = dict(backend.read_slot_block(R.slot_block(ent.slot, cfg.raw_slots),
-                                          FF.RAW_FIELDS))
+    landed = (DEEP_VALUES.get(cert, {}) if DEEP else
+              dict(backend.read_slot_block(R.slot_block(ent.slot, cfg.raw_slots),
+                                           FF.RAW_FIELDS)))
     for iso in quarters:
         vals = landed.get(iso)
         if not vals:
@@ -238,10 +263,11 @@ for entry in index:
             rows.append(rec)
     print("  %-24s done" % name[:24], flush=True)
 
-(SB / "bank_history_rows.json").write_text(json.dumps(rows), encoding="utf-8")
+(SB / OUT_ROWS).write_text(json.dumps(rows), encoding="utf-8")
 from collections import Counter
 c = Counter(r["verdict"] for r in rows)
-print("\nbank values examined : %d" % len(rows))
+print("\nours read from       : %s" % ARTIFACT)
+print("bank values examined : %d" % len(rows))
 for k, v in c.most_common():
     print("   %-24s %6d" % (k, v))
 diffs = [r for r in rows if r["verdict"] == "DIFFERS"]

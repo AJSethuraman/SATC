@@ -31,15 +31,27 @@ from credit_suite.sources.fred import series_seed as FSEED       # noqa: E402
 #: "billions $" against a figure in millions -- the same defect the tie-out
 #: found, reintroduced by reading a stale copy.
 SEED_ROWS = {}
-for _group in ("CONSUMER", "COMMERCIAL", "PRICE"):
-    for _row in getattr(FSEED, _group, []):
-        SEED_ROWS[_row["series_id"]] = _row
+for _row in (list(FSEED.CONSUMER) + list(FSEED.COMMERCIAL)
+             + list(FSEED.PRICE_NATIONAL) + list(FSEED._geo_rows())):
+    SEED_ROWS[_row["series_id"]] = _row
+assert len(SEED_ROWS) == 142, (
+    "the seed defines 142 series and this holds %d; the missing ones fall "
+    "through to a stale snapshot and ship its old titles and units"
+    % len(SEED_ROWS))
 
-bank_rows = json.loads((SB / "bank_history_rows.json").read_text())
-fred_rows = json.loads((SB / "fred_history_rows.json").read_text())
+DEEP = "--deep" in sys.argv
+if DEEP:
+    bank_rows = json.loads((SB / "bank_deep_rows.json").read_text())
+    fred_rows = json.loads((SB / "fred_deep_rows.json").read_text())
+    mergers = json.loads((SB / "merger_records_deep.json").read_text())
+else:
+    bank_rows = json.loads((SB / "bank_history_rows.json").read_text())
+    fred_rows = json.loads((SB / "fred_history_rows.json").read_text())
+    mergers = json.loads((SB / "merger_records.json").read_text())
+#: Titles and units come from SEED_ROWS above. This snapshot is the last
+#: resort and should never be reached; it predates the label corrections.
 fred_meta = {r["series_id"]: r for r in json.loads((SB / "fred_series.json").read_text())}
 ours_fred = json.loads((SB / "fred_ours.json").read_text())
-mergers = json.loads((SB / "merger_records.json").read_text())
 
 FACSIMILE = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
              "?ds=call&idType=fdiccert&id=%s&date=%s")
@@ -74,7 +86,8 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
             r.get("how", ""),
             FACSIMILE % (r["cert"], r["repdte"][5:7] + r["repdte"][8:10] + r["repdte"][:4]),
         ])
-print("bank-values.csv        : %d rows" % len(bank_rows))
+print("bank-values.csv        : %d rows%s"
+      % (len(bank_rows), "  (ten years)" if DEEP else "  (sixteen quarters)"))
 
 # -------------------------------------------------------------- macro data --
 SOURCE_URL = {
@@ -92,16 +105,34 @@ SOURCE_URL = {
         "https://www.federalreserve.gov/releases/z1/",
     "no full-history source": "",
 }
+#: Why a period could not be checked, said per series rather than per
+#: category -- because within a category some series tie in full and others
+#: cannot be reached at all, and one sentence covering both is a sentence
+#: that is wrong about one of them.
+NO_SOURCE_SERIES = {
+    "TOTALSLAR": ("a percent change, not a published table. The Board prints "
+                  "it only for the most recent months. The LEVEL it is the "
+                  "change in, TOTALSL, is checked in full -- 1,002 of 1,002 "
+                  "months against the Board's own historical table"),
+    "SUBLPDCILSLGNQ": ("the large-bank subset. The survey's chart data covers "
+                       "all domestic respondents; the large-bank split is "
+                       "printed inside each quarter's own survey document, so "
+                       "a full history means opening 146 separate releases. "
+                       "Searched the chart data column by column first; it is "
+                       "not in there"),
+}
 NO_SOURCE_WHY = {
-    "hpi_caseshiller": ("S&P Dow Jones Indices publishes only the current month "
-                        "free; the latest month is verified against its release"),
-    "hpi_national": ("S&P publishes only the current month free"),
-    "g19": ("the Federal Reserve publishes no historical table for the "
-            "unadjusted level or the percent change; the latest month is "
-            "verified against the current release"),
-    "sloos_diffusion": ("the large-banks split appears only inside each "
-                        "quarter's own survey document; the latest quarter is "
-                        "verified against it"),
+    "hpi_caseshiller": ("S&P Dow Jones Indices sells the history. Its free "
+                        "monthly press release carries the current month, and "
+                        "that month is checked against it; the months before "
+                        "it are not obtainable without paying S&P"),
+    "hpi_national": ("the two national Case-Shiller indexes. S&P sells the "
+                     "history; the current month is checked against its free "
+                     "release. The two FHFA national indexes in this group "
+                     "are checked in full"),
+    "g19": ("no historical table is published for this particular series"),
+    "sloos_diffusion": ("printed only inside each quarter's own survey "
+                        "document, not in the chart data"),
 }
 with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as fh:
     w = csv.writer(fh)
@@ -122,10 +153,18 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
         w.writerow([
             r["series"], meta.get("title", block.get("title", "")), r["date"],
             r["ours"], meta.get("units", ""), meta.get("frequency", ""),
-            "S&P Dow Jones Indices" if cat == "hpi_caseshiller" else pub,
+            # The two NATIONAL Case-Shiller indexes sit in hpi_national,
+            # beside two FHFA ones. Routing on the category alone left
+            # them with no publisher while their own note explained that
+            # S&P sells the history.
+            "S&P Dow Jones Indices"
+            if (cat == "hpi_caseshiller"
+                or r["series"] in ("CSUSHPINSA", "CSUSHPISA")) else pub,
             "yes" if ok else "no",
             r["source"] if ok else "",
-            "" if ok else NO_SOURCE_WHY.get(cat, "no full-history source published"),
+            "" if ok else (NO_SOURCE_SERIES.get(r["series"])
+                           or NO_SOURCE_WHY.get(cat)
+                           or "no full-history source published"),
             SOURCE_URL.get(r["source"], ""),
         ])
 print("macro-observations.csv : %d rows" % len(fred_rows))
