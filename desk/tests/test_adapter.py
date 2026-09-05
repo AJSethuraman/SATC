@@ -361,3 +361,58 @@ def test_the_shipped_first_run_is_what_the_default_would_have_replaced():
 
     with pytest.raises(sr.RunWouldOverwrite, match="2026-09-04"):
         sr.run_dir("", "fixed-assets", date(2026, 9, 4))
+
+
+# ── the queue is written by the run, with the desk in hand ───────────────────
+
+def test_the_run_files_a_near_miss_as_one(tmp_path):
+    """Through `queue_refusals`, which is what the script actually calls.
+
+    Asserting the label on `from_refusal` alone left the call site free to stop
+    passing the desk with the suite green — the helper proved and its caller
+    not, which is the mistake this repository keeps recording. On the second
+    scoreboard 12 of 16 frontier entries were near misses filed as ordinary
+    refusals, and this is the path that filed them.
+    """
+    import engine
+    import scoreboard
+    import unsupported
+
+    desk = record.load(DESK)
+    p = desk.problems[0]
+    held = desk.passages[0].citation
+    finer = held + "(99)"
+
+    answer = engine.Answer(position=p.answer, citation=finer)
+    run = scoreboard.Run(model="x")
+    run.results.append(engine.grade(answer, p, desk))
+    assert run.results[0].outcome is engine.Outcome.WRONG_CAUGHT, (
+        "the fixture must be a refusal, or this proves nothing")
+
+    path = tmp_path / "UNSUPPORTED.md"
+    counts = sr.queue_refusals(desk, run, {p.id: answer}, path)
+    assert counts == {"filed": 1, "near_miss": 1}, (
+        "the run must report the split, not a total: a total says the desk is "
+        "missing authority it already holds"
+    )
+
+    entry = unsupported.parse(path.read_text(encoding="utf-8"))[0]
+    assert entry.falls_under == held
+    assert entry.near_miss
+
+
+def test_a_refusal_reaching_outside_the_desk_is_not_counted_as_a_near_miss(tmp_path):
+    """The control for the split. Without it `near_miss` could equal `filed`
+    unconditionally and the line above would still pass."""
+    import engine
+    import scoreboard
+
+    desk = record.load(DESK)
+    p = desk.problems[0]
+    answer = engine.Answer(position=p.answer, citation="26 CFR 9.999(z)")
+    run = scoreboard.Run(model="x")
+    run.results.append(engine.grade(answer, p, desk))
+
+    counts = sr.queue_refusals(desk, run, {p.id: answer},
+                               tmp_path / "UNSUPPORTED.md")
+    assert counts == {"filed": 1, "near_miss": 0}

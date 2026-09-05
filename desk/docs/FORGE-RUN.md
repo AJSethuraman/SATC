@@ -232,3 +232,11 @@ with no gloss will take it for the second thing.
 The firm considered loosening the engine to accept containment and declined:
 `_check()` is shared by `serve()` and `grade()` deliberately, so anything that
 forgives a near-miss on the scoreboard also hands one to a client.
+
+**The queue reports the same split, and it changes what its number means.** On
+4 September the frontier row filed 12 entries that cited a finer point inside a
+rule the desk already held — so a queue whose whole job is to name MISSING
+authority read as 16 gaps when 4 was the number. `queue_refusals` now returns
+`{"filed": n, "near_miss": m}` and the run prints both. Nothing is subtracted:
+every entry is still filed, still refused, and still never served. The firm, 5
+September 2026: **yes — record the near miss.**

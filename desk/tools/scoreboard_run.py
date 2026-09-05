@@ -453,18 +453,25 @@ def watched(ask, seen: dict):
     return ask_and_keep
 
 
-def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> int:
+def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> dict:
     """Keep every answer the engine would not serve, with its reasoning.
 
     Refused means `wrong_caught` or `escalated`: those are the outcomes where
     `serve()` hands back a Refusal. A `wrongly_absorbed` answer was served -- it
     is a scoreboard finding, not a queue entry, and putting it here would say the
     desk had caught something it did not.
+
+    Returns `{"filed": n, "near_miss": m}`. The split is the point: the queue
+    exists to say what authority is MISSING, and on the second run 12 of the
+    frontier row's 16 entries cited a finer point inside a rule the desk already
+    held. A single total reads as sixteen gaps in the record when four is the
+    number. `m` is never subtracted from `n` -- every entry is still filed, still
+    refused, and still never served.
     """
     from engine import Outcome
     import unsupported
 
-    refused = 0
+    refused = near = 0
     problems = {p.id: p for p in desk.problems}
     for result in run.results:
         if result.outcome not in (Outcome.WRONG_CAUGHT, Outcome.ESCALATED):
@@ -472,13 +479,20 @@ def queue_refusals(desk: Desk, run, answers: dict, path: Path) -> int:
         answer = answers.get(result.problem_id)
         if answer is None:                 # the harness caught a give-up
             answer = Answer(position="", escalated=True, reason=result.reason)
-        unsupported.append(path, unsupported.from_refusal(
+        entry = unsupported.from_refusal(
             problems[result.problem_id].facts, answer, result, model=run.model,
             existing=unsupported.parse(path.read_text(encoding="utf-8"))
             if path.exists() else [],
-        ))
+            # THE DESK, SO A NEAR MISS IS FILED AS ONE. Without it every refusal
+            # reads the same, and on the second run 12 of 16 frontier entries
+            # were not missing authority at all -- they cited a finer point
+            # inside a rule the desk holds.
+            desk=desk,
+        )
+        unsupported.append(path, entry)
         refused += 1
-    return refused
+        near += entry.near_miss
+    return {"filed": refused, "near_miss": near}
 
 
 def diagnostic(desk: Desk, run, answers: dict) -> dict:
@@ -744,8 +758,15 @@ def _main(argv: list[str]) -> int:
                      f"gave up {d['gave_up']}")
     lines.append("")
     lines.append("UNSUPPORTED QUEUE (entries this run produced):")
-    for label, n in queues.items():
-        lines.append(f"  {label}: {n}")
+    for label, q in queues.items():
+        # THE SPLIT IS PRINTED, NOT THE TOTAL ALONE. A near miss cited a finer
+        # point inside a rule the desk already holds, so it is not a gap in the
+        # record -- and a total that blends the two says the desk is missing
+        # authority it has. Still filed, still refused, never subtracted.
+        lines.append(f"  {label}: {q['filed']} filed, "
+                     f"{q['near_miss']} of them citing a finer path inside a "
+                     f"rule the desk holds (not missing authority), "
+                     f"{q['filed'] - q['near_miss']} reaching outside it")
     body = "\n".join(lines)
     print(body)
     (out_dir / "SCOREBOARD.txt").write_text(body + "\n", encoding="utf-8")
