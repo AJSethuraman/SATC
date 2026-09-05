@@ -67,6 +67,7 @@ from openpyxl.chart import LineChart, Reference        # noqa: E402
 from openpyxl.styles import Alignment, Font, PatternFill  # noqa: E402
 from openpyxl.utils import get_column_letter           # noqa: E402
 
+import trend                                           # noqa: E402
 from trend import MEANS, WORSE_WHEN, read_panel        # noqa: E402
 
 try:
@@ -261,6 +262,16 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         "  So it opens without the security banner that blocks the monitor's own .xlsm when",
         "  that arrives by email. Nothing here needs to be enabled or unblocked.",
         "",
+        "What was left blank, and why",
+        "  A loan-class ratio (card, auto, other consumer, C&I, each real-estate class)",
+        "  is left blank for any quarter where that bank's book in the class was under",
+        "  $%dM. A ratio on a near-empty book is arithmetic, not information: Capital One"
+        % (trend.MATERIALITY_FLOOR_K // 1000),
+        "  charged off $5.3M against a $3.2M other-consumer book at the end of 2022, a",
+        "  670% annualised rate, and a chart drew it faithfully until nobody believed it.",
+        "  Blank means 'too small to read', not 'no data'. Totals and capital ratios",
+        "  are never blanked.",
+        "",
         "It is generated, not edited",
         "  Re-running the tool replaces it. Keep your own notes somewhere else.",
         "",
@@ -326,6 +337,15 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         ws["A3"] = ("Charge-offs are annualised (a quarter's flow x4); the others "
                     "are point-in-time balances. Compare shapes, not heights.")
         ws["A3"].font = NOTE_FONT
+        gaps = [b for b in trend.LAST_MATERIALITY_BLANKS if b[0] == bank
+                and b[1] in {m for m, _ in STAGES}]
+        if gaps:
+            ws["A4"] = ("%d quarter-values left blank because the book was under $%dM "
+                        "-- a ratio on a near-empty book is a number that means nothing "
+                        "(a 670%% charge-off rate on a $3M book started this). See the "
+                        "About sheet."
+                        % (len(gaps), trend.MATERIALITY_FLOOR_K // 1000))
+            ws["A4"].font = NOTE_FONT
         rows = []
         for metric, label in STAGES:
             panel = panels.get(metric)

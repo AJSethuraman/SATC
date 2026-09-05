@@ -96,3 +96,12 @@ def test_a_stage_chart_uses_the_four_validated_hues(built):
 def test_sheet_names_survive_excels_limits():
     assert len(C._sheet_name("Stages", "Bank of New York Mellon Trust Co")) <= 31
     assert "/" not in C._sheet_name("Peers", "A/B:C*D?")
+
+
+def test_the_about_sheet_explains_what_a_blank_means(built):
+    """A stage sheet says 'See the About sheet' when the floor blanked a value.
+    The first cut of that note pointed at a sheet that said nothing about it --
+    a claim in one place and nothing behind it."""
+    text = " ".join(str(c.value) for row in built["About"].iter_rows() for c in row if c.value)
+    assert "left blank" in text and "$100M" in text
+    assert "too small to read" in text

@@ -195,7 +195,80 @@ def read_panel(path: Path, raw_tab: str = "Raw_FDIC",
     flush()
     if derive:
         _add_derived(panels, _metric_ids(wb))
+        apply_materiality(panels)
     return panels
+
+
+#: A loan-class ratio is only a ratio when there is a book to ratio. Below
+#: this balance, in thousands, the class ratios are BLANKED rather than shown.
+#:
+#: Found on 4 September 2026 when the firm did not believe a 670% annualised
+#: charge-off rate on Capital One's other-consumer book -- and was right not
+#: to. The arithmetic was correct: $5.3M charged off in a quarter against a
+#: $3.2M period-end book. The book had been $3-7M for years before growing to
+#: $8.6B; the number was true and meant nothing. 202 of 1,536 bank-class-quarter
+#: cells in the twelve-bank set sit on a book under $100M or under 0.5% of
+#: loans, several of them zero for all sixteen quarters (BNY Mellon and Morgan
+#: Stanley have no card or auto book). A ratio on those is noise wearing a
+#: decimal point, and a chart drew it faithfully.
+#:
+#: $100M is a first calibration, not a finding -- it is the firm's number to
+#: set, and it is here as a constant so that it can be. "Unknown is a third
+#: answer": a blank with a reason, never a zero and never the 670.
+MATERIALITY_FLOOR_K = 100_000
+
+#: Which balance a class ratio stands on. Mirrors the id pattern in
+#: sources/fdic/plain.py: <measure><class>R over LN<class>.
+CLASS_BALANCE = {
+    "CRCD": "LNCRCD", "AUTO": "LNAUTO", "CONOTH": "LNCONOTH", "RERES": "LNRERES",
+    "RECONS": "LNRECONS", "RENRES": "LNRENRES", "REMULT": "LNREMULT", "CI": "LNCI",
+}
+_CLASS_ALIAS = {"CONOT": "CONOTH", "RECON": "RECONS", "RENRE": "RENRES", "REMUL": "REMULT"}
+
+
+def class_balance_field(metric: str) -> Optional[str]:
+    """'NTCONOTQR' -> 'LNCONOTH'; 'P3CRCDR' -> 'LNCRCD'; 'NCLNLSR' -> None."""
+    body = metric[:-1] if metric.endswith("R") else metric
+    for prefix in ("P3", "P9", "NA", "NT"):
+        if not body.startswith(prefix):
+            continue
+        rest = body[len(prefix):]
+        if prefix == "NT" and rest.endswith("Q"):
+            rest = rest[:-1]
+        rest = _CLASS_ALIAS.get(rest, rest)
+        return CLASS_BALANCE.get(rest)
+    return None
+
+
+#: What the last `apply_materiality` blanked -- (bank, metric, period,
+#: balance) -- so a report or a sheet can say so in words rather than leave a
+#: silent gap. Module-level on purpose: `read_panel` returns a plain dict of
+#: panels, and hiding a pseudo-panel inside it would miscount every "N metrics"
+#: line downstream.
+LAST_MATERIALITY_BLANKS: List[tuple] = []
+
+
+def apply_materiality(panels: Dict[str, Panel],
+                      floor_k: float = MATERIALITY_FLOOR_K) -> List[tuple]:
+    """Blank every class ratio whose book is under the floor that quarter."""
+    blanked: List[tuple] = []
+    for metric, panel in panels.items():
+        balance_field = class_balance_field(metric)
+        if not balance_field or balance_field not in panels:
+            continue
+        for bank, series in panel.series.items():
+            balances = panels[balance_field].series.get(bank)
+            if balances is None:
+                continue
+            for i, value in enumerate(series.values):
+                bal = balances.values[i] if i < len(balances.values) else None
+                if value is None:
+                    continue
+                if bal is None or bal < floor_k:
+                    series.values[i] = None
+                    blanked.append((bank, metric, series.periods[i], bal))
+    LAST_MATERIALITY_BLANKS[:] = blanked
+    return blanked
 
 
 def _metric_ids(wb) -> List[str]:

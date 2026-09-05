@@ -763,6 +763,13 @@ MUTATIONS: list[Mutation] = [
     ),
     # ---- the chart workbook --------------------------------------------------
     Mutation(
+        "chartbook-about-forgets-the-blanks", TOOLS / "chartbook.py",
+        "        \"  Blank means 'too small to read', not 'no data'. Totals and capital ratios\",",
+        '        "",',
+        (B + "test_the_about_sheet_explains_what_a_blank_means",),
+        "the About sheet a stage note points at actually explains the blank",
+    ),
+    Mutation(
         "chartbook-hides-the-axes", TOOLS / "chartbook.py",
         "    chart.x_axis.delete = False\n    chart.y_axis.delete = False",
         "    chart.x_axis.delete = True\n    chart.y_axis.delete = True",
@@ -789,6 +796,23 @@ MUTATIONS: list[Mutation] = [
         "        out.append(sum(got) / len(got) if got else None)",
         (B + "test_the_median_row_is_the_median_of_the_banks",),
         "the peer line is the median, which one outlier cannot drag",
+    ),
+    # ---- materiality: the 670 restored ------------------------------------
+    Mutation(
+        "trend-no-materiality-floor", TOOLS / "trend.py",
+        "MATERIALITY_FLOOR_K = 100_000",
+        "MATERIALITY_FLOOR_K = 0",
+        (R + "test_the_670_percent_charge_off_rate_is_blanked_not_charted",
+         R + "test_the_floor_is_the_named_constant_and_reads_as_dollars"),
+        "a class ratio on a near-empty book is blanked, not charted",
+    ),
+    Mutation(
+        "trend-materiality-blanks-nothing", TOOLS / "trend.py",
+        "                if bal is None or bal < floor_k:",
+        "                if False:",
+        (R + "test_the_670_percent_charge_off_rate_is_blanked_not_charted",
+         R + "test_a_missing_or_zero_book_blanks_the_ratio_too"),
+        "the floor actually blanks; a guard that never fires is decoration",
     ),
 ]
 

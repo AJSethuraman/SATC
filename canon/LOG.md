@@ -668,3 +668,40 @@ limit-free count says 9; 65 of mine closed since noon. Recorded on the docket.
 FDIC only. The provenance tab still cites bare `RCON` codes — the tool now
 compensates, but the tab a reviewer reads has not been corrected; that is a
 golden change and wants its own decision.
+
+## 2026-09-04 (evening) — the 670 that nobody believed
+
+**The firm looked at the Capital One stage chart and said:** *"hard for me to
+believe the 670 here is right."* It was right and it was wrong. `NTCONOTQ`
+5,300 k$ charged off against an `LNCONOTH` book of 3,173 k$ at 2022-12-31,
+× 400 = 670.41% annualised — the engine's arithmetic, the FDIC's raw cells,
+tied to the thousand. The book was $3–7M for three years before it grew to
+$8.6B in 2025. A ratio on a near-empty book is arithmetic, not information,
+and the chart drew it faithfully.
+
+**What changed.** `tools/trend.py` now carries a materiality floor:
+`MATERIALITY_FLOOR_K = 100_000` (thousands, so $100M). Every loan-class
+ratio (card, auto, other consumer, C&I, each real-estate class) is blanked
+for a quarter where the bank's book in that class is under the floor. Totals
+and capital ratios are never blanked. On the example monitor that is **625
+bank-metric-quarter values** blanked out of the panel (BNY Mellon 192,
+Morgan Stanley 156 — no card or auto book at all; Capital One 88; Goldman
+80; Citi 69; KeyBank 40). Capital One's other-consumer stage chart now
+starts at 25Q2, the first quarter the book cleared $100M; the stage sheet
+says how many values are blank and why, and the About sheet explains what a
+blank means ("too small to read", not "no data").
+
+**Checked:** 331 passed, 20 skipped (full suite, 176 s) — the 20 are being
+read, see the docket; parity 2/2; conformance 3 notes, all the known M2
+single-sourcing items; the three new mutations (`trend-no-materiality-floor`,
+`trend-materiality-blanks-nothing`, `chartbook-about-forgets-the-blanks`)
+killed; full 95-mutation sweep running as this is written. Opened the
+artifact: Capital One, KeyBank and the peer NCO chart exported through Excel
+and looked at.
+
+**Not decided by me, filed:** #258 — the FDIC's own published `NTCONOTQR`
+(0.0044) does not match the value derived from its raw cells (670.41), and I
+could not reproduce the FDIC's definition (YTD ÷ average balance gave 1.22).
+#259 — a bank with no book in a class reads "OK" on the dashboard rather than
+N/A. Both are output/golden changes; the firm's call. The $100M floor itself
+is a judgement and is on the docket as a decision, not reported as settled.

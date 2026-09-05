@@ -125,3 +125,47 @@ def test_derived_metrics_equal_the_engines_own_definition(demo_panels):
                       for name, p in raw.items() if bank in p.series}
             assert tool.values[index] == pytest.approx(metric_value(metric, fields)), (
                 metric, tool.periods[index])
+
+
+# --------------------------------------------------------------------------
+# Materiality: a ratio on a near-empty book is not a ratio
+# --------------------------------------------------------------------------
+
+def test_the_670_percent_charge_off_rate_is_blanked_not_charted():
+    """Capital One, 2022-12-31: $5.3M charged off against a $3.2M book. The
+    engine's 670.41 is arithmetically correct and means nothing, and a chart
+    drew it faithfully until the firm did not believe it."""
+    panels = {
+        "LNCONOTH": panel("LNCONOTH", A=[8_619_000, 3_173]),
+        "NTCONOTQR": panel("NTCONOTQR", A=[3.85, 670.41]),
+    }
+    blanked = T.apply_materiality(panels)
+    assert panels["NTCONOTQR"].series["A"].values == [3.85, None]
+    assert blanked == [("A", "NTCONOTQR", panels["NTCONOTQR"].series["A"].periods[1], 3_173)]
+
+
+def test_a_material_book_is_left_alone():
+    panels = {"LNCRCD": panel("LNCRCD", A=[250_519_000]), "P3CRCDR": panel("P3CRCDR", A=[0.05])}
+    assert T.apply_materiality(panels) == []
+    assert panels["P3CRCDR"].series["A"].values == [0.05]
+
+
+def test_a_missing_or_zero_book_blanks_the_ratio_too():
+    """BNY Mellon has no card book. The engine already yields None on zero;
+    this guards the case where a stray value arrived anyway."""
+    panels = {"LNCRCD": panel("LNCRCD", A=[0, None]), "P9CRCDR": panel("P9CRCDR", A=[1.0, 2.0])}
+    T.apply_materiality(panels)
+    assert panels["P9CRCDR"].series["A"].values == [None, None]
+
+
+def test_the_floor_is_the_named_constant_and_reads_as_dollars():
+    assert T.MATERIALITY_FLOOR_K == 100_000            # thousands -> $100M
+
+
+@pytest.mark.parametrize("metric,balance", [
+    ("NTCONOTQR", "LNCONOTH"), ("P3CRCDR", "LNCRCD"), ("NACIR", "LNCI"),
+    ("NTRENREQR", "LNRENRES"), ("P9REMULTR", "LNREMULT"),
+    ("NCLNLSR", None), ("TEXAS", None), ("EQV", None),
+])
+def test_each_class_ratio_knows_the_book_it_stands_on(metric, balance):
+    assert T.class_balance_field(metric) == balance
