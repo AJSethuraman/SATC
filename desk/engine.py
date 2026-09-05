@@ -61,8 +61,30 @@ REASONS = (
     "no_citation",              # the answer cited nothing that resolves
     "citation_does_not_support",  # real authority, but not this question's
     "contradicts_ratified_position",  # cited the firm's words, said the opposite
+    "facts_not_established",    # the rule is clear; what was bought is not. ASK.
     "model_gave_up",            # ran out of window or abandoned the task
 )
+
+# WHY `facts_not_established` EXISTS, and why the set went eight rounds without
+# it. Every other reason here is about the AUTHORITY -- absent, non-binding,
+# uncited, unsupporting, contradicted. Not one was about the FACTS, so a desk
+# holding exactly the right rule and missing the thing the rule asks about had
+# no way to say so, and its only options were to guess or to blame the record.
+#
+# The firm, 5 September 2026, on an agent that classified a client's J.Crew
+# purchases as personal: "no matter what, its answer was wrong." The lookup was
+# not the error -- knowing J.Crew sells clothing is real evidence about WHAT WAS
+# BOUGHT. The error was going from "sells clothing" to "personal expense"
+# without reaching the test, which is § 1.262-1(b)(8): whether the item is
+# "especially required by his profession and does not merely take the place of
+# articles required in civilian life". Their client was a laborer who could
+# legitimately need protective clothing, and the regulation has no vendor test
+# in it at all -- its own example deducts a sword and refuses a uniform.
+#
+# What the firm does instead: "i could even flag it to ask the client." That is
+# a real outcome and it was inexpressible. It is FIXABLE, like `authority_absent`
+# and unlike `authority_permits_choice`: the answer exists, nobody has asked for
+# it yet, and the working says what to ask.
 
 
 @dataclass(frozen=True)

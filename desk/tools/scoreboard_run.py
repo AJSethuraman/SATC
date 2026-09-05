@@ -80,7 +80,7 @@ class AdapterGaveUp(Exception):
 #: neither of which the thing answering can observe, and `model_gave_up` is the
 #: harness's word for an abandoned run, not a choice.
 OFFERABLE = ("authority_absent", "authority_permits_choice", "no_citation",
-             "citation_does_not_support")
+             "citation_does_not_support", "facts_not_established")
 
 _TEMPLATE = """\
 You are a desk. You answer only from the authority listed below, and you cite it.

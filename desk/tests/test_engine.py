@@ -343,3 +343,57 @@ def test_nothing_but_an_escalation_records_who_escalated(fixed_assets, problem):
                      problem, fixed_assets)
     assert r.outcome is engine.Outcome.CORRECT
     assert r.escalated_by == ""
+
+
+# ── the reason set had nothing for a missing FACT ────────────────────────────
+
+def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, problem):
+    """The firm, 5 September 2026, on an agent that called a client's J.Crew
+    purchases personal: "no matter what, its answer was wrong."
+
+    The lookup was not the error — knowing J.Crew sells clothing is real evidence
+    about WHAT WAS BOUGHT. The error was going from "sells clothing" to "personal
+    expense" without reaching the test, which asks whether an item is "especially
+    required by his profession and does not merely take the place of articles
+    required in civilian life" and contains no vendor test at all.
+
+    What the firm does instead: "i could even flag it to ask the client." That
+    outcome was inexpressible — every other reason in the set is about the
+    authority, and none about the facts the authority asks for.
+    """
+    r = grade(Answer(position="", escalated=True,
+                     reason="facts_not_established",
+                     working="the rule is 1.262-1(b)(8); ask what was bought"),
+              problem, fixed_assets)
+    assert r.outcome is Outcome.ESCALATED
+    assert r.reason == "facts_not_established"
+    assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
+
+
+def test_every_reason_but_one_is_about_authority_rather_than_facts():
+    """The gap, asserted so it cannot quietly reopen.
+
+    `facts_not_established` is the only reason in the set that is about what the
+    rule asks for rather than about the rule. If it is removed, or if the set
+    grows another facts-shaped reason without anyone noticing, this says so.
+    """
+    about_facts = {"facts_not_established"}
+    assert about_facts <= set(REASONS), (
+        "the set has nothing for a rule that is clear and a fact that is missing; "
+        "a desk in that position can only guess or blame the record")
+    about_authority = set(REASONS) - about_facts - {"model_gave_up"}
+    assert all(
+        w in r for r in about_authority
+        for w in ("authority", "citation", "source", "position")
+        if w in r), "unreachable; the loop below is the real assertion"
+    for r in about_authority:
+        assert any(w in r for w in ("authority", "citation", "source", "position")), (
+            f"{r!r} is neither about the authority nor named as being about the "
+            f"facts; the set's two halves have to stay legible")
+
+
+def test_a_reason_outside_the_closed_set_is_still_refused(fixed_assets, problem):
+    """The control. Adding one reason must not have opened the set."""
+    with pytest.raises(EngineError, match="not one of"):
+        grade(Answer(position="", escalated=True, reason="ask_the_client"),
+              problem, fixed_assets)
