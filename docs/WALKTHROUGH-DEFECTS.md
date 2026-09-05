@@ -212,7 +212,7 @@ the three had happened to me, and I was the one who had just pressed the button.
 A screen whose answer to "that folder isn't there" is silence teaches the
 preparer to press again.
 
-## D11 · The first real client makes the app announce its data is fake
+## D11 · The first real client makes the app announce its data is fake — **FIXED, and it was worse than the banner**
 
 **MEDIUM.** After clearing the sample data — banner gone, panel gone — I created
 the practice's first real client. The banner came straight back, and now sits
@@ -583,7 +583,7 @@ product's own plan screen warns about (*"A request typed as a BUCKET rather than
 as the form the rule names"*). Harmless here, but it asks a client for something
 they have just said they do not have.
 
-## D12 · An SSN of `hello` is accepted without a word
+## D12 · An SSN of `hello` is accepted without a word — **FIXED**
 
 **MEDIUM.** `/clients/new` took `hello` in the SSN field and created the client.
 No format check, no warning, no flag on the record afterwards. The same field is

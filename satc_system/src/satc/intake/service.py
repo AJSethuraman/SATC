@@ -56,14 +56,79 @@ def _client_view(public: PublicClient, name: str) -> ClientView:
                       display_name=name or public.display_label, tax_treatment=treatment)
 
 
+def checked_tin(value: str, *, what: str) -> str:
+    """A TIN that is not a TIN is refused here, not masked into looking like one.
+
+    `/clients/new` took `hello` in the SSN box and created the client. Nothing
+    checked the format, nothing flagged the record, and `masking.mask_ssn`
+    rendered it `***-**-****` -- so the client then LOOKED like somebody whose
+    number is on file. A blank field is an honest gap; a masked non-number is a
+    gap wearing a disguise, on the one field the whole vault exists to protect.
+
+    Blank stays legitimate: the box is optional and a client whose number has not
+    arrived yet is an ordinary state. Only a value that was actually typed is
+    held to being nine digits.
+
+    Found by walking it, 5 September 2026.
+    """
+    text = (value or "").strip()
+    if not text:
+        return ""
+    # Separators people actually type are fine; anything else is not. Counting
+    # digits alone accepted `x123456789`, which is nine digits wearing a letter.
+    bare = text.replace("-", "").replace(" ", "")
+    if not (bare.isdigit() and len(bare) == 9):
+        raise ValueError(
+            f"“{text}” is not {what}. It needs nine digits — leave the box empty "
+            f"if you do not have it yet, which is recorded honestly as not on "
+            f"file.")
+    return text
+
+
 def next_client_id(store, prefix: str = "SATC") -> str:
-    """Allocate the next opaque client handle (e.g. ``SATC-001000``)."""
-    biggest = 0
-    for pc in store.load_mart().public_clients:
-        try:
-            biggest = max(biggest, int(pc.client_id.split("-")[-1]))
-        except (ValueError, IndexError):
-            continue
+    """Allocate the next opaque client handle (e.g. ``SATC-001000``).
+
+    A REAL CLIENT MAY NEVER BE HANDED A FIXTURE'S ID, and this used to hand out
+    the first one every time.
+
+    The number was `max(present) + 1000`, computed over the clients PRESENT. On a
+    fresh install that is right. After "Clear sample data & start clean" there are
+    none, so `biggest` is 0 and the practice's very first real client was
+    allocated `SATC-001000` -- which is a fixture id. Two things then followed,
+    both found by walking it on 5 September 2026:
+
+      * `has_sample_data()` tests membership of the fixture ids, so the banner
+        came straight back and sat above a real person: "Showing built-in sample
+        data ... these aren't your clients or real document reads."
+      * That banner offers **Clear sample data**, and `clear_sample_data()`
+        deletes every client whose id is a fixture id. The button the screen was
+        inviting them to press would have deleted the client it was sitting on.
+
+    Flooring above the fixture range fixes both at the source, and changes
+    nothing on a fresh install: the fixtures are present there, so they already
+    set the maximum.
+
+    STILL TRUE, AND A SEPARATE QUESTION: a REAL client's id can be reused after
+    that client is deleted, because the allocation only ever looks at who is
+    present. Anything still carrying the old id -- an export, a backup, a
+    workbook -- would silently reattach to whoever got it next. Fixing that needs
+    an id high-water mark the store does not currently have anywhere to keep.
+    """
+    from satc.fixtures import synthetic_identities
+
+    def biggest_of(ids) -> int:
+        out = 0
+        for cid in ids:
+            try:
+                out = max(out, int(str(cid).split("-")[-1]))
+            except (ValueError, IndexError):
+                continue
+        return out
+
+    biggest = max(
+        biggest_of(pc.client_id for pc in store.load_mart().public_clients),
+        biggest_of(rec.client_id for rec in synthetic_identities()),
+    )
     return f"{prefix}-{biggest + 1000:06d}"
 
 
@@ -86,6 +151,7 @@ def create_person_client(store, *, first_name: str, last_name: str, ssn: str = "
                          email: str = "", phone: str = "", address: dict | None = None,
                          client_id: str | None = None) -> str:
     """Create an individual client (vault + de-identified mart projection)."""
+    ssn = checked_tin(ssn, what="a Social Security number")
     cid = client_id or next_client_id(store)
     legal_name = f"{first_name.strip()} {last_name.strip()}".strip()
     rec = IdentityRecord(client_id=cid, entity_type="INDIVIDUAL", legal_name=legal_name, tin=ssn.strip(),
@@ -115,6 +181,7 @@ def create_business_client(store, *, legal_name: str, entity_type: str = "", ein
             f"decides which return is due and when. Take it from the acceptance letter "
             f"(Form 2553 acceptance / CP261) or the last filed return: SCORP, "
             f"PARTNERSHIP, CCORP.")
+    ein = checked_tin(ein, what="an EIN")
     cid = client_id or next_client_id(store)
     rec = IdentityRecord(client_id=cid, entity_type=entity_type.strip().upper(),
                          legal_name=legal_name.strip(), tin=ein.strip(),
