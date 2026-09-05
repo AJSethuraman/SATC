@@ -106,6 +106,16 @@ The rules, in order of how often they catch something:
 `website/pricing.spec.py` enforces 3 and 5 mechanically over the published copy,
 and it is the pattern to copy for any other client-facing surface.
 
+**Six rules were not enough.** They were written mid-build, and the firm rejected
+copy five more times afterwards — one sentence that passed all six drew
+*"literally AI dribble, why can't you get that?"*. **`website/TENETS.md` is the
+superset: nine tenets, ordered by how often each caught something, covering
+layout as well as words. Read it before drafting anything for the website.** The
+short version of what these six miss: they ask whether a sentence is *worded*
+right and never whether it should exist; they cover sentences that protect us but
+not ones that flatter us; and they say nothing about layout, which is what
+produces filler copy in the first place.
+
 ## Hard constraints (do not cross without explicit sign-off)
 
 - **Client PII is load-bearing.** Names/SSNs/EINs live in an **encrypted identity
