@@ -17,6 +17,58 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Saturday 5 September 2026 — I raised a collision that was not there
+
+I told the firm their price decision collided with two things they believe, and
+stopped D10 one step from finished to say so. **The challenge was wrong, and it
+was wrong because I had invented what "the student rate" meant.**
+
+The firm, asked:
+
+> *when i say college student gets it cheaper, i literally mean hey if you are
+> in college and working that's rough, we have the simple filer deal just for
+> you - same with someone not in college.*
+>
+> *so like the estimate generator is supposed to find the lowest cost we can for
+> someone based on their situation whether that be starting with one of our 4
+> packages and adding to it, or making some sort of weird custom package that is
+> lower than a standard package but gets you what you need*
+>
+> *this was assured that it was done to me... is it not??*
+
+**It is a cheap tier, not a percentage off.** I had assumed the reduction lived
+in `satc_system/configs/billing/rate_plans.yaml` — `household`, `hardship`,
+`pro_bono` — and built a whole Bassy challenge on the fee schedule having no
+discounts. The fee schedule is right not to have discounts. The deal *is* the
+ladder finding the cheapest package that covers the client.
+
+**And it is built.** `pricing.derive_tier` returns "the tier that costs this
+client LEAST", its docstring quotes the firm from 25 August saying to put it in
+the mechanism rather than a test, and it runs inside `line_items()` → `price()`
+→ `intake.finish`, which is the path the client's own estimate comes from.
+Measured, not read:
+
+| the client | the estimate |
+|---|---|
+| working student, W-2 only | **$100.00** Simple Filer |
+| the same person plus a brokerage statement | $200.00 Essentials |
+| student with a second state | **$150.00** — Simple Filer plus one state |
+| self-employed, standard books | $500.00 Self-Employed |
+
+The $150 is exactly the *"weird custom package that is lower than a standard
+package"*. And `cli.py ladder` sweeps the shapes and reports Essentials eligible
+24 times and chosen 12 — **beaten by Simple Filer the other twelve**, which is
+the guarantee working out loud.
+
+**Then the second half of the mistake.** `rate_plan_key` — the percentage
+mechanism I stopped work to protect — is written by nothing but the store's own
+loader and four test files. No route, no form, no command sets a rate plan on an
+engagement, and until last night the product never created the row it sits on.
+**I halted a decision to defend a mechanism that has never been reachable.**
+
+What I should have done before raising it: price a student. It took one command.
+
+
 ## Friday 4 September 2026, late — the second docket, and one overrule
 
 Asked directly whether I was trying to say the work was finished. I was not, but

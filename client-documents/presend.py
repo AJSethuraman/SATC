@@ -355,14 +355,32 @@ def _normalize(text: str) -> str:
     return " ".join(_PUNCT.sub(" ", text.lower()).split())
 
 
-def _readable(html: str) -> str:
-    """What a client actually reads, with the headings taken out.
+def _readable(html: str, *, keep_headings: bool = False) -> str:
+    """What a client actually reads.
 
-    HEADINGS ARE EXEMPT ON PURPOSE, and it is not a fudge. "this estimate
-    assumes" is retired as a bullet opener -- the firm: "the section is titled
-    'what this estimate assumes' so why say 'this estimate assumes' in each
-    bullet" -- and live as the heading itself. Excluding headings is the one
-    rule that makes the check exact rather than nearly exact.
+    HEADINGS ARE EXEMPT BY DEFAULT, ON PURPOSE, and it is not a fudge. "this
+    estimate assumes" is retired as a bullet opener -- the firm: "the section
+    is titled 'what this estimate assumes' so why say 'this estimate assumes'
+    in each bullet" -- and lives as the heading itself. Excluding headings is
+    the one rule that makes THAT check exact rather than nearly exact.
+
+    **`keep_headings=True` IS FOR THE OPPOSITE KIND OF CHECK, and the
+    distinction is the whole point.** The exemption above is about words that
+    must NOT appear: a banned phrase gets a pass in a title because the title
+    is where it legitimately lives. A COMPLIANCE FLOOR is about words that MUST
+    appear, and a heading is a fine place for one -- probably the best place,
+    since it is the part a client reads first.
+
+    Applying one rule to both was wrong, and the gate found it the first time
+    it ran over a real document. `extension-is-not-more-time-to-pay` requires
+    "more time to pay"; the extension notice says exactly that, as its own
+    section title, and the check could not see it. The body already carried the
+    substance -- "interest and penalties run from the original due date on
+    anything unpaid", "it does nothing about the late-payment charge" -- so the
+    document was right and the checker was not.
+
+    The firm, 5 September 2026: *"Compliance floors read headings; the other
+    checks do not."*
     """
     # THE `.ref` BLOCK GOES FIRST, and this is the difference between a check
     # that is right and one that is wrong five times out of five. Every
@@ -372,7 +390,10 @@ def _readable(html: str) -> str:
     # `behaviour`, `organised` and `authorisation` -- all five inside the ref
     # block, all five invisible to every client, all five false. Over the same
     # twelve documents rendered: zero.
-    return _TAGS.sub(" ", _HEADING.sub(" ", merge._REF_BLOCK.sub(" ", html)))
+    body = merge._REF_BLOCK.sub(" ", html)
+    if not keep_headings:
+        body = _HEADING.sub(" ", body)
+    return _TAGS.sub(" ", body)
 
 
 def _load_retired() -> list[dict]:
@@ -554,7 +575,11 @@ def compliance_floor_counted(pack: Path,
         key = keys.get(doc.name)
         if not key:
             continue
-        said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
+        # keep_headings: a floor sentence is required to be PRESENT, and a
+        # section title is a legitimate -- often the best -- place for it.
+        said = _normalize(_readable(doc.read_text(encoding="utf-8",
+                                                  errors="replace"),
+                                    keep_headings=True))
         for rule in rules:
             if key not in (rule.get("applies_to") or []):
                 continue
