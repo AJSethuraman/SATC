@@ -516,7 +516,15 @@ class Interview:
         # `coerce` is idempotent, so the doors may keep calling it.
         value = coerce(q, value)
         if q.get("required") and value in (None, "", []):
-            raise InterviewError(f"{qid} is required")
+            # THE QUESTION, NOT THE FIELD ID. This read `f"{qid} is required"`,
+            # so a preparer who pressed Next without choosing was told
+            # "federal_form is required" -- the internal name -- while the
+            # question itself, "Which federal return?", sat directly above it.
+            # The id is kept in parentheses because the CLI's `--set` takes it
+            # and somebody debugging needs to be able to search for it: show the
+            # jargon AND say what it means, rather than one instead of the other.
+            asked = q.get("question") or qid
+            raise InterviewError(f"“{asked}” needs an answer ({qid}).")
         # A BLANK IS NOT AN ILLEGAL OPTION, it is the absence of one. An
         # optional multiple-choice question left empty has to stay storable, so
         # the offered-values check runs only on an answer that is actually there.

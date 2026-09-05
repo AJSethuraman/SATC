@@ -695,8 +695,14 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
             return page("Package", package_body(ref, record, [], problem=str(exc)))
         if wants_json():
             return jsonify(ref=ref, documents=docs, with_invoice=invoice)
+        # Whether there IS a bill to fold in, so the screen can stop offering a
+        # box that cannot succeed. Ticking it on an engagement with no bill
+        # failed the WHOLE build -- atomic, so no letter, no estimate, no
+        # onboarding letter either -- on an optional extra.
+        has_bill = invoicing.find(st(), ref) is not None
         return page("Package", package_body(ref, record, docs,
-                                            with_invoice=invoice))
+                                            with_invoice=invoice,
+                                            has_bill=has_bill))
 
     @app.post("/engagement/<ref>/package")
     def build_package(ref):
@@ -2677,7 +2683,8 @@ def payments_body(rows) -> str:
     return "".join(out)
 
 
-def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
+def package_body(ref, record, docs, *, with_invoice=False, problem="",
+                 has_bill=True) -> str:
     """What is about to be built, before anything is."""
     out = [f"<h1>The signing pack</h1>",
            f"<p class=sec>{esc(ref)} &middot; "
@@ -2696,10 +2703,21 @@ def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
         out.append(f"<tr><th>{esc(cli.DOCUMENTS[doc][1])}</th>"
                    f"<td>{esc(packaging.PURPOSE.get(doc, ''))}</td></tr>")
     out.append("</table></div>")
+    # A CONTROL THAT CANNOT SUCCEED IS NOT AN OPTION, IT IS A TRAP. Offered
+    # unconditionally, this checkbox failed the entire atomic build on an
+    # engagement with no bill -- and the refusal, though clear, arrived after
+    # the click and with no way back to the screen.
+    invoice_box = (
+        f"<label><input type=checkbox name=invoice value=1"
+        + (" checked" if with_invoice else "") +
+        "> Put the invoice in too</label>"
+    ) if has_bill else (
+        "<label class=help><input type=checkbox disabled> Put the invoice in "
+        "too <span class=fname>&mdash; no bill has been raised on this "
+        "engagement yet, so there is nothing to put on one</span></label>"
+    )
     out.append(f"<form method=post action='/engagement/{esc(ref)}/package'>"
-               f"<label><input type=checkbox name=invoice value=1"
-               + (" checked" if with_invoice else "") +
-               "> Put the invoice in too</label>"
+               + invoice_box +
                "<label><input type=checkbox name=notes value=1> "
                "Also read the prose and tell me what it notices "
                "(nothing here can stop a pack)</label>"
@@ -2713,7 +2731,14 @@ def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
                "<script>document.currentScript.previousElementSibling"
                ".addEventListener('submit',function(e){var b="
                "e.target.querySelector('button');b.textContent="
-               "'Building \u2014 about a minute';});<\/script>")
+               # `<\/script>` -- an escaped slash -- is how you close a script
+               # tag from INSIDE a JavaScript string. This is not inside one: it is
+               # the tag itself, in HTML emitted directly. The browser never saw a
+               # closing tag, swallowed `</main></body></html>` as script source, and
+               # the script failed to parse -- so the "Building" label it exists to
+               # show has never once appeared. It also raised a SyntaxWarning on every
+               # start, because `\/` is not a Python escape either.
+               "'Building \u2014 about a minute';});</script>")
     return "".join(out)
 
 
@@ -2820,13 +2845,54 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
     out.append("</table>")
     out.append(_checks_block(check))
     if pack.readings:
-        out.append(f"<h1 style='margin-top:30px'>What the prose reads like</h1>"
-                   f"<p class=help>Judgement calls, not rules. None of these "
-                   f"can stop a pack.</p><ul>")
-        for f in pack.readings:
-            where = f" &mdash; {esc(f.document)}" if f.document else ""
-            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
-                       f"{esc(f.detail)}</li>")
+        # THIS BLOCK CRASHED THE WHOLE PACK BUILD WITH A 500.
+        #
+        # `pack.readings` is a list of `notes.Checked` -- key, findings,
+        # examined, unit, scope -- and this loop read `f.document`, `f.check`
+        # and `f.detail`, which are fields of `presend.Finding`. Two different
+        # types, and the wrong one had been assumed:
+        #
+        #     AttributeError: 'Checked' object has no attribute 'document'
+        #
+        # Walking it on 5 September 2026: ticking "Also read the prose and tell
+        # me what it notices" -- whose own label promises "nothing here can stop
+        # a pack" -- rendered every document, ran every check, and then threw the
+        # lot away in the code that DISPLAYS the result.
+        #
+        # And the fix is not simply to iterate the findings. A `Checked` carries
+        # what the advisory LOOKED AT, which is the entire reason the type
+        # exists (S2: a green from a check that examined nothing is worse than a
+        # red one). Rendering only the findings would produce a clean-looking
+        # list from a check that read zero sentences -- the exact sentence this
+        # project exists to stop printing. So the denominator is shown for every
+        # advisory, and one that examined nothing says so.
+        import notes as _notes
+
+        out.append("<h1 style='margin-top:30px'>What the prose reads like</h1>"
+                   "<p class=help>Judgement calls, not rules. None of these can "
+                   "stop a pack &mdash; and each one says what it read, so a "
+                   "check that looked at nothing cannot read as a pass.</p><ul>")
+        for c in pack.readings:
+            adv = _notes.BY_KEY.get(c.key)
+            what = esc(adv.what) if adv else esc(c.key)
+            tenet = f" <span class=help>({esc(adv.tenet)})</span>" if adv else ""
+            unit = c.unit + ("" if c.examined == 1 else "s")
+            where = f" in {esc(c.scope)}" if c.scope else ""
+            if not c.examined:
+                out.append(f"<li><b>{esc(c.key)}</b>{tenet} {what} &mdash; "
+                           f"<b>skipped</b>: 0 {unit}{where} to read, so nothing "
+                           f"is known.</li>")
+                continue
+            verdict = (f"{len(c.findings)} to look at" if c.findings else "nothing to flag")
+            out.append(f"<li><b>{esc(c.key)}</b>{tenet} {what} &mdash; {verdict}, "
+                       f"across {c.examined} {unit}{where}.")
+            if c.findings:
+                out.append("<ul>")
+                for f in c.findings:
+                    doc = f" &mdash; {esc(f.document)}" if f.document else ""
+                    out.append(f"<li>{esc(f.detail)}{doc}</li>")
+                out.append("</ul>")
+            out.append("</li>")
         out.append("</ul>")
     return "".join(out)
 

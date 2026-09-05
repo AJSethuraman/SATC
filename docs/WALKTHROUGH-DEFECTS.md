@@ -564,7 +564,7 @@ the one the app elsewhere promises to mask and keep vault-side.
 Walked second, on its own scratch store via `--store` (#263's fix, which
 announced the path it was given on startup — exactly as intended).
 
-## E1 · Building the signing pack crashes with a 500
+## E1 · Building the signing pack crashes with a 500 — **FIXED**
 
 **CRITICAL.** *"Build the signing pack"* is the primary act of this application,
 and one of its two offered options crashes it.
@@ -602,7 +602,7 @@ Compare question 1 on the same screen, which at least says something when left
 blank. Here there is nothing to read, so the only available theory is that the
 button did not work — and the natural response is to press it again.
 
-## E3 · The "required" message is the raw field name
+## E3 · The "required" message is the raw field name — **FIXED**
 
 **LOW.** Pressing **Next** on question 1 with nothing chosen gives:
 
@@ -634,7 +634,7 @@ and none of the three titles names the client or the reference.
 band appears on the on-screen preview and **does not appear anywhere in the
 delivered PDFs.** That separation works.
 
-## E5 · "Put the invoice in too" is offered when there is no invoice to put in
+## E5 · "Put the invoice in too" is offered when there is no invoice to put in — **FIXED**
 
 **LOW.** The package screen offers the checkbox unconditionally. Ticking it on an
 engagement with no bill fails the whole build with *"engagement 2026-0001 has no
@@ -644,7 +644,7 @@ The refusal itself is good — clear, specific, names the ref. The control shoul
 simply not be offered, or should say why it is unavailable. The resulting page
 also has no link back.
 
-## E6 · `web.py` emits a SyntaxWarning on every start
+## E6 · `web.py` emits a SyntaxWarning on every start — **FIXED, and it was worse than a warning**
 
 **LOW.** Every launch prints:
 
@@ -653,10 +653,24 @@ client-documents/web.py:2716: SyntaxWarning: invalid escape sequence '\/'
   "'Building — about a minute';});<\/script>")
 ```
 
-`\/` is not a Python escape. It works — Python leaves the backslash in, which is
-what the embedded JavaScript wants — but it should be written `<\\/script>` or
-in a raw string so the warning stops. Worth fixing because a warning nobody can
-fix is a warning everybody learns to scroll past.
+**The original write-up of this one was wrong, and the fix found out why.** It
+said the backslash "works — Python leaves it in, which is what the embedded
+JavaScript wants". It is not what anything wants. That sequence is how you close
+a script tag from inside a JavaScript *string*; this is the tag itself, in HTML
+emitted directly.
+
+So the browser never saw a closing tag. It swallowed `</main></body></html>` as
+script source, the script failed to parse, and the *"Building — about a minute"*
+label it exists to show **has never once appeared** — which matches the walk
+exactly: pressing **Build the pack** gave no feedback at all for forty seconds,
+and I put that down to the build simply being slow.
+
+A LOW-severity warning turned out to be an unclosed tag and a dead feature.
+
+**Fixed 5 September 2026.** Asserted on the *rendered page* rather than on the
+source — the first draft of that test read `web.py` and failed, because the fix's
+own comment has to quote the bad sequence in order to explain it. A source check
+there polices the prose about the bug rather than the bug.
 
 ## What the engagement browser got right
 
