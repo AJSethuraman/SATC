@@ -114,6 +114,15 @@ RUNS_NO_RECORD = ("how-we-work", "docket")
 # have to land where the source is. So the plugin-root rule does not apply to
 # it, and saying so here is cheaper than a reader wondering why.
 RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
+# `walk` is a fourth thing, named for the same reason. It runs against the
+# PRODUCT -- a running build in a browser -- not against canon at all, and its
+# two documents land in whatever repository it was pointed at. It never reads
+# the record, so the plugin-root rule has nothing to bite on here either.
+RUNS_AGAINST_THE_PRODUCT = ("walk", "tie-out")
+# `tie-out` sits here with `walk` for the same reason and one more: it runs
+# against the product AND against something outside it entirely -- a statement,
+# a publication, a filed return. The record is not what it reads and not what
+# it checks against.
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
@@ -166,7 +175,8 @@ def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
     that grows one skill at a time without anybody deciding."""
     every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
     assert every == (set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
-                     | set(RUNS_AGAINST_A_CHECKOUT))
+                     | set(RUNS_AGAINST_A_CHECKOUT)
+                     | set(RUNS_AGAINST_THE_PRODUCT))
     for name in RUNS_NO_RECORD:
         text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "CONVICTIONS.md" not in text, \
@@ -185,3 +195,73 @@ def test_the_adversarial_skill_carries_the_brief_and_the_way_back():
         "it does not say why this is worth doing beside mutation testing"
     assert "discarded unread" in flat, \
         "the far side is not told its scratch is free"
+
+
+def test_the_walk_skill_demands_both_documents():
+    """The skill exists because a real walk produced only one of them. If the
+    file stops saying so, it stops being the fix and becomes a description of
+    browsing."""
+    flat = " ".join((CANON / "skills" / "walk" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Two documents come out" in flat, "the two outputs are not the rule"
+    assert "Neither is optional" in flat, "one of them can still be skipped"
+    assert "A test knows the answer before it runs" in flat,         "it does not say why a walk finds what the suite cannot"
+    assert "Do not fix anything mid-walk" in flat,         "nothing stops the walk repairing the thing it was measuring"
+    assert "docs/PROCEDURE-" in flat and "docs/WALKTHROUGH-DEFECTS.md" in flat,         "the two documents are not named where they go"
+
+
+def test_the_tie_out_skill_keeps_the_source_independent():
+    """The whole skill is one rule -- a number confirmed by your own system is
+    confirmed by nothing. Everything else is procedure around it. If that rule
+    leaves the file the document becomes a screenshot of a number agreeing with
+    itself, which is the failure it was written for."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "confirmed only by your own system is confirmed by nothing" in flat,         "the independence rule is gone"
+    assert "could this disagree with me" in flat,         "no test is given for whether a source is independent"
+    assert "Never plug it" in flat,         "nothing forbids closing a difference rather than reporting it"
+    assert "a finding, not a failure" in flat,         "a difference is not framed as the valuable outcome"
+    assert "docs/TIE-OUT-" in flat, "the exhibit is not named where it goes"
+
+
+def test_the_tie_out_skill_carries_all_five_links():
+    """Four links out of five is a chain that does not reach the ground. The
+    one most likely to be dropped is the derivation, because it is the only one
+    that cannot be pasted from somewhere."""
+    text = (CANON / "skills" / "tie-out" / "SKILL.md").read_text(encoding="utf-8")
+    for link in ("1 · The figure", "2 · The call", "3 · The derivation",
+                 "4 · The independent source", "5 · The comparison"):
+        assert link in text, f"link missing from the chain: {link}"
+    flat = " ".join(text.split())
+    assert "is not a derivation" in flat,         "nothing rules out 'then the system computes it'"
+
+
+def test_the_tie_out_skill_refuses_an_unexecuted_link():
+    """The failure this guards is not a wrong number -- it is a document that
+    was never run and reads exactly like one that was. The firm named it: an
+    agent that has not figured out how to tie something out, reporting as
+    though it had."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "A tie-out you did not run is not a tie-out" in flat,         "nothing forbids describing a step instead of doing it"
+    assert "Paste the real response" in flat, "the evidence is not required to be real"
+    for verdict in ("TIED", "DIFFERS", "COULD NOT"):
+        assert verdict in flat, f"verdict missing: {verdict}"
+    assert "I do not know where the authority for this number is" in flat,         "the most useful COULD NOT reason is not offered"
+    assert "Report the denominator" in flat, "a roster with no denominator"
+
+
+def test_the_tie_out_skill_makes_you_look_at_the_source():
+    """The firm's own catch. "Name and quote the source" can be completed
+    truthfully by somebody who glanced at a page and found A number -- nothing
+    in it requires looking at THE number. The image and the cell reference are
+    what make the mismatch impossible to write past."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Capture it. Do not summarise it" in flat,         "the source may still be described rather than captured"
+    assert "Screenshot the page" in flat, "no image of the source is required"
+    assert "is not locating a figure" in flat,         "nothing rules out a vague citation of the source"
+    assert "before** writing any verdict" in flat,         "the verdict may still be written ahead of the comparison"
+    for same in ("the same entity", "the same date or period", "the same basis",
+                 "the same units and scale"):
+        assert same in flat, f"the four sameness checks are incomplete: {same}"
