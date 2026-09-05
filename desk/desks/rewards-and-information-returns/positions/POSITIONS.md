@@ -148,3 +148,5 @@ position cites still says $600.** 26 U.S.C. § 6041(a) was amended to $2,000 by
 Pub. L. 119-21 § 70433(a), applicable to payments made after 31 December 2025,
 and is indexed for inflation from 2027 under § 6041(h). The regulation has not
 been conformed. Anyone reading § 1.6041-1 alone will get the old number.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.

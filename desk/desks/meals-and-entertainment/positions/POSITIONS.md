@@ -34,6 +34,8 @@ The regulation is what makes three the floor rather than a preference. § 1.274-
 
 **What this position does not settle**, said plainly because it is the part the firm asked about: *how we find that out*. The chart being right is necessary and not sufficient; nothing in a bank feed says who was at the meal or why.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, and marked as a general test worth trying on other accounts: split the chart by the answer the rules give, not by the vendor's name.
+
 ---
 
 ## POS2 · A brewery or taproom charge is neither automatically entertainment nor automatically a meal
@@ -45,6 +47,8 @@ The regulation is what makes three the floor rather than a preference. § 1.274-
 **Why:** The firm's words, 5 September 2026, on Q6: *"I'm just going to say the same thing as above like with the meals question you know entertainment slash meals they're very subjective in these natures so it makes more sense to maybe have some sort of like client rule but it also makes sense just generally speaking for the agent to ask a question that then provokes questions like OK well how many accounts may we need anyway"*
 
 The regulation cuts both ways here and that is why this is a position rather than a lookup. § 1.274-11(b)(1)(i), the citation above, names *"entertaining at bars"* in its own list of what entertainment means. But § 1.274-11(b)(1)(ii) says the term entertainment *"does not include food or beverages unless the food or beverages are provided at or during an entertainment activity."* A beer bought at a bar is a beverage; the bar becomes entertainment when there is an entertainment activity for it to be provided at or during. The vendor's merchant category does not decide which of those happened, and the closing agent's rule — breweries to owner's draws — decides it by the name over the door.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
 
 ---
 
@@ -60,6 +64,8 @@ The regulation cuts both ways here and that is why this is a position rather tha
 
 The regulation is only the floor. § 1.274-12(a)(1), the citation above, allows nothing at all unless the expense is not lavish, the taxpayer or an employee was present, and the food went to the taxpayer or a business associate. A supermarket receipt establishes none of those three on its own.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+
 ---
 
 ## POS4 · Airfare is not booked to Travel from a feed alone
@@ -73,3 +79,5 @@ The regulation is only the floor. § 1.274-12(a)(1), the citation above, allows 
 What the authority says, and it is unusually blunt. § 1.162-2(a), the citation above: *"If the trip is undertaken for other than business purposes, the travel fares and expenses incident to travel are personal expenses."* And § 1.274-5T(a), on the substantiation the fare needs regardless: the requirement *"supersedes the doctrine found in Cohan v. Commissioner"*, and § 274(d) *"contemplates that no deduction or credit shall be allowed a taxpayer on the basis of such approximations or unsupported testimony of the taxpayer."* An estimate at return time is not a fallback the regulation leaves open.
 
 The closing agent's call — booked to Travel pending a stated purpose — puts a number on a line the record cannot yet support. The difference between that and holding it is which way the file reads if nobody ever comes back to it.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, with the preference that the desk ask and follow up rather than assume, and on the understanding that keeping the record is the client's job unless the firm is engaged to do it.

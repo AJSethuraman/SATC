@@ -52,6 +52,8 @@ outside anything fetched here — a vehicle owned personally (POS2), interest on
 vehicle loan (POS3), and a lease, where the payment is one line and not a
 depreciation-plus-interest pair. That is the choice being handed over.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+
 ---
 
 ## POS2 · Whose vehicle it is is established before a vehicle cost is booked at all
@@ -88,6 +90,8 @@ each shape. It does not tell a preparer which shape they are in, and nothing in 
 bank feed does either. So the desk's honest output on Q3 is the question set and
 the document list, not a treatment.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, and noted that questions of this kind belong in the engagement intake as well, with the desk as the catch for whatever the intake missed.
+
 ---
 
 ## POS3 · The vehicle documents are requested by name, not inferred from the feed
@@ -122,13 +126,15 @@ for:
   recorded as a request the firm may want and NOT as something the authority
   demands, so a reviewer can strike it without touching the rest.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+
 ---
 
 ## POS4 · A business-use percentage is a figure obtained, never one assumed
 
 **Citation:** 26 CFR 1.280F-6(e)(2) · **Recorded:** 2026-09-05
 
-**Position:** obtain the mileage figures; where they are absent, say the percentage is unknown rather than expensing at 100%
+**Position:** obtain the mileage figures; where they are absent, record the business-use percentage as unknown rather than expensing at 100%, and mark the line for the reviewer so the question is put to the client rather than left implicit
 
 **Why:** The firm, 5 September 2026, on whether the vehicle is used for business
 only: *"this is a good question especially if we do their taxes we want it to be
@@ -147,13 +153,15 @@ What is left to the firm is what a close does when the log does not exist: book 
 authority does not choose, and expensing at 100% without saying so is the one
 option that records an assumption as a fact.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket WITH AN EDIT, which is in the position above: where a figure has a subjective component, the line is marked for the reviewer so the question actually gets put rather than left implicit.
+
 ---
 
 ## POS5 · Vehicle running costs with no vehicle on the books are a question, not a classification
 
 **Citation:** 26 CFR 1.62-2(c)(1) · **Recorded:** 2026-09-05
 
-**Position:** treat twelve months of vehicle costs with no vehicle and no vehicle loan as an unanswered ownership question, and hold the treatment until it is answered
+**Position:** treat twelve months of vehicle costs with no vehicle and no vehicle loan as an unanswered ownership question: assemble what the file already shows about the vehicle, put the ownership question to the client, and set the treatment on their answer rather than booking one now and correcting it later
 
 **Why:** The firm gave no response to this question (Q17). They did respond to the
 question it is the mirror of, on 5 September 2026: *"is it a lease do they own it
@@ -172,3 +180,5 @@ certainly wrong in the case the firm calls most likely.
 **This is proposed with no words of the firm's on the question itself, and that is
 recorded rather than covered over.** If they read Q17 differently from Q3, this
 entry is the one to strike.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket WITH AN EDIT, which is in the position above. Holding the line was not what they wanted: the work of assembling what the file shows is cheap, and they would rather do it and confirm than book a treatment and correct it later.

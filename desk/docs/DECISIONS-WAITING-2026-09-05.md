@@ -303,3 +303,168 @@ T.C. Memo. 2021-23 — the case no host reachable from this environment would
 serve. **The wall was real and a person walked through it in the time it takes to
 paste.** Digested separately; what it changes is recorded with the rewards
 position.
+
+---
+
+# The docket of 5 September 2026 — twenty-two answered
+
+Read back out of the page's own store (artifact `8df0c974`, collection
+`decisions`) rather than out of a conversation, on 5 September 2026. **All
+twenty-two were answered.** Thirteen positions were ratified, eleven unamended
+and two with an edit; four were held; five decisions were made.
+
+## What the answers changed in the record
+
+| | before | after |
+|---|---|---|
+| positions ratified | 2 | **15** |
+| positions proposed | 17 | **4** |
+
+**No scored problem moved, and that was checked rather than assumed.** Not one
+of the thirteen newly ratified positions sits on a citation any of its own
+desk's problems turn on — measured after ratifying, per desk. `test_guards.py`
+now proves it the hard way: for such a desk it grades escalate-everything with
+the positions and again with `positions=()` and requires the two scores to be
+identical. So the claim "these change what the desk says when it cannot answer,
+not what it scores" is now a test rather than a sentence.
+
+## The wording rule they gave while ratifying
+
+> *"I want to ensure that where when you say my words, they're not the direct
+> quotes I do like the convictions and stuff, including direct quotes, so we can
+> kind of remember where they came from but positions that the agent finds to
+> argue from should be cleaned up"*
+
+And, on the airfare position:
+
+> *"I don't want our desk to have this much like of my thought behind it so much
+> as I'm giving you my perspective and how I hope things can work."*
+
+**So: a conviction keeps the quote; a position is cleaned up.** Every `Ratified:`
+line written from this docket is prose, not transcription. Their words stay here,
+in the log, where the provenance belongs. Recorded in `positions.py` so the next
+session writing a position reads it before writing one.
+
+## The two ratified with an edit
+
+**`vehicle-expense/POS4` — the reviewer has to be told.**
+
+> *"But things like this, when there could be a subjective component should
+> probably be marked for the reviewer to make sure there is a question to be
+> asked or something"*
+
+The position now ends *"and mark the line for the reviewer so the question is put
+to the client rather than left implicit"*.
+
+**`vehicle-expense/POS5` — do the work, then confirm; do not just hold.**
+
+> *"No, I'd rather do the work because it's not difficult for the AI to process
+> it or for tools to process it or whatever and then for us to confirm with the
+> client ... I would prefer to do the work correctly and confirm then have to go
+> back and fix it if we were supposed to do it"*
+
+Holding the line was the drafted answer and they rejected it. The position now
+assembles what the file shows, puts the ownership question to the client, and
+sets the treatment on their answer.
+
+## The four they held, and what each is waiting for
+
+**`capitalization/POS1` — the safe-harbour election.** Held as a default, not a
+rule: *"This is the kind of policy that gets enacted because it makes sense and
+only enacted when we don't have another Answer for instance it's possible for a
+particular client we have to be needed treating differently."* **What it needs:**
+a way for a position to be the firm's default and still be overridden for a named
+client. The record has no such shape today — every position is unconditional.
+
+**`capitalization/POS2` — the threshold.** Held on a question, and the desk
+already holds the answer: *"I feel like I need to understand why would a
+confidently said $500 like where did this number come from?"*
+
+- **§ 1.263(a)-1(f)(1)(ii)(D)** is where the $500 comes from. It is the number in
+  the regulation, and it was never amended.
+- The same sentence delegates: *"or other amount as identified in published
+  guidance in the Federal Register or in the Internal Revenue Bulletin"*.
+- **Notice 2015-82** is that guidance. Per the IRS's own page, held in this
+  desk's `S3.md`: it *"increased the de minimis safe harbor threshold from $500
+  to $2500 per invoice or item for taxpayers without applicable financial
+  statements"*, effective for tax years beginning on or after 1 January 2016, and
+  $5,000 where there is an applicable financial statement.
+
+So the regulation is not stale and the $2,500 is not a number somebody
+remembered — it is the amount the regulation points at. **The desk could have
+answered this; nobody asked it.**
+
+**`personal-or-business/POS1` — the vendor is not the test.** Held on a real gap:
+
+> *"there should be some inference in the sense that the Accountant should've
+> already recorded and known what sort of business we're dealing with ... it makes
+> it a lot easier for me to look at a Home Depot charge from a general contractor
+> and think that it's a business expense versus looking at a Home Depot charge
+> from a hairstylist"*
+
+**What it needs:** the client's trade as an input the desk actually receives.
+`ask.consult` takes a question and nothing else today, so the desk cannot know
+whether it is looking at a contractor or a hairstylist. This is a hole in the
+front door, not in the position.
+
+**`rewards/POS1` — card rewards.** Held, and it asks for two things:
+
+> *"generally speaking I've always seen that credit card rewards are not taxable
+> for a person and this makes me think that we should probably be specifying. Hey
+> this is the individual desk. This is the business desk. Also, how do we get the
+> desk to understand that like sometimes the correct answer may be deduced because
+> if we don't have an opinion and have a good reason to form one, maybe we just
+> use a safe Harbor Rule which, in this case would be deferring to whatever the
+> IRS says"*
+
+**What it needs:** (1) a desk to know which return it is answering for —
+individual or business; *Anikeev* is a personal return and nothing in the record
+says so structurally. (2) A stated fallback: where the firm has no position and
+no reason to form one, follow the IRS's own published position. That is a rule
+about how to answer, and it does not exist in `engine.REASONS` today.
+
+## The five decisions
+
+**Q32 · unreceipted cash — `Always a draw`.** No qualification given.
+
+**Q42 · dates — `Transaction date`.** No qualification given.
+
+**Q37 · what proves a deposit is revenue — `Bank deposit detail`**, and the
+qualification matters more than the choice:
+
+> *"we are not their invoicing system at least right now and the desk needs to
+> probably understand what kind of engagement that the accountant is doing ... yeah
+> I'm just gonna assume everything is revenue unless you tell me otherwise I'll
+> try to ask follow up questions to make sure that they are definitely revenue
+> like hey is everything from this particular vendor revenue? Is this check
+> revenue? But yeah, dude, I'm not doing three-way matching unless we're being
+> paid for it or something"*
+
+So the policy is: **deposits are revenue unless something says otherwise**, with
+targeted follow-ups by payer or by item — and the depth of verification is a
+function of the engagement, which the desk does not currently know either. That
+is the same missing input as `personal-or-business/POS1`.
+
+**Desk size — `Not yet`.** Not a refusal, a deferral with a constraint:
+
+> *"For now, I'm fine. Developing these to work on Claude and then we can figure
+> it out with a local model. I would hope that, however their development should
+> still work on a local model, even if we can't technically run it in the sense
+> that none of the script or prompting or anything would mess it up"*
+
+**The constraint is the finding:** nothing built now may depend on a large model
+to be *correct* — only to be *fast*. Routing is already a word comparison and the
+gate is already code, so both survive a swap. The briefs are what would not.
+
+**Court opinions — `Keep them closed`, and the note pulls the other way:**
+
+> *"I want to open everything we can use. We should just kind of determine what
+> good sources are out there cause like there's no reason for them not to use
+> this court case I don't want to be the one to answer it. The only reason we are
+> talking so much now is because I can't trust the answers"*
+
+**Recorded as answered and flagged as contradictory rather than resolved by me.**
+The button says keep the hosts closed; the words say open what we can and stop
+making the firm the source of last resort. Taken as: the choice stands for the
+five blocked hosts, and the real ask is a wider set of *reachable* authority.
+Put back to them rather than decided here.

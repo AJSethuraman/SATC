@@ -19,6 +19,21 @@ The citation points at the paragraph; whoever wants the text opens it themselves
 That is a better artifact than an ingested one, because what goes to a client
 should be the firm's position with the paragraph behind it, never someone else's
 prose filtered through a model.
+
+HOW A POSITION IS WORDED, WHICH IS NOT HOW A CONVICTION IS WORDED. The firm, on
+the docket of 5 September 2026, ratifying thirteen of these: *"I want to ensure
+that where when you say my words, they're not the direct quotes I do like the
+convictions and stuff, including direct quotes, so we can kind of remember where
+they came from but positions that the agent finds to argue from should be
+cleaned up."* And on one of them: *"I don't want our desk to have this much like
+of my thought behind it."*
+
+So a conviction in `canon` keeps the quotation, because its provenance IS its
+authority. A POSITION IS CLEANED UP: the `Position` line and the `Ratified` line
+are prose the desk can hand to an answerer, and the firm's own words for it live
+in the log (`docs/DECISIONS-WAITING-*.md`), where provenance belongs. Pasting a
+spoken answer in here reads as the firm's considered wording when it was a
+thought in passing, and it is what `serve()` returns verbatim.
 """
 from __future__ import annotations
 

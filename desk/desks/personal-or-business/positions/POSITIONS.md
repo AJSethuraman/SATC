@@ -117,6 +117,8 @@ is an owner draw or something else is a bookkeeping question and neither
 the business's. It cannot say from this authority what the books should do about
 the money that left the account.
 
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+
 ---
 
 ## POS3 · A cleaning service is a household cost until part of the home is shown to be the place of business
@@ -149,3 +151,5 @@ secondary, which is precisely where a position belongs — the interpretive text
 the thing that invites a choice. It is also the only home-office authority
 reachable at all: § 280A has no final regulations, and 26 CFR 1.280A-1, 1.280A-2
 and 1.280A-3 each returned 404 from the eCFR versioner on 5 September 2026.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
