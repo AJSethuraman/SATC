@@ -114,6 +114,11 @@ RUNS_NO_RECORD = ("how-we-work", "docket")
 # have to land where the source is. So the plugin-root rule does not apply to
 # it, and saying so here is cheaper than a reader wondering why.
 RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
+# `walk` is a fourth thing, named for the same reason. It runs against the
+# PRODUCT -- a running build in a browser -- not against canon at all, and its
+# two documents land in whatever repository it was pointed at. It never reads
+# the record, so the plugin-root rule has nothing to bite on here either.
+RUNS_AGAINST_THE_PRODUCT = ("walk",)
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
@@ -166,7 +171,8 @@ def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
     that grows one skill at a time without anybody deciding."""
     every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
     assert every == (set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
-                     | set(RUNS_AGAINST_A_CHECKOUT))
+                     | set(RUNS_AGAINST_A_CHECKOUT)
+                     | set(RUNS_AGAINST_THE_PRODUCT))
     for name in RUNS_NO_RECORD:
         text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "CONVICTIONS.md" not in text, \
@@ -185,3 +191,16 @@ def test_the_adversarial_skill_carries_the_brief_and_the_way_back():
         "it does not say why this is worth doing beside mutation testing"
     assert "discarded unread" in flat, \
         "the far side is not told its scratch is free"
+
+
+def test_the_walk_skill_demands_both_documents():
+    """The skill exists because a real walk produced only one of them. If the
+    file stops saying so, it stops being the fix and becomes a description of
+    browsing."""
+    flat = " ".join((CANON / "skills" / "walk" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Two documents come out" in flat, "the two outputs are not the rule"
+    assert "Neither is optional" in flat, "one of them can still be skipped"
+    assert "A test knows the answer before it runs" in flat,         "it does not say why a walk finds what the suite cannot"
+    assert "Do not fix anything mid-walk" in flat,         "nothing stops the walk repairing the thing it was measuring"
+    assert "docs/PROCEDURE-" in flat and "docs/WALKTHROUGH-DEFECTS.md" in flat,         "the two documents are not named where they go"
