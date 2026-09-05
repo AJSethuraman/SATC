@@ -623,7 +623,13 @@ def load(desk_dir: Path) -> Desk:
         # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
         # for those subjects and reads as a strict desk -- the same failure the
         # source-level check was given, for the same reason.
-        held = {q.citation for q in passages} | {q.citation for q in pos}
+        # RATIFIED POSITIONS ONLY, because `position()` excludes proposals.
+        # Counting a proposal as held let a desk load whose narrowed subject
+        # then refused every answer -- the designated citation as
+        # `authority_absent`, every other as `citation_does_not_support` -- a
+        # dead subject that reads as a strict desk. Found by Codex on #272.
+        held = ({q.citation for q in passages}
+                | {q.citation for q in pos if not q.proposed})
         missing = sorted(set(answered_by) - held)
         if missing:
             raise RecordError(

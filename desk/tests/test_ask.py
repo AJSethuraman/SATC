@@ -123,3 +123,97 @@ def test_keeping_is_the_default_and_the_default_is_the_point(tmp_path):
     caller who forgot it silently destroy the findings."""
     import inspect
     assert inspect.signature(ask.answer).parameters["keep"].default is True
+
+
+# ── what Codex found on #272, each pinned ────────────────────────────────────
+
+def test_the_callers_reasoning_survives_into_the_queue(tmp_path):
+    """IT DID NOT. `answer()` took `working` and never passed it to `Answer`, so
+    every entry filed through the front door arrived blank — while the skill
+    beside it demands a real one, because the reasoning is the only thing that
+    says what authority is missing. A queue of blank refusals is a count, and a
+    count is the thing this was built not to be."""
+    import shutil
+    import unsupported
+
+    desks = tmp_path / "desks"
+    shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
+    ask.answer("what did the client buy at the hardware store?", "cash-and-bank",
+               position="x", citation="26 CFR 9.9-9",
+               working="the rule turns on what was bought and nobody has said",
+               model="a test", desks=desks)
+    kept = unsupported.parse(
+        (desks / "cash-and-bank" / "unsupported" / "asked.md")
+        .read_text(encoding="utf-8"))
+    assert kept[0].working == "the rule turns on what was bought and nobody has said"
+
+
+def test_an_escalations_reasoning_survives_too(tmp_path):
+    """The other branch, which is the one a well-behaved desk uses most."""
+    import shutil
+    import unsupported
+
+    desks = tmp_path / "desks"
+    shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
+    ask.answer("whose vehicle is it?", "cash-and-bank",
+               escalate="facts_not_established",
+               working="nothing on this desk reaches vehicle ownership",
+               desks=desks)
+    kept = unsupported.parse(
+        (desks / "cash-and-bank" / "unsupported" / "asked.md")
+        .read_text(encoding="utf-8"))
+    assert kept[0].working == "nothing on this desk reaches vehicle ownership"
+
+
+def test_the_skill_reaches_the_module_from_the_installed_plugin():
+    """A skill runs inside whatever repository the caller is working in, and
+    `desk` is installed elsewhere — so a bare `import ask` raises
+    ModuleNotFoundError on the first line of the first use. Which is the same
+    failure as `ask_desk` not existing: a front door that opens onto a wall.
+
+    THE PROSE IS NOT THE CODE, which this test learned by passing on the wrong
+    one: it searched the whole file for `import ask` and found the sentence
+    warning against it, several lines above the fix. What a caller runs is the
+    fenced block, so that is what is checked.
+    """
+    import re
+
+    text = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+            / "SKILL.md").read_text(encoding="utf-8")
+    blocks = [b for b in re.findall(r"```python\n(.*?)```", text, re.S)
+              if re.search(r"^import ask$", b, re.M)]
+    assert blocks, "the skill no longer shows the import; show the real one"
+    for b in blocks:
+        assert b.index("CLAUDE_PLUGIN_ROOT") < b.index("import ask"), (
+            "a runnable block imports `ask` without first putting the plugin "
+            "root on the path; it fails immediately for every caller that is "
+            "not this repository")
+
+
+def test_a_narrowing_may_not_rest_on_a_position_nobody_ratified(tmp_path):
+    """`Desk.position()` excludes proposals. Counting one as held let a desk
+    load whose narrowed subject then refused everything — the designated
+    citation as `authority_absent`, every other as `citation_does_not_support`.
+    A dead subject that reads as a strict desk."""
+    d = tmp_path / "proposed-only"
+    (d / "extracted").mkdir(parents=True)
+    (d / "positions").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-05\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        encoding="utf-8")
+    (d / "positions" / "POSITIONS.md").write_text(
+        "## POS1 · A proposal\n\n**Citation:** 26 CFR 2 · "
+        "**Recorded:** 2026-09-05\n\n**Position:** something\n", encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## proposed-only · A desk\n\n**Answered from S1:** widgets\n\n"
+        "**Answered by `26 CFR 2`:** widgets\n", encoding="utf-8")
+    with pytest.raises(record.RecordError, match="holds no passage or position"):
+        record.load(d)

@@ -11,7 +11,14 @@ you do not have.
 
 ## The two calls
 
+**Reach the module from the installed plugin, not from wherever you are.** This
+skill runs inside whatever repository you are working in, and `desk` is installed
+elsewhere — so a bare `import ask` raises `ModuleNotFoundError` on the first line
+of the first use.
+
 ```python
+import os, sys
+sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])
 import ask
 
 for desk, brief in ask.consult("the bank statement shows a $10 service charge "

@@ -90,11 +90,19 @@ def answer(question: str, desk_name: str, *, position: str = "",
     measuring, never when answering.
     """
     desk = record.load(desks / desk_name)
+    # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
+    # carries the field and `unsupported.from_refusal` persists it, so every
+    # entry filed through here arrived with BLANK reasoning -- while the skill
+    # beside it demands a real one, because "could not tell" helps nobody and
+    # the reasoning is the only thing that says what authority is missing. A
+    # queue of blank refusals is a count, and the count was the thing this was
+    # built not to be. Found by Codex on #272.
     if escalate:
         proposed = engine.Answer(position="", citation="", escalated=True,
-                                 reason=escalate)
+                                 reason=escalate, working=working)
     else:
-        proposed = engine.Answer(position=position, citation=citation)
+        proposed = engine.Answer(position=position, citation=citation,
+                                 working=working)
 
     out = engine.serve(proposed, desk, question=question)
     if isinstance(out, engine.Refusal) and keep:
