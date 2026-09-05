@@ -1,6 +1,6 @@
 ---
 name: walk
-description: Drive the product through a real browser as the person whose job it is, end to end, and write TWO documents as you go — the procedure, numbered and screenshotted, that a person can follow, and the defects that only surface on a screen. Use when the firm wants to prove a build works visually and literally, wants a written procedure or SOP for staff, wants to know what a green test suite is missing, or says walk the product, click through it, or do it like a real user would.
+description: Drive the product through a real browser as the person whose job it is, end to end, and write TWO documents as you go — the procedure, numbered and screenshotted, delivered as one self-contained file that opens with a picture of the route, and the defects that only surface on a screen. Use when the firm wants to prove a build works visually and literally, wants a written procedure or SOP for staff, wants to know what a green test suite is missing, or says walk the product, click through it, or do it like a real user would.
 ---
 
 # Walk the product
@@ -30,7 +30,7 @@ the product had never told anybody.
 This is the rule the skill exists for. **The same run produces both. Neither is
 optional.**
 
-**1 · The procedure** — `docs/PROCEDURE-<job>.md`
+**1 · The procedure** — source `docs/PROCEDURE-<job>.md`, delivered as one file
 
 Written for the person who will do this job without you: numbered steps, one
 action each, a screenshot per step, and what a correct screen looks like so they
@@ -38,6 +38,9 @@ can tell when it is wrong. This is the deliverable that becomes staff training,
 a client-facing SOP, and the script for the next walk. **It is the half that gets
 skipped**, because the defects feel like the findings and the route feels like
 scaffolding. The route is the asset.
+
+The Markdown is the source. **What you hand over is one self-contained document**
+— see below.
 
 **2 · The defects** — `docs/WALKTHROUGH-DEFECTS.md`
 
@@ -64,6 +67,45 @@ docs/walkthrough/<job>-<date>/step-03-import-mapped.png
 Reference them inline in the procedure. A step without its screenshot is a step
 somebody has to guess at, and behaviour 11 applies to your own output: open the
 document and look at it before calling it done.
+
+**Mark the screenshot to the step.** Ring the control the step is about, and
+where the thing to read is small — a total, a status, a row in a table — put a
+zoomed crop of it beside the full screen. A full-page capture with a sentence
+saying "click Import" is a puzzle the reader solves once per step, and they will
+stop solving it around step four.
+
+## The procedure is one document, not a note and a folder of pictures
+
+**What you hand over is a single self-contained file** — one PDF, or one
+published page, with every screenshot **embedded in it** rather than linked to a
+folder beside it. Somebody has to be able to forward it to a member of staff who
+does not have the repository, and have it work.
+
+It opens with **a picture of the route** — the screens in order, with what
+happens between them — so the reader can see the shape of the job before step 1.
+Then the numbered steps: what to click, and what a correct screen looks like.
+
+Render it, and then **open the rendered file and look at every page**:
+
+```
+chrome.exe --headless=new --no-pdf-header-footer --print-to-pdf=docs/walkthrough/<job>-<date>/PROCEDURE-<job>-<date>.pdf file:///<absolute path to the html>
+```
+
+**The defects document stays separate.** It is written for whoever fixes the
+product; the procedure is written for whoever does the job. Merging them gives
+the person being trained a list of things that are broken, and gives the person
+fixing them a list of clicks.
+
+**Incident:** on 5 September 2026 the firm was handed a `tie-out` exhibit as a
+Markdown note with a folder of images beside it — every step run, nothing left
+out, and unusable as a thing to give anybody. *"i assumed that you understood the
+final product of tie out and walk would basically be a PDF that shows how
+everything tied out? and explains it and makes it easy to follow? Is that not?"*
+They named this skill in the same breath as that one: *"A sample of one and a
+walk through or a… procedure document should literally, like, visually and
+verbally easily show you how all the dots connect. How to use the system? How it
+works. How it tied out."* This skill had the same gap — it said where the
+screenshots go and never said the procedure had to arrive as one thing.
 
 ## What you are hunting
 
@@ -100,6 +142,8 @@ finding from the first run.
 - **Do not stop at the first defect.** Finish the job. The worst one on the first
   run was the last screen, and a walk abandoned early reports the shallowest
   problems as though they were the set.
+- **Do not hand over the Markdown and the screenshot folder.** That is what you
+  rendered from. What a person can be trained on is the one file.
 - **Do not report a count of defects without the suite's denominator beside it.**
   "Ten defects" means little; "ten defects against 1,588 passing tests, none of
   which caught any of them" is the argument.
