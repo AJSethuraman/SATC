@@ -14,14 +14,41 @@
     and see the whole engagement →</a>
     <span class="muted">what we will need, what it will cost, when it is due — nothing is generated.</span>
   </p>
+  {# The client used to be a HIDDEN field, so the nav's own Intake link supplied
+     none and everything read here was posted to a hardcoded demo client in the
+     prior tax year. It is a visible, required choice now. The folder box also
+     used to ship with `/Clients/Maplewood/2024` as its VALUE rather than its
+     placeholder, which is a path that exists on nobody's machine. #}
   <form method="post" style="margin-top:14px">
-    <input type="hidden" name="client" value="{{ client }}">
-    <input type="hidden" name="tax_year" value="{{ tax_year }}">
-    <input class="field-input" name="folder" placeholder="e.g.  /Clients/Maplewood/2024  or  a SharePoint-synced folder"
-           value="{{ folder or '/Clients/Maplewood/2024' }}">
+    <div class="row" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
+      <div>
+        <label class="muted" for="intake-client">Whose documents are these?</label><br>
+        <select class="field-input" name="client" id="intake-client">
+          <option value="">— choose a client —</option>
+          {% for cid, dname in clients %}
+          <option value="{{ cid }}"{% if cid == client %} selected{% endif %}>{{ dname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="muted" for="intake-year">Tax year</label><br>
+        <input class="field-input" name="tax_year" id="intake-year" value="{{ tax_year }}"
+               placeholder="2025" style="max-width:120px">
+      </div>
+    </div>
+    <input class="field-input" name="folder" style="margin-top:10px"
+           placeholder="e.g.  C:\Clients\Raghavan\2025  or  a SharePoint-synced folder"
+           value="{{ folder }}">
     <button class="btn primary" type="submit">Scan folder</button>
   </form>
 </div>
+
+{% if problem %}
+<div class="panel">
+  <h2>Nothing was read</h2>
+  <div class="body"><p class="note" style="color:var(--red,#a3402f)">{{ problem }}</p></div>
+</div>
+{% endif %}
 
 {% if found %}
 <div class="panel">

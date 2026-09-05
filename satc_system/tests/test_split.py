@@ -73,6 +73,6 @@ def test_intake_reads_a_combined_pdf(tmp_path):
     src.mkdir(parents=True)
     write_combined_pdf(src / "scan_stack.pdf", [TEXT_W2, TEXT_1099INT, TEXT_ENGAGEMENT])
 
-    summary = AppState().run_intake(str(src))
+    summary = AppState().run_intake(str(src), client_id="SATC-001000", tax_year=2024)
     assert summary["files_read"] == 2                    # W-2 + 1099-INT read; engagement filed
     assert any("split into 3" in n for n in summary["notes"])
