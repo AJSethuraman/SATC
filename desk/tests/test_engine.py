@@ -377,6 +377,12 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
 NOT_ABOUT_AUTHORITY = {
     "facts_not_established": "ask the client",
     "document_not_requested": "obtain a document nobody requested",
+    # The third of the same family, and it is resolved by NEITHER of the above:
+    # the fact should already be in our own engagement record, so the answer is
+    # to look there and, when it is not there, to notice that the intake missed
+    # it. The firm, 5 September 2026: "if they're missing that piece of
+    # information, something was just missing from the file."
+    "context_not_on_file": "read our own file, and fix the intake that skipped it",
 }
 
 

@@ -1,0 +1,242 @@
+"""Two ways a run reports a number for a question nobody ever asked.
+
+Both are the same shape and it is the shape this repository keeps finding: a
+claim in one place and the behaviour in another. `ollama()`'s docstring has said
+since it was written that a request over the window "does not error -- it
+silently drops the front of the prompt", and the front of this prompt is the
+instruction to cite. Nothing checked it. `Leak` was raised where
+`scoreboard.run` converts anything into `model_gave_up`, and escalation is a
+SUCCESS on this scoreboard -- so a desk whose every prompt the harness refused
+to build published as a careful one.
+"""
+from __future__ import annotations
+
+import pathlib
+import sys
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+
+import record                                               # noqa: E402
+import scoreboard                                           # noqa: E402
+import scoreboard_run as sr                                 # noqa: E402
+from conftest import DESKS                                  # noqa: E402
+
+
+# -- the window ---------------------------------------------------------------
+
+def test_the_estimate_runs_high_never_low():
+    """Under-counting is the one failure this must not have: it means the check
+    passes and the prompt is cut anyway. English is nearer 4 characters to the
+    token and regulation text is denser than English, so 3.2 is the pessimism."""
+    assert sr.CHARS_PER_TOKEN < 4
+    assert sr.estimate_tokens("x" * 400) > 100
+    assert sr.estimate_tokens("") == 0
+
+
+def test_the_reply_is_taken_out_of_the_window_not_added_to_it():
+    """`num_ctx` is the whole of what the model holds, prompt and answer
+    together. Sized against the window alone, a prompt that "fits" leaves the
+    answer nowhere to go and the reply is what gets cut."""
+    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
+    just_over = "x" * int((room + 50) * sr.CHARS_PER_TOKEN)
+    with pytest.raises(sr.PromptTooLong):
+        sr.check_fits(just_over, num_ctx=8192)
+
+    just_under = "x" * int((room - 200) * sr.CHARS_PER_TOKEN)
+    assert sr.check_fits(just_under, num_ctx=8192) <= room
+
+
+def test_a_prompt_that_will_not_fit_stops_the_run_rather_than_scoring_it():
+    """A `HarnessError`, so `scoreboard.run` re-raises instead of recording an
+    escalation for a question the model never saw."""
+    assert issubclass(sr.PromptTooLong, scoreboard.HarnessError)
+
+
+def test_the_refusal_says_what_to_do_about_it():
+    with pytest.raises(sr.PromptTooLong) as e:
+        sr.check_fits("x" * 100_000, num_ctx=8192, where="the vehicle desk")
+    said = str(e.value)
+    assert "the vehicle desk" in said
+    assert "--corpus index" in said and "--num-ctx" in said
+
+
+def test_the_index_shape_fits_every_desk_and_the_full_text_fits_one():
+    """The measurement, kept as a test so it cannot rot quietly.
+
+    IT SAID "FITS NONE" FOR AN HOUR AND THAT WAS WRONG. It was measured while
+    four desks could not be prompted at all -- the leak check was refusing them
+    -- so their full-text size was never taken. With that fixed, one desk's full
+    text does fit: `personal-or-business`, at 4,388 against 7,616 of room. A
+    denominator taken over the rows that happened to be readable is the failure
+    this repository is named for, and it caught me on the same afternoon I wrote
+    the guard.
+    """
+    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
+    index, text = {}, {}
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        for shape, into in (("index", index), ("text", text)):
+            sizes = []
+            for problem in desk.problems:
+                try:
+                    sizes.append(sr.estimate_tokens(
+                        sr.build_prompt(problem, desk, shape=shape)))
+                except sr.Leak:
+                    pass                 # that desk's own, separate defect
+            if sizes:
+                into[desk.name] = max(sizes)
+
+    # SIX, NOT SEVEN. `rewards-and-information-returns` contributes no size at
+    # all: all 19 of its problems are blocked by the three worked examples in its
+    # corpus, recorded in `test_corpus_is_rules.py`. When those are fixed this
+    # goes red, which is the two tests holding hands rather than a nuisance.
+    assert sorted(index) == [
+        "capitalization-and-de-minimis", "cash-and-bank", "fixed-assets",
+        "meals-and-entertainment", "personal-or-business", "vehicle-expense",
+    ], f"the set of promptable desks moved: {sorted(index)}"
+    assert not [d for d, n in index.items() if n > room], \
+        f"the index shape no longer fits: {[(d, n) for d, n in index.items() if n > room]}"
+
+    fits = sorted(d for d, n in text.items() if n <= room)
+    assert fits == ["personal-or-business"], (
+        f"the full-text shape now fits {fits}. It fitted exactly one desk when "
+        f"this was measured; if that changed, say so in the docs rather than "
+        f"here — the number is quoted in docs/CONTEXT-ON-FILE.md."
+    )
+
+
+# -- the leak that read as a careful desk -------------------------------------
+
+def _leaking_desk():
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        for p in desk.problems:
+            try:
+                sr.build_prompt(p, desk, shape="index")
+            except sr.Leak:
+                return desk
+    return None
+
+
+def test_a_leak_is_ours_and_stops_the_run():
+    """It was a plain Exception, so it landed in the catch-all that exists for a
+    small model failing unpredictably -- and became `model_gave_up`."""
+    assert issubclass(sr.Leak, scoreboard.HarnessError)
+
+
+def test_a_desk_the_harness_cannot_prompt_does_not_publish_as_a_careful_one():
+    """The reproduction, with no model involved. Before the fix this recorded 19
+    of 19 as ESCALATED, which this scoreboard reports as a success."""
+    desk = _leaking_desk()
+    if desk is None:
+        pytest.skip("no desk currently leaks, so there is nothing to prove here")
+
+    def ask(problem):
+        sr.build_prompt(problem, desk, shape="index")   # raises Leak where it does
+        # Not every problem on the desk leaks. The ones that do not are the
+        # brain's to fail, so they take rule 9's path and become a row -- which
+        # is the behaviour the fix must not have broken.
+        raise RuntimeError("this one does not leak, and that is not the point")
+
+    with pytest.raises(scoreboard.HarnessError):
+        scoreboard.run(desk, ask, model="a model that was never called")
+
+
+def test_a_brain_giving_up_is_still_counted_as_a_denominator():
+    """The other half, so the fix does not take rule 9 with it: a failure that
+    really is the brain's still produces a row rather than stopping the run."""
+    desk = record.load(DESKS / "cash-and-bank")
+
+    def ask(problem):
+        raise RuntimeError("the model said something unparseable")
+
+    run = scoreboard.run(desk, ask, model="a brain having a bad day")
+    assert run.gave_up == len(desk.problems)
+    assert len(run.results) == len(desk.problems)
+
+
+# -- the narrowing, and the proof it did not blind the check ------------------
+
+def _promptable():
+    """A desk and problem the harness can currently build a prompt for."""
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        for problem in desk.problems:
+            try:
+                sr.build_prompt(problem, desk, shape="index")
+                return desk, problem
+            except sr.Leak:
+                continue
+    raise AssertionError("no desk can be prompted at all")
+
+
+def test_the_rules_own_words_are_not_a_leak():
+    """The narrowing itself. § 1.274-11(a) says entertainment is not deductible;
+    a model that reads that and concludes it has reasoned correctly from
+    authority. Counted over the whole prompt, that refused 11 real problems."""
+    import dataclasses
+
+    desk, problem = _promptable()
+    planted = dataclasses.replace(
+        desk, passages=desk.passages + (record.Passage(
+            citation="26 CFR 9.99-9(a)", source_id=desk.sources[0].id,
+            checked="2026-09-05",
+            text=f"A charge of this kind is {problem.answer}. Nothing turns on "
+                 f"who sold it."),))
+    sr.build_prompt(problem, planted, shape="text")     # must not raise
+
+
+def test_the_answer_in_the_facts_is_still_a_leak():
+    """The half that matters. Everywhere except the quoted authority and the
+    list of conclusions, the answer has no business appearing."""
+    import dataclasses
+
+    desk, problem = _promptable()
+    planted = dataclasses.replace(problem, facts=f"{problem.facts} It is {problem.answer}.")
+    desk = dataclasses.replace(
+        desk, problems=tuple(planted if p is problem else p for p in desk.problems))
+    with pytest.raises(sr.Leak):
+        sr.build_prompt(planted, desk, shape="index")
+
+
+def test_the_answer_in_a_source_title_is_still_a_leak():
+    """The source list is printed and is not authority. A source retitled
+    helpfully -- "S4 - when it is not deductible" -- would hand the conclusion
+    over in the one block a reader would never think to check."""
+    import dataclasses
+
+    desk, problem = _promptable()
+    first = desk.sources[0]
+    desk = dataclasses.replace(desk, sources=(
+        dataclasses.replace(first, title=f"{first.title} — when it is {problem.answer}"),
+    ) + desk.sources[1:])
+    with pytest.raises(sr.Leak):
+        sr.build_prompt(problem, desk, shape="index")
+
+
+def test_a_conclusion_that_contains_another_is_not_a_leak():
+    """Four problems were refused for this and none of them leaked: `an
+    allowable deduction` occurs inside `not an allowable deduction`, so the old
+    at-most-one count saw two. The list is now cut out, not budgeted for."""
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        listed = sr.admissible(desk)
+        nested = [a for a in listed if any(a != b and a in b for b in listed)]
+        if not nested:
+            continue
+        for problem in desk.problems:
+            if problem.answer in nested:
+                sr.build_prompt(problem, desk, shape="index")   # must not raise
+                return
+    pytest.fail("no desk has one admissible conclusion inside another, so the "
+                "case these four were refused for no longer exists to prove")

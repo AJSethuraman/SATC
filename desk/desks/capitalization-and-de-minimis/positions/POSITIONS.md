@@ -113,3 +113,5 @@ consistent accounting procedure or policy existing at the beginning of the
 taxable year. If you have AFS, you must have the accounting procedures in
 writing."* Writing it down anyway is cheap and is what proves consistency, so
 this position asks for it — but it asks for it as practice, not as law.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.

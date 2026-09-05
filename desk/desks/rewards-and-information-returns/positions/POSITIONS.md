@@ -23,6 +23,8 @@ thing that can close it.
 
 **Position:** an adjustment to the price paid, booked against the cost it arose from, and not income
 
+**Needs:** taxpayer
+
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"it's interesting because the answer to this I'm pretty sure is card points are
 not income they're not taxed they are rebates and you get to just take those
@@ -59,13 +61,54 @@ citation:
    obviously fit that sentence, and NOTHING was found that addresses them. This
    position deliberately covers only rewards earned by spending.
 
-**And one thing that was looked for and could not be reached.** The Tax Court has
-decided a case on credit card rewards — *Anikeev v. Commissioner*, T.C. Memo.
-2021-23 — and every host that carries court opinions is refused by this
-environment's network policy (ustaxcourt.gov, govinfo.gov, courtlistener.com,
-law.justia.com, casetext.com all answered 403 at the proxy). A person should read
-that opinion before this position is ratified, because it is the only place the
-general answer has been tested and limited.
+**IT WAS READ. The firm handed over the opinion on 5 September 2026**, after
+every host carrying court opinions refused this environment — five were tried and
+all returned 403. What it says changes what may be ratified here.
+
+***Anikeev v. Commissioner*, T.C. Memo. 2021-23 — two holdings, cutting opposite
+ways on one set of facts.** Rewards earned buying Visa gift cards were **not**
+income, because the cards *"have product characteristics"*. Rewards earned by
+buying money orders directly and loading cash onto debit cards **were** income,
+because *"No product or service is obtained in these uses of the American Express
+cards other than cash transfers."*
+
+**It confirms the rule and refuses to be authority for it.** The IRS's own
+counsel conceded at trial that *"long-standing IRS policy is that card rewards
+are not taxable... the reward itself acts as a discount on whatever property or
+services are being purchased"*, and the court held them to it: *"respondent must
+be held to the terms of that policy."* But the last paragraph disclaims any
+broader ground:
+
+> *"We note that the above holdings are not based upon the application of the
+> cash equivalence doctrine but rather the incompatibility of the direct money
+> order purchases and the debit card reloads with the IRS policy excluding credit
+> card rewards for product and service purchases from income. These holdings are
+> based on the unique circumstances of this case."*
+
+So there is no citable holding that purchase-based rewards are non-income as a
+matter of law. There is the Service's own policy, enforced against it once, on
+facts the court called *"an extreme test"* — and a court hoping *"that respondent
+polices the IRS policy in the future in regulations or public pronouncements
+rather than relying on piecemeal litigation."*
+
+**What it adds that nothing else in this desk reaches.** The opinion distinguishes
+*Shankar v. Commissioner*, 143 T.C. 140 (2014), where bank *"Thank You Points"*
+redeemed for an airline ticket **were** income, likened to interest — *"the awards
+were not an incentive or rebate based on credit card purchases."* That is the
+first authority this desk has touching a reward **not earned by spending**. It is
+a distinction, not a holding on sign-up or referral bonuses, and this position
+still does not cover them.
+
+**And the two things it does not say, which matter more here than what it does.**
+
+1. **It never uses the word "business."** Not once — checked. It is a personal
+   return: wages, interest, dividends, capital gains. Whether the same analysis
+   reaches a contractor's business card was never asked and is not answered.
+2. **It says nothing about a purchase that was expensed rather than capitalised.**
+   The only basis reasoning in it is dictum the court declined to apply, and it
+   presupposes property with a surviving basis and a later disposition. Fuel
+   burned and a tool written off have neither. **The firm's actual open question
+   is untouched by the only case on the subject.**
 
 ---
 
@@ -107,3 +150,5 @@ position cites still says $600.** 26 U.S.C. § 6041(a) was amended to $2,000 by
 Pub. L. 119-21 § 70433(a), applicable to payments made after 31 December 2025,
 and is indexed for inflation from 2027 under § 6041(h). The regulation has not
 been conformed. Anyone reading § 1.6041-1 alone will get the old number.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
