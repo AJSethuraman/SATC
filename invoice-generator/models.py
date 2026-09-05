@@ -192,6 +192,18 @@ class Invoice(db.Model):
     logo_data = db.Column(db.LargeBinary, nullable=True)
     logo_mimetype = db.Column(db.String(64), nullable=True)
 
+    # The chosen look, e.g. "band-emerald". See designs.py. NULLABLE on
+    # purpose: every invoice written before the gallery existed has no design,
+    # and designs.resolve(None) hands back the look the app already shipped,
+    # so those invoices re-print exactly as their clients first saw them.
+    # Nullable also makes the column safe to add under a rolling deploy — a
+    # worker still running the old code inserts rows without it.
+    design = db.Column(db.String(64), nullable=True)
+    # "INVOICE" / "QUOTE" / "RECEIPT" / "ESTIMATE". The document is the same
+    # shape either way; only the word at the top and the label on the number
+    # change. Nullable for the same reason as `design`.
+    doc_title = db.Column(db.String(40), nullable=True)
+
     # Workflow / integrations
     status = db.Column(db.String(20), default="Draft")  # Draft | Sent | Paid
     stripe_session_id = db.Column(db.String(255), nullable=True)

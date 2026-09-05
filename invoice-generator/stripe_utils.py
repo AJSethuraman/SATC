@@ -12,6 +12,8 @@ bank — not the platform's. The platform optionally takes an
 """
 import stripe
 
+from currencies import decimals_for
+
 
 def configure(secret_key):
     stripe.api_key = secret_key
@@ -74,6 +76,33 @@ def _platform_fee_cents(config, amount_cents):
     return fee if 0 < fee < amount_cents else 0
 
 
+def to_minor_units(amount, currency):
+    """Convert a decimal amount to the integer Stripe expects.
+
+    Stripe takes ``unit_amount`` in the currency's **smallest unit**, and that
+    is not always a hundredth. This used to be ``int(round(amount * 100))``
+    for every currency, which is right for the ~140 two-decimal currencies and
+    wrong by two orders of magnitude for the rest:
+
+    * **JPY has no minor unit** — the smallest unit *is* the yen. A ¥1,500
+      invoice was sent to Checkout as ``150000``, and the client was charged
+      **¥150,000**. JPY is one of the fourteen currencies the app has always
+      offered in account settings, so this was reachable, not theoretical.
+      The same 100x overcharge applied to KRW, VND, CLP, ISK and the eleven
+      other zero-decimal currencies.
+    * **KWD, BHD, OMR and the other three-decimal currencies** went the other
+      way: KWD 1.500 became ``150`` fils instead of ``1500`` — the client was
+      undercharged tenfold and the invoice never settled.
+
+    The invoice's own total is untouched either way; it is only the number
+    handed to the payment processor that was wrong, which is the worst place
+    for it to be — the books say one thing and the card says another.
+
+    Caught by tests/test_stripe_minor_units.py.
+    """
+    return int(round(amount * (10 ** decimals_for(currency))))
+
+
 def create_checkout_session(
     invoice, secret_key, base_url, connected_account_id, config=None,
     success_url=None, cancel_url=None,
@@ -97,7 +126,7 @@ def create_checkout_session(
 
     configure(secret_key)
     currency = (invoice.currency or "usd").lower()
-    unit_amount = int(round(amount * 100))
+    unit_amount = to_minor_units(amount, currency)
 
     params = {
         "mode": "payment",

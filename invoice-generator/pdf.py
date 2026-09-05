@@ -22,6 +22,8 @@ from pathlib import Path
 
 from flask import current_app, render_template
 
+from designs import resolve
+
 _WEASY_AVAILABLE = None
 
 
@@ -74,15 +76,27 @@ def _business_context(invoice, allow_svg):
     return {
         "name": lines[0] if lines else "",
         "lines": lines[1:],
+        # The address as one editable block. The PDF renders ``lines``; the
+        # editor needs the same text back in a textarea, and deriving it here
+        # keeps one definition of "the sender block" rather than two that
+        # split the string on slightly different rules.
+        "address_text": "\n".join(lines[1:]),
         "logo_uri": _logo_data_uri(invoice, allow_svg=allow_svg),
     }
 
 
 def _render_invoice_html(invoice, allow_svg, pay_url=None):
+    # An invoice saved before the design gallery existed has no design, and
+    # ``resolve`` hands back the default — which reproduces the look this app
+    # shipped with, so a historical invoice re-renders unchanged rather than
+    # coming out of the printer in a skin its client has never seen.
+    design = resolve(getattr(invoice, "design", None))
     return render_template(
         "invoice_pdf.html",
         invoice=invoice,
         business=_business_context(invoice, allow_svg=allow_svg),
+        design=design,
+        doc_title=(getattr(invoice, "doc_title", None) or "INVOICE"),
         pay_url=pay_url if pay_url is not None else invoice.stripe_payment_url,
     )
 

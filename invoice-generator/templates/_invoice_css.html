@@ -1,0 +1,180 @@
+{#
+  ============================================================
+  INVOICER · SHARED INVOICE STYLESHEET
+  Included inside a <style> block by BOTH the PDF template
+  (invoice_pdf.html) and the on-screen editor (generator.html)
+  so that what the sender sees while typing is what the client
+  receives. Expects a resolved `design` dict (designs.resolve).
+
+  TABLE-SAFE ONLY. No flexbox, no grid, no absolute positioning
+  — xhtml2pdf supports none of them and would render silently
+  differently from the browser.
+  ============================================================
+#}
+html, body { margin: 0; padding: 0; }
+body {
+  {#- `| safe` because a font stack contains double quotes, and Jinja's HTML
+     autoescaping turns them into &#34; inside this <style> block. That makes
+     the whole declaration invalid, and BOTH renderers then fall back to their
+     default serif — silently. It shipped that way for exactly one render:
+     every design claiming a sans stack printed in a serif, and the on-screen
+     preview (a browser, which recovers differently) did not agree with the
+     PDF. Nothing here is user input; `design.font` is one of two constants in
+     designs.py. Guarded by tests/test_designs.py::
+       test_no_design_stylesheet_contains_an_html_entity -#}
+  font-family: {{ design.font | safe }};
+  font-size: 9.5pt;
+  line-height: 1.45;
+  color: {{ design.ink }};
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet { width: 100%; background: #ffffff; margin: 0; padding: 0; }
+table { border-collapse: collapse; width: 100%; }
+td, th { vertical-align: top; }
+.pad { padding: 4mm 2mm; }
+
+/* ---- editable fields ----------------------------------------------
+   Present in the PDF stylesheet too, and unused there. They live in the
+   SHARED sheet on purpose: an input that inherited its type from a
+   separate editor stylesheet would set the client's name in a slightly
+   different face or size than the PDF does, and the preview would lie
+   by a few points in exactly the place nobody re-checks. Inheriting
+   from the cell means the caret sits on the same baseline the printed
+   glyph will.                                                        */
+.f {
+  font: inherit; color: inherit; letter-spacing: inherit;
+  text-align: inherit; text-transform: inherit;
+  background: transparent; border: 0; padding: 0; margin: 0;
+  width: 100%; outline: 0; border-radius: 3px;
+  resize: none; overflow: hidden;
+}
+.f::placeholder { color: #cbd5e1; opacity: 1; }
+.f:hover { box-shadow: 0 0 0 1px {{ design.line }}; }
+.f:focus { box-shadow: 0 0 0 2px {{ design.accent }}; background: #ffffff; }
+.f.r { text-align: right; }
+
+/* ---- masthead ---- */
+.mast-name { font-size: 15pt; font-weight: bold; color: {{ design.ink }}; letter-spacing: -0.3pt; }
+.mast-sub  { font-size: 8pt; color: {{ design.muted }}; padding-top: 2pt; }
+.mast-from { font-size: 8.5pt; color: {{ design.body }}; line-height: 1.55; padding-top: 7pt; }
+.logo-box  { height: 46px; padding-bottom: 6pt; }
+.logo-box img { max-height: 46px; }
+
+.doc-title {
+  font-size: {{ design.title_size }};
+  font-weight: {{ design.title_weight }};
+  color: {{ design.ink }};
+  letter-spacing: {{ design.title_spacing }};
+  text-transform: uppercase;
+}
+.doc-badge {
+  display: inline-block;
+  background: {{ design.soft }}; color: {{ design.accent }};
+  font-size: 7.5pt; font-weight: bold;
+  letter-spacing: 0.6pt; text-transform: uppercase;
+  padding: 3pt 8pt; border-radius: 999px; margin-top: 4pt;
+}
+.doc-badge.overdue { background: #fef2f2; color: #b91c1c; }
+.doc-badge.paid { background: #f0fdf4; color: #15803d; }
+
+/* The masthead's two structural variants are CSS, not markup. Every design
+   renders the SAME cells; only these rules differ. That is what lets the
+   editor reskin live by swapping this stylesheet alone — no re-render, and
+   no risk of the editor's DOM drifting from the PDF's. */
+.stripe-bar { width: 0; padding: 0; font-size: 0; line-height: 0; background: transparent; }
+
+{% if design.head == 'band' %}
+/* Band: the masthead sits on a filled bar, so everything inside it inverts.
+   Two adjacent cells sharing a background read as one bar under
+   border-collapse — the only construction both PDF engines agree on. */
+.mast .mast-main, .mast .mast-meta { background: {{ design.accent }}; padding: 6mm; }
+.mast .mast-main { padding-right: 0; }
+.mast .mast-meta { padding-left: 0; }
+.mast .mast-name, .mast .doc-title { color: #ffffff; }
+.mast .mast-from, .mast .mast-sub { color: #eef4ff; }
+.mast .meta .k { color: #dbe6fe; }
+.mast .meta .v { color: #ffffff; }
+.mast .doc-badge { background: #ffffff; color: {{ design.accent }}; }
+.mast .f::placeholder { color: #dbe6fe; }
+.mast .f:focus { background: transparent; box-shadow: 0 0 0 2px #ffffff; }
+{% endif %}
+
+{% if design.head == 'stripe' %}
+/* Stripe: a filled first column running the height of the masthead. */
+.stripe-bar { width: 6mm; background: {{ design.accent }}; }
+.mast .mast-main { padding-left: 4mm; }
+{% endif %}
+
+/* divider rule */
+.rule td {
+  {% if design.head == 'rule' %}border-top: 2px solid {{ design.ink }};
+  {% elif design.head == 'plain' %}border-top: 1px solid {{ design.line }};
+  {% else %}border-top: 0;{% endif %}
+  font-size: 0; line-height: 0; height: 0;
+}
+
+/* bill-to / ship-to blocks */
+.label {
+  font-size: 7pt; font-weight: bold; letter-spacing: 0.8pt;
+  text-transform: uppercase; color: {{ design.accent }}; padding-bottom: 4pt;
+}
+.party-name { font-size: 10pt; font-weight: bold; color: {{ design.ink }}; }
+.party { font-size: 8.5pt; color: {{ design.body }}; line-height: 1.55; padding-top: 2pt; }
+
+/* line items */
+.items { margin-top: 4mm; }
+.items th {
+  {% if design.thead == 'ink' %}
+  background: {{ design.ink }}; color: #ffffff;
+  {% elif design.thead == 'accent' %}
+  background: {{ design.accent }}; color: #ffffff;
+  {% else %}
+  background: transparent; color: {{ design.ink }};
+  border-bottom: 2px solid {{ design.ink }};
+  {% endif %}
+  font-size: 7.5pt; font-weight: bold; letter-spacing: 0.5pt;
+  text-transform: uppercase; text-align: left; padding: 6pt 8pt;
+}
+.items th.r, .items td.r { text-align: right; }
+.items td {
+  font-size: 9pt; color: #334155;
+  padding: 7pt 8pt; border-bottom: 1px solid {{ design.line }};
+}
+.items tr td.desc { color: {{ design.ink }}; font-weight: bold; }
+.items .num { font-family: "Courier New", monospace; }
+{% if design.thead != 'none' %}.zebra { background: {{ design.zebra }}; }{% endif %}
+
+/* totals */
+.totals { font-size: 9pt; }
+.totals td { padding: 3.5pt 8pt; }
+.totals .k { color: {{ design.muted }}; text-align: right; }
+.totals .v { color: {{ design.ink }}; text-align: right; font-weight: bold; white-space: nowrap; }
+.totals .discount .v { color: #16a34a; }
+.totals .grand td { border-top: 2px solid {{ design.ink }}; padding-top: 7pt; }
+.totals .grand .k { font-size: 10pt; font-weight: bold; color: {{ design.ink }}; }
+.totals .grand .v { font-size: 13pt; color: {{ design.ink }}; }
+.totals .balance td { background: {{ design.ink }}; }
+.totals .balance .k { color: #cbd5e1; font-size: 10pt; font-weight: bold; padding: 7pt 8pt; }
+.totals .balance .v { color: #ffffff; font-size: 13pt; padding: 7pt 8pt; }
+.totals .balance.paid td { background: #16a34a; }
+
+/* pay online CTA */
+.pay { background: {{ design.soft }}; border: 1px solid {{ design.line }}; border-radius: {{ design.radius }}; }
+.pay td { padding: 7mm 8mm; }
+.pay-h { font-size: 11pt; font-weight: bold; color: {{ design.ink }}; }
+.pay-p { font-size: 8.5pt; color: {{ design.body }}; padding-top: 2pt; }
+.pay-btn {
+  background: {{ design.accent }}; color: #ffffff;
+  font-size: 9.5pt; font-weight: bold;
+  padding: 9pt 18pt; border-radius: 8px;
+  text-decoration: none; white-space: nowrap;
+}
+.pay-link { font-family: "Courier New", monospace; font-size: 7.5pt; color: {{ design.accent }}; padding-top: 5pt; }
+
+/* notes / footer */
+.notes-h { font-size: 7pt; font-weight: bold; letter-spacing: 0.8pt; text-transform: uppercase; color: {{ design.muted }}; padding-bottom: 3pt; }
+.notes { font-size: 8.5pt; color: {{ design.body }}; line-height: 1.55; }
+.foot { font-size: 7.5pt; color: #94a3b8; text-align: center; padding-top: 8mm; }
+.foot strong { color: {{ design.muted }}; }
