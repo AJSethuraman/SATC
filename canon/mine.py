@@ -275,6 +275,13 @@ class Proposal:
                 f"{asked}\n"
                 f"This is exactly what would be written to the record:\n\n"
                 + "\n".join(f"  {line}" if line else "" for line in stored.splitlines())
+                # THE RULE IS NOT DECORATION. A rendered entry ends with a field,
+                # and a field's value runs until the next field or a rule -- so
+                # prose appended straight after it is, structurally, part of that
+                # field. Without this the closing question below parsed back as
+                # the tail of `How it could be wrong`. It also does the thing it
+                # looks like it does: shows the firm where the entry stops.
+                + "\n\n  ---"
                 + "\n\nIs that right, in your words? "
                   "Nothing is written until you say so.")
 

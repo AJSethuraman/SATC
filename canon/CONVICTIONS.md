@@ -221,7 +221,7 @@ question you have already answered is a thing you learn to dismiss without
 reading. And ids are never reused, so a declined proposal leaves a gap in the
 sequence — a gap with no explanation is an invitation to fill it.
 
-### C11 · declined 2026-09-04 · this session, proposed and declined the same hour
+### C13 · declined 2026-09-04 · this session, proposed and declined the same hour
 
 > *this isn't a conviction, i will just use it when i feel like it or want to test it*
 

@@ -324,15 +324,132 @@ def test_the_snippet_shows_the_marker_not_the_first_line():
 
 # ── a refusal is kept, and read ───────────────────────────────────────────
 
+def test_no_id_is_ever_used_twice_anywhere_in_the_record():
+    """THE TEST THAT WOULD HAVE CAUGHT IT, AND THE REASON IT IS WRITTEN THIS WAY.
+
+    On 4 September 2026 two sessions wrote to this file within an hour of each
+    other and both reached for `C11` — one for a conviction the firm holds, one
+    for a proposal they declined. Two different ideas, one number, in the record
+    whose own rule is that ids are never reused.
+
+    The test that should have stopped it asserted the declined list equalled
+    `["C3"]`. A literal like that fails on the SECOND declined entry whatever it
+    is called, so it reads as a tripwire for exactly this — and it is not one:
+    whoever adds an entry updates the literal, the suite goes green, and the
+    collision is untouched. This asserts the RULE instead, over whatever the
+    record happens to hold, so it needs no editing when the record grows and
+    cannot be satisfied by editing it.
+    """
+    text = R.CONVICTIONS.read_text(encoding="utf-8")
+    ids = [c.id for c in R.parse_convictions(text)] + \
+          [d.cid for d in R.parse_declined(text)]
+    twice = sorted({i for i in ids if ids.count(i) > 1})
+    assert not twice, (
+        f"{twice} used more than once. An id names one idea for the life of the "
+        f"record: reusing one makes the history unreadable and makes 'what did "
+        f"we decide about C11' a question with two answers."
+    )
+
+
 def test_the_record_keeps_what_the_firm_said_no_to():
-    """Ids are never reused, so a declined proposal leaves a gap in the
-    sequence — and a gap with no explanation is an invitation to fill it."""
+    """A refusal is kept so the miner does not re-ask a settled question, and so
+    a gap in the numbering has an explanation beside it.
+
+    Asserted over every declined entry rather than over a list of their names —
+    the version pinned to `["C3"]` had to be edited by whoever added the second
+    one, which is the edit that let a duplicate id through.
+    """
     text = R.CONVICTIONS.read_text(encoding="utf-8")
     declined = R.parse_declined(text)
-    assert [d.cid for d in declined] == ["C3"]
-    assert "another agents job" in declined[0].quote
-    assert declined[0].because.strip(), "a refusal with no reason is a deletion"
-    assert "C3" not in [c.id for c in R.parse_convictions(text)]
+    held = {c.id for c in R.parse_convictions(text)}
+
+    assert declined, "the declined section is how a gap in the ids is explained"
+    for d in declined:
+        assert d.quote.strip(), f"{d.cid} was declined without saying what was proposed"
+        assert d.because.strip(), f"{d.cid}: a refusal with no reason is a deletion"
+        assert d.cid not in held, (
+            f"{d.cid} is both held and declined; the record cannot say both"
+        )
+
+    # The original decline, still there and still in the firm's own words.
+    c3 = next(d for d in declined if d.cid == "C3")
+    assert "another agents job" in c3.quote
+
+
+def test_a_declined_reason_that_wraps_onto_more_lines_is_read_whole():
+    """The bug this branch exists for: `_field` took the first line only.
+
+    The C13 decline carries a ten-line reason and nine were dropped by every
+    read — silently, with the record still parsing. Asserted against the SHIPPED
+    record rather than a fixture, because a fixture proves the parser and this
+    has to prove the record is being read whole.
+    """
+    text = R.CONVICTIONS.read_text(encoding="utf-8")
+    longest = max(R.parse_declined(text), key=lambda d: len(d.because))
+    assert "\n" in longest.because, (
+        "no declined reason in the record wraps, so this test can no longer "
+        "prove the parser reads past the first line — give it one that does"
+    )
+    assert longest.because.rstrip().endswith("was not the firm's."), (
+        "the reason was truncated: it should run to its final sentence"
+    )
+
+
+def test_a_field_stops_at_the_next_field_and_not_at_bold_prose():
+    """A field label is bold text with a colon INSIDE the bold. Nothing else is.
+
+    Stopping on any bold-at-line-start would truncate the C13 reason at
+    `**Proposed and declined within the hour,` — and would round-trip clean
+    while doing it, because what it dropped was the tail rather than the middle.
+    """
+    block = ("\n**Why:** first line, and then\n"
+             "**bold prose that opens a line** which is still the reason\n\n"
+             "**Fires on:** a, b\n")
+    assert R._field(block, "Why", prose=True).endswith("still the reason")
+
+
+def test_a_structured_field_is_never_read_past_its_line():
+    """Prose wraps; a comma list and a date do not.
+
+    Reading `Fires on` as if it might wrap made `Proposal.ask()` — which renders
+    the entry and then asks the firm to confirm it — parse its own closing
+    question as two more subjects the conviction fires on. A run-on read of a
+    structured field does not lose data, it invents it.
+    """
+    block = ("\n**Fires on:** website\n\n"
+             "Is that right, in your words? Nothing is written until you say so.\n")
+    assert R._field(block, "Fires on") == "website"
+
+    # THROUGH `parse_convictions`, NOT ONLY THROUGH `_field`. Asserting the
+    # default in isolation left the real call site free to pass prose=True and
+    # the suite stayed green: the test proved the helper and not its caller,
+    # which is the mistake this repository has now made four times.
+    entry = ("## C99 · A title\n\n"
+             "**State:** held · **Recorded:** 2026-09-05 · **Applies:** everything\n\n"
+             "> *their words*\n> — the firm, today\n\n"
+             "**Why:** a reason\n\n"
+             "**Fires on:** website\n\n"
+             "Is that right, in your words? Nothing is written until you say so.\n")
+    assert R.parse_convictions(entry)[0].fires_on == ("website",)
+
+
+def test_the_confirmation_survives_a_draft_carrying_every_prose_field():
+    """The hole the fixture above does not reach: with notes present, the LAST
+    field rendered is prose, so the question that follows it is what a parse
+    would absorb. `ask()` closes the entry with a rule for that reason."""
+    draft = R.Conviction(
+        id="C99", title="A title", state=R.HELD, recorded="2026-09-05",
+        applies="everything", quote="their words", said_by="the firm, today",
+        why="a reason that\nwraps onto a second line", fires_on=("alpha", "beta"),
+        challenge_note="somebody doing the other thing",
+        wrong_note="it might be a call about this week rather than a belief")
+    passage = M.Passage(source="s.md", when="2026-09-05 00:00", text="their words",
+                        typed=True, asked="")
+    shown = M.Proposal(draft=draft, passage=passage).ask()
+    block = "\n".join(l[2:] if l.startswith("  ") else l for l in shown.splitlines())
+    got = R.parse_convictions(block)
+    assert len(got) == 1
+    assert got[0] == draft, "what was shown is not what would be stored"
 
 
 def test_a_declined_passage_is_not_proposed_again(corpus, convictions):

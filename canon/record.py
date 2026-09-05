@@ -127,9 +127,52 @@ class Tenet:
 _C_HEAD = re.compile(r"^## (C\d+) · (.+)$", re.M)
 
 
-def _field(block: str, label: str) -> str:
-    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*?)$", block, re.M)
-    return m.group(1).strip() if m else ""
+#: Where a field's value stops: the next FIELD, the next entry, or a rule.
+#:
+#: `\*\*[^*\n]+:\*\*` and not a bare `\*\*`, and the difference is not
+#: theoretical. The reason that exposed this bug ends with a line beginning
+#: `**Proposed and declined within the hour,` -- bold prose, mid-sentence, not a
+#: field. A stop on any bold-at-line-start would have truncated the value there
+#: and round-tripped clean, because what it dropped was the tail rather than the
+#: middle. A field label is bold text ending in a colon INSIDE the bold; nothing
+#: else is.
+_FIELD_END = re.compile(r"^(?:\*\*[^*\n]+:\*\*|### |## |---\s*$)", re.M)
+
+
+def _field(block: str, label: str, *, prose: bool = False) -> str:
+    """A field's value. With `prose=True`, INCLUDING the lines it wraps onto.
+
+    THIS TOOK ONLY THE FIRST LINE, AND IT SHIPPED THAT WAY. The declined C11
+    entry carries a ten-line `Not a conviction because:`; nine of them were
+    dropped by every read, silently, and the record still parsed. It surfaced
+    only because the round-trip check compares the file against what a re-render
+    of the parse produces -- nothing else could have noticed, which is what that
+    check is for.
+
+    It is the same defect canon's own log already records one field over: a
+    single-line reader on a value that had grown, "parsing 5 of 24 subjects and
+    reporting success". A silent partial read is worse than an error, because
+    nothing downstream can tell it happened -- an empty field and a field that
+    was never fully read look identical to every caller.
+
+    WRAPPING IS OPT-IN, AND THE LINE IS PROSE AGAINST STRUCTURE. `Fires on` is a
+    comma list this module writes on one line; `Recorded` and `Retired` are
+    dates. None of them can wrap, so none of them should be read as if they
+    might -- a run-on read of a structured field turns adjacent text into a
+    trigger term or a date. That is not hypothetical: reading `Fires on` this
+    way made `mine.Proposal.ask()` -- which renders the entry and then asks the
+    firm to confirm it -- parse its own closing question as two subjects the
+    conviction fires on. Only a field whose value is a sentence passes
+    `prose=True`.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if not m:
+        return ""
+    if not prose:
+        return m.group(1).strip()
+    rest = block[m.end():]
+    stop = _FIELD_END.search(rest)
+    return (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
 
 
 def parse_convictions(text: str) -> list[Conviction]:
@@ -162,12 +205,12 @@ def parse_convictions(text: str) -> list[Conviction]:
             id=head.group(1), title=head.group(2).strip(),
             state=meta.group(1), recorded=meta.group(2), applies=meta.group(3).strip(),
             quote=said.strip("*"), said_by=by,
-            why=_field(block, "Why"),
+            why=_field(block, "Why", prose=True),
             fires_on=tuple(t.strip().lower() for t in fires.split(",") if t.strip()),
-            challenge_note=_field(block, "A challenge looks like"),
-            wrong_note=_field(block, "How it could be wrong"),
+            challenge_note=_field(block, "A challenge looks like", prose=True),
+            wrong_note=_field(block, "How it could be wrong", prose=True),
             retired_on=_field(block, "Retired"),
-            retired_because=_field(block, "Retired because"),
+            retired_because=_field(block, "Retired because", prose=True),
         ))
     if not out:
         raise RecordError("no convictions found; the record is unreadable")
@@ -224,7 +267,7 @@ def parse_declined(text: str) -> list[Declined]:
         out.append(Declined(cid=head.group(1), on=head.group(2),
                             source=head.group(3).strip(),
                             quote=quote.group(1).strip().strip("*"),
-                            because=_field(block, "Not a conviction because")))
+                            because=_field(block, "Not a conviction because", prose=True)))
     return out
 
 
