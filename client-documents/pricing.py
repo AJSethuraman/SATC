@@ -1585,3 +1585,43 @@ def ladder_value(schedule: dict | None = None, form: str = "1040") -> list[dict]
                     "absorbs": absorbs, "items": items,
                     "delta": absorbs - step})
     return out
+
+
+def overridden_answers(answers: dict, schedule: dict | None = None) -> list[dict]:
+    """Answers the fee schedule will not bill at the number that was typed.
+
+    D25, from the walk of 5 September 2026. The interview asks *"How much for
+    the sorting? ($175 minimum)"*. Answering **100** is accepted with no
+    message, the Review page shows the stored answer as **100**, and the
+    estimate then reads **Records sorting -- $175.00**.
+
+    The raise itself is right and is the firm's own instruction: *"175 is the
+    minimum so if the preparer thinks it'll take more than that much worth of
+    hours they should adjust the estimate"*, and `_preparer_amount` says why it
+    raises rather than refuses. **The silence is the defect.** Somebody who
+    deliberately agreed $100 of sorting with a client sends an estimate saying
+    $175, and the last page they checked before sending still says 100.
+
+    So this reports it, and it is derived from the SCHEDULE rather than written
+    for the sorting line: any `amount_from` question with a `minimum` behind it
+    is reported the same way. A check that names one field is a check that will
+    miss the second one somebody adds.
+
+    Returns one dict per overridden answer: the question id, what was entered,
+    what will actually be billed, and the line it belongs to.
+    """
+    s = schedule if schedule is not None else load()
+    out: list[dict] = []
+    for key, unit in (s.get("per_unit") or {}).items():
+        asked = unit.get("amount_from")
+        floor = unit.get("minimum")
+        if not asked or not isinstance(floor, (int, float)):
+            continue
+        entered = (answers or {}).get(asked)
+        if entered in (None, "", False) or isinstance(entered, bool):
+            continue
+        if not isinstance(entered, (int, float)) or entered >= floor:
+            continue
+        out.append({"question": asked, "entered": entered, "billed": floor,
+                    "line": unit.get("label") or key})
+    return out

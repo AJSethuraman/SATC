@@ -181,13 +181,21 @@ class Invoice:
 
     def add(self, service_code: str, *, quantity: Decimal | int | str = 1,
             note: str = "", performed_on: date | None = None,
-            rate_override: Decimal | None = None) -> InvoiceLine:
+            rate_override: Decimal | None = None,
+            engagement_ref: str = "") -> InvoiceLine:
         """Put a service on the invoice at its standard rate.
 
         ``rate_override`` exists because real work sometimes is not standard —
         but it overrides the VALUE, never the discount. Adjusting what the work
         was worth is an honest thing to record; secretly discounting by shaving
         the rate would hide the very thing this invoice exists to show.
+
+        ``engagement_ref`` is what lets this refuse to bill a second price for
+        work the client already has a quote for — see the check below. It is an
+        ARGUMENT rather than a field on the invoice because the ref is needed to
+        DECIDE the line, not to describe it afterwards, and a new stored column
+        would mean migrating a store that holds real client data. A caller with
+        no ref is not able to detect a contradiction and is not asked to.
         """
         if self.is_issued:
             raise BillingError(
@@ -206,6 +214,47 @@ class Invoice:
                 f"{svc.name} is a fixed-price service — quantity must be 1. "
                 f"If it genuinely took more, use rate_override to record what it "
                 f"was worth.")
+        # A SECOND CONFIDENT NUMBER IS THE FAILURE, NOT A NUMBER.
+        #
+        # D21, from the walk of 5 September 2026. Walked end to end on one day
+        # for one household: the client's estimate said $350.00 and the firm's
+        # invoice said $450.00 full value, for the same 2025 Form 1040 under the
+        # same engagement ref. `Service`'s own docstring has said since #267
+        # that "this catalogue refuses to put a number on it -- the refusal
+        # being the point, because the failure mode is not a wrong number, it is
+        # a second confident one." `quote.py` implements that on the ESTIMATE
+        # route. This line, on the BILLING route, read `svc.standard_rate`
+        # regardless, so the refusal existed in the documentation and on one of
+        # the two paths.
+        #
+        # WHY THE CHECK IS THIS NARROW, and it took a wrong answer to find it.
+        # The first version refused any `priced_by` service outright. That is
+        # defensible and it reddened 159 tests across twelve files -- because it
+        # makes a tax return unbillable anywhere until somebody types a figure,
+        # which is a change to how the firm bills and therefore theirs to make,
+        # not mine. The module's own sentence is the narrower rule: the failure
+        # is a SECOND number. Where the engagement carries a price, this
+        # catalogue must not answer with a different one. Where it does not, the
+        # catalogue rate is the only figure anybody has and billing it
+        # contradicts nothing.
+        #
+        # AND IT IS NOT TAKEN AUTOMATICALLY. `EngagementPrice.total` is a STRING
+        # -- "$350.00", as written on the estimate the client is holding -- and
+        # that module says why: re-deriving it here "would be a second rendering
+        # of the same money and the two would eventually disagree". So the
+        # refusal names the figure and a person puts it in.
+        if rate_override is None and svc.priced_by and engagement_ref:
+            from satc.billing.engagement_price import price_for_ref
+
+            quoted = price_for_ref(engagement_ref)
+            if getattr(quoted, "is_priced", False):
+                raise BillingError(
+                    f"{svc.name} is priced by the engagement, not by this "
+                    f"catalogue. Engagement {quoted.ref} quotes the client "
+                    f"{quoted.total}; this catalogue would bill "
+                    f"{svc.standard_rate:,.2f}. One price, and it is the one on "
+                    f"the client's estimate — put {quoted.total} in as the "
+                    f"rate and this line matches what they were told.")
         rate = svc.standard_rate if rate_override is None else Decimal(str(rate_override))
         # Finiteness first: a signalling NaN raises InvalidOperation on the very
         # comparison used to decide whether the rate moved, so it has to be

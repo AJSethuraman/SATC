@@ -56,12 +56,12 @@ def test_one_answer_produces_its_task_its_request_and_its_quote_line():
     plan = a_plan(INVESTMENTS, engagements=agreed_plan())
 
     task = next((t for t in plan.tasks
-                 if t.template_id == "personal-1040-brokerage-crypto-documents"), None)
+                 if t.template_id == "personal-1040-brokerage-documents"), None)
     assert task is not None, "the brokerage answer must generate its task"
 
     request = next((r for r in plan.requests if r.task_id == task.task_id), None)
     assert request is not None, "the same answer must open its document request"
-    assert request.doc_type == "Brokerage 1099 / crypto exports"
+    assert request.doc_type == "Brokerage 1099"
 
     # LINES AND UNPRICED BOTH. Since 5 September 2026 this catalogue does not
     # price a return -- the ladder does, read back through the engagement ref --
@@ -81,7 +81,7 @@ def test_an_unanswered_branch_produces_nothing_anywhere():
     plan = a_plan({"newSatcClient": "no", "brokerageActivity": "no"},
                   engagements=agreed_plan())
     assert not [t for t in plan.tasks
-                if t.template_id == "personal-1040-brokerage-crypto-documents"]
+                if t.template_id == "personal-1040-brokerage-documents"]
     assert "schedule_d" not in [line.service_code for line in plan.quote.lines]
 
 

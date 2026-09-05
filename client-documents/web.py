@@ -43,6 +43,7 @@ import invoicing
 import packaging
 import payments
 import presend
+import pricing
 import previewing
 import sending
 import schedules as sched
@@ -2127,6 +2128,13 @@ def review_body(sid, session, blockers) -> str:
     # preparer a wrong answer and gave them nothing to do about it but start
     # the sitting again.
     editable = set(session.asked())
+    # WHAT THE SCHEDULE WILL ACTUALLY BILL, where it differs from what was
+    # typed. D25: answering 100 to "How much for the sorting? ($175 minimum)"
+    # is accepted, stored as 100, shown here as 100 -- and billed at 175. The
+    # raise is the firm's own instruction and is right; the silence is not.
+    # This is the last page anybody looks at before the estimate goes out, so
+    # it is the page that has to say so.
+    overridden = {o["question"]: o for o in pricing.overridden_answers(session.answers)}
     out.append("<table class=plain>")
     for k, v in session.answers.items():
         seen = labels.get(k, {})
@@ -2143,6 +2151,12 @@ def review_body(sid, session, blockers) -> str:
                    f"<input type=hidden name=to value='{esc(k)}'>"
                    f"<button class=link>Change</button></form>")
         cell = "<span class=muted>left blank</span>" if blank else esc(shown)
+        if k in overridden:
+            o = overridden[k]
+            cell += (f"<div class=muted>billed at "
+                     f"<b>{o['billed']:,.2f}</b> — the firm's minimum for "
+                     f"{esc(str(o['line']))}. The estimate will say "
+                     f"{o['billed']:,.2f}, not {o['entered']:,.2f}.</div>")
         out.append(f"<tr><th>{esc(asked.get(k, k))}</th>"
                    f"<td>{cell}</td><td class=fix>{fix}</td></tr>")
     out.append("</table>")
