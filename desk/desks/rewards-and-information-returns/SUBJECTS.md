@@ -13,6 +13,14 @@ source declared for a subject the question touches, so declaring the overlap is
 what stops a right answer from a second source being refused. Declaring it
 narrowly would have been a lie about the record and a refusal in practice.
 
+**Three brand names are on this list on purpose.** `Venmo`, `PayPal` and
+`Cash App` appear in no source this desk holds, and they are not what the
+regulation calls anything. They are what the firm calls it — *"I just assume when
+the client accepts A Venmo payment that it was revenue"* — and a desk that does
+not fire on the word the question is actually asked in is a desk nobody reaches.
+What they are declared to answer FROM is § 1.6050W-1, which is the section that
+decides whether such a transfer is a third party network transaction at all.
+
 **It under-fires, and that is worth knowing.** The list matches a question's
 subject, not its shape, so an inflected form is missed: `defer` does not fire on
 `deferring`. Add the inflections that matter rather than loosening the rule.
@@ -25,13 +33,13 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 **Answered from S2:** information return, information returns, section 6041, section 6041A, section 6050W, section 6071, nonemployee compensation, remuneration, written statement, payee statement, reporting threshold, calendar year, third party settlement organization, third party network transactions, participating payee
 
-**Answered from S3:** 1.6041-1, payor, payment card, credit card, credit cards, third party payment network, repairman, information return, information returns
+**Answered from S3:** 1.6041-1, payor, payment card, credit card, credit cards, third party payment network, payment app, payment apps, peer-to-peer, repairman, information return, information returns
 
 **Answered from S4:** 1.6041-3, corporation, corporations, attorneys, attorney, legal services, medical and health care services, merchandise, return of information, information return, information returns
 
 **Answered from S5:** 1.6041-6, form 1099, nonemployee compensation, filing date, filing dates
 
-**Answered from S6:** 1.6050W-1, participating payee, payment settlement entity, third party network transaction, third party network transactions, third party settlement organization, third party payment network, payment card
+**Answered from S6:** 1.6050W-1, participating payee, payment settlement entity, third party network transaction, third party network transactions, third party settlement organization, third party payment network, payment card, payment app, payment apps, Venmo, PayPal, Cash App
 
 **Answered from S7:** rebate, rebates, purchase price, purchase price adjustment, kickbacks, Medicaid, gross receipts, discounts
 
@@ -41,6 +49,6 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 **Answered from S10:** trade discount, trade discounts, cash discount, cash discounts, discount, discounts, inventory, cost of goods sold
 
-**Answered from S11:** Form 1099-NEC, Form 1099-MISC, Form 1099-K, box 1a, legal services, attorneys, corporation, corporations
+**Answered from S11:** Form 1099-NEC, Form 1099-MISC, Form 1099-K, 1099-NEC, 1099-MISC, 1099-K, box 1a, legal services, attorneys, corporation, corporations
 
 **Answered from S12:** credit card, credit cards, rebate, rebates, reward, rewards, points, cash back
