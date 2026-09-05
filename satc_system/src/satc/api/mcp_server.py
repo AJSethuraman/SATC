@@ -137,11 +137,36 @@ def _build_server(allow_writes: bool = False):
 def main() -> None:
     """Console-script entry point (``satc-mcp``): run the server over stdio.
 
-    Safe by default (read + compute). Set ``SATC_MCP_ALLOW_WRITES=1`` to also
-    expose the write tools (create clients, run intake, post returns, set
-    document status) — only if you want the agent to change client data.
+    **THE TOOL LIST IS NO LONGER THE BOUNDARY.** It used to be, and this file
+    said so: *"An agent can't call a tool that was never registered, so this is
+    enforced by the wiring, not by trust"* (`docs/MCP.md`). That is a
+    convention, and the Forge's own standing rule names it — *a skill's
+    `tools:` list is not a security boundary*. It was also all-or-nothing: one
+    environment variable and the same process gained every write tool, for
+    every client in the practice, with no role and no assignment.
+
+    So this process now DECLARES WHAT IT IS. Unless a role was set for it
+    already, it launches as ``ai_staff``, and every gate downstream —
+    `require_human` at sixteen choke points, `staging_gate`, the invoice and
+    payment routes — sees an agent rather than the owner. The model calls
+    tools; it does not control this process, so it cannot widen its own scope.
+
+    ``SATC_MCP_ALLOW_WRITES`` still decides which tools are OFFERED, which is a
+    convenience worth keeping: a read-only session should not be shown five
+    tools it will only be refused for calling. It is no longer what makes the
+    dangerous ones safe.
+
+    ``SATC_ASSIGNMENT`` narrows the session to named clients, which is the half
+    that has no equivalent in a tool list at all.
     """
     import os
+
+    from satc.principals import ASSIGNMENT_ENV, ROLE_ENV
+
+    # setdefault, not set: a launcher that already chose a role -- `observer`
+    # for a briefing, `reviewer` for a human's session -- keeps it.
+    os.environ.setdefault(ROLE_ENV, "ai_staff")
+    os.environ.setdefault(ASSIGNMENT_ENV, "")
 
     allow = os.environ.get("SATC_MCP_ALLOW_WRITES", "").strip().lower() in {"1", "true", "yes"}
     _build_server(allow_writes=allow).run()
