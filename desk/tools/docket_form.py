@@ -44,140 +44,183 @@ DATE = "5 September 2026"
 #: costs to be wrong, because a decision handed over without its downside is one
 #: somebody makes twice.
 OTHERS = [
- {"key": "dec-q32", "group": "Firm policy", "tag": "Close · Q32",
-  "title": "Is cash withdrawn with no receipt an owner draw?",
-  "position": "Book it as an owner draw, and tell the client what would change it.",
-  "context": "The closing agent asked and the firm has not said. It came up on "
-             "the close that produced the forty-three questions.",
-  "either": [("Always a draw",
-              "Unambiguous, closes every one of them, and never costs the client a "
-              "deduction they could substantiate — because they cannot."),
-             ("Held pending the client",
-              "Recovers real deductions where the client does have receipts nobody "
-              "asked for. Leaves rows open and blocks the close.")],
-  "rec": "A draw, with the client told what it would take to change it. Neither "
-         "option costs anything that cannot be corrected later, and only one of "
-         "them closes the books.",
-  "picks": ["Always a draw", "Hold for the client", "Not yet"]},
+ {"key": "dec-ir45-wording", "group": "The rewards desk", "tag": "Blocks 19 scores",
+  "title": "Two ways of saying the same thing, and the desk refuses itself over it.",
+  "position": "Reword POS2 in the regulation's words, and keep your $2,000 rule as its second sentence.",
+  "context": "Nineteen of that desk's nineteen problems cannot be scored at all, "
+             "because two stored passages are the regulation's own worked examples "
+             "and carry their answers with them. The fix is to point those problems "
+             "at the rule the examples themselves name — <b>§ 1.6041-1(a)(1)(iv)</b> "
+             "— and drop the examples. <b>But you ratified POS2 on that exact "
+             "paragraph this morning.</b> A position you have ratified is served "
+             "word for word and the engine refuses an answer that restates it, so "
+             "the moment those problems cite it their own recorded answers are "
+             "refused as contradicting you.<br><br>"
+             "<b>Yours:</b> <i>no Form 1099-NEC for a payment settled by card or "
+             "through a third party payment network; track the rest against $2,000 "
+             "per payee per calendar year</i><br>"
+             "<b>The regulation's:</b> <i>the payor is not required to file an "
+             "information return under section 6041</i><br><br>"
+             "They mean the same thing. The engine is exact on purpose — that "
+             "exactness is what stops a model handing your position back with the "
+             "conclusion reversed — so it cannot see that.",
+  "either": [("Reword POS2 to the regulation's phrasing",
+              "Your $2,000 tracking rule survives as a second sentence, the desk "
+              "stops refusing itself, and 19 scores come back. Your position now "
+              "reads in the regulation's words rather than your own."),
+             ("Keep your wording and reword the problems",
+              "Your sentence stands exactly as you ratified it. The scored problems "
+              "then no longer read as the regulation writes them, which weakens the "
+              "one thing that makes the denominator meaningful — the answers are "
+              "not ours.")],
+  "rec": "Reword POS2. The problems are the regulation's worked examples and their "
+         "wording is not ours to move; your meaning is fully preserved by keeping "
+         "the $2,000 rule as a second sentence.",
+  "picks": ["Reword POS2", "Keep my wording", "Not yet"]},
 
- {"key": "dec-q37", "group": "Firm policy", "tag": "Close · Q37",
-  "title": "What is the standard evidence that a deposit is revenue?",
-  "position": "Pick one document and use it on every client, rather than deciding per client.",
-  "context": "The candidates are the bank's own deposit detail, the invoicing "
-             "system, or a list from the client.",
-  "either": [("The bank's deposit detail",
-              "The one document the firm can obtain without the client doing "
-              "anything, and it exists whether or not they invoice."),
-             ("The invoicing system or a client list",
-              "Names the payer, which deposit detail often does not — but only "
-              "exists if the client keeps one, and arrives when they get to it.")],
-  "rec": "Bank deposit detail as the default. What it costs: on a mobile cheque "
-         "deposit it carries no payer, so the default needs a stated fallback for "
-         "when it comes back blank.",
-  "picks": ["Bank deposit detail", "Invoicing system", "Client list", "Not yet"]},
+ {"key": "dec-override", "group": "How positions work", "tag": "Blocks 1 position",
+  "title": "Can a position be the firm's default and still be overridden for one client?",
+  "position": "Keep positions unconditional; write an override as a recorded fact the caller passes in.",
+  "context": "Holding the safe-harbour election you said it is <i>“the kind of "
+             "policy that gets enacted because it makes sense and only enacted when "
+             "we don't have another Answer … it's possible for a particular client "
+             "we have to be needed treating differently.”</i> Nothing in the record "
+             "can say that today: every position is unconditional.",
+  "either": [("Keep them unconditional",
+              "The desk holds no client data at all, which is how it is built. The "
+              "override lives in the engagement record and arrives as a fact the "
+              "caller passes — the same mechanism as the client's trade, already "
+              "working. Nothing new to build."),
+             ("Give positions a per-client exception table",
+              "One place to look up what a named client does differently. It puts "
+              "client-keyed data inside the plugin for the first time, and the PII "
+              "rule then applies to a component that had been exempt from it.")],
+  "rec": "Keep them unconditional. It needs nothing built, the desk still cannot "
+         "see who the client is, and answering this way makes the safe-harbour "
+         "position ratifiable as written.",
+  "picks": ["Keep unconditional", "Exception table", "Not yet"]},
 
- {"key": "dec-q42", "group": "Firm policy", "tag": "Close · Q42",
-  "title": "Transaction date or post date?",
-  "position": "Book on transaction date, always.",
-  "context": "The book runs on transaction date; card statements close on post "
-             "date. They disagree at every period boundary by whatever is in transit.",
-  "either": [("Transaction date",
-              "Puts the book ahead of the statement, which the closing agent's own "
-              "note calls the acceptable direction."),
-             ("Post date",
-              "Ties to the statement exactly and reconciles without a bridging "
-              "schedule — at the cost of recording December spending in January.")],
-  "rec": "Transaction date. Confirm rather than assume: this is stated from one "
-         "close, not from a rule.",
-  "picks": ["Transaction date", "Post date", "Not yet"]},
+ {"key": "dec-guidance", "group": "How positions work", "tag": "Your ask, 5 Sep",
+  "title": "Should the desk answer from IRS guidance where no rule and no position reaches?",
+  "position": "Serve it — and mark it as guidance rather than as the rule.",
+  "context": "You asked for this holding the rewards position: <i>“if we don't have "
+             "an opinion and have a good reason to form one, maybe we just use a "
+             "safe Harbor Rule which in this case would be deferring to whatever "
+             "the IRS says.”</i> Today a non-binding source refuses "
+             "<code>authority_permits_choice</code> — the rule leaves a choice and "
+             "you make it once. That is why the same question keeps coming back to "
+             "you, which is the complaint.",
+  "either": [("Leave it as it is",
+              "Nothing is ever served on somebody's reading of a rule. You keep "
+              "being asked the same question until you answer it once."),
+             ("Let guidance answer, marked as guidance",
+              "Far fewer questions reach you. The reader is told which they are "
+              "leaning on — and on your own $500 question the regulation and the "
+              "guidance genuinely differ, so the distinction is not cosmetic.")],
+  "rec": "Serve it, marked. It is a change to what a served answer carries, not a "
+         "hole in the gate: nothing uncited is served either way.",
+  "picks": ["Serve it, marked", "Leave it", "Not yet"]},
 
- {"key": "dec-granularity", "group": "How the desks are cut", "tag": "Build",
-  "title": "Three desks now hand over more than a small model can hold at once.",
-  "position": "Measure whether the size actually hurts before cutting anything up.",
-  "context": "A desk hands its whole folder to the answering agent. Measured "
-             "today: personal-or-business 3,094 tokens, capitalisation 6,561, "
-             "rewards 7,819, meals 8,968, cash-and-bank 12,109, vehicle 16,413, "
-             "fixed-assets 17,784. A <b>token</b> is roughly three-quarters of a "
-             "word — the unit a model's working memory is measured in. Under about "
-             "8,000, the whole folder fits comfortably; over it, a small model "
-             "starts losing the middle of what it was handed.",
-  "either": [("Split the big three now",
-              "Every brief fits. More desks to route between, and a question that "
-              "straddles the new seam reaches only half its authority."),
-             ("Leave them and test first",
-              "Costs a day. Answers the actual question — whether a big brief "
-              "answers worse than a small one — instead of assuming it does.")],
-  "rec": "Test first. Same questions, one routed desk against one merged brief, "
-         "and cut only the desks the measurement says are hurting. Splitting on a "
-         "hunch is how the seam ends up in the wrong place.",
-  "picks": ["Test first", "Split now", "Leave as is", "Not yet"]},
+ {"key": "dec-courts-again", "group": "Sources", "tag": "Your answer contradicts itself",
+  "title": "You chose \u201ckeep the court hosts closed\u201d and then wrote that you want them open.",
+  "position": "Say which half you meant. I recorded the choice and flagged it rather than picking.",
+  "context": "You clicked <b>Keep them closed</b> and wrote: <i>“I want to open "
+             "everything we can use. We should just kind of determine what good "
+             "sources are out there cause like there's no reason for them not to "
+             "use this court case I don't want to be the one to answer it. The only "
+             "reason we are talking so much now is because I can't trust the "
+             "answers.”</i><br><br>My reading is that the button was about the five "
+             "blocked hosts and the words are about something else: you want the "
+             "desks to have <b>more reachable authority</b> so the firm stops being "
+             "the source of last resort. Those are two different jobs.",
+  "either": [("The button: keep the five hosts closed",
+              "Nothing changes in the plumbing. A case reaches a desk only when you "
+              "hand the opinion over — slower, and a human reads every case before "
+              "it counts."),
+             ("The words: go and widen what the desks can reach",
+              "A real piece of work, and it is not about courts: it is finding which "
+              "reachable sources (irs.gov, ecfr.gov and what else) would answer the "
+              "questions that keep escalating to you.")],
+  "rec": "Both, in that order — the hosts stay closed and I go and widen the "
+         "reachable sources, which is the thing that actually stops questions "
+         "reaching you.",
+  "picks": ["Both, hosts stay closed", "Just keep hosts closed", "Open the hosts", "Not yet"]},
 
- {"key": "dec-courts", "group": "How the desks are cut", "tag": "Build",
-  "title": "Court opinions cannot be fetched from here. Five hosts refused.",
-  "position": "Keep the desks to authority they can actually reach, and let cases "
-              "in only as positions you have ratified.",
-  "context": "ustaxcourt.gov, govinfo.gov, courtlistener.com, law.justia.com and "
-             "casetext.com all return <b>403</b> — the network policy on this "
-             "machine blocks them. ecfr.gov (the regulations) and irs.gov (the "
-             "publications) work. <i>Anikeev</i> only got read this morning because "
-             "you pasted it in.",
-  "either": [("Open the court hosts",
-              "Desks can store case text and cite it directly. Someone has to "
-              "change the environment's network policy, and it is not reversible "
-              "by me."),
-             ("Keep them closed",
-              "Nothing changes in the plumbing. A case reaches a desk only when "
-              "you hand the opinion over and ratify what it holds — which is "
-              "slower, and is also a human reading every case before it counts.")],
-  "rec": "Keep them closed for now. Every case that has mattered so far turned on "
-         "something the opinion disclaimed, and the desk was better off with your "
-         "yes than with the text.",
-  "picks": ["Keep them closed", "Open the court hosts", "Not yet"]},
+ {"key": "dec-merge-275", "group": "Housekeeping", "tag": "PR #275",
+  "title": "Nine commits are sitting green on a branch. Merge them?",
+  "position": "Merge it.",
+  "context": "406 tests passing, twenty-three mutations killed, every check green. It "
+             "carries your twenty-two answers, the client-context input, and the "
+             "harness fixes. <b>I have not merged it</b> because <code>main</code> "
+             "publishes and you are at the keyboard.",
+  "either": [("Merge it",
+              "The record on main matches what you decided today. Anything found "
+              "later is a new branch, which is normal."),
+             ("Read it first",
+              "Costs nothing but time. The diff is large but almost all of it is "
+              "documentation and tests.")],
+  "rec": "Merge it. Nothing in it is client-facing and nothing publishes to the "
+         "website; the two things still open are recorded as open rather than "
+         "guessed at.",
+  "picks": ["Merge it", "I will read it first", "Not yet"]},
 ]
 
-#: Measured by running the suites, not remembered. The last row is counted from
-#: the record at generation time; the rest are stated with what produced them.
 CHANGED = [
- ("368", "desk tests passing", "run just now, <code>python -B -m pytest -q</code>"),
- ("181", "canon tests passing", "run just now; the plugin is at 1.12.0"),
- ("533", "passages of stored authority", "across 31 declared sources and 7 desks"),
- ("98", "scored problems", "every one a worked example from public authority"),
+ ("406", "desk tests passing", "run just now; 368 when today started"),
+ ("23", "mutations killed", "every new assertion proved capable of failing"),
+ ("19", "problems still unscoreable", "down from 34 — all on one desk, and matter 5"),
+ ("13", "of your 43 close questions", "reach a desk that now expects a fact on file"),
 ]
 
 LANDED = [
- ("#272", "The nine answers from the last docket, the per-citation gate, and the front door "
-          "— <code>ask.py</code>, which is how an agent actually reaches a desk. Merged."),
- ("#273", "fixed-assets could not see nine of its own sixteen problems. Merged."),
- ("#262, #263, #267", "The three you told me to drive, in order. All merged to <code>main</code>."),
- ("#275", "Opened as a draft: the second docket's answers, <i>Anikeev</i> read properly, and "
-          "the walkthrough that produced the correction below."),
- ("#265", "Retargeted at <code>main</code> and kept as history, with a note saying which hole "
-          "it found and that M8 closed it."),
+ ("22 of 22", "You answered every matter on the last docket. Thirteen positions ratified — "
+              "eleven as drafted, two with your edit — and four held. <b>Ratified positions "
+              "went from 2 to 15.</b>"),
+ ("New", "A desk can now be <b>told what the client does</b>. It declares what it expects, a "
+         "position declares what it cannot be applied without, and unmet it refuses "
+         "<code>context_not_on_file</code> — a third kind of missing thing, resolved by "
+         "reading our own file rather than asking the client."),
+ ("Found", "<b>A desk the harness could not prompt was publishing as a careful one.</b> "
+           "Reproduced with no model running: 19 of 19 recorded, every one an escalation, "
+           "which this scoreboard reports as a success. Nothing published was wrong — both "
+           "real runs were on the two desks that do not leak, which is luck, not a control."),
+ ("Found", "The full-text prompt shape could never have run on the machine it was written "
+           "for. An 8,192-token window leaves 7,616 once the reply is taken out of it, and "
+           "six of seven desks need 8,978 to 23,054. The request would not have errored — it "
+           "drops the front of the prompt, which is the instruction to cite."),
+ ("Fixed", "34 problems the harness refused are now 19. Eleven were the rule stating its own "
+           "outcome, four were one conclusion being a substring of another, and one was the "
+           "record's — Pub. 525 held the rule and Example 36 in one passage, and Example 36 "
+           "<i>is</i> one of the problems."),
 ]
 
 UNCHECKED = [
- ("No desk has been run against a real client file.", "Every number above is against "
+ ("No desk has been run against a real client file.", "Every number here is against "
   "public worked examples. That is deliberate — a score against answers we wrote "
   "ourselves measures agreement, not correctness — but it means none of this has met "
   "your actual books."),
- ("The client-documents suite was not run.", "About eight minutes, and nothing in this "
-  "week's work touches it. Not checked is not the same as passing."),
- ("The five court hosts were not retried.", "They refused this morning; I did not try "
-  "again this evening."),
- ("Nobody has answered the seventeen yet.", "I checked the store behind the walkthrough "
-  "page I published earlier: empty. So they are restated here rather than assumed read."),
+ ("No model has answered anything today.", "Every measurement is of the harness and the "
+  "record. The last real scoreboard run was on two desks, and the rewards desk still "
+  "cannot be run at all until matter 5 is answered."),
+ ("The 19 remaining leaks were not worked around.", "Loosening the check to get a number "
+  "was available and was not taken."),
+ ("The five court hosts were not retried.", "They refused this morning; I have not tried "
+  "again."),
 ]
 
 WRONG = [
- ("I said ratifying these seventeen is the difference between a desk that defers and one "
-  "that helps.", "Wrong for fifteen of them, and I only found it because I measured: not "
-  "one of the seventeen sits on a citation any of its own desk's scored problems turn on. "
-  "The cash desk's two ratified ones do — 2 of 2. <b>Ratifying these changes no score.</b>"),
- ("I said there were twenty-two proposed positions.", "There are seventeen."),
- ("I reported the J.Crew desk as answering that question fully.", "The regulation it "
-  "answers from is about members of the armed services and nothing else. The rule it "
-  "states is right; the desk's coverage of it is narrower than the rule, and the caveat "
-  "now says so."),
+ ("I told you the full-text prompt shape fits no desk.", "It fits one. I measured it while "
+  "four desks could not be prompted at all, so their sizes were never taken — <b>a "
+  "denominator over the rows that happened to be readable</b>, which is the exact failure "
+  "I had spent the afternoon building a guard against. Corrected, and the figures are now "
+  "asserted by name so they cannot drift back."),
+ ("I said the fifteen strict refusals were the check being too strict.", "Eleven were. Four "
+  "were something else entirely — one admissible conclusion being a substring of another — "
+  "and I would not have found them if I had fixed the first thing and stopped."),
+ ("I said ratifying the positions was the difference between a desk that defers and one "
+  "that helps.", "Wrong for all seventeen: not one sat on a citation its own desk's "
+  "problems turn on. What they changed is what a desk says when it cannot answer, which is "
+  "what you had asked for independently."),
 ]
 
 
@@ -238,8 +281,13 @@ def _counted():
     ratified = sum(len([q for q in record.load(d).positions if not q.proposed])
                    for d in sorted((HERE / "desks").iterdir())
                    if (d / "SOURCES.md").is_file())
+    # A POSITION THIS DOCKET ITSELF SAYS TO HOLD BACK, read off the note rather
+    # than counted by hand -- the preface states how many are answerable now, and
+    # a number typed there goes stale the moment one is ratified.
+    waiting = [r for r in pos if "Do not ratify" in (r["note"] or {}).get("rec", "")]
     return {
         "rows": rows, "n": len(rows), "pos": len(pos), "dec": len(rows) - len(pos),
+        "waiting": len(waiting), "answerable": len(pos) - len(waiting),
         "rules": len(rules), "concl": len(pos) - len(rules),
         "turns": len(turns), "blind": blind, "ratified": ratified,
     }
@@ -257,25 +305,28 @@ def render() -> str:
         measured = ("Only <b>%s</b> of them sits on a citation its own desk's "
                     "scored problems turn on" % _word(c["turns"]))
     preface = (
-      "<p><b>Read this before the %(posw)s.</b> I have been telling you that "
-      "ratifying them is the difference between a desk that defers and one that "
-      "helps. <b>That is wrong for %(blind)s of them.</b> %(measured)s — the "
-      "cash desk's %(ratw)s ratified ones do, %(rat)d of %(rat)d, which is why "
-      "those made all four of its problems answerable. Ratifying these changes "
-      "<b>no score</b>.</p>"
-      "<p><b>What they change is what a desk says when it cannot answer.</b> "
-      "%(rulesw)s of the %(posw)s are not conclusions about tax law — they are "
-      "rules about how you work: <i>hold it, ask who owns it, request these "
-      "documents by name, obtain the figure rather than assume it.</i> Which is "
-      "what you asked for. They already were that; nobody had said so.</p>"
-      "<p>So each card says which kind it is. <b>A conclusion can be wrong about "
-      "the law. A rule can only be wrong about the practice</b> — and only you "
-      "can say whether a rule is how you actually work.</p>"
-    ) % {"posw": _word(c["pos"]), "measured": measured,
-         "blind": ("all " + _word(c["blind"]) if c["blind"] == c["pos"]
-                   else _word(c["blind"])),
-         "ratw": _word(c["ratified"]), "rat": c["ratified"],
-         "rulesw": _word(c["rules"]).capitalize()}
+      "<p><b>%(decw)s of these %(nw)s did not exist this morning.</b> You "
+      "answered twenty-two matters, thirteen positions went into the record, and "
+      "the answers themselves opened new questions — which is what a good answer "
+      "does. %(posw)s are positions you held; %(decw2)s are decisions, and one of "
+      "them is blocking nineteen scores on its own.</p>"
+      "<p><b>%(ansv)s of the %(posw2)s you held now answerable.</b> Two were waiting "
+      "on an input that did not exist — the desk being told what the client does, "
+      "and whose return it is — and that was built today. One was waiting on a "
+      "question the desk already held the answer to and nobody had asked. The "
+      "fourth is waiting on a decision that is on this page.</p>"
+      "<p><b>And one correction, because it is the failure this whole thing is "
+      "built against.</b> I told you the full-text prompt shape fits no desk. It "
+      "fits one. I had measured it while four desks could not be prompted at all, "
+      "so their sizes were never taken — <b>a denominator over the rows that "
+      "happened to be readable</b>, on the same afternoon I built the guard "
+      "against exactly that. It is corrected and the figures are now asserted by "
+      "name.</p>"
+    ) % {"decw": _word(c["dec"]).capitalize(), "nw": _word(c["n"]),
+         "posw": _word(c["pos"]).capitalize(), "decw2": _word(c["dec"]),
+         "posw2": _word(c["pos"]),
+         "ansv": ("All but %s" % _word(c["waiting"])) if c["waiting"]
+                 else "Every one"}
     lede = ("%s of them are positions to approve or reject. %s are choices no rule "
             "settles." % (_word(c["pos"]).capitalize(), _word(c["dec"]).capitalize()))
     return _PAGE % (_CSS, DATE, headline, lede, preface, c["n"], c["n"], c["pos"],
@@ -406,7 +457,7 @@ code.pr{background:var(--soft);padding:.1rem .35rem;color:var(--ink);font-weight
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 """
 
-_PAGE = """<title>Docket · The Seventeen</title>
+_PAGE = """<title>Docket · Nine Open</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap">
@@ -415,8 +466,8 @@ _PAGE = """<title>Docket · The Seventeen</title>
 <header class="mast">
   <div class="eyebrow">Docket · desk · %s</div>
   <h1>%s things waiting on you</h1>
-  <p>%s Every one carries what I would do and why. It saves as you type, so a
-  docket half-answered at midnight is still half-answered in the morning.</p>
+  <p>%s Every one carries what I would do and why, and every one is answerable in
+  a line. It saves as you type.</p>
 </header>
 
 <div id="offline" class="banner">Answers are not saving — this view could not reach the store. Tell me in the conversation instead.</div>
@@ -433,8 +484,9 @@ _PAGE = """<title>Docket · The Seventeen</title>
 </div>
 
 <h2 class="sec" style="border-top:none;padding-top:0;margin-top:0">Waiting on you</h2>
-<p class="lead">Answer in one line. &ldquo;Not yet&rdquo; is a real answer — it keeps the
-proposal open and brings it back next time; nothing is lost by skipping one.</p>
+<p class="lead">&ldquo;Not yet&rdquo; is a real answer — it keeps the matter open and
+brings it back next time. Nothing is lost by skipping one, and nothing is recorded
+without an explicit yes.</p>
 <div id="list"></div>
 
 <h2 class="sec">What changed</h2>

@@ -47,21 +47,29 @@ FIRST = [("rewards-and-information-returns", "POS1")]
 #: firm needs before answering. Empty is fine; most stand on their own text.
 NOTES = {
  ("rewards-and-information-returns","POS1"): {
-   "read": "<b><i>Anikeev v. Commissioner</i>, T.C. Memo. 2021-23 was read this morning</b> — the firm handed the opinion over after five hosts refused this environment. It confirms the rule and refuses to be authority for it.",
-   "for": "The IRS's own counsel conceded at trial: <i>“long-standing IRS policy is that card rewards are not taxable ... the reward itself acts as a discount on whatever property or services are being purchased.”</i> The court held them to it.",
-   "against": "The last paragraph disclaims any broader ground — the holdings are <i>“not based upon the application of the cash equivalence doctrine”</i> and rest on <i>“the unique circumstances of this case.”</i> And the court split: rewards on money orders and debit-card cash reloads <b>were</b> income, because <i>“no product or service is obtained ... other than cash transfers.”</i>",
-   "silent": "<b>The opinion never uses the word “business.” Not once — grepped.</b> It is a personal return. And it says nothing about a purchase that was <b>expensed</b> rather than capitalised — its only basis reasoning is dictum the court declined to apply, and that presupposes property with a surviving basis and a later disposition. Fuel burned and a tool written off have neither. <b>Your actual open question is untouched by the only case on the subject.</b>",
-   "rec": "Narrow it. As written — <i>“a card reward earned by spending”</i> — it is broader than anything that survives this case. Something like <b>“a card reward earned by buying goods or services reduces what was paid for them”</b> keeps what the court protected and drops what it carved out. And it still owes an answer on the expensed case, which no authority reaches.",
+   "read": "<b>You held this on 5 September asking for two things.</b> One of them now exists; the other is on this docket as its own question.",
+   "for": "<b>Built since you held it.</b> You said <i>“we should probably be specifying. Hey this is the individual desk. This is the business desk.”</i> The desk now records <code>taxpayer</code> and this position declares it needs it — so it cannot be applied at all until the file says whose return it is. Not a second desk: one fact, passed in.",
+   "against": "<i>Anikeev</i> is a personal return — the word “business” appears in it zero times — and it says nothing about a purchase that was <b>expensed</b> rather than capitalised, which is your actual open question. Ratifying it says what the desk answers for an individual; the business case still rests on nothing.",
+   "silent": "<b>Your second ask is not built.</b> You wanted a fallback: <i>“if we don’t have an opinion and have a good reason to form one, maybe we just use a safe Harbor Rule which in this case would be deferring to whatever the IRS says.”</i> That is its own matter on this docket, because it changes what the gate will serve.",
+   "rec": "Ratify it narrowed — <b>“a card reward earned by buying goods or services reduces what was paid for them”</b> — which is what survives the case. It now refuses outright unless the file says individual or business, so the thing you were worried about cannot happen silently.",
  },
  ("capitalization-and-de-minimis","POS2"): {
-   "against": "<b>The regulation does not state either figure.</b> § 1.263(a)-1(f)(1)(ii)(D) says <b>$500</b> and was never amended; the $2,500 is later guidance sitting on top of it. A desk holding only the regulation would confidently have told you $500.",
-   "rec": "Ratify. But the number is a ceiling you elect under, not one the rule hands you — and the policy has to be in place at the <b>start</b> of the year, which is POS3.",
+   "read": "<b>You held this asking one question, and the desk already held the answer.</b> Nobody had asked it.",
+   "for": "<i>“I feel like I need to understand why would a confidently said $500 like where did this number come from?”</i> — <b>§ 1.263(a)-1(f)(1)(ii)(D) is where.</b> It says $500 and was never amended. The same sentence then delegates: <i>“or other amount as identified in published guidance in the Federal Register or in the Internal Revenue Bulletin.”</i>",
+   "against": "<b>Notice 2015-82 is that guidance</b>, and the IRS page this desk stores says it <i>“increased the de minimis safe harbor threshold from $500 to $2500 per invoice or item for taxpayers without applicable financial statements”</i>, effective for years beginning on or after 1 January 2016 — $5,000 with an applicable financial statement.",
+   "silent": "So the regulation is not stale and $2,500 is not a number somebody remembered: it is the amount the regulation points at. The two figures both being live is exactly why a desk holding only the regulation would have told you $500 with confidence.",
+   "rec": "Ratify. The question you held it for is answered out of the desk’s own stored authority, cited.",
+ },
+ ("capitalization-and-de-minimis","POS1"): {
+   "read": "<b>Held for a reason nothing in the software can express yet.</b>",
+   "against": "You said it is <i>“the kind of policy that gets enacted because it makes sense and only enacted when we don’t have another Answer … it’s possible for a particular client we have to be needed treating differently.”</i> Every position today is unconditional: there is no way to write “default, unless this client”.",
+   "rec": "<b>Do not ratify it yet.</b> The override question is its own matter on this docket and it decides the shape. If you pick the recommended answer there, this becomes ratifiable unchanged — the exception rides in as a recorded fact rather than as an exception table.",
  },
  ("personal-or-business","POS1"): {
-   "read": "This is the J.Crew case, written as a rule.",
-   "for": "The desk proves it structurally: a sword and a uniform, bought at the same shop on the same card, opposite answers, both read off one sentence the regulation writes itself.",
-   "against": "<b>The authority behind it is about members of the armed services and nothing else.</b> It is the clearest statement anywhere that the item and the profession decide and the seller does not — but it is not the authority that decides a contractor's shirt. That runs through § 162 and adaptability case law, and this desk holds neither.",
-   "rec": "Ratify. The rule is right and the desk's coverage of it is narrower than the rule — which the caveat now says.",
+   "read": "This is the J.Crew rule. <b>The input you held it for was built this afternoon.</b>",
+   "for": "You said <i>“the Accountant should’ve already recorded and known what sort of business we’re dealing with … a Home Depot charge from a general contractor versus a Home Depot charge from a hairstylist.”</i> The desk now records <code>trade</code>, this position declares it needs it, and the brief prints <b>“trade: NOT ON FILE — do not infer it”</b> when it was not given. Unmet, the answer refuses <code>context_not_on_file</code> rather than reasoning from the vendor.",
+   "against": "<b>The authority behind it is about members of the armed services and nothing else.</b> It is the clearest statement anywhere that the item and the profession decide and the seller does not — but it is not the authority that decides a contractor’s shirt. That runs through § 162 and adaptability case law, and this desk holds neither.",
+   "rec": "Ratify. The rule is right, the input you asked for exists, and the caveat already says the coverage is narrower than the rule.",
  },
 }
 

@@ -32,8 +32,30 @@ def counted():
     return df._counted()
 
 
-def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted):
-    n, pos, dec = counted["n"], counted["pos"], counted["dec"]
+@pytest.fixture(scope="module")
+def independent():
+    """The same figures, counted from the record and the module -- NOT from
+    `_counted`. Read off the thing under test, these tests moved with any bug in
+    it and proved only that the page agreed with itself: two mutations survived
+    that way, including the hard-coded preface count this file exists to stop."""
+    proposed, ratified = 0, 0
+    for d in sorted((HERE / "desks").iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        for q in record.load(d).positions:
+            if q.proposed:
+                proposed += 1
+            else:
+                ratified += 1
+    return {"pos": proposed, "ratified": ratified, "dec": len(df.OTHERS),
+            "n": proposed + len(df.OTHERS)}
+
+
+def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted, independent):
+    assert (counted["n"], counted["pos"], counted["dec"]) == (
+        independent["n"], independent["pos"], independent["dec"]), \
+        "the generator's own count disagrees with the record"
+    n, pos, dec = independent["n"], independent["pos"], independent["dec"]
     assert n == pos + dec, "a row is neither a position nor a decision"
     assert ">%s things waiting on you<" % df._word(n).capitalize() in page
     assert ">0 of %d answered<" % n in page
@@ -42,31 +64,35 @@ def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted):
     assert ">Other %d<" % dec in page
 
 
-def test_the_preface_counts_what_the_cards_actually_are(page, counted):
-    rules, pos = counted["rules"], counted["pos"]
-    assert "%s of the %s are not conclusions" % (
-        df._word(rules).capitalize(), df._word(pos)) in page
-    # And the figure is a count of the cards, not a sentence someone wrote.
-    assert sum(r.get("shape") == "rule" for r in counted["rows"]) == rules
-    assert rules + counted["concl"] == pos
+def test_the_preface_counts_what_the_cards_actually_are(page, counted, independent):
+    """It hard-coded "Five of these nine" on the second docket and this caught it
+    on the run that wrote it -- the same drift the filter labels had."""
+    n, pos, dec = independent["n"], independent["pos"], independent["dec"]
+    assert "%s of these %s did not exist" % (
+        df._word(dec).capitalize(), df._word(n)) in page
+    assert "%s are positions you held; %s are decisions" % (
+        df._word(pos).capitalize(), df._word(dec)) in page
+    assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
+    assert counted["rules"] + counted["concl"] == pos
 
 
-def test_the_retraction_is_stated_from_the_measurement(page, counted):
-    blind, turns = counted["blind"], counted["turns"]
-    assert blind + turns == counted["pos"]
-    if turns == 0:
-        assert "<b>Not one of them</b> sits on a citation" in page
-        assert "That is wrong for all %s of them" % df._word(blind) in page
-    else:
-        assert "Only <b>%s</b> of them sits" % df._word(turns) in page
+def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independent):
+    """Not typed. A position this docket says to hold back is identified by its
+    own recommendation, so ratifying one moves the sentence without an edit."""
+    waiting, answerable = counted["waiting"], counted["answerable"]
+    pos = independent["pos"]
+    assert waiting + answerable == pos
+    held_back = sum(1 for r in df.items()
+                    if "Do not ratify" in (r.get("note") or {}).get("rec", ""))
+    assert waiting == held_back, "the held-back count is not read off the notes"
+    said = ("All but %s of the %s you held now answerable" % (
+        df._word(waiting), df._word(pos))) if waiting else (
+        "Every one of the %s you held now answerable" % df._word(pos))
+    assert said in page
 
 
-def test_the_ratified_over_proposed_figure_is_read_from_the_desks(page, counted):
-    ratified = sum(len([q for q in record.load(d).positions if not q.proposed])
-                   for d in sorted((HERE / "desks").iterdir())
-                   if (d / "SOURCES.md").is_file())
-    assert counted["ratified"] == ratified
-    assert "<b>%d / %d</b>" % (ratified, counted["pos"]) in page
+def test_the_ratified_over_proposed_figure_is_read_from_the_desks(page, independent):
+    assert "<b>%d / %d</b>" % (independent["ratified"], independent["pos"]) in page
 
 
 def test_no_card_shows_a_position_its_desk_does_not_hold(counted):
