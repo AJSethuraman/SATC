@@ -214,7 +214,7 @@ nineteen scores on `rewards-and-information-returns`.
 
 | passage | what it is | what it costs |
 |---|---|---|
-| `IRS Pub. 525 (2025), "Cash rebates"` | the rule **and** Example 36 in one passage — and Example 36 *is* problem RW2 | the rule stands alone; trimming at `Example 36.` leaves it verbatim |
+| ~~`IRS Pub. 525 (2025), "Cash rebates"`~~ **fixed** | held the rule **and** Example 36 in one passage — and Example 36 *is* problem RW2 | trimmed at the publication's own `Example 36.` boundary; the rule stands alone and verbatim, and still answers RW2 |
 | `26 CFR 1.6041-1(a)(1)(v), Example 1` | an example end to end; the citation says so | it is problems IR4's fact pattern |
 | `26 CFR 1.6041-1(a)(1)(v), Example 2` | the same | IR5's |
 
@@ -234,6 +234,11 @@ the two wordings are reconciled:
 >
 > **IR4 and IR5, the regulation's:** *the payor is not required to file an
 > information return under section 6041*
+
+**One of the three is fixed and it unblocks nothing on its own**, because any
+single stored example takes the whole desk down: still 19 of 19. It was done
+anyway — it is unambiguous, it is right however the wording question below is
+answered, and it leaves the firm one question instead of a list.
 
 They say the same thing in different words, and the engine is exact on purpose —
 that exactness is what stops a model handing back the firm's position with the

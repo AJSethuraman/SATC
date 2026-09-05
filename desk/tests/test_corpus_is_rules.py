@@ -29,12 +29,11 @@ from conftest import DESKS                                  # noqa: E402
 #: Removing one from this set is what fixing it looks like. The test goes red
 #: either way, which is the point: the number may only move deliberately.
 KNOWN = {
-    # The rule and its illustration are one stored passage. Pub. 525 states the
-    # rule -- a cash rebate "isn't income, but you must reduce your basis" --
-    # and then gives Example 36, which IS problem RW2. Trimming at "Example 36."
-    # leaves the rule standing and verbatim.
-    ("rewards-and-information-returns", "RW2",
-     'IRS Pub. 525 (2025), "Cash rebates"'),
+    # FIXED 5 September 2026, and left here as a comment rather than an entry:
+    # Pub. 525's passage held the rule AND Example 36, and Example 36 IS problem
+    # RW2. Trimmed at the publication's own "Example 36." boundary. The rule --
+    # a cash rebate "isn't income, but you must reduce your basis by the amount
+    # of the rebate" -- stands alone, verbatim, and still answers RW2.
     # These two are examples end to end -- the citation says so. Each names the
     # paragraph it applies ("Under paragraph (a)(1)(iv) of this section"), and
     # the desk already holds (a)(1)(iv) as a rule. So the obvious fix is to point
