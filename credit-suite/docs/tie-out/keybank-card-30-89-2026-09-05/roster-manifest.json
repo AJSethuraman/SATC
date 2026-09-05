@@ -19,7 +19,9 @@
     "png": "ASSET-Q2-RCFD2170.png",
     "row": "12. 188,555,486 RCFD2170 12. Total assets (sum of items 1 through 11)..................................................................................................................."
    }
-  ]
+  ],
+  "cell": "B164",
+  "xlpng": "ASSET.png"
  },
  {
   "field": "DEP",
@@ -51,7 +53,9 @@
     "png": "DEP-Q2-RCFN2200.png",
     "row": "13.b. 0 RCFN2200 b. In foreign offices, Edge and Agreement subsidiaries, and IBFs (from Schedule RC-E, part II)..........................."
    }
-  ]
+  ],
+  "cell": "C164",
+  "xlpng": "DEP.png"
  },
  {
   "field": "LNLSGR",
@@ -73,7 +77,9 @@
     "png": "LNLSGR-Q2-RCFD2122.png",
     "row": "12. 111,809,579 RCON2122 111,809,579 RCFD2122 12.Total loans and leases held for investment and held for sale (item 12, column A must equal Schedule RC, sum of items 4.a and 4.b).........................................."
    }
-  ]
+  ],
+  "cell": "D164",
+  "xlpng": "LNLSGR.png"
  },
  {
   "field": "LNLSNET",
@@ -115,7 +121,9 @@
     "png": "LNLSNET-Q2-RCFD3123.png",
     "row": "4.c. 1,454,587 RCFD3123 c. LESS: Allowance for credit losses on loans and leases......................................................................................."
    }
-  ]
+  ],
+  "cell": "E164",
+  "xlpng": "LNLSNET.png"
  },
  {
   "field": "BRO",
@@ -137,7 +145,9 @@
     "png": "BRO-Q2-RCON2365.png",
     "row": "M.1.b. 4,645,209 RCON2365 b. Total brokered deposits........................................................................................................................................."
    }
-  ]
+  ],
+  "cell": "F164",
+  "xlpng": "BRO.png"
  },
  {
   "field": "EQ",
@@ -159,7 +169,9 @@
     "png": "EQ-Q2-RCFD3210.png",
     "row": "27.a. 18,727,875 RCFD3210 a. Total bank equity capital (sum of items 23 through 26.c)....................................................................................."
    }
-  ]
+  ],
+  "cell": "G164",
+  "xlpng": "EQ.png"
  },
  {
   "field": "NCLNLS",
@@ -191,7 +203,9 @@
     "png": "NCLNLS-Q2-RCFD1403.png",
     "row": "9. 810,416 RCFD1403 147,305 RCFD1407 142,786 RCFD1406 9. Total loans and leases (sum of items 1 through 8.b)...................................."
    }
-  ]
+  ],
+  "cell": "H164",
+  "xlpng": "NCLNLS.png"
  },
  {
   "field": "LNATRES",
@@ -213,7 +227,9 @@
     "png": "LNATRES-Q2-RCFD3123.png",
     "row": "4.c. 1,454,587 RCFD3123 c. LESS: Allowance for credit losses on loans and leases......................................................................................."
    }
-  ]
+  ],
+  "cell": "I164",
+  "xlpng": "LNATRES.png"
  },
  {
   "field": "P3LNLS",
@@ -235,7 +251,9 @@
     "png": "P3LNLS-Q2-RCFD1406.png",
     "row": "9. 810,416 RCFD1403 147,305 RCFD1407 142,786 RCFD1406 9. Total loans and leases (sum of items 1 through 8.b)...................................."
    }
-  ]
+  ],
+  "cell": "J164",
+  "xlpng": "P3LNLS.png"
  },
  {
   "field": "LNRECONS",
@@ -267,7 +285,9 @@
     "png": "LNRECONS-Q2-RCFDF159.png",
     "row": "1.a.2. 2,895,066 RCONF159 2,895,066 RCFDF159 2. Other construction loans and all land development and other land loans..............."
    }
-  ]
+  ],
+  "cell": "K164",
+  "xlpng": "LNRECONS.png"
  },
  {
   "field": "LNRENRES",
@@ -299,7 +319,9 @@
     "png": "LNRENRES-Q2-RCFDF161.png",
     "row": "1.e.2. 5,802,961 RCONF161 5,802,961 RCFDF161 2. Loans secured by other nonfarm nonresidential properties...................................."
    }
-  ]
+  ],
+  "cell": "L164",
+  "xlpng": "LNRENRES.png"
  },
  {
   "field": "LNREMULT",
@@ -321,7 +343,9 @@
     "png": "LNREMULT-Q2-RCFD1460.png",
     "row": "1.d. 5,444,590 RCON1460 5,444,590 RCFD1460 d. Secured by multifamily (5 or more) residential properties.............................................."
    }
-  ]
+  ],
+  "cell": "M164",
+  "xlpng": "LNREMULT.png"
  },
  {
   "field": "RBC1AAJ",
@@ -346,7 +370,9 @@
   ],
   "chased": true,
   "note": "The filing prints this ratio itself, rounded to four decimal places. The tie-out skipped it because it refuses to compare a percentage with a dollar line -- correct, but it never looked for the filed percentage. It is there.",
-  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead"
+  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead",
+  "cell": "R164",
+  "xlpng": "RBC1AAJ.png"
  },
  {
   "field": "RBCRWAJ",
@@ -371,7 +397,9 @@
   ],
   "chased": true,
   "note": "Same shape: printed on the filing at four decimal places, and matching to every one of them.",
-  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead"
+  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead",
+  "cell": "S164",
+  "xlpng": "RBCRWAJ.png"
  },
  {
   "field": "P3CRCD",
@@ -393,7 +421,9 @@
     "png": "P3CRCD-Q2-RCFDB575.png",
     "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
    }
-  ]
+  ],
+  "cell": "X164",
+  "xlpng": "P3CRCD.png"
  },
  {
   "field": "P9CRCD",
@@ -415,7 +445,9 @@
     "png": "P9CRCD-Q2-RCFDB576.png",
     "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
    }
-  ]
+  ],
+  "cell": "Y164",
+  "xlpng": "P9CRCD.png"
  },
  {
   "field": "NACRCD",
@@ -437,7 +469,9 @@
     "png": "NACRCD-Q2-RCFDB577.png",
     "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
    }
-  ]
+  ],
+  "cell": "Z164",
+  "xlpng": "NACRCD.png"
  },
  {
   "field": "P3AUTO",
@@ -459,7 +493,9 @@
     "png": "P3AUTO-Q2-RCFDK213.png",
     "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
    }
-  ]
+  ],
+  "cell": "AA164",
+  "xlpng": "P3AUTO.png"
  },
  {
   "field": "P9AUTO",
@@ -481,7 +517,9 @@
     "png": "P9AUTO-Q2-RCFDK214.png",
     "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
    }
-  ]
+  ],
+  "cell": "AB164",
+  "xlpng": "P9AUTO.png"
  },
  {
   "field": "NAAUTO",
@@ -503,7 +541,9 @@
     "png": "NAAUTO-Q2-RCFDK215.png",
     "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
    }
-  ]
+  ],
+  "cell": "AC164",
+  "xlpng": "NAAUTO.png"
  },
  {
   "field": "P3RERES",
@@ -545,7 +585,9 @@
     "png": "P3RERES-Q2-RCONC238.png",
     "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
    }
-  ]
+  ],
+  "cell": "AD164",
+  "xlpng": "P3RERES.png"
  },
  {
   "field": "P9RERES",
@@ -587,7 +629,9 @@
     "png": "P9RERES-Q2-RCONC239.png",
     "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
    }
-  ]
+  ],
+  "cell": "AE164",
+  "xlpng": "P9RERES.png"
  },
  {
   "field": "NARERES",
@@ -629,7 +673,9 @@
     "png": "NARERES-Q2-RCONC230.png",
     "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
    }
-  ]
+  ],
+  "cell": "AF164",
+  "xlpng": "NARERES.png"
  },
  {
   "field": "P3RELOC",
@@ -651,7 +697,9 @@
     "png": "P3RELOC-Q2-RCON5398.png",
     "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
    }
-  ]
+  ],
+  "cell": "AG164",
+  "xlpng": "P3RELOC.png"
  },
  {
   "field": "P9RELOC",
@@ -673,7 +721,9 @@
     "png": "P9RELOC-Q2-RCON5399.png",
     "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
    }
-  ]
+  ],
+  "cell": "AH164",
+  "xlpng": "P9RELOC.png"
  },
  {
   "field": "NARELOC",
@@ -695,7 +745,9 @@
     "png": "NARELOC-Q2-RCON5400.png",
     "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
    }
-  ]
+  ],
+  "cell": "AI164",
+  "xlpng": "NARELOC.png"
  },
  {
   "field": "LNCRCD",
@@ -717,7 +769,9 @@
     "png": "LNCRCD-Q2-RCFDB538.png",
     "row": "6.a. 926,589 RCONB538 926,589 RCFDB538 a. Credit cards...................................................................................................................."
    }
-  ]
+  ],
+  "cell": "AM164",
+  "xlpng": "LNCRCD.png"
  },
  {
   "field": "LNAUTO",
@@ -739,7 +793,9 @@
     "png": "LNAUTO-Q2-RCFDK137.png",
     "row": "6.c. 62,212 RCONK137 62,212 RCFDK137 c. Automobile loans............................................................................................................"
    }
-  ]
+  ],
+  "cell": "AN164",
+  "xlpng": "LNAUTO.png"
  },
  {
   "field": "LNCONOTH",
@@ -761,7 +817,9 @@
     "png": "LNCONOTH-Q2-RCFDK207.png",
     "row": "6.d. 4,200,208 RCONK207 4,200,208 RCFDK207 d. Other consumer loans (includes single payment and installment loans other than automobile loans, and all student loans)......................................................."
    }
-  ]
+  ],
+  "cell": "AO164",
+  "xlpng": "LNCONOTH.png"
  },
  {
   "field": "LNRERES",
@@ -803,7 +861,9 @@
     "png": "LNRERES-Q2-RCFD5368.png",
     "row": "1.c.2.b. 276,020 RCON5368 276,020 RCFD5368 b. Secured by junior liens....................................................................................."
    }
-  ]
+  ],
+  "cell": "AP164",
+  "xlpng": "LNRERES.png"
  },
  {
   "field": "LNRELOC",
@@ -825,7 +885,9 @@
     "png": "LNRELOC-Q2-RCFD1797.png",
     "row": "1.c.1. 2,929,570 RCON1797 2,929,570 RCFD1797 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit..................................................................."
    }
-  ]
+  ],
+  "cell": "AQ164",
+  "xlpng": "LNRELOC.png"
  },
  {
   "field": "NTCRCDQ",
@@ -893,7 +955,9 @@
     "net": 8452
    },
    "quarter": 9020
-  }
+  },
+  "cell": "AR164",
+  "xlpng": "NTCRCDQ.png"
  },
  {
   "field": "NTAUTOQ",
@@ -961,7 +1025,9 @@
     "net": 96
    },
    "quarter": -104
-  }
+  },
+  "cell": "AS164",
+  "xlpng": "NTAUTOQ.png"
  },
  {
   "field": "P3CI",
@@ -993,7 +1059,9 @@
     "png": "P3CI-Q2-RCFD1254.png",
     "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
    }
-  ]
+  ],
+  "cell": "AV164",
+  "xlpng": "P3CI.png"
  },
  {
   "field": "P9CI",
@@ -1025,7 +1093,9 @@
     "png": "P9CI-Q2-RCFD1255.png",
     "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
    }
-  ]
+  ],
+  "cell": "AW164",
+  "xlpng": "P9CI.png"
  },
  {
   "field": "NACI",
@@ -1057,7 +1127,9 @@
     "png": "NACI-Q2-RCFD1256.png",
     "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
    }
-  ]
+  ],
+  "cell": "AX164",
+  "xlpng": "NACI.png"
  },
  {
   "field": "P3RECONS",
@@ -1089,7 +1161,9 @@
     "png": "P3RECONS-Q2-RCONF173.png",
     "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
    }
-  ]
+  ],
+  "cell": "AY164",
+  "xlpng": "P3RECONS.png"
  },
  {
   "field": "P9RECONS",
@@ -1121,7 +1195,9 @@
     "png": "P9RECONS-Q2-RCONF175.png",
     "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
    }
-  ]
+  ],
+  "cell": "AZ164",
+  "xlpng": "P9RECONS.png"
  },
  {
   "field": "NARECONS",
@@ -1153,7 +1229,9 @@
     "png": "NARECONS-Q2-RCONF177.png",
     "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
    }
-  ]
+  ],
+  "cell": "BA164",
+  "xlpng": "NARECONS.png"
  },
  {
   "field": "P3RENRES",
@@ -1185,7 +1263,9 @@
     "png": "P3RENRES-Q2-RCONF179.png",
     "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
    }
-  ]
+  ],
+  "cell": "BB164",
+  "xlpng": "P3RENRES.png"
  },
  {
   "field": "P9RENRES",
@@ -1217,7 +1297,9 @@
     "png": "P9RENRES-Q2-RCONF181.png",
     "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
    }
-  ]
+  ],
+  "cell": "BC164",
+  "xlpng": "P9RENRES.png"
  },
  {
   "field": "NARENRES",
@@ -1249,7 +1331,9 @@
     "png": "NARENRES-Q2-RCONF183.png",
     "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
    }
-  ]
+  ],
+  "cell": "BD164",
+  "xlpng": "NARENRES.png"
  },
  {
   "field": "P3REMULT",
@@ -1271,7 +1355,9 @@
     "png": "P3REMULT-Q2-RCON3499.png",
     "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
    }
-  ]
+  ],
+  "cell": "BE164",
+  "xlpng": "P3REMULT.png"
  },
  {
   "field": "P9REMULT",
@@ -1293,7 +1379,9 @@
     "png": "P9REMULT-Q2-RCON3500.png",
     "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
    }
-  ]
+  ],
+  "cell": "BF164",
+  "xlpng": "P9REMULT.png"
  },
  {
   "field": "NAREMULT",
@@ -1315,7 +1403,9 @@
     "png": "NAREMULT-Q2-RCON3501.png",
     "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
    }
-  ]
+  ],
+  "cell": "BG164",
+  "xlpng": "NAREMULT.png"
  },
  {
   "field": "LNCI",
@@ -1347,7 +1437,9 @@
     "png": "LNCI-Q2-RCFD1764.png",
     "row": "4.b. 394,717 RCON1764 394,717 RCFD1764 b. To non-U.S. addressees (domicile)................................................................................."
    }
-  ]
+  ],
+  "cell": "BH164",
+  "xlpng": "LNCI.png"
  },
  {
   "field": "NTCIQ",
@@ -1455,7 +1547,9 @@
     "net": 69250
    },
    "quarter": 52386
-  }
+  },
+  "cell": "BL164",
+  "xlpng": "NTCIQ.png"
  },
  {
   "field": "DEPUNINS",
@@ -1477,7 +1571,9 @@
     "png": "DEPUNINS-Q2-RCON5597.png",
     "row": "M.2. 82,138,192 RCON5597 2. Estimated amount of uninsured deposits in domestic offices of the bank and in insured branches in Puerto Rico and instructions)3.............................."
    }
-  ]
+  ],
+  "cell": "BM164",
+  "xlpng": "DEPUNINS.png"
  },
  {
   "field": "SCHA",
@@ -1499,7 +1595,9 @@
     "png": "SCHA-Q2-RCFD1754.png",
     "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
    }
-  ]
+  ],
+  "cell": "BN164",
+  "xlpng": "SCHA.png"
  },
  {
   "field": "SCHF",
@@ -1521,7 +1619,9 @@
     "png": "SCHF-Q2-RCFD1771.png",
     "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
    }
-  ]
+  ],
+  "cell": "BO164",
+  "xlpng": "SCHF.png"
  },
  {
   "field": "SCAA",
@@ -1543,7 +1643,9 @@
     "png": "SCAA-Q2-RCFD1772.png",
     "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
    }
-  ]
+  ],
+  "cell": "BP164",
+  "xlpng": "SCAA.png"
  },
  {
   "field": "SCAF",
@@ -1565,7 +1667,9 @@
     "png": "SCAF-Q2-RCFD1773.png",
     "row": "2.b. 38,458,612 RCFD1773 b. Available-for-sale debt securities (from Schedule RC-B, column D)...................................................................."
    }
-  ]
+  ],
+  "cell": "BQ164",
+  "xlpng": "SCAF.png"
  },
  {
   "field": "OTHBFHLB",
@@ -1617,6 +1721,8 @@
     "png": "OTHBFHLB-Q2-RCFDF058.png",
     "row": "5.a.1.d. 18,368 RCFDF058 d. Over five years......................................................................................................................................."
    }
-  ]
+  ],
+  "cell": "BR164",
+  "xlpng": "OTHBFHLB.png"
  }
 ]

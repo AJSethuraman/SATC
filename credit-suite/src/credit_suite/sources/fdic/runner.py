@@ -382,9 +382,8 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
 
     from credit_suite.engine.config import EntityRow, norm_key
     from credit_suite.sources.fdic import plain
-    from credit_suite.sources.fdic.engine_api import (assemble_quarters,
-                                                      make_field_spec,
-                                                      metric_value,
+    from credit_suite.sources.fdic import engine_api as R
+    from credit_suite.sources.fdic.engine_api import (metric_value,
                                                       validate_metrics)
 
     cert = norm_key(args[0])
@@ -395,14 +394,15 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
                          '"<bank name>".\n' % args[0])
         return runtime.EXIT_GATE_ERROR
 
-    wb = openpyxl.load_workbook(workbook, read_only=True, data_only=False)
+    wb = openpyxl.load_workbook(workbook, data_only=False)
     try:
         rows = [list(row) for row in wb["_config"].iter_rows(values_only=True)]
         from credit_suite.engine.config import parse_config
         cfg = parse_config(rows, FDIC)
         prov_rows = read_provenance_rows(wb)
-    finally:
+    except Exception:
         wb.close()
+        raise
 
     if not prov_rows:
         sys.stderr.write("--tieout: this workbook has no _provenance tab -- it "
@@ -410,21 +410,33 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
         return runtime.EXIT_RUN_ERROR
 
     validate_metrics(cfg.series)
-    provider = adapter.make_provider(cfg, demo, None)
-    mode = "demo" if isinstance(provider, adapter.FdicDemoProvider) else "live"
-    try:
-        provider.prime([cert], date.today(), names={cert: "cert:%s" % cert})
-        entity = EntityRow(slot=1, key=cert, name="cert:%s" % cert,
-                           group="tieout", active=True, key_prefix="cert")
-        field_rows = {f: provider.fetch_series(make_field_spec(entity, f))
-                      for f in fields.RAW_FIELDS}
-    except Exception as exc:                       # noqa: BLE001
-        sys.stderr.write("--tieout fetch failed for cert %s: %s\n" % (cert, exc))
-        return runtime.EXIT_RUN_ERROR
 
-    quarters = assemble_quarters(field_rows, cfg.raw_slots)
+    # THE WORKBOOK IS THE "OURS" SIDE. Until 5 September 2026 this re-fetched
+    # every field from the provider and compared THAT to the filing, which
+    # proves the provider agrees with the filing and says nothing about the
+    # number in the cell a person opens. The firm: "your doc here needs to
+    # prove the external source to your workbook values not what you said
+    # landed. that's the standard."
+    entity = next((e for e in cfg.entities
+                   if getattr(e, "has_entity", False)
+                   and str(e.entity_key).split(":")[-1] == str(cert)), None)
+    if entity is None:
+        sys.stderr.write(
+            "--tieout: cert %s is not one of this workbook's [PEERS], so the "
+            "workbook holds nothing to tie out. Add it to _config and refresh, "
+            "or tie out a cert it carries.\n" % cert)
+        return runtime.EXIT_RUN_ERROR
+    backend = OpenpyxlBackend(workbook, FDIC, fields.RAW_FIELDS)
+    quarters = backend.read_slot_block(
+        R.slot_block(entity.slot, cfg.raw_slots), fields.RAW_FIELDS)
+    last_run = _last_run_line(wb)
+    mode = "demo" if "(demo)" in (last_run or "") else "live"
     if not quarters:
-        sys.stderr.write("--tieout: no quarters returned for cert %s.\n" % cert)
+        sys.stderr.write(
+            "--tieout: slot %d (cert %s) is empty -- this workbook has never "
+            "been refreshed, so there is nothing of ours to compare. Run the "
+            "refresh first; a tie-out reads the cells, it does not re-fetch "
+            "them.\n" % (entity.slot, cert))
         return runtime.EXIT_RUN_ERROR
 
     if repdte:
@@ -441,8 +453,15 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
     else:
         iso, values = quarters[0]
 
-    print("TIE-OUT  cert %s  REPDTE %s  (pack %s, %s mode)"
-          % (cert, iso, FDIC.pack_version, mode))
+    block = R.slot_block(entity.slot, cfg.raw_slots)
+    print("TIE-OUT  cert %s  REPDTE %s  (pack %s)"
+          % (cert, iso, FDIC.pack_version))
+    print("  OURS: read from %s slot %d (%s), rows %d-%d of %s -- the cells "
+          "this workbook holds, not a fresh fetch"
+          % (R.RAW_TAB, entity.slot, entity.name, block.first_data_row,
+             block.last_data_row, workbook))
+    if last_run:
+        print("  %-22s: %s" % ("The run that filled them", last_run))
     if mode == "demo":
         print("  *** DEMO VALUES -- deterministic FdicDemoProvider fiction, "
               "NOT this bank's filing; the schedule/line/MDRM columns are "
@@ -450,10 +469,12 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
               "values. ***")
     print("  Call Report facsimile : %s" % facsimile_url(cert, iso))
     print("  BankFind (pull check) : %s" % bankfind_url(cert))
-    print("  Data vintage          : %s" % (provider.vintage or "n/a"))
-    print("  Tie-out is two-step: API value <-> BankFind page (pull check) "
-          "<-> CDR facsimile schedule/line (filing check).")
+    print("  Tie-out proves the LAST hop: the cells this workbook holds "
+          "against the bank's own filed Call Report. The provider is not "
+          "consulted -- it is upstream of the cells, so its agreeing with "
+          "the filing would say nothing about what the workbook shows.")
     print()
+    wb.close()
     if not brief:
         print("  WHAT THE TERMS MEAN")
         for term, meaning in plain.GLOSSARY:
@@ -517,6 +538,23 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
     return runtime.EXIT_OK
 
 
+def _last_run_line(wb) -> str:
+    """The status panel's first line: "Last run <when> (<mode>)".
+
+    Written by every refresh onto each dashboard tab. It is how the workbook
+    says what produced the cells a tie-out is about to compare -- a fact about
+    the artifact rather than a claim about this invocation.
+    """
+    for tab in DASH_TABS:
+        if tab not in wb.sheetnames:
+            continue
+        col = STATUS_COL_BY_TAB.get(tab, STATUS_COL)
+        value = wb[tab].cell(1, col).value
+        if value and str(value).startswith("Last run"):
+            return str(value).strip()
+    return ""
+
+
 def _tieout_to_filing(cert: str, iso: str, landed: dict, prov_rows: dict,
                       mode: str) -> None:
     """The first link of the chain: the bank's own filed XBRL, from the FFIEC.
@@ -553,7 +591,8 @@ def _tieout_to_filing(cert: str, iso: str, landed: dict, prov_rows: dict,
           "%d skipped with a stated reason"
           % (len(checked), ties, len(differs), len(absent), len(rows) - len(checked)))
     print("  filed values are DOLLARS; landed values are THOUSANDS -- shown in thousands")
-    print("  %-10s %18s %18s  %-22s %s" % ("field", "filed (k$)", "landed (k$)",
+    print("  %-10s %18s %18s  %-22s %s" % ("field", "filed (k$)",
+                                            "in workbook (k$)",
                                             "filed as", "verdict"))
     for r in rows:
         filed = "-" if r.filed_thousands is None else "{:,}".format(r.filed_thousands)

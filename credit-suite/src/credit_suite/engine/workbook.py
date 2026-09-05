@@ -133,6 +133,32 @@ class OpenpyxlBackend:
                 ws.cell(row, rawlayout.field_col(fname, self.fields)).value = \
                     None if value is None else float(value)
 
+    def read_slot_block(self, block: SlotBlock, fields: Sequence[str]
+                        ) -> List[Tuple[str, Dict[str, Optional[float]]]]:
+        """Newest-first ``[(period, {field: value})]`` as the workbook HOLDS them.
+
+        The mirror of :meth:`write_slot_block`, and the only honest source for
+        the "ours" side of a tie-out: it reads the cells a person opens rather
+        than recomputing or re-fetching what those cells ought to contain.
+        Rows with no period, or with nothing landed, are skipped -- an empty
+        block yields an empty list, which the caller must report rather than
+        compare against.
+        """
+        ws = self._wb[self.spec.raw_tab]
+        out: List[Tuple[str, Dict[str, Optional[float]]]] = []
+        for offset in range(block.slots):
+            row = block.first_data_row + offset
+            period = ws.cell(row, 1).value
+            if not period:
+                continue
+            values: Dict[str, Optional[float]] = {}
+            for name in fields:
+                cell = ws.cell(row, rawlayout.field_col(name, self.fields)).value
+                values[name] = float(cell) if isinstance(cell, (int, float)) else None
+            if any(v is not None for v in values.values()):
+                out.append((str(period)[:10], values))
+        return out
+
     def write_status_lines(self, lines: Sequence[str],
                            tabs: Sequence[str],
                            column_by_tab: Dict[str, int],

@@ -830,6 +830,21 @@ MUTATIONS: list[Mutation] = [
         (B + "test_the_median_row_is_the_median_of_the_banks",),
         "the peer line is the median, which one outlier cannot drag",
     ),
+    # ---- the tie-out reads the workbook, not a fresh fetch ----------------
+    Mutation(
+        "workbook-block-read-as-empty", SRC / "engine/workbook.py",
+        "            if any(v is not None for v in values.values()):\n                out.append((str(period)[:10], values))",
+        "            if False:\n                out.append((str(period)[:10], values))",
+        (G + "test_the_tieout_reads_the_landed_value_out_of_the_workbook",),
+        "the ours-side of a tie-out is read from the workbook's own cells",
+    ),
+    Mutation(
+        "workbook-block-reads-the-wrong-column", SRC / "engine/workbook.py",
+        "                cell = ws.cell(row, rawlayout.field_col(name, self.fields)).value",
+        "                cell = ws.cell(row, rawlayout.field_col(name, self.fields) + 1).value",
+        (G + "test_the_tieout_reads_the_landed_value_out_of_the_workbook",),
+        "each field is read from its own column, not its neighbour's",
+    ),
     # ---- the merger flag: the 670 recognised, rather than hidden ---------
     Mutation(
         "trend-merger-flag-off", TOOLS / "trend.py",

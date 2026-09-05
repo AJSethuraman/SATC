@@ -278,3 +278,50 @@ one. The tie-out tool still reports these five as skipped, because it reads one
 filing and refuses to compare a percentage with a dollar line. Teaching it the
 two moves above is filed as a follow-up; until then this exhibit is the record
 that they do tie.
+
+
+---
+
+## Correction, 5 September 2026 — what "ours" means
+
+Everything above compared the filing against a value the tie-out **re-fetched
+from the FDIC's API as it ran**. The firm:
+
+> "ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard"
+
+They are right, and the column was mislabelled. `--tieout` called
+`provider.fetch_series` and compared that to the filing, which proves the API
+agrees with the filing and says **nothing about the number in the cell a person
+opens**. The last hop — the one the reader depends on — was the one hop it
+skipped. One figure had been checked against the workbook by hand (link 3
+above, `Raw_FDIC!X164`); the other 52 rested on "same build, same day", which
+is an inference.
+
+**Fixed in the tool.** `engine/workbook.py` gained `read_slot_block`, the mirror
+of `write_slot_block`, and the tie-out now reads the landed value out of the
+workbook's own raw block. It refuses when that block has never been filled,
+rather than comparing blanks. It also prints where it read from and what the
+workbook records about the run that filled it:
+
+```
+OURS: read from Raw_FDIC slot 9 (KeyBank NA), rows 164-179 of
+      example-output/Bank_Peer_Monitor.xlsm -- the cells this workbook holds,
+      not a fresh fetch
+The run that filled them: Last run  2026-09-04 (live)
+```
+
+The mode is no longer taken from a command-line flag; it is read from the
+status panel the runner writes into the workbook, which is a fact about the
+cells being compared rather than a claim about the invocation.
+
+**And the exhibit shows both sides.** `TIE-OUT-KeyBank-all-53-lines-2026-06-30.pdf`
+now carries, for every one of the 53 lines, the Excel cell **printed by Excel
+with its row numbers and column letters showing** — so the caption's
+`Raw_FDIC!X164` is a reference you can type into the Name Box and land on the
+same number — beside the row of the filing with the code ringed. 53 cell
+pictures, 93 filing rows, and the comparison runs between them.
+
+Pinned by `test_the_tieout_reads_the_landed_value_out_of_the_workbook`, which
+plants a value that could only have come from the workbook, and by
+`test_an_unrefreshed_workbook_has_nothing_to_tie_out`. Two mutations kill.

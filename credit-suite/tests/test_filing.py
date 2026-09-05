@@ -206,3 +206,87 @@ def test_the_c_and_i_past_due_rows_carry_the_031_codes():
         expression = F.parse_mdrm(mdrm)
         assert [t[1] for t in expression.alternative] == [alt, str(int(alt) + 3)], field
         assert [t[1] for t in expression.primary] == [primary], field
+
+
+# --------------------------------------------------------------------------
+# the tie-out's "ours" side is the workbook, not a fresh fetch
+# --------------------------------------------------------------------------
+
+def test_the_tieout_reads_the_landed_value_out_of_the_workbook(tmp_path):
+    """The firm, 5 September 2026, on a roster that said 53 of 53 tied:
+
+        "your doc here needs to prove the external source to your workbook
+         values not what you said landed. that's the standard"
+
+    It had been calling `provider.fetch_series` and comparing THAT to the
+    filing, which proves the provider agrees with the filing and says nothing
+    about the number in the cell a person opens. Plant a value that could only
+    have come from the workbook, and the tie-out must report it.
+    """
+    import shutil
+    import sys
+    from pathlib import Path
+
+    import openpyxl
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import monitorbuild
+
+    from credit_suite.engine.workbook import OpenpyxlBackend
+    from credit_suite.sources.fdic import engine_api as R
+    from credit_suite.sources.fdic import fields as FL
+    from credit_suite.sources.fdic.spec import FDIC
+
+    with monitorbuild.built_monitor("fdic") as (built, _stdout):
+        book = tmp_path / "planted.xlsm"
+        shutil.copyfile(built, book)
+
+    backend = OpenpyxlBackend(str(book), FDIC, FL.RAW_FIELDS)
+    cfg = backend.read_config()
+    entity = next(e for e in cfg.entities
+                  if getattr(e, "has_entity", False)
+                  and str(e.entity_key).split(":")[-1] == "17534")
+    block = R.slot_block(entity.slot, cfg.raw_slots)
+
+    wb = openpyxl.load_workbook(book, keep_vba=True)
+    ws = wb[R.RAW_TAB]
+    ws.cell(block.first_data_row, 1, "2026-06-30")
+    ws.cell(block.first_data_row, R.field_col("ASSET"), 123456789)
+    wb.save(book)
+    wb.close()
+
+    read = OpenpyxlBackend(str(book), FDIC, FL.RAW_FIELDS).read_slot_block(
+        block, FL.RAW_FIELDS)
+    assert read, "the planted row was not read back"
+    period, values = read[0]
+    assert period == "2026-06-30"
+    assert values["ASSET"] == 123456789          # the workbook's number, not the API's
+
+
+def test_an_unrefreshed_workbook_has_nothing_to_tie_out(tmp_path):
+    """A freshly built workbook holds no landed values. Comparing blanks to a
+    filing would report a tidy row of nothing; it refuses instead."""
+    import shutil
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import monitorbuild
+
+    from credit_suite.engine.workbook import OpenpyxlBackend
+    from credit_suite.sources.fdic import engine_api as R
+    from credit_suite.sources.fdic import fields as FL
+    from credit_suite.sources.fdic.spec import FDIC
+
+    with monitorbuild.built_monitor("fdic", run_demo=False) as (built, _stdout):
+        book = tmp_path / "empty.xlsm"
+        shutil.copyfile(built, book)
+
+    backend = OpenpyxlBackend(str(book), FDIC, FL.RAW_FIELDS)
+    cfg = backend.read_config()
+    entity = next(e for e in cfg.entities
+                  if getattr(e, "has_entity", False)
+                  and str(e.entity_key).split(":")[-1] == "17534")
+    read = backend.read_slot_block(R.slot_block(entity.slot, cfg.raw_slots),
+                                   FL.RAW_FIELDS)
+    assert read == []

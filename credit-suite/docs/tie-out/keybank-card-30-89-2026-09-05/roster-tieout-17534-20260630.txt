@@ -1,8 +1,9 @@
-TIE-OUT  cert 17534  REPDTE 2026-06-30  (pack 1.1, live mode)
+TIE-OUT  cert 17534  REPDTE 2026-06-30  (pack 1.1)
+  OURS: read from Raw_FDIC slot 9 (KeyBank NA), rows 164-179 of example-output/Bank_Peer_Monitor.xlsm -- the cells this workbook holds, not a fresh fetch
+  The run that filled them: Last run  2026-09-04 (live)
   Call Report facsimile : https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&idType=fdiccert&id=17534&date=06302026
   BankFind (pull check) : https://banks.data.fdic.gov/bankfind-suite/bankfind/details/17534
-  Data vintage          : 2026-08-19T18:58:33Z
-  Tie-out is two-step: API value <-> BankFind page (pull check) <-> CDR facsimile schedule/line (filing check).
+  Tie-out proves the LAST hop: the cells this workbook holds against the bank's own filed Call Report. The provider is not consulted -- it is upstream of the cells, so its agreeing with the filing would say nothing about what the workbook shows.
 
   WHAT THE TERMS MEAN
     Call Report -    the quarterly financial report every US bank must file with its regulators. FFIEC forms
@@ -553,7 +554,7 @@ TIE-OUT  cert 17534  REPDTE 2026-06-30  (pack 1.1, live mode)
   1884 facts in the filing for 2026-06-30
   48 raw dollar lines compared: 48 tie, 0 differ, 0 not in the filing; 5 skipped with a stated reason
   filed values are DOLLARS; landed values are THOUSANDS -- shown in thousands
-  field              filed (k$)        landed (k$)  filed as               verdict
+  field              filed (k$)   in workbook (k$)  filed as               verdict
   ASSET             188,555,486        188,555,486  RCFD2170               TIES
   DEP               158,480,379        158,480,379  RCON2200+RCFN2200      TIES
   LNLSGR            111,809,579        111,809,579  RCFD2122               TIES

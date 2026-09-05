@@ -908,3 +908,38 @@ misreads is worth nothing.
 asserted rather than executed; and the FFIEC's embedded viewer could not be
 driven by automation, so the two pages were captured from a locally served copy
 of the same filing rather than from the FFIEC page itself.
+
+## 2026-09-05 (night) — the standard: prove the source to the WORKBOOK
+
+The firm, on a roster that reported 53 of 53 tied:
+
+> "ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard"
+
+They were right and it was the sharpest correction of the day. `--tieout`
+called `provider.fetch_series` and compared THAT to the filing. So the roster
+proved *the FDIC's API agrees with the bank's filing* — true, and silent about
+the number in the cell a person opens. The last hop was the one hop it skipped.
+One figure had been checked against the workbook by hand; the other 52 rested
+on "same build, same day", which is an inference wearing a verdict's clothes.
+
+**Fixed.** `engine/workbook.py` gained `read_slot_block`, the mirror of
+`write_slot_block`; the tie-out reads the landed value out of the workbook's
+own raw block, refuses when that block was never filled, prints the exact rows
+it read, and takes the demo/live mode from the status panel the runner writes
+into the workbook rather than from a command-line flag — a fact about the cells
+instead of a claim about the invocation.
+
+**And then:** *"not only that, i want to literally see the screenshot of the
+excel sheet where i can find it, too. like it has to prove it."* So every line
+now carries its cell, printed by Excel with row numbers and column letters
+showing, so the caption's `Raw_FDIC!X164` is a reference you can type into the
+Name Box. 53 cell pictures and 93 filing rows in one 54-page PDF.
+
+**Checked:** 375 passed, 0 skipped; parity 2/2 (the `_code_py` tab is already
+forgiven by MIGRATION_IGNORE, which is why a runner change does not move the
+golden); two new tests and two new mutations, both killed.
+
+**Told the canon agent**, which is updating the tie-out and walk skills: the
+ours-side of a comparison must be read out of the artifact the reader opens,
+and every hop not executed must be listed as assumed.
