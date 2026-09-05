@@ -778,3 +778,21 @@ Bassy challenges *from* the record; it does not get to close a question with it.
 
 `1.7.1 → 1.8.0`, both manifests: the record gained an entry, and convictions are
 read from a plugin cache that keys on the marketplace number.
+
+---
+
+## 5 September 2026 — two sessions' canon work met in a merge
+
+`main` reached **1.10.0** on another session's work — the `walk` and `tie-out`
+skills — while this branch carried **C14** at 1.8.0 and had not merged. Bringing
+`main` in produced a record that was the union of both and that **neither release
+had hashed**, so `test_the_version_says_what_the_record_actually_contains` went
+red on the merge commit.
+
+That is the check doing precisely its job. Nothing was wrong with either side;
+what was wrong was a version claiming to describe a record that had grown since
+it was stamped. **1.10.0 → 1.11.0**, digest re-released.
+
+Worth recording because it will happen again: two sessions can each release
+correctly and still leave `main` holding a record no version describes, and the
+only thing that notices is a digest computed over what actually ships.
