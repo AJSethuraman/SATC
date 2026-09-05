@@ -63,8 +63,8 @@ def _default_dir() -> Path:
 
     In a dev checkout this is ``satc_system/build/data``. Inside a PyInstaller
     bundle that path points into a read-only temp extraction dir, so fall back to
-    a per-user writable location instead. ``SATC_DATA_DIR`` (handled by the
-    caller) always wins over this default.
+    a per-user writable location instead. ``SATC_DATA_DIR`` always wins over
+    this default -- see :func:`resolve_dir`, which is where that is enforced.
     """
     if getattr(sys, "frozen", False):
         return Path.home() / ".satc" / "data"
@@ -72,6 +72,37 @@ def _default_dir() -> Path:
 
 
 DEFAULT_DIR = _default_dir()
+
+
+def resolve_dir(directory: str | Path | None = None) -> Path:
+    """The ONE place the store's location is decided.
+
+    `_default_dir` has always documented `SATC_DATA_DIR` as winning over the
+    default -- "handled by the caller". It was handled by two callers out of
+    eight: `satc.app.state` and `satc.doctor`. Every `--dir`-taking CLI command
+    (`chase`, `seed`, `export`, `reset`, and the three stores built at
+    `cli.py:275,402,409`) read `DEFAULT_DIR` instead, so:
+
+        SATC_DATA_DIR=/tmp/scratch satc chase
+
+    printed the real `build/data` store, and `satc reset --yes` under the same
+    variable would have deleted it. Verified by running it on 4 September 2026:
+    `chase` listed the live store's clients and wrote nothing to the temp dir.
+
+    Policy at the choke point, not at each caller -- every store already comes
+    through `SATCStore.__init__`, so putting the rule here is the version that
+    cannot be forgotten by the ninth caller.
+
+    Precedence: an explicit `--dir` beats the environment beats the default.
+    An argument somebody typed on this command line is more specific than a
+    variable that may have been exported hours ago.
+    """
+    if directory:
+        return Path(directory)
+    env = os.environ.get("SATC_DATA_DIR")
+    if env:
+        return Path(env)
+    return DEFAULT_DIR
 
 _VAULT_DDL = """
 CREATE TABLE IF NOT EXISTS identities (
@@ -421,7 +452,7 @@ class SATCStore:
     """Facade over the vault + mart databases."""
 
     def __init__(self, directory: str | Path | None = None) -> None:
-        self.dir = Path(directory) if directory else DEFAULT_DIR
+        self.dir = resolve_dir(directory)
         self.dir.mkdir(parents=True, exist_ok=True)
         _restrict_dir(self.dir)
         vault_path = self.dir / "satc_vault.db"

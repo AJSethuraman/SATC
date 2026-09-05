@@ -17,6 +17,104 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Friday 4 September 2026, evening — the docket came back, six for six
+
+Every decision answered, every one taking the recommendation, no amendments.
+Recorded here because an answer that lives only in a form has to be asked again.
+
+| | Asked | Answered |
+|---|---|---|
+| **D1** | `--store` reaches production Square | *"--no-link defaults on any non-default --store"* |
+| **D2** | a script with a request context is the owner | *"Adopt the Occam shape — launcher-set role and assignment"* |
+| **D3** | two applications, one practice, no join | *"client-documents owns the engagement; satc_system holds the return"* |
+| **D4** | two price lists disagreeing by 55% | *"registry/fee-schedule.yaml is the price"* |
+| **D5** | should we use Fable 5.1 | *"No Fable for SATC work"* |
+| **D6** | `desk/` is failing the same way | *"Tell the other session"* |
+
+**D3 is the one that unlocks the others.** Naming `client-documents` the owner of
+an engagement settles the join, the price question and the invoice numbering at
+once — they were three symptoms of not having decided it.
+
+**D5 is NOT a standing position, and I had it wrong within the hour.** I wrote
+that it was, and offered to draft it as a conviction. The firm: *"this isn't a
+conviction, i will just use it when i feel like it or want to test it."*
+
+So the finding stands and the rule does not. Fable 5.1 requires 30-day data
+retention with no zero-retention option, and it produced the weaker of two
+reports on the same brief at roughly twice the cost per token — all true, and
+none of it makes a policy. **A measurement is not a commitment**, and turning
+one into a rule on the firm's behalf is how a record fills up with things they
+never decided. Declined on the record so it is not re-proposed.
+
+**D1 built the same evening.** `payments.link_follows_the_store` decides once,
+at the seam: `--no-link` never, `--link` always, otherwise the default store
+gets a link and no other store does — and the suppression is printed rather than
+silent. `--link` had to exist, because a safety default with no override is not
+a default, it is a wall.
+
+**The test for it was decoration on the first attempt, and only the mutation run
+found that out.** It put a tripwire on the HTTP transport and asserted the
+output said "no link". Both halves were wrong. `processor()` refuses before any
+transport is touched when no token is configured — the state of every test
+machine — so the tripwire could never fire and the test proved *no token here*,
+not *no call made*. And "No link on this bill —" is exactly what the **old** code
+printed when the processor refused, so the assertion matched the bug's own
+output. It passed against the defect it was written to catch. Rebuilt to watch
+`link_for`, to stub `processor` so the tripwire is genuinely reachable, and to
+assert the one phrase only the new path produces. Then mutated again: it fails
+now, on the tripwire, which is what makes the nine passes worth anything.
+
+
+## Friday 4 September 2026, evening — the evening two agents read the code and one ran it
+
+Two agents got the byte-identical brief — *can a person run this end to end, can
+an agent* — one on Fable 5.1, one on Opus 5, as the honest test of whether Fable
+earns a place. **The comparison answered itself in a way I did not expect: the
+difference that mattered was not the model, it was that one of them ran the
+software.** Both serious findings came from the run that executed things, and
+neither is visible from reading.
+
+**`--store` isolates the files and not the money.** `cli.py invoice` reaches the
+firm's production Square account whichever store you point it at. The standing
+instruction on this machine is *point tests at a temp store*; an agent obeying it
+believes it is isolated and is not. It came back `400 — idempotency key already
+used`, so nothing was created — and a 400 is what a *differing* body returns. A
+matching amount returns the existing link, and the test client is handed a real
+client's payment link.
+
+**A script with no human in it is the owner.** `acting_actor()` returns
+`Actor.owner()` for anything holding a Flask request context, which
+`app.test_client()` creates. Its docstring promises the opposite in the sentence
+above it, naming *a script* as the case it catches. Reproduced here independently.
+
+Both are one shape: **a control that reads how a call arrived rather than who
+made it.** Neither was patched — a security gate and a money seam are the firm's
+call — and both are recorded as W9 and W10.
+
+**Then two of my own, found the same way.** `SATC_DATA_DIR` was documented as
+always winning and honoured by two callers out of eight; one of the six was
+`reset`, which deletes the vault, so a run scoped to a scratch directory would
+have deleted the live store. And a locked `pytest-of-<user>` directory on this
+machine — a DACL even `icacls` cannot read back — was erroring **467 tests here
+and 1,165 in client-documents** at setup. `canon/conftest.py` had already solved
+that one and written down both of its traps.
+
+**The number I would have reported was false.** I was carrying "1,712 passed" and
+"1,434 passed", both true when measured that morning, and the second was actually
+*zero passing* by evening. A green number goes stale the moment the machine under
+it changes — which is this repository's own first tenet pointed at its own test
+run. It only got caught because something else made me re-run them.
+
+**And my own walker was wrong four times out of four.** Written to walk the app
+like a person, it read the first `<form>` on each page — the sidebar's "clear
+sample data" form, on every screen — so it pressed that button and reported that
+`/clients/new` had no fields and created no client. Scoped to the page's own
+content, the app did the right thing at every step. That is the fourth time in
+two days a checker built to find faults produced the fault itself, and it is why
+the count above can be believed at all: **the walker's findings were checked
+before they were reported, and none of them survived.**
+
+
 ## 4 September 2026
 
 The day Square went live, the day the payment loop was proved with real money,
@@ -151,6 +249,36 @@ full suite while passing alone, because they borrowed a staged field the earlier
 one — worse, because alone the fallback never ran, so a wrong import inside it
 passed in isolation and failed only in the full suite. **A branch that runs in
 one ordering and not the other is not covered.** There is no branch now.
+
+### Late: the model question, and two projects that were not on the map
+
+**Fable 5.1 — asked, read, answered.** The firm: *"should you be using fable 5.1
+for anything"*. Read from the model reference rather than from memory, which was
+the right call: it is **$10/$50 per MTok against Opus 5's $5/$25**, and it
+**requires 30-day data retention** — not available under zero data retention
+unless Anthropic expressly authorises it. The vision reader (`claude-opus-4-8`
+today) can send client tax documents to Anthropic, so a mandated 30-day retention
+is a compliance problem there, not a feature. The recommendation was to stay;
+**the firm overruled it** — *"Try Fable on one hard task and compare"* — and the
+end-to-end process assessment was run on both Fable 5.1 and Opus 5 on the same
+brief.
+
+**`canon` and `desk` were not in `CLAUDE.md`.** Canon had **zero mentions** in
+the file every session reads first, and `desk` — 43 files, 174 tests, arrived
+that day across five pull requests — none. Both added.
+
+The firm corrected the desk entry as it was being written: *"some of the stuff
+you are reading and is in-process under design by another session - such as
+desk"*. The row was rewritten to say so. **A map entry written from a README by
+a session that does not own the design is a pointer, not a specification**, and
+one that reads as settled is worse than none — the next session would build
+against a description that is still moving. The repository map going stale is
+the failure `docs/REPO-INVENTORY.md` exists for; a map that is confidently wrong
+about live work is the same failure arriving faster.
+
+**BitLocker** — *"Remind me in a week"*. A cloud routine fires 11 September at
+10:00, carrying the steps and the recovery-key warning. `CronCreate` was the
+wrong tool: it is session-only and would not have survived the night.
 
 ### Still open at the end of the day
 

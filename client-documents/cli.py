@@ -615,7 +615,21 @@ def cmd_invoice(args) -> int:
     # leaves no invoice claiming a link it never got. The bill is the thing the
     # client reads; a half-made one is worse than none.
     note = ""
-    if not args.no_link:
+    # THE LINK FOLLOWS THE STORE. A run scoped to a scratch directory used to
+    # reach production Square anyway, because --store routed only the files.
+    try:
+        choice = payments.link_follows_the_store(
+            store=store, default_store=engagements.STORE,
+            no_link=args.no_link, link=args.link)
+    except payments.PaymentError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    if not choice.wanted:
+        # SAID OUT LOUD, never silently. A suppressed link that nobody
+        # mentioned is somebody re-running the command wondering where it went.
+        note = "    " + textwrap.fill(choice.reason, 66,
+                                      subsequent_indent="                ")
+    else:
         try:
             link = payments.link_for(
                 fields, using=payments.processor(sandbox=args.sandbox))
@@ -2822,6 +2836,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a credit, entered as what it is worth")
     iv.add_argument("--no-link", action="store_true",
                     help="do not create a payment link for this bill")
+    iv.add_argument("--link", action="store_true",
+                    help="create a live payment link even though --store is "
+                         "not the engagement store (the default is not to)")
     iv.add_argument("--sandbox", action="store_true",
                     help="use Square's test account; no money is real")
     iv.add_argument("--variance-note",

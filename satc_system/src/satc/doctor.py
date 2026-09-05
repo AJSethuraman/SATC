@@ -46,7 +46,7 @@ def _ollama_reachable() -> bool:
 def run_checks() -> list[Check]:
     """Inspect the environment and return a readiness report (no side effects)."""
     from satc.ingest.ocr import tesseract_available
-    from satc.persistence.store import DEFAULT_DIR
+    from satc.persistence.store import resolve_dir
     from satc.settings import cloud_allowed, ollama_enabled
 
     checks: list[Check] = []
@@ -56,7 +56,10 @@ def run_checks() -> list[Check]:
                         f"{v.major}.{v.minor}.{v.micro}",
                         "" if v >= (3, 10) else "SATC needs Python 3.10 or newer."))
 
-    store = os.environ.get("SATC_DATA_DIR") or str(DEFAULT_DIR)
+    # Ask the resolver, never re-derive. A doctor that computes the
+    # store's location by its own rules will one day report a directory
+    # the app is not using and call it healthy.
+    store = str(resolve_dir())
     checks.append(Check("Data store", "ok", store))
 
     checks.append(Check("PDF reading", "ok" if _have("pypdf") else "warn",
