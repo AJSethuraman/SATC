@@ -17,6 +17,47 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Friday 4 September 2026, late — the second docket, and one overrule
+
+Asked directly whether I was trying to say the work was finished. I was not, but
+the reporting read that way: shipping one decision at a time and calling each
+verified is accurate per item and misleading in aggregate.
+
+| | Asked | Answered |
+|---|---|---|
+| **D7** | five client documents ship past the pre-send gate | *"Gate the five documents next"* |
+| **D8** | nothing records that a return was filed, so the 7-year clock never starts | **overruled me** — *"Defer with W5/W8 to the bookkeeping launch"* |
+| **D9** | `make web` always opens the real client store | *"Let make web take a store"* |
+| **D10** | the price, with the third option D3 unlocked | *"Show the engagement price via the ref"* |
+
+**D8 is the one I was wrong to raise, and the overrule was already on record.**
+I argued the filing writer should come next because it is the missing piece
+under W5 and W8. The firm deferred it to the same place — and W8's own entry
+already carried their words for it: *"note those as things to deal with when we
+are ready to market the bookkeeping officially."* The answer was in the register
+before I asked the question. Nothing is destroyed today, so nothing is at risk
+today, and the three pieces of the retention promise get built together rather
+than one at a time.
+
+**The false gate claim was corrected without asking**, and that half was never a
+decision. `CLAUDE.md` told every session that every client document passes a
+blocking pre-send gate; the gate has two callers and neither is on the `event`
+path. A wrong safety claim in the file every session loads is worse than the gap
+it describes, because a gap invites a look and a claim forecloses one.
+
+**Then closing the gap caught something my own test did not.** The first version
+applied the pack gate wholesale and refused an ordinary single-document render:
+the fee estimate promises the engagement letter as an enclosure, and a
+one-document render does not hold one. That is the estimate being correct.
+**A gate that refuses correct everyday use is a gate everybody learns to
+`--force` past, and then it protects nothing.** Exactly one of the nine checks
+is about completeness rather than about the documents, so that one is skipped
+for a deliberate subset — and *named* as skipped, never dropped. Nine checks for
+a chosen document, ten for a whole pack, and a test pins the difference at one.
+
+My test had only asserted that a gate was mentioned. Running it found the rest.
+
+
 ## Friday 4 September 2026, evening — the docket came back, six for six
 
 Every decision answered, every one taking the recommendation, no amendments.

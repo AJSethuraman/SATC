@@ -930,13 +930,32 @@ def no_tin(pack: Path) -> list[Finding]:
 
 
 def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
-         skip_render: bool = False) -> Result:
+         skip_render: bool = False, whole_pack: bool = True) -> Result:
     """Everything above, on one pack, in one answer.
 
     ``rendered`` is the document text keyed by name when the caller already has
     it (``cli`` does, from the merge it just ran). Passing it avoids rendering
     the pack twice and, more to the point, means the agreement check reads the
     SAME text the client will.
+
+    ``whole_pack`` says whether this really is a complete pack. **Exactly one
+    of these checks is about COMPLETENESS rather than about the documents:**
+    `pointer_test` asks whether everything a document promises as an enclosure
+    is here. That is right for an opening pack and wrong for a deliberate
+    subset — `render --docs invoice` and every `event` document are one page on
+    purpose, and the fee estimate promises the engagement letter whether or not
+    anybody asked for it.
+
+    Found the day the second door was gated, 5 September 2026: the gate refused
+    an ordinary single-document render on exactly that check. **A gate that
+    refuses correct, everyday use is a gate everybody learns to `--force` past,
+    and then it protects nothing.**
+
+    SKIPPED, NEVER SILENTLY DROPPED. It goes in `res.skipped`, which
+    `format_result` prints as "not checked, so not known to be right" — the
+    same treatment as declining to open the documents in a browser. A check
+    that quietly does not run is the failure this whole module is built
+    against.
     """
     res = Result()
 
@@ -948,7 +967,14 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
             plain_language_counted(pack))
     res.add("the compliance floor is on the page", compliance_floor_counted(pack))
     res.add("every cited clause name is a real section", cited_clauses_counted(pack))
-    res.add("every promised enclosure is in the pack", pointer_test_counted(pack))
+    if whole_pack:
+        res.add("every promised enclosure is in the pack",
+                pointer_test_counted(pack))
+    else:
+        res.skipped.append(
+            "every promised enclosure is in the pack — this is a chosen "
+            "document, not a whole pack, so what it points at is somewhere "
+            "else by design")
     res.add("no empty bullet and no empty row", nothing_empty_counted(pack))
     res.add("no identification number on any page", no_tin_counted(pack))
 

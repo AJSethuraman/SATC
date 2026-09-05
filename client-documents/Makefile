@@ -34,7 +34,16 @@ check:
 	python cli.py check samples/tax-opening-package.json
 
 web:
-	python web.py
+	python web.py $(ARGS)
+
+# The browser front door, pointed somewhere that is not the firm's
+# clients. Until 5 Sep 2026 it could not be: `create_app(store=...)`
+# accepted one and the entry point never passed it, so every run opened
+# the real engagement store.
+#
+#     make web-scoped STORE=/tmp/scratch
+web-scoped:
+	python web.py --store $(STORE)
 
 price:
 	python cli.py price

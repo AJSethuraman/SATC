@@ -1680,10 +1680,18 @@ def cmd_event(args) -> int:
 
     record = build_record({**raw, **merged})
     outdir = Path(args.out) if args.out else Path("out") / args.engagement
+    # `engagement=None` so `cmd_render` takes the `_record_override` branch
+    # rather than reloading -- but the GATE still needs the ref and the store,
+    # or a forced send could never be logged and would therefore be refused.
     rc = cmd_render(argparse.Namespace(
         record=None, engagement=None, store=None, docs=[ev.document],
         out=str(outdir), no_pdf=args.no_pdf, draft=False,
-        _record_override=record))
+        _record_override=record,
+        _gate_ref=args.engagement, _gate_store=store,
+        _gate_command=f"event --kind {args.kind}",
+        force=bool(getattr(args, "force", False)),
+        reason=getattr(args, "reason", "") or "",
+        skip_render=bool(getattr(args, "skip_render", False))))
     return rc
 
 
@@ -2212,6 +2220,36 @@ def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool
 _render_one = render_one
 
 
+def _report_gate(outcome, outdir) -> bool:
+    """Say what the gate said. True if the documents may be placed.
+
+    Every refusal names the way out, because a gate that only says no is a
+    gate people learn to pass --force to without reading.
+    """
+    check = outcome.check
+    if outcome.status == "passed":
+        if check is not None:
+            n = len(getattr(check, "checked", []) or [])
+            print(f"  pre-send gate: {n} check(s), nothing blocking")
+        return True
+    if outcome.status == "refused-gate":
+        print("  REFUSED BY THE PRE-SEND GATE. Nothing was written to "
+              f"{outdir}.", file=sys.stderr)
+        for f in check.blocking:
+            where = f" [{f.document}]" if getattr(f, "document", "") else ""
+            print(f"    {f.check}{where}: {f.detail}", file=sys.stderr)
+        print("  Fix it, or send anyway with --force --reason '<why>'. The "
+              "override is logged against the engagement.", file=sys.stderr)
+    elif outcome.status == "no-reason":
+        print("  --force needs --reason. An override with no reason recorded "
+              "is just a quieter way of sending a pack that failed.",
+              file=sys.stderr)
+    elif outcome.status == "not-logged":
+        print("  The override could not be recorded, so it did not happen: "
+              f"{outcome.detail}", file=sys.stderr)
+    return False
+
+
 def cmd_render(args) -> int:
     if args.engagement:
         store = Path(args.store) if args.store else engagements.STORE
@@ -2255,7 +2293,17 @@ def cmd_render(args) -> int:
                          f"known: {', '.join(sorted(DOCUMENTS))}")
 
     outdir = Path(args.out)
-    outdir.mkdir(parents=True, exist_ok=True)
+
+    # STAGED FIRST, GATED, THEN PLACED -- the shape `package` has always had
+    # and this door did not. Until 5 September 2026 `render` wrote each
+    # document straight into `outdir` with no gate anywhere on the path, so
+    # the delivery letter, the organizer cover, the extension notice, the
+    # disengagement letter and the invoice reached clients unchecked.
+    #
+    # Rendering into a staging directory first means a REFUSED set leaves
+    # nothing behind. A half-made pack is worse than none, because somebody
+    # sends it.
+    staging = Path(tempfile.mkdtemp(prefix="satc-stage-"))
 
     # THE OTHER FRONT DOOR HAD THE SAME HOLE. `package` was taught to carry
     # `satc-doc.css` and `doc-page.js` on 27 August 2026, after the firm opened
@@ -2273,7 +2321,7 @@ def cmd_render(args) -> int:
     for asset in presend.PACK_ASSETS:
         src = TEMPLATE_DIR / asset
         if src.exists():
-            shutil.copy2(src, outdir / asset)
+            shutil.copy2(src, staging / asset)
 
     want_pdf = not args.no_pdf
     if want_pdf:
@@ -2290,17 +2338,47 @@ def cmd_render(args) -> int:
         print("DRAFT MODE - output is stamped and must not reach a client\n")
 
     failures = 0
+    rendered: dict[str, str] = {}
+    produced: dict[str, list] = {}
     for doc in docs:
         try:
-            result, written = render_one(doc, record, outdir, args.draft, want_pdf)
+            result, written = render_one(doc, record, staging, args.draft,
+                                         want_pdf)
         except merge.MergeError as exc:
             failures += 1
-            print(f"  {doc:22s} REFUSED\n      {exc}\n", file=sys.stderr)
+            print(f"  {doc:22s} REFUSED", file=sys.stderr)
+            print(f"      {exc}", file=sys.stderr)
             continue
+        rendered[doc] = result.html
+        produced[doc] = written
         kept = ", ".join(sorted(result.blocks_kept)) or "none"
         print(f"  {doc:22s} ok   {len(result.fields_used)} fields, blocks kept: {kept}")
-        for p in written:
-            print(f"      {p}")
+
+    if not failures and rendered:
+        outcome = sending.gate_staged(
+            staging, record, rendered=rendered, documents=list(rendered),
+            written=produced,
+            ref=(getattr(args, "_gate_ref", None) or args.engagement or ""),
+            store=(getattr(args, "_gate_store", None)
+                   or (Path(args.store) if getattr(args, "store", None)
+                       else engagements.STORE)),
+            command=getattr(args, "_gate_command", "render"),
+            force=bool(getattr(args, "force", False)),
+            reason=getattr(args, "reason", "") or "",
+            skip_render=bool(getattr(args, "skip_render", False)),
+            # A run that named its documents asked for a SUBSET; one that did
+            # not is the whole opening package and is a real pack.
+            whole_pack=not bool(args.docs))
+        if not _report_gate(outcome, outdir):
+            shutil.rmtree(staging, ignore_errors=True)
+            return 1
+        outdir.mkdir(parents=True, exist_ok=True)
+        for item in sorted(staging.iterdir()):
+            if item.is_file() and item.name != "MANIFEST.json":
+                print(f"      {shutil.copy2(item, outdir / item.name)}")
+        if outcome.override:
+            print(f"  override logged: {outcome.override}")
+    shutil.rmtree(staging, ignore_errors=True)
 
     if failures:
         print(f"\n{failures} document(s) refused rather than shipping a hole in one.",
@@ -2935,6 +3013,13 @@ def build_parser() -> argparse.ArgumentParser:
                      help="which event")
     evp.add_argument("--engagement", required=True)
     evp.add_argument("--store")
+    evp.add_argument("--force", action="store_true",
+                     help="write the document even though a pre-send check "
+                          "failed (needs --reason; the override is logged)")
+    evp.add_argument("--reason", default="",
+                     help="why this document is going out despite a failed check")
+    evp.add_argument("--skip-render", action="store_true",
+                     help="do not open the document in a browser for the gate")
     evp.add_argument("--out")
     evp.add_argument("--answers", help="answers file, instead of asking")
     evp.add_argument("--again", action="store_true",
@@ -3007,6 +3092,15 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--draft", action="store_true",
                    help="render past open decisions, stamped DRAFT")
     r.add_argument("--no-pdf", action="store_true", help="HTML only")
+    r.add_argument("--force", action="store_true",
+                   help="write the documents even though a pre-send check "
+                        "failed (needs --reason; the override is logged)")
+    r.add_argument("--reason", default="",
+                   help="why these are going out despite a failed check")
+    r.add_argument("--skip-render", action="store_true",
+                   help="do not open the documents in a browser for the "
+                        "gate. Faster, and it stops the gate proving the "
+                        "one thing it exists to prove")
     r.set_defaults(fn=cmd_render)
 
     pr = sub.add_parser("price", help="derive the fee schedule from hours x your rate")
