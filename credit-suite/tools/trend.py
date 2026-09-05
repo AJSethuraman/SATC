@@ -219,25 +219,18 @@ MATERIALITY_FLOOR_K = 100_000
 
 #: Which balance a class ratio stands on. Mirrors the id pattern in
 #: sources/fdic/plain.py: <measure><class>R over LN<class>.
-CLASS_BALANCE = {
-    "CRCD": "LNCRCD", "AUTO": "LNAUTO", "CONOTH": "LNCONOTH", "RERES": "LNRERES",
-    "RECONS": "LNRECONS", "RENRES": "LNRENRES", "REMULT": "LNREMULT", "CI": "LNCI",
-}
-_CLASS_ALIAS = {"CONOT": "CONOTH", "RECON": "RECONS", "RENRE": "RENRES", "REMUL": "REMULT"}
-
-
 def class_balance_field(metric: str) -> Optional[str]:
-    """'NTCONOTQR' -> 'LNCONOTH'; 'P3CRCDR' -> 'LNCRCD'; 'NCLNLSR' -> None."""
-    body = metric[:-1] if metric.endswith("R") else metric
-    for prefix in ("P3", "P9", "NA", "NT"):
-        if not body.startswith(prefix):
-            continue
-        rest = body[len(prefix):]
-        if prefix == "NT" and rest.endswith("Q"):
-            rest = rest[:-1]
-        rest = _CLASS_ALIAS.get(rest, rest)
-        return CLASS_BALANCE.get(rest)
-    return None
+    """'NTCONOTQR' -> 'LNCONOTH'; 'P3CRCDR' -> 'LNCRCD'; 'NCLNLSR' -> None.
+
+    The engine's map, not a second one here: a loan-class ratio stands on the
+    book the engine says it does (fields.CLASS_BALANCE, via the registry), so
+    the floor and the workbook's own N/A rule cannot disagree about which
+    balance a ratio is measured against.
+    """
+    from credit_suite.sources.fdic import engine_api as R
+    if metric not in R.LOANBOOK_CLASS:
+        return None
+    return R.balance_field(metric)
 
 
 #: What the last `apply_materiality` blanked -- (bank, metric, period,

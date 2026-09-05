@@ -38,6 +38,7 @@ PACK_RATIOS = _fields.PACK_RATIOS
 PACK_DIRECT = _fields.PACK_DIRECT
 METRICS = _fields.REGISTRY
 LOANBOOK_CLASS = _fields.LOANBOOK_CLASS
+CLASS_BALANCE = _fields.CLASS_BALANCE
 CONSUMER_CLASSES = _fields.CONSUMER_CLASSES
 COMMERCIAL_CLASSES = _fields.COMMERCIAL_CLASSES
 PACK_VERSION = FDIC.pack_version
@@ -82,6 +83,11 @@ def make_field_spec(row: EntityRow, fname: str) -> FieldSpec:
 
 def metric_value(metric_id: str, values) -> Optional[float]:
     return _metrics.metric_value(METRICS, metric_id, values)
+
+
+def balance_field(metric_id: str) -> Optional[str]:
+    """The landed balance a metric stands on (None for multi-leg derivations)."""
+    return _metrics.balance_field(METRICS, metric_id)
 
 
 def validate_metrics(series: Sequence[SeriesSpec]) -> None:

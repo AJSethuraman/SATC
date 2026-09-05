@@ -705,3 +705,85 @@ could not reproduce the FDIC's definition (YTD ÷ average balance gave 1.22).
 #259 — a bank with no book in a class reads "OK" on the dashboard rather than
 N/A. Both are output/golden changes; the firm's call. The $100M floor itself
 is a judgement and is on the docket as a decision, not reported as settled.
+
+## 2026-09-05 — the 670 docket, answered
+
+Read back from the docket store at 01:05–01:09 UTC.
+
+- **D1, the $100M floor — no pick.** *"hold on - it's just odd because that
+  calc was all of a sudden really high and inconsistent with the others - it
+  reads like an abnormality. make me believe you recognized the cause."* The
+  floor is not accepted on the strength of a threshold; the cause of the spike
+  has to be shown first. Investigating: the raw series either side of
+  2022-12-31, and the FDIC's own definition of the ratio.
+- **D2, #258 FDIC's published rate vs our derivation — "Investigate first."**
+  *"if we use different data sources how do we either make sure it's still
+  useful or separate it into views that can't be contaminated? like i think
+  FDIC makes more sense if we can't reproduce … we can have multiple sources of
+  data that have diff numbers and mean diff things. if a ratio is calculated
+  using certain numbers, they will always be different."* Lean: use the FDIC's
+  figure if ours cannot be made to reproduce it, and never put the two in one
+  view. And: *"it would help if everything was said in more plain terms - i
+  have no idea what LNCONOTH means without really thinking about it."*
+- **D3, #259 — "Change to N/A."**
+- **D4, the 20 dead skips — "Delete them."**
+- **D5, provenance tab — "Fix the tab."** *"general thing - i dont know what
+  RCON2200 means without looking it up so lets start making things have plain
+  definitions in addition to the code."*
+
+**Standing instruction from D2 and D5, applied from here on:** every code a
+person reads — MDRM, FDIC field, metric id — carries its plain meaning beside
+it, in chart titles, the provenance tab, the tie-out and dockets. The plain
+description is not a substitute for the code (behaviour 15: show the jargon
+and say what it means); it sits next to it.
+
+**Candidate conviction, not yet entered:** *numbers from different sources
+that mean different things never share a column* — from D2's note. To be
+drafted in their words and taken to bassy; nothing enters the record without a
+yes.
+
+## 2026-09-05 — the cause of the 670, and the four decided items built
+
+**D1 — the cause, from the FDIC's own records, not from a threshold.** Capital
+One Bank (USA), N.A. (CERT 33954) merged into Capital One, N.A. (CERT 4297)
+on 3 October 2022 — FDIC `/history`, change code 223 "Merger - Without
+Assistance", acquiring CERT 4297. The spike sits in that quarter. The
+mechanism, proved on the card book to the dollar: the FDIC builds a quarter's
+charge-off flow as the merged bank's December year-to-date **minus both
+banks' September year-to-date** (card: 2,926,715 − 140,331 − 1,767,237 =
+1,019,147 = the published `NTCRCDQ`). For other consumer loans the acquired
+bank had reported **no** other-consumer book and **no** other-consumer
+charge-offs, yet the merged year-end total was $6.3M against the survivor's
+$1.0M through September and a $0.3M-a-quarter run rate. The extra $5.3M is
+the acquired bank's activity landing in a category it never used in its own
+filings, divided by the survivor's $3.2M residual book. A merger artefact,
+not a credit event. Which loans exactly cannot be read from public filings;
+that is stated, not guessed.
+
+**D2 — the FDIC's definition, reproduced.** The FDIC's `NTCONOTQR` is
+quarterly other-consumer net charge-offs × 4 **over average total assets**
+(this and the prior quarter-end), merger-adjusted: it reproduces the
+published figure exactly in 8 of 8 non-merger quarters, and in the merger
+quarter once the acquired bank's $127.6B of September assets are added to the
+prior-quarter base (implied 486.36B = (391.81 + 127.60 + 453.31) / 2). Our
+`NTCONOTQR` divides by the class book. Same code, different ratio. #258 is
+therefore a naming collision, not a data mismatch, and the fix is a decision:
+rename ours so it cannot be mistaken for theirs.
+
+**Built, on the firm's answers:** D3 (#259) — a ratio on a book that does
+not exist reads `N/A`: guarded direct metrics in the engine registry,
+`metric_status` in the digest, the value cell and the Watchlist helper in the
+workbook; FDIC demo golden re-banked after it detected 3,366 cells. D4 — the
+twenty legacy-runner tests deleted with their scaffolding; the suite now
+reports 0 skipped. D5 — the provenance tab's seventeen bare RCON rows carry
+the code that tied live for an 031 filer (JPMorgan, CERT 17534, 2026-06-30);
+a "what it is" column renders every row's plain meaning; 23 raw dollar fields
+got plain descriptions; chart titles say the words and the code.
+
+**A recovery, recorded.** At 21:30 another session auto-stashed this
+checkout's working tree for a scoreboard run and switched the branch. Seventeen
+files of uncommitted work and one untracked test went into `stash@{0}`. All of
+it was recovered into a separate worktree (`C:\Users\ajish\SATC-cs`) and
+verified there; three files touched in the shared tree after the reset were
+put back. One shared checkout between two live sessions is the defect; the
+worktree is the fix from here on.

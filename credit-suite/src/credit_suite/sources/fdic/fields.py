@@ -183,6 +183,21 @@ for _mid, _cls in (
 
 CONSUMER_CLASSES = ("credit card", "auto", "other consumer", "resi 1-4 fam",
                     "HELOC")
+
+#: The landed balance each loan class stands on. HELOC has no balance field
+#: in the landed set, so its ratios cannot be guarded and say so by absence.
+CLASS_BALANCE = {
+    "credit card": "LNCRCD", "auto": "LNAUTO", "other consumer": "LNCONOTH",
+    "resi 1-4 fam": "LNRERES", "construction": "LNRECONS",
+    "CRE nonfarm": "LNRENRES", "multifamily": "LNREMULT", "C&I": "LNCI",
+}
+
+#: Direct class ratios the FDIC publishes as 0.00 on a book that does not
+#: exist. Guarded by that book: None when it is zero or missing (#259).
+GUARDED_DIRECT = {
+    _m: CLASS_BALANCE[_c] for _m, _c in LOANBOOK_CLASS.items()
+    if _m in PACK_DIRECT and _c in CLASS_BALANCE
+}
 COMMERCIAL_CLASSES = ("construction", "CRE nonfarm", "multifamily", "C&I")
 
 
@@ -205,4 +220,5 @@ DIRECT = [
     *PACK_DIRECT,
 ]
 
-REGISTRY = build_registry(direct=DIRECT, ratios=PACK_RATIOS, derived=DERIVED)
+REGISTRY = build_registry(direct=DIRECT, ratios=PACK_RATIOS, derived=DERIVED,
+                          guarded=GUARDED_DIRECT)

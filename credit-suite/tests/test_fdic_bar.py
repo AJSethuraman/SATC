@@ -767,8 +767,10 @@ def test_consumer_track_rates():
     """Hardcoded expectations for the consumer-track transforms: R twins pass
     through; computed rates are num/den*100; quarterly NCO rates are the Q
     dollar flow ANNUALIZED x4 over balances; None-tolerant throughout."""
-    # verified R twins are direct (the metric id IS the field)
-    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51}) == pytest.approx(2.51)
+    # verified R twins are direct (the metric id IS the field) -- and since
+    # #259 a class rate is guarded by its book: no LNCRCD, no card rate
+    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51, "LNCRCD": 1000.0})         == pytest.approx(2.51)
+    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51}) is None
     assert R.metric_value("NARELOCR", {"NARELOCR": 0.7}) == pytest.approx(0.7)
     assert R.metric_value("P9AUTOR", {}) is None
     # card NCOq: 10/1000 * 400 = 4.0 (annualized, NTLNLSQR convention)
@@ -953,7 +955,7 @@ def test_provenance_tab(populated):
     # spot-verify content against PROVENANCE_MAP_FDIC.md
     assert rows["DEPUNINS"]["mdrm"] == "RCON5597"
     assert rows["DEPUNINS"]["schedule"] == "RC-O Mem 2"
-    assert rows["SCHA"]["mdrm"] == "RCON1754"
+    assert rows["SCHA"]["mdrm"] == "RCON1754 (RCFD1754 031)"
     assert rows["NTRECONQ"]["flag"] == "[V]"
     assert "NTRECONSQ" in rows["NTRECONQ"]["notes"]       # truncation quirk
     # honesty flags carried: unmapped MDRMs say so instead of inventing

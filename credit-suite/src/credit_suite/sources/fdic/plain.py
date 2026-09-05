@@ -153,6 +153,56 @@ SPECIAL: Dict[str, str] = {
 }
 
 
+#: The landed dollar fields -- the raw Call Report lines the ratios are built
+#: from. Added 5 September 2026 after the firm read a provenance row: "i dont
+#: know what RCON2200 means without looking it up so lets start making things
+#: have plain definitions in addition to the code." Thousands of dollars in the
+#: workbook; the FDIC lands them in thousands.
+FIELD = {
+    "ASSET": "Total assets -- everything the bank owns, at book value.",
+    "DEP": "Total deposits -- the money customers have placed with the bank "
+           "(domestic and, for a bank with foreign offices, foreign).",
+    "LNLSGR": "Gross loans and leases -- all lending before subtracting the "
+              "money set aside for losses.",
+    "LNLSNET": "Net loans and leases -- gross loans less the allowance for "
+               "losses; what the balance sheet carries.",
+    "BRO": "Brokered deposits -- deposits bought through intermediaries "
+           "rather than gathered from the bank's own customers.",
+    "EQ": "Total equity capital -- the owners' stake; assets minus "
+          "liabilities.",
+    "NCLNLS": "Noncurrent loans -- loans 90 or more days late plus loans on "
+              "nonaccrual (interest no longer being booked).",
+    "LNATRES": "Allowance for loan and lease losses -- the money set aside "
+               "for loans expected to go bad.",
+    "DEPUNINS": "Estimated uninsured deposits -- the part of deposits above "
+                "the FDIC insurance limit.",
+    "DEPINS": "Estimated insured deposits -- the part of deposits within the "
+              "FDIC insurance limit.",
+    "OTHBFHLB": "Federal Home Loan Bank advances -- borrowings from the "
+                "FHLB, a wholesale funding source.",
+    "LNRECONS": "Construction and land development loans.",
+    "LNRENRES": "Loans on commercial property (offices, shops, warehouses) "
+                "-- 'nonfarm nonresidential' on the form.",
+    "LNREMULT": "Loans on apartment buildings of five or more units "
+                "('multifamily').",
+    "LNRERES": "Loans on one-to-four family homes -- mortgages and home "
+               "equity lines.",
+    "LNCI": "Commercial and industrial loans -- lending to businesses not "
+            "secured by property.",
+    "LNCRCD": "Credit card balances outstanding.",
+    "LNAUTO": "Auto loans to individuals.",
+    "LNCONOTH": "Other consumer loans -- personal loans and instalment "
+                "credit that are not cards or autos.",
+    "SCHA": "Held-to-maturity securities at amortised cost -- bonds the bank "
+            "intends to keep, carried at what it paid.",
+    "SCHF": "Held-to-maturity securities at fair value -- the same bonds at "
+            "today's market price.",
+    "SCAA": "Available-for-sale securities at amortised cost -- bonds the "
+            "bank may sell, at what it paid.",
+    "SCAF": "Available-for-sale securities at fair value -- the same bonds "
+            "at today's market price.",
+}
+
 def describe(metric_id: str) -> Optional[str]:
     """One plain sentence for a metric id, or None when we genuinely have none.
 
@@ -161,6 +211,8 @@ def describe(metric_id: str) -> Optional[str]:
     """
     if metric_id in SPECIAL:
         return SPECIAL[metric_id]
+    if metric_id in FIELD:
+        return FIELD[metric_id]
 
     body = metric_id[:-1] if metric_id.endswith("R") else metric_id
     for prefix, (measure, gloss) in MEASURE.items():

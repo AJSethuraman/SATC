@@ -111,3 +111,32 @@ Two approved changes in one build, both of which move cells by design:
 
 The golden was confirmed to DETECT both before it was re-banked. The
 pre-consolidation FRED shipped golden is untouched.
+
+### `fdic-demo.json`, 2026-09-05 — issue #259, a ratio on a book that does not exist
+
+Bank of New York Mellon has no credit-card book. The FDIC publishes 0.00 for
+its card delinquency rate, 0.00 is a number, and the Watchlist read **OK** —
+"checked and clean" where the truth was "nothing to check". The firm's answer
+on the docket: change it to N/A.
+
+Two formula families moved, on every peer slot:
+
+1. **The value cell of a direct class ratio** (card, auto, other consumer and
+   1–4 family 30–89 / 90+ / nonaccrual rates — twelve metrics) now blanks
+   when the class balance is zero or missing:
+   `=IF(OR(ref="",bal="",bal=0),"",ref)` instead of `=IF(ref="","",ref)`.
+   The engine's `metric_value` returns None for the same inputs, so the digest
+   and the workbook still agree cell for cell.
+2. **The Watchlist status helper** for every metric that stands on a book
+   (the guarded directs above plus every declarative ratio) says `N/A` when
+   that book is zero or missing, and `""` when there is a book but no number.
+   Metrics with no single book (Texas, CRE concentration) are unchanged.
+
+3,366 cells moved: 1,843 formula texts on `Dashboard_LoanBook` and
+`Watchlist`, and 1,523 recomputed Watchlist helper *values* that went from
+`""` to `N/A` -- the demo peer set does carry banks with empty classes. No
+value moved to or from OK, WATCH or ALERT, and the flag counts the spine test
+pins (50 ALERT, 47 WATCH) did not move. The golden
+was confirmed to DETECT the change before it was re-banked. HELOC rates are
+not guarded: no HELOC balance is landed, and the code says so rather than
+guessing one.

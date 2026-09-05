@@ -54,6 +54,7 @@ B = "tests/test_chartbook.py::"
 L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
+N = "tests/test_not_applicable.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
 N = "tests/test_conformance.py::"
@@ -760,6 +761,35 @@ MUTATIONS: list[Mutation] = [
         "                    computed = (metric_value(metric, values) or 0) + 0.001",
         (R + "test_derived_metrics_equal_the_engines_own_definition",),
         "a derived metric is the engine's number, not the tool's",
+    ),
+    # ---- #259: a ratio on a book that does not exist is N/A, not OK ----------
+    Mutation(
+        "engine-guard-ignores-the-book", SRC / "engine/metrics.py",
+        "        if len(consumed) > 1 and not fields.get(consumed[1]):\n            return None",
+        "        if False:\n            return None",
+        (N + "test_a_direct_class_ratio_on_a_zero_book_reads_none_not_zero",),
+        "a guarded direct ratio reads None on a zero or missing book",
+    ),
+    Mutation(
+        "digest-no-book-reads-blank", SRC / "engine/digest.py",
+        "        return NOT_APPLICABLE\n    return \"\"",
+        "        return \"\"\n    return \"\"",
+        (N + "test_no_book_is_not_applicable_and_no_number_is_blank",),
+        "the digest draws no-book apart from no-number",
+    ),
+    Mutation(
+        "layout-watchlist-forgets-na", SRC / "sources/fdic/layout.py",
+        '                blank = f"IF(OR({bal}=\\"\\",{bal}=0),\\"N/A\\",\\"\\")"',
+        '                blank = "\\"\\""',
+        (N + "test_the_watchlist_helper_says_na_when_the_book_is_zero",),
+        "the Watchlist helper says N/A when the book is zero",
+    ),
+    Mutation(
+        "layout-value-cell-keeps-the-fdic-zero", SRC / "sources/fdic/layout.py",
+        "    if len(flds) > 1:\n        # guarded direct",
+        "    if False:\n        # guarded direct",
+        (N + "test_the_value_cell_blanks_a_guarded_ratio_on_a_zero_book",),
+        "the value cell blanks the FDIC's 0.00 on a book that does not exist",
     ),
     # ---- the chart workbook --------------------------------------------------
     Mutation(

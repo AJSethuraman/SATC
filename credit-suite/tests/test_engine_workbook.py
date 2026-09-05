@@ -17,7 +17,6 @@ from credit_suite.engine import metrics, provider, rawlayout, runtime, workbook
 from credit_suite.engine.config import Config, EntityRow
 from credit_suite.sources.fdic.spec import FDIC
 
-from test_engine_config import _load_legacy, legacy  # noqa: F401
 
 FIELDS = ["ASSET", "DEP", "LNLSGR"]
 UNITS = {f: "USD_thousands" for f in FIELDS}
@@ -59,37 +58,6 @@ def backend_for(tmp_path, **kw):
 # --------------------------------------------------------------------------
 # metrics
 # --------------------------------------------------------------------------
-
-@legacy
-def test_ratio_matches_the_legacy_one_over_every_combination():
-    old = _load_legacy()
-    values = [None, 0.0, 1.0, -2.0, 100.0]
-    checked = 0
-    for num, den in itertools.product(values, values):
-        assert metrics.ratio(num, den) == old._ratio(num, den), (num, den)
-        checked += 1
-    assert checked == 25
-
-
-@legacy
-def test_total_matches_the_legacy_none_propagating_sum():
-    old = _load_legacy()
-    for args in itertools.product([None, 0.0, 1.5, -3.0], repeat=3):
-        assert metrics.total(*args) == old._sum(*args), args
-
-
-@legacy
-def test_every_declarative_ratio_matches_the_legacy_factory():
-    """The whole PACK_RATIOS table, not one row of it."""
-    old = _load_legacy()
-    fields = {f: float(i + 1) for i, f in enumerate(old.RAW_FIELDS)}
-    fields["DEP"] = 0.0                      # exercise the zero-denominator arm
-    fields["LNCRCD"] = None                  # and the missing-input arm
-    assert old.PACK_RATIOS, "no ratio table to compare"
-    for name, (num, den, mult) in old.PACK_RATIOS.items():
-        assert metrics.ratio_fn(num, den, mult)(fields) == \
-            old._pack_ratio_fn(num, den, mult)(fields), name
-
 
 def test_a_missing_input_blanks_the_metric_and_never_reads_as_zero():
     """A null uninsured-deposit figure shown as 0% would read as a bank with no

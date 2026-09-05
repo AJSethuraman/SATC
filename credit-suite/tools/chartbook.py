@@ -196,7 +196,8 @@ def _add_peer_overview(ws, metric: str, meaning: str, row0: int, n_banks: int,
                        n_cols: int, anchor: str) -> None:
     """Every bank in grey, the peer median in colour. The last grid row is the
     median, written by the caller after the banks."""
-    chart = _base_chart("%s -- all peers, with the peer median" % metric,
+    chart = _base_chart("%s (%s) -- all peers, with the peer median"
+                        % (MEANS.get(metric, metric).capitalize(), metric),
                         meaning[:40], 9.5, 26)
     data, cats = _series_refs(ws, row0, n_banks + 1, n_cols)
     chart.add_data(data, titles_from_data=True, from_rows=True)
@@ -293,9 +294,11 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         if panel is None:
             continue
         ws = wb.create_sheet(_sheet_name("Peers", metric))
-        ws["A1"] = metric
-        ws["A1"].font = TITLE_FONT
         meaning = (plain.describe(metric) if plain else None) or MEANS.get(metric, "")
+        # the code and the words, always both: "i dont know what RCON2200
+        # means without looking it up" (the firm, 5 Sep 2026)
+        ws["A1"] = "%s -- %s" % (MEANS.get(metric, metric).capitalize(), metric)
+        ws["A1"].font = TITLE_FONT
         ws["A2"] = meaning
         ws["A2"].font = NOTE_FONT
         direction = WORSE_WHEN.get(metric)

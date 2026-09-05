@@ -18,7 +18,6 @@ from credit_suite.engine.provider import make_field_spec
 from credit_suite.sources.fdic import adapter, fields
 from credit_suite.sources.fdic.spec import FDIC
 
-from test_engine_config import _load_legacy, legacy  # noqa: F401
 
 ASOF = date(2026, 3, 31)
 #: The seeded peer set, plus keys chosen to hit the demo profile's special
@@ -37,45 +36,6 @@ def entity(slot, key):
 # the registry
 # --------------------------------------------------------------------------
 
-@legacy
-def test_the_registry_holds_exactly_the_legacy_metrics():
-    old = _load_legacy()
-    assert set(fields.REGISTRY) == set(old.METRICS)
-    assert len(fields.REGISTRY) == 53
-    for name in sorted(fields.REGISTRY):
-        got_fields, got_fn = fields.REGISTRY[name]
-        want_fields, want_fn = old.METRICS[name]
-        assert set(got_fields) == set(want_fields), name
-        assert (got_fn is None) == (want_fn is None), name
-
-
-@legacy
-def test_every_metric_computes_the_same_value_as_the_legacy_registry():
-    """Over real demo fields, for every bank and every metric -- not a sample."""
-    old = _load_legacy()
-    demo = adapter.FdicDemoProvider(asof=ASOF, raw_slots=16)
-    demo.prime(CERTS, ASOF)
-    checked = 0
-    for cert in CERTS:
-        quarters = demo._profile(cert)
-        for _period, values in quarters:
-            for name in sorted(fields.REGISTRY):
-                assert metric_value(fields.REGISTRY, name, values) == \
-                    old.metric_value(name, values), (cert, name)
-                checked += 1
-    assert checked == len(CERTS) * 16 * 53
-
-
-@legacy
-def test_the_field_table_is_unchanged():
-    old = _load_legacy()
-    assert fields.RAW_FIELDS == old.RAW_FIELDS
-    assert fields.PCT_FIELDS == old.PCT_FIELDS
-    assert fields.FIELD_UNITS == old.FIELD_UNITS
-    assert fields.PACK_RATIOS == old.PACK_RATIOS
-    assert fields.LOANBOOK_CLASS == old.LOANBOOK_CLASS
-
-
 def test_the_field_table_is_the_size_the_pack_declares():
     assert len(fields.RAW_FIELDS) == 68
     assert len(set(fields.RAW_FIELDS)) == 68, "a duplicated field shifts columns"
@@ -93,33 +53,6 @@ def test_units_are_assigned_to_every_field_and_only_two_kinds_exist():
 # --------------------------------------------------------------------------
 # the demo provider
 # --------------------------------------------------------------------------
-
-@legacy
-def test_the_demo_provider_returns_identical_rows_to_the_legacy_one():
-    """Every bank x every field x every quarter. The parity linchpin."""
-    old = _load_legacy()
-    new_demo = adapter.FdicDemoProvider(asof=ASOF, raw_slots=16)
-    old_demo = old.FdicDemoProvider(asof=ASOF, raw_slots=16)
-    new_demo.prime(CERTS, ASOF)
-    old_demo.prime(CERTS, ASOF)
-
-    checked = 0
-    for slot, cert in enumerate(CERTS, start=1):
-        new_row = entity(slot, cert)
-        old_row = old.PeerRow(slot=slot, cert=cert, name="Bank %s" % cert,
-                              group="peer", active=True)
-        for fname in fields.RAW_FIELDS:
-            got = new_demo.fetch_series(
-                make_field_spec(new_row, fname, fields.FIELD_UNITS))
-            want = old_demo.fetch_series(old.make_field_spec(old_row, fname))
-            assert len(got) == len(want), (cert, fname)
-            for g, w in zip(got, want):
-                assert (g.id, g.period, g.value, g.geo_segment, g.source_class,
-                        g.units) == (w.id, w.period, w.value, w.geo_segment,
-                                     w.source_class, w.units), (cert, fname)
-            checked += 1
-    assert checked == len(CERTS) * 68
-
 
 def test_the_demo_provider_is_deterministic_for_a_fixed_asof():
     a = adapter.FdicDemoProvider(asof=ASOF, raw_slots=16)

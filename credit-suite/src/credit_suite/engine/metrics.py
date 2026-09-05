@@ -58,20 +58,30 @@ def ratio_fn(num: str, den: str, multiplier: float) -> Callable[[Fields], Option
     """Build the function for one row of a source's declarative ratio table."""
     def fn(fields: Fields) -> Optional[float]:
         return ratio(fields.get(num), fields.get(den), multiplier)
+    fn.balance = den          # the book the ratio stands on (balance_field)
     return fn
 
 
 def build_registry(direct: Sequence[str],
                    ratios: Mapping[str, Tuple[str, str, float]],
-                   derived: Mapping[str, Tuple[Tuple[str, ...], MetricFn]]
+                   derived: Mapping[str, Tuple[Tuple[str, ...], MetricFn]],
+                   guarded: Optional[Mapping[str, str]] = None,
                    ) -> Registry:
     """Assemble a source's registry from its three kinds of metric.
 
     ``direct``  -- the metric id IS a landed field, passed through.
     ``ratios``  -- the declarative table, which also drives the Excel formulas.
     ``derived`` -- the handful that need real code (multi-leg derivations).
+    ``guarded`` -- direct metrics that only mean something against a book:
+                   ``{metric: balance field}``. A direct ratio the source
+                   publishes as 0.00 for a book that does not exist (the FDIC
+                   does this for card delinquency at a bank with no cards)
+                   reads None when that balance is zero or missing -- so it is
+                   "nothing to check", never "checked and clean" (#259).
     """
     registry: Registry = {name: ((name,), None) for name in direct}
+    for name, balance in (guarded or {}).items():
+        registry[name] = ((name, balance), None)
     for name, (num, den, multiplier) in ratios.items():
         registry[name] = ((num, den), ratio_fn(num, den, multiplier))
     registry.update(derived)
@@ -83,8 +93,24 @@ def metric_value(registry: Registry, metric_id: str,
     """Latest-period fields -> one metric value, identical to the Excel formula."""
     consumed, fn = registry[metric_id]
     if fn is None:
+        if len(consumed) > 1 and not fields.get(consumed[1]):
+            return None              # guarded direct: no book, no ratio
         return fields.get(consumed[0])
     return fn(fields)
+
+
+def balance_field(registry: Registry, metric_id: str) -> Optional[str]:
+    """The landed balance a metric stands on, or None when it stands on none.
+
+    A guarded direct names it; a declarative ratio's denominator is it; a
+    multi-leg derivation (Texas, CRE concentration) has no single book and
+    returns None. The digest and the Watchlist formulas use this to say
+    "N/A" -- a third answer, drawn differently from OK and from blank.
+    """
+    consumed, fn = registry[metric_id]
+    if fn is None:
+        return consumed[1] if len(consumed) > 1 else None
+    return getattr(fn, "balance", None)
 
 
 def validate_metrics(series: Sequence, registry: Registry,

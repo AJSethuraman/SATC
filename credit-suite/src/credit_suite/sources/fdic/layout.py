@@ -54,6 +54,7 @@ from openpyxl.utils import get_column_letter
 from credit_suite.sources.fdic import engine_api as R
 from credit_suite.sources.fdic import series_seed as SEED
 from credit_suite.sources.fdic import provenance_seed as PROV
+from credit_suite.sources.fdic import plain
 
 from credit_suite.engine import style as KB
 from credit_suite.engine.style import (
@@ -440,6 +441,12 @@ def metric_formula(metric_id, slot, raw_slots):
     # direct API ratio: the metric id IS the field
     flds, fn = R.METRICS[metric_id]
     assert fn is None, f"unhandled derived metric {metric_id}"
+    if len(flds) > 1:
+        # guarded direct (engine.metrics.build_registry): the FDIC publishes
+        # 0.00 for a delinquency rate on a book that does not exist; blank
+        # it when the book is zero or missing, exactly as metric_value does
+        ref, bal = f(flds[0]), f(flds[1])
+        return f"=IF(OR({ref}=\"\",{bal}=\"\",{bal}=0),\"\",{ref})"
     return _direct(f(flds[0]))
 
 
@@ -706,8 +713,17 @@ def write_watchlist(wb, cfg, peer_slots, thr_cells, peer_cells):
             ref = f"{tab}!{get_column_letter(ci)}{mfirst + slot - 1}"
             watch_ref, alert_ref, direction = thr_cells[mid]
             op = ">=" if direction != "below" else "<="
+            # a blank value is one of two things, drawn apart exactly as
+            # engine.digest.metric_status does: "N/A" when the book the
+            # ratio stands on is zero or missing, "" when there is no number
+            balance = R.balance_field(mid)
+            if balance:
+                bal = _fref(slot, balance, cfg.raw_slots)
+                blank = f"IF(OR({bal}=\"\",{bal}=0),\"N/A\",\"\")"
+            else:
+                blank = "\"\""
             ws.cell(r, WL_HELPER_COL0 + k,
-                    f"=IF(NOT(ISNUMBER({ref})),\"\","
+                    f"=IF(NOT(ISNUMBER({ref})),{blank},"
                     f"IF({ref}{op}{alert_ref},\"ALERT\","
                     f"IF({ref}{op}{watch_ref},\"WATCH\",\"OK\")))"
                     ).font = NOTE_FONT
@@ -790,7 +806,7 @@ def write_provenance(wb):
     workbook stays the source of truth."""
     ws = wb.create_sheet("_provenance")
     hide_gridlines(ws)
-    widths = {"A": 12, "B": 34, "C": 46, "D": 34, "E": 10, "F": 60}
+    widths = {"A": 12, "B": 34, "C": 46, "D": 34, "E": 10, "F": 60, "G": 70}
     for k, v in widths.items():
         ws.column_dimensions[k].width = v
     r = 1
@@ -809,6 +825,10 @@ def write_provenance(wb):
         c.fill = KB.SUBHDR_FILL
     r += 1
     for row in PROV.ALL_ROWS:
+        # column G: the code, said in words (plain.describe; None means
+        # we have no honest sentence, and the cell stays empty rather
+        # than guessing)
+        row = tuple(row) + (plain.describe(row[0]) or "",)
         for j, val in enumerate(row, start=1):
             text_cell(ws, r, j, val)
             ws.cell(r, j).font = MONO_FONT if j in (1, 4) else NOTE_FONT

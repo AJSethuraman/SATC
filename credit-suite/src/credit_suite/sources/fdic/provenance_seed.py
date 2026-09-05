@@ -55,6 +55,10 @@ PREAMBLE = [
     "<-> CDR facsimile schedule/line (filing check). From PowerShell: "
     "python runner.py -w <book>.xlsm --tieout <CERT> [REPDTE] (--demo "
     "prints labeled demo values with the same provenance columns).",
+    "A BARE RCON CODE, READ FOR A BANK WITH FOREIGN OFFICES (form 031): try the "
+    "RCFD twin first -- the FDIC's totals are the consolidated ones. Where a "
+    "row shows (RCFDxxxx 031) that twin tied live for CERT 17534 at 2026-06-30; "
+    "where it says the code is RCON on 031 too, that is what tied.",
     "MDRM PREFIXES: RCON (domestic) / RCFD (consolidated, 031 filers) / "
     "RIAD (income) / RCOA-RCFA (RC-R). RIAD amounts are calendar-YTD: the "
     "FDIC's quarterly variants are DIFFERENCED -- Q2-Q4 values tie to (this "
@@ -69,7 +73,8 @@ PREAMBLE = [
     "annualization/differencing).",
 ]
 
-HEADER = ["field", "schedule", "line / caption", "MDRM", "flag", "notes"]
+HEADER = ["field", "schedule", "line / caption", "MDRM", "flag", "notes",
+          "what it is"]
 
 # --------------------------------------------------------------------------
 # Per-FIELD rows (every landed RAW_FIELD + informational DEPINS) --
@@ -83,27 +88,27 @@ FIELD_ROWS = [
      "RCON2200 (+RCFN2200 031)", "[V]",
      "FDIC DEP includes foreign for 031 filers"),
     ("LNLSGR", "RC-C Pt I 12",
-     "Total loans & leases HFI+HFS, net of unearned", "RCON2122", "[V]",
+     "Total loans & leases HFI+HFS, net of unearned", "RCON2122 (RCFD2122 031)", "[V]",
      "= RC 4.a + 4.b"),
     ("LNLSNET", "RC 4.a+4.b-4.c",
      "HFS (5369) + HFI (B528) - allowance (3123)",
      "5369+B528-3123", "[V]", "FDIC-computed; no single filed line"),
-    ("BRO", "RC-E Mem 1.b", "Total brokered deposits", "RCON2365", "[V]", ""),
-    ("EQ", "RC 27.a", "Total bank equity capital", "RCON3210", "[V]",
+    ("BRO", "RC-E Mem 1.b", "Total brokered deposits", "RCON2365", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
+    ("EQ", "RC 27.a", "Total bank equity capital", "RCON3210 (RCFD3210 031)", "[V]",
      "excludes minority interest (RC 28 / G105)"),
     ("NCLNLS", "RC-N 9 cols B+C",
      "Total loans 90+ still accruing + nonaccrual", "1407+1403", "[V]",
      "the NCLNLSR numerator"),
     ("LNATRES", "RC 4.c", "Allowance for credit losses on loans & leases",
-     "RCON3123", "[V]",
+     "RCON3123 (RCFD3123 031)", "[V]",
      "legacy transfer-risk add-on UNVERIFIED; 3123 is the tie-out line"),
     ("P3LNLS", "RC-N 9 col A", "Total loans 30-89 days, still accruing",
-     "RCON1406", "[V]", ""),
+     "RCON1406 (RCFD1406 031)", "[V]", ""),
     ("DEPUNINS", "RC-O Mem 2", "Estimated uninsured deposits", "RCON5597",
      "[V]",
      "FILED only by banks >= $1B (961/4,724 in 2023Q1); below that the API "
      "value is an FDIC ESTIMATE -- not tie-able; null renders BLANK, "
-     "never 0"),
+     "never 0; RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("DEPINS", "RC-O Mem 1", "Insured-deposit components",
      "F049,F045,F051/F052,F047/F048", "[V]",
      "FDIC-computed estimate; formula UNVERIFIED, components verified. NOT "
@@ -119,15 +124,15 @@ FIELD_ROWS = [
     ("LNRENRES", "RC-C Pt I 1.e.(1)+(2)",
      "Owner-occupied + other nonfarm nonresidential", "F160+F161", "[V]",
      ""),
-    ("LNREMULT", "RC-C Pt I 1.d", "Multifamily (5+)", "RCON1460", "[V]", ""),
+    ("LNREMULT", "RC-C Pt I 1.d", "Multifamily (5+)", "RCON1460 (RCFD1460 031)", "[V]", ""),
     ("LNRERES", "RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)",
      "HELOC + 1st lien + junior lien", "1797+5367+5368", "[V]", ""),
     ("LNCI", "RC-C Pt I 4", "Commercial & industrial",
      "RCON1766 (031: RCFD1763+1764)", "[V]", ""),
-    ("LNCRCD", "RC-C Pt I 6.a", "Credit cards", "RCONB538", "[V]", ""),
-    ("LNAUTO", "RC-C Pt I 6.c", "Automobile loans", "RCONK137", "[V]",
+    ("LNCRCD", "RC-C Pt I 6.a", "Credit cards", "RCONB538 (RCFDB538 031)", "[V]", ""),
+    ("LNAUTO", "RC-C Pt I 6.c", "Automobile loans", "RCONK137 (RCFDK137 031)", "[V]",
      "*AUTO fields exist from 2011 only"),
-    ("LNCONOTH", "RC-C Pt I 6.d", "Other consumer", "RCONK207", "[V]",
+    ("LNCONOTH", "RC-C Pt I 6.d", "Other consumer", "RCONK207 (RCFDK207 031)", "[V]",
      "6.b B539 revolving credit plans is a SEPARATE line"),
     # ---- C. past-due / nonaccrual RATIO TWINS (RC-N over RC-C) ----
     ("P3CRCDR", "RC-N 5.a col A / RC-C 6.a",
@@ -184,11 +189,11 @@ FIELD_ROWS = [
     ("NARENRES", "RC-N 1.e.(1)+(2) col C",
      "Nonfarm nonres nonaccrual (2 rows)", "F182+F183", "[V]", ""),
     ("P3REMULT", "RC-N 1.d col A", "Multifamily 30-89 still accruing",
-     "RCON3499", "[V]", ""),
+     "RCON3499", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("P9REMULT", "RC-N 1.d col B", "Multifamily 90+ still accruing",
-     "RCON3500", "[V]", ""),
+     "RCON3500", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("NAREMULT", "RC-N 1.d col C", "Multifamily nonaccrual", "RCON3501",
-     "[V]", ""),
+     "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("P3CONOTH", "RC-N 5.c col A", "Other consumer 30-89 still accruing",
      "(not in tie-out map)", "[~]",
      "match by caption on the facsimile; MDRM row not captured in "
@@ -223,14 +228,14 @@ FIELD_ROWS = [
      "Multifamily NCO (qtr differenced)", "(not in tie-out map)", "[~]",
      "match by caption; 8-char truncated name"),
     # ---- E. securities (Schedule RC-B line 8, four columns) ----
-    ("SCHA", "RC-B 8 col A", "HTM securities, amortized cost", "RCON1754",
+    ("SCHA", "RC-B 8 col A", "HTM securities, amortized cost", "RCON1754 (RCFD1754 031)",
      "[V]",
      "tie to RC-B; RC 2.a JJ34 is net of ACL post-CECL and DIFFERS"),
-    ("SCHF", "RC-B 8 col B", "HTM securities, fair value", "RCON1771",
+    ("SCHF", "RC-B 8 col B", "HTM securities, fair value", "RCON1771 (RCFD1771 031)",
      "[V]", ""),
-    ("SCAA", "RC-B 8 col C", "AFS securities, amortized cost", "RCON1772",
+    ("SCAA", "RC-B 8 col C", "AFS securities, amortized cost", "RCON1772 (RCFD1772 031)",
      "[V]", ""),
-    ("SCAF", "RC-B 8 col D", "AFS securities, fair value", "RCON1773",
+    ("SCAF", "RC-B 8 col D", "AFS securities, fair value", "RCON1773 (RCFD1773 031)",
      "[V]", "= RC 2.b; equity securities excluded (RC 2.c JA22)"),
     # ---- F. FDIC-computed / filed ratios (direct core metrics) ----
     ("NCLNLSR", "FDIC-computed ratio", "100 x (1407+1403)/2122",
