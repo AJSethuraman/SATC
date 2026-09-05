@@ -65,7 +65,43 @@ def shipped_desks(root=DESKS):
         f"this enumeration skipped, so nothing below checks it"
     )
     assert desks, "no desks found; every test below would pass vacuously"
+
+    # AND A DESK THAT IS PART-WRITTEN FAILS BY NAME, NOT BY STACK TRACE. The
+    # filter above admits a directory the moment it has a SOURCES.md, and
+    # `record.load` then raises inside whichever test happened to reach it first
+    # -- so several sessions building desks into one tree turned "PROBLEMS.md has
+    # not been written yet" into a `RecordError` pointing at `record.py`, five
+    # times, with nothing naming the directory. The reader's first question is
+    # always which desk; answer it here.
+    incomplete = {d.name: [f for f in ("SOURCES.md", "PROBLEMS.md")
+                           if not (d / f).is_file()] for d in desks}
+    incomplete = {k: v for k, v in incomplete.items() if v}
+    if incomplete:
+        # RAISED, NOT ASSERTED, so the message is the one written here. Under
+        # pytest's assertion rewriting the locals are appended to the output, so
+        # a test checking that the directory is NAMED passed even after the name
+        # was taken out of the message -- the rewriting was supplying it. A test
+        # that cannot fail for the reason it claims to check is not a test.
+        raise AssertionError(
+            f"part-written desk(s): {incomplete}. A desk is loaded whole or not "
+            f"at all — finish it, or move it out of `desks/` until it is"
+        )
     return desks
+
+
+def test_the_enumeration_names_a_part_written_desk(tmp_path):
+    """A desk half-written is the ordinary state of a tree several sessions are
+    building into, and it used to surface as a `RecordError` from `record.py`
+    repeated across five tests with the directory named in none of them."""
+    d = tmp_path / "half-done"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text("## S1 · x\n", encoding="utf-8")
+    with pytest.raises(AssertionError, match="part-written desk") as caught:
+        shipped_desks(tmp_path)
+    assert "half-done" in str(caught.value), (
+        "the message must name the directory — that is the reader's first "
+        "question and the whole reason this check exists")
+    assert "PROBLEMS.md" in str(caught.value), "and say what is missing"
 
 
 def test_the_enumeration_notices_a_desk_it_would_skip(tmp_path):
@@ -287,3 +323,63 @@ def test_an_unratified_position_is_marked_proposed():
 def positions_parse(text):
     import positions
     return positions.parse(text)
+
+
+# ── a problem must be answerable with the answer the record gives it ─────────
+
+def test_every_problem_on_every_desk_is_answerable_from_its_own_record():
+    """THE CHECK THAT WOULD HAVE CAUGHT IT, and it applies to every desk.
+
+    A problem's recorded citation and recorded answer are what a perfect desk
+    would produce. Put those two through `engine.grade` and the result must be
+    `correct` — anything else means the record cannot be satisfied, so no brain
+    could ever score on that row and the denominator counts a problem nothing
+    can answer.
+
+    Measured on the cash desk before this existed: all four problems shared one
+    citation, so ratifying a position gave them one servable answer between them
+    and two of the four were refused as contradicting it — including the two
+    whose recorded answer was right. Every attempt at them, forever, would have
+    graded `wrong_caught`.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        for p in desk.problems:
+            r = engine.grade(
+                engine.Answer(position=p.answer, citation=p.citation), p, desk)
+            assert r.outcome in (engine.Outcome.CORRECT, engine.Outcome.ESCALATED), (
+                f"{d.name}/{p.id}: answering with the record's own citation and "
+                f"its own answer grades {r.outcome.value} ({r.reason}). The "
+                f"record cannot be satisfied, so nothing can ever score here."
+            )
+
+
+def test_a_desk_with_ratified_positions_is_not_beaten_by_escalating(fixed_assets):
+    """Escalating everything is the ceiling only while nothing is ratified.
+
+    On the cash desk before its positions were ratified, declining every
+    question scored a perfect 4 of 4 — the run could show a desk was not
+    reckless and nothing more. Once a position answers, the same behaviour
+    scores zero, and the number starts separating good from lazy. Asserted so
+    the collapse of that baseline is a fact rather than a claim in a docstring.
+    """
+    import engine
+
+    for d in shipped_desks():
+        desk = record.load(d)
+        ratified = [q for q in desk.positions if not q.proposed]
+        if not ratified:
+            continue
+        answerable = [p for p in desk.problems
+                      if any(q.citation == p.citation for q in ratified)]
+        assert answerable, f"{d.name} ratified a position no problem rests on"
+        scored = sum(
+            1 for p in answerable
+            if engine.grade(engine.Answer(position="", escalated=True,
+                                          reason="authority_permits_choice"),
+                            p, desk).outcome is engine.Outcome.CORRECT)
+        assert scored == 0, (
+            f"{d.name}: declining every question still scored {scored} of "
+            f"{len(answerable)} on problems a ratified position answers")

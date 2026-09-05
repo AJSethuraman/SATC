@@ -778,3 +778,117 @@ Bassy challenges *from* the record; it does not get to close a question with it.
 
 `1.7.1 → 1.8.0`, both manifests: the record gained an entry, and convictions are
 read from a plugin cache that keys on the marketplace number.
+
+---
+
+## 5 September 2026 — two sessions' canon work met in a merge
+
+`main` reached **1.10.0** on another session's work — the `walk` and `tie-out`
+skills — while this branch carried **C14** at 1.8.0 and had not merged. Bringing
+`main` in produced a record that was the union of both and that **neither release
+had hashed**, so `test_the_version_says_what_the_record_actually_contains` went
+red on the merge commit.
+
+That is the check doing precisely its job. Nothing was wrong with either side;
+what was wrong was a version claiming to describe a record that had grown since
+it was stamped. **1.10.0 → 1.11.0**, digest re-released.
+
+Worth recording because it will happen again: two sessions can each release
+correctly and still leave `main` holding a record no version describes, and the
+only thing that notices is a digest computed over what actually ships.
+
+---
+
+## 5 September 2026 — it happened again, on the same day, at the same number
+
+The entry above said it would. Two sessions each cut **1.11.0** — one carrying
+C14 and the desk work, one carrying the tie-out and walk deliverables — and the
+merge produced a record that is the union of both, described by neither. Same
+shape, same afternoon, and the digest caught it again.
+
+**1.11.0 → 1.12.0**, re-released over the union, with the other session's
+`release.py` fix in it: it sorted `Path` objects, which compare
+case-insensitively on Windows and byte for byte on Linux, so the same commit
+hashed two ways depending on the machine. Their ordering by path text is the
+correct one and is what this release is computed with.
+
+What the two entries together say is that a version number is not a lock. Two
+sessions can both be right, both release correctly, and still leave a record no
+version describes — and the only thing standing between that and a silently
+stale plugin is a digest computed over what actually ships.
+
+---
+
+## 5 September 2026 — the deliverable was the thing that was wrong
+
+`tie-out` and `walk` both told a session what to prove and neither told it what
+to hand over. A tie-out ran end to end — five links executed, the source
+photographed, the roster with its denominator — and was filed as a Markdown note
+with six loose files beside it. Nothing was missing and it could not be given to
+anybody. The firm:
+
+> i assumed that you understood the final product of tie out and walk would
+> basically be a PDF that shows how everything tied out? and explains it and
+> makes it easy to follow? Is that not?
+
+and, on what the document has to do:
+
+> A sample of one and a walk through or a… procedure document should literally,
+> like, visually and verbally easily show you how all the dots connect. How to
+> use the system? How it works. How it tied out.
+
+Both skills now say the deliverable is **one self-contained file with every
+image embedded**, rendered from the Markdown rather than being it, opening on a
+picture of the mechanism — for `tie-out`, the same fact travelling two roads and
+meeting at difference 0; for `walk`, the route through the screens.
+
+Three other things the reworked exhibit did that the skill had not asked for,
+now asked for: the source page **marked and enlarged** rather than merely
+captured, with the entity, form and period in the same shot as the number; every
+figure **read twice** where a second rendering of the same source exists — which
+caught a digit misread on the day; and **what running it found** as a section of
+its own, because that tie-out turned up three lines citing codes from the wrong
+version of a regulatory form, right values behind a citation that pointed at a
+line that does not exist.
+
+And the one that changes a verdict: **a `COULD NOT` is a hypothesis about the
+source and gets attacked once.** Five of them were recorded with true obstacles
+named. Pushed, all five closed on one pass. Naming an obstacle is not testing
+it, and the skill had been accepting the name.
+
+Four new tests pin the shape (175 → 179 passing). `1.10.0 → 1.11.0`, both manifests:
+skill text is installed behaviour, and an installed session reads whatever the
+marketplace's number fetches.
+
+**Added the same day, and it is the sharper half.** The roster behind that
+exhibit reported 53 of 53 tied against the filing, in a column labelled
+`landed` — and the tool had re-fetched every value from the data provider's API
+at the moment it ran, never opening the workbook. The firm:
+
+> ok, here is the thing - your doc here needs to prove the external source to
+> your workbook values not what you said landed. that's the standard
+
+It proved `provider = filing`. A tie-out has to prove `the artifact the firm
+reads = the independent source`. Everything in the document was executed and
+true and it was checking the wrong pair. So the skill now carries a **second
+question** beside *could this disagree with me?* — **is this the thing my reader
+actually looks at?** — and the corollary: a tie-out proves one chain, and every
+hop it did not execute is listed as assumed. That roster proved
+workbook→provider on exactly one line, by hand; the other 52 rested on *same
+build, same day*, which is an inference.
+
+175 → 180 passing.
+
+**And the release digest could never have been green.** `main` was already red
+when this branch started, on the check that exists to make a stale version
+loud. `release.py` sorted `Path` objects, and pathlib compares them the way the
+filesystem does — case-insensitively on Windows, byte for byte on Linux. So
+`adopt.py` came before `CONVICTIONS.md` on the box that cut 1.10.0 and after it
+on the runner that checked it; the path text goes into the hash, so the same
+commit had two digests. The failure read as *somebody forgot to run
+release.py*, which is exactly what it would say if somebody had, and nobody
+looked past the message. `_content` had fixed the same class of bug for line
+endings and its own docstring names the rule: **a check whose result depends on
+the machine running it is not a check.** Line endings were the half that got
+noticed. Now sorted on the path text, with a test that fails on Windows if the
+key is ever dropped.

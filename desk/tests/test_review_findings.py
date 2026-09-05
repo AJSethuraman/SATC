@@ -211,8 +211,10 @@ def test_a_ratified_position_is_loaded_and_answers(tmp_path):
         "**Position:** capitalise it\n\n**Ratified:** PR #999\n", encoding="utf-8")
     desk = record.load(d)
     assert len(desk.positions) == 1
-    out = serve(Answer(position="capitalise it", citation="ASC 360-10-35-4"), desk)
-    assert not isinstance(out, type(serve(Answer(position="x"), desk))) or True
+    out = serve(Answer(position="capitalise it", citation="ASC 360-10-35-4"),
+                desk, question="a question")
+    assert not isinstance(out, type(serve(Answer(position="x"), desk,
+                                          question="a question"))) or True
     from engine import Refusal, Served
     assert isinstance(out, Served), f"a ratified position must answer, got {out}"
 
@@ -235,4 +237,5 @@ def test_an_unratified_position_does_not_answer(tmp_path):
         "**Position:** a\n", encoding="utf-8")          # no Ratified line
     desk = record.load(d)
     assert desk.positions[0].proposed
-    assert isinstance(serve(Answer(position="a", citation="ASC 1"), desk), Refusal)
+    assert isinstance(serve(Answer(position="a", citation="ASC 1"), desk,
+                            question="a question"), Refusal)

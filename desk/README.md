@@ -16,6 +16,37 @@ measured: the same policy written as skill prose was obeyed *"100%, 4%, 0% of
 runs"*; at the API choke point it *"is obeyed always, from every path"*
 (`docs/LOCAL-LLM-PATTERN.md`, rule 6).
 
+## How you actually reach one
+
+```python
+import os, sys
+sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])
+import ask
+
+for desk, brief in ask.consult("the statement shows a $10 service charge and "
+                               "nothing for it is in the books"):
+    ...                                     # read `brief`, then answer from it
+
+ask.answer(question, desk, position="an entry in the books",
+           citation="...", working="why that paragraph settles it")
+```
+
+`skills/ask-desk` is the same thing written for an agent to follow.
+
+**The split is the mechanism.** A model does not choose the desk — routing is a
+comparison, not a judgement. A model does not decide whether its own citation
+holds — the engine does, and refuses. What the model does is the one thing it is
+good at: reading the authority it was handed and proposing a conclusion from it.
+
+**`consult` shows the sources, the firm's RATIFIED positions and the stored
+authority.** Never `PROBLEMS.md`, which is the answer key. Never a PROPOSED
+position, which is one agent's suggestion nobody has said yes to — shown, it
+would let a guess become the next agent's premise.
+
+**Every refusal is kept**, in that desk's `unsupported/` queue with the caller's
+reasoning intact. That queue is the only thing that says what authority is
+missing, so a refusal thrown away is a finding destroyed.
+
 ## Four outcomes, and the order they are reported in
 
 ```
@@ -29,13 +60,19 @@ escalated          the desk knew it did not know — a SUCCESS
 a little time, that one costs the reason to trust the rest. **Never summed into a
 single figure** — a percentage hides exactly the number worth reading.
 
-**And `escalated` is two things, so the run reports which.** A problem resting on
-a secondary source can *only* grade escalated: `_check` refuses
-`authority_permits_choice` before any conclusion is compared. So a desk that
+**And `escalated` is two things, so the run reports which.** `_check` refuses
+`authority_permits_choice` before any conclusion is compared, so a desk that
 answered confidently and one that knew it did not know land in the same cell —
 the first was stopped by the record's tier, the second made the call. `Result`
-carries `escalated_by`, and without it a desk built to exercise escalation
-measures its own tiers rather than the brain.
+carries `escalated_by`, and without it a run measures the record's tiers rather
+than the brain.
+
+**Escalation cannot be forced through the record.** This said a problem resting
+on a secondary source could *only* grade escalated, and the third scoreboard
+disproved it: the tier gate keys off what the brain **cites**, not what the
+question is about. qwen3:8b cited a primary paragraph about inventory on all
+four cash problems, by explicit "extension", and never reached the gate. A desk
+can make declining *possible*; it cannot make a brain decline.
 
 ## What is in a desk
 

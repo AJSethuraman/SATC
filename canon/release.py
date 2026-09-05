@@ -62,16 +62,35 @@ MANIFEST = ".claude-plugin/plugin.json"
 SELF = ".claude-plugin/RELEASED.json"
 
 
+def _key(rel: Path) -> str:
+    """The order files are hashed in, decided by the path text and nothing else.
+
+    SORTING `Path` OBJECTS SORTED DIFFERENTLY ON EACH PLATFORM. `WindowsPath`
+    compares case-insensitively -- that is what the filesystem does, so it is
+    what pathlib does -- and `PosixPath` compares byte for byte. So on Windows
+    `adopt.py` came before `CONVICTIONS.md`, and on Linux every capitalised name
+    came first. The digest hashes the path alongside its content, so the same
+    commit hashed two ways, and canon 1.10.0 shipped with `main` red: the number
+    written on the Windows box that cut the release could never be reproduced by
+    the runner that checked it.
+
+    `_content` already fixed this once for line endings, with the same sentence
+    that applies here: a check whose result depends on the machine running it is
+    not a check. Line endings were the half that was noticed.
+    """
+    return str(rel).replace("\\", "/")
+
+
 def files(root: Path = CANON) -> list[Path]:
     """Every shipped file, sorted, so the hash is reproducible."""
     out = []
-    for path in sorted(root.rglob("*")):
+    for path in sorted(root.rglob("*"), key=lambda p: _key(p.relative_to(root))):
         rel = path.relative_to(root)
         if not path.is_file() or path.suffix == ".pyc":
             continue
         if any(part in EXCLUDED for part in rel.parts):
             continue
-        if str(rel).replace("\\", "/") == SELF:
+        if _key(rel) == SELF:
             continue
         out.append(rel)
     return out
@@ -104,7 +123,7 @@ def _hashable(root: Path, rel: Path) -> bytes:
     beside, and hashing it would make a bump look identical to a change.
     """
     path = root / rel
-    if str(rel).replace("\\", "/") != MANIFEST:
+    if _key(rel) != MANIFEST:
         return _content(path)
     manifest = json.loads(path.read_text(encoding="utf-8"))
     manifest.pop("version", None)
@@ -115,7 +134,7 @@ def digest(root: Path = CANON) -> str:
     """One hash over the record, in a fixed order so it is reproducible."""
     h = hashlib.sha256()
     for rel in files(root):
-        h.update(str(rel).replace("\\", "/").encode("utf-8"))
+        h.update(_key(rel).encode("utf-8"))
         h.update(b"\0")
         h.update(_hashable(root, rel))
         h.update(b"\0")

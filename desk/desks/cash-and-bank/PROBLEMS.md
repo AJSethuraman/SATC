@@ -12,7 +12,7 @@ than by knowing — and a problem set that leaks scores well while proving nothi
 
 ## CB1 · A deposit made on the last day of the month
 
-**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account"
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the statement did not yet include
 
 **Answer:** a reconciling item, no entry in the books
 
@@ -22,7 +22,7 @@ than by knowing — and a problem set that leaks scores well while proving nothi
 
 ## CB2 · A check that has not cleared
 
-**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account"
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the statement did not yet include
 
 **Answer:** a reconciling item, no entry in the books
 
@@ -32,7 +32,7 @@ than by knowing — and a problem set that leaks scores well while proving nothi
 
 ## CB3 · A deposit recorded for the wrong amount
 
-**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account"
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the books are updated for
 
 **Answer:** an entry in the books
 
@@ -42,7 +42,7 @@ than by knowing — and a problem set that leaks scores well while proving nothi
 
 ## CB4 · A charge the bank made and nobody entered
 
-**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account"
+**Citation:** IRS Pub. 583 (12/2024), "Reconciling the checking account" — what the books are updated for
 
 **Answer:** an entry in the books
 

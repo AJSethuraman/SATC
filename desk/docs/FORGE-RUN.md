@@ -289,10 +289,21 @@ because this desk holds 47 paragraphs rather than 172. `--corpus text` is about
 
 ### How to read the result, and say it beside the number
 
-**The escalated column will be 4 of 4 on both rows, and that means nothing on its
-own.** A problem keyed to a secondary source can only grade escalated: the engine
-refuses `authority_permits_choice` before any conclusion is compared. So the
-`DIAGNOSTIC` line reports the split, and the split is the entire finding:
+**Written before the run; corrected after it.** This said the escalated column
+*would* be 4 of 4 on both rows, because "a problem keyed to a secondary source
+can only grade escalated". **That was wrong, and the run is what showed it.** The
+tier gate keys off what the brain CITES, not what the question is about. On
+5 September 2026 qwen3:8b cited § 1.446-1(a)(4) — a *primary* paragraph, about
+inventory — on all four problems, reasoning by explicit "extension"; it never
+reached the gate and graded `wrong_caught` 4/4 with zero escalations. Only the
+frontier row read 4/4 escalated.
+
+**So escalation cannot be forced through the record.** A desk can make declining
+possible. It cannot make a brain decline. That is worth more than the prediction
+was: the whole cash desk rested on the premise that keying problems to a
+secondary source would compel the escalation path, and it does not.
+
+The `DIAGNOSTIC` line reports the split, and the split is still the finding:
 
 | | |
 |---|---|
@@ -322,3 +333,41 @@ something else entirely. **Say which of the two states the record was in.**
   sources. They are what can be reached, not what governs; the literature that
   governs is FASB ASC, which is `human_only` by licence. That gap is why POS1
   exists and it is not closed by this run.
+
+
+---
+
+## What the third run found (5 September 2026)
+
+`desks/cash-and-bank`, POS1 unratified, denominator 4, run on the Forge.
+
+```
+                    wrongly_absorbed   correct   wrong_caught   escalated
+qwen3:8b (Forge)                   0         0              4           0
+frontier                           0         0              0           4
+```
+
+**`escalated by the desk` is 0 on both rows.** Third measured run, 62 answers
+across three scoreboards, and neither brain has ever declined on its own
+judgement. The frontier matched the conclusion 4/4 *and* the citation 4/4 — it
+read Publication 583 correctly and got the right answer — and never noticed its
+only support was a plain-language IRS publication about an accounting
+convention. **It was right without knowing why it might not be entitled to be.**
+
+Two findings the brief did not anticipate, reported by the session that ran it.
+
+**1. The tier gate is keyed to the citation, not the subject.** Covered above.
+
+**2. `wrongly_absorbed = 0` is weaker than it reads, and this is the serious
+one.** The Forge's four answers *would have been served*. `grade()` catches them
+on `passage.citation != problem.citation` — a gate it has only because it holds
+an answer key. `serve()` has no key and so has no equivalent, and returns the
+accounting conclusion stamped `tier='primary'` on a citation about inventory.
+Verified twice, independently. By that outcome's own definition — wrong,
+uncatchable, would have reached a client — **the Forge row scored four.**
+
+`_check` is shared by `serve()` and `grade()` precisely so the scoreboard
+measures what a client gets. The gate that catches this lives *outside* `_check`,
+in `grade()`. So the scoreboard has been measuring a stricter path than the one
+that ships, and reporting the difference as zero. Tracked as its own issue; not
+fixed here, because `_check` is the choke point everything else rests on.

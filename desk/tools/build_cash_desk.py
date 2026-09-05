@@ -165,6 +165,63 @@ PUB_SECTIONS = (
     "Bookkeeping System",
 )
 
+#: THE RECONCILIATION SECTION IS SPLIT IN THREE, because it states three rules
+#: and they do not all have the same answer. The publication makes both
+#: divisions itself. A single citation over any two of them cannot carry a
+#: position -- one citation admits one ratified answer.
+#:
+#: Split at the sentences the publication turns on, and REFUSE if one has moved.
+#: The publication is revised; a marker that no longer matches must be re-read
+#: by a person, never matched loosely, because a loose match here would store
+#: half a rule under a citation naming the whole one.
+RECONCILING_SPLIT = "By reconciling your checking account, you will:"
+
+#: THE SECOND CUT, AND WHY IT WAS MISSING. The first version split only at
+#: `RECONCILING_SPLIT`, which divides the publication's DIAGNOSIS from its
+#: PROCEDURE -- not its timing rule from its correction rule. So the head kept
+#: both of the diagnosis's causes: "Includes bank charges you did not enter in
+#: your books", which is CB4, and "Does not include deposits made after the
+#: statement date or checks that did not clear", which is CB1 and CB2. That head
+#: was then cited by POS1, "a reconciling item, no entry in the books".
+#:
+#: The desk's own record therefore held authority saying a bank charge nobody
+#: entered is a timing difference, and `serve()` returned exactly that for CB4's
+#: facts -- `checked_subject=True`, the firm's ratified position, the opposite
+#: accounting treatment. Found by Codex on #264, reproduced before fixing.
+#:
+#: The heading was wrong about its own contents as well: a bank charge IS on the
+#: statement. It is the BOOKS that do not have it.
+CHARGE_SPLIT = "or Does not include deposits made after the statement date"
+
+#: THE JOINING "or" IS DROPPED AND NOTHING ELSE IS. The two causes are items of
+#: one enumeration, so the conjunction belongs to neither of them: spliced onto
+#: the front of the second, it stores "if the statement: or Does not include
+#: deposits", which no reader can match against the page. Each half is otherwise
+#: verbatim -- the first keeps its trailing comma, which is honest evidence that
+#: it is one item of a list rather than a whole sentence.
+CHARGE_JOIN = "or "
+
+#: Where the shared lead-in stops. Both causes hang off one sentence stem, so
+#: each stored passage carries it and each reads as the publication wrote it --
+#: a fragment beginning "Includes bank charges" is not checkable line by line.
+RECONCILING_LEAD = "if the statement:"
+
+#: What each part is cited as. The suffix is part of the citation, not a
+#: comment: a reader following it has to land on the rule, not the section.
+#: It names the FACT PATTERN and never the treatment -- `UNENTERED` is not "an
+#: entry in the books", which is the answer and belongs to the firm.
+UNENTERED = "a bank charge the books do not have"
+TIMING = "what the statement did not yet include"
+UPDATING = "what the books are updated for"
+
+#: A section longer than this is REFUSED, not trimmed. The first version capped
+#: the body at 2,400 characters and returned what fitted -- which silently
+#: dropped "Update your checkbook and journals for items shown on the
+#: reconciliation as not recorded (such as service charges) or recorded
+#: incorrectly", the single sentence this desk most depends on. A cap that
+#: truncates is a partial read wearing a limit's clothes.
+SECTION_LIMIT = 8000
+
 #: NOT STORED, ON PURPOSE. The worked reconciliation is where the answers are
 #: read from, so it is the answer key and never authority.
 PUB_WORKED_EXAMPLE = "7. Bank Reconciliation"
@@ -201,10 +258,46 @@ def pub583_sections(html_path: Path) -> list[tuple[str, str]]:
             if line.startswith(("Table ", "How To Get Tax Help")):
                 break
             body.append(line)
-            if len(" ".join(body)) > 2400:
-                break
-        out.append((f'IRS Pub. 583 (12/2024), "{heading.rstrip(".")}"',
-                    " ".join(body)))
+        text = " ".join(body)
+        if len(text) > SECTION_LIMIT:
+            raise ValueError(
+                f"section {heading!r} is {len(text)} characters, over the "
+                f"{SECTION_LIMIT} this reader will store. It REFUSES rather "
+                f"than trimming: the first version capped the body and silently "
+                f"dropped the sentence this desk turns on. Split it or raise "
+                f"the limit deliberately."
+            )
+        cite = f'IRS Pub. 583 (12/2024), "{heading.rstrip(".")}"'
+
+        if heading.startswith("Reconciling"):
+            def _cut(where: str, marker: str) -> tuple[str, str]:
+                # EACH MARKER IS CHECKED AGAINST THE PART IT DIVIDES, not
+                # against the whole section. Checked against the section, a
+                # marker that had moved into the OTHER half would pass the guard
+                # and then split into one piece, and the reader would die
+                # unpacking a tuple instead of saying which sentence moved.
+                if marker not in where:
+                    raise ValueError(
+                        f"{marker!r} is not in the reconciliation section any "
+                        f"more. The publication has been revised and the split "
+                        f"has to be re-read by a person; matching loosely would "
+                        f"store half a rule under a citation naming the whole."
+                    )
+                a, b = where.split(marker, 1)
+                return a, b
+
+            head, tail = _cut(text, RECONCILING_SPLIT)
+            lead, causes = _cut(head, RECONCILING_LEAD)
+            lead = (lead + RECONCILING_LEAD).strip()
+            charge, timing = _cut(causes, CHARGE_SPLIT)
+            second = CHARGE_SPLIT.removeprefix(CHARGE_JOIN) + timing
+            out.append((f"{cite} — {UNENTERED}", f"{lead} {charge.strip()}"))
+            out.append((f"{cite} — {TIMING}", f"{lead} {second.strip()}"))
+            out.append((f"{cite} — {UPDATING}",
+                        (RECONCILING_SPLIT + tail).strip()))
+            continue
+
+        out.append((cite, text))
     return out
 
 
@@ -225,23 +318,31 @@ BANK_SIDE = "a reconciling item, no entry in the books"
 BOOKS_SIDE = "an entry in the books"
 
 RECONCILING = 'IRS Pub. 583 (12/2024), "Reconciling the checking account"'
+BY_TIMING = f"{RECONCILING} — {TIMING}"
+BY_UPDATING = f"{RECONCILING} — {UPDATING}"
 
+#: EACH PROBLEM CITES THE RULE ITS FACTS FALL UNDER, not the section both sit
+#: in. Keyed to one shared citation, all four would rest on one ratified
+#: position -- and a position carries one answer, so two of the four would be
+#: refused as contradicting it whatever a desk said. Measured before ratifying:
+#: with a single citation, every problem including the correct ones came back
+#: `wrong_caught / contradicts_ratified_position`.
 PROBLEMS = (
-    ("CB1", "A deposit made on the last day of the month",
+    ("CB1", "A deposit made on the last day of the month", BY_TIMING,
      BANK_SIDE,
      "A deposit of $516.08 was made on 31 January and recorded in the books "
      "that day. It does not appear on the bank statement for the month ended "
      "31 January."),
-    ("CB2", "A check that has not cleared",
+    ("CB2", "A check that has not cleared", BY_TIMING,
      BANK_SIDE,
      "Check number 94 for $150.00 was written on 20 January, sent to the payee, "
      "and recorded in the books. The bank statement for the month ended "
      "31 January does not show it among the checks paid."),
-    ("CB3", "A deposit recorded for the wrong amount",
+    ("CB3", "A deposit recorded for the wrong amount", BY_UPDATING,
      BOOKS_SIDE,
      "A deposit of $600.40 made on 8 January was entered in the checkbook and "
      "the books as $594.40. The bank statement shows the deposit at $600.40."),
-    ("CB4", "A charge the bank made and nobody entered",
+    ("CB4", "A charge the bank made and nobody entered", BY_UPDATING,
      BOOKS_SIDE,
      "The bank statement for the month ended 31 January shows a service charge "
      "of $10.00. Nothing for it appears in the checkbook or the books."),
@@ -293,9 +394,9 @@ def draft(cfr: list[tuple[str, str]], pub: list[tuple[str, str]],
     )
 
     problems = tuple(
-        factory.ProblemDraft(id=pid, title=title, citation=RECONCILING,
+        factory.ProblemDraft(id=pid, title=title, citation=citation,
                              answer=answer, facts=facts)
-        for pid, title, answer, facts in PROBLEMS
+        for pid, title, citation, answer, facts in PROBLEMS
     )
 
     passages = tuple(
@@ -309,13 +410,20 @@ def draft(cfr: list[tuple[str, str]], pub: list[tuple[str, str]],
         name="cash-and-bank",
         title="When a difference between the books and the bank is a "
               "reconciling item rather than an entry in the books",
-        fires_on=(
-            "cash", "bank", "bank statement", "reconcile", "reconciled",
-            "reconciles", "reconciling", "reconciliation", "outstanding check",
-            "outstanding checks", "deposit in transit", "deposits in transit",
-            "uncleared", "cleared", "checkbook", "service charge", "bank charge",
-            "petty cash", "1.446-1", "446",
-        ),
+        # WHICH SOURCE ANSWERS WHICH SUBJECT, declared rather than inferred.
+        # A question about a bank statement is answered from the publication
+        # that discusses one; a question naming the section number is answered
+        # from the section. Without this, qwen3:8b's four bank-reconciliation
+        # answers citing § 1.446-1(a)(4) had nothing exact to refuse them (#266).
+        answered_from={
+            "S1": ("1.446-1", "446", "method of accounting", "clearly reflect income"),
+            "S2": ("cash", "bank", "bank statement", "reconcile", "reconciled",
+                   "reconciles", "reconciling", "reconciliation",
+                   "outstanding check", "outstanding checks",
+                   "deposit in transit", "deposits in transit", "uncleared",
+                   "cleared", "checkbook", "service charge", "bank charge",
+                   "petty cash"),
+        },
         sources=sources,
         problems=problems,
         passages=passages,
