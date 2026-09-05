@@ -80,6 +80,7 @@ Then, in any repo:
 /canon:canon-adopt      read a repo canon has never seen
 /canon:adversarial      hand the code to another model to break
 /canon:walk             drive the product in a browser: procedure + defects
+/canon:tie-out          prove one number against a source you do not control
 ```
 
 Or just talk to it — the skills carry descriptions written to be matched on
@@ -145,6 +146,7 @@ a repository that predates canon can be adopted.
 | `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps, in plain English |
 | `skills/adversarial/` | the brief that hands a codebase to another model, and the intake |
 | `skills/walk/` | walking the product in a browser: the procedure a person follows, and the defects only a screen shows |
+| `skills/tie-out/` | one figure traced to an independent authority, reproducible by a skeptic |
 
 `python -m pytest -q tests` — 138 tests, including one that copies the whole
 tree into a fresh repository with no SATC above it and runs everything there.

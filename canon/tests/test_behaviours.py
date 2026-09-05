@@ -118,7 +118,11 @@ RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
 # PRODUCT -- a running build in a browser -- not against canon at all, and its
 # two documents land in whatever repository it was pointed at. It never reads
 # the record, so the plugin-root rule has nothing to bite on here either.
-RUNS_AGAINST_THE_PRODUCT = ("walk",)
+RUNS_AGAINST_THE_PRODUCT = ("walk", "tie-out")
+# `tie-out` sits here with `walk` for the same reason and one more: it runs
+# against the product AND against something outside it entirely -- a statement,
+# a publication, a filed return. The record is not what it reads and not what
+# it checks against.
 
 
 def test_every_skill_that_reads_the_record_names_the_plugin_root():
@@ -204,3 +208,29 @@ def test_the_walk_skill_demands_both_documents():
     assert "A test knows the answer before it runs" in flat,         "it does not say why a walk finds what the suite cannot"
     assert "Do not fix anything mid-walk" in flat,         "nothing stops the walk repairing the thing it was measuring"
     assert "docs/PROCEDURE-" in flat and "docs/WALKTHROUGH-DEFECTS.md" in flat,         "the two documents are not named where they go"
+
+
+def test_the_tie_out_skill_keeps_the_source_independent():
+    """The whole skill is one rule -- a number confirmed by your own system is
+    confirmed by nothing. Everything else is procedure around it. If that rule
+    leaves the file the document becomes a screenshot of a number agreeing with
+    itself, which is the failure it was written for."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "confirmed only by your own system is confirmed by nothing" in flat,         "the independence rule is gone"
+    assert "could this disagree with me" in flat,         "no test is given for whether a source is independent"
+    assert "Never plug it" in flat,         "nothing forbids closing a difference rather than reporting it"
+    assert "a finding, not a failure" in flat,         "a difference is not framed as the valuable outcome"
+    assert "docs/TIE-OUT-" in flat, "the exhibit is not named where it goes"
+
+
+def test_the_tie_out_skill_carries_all_five_links():
+    """Four links out of five is a chain that does not reach the ground. The
+    one most likely to be dropped is the derivation, because it is the only one
+    that cannot be pasted from somewhere."""
+    text = (CANON / "skills" / "tie-out" / "SKILL.md").read_text(encoding="utf-8")
+    for link in ("1 · The figure", "2 · The call", "3 · The derivation",
+                 "4 · The independent source", "5 · The comparison"):
+        assert link in text, f"link missing from the chain: {link}"
+    flat = " ".join(text.split())
+    assert "is not a derivation" in flat,         "nothing rules out 'then the system computes it'"
