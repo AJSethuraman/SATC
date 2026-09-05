@@ -71,7 +71,7 @@ REQUIRED_TABS = ("_config", "_code_py", "_code_vba", "_readme")
 DASHBOARD = re.compile(r"^Dashboard_[A-Za-z0-9_]+$")
 RAW = re.compile(r"^Raw_[A-Za-z0-9_]+$")
 WATCHLIST = ("Watchlist", "Watchlist_Geo")
-OPTIONAL_TABS = ("_provenance",)
+OPTIONAL_TABS = ("_provenance", "_mergers")
 
 #: Contract section 4.
 REQUIRED_FLAGS = ("--workbook", "--demo", "--asof")

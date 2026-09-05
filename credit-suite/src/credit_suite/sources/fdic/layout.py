@@ -140,17 +140,17 @@ LANES = [
 # --------------------------------------------------------------------------
 LB_TAB = "Dashboard_LoanBook"
 LB_CONSUMER = [
-    "P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQR",
-    "P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQR",
-    "P3CONOTHR", "P9CONOTHR", "NACONOTHR", "NTCONOTQR",
-    "P3RERESR", "P9RERESR", "NARERESR", "NTRERESQR",
+    "P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQ_BOOK",
+    "P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQ_BOOK",
+    "P3CONOTH_BOOK", "P9CONOTH_BOOK", "NACONOTH_BOOK", "NTCONOTQ_BOOK",
+    "P3RERESR", "P9RERESR", "NARERESR", "NTRERESQ_BOOK",
     "P3RELOCR", "P9RELOCR", "NARELOCR",
 ]
 LB_COMMERCIAL = [
-    "P3RECONSR", "P9RECONSR", "NARECONSR", "NTRECONQR",
-    "P3RENRESR", "P9RENRESR", "NARENRESR", "NTRENREQR",
-    "P3REMULTR", "P9REMULTR", "NAREMULTR", "NTREMULQR",
-    "P3CIR", "P9CIR", "NACIR", "NTCIQR",
+    "P3RECONS_BOOK", "P9RECONS_BOOK", "NARECONS_BOOK", "NTRECONQ_BOOK",
+    "P3RENRES_BOOK", "P9RENRES_BOOK", "NARENRES_BOOK", "NTRENREQ_BOOK",
+    "P3REMULT_BOOK", "P9REMULT_BOOK", "NAREMULT_BOOK", "NTREMULQ_BOOK",
+    "P3CIR", "P9CIR", "NACIR", "NTCIQ_BOOK",
 ]
 LB_CONSUMER_CAPTION = (
     "CONSUMER TRACK -- the DQ/NCO story IS the classification story: retail "
@@ -175,23 +175,23 @@ METRIC_LABEL = {
     "FHLBASSR": "FHLB/Assets %",
     # v1.1 loan-book pack (class prefix + rate kind)
     "P3CRCDR": "Card 30-89", "P9CRCDR": "Card 90+", "NACRCDR": "Card NA",
-    "NTCRCDQR": "Card NCOq",
+    "NTCRCDQ_BOOK": "Card NCOq",
     "P3AUTOR": "Auto 30-89", "P9AUTOR": "Auto 90+", "NAAUTOR": "Auto NA",
-    "NTAUTOQR": "Auto NCOq",
-    "P3CONOTHR": "OthCons 30-89", "P9CONOTHR": "OthCons 90+",
-    "NACONOTHR": "OthCons NA", "NTCONOTQR": "OthCons NCOq",
+    "NTAUTOQ_BOOK": "Auto NCOq",
+    "P3CONOTH_BOOK": "OthCons 30-89", "P9CONOTH_BOOK": "OthCons 90+",
+    "NACONOTH_BOOK": "OthCons NA", "NTCONOTQ_BOOK": "OthCons NCOq",
     "P3RERESR": "Resi 30-89", "P9RERESR": "Resi 90+", "NARERESR": "Resi NA",
-    "NTRERESQR": "Resi NCOq",
+    "NTRERESQ_BOOK": "Resi NCOq",
     "P3RELOCR": "HELOC 30-89", "P9RELOCR": "HELOC 90+",
     "NARELOCR": "HELOC NA",
-    "P3RECONSR": "Constr 30-89", "P9RECONSR": "Constr 90+",
-    "NARECONSR": "Constr NA", "NTRECONQR": "Constr NCOq",
-    "P3RENRESR": "CRE 30-89", "P9RENRESR": "CRE 90+", "NARENRESR": "CRE NA",
-    "NTRENREQR": "CRE NCOq",
-    "P3REMULTR": "Multif 30-89", "P9REMULTR": "Multif 90+",
-    "NAREMULTR": "Multif NA", "NTREMULQR": "Multif NCOq",
+    "P3RECONS_BOOK": "Constr 30-89", "P9RECONS_BOOK": "Constr 90+",
+    "NARECONS_BOOK": "Constr NA", "NTRECONQ_BOOK": "Constr NCOq",
+    "P3RENRES_BOOK": "CRE 30-89", "P9RENRES_BOOK": "CRE 90+", "NARENRES_BOOK": "CRE NA",
+    "NTRENREQ_BOOK": "CRE NCOq",
+    "P3REMULT_BOOK": "Multif 30-89", "P9REMULT_BOOK": "Multif 90+",
+    "NAREMULT_BOOK": "Multif NA", "NTREMULQ_BOOK": "Multif NCOq",
     "P3CIR": "C&I 30-89", "P9CIR": "C&I 90+", "NACIR": "C&I NA",
-    "NTCIQR": "C&I NCOq",
+    "NTCIQ_BOOK": "C&I NCOq",
 }
 
 DASH_HDR = 7                    # header band row; slot rows start at 8
@@ -448,6 +448,61 @@ def metric_formula(metric_id, slot, raw_slots):
         ref, bal = f(flds[0]), f(flds[1])
         return f"=IF(OR({ref}=\"\",{bal}=\"\",{bal}=0),\"\",{ref})"
     return _direct(f(flds[0]))
+
+
+# ==========================================================================
+# _mergers  (the provider's merger record -- contract sec 2, added 5 Sep 2026)
+# ==========================================================================
+MERGERS_TAB = "_mergers"
+#: The runner rewrites everything from this row down on every run.
+MERGERS_FIRST_ROW = 12
+MERGERS_HEADER = ["bank", "cert", "merger effective", "quarter affected",
+                  "bank acquired", "its cert", "FDIC change code",
+                  "what that means", "why the quarter is marked"]
+
+
+def write_mergers(wb):
+    """A bank's own merger record, and the quarters it makes uncomparable.
+
+    Exists because a chart drew a 670% charge-off rate for Capital One in the
+    quarter it absorbed its card bank -- arithmetically right, meaningless,
+    and invisible to any size threshold. The runner fills this from the FDIC's
+    history endpoint; the trend tool reads it rather than inferring a merger
+    from the shape of the numbers.
+    """
+    ws = wb.create_sheet(MERGERS_TAB)
+    hide_gridlines(ws)
+    for col, width in zip("ABCDEFGHI", (26, 8, 17, 17, 34, 9, 34, 46, 78)):
+        ws.column_dimensions[col].width = width
+    lines = [
+        "MERGER RECORD -- which quarters cannot be compared, and why",
+        "",
+        "A Call Report reports charge-offs as a running total from 1 January. "
+        "A quarter's figure is that total less the",
+        "previous quarter's. When a bank absorbs another bank mid-quarter, "
+        "that subtraction spans two banks, so the",
+        "quarter mixes them and is not a quarter of anything. Every "
+        "quarterly-flow rate for the quarter below is left",
+        "blank in the trend charts, with this row as the reason. Balances and "
+        "point-in-time rates are NOT blanked: they",
+        "are correct as at the date, and simply describe a larger bank.",
+        "",
+        "Source: the FDIC's own institution history (ACQ_CERT), fetched each "
+        "live run. Never inferred from the numbers.",
+    ]
+    for r, line in enumerate(lines, start=1):
+        text_cell(ws, r, 1, line)
+        ws.cell(r, 1).font = INK_BOLD if r == 1 else NOTE_FONT
+    hdr = MERGERS_FIRST_ROW - 1
+    for j, name in enumerate(MERGERS_HEADER, start=1):
+        c = ws.cell(hdr, j, name)
+        c.font = SMALL_BOLD
+        c.fill = KB.SUBHDR_FILL
+    text_cell(ws, MERGERS_FIRST_ROW, 1,
+              "(no run yet -- the runner writes this block on every refresh)")
+    ws.cell(MERGERS_FIRST_ROW, 1).font = NOTE_FONT
+    freeze_below(ws, hdr)
+    return ws
 
 
 # ==========================================================================
@@ -977,7 +1032,7 @@ THE v1.1 COMPETITOR PACK (SPEC_COMPETITOR_PACK.md; fields verified 93/93)
     the criticized/classified view arrives via the EDGAR tracker (#6).
   - Naming honesty: verified R ratio twins consumed directly ONLY where
     the twin name fits the legacy 8-char field limit (P3CRCDR yes,
-    P3CONOTHR no -- computed from the verified dollar triple + balance);
+    P3CONOTH_BOOK no -- computed from the verified dollar triple + balance);
     quarterly NCO names are 8-char truncated (NTRECONQ, never NTRECONSQ).
   - HELOC has NO NCO column: LNRELOC is not in the verified balance list.
   SVB / FUNDING-STRESS metrics (on Dashboard_Funding_Concentration):
@@ -1111,6 +1166,7 @@ def build(out_path, peer_slots=R.PEER_SLOTS_DEFAULT, code_py=None,
                    len(admitted))
     write_watchlist(wb, cfg, peer_slots, thr_cells, peer_cells)
     write_provenance(wb)
+    write_mergers(wb)
     write_code_tab(wb, "_code_py", os.path.join(HERE, "runner.py"),
                    "python", source_text=code_py)
     write_code_tab(wb, "_code_vba", os.path.join(HERE, "macro.bas"),
@@ -1121,7 +1177,8 @@ def build(out_path, peer_slots=R.PEER_SLOTS_DEFAULT, code_py=None,
     # after _config (SPEC_COMPETITOR_PACK.md sec 3 / contract sec 12)
     order = ["Dashboard_AssetQuality", "Dashboard_Capital_Earnings",
              "Dashboard_Funding_Concentration", LB_TAB, "Watchlist",
-             R.RAW_TAB, "_config", "_provenance", "_code_py", "_code_vba",
+             R.RAW_TAB, "_config", "_provenance", MERGERS_TAB, "_code_py",
+             "_code_vba",
              "_readme"]
     wb._sheets.sort(key=lambda s: order.index(s.title) if s.title in order
                     else 99)

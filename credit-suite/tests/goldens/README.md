@@ -140,3 +140,31 @@ pins (50 ALERT, 47 WATCH) did not move. The golden
 was confirmed to DETECT the change before it was re-banked. HELOC rates are
 not guarded: no HELOC balance is landed, and the code says so rather than
 guessing one.
+
+### `fdic-demo.json`, 2026-09-05 (second re-bank) — the rename and the merger record
+
+Two docket answers, in one re-bank so the golden moves once.
+
+**D2, "rename ours."** The FDIC publishes nineteen of the twenty class ratios
+this template computes — `NTCONOTQR`, `P3CONOTHR` and the rest — under exactly
+the names it was using, and its versions divide by **average total assets**
+where ours divide by the **loan class**. Same code, different ratio. Verified
+live against the FDIC's published values (Capital One, CERT 4297, 2025-12-31):
+their `P3CRCDR` of 0.861 is card 30-89 over total assets (0.861), not over the
+card book (2.215). Ours are now `<numerator field>_BOOK` — `NTCONOTQ_BOOK`,
+`P3CONOTH_BOOK` — which is not an FDIC code and names its own denominator. A
+name shaped like an FDIC field is now always the FDIC's own number.
+
+**D1, "merger flag only."** A new `_mergers` tab (contract §2, amended the
+same day) carries the FDIC's own merger record for the peer set, written by
+the runner on every live run. The trend tool blanks quarterly-flow rates for
+a quarter that spans a merger and says why; balances and 30-89 / 90+ /
+nonaccrual rates are untouched. The materiality floor built the day before was
+removed: it hid the 670% by luck of the book size rather than recognising the
+cause.
+
+158 cells moved — 42 on `_config` and 77 on `_provenance` (the metric ids and
+their formulas), 20 Watchlist helper headers, 17 on the new tab, plus the
+sheet itself. No dashboard value moved and the flag counts the spine test pins
+(50 ALERT, 47 WATCH) did not change: a rename is not a recalculation. The
+golden was confirmed to DETECT all of it before it was re-banked.

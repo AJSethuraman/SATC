@@ -1,6 +1,6 @@
 """Plain English for the tie-out, alongside the codes rather than instead of them.
 
-The tie-out map is correct and was unreadable: `NTCONOTQR 4.13 RI-B Pt I 3.d
+The tie-out map is correct and was unreadable: `NTCONOTQ_BOOK 4.13 RI-B Pt I 3.d
 (B514-B515)/K207 [V] comp.` is exactly right and tells a reader who does not
 live in MDRM codes nothing at all. Stripping the codes out would be worse -- they
 are how you search for the line, ask someone about it, or recognise it on the
@@ -79,15 +79,15 @@ LOAN_CLASS: Dict[str, str] = {
 }
 
 #: FDIC truncates the loan-class name inside the charge-off ids to keep them
-#: short, so `NTCONOTQR` carries `CONOT` where every other metric spells
+#: short, so `NTCONOTQ_BOOK` carries `CONOT` where every other metric spells
 #: `CONOTH`. Mapped explicitly rather than by loosening the prefix match: a
-#: looser rule would happily map `NTRECONQR` onto `RERES` and produce a
+#: looser rule would happily map `NTRECONQ_BOOK` onto `RERES` and produce a
 #: confident, wrong sentence about the wrong loan book.
 CLASS_ALIAS: Dict[str, str] = {
-    "CONOT": "CONOTH",     # NTCONOTQR -> other consumer
-    "RECON": "RECONS",     # NTRECONQR -> construction and land
-    "RENRE": "RENRES",     # NTRENREQR -> commercial property
-    "REMUL": "REMULT",     # NTREMULQR -> apartment buildings
+    "CONOT": "CONOTH",     # NTCONOTQ_BOOK -> other consumer
+    "RECON": "RECONS",     # NTRECONQ_BOOK -> construction and land
+    "RENRE": "RENRES",     # NTRENREQ_BOOK -> commercial property
+    "REMUL": "REMULT",     # NTREMULQ_BOOK -> apartment buildings
 }
 
 #: The metrics that are not built from the pattern above.
@@ -203,26 +203,50 @@ FIELD = {
             "at today's market price.",
 }
 
+#: The two denominators, said in words. Which one a rate uses is the whole
+#: difference between two numbers that otherwise look identical, so it is
+#: never left implied.
+#:
+#: Established live on 5 September 2026 against the FDIC's published values
+#: (Capital One, CERT 4297, 2025-12-31): FDIC `P3CRCDR` = 0.861, which is
+#: card 30-89 over TOTAL ASSETS (0.861), not over the card book (2.215).
+#: Every one of the FDIC's fifteen landed class rates behaves this way.
+OVER_BOOK = ("as a share of that loan book -- this template's own "
+             "calculation, which is the question a credit reviewer asks")
+OVER_ASSETS = ("as a share of the bank's TOTAL ASSETS -- the FDIC's own "
+               "denominator for this published field, not the size of the "
+               "loan book, so it reads far smaller than a book rate and is "
+               "not comparable with one")
+
+
 def describe(metric_id: str) -> Optional[str]:
     """One plain sentence for a metric id, or None when we genuinely have none.
 
     Returning None rather than a guess matters: an invented description of a
     regulatory ratio is worse than a blank, because it reads as authority.
+
+    A class rate always says which denominator it stands on. `<field>_BOOK` is
+    ours, over the class; a bare FDIC id is the FDIC's, over total assets.
     """
     if metric_id in SPECIAL:
         return SPECIAL[metric_id]
     if metric_id in FIELD:
         return FIELD[metric_id]
 
-    body = metric_id[:-1] if metric_id.endswith("R") else metric_id
+    if metric_id.endswith("_BOOK"):
+        body, denominator = metric_id[:-len("_BOOK")], OVER_BOOK
+    else:
+        body = metric_id[:-1] if metric_id.endswith("R") else metric_id
+        denominator = OVER_ASSETS
     for prefix, (measure, gloss) in MEASURE.items():
         if not body.startswith(prefix):
             continue
         rest = body[len(prefix):]
-        if prefix == "NT" and rest.endswith("Q"):        # NTCRCDQR etc.
+        if prefix == "NT" and rest.endswith("Q"):        # NTCRCDQ_BOOK etc.
             rest = rest[:-1]
         klass = LOAN_CLASS.get(CLASS_ALIAS.get(rest, rest))
         if klass:
-            return ("%s: %s, as a share of %s. %s."
-                    % (klass.capitalize(), measure, klass, gloss.capitalize()))
+            return ("%s: %s, %s. %s."
+                    % (klass.capitalize(), measure, denominator,
+                       gloss.capitalize()))
     return None

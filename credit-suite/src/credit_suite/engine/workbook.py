@@ -150,5 +150,27 @@ class OpenpyxlBackend:
                 for offset, line in enumerate(lines):
                     ws.cell(1 + offset, col, line)
 
+    def write_block(self, tab: str, first_row: int, rows: Sequence[Sequence],
+                    width: int, clear: int = 200) -> bool:
+        """Rewrite a fixed-position block: clear the old rows, write the new.
+
+        Clearing first matters -- a run that finds fewer rows than the last one
+        must not leave the difference on the sheet, where it reads as current.
+        Returns False when the tab is absent (an older workbook), so the caller
+        can say so rather than assume the block is empty.
+        """
+        if tab not in self._wb.sheetnames:
+            return False
+        ws = self._wb[tab]
+        # never clear fewer rows than were written, or a longer previous
+        # run leaves rows below the new block that read as current
+        for offset in range(max(clear, len(rows) + 20)):
+            for col in range(1, width + 1):
+                ws.cell(first_row + offset, col).value = None
+        for offset, row in enumerate(rows):
+            for col, value in enumerate(row, start=1):
+                ws.cell(first_row + offset, col).value = value
+        return True
+
     def finalize(self) -> None:
         self._wb.save(self.path)

@@ -35,7 +35,7 @@ from credit_suite.engine.gates import EntityCapacityError, WatchlistRefused
 from credit_suite.engine.metrics import MetricError
 from credit_suite.engine.provider import MissingSecret, resolve_secret
 from credit_suite.engine.workbook import OpenpyxlBackend, RawLayoutMismatch
-from credit_suite.sources.fdic import adapter, fields
+from credit_suite.sources.fdic import adapter, fields, layout
 from credit_suite.sources.fdic.engine_api import (DASH_TABS, STATUS_COL,
                                                   STATUS_COL_BY_TAB)
 from credit_suite.sources.fdic.spec import FDIC
@@ -175,8 +175,46 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
     published = _to_published_status(status)
     backend.write_status_lines(status_lines(published), DASH_TABS,
                                STATUS_COL_BY_TAB, STATUS_COL)
+    published["merger_quarters"] = _write_merger_block(backend, cfg, provider)
     backend.finalize()
     return published
+
+
+def _write_merger_block(backend, cfg, provider) -> int:
+    """Render the provider's merger record onto `_mergers`. Returns the count.
+
+    Three different facts, drawn three different ways, because collapsing them
+    is how a quarter stops being marked:
+      * records -> one row each;
+      * asked and none found -> says so in words;
+      * not asked (demo, or a source that cannot answer) -> says THAT instead,
+        so nobody reads an empty tab as "no mergers".
+    """
+    names = {str(e.entity_key).split(":")[-1]: e.name
+             for e in cfg.entities if getattr(e, "has_entity", False)}
+    record = getattr(provider, "mergers", None)
+    if record is None:
+        rows = [["(this run did not fetch a merger record -- nothing here "
+                 "means UNKNOWN, not 'no mergers')"]]
+        count = 0
+    else:
+        found = []
+        for cert, mergers in sorted(record.items()):
+            for m in mergers:
+                found.append([names.get(str(cert), "cert %s" % cert), str(cert),
+                              m.effective, m.quarter,
+                              # the endpoint leaves OUT_NAME empty; the cert
+                              # is what the record carries, so show that
+                              m.out_name or "CERT %s" % m.out_cert, m.out_cert,
+                              "%d -- %s" % (m.code, m.description), m.meaning,
+                              m.sentence()])
+        found.sort(key=lambda r: (r[0], r[2]), reverse=False)
+        count = len(found)
+        rows = found or [["(the FDIC's history was read for every bank here "
+                          "and reports no mergers in this window)"]]
+    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, rows,
+                        width=len(layout.MERGERS_HEADER))
+    return count
 
 
 # --------------------------------------------------------------------------

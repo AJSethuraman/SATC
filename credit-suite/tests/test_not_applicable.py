@@ -41,8 +41,8 @@ def test_an_unguarded_direct_metric_is_untouched():
 
 @pytest.mark.parametrize("metric,balance", [
     ("P3CRCDR", "LNCRCD"), ("NACRCDR", "LNCRCD"),        # guarded direct
-    ("NTCONOTQR", "LNCONOTH"), ("NTCIQR", "LNCI"),       # declarative ratio
-    ("P3REMULTR", "LNREMULT"), ("UNINSDEPR", "DEP"),
+    ("NTCONOTQ_BOOK", "LNCONOTH"), ("NTCIQ_BOOK", "LNCI"),       # declarative ratio
+    ("P3REMULT_BOOK", "LNREMULT"), ("UNINSDEPR", "DEP"),
     ("TEXAS", None), ("CRECONR", None), ("NCLNLSR", None),
     ("P3RELOCR", None),          # HELOC: no balance is landed, so no guard
 ])
@@ -76,8 +76,8 @@ def test_no_book_is_not_applicable_and_no_number_is_blank():
 
 def test_a_declarative_ratio_gets_the_same_split():
     reg = R.METRICS
-    assert digest.metric_status(reg, "NTCONOTQR", {"NTCONOTQ": 5_318, "LNCONOTH": 0}, ABOVE) == "N/A"
-    assert digest.metric_status(reg, "NTCONOTQR", {"NTCONOTQ": None, "LNCONOTH": 3_173}, ABOVE) == ""
+    assert digest.metric_status(reg, "NTCONOTQ_BOOK", {"NTCONOTQ": 5_318, "LNCONOTH": 0}, ABOVE) == "N/A"
+    assert digest.metric_status(reg, "NTCONOTQ_BOOK", {"NTCONOTQ": None, "LNCONOTH": 3_173}, ABOVE) == ""
 
 
 def test_the_third_answer_is_neither_ok_nor_blank():

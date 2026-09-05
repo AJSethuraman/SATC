@@ -108,29 +108,29 @@ def d_creconr(f):
 PACK_RATIOS = {
     # consumer PD/NA rates computed from the verified dollar triple + balance
     # (the R-twin name would exceed the 8-char field-name limit -- unverified)
-    "P3CONOTHR": ("P3CONOTH", "LNCONOTH", 100),
-    "P9CONOTHR": ("P9CONOTH", "LNCONOTH", 100),
-    "NACONOTHR": ("NACONOTH", "LNCONOTH", 100),
+    "P3CONOTH_BOOK": ("P3CONOTH", "LNCONOTH", 100),
+    "P9CONOTH_BOOK": ("P9CONOTH", "LNCONOTH", 100),
+    "NACONOTH_BOOK": ("NACONOTH", "LNCONOTH", 100),
     # consumer quarterly NCO rates (F1: the Q dollar flow, never YTD NT{c})
-    "NTCRCDQR": ("NTCRCDQ", "LNCRCD", 400),
-    "NTAUTOQR": ("NTAUTOQ", "LNAUTO", 400),
-    "NTCONOTQR": ("NTCONOTQ", "LNCONOTH", 400),
-    "NTRERESQR": ("NTRERESQ", "LNRERES", 400),
+    "NTCRCDQ_BOOK": ("NTCRCDQ", "LNCRCD", 400),
+    "NTAUTOQ_BOOK": ("NTAUTOQ", "LNAUTO", 400),
+    "NTCONOTQ_BOOK": ("NTCONOTQ", "LNCONOTH", 400),
+    "NTRERESQ_BOOK": ("NTRERESQ", "LNRERES", 400),
     # commercial-floor PD/NA rates (twin names exceed 8 chars -- computed)
-    "P3RECONSR": ("P3RECONS", "LNRECONS", 100),
-    "P9RECONSR": ("P9RECONS", "LNRECONS", 100),
-    "NARECONSR": ("NARECONS", "LNRECONS", 100),
-    "P3RENRESR": ("P3RENRES", "LNRENRES", 100),
-    "P9RENRESR": ("P9RENRES", "LNRENRES", 100),
-    "NARENRESR": ("NARENRES", "LNRENRES", 100),
-    "P3REMULTR": ("P3REMULT", "LNREMULT", 100),
-    "P9REMULTR": ("P9REMULT", "LNREMULT", 100),
-    "NAREMULTR": ("NAREMULT", "LNREMULT", 100),
+    "P3RECONS_BOOK": ("P3RECONS", "LNRECONS", 100),
+    "P9RECONS_BOOK": ("P9RECONS", "LNRECONS", 100),
+    "NARECONS_BOOK": ("NARECONS", "LNRECONS", 100),
+    "P3RENRES_BOOK": ("P3RENRES", "LNRENRES", 100),
+    "P9RENRES_BOOK": ("P9RENRES", "LNRENRES", 100),
+    "NARENRES_BOOK": ("NARENRES", "LNRENRES", 100),
+    "P3REMULT_BOOK": ("P3REMULT", "LNREMULT", 100),
+    "P9REMULT_BOOK": ("P9REMULT", "LNREMULT", 100),
+    "NAREMULT_BOOK": ("NAREMULT", "LNREMULT", 100),
     # commercial quarterly NCO rates (8-char truncation: NTRECONQ etc.)
-    "NTRECONQR": ("NTRECONQ", "LNRECONS", 400),
-    "NTRENREQR": ("NTRENREQ", "LNRENRES", 400),
-    "NTREMULQR": ("NTREMULQ", "LNREMULT", 400),
-    "NTCIQR": ("NTCIQ", "LNCI", 400),
+    "NTRECONQ_BOOK": ("NTRECONQ", "LNRECONS", 400),
+    "NTRENREQ_BOOK": ("NTRENREQ", "LNRENRES", 400),
+    "NTREMULQ_BOOK": ("NTREMULQ", "LNREMULT", 400),
+    "NTCIQ_BOOK": ("NTCIQ", "LNCI", 400),
     # SVB pack simple ratios
     "UNINSDEPR": ("DEPUNINS", "DEP", 100),   # null -> BLANK + digest note
     "FHLBASSR": ("OTHBFHLB", "ASSET", 100),
@@ -165,19 +165,19 @@ def d_unrlzcapr(f):
 # classes are the public Call-Report FLOOR (criticized/classified via EDGAR).
 LOANBOOK_CLASS = {}
 for _mid, _cls in (
-        (("P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQR"), "credit card"),
-        (("P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQR"), "auto"),
-        (("P3CONOTHR", "P9CONOTHR", "NACONOTHR", "NTCONOTQR"),
+        (("P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQ_BOOK"), "credit card"),
+        (("P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQ_BOOK"), "auto"),
+        (("P3CONOTH_BOOK", "P9CONOTH_BOOK", "NACONOTH_BOOK", "NTCONOTQ_BOOK"),
          "other consumer"),
-        (("P3RERESR", "P9RERESR", "NARERESR", "NTRERESQR"), "resi 1-4 fam"),
+        (("P3RERESR", "P9RERESR", "NARERESR", "NTRERESQ_BOOK"), "resi 1-4 fam"),
         (("P3RELOCR", "P9RELOCR", "NARELOCR"), "HELOC"),
-        (("P3RECONSR", "P9RECONSR", "NARECONSR", "NTRECONQR"),
+        (("P3RECONS_BOOK", "P9RECONS_BOOK", "NARECONS_BOOK", "NTRECONQ_BOOK"),
          "construction"),
-        (("P3RENRESR", "P9RENRESR", "NARENRESR", "NTRENREQR"),
+        (("P3RENRES_BOOK", "P9RENRES_BOOK", "NARENRES_BOOK", "NTRENREQ_BOOK"),
          "CRE nonfarm"),
-        (("P3REMULTR", "P9REMULTR", "NAREMULTR", "NTREMULQR"),
+        (("P3REMULT_BOOK", "P9REMULT_BOOK", "NAREMULT_BOOK", "NTREMULQ_BOOK"),
          "multifamily"),
-        (("P3CIR", "P9CIR", "NACIR", "NTCIQR"), "C&I")):
+        (("P3CIR", "P9CIR", "NACIR", "NTCIQ_BOOK"), "C&I")):
     for _m in _mid:
         LOANBOOK_CLASS[_m] = _cls
 
@@ -219,6 +219,16 @@ DIRECT = [
     "RBC1AAJ", "RBCRWAJ", "EQV", "ROAQ", "NIMY", "EEFFR",
     *PACK_DIRECT,
 ]
+
+#: Metrics built from a QUARTERLY FLOW, which the FDIC derives by subtracting
+#: the previous quarter's year-to-date total. Across a merger that subtraction
+#: spans two banks, so the "quarter" is not a quarter of anything and the
+#: value is uncomparable -- see sources/fdic/mergers.py for the incident.
+#: NTLNLSQR is the FDIC's own published quarterly rate and is derived the same
+#: way, so it belongs here even though this template lands it directly.
+QUARTERLY_FLOW_METRICS = frozenset(
+    [m for m, (_num, _den, mult) in PACK_RATIOS.items() if mult == 400]
+    + ["NTLNLSQR"])
 
 REGISTRY = build_registry(direct=DIRECT, ratios=PACK_RATIOS, derived=DERIVED,
                           guarded=GUARDED_DIRECT)

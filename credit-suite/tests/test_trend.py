@@ -105,7 +105,7 @@ def test_every_dashboard_metric_is_trendable_not_just_the_raw_fields(demo_panels
     """28 of the 53 metrics are formula-derived. The first version of the tool
     silently trended 25 and looked complete."""
     panels, _raw = demo_panels
-    for metric in ("PD3089R", "TEXAS", "NTCONOTQR", "UNINSDEPR", "CRECONR"):
+    for metric in ("PD3089R", "TEXAS", "NTCONOTQ_BOOK", "UNINSDEPR", "CRECONR"):
         assert metric in panels, "%s is not trendable" % metric
         n = len([v for v in next(iter(panels[metric].series.values())).values
                  if v is not None])
@@ -118,7 +118,7 @@ def test_derived_metrics_equal_the_engines_own_definition(demo_panels):
     from credit_suite.sources.fdic.engine_api import metric_value
     panels, raw = demo_panels
     bank = next(iter(panels["TEXAS"].series))
-    for metric in ("TEXAS", "PD3089R", "LNDEPR", "NTCONOTQR", "CRECONR"):
+    for metric in ("TEXAS", "PD3089R", "LNDEPR", "NTCONOTQ_BOOK", "CRECONR"):
         tool = panels[metric].series[bank]
         for index in range(len(tool.periods)):
             fields = {name: p.series[bank].values[index]
@@ -128,44 +128,66 @@ def test_derived_metrics_equal_the_engines_own_definition(demo_panels):
 
 
 # --------------------------------------------------------------------------
-# Materiality: a ratio on a near-empty book is not a ratio
+# The merger flag: a quarterly flow that spans a merger is not a quarter
 # --------------------------------------------------------------------------
 
-def test_the_670_percent_charge_off_rate_is_blanked_not_charted():
-    """Capital One, 2022-12-31: $5.3M charged off against a $3.2M book. The
-    engine's 670.41 is arithmetically correct and means nothing, and a chart
-    drew it faithfully until the firm did not believe it."""
-    panels = {
-        "LNCONOTH": panel("LNCONOTH", A=[8_619_000, 3_173]),
-        "NTCONOTQR": panel("NTCONOTQR", A=[3.85, 670.41]),
-    }
-    blanked = T.apply_materiality(panels)
-    assert panels["NTCONOTQR"].series["A"].values == [3.85, None]
-    assert blanked == [("A", "NTCONOTQR", panels["NTCONOTQR"].series["A"].periods[1], 3_173)]
+MERGER = {"4297": [{"bank": "Capital One NA", "effective": "2022-10-03",
+                    "quarter": "2022-12-31", "out_name": "Capital One Bank (USA), NA",
+                    "why": "quarter ending 2022-12-31 spans a merger"}]}
 
 
-def test_a_material_book_is_left_alone():
-    panels = {"LNCRCD": panel("LNCRCD", A=[250_519_000]), "P3CRCDR": panel("P3CRCDR", A=[0.05])}
-    assert T.apply_materiality(panels) == []
-    assert panels["P3CRCDR"].series["A"].values == [0.05]
+def merger_panels():
+    """Two quarters of Capital One: the 670 and the quarter before it."""
+    p3 = T.Panel(metric="P3CONOTH_BOOK")
+    nco = T.Panel(metric="NTCONOTQ_BOOK")
+    bal = T.Panel(metric="LNCONOTH")
+    for name, panel, values in (("P3CONOTH_BOOK", p3, [21.5, 21.0]),
+                                ("NTCONOTQ_BOOK", nco, [35.3, 670.41]),
+                                ("LNCONOTH", bal, [3_970, 3_173])):
+        panel.series["Capital One NA"] = T.Series(
+            bank="Capital One NA", cert="4297",
+            periods=["2023-03-31", "2022-12-31"], values=list(values))
+    return {"P3CONOTH_BOOK": p3, "NTCONOTQ_BOOK": nco, "LNCONOTH": bal}
 
 
-def test_a_missing_or_zero_book_blanks_the_ratio_too():
-    """BNY Mellon has no card book. The engine already yields None on zero;
-    this guards the case where a stray value arrived anyway."""
-    panels = {"LNCRCD": panel("LNCRCD", A=[0, None]), "P9CRCDR": panel("P9CRCDR", A=[1.0, 2.0])}
-    T.apply_materiality(panels)
-    assert panels["P9CRCDR"].series["A"].values == [None, None]
+def test_the_670_is_blanked_because_the_quarter_spans_a_merger():
+    """Capital One absorbed its card bank on 3 October 2022. The FDIC derives
+    a quarterly flow by subtracting the previous quarter's year-to-date, which
+    across a merger spans two banks -- so December's 'quarter' is not one."""
+    panels = merger_panels()
+    blanked = T.apply_merger_flags(panels, MERGER)
+    assert panels["NTCONOTQ_BOOK"].series["Capital One NA"].values == [35.3, None]
+    assert [(b[1], b[2]) for b in blanked] == [("NTCONOTQ_BOOK", "2022-12-31")]
+    assert "merger" in blanked[0][3]
 
 
-def test_the_floor_is_the_named_constant_and_reads_as_dollars():
-    assert T.MATERIALITY_FLOOR_K == 100_000            # thousands -> $100M
+def test_only_the_flow_is_blanked_not_the_balances_or_the_arrears():
+    """A 30-89 rate is a point in time: correct as at the date, describing a
+    larger bank. Blanking it would hide a real number."""
+    panels = merger_panels()
+    T.apply_merger_flags(panels, MERGER)
+    assert panels["P3CONOTH_BOOK"].series["Capital One NA"].values == [21.5, 21.0]
+    assert panels["LNCONOTH"].series["Capital One NA"].values == [3_970, 3_173]
 
 
-@pytest.mark.parametrize("metric,balance", [
-    ("NTCONOTQR", "LNCONOTH"), ("P3CRCDR", "LNCRCD"), ("NACIR", "LNCI"),
-    ("NTRENREQR", "LNRENRES"), ("P9REMULTR", "LNREMULT"),
-    ("NCLNLSR", None), ("TEXAS", None), ("EQV", None),
-])
-def test_each_class_ratio_knows_the_book_it_stands_on(metric, balance):
-    assert T.class_balance_field(metric) == balance
+def test_a_bank_with_no_merger_keeps_every_quarter():
+    panels = merger_panels()
+    panels["NTCONOTQ_BOOK"].series["Capital One NA"].cert = "9999"
+    assert T.apply_merger_flags(panels, MERGER) == []
+
+
+def test_no_merger_record_blanks_nothing_and_says_so():
+    """`None` is not `{}`. Nobody asked is not the same as none found, and a
+    caller that collapses them is back to charting the 670."""
+    panels = merger_panels()
+    assert T.apply_merger_flags(panels, None) == []
+    assert panels["NTCONOTQ_BOOK"].series["Capital One NA"].values == [35.3, 670.41]
+
+
+def test_every_quarterly_flow_metric_is_covered_and_nothing_else():
+    """The list is the engine's, so a metric added there is flagged here
+    without anyone remembering to."""
+    flows = T.flow_metrics()
+    assert "NTCONOTQ_BOOK" in flows and "NTLNLSQR" in flows
+    assert "P3CONOTH_BOOK" not in flows and "TEXAS" not in flows
+    assert all(m.endswith("_BOOK") or m == "NTLNLSQR" for m in flows)

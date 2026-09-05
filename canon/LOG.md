@@ -787,3 +787,49 @@ it was recovered into a separate worktree (`C:\Users\ajish\SATC-cs`) and
 verified there; three files touched in the shared tree after the reset were
 put back. One shared checkout between two live sessions is the defect; the
 worktree is the fix from here on.
+
+## 2026-09-05 (later) — the two answers built, and a third thing found
+
+**D1 answered "merger flag only" — so the floor came out.** The firm took the
+cause over the threshold, and they were right to: a $100M floor hid the 670 by
+luck of the book size. On a $500M book the same $5.3M draws a plausible 4.3%
+that nobody questions. `tools/trend.py` now blanks quarterly-flow rates for a
+quarter that spans a merger, from the FDIC's own record, and nothing else:
+balances and 30-89 / 90+ / nonaccrual rates are correct as at the date and are
+left alone.
+
+New `sources/fdic/mergers.py` reads the FDIC history endpoint (one request for
+the whole peer set, `ACQ_CERT:(...)`), keeps six acquisition change codes as an
+allowlist, discards the four known non-acquisition codes by name, and
+**reports** anything else rather than dropping it. A truncated page is refused:
+a merger nobody sees is a quarter nobody marks. The record lands on a new
+`_mergers` tab — contract §2 amended the same day to name it — written by the
+runner on every run, and read back by the tool, so nothing infers a merger
+from the shape of the numbers. Three answers, drawn apart: records, "asked and
+none found", and "never asked" (the demo provider, honestly).
+
+Six real mergers sit in the sixteen-quarter window for these twelve banks:
+Citibank 2022Q3, **Capital One 2022Q4 (the 670)**, JPMorgan and US Bank
+2023Q2, **Capital One 2025Q2 (Discover)**, PNC 2026Q2. Both discontinuities in
+the chart the firm questioned are mergers.
+
+**D2 answered "rename ours" — and the reason turned out to be worse than
+stated.** The FDIC publishes nineteen of the twenty class ratios we compute,
+under exactly our names, over **average total assets** where ours are over the
+loan class. Ours are now `<numerator>_BOOK`. While checking that, the same
+question was put to the fifteen class rates we *land* directly: they are the
+FDIC's, so they are over total assets too — sitting on the loan-book dashboard
+beside ours, under thresholds calibrated for book rates. `P3CRCDR` watches at
+2.5% where the number it watches is 0.86% of assets, so eight early-warning
+flags have been effectively dead. Filed as #268 with two options and a
+recommendation; not changed, because it moves shipped numbers.
+
+**A stale claim, corrected.** `series_seed.py` said these were computed
+because "the R-twin name would exceed the 8-char field limit (unverified)".
+The twins exist and are published. The note now says what is true.
+
+**Checked:** 366 passed, 0 skipped. Parity 2/2 after re-banking the FDIC demo
+golden (158 cells: the ids on `_config` and `_provenance`, 20 Watchlist
+headers, the new tab; no dashboard value moved, flag counts unchanged).
+Conformance clean but for the four known single-sourcing notes. Mutation sweep
+run after all of it.

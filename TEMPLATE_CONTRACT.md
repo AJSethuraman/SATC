@@ -23,6 +23,7 @@ inside it as plain-text tabs. Emailing the workbook transfers the whole tool.
 | `_code_py` | The FULL runner source, one line per cell in column A, pure ASCII (L3) |
 | `_code_vba` | The macro source (minus `Attribute` lines), paste-ready |
 | `_readme` | Setup, run steps, provider notes, compliance/UNKNOWN flags |
+| `_mergers` (optional) | The provider's own merger record for the monitored entities, and the quarters whose flows it makes uncomparable. Added 5 Sep 2026: a chart drew a 670% charge-off rate that was a merger artefact, and the guard has to be the merger record rather than a size threshold. Written by the runner each run; a tool reads it rather than inferring a merger from the numbers. |
 
 ## 3. `_config` schema
 

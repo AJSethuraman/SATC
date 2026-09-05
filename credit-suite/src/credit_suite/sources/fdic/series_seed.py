@@ -137,7 +137,7 @@ FUNDING_CONCENTRATION = [
 # COMMERCIAL classes get Call-Report DQ as the public FLOOR (criticized/
 # classified arrives via the EDGAR template #6).
 # Naming: R-suffix ratio twins are consumed DIRECTLY only where the twin name
-# fits the 8-char field limit (P3CRCDR yes, P3CONOTHR no); all other rates
+# fits the 8-char field limit (P3CRCDR yes, P3CONOTH_BOOK no); all other rates
 # are computed from the verified dollar triple/flow + balance. Quarterly NCO
 # rates are ANNUALIZED x4 (the FDIC's own NTLNLSQR convention) and use the
 # Q flow fields ONLY (trap F1) -- note the 8-char truncation (NTRECONQ).
@@ -154,7 +154,7 @@ CONSUMER_TRACK = [
     _pack("NACRCDR", "Card nonaccrual %", "consumer_credit", "NACRCDR",
           "direct", "Verified ratio twin; card books mostly charge off at "
           "180dpd rather than sit in nonaccrual."),
-    _pack("NTCRCDQR", "Card NCO % (q, ann.)", "consumer_credit",
+    _pack("NTCRCDQ_BOOK", "Card NCO % (q, ann.)", "consumer_credit",
           "NTCRCDQ/LNCRCD*400", "derived",
           "QUARTERLY flow (F1; 8-char name NTCRCDQ), annualized x4 like "
           "NTLNLSQR. Card runs structurally high -- QBP context in the "
@@ -167,19 +167,21 @@ CONSUMER_TRACK = [
           "direct", "Verified ratio twin; still accruing."),
     _pack("NAAUTOR", "Auto nonaccrual %", "consumer_credit", "NAAUTOR",
           "direct", "Verified ratio twin."),
-    _pack("NTAUTOQR", "Auto NCO % (q, ann.)", "consumer_credit",
+    _pack("NTAUTOQ_BOOK", "Auto NCO % (q, ann.)", "consumer_credit",
           "NTAUTOQ/LNAUTO*400", "derived",
           "Quarterly flow annualized x4; NEVER the YTD NTAUTO (F1)."),
     # other consumer (twin names exceed 8 chars -- computed from the triple)
-    _pack("P3CONOTHR", "Other-cons 30-89 PD %", "consumer_credit",
+    _pack("P3CONOTH_BOOK", "Other-cons 30-89 PD %", "consumer_credit",
           "P3CONOTH/LNCONOTH*100", "derived",
-          "Computed: the R-twin name would exceed the 8-char field limit "
-          "(unverified) -- verified dollar triple + balance instead."),
-    _pack("P9CONOTHR", "Other-cons 90+ PD %", "consumer_credit",
+          "Computed over the BOOK. The FDIC does publish P3CONOTHR -- over "
+          "TOTAL ASSETS (verified live 5 Sep 2026), which is a different "
+          "ratio; ours is named P3CONOTH_BOOK so the two cannot be "
+          "confused."),
+    _pack("P9CONOTH_BOOK", "Other-cons 90+ PD %", "consumer_credit",
           "P9CONOTH/LNCONOTH*100", "derived", "Computed; still accruing."),
-    _pack("NACONOTHR", "Other-cons nonaccrual %", "consumer_credit",
+    _pack("NACONOTH_BOOK", "Other-cons nonaccrual %", "consumer_credit",
           "NACONOTH/LNCONOTH*100", "derived", "Computed."),
-    _pack("NTCONOTQR", "Other-cons NCO % (q, ann.)", "consumer_credit",
+    _pack("NTCONOTQ_BOOK", "Other-cons NCO % (q, ann.)", "consumer_credit",
           "NTCONOTQ/LNCONOTH*400", "derived",
           "Quarterly flow annualized x4 (8-char truncated NTCONOTQ)."),
     # 1-4 family residential (verified twins) + HELOC drill-in
@@ -189,7 +191,7 @@ CONSUMER_TRACK = [
           "direct", "Verified ratio twin; still accruing."),
     _pack("NARERESR", "Resi nonaccrual %", "consumer_credit", "NARERESR",
           "direct", "Verified ratio twin."),
-    _pack("NTRERESQR", "Resi NCO % (q, ann.)", "consumer_credit",
+    _pack("NTRERESQ_BOOK", "Resi NCO % (q, ann.)", "consumer_credit",
           "NTRERESQ/LNRERES*400", "derived",
           "Quarterly flow annualized x4."),
     _pack("P3RELOCR", "HELOC 30-89 PD %", "consumer_credit", "P3RELOCR",
@@ -203,38 +205,39 @@ CONSUMER_TRACK = [
 
 COMMERCIAL_FLOOR = [
     # construction
-    _pack("P3RECONSR", "Constr 30-89 PD %", "commercial_credit",
+    _pack("P3RECONS_BOOK", "Constr 30-89 PD %", "commercial_credit",
           "P3RECONS/LNRECONS*100", "derived",
-          "Computed (twin name exceeds 8 chars). PUBLIC FLOOR: commercial "
+          "Computed over the BOOK (the FDIC publishes this twin over "
+          "TOTAL ASSETS). PUBLIC FLOOR: commercial "
           "risk ratings lead delinquency; criticized/classified via EDGAR "
           "template. Splits exist from ~2007-08 (null-tolerant)."),
-    _pack("P9RECONSR", "Constr 90+ PD %", "commercial_credit",
+    _pack("P9RECONS_BOOK", "Constr 90+ PD %", "commercial_credit",
           "P9RECONS/LNRECONS*100", "derived", "Computed; still accruing."),
-    _pack("NARECONSR", "Constr nonaccrual %", "commercial_credit",
+    _pack("NARECONS_BOOK", "Constr nonaccrual %", "commercial_credit",
           "NARECONS/LNRECONS*100", "derived", "Computed."),
-    _pack("NTRECONQR", "Constr NCO % (q, ann.)", "commercial_credit",
+    _pack("NTRECONQ_BOOK", "Constr NCO % (q, ann.)", "commercial_credit",
           "NTRECONQ/LNRECONS*400", "derived",
           "Quarterly flow annualized x4; 8-char truncation is VERIFIED here "
           "(NTRECONQ, never NTRECONSQ)."),
     # nonfarm nonresidential CRE
-    _pack("P3RENRESR", "CRE-NFN 30-89 PD %", "commercial_credit",
+    _pack("P3RENRES_BOOK", "CRE-NFN 30-89 PD %", "commercial_credit",
           "P3RENRES/LNRENRES*100", "derived", "Computed (twin >8 chars)."),
-    _pack("P9RENRESR", "CRE-NFN 90+ PD %", "commercial_credit",
+    _pack("P9RENRES_BOOK", "CRE-NFN 90+ PD %", "commercial_credit",
           "P9RENRES/LNRENRES*100", "derived", "Computed; still accruing."),
-    _pack("NARENRESR", "CRE-NFN nonaccrual %", "commercial_credit",
+    _pack("NARENRES_BOOK", "CRE-NFN nonaccrual %", "commercial_credit",
           "NARENRES/LNRENRES*100", "derived",
           "Computed. The office-stress headline metric."),
-    _pack("NTRENREQR", "CRE-NFN NCO % (q, ann.)", "commercial_credit",
+    _pack("NTRENREQ_BOOK", "CRE-NFN NCO % (q, ann.)", "commercial_credit",
           "NTRENREQ/LNRENRES*400", "derived",
           "Quarterly flow annualized x4 (8-char truncated NTRENREQ)."),
     # multifamily
-    _pack("P3REMULTR", "Multifam 30-89 PD %", "commercial_credit",
+    _pack("P3REMULT_BOOK", "Multifam 30-89 PD %", "commercial_credit",
           "P3REMULT/LNREMULT*100", "derived", "Computed (twin >8 chars)."),
-    _pack("P9REMULTR", "Multifam 90+ PD %", "commercial_credit",
+    _pack("P9REMULT_BOOK", "Multifam 90+ PD %", "commercial_credit",
           "P9REMULT/LNREMULT*100", "derived", "Computed; still accruing."),
-    _pack("NAREMULTR", "Multifam nonaccrual %", "commercial_credit",
+    _pack("NAREMULT_BOOK", "Multifam nonaccrual %", "commercial_credit",
           "NAREMULT/LNREMULT*100", "derived", "Computed."),
-    _pack("NTREMULQR", "Multifam NCO % (q, ann.)", "commercial_credit",
+    _pack("NTREMULQ_BOOK", "Multifam NCO % (q, ann.)", "commercial_credit",
           "NTREMULQ/LNREMULT*400", "derived",
           "Quarterly flow annualized x4 (8-char truncated NTREMULQ)."),
     # C&I (verified twins for PD/NA; NCOq computed)
@@ -244,7 +247,7 @@ COMMERCIAL_FLOOR = [
           "direct", "Verified ratio twin; still accruing."),
     _pack("NACIR", "C&I nonaccrual %", "commercial_credit", "NACIR",
           "direct", "Verified ratio twin."),
-    _pack("NTCIQR", "C&I NCO % (q, ann.)", "commercial_credit",
+    _pack("NTCIQ_BOOK", "C&I NCO % (q, ann.)", "commercial_credit",
           "NTCIQ/LNCI*400", "derived", "Quarterly flow annualized x4."),
 ]
 
@@ -311,39 +314,39 @@ THRESHOLDS = [
     ("P3CRCDR", 2.5, 4.0, "above", "card 30-89 pipeline"),
     ("P9CRCDR", 2.0, 3.5, "above", "card 90+ accruing"),
     ("NACRCDR", 1.0, 2.0, "above", "cards charge off, rarely NA"),
-    ("NTCRCDQR", 6.0, 8.0, "above",
+    ("NTCRCDQ_BOOK", 6.0, 8.0, "above",
      "card NCO runs structurally high; normal 3-4% (JPM 3.28)"),
     ("P3AUTOR", 4.0, 6.0, "above", "auto early DQ runs elevated"),
     ("P9AUTOR", 1.0, 2.0, "above", "auto 90+ accruing"),
     ("NAAUTOR", 1.5, 3.0, "above", "auto nonaccrual"),
-    ("NTAUTOQR", 2.5, 4.0, "above", "auto NCO; normal 0.5-2%"),
-    ("P3CONOTHR", 3.0, 5.0, "above", "other consumer early DQ"),
-    ("P9CONOTHR", 1.5, 3.0, "above", "other consumer 90+"),
-    ("NACONOTHR", 2.5, 4.0, "above", "other consumer nonaccrual"),
-    ("NTCONOTQR", 2.0, 4.0, "above", "other consumer NCO"),
+    ("NTAUTOQ_BOOK", 2.5, 4.0, "above", "auto NCO; normal 0.5-2%"),
+    ("P3CONOTH_BOOK", 3.0, 5.0, "above", "other consumer early DQ"),
+    ("P9CONOTH_BOOK", 1.5, 3.0, "above", "other consumer 90+"),
+    ("NACONOTH_BOOK", 2.5, 4.0, "above", "other consumer nonaccrual"),
+    ("NTCONOTQ_BOOK", 2.0, 4.0, "above", "other consumer NCO"),
     ("P3RERESR", 2.0, 4.0, "above", "resi 1-4 early DQ"),
     ("P9RERESR", 1.5, 3.0, "above", "resi 90+"),
     ("NARERESR", 1.5, 3.0, "above", "resi nonaccrual"),
-    ("NTRERESQR", 0.75, 1.5, "above", "resi NCO runs near zero"),
+    ("NTRERESQ_BOOK", 0.75, 1.5, "above", "resi NCO runs near zero"),
     ("P3RELOCR", 2.0, 4.0, "above", "HELOC early DQ"),
     ("P9RELOCR", 1.5, 3.0, "above", "HELOC 90+"),
     ("NARELOCR", 1.5, 3.0, "above", "HELOC nonaccrual"),
-    ("P3RECONSR", 2.0, 4.0, "above", "construction 30-89"),
-    ("P9RECONSR", 1.5, 3.0, "above", "construction 90+"),
-    ("NARECONSR", 4.0, 7.0, "above", "constr NA runs above CRE (JPM 2.55)"),
-    ("NTRECONQR", 1.5, 3.0, "above", "construction NCO"),
-    ("P3RENRESR", 2.0, 4.0, "above", "CRE nonfarm early DQ"),
-    ("P9RENRESR", 1.5, 3.0, "above", "CRE nonfarm 90+"),
-    ("NARENRESR", 4.0, 7.0, "above", "CRE nonaccrual elevated in 2026 (JPM 2.10)"),
-    ("NTRENREQR", 1.5, 3.0, "above", "CRE nonfarm NCO"),
-    ("P3REMULTR", 2.0, 4.0, "above", "multifamily early DQ"),
-    ("P9REMULTR", 1.5, 3.0, "above", "multifamily 90+"),
-    ("NAREMULTR", 3.0, 5.0, "above", "multifamily nonaccrual"),
-    ("NTREMULQR", 1.5, 3.0, "above", "multifamily NCO"),
+    ("P3RECONS_BOOK", 2.0, 4.0, "above", "construction 30-89"),
+    ("P9RECONS_BOOK", 1.5, 3.0, "above", "construction 90+"),
+    ("NARECONS_BOOK", 4.0, 7.0, "above", "constr NA runs above CRE (JPM 2.55)"),
+    ("NTRECONQ_BOOK", 1.5, 3.0, "above", "construction NCO"),
+    ("P3RENRES_BOOK", 2.0, 4.0, "above", "CRE nonfarm early DQ"),
+    ("P9RENRES_BOOK", 1.5, 3.0, "above", "CRE nonfarm 90+"),
+    ("NARENRES_BOOK", 4.0, 7.0, "above", "CRE nonaccrual elevated in 2026 (JPM 2.10)"),
+    ("NTRENREQ_BOOK", 1.5, 3.0, "above", "CRE nonfarm NCO"),
+    ("P3REMULT_BOOK", 2.0, 4.0, "above", "multifamily early DQ"),
+    ("P9REMULT_BOOK", 1.5, 3.0, "above", "multifamily 90+"),
+    ("NAREMULT_BOOK", 3.0, 5.0, "above", "multifamily nonaccrual"),
+    ("NTREMULQ_BOOK", 1.5, 3.0, "above", "multifamily NCO"),
     ("P3CIR", 1.5, 3.0, "above", "C&I early DQ"),
     ("P9CIR", 1.0, 2.0, "above", "C&I 90+"),
     ("NACIR", 1.5, 3.0, "above", "C&I nonaccrual"),
-    ("NTCIQR", 1.5, 3.0, "above", "C&I quarterly NCO; normal 0.2-1% (JPM 0.78)"),
+    ("NTCIQ_BOOK", 1.5, 3.0, "above", "C&I quarterly NCO; normal 0.2-1% (JPM 0.78)"),
     ("UNINSDEPR", 60.0, 75.0, "above",
      "uninsured share; megabanks normally 40-55 (JPM 46), SVB was 94; "
      "null DEPUNINS renders blank, never 0"),

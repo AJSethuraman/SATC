@@ -80,10 +80,10 @@ PEER_METRICS = ["NCLNLSR", "NTLNLSQR", "PD3089R", "LNRESNCR", "TEXAS", "EQV"]
 
 #: The four stages of a loan going wrong, for the one-bank view. Same book at
 #: each stage, so the lines are comparable and the lead-lag is the point.
-STAGES = [("P3CONOTHR", "30-89 days late"),
-          ("P9CONOTHR", "90+ days, still accruing"),
-          ("NACONOTHR", "Nonaccrual"),
-          ("NTCONOTQR", "Net charge-offs (annualised)")]
+STAGES = [("P3CONOTH_BOOK", "30-89 days late"),
+          ("P9CONOTH_BOOK", "90+ days, still accruing"),
+          ("NACONOTH_BOOK", "Nonaccrual"),
+          ("NTCONOTQ_BOOK", "Net charge-offs (annualised)")]
 
 #: Colours. Four categorical hues validated by the data-viz palette checker
 #: (light surface); grey for context. Hex without '#', as openpyxl wants.
@@ -264,14 +264,16 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         "  that arrives by email. Nothing here needs to be enabled or unblocked.",
         "",
         "What was left blank, and why",
-        "  A loan-class ratio (card, auto, other consumer, C&I, each real-estate class)",
-        "  is left blank for any quarter where that bank's book in the class was under",
-        "  $%dM. A ratio on a near-empty book is arithmetic, not information: Capital One"
-        % (trend.MATERIALITY_FLOOR_K // 1000),
-        "  charged off $5.3M against a $3.2M other-consumer book at the end of 2022, a",
-        "  670% annualised rate, and a chart drew it faithfully until nobody believed it.",
-        "  Blank means 'too small to read', not 'no data'. Totals and capital ratios",
-        "  are never blanked.",
+        "  A charge-off rate is left blank for any quarter in which that bank absorbed",
+        "  another bank. A Call Report reports charge-offs as a running total from 1",
+        "  January, and a quarter's figure is that total less the previous quarter's --",
+        "  so across a merger the subtraction spans two banks and the quarter is not a",
+        "  quarter of anything. Capital One's other-consumer rate read 670% for the",
+        "  quarter it absorbed its card bank, which was true arithmetic about nothing.",
+        "  The quarters come from the FDIC's own merger record on the monitor's",
+        "  _mergers tab, never from the shape of the numbers. Balances and 30-89 / 90+ /",
+        "  nonaccrual rates are NOT blanked: they are correct as at the date and simply",
+        "  describe a larger bank.",
         "",
         "It is generated, not edited",
         "  Re-running the tool replaces it. Keep your own notes somewhere else.",
@@ -340,14 +342,19 @@ def build(source: Path, out: Path, banks: Optional[List[str]] = None) -> Path:
         ws["A3"] = ("Charge-offs are annualised (a quarter's flow x4); the others "
                     "are point-in-time balances. Compare shapes, not heights.")
         ws["A3"].font = NOTE_FONT
-        gaps = [b for b in trend.LAST_MATERIALITY_BLANKS if b[0] == bank
+        gaps = [b for b in trend.LAST_MERGER_BLANKS if b[0] == bank
                 and b[1] in {m for m, _ in STAGES}]
         if gaps:
-            ws["A4"] = ("%d quarter-values left blank because the book was under $%dM "
-                        "-- a ratio on a near-empty book is a number that means nothing "
-                        "(a 670%% charge-off rate on a $3M book started this). See the "
-                        "About sheet."
-                        % (len(gaps), trend.MATERIALITY_FLOOR_K // 1000))
+            ws["A4"] = ("Charge-offs are left blank for %s: %s"
+                        % (", ".join(sorted({g[2][:10] for g in gaps})),
+                           gaps[0][3]))
+            ws["A4"].font = NOTE_FONT
+        elif trend.LAST_MERGERS_UNKNOWN:
+            ws["A4"] = ("No merger record was available for this workbook, so "
+                        "no quarter is marked. A quarter that spans a merger "
+                        "mixes two banks and its charge-off rate is not "
+                        "comparable -- run the monitor live to fetch the "
+                        "record.")
             ws["A4"].font = NOTE_FONT
         rows = []
         for metric, label in STAGES:

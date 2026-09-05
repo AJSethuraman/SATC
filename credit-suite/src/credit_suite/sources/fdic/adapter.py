@@ -32,8 +32,15 @@ import pandas as pd
 from credit_suite.engine.config import Config, norm_key
 from credit_suite.engine.provider import (FieldSpec, NormalizedRow, Provider,
                                           resolve_secret)
+from credit_suite.sources.fdic import mergers as _mergers
 from credit_suite.sources.fdic.fields import (FIELD_UNITS, MAX_REQUEST_FIELDS,
                                               PCT_FIELDS, RAW_FIELDS)
+
+def _iso_day(yyyymmdd: str) -> str:
+    """'20220901' -> '2022-09-01' (the history endpoint dates are ISO)."""
+    s = str(yyyymmdd)
+    return "%s-%s-%s" % (s[0:4], s[4:6], s[6:8])
+
 
 FDIC_FIN_URL = "https://api.fdic.gov/banks/financials"
 FDIC_INST_URL = "https://api.fdic.gov/banks/institutions"
@@ -45,7 +52,14 @@ class FdicDemoProvider(Provider):
     ranges per metric; the seed profile puts one illustrative bank in a
     Texas-ALERT tier and one in a Texas-WATCH tier; one bank's BRO is null
     for the whole series (trap F3); every series carries one interior None.
-    NO network, NO key; never stale at its own asof."""
+    NO network, NO key; never stale at its own asof.
+
+    Asked for a merger record it answers "I did not ask anyone" (`mergers`
+    stays None), never "there are none" -- two different facts, printed
+    differently on the `_mergers` tab. The runner's merger block is exercised
+    offline by injecting a provider that carries a real record
+    (tests/test_mergers.py)."""
+    mergers = None
 
     source_class = "A"
 
@@ -413,6 +427,32 @@ class FdicProvider(Provider):
             # roster is advisory (merger notes); the financials landing and
             # the staleness guard still protect the run without it
             self.roster = self.roster or {}
+
+        # The merger record: which quarters' FLOWS span two banks. One more
+        # request for the whole peer set. A failure here leaves `mergers` at
+        # None -- UNKNOWN, which the tab and the tools report as its own
+        # answer, because an empty record read as "no mergers" is precisely
+        # the 670% chart this exists to prevent (sources/fdic/mergers.py).
+        try:
+            found, unclassified = _mergers.fetch(
+                certs, self._download,
+                # only the charted window can contaminate a charted quarter,
+                # and the endpoint otherwise returns a bank's whole life
+                # (Wells Fargo back to 1972)
+                since=_mergers.quarter_start(
+                    _iso_day(self._oldest_repdte(asof, self._raw_slots))))
+            self.mergers = _mergers.by_cert(found)
+            self.merger_note = ""
+            if unclassified:
+                codes = sorted({str(r.get("CHANGECODE")) for r in unclassified})
+                self.merger_note = (
+                    "%d FDIC history rows carry change codes this template "
+                    "does not classify (%s); they are reported rather than "
+                    "assumed harmless."
+                    % (len(unclassified), ", ".join(codes)))
+        except Exception as exc:                      # network, or a refusal
+            self.mergers = None
+            self.merger_note = "merger record unavailable: %s" % exc
 
     def fetch_series(self, spec: FieldSpec, secret=None) -> List[NormalizedRow]:
         if self._bulk is None:

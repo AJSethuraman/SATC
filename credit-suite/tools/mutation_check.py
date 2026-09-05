@@ -55,6 +55,7 @@ L = "tests/test_engine_logic.py::"
 C = "tests/test_engine_config.py::"
 W = "tests/test_engine_workbook.py::"
 N = "tests/test_not_applicable.py::"
+G2 = "tests/test_mergers.py::"
 F = "tests/test_fred_seam.py::"
 I = "tests/test_inliner.py::"
 N = "tests/test_conformance.py::"
@@ -794,10 +795,10 @@ MUTATIONS: list[Mutation] = [
     # ---- the chart workbook --------------------------------------------------
     Mutation(
         "chartbook-about-forgets-the-blanks", TOOLS / "chartbook.py",
-        "        \"  Blank means 'too small to read', not 'no data'. Totals and capital ratios\",",
+        '        "  _mergers tab, never from the shape of the numbers. Balances and 30-89 / 90+ /",',
         '        "",',
         (B + "test_the_about_sheet_explains_what_a_blank_means",),
-        "the About sheet a stage note points at actually explains the blank",
+        "the About sheet a chart's blank points at actually explains the blank",
     ),
     Mutation(
         "chartbook-hides-the-axes", TOOLS / "chartbook.py",
@@ -827,22 +828,63 @@ MUTATIONS: list[Mutation] = [
         (B + "test_the_median_row_is_the_median_of_the_banks",),
         "the peer line is the median, which one outlier cannot drag",
     ),
-    # ---- materiality: the 670 restored ------------------------------------
+    # ---- the merger flag: the 670 recognised, rather than hidden ---------
     Mutation(
-        "trend-no-materiality-floor", TOOLS / "trend.py",
-        "MATERIALITY_FLOOR_K = 100_000",
-        "MATERIALITY_FLOOR_K = 0",
-        (R + "test_the_670_percent_charge_off_rate_is_blanked_not_charted",
-         R + "test_the_floor_is_the_named_constant_and_reads_as_dollars"),
-        "a class ratio on a near-empty book is blanked, not charted",
+        "trend-merger-flag-off", TOOLS / "trend.py",
+        "        if metric not in flows:\n            continue",
+        "        if False:\n            continue",
+        (R + "test_the_670_is_blanked_because_the_quarter_spans_a_merger",
+         R + "test_only_the_flow_is_blanked_not_the_balances_or_the_arrears"),
+        "only quarterly-flow rates are blanked, and they ARE blanked",
     ),
     Mutation(
-        "trend-materiality-blanks-nothing", TOOLS / "trend.py",
-        "                if bal is None or bal < floor_k:",
-        "                if False:",
-        (R + "test_the_670_percent_charge_off_rate_is_blanked_not_charted",
-         R + "test_a_missing_or_zero_book_blanks_the_ratio_too"),
-        "the floor actually blanks; a guard that never fires is decoration",
+        "trend-unknown-record-treated-as-none", TOOLS / "trend.py",
+        "    if MERGERS_TAB not in wb.sheetnames:\n        return None",
+        "    if MERGERS_TAB not in wb.sheetnames:\n        return {}",
+        (G2 + "test_a_workbook_with_no_merger_tab_reports_unknown",),
+        "a workbook that cannot answer reports UNKNOWN, not 'no mergers'",
+    ),
+    Mutation(
+        "mergers-branch-purchase-counted", SRC / "sources/fdic/mergers.py",
+        "        if code in NOT_AN_ACQUISITION:\n            continue",
+        "        if False:\n            continue",
+        (G2 + "test_a_branch_purchase_is_not_a_merger",),
+        "a branch purchase and the FDIC's mirror rows are not mergers",
+    ),
+    Mutation(
+        "mergers-unknown-code-dropped", SRC / "sources/fdic/mergers.py",
+        "        if code not in ACQUISITIONS:\n            unclassified.append(row)\n            continue",
+        "        if code not in ACQUISITIONS:\n            continue",
+        (G2 + "test_an_unrecognised_change_code_is_reported_not_dropped",),
+        "an unrecognised change code is reported, never silently dropped",
+    ),
+    Mutation(
+        "mergers-quarter-off-by-one", SRC / "sources/fdic/mergers.py",
+        "    end_month = ((month - 1) // 3) * 3 + 3",
+        "    end_month = month",
+        (G2 + "test_the_effective_date_maps_to_the_quarter_that_contains_it",),
+        "the merger lands in the quarter that contains its effective date",
+    ),
+    Mutation(
+        "mergers-truncation-accepted", SRC / "sources/fdic/mergers.py",
+        "    if total is not None and int(total) > limit:",
+        "    if False:",
+        (G2 + "test_a_truncated_history_page_is_refused",),
+        "a truncated merger record is refused, never quietly shortened",
+    ),
+    Mutation(
+        "runner-merger-block-not-written", SRC / "sources/fdic/runner.py",
+        "    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, rows,",
+        "    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, [],",
+        (G2 + "test_the_runner_writes_the_merger_record_onto_the_tab",),
+        "the run writes its merger record where the tools read it",
+    ),
+    Mutation(
+        "runner-unknown-record-reads-as-none", SRC / "sources/fdic/runner.py",
+        '        rows = [["(this run did not fetch a merger record -- nothing here "',
+        '        rows = [["(the FDIC history was read and reports no mergers "',
+        (G2 + "test_a_run_that_never_asked_says_so_rather_than_showing_an_empty_tab",),
+        "a run that never asked says UNKNOWN on the tab, not 'none'",
     ),
 ]
 

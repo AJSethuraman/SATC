@@ -99,9 +99,11 @@ def test_sheet_names_survive_excels_limits():
 
 
 def test_the_about_sheet_explains_what_a_blank_means(built):
-    """A stage sheet says 'See the About sheet' when the floor blanked a value.
-    The first cut of that note pointed at a sheet that said nothing about it --
-    a claim in one place and nothing behind it."""
+    """A blank in a charge-off line is a marked quarter, and the About sheet
+    has to say what marked it. An earlier cut of this note pointed at a sheet
+    that said nothing about blanks at all -- a claim in one place with nothing
+    behind it."""
     text = " ".join(str(c.value) for row in built["About"].iter_rows() for c in row if c.value)
-    assert "left blank" in text and "$100M" in text
-    assert "too small to read" in text
+    assert "left blank" in text and "absorbed" in text
+    assert "_mergers tab" in text and "670%" in text
+    assert "NOT blanked" in text          # balances and arrears are not
