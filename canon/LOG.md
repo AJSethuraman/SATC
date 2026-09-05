@@ -752,3 +752,29 @@ about principle, and the firm has now had to explain it more than once, which is
 the exact cost `CONVICTIONS.md` exists to remove. It is drafted and put to them
 as a proposal. **Nothing enters that file without an explicit yes**, so it is
 named here and not there.
+
+---
+
+## 5 September 2026 — C14, and the qualification that came with the yes
+
+The tax-against-GAAP stance was proposed as a conviction and confirmed. **C14 ·
+Tax treatment does not move the books; the books record what happened.**
+
+It was proposed because the firm had explained it more than once in one evening —
+*"i feel like i'm going crazy here having to explain this. it's not just bull
+shit i'm making up"* — and removing that cost is the whole reason this file
+exists. A session had just built a desk on the wrong body of law for want of it.
+
+**The qualification is the part worth recording separately**, because it names a
+failure mode this record could otherwise create. The firm, confirming:
+
+> that is a conviction but it does not mean i want to avoid looking stuff up
+> about it
+
+So it went into `How it could be wrong` rather than being noted and lost. **A
+conviction that ends research is worse than none** — it turns a belief into a
+reason not to read, which is the opposite of what a record of reasons is for.
+Bassy challenges *from* the record; it does not get to close a question with it.
+
+`1.7.1 → 1.8.0`, both manifests: the record gained an entry, and convictions are
+read from a plugin cache that keys on the marketplace number.
