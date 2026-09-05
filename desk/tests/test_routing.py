@@ -165,12 +165,24 @@ def test_route_itself_matches_whole_words_not_substrings(regs):
     That is canon's own recorded failure -- the rule written twice, once
     whole-word and once not, with nothing comparing them -- reproduced here.
 
-    "repair" is one of this desk's subjects, so a substring matcher fires on
-    "repairman" and a whole-word one does not.
+    "repair" is one desk's subject, so a substring matcher fires on "repairman"
+    and a whole-word one does not.
+
+    THE QUESTION IS ONE WORD, AND THAT IS DELIBERATE. It read "the repairman
+    called about parking" and asserted the WHOLE registry stayed silent -- so the
+    day a desk declared `parking` as a subject, this test failed for a reason
+    that had nothing to do with substrings, on a rule that was working perfectly.
+    A test over the live registry may not put filler in its question: every word
+    is a claim that no desk anywhere answers it, and desks are added by people
+    who will never read this file.
     """
-    assert any("repair" in r.fires_on for r in regs), "fixture no longer proves it"
-    assert routing.route("the repairman called about parking", regs) == [], (
+    baited = [r.desk for r in regs if "repair" in r.fires_on]
+    assert baited, "fixture no longer proves it: no desk declares `repair`"
+    assert routing.route("repairman", regs) == [], (
         "route() is matching substrings; it must use canon's whole-word rule"
+    )
+    assert set(r.desk for r in routing.route("repair", regs)) >= set(baited), (
+        "the whole word must still route, or this proves nothing"
     )
 
 
