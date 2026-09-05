@@ -290,3 +290,50 @@ def test_an_unrefreshed_workbook_has_nothing_to_tie_out(tmp_path):
     read = backend.read_slot_block(R.slot_block(entity.slot, cfg.raw_slots),
                                    FL.RAW_FIELDS)
     assert read == []
+
+
+# --------------------------------------------------------------------------
+# "(domestic)": some FDIC balances are the domestic column, and say so
+# --------------------------------------------------------------------------
+
+DOMESTIC_FACTS = {"RCFDF158": 12_000_000, "RCONF158": 9_000_000,
+                  "RCFDF159": 3_000_000, "RCONF159": 2_000_000}
+
+
+def test_a_domestic_line_resolves_rcon_before_rcfd():
+    """Tying all twelve banks found 18 DIFFERS, every one a real-estate
+    balance at a bank with foreign real-estate lending, every one the
+    consolidated column read where the FDIC publishes the domestic one.
+
+    JPMorgan 1-4 family: landed 322,339,000; RCFD 325,722,000; RCON
+    322,339,000. The data was right and the citation was wrong.
+    """
+    expression = F.parse_mdrm("F158+F159 (domestic)")
+    assert expression.domestic is True
+    value, used = F.filed_value(DOMESTIC_FACTS, expression)
+    assert value == 11_000                       # 9,000,000 + 2,000,000, thousands
+    assert used == "RCONF158+RCONF159"
+
+
+def test_without_the_marker_the_same_line_reads_consolidated():
+    """The default is unchanged: consolidated first, which is right for most
+    lines and is what a bare RCON in the map has always meant."""
+    expression = F.parse_mdrm("F158+F159")
+    assert expression.domestic is False
+    value, used = F.filed_value(DOMESTIC_FACTS, expression)
+    assert value == 15_000
+    assert used == "RCFDF158+RCFDF159"
+
+
+def test_the_five_real_estate_balances_are_pinned_to_domestic():
+    """The five the tie-out caught, named, so a future edit cannot quietly
+    put them back on the consolidated column."""
+    from credit_suite.sources.fdic import provenance_seed as PROV
+
+    rows = {r[0]: r for r in PROV.ALL_ROWS}
+    for name in ("LNRECONS", "LNRENRES", "LNREMULT", "LNRERES", "LNRELOC"):
+        assert "(domestic)" in rows[name][3], name
+        assert F.parse_mdrm(rows[name][3]).domestic is True, name
+    # and a line that is genuinely consolidated is left alone
+    assert F.parse_mdrm(rows["LNCI"][3]).domestic is False
+    assert F.parse_mdrm(rows["ASSET"][3]).domestic is False

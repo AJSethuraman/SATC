@@ -830,6 +830,28 @@ MUTATIONS: list[Mutation] = [
         (B + "test_the_median_row_is_the_median_of_the_banks",),
         "the peer line is the median, which one outlier cannot drag",
     ),
+    # ---- (domestic): the column the FDIC actually publishes ---------------
+    Mutation(
+        "filing-ignores-the-domestic-marker", SRC / "sources/fdic/filing.py",
+        "    order = tuple(reversed(PREFIXES)) if domestic else PREFIXES",
+        "    order = PREFIXES",
+        (G + "test_a_domestic_line_resolves_rcon_before_rcfd",),
+        "a line pinned to domestic offices reads the domestic column",
+    ),
+    Mutation(
+        "filing-marks-every-line-domestic", SRC / "sources/fdic/filing.py",
+        '    domestic = "(domestic)" in expr',
+        "    domestic = True",
+        (G + "test_without_the_marker_the_same_line_reads_consolidated",),
+        "only the lines that carry the marker read domestic-first",
+    ),
+    Mutation(
+        "provenance-drops-the-domestic-pin", SRC / "sources/fdic/provenance_seed.py",
+        '"F160+F161 (domestic)"',
+        '"F160+F161"',
+        (G + "test_the_five_real_estate_balances_are_pinned_to_domestic",),
+        "the five real-estate balances stay pinned to the domestic column",
+    ),
     # ---- the tie-out reads the workbook, not a fresh fetch ----------------
     Mutation(
         "workbook-block-read-as-empty", SRC / "engine/workbook.py",

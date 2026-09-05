@@ -217,3 +217,31 @@ carried that 031 alternative; the past-due rows never had it.
 9 cells moved, all on `_provenance` — three MDRM citations and their notes.
 No value moved anywhere: the numbers were right and the citation was wrong,
 which is exactly the failure a tie-out exists to find. 45 of 48 became 48 of 48.
+
+### `fdic-demo.json`, 2026-09-05 (fifth re-bank) — five citations pinned to the domestic column
+
+Tying all twelve banks to their own filed Call Reports returned **18 DIFFERS**:
+every one a real-estate loan balance, every one at a bank with foreign
+real-estate lending (JPMorgan, Citi, Wells, Bank of America, PNC, Goldman), and
+every one with the filed figure larger than the landed one. The domestic column
+matches the landed value to the dollar in all eighteen:
+
+```
+JPMorgan 1-4 family   landed        322,339,000
+                      consolidated  325,722,000   (cited -- wrong column)
+                      domestic      322,339,000   (the FDIC's basis -- matches)
+```
+
+The data was right and the citation was wrong. `RCON`/`RCFD` are a convention
+this template resolves consolidated-first, correct for most lines and wrong for
+these, and there was no way to pin a line to the domestic column. `filing.py`
+now honours a `(domestic)` marker in the map, and the five RC-C real-estate
+balances carry it: `LNRECONS`, `LNRENRES`, `LNREMULT`, `LNRERES`, `LNRELOC`.
+
+It also reverses part of the 4 September fix, honestly: `LNREMULT` was given a
+`(RCFD1460 031)` twin that day, verified against KeyBank — whose consolidated
+and domestic columns happen to be equal. One bank agreed; twelve did not.
+
+29 cells moved, all on `_provenance` — five MDRM citations and their notes. No
+value moved anywhere. **576 of 576 dollar lines across twelve banks now tie,
+0 differ.**

@@ -162,6 +162,9 @@ class Expression:
     primary: List[Term]
     alternative: List[Term] = field(default_factory=list)
     optional: List[Term] = field(default_factory=list)
+    #: "(domestic)" in the map: resolve RCON before RCFD for this line,
+    #: because the FDIC publishes it for domestic offices only.
+    domestic: bool = False
 
 
 def _terms(text: str) -> Optional[List[Term]]:
@@ -193,6 +196,8 @@ def parse_mdrm(expr: str) -> Optional[Expression]:
     a slash, a formula."""
     if not expr:
         return None
+    domestic = "(domestic)" in expr
+    expr = expr.replace("(domestic)", "").strip()
     head, _, rest = expr.partition("(")
     primary = _terms(head.strip())
     if primary is None:
@@ -211,12 +216,16 @@ def parse_mdrm(expr: str) -> Optional[Expression]:
                 optional.extend(opt)
         # "(RCFD2170 031)" -- the same 4 characters under the consolidated
         # prefix, which PREFIXES already tries first. Nothing to add.
-    return Expression(primary, alternative, optional)
+    return Expression(primary, alternative, optional, domestic)
 
 
-def _resolve(facts: Dict[str, int], term: Term) -> Optional[Tuple[int, str]]:
+def _resolve(facts: Dict[str, int], term: Term,
+             domestic: bool = False) -> Optional[Tuple[int, str]]:
+    """A bare term is tried consolidated-first, or domestic-first when the map
+    pins the line to domestic offices with "(domestic)"."""
     sign, token, prefix = term
-    for candidate in ((prefix,) if prefix else PREFIXES):
+    order = tuple(reversed(PREFIXES)) if domestic else PREFIXES
+    for candidate in ((prefix,) if prefix else order):
         code = candidate + token
         if code in facts:
             return sign * facts[code], ("-" if sign < 0 else "+") + code
@@ -235,7 +244,7 @@ def filed_value(facts: Dict[str, int], expression: Expression
         candidates, is_alt = terms
         if not candidates:
             continue
-        resolved = [_resolve(facts, t) for t in candidates]
+        resolved = [_resolve(facts, t, expression.domestic) for t in candidates]
         if any(r is None for r in resolved):
             if is_alt:
                 continue
@@ -243,7 +252,7 @@ def filed_value(facts: Dict[str, int], expression: Expression
         total = sum(v for v, _ in resolved)
         used = [c for _, c in resolved]
         for opt in expression.optional:
-            got = _resolve(facts, opt)
+            got = _resolve(facts, opt, expression.domestic)
             if got:
                 total += got[0]
                 used.append(got[1])
