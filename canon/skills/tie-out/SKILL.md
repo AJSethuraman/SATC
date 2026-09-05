@@ -1,6 +1,6 @@
 ---
 name: tie-out
-description: Prove one figure is right by exhibiting the whole chain that produced it, ending at a source you do not control — the call that was made, what the software did with it, the independent authority, and the two numbers side by side. Written so a skeptic can rerun it by hand and land on the same number. Use when the firm cannot explain how a number is derived, wants a sample of one, wants to prove a figure to an auditor or a client, or asks how do we know this is right.
+description: Prove one figure is right by exhibiting the whole chain that produced it, ending at a source you do not control — the call that was made, what the software did with it, the independent authority, and the two numbers side by side. Written so a skeptic can rerun it by hand and land on the same number, and reporting COULD NOT as a real verdict where no independent source was reachable. Use when the firm cannot explain how a number is derived, wants a sample of one, wants to prove a figure to an auditor or a client, needs to decide whether to trust a feed or a signal built on somebody else's numbers, or asks how do we know this is right.
 ---
 
 # Tie out one number
@@ -83,6 +83,70 @@ cannot be followed without asking you a question, the document is not finished.
 The exhibit is also a template. Done properly, the firm should be able to take it
 and tie out the next figure without you.
 
+## Every link is executed, never described
+
+**A tie-out you did not run is not a tie-out.** It is a plausible document, which
+is worse than no document, because it is indistinguishable from a real one at a
+glance and it is the thing somebody will point at later.
+
+So, without exception:
+
+- **Make the call.** Paste the real response, or the part of it that carries the
+  figure. Not a description of what it would return.
+- **Go and get the source.** Open it. Read the number off it. If it is a page,
+  say what the page said and when you fetched it.
+- **Do the comparison in the document**, with both numbers visible, so a reader
+  is checking your arithmetic rather than your word.
+
+If you describe a step instead of doing it, **say that in the step**, in those
+words. A document where four links were executed and one was assumed is useful.
+A document where that is not marked is a liability.
+
+## "Could not" is a verdict, not a gap
+
+Every figure gets exactly one of three, and the third is not a failure:
+
+| Verdict | Meaning |
+|---|---|
+| **TIED** | executed end to end, and the numbers agree |
+| **DIFFERS** | executed end to end, and they do not — with the difference stated |
+| **COULD NOT** | no independent source was reached, **and here is precisely why** |
+
+`COULD NOT` must name its obstacle, because that is the whole value of it:
+
+- no independent source appears to exist for this figure
+- a source exists but is paywalled, gated, or behind a login the run has no access to
+- the source publishes on a different basis — a different date, definition, unit or period — and reconciling them is a piece of work nobody has done
+- the API does not expose the field the source publishes, so there is nothing to compare
+- **I do not know where the authority for this number is** — which is a real answer and the most useful one to hear early
+
+An agent that reports `COULD NOT` honestly on nine figures out of ten has done
+more for the firm than one that reports ten green. The first is a map of where
+the trust runs out. The second is a document that has to be re-verified by hand,
+which is the work it was supposed to remove.
+
+**Never convert a `COULD NOT` into a `TIED` by lowering the bar.** Reaching for a
+second copy of your own data because the real source was hard to get is the
+mirror again, wearing a hat.
+
+## More than one figure: report the roster
+
+A feed, a dashboard or a signal set is not one number, and the firm's question is
+not "is this figure right" but **"how much of this can I trust, and where does it
+stop."** So one exhibit per figure, and above them a roster — which is the
+deliverable the decision actually gets made from:
+
+```
+Tied out: 14 of 22 figures
+  TIED        14
+  DIFFERS      2   competitor headcount, revenue-per-seat  (see exhibits 7, 11)
+  COULD NOT    6   4 no public source · 1 paywalled · 1 different basis
+```
+
+**Report the denominator** — 14 of 22, never "14 figures tied out". And put
+`DIFFERS` and `COULD NOT` above `TIED`, because the fourteen that agree are not
+what anybody needs to read.
+
 ## What not to do
 
 - **Do not pick the easy number.** Pick the one whose derivation you cannot
@@ -93,6 +157,10 @@ and tie out the next figure without you.
 - **Do not stop at the match.** Record what you had to *know* to make the right
   call — which endpoint, which period convention, which sign. That knowledge is
   the reusable half, and it is invisible once the number agrees.
+- **Do not write a link you did not execute** without marking it as assumed. The
+  only thing worse than a missing tie-out is a convincing one nobody ran.
+- **Do not pad the roster with the easy figures** to lift the ratio. A roster of
+  cheap wins reports a number that is true and a picture that is false.
 
 **Incident:** on 5 September 2026 an agent proposed a new conviction and numbered
 it **C13**. On `main`, C13 was a proposal the firm had already *declined* — and

@@ -234,3 +234,18 @@ def test_the_tie_out_skill_carries_all_five_links():
         assert link in text, f"link missing from the chain: {link}"
     flat = " ".join(text.split())
     assert "is not a derivation" in flat,         "nothing rules out 'then the system computes it'"
+
+
+def test_the_tie_out_skill_refuses_an_unexecuted_link():
+    """The failure this guards is not a wrong number -- it is a document that
+    was never run and reads exactly like one that was. The firm named it: an
+    agent that has not figured out how to tie something out, reporting as
+    though it had."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "A tie-out you did not run is not a tie-out" in flat,         "nothing forbids describing a step instead of doing it"
+    assert "Paste the real response" in flat, "the evidence is not required to be real"
+    for verdict in ("TIED", "DIFFERS", "COULD NOT"):
+        assert verdict in flat, f"verdict missing: {verdict}"
+    assert "I do not know where the authority for this number is" in flat,         "the most useful COULD NOT reason is not offered"
+    assert "Report the denominator" in flat, "a roster with no denominator"
