@@ -79,6 +79,63 @@ the global `STATE`, which the button-walker empties by pressing "Clear sample
 data" — and then refilled, because pressing `/intake/run` and `/staging/post`
 manufactured a `SATC-001000` / 2024 return out of the very defaults being
 removed. It builds its own state now.
+## Saturday 5 September 2026, small hours — the walk, and the two prices
+
+The firm: *"It's time for you to literally use the browser, use all of the
+buttons, go through every screen, make sure everything works, do an example for
+everything… It's okay if this takes a while."*
+
+Walked both applications in Chrome on `walk/2026-09-05` — `main` with #262, #263
+and #267 merged, on the firm's answer that the walk should cover *"the product
+you actually intend"* rather than what happens to be on main. Scratch stores
+throughout; this checkout holds no live client data, and the owner's own
+instances on ports 5050 and 5051 were left alone.
+
+**Denominator: 1,779 + 1,468 = 3,247 passing tests, 0 failing, and not one of
+them is red because of anything below.** Twenty-five defects on the desk and six
+in the engagement browser, in `docs/WALKTHROUGH-DEFECTS.md`.
+
+**The three that matter.** `state.py:363` reads
+`def run_intake(self, folder, *, client_id: str = "SATC-001000", tax_year: int = 2024)`
+— so every document scanned through `/intake` posts to a **hardcoded demo client
+id** and to **tax year 2024**, whatever the preparer meant and whatever year the
+form says. I proved it by scanning two invented W-2s and watching 92,400 + 58,150
+land on a third party's 1040 workpaper. Second: a correction typed into a money
+field that is not a number is silently discarded and the machine's original
+figure posted instead, while the row goes on reading `CONFIRMED · human:owner`.
+Third: `/intake/plan` says *"Pick a client first"*, offers no way to pick one,
+guards only the tax year — and **Generate this engagement** then creates a real
+engagement belonging to nobody, with document requests that survive a sample-data
+clear.
+
+**And the two apps disagree about the price.** Same client, same 2025 Form 1040,
+same ref `2026-0001`: the client's estimate says **$350.00** (Simple Filer $100 +
+extension $75 + sorting $175), the desk's invoice says **$450.00**. #267 retired
+the second price list on the quote path; the **Prices** screen and the invoice
+catalogue still read it, and the invoice screen also shows *"No rate plan
+agreed"* while applying a 60% discount.
+
+**What is good is very good**, and the walk should say so: the gate is real and
+counts honestly (*"11 checks, nothing flagged — 1 check had nothing to look
+at"*), stage→gate→place leaves nothing behind on a refusal, the withholding
+estimator's TY2025 arithmetic ties out to the cent when recomputed
+independently, the engagement-ref control refuses `banana` by name, N/A demands a
+reason, and the Autonomy screen refuses to let a model attest on the owner's
+behalf.
+
+**I was wrong three times and withdrew each** — most instructively about the
+overpayment, which I wrote up twice as a defect before opening `/today` and
+finding the product had already thought it through, down to naming the gap I
+believed I had found. Five of my seven mistakes were caught by opening the thing
+rather than reasoning about it, which is the lesson the walk exists to apply to
+the product.
+
+**The procedure is the other deliverable and the one that gets skipped.**
+`docs/walkthrough/satc-front-to-back-2026-09-05/` — 22 numbered steps, a
+screenshot each, what a correct screen looks like, and a **Careful** note only
+where a step would otherwise walk somebody into one of the faults above. One
+self-contained 19-page PDF with every picture embedded, so it can be handed to
+somebody who does not have the repository.
 
 ---
 
