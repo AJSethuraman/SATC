@@ -264,7 +264,13 @@ def pytest_report_header(config):
 # So it is a repair rather than a check, and is named as one. A check that
 # cannot tell a leak from a correct use is not a check worth having; putting
 # the value back removes the whole class of failure either way.
-_PRINCIPAL_KEYS = ("SATC_ROLE", "SATC_ASSIGNMENT", "SATC_PRINCIPALS")
+# SATC_ENGAGEMENTS joined the list on 5 Sep 2026: it decides where the
+# engagement PRICE is read from, so a test that leaves one set changes what
+# every later quote says a client was charged. A fixture set it directly
+# through os.environ the same afternoon -- the same shape as the SATC_ROLE
+# leak that turned 29 unrelated tests red.
+_PRINCIPAL_KEYS = ("SATC_ROLE", "SATC_ASSIGNMENT", "SATC_PRINCIPALS",
+                   "SATC_ENGAGEMENTS")
 
 
 @pytest.fixture(autouse=True)

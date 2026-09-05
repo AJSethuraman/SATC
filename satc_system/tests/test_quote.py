@@ -57,7 +57,46 @@ def quote(plan_key="", basis="", **answers):
 
 
 def codes(q):
+    """Every service the answers put on this quote, priced here or not.
+
+    **IT USED TO MEAN `q.lines` ALONE, and that stopped being the same thing on
+    5 September 2026.** The firm settled the price that week — the package
+    ladder in `client-documents/registry/fee-schedule.yaml` is the price, and
+    it is read back here through the engagement ref — so this catalogue no
+    longer puts a number on a return, a schedule or a state filing. Those
+    services move to `unpriced`, carrying the same `because` and the same
+    `from_questions` they always did.
+
+    **The identification is the part that never changed**, and it is what most
+    of this file was always testing: say you sold investments, and the quote
+    grows a Schedule D. That is still true. What is no longer true is that this
+    file decides what a Schedule D costs.
+
+    Reading `lines` alone here would have quietly turned a dozen "this work is
+    not on the quote" assertions into tests that pass because NOTHING is ever
+    on `lines` — green, vacuous, and worse than red.
+    """
+    return [item.service_code for item in (*q.lines, *q.unpriced)]
+
+
+def priced_codes(q):
+    """Only what this catalogue put a NUMBER on.
+
+    Empty for every tax service now, and that is the point of the change: the
+    ladder prices the return, and two sources for one figure is the defect this
+    closed. Tests about MONEY use this; tests about WHAT WORK IS ON THE QUOTE
+    use `codes` above.
+    """
     return [line.service_code for line in q.lines]
+
+
+def item(q, code):
+    """The line or unpriced entry for one service, whichever bucket it is in.
+
+    Both carry `because` and `from_questions`; the traceability tests care
+    about those and not about which list holds them.
+    """
+    return next(i for i in (*q.lines, *q.unpriced) if i.service_code == code)
 
 
 # --- an answer puts a line on the quote ---------------------------------------
@@ -89,8 +128,7 @@ def test_two_answers_meaning_the_same_work_bill_it_once():
 # --- every line says which answer put it there --------------------------------
 
 def test_a_line_names_the_answer_that_put_it_there():
-    line = next(l for l in quote(brokerageActivity="yes").lines
-                if l.service_code == "schedule_d")
+    line = item(quote(brokerageActivity="yes"), "schedule_d")
     assert line.because == "you told us about investment sales or digital asset activity"
     assert "brokerageActivity" in line.from_questions
 
@@ -109,7 +147,7 @@ def test_every_conditional_line_is_traceable_to_a_real_question():
 
 
 def test_an_unconditional_line_says_so_rather_than_naming_an_answer():
-    line = next(l for l in quote().lines if l.service_code == "return_1040")
+    line = item(quote(), "return_1040")
     assert line.from_questions == ()
     assert line.because == "this is your federal individual return"
 
@@ -126,42 +164,74 @@ services:
     wf = load_workflow("tiny", tmp_path)
     priced = quote_for(wf, {"soldShares": "yes"}, client_id=CLIENT, tax_year=YEAR,
                        config_root=tmp_path)
-    assert priced.lines[0].because == 'you answered "yes" to "Did you sell shares?"'
+    assert item(priced, "schedule_d").because == 'you answered "yes" to "Did you sell shares?"'
 
 
 # --- the arithmetic -----------------------------------------------------------
 
-def test_the_total_matches_the_catalogue_by_hand():
-    """450.00 federal + 145.00 Schedule D = 595.00, at full rate."""
+def test_this_catalogue_no_longer_totals_a_return():
+    """**IT USED TO SAY 595.00**, hand-checked: 450 federal + 145 Schedule D.
+
+    The firm settled the price on 4-5 September 2026 — the package ladder is
+    the price, and `client-documents` owns the engagement. Two sources for one
+    figure is the defect that closed, and their own procedure had already named
+    what it costs: *"the one the client keeps is the one that says the larger
+    number."*
+
+    So the total here is zero because nothing here is priced, and the work is
+    still every bit as visible. The rates stay in `services.yaml` as the
+    evidence of what the two lists disagreed by.
+    """
     priced = quote(brokerageActivity="yes")
-    assert priced.standard_total == Decimal("595.00")
-    assert priced.discount_total == Decimal("0.00")
-    assert priced.total == Decimal("595.00")
-    assert priced.standard_total == RETURN_1040 + SCHEDULE_D
+    assert codes(priced) == ["return_1040", "schedule_d"], (
+        "the work must still be identified — that half never changed")
+    assert priced_codes(priced) == [], "this catalogue priced a return again"
+    assert priced.total == Decimal("0.00")
+    assert priced.standard_total == Decimal("0.00")
 
 
-def test_a_reduced_plan_shows_the_full_value_and_the_reduction():
-    """595.00 at the household rate: 112.50 off the federal, 36.25 off the
-    Schedule D, so 148.75 off 595.00 leaves 446.25."""
+def test_a_recorded_plan_is_still_recorded_though_it_reduces_nothing_here():
+    """**THE PERCENTAGE PLANS ARE RETIRED, NOT DELETED**, and the distinction
+    matters.
+
+    This used to assert 148.75 off 595.00. It cannot any more: nothing in this
+    catalogue is priced, so there is no full value to take a percentage of.
+
+    **And the sliding scale never lived here anyway.** The firm, 5 September
+    2026: *"when i say college student gets it cheaper, i literally mean hey if
+    you are in college and working that's rough, we have the simple filer deal
+    just for you."* The reduction is the LADDER choosing the cheapest package
+    that covers the client — `pricing.derive_tier`, which returns "the tier
+    that costs this client LEAST" and is measured doing it: a working student
+    with one W-2 is quoted $100, and $150 with a second state.
+
+    `rate_plan_key` was written by nothing but the store's loader and this
+    suite. No route, no form, no command ever set one.
+
+    **What is kept is `requires_basis`** — a reduction must carry a recorded
+    reason — because it is good design whichever file prices anything, and it
+    is what you would want back if the firm ever wants a hardship reduction on
+    top of the cheapest package. The refusal is still asserted below.
+    """
     priced = quote(plan_key="household", basis="Working household, two W-2s",
                    brokerageActivity="yes")
-    assert priced.standard_total == Decimal("595.00")
-    assert priced.discount_total == Decimal("148.75")
-    assert priced.total == Decimal("446.25")
-
-    block = priced.summary_block()
-    assert "Full value of work" in block and "595.00" in block
-    assert "Household rate applied" in block and "25%" in block
-    assert "446.25" in block
+    assert priced.plan.key == "household", "the agreement is still on file"
+    assert priced.plan_is_fallback is False
+    assert priced.total == Decimal("0.00")
+    assert priced.discount_total == Decimal("0.00"), (
+        "a reduction was computed against work this catalogue does not price")
 
 
-def test_a_quantity_multiplies_the_catalogue_rate():
-    """One rental, one out-of-state return: 185.00 + 95.00 = 280.00."""
+def test_a_quantity_is_still_recorded_even_though_nothing_multiplies_it():
+    """It used to be 185.00 + 95.00 = 280.00. The quantity is the part that
+    survives: the engagement needs to know one rental and one out-of-state
+    return as much as this catalogue ever did."""
     wf = load_workflow("personal_rental_schedule_e")
     said = {q.id: "no" for q in wf.questions} | {"outOfStateProperty": "yes"}
     priced = quote_for(wf, said, client_id=CLIENT, tax_year=YEAR)
     assert codes(priced) == ["schedule_e_rental", "return_state"]
-    assert priced.standard_total == SCHEDULE_E + STATE_RETURN == Decimal("280.00")
+    assert priced_codes(priced) == []
+    assert priced.total == Decimal("0.00")
 
 
 # --- the plan is an agreement, or it is not -----------------------------------
@@ -241,12 +311,18 @@ def test_the_quote_refuses_exactly_what_the_invoice_refuses():
         invoice.issue(on=None)
 
 
-def test_a_reduced_plan_with_a_basis_quotes_normally():
-    """The other half of the mutation: the refusal is on the MISSING BASIS, not
-    on the discount. 450.00 less 60% is 180.00, hand-checked."""
+def test_a_plan_with_a_basis_is_accepted_where_one_without_is_refused():
+    """The other half of the mutation, and the half that is KEPT: the refusal
+    is on the MISSING BASIS, not on the discount.
+
+    It used to check 450.00 less 60% = 180.00. There is no 450.00 here now, so
+    what it checks is the rule that survives — a recorded reason is accepted
+    and a missing one is refused, whoever does the arithmetic.
+    """
     priced = quote(plan_key="hardship", basis="Job loss in March, agreed by phone")
-    assert priced.total == Decimal("180.00")
-    assert priced.shows_a_discount
+    assert priced.plan.key == "hardship"
+    assert priced.plan_is_fallback is False
+    assert priced.total == Decimal("0.00")
 
 
 # --- work the catalogue cannot price ------------------------------------------
@@ -258,31 +334,50 @@ def test_hourly_work_is_listed_rather_than_dropped_or_guessed():
     said = {q.id: "no" for q in wf.questions} | {"newBusiness": "yes"}
     priced = quote_for(wf, said, client_id=CLIENT, tax_year=YEAR)
 
-    assert "bookkeeping_cleanup" not in codes(priced)
+    assert "bookkeeping_cleanup" not in priced_codes(priced), (
+        "hourly work was given a number")
     listed = next(u for u in priced.unpriced if u.service_code == "bookkeeping_cleanup")
     assert "hours are not known" in listed.reason
     assert "125.00 an hour" in listed.reason
     assert listed.because == "you started the business this year, so the books need setting up"
     # It is real work, so it is on the page — and it is not in the total.
     assert listed.label in priced.summary_block()
-    assert priced.total == Decimal("275.00")
+    assert priced.total == Decimal("0.00")
+
+    # AND ITS REASON IS STILL ITS OWN. Hourly work is unpriced for a different
+    # reason from a return, and the two must not collapse into one sentence
+    # now that everything lands in the same list.
+    ret = next(u for u in priced.unpriced if u.service_code == "schedule_c")
+    assert "hours are not known" not in ret.reason
+    assert "engagement" in ret.reason
 
 
 def test_an_unknown_quantity_is_shown_rather_than_assumed_to_be_one():
     """Filing in more than one state: no yes/no question can say how many, so
     no line claims to know."""
     priced = quote(stateReturnNeeded="yes", multipleStateReturns="yes")
-    assert "return_state" not in codes(priced)
+    assert "return_state" not in priced_codes(priced)
     listed = next(u for u in priced.unpriced if u.service_code == "return_state")
+    # **THE GAP SURVIVED THE PRICE MOVING, and it nearly did not.** The first
+    # version let `priced_by` win the whole branch, so the moment the
+    # engagement took over the figure, "the interview does not record how many
+    # states" stopped being said at all. That fact is not about who prices it —
+    # the engagement needs the number too, and the interview is where it would
+    # have been asked.
     assert "does not record how many" in listed.reason
-    assert priced.total == RETURN_1040
+    assert priced.total == Decimal("0.00")
 
 
-def test_the_client_sentence_says_what_the_number_leaves_out():
+def test_the_client_sentence_never_reads_as_a_price_of_nothing():
+    """It used to say "an estimate, not a bill" beside a number. There is no
+    number here now, and the sentence must not imply there is one — "$0.00" or
+    a bare silence would both read as free."""
     said = quote(stateReturnNeeded="yes",
                  multipleStateReturns="yes").client_sentence()
-    assert "estimate" in said and "not a bill" in said
     assert "state tax return" in said.lower()
+    assert "$0" not in said and "0.00" not in said, (
+        f"a quote that prices nothing must not show a zero: {said!r}")
+    assert "cannot put a number on this in advance" in said
 
 
 # --- a warning every client gets is a warning nobody reads (principle 13) ------
@@ -291,23 +386,33 @@ def test_the_state_return_warning_can_be_cleared_by_an_answer():
     """It used to be on every 1040 quote ever produced, because the interview
     recorded nothing about states — so it taught the owner to scroll past the
     one place the quote says "this number is not the whole number"."""
+    # **THE PRINCIPLE HAD TO BE RESTATED, not just the assertion.** It used to
+    # be "an unpriced entry is a warning, so a client with one ordinary state
+    # must not get one". Every service is unpriced now, so being on that list
+    # is no longer a warning at all — it is just the quote. What still
+    # distinguishes them is the REASON, and that is what is asserted.
     one_state = quote(stateReturnNeeded="yes", multipleStateReturns="no")
-    assert one_state.unpriced == (), "one state is a priced state, not a warning"
+    listed = next(u for u in one_state.unpriced if u.service_code == "return_state")
+    assert "does not record how many" not in listed.reason, (
+        "one state is a known state — warning about the count teaches the "
+        "owner to scroll past the one place the quote says something is unknown")
 
     no_state = quote(stateReturnNeeded="no", multipleStateReturns="no")
-    assert no_state.unpriced == () and "return_state" not in codes(no_state), (
+    assert "return_state" not in codes(no_state), (
         "somebody in a state with no income tax files no state return, and a "
-        "quote that warns about one is warning about work nobody will do")
+        "quote that mentions one is talking about work nobody will do")
 
 
-def test_one_state_return_is_priced_rather_than_warned_about():
-    """450.00 federal + 95.00 for the one state = 545.00, hand-checked."""
+def test_one_state_return_is_a_known_quantity_rather_than_a_warning():
+    """It used to be 450.00 + 95.00 = 545.00, hand-checked. The money moved to
+    the engagement; the FACT — one state, known, traceable to the answer that
+    said so — is what this test was always really protecting."""
     priced = quote(stateReturnNeeded="yes", multipleStateReturns="no")
     assert codes(priced) == ["return_1040", "return_state"]
-    assert priced.standard_total == RETURN_1040 + STATE_RETURN == Decimal("545.00")
-    line = next(l for l in priced.lines if l.service_code == "return_state")
-    assert line.quantity == 1
-    assert line.because == "you file one state return alongside the federal one"
+    assert priced_codes(priced) == []
+    listed = item(priced, "return_state")
+    assert listed.because == "you file one state return alongside the federal one"
+    assert "does not record how many" not in listed.reason
 
 
 def test_the_state_return_is_never_quoted_twice():
@@ -322,14 +427,19 @@ def test_the_state_return_is_never_quoted_twice():
             assert named.count("return_state") <= 1, (needed, many)
 
 
-def test_a_1040_quote_can_be_a_whole_number_the_letter_may_state():
-    """The engagement letter states a bare fee only when the total is the WHOLE
-    price. While every 1040 carried an unpriceable state return, that was never
-    true of any of them — so no 1040 letter could ever carry a fee."""
+def test_no_1040_letter_takes_its_fee_from_this_catalogue_any_more():
+    """It used to check that a 1040 could reach a WHOLE price here — 545.00 —
+    so the engagement letter could state a bare fee.
+
+    **No letter may take a fee from this file now.** The figure a client is
+    quoted comes from the engagement, and a letter stating one from here would
+    be the second source all over again — printed, and in the client's hands.
+    """
     priced = quote(plan_key="standard", stateReturnNeeded="yes",
                    multipleStateReturns="no")
-    assert priced.unpriced == ()
-    assert priced.total == Decimal("545.00")
+    assert priced.total == Decimal("0.00")
+    assert priced.unpriced, "the work vanished instead of moving"
+    assert not priced.lines, "this catalogue produced a fee a letter could state"
 
 
 def test_an_entirely_hourly_engagement_is_not_quoted_as_zero():
@@ -436,7 +546,9 @@ services:
     after = quote_for(load_workflow("tiny", tmp_path), {"soldShares": "yes"},
                       client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
     assert codes(after) == ["return_1040", "schedule_d"]
-    assert after.standard_total == Decimal("595.00")
+    # The claim is that a branch is a CONFIG EDIT — the service appears because
+    # the YAML changed. What it costs is the engagement's business.
+    assert priced_codes(after) == []
 
 
 def test_every_service_priced_by_every_workflow_exists_in_the_catalogue():
@@ -513,14 +625,19 @@ def test_a_fixed_price_service_cannot_be_quoted_at_an_unknown_quantity(tmp_path)
                   tax_year=YEAR, config_root=tmp_path)
 
 
-def test_a_per_form_service_still_multiplies(tmp_path):
-    """The mutation in the other direction: the guard is about the UNIT, not
-    about quantities. Two state returns are 190.00 and always were."""
-    _write_workflow(tmp_path, "services:\n  - service: return_state\n"
-                              "    quantity: 2\n")
+def test_a_per_form_quantity_is_still_carried_though_it_multiplies_nothing(tmp_path):
+    """It used to check two state returns came to 190.00. The quantity is the
+    part that had to survive -- the engagement prices two states differently
+    from one, so the interview still has to say which."""
+    _write_workflow(tmp_path, "services:" + chr(10) + "  - service: return_state"
+                              + chr(10) + "    quantity: 2" + chr(10))
     priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
                        tax_year=YEAR, config_root=tmp_path)
-    assert priced.total == STATE_RETURN * 2 == Decimal("190.00")
+    assert codes(priced) == ["return_state"]
+    assert priced.total == Decimal("0.00")
+    listed = item(priced, "return_state")
+    assert "does not record how many" not in listed.reason, (
+        "the quantity was given as 2, so nothing about it is unknown")
 
 
 # --- silence is not an answer -------------------------------------------------
@@ -537,7 +654,7 @@ services:
     priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
                        tax_year=YEAR, config_root=tmp_path)
 
-    assert codes(priced) == [], "silence must not become money"
+    assert priced_codes(priced) == [], "silence must not become money"
     assert priced.total == Decimal("0.00")
     assert 'answered ""' not in priced.summary_block()
     assert '""' not in priced.client_sentence()
@@ -564,7 +681,7 @@ services:
     assert listed.because == "nothing on file yet says whether this applies"
 
 
-def test_an_answered_question_still_prices_the_line(tmp_path):
+def test_an_answered_question_still_puts_the_work_on_the_quote(tmp_path):
     """The mutation: the rule is about SILENCE, not about `not_equals`. An
     explicit "yes" through the same gate is money, exactly as before."""
     _write_workflow(tmp_path, """
@@ -576,7 +693,8 @@ services:
     priced = quote_for(load_workflow("tiny", tmp_path), {"soldShares": "yes"},
                        client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
     assert codes(priced) == ["schedule_d"]
-    assert priced.total == SCHEDULE_D
+    assert item(priced, "schedule_d").because == "you told us you sold shares"
+    assert priced.total == Decimal("0.00")
 
 
 def test_one_answered_branch_of_an_any_still_prices_and_says_only_what_was_said(tmp_path):
@@ -603,7 +721,7 @@ def test_one_answered_branch_of_an_any_still_prices_and_says_only_what_was_said(
     priced = quote_for(load_workflow("tiny", tmp_path), {"soldShares": "yes"},
                        client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
     assert codes(priced) == ["schedule_d"], "a real answer is still real money"
-    assert priced.lines[0].because == 'you answered "yes" to "Did you sell shares?"'
+    assert item(priced, "schedule_d").because == 'you answered "yes" to "Did you sell shares?"'
     assert '""' not in priced.summary_block()
     assert '""' not in priced.client_sentence()
 
@@ -698,7 +816,12 @@ def test_the_line_order_follows_the_config_not_the_answers():
                     client_id=CLIENT, tax_year=YEAR)
     two = quote_for(wf, {"brokerageActivity": "yes", "digitalAssets": "no"},
                     client_id=CLIENT, tax_year=YEAR)
-    assert codes(one) == codes(two) == ["return_1040", "schedule_d"]
+    # `return_state` joins the list because an unanswered state question is
+    # now VISIBLE rather than silently absent -- it is on the quote with the
+    # reason "we cannot tell whether this applies". The claim under test is
+    # unchanged: the order is the config's, not the answers'.
+    assert codes(one) == codes(two) == ["return_1040", "return_state",
+                                        "schedule_d"]
 
 
 # --- helpers ------------------------------------------------------------------
