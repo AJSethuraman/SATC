@@ -12,7 +12,14 @@
 <div class="cards">
   <div class="card accent"><div class="n">{{ received }}/{{ total_requests }}</div><div class="l">Requests received</div></div>
   <div class="card"><div class="n">{{ done_count }}/{{ eng.tasks | length }}</div><div class="l">Tasks complete</div></div>
-  <div class="card{{ ' alert' if eng.risk_flags }}"><div class="n">{{ eng.risk_flags | length }}</div><div class="l">Risk flags</div></div>
+  {# "0 Risk flags" used to be the same number whether the risk questions had
+     been answered No or never asked at all -- and with every question
+     pre-selected No, it was a green that could not go red. The tile says which
+     it is now. #}
+  <div class="card{{ ' alert' if eng.risk_flags or risk_unanswered }}">
+    <div class="n">{{ eng.risk_flags | length }}</div>
+    <div class="l">Risk flags{% if risk_unanswered %} · {{ risk_unanswered | length }} not asked{% endif %}</div>
+  </div>
 </div>
 
 {% if refused %}
@@ -46,13 +53,21 @@
   </div>
 </div>
 
-{% if eng.risk_flags %}
+{% if eng.risk_flags or risk_unanswered %}
 <div class="panel">
   <h2>Risk flags</h2>
   <div class="body">
     {% for flag in eng.risk_flags %}
     <span class="badge b-Requested" style="margin:0 6px 6px 0">{{ flag }}</span>
     {% endfor %}
+    {% if risk_unanswered %}
+    <p class="note flag" style="margin-top:{{ '10px' if eng.risk_flags else '0' }}">
+      {{ risk_unanswered | length }} risk question{{ 's' if risk_unanswered | length != 1 }} on this
+      interview {{ 'were' if risk_unanswered | length != 1 else 'was' }} not answered, so a count of
+      {{ eng.risk_flags | length }} is not a clean bill of health:
+      {% for label in risk_unanswered %}<strong>{{ label }}</strong>{% if not loop.last %}; {% endif %}{% endfor %}.
+    </p>
+    {% endif %}
   </div>
 </div>
 {% endif %}
