@@ -210,6 +210,23 @@ def test_the_walk_skill_demands_both_documents():
     assert "docs/PROCEDURE-" in flat and "docs/WALKTHROUGH-DEFECTS.md" in flat,         "the two documents are not named where they go"
 
 
+def test_the_walk_procedure_arrives_as_one_document():
+    """The procedure was correct and unforwardable: a Markdown file whose every
+    picture was a path that resolves only on the machine that wrote it. The firm
+    named this skill and `tie-out` together on 5 September 2026. If the file
+    stops saying the deliverable is one self-contained thing, the next walk
+    hands over a folder again and it will read as compliance."""
+    flat = " ".join((CANON / "skills" / "walk" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "single self-contained file" in flat, \
+        "the procedure may still be handed over as a note plus a folder"
+    assert "embedded in it" in flat, "the screenshots may still be linked by path"
+    assert "a picture of the route" in flat, \
+        "the procedure need not show the shape of the job before step 1"
+    assert "The defects document stays separate" in flat, \
+        "the two documents may be merged back into one"
+
+
 def test_the_tie_out_skill_keeps_the_source_independent():
     """The whole skill is one rule -- a number confirmed by your own system is
     confirmed by nothing. Everything else is procedure around it. If that rule
@@ -265,3 +282,71 @@ def test_the_tie_out_skill_makes_you_look_at_the_source():
     for same in ("the same entity", "the same date or period", "the same basis",
                  "the same units and scale"):
         assert same in flat, f"the four sameness checks are incomplete: {same}"
+
+
+def test_the_tie_out_deliverable_is_one_document_that_shows_the_mechanism():
+    """The first exhibit executed all five links and was still unusable: a
+    Markdown note with six loose files beside it. The firm, 5 September 2026 --
+    "i assumed that you understood the final product of tie out and walk would
+    basically be a PDF". The shape is the requirement, not a presentation
+    preference, so it is pinned here."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "single self-contained file" in flat, \
+        "the exhibit may still be handed over as a note plus a folder"
+    assert "embedded in it" in flat, "the images may still be referenced by path"
+    assert "travelling **two roads**" in flat, \
+        "nothing requires the diagram of how the fact reaches the screen twice"
+    assert "before reading a word" in flat, \
+        "the mechanism need not be visible ahead of the prose"
+    assert "How to run it yourself" in flat, \
+        "the reader is not given a way to reproduce it without the author"
+    assert "What it found" in flat, \
+        "what running it changed is not a section of the document"
+
+
+def test_the_tie_out_ours_side_is_read_from_the_artifact():
+    """The failure that got past a finished exhibit. A roster reported 53 of 53
+    tied against a filing, in a column labelled "landed", where every value had
+    been re-fetched from the provider's API and the workbook was never opened.
+    It proved provider = filing. The firm, 5 September 2026: "your doc here needs
+    to prove the external source to your workbook values not what you said
+    landed. that's the standard." """
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "the artifact the reader opens" in flat, \
+        "the ours side may still be an intermediate"
+    assert "which artifact you opened and how you read the value out of it" in flat, \
+        "the exhibit need not say what it read the figure from"
+    assert "upstream of the artifact" in flat, \
+        "checking the source against an intermediate is not ruled out"
+    assert "every hop it did not execute is assumed" in flat, \
+        "an unexecuted hop may still pass as proved"
+
+
+def test_the_tie_out_skill_marks_and_enlarges_the_source():
+    """A captured page satisfies "screenshot the source" and still leaves the
+    reader hunting a row on a dense regulatory form. Marking and enlarging is
+    what makes the check take a glance, and a check that takes work does not
+    happen."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Mark it, and enlarge it" in flat, \
+        "the capture may still be an unmarked page"
+    assert "zoomed crop of that row" in flat, "no enlargement of the located row"
+    assert "same shot as the number" in flat, \
+        "entity, form and period may still be taken on trust"
+    assert "Read every figure twice" in flat, \
+        "a second rendering of the same source is not read"
+
+
+def test_the_tie_out_skill_attacks_a_could_not_before_recording_it():
+    """Five COULD NOTs, each with a true obstacle named, all five of which
+    closed on one pass of being pushed. Naming an obstacle is not testing it,
+    and this skill previously accepted the name as the verdict."""
+    flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "hypothesis about the source" in flat, \
+        "a COULD NOT may still be recorded on a described obstacle"
+    assert "ask what it would take to get past it, and try that" in flat, \
+        "nothing says to attempt the obstacle before recording the verdict"
