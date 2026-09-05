@@ -78,7 +78,8 @@ def test_the_interview_covers_every_field_the_record_requires():
         for kind, cls in (("source", record.Source), ("problem", record.Problem))
         for f in fields(cls)
         if f.default is MISSING and f.default_factory is MISSING
-    } | {"desk.name", "subject.title", "subject.fires_on"}
+    } | {"desk.name", "subject.title", "subject.fires_on",
+         "subject.answered_from"}
 
     asked = {r for q in factory.QUESTIONS for r in q.records}
     assert not (required - asked), (

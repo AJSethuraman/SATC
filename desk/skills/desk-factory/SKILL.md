@@ -51,6 +51,16 @@ clean and mentions reconciliation and outstanding checks zero times, so it was
 left out. Authority that does not bear on the question is padding that reads as
 rigour.
 
+**Every subject names the source that answers it.** `SUBJECTS.md` is written as
+`**Answered from S2:** cash, bank, bank statement, ...` — one line per source —
+and `fires_on` is the union, so there is no second list to keep in step. This is
+not bookkeeping: it is the only thing that lets the engine tell a *right*
+citation from a merely *real* one. Without it, `serve()` handed a caller four
+bank-reconciliation answers citing a CFR paragraph about accounting records,
+stamped `tier='primary'` (#266). Ask it per subject, not per desk — on the cash
+desk the section number routes to the regulation and everything else to the
+publication.
+
 **Research the source before asking about it, never ask the firm to recall it.**
 Tier, access and the licence are facts about a document. Go and read the
 document's own terms and bring the finding back as the basis for the question —

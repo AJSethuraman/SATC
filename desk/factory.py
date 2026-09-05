@@ -80,15 +80,27 @@ QUESTIONS: tuple[Question, ...] = (
     ),
     Question(
         id="Q2",
-        asks="Which words in a question mean it belongs to this desk? List the "
-             "inflections you actually expect, not the stems.",
+        asks="Which words in a question mean it belongs to this desk -- and for "
+             "each of them, WHICH SOURCE answers it? List the inflections you "
+             "actually expect, not the stems.",
         records=("subject.fires_on", "subject.answered_from"),
-        why="Routing matches whole words only, so it under-fires on purpose: "
+        why="Two things, and the second was learned the hard way.\n\n"
+            "Routing matches whole words only, so it under-fires on purpose: "
             "`defer` does not fire on `deferring`, and substring matching once "
             "made *extension* fire on *extensive*. fixed-assets lists capitalize, "
             "capitalise, capitalized, capitalised and capitalization separately "
             "for that reason. Loosening the rule is what teaches somebody to stop "
-            "reading the output.",
+            "reading the output.\n\n"
+            "AND EVERY SUBJECT NAMES THE SOURCE THAT ANSWERS IT, because without "
+            "that nothing exact can tell a right citation from a merely real "
+            "one. A desk recorded its sources and its subjects and never which "
+            "answers which, so when qwen3:8b answered four bank-reconciliation "
+            "questions by citing a CFR paragraph about accounting records, "
+            "`serve()` handed all four to the caller stamped `tier='primary'` "
+            "(#266). Word overlap was measured in its place and either refused a "
+            "quarter of the working desk's own correct answers or missed the "
+            "case entirely. The mapping is a fact the firm declares; the union "
+            "of its lists is what routing fires on, so nothing can drift.",
     ),
     Question(
         id="Q3",
