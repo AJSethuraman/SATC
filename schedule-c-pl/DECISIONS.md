@@ -154,8 +154,22 @@ the first thing a sole trader actually wants to know, and it would make the tool
 markedly more useful. I left it out for one reason: getting it right needs their
 W-2 wages to apply the Social Security wage base, and a figure that is right for
 most people and quietly wrong for anyone with a day job is worse than no figure
-on a page with your name on it. **It is the strongest v2 candidate, and the
-natural place to put "this is where it stops being arithmetic — talk to us."**
+on a page with your name on it.
+
+**I argued it was the strongest v2 candidate. On 6 September 2026 the firm
+overruled that, and the reason is worth more than the recommendation was:**
+
+> *"It is not my concern to fill out a form for them. This is already helpful
+> when free and I would expect them to pay us if they wanted to take it to that
+> step themselves through our own work."*
+
+So it is not a gap waiting to be filled in a later version. **The refusal is
+the offer.** The free tool sorts a person's own figures; it does not carry them
+to the answer they would otherwise pay for. Where the next step is the firm's
+work, the tool stops and says so — and saying so is the handoff, not a
+shortcoming in it. That reasoning is not about this tool: it applies to
+anything free the practice publishes, which is why it went to `bassy` as a
+candidate conviction rather than being filed here as a scoping note.
 
 ### The thing that would have been a silent bug
 
