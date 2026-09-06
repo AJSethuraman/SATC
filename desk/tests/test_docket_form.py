@@ -137,3 +137,10 @@ def test_every_row_has_somewhere_to_put_an_answer(counted):
         assert row["picks"], "%s has no answer to give" % row["key"]
         assert "Not yet" in row["picks"], \
             "%s cannot be deferred, so silence would have to stand for it" % row["key"]
+def test_the_browser_tab_carries_the_same_count_as_the_page(page, independent):
+    """The <title> read "Docket · Nine Open" on a page whose headline said
+    thirteen, and it shipped: the tab is the artifact's name in the gallery, and
+    every test above reads the BODY. A figure is a figure wherever it is
+    printed."""
+    n = independent["n"]
+    assert "<title>Docket \u00b7 %s Open</title>" % df._word(n).capitalize() in page

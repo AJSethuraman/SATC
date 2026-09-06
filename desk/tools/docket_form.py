@@ -150,24 +150,39 @@ OTHERS = [
   "picks": ["Mark the omission", "Store it whole", "Not yet"]},
 
  {"key": "dec-cd-fix", "new": True, "group": "Housekeeping", "tag": "main is red",
-  "title": "Two tests on main cannot import what they test. Shall I fix them?",
-  "position": "Open a small branch against main with the three-line fix.",
-  "context": "<code>pytest (client-documents)</code> now fails on every branch, "
-             "including this one, and it is not this branch's: two test files added "
-             "to main import <code>pricing</code> and <code>merge</code> without "
-             "the <code>sys.path</code> line that <b>twelve</b> of their siblings "
-             "have. Reproduced on main's own tree with CI's exact command.<br><br>"
-             "Not pushed here, because carrying an unrelated fix inside a desk PR "
-             "puts it under the wrong review.",
-  "either": [("Let me open the branch",
-              "Three lines — or one root conftest.py that stops the next new test "
-              "file hitting the same thing. main goes green for everybody."),
+  "title": "main's own tests have not run since yesterday evening. One line fixes it — shall I?",
+  "position": "Add one line to <code>client-documents/pytest.ini</code> on a branch off main.",
+  "context": "This is worse than it looked when I first wrote it up. <b>main itself "
+             "is red</b>, not just this branch: on main's own run for #294, "
+             "<code>pytest (client-documents)</code> is the only one of seven jobs "
+             "failing. The five most recent pushes to main are all red the same way; "
+             "the first failing file arrived in #288, at 16:59 yesterday.<br><br>"
+             "And it is not <i>“two tests failing”</i>. The run stops at collection — "
+             "<code>Interrupted: 2 errors during collection</code>, 2.86 seconds, "
+             "nothing executed. <b>The whole client-documents suite has not run in CI "
+             "since #288 landed.</b> Five merges have gone in on top of a check that "
+             "is not checking anything.<br><br>"
+             "<b>Why nobody noticed.</b> The session doing that work runs "
+             "<code>python -m pytest</code>, which puts the project folder on the "
+             "import path, and it passes — its commit messages say <i>“0 failing”</i> "
+             "and they are telling the truth about what they ran. CI runs bare "
+             "<code>pytest -q</code>, which does not. <code>pytest.ini</code>'s own "
+             "comment says <i>“that is what CI runs”</i> about the first one. It is "
+             "not, and that mistaken sentence is the whole bug.",
+  "either": [("Let me add the line",
+              "<code>pythonpath = .</code> in <code>client-documents/pytest.ini</code>. "
+              "I ran it on main's tree: both files import cleanly afterwards. It is "
+              "better than the three-line patch I proposed last night because it also "
+              "fixes every test file written after this one, and it makes "
+              "<code>pytest.ini</code>'s claim about CI true instead of false."),
              ("Leave it to whoever owns client-documents",
-              "It is their area and they may be mid-change. main stays red "
-              "meanwhile, which hides the next real failure.")],
-  "rec": "Let me open it. Three lines, matching a convention already in twelve "
-         "files, and a red base branch hides the next real failure from everyone.",
-  "picks": ["Open the branch", "Leave it to them", "Not yet"]},
+              "It is their area and they are mid-change in it. main stays red "
+              "meanwhile, ~1,500 tests keep not running, and the next real failure "
+              "there arrives invisible.")],
+  "rec": "Let me add it. One line, in another project's config and nothing else, "
+         "verified against main's tree — and every hour it waits is another merge "
+         "onto a suite nobody is actually running.",
+  "picks": ["Add the line", "Leave it to them", "Not yet"]},
 
  {"key": "dec-override", "group": "How positions work", "tag": "Blocks 1 position",
   "title": "Can a position be the firm's default and still be overridden for one client?",
@@ -446,8 +461,9 @@ def render() -> str:
                  else "Every one"}
     lede = ("%s of them are positions to approve or reject. %s are choices no rule "
             "settles." % (_word(c["pos"]).capitalize(), _word(c["dec"]).capitalize()))
-    return _PAGE % (_CSS, DATE, headline, lede, preface, c["n"], c["n"], c["pos"],
-                    c["dec"], _blocks(c), json.dumps(c["rows"]), _JS)
+    return _PAGE % (_word(c["n"]).capitalize(), _CSS, DATE, headline, lede,
+                    preface, c["n"], c["n"], c["pos"], c["dec"], _blocks(c),
+                    json.dumps(c["rows"]), _JS)
 
 
 def _blocks(c) -> str:
@@ -574,7 +590,7 @@ code.pr{background:var(--soft);padding:.1rem .35rem;color:var(--ink);font-weight
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 """
 
-_PAGE = """<title>Docket · Nine Open</title>
+_PAGE = """<title>Docket · %s Open</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap">
