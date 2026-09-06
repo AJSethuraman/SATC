@@ -215,6 +215,33 @@ def _ensure_schema():
     # constraint, safe_exec rolls the whole statement back, and exactly one set
     # survives. The NOT IN stays so the ordinary re-boot is a no-op rather than
     # a caught exception.
+    # THIS RUNS BEFORE THE LEDGER BACKFILL BELOW, AND THE ORDER IS THE POINT.
+    # It fills the idempotency key for invoices credited from a Stripe session
+    # before that column existed, so a post-deploy webhook retry of the same
+    # session is not counted twice.
+    #
+    # It used to run a hundred lines further down, after the ledger backfill,
+    # and on one upgrade path that was wrong in a way that costs money.
+    # Upgrading from a schema with no `paid_session_ids` at all, the ALTER adds
+    # it as NULL; the ledger backfill then read that NULL, found no
+    # provenance, and wrote a card payment as a REVERSIBLE 'migrated' entry;
+    # only afterwards did this statement fill the column in. "Mark as unpaid"
+    # could then erase money Stripe had confirmed, and `has_credited` — reading
+    # the column this had by then populated — refused the webhook replay that
+    # would have restored it. That is the D-2 bug the ledger was built to
+    # remove, back again through a second door.
+    #
+    # Idempotent: it only fills blanks. Raised by Codex on PR #289, round ten.
+    if column_exists("invoices", "paid_session_ids"):
+        safe_exec(
+            [
+                "UPDATE invoices SET paid_session_ids = stripe_session_id "
+                "WHERE stripe_session_id IS NOT NULL "
+                "AND (paid_session_ids IS NULL OR paid_session_ids = '') "
+                "AND (status = 'Paid' OR amount_paid > 0)"
+            ]
+        )
+
     safe_exec([
         "INSERT INTO payments "
         "(invoice_id, amount, currency, source, external_id, note, created_at) "
@@ -275,19 +302,9 @@ def _ensure_schema():
     ]:
         if not column_exists("users", col):
             safe_exec([ddl])
-    # Backfill the idempotency key for invoices already credited from a Stripe
-    # session before this column existed, so a post-deploy webhook retry of
-    # that same session isn't counted again. Idempotent (only fills blanks);
-    # kept separate so a failure can't roll back the grandfather updates.
-    if column_exists("invoices", "paid_session_ids"):
-        safe_exec(
-            [
-                "UPDATE invoices SET paid_session_ids = stripe_session_id "
-                "WHERE stripe_session_id IS NOT NULL "
-                "AND (paid_session_ids IS NULL OR paid_session_ids = '') "
-                "AND (status = 'Paid' OR amount_paid > 0)"
-            ]
-        )
+    # (The `paid_session_ids` backfill that used to sit here now runs BEFORE
+    # the ledger backfill above, because the ledger reads it. See the comment
+    # there.)
 
     # Grandfather any pre-existing accounts regardless of which worker added
     # the columns (idempotent; only touches rows left NULL by ALTER). This is
@@ -884,6 +901,29 @@ def _serializer():
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
+def safe_next(raw, fallback):
+    """A same-site path to return to, or the fallback.
+
+    "starts with /" alone is not enough: "//evil.example.com/x" is a
+    protocol-relative URL, so the browser leaves the site entirely, and
+    "/\\evil.example.com" is treated the same way by some browsers. A phishing
+    link to /login?next=//evil.example.com lands the user on an attacker's page
+    immediately after a successful sign-in, which is exactly when they are
+    primed to trust it.
+
+    It lived inside `login` until signup needed it too. Guarded by
+    tests/test_scenarios.py::test_login_next_parameter_cannot_redirect_off_site.
+    """
+    if (
+        not raw
+        or not raw.startswith("/")
+        or raw.startswith("//")
+        or raw.startswith("/\\")
+    ):
+        return fallback
+    return raw
+
+
 def can_pay_online(invoice):
     """Whether pressing a pay button on this invoice could actually work.
 
@@ -994,8 +1034,18 @@ def register_routes(app):
     @app.route("/signup", methods=["GET", "POST"])
     @limiter.limit("10 per hour", methods=["POST"])
     def signup():
+        # WHERE THEY WERE GOING. The signed-out generator sends people here
+        # with `?next=/generator`, because the invoice they have just typed is
+        # in that browser and the page there offers to bring it over. The form
+        # posted to a bare `/signup` and this route always redirected to
+        # `/account`, so the parameter was dropped twice and the offer was
+        # never reached down the advertised path — the draft simply sat there,
+        # with nothing in the signed-in navigation leading back to it either.
+        # Raised by Codex on PR #289, round ten, and by the walkthrough of
+        # 6 September (defect 7).
+        nxt = safe_next(request.args.get("next"), "")
         if current_user.is_authenticated:
-            return redirect(url_for("history"))
+            return redirect(nxt or url_for("history"))
         if request.method == "POST":
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
@@ -1014,7 +1064,8 @@ def register_routes(app):
                 for e in errors:
                     flash(e, "error")
                 return render_template(
-                    "signup.html", email=email, business_name=business_name
+                    "signup.html", email=email,
+                    business_name=business_name, next_url=nxt,
                 ), 400
 
             user = User(email=email)
@@ -1040,13 +1091,19 @@ def register_routes(app):
                     db.session.commit()
                     login_user(user)
                     flash("Welcome! Your account is ready.", "success")
-                    return redirect(url_for("history"))
-                return redirect(url_for("login"))
+                    return redirect(nxt or url_for("history"))
+                # They have to confirm their address first, so the last hop is
+                # the login form — carry the destination to it rather than
+                # putting a redirect target inside an email.
+                return redirect(url_for("login", next=nxt) if nxt
+                                else url_for("login"))
 
             login_user(user)
             flash("Welcome! Your account is ready.", "success")
-            return redirect(url_for("account"))
-        return render_template("signup.html", email="", business_name="")
+            return redirect(nxt or url_for("account"))
+        return render_template(
+            "signup.html", email="", business_name="", next_url=nxt
+        )
 
     @app.route("/login", methods=["GET", "POST"])
     @limiter.limit("10 per minute;50 per hour", methods=["POST"])
@@ -1070,24 +1127,9 @@ def register_routes(app):
                     "login.html", email=email, unverified=True
                 ), 403
             login_user(user, remember=bool(request.form.get("remember")))
-            nxt = request.args.get("next")
-            # "starts with /" alone is not enough: "//evil.example.com/x" is a
-            # protocol-relative URL, so the browser leaves the site entirely.
-            # "/\evil.example.com" is treated the same way by some browsers.
-            # A phishing link to /login?next=//evil.example.com lands the user
-            # on an attacker's page immediately after a successful sign-in,
-            # which is exactly when they are primed to trust it.
-            #
-            # Caught by tests/test_scenarios.py::
-            #   test_login_next_parameter_cannot_redirect_off_site
-            if (
-                not nxt
-                or not nxt.startswith("/")
-                or nxt.startswith("//")
-                or nxt.startswith("/\\")
-            ):
-                nxt = url_for("history")
-            return redirect(nxt)
+            return redirect(
+                safe_next(request.args.get("next"), url_for("history"))
+            )
         return render_template("login.html", email="")
 
     @app.route("/logout", methods=["POST"])

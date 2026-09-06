@@ -616,3 +616,48 @@ def test_the_backfill_still_marks_unattributed_money_as_migrated(app, owner):
         assert inv.payments[0].source == "migrated"
         assert inv.manual_paid == 250.0
         assert inv.reverse_manual_payments() == 250.0
+
+
+def test_the_backfill_reads_the_session_id_before_it_classifies(app, owner):
+    """The D-2 bug's second door: the direct upgrade from a schema that never
+    had `paid_session_ids` at all.
+
+    `_ensure_schema` adds that column as NULL. The ledger backfill used to read
+    it right then, find no provenance, and write a card payment as a reversible
+    'migrated' entry — and only afterwards did a separate statement copy
+    `stripe_session_id` into it. So "mark as unpaid" could erase money Stripe
+    had confirmed, while `has_credited`, reading the column by then populated,
+    refused the webhook replay that would have restored it.
+
+    The populate now runs first. This test pins the order, because the
+    correctness of the backfill depends on it and nothing else would notice a
+    reordering. Raised by Codex on PR #289, round ten.
+    """
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        # the pre-ledger shape: a Checkout session, money against it, and the
+        # idempotency column never written because it did not exist yet
+        inv.amount_paid = 650.0
+        inv.status = "Paid"
+        inv.stripe_session_id = "cs_from_before_the_column"
+        inv.paid_session_ids = None
+        db.session.commit()
+        invoice_id = inv.id
+
+        _ensure_schema()
+
+        inv = db.session.get(Invoice, invoice_id)
+        assert len(inv.payments) == 1
+        assert inv.payments[0].source == "stripe", (
+            "a confirmed card payment was written as reversible because the "
+            "ledger read the session id before anything had filled it in"
+        )
+        assert inv.confirmed_paid == 650.0
+        assert inv.manual_paid == 0.0
+        assert inv.reverse_manual_payments() == 0.0
+        assert inv.amount_paid == 650.0
+        # and the idempotency key is there, so a webhook replay is a no-op
+        assert inv.has_credited("cs_from_before_the_column")

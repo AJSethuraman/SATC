@@ -567,3 +567,57 @@ def test_no_draft_moves_into_an_account_without_somebody_saying_so(
     # and an anonymous viewer is never offered anything, so the anonymous key
     # is simply theirs
     assert "offer-yes" not in signed_out or 'hidden' in signed_out
+
+
+def test_signing_up_from_the_editor_comes_back_to_the_editor(app, anon):
+    """The signed-out generator sends people to signup with `?next=/generator`
+    because the invoice they just typed is in that browser and the page there
+    offers to bring it over. The form posted to a bare `/signup` and the route
+    always redirected to `/account`, so the parameter was dropped twice and the
+    offer was never reached down the advertised path.
+
+    Raised by Codex on PR #289, round ten, and by the walkthrough (defect 7).
+    """
+    page = anon.get("/generator").get_data(as_text=True)
+    assert "/signup?next=%2Fgenerator" in page or "next=/generator" in page
+
+    form_page = anon.get("/signup?next=/generator").get_data(as_text=True)
+    assert "next=%2Fgenerator" in form_page or "next=/generator" in form_page, (
+        "the form drops the return target, so posting it loses the draft"
+    )
+
+    r = anon.post(
+        "/signup?next=/generator",
+        data={
+            "email": "kwame.adjei@bramblefinch.example",
+            "password": "correct-horse-staple",
+            "business_name": "Bramble & Finch",
+            "agree": "on",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 302
+    assert r.headers["Location"].endswith("/generator"), r.headers["Location"]
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    ["//evil.example.com", "/\\evil.example.com", "https://evil.example.com",
+     "evil.example.com"],
+)
+def test_signup_cannot_be_pointed_off_site(app, anon, hostile):
+    """Carrying a return target through signup is exactly the shape of an open
+    redirect, and the moment after a successful sign-up is when somebody is
+    most primed to trust the page they land on."""
+    r = anon.post(
+        f"/signup?next={hostile}",
+        data={
+            "email": "amara.nwosu@bramblefinch.example",
+            "password": "correct-horse-staple",
+            "business_name": "Bramble & Finch",
+            "agree": "on",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 302
+    assert "evil.example.com" not in r.headers["Location"]

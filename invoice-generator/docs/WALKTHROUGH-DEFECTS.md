@@ -12,7 +12,7 @@ root, in `../../docs/WALKTHROUGH-DEFECTS.md`.
 
 ## Since this was written
 
-Four of the fourteen are fixed, and this list is kept as walked rather than
+Five of the fourteen are fixed, and this list is kept as walked rather than
 edited in place — a defects document that quietly rewrites itself stops being
 evidence of anything. Codex's sixth and seventh review rounds raised three of
 them independently, from the diff, which is worth knowing in both directions:
@@ -25,6 +25,16 @@ only visible from the client's side of the screen.
 | 2 | The signed-out generator could produce nothing but a DRAFT PDF | round seven |
 | 5 | The design was honoured by the PDF and by nothing else | round seven |
 | 13 | The editor's unit price was unformatted on the owner and client pages | round six, `a9c87cf` (the two HTML views; the editor's own input is unchanged) |
+| 7 | Signing up from the editor dropped you on Account, with no way back | round ten |
+
+Defect 7's fix arrived last and mattered more than it looked: the generator
+sends people to sign up with `?next=/generator`, the form posted to a bare
+`/signup` and the route always redirected to `/account`, so the parameter was
+dropped twice. The whole hand-off built in rounds seven to nine — the page that
+offers to bring your draft over — sat at the end of a path nobody could walk.
+The advertised route now runs end to end in a browser: type it signed out,
+press **Save & send it**, make an account, land back on the editor, press
+**Bring it over**, and the invoice is there.
 
 Defect 5's fix is the one worth reading: both HTML pages now render through the
 same `document()` macro the PDF and the editor use, instead of each rebuilding
