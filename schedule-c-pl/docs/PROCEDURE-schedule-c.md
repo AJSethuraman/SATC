@@ -13,6 +13,17 @@ worksheet, as one PDF and one spreadsheet, saved on your own computer.
 mileage rate, two subcontractors, a small back-bedroom office, no stock. Every
 screenshot in this document is that job being done, in order, on 6 September 2026.
 
+**A note on dates, added the same evening.** Every screenshot here is the build
+of 6 September 2026, 03:44. Later that day another session fixed several of the
+faults this walk found, so on a build after **17:08 that day** five of the
+warnings below no longer apply: the stock lines now clear themselves when you
+untick the box (step 8), *I am not claiming it* now clears line 30 (step 22),
+whole-dollar mode now rounds on screen as well as in the file (step 28), a
+refused figure and a listed cost with no amount now both say so in the panel
+(steps 19 and 34), and *Clear everything* now asks first (step 38). The steps
+and the screens are otherwise unchanged. **If a step does not match, that is
+either a fault or an out-of-date procedure, and finding out which is the job.**
+
 <!-- ROUTE -->
 
 ---
@@ -535,7 +546,9 @@ it is either a fault in the product or this procedure is out of date, and findin
 out which is the job. Faults found on the run that produced this document are
 written up in **`WALKTHROUGH-DEFECTS.md`**, ranked by what each would cost.
 
-**The three worth knowing before you start:** clear the stock lines before you
-untick that box (step 8); *I am not claiming it* does not clear line 30
-(step 22); and in whole-dollar mode the screen reads a dollar lower than the file
-(step 28).
+**The three worth knowing before you start**, on the build these pictures were
+taken from: clear the stock lines before you untick that box (step 8);
+*I am not claiming it* does not clear line 30 (step 22); and in whole-dollar mode
+the screen reads a dollar lower than the file (step 28). All three were fixed
+later the same day — see the note at the top — so on a current build those three
+screens should behave, and if they do not, that is a regression worth reporting.

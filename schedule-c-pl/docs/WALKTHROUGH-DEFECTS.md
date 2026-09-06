@@ -8,6 +8,16 @@ worksheet for a preparer. Chromium, the built page at
 [`PROCEDURE-schedule-c.md`](PROCEDURE-schedule-c.md) — this file is for whoever
 fixes the product.
 
+> **Since this was written — 6 September 2026, 17:08 UTC.** Another session picked
+> this register up within the hour and began fixing from it, in commits `80acd97`
+> and `da78ca0`. Eight of the fourteen are already fixed on the page as it stands
+> on disk; I re-ran the relevant steps against it and the results are in
+> **[The second run](#the-second-run-against-the-page-as-it-stands)** at the foot
+> of this file. **Nothing above that section has been rewritten.** The figures,
+> the screenshots and the denominator are the record of the walk as it was
+> walked, against the build of 03:44 that day, and a record edited to match a
+> later product is not a record.
+
 ## The denominator, run today
 
 | Suite | Command | Result |
@@ -392,3 +402,35 @@ list. Every defect above lives in a seam:
 from the same return and asserts they agree, figure for figure, in both rounding
 modes.** That single test catches defects 2 and 9, and would have caught 1 and 3
 had it been driven through the controls rather than through `compute()`.
+
+
+---
+
+# The second run, against the page as it stands
+
+The procedure this walk produced is also its own regression check: walk it again
+after a change and every step either matches its screenshot or does not. Run
+again at **17:12 UTC on 6 September 2026**, against
+`website/tools/schedule-c-profit-and-loss/index.html` as the other session had
+just left it, through the same browser:
+
+| # | Defect | Now | What the screen does |
+|---|---|---|---|
+| 1 | Ghost cost of goods sold | **fixed** | Typing 12,483.91 into Part III and unticking the box leaves *Money coming in* at $86,417.25. The value goes with the field. |
+| 2 | Whole-dollar screen truncation | **fixed** | 86,407.20 now shows as **$86,407** on screen, the same figure the document rounds to. |
+| 3 | "I am not claiming it" ignored | **fixed** | Choosing it clears line 30 *and removes the field*, and the profit goes back up. |
+| 4 | Listed cost with no amount | **fixed** | *Worth checking* now says: "48 — One thing you listed has no amount, so it is left out." |
+| 5 | Refused figure with no reason | **fixed** | *Worth checking* now says: "21 — Use numbers only, like 1234.56 Until then this line is left out." |
+| 7 | "Clear everything" with no guard | **fixed** | A confirmation appears — *"Clear everything you have typed?"* — and dismissing it keeps every figure. |
+| 8 | British spellings | **fixed** | No *labour*, *licence* or *petrol* anywhere in the page's text. |
+
+Defects **6, 9, 10, 11, 12, 13 and 14** were not re-checked here: 6 and 9 live in
+the delivered documents rather than on a screen, and 10 to 14 were not part of
+the same commits. The register above stands for those.
+
+**One thing the second run is not.** It proves the screens changed in the
+direction asked for. It does not prove the fixes are complete — that is what the
+suite is for, and the same commits added tests to `walk.mjs`, `pdf.test.mjs` and
+`xlsx.test.mjs`. What the second run does prove is the thing the first run was
+written to make possible: **a person can pick this document up and tell, in five
+minutes, whether the product still does what it did.**
