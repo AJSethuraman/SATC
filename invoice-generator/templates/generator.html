@@ -187,6 +187,7 @@ const CURRENCIES = {{ currency_js | tojson }};
 const DEFAULT_DESIGN = {{ design.id | tojson }};
 const THEME_URL = {{ url_for('generator_theme') | tojson }};
 const DRAFT_KEY = "invoicer.draft.v1";
+const SAVE_PATH = "{{ url_for('generator_save') }}";
 
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -381,9 +382,30 @@ document.addEventListener("input", e => {
   if (e.target.closest("#gen")) recalc();
 });
 document.addEventListener("change", e => { if (e.target.closest("#gen")) recalc(); });
-$("#gen").addEventListener("submit", () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) {} });
+/* Clear the draft only where the draft has actually gone somewhere.
+   This used to fire on ANY submit, and "Download PDF" is a submit: the file
+   arrived, the page stayed exactly where it was, and the saved draft was
+   already gone — so the next refresh emptied the form. The page promises the
+   opposite two inches above this script ("Your draft stays in this browser so
+   a refresh doesn't lose it"), and downloading the PDF is the single most
+   likely thing to be followed by a refresh.
+   "Save to my invoices" is the one submit that leaves: it writes the invoice
+   to the account and redirects away, so the browser copy has a home now.
+   No `submitter` (older browser, or a scripted submit) means keep the draft —
+   losing somebody's work is the worse half of the trade.
+   Raised by Codex on PR #289, round five. */
+$("#gen").addEventListener("submit", e => {
+  const goingToSave = e.submitter && e.submitter.formAction &&
+    e.submitter.formAction.endsWith(SAVE_PATH);
+  if (goingToSave) { try { localStorage.removeItem(DRAFT_KEY); } catch (_) {} }
+});
 
-{% if not errors %}restoreDraft();{% endif %}
+{% if not errors %}restoreDraft();{% else %}
+/* The save was refused and the server re-rendered the form with what was
+   typed. The draft was cleared on the way out, so put it back from what is on
+   the page — otherwise a validation error costs the sender their draft. */
+saveDraft();
+{% endif %}
 recalc();
 </script>
 </body>

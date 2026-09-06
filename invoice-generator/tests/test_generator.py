@@ -354,3 +354,92 @@ def test_the_owners_form_still_treats_tax_as_a_percentage(app, logged_in):
         assert inv.tax_is_percent is True
         assert inv.tax_amount == 100.0     # 10% of 1000, not $10
         assert inv.total == 1100.0
+
+
+# --- what the invoice is worth when it arrives ----------------------------
+#
+# `status` is stored, not derived. The generator has an "amount paid" box, so
+# an invoice can arrive already settled — somebody recording work they were
+# paid for on the spot. It was stored as a Draft with a zero balance: counted
+# as neither paid nor outstanding, and showing "Draft" on a job that is done.
+# Raised by Codex on PR #289, round five.
+
+def test_an_invoice_saved_already_settled_is_saved_as_paid(app, logged_in):
+    # 450 + 350 + 240 = 1040, with tax and discount off so the arithmetic
+    # under test is the status rule, not the totals.
+    data = form(tax="0", discount="0", amount_paid="1040")
+    r = logged_in.post("/generator/save", data=data, follow_redirects=False)
+    assert r.status_code == 302
+    with app.app_context():
+        inv = db.session.query(Invoice).one()
+        assert round(inv.balance_due, 2) == 0.0
+        assert inv.status == "Paid"
+        assert inv.display_status == "Paid"
+
+
+def test_a_part_paid_invoice_is_still_a_draft_and_reads_as_partial(
+    app, logged_in
+):
+    """Partial is derived, not stored — so the draft status is correct here
+    and must not be promoted."""
+    r = logged_in.post("/generator/save", data=form(amount_paid="100"))
+    assert r.status_code in (200, 302)
+    with app.app_context():
+        inv = db.session.query(Invoice).one()
+        assert inv.balance_due > 0
+        assert inv.status == "Draft"
+        assert inv.display_status == "Partial"
+
+
+def test_an_unpaid_invoice_is_saved_as_a_draft(app, logged_in):
+    logged_in.post("/generator/save", data=form(amount_paid="0"))
+    with app.app_context():
+        inv = db.session.query(Invoice).one()
+        assert inv.status == "Draft"
+
+
+def test_the_owners_create_form_settles_an_already_paid_invoice_too(
+    app, logged_in
+):
+    """The same three lines were missing on the ordinary create path, which is
+    why they now live in one function rather than three copies of one."""
+    logged_in.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-2026-099",
+            "bill_to": "Northwind Traders LLC",
+            "invoice_date": "2026-09-06",
+            "currency": "USD",
+            "item_description": ["Return"],
+            "item_quantity": ["1"],
+            "item_rate": ["450"],
+            "tax": "0", "discount": "0", "shipping": "0",
+            "amount_paid": "450",
+        },
+        follow_redirects=False,
+    )
+    with app.app_context():
+        inv = db.session.query(Invoice).one()
+        assert round(inv.balance_due, 2) == 0.0
+        assert inv.status == "Paid"
+
+
+# --- the draft in the browser ---------------------------------------------
+
+def test_downloading_a_pdf_does_not_clear_the_saved_draft(anon):
+    """The page promises the draft survives a refresh; the submit handler used
+    to clear it on ANY submit, and Download PDF is a submit. The file arrived,
+    the page stayed put, and the draft was already gone.
+
+    This asserts the shape of the guard rather than driving a browser: the
+    handler must clear only when the submitter is the save button.
+    Raised by Codex on PR #289, round five.
+    """
+    body = anon.get("/generator").get_data(as_text=True)
+    assert "SAVE_PATH" in body
+    handler = body[body.index('$("#gen").addEventListener("submit"'):]
+    handler = handler[:handler.index("});") + 3]
+    assert "e.submitter" in handler
+    assert "SAVE_PATH" in handler
+    # The clear happens inside a condition, not at the top of the handler.
+    assert handler.index("goingToSave") < handler.index("removeItem")

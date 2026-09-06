@@ -13,6 +13,7 @@ import logging
 import math
 import mimetypes
 import os
+import re
 import sys
 import tempfile
 from datetime import date
@@ -401,11 +402,106 @@ def create_app(config_class=Config):
 # --------------------------------------------------------------------------
 # Form handling
 # --------------------------------------------------------------------------
+def _restate_status(invoice):
+    """Bring the stored status back in line with what has been paid.
+
+    `status` IS STORED, NOT DERIVED, so every path that can move either side of
+    the balance has to say so. Two directions:
+
+    * An edit can raise the total above what has already been paid — add a line
+      item to a settled invoice, remove a discount, bump a rate. Left alone the
+      invoice keeps showing "Paid" while money is owed, and the History KPIs
+      skip it, because outstanding only sums invoices whose status != "Paid".
+      Reopening it makes the balance visible and chaseable.
+      (tests/test_scenarios.py::test_editing_a_paid_invoice_upward_reopens_it)
+
+    * An invoice can arrive already settled. The generator has an "amount paid"
+      box, so somebody recording an invoice they were paid on the spot fills in
+      the full amount and presses Save — and it was stored as a Draft with a
+      zero balance, counted as neither paid nor outstanding. Same on the
+      ordinary create form. This was three copies of the same three lines in
+      the edit path only; now it is one function every writing path calls.
+      (Raised by Codex on PR #289, round five.)
+
+    Partial payment is deliberately NOT a status: `display_status` derives
+    "Partial" from the ledger, so a part-paid Draft still reads correctly.
+    """
+    if invoice.balance_due > 0 and invoice.status == "Paid":
+        invoice.status = "Sent"
+    elif (
+        invoice.status != "Paid"
+        and (invoice.amount_paid or 0) > 0
+        and invoice.balance_due <= 0
+    ):
+        invoice.status = "Paid"
+
+
+#: An SVG's own namespace declaration is an http URL — `xmlns=
+#: "http://www.w3.org/2000/svg"` is mandatory — so "contains http" rejects
+#: every valid SVG ever uploaded. Namespace URIs are identifiers, never
+#: fetched, so they come out before anything is scanned. The first version of
+#: this check did not do that and silently dropped every logo; its own test
+#: caught it before it left the branch.
+_SVG_XMLNS = re.compile(r"""\sxmlns(:[\w.-]+)?\s*=\s*("|')[^"']*\2""", re.I)
+
+#: A reference a renderer would actually dereference. `data:` is a logo
+#: embedded in the file itself and `#fragment` points inside the same
+#: document; every other value goes somewhere, and "somewhere" is the problem.
+_SVG_REF = re.compile(
+    r"""(?:xlink:href|href|src)\s*=\s*("|')\s*(?!data:|\#)[^"']*\1""", re.I
+)
+
+#: `url(...)` in a style or a fill, doing the same thing by another spelling.
+_SVG_URL_FN = re.compile(r"""url\(\s*("|')?\s*(?!\#|data:)[A-Za-z0-9./\\]""")
+
+#: Constructs a logo has no use for at all.
+_SVG_FORBIDDEN = (
+    "<script", "javascript:", "<foreignobject", "<iframe", "<embed",
+    "<!entity", "<!doctype", "<?xml-stylesheet",
+)
+
+
+def _svg_reaches_outside(data):
+    """True if an SVG references anything beyond itself.
+
+    Deliberately blunt, and deliberately the SECOND layer. The real boundary
+    is `pdf._no_network_fetcher`, which refuses every non-`data:` URL at the
+    moment of fetch and therefore covers obfuscations this never will — an
+    entity-encoded scheme, say. This one turns a hostile upload away at the
+    door rather than storing it and trusting it to stay inert, and it makes
+    the refusal cheap.
+
+    What counts as reaching outside: an `href`/`src`/`xlink:href` that is
+    neither a `data:` URI nor a same-document `#fragment`; a `url(...)` doing
+    the same; or any of the constructs above.
+    """
+    try:
+        text = data.decode("utf-8", errors="ignore")
+    except Exception:
+        return True
+    if any(bad in text.lower() for bad in _SVG_FORBIDDEN):
+        return True
+    stripped = _SVG_XMLNS.sub(" ", text)
+    return bool(_SVG_REF.search(stripped) or _SVG_URL_FN.search(stripped))
+
+
 def _read_logo(file_storage):
     """Return (bytes, mimetype) for a valid uploaded logo, or (None, None).
 
     Raster images are verified with Pillow so a corrupt file can't get stored
-    and later break PDF rendering. SVGs are passed through unchecked.
+    and later break PDF rendering.
+
+    SVGs USED TO BE PASSED THROUGH UNCHECKED, and that stopped being tolerable
+    when `/generator/pdf` began accepting uploads with no login: an SVG is a
+    document, WeasyPrint resolves what a document points at, and the fetch
+    happens on the application server. `<image href="http://169.254.169.254/">`
+    in an uploaded logo is an unauthenticated SSRF, with the response able to
+    reach the PDF handed back to the uploader.
+
+    The renderer now refuses every non-`data:` URL (see pdf._no_network_fetcher),
+    which is the real boundary. This check is the second layer: an SVG that
+    references anything external, or carries a script, is rejected at the door
+    rather than relied upon to be harmless once it is inside.
     """
     if not file_storage or not file_storage.filename:
         return None, None
@@ -420,6 +516,8 @@ def _read_logo(file_storage):
         or mimetypes.guess_type(file_storage.filename)[0]
         or "image/png"
     )
+    if mime == "image/svg+xml" and _svg_reaches_outside(data):
+        return None, None
     if mime != "image/svg+xml":
         # A MISSING LIBRARY IS NOT A CORRUPT IMAGE, and it used to be reported
         # as one: `PIL` was imported here and declared in neither requirements
@@ -1292,6 +1390,7 @@ def register_routes(app):
                     invoice.currency or current_user.default_currency
                 ),
             ), 400
+        _restate_status(invoice)
         db.session.add(invoice)
         db.session.commit()
         logger.info(
@@ -1361,24 +1460,7 @@ def register_routes(app):
                     invoice.currency or current_user.default_currency
                 ),
             ), 400
-        # An edit can raise the total above what has already been paid (add a
-        # line item to a settled invoice, remove a discount, bump a rate). The
-        # stored status is not derived, so without this the invoice keeps
-        # showing "Paid" while money is owed — and the History KPIs skip it,
-        # because outstanding only sums invoices whose status != "Paid". Reopen
-        # it so the balance is visible and chaseable. The reverse case (an edit
-        # that lowers the total to at or below what was paid) settles it.
-        #
-        # Caught by tests/test_scenarios.py::
-        #   test_editing_a_paid_invoice_upward_reopens_it
-        if invoice.balance_due > 0 and invoice.status == "Paid":
-            invoice.status = "Sent"
-        elif (
-            invoice.status != "Paid"
-            and (invoice.amount_paid or 0) > 0
-            and invoice.balance_due <= 0
-        ):
-            invoice.status = "Paid"
+        _restate_status(invoice)
         db.session.commit()
         flash("Invoice updated.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1400,7 +1482,7 @@ def register_routes(app):
     def download_pdf(invoice_id):
         invoice = owned_or_404(invoice_id)
         try:
-            out_path = _generate_pdf(invoice, pay_url=_public_url(invoice))
+            out_path = _generate_pdf(invoice, pay_url=_pay_url(invoice))
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1488,7 +1570,7 @@ def register_routes(app):
 
         public_url = _public_url(invoice)
         try:
-            out_path = _generate_pdf(invoice, pay_url=public_url)
+            out_path = _generate_pdf(invoice, pay_url=_pay_url(invoice))
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1497,7 +1579,7 @@ def register_routes(app):
             "email_invoice.html",
             invoice=invoice,
             public_url=public_url,
-            can_pay=current_user.can_accept_payments,
+            can_pay=_can_pay_online(invoice),
         )
         try:
             email_utils.send_invoice_email(
@@ -1539,6 +1621,41 @@ def register_routes(app):
             "public_invoice", token=token
         )
 
+    def _can_pay_online(invoice):
+        """Whether pressing a pay button on this invoice could actually work.
+
+        TWO THINGS HAVE TO BE TRUE and for a while only the first was asked:
+        the owner has connected a Stripe account, AND the currency is one this
+        adapter will charge in. `stripe_utils.guard_chargeable` refuses the
+        rest at the door, so offering the button anyway means the client meets
+        a refusal that was written for the owner to read.
+        """
+        return bool(
+            invoice.owner
+            and invoice.owner.can_accept_payments
+            and stripe_utils.is_chargeable(invoice.currency)
+        )
+
+    def _pay_url(invoice):
+        """The public link, but only where it leads somewhere payable.
+
+        The PDF turns a non-empty `pay_url` into a "Pay $X ->" button. Passing
+        `_public_url` unconditionally put that button on every PDF we generate,
+        including invoices in currencies we refuse to charge and invoices whose
+        owner has no Stripe account at all — the printed page invited a payment
+        the software would then decline. `public_invoice` had already been
+        fixed to ask this question; `download_pdf`, `email_invoice` and
+        `public_pdf` had not, so the web page and the PDF of the same invoice
+        disagreed about whether it could be paid.
+
+        Falling back to no button is the safe direction: the invoice still
+        carries the full public URL in the email, and that page tells the
+        client what to do.
+
+        Raised by Codex on PR #289, round five.
+        """
+        return _public_url(invoice) if _can_pay_online(invoice) else None
+
     def _invoice_from_token(token):
         inv_id = read_token(
             token, salt="invoice-public", max_age=PUBLIC_MAX_AGE
@@ -1558,11 +1675,7 @@ def register_routes(app):
         # a refused currency was shown "Pay online in seconds", clicked it, and
         # hit a refusal meant for the owner. Inviting a client to pay and then
         # failing is worse than never offering.
-        can_pay = bool(
-            invoice.owner
-            and invoice.owner.can_accept_payments
-            and stripe_utils.is_chargeable(invoice.currency)
-        )
+        can_pay = _can_pay_online(invoice)
         return render_template(
             "public_invoice.html",
             invoice=invoice,
@@ -1585,7 +1698,7 @@ def register_routes(app):
         invoice = _invoice_from_token(token)
         try:
             out_path = generate_pdf(
-                app, invoice, pay_url=_public_url(invoice)
+                app, invoice, pay_url=_pay_url(invoice)
             )
         except RuntimeError as exc:
             flash(str(exc), "error")
@@ -1820,6 +1933,7 @@ def register_routes(app):
         invoice.user_id = current_user.id
         if not invoice.invoice_number:
             invoice.invoice_number = next_invoice_number(current_user.id)
+        _restate_status(invoice)
         db.session.add(invoice)
         db.session.commit()
         flash("Invoice saved.", "success")

@@ -101,6 +101,41 @@ def _render_invoice_html(invoice, allow_svg, pay_url=None):
     )
 
 
+def _no_network_fetcher(url, *args, **kwargs):
+    """Resolve data: URIs and refuse everything else.
+
+    AN INVOICE PDF HAS NO BUSINESS MAKING A NETWORK REQUEST. The logo is
+    embedded as a base64 data URI before rendering; nothing else in the
+    template references an external resource. Without this, WeasyPrint
+    dereferences whatever a document points at, from the application server.
+
+    That became an UNAUTHENTICATED SSRF the moment `/generator/pdf` started
+    accepting uploads without a login. `_read_logo` passes SVGs through
+    unchecked, so anyone could post an SVG carrying
+
+        <image href="http://169.254.169.254/latest/meta-data/iam/..."/>
+
+    and have the server fetch it — with the response capable of landing in the
+    PDF handed straight back to them. Cloud metadata, internal services, any
+    host the container can reach.
+
+    Refusing at the fetcher covers every route into the renderer at once,
+    including ones added later, which a check on the upload alone would not.
+    The upload check in `_read_logo` is kept as well: two independent layers,
+    because this one is a security boundary rather than a nicety.
+
+    Raised by Codex on PR #289, round five.
+    """
+    from weasyprint import default_url_fetcher
+
+    if url.startswith("data:"):
+        return default_url_fetcher(url, *args, **kwargs)
+    raise ValueError(
+        f"Refused to fetch an external resource while rendering an invoice: "
+        f"{url[:80]}"
+    )
+
+
 def _render_with_weasyprint(invoice, output_path, pay_url=None):
     try:
         from weasyprint import HTML
@@ -112,9 +147,11 @@ def _render_with_weasyprint(invoice, output_path, pay_url=None):
         ) from exc
 
     html_string = _render_invoice_html(invoice, allow_svg=True, pay_url=pay_url)
-    HTML(string=html_string, base_url=str(Path(output_path).parent)).write_pdf(
-        str(output_path)
-    )
+    HTML(
+        string=html_string,
+        base_url=str(Path(output_path).parent),
+        url_fetcher=_no_network_fetcher,
+    ).write_pdf(str(output_path))
 
 
 def _render_with_xhtml2pdf(invoice, output_path, pay_url=None):

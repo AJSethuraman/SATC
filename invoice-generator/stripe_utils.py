@@ -69,6 +69,23 @@ class UnsupportedCurrency(RuntimeError):
 def is_chargeable(currency):
     """True when this adapter can convert the amount with confidence.
 
+    THIS IS A QUESTION ABOUT ARITHMETIC, NOT ABOUT STRIPE'S CATALOGUE. It
+    answers "do we know how many minor units this amount is", which is the
+    question that stops a 100x mischarge. It does NOT assert that Stripe will
+    present the currency: KPW, CUP and IRR are ordinary two-decimal ISO codes
+    and Stripe will not take any of them.
+
+    That gap is real and is deliberately not closed by a second hard-coded
+    list. Stripe's supported-presentment list is not reachable from this
+    environment, and writing one from memory is precisely what put HUF on the
+    divergent list on a misreading. The residue is handled where the truth
+    actually lives instead: `create_checkout_session` turns Stripe's own
+    rejection into the same readable refusal, so the failure is legible rather
+    than a raw API error, and nobody is ever charged the wrong amount — a
+    currency Stripe will not present cannot be charged at all.
+
+    Raised by Codex on PR #289, round five.
+
     THE CODE MUST BE ONE WE KNOW. `decimals_for` answers 2 for anything it has
     never heard of, which is a sensible display fallback and a terrible basis
     for a charge: it made every unrecognised code chargeable, so the allowlist
@@ -119,6 +136,80 @@ def guard_chargeable(currency):
         f"{why_not_chargeable(code)} The invoice itself is unaffected — you "
         f"can still send it and record payment by hand."
     )
+
+
+def configure(secret_key):
+    stripe.api_key = secret_key
+
+
+# --------------------------------------------------------------------------
+# Connect onboarding (Standard)
+# --------------------------------------------------------------------------
+#
+# THESE FOUR WERE DELETED BY ACCIDENT ON THIS BRANCH and restored on 6 Sep
+# 2026. Rewriting the head of this module to carry the currency allowlist took
+# `configure`, `create_connect_account`, `create_account_link`, `get_account`
+# and `_platform_fee_cents` out with it. `app.py` calls every one of them, so
+# connecting a Stripe account and creating a payment session both raised
+# NameError — the entire payment feature was dead — and the suite stayed green
+# for three commits, because nothing exercises a function whose body is a
+# network call.
+#
+# tests/test_stripe_surface.py now asserts that every attribute the app
+# reaches for on this module exists. That test is the point of this incident:
+# a deletion is invisible to a suite that only tests what it can call.
+def create_connect_account(secret_key, email=None):
+    """Create a Standard connected account; returns its id (acct_...).
+
+    Standard accounts are full Stripe accounts the user owns and manages from
+    their own Stripe Dashboard. We don't request capabilities — a Standard
+    account gets card payments automatically once the user finishes setup, and
+    Stripe rejects capability requests on Standard accounts.
+    """
+    if not secret_key:
+        raise RuntimeError("STRIPE_SECRET_KEY is not configured.")
+    configure(secret_key)
+    account = stripe.Account.create(
+        type="standard",
+        email=email or None,
+    )
+    return account.id
+
+
+def create_account_link(secret_key, account_id, refresh_url, return_url):
+    """Create a one-time onboarding link the user is redirected to.
+
+    For a Standard account this hosted flow lets the user sign in to an
+    existing Stripe account or create a new one.
+    """
+    configure(secret_key)
+    link = stripe.AccountLink.create(
+        account=account_id,
+        refresh_url=refresh_url,
+        return_url=return_url,
+        type="account_onboarding",
+    )
+    return link.url
+
+
+def get_account(secret_key, account_id):
+    """Retrieve a connected account (to read charges_enabled, etc.)."""
+    configure(secret_key)
+    return stripe.Account.retrieve(account_id)
+
+
+# --------------------------------------------------------------------------
+# Payments
+# --------------------------------------------------------------------------
+def _platform_fee_cents(config, amount_cents):
+    """Compute the platform's cut for this charge. 0 means no fee (default)."""
+    if not config:
+        return 0
+    pct = float(config.get("PLATFORM_FEE_PERCENT", 0) or 0)
+    flat = int(config.get("PLATFORM_FEE_FLAT_CENTS", 0) or 0)
+    fee = int(round(amount_cents * pct / 100.0)) + flat
+    # Never let the fee meet/exceed the charge.
+    return fee if 0 < fee < amount_cents else 0
 
 
 def _stripe_exponent(currency):
@@ -237,9 +328,24 @@ def create_checkout_session(
 
     # Direct charge: the Stripe-Account header puts the charge on the
     # connected account, so the money is theirs.
-    session = stripe.checkout.Session.create(
-        **params, stripe_account=connected_account_id
-    )
+    try:
+        session = stripe.checkout.Session.create(
+            **params, stripe_account=connected_account_id
+        )
+    except stripe.InvalidRequestError as exc:
+        # STRIPE IS THE AUTHORITY ON WHICH CURRENCIES IT WILL PRESENT, and
+        # `is_chargeable` deliberately does not try to be (see its docstring).
+        # A code it will not take reaches here and comes back as a rejection;
+        # left alone the client saw "Stripe error: Invalid currency: kpw",
+        # which reads like our software broke. Same words as every other
+        # refusal, so the owner knows what to do next.
+        if "currency" in str(exc).lower():
+            raise UnsupportedCurrency(
+                f"Stripe will not take a payment in {currency.upper()}. "
+                f"The invoice itself is unaffected — you can still send it "
+                f"and record payment by hand. (Stripe said: {exc})"
+            ) from exc
+        raise
     return session
 
 

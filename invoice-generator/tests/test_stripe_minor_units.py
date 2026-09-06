@@ -76,3 +76,73 @@ def test_a_half_minor_unit_rounds_to_even_and_that_is_unchanged():
     """
     assert to_minor_units(0.025, "USD") == 2   # 2.5 -> 2, not 3
     assert to_minor_units(0.035, "USD") == 4   # 3.5 -> 4
+
+
+# --- when Stripe itself says no -------------------------------------------
+#
+# `is_chargeable` asks whether we know how many minor units an amount is. It
+# does NOT assert that Stripe will present the currency: KPW, CUP and IRR are
+# ordinary two-decimal ISO codes and Stripe takes none of them. That gap is
+# deliberately not closed with a second hard-coded list — Stripe's supported
+# list is not reachable from here, and writing one from memory is exactly what
+# put HUF on the divergent list on a misreading. Stripe is the authority, so
+# its refusal is translated instead of guessed at.
+#
+# Raised by Codex on PR #289, round five.
+
+def test_a_currency_stripe_rejects_comes_back_as_a_readable_refusal(
+    monkeypatch
+):
+    import stripe
+
+    import stripe_utils
+
+    class Settled:
+        id = 1
+        balance_due = 100.0
+        currency = "kpw"
+        invoice_number = "INV-1"
+
+    def refuse(**kwargs):
+        raise stripe.InvalidRequestError(
+            "Invalid currency: kpw", param="currency"
+        )
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", staticmethod(refuse))
+    monkeypatch.setattr(stripe_utils, "configure", lambda key: None)
+
+    with pytest.raises(stripe_utils.UnsupportedCurrency) as caught:
+        stripe_utils.create_checkout_session(
+            Settled(), "sk_test", "https://x.example", "acct_1"
+        )
+    message = str(caught.value)
+    assert "KPW" in message
+    assert "record payment by hand" in message
+
+
+def test_any_other_stripe_rejection_is_left_alone(monkeypatch):
+    """Only a currency complaint is reworded. Swallowing the rest into a
+    currency message would hide a real configuration error behind the wrong
+    explanation."""
+    import stripe
+
+    import stripe_utils
+
+    class Settled:
+        id = 1
+        balance_due = 100.0
+        currency = "usd"
+        invoice_number = "INV-1"
+
+    def refuse(**kwargs):
+        raise stripe.InvalidRequestError(
+            "No such destination: acct_1", param="destination"
+        )
+
+    monkeypatch.setattr(stripe.checkout.Session, "create", staticmethod(refuse))
+    monkeypatch.setattr(stripe_utils, "configure", lambda key: None)
+
+    with pytest.raises(stripe.InvalidRequestError):
+        stripe_utils.create_checkout_session(
+            Settled(), "sk_test", "https://x.example", "acct_1"
+        )
