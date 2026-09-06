@@ -14,71 +14,105 @@ import stripe
 
 from currencies import decimals_for
 
-#: CURRENCIES THIS ADAPTER WILL NOT CHARGE IN, and why that is the safe answer.
+#: WHICH CURRENCIES THIS ADAPTER WILL CHARGE IN -- an ALLOWLIST, deliberately.
 #:
-#: Stripe's per-currency *charge* exponent is not always ISO 4217's, and four
-#: currencies are genuinely disputed between the sources available here:
+#: The previous version was a denylist of four currencies I had noticed were
+#: disputed, which quietly assumed I had found them all. Three review rounds
+#: proved I had not: HUF was added to it on a misreading (its zero-decimal rule
+#: is documented for PAYOUTS, not charges) and ISK was missing entirely. For a
+#: number that goes on somebody's card, "allow unless known bad" is the wrong
+#: polarity. The firm chose this shape on 6 September 2026.
 #:
-#:   HUF  ISO 2. `currencies.py` records "Stripe treats HUF as zero-decimal
-#:        FOR PAYOUTS" -- a payout rule, which an earlier version of this file
-#:        wrongly encoded as a charge exponent. That sent HUF 1,500.00 as
-#:        `1500` and would have charged the client HUF 15.00.
-#:   TWD  ISO 2, "Stripe requires whole-dollar amounts" -- which may mean an
-#:        exponent of 0, or 2 with the amount divisible by 100. Not the same
-#:        thing, and the difference is a factor of a hundred.
-#:   MGA  ISO 2, Stripe zero-decimal. Charging it on the ISO rule sent Ar1,500
-#:        as 150000 and charged Ar150,000.
-#:   ISK  ISO 0, and Stripe is reported to want 1,500 ISK as `150000`. The
-#:        inverse of MGA.
+#: THE RULE, and the evidence for it:
 #:
-#: Every one of those is a 100x error on a client's card, in one direction or
-#: the other, and each is invisible in our own books because the inbound decode
-#: applies the same wrong rule and reads the right number back.
+#:   ALLOWED -- a currency ISO 4217 gives two decimal places, which is Stripe's
+#:   default and the arithmetic this app has always used for them. About 130 of
+#:   the 157, including every currency Invoicer offered before the picker
+#:   existed bar one.
 #:
-#: `docs.stripe.com` is not reachable from this environment, so the exponents
-#: could not be settled against the primary source. Guessing them from prose in
-#: a code comment is what produced the HUF error in the first place.
+#:   REFUSED -- everything else, and each for a stated reason:
+#:     * HUF, MGA, TWD  ISO gives 2, but currencies.py records Stripe departing
+#:                      from it. The nature of the departure is exactly what
+#:                      could not be pinned down.
+#:     * zero-decimal   JPY, KRW, VND, CLP and the rest. Stripe very likely
+#:                      agrees with ISO on these -- but ISK is ISO zero-decimal
+#:                      and is reported to need 150000 for 1,500, which proves
+#:                      the class HAS exceptions. Since I cannot enumerate
+#:                      them, I cannot clear the class. Note that this app has
+#:                      never charged JPY correctly, so there is no history to
+#:                      lean on either.
+#:     * three-decimal  KWD, BHD, OMR and the rest. Stripe applies its own
+#:                      rounding to these and I could not confirm what.
 #:
-#: SO THE ADAPTER REFUSES. An invoice can be RAISED, printed and emailed in any
-#: of the 157 currencies -- the document is just a document. Only taking
-#: payment is blocked, and only for these four, with a message that says why.
-#: docs/DESIGN-PRINCIPLES.md: refuse rather than default. A refusal the owner
-#: can read is recoverable; a silent 100x mischarge is not.
+#: `docs.stripe.com` is not reachable from this environment, which is why none
+#: of the above could be settled against the primary source. Inferring an
+#: exponent from prose in a code comment is what produced the HUF error.
 #:
-#: To lift this: confirm each exponent against Stripe's own currency
-#: documentation, add it to a charge-exponent table, and delete the entry here.
-UNSETTLED_CHARGE_EXPONENT = {
-    "huf": "Stripe's charge exponent for HUF is not confirmed here (its "
-           "zero-decimal rule is documented for payouts, not charges).",
-    "twd": "Stripe's charge exponent for TWD is not confirmed here "
-           "(\"whole-dollar amounts\" may mean 0 places, or 2 divisible by 100).",
-    "mga": "Stripe treats MGA as zero-decimal while ISO 4217 records 2, and "
-           "the charge exponent is not confirmed here.",
-    "isk": "Stripe is reported to charge ISK with 2 places while ISO 4217 "
-           "records 0, and this is not confirmed here.",
-}
+#: WHAT A REFUSAL COSTS, and why it is the cheap side of the trade: an invoice
+#: can still be RAISED, printed, emailed and marked paid by hand in any of the
+#: 157. Only the "pay online" button is withheld. A refusal the owner can read
+#: is recoverable in a minute; a silent 100x mischarge on a client's card is
+#: not, and is invisible in our own books because the inbound decode applies
+#: the same wrong rule and reads the right number back.
+#:
+#: TO WIDEN IT: confirm the currency's charge exponent against Stripe's own
+#: documentation, add it to a charge-exponent table with the citation, and it
+#: becomes chargeable. This list is meant to grow with evidence, not with
+#: confidence.
+DIVERGENT_FROM_ISO = ("huf", "mga", "twd")
 
 
 class UnsupportedCurrency(RuntimeError):
     """Raised rather than charge an amount we cannot be sure of."""
 
 
-def guard_chargeable(currency):
-    """Refuse a currency whose Stripe charge exponent is not settled."""
+def is_chargeable(currency):
+    """True when this adapter can convert the amount with confidence."""
     code = (currency or "usd").lower()
-    if code in UNSETTLED_CHARGE_EXPONENT:
-        raise UnsupportedCurrency(
-            f"Online payment is not available for {code.upper()} yet. "
-            f"{UNSETTLED_CHARGE_EXPONENT[code]} The invoice itself is "
-            f"unaffected — you can still send it and record payment by hand."
+    return decimals_for(code) == 2 and code not in DIVERGENT_FROM_ISO
+
+
+def why_not_chargeable(currency):
+    """The reason, in words the owner can act on."""
+    code = (currency or "usd").lower()
+    if code in DIVERGENT_FROM_ISO:
+        return (
+            f"Stripe handles {code.upper()} differently from the international "
+            "standard, and exactly how could not be confirmed."
         )
+    places = decimals_for(code)
+    if places == 0:
+        return (
+            f"{code.upper()} has no decimal places, and Stripe's handling of "
+            "those has exceptions we have not been able to confirm."
+        )
+    if places == 3:
+        return (
+            f"{code.upper()} has three decimal places, and Stripe applies its "
+            "own rounding to those which we have not been able to confirm."
+        )
+    return f"{code.upper()} is not a currency we can take payment in yet."
+
+
+def guard_chargeable(currency):
+    """Refuse a currency this adapter cannot convert with confidence."""
+    if is_chargeable(currency):
+        return
+    code = (currency or "usd").lower()
+    raise UnsupportedCurrency(
+        f"Online payment is not available for {code.upper()} yet. "
+        f"{why_not_chargeable(code)} The invoice itself is unaffected — you "
+        f"can still send it and record payment by hand."
+    )
 
 
 def _stripe_exponent(currency):
     """How many decimal places Stripe uses for this currency.
 
-    Only reached for currencies `guard_chargeable` has allowed, which are the
-    ones where ISO 4217 and Stripe agree.
+    Only ever reached for a currency `guard_chargeable` has allowed, and every
+    one of those is two-decimal in ISO 4217 with no known Stripe departure --
+    so ISO's answer is Stripe's answer. The indirection stays because the day
+    a verified exponent table arrives, this is the one place it plugs in.
     """
     return decimals_for(currency)
 

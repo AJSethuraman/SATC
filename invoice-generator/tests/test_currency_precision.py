@@ -261,44 +261,67 @@ def test_the_backfill_cannot_double_even_without_the_not_in(app, owner):
 
 # --- second round of Codex findings --------------------------------------
 
-@pytest.mark.parametrize("code", ["HUF", "TWD", "MGA", "ISK"])
-def test_a_currency_whose_charge_exponent_is_unsettled_is_refused(code):
-    """Refuse rather than default — and this test replaces one that asserted
-    the wrong thing.
+@pytest.mark.parametrize(
+    "code,because",
+    [("HUF", "differently"), ("TWD", "differently"), ("MGA", "differently"),
+     ("ISK", "no decimal places"), ("JPY", "no decimal places"),
+     ("KWD", "three decimal places"), ("VND", "no decimal places")],
+)
+def test_only_currencies_we_can_convert_with_confidence_are_chargeable(code, because):
+    """An ALLOWLIST, and the polarity is the point.
 
-    Round two of the review said the adapter must use Stripe's exponent rather
-    than ISO's, which was right. The fix read "Stripe treats HUF as zero-decimal
-    FOR PAYOUTS" out of `currencies.py` and encoded it as a CHARGE exponent,
-    which was wrong and would have charged HUF 15.00 for a HUF 1,500 invoice.
-    Round three caught that, and also that ISK has the inverse problem.
+    The first attempt at this was a DENYLIST of the four currencies I had
+    noticed were disputed — which assumed I had found them all. Three review
+    rounds proved otherwise: HUF went on that list through a misreading (its
+    zero-decimal rule is documented for PAYOUTS, not charges) and ISK was
+    missing. For a number that goes on somebody's card, "allow unless known
+    bad" is the wrong default.
 
-    `docs.stripe.com` is unreachable from this environment, so the exponents
-    cannot be settled against the primary source. Guessing them from prose is
-    what produced the HUF error, so the adapter now refuses these four rather
-    than mischarge by a factor of a hundred in an unknown direction.
+    Chargeable now means: two decimal places in ISO 4217, which is Stripe's
+    own default, with no recorded departure. Everything else waits for
+    evidence — including JPY, which this app has in fact never charged
+    correctly, so there is no history to lean on.
     """
-    from stripe_utils import UnsupportedCurrency, guard_chargeable
+    from stripe_utils import UnsupportedCurrency, guard_chargeable, is_chargeable
 
+    assert is_chargeable(code) is False
     with pytest.raises(UnsupportedCurrency) as raised:
         guard_chargeable(code)
     assert code in str(raised.value)
+    assert because in str(raised.value)
     assert "invoice itself is unaffected" in str(raised.value)
 
 
-@pytest.mark.parametrize("code", ["HUF", "TWD", "MGA", "ISK"])
-def test_an_unchargeable_currency_can_still_be_invoiced(code):
-    """Only taking payment is blocked. The document is just a document, and
-    refusing to PRINT an invoice because we cannot card it would be absurd."""
+@pytest.mark.parametrize("code", ["HUF", "TWD", "MGA", "ISK", "JPY", "KWD"])
+def test_a_currency_we_cannot_charge_can_still_be_invoiced(code):
+    """Only the pay-online button is withheld. Refusing to PRINT an invoice
+    because we cannot card it would be absurd, and the arithmetic for these is
+    tested elsewhere in this file and correct."""
     inv = invoice(code, [(2, 750)])
     assert inv.total == 1500.0
     assert format_money(inv.total, code)
 
 
-def test_the_settled_currencies_are_not_refused():
-    from stripe_utils import guard_chargeable
+def test_the_ordinary_currencies_are_chargeable():
+    from stripe_utils import guard_chargeable, is_chargeable
 
-    for code in ["USD", "EUR", "GBP", "JPY", "KWD", "VND", "CAD", "INR"]:
+    for code in ["USD", "EUR", "GBP", "CAD", "AUD", "INR", "CHF", "CNY",
+                 "BRL", "ZAR", "MXN", "SGD", "NZD", "SEK", "NOK", "PLN"]:
+        assert is_chargeable(code), code
         guard_chargeable(code)   # must not raise
+
+
+def test_the_allowlist_is_the_two_decimal_currencies_minus_the_disputed():
+    """Stated as a property so the count cannot drift silently."""
+    from currencies import CURRENCIES, decimals_for
+    from stripe_utils import DIVERGENT_FROM_ISO, is_chargeable
+
+    for code in CURRENCIES:
+        expected = decimals_for(code) == 2 and code.lower() not in DIVERGENT_FROM_ISO
+        assert is_chargeable(code) is expected, code
+    assert sum(1 for c in CURRENCIES if is_chargeable(c)) > 100, (
+        "the ordinary path must stay wide — this is not meant to be a short list"
+    )
 
 
 def test_currencies_where_stripe_and_iso_agree_are_untouched():

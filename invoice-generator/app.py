@@ -361,6 +361,10 @@ def create_app(config_class=Config):
         # the currency, and clamping it makes the row fail to multiply out.
         format_unit_price=format_unit_price,
         places_for=decimals_for,
+        # So a page can say why online payment is unavailable instead of
+        # offering a button that fails.
+        is_chargeable=stripe_utils.is_chargeable,
+        why_not_chargeable=stripe_utils.why_not_chargeable,
     )
     app.jinja_env.filters["nl2br"] = nl2br
     app.jinja_env.filters["fmtdate"] = fmtdate
