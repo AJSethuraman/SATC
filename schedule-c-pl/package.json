@@ -4,9 +4,9 @@
   "type": "module",
   "description": "Free Schedule C profit & loss tool for satcllp.com. Browser-only, no backend.",
   "scripts": {
-    "test": "node --test tests/",
-    "build": "node build.mjs",
-    "check": "node build.mjs --check",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "build": "node build.mjs && node guide/build-guide.mjs",
+    "check": "node build.mjs --check && node guide/build-guide.mjs --check",
     "walk": "node tests/walk.mjs"
   },
   "devDependencies": {

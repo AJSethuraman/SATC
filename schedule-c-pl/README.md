@@ -7,8 +7,12 @@ build refuses to produce a page that would talk to one.
 
 Lives at **`satcllp.com/tools/schedule-c-profit-and-loss/`**.
 
+There is a second page beside it: **`satcllp.com/guides/schedule-c-line-by-line/`**,
+a plain-English walk through the form written from the questions a real user had
+with the screen in front of them. Same rules — one file, no network, no analytics.
+
 - **`DECISIONS.md`** — why it is built this way, what was refused, and where the
-  plan is wrong. Read that first.
+  plan is wrong. Read that first (§7 is the guide page).
 - **`YEAR-UPDATE.md`** — the January job.
 
 ## Layout
@@ -17,6 +21,7 @@ Lives at **`satcllp.com/tools/schedule-c-profit-and-loss/`**.
 src/          the tool, as plain ES modules the browser could load unbundled
 years/        one file per tax year: line 27a/27b, the mileage rate, its source
 evidence/     Schedule C labels extracted from the official IRS PDFs, per year
+guide/        the line-by-line guide: copy.mjs is the prose, build-guide.mjs renders it
 tests/        the suite, plus walk.mjs which drives a real browser
 build.mjs     generates website/tools/schedule-c-profit-and-loss/index.html
 copy.spec.py  the client-facing register rules, run against the built page
@@ -32,14 +37,14 @@ fixtures and evidence should not sit on a public web server. The same shape as
 ```bash
 cd schedule-c-pl
 npm install                # fast-check, pdfjs-dist, playwright — dev only
-npm test                   # 128 tests
-npm run build              # writes the page into website/
-python3 copy.spec.py       # 13 checks on what a client reads
+npm test                   # 141 tests
+npm run build              # writes both pages into website/
+python3 copy.spec.py       # 24 checks on what a client reads
 npm run walk               # drives the built page in a real browser, offline
 ```
 
-`npm run check` rebuilds and fails if the committed page is not what the source
-produces today. That is the one to run in CI.
+`npm run check` rebuilds and fails if either committed page is not what the
+source produces today. That is the one to run in CI.
 
 The suite is worth a word, because a green suite that proves nothing is the
 failure mode this repo keeps writing tenets about:
@@ -52,7 +57,8 @@ failure mode this repo keeps writing tenets about:
 | `pdf.test.mjs` | Every figure the screen shows is in the PDF — read back by **pdf.js**, not by our own writer. |
 | `xlsx.test.mjs` | Same for the spreadsheet, via **openpyxl**, including evaluating each SUM formula against the cells it names. |
 | `build.test.mjs` | The shipped file makes no requests, carries no tracker, and is one file. |
-| `walk.mjs` | A person fills the form in, offline, and the downloaded files hold what the screen held. 35 checks. |
+| `walk.mjs` | A person fills the form in, offline, and the downloaded files hold what the screen held. 62 checks. |
+| `guide.test.mjs` | The guide's line numbers are looked up per year, not typed: 27a for 2023–24, 27b for 2025, and the shipped page carries the right one. |
 | `copy.spec.py` | No contract-desk verbs, no sentence over 25 words, no unexplained term of art, no promise that cannot be kept. |
 
 `FC_RUNS=5000 npm test` runs the property tests harder.

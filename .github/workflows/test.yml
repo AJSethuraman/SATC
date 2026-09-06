@@ -136,6 +136,12 @@ jobs:
       - name: The committed page is what the source builds
         run: node build.mjs --check
 
+      - name: The committed guide is what the source builds
+        # The guide's line numbers come from years/*.mjs, not from its prose —
+        # the IRS swapped 27a and 27b for 2025. This is what catches a page
+        # left behind after a year file changes.
+        run: node guide/build-guide.mjs --check
+
       - name: What a client reads
         run: python3 copy.spec.py
 

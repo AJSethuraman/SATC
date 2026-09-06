@@ -395,7 +395,57 @@ the variants are worth an afternoon each.
 
 ---
 
-## 7 · What a reviewer should be sceptical of
+## 7 · The guide page, and why it is generated rather than written
+
+`website/guides/schedule-c-line-by-line/` — source in `guide/`, built by
+`node guide/build-guide.mjs`, same rules as the tool: one file, no script tag,
+no network request, no analytics.
+
+**Why it exists at all.** §1 argued that the tool is the conversion asset and
+not the traffic asset — what ranks for this audience is a line-by-line guide, and
+the tool is what makes ours worth landing on. This is the other half of that
+argument, finally built.
+
+**What is in it came from the walk, not from the IRS instructions.** Somebody
+filled the tool in as a self-employed painter for a whole year and wrote down
+every question they actually had with the screen in front of them
+(`docs/walk-notes-for-guide.md`). The page answers those, in the order the form
+asks them, and opens with the eight that cost real money. The commonest of them —
+claiming the mileage rate *and* the van's insurance — is worth more than every
+other error on the form put together, and no version of the tool can catch it,
+because the tool cannot know which of the two ways you chose.
+
+**The line numbers are looked up, not typed.** This is the one thing worth
+copying elsewhere. The prose says `line: '27other'` and the builder resolves it
+against `years/*.mjs` at build time, because the IRS swapped 27a and 27b for
+2025: a guide with the number written into a sentence would have been wrong for
+two of the three years it covers, and nothing would have noticed. The IRS wording
+under each heading is the year's real label, from the same place. `tests/guide.test.mjs`
+proves the lookup resolves to 27a for 2023 and 2024 and 27b for 2025, and that
+the shipped page carries the right chip — and those tests were mutated to check
+they can go red.
+
+**Where it stops is the point, not a gap.** The page says which box a figure
+belongs in. It does not decide whether the sprayer is spread over years, whether
+the person who helps on big jobs is a subcontractor, or whether the back bedroom
+qualifies at all. Those turn on someone's own facts, they cost money in both
+directions, and they are the work. The closing section says so in as many words.
+Same line the tool draws when it refuses to work out self-employment tax (§2).
+
+**Register.** `copy.spec.py` holds the guide to the same rules as the tool's
+page: no contract-desk verbs, no sentence past 25 words, and any term of art
+explained in the same breath it is used. It caught ten sentences written to be
+complete rather than to be read — including the one about at-risk money, at 39
+words.
+
+**What it is not.** Not a rewrite of the IRS instructions, and not advice. It is
+written for the year at the top of it and takes its figures from that year's
+file, so the January update is the same job as the tool's: add a year file, run
+the build.
+
+---
+
+## 8 · What a reviewer should be sceptical of
 
 Written down so it is not discovered later.
 
@@ -416,3 +466,9 @@ Written down so it is not discovered later.
   someone who has not read this paragraph.
 - **Nothing here has been used by a person who is not me.** The browser walk is
   thorough and it is still not the same thing.
+- **The guide page is a draft, and it goes out under a licensed name.** Every
+  sentence on it is mine, written from one walk and the form itself. Nothing on
+  it has been read by the firm yet, and the parts most worth arguing with are the
+  ones that summarise a rule in a sentence — what counts as a business meal, what
+  makes a home office qualify, when a tool has to be spread over years. Read those
+  before it is linked from anywhere.

@@ -26,6 +26,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PAGE = HERE.parent / "website" / "tools" / "schedule-c-profit-and-loss" / "index.html"
+GUIDE = HERE.parent / "website" / "guides" / "schedule-c-line-by-line" / "index.html"
 
 checks: list[tuple[bool, str]] = []
 
@@ -191,6 +192,67 @@ check("Notice 2025-5" in script or "Notice 2025-5" in html,
       "the mileage rate on the page names the IRS notice it came from")
 check("Instructions for Schedule C" in html,
       "and the square-foot figure names the instructions it came from")
+
+# ── 8 · the guide page, held to the same register ─────────────────────
+#
+# It is longer and it carries terms the tool refuses to use at all -- there is
+# no way to write about line 13 without naming what it is. The rule is not
+# "never say it": it is show the term and then say what it means, in the same
+# breath. These checks are on the guide's own prose.
+
+if not GUIDE.exists():
+    check(False, "the guide page exists (run: node guide/build-guide.mjs)")
+else:
+    g_html = GUIDE.read_text(encoding="utf-8")
+    g_body = re.sub(r"(?s)<style.*?</style>", " ", g_html)
+    g_body = re.sub(r"</(?:p|li|h1|h2|h3|ul|div|section|header|footer|article|a)>", " \u00b6 ", g_body)
+    g_body = re.sub(r"<[^>]+>", " ", g_body)
+    g_body = g_body.replace("&amp;", "&").replace("&quot;", '"').replace("&nbsp;", " ")
+    g_pieces = [re.sub(r"\s+", " ", part).strip() for part in g_body.split("\u00b6")]
+    g_pieces = [x for x in g_pieces if x]
+
+    check(len(g_pieces) > 60, f"the guide has copy to check — {len(g_pieces)} pieces")
+
+    g_found = [(w, x) for x in g_pieces for w in BANNED if re.search(rf"\b{re.escape(w)}\b", x, re.I)]
+    check(not g_found, "the guide uses no contract-desk verbs"
+          + (f" — {g_found[0][0]!r} in: {g_found[0][1][:80]}" if g_found else ""))
+
+    g_long = []
+    for piece in g_pieces:
+        for sentence in re.split(r"(?<=[.?!])\s+", piece):
+            words = [w for w in re.split(r"\s+", sentence.strip()) if w]
+            if len(words) > LIMIT:
+                g_long.append((len(words), sentence.strip()))
+    g_long.sort(reverse=True)
+    check(not g_long, f"every guide sentence is {LIMIT} words or fewer"
+          + (f" — longest is {g_long[0][0]}: {g_long[0][1][:110]}" if g_long else ""))
+
+    g_sold = [(w, x) for x in g_pieces for w in OVERSELL if w.lower() in x.lower()]
+    check(not g_sold, "the guide promises nothing it could not keep"
+          + (f" — {g_sold[0][0]!r} in: {g_sold[0][1][:80]}" if g_sold else ""))
+
+    # A term of art must be EXPLAINED where it is used, not merely avoided.
+    for term, gloss in [("self-employment tax", "Social Security"),
+                        ("1099-NEC", "600"),
+                        ("depreciation schedule", "running list")]:
+        used = [x for x in g_pieces if term.lower() in x.lower()]
+        if used:
+            check(any(gloss.lower() in x.lower() for x in used),
+                  f"the guide explains {term!r} where it uses it")
+
+    # The guide's whole reason for being generated rather than typed.
+    # NOT `"27a" not in g_html`: the note explaining the swap has to name the
+    # old number, and that is the most useful sentence on the page for anyone
+    # copying off last year's worksheet. What must not appear is 27a as a LINE
+    # CHIP -- the number the page tells you to write in.
+    chips = re.findall(r'<span class="line-no">([^<]+)</span>', g_html)
+    check("27b" in chips and "27a" not in chips,
+          f"other expenses is chipped as the 2025 line, not a typed-in guess (chips: {sorted(set(chips))[:6]}…)")
+    check("27a" in g_html, "and the page still warns that the number moved")
+    check("does not make you a client" in g_html,
+          "and says reading it does not make someone a client")
+    check("/tools/schedule-c-profit-and-loss/" in g_html,
+          "and sends the reader to the tool")
 
 # ── report ────────────────────────────────────────────────────────────
 print("\nSchedule C tool — client-facing copy\n")

@@ -28,11 +28,13 @@ export const meta = {
   intro: [
     'Schedule C is where a sole trader tells the IRS what the business took and what it spent. '
     + 'The arithmetic is easy. Deciding which box a cost belongs in is not, and that is where the money goes wrong.',
-    'This page goes through the form in order. It says what each box is for, and it is honest about '
-    + 'the handful of questions that depend on your own circumstances rather than on a rule.',
+    'This page goes through the form in order, and says what each box is for. '
+    + 'A handful of questions depend on your own circumstances rather than on a rule. '
+    + 'It says which those are.',
   ],
-  toolNudge: 'There is a free tool on this site that adds it all up for you and gives you a '
-    + 'profit and loss statement and a worksheet, as a PDF and a spreadsheet. Nothing you type leaves your computer.',
+  toolNudge: 'There is a free tool on this site that adds it all up for you. '
+    + 'It gives you a profit and loss statement and a worksheet, as a PDF and a spreadsheet. '
+    + 'Nothing you type leaves your computer.',
 };
 
 /* The eight that cost real money, up front, because most readers will not
@@ -68,8 +70,9 @@ export const traps = [
   {
     line: '13',
     title: 'Writing off a big tool in one go without checking',
-    body: 'A $40 scraper is an expense. A $1,200 sprayer may have to be spread over several years, '
-      + 'or may not — there are three separate rules that can let you take it all at once, and which applies depends on your year. '
+    body: 'A $40 scraper is an expense. A $1,200 sprayer may have to be spread over several years. '
+      + 'Or it may not: three separate rules can let you take it all at once. '
+      + 'Which of them applies depends on what you bought and when. '
       + 'This is the one line where guessing is genuinely expensive.',
   },
   {
@@ -89,8 +92,8 @@ export const traps = [
     line: '30',
     title: 'Claiming a room the family also uses',
     body: 'A home office has to be used regularly and only for the business. '
-      + 'If the children do their homework at that desk in the evening, it does not qualify at all — '
-      + 'and no method of working out the figure fixes that.',
+      + 'If the children do their homework at that desk in the evening, it does not qualify at all. '
+      + 'No method of working out the figure fixes that.',
   },
 ];
 
@@ -149,9 +152,9 @@ export const sections = [
     items: [
       {
         title: 'Did you hold things to sell on the last day of the year?',
-        body: 'If you had goods sitting in a lock-up on 31 December that you had bought to sell on, that is stock, '
-          + 'and it goes through the cost of goods sold part of the form. '
-          + 'If you buy materials and use them up on jobs, it is not stock — those are supplies.',
+        body: 'Goods sitting in a lock-up on 31 December that you bought to sell on are stock. '
+          + 'Stock goes through the cost of goods sold part of the form. '
+          + 'If you buy materials and use them up on jobs, that is not stock — those are supplies.',
         ask: 'Watch the names. There is a materials and supplies box inside the stock section and a supplies box outside it. '
           + 'They are nearly the same words and, for a trade, opposite answers.',
       },
@@ -174,15 +177,18 @@ export const sections = [
         line: '11',
         body: 'People you paid to do work who are not your employees.',
         ask: 'Two things follow. Pay anyone more than $600 in the year and you owe them a 1099-NEC form. '
-          + 'And if you set their hours and supply their kit, the IRS may treat them as an employee, which is a different line and different taxes.',
+          + 'And if you set their hours and supply their kit, the IRS may treat them as an employee. '
+          + 'That is a different line, and different taxes.',
       },
       {
         line: '13',
         body: 'Equipment that lasts — a machine, a laptop, a trailer. '
-          + 'The cost is often spread over several years rather than taken all at once, and there are three separate rules '
-          + 'that can let you take more of it up front. Which one fits depends on what you bought, when, and what else you bought that year.',
-        ask: 'This is where the free tool stops, and it says so. If you have never had a depreciation schedule — '
-          + 'the running list of what you own and how much of it you have written off — this is the line to get help with.',
+          + 'The cost is often spread over several years rather than taken all at once. '
+          + 'Three separate rules can let you take more of it up front. '
+          + 'Which one fits depends on what you bought, when, and what else you bought that year.',
+        ask: 'This is where the free tool stops, and it says so. '
+          + 'A depreciation schedule is the running list of what you own and how much of it you have written off. '
+          + 'If you have never had one, this is the line to get help with.',
       },
       { line: '14', body: 'Benefits for people you employ. Not for you.' },
       {
@@ -245,8 +251,8 @@ export const sections = [
       },
       {
         title: 'The connection nobody points out',
-        body: 'If your home office is the main place you run the business from, '
-          + 'the drive to your first job of the day is business travel rather than commuting. '
+        body: 'Say your home office is the main place you run the business from. '
+          + 'Then the drive to your first job of the day is business travel, not commuting. '
           + 'That changes what you put in the mileage boxes at the end of the form.',
       },
     ],
@@ -257,15 +263,15 @@ export const sections = [
     items: [
       {
         title: 'The vehicle questions',
-        body: 'If you claim car or truck costs, the form asks when you started using the vehicle for work '
-          + 'and how the year\'s miles split between business, commuting and everything else. '
+        body: 'If you claim car or truck costs, the form asks when you started using the vehicle for work. '
+          + 'It also asks how the year\'s miles split between business, commuting and everything else. '
           + 'Keep a note through the year; reconstructing it in April is how people get it wrong.',
       },
       {
         title: 'If the year made a loss',
         body: 'The form asks whether all the money in the business was yours to lose. '
-          + 'If some of it was not — money you borrowed that you are not personally on the hook for — '
-          + 'there is a limit on how much of the loss you can use, and another form goes with it.',
+          + 'Some of it may not have been: money you borrowed that you are not personally on the hook for. '
+          + 'If so, there is a limit on how much of the loss you can use, and another form goes with it.',
       },
     ],
   },
@@ -275,9 +281,10 @@ export const closing = {
   heading: 'Where this page stops',
   body: [
     'Everything above is about which box a figure belongs in. That is a fair thing to publish, and it is most of what people get wrong.',
-    'What it does not do is decide your facts. Whether that sprayer is spread over years, whether the person who helps you '
-    + 'on big jobs is a subcontractor or an employee, whether the back bedroom qualifies at all — those turn on your circumstances, '
-    + 'and getting them wrong is expensive in both directions.',
+    'What it does not do is decide your facts.',
+    'Is that sprayer spread over years, or written off now? Is the person who helps you on big jobs '
+    + 'a subcontractor or an employee? Does the back bedroom qualify at all?',
+    'Every one of those turns on your own circumstances, and getting them wrong costs money in both directions.',
     'That is the part we do, and it is the part worth paying for. If you would rather hand the year over, we take on sole traders.',
   ],
   cta: 'Tell us about your year',
