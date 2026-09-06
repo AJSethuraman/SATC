@@ -14,98 +14,73 @@ import stripe
 
 from currencies import decimals_for
 
-#: WHERE STRIPE DISAGREES WITH ISO 4217, and it does for exactly three
-#: currencies. `currencies.py` records the divergence at each entry and says
-#: plainly that "a Stripe adapter must apply its own rule rather than" the ISO
-#: one -- which is what this table is. The adapter was built on `decimals_for`
-#: alone and therefore did the thing that comment warned about.
+#: CURRENCIES THIS ADAPTER WILL NOT CHARGE IN, and why that is the safe answer.
 #:
-#: The consequence is the same shape as the ¥ bug and just as invisible: an
-#: Ar1,500 MGA invoice went out as 150000, Stripe charged **Ar150,000**, and
-#: the inbound decode applied the same ISO rule and read 1,500 back -- so the
-#: invoice showed as correctly settled while the client had been charged a
-#: hundred times over. The two errors cancel in our books and not on the card.
+#: Stripe's per-currency *charge* exponent is not always ISO 4217's, and four
+#: currencies are genuinely disputed between the sources available here:
 #:
-#: ISO STAYS THE RULE FOR THE INVOICE. What money *is* does not depend on who
-#: processes it; only the number handed to the processor does.
+#:   HUF  ISO 2. `currencies.py` records "Stripe treats HUF as zero-decimal
+#:        FOR PAYOUTS" -- a payout rule, which an earlier version of this file
+#:        wrongly encoded as a charge exponent. That sent HUF 1,500.00 as
+#:        `1500` and would have charged the client HUF 15.00.
+#:   TWD  ISO 2, "Stripe requires whole-dollar amounts" -- which may mean an
+#:        exponent of 0, or 2 with the amount divisible by 100. Not the same
+#:        thing, and the difference is a factor of a hundred.
+#:   MGA  ISO 2, Stripe zero-decimal. Charging it on the ISO rule sent Ar1,500
+#:        as 150000 and charged Ar150,000.
+#:   ISK  ISO 0, and Stripe is reported to want 1,500 ISK as `150000`. The
+#:        inverse of MGA.
 #:
-#: Only these three differ. Every other currency where Stripe uses zero
-#: decimals (JPY, KRW, VND, XAF, ...) is zero-decimal in ISO too, so
-#: `decimals_for` already agrees and no entry is needed.
-STRIPE_EXPONENT = {
-    "huf": 0,   # ISO 2. Stripe treats HUF as zero-decimal.
-    "mga": 0,   # ISO 2 (the ariary's 5-part sub-unit). Stripe: zero-decimal.
-    "twd": 0,   # ISO 2. Stripe requires whole-dollar amounts.
+#: Every one of those is a 100x error on a client's card, in one direction or
+#: the other, and each is invisible in our own books because the inbound decode
+#: applies the same wrong rule and reads the right number back.
+#:
+#: `docs.stripe.com` is not reachable from this environment, so the exponents
+#: could not be settled against the primary source. Guessing them from prose in
+#: a code comment is what produced the HUF error in the first place.
+#:
+#: SO THE ADAPTER REFUSES. An invoice can be RAISED, printed and emailed in any
+#: of the 157 currencies -- the document is just a document. Only taking
+#: payment is blocked, and only for these four, with a message that says why.
+#: docs/DESIGN-PRINCIPLES.md: refuse rather than default. A refusal the owner
+#: can read is recoverable; a silent 100x mischarge is not.
+#:
+#: To lift this: confirm each exponent against Stripe's own currency
+#: documentation, add it to a charge-exponent table, and delete the entry here.
+UNSETTLED_CHARGE_EXPONENT = {
+    "huf": "Stripe's charge exponent for HUF is not confirmed here (its "
+           "zero-decimal rule is documented for payouts, not charges).",
+    "twd": "Stripe's charge exponent for TWD is not confirmed here "
+           "(\"whole-dollar amounts\" may mean 0 places, or 2 divisible by 100).",
+    "mga": "Stripe treats MGA as zero-decimal while ISO 4217 records 2, and "
+           "the charge exponent is not confirmed here.",
+    "isk": "Stripe is reported to charge ISK with 2 places while ISO 4217 "
+           "records 0, and this is not confirmed here.",
 }
 
 
-def _stripe_exponent(currency):
-    """How many decimal places STRIPE uses for this currency."""
+class UnsupportedCurrency(RuntimeError):
+    """Raised rather than charge an amount we cannot be sure of."""
+
+
+def guard_chargeable(currency):
+    """Refuse a currency whose Stripe charge exponent is not settled."""
     code = (currency or "usd").lower()
-    if code in STRIPE_EXPONENT:
-        return STRIPE_EXPONENT[code]
-    return decimals_for(code)
+    if code in UNSETTLED_CHARGE_EXPONENT:
+        raise UnsupportedCurrency(
+            f"Online payment is not available for {code.upper()} yet. "
+            f"{UNSETTLED_CHARGE_EXPONENT[code]} The invoice itself is "
+            f"unaffected — you can still send it and record payment by hand."
+        )
 
 
-def configure(secret_key):
-    stripe.api_key = secret_key
+def _stripe_exponent(currency):
+    """How many decimal places Stripe uses for this currency.
 
-
-# --------------------------------------------------------------------------
-# Connect onboarding (Standard)
-# --------------------------------------------------------------------------
-def create_connect_account(secret_key, email=None):
-    """Create a Standard connected account; returns its id (acct_...).
-
-    Standard accounts are full Stripe accounts the user owns and manages from
-    their own Stripe Dashboard. We don't request capabilities — a Standard
-    account gets card payments automatically once the user finishes setup, and
-    Stripe rejects capability requests on Standard accounts.
+    Only reached for currencies `guard_chargeable` has allowed, which are the
+    ones where ISO 4217 and Stripe agree.
     """
-    if not secret_key:
-        raise RuntimeError("STRIPE_SECRET_KEY is not configured.")
-    configure(secret_key)
-    account = stripe.Account.create(
-        type="standard",
-        email=email or None,
-    )
-    return account.id
-
-
-def create_account_link(secret_key, account_id, refresh_url, return_url):
-    """Create a one-time onboarding link the user is redirected to.
-
-    For a Standard account this hosted flow lets the user sign in to an
-    existing Stripe account or create a new one.
-    """
-    configure(secret_key)
-    link = stripe.AccountLink.create(
-        account=account_id,
-        refresh_url=refresh_url,
-        return_url=return_url,
-        type="account_onboarding",
-    )
-    return link.url
-
-
-def get_account(secret_key, account_id):
-    """Retrieve a connected account (to read charges_enabled, etc.)."""
-    configure(secret_key)
-    return stripe.Account.retrieve(account_id)
-
-
-# --------------------------------------------------------------------------
-# Payments
-# --------------------------------------------------------------------------
-def _platform_fee_cents(config, amount_cents):
-    """Compute the platform's cut for this charge. 0 means no fee (default)."""
-    if not config:
-        return 0
-    pct = float(config.get("PLATFORM_FEE_PERCENT", 0) or 0)
-    flat = int(config.get("PLATFORM_FEE_FLAT_CENTS", 0) or 0)
-    fee = int(round(amount_cents * pct / 100.0)) + flat
-    # Never let the fee meet/exceed the charge.
-    return fee if 0 < fee < amount_cents else 0
+    return decimals_for(currency)
 
 
 def to_minor_units(amount, currency):
@@ -183,6 +158,9 @@ def create_checkout_session(
 
     configure(secret_key)
     currency = (invoice.currency or "usd").lower()
+    # Before anything is sent: refuse a currency whose charge exponent we
+    # cannot be certain of, rather than mischarge by a factor of a hundred.
+    guard_chargeable(currency)
     unit_amount = to_minor_units(amount, currency)
 
     params = {

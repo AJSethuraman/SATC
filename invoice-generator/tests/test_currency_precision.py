@@ -261,23 +261,44 @@ def test_the_backfill_cannot_double_even_without_the_not_in(app, owner):
 
 # --- second round of Codex findings --------------------------------------
 
-@pytest.mark.parametrize("code,iso_places", [("HUF", 2), ("MGA", 2), ("TWD", 2)])
-def test_the_adapter_uses_stripes_exponent_where_it_differs_from_iso(code, iso_places):
-    """`currencies.py` documents three currencies where Stripe disagrees with
-    ISO 4217, and says in as many words that "a Stripe adapter must apply its
-    own rule". The adapter was built on `decimals_for` and did the thing that
-    comment warned about: an Ar1,500 MGA invoice went out as 150000, Stripe
-    charged Ar150,000, and the inbound decode applied the same ISO rule and
-    read 1,500 back — so the books showed it correctly settled.
-    """
-    from currencies import decimals_for
+@pytest.mark.parametrize("code", ["HUF", "TWD", "MGA", "ISK"])
+def test_a_currency_whose_charge_exponent_is_unsettled_is_refused(code):
+    """Refuse rather than default — and this test replaces one that asserted
+    the wrong thing.
 
-    assert decimals_for(code) == iso_places, "ISO precision is unchanged"
-    assert to_minor_units(1500, code) == 1500, "but Stripe gets whole units"
-    assert from_minor_units(1500, code) == 1500
-    # and the invoice's own arithmetic still uses ISO
-    inv = invoice(code, [(1, 10.55)])
-    assert inv.total == 10.55
+    Round two of the review said the adapter must use Stripe's exponent rather
+    than ISO's, which was right. The fix read "Stripe treats HUF as zero-decimal
+    FOR PAYOUTS" out of `currencies.py` and encoded it as a CHARGE exponent,
+    which was wrong and would have charged HUF 15.00 for a HUF 1,500 invoice.
+    Round three caught that, and also that ISK has the inverse problem.
+
+    `docs.stripe.com` is unreachable from this environment, so the exponents
+    cannot be settled against the primary source. Guessing them from prose is
+    what produced the HUF error, so the adapter now refuses these four rather
+    than mischarge by a factor of a hundred in an unknown direction.
+    """
+    from stripe_utils import UnsupportedCurrency, guard_chargeable
+
+    with pytest.raises(UnsupportedCurrency) as raised:
+        guard_chargeable(code)
+    assert code in str(raised.value)
+    assert "invoice itself is unaffected" in str(raised.value)
+
+
+@pytest.mark.parametrize("code", ["HUF", "TWD", "MGA", "ISK"])
+def test_an_unchargeable_currency_can_still_be_invoiced(code):
+    """Only taking payment is blocked. The document is just a document, and
+    refusing to PRINT an invoice because we cannot card it would be absurd."""
+    inv = invoice(code, [(2, 750)])
+    assert inv.total == 1500.0
+    assert format_money(inv.total, code)
+
+
+def test_the_settled_currencies_are_not_refused():
+    from stripe_utils import guard_chargeable
+
+    for code in ["USD", "EUR", "GBP", "JPY", "KWD", "VND", "CAD", "INR"]:
+        guard_chargeable(code)   # must not raise
 
 
 def test_currencies_where_stripe_and_iso_agree_are_untouched():
@@ -376,3 +397,101 @@ def test_the_cache_is_recomputed_from_the_table_not_the_collection(app, owner):
         assert inv.amount_paid == 1100.0, "both payments, not just the last"
         assert inv.ledger_total == 1100.0
         assert inv.balance_due == 0.0
+
+
+# --- third round ----------------------------------------------------------
+
+def test_a_single_currency_account_is_labelled_with_that_currency(app, owner):
+    """A USD-default account whose only invoice is in yen showed a ¥10,000
+    receivable as "$10,000.00" — the figure was right and the label was not,
+    which is the worse of the two."""
+    with app.app_context():
+        inv = invoice("JPY", [(1, 10000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    page = client.get("/history").get_data(as_text=True)
+    assert "¥10,000" in page
+    assert "$10,000" not in page, "labelled with the account default"
+
+
+def test_a_mixed_account_reports_each_currency_apart(app, owner):
+    with app.app_context():
+        for code, rate in [("USD", 100), ("JPY", 10000)]:
+            inv = invoice(code, [(1, rate)])
+            inv.user_id = owner
+            inv.invoice_number = f"INV-{code}"
+            db.session.add(inv)
+        db.session.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    page = client.get("/history").get_data(as_text=True)
+    assert "$100" in page and "¥10,000" in page
+    assert "$10,100" not in page, "the two were added together"
+
+
+def test_the_csv_export_keeps_the_invoices_precision(app, owner):
+    """The one artifact an accountant imports must not disagree with the PDF."""
+    with app.app_context():
+        inv = invoice("KWD", [(1, 1.235)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    csv_text = client.get("/history/export.csv").get_data(as_text=True)
+    assert "1.235" in csv_text
+    assert "1.24" not in csv_text, "truncated to two places"
+
+
+def test_the_edit_form_speaks_the_invoices_currency(app, owner):
+    with app.app_context():
+        inv = invoice("JPY", [(1, 150000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        invoice_id = inv.id
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    page = client.get(f"/invoice/{invoice_id}/edit").get_data(as_text=True)
+    assert "Currency: JPY" in page, "the page showed the account default"
+    assert "const DP = 0" in page, "and calculated at two places"
+
+
+def test_marking_paid_counts_a_payment_another_session_recorded(app, owner):
+    """The owner's route resyncs from the table, so a card payment that landed
+    underneath them is counted rather than overwritten."""
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        invoice_id = inv.id
+
+    with app.app_context():
+        db.session.add(Payment(invoice_id=invoice_id, amount=400.0,
+                               currency="USD", source="stripe",
+                               external_id="cs_underneath"))
+        db.session.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    client.post(f"/invoice/{invoice_id}/mark-paid")
+
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        assert inv.amount_paid == 1000.0
+        assert inv.confirmed_paid == 400.0, "the card payment survived"
+        assert inv.manual_paid == 600.0, "and only the shortfall was added"
+        assert inv.amount_paid == inv.ledger_total

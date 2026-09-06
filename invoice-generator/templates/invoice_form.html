@@ -36,6 +36,7 @@
   @media (max-width:920px){ .form-grid{ grid-template-columns:1fr;} .rail{ position:static;} .lihead{ display:none;} .lirow{ grid-template-columns:1fr 1fr; gap:var(--space-2);} .lirow .amt{ grid-column:1/3; text-align:left;} }
 </style>
 </head>
+{% set cur = form_currency | default(current_user.default_currency, true) or 'USD' %}
 <body>
 <div class="app">
   <header class="topbar">
@@ -119,12 +120,12 @@
       <aside class="rail">
         <div class="card"><div class="card__body">
           <div class="section-label">Summary</div>
-          <div class="sumline"><span class="k">Subtotal</span><span class="v" id="s-sub">{{ currency_symbol(current_user.default_currency) }}0.00</span></div>
+          <div class="sumline"><span class="k">Subtotal</span><span class="v" id="s-sub">{{ symbol_for(cur) }}0.00</span></div>
           <div class="sumline"><span class="k">Discount</span><span class="v"><input class="input inline-input num" name="discount" id="i-disc" value="{{ invoice.discount_value if invoice else 0 }}" oninput="recalc()"/> %</span></div>
           <div class="sumline"><span class="k">Tax</span><span class="v"><input class="input inline-input num" name="tax" id="i-tax" value="{{ invoice.tax_value if invoice else 0 }}" oninput="recalc()"/> %</span></div>
-          <div class="sumline"><span class="k">Shipping</span><span class="v">{{ currency_symbol(current_user.default_currency) }}<input class="input inline-input num" name="shipping" id="i-ship" value="{{ invoice.shipping if invoice else 0 }}" oninput="recalc()"/></span></div>
-          <div class="sumline tot"><span class="k">Total</span><span class="v" id="s-tot">{{ currency_symbol(current_user.default_currency) }}0.00</span></div>
-          <p class="hint" style="margin-top:var(--space-3)">Currency: {{ current_user.default_currency }} ({{ currency_symbol(current_user.default_currency) }}). Change in <a href="{{ url_for('account') }}">account settings</a>.</p>
+          <div class="sumline"><span class="k">Shipping</span><span class="v">{{ symbol_for(cur) }}<input class="input inline-input num" name="shipping" id="i-ship" value="{{ invoice.shipping if invoice else 0 }}" oninput="recalc()"/></span></div>
+          <div class="sumline tot"><span class="k">Total</span><span class="v" id="s-tot">{{ symbol_for(cur) }}0.00</span></div>
+          <p class="hint" style="margin-top:var(--space-3)">Currency: {{ cur }} ({{ symbol_for(cur) }}) — this invoice's own. The default for new invoices is in <a href="{{ url_for('account') }}">account settings</a>.</p>
         </div></div>
 
         <div class="card"><div class="card__body">
@@ -147,13 +148,15 @@
 </div>
 
 <script>
-  const CUR = {{ currency_symbol(current_user.default_currency) | tojson }};
+  const CUR = {{ symbol_for(cur) | tojson }};
+  // The invoice's precision, not two places -- see models.Invoice.places.
+  const DP = {{ places_for(cur) }};
   const seed = [
   {% if invoice and invoice.items %}{% for it in invoice.items %}
     { d: {{ it.description | tojson }}, q: {{ it.quantity or 0 }}, p: {{ it.rate or 0 }} },
   {% endfor %}{% endif %}
   ];
-  const money = n => CUR + n.toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const money = n => CUR + n.toLocaleString("en-US",{minimumFractionDigits:DP, maximumFractionDigits:DP});
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
   function rowHTML(it){

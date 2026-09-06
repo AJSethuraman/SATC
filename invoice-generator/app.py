@@ -50,6 +50,7 @@ from config import Config
 from currencies import (
     CURRENCY_CHOICES,
     CURRENCIES,
+    decimals_for,
     format_unit_price,
     symbol_for,
 )
@@ -359,6 +360,7 @@ def create_app(config_class=Config):
         # The unit-price column only: a rate may carry more precision than
         # the currency, and clamping it makes the row fail to multiply out.
         format_unit_price=format_unit_price,
+        places_for=decimals_for,
     )
     app.jinja_env.filters["nl2br"] = nl2br
     app.jinja_env.filters["fmtdate"] = fmtdate
@@ -809,9 +811,25 @@ def _send_verification(user):
 # Routes
 # --------------------------------------------------------------------------
 def register_routes(app):
-    def owned_or_404(invoice_id):
-        """Fetch an invoice that belongs to the current user, else 404."""
-        invoice = db.session.get(Invoice, invoice_id)
+    def owned_or_404(invoice_id, for_update=False):
+        """Fetch an invoice that belongs to the current user, else 404.
+
+        ``for_update`` takes the row lock, and EVERY ROUTE THAT MOVES MONEY
+        must pass it. Locking only the webhook left the other half of the same
+        race: an owner pressing "mark as paid" reads the invoice unlocked, and
+        a webhook holding the lock records a card payment underneath them. The
+        owner's write then waits — but its arithmetic does not, so both rows
+        land and the later writer restores a cache computed before the other
+        existed (ledger 1,500, cache 1,100).
+
+        SQLite renders no lock clause and serialises writes at the file level;
+        on Postgres this is what actually holds. Read-only routes stay unlocked
+        so a page view never blocks behind a payment.
+        """
+        query = Invoice.query.filter_by(id=invoice_id)
+        if for_update:
+            query = query.with_for_update()
+        invoice = query.first()
         if invoice is None or invoice.user_id != current_user.id:
             abort(404)
         return invoice
@@ -1229,6 +1247,7 @@ def register_routes(app):
         return render_template(
             "invoice_form.html",
             invoice=None,
+            form_currency=current_user.default_currency,
             suggested_number=suggested,
             today=date.today().isoformat(),
         )
@@ -1251,6 +1270,9 @@ def register_routes(app):
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
+                form_currency=(
+                    invoice.currency or current_user.default_currency
+                ),
             ), 400
         db.session.add(invoice)
         db.session.commit()
@@ -1294,6 +1316,11 @@ def register_routes(app):
             invoice=invoice,
             suggested_number=invoice.invoice_number,
             today=date.today().isoformat(),
+            # THE INVOICE'S currency, not the account's. An invoice saved from
+            # the generator in another currency kept it on submit but was
+            # still LABELLED and previewed in the account default, so a KWD
+            # 1.235 invoice showed as $1.24 on the very page used to edit it.
+            form_currency=invoice.currency or current_user.default_currency,
         )
 
     @app.route("/invoice/<int:invoice_id>", methods=["POST"])
@@ -1312,6 +1339,9 @@ def register_routes(app):
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
+                form_currency=(
+                    invoice.currency or current_user.default_currency
+                ),
             ), 400
         # An edit can raise the total above what has already been paid (add a
         # line item to a settled invoice, remove a discount, bump a rate). The
@@ -1366,7 +1396,7 @@ def register_routes(app):
     @app.route("/invoice/<int:invoice_id>/mark-paid", methods=["POST"])
     @login_required
     def mark_paid(invoice_id):
-        invoice = owned_or_404(invoice_id)
+        invoice = owned_or_404(invoice_id, for_update=True)
         # Record the SHORTFALL as a manual entry, rather than overwriting the
         # total. On an invoice already part-paid by card, assigning the total
         # turned "400.00 by card and 700.00 by cheque" into one indistinguishable
@@ -1381,6 +1411,7 @@ def register_routes(app):
                 outstanding, source="manual", note="Marked as paid"
             )
         invoice.status = "Paid"
+        invoice.resync_amount_paid_from_db()
         db.session.commit()
         flash("Invoice marked as paid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1401,12 +1432,13 @@ def register_routes(app):
         # A card payment is a fact about the world and a button in our UI does
         # not get to undo it. Reversing one is a refund; that happens at the
         # processor and comes back as its own event.
-        invoice = owned_or_404(invoice_id)
+        invoice = owned_or_404(invoice_id, for_update=True)
         invoice.reverse_manual_payments(note="Reopened with 'mark as unpaid'")
         # Reopen only if reversing the manual part actually leaves a balance.
         # A card payment covering the whole invoice survives this button, so
         # the invoice is still settled and must not come back reading "Sent"
         # with nothing owing.
+        invoice.resync_amount_paid_from_db()
         invoice.status = "Paid" if invoice.balance_due <= 0 else "Sent"
         # Drop the spent Checkout Session so nothing copies/sends a dead link;
         # a fresh session is created on demand when the invoice is paid again.
@@ -1889,13 +1921,18 @@ def register_routes(app):
                     inv.invoice_date.isoformat() if inv.invoice_date else "",
                     bill_to_oneline,
                     inv.currency,
-                    f"{inv.subtotal:.2f}",
-                    f"{inv.discount_amount:.2f}",
-                    f"{inv.tax_amount:.2f}",
-                    f"{(inv.shipping or 0):.2f}",
-                    f"{inv.total:.2f}",
-                    f"{(inv.amount_paid or 0):.2f}",
-                    f"{inv.balance_due:.2f}",
+                    # AT THE INVOICE'S OWN PRECISION. `:.2f` silently
+                    # truncated a KWD 1.235 invoice to 1.24 in the one artifact
+                    # an accountant imports, while the database, the PDF and
+                    # the API all said 1.235. An export that disagrees with the
+                    # document it exports is worse than no export.
+                    f"{inv.subtotal:.{inv.places}f}",
+                    f"{inv.discount_amount:.{inv.places}f}",
+                    f"{inv.tax_amount:.{inv.places}f}",
+                    f"{(inv.shipping or 0):.{inv.places}f}",
+                    f"{inv.total:.{inv.places}f}",
+                    f"{(inv.amount_paid or 0):.{inv.places}f}",
+                    f"{inv.balance_due:.{inv.places}f}",
                     inv.status,
                 ]
             )
