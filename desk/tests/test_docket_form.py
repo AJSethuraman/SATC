@@ -32,13 +32,25 @@ def counted():
     return df._counted()
 
 
-#: The nine matters the SECOND docket carried, taken from the page published on
-#: 5 September 2026 (artifact d1372697) rather than from this module. It is the
-#: only independent record of what was already open -- without it, "which matters
-#: are new" is a flag this file reads back out of the same list that sets it, and
-#: a mutation that unmarks one survives because both sides move together. Two did.
-SECOND_DOCKET = {
-    "dec-ir45-wording", "dec-override", "dec-guidance", "dec-courts-again",
+#: The thirteen matters the FOURTH docket carried, taken from the page published
+#: on 6 September 2026 (artifact d9339c39). It is the only independent record of
+#: what was already open.
+#:
+#: IT MOVED OUT OF THIS FILE AND INTO THE GENERATOR, and that is a real change of
+#: shape rather than a tidy-up. "New" used to be a `"new": True` flag the page set
+#: about itself, checked here against a copy of the previous docket -- and a
+#: POSITION cannot carry that flag at all, because positions come out of `desks/`.
+#: So POS3, which did not exist that morning, counted as old. The generator now
+#: derives "new" by difference against `FOURTH_DOCKET`, and this file asserts the
+#: two sets agree, which is the same independence with the arithmetic in one
+#: place instead of two.
+FOURTH_DOCKET = {
+    "pos-rewards-and-information-returns-POS1",
+    "pos-capitalization-and-de-minimis-POS1",
+    "pos-capitalization-and-de-minimis-POS2",
+    "pos-personal-or-business-POS1",
+    "dec-ir45-wording", "dec-prove", "dec-6041-sources", "dec-583-quotation",
+    "dec-cd-fix", "dec-override", "dec-guidance", "dec-courts-again",
     "dec-merge-275",
 }
 
@@ -80,24 +92,27 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
     on the run that wrote it -- the same drift the filter labels had."""
     n = independent["n"]
     fresh, from_tieout = counted["fresh"], counted["from_tieout"]
-    assert "%s of these %s are new since the last docket" % (
-        df._word(fresh).capitalize(), df._word(n)) in page
-    assert "%s of them out of the tie-out" % df._word(from_tieout) in page
-    # AND THE TWO ARE NOT THE SAME NUMBER, which is what the sentence got wrong:
-    # it read "four ... came out of the tie-out" when three did and the fourth
-    # came from a CI failure that night.
+    assert "%s of them did not exist this morning" % df._word(fresh) in page
     assert from_tieout <= fresh
-    # AGAINST THE PREVIOUS DOCKET, not against this module's own flag.
-    keys = {r["key"] for r in df.OTHERS}
-    assert SECOND_DOCKET <= keys, (
-        f"matters carried over have been renamed or dropped: "
-        f"{sorted(SECOND_DOCKET - keys)}. A docket that renames a matter loses "
-        f"the answer already given for it.")
-    assert fresh == len(keys - SECOND_DOCKET), (
-        f"the page says {fresh} matters are new; the ones absent from the second "
-        f"docket are {sorted(keys - SECOND_DOCKET)}")
-    assert from_tieout == sum(1 for r in df.OTHERS
-                              if r.get("new") and r["group"] == "From the tie-out")
+
+    # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
+    # thirteen-key list would drift; one copy checked from outside cannot.
+    assert df.FOURTH_DOCKET == FOURTH_DOCKET, (
+        f"the generator and this test disagree about what the last docket "
+        f"carried: {sorted(df.FOURTH_DOCKET ^ FOURTH_DOCKET)}")
+
+    # AND "NEW" IS A DIFFERENCE, NOT A FLAG. Computed here from the rendered
+    # rows rather than read off `counted`, so a generator that stopped
+    # subtracting would go red.
+    keys = {r["key"] for r in counted["rows"]}
+    assert fresh == len(keys - FOURTH_DOCKET), (
+        f"the page says {fresh} are new; the ones absent from the fourth docket "
+        f"are {sorted(keys - FOURTH_DOCKET)}")
+    # A POSITION CAN BE NEW, which a `"new": True` flag could never express --
+    # positions come out of `desks/`, not out of `OTHERS`.
+    assert any(k.startswith("pos-") for k in keys - FOURTH_DOCKET), (
+        "no new position is being counted; POS3 was invisible to the flag this "
+        "replaced, which is why it was replaced")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
     assert counted["rules"] + counted["concl"] == independent["pos"]
 
@@ -111,9 +126,9 @@ def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independen
     held_back = sum(1 for r in df.items()
                     if "Do not ratify" in (r.get("note") or {}).get("rec", ""))
     assert waiting == held_back, "the held-back count is not read off the notes"
-    said = ("All but %s of the %s positions you held are answerable" % (
-        df._word(waiting), df._word(pos))) if waiting else (
-        "Every one of the %s positions you held are answerable" % df._word(pos))
+    said = ("%s of the %s positions here are answerable today" % (
+        df._word(answerable).capitalize(), df._word(pos))) if waiting else (
+        "Every one of the %s positions here are answerable today" % df._word(pos))
     assert said in page
 
 

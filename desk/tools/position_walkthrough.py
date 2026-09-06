@@ -46,30 +46,32 @@ FIRST = [("rewards-and-information-returns", "POS1")]
 #: What this session knows about a position that the record does not say, and the
 #: firm needs before answering. Empty is fine; most stand on their own text.
 NOTES = {
- ("rewards-and-information-returns","POS1"): {
-   "read": "<b>You held this on 5 September asking for two things.</b> One of them now exists; the other is on this docket as its own question.",
-   "for": "<b>Built since you held it.</b> You said <i>“we should probably be specifying. Hey this is the individual desk. This is the business desk.”</i> The desk now records <code>taxpayer</code> and this position declares it needs it — so it cannot be applied at all until the file says whose return it is. Not a second desk: one fact, passed in.",
-   "against": "<i>Anikeev</i> is a personal return — the word “business” appears in it zero times — and it says nothing about a purchase that was <b>expensed</b> rather than capitalised, which is your actual open question. Ratifying it says what the desk answers for an individual; the business case still rests on nothing.",
-   "silent": "<b>Your second ask is not built.</b> You wanted a fallback: <i>“if we don’t have an opinion and have a good reason to form one, maybe we just use a safe Harbor Rule which in this case would be deferring to whatever the IRS says.”</i> That is its own matter on this docket, because it changes what the gate will serve.",
-   "rec": "Ratify it narrowed — <b>“a card reward earned by buying goods or services reduces what was paid for them”</b> — which is what survives the case. It now refuses outright unless the file says individual or business, so the thing you were worried about cannot happen silently.",
+ ("rewards-and-information-returns","POS3"): {
+   "read": "<b>These are your words, moved to the citation that carries them.</b> Nothing else about them changed.",
+   "for": "You ratified this sentence on 5 September as the second half of POS2: <i>“track the rest against $2,000 per payee per calendar year.”</i> POS2 carried TWO rules under one citation \u2014 the relief that paragraph states, and this, which it does not state and does not rest on. While they were joined, nineteen problems on the desk could not be scored at all.",
+   "against": "<b>It is a proposal and not a ratification, deliberately.</b> The words are yours and the citation is not, and a citation is not a detail \u2014 it is what a reader opens to check the answer. Until you say yes it is not served, so your $2,000 handling is not being applied today.",
+   "silent": "<b>It is NOT on \u00a7 6041(a), where the $2,000 lives.</b> The threshold is not a choice: the statute states it, and IR1 is scored against the statute's own words. A position there would be served in place of the statute and would refuse IR1 for quoting it. What you decided is which payments get counted when the rail is unknown, and \u00a7 1.6050W-1(c)(3) is the paragraph that defines the rail.",
+   "rec": "Ratify it here. It is the sentence you already ratified, on the paragraph it actually turns on \u2014 and it is not being served while it waits.",
  },
  ("capitalization-and-de-minimis","POS2"): {
-   "read": "<b>You held this asking one question, and the desk already held the answer.</b> Nobody had asked it.",
-   "for": "<i>“I feel like I need to understand why would a confidently said $500 like where did this number come from?”</i> — <b>§ 1.263(a)-1(f)(1)(ii)(D) is where.</b> It says $500 and was never amended. The same sentence then delegates: <i>“or other amount as identified in published guidance in the Federal Register or in the Internal Revenue Bulletin.”</i>",
-   "against": "<b>Notice 2015-82 is that guidance</b>, and the IRS page this desk stores says it <i>“increased the de minimis safe harbor threshold from $500 to $2500 per invoice or item for taxpayers without applicable financial statements”</i>, effective for years beginning on or after 1 January 2016 — $5,000 with an applicable financial statement.",
-   "silent": "So the regulation is not stale and $2,500 is not a number somebody remembered: it is the amount the regulation points at. The two figures both being live is exactly why a desk holding only the regulation would have told you $500 with confidence.",
-   "rec": "Ratify. The question you held it for is answered out of the desk’s own stored authority, cited.",
+   "read": "<b>The mechanism you asked for is built and this position now uses it.</b>",
+   "for": "You held it saying <i>“we shouldn't ignore client level rules set with judgment with the desk answering broadly.”</i> It carries <code>Unless: capitalization_rule</code> now: it is the firm's DEFAULT, and it does not apply to a client the file says is treated differently.",
+   "against": "<b>Ratifying it today would make it refuse every time</b>, for the same reason as the election position above it: this desk records nothing, so the follow-up has nowhere to be answered and the engine returns <code>no_field_for_this_fact</code>. That is the safe failure rather than a useful one.",
+   "silent": "The question you held it FOR is separately answered and stays answered: \u00a7 1.263(a)-1(f)(1)(ii)(D) says $500 and delegates to published guidance, and Notice 2015-82 is that guidance. The $2,500 is the amount the regulation points at, not a number somebody remembered.",
+   "rec": "<b>Do not ratify it until the field exists</b> \u2014 that is the matter below. With the field it answers where the client is ordinary and hands off where they are not, which is what you asked for.",
  },
  ("capitalization-and-de-minimis","POS1"): {
-   "read": "<b>Held for a reason nothing in the software can express yet.</b>",
-   "against": "You said it is <i>“the kind of policy that gets enacted because it makes sense and only enacted when we don’t have another Answer … it’s possible for a particular client we have to be needed treating differently.”</i> Every position today is unconditional: there is no way to write “default, unless this client”.",
-   "rec": "<b>Do not ratify it yet.</b> The override question is its own matter on this docket and it decides the shape. If you pick the recommended answer there, this becomes ratifiable unchanged — the exception rides in as a recorded fact rather than as an exception table.",
+   "read": "<b>Held for a reason the software could not express. It can now.</b>",
+   "for": "You said <i>“this needs to ensure that there is no already standing rule for that client in particular. The desk should ask that follow up if it is not clear, right?”</i> It does: <code>Unless: capitalization_rule</code>, three answers rather than two \u2014 nothing on file, looked-and-there-is-none, or a rule the file records. Only the middle one lets the default apply, and only you can put it there.",
+   "against": "<b>Ratified today it would refuse every time</b>, because this desk records nothing \u2014 so the follow-up it now asks has nowhere to be answered. The refusal is <code>no_field_for_this_fact</code>, and it is the finding rather than a defect: the gap is in what the firm decided to write down, not in what this client was asked. <b>The threshold position below is held for the same reason.</b>",
+   "rec": "<b>Do not ratify it until the field exists.</b> Then it is ratifiable unchanged \u2014 the exception rides in as a recorded fact and never as an exception table inside the plugin, which is what you chose on <i>Keep unconditional</i>.",
  },
  ("personal-or-business","POS1"): {
-   "read": "This is the J.Crew rule. <b>The input you held it for was built this afternoon.</b>",
-   "for": "You said <i>“the Accountant should’ve already recorded and known what sort of business we’re dealing with … a Home Depot charge from a general contractor versus a Home Depot charge from a hairstylist.”</i> The desk now records <code>trade</code>, this position declares it needs it, and the brief prints <b>“trade: NOT ON FILE — do not infer it”</b> when it was not given. Unmet, the answer refuses <code>context_not_on_file</code> rather than reasoning from the vendor.",
-   "against": "<b>The authority behind it is about members of the armed services and nothing else.</b> It is the clearest statement anywhere that the item and the profession decide and the seller does not — but it is not the authority that decides a contractor’s shirt. That runs through § 162 and adaptability case law, and this desk holds neither.",
-   "rec": "Ratify. The rule is right, the input you asked for exists, and the caveat already says the coverage is narrower than the rule.",
+   "read": "This is the J.Crew rule, and your answer to it was a question: <i>“if it works this way already good.”</i> <b>It does, and it did before you asked.</b>",
+   "for": "<code>Needs: trade</code> has refused rather than reasoning from the vendor since 5 September. What it could not do was SAY the question. The refusal now carries one: <i>“Does the file record trade for this engagement? … it is ours to record rather than the client's to be asked.”</i> A reason code is countable; a question is answerable, and a preparer can act on the second.",
+   "against": "<b>The authority behind it is about members of the armed services and nothing else.</b> It is the clearest statement anywhere that the item and the profession decide and the seller does not \u2014 but it is not the authority that decides a contractor's shirt. That runs through \u00a7 162 and adaptability case law, and this desk holds neither.",
+   "silent": "<b>It needs no field and no other matter on this page.</b> Unlike the two above, the fact it turns on is already declared and already asked for.",
+   "rec": "Ratify. Nothing is blocking it, the input exists, the question is now legible to whoever reads the queue, and the caveat already says the coverage is narrower than the rule.",
  },
 }
 
