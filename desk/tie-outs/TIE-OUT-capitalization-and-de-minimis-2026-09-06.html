@@ -140,31 +140,38 @@ verdict is read off that block rather than written ahead of it.</figcaption>
 
 <h2>The roster</h2>
 <div class="stats">
-  <div class="stat"><b>1</b><span>differs</span></div>
+  <div class="stat"><b>0</b><span>differs</span></div>
   <div class="stat"><b>0</b><span>could not</span></div>
-  <div class="stat"><b>57 of 58</b><span>tied</span></div>
+  <div class="stat"><b>58 of 58</b><span>tied</span></div>
   <div class="stat"><b>3</b><span>sources fetched live</span></div>
 </div>
-<p>Of the <b>57</b> that tied, <b>57</b> matched the
-publisher's characters exactly and <b>0</b> matched only once
-whitespace was ignored — which is declared, and explained under what this does not
-prove.</p>
+<p>Of the <b>58</b> that tied, <b>57</b> matched the
+publisher's characters exactly, <b>0</b> matched only once
+whitespace was ignored, and <b>1</b> carry a marked omission
+and were checked segment by segment, in order. All three are declared, and
+explained under what this does not prove.</p>
+<p class="meta">57 + 0 +
+1 = 58,
+which is the tied count above. THE SENTENCE USED TO NAME TWO OF THE THREE and so
+did not add up — 43 and 4 against 49 tied on the cash desk, with the two marked
+omissions unaccounted for. A breakdown that does not sum to its own total is the
+failure this exhibit exists to catch, printed by the exhibit.</p>
 
 <h2>The sample of one, worked end to end</h2>
-<p>The difference, because a difference is the thing worth showing.</p>
+<p>The longest passage on this desk, because a long one has the most places to be wrong.</p>
 
 <div class="links">
   <h3>1 · The figure — and where a reader sees it</h3>
   <p>Not a row of a database: the paragraph of authority the desk hands an
-  answering agent under the citation <code>IRS Tangible Property Final Regulations, &quot;A de minimis safe harbor election&quot; — Note on Notice 2015-82 (sentence rejoined across the page&#x27;s inline link)</code>. It is read
+  answering agent under the citation <code>26 CFR 1.263(a)-1(f)(5)</code>. It is read
   out of <code>ask.brief()</code>, which is the text that agent opens, and it is
-  524 characters long.</p>
-  <pre class="ours">Effective for taxable years beginning on or after Jan. 1, 2016, the Internal Revenue Service in Notice 2015-82 increased the de minimis safe harbor threshold from $500 to $2500 per invoice or item for taxpayers without applicable financial statements. In addition, the IRS will provide audit protection to eligible businesses by not challenging the use of the $2,500 threshold for tax years ending before Jan. 1, 2016, if the taxpayer otherwise satisfies the requirements of Treasury Regulation section 1.263(a)-1(f)(1)(ii).</pre>
+  1,824 characters long.</p>
+  <pre class="ours">(5) Time and manner of election. A taxpayer that makes the election under this paragraph (f) must make the election for all amounts paid during the taxable year for property described in paragraph (f)(1) of this section and meeting the requirements of paragraph (f)(1)(i) or paragraph (f)(1)(ii) of this section, as applicable. A taxpayer makes the election by attaching a statement to the taxpayer&#x27;s timely filed original Federal tax return (including extensions) for the taxable year in which these amounts are paid. Sections 301.9100-1 through 301.9100-3 of this chapter provide the rules governing extensions of the time to make regulatory elections. The statement must be titled “Section 1.263(a)-1(f) de minimis safe harbor election” and include the taxpayer&#x27;s name, address, taxpayer identification number, and a statement that the taxpayer is making the de minimis safe harbor election under § 1.263(a)-1(f). In the case of a consolidated group filing a consolidated income tax return, the election is made for each member of the consolidated group by the common parent, and the statement must also include the names and taxpayer identification numbers of each member for which the election is made. In the case of an S corporation or a partnership, the election is made by the S corporation or the partnership and not by the shareholders or partners. An election may not be made through the filing of an application for change in accounting method or, before obtaining the Commissioner&#x27;s consent to make a late election, by filing an amended Federal tax return. A taxpayer may not revoke an election made under this paragraph (f). The manner of electing the de minimis safe harbor under this paragraph (f) may be modified through guidance of general applicability (see §§ 601.601(d)(2) and 601.602 of this chapter).</pre>
 
   <h3>2 · The call — copy-pastable, with the real values in it</h3>
-  <pre class="cmd">curl -sS --compressed "https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations"</pre>
-  <p class="meta">Fetched 2026-09-06 02:22:20Z · 162,281 bytes ·
-  SHA-256 <code>f8a07e474c58a43d16ae3eaaa1b50eb2e91d8b925cd8d8fbc43f6368eecea7c7</code></p>
+  <pre class="cmd">curl -sS --compressed "https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?section=1.263(a)-1"</pre>
+  <p class="meta">Fetched 2026-09-06 16:40:21Z · 39,312 bytes ·
+  SHA-256 <code>95d45002ffe8ea47240ddc18e86feb76b2d08a5c3fcd3c423561b0472b9b77d5</code></p>
 
   <h3>3 · The derivation — what happens between the two</h3>
   <p>The response is turned into plain text: an XML or HTML document has its
@@ -179,23 +186,22 @@ prove.</p>
   whose hash is printed above. <b>A reader re-fetches that URL, recomputes the
   hash, and gets the same digits</b> — which is a check a photograph cannot
   offer.</p>
-  <pre class="theirs">...ose their tax exempt status need to consider the effect of these final tangibles regulations and determine if there is a change to current methods of calculating taxable income and deductions. A de minimis safe harbor election Note: Effective for taxable years beginning on or after Jan. 1, 2016, the Internal Revenue Service in Notice 2015-82 PDF increased the de minimis safe harbor threshold from $500 to $2500 per invoice or item for taxpayers without applicable financial statements. In addition, the IRS will provide audit protection to eligible businesses by not challenging the use of the $2,500 threshold for tax years ending before Jan. 1, 2016, if the taxpayer otherwise satisfies the requirements of Treasury Regulation section 1.263(a)-1(f)(1)(ii). What is the de minimis safe harbor election? Under the final tangibles regulations, you may elect to apply a de minimis safe harbor to amounts paid to acquire or produce tangible property to the extent such amounts are deducted by you for financial accounting purposes or in keepin...</pre>
+  <pre class="theirs">... or any federal or state agency (other than the SEC or the Internal Revenue Service). (5) Time and manner of election. A taxpayer that makes the election under this paragraph (f) must make the election for all amounts paid during the taxable year for property described in paragraph (f)(1) of this section and meeting the requirements of paragraph (f)(1)(i) or paragraph (f)(1)(ii) of this section, as applicable. A taxpayer makes the election by attaching a statement to the taxpayer&#x27;s timely filed original Federal tax return (including extensions) for the taxable year in which these amounts are paid. Sections 301.9100-1 through 301.9100-3 of this chapter provide the rules governing extensions of the time to make regulatory elections. The statement must be titled &quot;Section 1.263(a)-1(f) de minimis safe harbor election&quot; and include the taxpayer&#x27;s name, address, taxpayer identification number, and a statement that the taxpayer is making the de minimis safe harbor election under § 1.263(a)-1(f). In the case of a consolidated group filing a consolidated income tax return, the election is made for each member of the consolidated group by the common parent, and the statement must also include the names and taxpayer identification numbers of each member for which the election is made. In the case of an S corporation or a partnership, the election is made by the S corporation or the partnership and not by the shareholders or partners. An election may not be made through the filing of an application for change in accounting method or, before obtaining the Commissioner&#x27;s consent to make a late election, by filing an amended Federal tax return. A taxpayer may not revoke an election made under this paragraph (f). The manner of electing the de minimis safe harbor under this paragraph (f) may be modified through guidance of general applicability (see §§ 601.601(d)(2) and 601.602 of this chapter). (6) Anti-abuse rule. If a taxpayer acts to manipulate transactions with the intent to achieve a tax benefit or to avoid the application of the limitations provided under paragraphs (f)(1)(i)(B)(1), (f)(1)(i)(D), (f)(1)(ii)(B)(1), and (f)(1)(ii)(D) of this sec...</pre>
 
   <h3>5 · The comparison</h3>
-  <pre class="cmp">ours    (ask.brief → IRS Tangible Property Final Regulations, &quot;A de )
-           524 characters
-theirs  (https://www.irs.gov/businesses/small-businesses-self-emp)
-           110 of them found, verbatim, in the document fetched above
-diff    414 characters not found</pre>
-  <p class="verdict no">DIFFERS</p>
-  <p class='diff'><b>Which side I believe: us.</b> The page renders <i>“the Internal Revenue Service in Notice 2015-82 <b>PDF</b> increased the de minimis safe harbor threshold…”</i>. The word <b>PDF</b> is the label irs.gov appends to a link to a PDF; it is not part of the sentence. Our stored text drops it and reads as the sentence a person would read aloud, and the citation already says the sentence was rejoined across the link. <b>I believe ours</b>, and the difference is recorded rather than normalised away, because a rule that silently deleted words from a publisher's page would be a much worse thing to own than this one.</p>
+  <pre class="cmp">ours    (ask.brief → 26 CFR 1.263(a)-1(f)(5))
+         1,824 characters
+theirs  (https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/ti)
+         1,824 of them found, verbatim, in the document fetched above
+diff    none</pre>
+  <p class="verdict ok">TIED — the publisher’s characters exactly</p>
+  
 </div>
 
 
 <h2>Every passage on this desk</h2>
 <table><thead><tr><th>verdict</th><th>citation</th><th>chars</th><th>how / why</th></tr></thead>
-<tbody><tr><td class='v no'>DIFFERS</td><td class='c'>IRS Tangible Property Final Regulations, &quot;A de minimis safe harbor election&quot; — Note on Notice 2015-82 (sentence rejoined across the page&#x27;s inline link)</td><td class='n'>524</td><td class='m'>stops at “increased”</td></tr>
-<tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.162-3(a)(1)</td><td class='n'>390</td><td class='m'>exact</td></tr>
+<tbody><tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.162-3(a)(1)</td><td class='n'>390</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.162-3(a)(2)</td><td class='n'>432</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.162-3(a)(3)</td><td class='n'>415</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.162-3(c)(1)</td><td class='n'>206</td><td class='m'>exact</td></tr>
@@ -244,6 +250,7 @@ diff    414 characters not found</pre>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.263(a)-1(f)(6)</td><td class='n'>486</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.263(a)-1(f)(6)(i)</td><td class='n'>283</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.263(a)-1(f)(6)(ii)</td><td class='n'>209</td><td class='m'>exact</td></tr>
+<tr><td class='v ok'>TIED</td><td class='c'>IRS Tangible Property Final Regulations, &quot;A de minimis safe harbor election&quot; — Note on Notice 2015-82 (sentence rejoined across the page&#x27;s inline link)</td><td class='n'>530</td><td class='m'>elided</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>IRS Tangible Property Final Regulations, &quot;How do you elect to use the de minimis safe harbor?&quot;</td><td class='n'>556</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>IRS Tangible Property Final Regulations, &quot;How does the de minimis safe harbor affect the deductions you typically take for materials and supplies or repairs and maintenance?&quot;</td><td class='n'>399</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>IRS Tangible Property Final Regulations, &quot;If you don&#x27;t have an AFS, are you required to have a written accounting procedure at the beginning of your taxable year?&quot;</td><td class='n'>345</td><td class='m'>exact</td></tr>
@@ -271,7 +278,7 @@ the publishers.</p>
 <pre class="cmd">cd desk &amp;&amp; python -B tools/tieout_exhibit.py</pre>
 <h3>3 · Check one line by hand, without either script</h3>
 <p>Take any row in the roster, fetch its URL, and look for the text yourself:</p>
-<pre class="cmd">curl -sS --compressed "https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations" | shasum -a 256</pre>
+<pre class="cmd">curl -sS --compressed "https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?section=1.263(a)-1" | shasum -a 256</pre>
 <p>If that hash matches the one printed with the exemplar above, you are reading
 the same bytes this document read. Then search the document for the passage —
 the desk prints it under that citation in the brief:</p>
@@ -281,32 +288,40 @@ print(ask.brief('show me', record.load(pathlib.Path('desks/capitalization-and-de
 
 <h2>What it found</h2>
 
-<p><b>Two differences in 533 passages, and a defect in the record that no
-difference would have shown.</b></p>
+<p><b>Nothing, and that sentence had to be earned three times over.</b> All 531
+passages the seven desks hand an answering agent are, today, what the publisher
+publishes: <b>0 differs, 0 could not</b>. The run this morning said 533 and two;
+the one before it said 88 differences. What changed in between is the record and
+the checker, and both are worth reading before this figure is believed.</p>
+
+<p><b>The three findings this run closed, each fixed in the record rather than in
+the check.</b></p>
 <ul>
-<li><b>Right text, wrong link — three passages.</b> The rewards desk stores
-§ 6041, § 6041A, § 6050W and § 6071 under one source whose recorded URL is the
-House's granule for <b>§ 6041 only</b>. A reader following that link finds the
-first and not the other three; the "6041A" and "6050W" they see on that page are
-§ 6041's own cross-references. All three bodies are <b>verbatim correct</b> on
-their own granules, so nothing served was wrong and no test could have caught it —
-the numbers were right and the citation pointed somewhere that does not carry
-them. <b>Only following the link finds this.</b> The checker now resolves each
-statute citation to its own granule; the record's source URL is still
-under-covering and is a fix for the desk.</li>
-<li><b>A partial quotation that does not say it is one.</b> Publication 583's
-sentence has two branches and the cash desk stores the second without marking the
+<li><b>Right text, wrong link — three passages.</b> The rewards desk stored
+§ 6041, § 6041A, § 6050W and § 6071 under ONE source whose recorded URL is the
+House's granule for <b>§ 6041 only</b>. All four bodies were <b>verbatim
+correct</b>, so nothing served was ever wrong and no test in the repository could
+have seen it — a reader following the citation for three of the four simply
+landed on a page that did not contain it. <b>Only opening the link finds this.</b>
+Split into four sources, four URLs, each verified live; and the record now has a
+test comparing the URL a citation is really on with the URL its source claims.</li>
+<li><b>A partial quotation that did not say it was one.</b> Publication 583's
+sentence has two branches and the cash desk stored the second without marking the
 omission. The split is right — the branches have opposite answers, which is the
-defect #264 found — but an answerer reading the passage cannot tell a branch was
-removed.</li>
+defect #264 found — but an answerer could not tell a branch had been removed.
+Marked now with <code>[...]</code>, and the mark is CHECKED rather than excused:
+every segment must appear in the live document, in order.</li>
 <li><b>A publisher's interface text inside a quotation.</b> irs.gov appends the
-word <b>PDF</b> to links that point at PDFs, and it sits mid-sentence on the
-tangible-property page. Ours drops it, which reads correctly and is not what the
-page literally shows.</li>
+word <b>PDF</b> to links that point at PDFs, and one sits mid-sentence on the
+tangible-property page. Ours dropped it. This was judged in our favour this
+morning and left; it is the same unmarked omission as Pub 583, and it is marked
+now. It was the last difference in the corpus.</li>
 </ul>
-<p><b>And what it did not find is the point of running it.</b> 531 of 533 passages
-are, character for character, what the publisher publishes today. That was an
-assumption this morning and it is a measurement now.</p>
+<p><b>What "nothing" is worth here.</b> Three of the 531 tied only because a
+marked omission was checked segment by segment, and 13 tied only once whitespace
+was ignored. Both are declared, both are counted on each desk's own sheet, and
+neither is silently folded into the headline. A clean run that hides how it got
+clean is the thing this exhibit exists not to be.</p>
 
 
 <h2>What I got wrong</h2>

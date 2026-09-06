@@ -323,9 +323,16 @@ repository can answer, because they all read the same stored files.</p>
   <div class="stat"><b>{len(sources)}</b><span>sources fetched live</span></div>
 </div>
 <p>Of the <b>{tally.get('TIED', 0)}</b> that tied, <b>{how.get('exact', 0)}</b> matched the
-publisher's characters exactly and <b>{how.get('spacing', 0)}</b> matched only once
-whitespace was ignored — which is declared, and explained under what this does not
-prove.</p>
+publisher's characters exactly, <b>{how.get('spacing', 0)}</b> matched only once
+whitespace was ignored, and <b>{how.get('elided', 0)}</b> carry a marked omission
+and were checked segment by segment, in order. All three are declared, and
+explained under what this does not prove.</p>
+<p class="meta">{how.get('exact', 0)} + {how.get('spacing', 0)} +
+{how.get('elided', 0)} = {how.get('exact', 0) + how.get('spacing', 0) + how.get('elided', 0)},
+which is the tied count above. THE SENTENCE USED TO NAME TWO OF THE THREE and so
+did not add up — 43 and 4 against 49 tied on the cash desk, with the two marked
+omissions unaccounted for. A breakdown that does not sum to its own total is the
+failure this exhibit exists to catch, printed by the exhibit.</p>
 
 <h2>The sample of one, worked end to end</h2>
 <p>{"The difference, because a difference is the thing worth showing." if diffs
@@ -358,32 +365,40 @@ me?</b> Each one can, and two of them did.</p>
 
 
 FOUND = """
-<p><b>One difference in 531 passages, and a defect in the record that no
-difference would have shown.</b></p>
+<p><b>Nothing, and that sentence had to be earned three times over.</b> All 531
+passages the seven desks hand an answering agent are, today, what the publisher
+publishes: <b>0 differs, 0 could not</b>. The run this morning said 533 and two;
+the one before it said 88 differences. What changed in between is the record and
+the checker, and both are worth reading before this figure is believed.</p>
+
+<p><b>The three findings this run closed, each fixed in the record rather than in
+the check.</b></p>
 <ul>
-<li><b>Right text, wrong link — three passages.</b> The rewards desk stores
-§ 6041, § 6041A, § 6050W and § 6071 under one source whose recorded URL is the
-House's granule for <b>§ 6041 only</b>. A reader following that link finds the
-first and not the other three; the "6041A" and "6050W" they see on that page are
-§ 6041's own cross-references. All three bodies are <b>verbatim correct</b> on
-their own granules, so nothing served was wrong and no test could have caught it —
-the numbers were right and the citation pointed somewhere that does not carry
-them. <b>Only following the link finds this.</b> The checker now resolves each
-statute citation to its own granule; the record's source URL is still
-under-covering and is a fix for the desk.</li>
-<li><b>A partial quotation that does not say it is one.</b> Publication 583's
-sentence has two branches and the cash desk stores the second without marking the
+<li><b>Right text, wrong link — three passages.</b> The rewards desk stored
+§ 6041, § 6041A, § 6050W and § 6071 under ONE source whose recorded URL is the
+House's granule for <b>§ 6041 only</b>. All four bodies were <b>verbatim
+correct</b>, so nothing served was ever wrong and no test in the repository could
+have seen it — a reader following the citation for three of the four simply
+landed on a page that did not contain it. <b>Only opening the link finds this.</b>
+Split into four sources, four URLs, each verified live; and the record now has a
+test comparing the URL a citation is really on with the URL its source claims.</li>
+<li><b>A partial quotation that did not say it was one.</b> Publication 583's
+sentence has two branches and the cash desk stored the second without marking the
 omission. The split is right — the branches have opposite answers, which is the
-defect #264 found — but an answerer reading the passage cannot tell a branch was
-removed.</li>
+defect #264 found — but an answerer could not tell a branch had been removed.
+Marked now with <code>[...]</code>, and the mark is CHECKED rather than excused:
+every segment must appear in the live document, in order.</li>
 <li><b>A publisher's interface text inside a quotation.</b> irs.gov appends the
-word <b>PDF</b> to links that point at PDFs, and it sits mid-sentence on the
-tangible-property page. Ours drops it, which reads correctly and is not what the
-page literally shows.</li>
+word <b>PDF</b> to links that point at PDFs, and one sits mid-sentence on the
+tangible-property page. Ours dropped it. This was judged in our favour this
+morning and left; it is the same unmarked omission as Pub 583, and it is marked
+now. It was the last difference in the corpus.</li>
 </ul>
-<p><b>And what it did not find is the point of running it.</b> 530 of 531 passages
-are, character for character, what the publisher publishes today. That was an
-assumption this morning and it is a measurement now.</p>
+<p><b>What "nothing" is worth here.</b> Three of the 531 tied only because a
+marked omission was checked segment by segment, and 13 tied only once whitespace
+was ignored. Both are declared, both are counted on each desk's own sheet, and
+neither is silently folded into the headline. A clean run that hides how it got
+clean is the thing this exhibit exists not to be.</p>
 """
 
 WRONG = """
@@ -473,7 +488,7 @@ wrongly, and every green stays green.</p>
 </div>
 <table><thead><tr><th>desk</th><th>passages</th><th>differs</th><th>could not</th>
 <th>tied</th><th>of those, spacing</th></tr></thead><tbody>{rows}</tbody></table>
-<p>Read the two differences first; the {tally.get('TIED', 0)} that agree are not what
+<p>{"Read the differences first; the" if tally.get('DIFFERS', 0) or tally.get('COULD NOT', 0) else "Nothing here differs, so read what it took to get there rather than the roster. The"} {tally.get('TIED', 0)} that agree are not what
 anybody needs to read. Each desk has its own exhibit beside this one, with its
 sample of one worked link by link.</p>
 

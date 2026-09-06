@@ -142,13 +142,20 @@ verdict is read off that block rather than written ahead of it.</figcaption>
 <div class="stats">
   <div class="stat"><b>0</b><span>differs</span></div>
   <div class="stat"><b>0</b><span>could not</span></div>
-  <div class="stat"><b>47 of 47</b><span>tied</span></div>
+  <div class="stat"><b>45 of 45</b><span>tied</span></div>
   <div class="stat"><b>15</b><span>sources fetched live</span></div>
 </div>
-<p>Of the <b>47</b> that tied, <b>39</b> matched the
-publisher's characters exactly and <b>8</b> matched only once
-whitespace was ignored — which is declared, and explained under what this does not
-prove.</p>
+<p>Of the <b>45</b> that tied, <b>37</b> matched the
+publisher's characters exactly, <b>8</b> matched only once
+whitespace was ignored, and <b>0</b> carry a marked omission
+and were checked segment by segment, in order. All three are declared, and
+explained under what this does not prove.</p>
+<p class="meta">37 + 8 +
+0 = 45,
+which is the tied count above. THE SENTENCE USED TO NAME TWO OF THE THREE and so
+did not add up — 43 and 4 against 49 tied on the cash desk, with the two marked
+omissions unaccounted for. A breakdown that does not sum to its own total is the
+failure this exhibit exists to catch, printed by the exhibit.</p>
 
 <h2>The sample of one, worked end to end</h2>
 <p>The longest passage on this desk, because a long one has the most places to be wrong.</p>
@@ -163,7 +170,7 @@ prove.</p>
 
   <h3>2 · The call — copy-pastable, with the real values in it</h3>
   <pre class="cmd">curl -sS --compressed "https://www.irs.gov/pub/irs-pdf/i1099mec.pdf"</pre>
-  <p class="meta">Fetched 2026-09-06 02:23:14Z · 312,867 bytes ·
+  <p class="meta">Fetched 2026-09-06 16:41:59Z · 312,867 bytes ·
   SHA-256 <code>883fb800e5100ff74a37fb0427d0c16c14031a2421a058254f71c66f8c03087e</code></p>
 
   <h3>3 · The derivation — what happens between the two</h3>
@@ -196,8 +203,6 @@ diff    none</pre>
 <table><thead><tr><th>verdict</th><th>citation</th><th>chars</th><th>how / why</th></tr></thead>
 <tbody><tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(a)(1)(i)</td><td class='n'>785</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(a)(1)(iv)</td><td class='n'>995</td><td class='m'>exact</td></tr>
-<tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(a)(1)(v), Example 1</td><td class='n'>755</td><td class='m'>exact</td></tr>
-<tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(a)(1)(v), Example 2</td><td class='n'>953</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(b)(1)</td><td class='n'>678</td><td class='m'>spacing</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-1(d)(2)</td><td class='n'>271</td><td class='m'>exact</td></tr>
 <tr><td class='v ok'>TIED</td><td class='c'>26 CFR 1.6041-3 (introductory text)</td><td class='n'>236</td><td class='m'>exact</td></tr>
@@ -243,7 +248,7 @@ diff    none</pre>
 <tr><td class='v ok'>TIED</td><td class='c'>Rev. Rul. 2005-28, United Draperies</td><td class='n'>701</td><td class='m'>spacing</td></tr></tbody></table>
 
 <h2>The sources, and that they can disagree with us</h2>
-<ul><li><b>S1</b> — Treasury Regulation § 1.61-1 — Gross income<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.61-1</code></li><li><b>S10</b> — IRS Publication 334 (2025) — Tax Guide for Small Business<br><code>https://www.irs.gov/publications/p334</code></li><li><b>S11</b> — Instructions for Forms 1099-MISC and 1099-NEC (Rev. December 2026)<br><code>https://www.irs.gov/pub/irs-pdf/i1099mec.pdf</code></li><li><b>S12</b> — Private Letter Ruling 201027015 (released 9 July 2010)<br><code>https://www.irs.gov/pub/irs-wd/1027015.pdf</code></li><li><b>S2</b> — Internal Revenue Code §§ 6041, 6041A, 6050W, 6071 — information at source<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041&amp;num=0&amp;edition=prelim</code></li><li><b>S2</b> — Internal Revenue Code §§ 6041, 6041A, 6050W, 6071 — information at source<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041A&amp;num=0&amp;edition=prelim</code></li><li><b>S2</b> — Internal Revenue Code §§ 6041, 6041A, 6050W, 6071 — information at source<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6050W&amp;num=0&amp;edition=prelim</code></li><li><b>S2</b> — Internal Revenue Code §§ 6041, 6041A, 6050W, 6071 — information at source<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6071&amp;num=0&amp;edition=prelim</code></li><li><b>S3</b> — Treasury Regulation § 1.6041-1 — Return of information as to payments of $600 or more<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-1</code></li><li><b>S4</b> — Treasury Regulation § 1.6041-3 — Payments for which no return of information is required<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-3</code></li><li><b>S5</b> — Treasury Regulation § 1.6041-6 — Time and place for filing<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-6</code></li><li><b>S6</b> — Treasury Regulation § 1.6050W-1 — Payment card and third party network transactions<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6050W-1</code></li><li><b>S7</b> — Revenue Ruling 2005-28, 2005-19 I.R.B. 997<br><code>https://www.irs.gov/pub/irs-drop/rr-05-28.pdf</code></li><li><b>S8</b> — IRS Announcement 2002-18, 2002-10 I.R.B. 621<br><code>https://www.irs.gov/pub/irs-drop/a-02-18.pdf</code></li><li><b>S9</b> — IRS Publication 525 (2025) — Taxable and Nontaxable Income<br><code>https://www.irs.gov/publications/p525</code></li></ul>
+<ul><li><b>S1</b> — Treasury Regulation § 1.61-1 — Gross income<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.61-1</code></li><li><b>S10</b> — IRS Publication 334 (2025) — Tax Guide for Small Business<br><code>https://www.irs.gov/publications/p334</code></li><li><b>S11</b> — Instructions for Forms 1099-MISC and 1099-NEC (Rev. December 2026)<br><code>https://www.irs.gov/pub/irs-pdf/i1099mec.pdf</code></li><li><b>S12</b> — Private Letter Ruling 201027015 (released 9 July 2010)<br><code>https://www.irs.gov/pub/irs-wd/1027015.pdf</code></li><li><b>S13</b> — Internal Revenue Code § 6041A — Returns regarding remuneration for services and direct sales<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041A&amp;num=0&amp;edition=prelim</code></li><li><b>S14</b> — Internal Revenue Code § 6050W — Returns relating to payments made in settlement of payment card and third party network transactions<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6050W&amp;num=0&amp;edition=prelim</code></li><li><b>S15</b> — Internal Revenue Code § 6071 — Time for filing returns and other documents<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6071&amp;num=0&amp;edition=prelim</code></li><li><b>S2</b> — Internal Revenue Code § 6041 — Information at source<br><code>https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041&amp;num=0&amp;edition=prelim</code></li><li><b>S3</b> — Treasury Regulation § 1.6041-1 — Return of information as to payments of $600 or more<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-1</code></li><li><b>S4</b> — Treasury Regulation § 1.6041-3 — Payments for which no return of information is required<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-3</code></li><li><b>S5</b> — Treasury Regulation § 1.6041-6 — Time and place for filing<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6041-6</code></li><li><b>S6</b> — Treasury Regulation § 1.6050W-1 — Payment card and third party network transactions<br><code>https://www.ecfr.gov/api/versioner/v1/full/2026-01-01/title-26.xml?part=1&amp;section=1.6050W-1</code></li><li><b>S7</b> — Revenue Ruling 2005-28, 2005-19 I.R.B. 997<br><code>https://www.irs.gov/pub/irs-drop/rr-05-28.pdf</code></li><li><b>S8</b> — IRS Announcement 2002-18, 2002-10 I.R.B. 621<br><code>https://www.irs.gov/pub/irs-drop/a-02-18.pdf</code></li><li><b>S9</b> — IRS Publication 525 (2025) — Taxable and Nontaxable Income<br><code>https://www.irs.gov/publications/p525</code></li></ul>
 <p>Not one of these is ours. None is a cache, a fixture or a second copy of our own
 record — which is the test the tie-out skill puts first: <b>could this disagree with
 me?</b> Each one can, and two of them did.</p>
@@ -270,32 +275,40 @@ print(ask.brief('show me', record.load(pathlib.Path('desks/rewards-and-informati
 
 <h2>What it found</h2>
 
-<p><b>Two differences in 533 passages, and a defect in the record that no
-difference would have shown.</b></p>
+<p><b>Nothing, and that sentence had to be earned three times over.</b> All 531
+passages the seven desks hand an answering agent are, today, what the publisher
+publishes: <b>0 differs, 0 could not</b>. The run this morning said 533 and two;
+the one before it said 88 differences. What changed in between is the record and
+the checker, and both are worth reading before this figure is believed.</p>
+
+<p><b>The three findings this run closed, each fixed in the record rather than in
+the check.</b></p>
 <ul>
-<li><b>Right text, wrong link — three passages.</b> The rewards desk stores
-§ 6041, § 6041A, § 6050W and § 6071 under one source whose recorded URL is the
-House's granule for <b>§ 6041 only</b>. A reader following that link finds the
-first and not the other three; the "6041A" and "6050W" they see on that page are
-§ 6041's own cross-references. All three bodies are <b>verbatim correct</b> on
-their own granules, so nothing served was wrong and no test could have caught it —
-the numbers were right and the citation pointed somewhere that does not carry
-them. <b>Only following the link finds this.</b> The checker now resolves each
-statute citation to its own granule; the record's source URL is still
-under-covering and is a fix for the desk.</li>
-<li><b>A partial quotation that does not say it is one.</b> Publication 583's
-sentence has two branches and the cash desk stores the second without marking the
+<li><b>Right text, wrong link — three passages.</b> The rewards desk stored
+§ 6041, § 6041A, § 6050W and § 6071 under ONE source whose recorded URL is the
+House's granule for <b>§ 6041 only</b>. All four bodies were <b>verbatim
+correct</b>, so nothing served was ever wrong and no test in the repository could
+have seen it — a reader following the citation for three of the four simply
+landed on a page that did not contain it. <b>Only opening the link finds this.</b>
+Split into four sources, four URLs, each verified live; and the record now has a
+test comparing the URL a citation is really on with the URL its source claims.</li>
+<li><b>A partial quotation that did not say it was one.</b> Publication 583's
+sentence has two branches and the cash desk stored the second without marking the
 omission. The split is right — the branches have opposite answers, which is the
-defect #264 found — but an answerer reading the passage cannot tell a branch was
-removed.</li>
+defect #264 found — but an answerer could not tell a branch had been removed.
+Marked now with <code>[...]</code>, and the mark is CHECKED rather than excused:
+every segment must appear in the live document, in order.</li>
 <li><b>A publisher's interface text inside a quotation.</b> irs.gov appends the
-word <b>PDF</b> to links that point at PDFs, and it sits mid-sentence on the
-tangible-property page. Ours drops it, which reads correctly and is not what the
-page literally shows.</li>
+word <b>PDF</b> to links that point at PDFs, and one sits mid-sentence on the
+tangible-property page. Ours dropped it. This was judged in our favour this
+morning and left; it is the same unmarked omission as Pub 583, and it is marked
+now. It was the last difference in the corpus.</li>
 </ul>
-<p><b>And what it did not find is the point of running it.</b> 531 of 533 passages
-are, character for character, what the publisher publishes today. That was an
-assumption this morning and it is a measurement now.</p>
+<p><b>What "nothing" is worth here.</b> Three of the 531 tied only because a
+marked omission was checked segment by segment, and 13 tied only once whitespace
+was ignored. Both are declared, both are counted on each desk's own sheet, and
+neither is silently folded into the headline. A clean run that hides how it got
+clean is the thing this exhibit exists not to be.</p>
 
 
 <h2>What I got wrong</h2>
