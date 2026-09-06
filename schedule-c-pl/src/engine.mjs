@@ -125,6 +125,19 @@ export function compute(input) {
   if (v('9') !== 0 && !(Number.isFinite(miles) && miles > 0)) {
     note('9', 'Schedule C asks how many miles you drove. Add them under vehicle details.');
   }
+  /* THE COSTLIEST MISTAKE ON THIS FORM, and the tool took it in silence while
+     flagging Form 4562 -- worth a few dollars -- one line above. Taking the
+     mileage rate means the vehicle's running costs are already inside it;
+     claiming them again on 15 or 21 is the classic double-count.
+
+     This is NOT the tool deciding what is deductible (DECISIONS.md section 2).
+     It is the place the tool already speaks up about figures that look
+     inconsistent with each other, and nothing it currently flags is more
+     inconsistent than this. */
+  if (Number.isFinite(miles) && miles > 0 && (v('15') !== 0 || v('21') !== 0)) {
+    note('9', "The mileage rate already covers your vehicle's insurance, fuel and repairs. "
+      + 'Check you have not counted those again on lines 15 or 21.');
+  }
   if (v('13') !== 0) {
     note('13', 'Depreciation usually means Form 4562 goes with the return too.');
   }

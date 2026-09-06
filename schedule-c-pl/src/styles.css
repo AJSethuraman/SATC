@@ -119,7 +119,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 
 .helper { margin-top: .3rem; font-size: .88rem; }
 .helper > summary { cursor: pointer; color: var(--navy-soft); width: fit-content; }
-.helper-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
+.helper-row .unit { align-self: center; font-size: .82rem; color: var(--muted); }
+.helper-row { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
 .helper-row input { max-width: 9rem; font-family: var(--mono); text-align: right; }
 .helper-out { margin: .2rem 0 0; font-size: .85rem; color: var(--navy-soft); }
 .helper-out:empty { display: none; }

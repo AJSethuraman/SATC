@@ -130,7 +130,8 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 
 .helper { margin-top: .3rem; font-size: .88rem; }
 .helper > summary { cursor: pointer; color: var(--navy-soft); width: fit-content; }
-.helper-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
+.helper-row .unit { align-self: center; font-size: .82rem; color: var(--muted); }
+.helper-row { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
 .helper-row input { max-width: 9rem; font-family: var(--mono); text-align: right; }
 .helper-out { margin: .2rem 0 0; font-size: .85rem; color: var(--navy-soft); }
 .helper-out:empty { display: none; }
@@ -230,7 +231,7 @@ button { font: 500 .88rem var(--sans); cursor: pointer; border-radius: 2px; }
   <p>Nothing you type is sent anywhere. The page holds no analytics script and makes no requests once it has loaded. If you tick the box to keep a draft, it is kept in this browser and nowhere else.</p>
   <p>Using this tool does not make you a client of ours. If you would like it to, <a href="https://satcllp.com/?from=schedule-c#intake">there is a form</a>.</p>
   <p class="meta">Sethuraman Accounting, Tax &amp; Consulting LLP · <a href="https://satcllp.com/">satcllp.com</a> · <a href="https://satcllp.com/privacy.html">Privacy</a></p>
-  <p class="meta" id="build-stamp">Built from source 51437110b243. Tax years 2023, 2024 and 2025.</p>
+  <p class="meta" id="build-stamp">Built from source 0c717e96a9a7. Tax years 2023, 2024 and 2025.</p>
 </footer>
 
 <script type="module">
@@ -870,6 +871,19 @@ function compute(input) {
 
   if (v('9') !== 0 && !(Number.isFinite(miles) && miles > 0)) {
     note('9', 'Schedule C asks how many miles you drove. Add them under vehicle details.');
+  }
+  /* THE COSTLIEST MISTAKE ON THIS FORM, and the tool took it in silence while
+     flagging Form 4562 -- worth a few dollars -- one line above. Taking the
+     mileage rate means the vehicle's running costs are already inside it;
+     claiming them again on 15 or 21 is the classic double-count.
+
+     This is NOT the tool deciding what is deductible (DECISIONS.md section 2).
+     It is the place the tool already speaks up about figures that look
+     inconsistent with each other, and nothing it currently flags is more
+     inconsistent than this. */
+  if (Number.isFinite(miles) && miles > 0 && (v('15') !== 0 || v('21') !== 0)) {
+    note('9', "The mileage rate already covers your vehicle's insurance, fuel and repairs. "
+      + 'Check you have not counted those again on lines 15 or 21.');
   }
   if (v('13') !== 0) {
     note('13', 'Depreciation usually means Form 4562 goes with the return too.');
@@ -1882,10 +1896,20 @@ function start(root) {
     return field;
   }
 
+  /* Every helper box gets a VISIBLE label. The three take miles, dollars and
+     square feet and looked identical -- an empty box and a button -- with the
+     unit only in an aria-label, so a screen-reader user was told what it wanted
+     and a sighted user was not. */
   function helperBox(title, build) {
     const out = el('p', { class: 'helper-out' });
     const box = el('details', { class: 'helper' }, [el('summary', { text: title })]);
     build(box, out);
+    for (const field of box.querySelectorAll('input[aria-label]')) {
+      const tag = el('label', { class: 'unit', text: field.getAttribute('aria-label') });
+      const id = `h-${field.getAttribute('aria-label').toLowerCase().replace(/[^a-z]+/g, '-')}`;
+      field.id = id; tag.setAttribute('for', id);
+      field.parentNode.insertBefore(tag, field);
+    }
     box.append(out);
     return box;
   }
@@ -1941,7 +1965,10 @@ function start(root) {
         setMoney('24b', formatCents(r.cents));
         document.getElementById('f24b').value = formatCents(r.cents);
       });
-      box.append(el('div', { class: 'helper-row' }, [input, apply]));
+      box.append(
+        el('p', { class: 'hint', text: 'Only meals with a business reason — a client, or a night away from home. An ordinary lunch on a local job is not one.' }),
+        el('div', { class: 'helper-row' }, [input, apply]),
+      );
     });
   }
 
@@ -2237,8 +2264,8 @@ function start(root) {
       choice('include', 'What goes in the PDF', [['both', 'Both'], ['statement', 'The profit and loss only'], ['worksheet', 'The Schedule C worksheet only']],
         () => state.include, (v) => { state.include = v; }),
       el('div', { class: 'downloads' }, [pdfBtn, xlBtn]),
-      problems.length ? el('h3', { text: 'Worth checking' }) : null,
-      problems.length ? notices : null,
+      el('h3', { text: 'Worth checking' }),
+      problems.length ? notices : el('p', { class: 'hint', text: 'Nothing flagged.' }),
       el('div', { class: 'keep' }, [
         el('label', { class: 'toggle' }, [
           el('input', {

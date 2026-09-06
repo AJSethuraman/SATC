@@ -112,10 +112,20 @@ export function start(root) {
     return field;
   }
 
+  /* Every helper box gets a VISIBLE label. The three take miles, dollars and
+     square feet and looked identical -- an empty box and a button -- with the
+     unit only in an aria-label, so a screen-reader user was told what it wanted
+     and a sighted user was not. */
   function helperBox(title, build) {
     const out = el('p', { class: 'helper-out' });
     const box = el('details', { class: 'helper' }, [el('summary', { text: title })]);
     build(box, out);
+    for (const field of box.querySelectorAll('input[aria-label]')) {
+      const tag = el('label', { class: 'unit', text: field.getAttribute('aria-label') });
+      const id = `h-${field.getAttribute('aria-label').toLowerCase().replace(/[^a-z]+/g, '-')}`;
+      field.id = id; tag.setAttribute('for', id);
+      field.parentNode.insertBefore(tag, field);
+    }
     box.append(out);
     return box;
   }
@@ -171,7 +181,10 @@ export function start(root) {
         setMoney('24b', formatCents(r.cents));
         document.getElementById('f24b').value = formatCents(r.cents);
       });
-      box.append(el('div', { class: 'helper-row' }, [input, apply]));
+      box.append(
+        el('p', { class: 'hint', text: 'Only meals with a business reason — a client, or a night away from home. An ordinary lunch on a local job is not one.' }),
+        el('div', { class: 'helper-row' }, [input, apply]),
+      );
     });
   }
 
@@ -467,8 +480,8 @@ export function start(root) {
       choice('include', 'What goes in the PDF', [['both', 'Both'], ['statement', 'The profit and loss only'], ['worksheet', 'The Schedule C worksheet only']],
         () => state.include, (v) => { state.include = v; }),
       el('div', { class: 'downloads' }, [pdfBtn, xlBtn]),
-      problems.length ? el('h3', { text: 'Worth checking' }) : null,
-      problems.length ? notices : null,
+      el('h3', { text: 'Worth checking' }),
+      problems.length ? notices : el('p', { class: 'hint', text: 'Nothing flagged.' }),
       el('div', { class: 'keep' }, [
         el('label', { class: 'toggle' }, [
           el('input', {

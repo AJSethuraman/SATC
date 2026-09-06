@@ -256,6 +256,44 @@ async function main() {
     'and the download stays disabled while it stands');
   await page.fill('#f21', '518.75');
 
+  // Defects 10-13, and the structural check the walk itself asked for.
+  check(/mileage rate already covers/.test(await page.locator('#summary').innerText()),
+    'the mileage double-count is flagged once running costs are also claimed');
+
+  for (const [line, unit] of [['9', 'Business miles'], ['24b', 'Total spent on meals'], ['30', 'Square feet used for business']]) {
+    const label = page.locator(`.field[data-line="${line}"] .helper .unit`);
+    check(await label.count() === 1 && (await label.textContent()).includes(unit.split(' ')[0]),
+      `the line ${line} helper box says what unit it wants`, await label.count() ? await label.textContent() : 'no label');
+  }
+  // Open it first: innerText is VISIBLE text, and the warning has to be readable
+  // when a person opens the helper -- before they type, not after.
+  const mealsBox = page.locator('.field[data-line="24b"] .helper');
+  if (!(await mealsBox.locator('.hint').first().isVisible())) await mealsBox.locator('summary').click();
+  check(/business reason/.test(await mealsBox.innerText()),
+    'the meals helper warns which meals count, before the box', await mealsBox.innerText());
+
+  // THE SEAM THE WALK NAMED: one return, driven through the controls, with the
+  // panel and the document compared figure for figure in BOTH rounding modes.
+  // Every defect it found lived in a seam like this one, and no test crossed it.
+  for (const mode of ['cents', 'dollars']) {
+    await page.check(`#rounding-${mode}`);
+    const panel = {};
+    for (const [i, key] of ['in', 'out', 'home'].entries()) {
+      panel[key] = (await page.locator('.figures dd').nth(i).textContent()).trim();
+    }
+    panel.net = (await page.locator('.figures dd.big').textContent()).trim();
+    const wait = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download the PDF' }).click();
+    const doc = await readPdf(readFileSync(await (await wait).path()));
+    for (const [key, shown] of Object.entries(panel)) {
+      if (shown === '—') continue;
+      const bare = shown.replace(/[$()]/g, '');
+      check(doc.text.includes(bare),
+        `${mode}: the panel's ${key} figure ${shown} is the one in the document`);
+    }
+  }
+  await page.check('#rounding-cents');
+
   // ── a draft is not kept unless asked ────────────────────────────────
   const before = await page.evaluate(() => localStorage.length);
   check(before === 0, 'nothing is stored on the device by default', `${before} keys were written`);
