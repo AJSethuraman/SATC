@@ -237,7 +237,7 @@ OTHERS = [
              "this court case I don't want to be the one to answer it. The only "
              "reason we are talking so much now is because I can't trust the "
              "answers.”</i><br><br><b>The tie-out speaks to that last sentence.</b> "
-             "531 of 533 passages are now proven to be what the publisher publishes. "
+             "530 of 531 passages are now proven to be what the publisher publishes. "
              "That is a different kind of trust from “the desk reasons well”, and it "
              "is the kind that was missing.",
   "either": [("The button: keep the five hosts closed",
@@ -277,7 +277,7 @@ CHANGED = [
 ]
 
 LANDED = [
- ("New", "<b>The whole stored corpus is tied out.</b> Every one of the 533 passages the "
+ ("New", "<b>The whole stored corpus is tied out.</b> Every one of the 531 passages the "
          "desks hand an answering agent, fetched back from the publisher that wrote it "
          "and compared. <b>No test in this repository could answer this</b> — they all "
          "read the same stored files, so a passage transcribed wrongly is stored "
@@ -444,7 +444,7 @@ def render() -> str:
       "%(tow)s of them out of the tie-out you asked for</b>, and two of those are "
       "defects in the record that no test in this repository could have found. "
       "The rest were already open.</p>"
-      "<p><b>What the tie-out settles.</b> Every one of the 533 passages the desks "
+      "<p><b>What the tie-out settles.</b> Every one of the 531 passages the desks "
       "hand an answering agent was fetched back from the publisher that wrote it. "
       "<b>531 are, character for character, what that publisher publishes today.</b> "
       "That was an assumption yesterday and it is a measurement now — and it is a "

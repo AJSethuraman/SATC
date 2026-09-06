@@ -358,7 +358,7 @@ me?</b> Each one can, and two of them did.</p>
 
 
 FOUND = """
-<p><b>Two differences in 533 passages, and a defect in the record that no
+<p><b>One difference in 531 passages, and a defect in the record that no
 difference would have shown.</b></p>
 <ul>
 <li><b>Right text, wrong link — three passages.</b> The rewards desk stores
@@ -381,7 +381,7 @@ word <b>PDF</b> to links that point at PDFs, and it sits mid-sentence on the
 tangible-property page. Ours drops it, which reads correctly and is not what the
 page literally shows.</li>
 </ul>
-<p><b>And what it did not find is the point of running it.</b> 531 of 533 passages
+<p><b>And what it did not find is the point of running it.</b> 530 of 531 passages
 are, character for character, what the publisher publishes today. That was an
 assumption this morning and it is a measurement now.</p>
 """

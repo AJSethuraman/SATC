@@ -3,7 +3,7 @@
 THIS EXISTED ONLY AS A PROMISE UNTIL 5 SEPTEMBER 2026. `routing.
 refusal_naming_the_desk` has always handed a stopped agent the sentence "Ask
 <desk> with ask_desk, then come back with the citation" — and there was no
-`ask_desk`. Seven desks, 533 stored passages, an engine that verifies every
+`ask_desk`. Seven desks, 531 stored passages, an engine that verifies every
 citation, a gate measured at zero false refusals across 98 problems, and nothing
 a caller could invoke. The record was complete and unreachable.
 

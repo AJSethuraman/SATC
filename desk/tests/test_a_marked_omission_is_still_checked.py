@@ -142,4 +142,10 @@ def test_no_marked_passage_leaves_nothing_to_check():
             assert all(len(s) > 20 for s in segs), (
                 f"{d.name}/{p.citation} has a segment too short to identify a "
                 f"place in the source: {[s for s in segs if len(s) <= 20]}")
-    assert seen == 2, f"{seen} marked passages across every desk, not 2"
+    # THREE, AND IT WAS TWO FOR AN HOUR. The third is the capitalization desk's
+    # note on Notice 2015-82: the IRS page prints a "PDF" link badge in the
+    # middle of the sentence and our quotation drops it, which is the same
+    # unmarked omission as Pub 583 and was the last DIFFERS in the corpus. The
+    # firm's rule was answered about Pub 583; applying it to the same defect on
+    # the same day is following it, not extending it.
+    assert seen == 3, f"{seen} marked passages across every desk, not 3"

@@ -8,7 +8,7 @@ WHAT IT ADDS THAT THE GATE CANNOT. `engine.serve` checks that a citation resolve
 in OUR RECORD. It has no way to check that the record is true, and it must not
 grow one: verification reads stored text, or every test run depends on a
 government website being up and "prove every check can fail" becomes
-unsatisfiable. The corpus tie-out closes that gap for all 533 passages, once, on
+unsatisfiable. The corpus tie-out closes that gap for all 531 passages, once, on
 demand. This closes it for ONE answer, in front of the person reading it.
 
 They answer different questions and the firm asked for both:
