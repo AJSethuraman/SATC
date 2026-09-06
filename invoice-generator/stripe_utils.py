@@ -103,6 +103,31 @@ def to_minor_units(amount, currency):
     return int(round(amount * (10 ** decimals_for(currency))))
 
 
+def from_minor_units(amount, currency):
+    """Convert an integer Stripe amount back to a decimal. The inverse of
+    ``to_minor_units``, and it has to exist for the same reason.
+
+    THIS SIDE WAS MISSED WHEN THE OTHER SIDE WAS FIXED, and missing it was
+    worse than leaving both wrong. Before ``to_minor_units``, the webhook's
+    ``amount_total / 100`` was paired with an outbound ``amount * 100``, and
+    for a zero-decimal currency the two errors CANCELLED: a ¥1,500 invoice was
+    sent as 150000, the client was overcharged ¥150,000 -- and the webhook read
+    150000 back, divided by 100, and recorded the correct ¥1,500. The books
+    looked right while the card was wrong.
+
+    Fixing only the outbound half un-cancelled the pair. Stripe then charged
+    the correct ¥1,500, the webhook read 1500 back, divided by 100, and
+    recorded **¥15** against a ¥1,500 invoice -- which never settles, chases
+    the client forever, and is a worse failure than the overcharge because
+    nothing about it looks wrong.
+
+    Caught by Codex on PR #289 before this merged, and by
+    tests/test_stripe_minor_units.py now.
+    """
+    digits = decimals_for(currency)
+    return round(amount / (10 ** digits), digits)
+
+
 def create_checkout_session(
     invoice, secret_key, base_url, connected_account_id, config=None,
     success_url=None, cancel_url=None,

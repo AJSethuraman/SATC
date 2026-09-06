@@ -209,7 +209,7 @@
           <tr{% if loop.index0 % 2 == 1 %} class="zebra"{% endif %}>
             <td class="desc">{{ item.description }}</td>
             <td class="r num">{{ "%g"|format(item.quantity or 0) }}</td>
-            <td class="r num">{{ format_money(item.rate, cur) }}</td>
+            <td class="r num">{{ format_unit_price(item.rate, cur) }}</td>
             <td class="r num">{{ format_money(item.amount, cur) }}</td>
           </tr>
           {%- endfor -%}

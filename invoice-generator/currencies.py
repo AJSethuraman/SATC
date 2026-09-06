@@ -344,6 +344,44 @@ def format_amount(amount, code="USD"):
     return f"{sign}{symbol_for(code)}{magnitude:,.{digits}f}"
 
 
+def format_unit_price(amount, code="USD"):
+    """Format a UNIT PRICE, which may carry more precision than the currency.
+
+    A price per unit is not itself a payable amount -- ¥100.5 per item is a
+    perfectly ordinary rate even though no such coin exists -- so clamping it
+    to the currency's places makes the row lie. A three-line JPY invoice read
+
+        3 x ¥100 = ¥302
+
+    because 100.5 was displayed rounded while the amount, correctly, was not.
+    The AMOUNT and the TOTAL must be representable in the currency; the rate
+    only has to be honest.
+
+    Shows the currency's own places, extended up to four where the value
+    actually needs them, and never trailing zeros beyond that.
+    """
+    if isinstance(amount, bool):
+        amount = 0.0
+    try:
+        value = float(amount if amount is not None else 0.0)
+    except (TypeError, ValueError):
+        value = 0.0
+    if not math.isfinite(value):
+        value = 0.0
+
+    digits = decimals_for(code)
+    for extra in range(digits, 5):
+        if round(value, extra) == round(value, 4):
+            digits = extra
+            break
+    else:
+        digits = 4
+
+    magnitude = round(abs(value), digits)
+    sign = "-" if value < 0 and magnitude != 0 else ""
+    return f"{sign}{symbol_for(code)}{magnitude:,.{digits}f}"
+
+
 def _label(entry):
     # The symbol is stripped for the label only: CHF's stored symbol carries a
     # trailing space so "CHF 1,250.00" reads correctly, and "(CHF )" in a

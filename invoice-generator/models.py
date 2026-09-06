@@ -22,6 +22,8 @@ from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from currencies import decimals_for
+
 db = SQLAlchemy()
 
 
@@ -247,35 +249,59 @@ class Invoice(db.Model):
         return self.logo_data is not None
 
     # --- Derived totals -------------------------------------------------
+    #
+    # EVERY FIGURE ROUNDS TO THE CURRENCY'S OWN MINOR UNIT, not to two places.
+    # Hardcoding 2 was right for the fourteen currencies this app used to
+    # offer and wrong for a quarter of the 157 it offers now, in both
+    # directions:
+    #
+    #   * A KWD line of 1 x 1.235 printed "KD1.235" as the unit price and
+    #     "KD1.240" as the amount, on the same row, because the display
+    #     honoured the dinar's three places and the arithmetic did not.
+    #   * A JPY invoice of 3 x 100.5 STORED 301.5 -- an amount of yen that
+    #     cannot exist. It displayed as ¥302 and charged ¥302, so the number
+    #     in the database was the only one that was wrong, which is the
+    #     hardest kind to notice.
+    #
+    # Caught by Codex on PR #289. Guarded by tests/test_currency_precision.py.
+
+    @property
+    def places(self):
+        """How many decimal places this invoice's currency actually has."""
+        return decimals_for(self.currency)
+
+    def _round(self, value):
+        return round(value, self.places)
+
     @property
     def subtotal(self):
-        return round(sum(item.amount for item in self.items), 2)
+        return self._round(sum(item.amount for item in self.items))
 
     @property
     def discount_amount(self):
         if self.discount_is_percent:
-            return round(self.subtotal * (self.discount_value or 0) / 100.0, 2)
-        return round(self.discount_value or 0.0, 2)
+            return self._round(self.subtotal * (self.discount_value or 0) / 100.0)
+        return self._round(self.discount_value or 0.0)
 
     @property
     def taxable_base(self):
-        return round(self.subtotal - self.discount_amount, 2)
+        return self._round(self.subtotal - self.discount_amount)
 
     @property
     def tax_amount(self):
         if self.tax_is_percent:
-            return round(self.taxable_base * (self.tax_value or 0) / 100.0, 2)
-        return round(self.tax_value or 0.0, 2)
+            return self._round(self.taxable_base * (self.tax_value or 0) / 100.0)
+        return self._round(self.tax_value or 0.0)
 
     @property
     def total(self):
-        return round(
-            self.taxable_base + self.tax_amount + (self.shipping or 0.0), 2
+        return self._round(
+            self.taxable_base + self.tax_amount + (self.shipping or 0.0)
         )
 
     @property
     def balance_due(self):
-        return round(self.total - (self.amount_paid or 0.0), 2)
+        return self._round(self.total - (self.amount_paid or 0.0))
 
     @property
     def is_overdue(self):
@@ -323,25 +349,24 @@ class Invoice(db.Model):
     @property
     def ledger_total(self):
         """What the ledger says is paid. `amount_paid` must equal this."""
-        return round(sum(p.amount or 0.0 for p in self.payments), 2)
+        return self._round(sum(p.amount or 0.0 for p in self.payments))
 
     @property
     def confirmed_paid(self):
         """The part a payment processor confirmed. Not reversible in this app."""
-        return round(
-            sum(p.amount or 0.0 for p in self.payments if p.is_confirmed), 2
+        return self._round(
+            sum(p.amount or 0.0 for p in self.payments if p.is_confirmed)
         )
 
     @property
     def manual_paid(self):
         """The part somebody entered by hand, net of any reversals."""
-        return round(
+        return self._round(
             sum(
                 p.amount or 0.0
                 for p in self.payments
                 if p.source in ("manual", "reversal", "migrated")
-            ),
-            2,
+            )
         )
 
     def has_credited(self, external_id):
@@ -366,7 +391,7 @@ class Invoice(db.Model):
     ):
         """Append a payment and refresh the cache. Returns the Payment."""
         payment = Payment(
-            amount=round(float(amount or 0.0), 2),
+            amount=self._round(float(amount or 0.0)),
             currency=(currency or self.currency or ""),
             source=source,
             external_id=external_id,
@@ -411,11 +436,11 @@ class Invoice(db.Model):
         at the other door. Somebody correcting a typo must not be able to
         delete a card payment by typing a smaller number over it.
         """
-        target = round(float(target or 0.0), 2)
+        target = self._round(float(target or 0.0))
         floor = self.confirmed_paid
         if target < floor:
             target = floor
-        delta = round(target - self.ledger_total, 2)
+        delta = self._round(target - self.ledger_total)
         if delta == 0:
             return 0.0
         self.record_payment(
@@ -471,6 +496,26 @@ class Payment(db.Model):
 
     __tablename__ = "payments"
 
+    # THE IDEMPOTENCY KEY IS ENFORCED BY THE DATABASE, not by the read that
+    # precedes the write. `has_credited` asks whether a processor reference is
+    # already in the ledger, but gunicorn runs two workers and Stripe delivers
+    # a retry concurrently -- so both can answer "no" before either commits,
+    # and the payment lands twice. A check-then-insert is not a guard.
+    #
+    # Migrated opening balances carry a synthetic `migrated:<invoice_id>`
+    # reference for the same reason: _ensure_schema's backfill runs per worker
+    # at boot, and two workers can both find no rows and both insert a full
+    # set. With this constraint the loser's INSERT violates it and rolls the
+    # whole statement back, which leaves exactly one set.
+    #
+    # NULL is exempt in both SQLite and Postgres -- several manual payments on
+    # one invoice are legitimate and carry no reference at all.
+    __table_args__ = (
+        db.UniqueConstraint(
+            "invoice_id", "external_id", name="uq_payment_invoice_external"
+        ),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(
         db.Integer,
@@ -519,4 +564,13 @@ class LineItem(db.Model):
 
     @property
     def amount(self):
-        return round((self.quantity or 0.0) * (self.rate or 0.0), 2)
+        """Rounded to the parent invoice's currency, not to two places.
+
+        A line item has no currency of its own, so it asks the invoice. A
+        detached row -- one built in a test, or read before its parent is
+        loaded -- falls back to two, which is right for all but 23 of the 157
+        currencies and is the only answer available without inventing one.
+        """
+        invoice = getattr(self, "invoice", None)
+        digits = decimals_for(invoice.currency) if invoice is not None else 2
+        return round((self.quantity or 0.0) * (self.rate or 0.0), digits)

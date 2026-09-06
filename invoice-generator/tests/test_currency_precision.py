@@ -1,0 +1,259 @@
+"""Currency precision, end to end — the four P1s Codex raised on PR #289.
+
+Every one was real, and the worst was one this branch had itself introduced.
+
+The theme: the app used to know fourteen currencies, all of them two-decimal,
+so "two decimal places" was hardcoded in a dozen places and was never wrong.
+Offering 157 made 23 of them wrong at once — zero-decimal currencies like the
+yen and three-decimal ones like the Kuwaiti dinar.
+"""
+import pytest
+
+from config import Config
+from app import create_app, _ensure_schema
+from currencies import format_unit_price
+from helpers import format_money
+from models import Invoice, LineItem, Payment, User, db
+from stripe_utils import from_minor_units, to_minor_units
+
+OWNER_EMAIL = "amara.okonkwo@bramblefinch.example"
+
+
+@pytest.fixture
+def app(tmp_path):
+    class PrecisionConfig(Config):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path}/precision-test.db"
+        INVOICES_DIR = tmp_path / "invoices"
+        SECRET_KEY = "test-secret-not-a-real-key"
+        ENV = "development"
+        TESTING = True
+        WTF_CSRF_ENABLED = False
+        RATELIMIT_ENABLED = False
+
+    return create_app(PrecisionConfig)
+
+
+@pytest.fixture
+def owner(app):
+    with app.app_context():
+        user = User(email=OWNER_EMAIL, business_name="Bramble & Finch",
+                    default_currency="USD", email_verified=True)
+        user.set_password("correct-horse-staple")
+        db.session.add(user)
+        db.session.commit()
+        return user.id
+
+
+def invoice(currency, lines, **kw):
+    inv = Invoice(
+        invoice_number="INV-0001", from_info="Bramble & Finch",
+        bill_to="Northwind Traders LLC", currency=currency, status="Sent",
+        tax_value=kw.get("tax", 0), tax_is_percent=True,
+        discount_value=0, discount_is_percent=True,
+        shipping=0, amount_paid=0,
+    )
+    for i, (qty, rate) in enumerate(lines):
+        inv.items.append(LineItem(position=i, description="Work",
+                                  quantity=qty, rate=rate))
+    return inv
+
+
+# --- P1: the arithmetic must follow the currency, not just the display ----
+
+def test_a_three_decimal_row_multiplies_out_on_the_page():
+    """Codex: "a KWD line with quantity 1 and rate 1.235 prints a unit price of
+    KD1.235 but computes and charges an amount of KD1.240"."""
+    inv = invoice("KWD", [(1, 1.235)])
+    assert format_unit_price(1.235, "KWD") == "KD1.235"
+    assert inv.items[0].amount == 1.235
+    assert format_money(inv.items[0].amount, "KWD") == "KD1.235"
+    assert inv.total == 1.235
+    assert to_minor_units(inv.total, "KWD") == 1235
+
+
+def test_a_zero_decimal_invoice_never_stores_an_impossible_amount():
+    """3 x 100.5 stored 301.5 — an amount of yen that cannot exist. It showed
+    as ¥302 and charged ¥302, so the database held the only wrong number."""
+    inv = invoice("JPY", [(3, 100.5)])
+    assert inv.items[0].amount == 302.0
+    assert inv.total == 302.0
+    assert inv.total == round(inv.total), "a yen amount must be whole"
+    assert to_minor_units(inv.total, "JPY") == 302
+
+
+def test_the_unit_price_may_carry_more_precision_than_the_currency():
+    """The amount must be payable; the rate only has to be honest.
+
+    Clamping the rate made the row read `3 x ¥100 = ¥302`.
+    """
+    assert format_unit_price(100.5, "JPY") == "¥100.5"
+    assert format_unit_price(500, "JPY") == "¥500", "no invented decimals"
+    assert format_unit_price(19.99, "USD") == "$19.99"
+    assert format_unit_price(1.235, "KWD") == "KD1.235"
+
+
+@pytest.mark.parametrize("code", ["USD", "EUR", "GBP", "CAD", "INR"])
+def test_two_decimal_currencies_are_completely_unchanged(code):
+    """The overwhelmingly common path must behave exactly as it always did."""
+    inv = invoice(code, [(3, 100.5), (2, 19.99)], tax=8.25)
+    assert inv.items[0].amount == 301.5
+    assert inv.items[1].amount == 39.98
+    assert inv.subtotal == 341.48
+    assert inv.tax_amount == 28.17
+    assert inv.total == 369.65
+
+
+def test_a_detached_line_item_falls_back_to_two_places():
+    """It has no currency of its own and must not invent one.
+
+    Asserted as a property rather than a literal: 3 x 100.505 is 301.515, whose
+    double sits a hair BELOW the half, so the two-place answer is 301.51 and
+    not the 301.52 you get by rounding the decimal in your head. Writing the
+    literal is how you end up asserting your own arithmetic instead of the
+    code's.
+    """
+    orphan = LineItem(position=0, description="x", quantity=3, rate=100.505)
+    assert orphan.amount == round(3 * 100.505, 2)
+    assert orphan.amount != round(3 * 100.505, 3), "it is not using 3 places"
+
+
+def test_percentages_round_to_the_currency_too():
+    inv = invoice("JPY", [(1, 1000)], tax=8.25)
+    assert inv.tax_amount == 82.0, "8.25% of ¥1,000 is ¥82, not ¥82.50"
+    assert inv.total == 1082.0
+
+
+# --- P1: the webhook must decode with the currency's exponent -------------
+
+def test_the_webhook_decode_is_the_exact_inverse_of_the_charge():
+    """The bug this branch introduced by fixing only one half.
+
+    Before `to_minor_units`, outbound `x100` and inbound `/100` cancelled for
+    the yen: the client was overcharged 100x and the invoice still recorded the
+    right figure. Fixing outbound alone left a ¥1,500 payment recording as ¥15.
+    """
+    for code, amount in [("JPY", 1500), ("KWD", 12.345), ("USD", 1071.67),
+                         ("EUR", 0.01), ("VND", 250000)]:
+        assert from_minor_units(to_minor_units(amount, code), code) == amount
+
+
+def test_a_yen_payment_settles_a_yen_invoice(app, owner):
+    """End to end through the model, the way the webhook path does it."""
+    with app.app_context():
+        inv = invoice("JPY", [(1, 1500)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+
+        # what Stripe sends back for a correctly-charged ¥1,500 session
+        amount_total = to_minor_units(inv.total, "JPY")
+        assert amount_total == 1500
+
+        inv.record_payment(from_minor_units(amount_total, "jpy"),
+                           source="stripe", external_id="cs_jpy", currency="JPY")
+        db.session.commit()
+
+        settled = db.session.get(Invoice, inv.id)
+        assert settled.amount_paid == 1500.0, "not ¥15"
+        assert settled.balance_due == 0.0
+
+
+def test_a_dinar_payment_settles_a_dinar_invoice(app, owner):
+    with app.app_context():
+        inv = invoice("KWD", [(1, 12.345)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+
+        amount_total = to_minor_units(inv.total, "KWD")
+        assert amount_total == 12345
+
+        inv.record_payment(from_minor_units(amount_total, "kwd"),
+                           source="stripe", external_id="cs_kwd", currency="KWD")
+        db.session.commit()
+        assert db.session.get(Invoice, inv.id).balance_due == 0.0
+
+
+# --- P1: idempotency belongs in the database ------------------------------
+
+def test_the_same_processor_reference_cannot_be_recorded_twice(app, owner):
+    """Two workers can both pass `has_credited` before either commits.
+
+    A check-then-insert is not a guard; the unique constraint is.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        inv.record_payment(400, source="stripe", external_id="cs_race")
+        db.session.commit()
+        invoice_id = inv.id
+
+    with app.app_context():
+        # the losing worker: it never saw the first commit
+        db.session.add(Payment(invoice_id=invoice_id, amount=400.0,
+                               currency="USD", source="stripe",
+                               external_id="cs_race"))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
+
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        assert len(inv.payments) == 1
+        assert inv.amount_paid == 400.0
+
+
+def test_manual_payments_carry_no_reference_and_are_not_constrained(app, owner):
+    """Several cash payments on one invoice are legitimate. NULL is exempt."""
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        inv.record_payment(100, source="manual")
+        inv.record_payment(100, source="manual")
+        inv.record_payment(100, source="manual")
+        db.session.commit()
+        assert len(db.session.get(Invoice, inv.id).payments) == 3
+        assert db.session.get(Invoice, inv.id).amount_paid == 300.0
+
+
+# --- P1: the backfill must survive two workers booting at once ------------
+
+def test_the_backfill_cannot_double_even_without_the_not_in(app, owner):
+    """The NOT IN makes a re-boot a no-op; the constraint is what makes a RACE
+    safe. Simulated by running the insert twice with the NOT IN defeated.
+    """
+    from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
+
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        inv.amount_paid = 400.0
+        db.session.commit()
+
+        _ensure_schema()
+        assert len(db.session.get(Invoice, inv.id).payments) == 1
+
+        # the second worker, mid-race: it read the table before the first
+        # committed, so its NOT IN found nothing to exclude.
+        raw = (
+            "INSERT INTO payments "
+            "(invoice_id, amount, currency, source, external_id, note, created_at) "
+            "SELECT id, amount_paid, currency, 'migrated', "
+            "'migrated:' || CAST(id AS TEXT), 'opening', created_at "
+            "FROM invoices WHERE amount_paid > 0"
+        )
+        with pytest.raises(SQLAlchemyError):
+            db.session.execute(text(raw))
+            db.session.commit()
+        db.session.rollback()
+
+        inv = db.session.get(Invoice, inv.id)
+        assert len(inv.payments) == 1, "the opening balance was not doubled"
+        assert inv.amount_paid == 400.0

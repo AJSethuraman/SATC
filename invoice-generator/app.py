@@ -41,12 +41,18 @@ from flask_login import (
 )
 from flask_wtf import CSRFProtect
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.exc import IntegrityError
 from markupsafe import Markup, escape
 
 import email_utils
 import stripe_utils
 from config import Config
-from currencies import CURRENCY_CHOICES, CURRENCIES, symbol_for
+from currencies import (
+    CURRENCY_CHOICES,
+    CURRENCIES,
+    format_unit_price,
+    symbol_for,
+)
 from designs import DEFAULT_DESIGN, FAMILIES, all_designs, resolve
 from helpers import (
     currency_symbol,
@@ -199,10 +205,19 @@ def _ensure_schema():
     # Idempotent by the NOT IN: once an invoice has any ledger row it is
     # skipped, so this is safe to run per worker at every boot, which is
     # exactly how _ensure_schema runs.
+    # The NOT IN alone is NOT a guard against two workers doing this at once:
+    # both can read an empty payments table and both insert a full set, and the
+    # doubled ledger then synchronises amount_paid to twice what was paid. The
+    # synthetic `migrated:<id>` reference is what lets the unique constraint on
+    # (invoice_id, external_id) catch the second one -- its INSERT violates the
+    # constraint, safe_exec rolls the whole statement back, and exactly one set
+    # survives. The NOT IN stays so the ordinary re-boot is a no-op rather than
+    # a caught exception.
     safe_exec([
         "INSERT INTO payments "
         "(invoice_id, amount, currency, source, external_id, note, created_at) "
-        "SELECT id, amount_paid, currency, 'migrated', NULL, "
+        "SELECT id, amount_paid, currency, 'migrated', "
+        "'migrated:' || CAST(id AS TEXT), "
         "'Opening balance carried over when the payment ledger was added', "
         "created_at "
         "FROM invoices "
@@ -341,6 +356,9 @@ def create_app(config_class=Config):
         # an empty string for anything else, which would print a bare number
         # with no indication of what money it is.
         symbol_for=symbol_for,
+        # The unit-price column only: a rate may carry more precision than
+        # the currency, and clamping it makes the row fail to multiply out.
+        format_unit_price=format_unit_price,
     )
     app.jinja_env.filters["nl2br"] = nl2br
     app.jinja_env.filters["fmtdate"] = fmtdate
@@ -1992,24 +2010,53 @@ def register_routes(app):
                     # existed, but is no longer written -- two records of the
                     # same fact drift, and this one drifting means crediting
                     # a payment twice.
+                    # DECODED WITH THE CURRENCY'S OWN EXPONENT, not /100.
+                    # Stripe's `amount_total` is in the currency's smallest
+                    # unit, which is the yen itself for JPY and a thousandth
+                    # for KWD. See stripe_utils.from_minor_units for why
+                    # getting this wrong on only one side of the round trip is
+                    # worse than getting it wrong on both.
+                    paid_amount = stripe_utils.from_minor_units(
+                        paid_cents, sess_currency
+                    )
                     invoice.record_payment(
-                        paid_cents / 100.0,
+                        paid_amount,
                         source="stripe",
                         external_id=session_id,
                         currency=sess_currency.upper(),
                         note="Stripe Checkout",
                     )
                     logger.info(
-                        "stripe webhook: credited %.2f %s to invoice=%s "
-                        "(session=%s)", paid_cents / 100.0, inv_currency,
+                        "stripe webhook: credited %s %s to invoice=%s "
+                        "(session=%s)", paid_amount, inv_currency,
                         invoice.id, session_id,
                     )
-                # Recompute paid status from the (stable) accumulated amount.
-                if int(round((invoice.amount_paid or 0.0) * 100)) >= int(
-                    round(invoice.total * 100)
-                ):
+                # Recompute paid status from the (stable) accumulated amount,
+                # compared in whole minor units of the invoice's own currency.
+                # Scaling both sides by 100 happened to work, since the error
+                # cancels in a comparison -- but it silently discards the third
+                # decimal of a KWD invoice, where 12.344 and 12.345 are
+                # different amounts of money.
+                _settled = stripe_utils.to_minor_units(
+                    invoice.amount_paid or 0.0, inv_currency
+                ) >= stripe_utils.to_minor_units(invoice.total, inv_currency)
+                if _settled:
                     invoice.status = "Paid"
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    # The unique constraint fired: another worker credited this
+                    # same Checkout Session between our `has_credited` and our
+                    # commit. That is the constraint doing its job, and the
+                    # outcome we wanted -- one credit. Answer 200: a 5xx makes
+                    # Stripe retry and eventually disable the endpoint, which
+                    # then drops OTHER invoices' payments.
+                    db.session.rollback()
+                    logger.info(
+                        "stripe webhook: session %s was credited concurrently "
+                        "to invoice=%s — no change", session_id, invoice.id,
+                    )
+                    return "", 200
                 logger.info(
                     "stripe webhook: invoice=%s now amount_paid=%s total=%s "
                     "status=%s", invoice.id, invoice.amount_paid,
