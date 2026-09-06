@@ -1,11 +1,15 @@
-# 132 exhibits, 664 MB of photographed Call Report pages -- one per bank-year,
-# every value beside the line the bank filed it on. Far too large for a git
-# repository, and regenerated in six minutes by
+# The exhibits are not here and must not come back.
 #
-#     python tools/tieout/build_deep_bank_exhibits.py
+# They live on the Forge, outside any git working tree:
 #
-# `manifest.csv` is the record of what exists: one row per exhibit with its
-# value count, its tie count and its photograph count. One exhibit is committed
-# as a specimen so a reader can see the shape without rebuilding.
+#     C:\Users\ajish\SATC-evidence\banks-10y-2026-09-05\
+#
+# Outside, deliberately. Ignored files inside a repository are one
+# `git clean -xfd` away from being gone, and 451 MB of photographed regulatory
+# filings is not a thing to lose to a housekeeping command. This file is the
+# second line of defence, not the first.
+#
+# `manifest.csv` is the record of what exists -- one row per exhibit with its
+# value, tie and photograph counts -- and `README.md` says how to rebuild any
+# of them.
 *.pdf
-!TIE-OUT-17534-KeyBank-NA-2025.pdf

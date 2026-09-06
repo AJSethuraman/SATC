@@ -7,6 +7,32 @@ regulator's own copy of the filing.
 
 **28,667 tied. 0 differed.**
 
+## What a facsimile is
+
+The word appears throughout this folder and it is worth ten seconds.
+
+A **facsimile** is an exact copy — the same word as a fax machine, from the
+Latin for *make alike*. The FFIEC's Central Data Repository serves one for every
+Call Report ever filed: **the filled-in form itself**, page by page, with the
+schedule headings, the printed line numbers, the MDRM codes in their little
+boxes and the bank's own figures typed into the columns. It is not a summary, a
+re-typeset table, or a database rendered to look like a form. It is a
+reproduction of the document the bank signed and sent.
+
+That is why the photographs in these exhibits are worth taking. A screenshot of
+a database is a picture of somebody's copy. A screenshot of the facsimile is a
+picture of the filing.
+
+Every quarter heading in every exhibit carries the link to its own:
+
+```
+https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&idType=fdiccert&id=17534&date=06302026
+```
+
+Change the `id` to any bank's FDIC certificate number and the `date` to any
+quarter-end in `MMDDYYYY`, and you have that bank's filing for that quarter. No
+login, no account. It is a public record.
+
 ## Why photographs
 
 The firm's reason, in their words:
@@ -33,35 +59,69 @@ Every exhibit is **self-contained** — each image is embedded in the PDF, not
 linked to a folder beside it — so it survives being forwarded to an auditor who
 does not have this machine.
 
-## What is in git, and what is not
+## Where the exhibits are
 
-The 132 exhibits total **664 MB**, which does not belong in a repository. What
-is committed:
+**On the Forge, not in git.** The full path:
+
+```
+C:\Users\ajish\SATC-evidence\banks-10y-2026-09-05\
+```
+
+132 PDFs, 451 MB. The firm's decision, after first saying to store all of it:
+*"But we can save them locally on the forge instead of taking space on git."*
+
+They sit **outside any git working tree**, deliberately. Inside one, an ignored
+file is a single `git clean -xfd` away from being gone, and 451 MB of
+photographed regulatory filings is not something to lose to a housekeeping
+command. The `.gitignore` in this folder is a second line of defence, not the
+first.
+
+What stays versioned is the pair that makes an unversioned folder trustworthy:
 
 | File | What it is |
 |---|---|
-| `manifest.csv` | one row per exhibit: bank, year, values, ties, photographs, size |
-| `TIE-OUT-17534-KeyBank-NA-2025.pdf` | one specimen, so the shape is visible without rebuilding |
-| `.gitignore` | keeps the other 131 out |
+| `manifest.csv` | one row per exhibit -- bank, year, values, ties, photographs, size |
+| `README.md` | this, including how to rebuild any of them |
 
-Rebuild all of them in about six minutes:
+The manifest is written by the same run that writes the PDFs, and it **merges**
+rather than overwrites: rebuilding one bank-year updates that row and leaves the
+other 131 alone. A row whose PDF is no longer on the Forge is dropped, because a
+record listing a file nobody can open is worse than no record.
+
+They are **greyscale, sixteen levels** -- 36% of the size of the colour
+originals. That was measured rather than assumed, then looked at: a Call Report
+page is black text and hairline rules on white, so the colour channels were
+carrying nothing. Rendered side by side, greyscale is indistinguishable from the
+original at reading size. Nothing is cropped and nothing is scaled down -- the
+same pixels, in fewer shades.
+
+## Rebuilding any of it
+
+Six minutes for all 132:
 
 ```
 python tools/tieout/build_deep_bank_exhibits.py
 ```
 
-One at a time, if that is all you want:
+One, if that is all you want -- and the manifest keeps the other 131:
 
 ```
 python tools/tieout/build_deep_bank_exhibits.py 17534 2025
 ```
 
-Both need the strips, which are cut from 480 facsimile PDFs. In order, from the
-repository root:
+In colour, if you ever want to compare:
+
+```
+python tools/tieout/build_deep_bank_exhibits.py 17534 2025 --colour
+```
+
+All of them need the strips, which are cut from the 480 facsimiles. In order,
+from the repository root -- about thirty-five minutes starting from nothing:
 
 ```
 python tools/tieout/fetch_all_facsimile_pdfs.py
 python tools/tieout/deep_bank_strips.py
+python tools/tieout/shrink_strips.py
 python tools/tieout/build_deep_bank_exhibits.py
 ```
 

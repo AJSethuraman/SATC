@@ -264,20 +264,67 @@ the FDIC. Report: `scratchpad/opportunities.md` (session-local).
   `PCU5241265241262` is the insurer's price net of expected losses. Both look
   right and are not.
 
-### Open — docket `47179bd6`, seven decisions
+### Docket `47179bd6` — answered 5 Sep 2026
 
-1. Add `UCCRCD` + `UCLOC` (utilization). *Recommend: both.*
-2. Close the `NTRENREQ` blank with `DRRENRSQ` + `CRRENRSQ`. *Recommend: the two
-   halves, not their difference — a subtraction is a calculation even when it
-   is obviously right.*
-3. Add `PCU9241269241262`, and record its two look-alikes as not-to-use.
-4. How far down the ranked 23. *Recommend: rows 1–13.*
-5. New fields re-cut `raw_slots`, which is built into every dashboard formula.
-   *Recommend: feed only for now.*
-6. The recurring schedule. *Recommend: quarterly on the newest quarter reporting
-   only what moved; annual full ten-year re-fetch and re-tie.*
-7. Where 664 MB of exhibits live. *Recommend: the machine, with the manifest in
-   git — I will not pick a destination for the firm's work product alone.*
+| | Question | Answer | Their words |
+|---|---|---|---|
+| D8 | Add `UCCRCD` + `UCLOC` (utilization)? | **Add both** | |
+| D9 | Close the `NTRENREQ` blank with `DRRENRSQ` + `CRRENRSQ`? | **Add both halves** | |
+| D10 | Add the BLS homeowners-insurance series? | *not yet* | *"I need more info on this. Your explanation isn't good enough"* |
+| D11 | How far down the ranked 23? | *not yet* | *"Give me the list and why we'd want them and which you recommend"* |
+| D12 | Feed only, or rebuild the dashboard too? | **Feed only** | |
+| D13 | What should the recurring schedule run? | **Manual, when I ask** | |
+| D14 | Which evidence layers to store? | **Layers 1, 3 and 4** | *"But we can save them locally on the forge instead of taking space on git"* |
+| D15 | Greyscale or colour evidence? | **Greyscale** | |
+
+**D14 reversed a storage decision made an hour earlier.** The exhibits had been
+committed and pushed (451 MB); they now live on the Forge at `C:\\Users\\ajish\\SATC-evidence\\banks-10y-2026-09-05\\`, outside any
+git working tree. Outside rather than merely gitignored inside: an ignored file
+is one `git clean -xfd` away from gone. `manifest.csv` and `README.md` stay
+versioned, and the builder writes the manifest in the same run that writes the
+PDFs, MERGING rather than overwriting — the first version truncated a 132-row
+record to one row the moment a single bank-year was rebuilt, which is exactly
+how the tool is meant to be used.
+
+**D13 means there is no schedule.** Nothing runs on a timer; a re-verification
+happens when the firm asks. The quarterly and annual shapes stay written down
+for whenever that is.
+
+**What the storage question turned up on the way.** Being told to store all of
+it prompted the question nobody had asked: did the pictures have to be that big?
+A Call Report page is black text and hairline rules on white, so the colour
+channels were carrying nothing. Measured over a random 60 strips — colour
+11.6 KB mean, greyscale 6.2 KB (54%), **16-level greyscale 4.2 KB (36%)**, 1-bit
+1.9 KB (17%) — then rendered side by side and LOOKED AT rather than chosen on
+the ratio. Greyscale is indistinguishable at reading size; 1-bit is legible but
+the table rules go ragged. **664 MB → 451 MB**, nothing cropped, nothing
+scaled down.
+
+Also: *"facsimile"* had been used forty times across this work and never once
+defined. It is an exact copy, the same word as a fax machine, and what
+cdr.ffiec.gov serves is the filled-in form itself — schedule headings, printed
+line numbers, codes in their boxes, the bank's own figures in the columns. Not a
+summary and not a database made to look like a form. That distinction is the
+whole reason a photograph of it counts as evidence, and it sat inside a word the
+reader was expected to already know. Now explained in the exhibits README and on
+the workbook's sources tab.
+
+### Still open after the docket
+
+Two answers were "not enough information", which is a finding about the docket
+and not about the firm:
+
+- **D10 homeowners insurance.** *"Your explanation isn't good enough."* Owed: a
+  proper account of what the series measures, why an insurance premium bears on
+  credit at all, and what the two look-alikes actually are.
+- **D11 the ranked 23.** *"Give me the list and why we'd want them and which you
+  recommend."* Owed: the list itself, not a summary of it. The scan produced it;
+  the docket described it and never showed it.
+
+Landed from the answers: `UCCRCD`, `UCLOC`, `DRRENRSQ` and `CRRENRSQ` go into
+the FEED only (D12), which means the deep pull's field list rather than
+`RAW_FIELDS` — changing `RAW_FIELDS` re-cuts `raw_slots`, which the layout
+says is built into every dashboard formula.
 
 Suite **611 passed, 0 failed** (545 + 66 merged).
 

@@ -19,6 +19,7 @@ read.
 """
 import base64
 import collections
+import csv
 import html
 import json
 import pathlib
@@ -29,8 +30,26 @@ import time
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
 SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
                   r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
-STRIPS = SB / "deepstrips"
-OUT = CS / "docs" / "tie-out" / "banks-10y-2026-09-05"
+#: The 16-level greyscale strips, which are 36% of the colour ones and
+#: indistinguishable at reading size -- a Call Report page is black text
+#: on white, so the colour channels were carrying nothing. The colour
+#: originals stay on disk and `--colour` still uses them.
+STRIPS = SB / ("deepstrips" if "--colour" in sys.argv else "deepstrips-grey")
+if not STRIPS.exists():
+    STRIPS = SB / "deepstrips"
+#: The exhibits live on the Forge, not in the repository. The firm, having
+#: first said to store all of it: "But we can save them locally on the
+#: forge instead of taking space on git." Outside the working tree rather
+#: than merely gitignored inside it -- an ignored file is one
+#: `git clean -xfd` away from gone, and this is 451 MB of photographed
+#: regulatory filings.
+#:
+#: `manifest.csv` and `README.md` stay in the repository, so what exists
+#: and how to rebuild it are both versioned even though the PDFs are not.
+EVIDENCE = pathlib.Path(r"C:\Users\ajish\SATC-evidence")
+OUT = EVIDENCE / "banks-10y-2026-09-05"
+RECORD = CS / "docs" / "tie-out" / "banks-10y-2026-09-05"
+RECORD.mkdir(parents=True, exist_ok=True)
 OUT.mkdir(parents=True, exist_ok=True)
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 sys.path.insert(0, str(CS / "src"))
@@ -304,6 +323,41 @@ for cert, year in pairs:
 
 (SB / "deep_exhibits.json").write_text(json.dumps(built, indent=1),
                                        encoding="utf-8")
+
+# The manifest is the versioned record of an unversioned folder, written by
+# the run that writes the PDFs so the two cannot drift.
+#
+# MERGED, not overwritten. The first version wrote only the exhibits this
+# run produced, which is right for a full rebuild and truncated a 132-row
+# record to one row the first time somebody built a single bank-year -- and
+# building one quarter at a time is the whole point of the schedule this
+# implements. Rows this run rebuilt are replaced; rows it did not touch are
+# kept; a row whose PDF is no longer on the Forge is dropped, because a
+# record listing a file nobody can open is worse than no record.
+HEADER = ["cert", "bank", "year", "values", "tied_to_the_filing",
+          "photographs", "megabytes", "pdf"]
+rows = {}
+if (RECORD / "manifest.csv").exists():
+    with (RECORD / "manifest.csv").open(encoding="utf-8") as fh:
+        for _r in csv.DictReader(fh):
+            rows[(_r["cert"], _r["year"])] = [_r.get(k, "") for k in HEADER]
+kept = len(rows)
+for _e in built:
+    rows[(_e["cert"], _e["year"])] = [_e["cert"], _e["bank"], _e["year"],
+                                      _e["values"], _e["tied"], _e["images"],
+                                      _e["mb"], _e["pdf"]]
+gone = [k for k, v in rows.items() if not (OUT / v[7]).exists()]
+for k in gone:
+    del rows[k]
+with (RECORD / "manifest.csv").open("w", newline="", encoding="utf-8") as fh:
+    _w = csv.writer(fh)
+    _w.writerow(HEADER)
+    for _k in sorted(rows, key=lambda k: (rows[k][1], rows[k][2])):
+        _w.writerow(rows[_k])
+print("manifest    : %d rows (%d rebuilt now, %d kept, %d dropped as missing)"
+      % (len(rows), len(built), kept - len(built) - len(gone), len(gone)))
+print("exhibits in : %s" % OUT)
+print("manifest    : %s" % (RECORD / "manifest.csv"))
 print("\nexhibits built : %d of %d" % (len(built), len(pairs)))
 if failed:
     print("FAILED         : %d -- %s"
