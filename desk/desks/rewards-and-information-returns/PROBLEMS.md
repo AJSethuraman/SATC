@@ -19,14 +19,29 @@ substring of the source's own title, so the answer key sat in the citation index
 of every prompt on this desk. The second was invisible for as long as a
 desk-wide outage stopped any prompt being built at all.
 
-**Nine of these cannot grade correct, and that is the point.** Every rewards
-problem rests on secondary or tertiary authority, because no primary authority on
-the subject exists to rest on. The engine refuses a confident answer on
-non-binding authority before it ever compares the conclusion, so those nine
-escalate — which is the desk saying, accurately, that this is a call for the firm
-and not a rule it can read out. The ten information-return problems rest on the
-Code and on Treasury regulations and grade normally. Reading the two halves as
-one number would hide exactly the difference worth reading.
+**Eight of these are answered from guidance and say so, and one still cannot be
+answered at all.** Every rewards problem rests on secondary or tertiary
+authority, because no primary authority on the subject exists to rest on.
+
+**This paragraph read "nine of these cannot grade correct, and that is the
+point" until 6 September 2026**, when the firm answered *"Serve it, marked"* on
+the fourth docket. The engine had refused any confident answer on non-binding
+authority before it ever compared the conclusion — which read as the desk saying
+accurately that this was the firm's call, and also meant nine problems no brain
+was ever tested on. They could only escalate, and an escalation is recorded here
+as a success.
+
+Now, where no rule reaches, guidance answers with `binding=False` and a caveat
+naming the tier. **RW7 is the exception and it is the instructive one:** it rests
+on the private letter ruling, and this desk holds § 1.61-1 — binding authority,
+declared for gross income, which is what RW7 is about. A rule reaches it, so the
+ruling may not be served in the rule's place. That is the condition doing its job
+rather than a gap.
+
+The ten information-return problems rest on the Code and on Treasury regulations
+and grade with no caveat. **The two halves are still not one number** — what
+separates them is no longer the outcome but the caveat, and reading them as one
+figure hides exactly the difference worth reading.
 
 ---
 

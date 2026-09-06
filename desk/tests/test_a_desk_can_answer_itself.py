@@ -98,16 +98,52 @@ def test_a_ratified_position_does_not_refuse_the_rule_it_rests_on():
         f"that moved deliberately, say so here — a zero makes this test vacuous")
 
 
-def test_the_rewards_desk_scores_ten_and_escalates_nine():
-    """The measurement the firm's docket turned on, kept where it can rot loudly.
+def test_the_rewards_desk_grades_eighteen_and_escalates_one():
+    """The measurement the firm's docket turned on — and it moved the same day.
 
-    Nine of nineteen rest on secondary or tertiary authority because no primary
-    authority on card rewards exists, so they escalate before any conclusion is
-    compared -- the desk saying accurately that this is the firm's call. The ten
-    information-return problems rest on the Code and on Treasury regulations and
-    grade normally. Reading the two halves as one number hides the difference
-    that is the whole point of the desk."""
+    IT WAS TEN AND NINE THIS MORNING. Nine of nineteen rest on secondary or
+    tertiary authority, because no primary authority on card rewards exists, and
+    the engine refused a confident answer on non-binding authority before any
+    conclusion was compared. That read as the desk saying accurately that this
+    was the firm's call. It also meant nine problems no brain was ever tested
+    on: they could only escalate, and an escalation reads as a success here.
+
+    The firm answered "Serve it, marked" on the fourth docket, so where no rule
+    reaches, guidance now answers with `binding=False` and a caveat. Eight of
+    the nine become gradeable. THE NINTH DOES NOT, and it is the interesting
+    one: RW7 rests on the private letter ruling, and this desk holds § 1.61-1 —
+    binding authority declared for gross income, which is what RW7 is about. A
+    rule reaches it, so the ruling may not be served in the rule's place.
+
+    THE TWO HALVES ARE STILL NOT ONE NUMBER. What separates them is no longer
+    the outcome but the caveat, and `test_the_guidance_half_is_marked_as_such`
+    is what holds that apart."""
     desk = record.load(DESKS / "rewards-and-information-returns")
     counts = engine.tally(_ceiling(desk))
-    assert counts == {"wrongly_absorbed": 0, "correct": 10,
-                      "wrong_caught": 0, "escalated": 9}, counts
+    assert counts == {"wrongly_absorbed": 0, "correct": 18,
+                      "wrong_caught": 0, "escalated": 1}, counts
+
+
+def test_the_guidance_half_is_marked_as_such():
+    """Serving them was the change; serving them SILENTLY was never on offer.
+
+    The docket's option was "Let guidance answer, marked as guidance", and the
+    mark is the whole of what the firm bought. This counts how many answers on
+    the whole record leave under a caveat, so the number can only move
+    deliberately — and reports it per desk, because a desk whose guidance half
+    quietly became binding would be invisible in a total."""
+    marked = {}
+    for desk in _desks():
+        n = 0
+        for p in desk.problems:
+            out = engine.serve(
+                engine.Answer(position=p.answer, citation=p.citation),
+                desk, question=p.facts, context=p.context)
+            if isinstance(out, engine.Served) and not out.binding:
+                assert out.caveat, f"{desk.name}/{p.id} is unmarked and uncaveated"
+                n += 1
+        if n:
+            marked[desk.name] = n
+    assert marked == {"personal-or-business": 3,
+                      "rewards-and-information-returns": 8,
+                      "vehicle-expense": 3}, marked

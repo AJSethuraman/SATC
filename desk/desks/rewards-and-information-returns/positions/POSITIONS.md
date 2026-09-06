@@ -9,12 +9,12 @@ date. Where a source cannot be read by a desk at all — a licence forbidding th
 content reaching a model — a position here is the desk's entire knowledge of it,
 and the citation is how a reader gets to the text themselves.
 
-**One of the three below is ratified and two are PROPOSALS.** POS2 carries a
-`Ratified` field; POS1 and POS3 do not, so the engine will not serve either of
-those and every question they would answer escalates until the firm says yes.
-That is the correct state, and on the rewards half it is the only available one:
-there is no primary authority to fall back on, so the firm's word is the only
-thing that can close it.
+**Two of the three below are ratified and one is a PROPOSAL.** POS1 and POS2
+carry a `Ratified` field; POS3 does not, so the engine will not serve it and
+every question it would answer escalates until the firm says yes. That is the
+correct state, and on the rewards half it is the only available one: there is no
+primary authority to fall back on, so the firm's word is the only thing that can
+close it.
 
 ---
 
@@ -110,6 +110,28 @@ still does not cover them.
    presupposes property with a surviving basis and a later disposition. Fuel
    burned and a tool written off have neither. **The firm's actual open question
    is untouched by the only case on the subject.**
+
+**Ratified:** the firm, 6 September 2026 — ratified on the fourth docket,
+unamended, with no note.
+
+**RATIFIED AS DRAFTED, NOT AS RECOMMENDED.** The docket recommended narrowing it
+to *"a card reward earned by buying goods or services reduces what was paid for
+them"*, which is the sentence that survives *Anikeev*. The firm ratified the
+wording above instead, and the wording above is what is served. The narrowing
+argument is not lost — it is in the three numbered findings on this position, and
+in the two things *Anikeev* does not say — but it is commentary now, not the
+position.
+
+**WHAT IT CHANGES TODAY: nothing that is scored, and that was checked rather than
+assumed.** This position rests on `PLR 201027015, LAW AND ANALYSIS`. No problem
+on this desk is keyed to that citation — RW7 is keyed to `Ruling request (1)`, a
+different passage of the same ruling — so no score moves. What changes is what
+the desk SAYS when an answerer cites the analysis: the firm's own sentence rather
+than a refusal on a ruling that may not be cited as precedent.
+
+**And it still refuses without `taxpayer` on file**, which is the input the firm
+asked for while holding it: *"we should probably be specifying. Hey this is the
+individual desk. This is the business desk."*
 
 ---
 

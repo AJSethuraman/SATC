@@ -240,6 +240,21 @@ class Served:
     #: were the same answer until 5 September 2026, and the difference is four
     #: served answers on that day's Forge row.
     checked_subject: bool = False
+    #: Whether the authority behind this answer SETTLES the question or merely
+    #: reads it. False means the desk answered from guidance because no rule and
+    #: no position reached, which the firm allowed on 6 September 2026 -- and
+    #: allowed on condition that the reader is told.
+    #:
+    #: IT IS NOT `tier` RESTATED. `tier` is a label on the source; this is a
+    #: statement about THIS answer, and the two come apart at the one place that
+    #: matters: a ratified POSITION on a tertiary source is binding here and
+    #: tertiary there, because the firm decided it. A caller keying off `tier`
+    #: alone would caveat the firm's own word.
+    binding: bool = True
+    #: The sentence a reader must see when `binding` is false. Empty otherwise --
+    #: an empty caveat and an absent one must not look alike, so the flag is what
+    #: is tested and this is what is shown.
+    caveat: str = ""
 
 
 @dataclass(frozen=True)
@@ -440,6 +455,42 @@ def _follow_up(facts, ruling) -> str:
             f"ours to record rather than the client's to be asked.")
 
 
+def _rule_reaches(desk: Desk, question: str) -> bool:
+    """Whether this desk declares BINDING authority for anything the question
+    is about.
+
+    Three cases, and the middle one is the one worth the lines.
+
+    NO BINDING SOURCE ON THE DESK AT ALL -> no rule can reach, unambiguously,
+    and guidance is the best authority there is. The rewards desk's whole
+    rewards half is this: the Code and the regulations define gross income and
+    stop, so every statement that a rebate is not income is a ruling, an
+    announcement or a publication.
+
+    BINDING SOURCES, BUT NO DECLARED MAPPING -> REFUSE. A rule might reach and
+    nothing here can tell. "I could not check" and "I checked and it is fine"
+    must never be the same answer -- the rule `off_subject` is written to, and
+    the direction to fail in is the one that asks the firm rather than the one
+    that answers on a publication while a regulation sits unread beside it.
+
+    BINDING SOURCES AND A MAPPING -> read it off `answered_from`, which the firm
+    wrote, rather than judged.
+    """
+    binding = {s.id for s in desk.sources if s.binding}
+    if not binding:
+        return False
+    if not desk.answered_from:
+        return True
+    touches = _canon_touches()
+    asked = [t for t in desk.fires_on if touches(question, t)]
+    if not asked:
+        # The question touches nothing this desk declared, so the mapping cannot
+        # answer either. Same reasoning as above: unable to tell is not clear.
+        return True
+    return any(sid in binding and any(t in asked for t in terms)
+               for sid, terms in desk.answered_from.items())
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -591,11 +642,38 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
         return None, passage, source
 
     if not source.binding:
-        return Refusal(
-            "authority_permits_choice",
-            f"{source.title} is {source.tier} authority, which is somebody's "
-            f"reading rather than the rule; this is a position for the firm",
-        ), passage, source
+        # SERVED, AND MARKED AS GUIDANCE -- but only where no rule reaches.
+        #
+        # The firm, fourth docket, 6 September 2026: "Serve it, marked", on the
+        # question they had asked for while holding a position the day before:
+        # "if we don't have an opinion and have a good reason to form one, maybe
+        # we just use a safe Harbor Rule which in this case would be deferring
+        # to whatever the IRS says."
+        #
+        # THE CONDITION IS WHAT MAKES IT SAFE, and it is read off the record
+        # rather than judged. If any BINDING source is declared to answer a
+        # subject this question touches, then a rule does reach it, and a
+        # publication may not be served in its place -- otherwise a model could
+        # dodge a regulation by citing the plain-English summary of it. That is
+        # not hypothetical on this record: the tie-out found § 1.263(a)-1 saying
+        # $500 and the IRS page saying $2,500, both live, and a desk that served
+        # the second without saying so would hand over a number the regulation
+        # does not contain.
+        #
+        # WHERE NO RULE REACHES, refusing was never protecting anyone. It sent
+        # the same question back to the firm every time it was asked, which is
+        # the thing they asked to stop.
+        if _rule_reaches(desk, question):
+            return Refusal(
+                "authority_permits_choice",
+                f"{source.title} is {source.tier} authority, which is somebody's "
+                f"reading rather than the rule -- and this desk holds binding "
+                f"authority on this subject. Cite the rule, or escalate",
+                ask=f"Is {answer.citation!r} being cited because the rule does "
+                    f"not reach this, or because it was easier to read? This "
+                    f"desk holds a binding source for what was asked.",
+            ), passage, source
+        return None, passage, source
 
     return None, passage, source
 
@@ -634,7 +712,20 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:
         return refusal
+    # A RATIFIED POSITION IS THE FIRM'S WORD AND IS NEVER CAVEATED, whatever the
+    # tier of the source under it -- that is the whole point of `human_only`, and
+    # of the firm being the last layer. Only a passage from a non-binding source
+    # carries the caveat.
+    backing = desk.authority_for(answer.citation)
+    from_position = backing is not None and backing[0] == "position"
+    binding = bool(from_position or source.binding)
     return Served(
+        binding=binding,
+        caveat="" if binding else (
+            f"This rests on {source.title}, which is {source.tier} authority: "
+            f"the IRS's own guidance, not the rule. No binding authority on this "
+            f"desk reaches the question. Read it as the Service's stated position "
+            f"and not as settled law."),
         # A position is the firm's words, so those are the words that leave the
         # desk -- not a restatement, however close. `_check` has already refused
         # one that disagrees; this makes the agreeing case exact rather than

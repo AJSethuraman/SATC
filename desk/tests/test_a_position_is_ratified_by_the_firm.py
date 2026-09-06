@@ -54,6 +54,10 @@ RATIFIED = {
     # 2026, on the firm's instruction ("Reword POS2"). The reword is recorded on
     # the position itself; the ratification date is the day they first said yes.
     ("rewards-and-information-returns", "POS2"): "5 September 2026",
+    # THE FOURTH DOCKET'S ONLY RATIFICATION, and this roster is what surfaced it
+    # as a decision rather than a diff. Answered "Ratify it", unamended, with no
+    # note — against a recommendation to narrow it, which the firm declined.
+    ("rewards-and-information-returns", "POS1"): "6 September 2026",
     ("vehicle-expense", "POS1"): "5 September 2026",
     ("vehicle-expense", "POS2"): "5 September 2026",
     ("vehicle-expense", "POS3"): "5 September 2026",
