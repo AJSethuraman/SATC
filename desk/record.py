@@ -223,11 +223,49 @@ class Context:
         """The declared needs this context cannot meet, in declared order."""
         return tuple(n for n in needs if not str(self.facts.get(n, "")).strip())
 
+    def standing_rule(self, fact: str) -> str:
+        """`ABSENT`, `NONE` or `RECORDED` — what the file says about a client
+        rule on `fact`. Three answers and never two.
+
+        THE FIRM ASKED FOR THE THIRD ONE. Holding the safe-harbour positions on
+        6 September 2026: *"This needs to ensure that there is no already
+        standing rule for that client in particular. The desk should ask that
+        follow up if it is not clear, right?"* — and *"we shouldn't ignore
+        client level rules set with judgment with the desk answering broadly."*
+
+        A two-valued answer cannot express that. "Nothing recorded" and
+        "recorded, and there is no client rule" look identical from a `dict.get`
+        and mean opposite things: the first is a question nobody has asked, the
+        second is a question somebody answered. Collapsing them is how a desk
+        ends up answering broadly over a client the firm treats differently —
+        which is the thing being guarded against.
+
+        SO THE CALLER MUST SAY IT, and `NO_STANDING_RULE` is the word for it.
+        The engine never supplies it: a fact absent from the file stays ABSENT
+        and the desk asks. "Never invent a value" is the principle, and the
+        value being invented here would be the most expensive kind — the one
+        that says somebody checked.
+        """
+        raw = str(self.facts.get(fact, "")).strip()
+        if not raw:
+            return ABSENT
+        return NONE if raw.casefold() == NO_STANDING_RULE else RECORDED
+
 
 #: What a caller passes when nothing was recorded. Not a default value -- an
 #: explicitly empty one, so every declared need goes unmet against it rather
 #: than quietly passing.
 NOTHING_ON_FILE = Context()
+
+#: The three things a file can say about a client-level rule. Nobody may collapse
+#: them to two: see `Context.standing_rule`.
+ABSENT, NONE, RECORDED = "absent", "none_recorded", "recorded"
+
+#: The word a caller writes to say THEY LOOKED AND THERE IS NO CLIENT RULE. It
+#: is deliberately a value the caller has to supply rather than a state the
+#: engine can reach on its own, because the difference between "nobody asked"
+#: and "somebody asked and the answer was no" is the whole point of the field.
+NO_STANDING_RULE = "none"
 
 
 @dataclass(frozen=True)
@@ -767,6 +805,14 @@ def load(desk_dir: Path) -> Desk:
     # the desk's own declaration is in hand; `positions.py` only splits the list,
     # because naming the legal facts there would put one trade's vocabulary in a
     # file every desk shares.
+    # AND `Unless:` IS DELIBERATELY NOT CHECKED THE SAME WAY. It may name a fact
+    # this desk does not record, and that case is the point of the field rather
+    # than a mistake in it: the desk asks the follow-up anyway and the engine
+    # refuses with `no_field_for_this_fact`, which says the gap is in what the
+    # firm decided to write down, not in what this client was asked. Validating
+    # it against `records` would make the one finding it exists to surface
+    # unsayable -- a position could only ever ask about a field somebody had
+    # already thought to create.
     for q in pos:
         unmeetable = [n for n in q.needs if n not in records]
         if unmeetable:

@@ -76,6 +76,18 @@ class Unsupported:
     #: empty when it reached outside the desk's authority altogether. See
     #: `from_refusal` for why the queue records it.
     falls_under: str = ""
+    #: THE FOLLOW-UP, when the refusal had one: a question a preparer can act on.
+    #:
+    #: The firm, 6 September 2026: *"it can ask a follow up and if the follow up
+    #: has no answer we know there's a legit hole to fix because the accountant
+    #: or firm never assigned it up front. This is also a way to check for bugs
+    #: or defects while agents perform real work."* That last sentence is why it
+    #: belongs HERE and not only in the reply: this queue is where the holes
+    #: accumulate, and a question that reached one caller and no file is a hole
+    #: found and then dropped.
+    #:
+    #: It names a field and never a value -- this file lives in the repository.
+    asked: str = ""
 
     @property
     def near_miss(self) -> bool:
@@ -118,6 +130,8 @@ class Unsupported:
         ]
         if self.falls_under:
             lines += ["", f"**Falls under:** {_oneline(self.falls_under)}"]
+        if self.asked:
+            lines += ["", f"**Asked:** {_oneline(self.asked)}"]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -141,6 +155,7 @@ def parse(text: str) -> list[Unsupported]:
             concluded=_quoted(block, "Concluded", where),
             believed_authority=_uncite(_quoted(block, "Believed authority", where)),
             falls_under=_field(block, "Falls under", where, required=False),
+            asked=_field(block, "Asked", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
@@ -353,6 +368,7 @@ def from_refusal(question: str, answer, result, *, model: str = "",
                      if record_under(answer.citation, c))
     return Unsupported(
         falls_under=max(held, key=len) if held else "",
+        asked=getattr(result, "ask", "") or "",
         id=next_id(existing),
         question=question,
         concluded=answer.position or "(no position offered)",

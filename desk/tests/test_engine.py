@@ -383,6 +383,15 @@ NOT_ABOUT_AUTHORITY = {
     # it. The firm, 5 September 2026: "if they're missing that piece of
     # information, something was just missing from the file."
     "context_not_on_file": "read our own file, and fix the intake that skipped it",
+    # The fourth and fifth, asked for by the firm on 6 September 2026. Both are
+    # about the FILE rather than the authority, and they are separated because
+    # a different person fixes each.
+    "client_rule_governs": "read the rule the firm already recorded for this client",
+    # AND THIS ONE IS NOT FIXED BY READING ANYTHING. There is nowhere to read.
+    # The firm: "if the follow up has no answer we know there's a legit hole to
+    # fix because the accountant or firm never assigned it up front ... What if
+    # this mattered only sometimes and we never even made a field for it."
+    "no_field_for_this_fact": "decide, as a firm, whether this fact is recorded at all",
 }
 
 

@@ -66,9 +66,33 @@ def test_a_need_the_desk_does_not_record_cannot_load(tmp_path, pob):
     """A need nothing can meet is a position that can never be served, and it
     would fail at answer time as a refusal blaming the caller for our typo."""
     with pytest.raises(record.RecordError) as e:
-        record.load(_desk_with(tmp_path, pob, needs="favourite colour"))
-    assert "favourite colour" in str(e.value)
+        record.load(_desk_with(tmp_path, pob, needs="favourite_colour"))
+    assert "favourite_colour" in str(e.value)
     assert "Records:" in str(e.value)
+
+
+def test_a_need_that_is_not_even_a_fact_name_is_refused_sooner():
+    """Two different refusals, and the difference matters.
+
+    `favourite_colour` is a well-formed name this desk does not declare, and
+    `record.load` says so with the desk in hand. A line of PROSE under the field
+    never reaches that check: `_field` reads greedily to the next `**Marker:**`,
+    so an explanation written above `**Why:**` becomes part of the value and is
+    then split on its commas into fact names. Measured 6 September 2026 — a
+    position loaded silently asking about a fact called `right?" — and on the
+    threshold below`, and every test passed.
+
+    This is why `positions._needs` checks the SHAPE before anything checks the
+    vocabulary: the two failures need different sentences, and the second one
+    used to have none.
+    """
+    with pytest.raises(record.RecordError) as e:
+        positions._needs("capitalization_rule\n\n*and a paragraph, with commas*",
+                         "position POS1", "Unless")
+    assert "not a fact name" in str(e.value)
+    assert "**Why:**" in str(e.value), "the message must say where prose goes"
+    # AND THE WELL-FORMED CASE IS UNTOUCHED.
+    assert positions._needs("a_b, c_d", "where") == ("a_b", "c_d")
 
 
 def test_the_records_line_stops_at_the_blank_line(pob):

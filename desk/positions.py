@@ -74,6 +74,23 @@ class Position:
     #: behaves exactly as it did, so the cost of the new gate can only ever be
     #: paid by a position that opted into it.
     needs: tuple = ()
+    #: The client-level rules that would DISPLACE this position, from the same
+    #: vocabulary as `needs` -- except that this one may name a fact the desk
+    #: does not record, and that asymmetry is the whole feature.
+    #:
+    #: `Needs:` says "I cannot be applied without this", and `record.load`
+    #: refuses one naming an undeclared fact, because such a position could
+    #: never be served by anybody.
+    #:
+    #: `Unless:` says "I am the firm's default, and it holds unless the file
+    #: says this client is different". A fact the desk does not record is not an
+    #: error here -- it is the FINDING. The firm, holding three positions on
+    #: 6 September 2026: *"if the follow up has no answer we know there's a legit
+    #: hole to fix because the accountant or firm never assigned it up front ...
+    #: What if this mattered only sometimes and we never even made a field for
+    #: it."* A position that may only ask about fields somebody already thought
+    #: to create can never discover the one nobody thought to create.
+    unless: tuple = ()
 
     @property
     def proposed(self) -> bool:
@@ -81,14 +98,43 @@ class Position:
         return not self.ratified
 
 
-def _needs(listed: str, where: str) -> tuple:
-    """The recorded facts this position cannot be applied without.
+#: A fact name: lowercase words joined by underscores, and nothing else. Not a
+#: style rule -- the SHAPE is what makes a swallowed paragraph fail loudly.
+_FACT = re.compile(r"^[a-z][a-z0-9_]*$")
 
-    Only split here. WHICH names are legal is the desk's own declaration and is
-    checked in `record.load`, where the desk is in hand -- a check in this file
-    would have to name the facts, and this file is shared by every desk.
+
+def _needs(listed: str, where: str, field: str = "Needs") -> tuple:
+    """The facts named on a `Needs:` or `Unless:` line.
+
+    Only split and shape-checked here. WHICH names are legal is the desk's own
+    declaration and is checked in `record.load`, where the desk is in hand -- a
+    check in this file would have to name the facts, and this file is shared by
+    every desk.
+
+    THE SHAPE CHECK EXISTS BECAUSE THE FIELD READER IS GREEDY, and the failure
+    was silent. `_field` reads to the next `**Marker:**`, so a paragraph of
+    explanation written under an `Unless:` line and above `**Why:**` is read as
+    part of the value -- and this function then split that paragraph on its
+    commas and returned eight "facts", one of them ending in a quotation mark.
+    Measured 6 September 2026: the desk loaded, every test passed, and the
+    position was asking about a fact called `right?" — and on the threshold
+    below`. A field that was mis-read and a field that was correct looked
+    identical downstream, which is the failure this record's own preamble is
+    written against.
     """
-    return tuple(t.strip().lower() for t in listed.split(",") if t.strip())
+    out = []
+    for token in listed.split(","):
+        name = token.strip().lower()
+        if not name:
+            continue
+        if not _FACT.match(name):
+            raise RecordError(
+                f"{where}: {field} names {name.splitlines()[0][:60]!r}, which is "
+                f"not a fact name. It must be lowercase words joined by "
+                f"underscores. A comma or a line of prose under this field is "
+                f"read as part of it — put the explanation under **Why:**.")
+        out.append(name)
+    return tuple(out)
 
 
 def parse(text: str) -> list[Position]:
@@ -105,6 +151,8 @@ def parse(text: str) -> list[Position]:
             why=_field(block, "Why", where, required=False),
             ratified=_field(block, "Ratified", where, required=False),
             needs=_needs(_field(block, "Needs", where, required=False), where),
+            unless=_needs(_field(block, "Unless", where, required=False), where,
+                          "Unless"),
         ))
     return out
 

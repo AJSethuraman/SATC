@@ -89,6 +89,20 @@ def brief(question: str, desk: record.Desk,
         out += ["", "## The firm's own positions — binding, and quoted exactly", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # A DEFAULT SAYS SO, so an answerer is not told the firm's general
+            # rule as though it were this client's. The firm, holding two
+            # positions on 6 September 2026: "we shouldn't ignore client level
+            # rules set with judgment with the desk answering broadly."
+            #
+            # The engine decides -- `_check` refuses whatever this says -- and
+            # this is the disclosure, not the gate. An answerer that reads it and
+            # escalates has reasoned correctly; one that does not is stopped
+            # anyway, which is the difference between a prompt and a choke point.
+            if q.unless:
+                out += [f"This is the firm's DEFAULT. It does not apply to a "
+                        f"client the firm treats differently on "
+                        f"{', '.join(q.unless)}, and nothing here says whether "
+                        f"this one is. The desk will ask rather than assume.", ""]
     out += ["", "## The authority", ""]
     for p in desk.passages:
         out += [f"### {p.citation}", "", f"> {p.text}", ""]
@@ -129,6 +143,6 @@ def answer(question: str, desk_name: str, *, position: str = "",
         unsupported.append(path, unsupported.from_refusal(
             question, proposed, engine.Result(
                 "asked", engine.Outcome.WRONG_CAUGHT, reason=out.reason,
-                detail=out.detail),
+                detail=out.detail, ask=out.ask),
             model=model, existing=existing, desk=desk))
     return out

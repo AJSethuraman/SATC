@@ -64,8 +64,42 @@ REASONS = (
     "facts_not_established",    # the rule is clear; what was bought is not. ASK.
     "document_not_requested",   # a named document settles it and nobody asked
     "context_not_on_file",      # the rule needs a fact the FILE should hold. not the client.
+    "no_field_for_this_fact",   # nobody ever decided this should be written down
+    "client_rule_governs",      # the file records the firm's own call for THIS client
     "model_gave_up",            # ran out of window or abandoned the task
 )
+
+# THE LAST TWO ARE THE FIRM'S, ASKED FOR ON 6 SEPTEMBER 2026, and they are two
+# halves of one sentence. Holding three positions rather than ratifying them:
+#
+#   "This needs to ensure that there is no already standing rule for that client
+#   in particular. The desk should ask that follow up if it is not clear, right?"
+#   ... "we shouldn't ignore client level rules set with judgment with the desk
+#   answering broadly." ... "if the follow up has no answer we know there's a
+#   legit hole to fix because the accountant or firm never assigned it up front.
+#   This is also a way to check for bugs or defects while agents perform real
+#   work. What if this mattered only sometimes and we never even made a field
+#   for it."
+#
+# `client_rule_governs` IS NOT A FAILURE AND IS NOT A GAP. The file records what
+# the firm decided for this client, and it displaces the firm's own default --
+# which is what a default means. The desk stops and hands over, because the
+# answer exists and is not the desk's to give. It never prints the recorded
+# value: `unsupported/` is a file in this repository and the value is a client's.
+#
+# `no_field_for_this_fact` IS THE ONE WORTH THE WHOLE MECHANISM. It fires when a
+# position asks whether a client is treated differently and the desk has nowhere
+# to record the answer -- so the follow-up cannot be answered by reading the
+# file, by asking the client, or by fetching a document. Nobody decided the
+# question was worth writing down. Every other reason here says something is
+# missing from a record; this one says something is missing from the RECORD'S
+# SHAPE, and it is discovered by real work rather than by an audit.
+#
+# WHY IT IS NOT `context_not_on_file`. That reason means the engagement should
+# have recorded a fact and did not -- a gap in one client's file, fixed by the
+# preparer filling it in. This one is fixed by the firm deciding the fact exists
+# at all, which is a different person doing a different thing, and filing them
+# together would bury the rarer and more valuable of the two.
 
 # WHY `context_not_on_file` IS A THIRD THING, and it is the firm's own reasoning.
 # `facts_not_established` is answered by asking the client; `document_not_requested`
@@ -174,6 +208,14 @@ class Result:
     #: escalation has to come from the brain's judgement, which is the thing
     #: measuring zero -- so a desk cannot be built that makes a brain decline.
     escalated_by: str = ""
+    #: The follow-up a refusal carried, when it had one. Copied from
+    #: `Refusal.ask` so a question raised at serve time survives into
+    #: `unsupported/`, which is where the firm reads what the record is missing.
+    #: A question that reached one caller and no file is a hole found and then
+    #: dropped -- and the firm's reason for wanting it is exactly that it should
+    #: accumulate: *"This is also a way to check for bugs or defects while agents
+    #: perform real work."*
+    ask: str = ""
 
     @property
     def costly(self) -> bool:
@@ -205,6 +247,21 @@ class Refusal:
     """The desk declining to serve. Names the next step, never just "no"."""
     reason: str
     detail: str
+    #: THE FOLLOW-UP, IN PLAIN WORDS, ADDRESSED TO THE PREPARER. Empty on the
+    #: refusals that have no question to ask -- an absent citation is a fix, not
+    #: an enquiry.
+    #:
+    #: The firm asked for this in as many words: *"it can ask a follow up and if
+    #: the follow up has no answer we know there's a legit hole to fix."* A
+    #: reason code is countable and a question is answerable, and the two do
+    #: different jobs: `detail` explains to whoever reads the queue, `ask` is the
+    #: sentence somebody can act on.
+    #:
+    #: IT GOES TO THE PREPARER AND NEVER TO A CLIENT. The firm, 5 September 2026:
+    #: *"but not direct to client - things would be wired to go to me as the last
+    #: resort right now."* Nothing this engine produces reaches a client without a
+    #: person in between, and that includes a question.
+    ask: str = ""
 
     def __bool__(self) -> bool:            # so `if served:` reads correctly
         return False
@@ -370,6 +427,19 @@ def _canon_touches():
     return load_record().touches
 
 
+def _follow_up(facts, ruling) -> str:
+    """The question a preparer can act on, in place of a code they cannot.
+
+    A reason is countable and a question is answerable, and the queue needs
+    both: `detail` explains the refusal to whoever reads it, this is the
+    sentence somebody does something about. It names the fact and never a value.
+    """
+    named = ", ".join(facts)
+    return (f"Does the file record {named} for this engagement? The firm's "
+            f"position {ruling.id} cannot be applied until it does, and it is "
+            f"ours to record rather than the client's to be asked.")
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -420,6 +490,66 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"{answer.citation!r} is answered by the firm's position {ruling.id}, "
                 f"which cannot be applied without {', '.join(absent)} on file. "
                 f"That is the engagement's to record, not the client's to be asked",
+                ask=_follow_up(absent, ruling),
+            ), passage, source
+
+    # A DEFAULT IS NOT AN ANSWER UNTIL SOMEBODY HAS LOOKED FOR THE EXCEPTION.
+    #
+    # The firm, holding three positions on 6 September 2026: "This needs to
+    # ensure that there is no already standing rule for that client in
+    # particular. The desk should ask that follow up if it is not clear, right?"
+    # and "we shouldn't ignore client level rules set with judgment with the
+    # desk answering broadly."
+    #
+    # THREE ANSWERS, NEVER TWO, and `Context.standing_rule` is where that lives.
+    # "Nothing on file" and "on file, and there is no client rule" are opposite
+    # facts that a `dict.get` cannot tell apart, and collapsing them is exactly
+    # how a desk answers broadly over a client the firm treats differently.
+    #
+    # WHY THE RECORDED CASE REFUSES RATHER THAN SERVING THE CLIENT'S RULE. The
+    # desk holds no client data and never will -- `dec-override`, answered the
+    # same day: "Keep unconditional". What the file records is the firm's own
+    # call for that client, and it displaces the firm's default, which is what a
+    # default means. The desk stops and hands over. The value is NEVER printed:
+    # `unsupported/` is a file in this repository and that value is a client's.
+    if ruling is not None and ruling.unless:
+        import record as _record
+
+        ctx = context or _record.NOTHING_ON_FILE
+        for fact in ruling.unless:
+            state = ctx.standing_rule(fact)
+            if state == _record.NONE:
+                continue                      # looked, and this client is not special
+            if state == _record.RECORDED:
+                return Refusal(
+                    "client_rule_governs",
+                    f"{answer.citation!r} is the firm's default position "
+                    f"({ruling.id}), and this engagement records a standing rule "
+                    f"on {fact!r}. The recorded rule governs and the default does "
+                    f"not; read it from the file rather than from this desk",
+                    ask=f"This client has a recorded rule on {fact}. Apply that "
+                        f"rather than the firm's general position — and if it no "
+                        f"longer reflects what the firm does, say so.",
+                ), passage, source
+            if fact not in desk.records:
+                return Refusal(
+                    "no_field_for_this_fact",
+                    f"{answer.citation!r} is the firm's default position "
+                    f"({ruling.id}), which holds unless this client is treated "
+                    f"differently on {fact!r} — and this desk has nowhere to "
+                    f"record that. The gap is in what the firm decided to write "
+                    f"down, not in what this client was asked",
+                    ask=f"Is there a standing rule for this client on {fact}? "
+                        f"Nothing on file can answer that, because no such field "
+                        f"exists. Deciding whether it should is the firm's.",
+                ), passage, source
+            return Refusal(
+                "context_not_on_file",
+                f"{answer.citation!r} is the firm's default position "
+                f"({ruling.id}), which holds unless this client is treated "
+                f"differently on {fact!r}. Nothing on file says either way, and "
+                f"a default applied without looking is not a default",
+                ask=_follow_up((fact,), ruling),
             ), passage, source
 
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
