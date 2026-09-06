@@ -36,7 +36,13 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 **Answered from S1:** gross income, accession to wealth, income from whatever source derived
 
-**Answered from S2:** information return, information returns, section 6041, section 6041A, section 6050W, section 6071, nonemployee compensation, remuneration, written statement, payee statement, reporting threshold, calendar year, third party settlement organization, third party network transactions, participating payee
+**Answered from S2:** information return, information returns, section 6041, written statement, payee statement, reporting threshold, calendar year, nonemployee compensation
+
+**Answered from S13:** information return, information returns, section 6041A, nonemployee compensation, remuneration, direct sales, calendar year
+
+**Answered from S14:** section 6050W, third party settlement organization, third party network transactions, participating payee, payment card, calendar year
+
+**Answered from S15:** section 6071, nonemployee compensation, calendar year, filing date, filing dates, time for filing, information return, information returns
 
 **Answered from S3:** 1.6041-1, payor, payment card, credit card, credit cards, third party payment network, payment app, payment apps, peer-to-peer, repairman, information return, information returns
 
