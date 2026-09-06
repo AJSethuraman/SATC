@@ -312,8 +312,20 @@ def create_invoice():
             warnings.append(warning)
 
     # Pre-render the PDF so pdf_url works immediately.
+    #
+    # WITH THE PAY URL, because round six removed `_render_invoice_html`'s
+    # "fall back to `invoice.stripe_payment_url`" behaviour — correctly, since
+    # that resurrected stale links the caller had just refused — and these two
+    # API paths were passing nothing. An invoice created with
+    # `create_payment_link: true` was then rendered with no payment section at
+    # all. `pay_url_for` is the same gated durable link the browser routes use.
     try:
-        generate_pdf(current_app._get_current_object(), invoice)
+        from app import pay_url_for
+
+        generate_pdf(
+            current_app._get_current_object(), invoice,
+            pay_url=pay_url_for(invoice),
+        )
     except Exception as exc:  # pragma: no cover - rendering env issues
         warnings.append(f"PDF generation deferred: {exc}")
 
@@ -364,10 +376,13 @@ def invoice_pdf(invoice_id):
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
 
-    from app import generate_pdf
+    from app import generate_pdf, pay_url_for
 
     try:
-        out_path = generate_pdf(current_app._get_current_object(), invoice)
+        out_path = generate_pdf(
+            current_app._get_current_object(), invoice,
+            pay_url=pay_url_for(invoice),
+        )
     except RuntimeError as exc:
         return jsonify(error=str(exc)), 503
     return send_file(

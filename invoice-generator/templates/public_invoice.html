@@ -8,6 +8,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+{% from "_invoice_document.html" import document %}
+
+{# The document's own stylesheet — the same partial the PDF and the editor
+   include, with the same resolved design. It comes after style.css so the
+   document's rules win inside the sheet; the only class the two share is
+   `.label`, which this page does not otherwise use. #}
+<style id="theme">
+{% include "_invoice_css.html" %}
+</style>
+
 <style>
   body { background: var(--bg); }
   .wrap { max-width: 760px; margin: 0 auto; padding: var(--space-10) var(--space-4) var(--space-16); }
@@ -36,7 +46,7 @@
   .sums .k { color:var(--gray-500); } .sums .v { font-weight:600; font-variant-numeric:tabular-nums; }
   .sums .grand { border-top:2px solid var(--navy-800); margin-top:6px; padding-top:10px; }
   .sums .grand .k,.sums .grand .v { font-size:var(--text-lg); font-weight:800; }
-  .foot { text-align:center; color:var(--gray-500); font-size:var(--text-sm); margin-top:var(--space-8); }
+  .pagefoot { text-align:center; color:var(--gray-500); font-size:var(--text-sm); margin-top:var(--space-8); }
   @media (max-width:560px){ .sums{ width:100%;} .ph .title{ text-align:left;} .meta div{ justify-content:flex-start;} }
 </style>
 </head>
@@ -77,59 +87,19 @@
     </div>
   {% endif %}
 
+  {#- THE DOCUMENT IS NOT REBUILT HERE. It was — a hand-rolled copy of the
+      same invoice in this page's own classes — and so it ignored both the
+      design the sender chose and the title they typed: an invoice saved as
+      `band-emerald` and headed QUOTE reached the client navy and headed
+      INVOICE, while the attached PDF was emerald and said QUOTE. Three
+      renderings of one document is two too many.
+      Raised by Codex on PR #289, round seven (design, and doc_title), and by
+      the browser walkthrough of 6 September (defect 5). -#}
   <div class="paper"><div class="paper__in">
-    <div class="ph">
-      <div>
-        {% if invoice.has_logo %}<img src="{{ url_for('public_logo', token=token) }}" alt="{{ from_lines[0] if from_lines else 'Logo' }}"/>{% endif %}
-        <div class="nm">{{ from_lines[0] if from_lines else '' }}</div>
-        {% if from_lines[1:] %}<div class="ad">{% for l in from_lines[1:] %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
-      </div>
-      <div>
-        <div class="title">INVOICE</div>
-        <div class="meta">
-          <div><span class="k">Invoice #</span><span class="v mono">{{ invoice.invoice_number }}</span></div>
-          {% if invoice.invoice_date %}<div><span class="k">Issued</span><span class="v">{{ invoice.invoice_date | fmtdate }}</span></div>{% endif %}
-          {% if invoice.due_date %}<div><span class="k">Due</span><span class="v">{{ invoice.due_date | fmtdate }}</span></div>{% endif %}
-          {% if invoice.payment_terms %}<div><span class="k">Terms</span><span class="v">{{ invoice.payment_terms }}</span></div>{% endif %}
-          {% if invoice.po_number %}<div><span class="k">PO #</span><span class="v">{{ invoice.po_number }}</span></div>{% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="parties">
-      <div class="lbl2">Bill to</div>
-      <div style="font-weight:700">{{ bill_lines[0] if bill_lines else '—' }}</div>
-      {% if bill_lines[1:] %}<div class="ad">{% for l in bill_lines[1:] %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
-      {% if invoice.client_email %}<div class="ad">{{ invoice.client_email }}</div>{% endif %}
-    </div>
-
-    <table class="li">
-      <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
-      <tbody>
-        {% for item in invoice.items %}
-        <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_unit_price(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <div class="sums">
-      <div><span class="k">Subtotal</span><span class="v">{{ format_money(invoice.subtotal, invoice.currency) }}</span></div>
-      {% if invoice.discount_amount %}<div><span class="k">Discount</span><span class="v" style="color:var(--green-700)">−{{ format_money(invoice.discount_amount, invoice.currency) }}</span></div>{% endif %}
-      {% if invoice.tax_amount or invoice.tax_value %}<div><span class="k">Tax</span><span class="v">{{ format_money(invoice.tax_amount, invoice.currency) }}</span></div>{% endif %}
-      {% if invoice.shipping %}<div><span class="k">Shipping</span><span class="v">{{ format_money(invoice.shipping, invoice.currency) }}</span></div>{% endif %}
-      <div class="grand"><span class="k">Total</span><span class="v">{{ format_money(invoice.total, invoice.currency) }}</span></div>
-      {% if invoice.amount_paid %}<div><span class="k">Amount paid</span><span class="v">−{{ format_money(invoice.amount_paid, invoice.currency) }}</span></div>{% endif %}
-    </div>
-
-    {% if invoice.notes %}
-    <div style="margin-top:var(--space-8)"><div class="lbl2" style="color:var(--gray-500)">Notes</div><div class="ad">{{ invoice.notes | nl2br }}</div></div>
-    {% endif %}
-    {% if invoice.terms %}
-    <div style="margin-top:var(--space-5)"><div class="lbl2" style="color:var(--gray-500)">Terms</div><div class="ad">{{ invoice.terms | nl2br }}</div></div>
-    {% endif %}
+    {{ document(invoice, business, design, editable=False, doc_title=doc_title) }}
   </div></div>
 
-  <div class="foot">
+  <div class="pagefoot">
     <a href="{{ url_for('public_pdf', token=token) }}">Download PDF</a> · Powered by Invoicer
   </div>
 </div>

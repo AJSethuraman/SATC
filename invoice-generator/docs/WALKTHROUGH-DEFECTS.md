@@ -10,6 +10,31 @@ This is the second walk in two days and the first of Invoicer. The desk and the
 engagement browser were walked on 5 September; that write-up is at the repository
 root, in `../../docs/WALKTHROUGH-DEFECTS.md`.
 
+## Since this was written
+
+Four of the fourteen are fixed, and this list is kept as walked rather than
+edited in place — a defects document that quietly rewrites itself stops being
+evidence of anything. Codex's sixth and seventh review rounds raised three of
+them independently, from the diff, which is worth knowing in both directions:
+two ways of looking found the same faults, and ten of the fourteen were still
+only visible from the client's side of the screen.
+
+| # | What | Fixed in |
+|---|---|---|
+| 3 | The plain-text email said "Pay online here" when nobody could pay online | round six, `a9c87cf` |
+| 2 | The signed-out generator could produce nothing but a DRAFT PDF | round seven |
+| 5 | The design was honoured by the PDF and by nothing else | round seven |
+| 13 | The editor's unit price was unformatted on the owner and client pages | round six, `a9c87cf` (the two HTML views; the editor's own input is unchanged) |
+
+Defect 5's fix is the one worth reading: both HTML pages now render through the
+same `document()` macro the PDF and the editor use, instead of each rebuilding
+the invoice in its own classes. That also fixed a defect this walk missed — a
+document titled QUOTE or RECEIPT was headed INVOICE on both of them — which
+Codex found and which is the same fault wearing different clothes. Three
+renderings of one document was two too many.
+
+Everything else below stands open.
+
 ## The denominator
 
 | | |

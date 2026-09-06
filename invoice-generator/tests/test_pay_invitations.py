@@ -299,3 +299,55 @@ def test_the_owner_and_client_views_show_the_rate_that_was_actually_used(app):
     token = public_token(app, invoice_id)
     client_page = app.test_client().get(f"/i/{token}").get_data(as_text=True)
     assert "¥100.5" in client_page, "the client's page rounded the rate away"
+
+
+def test_the_api_pdf_paths_ask_for_the_pay_url_like_the_web_ones_do(app):
+    """Round six removed the renderer's "fall back to the stored Checkout URL"
+    behaviour, correctly. But `pay_url_for` was a closure inside `create_app`,
+    so `api.py` could not call it — and both API render paths were passing
+    nothing, which after that removal meant an invoice created with
+    `create_payment_link: true` got a PDF with no payment section at all.
+
+    A helper the web routes can reach and the API cannot is a helper that will
+    be reimplemented differently, or forgotten. It is module level now, and
+    this asserts both callers use it. Raised by Codex on PR #289, round seven.
+    """
+    import ast
+    import pathlib
+
+    import app as app_module
+
+    assert hasattr(app_module, "pay_url_for")
+    assert hasattr(app_module, "can_pay_online")
+
+    source = (pathlib.Path(app_module.__file__).parent / "api.py").read_text()
+    tree = ast.parse(source)
+    calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "generate_pdf"
+    ]
+    assert calls, "no generate_pdf call found in api.py — has it moved?"
+    for call in calls:
+        names = {kw.arg for kw in call.keywords}
+        assert "pay_url" in names, (
+            f"api.py:{call.lineno} renders a PDF without saying whether it may "
+            f"invite a payment"
+        )
+
+
+def test_pay_url_for_answers_the_same_question_the_routes_ask(app):
+    """The module-level helper and the route behaviour must not drift."""
+    from app import pay_url_for, can_pay_online
+
+    owner_id = make_owner(app)
+    payable = make_invoice(app, owner_id, "USD")
+    refused = make_invoice(app, owner_id, "JPY")
+    with app.test_request_context():
+        from models import Invoice as I
+
+        assert can_pay_online(db.session.get(I, payable)) is True
+        assert pay_url_for(db.session.get(I, payable))
+        assert can_pay_online(db.session.get(I, refused)) is False
+        assert pay_url_for(db.session.get(I, refused)) is None

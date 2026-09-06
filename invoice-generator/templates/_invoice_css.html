@@ -12,7 +12,17 @@
   ============================================================
 #}
 html, body { margin: 0; padding: 0; }
-body {
+
+/* THE DOCUMENT'S TYPE BELONGS TO THE DOCUMENT, NOT TO THE PAGE. These
+   declarations sat on `body`, which is harmless in the PDF (the body holds
+   nothing but the sheet) and harmless in the editor (that page is built around
+   the sheet) — and wrong the moment the invoice detail and public pages
+   started including this partial to pick up the chosen design: a 9.5pt base
+   size and the document's ink colour landed on the whole application, and the
+   top-bar button came out blank. `.sheet` is the macro's own root element, so
+   scoping to it changes nothing for the two older consumers.
+   Found by opening the page after the round-seven change, not by a test. */
+.sheet {
   {#- `| safe` because a font stack contains double quotes, and Jinja's HTML
      autoescaping turns them into &#34; inside this <style> block. That makes
      the whole declaration invalid, and BOTH renderers then fall back to their
@@ -31,8 +41,8 @@ body {
 }
 
 .sheet { width: 100%; background: #ffffff; margin: 0; padding: 0; }
-table { border-collapse: collapse; width: 100%; }
-td, th { vertical-align: top; }
+.sheet table { border-collapse: collapse; width: 100%; }
+.sheet td, .sheet th { vertical-align: top; }
 .pad { padding: 4mm 2mm; }
 
 /* ---- editable fields ----------------------------------------------

@@ -884,6 +884,46 @@ def _serializer():
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
+def can_pay_online(invoice):
+    """Whether pressing a pay button on this invoice could actually work.
+
+    TWO THINGS HAVE TO BE TRUE and for a while only the first was asked: the
+    owner has connected a Stripe account, AND the currency is one this adapter
+    will charge in. `stripe_utils.guard_chargeable` refuses the rest at the
+    door, so offering the button anyway means the client meets a refusal that
+    was written for the owner to read.
+    """
+    return bool(
+        invoice.owner
+        and invoice.owner.can_accept_payments
+        and stripe_utils.is_chargeable(invoice.currency)
+    )
+
+
+def public_url_for(invoice):
+    """The durable, signed link a client opens. Needs an app context."""
+    token = make_token(invoice.id, salt="invoice-public")
+    return current_app.config["APP_BASE_URL"].rstrip("/") + url_for(
+        "public_invoice", token=token
+    )
+
+
+def pay_url_for(invoice):
+    """The public link, but only where it leads somewhere payable.
+
+    MODULE LEVEL BECAUSE THE API NEEDS IT TOO. It began as a closure inside
+    `create_app`, so `api.py` could not reach it — and when round six removed
+    the "fall back to the stored Checkout URL" behaviour, the two API render
+    paths (`api.py:316` and `api.py:370`) silently lost their payment section
+    even for an invoice created with `create_payment_link: true`. A helper the
+    web routes can call and the API cannot is a helper that will be
+    reimplemented differently, or forgotten.
+
+    Raised by Codex on PR #289, round seven.
+    """
+    return public_url_for(invoice) if can_pay_online(invoice) else None
+
+
 def make_token(value, salt):
     return _serializer().dumps(value, salt=salt)
 
@@ -1405,9 +1445,14 @@ def register_routes(app):
     @login_required
     def view_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
+        from pdf import _business_context
+
         return render_template(
             "invoice_detail.html",
             invoice=invoice,
+            business=_business_context(invoice, allow_svg=True),
+            design=resolve(invoice.design),
+            doc_title=(invoice.doc_title or "INVOICE"),
             public_url=_public_url(invoice),
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
             smtp_configured=email_utils.can_send(app.config, current_user),
@@ -1623,19 +1668,7 @@ def register_routes(app):
         )
 
     def _can_pay_online(invoice):
-        """Whether pressing a pay button on this invoice could actually work.
-
-        TWO THINGS HAVE TO BE TRUE and for a while only the first was asked:
-        the owner has connected a Stripe account, AND the currency is one this
-        adapter will charge in. `stripe_utils.guard_chargeable` refuses the
-        rest at the door, so offering the button anyway means the client meets
-        a refusal that was written for the owner to read.
-        """
-        return bool(
-            invoice.owner
-            and invoice.owner.can_accept_payments
-            and stripe_utils.is_chargeable(invoice.currency)
-        )
+        return can_pay_online(invoice)
 
     def _pay_url(invoice):
         """The public link, but only where it leads somewhere payable.
@@ -1655,7 +1688,7 @@ def register_routes(app):
 
         Raised by Codex on PR #289, round five.
         """
-        return _public_url(invoice) if _can_pay_online(invoice) else None
+        return pay_url_for(invoice)
 
     def _invoice_from_token(token):
         inv_id = read_token(
@@ -1677,9 +1710,14 @@ def register_routes(app):
         # hit a refusal meant for the owner. Inviting a client to pay and then
         # failing is worse than never offering.
         can_pay = _can_pay_online(invoice)
+        from pdf import _business_context
+
         return render_template(
             "public_invoice.html",
             invoice=invoice,
+            business=_business_context(invoice, allow_svg=True),
+            design=resolve(invoice.design),
+            doc_title=(invoice.doc_title or "INVOICE"),
             can_pay=can_pay,
             token=token,
         )
@@ -1834,6 +1872,21 @@ def register_routes(app):
                 for c in CURRENCIES.values()
             },
             "zero_money": format_money(0, invoice.currency or "USD"),
+            # WHOSE DRAFT THIS IS. The browser copy used one origin-wide key,
+            # so a signed-in sender's business details and their client's name,
+            # address and prices were restored for whoever opened the generator
+            # next on that machine — the following anonymous visitor, or a
+            # second account. Signing out did not clear it. Scoping the key is
+            # what stops that; the page also adopts an anonymous draft on the
+            # way in, so signing up mid-invoice still keeps your work, and
+            # purges every other scope's draft it finds.
+            #
+            # Raised by Codex on PR #289, round seven.
+            "draft_scope": (
+                f"u{current_user.id}"
+                if current_user.is_authenticated
+                else "anon"
+            ),
             "errors": errors or [],
         }
 

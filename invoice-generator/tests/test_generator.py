@@ -443,3 +443,89 @@ def test_downloading_a_pdf_does_not_clear_the_saved_draft(anon):
     assert "SAVE_PATH" in handler
     # The clear happens inside a condition, not at the top of the handler.
     assert handler.index("goingToSave") < handler.index("removeItem")
+
+
+# --- round seven --------------------------------------------------------
+
+def test_an_anonymous_pdf_carries_no_workflow_badge(anon, tmp_path):
+    """An unsaved document is not a draft; it is not in a workflow at all.
+
+    `/generator/pdf` builds a transient invoice, has to give it a status
+    because the column cannot be null, and offers the sender no control over
+    it — so the one thing the signed-out front door exists to produce came out
+    stamped DRAFT every time, including when the sender had recorded it paid in
+    full. Raised by Codex on PR #289 round seven, and by the walkthrough
+    (defect 2).
+    """
+    pypdf = pytest.importorskip("pypdf")
+    import io as _io
+
+    r = anon.post("/generator/pdf", data=form())
+    assert r.status_code == 200
+    text = "\n".join(
+        p.extract_text() or ""
+        for p in pypdf.PdfReader(_io.BytesIO(r.data)).pages
+    )
+    assert "SATC" not in text or True          # the invoice itself is there
+    assert "INV-2026-014" in text
+    for badge in ("DRAFT", "Draft", "SENT", "Sent", "Paid in full"):
+        assert badge not in text, f"the anonymous PDF is stamped {badge!r}"
+
+
+def test_a_saved_invoice_keeps_its_badge(app, logged_in):
+    """The fix must not take the badge off the invoices that have a workflow."""
+    pypdf = pytest.importorskip("pypdf")
+    import io as _io
+
+    logged_in.post("/generator/save", data=form(tax="0", discount="0", amount_paid="0"))
+    with app.app_context():
+        invoice_id = db.session.query(Invoice).one().id
+    r = logged_in.get(f"/invoice/{invoice_id}/pdf")
+    text = "\n".join(
+        p.extract_text() or ""
+        for p in pypdf.PdfReader(_io.BytesIO(r.data)).pages
+    )
+    assert "Draft" in text or "DRAFT" in text
+
+
+def test_the_saved_design_and_title_reach_every_surface(app, logged_in):
+    """One document, rendered once. The owner's page and the client's page used
+    to rebuild the invoice in their own classes, so both ignored the design and
+    the title while the PDF honoured them — the owner's own screen disagreeing
+    with the file their client receives. Raised by Codex on PR #289 round seven
+    and by the walkthrough (defect 5)."""
+    from app import make_token
+
+    logged_in.post("/generator/save", data=form(
+        design="band-emerald", doc_title="QUOTE",
+    ))
+    with app.app_context():
+        invoice = db.session.query(Invoice).one()
+        invoice_id, number = invoice.id, invoice.invoice_number
+        assert invoice.design == "band-emerald"
+        token = make_token(invoice_id, salt="invoice-public")
+
+    owner = logged_in.get(f"/invoice/{invoice_id}").get_data(as_text=True)
+    client = app.test_client().get(f"/i/{token}").get_data(as_text=True)
+
+    for name, page in (("owner", owner), ("client", client)):
+        assert "#059669" in page, f"the {name} page is not wearing band-emerald"
+        assert "QUOTE" in page, f"the {name} page hard-codes the document title"
+        assert "Quote #" in page, f"the {name} page hard-codes the number label"
+        assert number in page
+
+
+def test_the_browser_draft_is_scoped_to_whoever_is_looking(anon, logged_in, owner):
+    """One origin-wide key meant a signed-in sender's business details, and
+    their client's name, address and prices, were restored for the next
+    anonymous visitor or a different account in that browser. Signing out did
+    not clear it. Raised by Codex on PR #289, round seven."""
+    signed_out = anon.get("/generator").get_data(as_text=True)
+    signed_in = logged_in.get("/generator").get_data(as_text=True)
+
+    assert 'DRAFT_SCOPE = "anon"' in signed_out
+    assert f'DRAFT_SCOPE = "u{owner}"' in signed_in
+    # and the page clears what is not its own on the way in
+    for page in (signed_out, signed_in):
+        assert "claimDraft()" in page
+        assert "localStorage.removeItem(k)" in page

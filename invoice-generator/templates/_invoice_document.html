@@ -98,7 +98,16 @@
     </td>
     <td class="mast-meta" width="45%" style="text-align:right;">
       <div class="doc-title">{{ field(editable, 'doc_title', doc_title, 'INVOICE', 'r') }}</div>
-      {% if not editable %}
+      {#- THE BADGE IS A WORKFLOW STATE, AND A DOCUMENT WITH NO OWNER HAS NONE.
+          `/generator/pdf` builds a transient invoice, sets its status to
+          "Draft" because a status column cannot be null, and offers the sender
+          no control over it — so the one thing the signed-out front door
+          exists to produce, a PDF you can send, came out stamped DRAFT every
+          time, including when the sender had recorded it as paid in full.
+          An unsaved document is not a draft; it is not in a workflow at all.
+          Raised by Codex on PR #289, round seven, and by the browser
+          walkthrough of 6 September (defect 2). -#}
+      {% if not editable and invoice.user_id %}
         {% if invoice.display_status == 'Overdue' %}
         <div class="doc-badge overdue">Overdue</div>
         {% elif invoice.display_status == 'Paid' %}

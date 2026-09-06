@@ -186,8 +186,42 @@
 const CURRENCIES = {{ currency_js | tojson }};
 const DEFAULT_DESIGN = {{ design.id | tojson }};
 const THEME_URL = {{ url_for('generator_theme') | tojson }};
-const DRAFT_KEY = "invoicer.draft.v1";
+/* WHOSE DRAFT THIS IS. One origin-wide key meant a signed-in sender's business
+   details — and their client's name, address, line descriptions and prices —
+   came back for whoever opened this page next in the same browser: the next
+   anonymous visitor, or a different account. Signing out did not clear it.
+   The key is scoped to the viewer now, and `claimDraft()` below purges every
+   other scope it finds while still adopting the anonymous draft on the way in,
+   so signing up mid-invoice keeps your work.
+   Raised by Codex on PR #289, round seven. */
+const DRAFT_PREFIX = "invoicer.draft.";
+const DRAFT_SCOPE = "{{ draft_scope }}";
+const DRAFT_KEY = DRAFT_PREFIX + "v2." + DRAFT_SCOPE;
+const ANON_KEY = DRAFT_PREFIX + "v2.anon";
+const LEGACY_KEY = DRAFT_PREFIX + "v1";        // the unscoped key, pre-fix
 const SAVE_PATH = "{{ url_for('generator_save') }}";
+
+function claimDraft() {
+  try {
+    if (!localStorage.getItem(DRAFT_KEY)) {
+      // The sign-up hand-off: you typed an invoice signed out, made an
+      // account, and came back. That draft is yours — take it, once.
+      const inherited = localStorage.getItem(ANON_KEY)
+        || localStorage.getItem(LEGACY_KEY);
+      if (inherited) localStorage.setItem(DRAFT_KEY, inherited);
+    }
+    // Everything else under this prefix belongs to somebody else, or to a
+    // version of this page that no longer exists. It does not get read here
+    // and it does not get to sit in the browser either.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(DRAFT_PREFIX) && k !== DRAFT_KEY) {
+        localStorage.removeItem(k);
+      }
+    }
+  } catch (_) {}
+}
+claimDraft();
 
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
