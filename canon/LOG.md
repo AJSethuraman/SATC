@@ -892,3 +892,46 @@ endings and its own docstring names the rule: **a check whose result depends on
 the machine running it is not a check.** Line endings were the half that got
 noticed. Now sorted on the path text, with a test that fails on Windows if the
 key is ever dropped.
+
+---
+
+## 2026-09-06 · mine and adopt, both run for the first time since the docket
+
+The firm asked for these on 5 September — *"i guess mine adopted and I run a
+docket and record the new"* — and only the docket was done that night. Both are
+now run.
+
+**`mine.py`** read 173 turns and 44 interview answers, 8,111 words, and
+surfaced 17 typed answers and 37 marker hits. One proposal was drafted and is
+waiting on the firm: **C17 · A client's convenience is not billed to the
+practice**, from 2 September 2026 — *"obviously 1 makes sense - except i am not
+eating a fee for them doing it... right?"*, said in answer to what should
+happen when a client pays $745 against a $645 invoice. Nothing is written.
+
+It is drafted knowing the C16 line: a business decision is not a conviction.
+This is proposed as a belief because a future call **could** contradict it —
+waiving a fee as a courtesy is a real option somebody could take — and it says
+to take that deliberately rather than by default. Its *how it could be wrong*
+carries the other reading: the quote ends in a question mark, and if the firm
+means it narrowly (this overpayment, this rail) it belongs in a decision log
+and not here.
+
+**`adopt.py`** was pointed at `invoice-generator`, and its card is now in the
+register. The run itself found a hole in the adopter.
+
+**A shallow clone had no denominator and the report gave one anyway.** It said
+*"9 of 9 commit(s) read"* for a folder whose real history is longer — because
+every checkout in a cloud session is shallow, and `git log --all` is grafted at
+the same depth, so the existing "reachable only from other branches" check
+stayed silent. *"9 of 9"* reads as *all of it*.
+
+There is no way to learn the true count without fetching, and adoption does not
+touch the network. So the number is **withdrawn as a denominator** rather than
+corrected: the reading now names the graft point in what it did not examine and
+says to `git fetch --unshallow` and read it again. The test was run against a
+checkout without the fix and failed, which is the only reason it is here.
+
+This is the same shape as the bug the *other-branches* check exists for, found
+a second time in a second environment — the first was a squashed merge hiding
+nineteen commits behind a denominator of one. Both are the tool being confident
+about a number it could not know.

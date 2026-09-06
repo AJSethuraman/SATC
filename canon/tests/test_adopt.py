@@ -92,6 +92,34 @@ def test_history_this_branch_cannot_see_is_reported_not_ignored(repo):
     assert any("reachable only from other branches" in u for u in got.unread)
 
 
+def test_a_shallow_clone_withdraws_its_denominator(repo, tmp_path):
+    """"9 of 9" reads as "all of it", and in a shallow clone it is not.
+
+    `git log --all` is grafted at the clone's depth too, so the
+    other-branches check stays silent and the report looks complete. Found by
+    pointing the adopter at `invoice-generator` in a cloud session, where
+    every checkout is shallow: it said "9 of 9 commit(s) read" for a folder
+    whose real history is longer.
+
+    There is no way to learn the true count without fetching, and adoption
+    does not touch the network — so the number is withdrawn as a denominator
+    rather than corrected.
+    """
+    shallow = tmp_path / "shallow"
+    _run(tmp_path, "clone", "-q", "--depth", "1", f"file://{repo}", str(shallow))
+
+    got = A.read_repo(shallow)
+    assert len(got.commits) == 1
+    assert any("SHALLOW" in u for u in got.unread)
+    assert "fetch --unshallow" in got.say()
+
+
+def test_a_full_clone_says_no_such_thing(repo):
+    """The warning has to be about shallowness, not about being a clone."""
+    got = A.read_repo(repo)
+    assert not any("SHALLOW" in u for u in got.unread)
+
+
 def test_the_reading_says_what_it_did_not_examine(repo):
     got = A.read_repo(repo)
     joined = " ".join(got.unread)
