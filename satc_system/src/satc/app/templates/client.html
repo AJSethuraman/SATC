@@ -43,7 +43,43 @@
 <div class="panel">
   <h2>Workpaper inputs <span class="muted">— posted from confirmed intake</span></h2>
   <div class="body">
-    {% if posted and posted.posted %}<p class="note">Just posted {{ posted.posted }} confirmed values to the data mart.</p>{% endif %}
+    {% if posted and posted.posted %}
+    {# D8: THE COUNT SHRANK AND NOTHING SAID WHY. The button reads "Post 10
+       confirmed"; this read "posted 6 confirmed values". Nothing was lost --
+       two W-2s aggregate onto shared 1040 lines -- but a count that shrinks
+       with no explanation cannot be told apart from one that lost something,
+       and the reviewer's question ("which four did not make it?") had no
+       answer on the page. So the account is printed, and it ADDS UP. #}
+    {% set a = posted.account %}
+    <p class="note">
+      Posted <b>{{ posted.posted }}</b> line(s) to the data mart
+      {% if a %}from <b>{{ a.confirmed }}</b> confirmed value(s).{% else %}.{% endif %}
+    </p>
+    {% if a and (a.combined or a.workpaper_only or a.unmapped or a.no_amount) %}
+    <p class="note tie">
+      Fewer lines than values is normal &mdash; here is every one of them:
+    </p>
+    <ul class="note tie">
+      {% for c in a.combined %}
+      <li><b>{{ c.line }}</b> combines {{ c['from'] | length }}:
+          {{ c['from'] | join(', ') }}</li>
+      {% endfor %}
+      {% if a.workpaper_only %}
+      <li>{{ a.workpaper_only | length }} feed(s) the workpaper only, by design &mdash;
+          not posted to the mart: {{ a.workpaper_only | join(', ') }}</li>
+      {% endif %}
+      {% if a.no_amount %}
+      <li><b>{{ a.no_amount | length }} confirmed without an amount</b>, so nothing
+          reached the mart: {{ a.no_amount | join(', ') }}</li>
+      {% endif %}
+      {% if a.unmapped %}
+      <li><b>{{ a.unmapped | length }} with nowhere to go</b> &mdash; nothing maps
+          {{ a.unmapped | join(', ') }} to a line. The value is still on the
+          document; it is simply not on the return.</li>
+      {% endif %}
+    </ul>
+    {% endif %}
+    {% endif %}
     <table>
       <tr><th>Schedule</th><th>Line</th><th>Item</th><th class="right">Amount</th><th>Source</th></tr>
       {% for li in lines %}

@@ -23,9 +23,14 @@ RECONCILIATION IS A LADDER, and the model is on the bottom rung only.
        gets, and the engine checks the answer.
 
 What no rung does is move money. SATC records that money arrived; it never
-collects it. Collection lives in the Invoicer project, which is internet-facing
-and already carries Stripe. This machine holds the identity vault and stays off
-the public network — principle 11 is not worth trading for a webhook endpoint.
+collects it. **Collection is Square**, which the client pays through directly.
+This machine holds the identity vault and stays off the public network —
+principle 11 is not worth trading for a webhook endpoint.
+
+This paragraph named the Invoicer project until 5 September 2026, four days
+after the firm retired it: *"the firm takes Square; Invoicer was Stripe end to
+end"*. The boundary it describes never changed — only the thing on the far
+side of it — which is exactly how a stale name survives a decision.
 """
 
 from __future__ import annotations

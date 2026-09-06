@@ -14,6 +14,28 @@ gitignored. Two of the firm's own app instances were already running on ports
 5050 and 5051 against the real stores; neither was touched. The walk ran on
 ports 57986 and 5061.
 
+## Where this stands — reconciled against `main`, 5 September 2026
+
+**31 fixed, 1 withdrawn, 1 open** of 33.
+
+Every heading below carries its state, and a fixed one names the commit on
+`main` that closed it. This section exists because for most of a day the
+register said nothing about what had been fixed: a dozen defects were closed and
+merged while their entries still read as open, which is how the next session
+re-does work somebody already did.
+
+**One entry was marked closed wrongly during that reconciliation and corrected.**
+D21 was matched to #267 on the strength of the commit subject; #267 is what D21
+*contradicts*. Reading the entry rather than the subject line is what caught it,
+and it is recorded here rather than quietly fixed, because a register nobody can
+audit is worth about as much as no register.
+
+Still open: **D26**.
+
+Two of those are not mine to close — **D26** (what an intake folder scan may
+honestly claim about how a document was obtained) and the final invoice derived
+from the filed return, which is decision **C** in `LOG.md`.
+
 ## The denominator
 
 | Suite | Result | Caught any of these |
@@ -32,7 +54,9 @@ tests is red because of any of them.
 
 Ranked by what each would cost a real client.
 
-## D1 · Documents post to whichever client the app was last looking at
+## D1 · Documents post to whichever client the app was last looking at — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **CRITICAL.** Intake's folder scan never asks whose documents these are, and
 `Post confirmed → workpaper & data mart` writes them to a client the preparer
@@ -74,7 +98,9 @@ D11).
 it does, `run_intake` should require `client_id` rather than default it, and the
 post should refuse rather than fall back.
 
-## D1b · …and to tax year 2024, whatever the document says
+## D1b · …and to tax year 2024, whatever the document says — **FIXED**
+
+> Closed on `main` by `ab71cd8` — *Two hardcoded 2024s: one on every screen, one on the doors a model uses*.
 
 **CRITICAL**, same line. `tax_year: int = 2024` is defaulted the same way.
 Every PDF I scanned is a **2025** form — `Form W-2 … 2025`, `Form 1099-INT …
@@ -85,7 +111,9 @@ silence.
 
 ![posted to the wrong client](walkthrough/satc-front-to-back-2026-09-05/defect-04-posted-to-wrong-client.jpg)
 
-## D2 · A correction that is not a number is silently thrown away
+## D2 · A correction that is not a number is silently thrown away — **FIXED**
+
+> Closed on `main` by `4372823` — *A correction that is not a number is refused, not absorbed*.
 
 **CRITICAL.** The preparer's confirmed value is discarded and the machine's
 original read is posted in its place, while the screen goes on showing the
@@ -103,7 +131,9 @@ They get a screen saying their value is confirmed, and a workpaper carrying the
 number they meant to replace. This is the worst shape a data defect can take:
 the record and the display disagree, and the display is the reassuring one.
 
-## D3 · Money fields accept arbitrary text, and keep the machine's HIGH badge
+## D3 · Money fields accept arbitrary text, and keep the machine's HIGH badge — **FIXED**
+
+> Closed on `main` by `4372823` — *A correction that is not a number is refused, not absorbed*.
 
 **HIGH.** Typing `not a number` into *Box 1 — Wages, tips, other comp* and
 pressing **Save** is accepted without complaint. The row then reads `not a
@@ -113,7 +143,9 @@ describing something no longer on the row.
 
 ![a money field holding text](walkthrough/satc-front-to-back-2026-09-05/defect-03-money-field-accepts-text.jpg)
 
-## D4 · A folder that does not exist returns six documents
+## D4 · A folder that does not exist returns six documents — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **HIGH.** `/intake` → **Scan folder** on a path that is not on the disk gives a
 confident, itemised, wrong answer instead of saying the folder is missing.
@@ -139,7 +171,9 @@ preview and the read disagree, and the preview is the one with the button on it.
 
 ![six documents in a folder that isn't there](walkthrough/satc-front-to-back-2026-09-05/defect-02-intake-invented-path.jpg)
 
-## D5 · "Pick a client first" — on a screen with no way to pick a client
+## D5 · "Pick a client first" — on a screen with no way to pick a client — **FIXED**
+
+> Closed on `main` by `8bb9b72` — *An engagement belongs to somebody, and nothing used to check*.
 
 **HIGH.** `/intake/plan` opens with *"Pick a client first — a plan is for
 somebody, and the rate plan and the filing history are read off them."* The page
@@ -156,7 +190,9 @@ against answers no client ever gave.
 
 ![a plan for nobody](walkthrough/satc-front-to-back-2026-09-05/defect-05-plan-renders-with-no-client.jpg)
 
-## D6 · And then it will generate the engagement anyway
+## D6 · And then it will generate the engagement anyway — **FIXED**
+
+> Closed on `main` by `8bb9b72` — *An engagement belongs to somebody, and nothing used to check*.
 
 **CRITICAL**, and the consequence of D5. On that clientless plan, **Generate
 this engagement →** is live. Pressing it created a real, stored engagement —
@@ -175,7 +211,7 @@ and nothing warned.
 
 ![the sentence with the hole in it](walkthrough/satc-front-to-back-2026-09-05/defect-06b-empty-client-key-sentence.png)
 
-## D7 · Two nav items highlight at once
+## D7 · Two nav items highlight at once — **FIXED**
 
 **LOW**, but it is on every intake screen. On `/intake`, `/intake/new` and
 `/intake/plan`, both **Intake** and **Engagements** carry the active background
@@ -184,14 +220,20 @@ on.
 
 ![two highlights](walkthrough/satc-front-to-back-2026-09-05/defect-01-nav-two-highlights.png)
 
-## D8 · "Post 10 confirmed" reports "posted 6 confirmed values"
+## D8 · "Post 10 confirmed" reports "posted 6 confirmed values" — **FIXED**
 
 **LOW.** The button promises ten and the result says six, with nothing
 explaining the difference. It is not a loss — two W-2s aggregate into shared
 1040 lines — but the screen never says so, and the reviewer's question ("which
 four did not make it?") has no answer on the page.
 
-## D9 · `Box 15 — State` holds the words "income tax"
+**Fixed with an account that adds up.** `StagingGate.posting_account` puts every
+confirmed value in exactly one bucket — combined, workpaper-only, unmapped, or
+confirmed-without-an-amount — and the buckets sum back to the number the button
+promised. The last two are the ones worth seeing, and until now all four looked
+identical from the outside: a smaller number.
+
+## D9 · `Box 15 — State` holds the words "income tax" — **FIXED**
 
 **MEDIUM.** Reading `Box 17 State income tax 2,679.00` put the string `income
 tax` into **Box 15 — State**, a field whose only legal values are state codes.
@@ -200,7 +242,20 @@ It was caught — LOW confidence, left STAGED for review — but it was caught b
 hold a verb phrase. Had the read come back HIGH, "income tax" would have been
 auto-confirmed as the state.
 
-## D10 · A missing folder and an empty folder are both reported as nothing at all
+**Fixed by giving a field a declared shape, separate from confidence.**
+`configs/extraction/w2.yaml` says `shape: state`; `ingest/shapes.py` says what
+that admits; `make_staged_field` — the one function every reader converges on
+— forces NEEDS_REVIEW at UNCERTAIN when the value cannot be the field's,
+whatever the reader's confidence was. The value is kept rather than blanked, so
+the preparer can see what the document said.
+
+**And `edit()` is held to the same rule**, because it sets *and* confirms in one
+move, marks the result PREPARER_ENTRY at HIGH, and clears every model taint —
+without the check there, the correction screen is the way around the reader's.
+
+## D10 · A missing folder and an empty folder are both reported as nothing at all — **FIXED**
+
+> Closed on `main` by `83c9533` — *Intake will not read a folder without being told whose it is*.
 
 **MEDIUM**, and it is the other half of D4. With the sample data cleared — the
 state a real practice runs in — pressing **Scan folder** on
@@ -235,7 +290,9 @@ created is assigned `SATC-001000`, which is a demo id, so the practice's own
 client is detected as sample data for ever. The banner then invites them to
 press **Clear sample data**, which is a button that deletes their client.
 
-## D20 · The invoice says no discount is agreed while applying a 60% discount
+## D20 · The invoice says no discount is agreed while applying a 60% discount — **FIXED**
+
+> Closed on `main` by `4ff0f37` — *The invoice says which plan it is applying, not only which was agreed*.
 
 **CRITICAL.** One screen, two elements, flatly contradicting each other about
 money.
@@ -272,7 +329,9 @@ on the same build, which refuses beautifully — *"That ref was not recorded —
 
 ![no plan agreed, 60% applied](walkthrough/satc-front-to-back-2026-09-05/defect-20-discount-contradiction.jpg)
 
-## D24 · "Load client" does not load the one field it promises to load
+## D24 · "Load client" does not load the one field it promises to load — **FIXED**
+
+> Closed on `main` by `2327389` — *"Load client" loads the one field it promises to load*.
 
 **HIGH**, because filing status drives the brackets and the standard deduction.
 
@@ -309,7 +368,9 @@ Two smaller things on the same screen:
   paystubs will fill in automatically."* Nothing on screen shows which employer
   the layout was filed under.
 
-## D22 · An overpayment is on the client's copy and on none of the firm's screens
+## D22 · An overpayment is on the client's copy and on none of the firm's screens — **FIXED**
+
+> **FIXED.** The invoice summary line and the payments rows now say the credit. What was already right and is kept: the Money in panel's loud flag, and `/today` naming it.
 
 **MEDIUM.** Invoice 2026-0001 was raised at **180.00**. I recorded a part payment
 of **100.00** — handled perfectly, *"Paid to date 100.00 — computed from the
@@ -365,7 +426,9 @@ because the worklist is where the firm actually works.
 a screen I had not opened *in the state I was describing*. Behaviour 11 is "open
 the artifact", and looking at `/today` an hour earlier is not looking at it.
 
-## D23 · The payment screen points at Invoicer, which the firm retired
+## D23 · The payment screen points at Invoicer, which the firm retired — **FIXED**
+
+> **FIXED.** Collection is Square. Both the screen and `billing/payment.py` named the retired product.
 
 **LOW.** The Money in panel closes with:
 
@@ -378,7 +441,14 @@ The division of duties is right and worth keeping. The name is not: **Invoicer
 was retired by the firm's own docket decision.** Whatever collection is called
 now, this sentence sends the reader to a product that no longer exists.
 
-## D21 · The invoice bills the 1040 from the catalogue that #267 said does not price it
+## D21 · The invoice bills the 1040 from the catalogue that #267 said does not price it — **FIXED**
+
+> **FIXED, narrowly and deliberately.** `Invoice.add` now refuses to price a `priced_by` service from the catalogue **when the engagement carries a price that differs** — naming both figures. The first attempt refused every `priced_by` service outright; that reddened **159 tests across twelve files**, because it makes a return unbillable until somebody types a figure, which is a change to how the firm bills and so the firm's to make. The narrow rule is the module's own sentence: the failure is a *second* number.
+
+> **OPEN.** Reconciling this register on 5 Sep 2026 I first marked this closed by
+> `67cdc38` (#267) on the strength of the commit subject. That is backwards:
+> **#267 is what this defect contradicts, not what fixed it.** Reading the entry
+> rather than the subject line is what caught it.
 
 **HIGH**, and it is the seam #267 was about.
 
@@ -425,7 +495,9 @@ The estimate is also the more considered of the two: it picked the **Simple
 Filer** tier, which is the cheap-tier behaviour the firm described (*"we have the
 simple filer deal just for you"*) working correctly.
 
-## D25 · A fee below the stated minimum is silently rounded up, not refused
+## D25 · A fee below the stated minimum is silently rounded up, not refused — **FIXED**
+
+> **FIXED by showing the override, not by refusing.** The raise is the firm's own instruction; the silence was the defect. The review page — the last one anybody reads before the estimate goes out — now says what will actually be billed, derived from the schedule so any floored line reports the same way.
 
 **MEDIUM.** The interview asks *"How much for the sorting? **($175 minimum)**"*.
 I answered **100**. It was accepted with no message, and the Review page shows
@@ -507,7 +579,9 @@ chase."* That is good judgement. The headline is just the wrong sentence for it:
 five things **are** outstanding, and none is **due to be chased**. *"Nothing to
 chase yet"* would be true; *"Nothing outstanding"* is not.
 
-## D13 · Every interview question defaults to "No", and the file records it as the client's answer
+## D13 · Every interview question defaults to "No", and the file records it as the client's answer — **FIXED**
+
+> Closed on `main` by `52c9691` — *A question nobody asked is not a question answered "no"*.
 
 **HIGH**, and the risk questions are the reason.
 
@@ -533,7 +607,9 @@ Priya was never asked. The form answered for her, and the printout presents it
 as her answer. Foreign accounts and digital assets are two of the questions
 where a wrong "no" carries its own penalty regime.
 
-## D14 · "0 RISK FLAGS" is a green that cannot go red
+## D14 · "0 RISK FLAGS" is a green that cannot go red — **FIXED**
+
+> Closed on `main` by `52c9691` — *A question nobody asked is not a question answered "no"*.
 
 **HIGH**, and it is D13's consequence. The engagement scoreboard shows **0 RISK
 FLAGS**, and the internal checklist prints *"No risk flags generated."*
@@ -547,7 +623,9 @@ Name the input that makes it red: somebody actively choosing `Yes`. Nothing else
 can. Until "unknown" exists as an answer, that tile should say *"no risk
 questions were answered"* rather than *"0 risk flags"*.
 
-## D15 · The engagement counts 3 tasks and lists none
+## D15 · The engagement counts 3 tasks and lists none — **FIXED**
+
+> **FIXED.** The tile now names which side of the work it counted (`3 theirs, 0 ours`) and the empty panel points at where they are. Both figures were already correct; neither said whose.
 
 **LOW.** The scoreboard tile reads **0/3 TASKS COMPLETE**. The panel below it,
 headed *"Internal tasks — our side of the work"*, reads **"No internal tasks for
@@ -570,7 +648,9 @@ appears as **"Sethuraman Accounting, Tax & Consulting"** on the invoice and
 **"SAT-C LLP"** in the emails. Worth settling which name faces clients, but it
 is a preference, not a defect.
 
-## D17 · A client who said "no crypto" is asked for crypto exports
+## D17 · A client who said "no crypto" is asked for crypto exports — **FIXED**
+
+> **FIXED.** Split into two templates, one per answer, so each closes on its own arrival rather than one bundle closing on whichever document turns up first.
 
 **LOW.** Priya answered **No** to *"Digital asset or crypto activity?"*. The
 generated request reads:

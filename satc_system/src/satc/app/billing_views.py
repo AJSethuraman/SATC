@@ -419,13 +419,34 @@ def _invoice_from(draft: dict, *, invoice_id: str) -> Invoice:
         tax_year=int(draft.get("tax_year") or _working_year()),
         plan_key=draft.get("plan_key") or default_plan_key(),
         plan_basis=draft.get("plan_basis", ""))
+    # THE REF, SO THE ENGINE CAN SEE THE PRICE THE CLIENT WAS ALREADY GIVEN.
+    # D21: without it `add` has no way to know a second number exists, and this
+    # screen billed a 1040 at the catalogue's 450.00 while the client held an
+    # estimate saying 350.00 for the same engagement. Passed rather than stored
+    # -- the ref decides the line, it does not describe it afterwards.
+    ref = _engagement_ref_for(inv.client_id, inv.tax_year)
     for row in draft.get("lines", []):
         override = (row.get("rate_override") or "").strip()
         inv.add(row.get("service_code", ""),
                 quantity=row.get("quantity") or "1",
                 note=row.get("note", ""),
-                rate_override=Decimal(override) if override else None)
+                rate_override=Decimal(override) if override else None,
+                engagement_ref=ref)
     return inv
+
+
+def _engagement_ref_for(client_id: str, tax_year: int) -> str:
+    """The `2026-0001` on this client's engagement for the year, or "".
+
+    Blank is an ordinary answer: an invoice can legitimately precede the ref
+    being recorded, and in that case there is no second price to contradict.
+    """
+    if not (client_id or "").strip():
+        return ""
+    for eng in STATE.mart.engagements:
+        if eng.client_id == client_id and eng.tax_year == tax_year:
+            return (getattr(eng, "engagement_ref", "") or "").strip()
+    return ""
 
 
 def _priced(invoice: Invoice) -> Invoice:
@@ -1028,8 +1049,26 @@ def _payments_screen(*, error: str = "", note: str = ""):
     # kind of thing the owner has to be shown — but the screen was rendering it
     # as an ordinary row with a working link, and the link went to a 404. What
     # is wrong with the row travels WITH the row (principle 13).
+    # D22's remainder, the second half. This screen listed a 100.00 and a
+    # 500.00 against a 180.00 bill, both attributed, with nothing saying they
+    # come to more than was billed. `/today` raises the credit by name and the
+    # invoice screen now does too; a payments list that shows both figures and
+    # not their consequence is the one place the money still reads as ordinary.
+    #
+    # Computed per invoice from the ledger, not per payment: no single payment
+    # is "the overpayment" -- it is the total that exceeds the bill, which is
+    # why the row says which invoice is over rather than flagging the last one
+    # in.
+    by_invoice = {i.invoice_id: i for i in invoices}
+    over_by_invoice = {
+        inv.invoice_id: overpaid_by(inv, ledger) for inv in invoices
+        if overpaid_by(inv, ledger) > 0}
+
     matched = [{"payment": p, "name": STATE.name(p.client_id),
-                "on_file": p.invoice_id in on_file}
+                "on_file": p.invoice_id in on_file,
+                "over": over_by_invoice.get(p.invoice_id),
+                "billed": (by_invoice[p.invoice_id].total
+                           if p.invoice_id in by_invoice else None)}
                for p in newest if p.is_matched]
     tray = []
     for payment in (p for p in newest if not p.is_matched):

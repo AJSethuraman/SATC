@@ -23,6 +23,7 @@ from satc.app.billing_views import bp as billing_bp
 from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
 from satc.app.pricing_views import bp as pricing_bp
+from satc.app import navigation
 from satc.app.state import STATE
 from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
@@ -107,8 +108,13 @@ def create_app() -> Flask:
         #
         # Walked past it about forty times on 5 September 2026 without seeing it:
         # it is in the corner of every screenshot taken that night.
+        # WHICH NAV ITEM IS LIT, from the route rather than the page title.
+        # Two items used to light at once on every intake screen, because
+        # `title="Intake"` belongs to four screens across two of them. A route
+        # cannot be two things; a heading can. See `app/navigation.py`.
         return {"state": STATE, "outstanding": len(STATE.outstanding()),
-                "working_year": _working_year_now()}
+                "working_year": _working_year_now(),
+                "nav": navigation.active(request.endpoint)}
 
     @app.route("/")
     def dashboard():
