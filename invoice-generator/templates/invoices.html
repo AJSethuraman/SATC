@@ -64,9 +64,21 @@
 
     <!-- KPIs -->
     <div class="kpis">
-      <div class="kpi-card"><div class="kpi__label">Outstanding</div><div class="kpi__value num">{{ format_money(kpis.outstanding, currency) }}</div><div class="delta warn">{{ kpis.outstanding_count }} invoice{{ '' if kpis.outstanding_count == 1 else 's' }} awaiting payment</div></div>
-      <div class="kpi-card"><div class="kpi__label">Overdue</div><div class="kpi__value num" style="color:var(--red-600)">{{ format_money(kpis.overdue, currency) }}</div><div class="delta warn">{{ kpis.overdue_count }} overdue</div></div>
-      <div class="kpi-card"><div class="kpi__label">Paid</div><div class="kpi__value num">{{ format_money(kpis.paid_total, currency) }}</div><div class="delta up">All time</div></div>
+      {#- One currency: exactly as before. More than one: a line each, because
+          a $100 invoice plus a ¥10,000 invoice is not $10,100. -#}
+      {% set multi = kpis.by_currency | length > 1 %}
+      <div class="kpi-card"><div class="kpi__label">Outstanding</div>
+        {% if multi %}{% for row in kpis.by_currency %}<div class="kpi__value num" style="font-size:var(--text-xl)">{{ format_money(row.outstanding, row.currency) }}</div>{% endfor %}
+        {% else %}<div class="kpi__value num">{{ format_money(kpis.outstanding, currency) }}</div>{% endif %}
+        <div class="delta warn">{{ kpis.outstanding_count }} invoice{{ '' if kpis.outstanding_count == 1 else 's' }} awaiting payment</div></div>
+      <div class="kpi-card"><div class="kpi__label">Overdue</div>
+        {% if multi %}{% for row in kpis.by_currency %}<div class="kpi__value num" style="font-size:var(--text-xl); color:var(--red-600)">{{ format_money(row.overdue, row.currency) }}</div>{% endfor %}
+        {% else %}<div class="kpi__value num" style="color:var(--red-600)">{{ format_money(kpis.overdue, currency) }}</div>{% endif %}
+        <div class="delta warn">{{ kpis.overdue_count }} overdue</div></div>
+      <div class="kpi-card"><div class="kpi__label">Paid</div>
+        {% if multi %}{% for row in kpis.by_currency %}<div class="kpi__value num" style="font-size:var(--text-xl)">{{ format_money(row.paid_total, row.currency) }}</div>{% endfor %}
+        {% else %}<div class="kpi__value num">{{ format_money(kpis.paid_total, currency) }}</div>{% endif %}
+        <div class="delta up">All time</div></div>
       <div class="kpi-card"><div class="kpi__label">Total invoices</div><div class="kpi__value num">{{ kpis.total_count }}</div><div class="delta">In your workspace</div></div>
     </div>
 

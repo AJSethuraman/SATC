@@ -257,3 +257,122 @@ def test_the_backfill_cannot_double_even_without_the_not_in(app, owner):
         inv = db.session.get(Invoice, inv.id)
         assert len(inv.payments) == 1, "the opening balance was not doubled"
         assert inv.amount_paid == 400.0
+
+
+# --- second round of Codex findings --------------------------------------
+
+@pytest.mark.parametrize("code,iso_places", [("HUF", 2), ("MGA", 2), ("TWD", 2)])
+def test_the_adapter_uses_stripes_exponent_where_it_differs_from_iso(code, iso_places):
+    """`currencies.py` documents three currencies where Stripe disagrees with
+    ISO 4217, and says in as many words that "a Stripe adapter must apply its
+    own rule". The adapter was built on `decimals_for` and did the thing that
+    comment warned about: an Ar1,500 MGA invoice went out as 150000, Stripe
+    charged Ar150,000, and the inbound decode applied the same ISO rule and
+    read 1,500 back — so the books showed it correctly settled.
+    """
+    from currencies import decimals_for
+
+    assert decimals_for(code) == iso_places, "ISO precision is unchanged"
+    assert to_minor_units(1500, code) == 1500, "but Stripe gets whole units"
+    assert from_minor_units(1500, code) == 1500
+    # and the invoice's own arithmetic still uses ISO
+    inv = invoice(code, [(1, 10.55)])
+    assert inv.total == 10.55
+
+
+def test_currencies_where_stripe_and_iso_agree_are_untouched():
+    for code, amount, expected in [
+        ("USD", 15.00, 1500), ("JPY", 1500, 1500),
+        ("KWD", 1.5, 1500), ("EUR", 15.00, 1500),
+    ]:
+        assert to_minor_units(amount, code) == expected
+
+
+def test_marking_paid_uses_the_invoices_precision_for_the_shortfall(app, owner):
+    """A KWD 1.235 invoice computed a 1.24 shortfall and stored 1.240,
+    overstating the ledger by half a fils and hiding an overpayment."""
+    with app.app_context():
+        inv = invoice("KWD", [(1, 1.235)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        invoice_id = inv.id
+
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    client.post(f"/invoice/{invoice_id}/mark-paid")
+
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        assert inv.amount_paid == 1.235, "not 1.240"
+        assert inv.balance_due == 0.0
+        assert inv.payments[0].amount == 1.235
+
+
+def test_an_edit_without_a_currency_field_keeps_the_invoices_currency(app, owner):
+    """The owner's Edit form has no currency box, so it submits None — which
+    used to mean "use the account default" and silently re-denominated any
+    invoice saved from the generator in anything else.
+    """
+    client = app.test_client()
+    client.post("/login", data={"email": OWNER_EMAIL,
+                                "password": "correct-horse-staple"})
+    client.post("/generator/save", data={
+        "from_name": "Bramble & Finch", "bill_to_name": "Northwind",
+        "invoice_number": "INV-JPY", "invoice_date": "2026-09-06",
+        "payment_terms": "Net 14", "currency": "JPY", "design": "classic-navy",
+        "item_description": ["Work"], "item_quantity": ["1"],
+        "item_rate": ["150000"], "tax": "0", "discount": "0", "shipping": "0",
+    })
+    with app.app_context():
+        inv = db.session.query(Invoice).filter_by(invoice_number="INV-JPY").one()
+        assert inv.currency == "JPY"
+        invoice_id = inv.id
+
+    # an ordinary edit through the owner's form, which carries no currency
+    client.post(f"/invoice/{invoice_id}", data={
+        "invoice_number": "INV-JPY", "bill_to": "Northwind",
+        "invoice_date": "2026-09-06", "payment_terms": "Net 14",
+        "tax": "0", "discount": "0", "shipping": "0",
+        "item_description": ["Work, revised"], "item_quantity": ["1"],
+        "item_rate": ["160000"],
+    })
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        assert inv.currency == "JPY", "the account default must not overwrite it"
+        assert inv.total == 160000.0
+
+
+def test_the_cache_is_recomputed_from_the_table_not_the_collection(app, owner):
+    """Two DIFFERENT Checkout sessions can settle one invoice at once — each
+    visit to /pay makes its own — so the unique constraint does not cover it.
+    Both inserts are legitimate; the danger is each worker writing a cache
+    computed from only the rows it happened to see.
+    """
+    with app.app_context():
+        inv = invoice("USD", [(1, 1100)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        invoice_id = inv.id
+
+    with app.app_context():
+        # a row inserted by "another worker", invisible to the next session's
+        # identity map until it reloads
+        db.session.add(Payment(invoice_id=invoice_id, amount=400.0,
+                               currency="USD", source="stripe",
+                               external_id="cs_worker_a"))
+        db.session.commit()
+
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        inv.record_payment(700, source="stripe", external_id="cs_worker_b")
+        inv.resync_amount_paid_from_db()
+        db.session.commit()
+
+    with app.app_context():
+        inv = db.session.get(Invoice, invoice_id)
+        assert inv.amount_paid == 1100.0, "both payments, not just the last"
+        assert inv.ledger_total == 1100.0
+        assert inv.balance_due == 0.0

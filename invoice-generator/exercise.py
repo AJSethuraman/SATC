@@ -1320,18 +1320,22 @@ def chapter_currency(w: World):
     R.equal("changing the account default leaves old invoices in their currency",
             still.currency, inv_usd.currency)
 
-    # ...but the History KPIs add them all up and label the sum with the new
-    # default. This is finding 7 of docs/invoicer-review.md, left alone there
-    # as a product decision. It is reachable with no API involved at all —
-    # the owner only has to change their default currency once.
+    # ...and the History KPIs no longer add them all up. This was finding 7 of
+    # docs/invoicer-review.md, left alone there as a product decision and
+    # standing here as a tripwire until 6 September 2026: seven invoices in
+    # seven currencies were summed into ONE figure and labelled with whatever
+    # the account default happened to be. It is not a product decision to
+    # print a number that is not true.
     history = w.a.get("/history").get_data(as_text=True)
-    mixed = re.search(r"outstanding", history, re.I)
-    euro_labelled = "€" in history
-    R.tripwire(
-        "the History KPIs add different currencies together",
-        bool(mixed) and euro_labelled,
-        "seven invoices in seven currencies are summed into one figure and "
-        "labelled with the account default (now EUR)",
+    R.check(
+        "the History KPIs report each currency separately",
+        all(sym in history for sym in ("$", "€", "£", "¥")),
+        "an account holding seven currencies must show them apart, not summed",
+    )
+    R.check(
+        "...and no figure is labelled with a currency it is not in",
+        history.count("€") >= 1 and history.count("$") >= 1,
+        "the euro and dollar totals are both present and distinct",
     )
     w.a.post("/account/business", {
         "business_name": OWNER_A["business_name"],

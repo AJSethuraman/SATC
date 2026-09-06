@@ -453,6 +453,40 @@ class Invoice(db.Model):
     def _sync_amount_paid(self):
         self.amount_paid = self.ledger_total
 
+    def resync_amount_paid_from_db(self):
+        """Recompute the cache with SQL, from every row the database holds.
+
+        `_sync_amount_paid` sums the payments THIS SESSION knows about, which
+        is right for one writer and wrong for two. The unique constraint stops
+        the same Checkout Session being credited twice, but two DIFFERENT
+        sessions can settle one invoice at the same moment -- each visit to
+        `/pay` creates its own -- and then:
+
+            worker A: loads (paid 0), adds 400, writes cache 400, commits
+            worker B: loaded (paid 0), adds 700, writes cache 700, commits
+
+        Both inserts satisfy the constraint, so the ledger correctly holds
+        1,100 while the cache says 700 and the invoice never settles. A lost
+        update, and the kind that only appears under load.
+
+        Two things fix it together: the webhook loads the invoice FOR UPDATE so
+        the second worker waits, and this recomputes from the table rather than
+        from the collection, so what it writes accounts for rows it never saw.
+        The flush is what makes the payment we just appended visible to the
+        aggregate inside our own transaction.
+
+        Raised by Codex on PR #289, second round.
+        """
+        from sqlalchemy import func, select
+
+        db.session.flush()
+        total = db.session.execute(
+            select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+                Payment.invoice_id == self.id
+            )
+        ).scalar()
+        self.amount_paid = self._round(total or 0.0)
+
 
 class Payment(db.Model):
     """One payment against one invoice. The record; never overwritten.

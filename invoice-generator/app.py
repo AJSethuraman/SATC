@@ -505,10 +505,19 @@ def _populate_invoice_from_form(
         invoice.invoice_date, invoice.payment_terms, form.get("due_date")
     )
     invoice.po_number = (form.get("po_number") or "").strip()
-    invoice.currency = (
-        (current_user.default_currency if currency is None else currency)
-        or "USD"
-    ).strip().upper()
+    # AN INVOICE KEEPS ITS CURRENCY unless the submission names a new one.
+    # The owner's Edit form has no currency field, so it calls this with
+    # currency=None -- which used to mean "use the account default" and
+    # therefore silently re-denominated any invoice saved from the generator in
+    # anything else. A ¥150,000 invoice came back as $150,000 on the first
+    # edit, with its payment rows still snapshotted in yen.
+    if currency is not None:
+        chosen = currency
+    elif invoice.currency:
+        chosen = invoice.currency
+    else:
+        chosen = current_user.default_currency
+    invoice.currency = (chosen or "USD").strip().upper()
 
     # Tax and discount default to percentages, which is what the owner's form
     # posts (it has no flat/percent control). The generator does have one, so
@@ -1363,7 +1372,10 @@ def register_routes(app):
         # turned "400.00 by card and 700.00 by cheque" into one indistinguishable
         # 1100.00 -- and if the card payment was later disputed there was
         # nothing left to say which part of it was the card's.
-        outstanding = round(invoice.total - invoice.ledger_total, 2)
+        # The invoice's own precision, not two places -- a KWD 1.235
+        # invoice computed a 1.24 shortfall and stored 1.240, overstating
+        # the ledger by half a fils and leaving a hidden overpayment.
+        outstanding = invoice._round(invoice.total - invoice.ledger_total)
         if outstanding > 0:
             invoice.record_payment(
                 outstanding, source="manual", note="Marked as paid"
@@ -1784,6 +1796,38 @@ def register_routes(app):
         )
         overdue = sum(i.balance_due for i in all_inv if i.is_overdue)
         paid_total = sum(i.total for i in all_inv if i.status == "Paid")
+        # BROKEN OUT BY CURRENCY, because adding them together is arithmetic
+        # on things that are not the same kind of thing. A $100 invoice and a
+        # ¥10,000 invoice were summed and the result labelled with the account
+        # default: "$10,100". Every one of these three figures was meaningless
+        # the moment an account held two currencies -- which the generator's
+        # currency picker turns from an edge case into an ordinary Tuesday.
+        #
+        # Recorded as KNOWN by exercise.py before this ("the History KPIs add
+        # different currencies together") and raised again by Codex on #289.
+        # It is not a display preference: printing a number that is not true
+        # is the thing docs/DESIGN-PRINCIPLES.md means by refusing rather than
+        # defaulting.
+        #
+        # An account with ONE currency renders exactly as it always did.
+        by_currency = {}
+        for inv in all_inv:
+            code = (inv.currency or "USD").upper()
+            row = by_currency.setdefault(
+                code,
+                {"currency": code, "outstanding": 0.0, "outstanding_count": 0,
+                 "overdue": 0.0, "overdue_count": 0, "paid_total": 0.0},
+            )
+            if inv.status != "Paid":
+                row["outstanding"] += inv.balance_due
+                if inv.balance_due > 0:
+                    row["outstanding_count"] += 1
+            if inv.is_overdue:
+                row["overdue"] += inv.balance_due
+                row["overdue_count"] += 1
+            if inv.status == "Paid":
+                row["paid_total"] += inv.total
+
         kpis = {
             "outstanding": outstanding,
             "outstanding_count": sum(
@@ -1793,6 +1837,14 @@ def register_routes(app):
             "overdue_count": sum(1 for i in all_inv if i.is_overdue),
             "paid_total": paid_total,
             "total_count": len(all_inv),
+            # Sorted so the account's own currency leads, then alphabetically.
+            "by_currency": sorted(
+                by_currency.values(),
+                key=lambda r: (
+                    r["currency"] != (current_user.default_currency or "USD"),
+                    r["currency"],
+                ),
+            ),
         }
         return render_template(
             "invoices.html",
@@ -1920,16 +1972,29 @@ def register_routes(app):
             # account it belongs to; legacy platform charges have none.
             event_account = event.get("account")
             invoice_id = (session.get("metadata") or {}).get("invoice_id")
+            # LOADED FOR UPDATE, so two payments settling one invoice at the
+            # same moment take turns instead of overwriting each other's cache.
+            # Each visit to /pay creates its own Checkout Session, so the
+            # unique constraint on (invoice_id, external_id) does not cover
+            # this -- both rows are legitimate and distinct. SQLite renders no
+            # lock clause and serialises writes at the file level anyway; on
+            # Postgres this is the thing that actually holds.
             invoice = None
             if invoice_id:
                 try:
-                    invoice = db.session.get(Invoice, int(invoice_id))
+                    invoice = (
+                        Invoice.query.filter_by(id=int(invoice_id))
+                        .with_for_update()
+                        .first()
+                    )
                 except (TypeError, ValueError):
                     invoice = None
             if invoice is None and session_id:
-                invoice = Invoice.query.filter_by(
-                    stripe_session_id=session_id
-                ).first()
+                invoice = (
+                    Invoice.query.filter_by(stripe_session_id=session_id)
+                    .with_for_update()
+                    .first()
+                )
 
             # Authorize the event so a session on one account can't mark
             # another user's invoice paid:
@@ -2026,6 +2091,9 @@ def register_routes(app):
                         currency=sess_currency.upper(),
                         note="Stripe Checkout",
                     )
+                    # From the table, not from this session's collection --
+                    # see Invoice.resync_amount_paid_from_db.
+                    invoice.resync_amount_paid_from_db()
                     logger.info(
                         "stripe webhook: credited %s %s to invoice=%s "
                         "(session=%s)", paid_amount, inv_currency,

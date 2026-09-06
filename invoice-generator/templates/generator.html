@@ -219,26 +219,34 @@ function money(n) {
 }
 
 function recalc() {
+  // EVERY STEP ROUNDS AT THE SELECTED CURRENCY'S PRECISION, not at two places.
+  // Hardcoding 2 here made the preview disagree with the document it is a
+  // preview of: with KWD selected, 1 x 1.235 showed KD1.240 on screen while
+  // the submitted invoice and the downloaded PDF both said KD1.235. Rounding
+  // a line at the wrong precision also feeds the wrong base into the tax step,
+  // so the divergence compounds down the column rather than staying in one
+  // cell. The server is still authoritative; this is what keeps it honest.
+  const d = meta().d;
   let sub = 0;
   $$("#lines tr").forEach(row => {
-    const amt = rnd(num($(".qty", row)) * num($(".rate", row)), 2);
+    const amt = rnd(num($(".qty", row)) * num($(".rate", row)), d);
     sub += amt;
     $(".amt", row).textContent = money(amt);
   });
-  sub = rnd(sub, 2);
+  sub = rnd(sub, d);
 
   const discPct = $("[name=discount_is_percent]").value === "1";
   const discVal = num($("[name=discount]"));
-  const disc = rnd(discPct ? sub * discVal / 100 : discVal, 2);
-  const base = rnd(sub - disc, 2);
+  const disc = rnd(discPct ? sub * discVal / 100 : discVal, d);
+  const base = rnd(sub - disc, d);
 
   const taxPct = $("[name=tax_is_percent]").value === "1";
   const taxVal = num($("[name=tax]"));
-  const tax = rnd(taxPct ? base * taxVal / 100 : taxVal, 2);
+  const tax = rnd(taxPct ? base * taxVal / 100 : taxVal, d);
 
-  const ship = rnd(num($("[name=shipping]")), 2);
-  const total = rnd(base + tax + ship, 2);
-  const paid = rnd(num($("[name=amount_paid]")), 2);
+  const ship = rnd(num($("[name=shipping]")), d);
+  const total = rnd(base + tax + ship, d);
+  const paid = rnd(num($("[name=amount_paid]")), d);
 
   $("#t-sub").textContent = money(sub);
   $("#t-disc").textContent = "−" + money(disc);
@@ -246,7 +254,7 @@ function recalc() {
   $("#t-ship").textContent = money(ship);
   $("#t-tot").textContent = money(total);
   $("#t-paid").textContent = "−" + money(paid);
-  $("#t-bal").textContent = money(rnd(total - paid, 2));
+  $("#t-bal").textContent = money(rnd(total - paid, d));
 
   $$(".pctsel").forEach(sel => { sel.options[1].textContent = meta().s.trim() || cur(); });
   saveDraft();

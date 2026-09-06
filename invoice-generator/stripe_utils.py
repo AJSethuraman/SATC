@@ -14,6 +14,38 @@ import stripe
 
 from currencies import decimals_for
 
+#: WHERE STRIPE DISAGREES WITH ISO 4217, and it does for exactly three
+#: currencies. `currencies.py` records the divergence at each entry and says
+#: plainly that "a Stripe adapter must apply its own rule rather than" the ISO
+#: one -- which is what this table is. The adapter was built on `decimals_for`
+#: alone and therefore did the thing that comment warned about.
+#:
+#: The consequence is the same shape as the ¥ bug and just as invisible: an
+#: Ar1,500 MGA invoice went out as 150000, Stripe charged **Ar150,000**, and
+#: the inbound decode applied the same ISO rule and read 1,500 back -- so the
+#: invoice showed as correctly settled while the client had been charged a
+#: hundred times over. The two errors cancel in our books and not on the card.
+#:
+#: ISO STAYS THE RULE FOR THE INVOICE. What money *is* does not depend on who
+#: processes it; only the number handed to the processor does.
+#:
+#: Only these three differ. Every other currency where Stripe uses zero
+#: decimals (JPY, KRW, VND, XAF, ...) is zero-decimal in ISO too, so
+#: `decimals_for` already agrees and no entry is needed.
+STRIPE_EXPONENT = {
+    "huf": 0,   # ISO 2. Stripe treats HUF as zero-decimal.
+    "mga": 0,   # ISO 2 (the ariary's 5-part sub-unit). Stripe: zero-decimal.
+    "twd": 0,   # ISO 2. Stripe requires whole-dollar amounts.
+}
+
+
+def _stripe_exponent(currency):
+    """How many decimal places STRIPE uses for this currency."""
+    code = (currency or "usd").lower()
+    if code in STRIPE_EXPONENT:
+        return STRIPE_EXPONENT[code]
+    return decimals_for(code)
+
 
 def configure(secret_key):
     stripe.api_key = secret_key
@@ -100,7 +132,7 @@ def to_minor_units(amount, currency):
 
     Caught by tests/test_stripe_minor_units.py.
     """
-    return int(round(amount * (10 ** decimals_for(currency))))
+    return int(round(amount * (10 ** _stripe_exponent(currency))))
 
 
 def from_minor_units(amount, currency):
@@ -124,7 +156,7 @@ def from_minor_units(amount, currency):
     Caught by Codex on PR #289 before this merged, and by
     tests/test_stripe_minor_units.py now.
     """
-    digits = decimals_for(currency)
+    digits = _stripe_exponent(currency)
     return round(amount / (10 ** digits), digits)
 
 
