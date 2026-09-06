@@ -245,3 +245,26 @@ test('the money column is right-aligned to the same edge on every row', async ()
   const spread = Math.max(...rightEdges) - Math.min(...rightEdges);
   assert.ok(spread < 1, `the figures end at edges spread over ${spread.toFixed(2)}pt — the column is ragged`);
 });
+
+test('every IRS label reaches the page whole — nothing is cut', async () => {
+  // lines.test.mjs verifies 52 of 55 labels word-for-word against the official
+  // IRS PDF going IN. Nothing looked at what came OUT, and the writer cut any
+  // label over 78 characters -- clipping five of them, line 6 by one character,
+  // so the worksheet and the spreadsheet disagreed about what the form says.
+  // Words rather than whole strings, because a wrapped label has the figure
+  // extracted between its two halves.
+  for (const make of [freelancer, reseller, priorYear]) {
+    const { bytes, prepared } = build(make());
+    const doc = await readPdf(bytes);
+    assert.ok(!doc.text.includes('…'), `${make.name}: a label was cut short`);
+    for (const line of prepared.result.yearData.lines) {
+      if (line.kind === 'info') continue;
+      for (const word of line.label.split(/\s+/)) {
+        const bare = word.replace(/[^A-Za-z0-9$%().,'-]/g, '');
+        if (bare.length < 4) continue;
+        assert.ok(doc.text.includes(bare),
+          `${make.name}: line ${line.id} lost the word "${bare}" from "${line.label}"`);
+      }
+    }
+  }
+});

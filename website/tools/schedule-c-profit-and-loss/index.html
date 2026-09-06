@@ -230,7 +230,7 @@ button { font: 500 .88rem var(--sans); cursor: pointer; border-radius: 2px; }
   <p>Nothing you type is sent anywhere. The page holds no analytics script and makes no requests once it has loaded. If you tick the box to keep a draft, it is kept in this browser and nowhere else.</p>
   <p>Using this tool does not make you a client of ours. If you would like it to, <a href="https://satcllp.com/?from=schedule-c#intake">there is a form</a>.</p>
   <p class="meta">Sethuraman Accounting, Tax &amp; Consulting LLP · <a href="https://satcllp.com/">satcllp.com</a> · <a href="https://satcllp.com/privacy.html">Privacy</a></p>
-  <p class="meta" id="build-stamp">Built from source 41fc1bdc25ba. Tax years 2023, 2024 and 2025.</p>
+  <p class="meta" id="build-stamp">Built from source 51437110b243. Tax years 2023, 2024 and 2025.</p>
 </footer>
 
 <script type="module">
@@ -378,7 +378,7 @@ function buildLines(otherExpensesLine) {
     L('8', 'II', 'entry', 'Advertising', 'Advertising'),
     L('9', 'II', 'entry', 'Car and truck expenses', 'Car and truck', { helper: 'mileage' }),
     L('10', 'II', 'entry', 'Commissions and fees', 'Commissions and fees'),
-    L('11', 'II', 'entry', 'Contract labor', 'Contract labour and subcontractors'),
+    L('11', 'II', 'entry', 'Contract labor', 'Contract labor and subcontractors'),
     L('12', 'II', 'entry', 'Depletion', 'Depletion'),
     L('13', 'II', 'entry', 'Depreciation and section 179 expense deduction (not included in Part III)', 'Depreciation and equipment written off'),
     L('14', 'II', 'entry', 'Employee benefit programs (other than on line 19)', 'Employee benefits'),
@@ -392,7 +392,7 @@ function buildLines(otherExpensesLine) {
     L('20b', 'II', 'entry', 'Rent or lease: Other business property', 'Rent: property'),
     L('21', 'II', 'entry', 'Repairs and maintenance', 'Repairs and maintenance'),
     L('22', 'II', 'entry', 'Supplies (not included in Part III)', 'Supplies'),
-    L('23', 'II', 'entry', 'Taxes and licenses', 'Taxes and licences'),
+    L('23', 'II', 'entry', 'Taxes and licenses', 'Taxes and licenses'),
     L('24a', 'II', 'entry', 'Travel and meals: Travel', 'Travel'),
     L('24b', 'II', 'entry', 'Travel and meals: Deductible meals', 'Meals (deductible part)', { helper: 'meals' }),
     L('25', 'II', 'entry', 'Utilities', 'Utilities'),
@@ -413,7 +413,7 @@ function buildLines(otherExpensesLine) {
     L('34', 'III', 'info', 'Was there any change in determining quantities, costs, or valuations between opening and closing inventory?', 'Change in inventory method'),
     L('35', 'III', 'entry', "Inventory at beginning of year. If different from last year's closing inventory, attach explanation", 'Opening inventory'),
     L('36', 'III', 'entry', 'Purchases less cost of items withdrawn for personal use', 'Purchases', { helper: 'purchases' }),
-    L('37', 'III', 'entry', 'Cost of labor. Do not include any amounts paid to yourself', 'Cost of labour'),
+    L('37', 'III', 'entry', 'Cost of labor. Do not include any amounts paid to yourself', 'Cost of labor'),
     L('38', 'III', 'entry', 'Materials and supplies', 'Materials and supplies'),
     L('39', 'III', 'entry', 'Other costs', 'Other costs'),
     L('40', 'III', 'computed', 'Add lines 35 through 39', 'Goods available', { formula: { op: 'sum', of: COGS_LINES }, subtotal: true }),
@@ -711,7 +711,7 @@ const REFUSALS = [
   {
     line: '9',
     subject: 'Car and truck costs, if you are not using the mileage rate',
-    because: 'Adding up petrol, repairs and depreciation needs the cost of the vehicle and the share of miles that were for business.',
+    because: 'Adding up gas, repairs and depreciation needs the cost of the vehicle and the share of miles that were for business.',
     instead: 'Work out the deduction the way you always do, or use the mileage rate above.',
   },
   {
@@ -1056,10 +1056,13 @@ function answers(result, input) {
   const num = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v))
     ? 'Not answered' : Number(v).toLocaleString('en-US'));
   const veh = input.vehicle || {};
-  return [
+  const rows = [
     { label: 'Accounting method', value: { cash: 'Cash', accrual: 'Accrual', other: 'Other' }[input.accountingMethod] || 'Not answered' },
     { label: 'Worked in the business regularly (line G)', value: yes(input.materiallyParticipated) },
-    { label: 'All the money in it was yours to lose (line 32)', value: input.atRisk === 'all' ? 'Yes' : input.atRisk === 'some' ? 'No — some was not at risk' : 'Not answered' },
+    { label: 'All the money in it was yours to lose (line 32)',
+      value: result.line['31'].cents >= 0 ? 'Does not apply — the year made a profit'
+        : input.atRisk === 'all' ? 'Yes'
+          : input.atRisk === 'some' ? 'No — some was not at risk' : 'Not answered' },
     { label: 'Vehicle first used for business (line 43)', value: veh.placedInService || 'Not answered' },
     { label: 'Business miles (line 44a)', value: num(veh.businessMiles) },
     { label: 'Commuting miles (line 44b)', value: num(veh.commutingMiles) },
@@ -1068,9 +1071,24 @@ function answers(result, input) {
     { label: 'Another vehicle available (line 46)', value: yes(veh.anotherVehicle) },
     { label: 'Records kept to back it up (line 47a)', value: yes(veh.evidence) },
     { label: 'Those records are written (line 47b)', value: yes(veh.evidenceWritten) },
-    { label: 'How closing stock was valued (line 33)', value: { cost: 'Cost', lower: 'Lower of cost or market', other: 'Other' }[input.inventory?.method] || 'Not answered' },
-    { label: 'Change in how stock was counted or valued (line 34)', value: yes(input.inventory?.changed) },
   ];
+
+  /* NOT ASKED IS NOT NOT ANSWERED. Lines 33 and 34 have no control anywhere on
+     the page: engine.mjs sets both to null and nothing ever writes to them, so
+     every document this tool has ever produced reported them "Not answered" and
+     no code path could say otherwise -- sending a preparer to chase a client for
+     answers to questions nobody was asked. They now appear only when the filer
+     actually used the stock section, and line 32 says it does not apply on a
+     profit rather than pretending it was skipped. */
+  const heldStock = ['35', '36', '37', '38', '39', '41']
+    .some((id) => result.line[id] && result.line[id].source !== 'empty');
+  if (heldStock) {
+    rows.push(
+      { label: 'How closing stock was valued (line 33)', value: { cost: 'Cost', lower: 'Lower of cost or market', other: 'Other' }[input.inventory?.method] || 'Not answered' },
+      { label: 'Change in how stock was counted or valued (line 34)', value: yes(input.inventory?.changed) },
+    );
+  }
+  return rows;
 }
 
 /** Does a printed column add up to its printed total? In cents it always does.
@@ -1223,6 +1241,20 @@ function drawStatement(doc, stmt, result) {
   void result;
 }
 
+
+/** Break a label on spaces so nothing is ever lost. A cut label makes the
+    worksheet disagree with the spreadsheet about the form's own wording. */
+function wrapLabel(label, budget) {
+  const words = String(label).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if (cur && (`${cur} ${w}`).length > budget) { lines.push(cur); cur = w; } else cur = cur ? `${cur} ${w}` : w;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+
 function drawWorksheet(doc, sheet) {
   const { rounding } = sheet;
   doc.space(40);
@@ -1241,9 +1273,20 @@ function drawWorksheet(doc, sheet) {
       doc.space(13);
       doc.y -= 11;
       doc.text(r.id, MARGIN, doc.y, { font: 'F3', size: 8, gray: 0.45 });
-      const label = r.label.length > 78 ? `${r.label.slice(0, 77)}…` : r.label;
-      doc.text(label, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
+      // WRAP, NEVER CUT. This truncated at 78 characters, which clipped five of
+      // the 55 IRS labels -- line 6 lost one character. lines.test.mjs verifies
+      // 52 of them word-for-word against the official PDF going IN, and nothing
+      // looked at what came OUT, so the worksheet quietly disagreed with the
+      // spreadsheet about what the form says. The whole point of the worksheet
+      // is the form's own wording.
+      const [head, ...restWords] = wrapLabel(r.label, 78);
+      doc.text(head, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
       doc.right(figure(r.cents, r.source, rounding), RIGHT, doc.y, { size: 8.5 });
+      for (const line of restWords) {
+        doc.space(11);
+        doc.y -= 9.5;
+        doc.text(line, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
+      }
     }
   }
 }
@@ -1999,7 +2042,7 @@ function start(root) {
       });
     };
     draw();
-    return section('Anything else you spent money on', 'Things with no line of their own — software, bank charges, a licence. Schedule C has room for nine; more than that goes on an attached list.', [
+    return section('Anything else you spent money on', 'Things with no line of their own — software, bank charges, a license. Schedule C has room for nine; more than that goes on an attached list.', [
       list,
       el('button', {
         type: 'button', class: 'ghost', text: 'Add another',
@@ -2205,7 +2248,21 @@ function start(root) {
           el('span', { text: 'Keep what I have typed on this device' }),
         ]),
         el('p', { class: 'hint', text: 'Off by default. It saves in this browser only, and never leaves it. Do not tick it on a shared or library computer.' }),
-        el('button', { type: 'button', class: 'ghost', text: 'Clear everything', onclick: () => { clearStorage(); window.location.reload(); } }),
+        // The only irreversible control on the page, and it sat three lines under
+        // the download button you came to click, on a panel that follows you
+        // down the page while you type. Ask first.
+        el('button', {
+          type: 'button', class: 'ghost', text: 'Clear everything',
+          onclick: (e) => {
+            const sure = window.confirm(
+              'Clear everything you have typed?\n\n'
+              + 'Your figures, the list of costs, the vehicle answers and any saved '
+              + 'draft all go. This cannot be undone.');
+            if (!sure) { e.preventDefault(); return; }
+            clearStorage();
+            window.location.reload();
+          },
+        }),
       ]),
       el('p', { class: 'handoff' }, [
         el('span', { text: 'Would rather not do this again next year? ' }),

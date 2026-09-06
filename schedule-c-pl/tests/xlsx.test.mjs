@@ -132,9 +132,20 @@ test('the detail sheet carries the other-expense rows, the answers and the cavea
   assert.ok(joined.includes(DISCLAIMER.slice(0, 40)));
 });
 
-test('unanswered questions say so rather than looking like a no', () => {
-  const strings = xlsxStrings(readXlsx(build(sparse()).bytes)).join(' | ');
-  assert.ok(strings.includes('Not answered'), 'a blank answer should say it is blank');
+test('a question that was asked and skipped says so; one never asked is not there', () => {
+  // This test USED to assert only that "Not answered" appears, which locked in a
+  // defect rather than catching it: lines 33 and 34 have no control on the page
+  // at all, so every document reported them unanswered and a preparer would
+  // chase the client for answers to questions nobody was asked.
+  const bare = xlsxStrings(readXlsx(build(sparse()).bytes)).join(' | ');
+  assert.ok(bare.includes('Not answered'), 'a question that was asked and skipped still says so');
+  assert.ok(!bare.includes('line 33'), 'the stock questions are absent when no stock was entered');
+  assert.ok(!bare.includes('line 34'));
+  assert.ok(bare.includes('Does not apply'), 'and line 32 does not apply on a profit');
+
+  const withStock = xlsxStrings(readXlsx(build(reseller()).bytes)).join(' | ');
+  assert.ok(withStock.includes('line 33'), 'and they appear once the stock section was used');
+  assert.ok(withStock.includes('line 34'));
 });
 
 test('a prior year puts other expenses on line 27a in the spreadsheet too', () => {

@@ -130,6 +130,20 @@ function drawStatement(doc, stmt, result) {
   void result;
 }
 
+
+/** Break a label on spaces so nothing is ever lost. A cut label makes the
+    worksheet disagree with the spreadsheet about the form's own wording. */
+function wrapLabel(label, budget) {
+  const words = String(label).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if (cur && (`${cur} ${w}`).length > budget) { lines.push(cur); cur = w; } else cur = cur ? `${cur} ${w}` : w;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+
 function drawWorksheet(doc, sheet) {
   const { rounding } = sheet;
   doc.space(40);
@@ -148,9 +162,20 @@ function drawWorksheet(doc, sheet) {
       doc.space(13);
       doc.y -= 11;
       doc.text(r.id, MARGIN, doc.y, { font: 'F3', size: 8, gray: 0.45 });
-      const label = r.label.length > 78 ? `${r.label.slice(0, 77)}…` : r.label;
-      doc.text(label, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
+      // WRAP, NEVER CUT. This truncated at 78 characters, which clipped five of
+      // the 55 IRS labels -- line 6 lost one character. lines.test.mjs verifies
+      // 52 of them word-for-word against the official PDF going IN, and nothing
+      // looked at what came OUT, so the worksheet quietly disagreed with the
+      // spreadsheet about what the form says. The whole point of the worksheet
+      // is the form's own wording.
+      const [head, ...restWords] = wrapLabel(r.label, 78);
+      doc.text(head, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
       doc.right(figure(r.cents, r.source, rounding), RIGHT, doc.y, { size: 8.5 });
+      for (const line of restWords) {
+        doc.space(11);
+        doc.y -= 9.5;
+        doc.text(line, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
+      }
     }
   }
 }

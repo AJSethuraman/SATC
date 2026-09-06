@@ -64,6 +64,9 @@ async function main() {
   await context.setOffline(true);
   ok('the page opens from the file on disk, with the network cut off');
 
+  check(!(await page.locator('#placed').isVisible()),
+    'the vehicle questions are hidden before any car cost is claimed');
+
   await page.screenshot({ path: join(SHOTS, '01-opened.png'), fullPage: false });
 
   // ── fill it in the way a photographer would ─────────────────────────
@@ -131,8 +134,12 @@ async function main() {
   await page.screenshot({ path: join(SHOTS, '04-filled-in.png'), fullPage: true });
 
   // ── the vehicle questions appear because line 9 has a figure ────────
-  const vehicle = await page.locator('#placed').count();
-  check(vehicle === 1, 'the vehicle questions appear once car costs are claimed');
+  // count() was the bug: #placed is in the DOM from first paint and the block is
+  // revealed by `hidden`, so the old assertion passed on a blank page and would
+  // have passed had the section never appeared at all. isVisible(), and the
+  // negative case first -- that is the half that makes it a test.
+  check(await page.locator('#placed').isVisible(),
+    'the vehicle questions are showing now that car costs are claimed');
   const milesOnForm = await page.inputValue('#businessMiles');
   check(milesOnForm === '5510', 'and the miles the helper used are already in line 44a', `it holds "${milesOnForm}"`);
   const stray = await page.locator('#summary').innerText();
@@ -255,10 +262,20 @@ async function main() {
   await page.locator('.keep input[type="checkbox"]').check();
   const afterOptIn = await page.evaluate(() => localStorage.length);
   check(afterOptIn === 1, 'ticking the box stores a draft, and only then');
+  // BOTH BRANCHES. This is the only irreversible control on the page, so the
+  // guard matters as much as the action: saying no must leave everything alone.
+  page.once('dialog', (d) => d.dismiss());
+  await page.getByRole('button', { name: 'Clear everything' }).click();
+  await page.waitForTimeout(300);
+  check(await page.evaluate(() => localStorage.length) === 1,
+    'saying no to "Clear everything" leaves the draft alone');
+  check(await page.inputValue('#f1') !== '', 'and leaves what was typed on the page');
+
+  page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: 'Clear everything' }).click();
   await page.waitForLoadState('load');
-  const cleared = await page.evaluate(() => localStorage.length);
-  check(cleared === 0, 'and clearing it really clears it');
+  check(await page.evaluate(() => localStorage.length) === 0,
+    'and saying yes really clears it');
 
   // ── a prior year moves the line numbers ─────────────────────────────
   // In 2025 the energy deduction is line 27a and other expenses are 27b; for

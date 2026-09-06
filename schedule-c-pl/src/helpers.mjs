@@ -104,7 +104,7 @@ export const REFUSALS = [
   {
     line: '9',
     subject: 'Car and truck costs, if you are not using the mileage rate',
-    because: 'Adding up petrol, repairs and depreciation needs the cost of the vehicle and the share of miles that were for business.',
+    because: 'Adding up gas, repairs and depreciation needs the cost of the vehicle and the share of miles that were for business.',
     instead: 'Work out the deduction the way you always do, or use the mileage rate above.',
   },
   {

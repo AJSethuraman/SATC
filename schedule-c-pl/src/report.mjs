@@ -129,10 +129,13 @@ export function answers(result, input) {
   const num = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v))
     ? 'Not answered' : Number(v).toLocaleString('en-US'));
   const veh = input.vehicle || {};
-  return [
+  const rows = [
     { label: 'Accounting method', value: { cash: 'Cash', accrual: 'Accrual', other: 'Other' }[input.accountingMethod] || 'Not answered' },
     { label: 'Worked in the business regularly (line G)', value: yes(input.materiallyParticipated) },
-    { label: 'All the money in it was yours to lose (line 32)', value: input.atRisk === 'all' ? 'Yes' : input.atRisk === 'some' ? 'No — some was not at risk' : 'Not answered' },
+    { label: 'All the money in it was yours to lose (line 32)',
+      value: result.line['31'].cents >= 0 ? 'Does not apply — the year made a profit'
+        : input.atRisk === 'all' ? 'Yes'
+          : input.atRisk === 'some' ? 'No — some was not at risk' : 'Not answered' },
     { label: 'Vehicle first used for business (line 43)', value: veh.placedInService || 'Not answered' },
     { label: 'Business miles (line 44a)', value: num(veh.businessMiles) },
     { label: 'Commuting miles (line 44b)', value: num(veh.commutingMiles) },
@@ -141,9 +144,24 @@ export function answers(result, input) {
     { label: 'Another vehicle available (line 46)', value: yes(veh.anotherVehicle) },
     { label: 'Records kept to back it up (line 47a)', value: yes(veh.evidence) },
     { label: 'Those records are written (line 47b)', value: yes(veh.evidenceWritten) },
-    { label: 'How closing stock was valued (line 33)', value: { cost: 'Cost', lower: 'Lower of cost or market', other: 'Other' }[input.inventory?.method] || 'Not answered' },
-    { label: 'Change in how stock was counted or valued (line 34)', value: yes(input.inventory?.changed) },
   ];
+
+  /* NOT ASKED IS NOT NOT ANSWERED. Lines 33 and 34 have no control anywhere on
+     the page: engine.mjs sets both to null and nothing ever writes to them, so
+     every document this tool has ever produced reported them "Not answered" and
+     no code path could say otherwise -- sending a preparer to chase a client for
+     answers to questions nobody was asked. They now appear only when the filer
+     actually used the stock section, and line 32 says it does not apply on a
+     profit rather than pretending it was skipped. */
+  const heldStock = ['35', '36', '37', '38', '39', '41']
+    .some((id) => result.line[id] && result.line[id].source !== 'empty');
+  if (heldStock) {
+    rows.push(
+      { label: 'How closing stock was valued (line 33)', value: { cost: 'Cost', lower: 'Lower of cost or market', other: 'Other' }[input.inventory?.method] || 'Not answered' },
+      { label: 'Change in how stock was counted or valued (line 34)', value: yes(input.inventory?.changed) },
+    );
+  }
+  return rows;
 }
 
 /** Does a printed column add up to its printed total? In cents it always does.

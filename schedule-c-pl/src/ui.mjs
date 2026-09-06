@@ -272,7 +272,7 @@ export function start(root) {
       });
     };
     draw();
-    return section('Anything else you spent money on', 'Things with no line of their own — software, bank charges, a licence. Schedule C has room for nine; more than that goes on an attached list.', [
+    return section('Anything else you spent money on', 'Things with no line of their own — software, bank charges, a license. Schedule C has room for nine; more than that goes on an attached list.', [
       list,
       el('button', {
         type: 'button', class: 'ghost', text: 'Add another',
@@ -478,7 +478,21 @@ export function start(root) {
           el('span', { text: 'Keep what I have typed on this device' }),
         ]),
         el('p', { class: 'hint', text: 'Off by default. It saves in this browser only, and never leaves it. Do not tick it on a shared or library computer.' }),
-        el('button', { type: 'button', class: 'ghost', text: 'Clear everything', onclick: () => { clearStorage(); window.location.reload(); } }),
+        // The only irreversible control on the page, and it sat three lines under
+        // the download button you came to click, on a panel that follows you
+        // down the page while you type. Ask first.
+        el('button', {
+          type: 'button', class: 'ghost', text: 'Clear everything',
+          onclick: (e) => {
+            const sure = window.confirm(
+              'Clear everything you have typed?\n\n'
+              + 'Your figures, the list of costs, the vehicle answers and any saved '
+              + 'draft all go. This cannot be undone.');
+            if (!sure) { e.preventDefault(); return; }
+            clearStorage();
+            window.location.reload();
+          },
+        }),
       ]),
       el('p', { class: 'handoff' }, [
         el('span', { text: 'Would rather not do this again next year? ' }),
