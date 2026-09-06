@@ -17,6 +17,67 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Sunday 6 September 2026 — the Schedule C tool docket, five for five
+
+Every decision answered. Two took the recommendation, two overruled it, and one
+had already been settled by somebody else while I was idle.
+
+| | Asked | Answered |
+|---|---|---|
+| **D1** | link the tool from satcllp.com | **overruled me** — *"Leave it unlinked for now"* |
+| **D2** | capture `?from=` on an enquiry | *"Add it — you do it in a follow-up"* |
+| **D3** | write the line-by-line guide page | *"You draft it, I will edit"* |
+| **D4** | work out self-employment tax | **overruled me** — *"Keep refusing — it is the handoff point"* |
+| **D5** | the red check on every pull request | *"You fix it in a separate PR"* — already fixed by #296 |
+
+**D4 is the one worth writing down, because it is a conviction rather than a
+task.** I recommended adding self-employment tax in the next version, on the
+grounds that it is the first thing a sole trader actually wants to know. The
+firm:
+
+> *"It is not my concern to fill out a form for them. This is already helpful
+> when free and I would expect them to pay us if they wanted to take it to that
+> step themselves through our own work."*
+
+That is not a scoping preference. It draws a line about **where free help stops
+and paid work starts**, and it applies to every free thing the practice ever
+publishes, not to this tool. It has been put to `bassy` as a candidate
+conviction and is waiting on an explicit yes; nothing has entered
+`CONVICTIONS.md`.
+
+**D5 had already been done by somebody else.** I diagnosed `pytest
+(client-documents)` at 03:45 UTC, reproduced it from source, tested the
+one-line fix and reverted it, then stood down and wrote it up on #295 rather
+than widening that pull request. By the time the answer came back, **#296 had
+landed the identical fix on `main`** — same diagnosis, same `pythonpath = .`,
+arrived at independently. Checked before acting rather than opening a duplicate
+pull request; `main` was merged into #295 instead, so the check goes green
+there.
+
+**What each answer caused**
+
+- **D1** — nothing. No link, no `sitemap.xml` entry. The tool stays reachable
+  only by typing the address.
+- **D2** — #297. The tag is captured once at load, constrained to a plain slug,
+  dropped rather than cleaned when it is not one, absent rather than defaulted
+  when there is none, and written to both the Formspree payload and the
+  `mailto:` fallback. Four checks added to `intake.spec.py`; 36 of 36 pass.
+- **D3** — in progress, after the fixes, per the firm's note: *"Use the walk
+  skill from canon. You can spawn an agent and do it after fixes."*
+- **D4** — the refusal stays. `schedule-c-pl/DECISIONS.md` said self-employment
+  tax was "the strongest v2 candidate"; that line is now wrong and the reason
+  it is wrong is above.
+- **D5** — no new pull request. `main` merged into #295.
+
+**And the reason this file has an entry at all.** The 6 September docket had to
+report that two days of work appeared nowhere in `LOG.md`, `PLAN.md` or
+`BACKLOG.md` — it was all written into `schedule-c-pl/DECISIONS.md` instead,
+which is defensible for the project and useless to the next docket, because the
+docket reads the repository rather than the conversation. Behaviour 14 says
+keep the log where the work is. This is the correction.
+
+---
+
 ## Saturday 5 September 2026 — the docket after the walk, five for five
 
 Every decision answered. Three took the recommendation, one overruled it, and
