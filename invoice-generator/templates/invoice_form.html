@@ -172,20 +172,26 @@
   }
   function addLine(it){ document.getElementById("lines").insertAdjacentHTML("beforeend", rowHTML(it)); recalc(); }
 
+  // Rounds at EVERY step, the way models.Invoice does. Applying the currency's
+  // precision only in toLocaleString left the arithmetic at full float: two
+  // JPY rows of 100.6 previewed a ¥201 subtotal and saved as ¥202, because the
+  // model rounds each line to the yen before summing and this did not.
+  const rnd = n => Number(n.toFixed(DP));
   function recalc(){
     let sub = 0;
     document.querySelectorAll(".lirow").forEach(row => {
       const q = parseFloat(row.querySelector(".qty").value)||0;
       const p = parseFloat(row.querySelector(".price").value)||0;
-      const amt = q*p; sub += amt;
+      const amt = rnd(q*p); sub += amt;
       row.querySelector(".amt").textContent = money(amt);
     });
+    sub = rnd(sub);
     const disc = (parseFloat(document.getElementById("i-disc").value)||0)/100;
     const tax  = (parseFloat(document.getElementById("i-tax").value)||0)/100;
-    const ship = parseFloat(document.getElementById("i-ship").value)||0;
-    const discAmt = sub*disc;
-    const taxAmt = (sub-discAmt)*tax;
-    const total = sub - discAmt + taxAmt + ship;
+    const ship = rnd(parseFloat(document.getElementById("i-ship").value)||0);
+    const discAmt = rnd(sub*disc);
+    const taxAmt = rnd((sub-discAmt)*tax);
+    const total = rnd(sub - discAmt + taxAmt + ship);
     document.getElementById("s-sub").textContent = money(sub);
     document.getElementById("s-tot").textContent = money(total);
   }

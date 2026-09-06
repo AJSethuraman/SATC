@@ -518,3 +518,101 @@ def test_marking_paid_counts_a_payment_another_session_recorded(app, owner):
         assert inv.confirmed_paid == 400.0, "the card payment survived"
         assert inv.manual_paid == 600.0, "and only the shortfall was added"
         assert inv.amount_paid == inv.ledger_total
+
+
+# --- fourth round ---------------------------------------------------------
+
+def test_an_unrecognised_currency_code_is_not_chargeable():
+    """`decimals_for` answers 2 for anything it has never heard of — a sensible
+    display fallback and a terrible basis for a charge. It made every unknown
+    code chargeable, so the allowlist was quietly guessing that an unknown
+    currency uses Stripe's default, which is the exact thing it exists to stop.
+    The JSON API takes a free-text currency, so this was reachable.
+    """
+    from stripe_utils import UnsupportedCurrency, guard_chargeable, is_chargeable
+
+    for bogus in ["XYZ", "ZZZ", "not-a-currency", "US", "USDD"]:
+        assert is_chargeable(bogus) is False, bogus
+        with pytest.raises(UnsupportedCurrency):
+            guard_chargeable(bogus)
+
+    # An ABSENT currency is not an unknown one: everywhere else in the app a
+    # blank currency means USD, and this must not disagree with that.
+    assert is_chargeable("") is True
+    assert is_chargeable(None) is True
+
+
+def test_a_client_is_not_invited_to_pay_in_a_currency_we_refuse(app, owner):
+    """The public page asked only whether the OWNER was set up, so a client
+    holding a refused-currency invoice saw "Pay online in seconds", clicked,
+    and hit a refusal written for the owner."""
+    with app.app_context():
+        user = db.session.get(User, owner)
+        user.stripe_account_id = "acct_test"
+        user.stripe_charges_enabled = True
+        inv = invoice("JPY", [(1, 150000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        invoice_id = inv.id
+
+    from app import make_token
+    with app.app_context():
+        token = make_token(invoice_id, salt="invoice-public")
+    page = app.test_client().get(f"/i/{token}").get_data(as_text=True)
+    assert "Pay" not in page or "pay online" not in page.lower(), (
+        "the client was offered a payment that cannot complete"
+    )
+
+
+def test_the_backfill_keeps_card_money_non_reversible(app, owner):
+    """The D-2 bug, walking back in through the migration.
+
+    An invoice paid by card before the ledger existed carries its Checkout ids
+    in `paid_session_ids`. Labelling that money 'migrated' makes it count as
+    manual and therefore reversible by "mark as unpaid" — and `has_credited`
+    still recognises the legacy session id, so a webhook replay could not
+    restore what the button erased. Exactly what the ledger was built to stop.
+    """
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        inv.amount_paid = 400.0
+        inv.paid_session_ids = "cs_paid_before_the_ledger"
+        db.session.commit()
+        invoice_id = inv.id
+
+        _ensure_schema()
+
+        inv = db.session.get(Invoice, invoice_id)
+        assert len(inv.payments) == 1
+        assert inv.payments[0].source == "stripe", "card money, not 'migrated'"
+        assert inv.confirmed_paid == 400.0
+        assert inv.manual_paid == 0.0
+
+        # and the button cannot touch it
+        assert inv.reverse_manual_payments() == 0.0
+        assert inv.amount_paid == 400.0
+
+
+def test_the_backfill_still_marks_unattributed_money_as_migrated(app, owner):
+    """With no session ids there is no provenance to preserve, and treating an
+    unknown origin as confirmed would let a mistyped total masquerade as a card
+    payment nobody may reverse."""
+    with app.app_context():
+        inv = invoice("USD", [(1, 1000)])
+        inv.user_id = owner
+        db.session.add(inv)
+        db.session.commit()
+        inv.amount_paid = 250.0
+        db.session.commit()
+        invoice_id = inv.id
+
+        _ensure_schema()
+
+        inv = db.session.get(Invoice, invoice_id)
+        assert inv.payments[0].source == "migrated"
+        assert inv.manual_paid == 250.0
+        assert inv.reverse_manual_payments() == 250.0

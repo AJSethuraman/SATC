@@ -12,7 +12,7 @@ bank — not the platform's. The platform optionally takes an
 """
 import stripe
 
-from currencies import decimals_for
+from currencies import decimals_for, get_currency
 
 #: WHICH CURRENCIES THIS ADAPTER WILL CHARGE IN -- an ALLOWLIST, deliberately.
 #:
@@ -67,8 +67,18 @@ class UnsupportedCurrency(RuntimeError):
 
 
 def is_chargeable(currency):
-    """True when this adapter can convert the amount with confidence."""
+    """True when this adapter can convert the amount with confidence.
+
+    THE CODE MUST BE ONE WE KNOW. `decimals_for` answers 2 for anything it has
+    never heard of, which is a sensible display fallback and a terrible basis
+    for a charge: it made every unrecognised code chargeable, so the allowlist
+    was quietly guessing that an unknown currency uses Stripe's default -- the
+    exact thing it exists to stop. The JSON API takes a free-text currency, so
+    this was reachable.
+    """
     code = (currency or "usd").lower()
+    if get_currency(code) is None:
+        return False
     return decimals_for(code) == 2 and code not in DIVERGENT_FROM_ISO
 
 
@@ -79,6 +89,11 @@ def why_not_chargeable(currency):
         return (
             f"Stripe handles {code.upper()} differently from the international "
             "standard, and exactly how could not be confirmed."
+        )
+    if get_currency(code) is None:
+        return (
+            f"{code.upper()} is not a currency code we recognise, so we cannot "
+            "tell how Stripe would interpret the amount."
         )
     places = decimals_for(code)
     if places == 0:

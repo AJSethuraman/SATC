@@ -217,9 +217,23 @@ def _ensure_schema():
     safe_exec([
         "INSERT INTO payments "
         "(invoice_id, amount, currency, source, external_id, note, created_at) "
-        "SELECT id, amount_paid, currency, 'migrated', "
+        # PROVENANCE IS PRESERVED WHERE THE OLD SCHEMA RECORDED IT. An
+        # invoice paid by card before this table existed carries its Checkout
+        # ids in `paid_session_ids`. Labelling that money 'migrated' would make
+        # it count as manual -- and therefore reversible by "mark as unpaid",
+        # which is the exact bug the ledger was built to remove, walking back
+        # in through the migration for every invoice that predates it. Worse,
+        # `has_credited` still recognises the legacy session id, so a webhook
+        # replay could not restore what the button erased.
+        "SELECT id, amount_paid, currency, "
+        "CASE WHEN paid_session_ids IS NOT NULL AND paid_session_ids != '' "
+        "THEN 'stripe' ELSE 'migrated' END, "
         "'migrated:' || CAST(id AS TEXT), "
-        "'Opening balance carried over when the payment ledger was added', "
+        "CASE WHEN paid_session_ids IS NOT NULL AND paid_session_ids != '' "
+        "THEN 'Opening balance carried over when the payment ledger was "
+        "added; confirmed by Stripe before that' "
+        "ELSE 'Opening balance carried over when the payment ledger was "
+        "added' END, "
         "created_at "
         "FROM invoices "
         "WHERE amount_paid > 0 "
@@ -1539,7 +1553,16 @@ def register_routes(app):
     @app.route("/i/<token>")
     def public_invoice(token):
         invoice = _invoice_from_token(token)
-        can_pay = bool(invoice.owner and invoice.owner.can_accept_payments)
+        # AND the currency has to be one we can actually charge. This asked
+        # only whether the OWNER was set up, so a client holding an invoice in
+        # a refused currency was shown "Pay online in seconds", clicked it, and
+        # hit a refusal meant for the owner. Inviting a client to pay and then
+        # failing is worse than never offering.
+        can_pay = bool(
+            invoice.owner
+            and invoice.owner.can_accept_payments
+            and stripe_utils.is_chargeable(invoice.currency)
+        )
         return render_template(
             "public_invoice.html",
             invoice=invoice,
