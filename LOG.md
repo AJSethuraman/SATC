@@ -17,6 +17,57 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Sunday 6 September 2026, small hours — a proposal declined, and the line it drew
+
+Three left on the docket after the night's build. All three answered.
+
+| | Asked | Answered |
+|---|---|---|
+| **D-4** | revive Render, or one of the alternatives | *"I can give an agent a prompt on the forge to do live tests and such via the chrome browser. The walk skill"* |
+| **D-6** | does the Stripe-only settlement go in the convictions file | *"This is not a conviction it's just a business decision"* |
+| **D-7** | does #289 ship | *"Merge it"* |
+
+### D-6 is the one worth keeping
+
+**Recorded as declined, not recorded as C16.** The firm drew the line the whole
+record depends on, and Bassy had blurred it: *"Keep Stripe only"* is a **choice
+they made**, not a thing they **believe**. The reasoning behind it — Stripe
+Connect pays each client into their own account, so the firm's Square is a
+separate concern — is a fact about how the software works, true whichever rail
+they pick next year. A conviction has to be something a future decision could
+contradict. This one cannot be contradicted, only superseded, and superseding
+is what this file is for.
+
+**Where the proposal went wrong, kept because it is the useful part.** It was
+drafted because C15's *how it could be wrong* said the Square/Stripe question
+would "become its own entry" once settled. That was read as *conviction* when
+it meant *written down somewhere*. A settlement being worth recording does not
+make it a belief — and a record that fills up with business decisions is one
+nobody reads for what the firm actually holds to.
+
+canon 1.14.0. Nothing was added to the held list; C16 exists only in the
+declined section, which is what that section is for — the miner will not
+re-propose it, and the gap in the numbering now explains itself.
+
+**One test fell over and deserved to.** `test_a_declined_reason_that_wraps_onto_more_lines_is_read_whole`
+picked the longest declined reason by length and asserted the words C13 ends
+with. Recording a longer decline reddened it — parser fine, entry fine, test
+pinned to a guess. It now names C13 and separately asserts the property for
+every wrapping reason.
+
+### D-4 went somewhere I had not offered
+
+Four options were put up, three of them about paying for hosting. The answer
+was none of them: an agent on the Forge, driving Chrome, with the `walk` skill.
+So the hosting question is **not answered yet and does not need to be** — what
+was being solved was "how do we see this working", and that has a better answer
+than a server.
+
+### D-7
+
+Merged, on the firm's explicit instruction. It also unsticks `main`, which had
+been running zero of client-documents' ~1,499 tests since #288.
+
 ## Saturday 5 September 2026, night — Invoicer comes back, and the last money bug goes
 
 The firm asked for InvoiceHome's front door — *"basically just completely rip

@@ -278,3 +278,11 @@ because the finding was strong and the conclusion still was not the firm's.
 > *You shouldn’t ever touch the website itself. That is another agents job.*
 
 **Not a conviction because:** it was a call about that week's pull requests, not a standing belief. The lane still holds as an instruction; it is not something the firm wants challenged from. Proposed 3 September 2026, declined the next day.
+
+### C16 · declined 2026-09-06 · the docket, D-6 — proposed and declined the same night
+
+> *This is not a conviction it's just a business decision*
+
+**Not a conviction because:** Bassy proposed it, and the firm drew the line the record depends on. *"Keep Stripe only"* is a **choice they made**, not a thing they **believe**: the reasoning behind it — that Stripe Connect pays each client into their own account, so the firm's own Square is a separate concern — is a fact about how the software works, and it will still be true whichever rail they pick next year. A conviction has to be something a future decision could contradict. This cannot be contradicted; it can only be superseded, which is what `LOG.md` is for and where it now lives.
+
+**The proposal's own mistake, kept because it is the useful part.** It was drafted because C15's *how it could be wrong* said the Square/Stripe question would "become its own entry" once settled. That sentence was read as *conviction* when what it meant was *written down somewhere*. A settlement being worth recording does not make it a belief — and a record that fills with business decisions is one nobody reads for what the firm actually holds to.

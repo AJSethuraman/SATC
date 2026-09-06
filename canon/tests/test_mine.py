@@ -385,14 +385,31 @@ def test_a_declined_reason_that_wraps_onto_more_lines_is_read_whole():
     has to prove the record is being read whole.
     """
     text = R.CONVICTIONS.read_text(encoding="utf-8")
-    longest = max(R.parse_declined(text), key=lambda d: len(d.because))
-    assert "\n" in longest.because, (
-        "no declined reason in the record wraps, so this test can no longer "
-        "prove the parser reads past the first line — give it one that does"
+    declined = {d.cid: d for d in R.parse_declined(text)}
+
+    # NAMED, not inferred by length. This picked `max(..., key=len)` and
+    # asserted the winner's closing words, so it broke the day a LONGER
+    # decline was recorded (C16, 6 September 2026) -- the parser was fine and
+    # the new entry was fine; the test had simply pinned "the longest one" to
+    # a sentence only C13 ends with. A test that a correct change can redden
+    # is one people learn to edit rather than read.
+    c13 = declined["C13"]
+    assert "\n" in c13.because, (
+        "C13's reason no longer wraps, so this test can no longer prove the "
+        "parser reads past the first line — point it at one that does"
     )
-    assert longest.because.rstrip().endswith("was not the firm's."), (
+    assert c13.because.rstrip().endswith("was not the firm's."), (
         "the reason was truncated: it should run to its final sentence"
     )
+
+    # And every wrapping reason, whichever they are, is read to its end rather
+    # than to its first line. This is the property; C13 is just the specimen.
+    for cid, d in declined.items():
+        if "\n" not in d.because:
+            continue
+        assert d.because.rstrip().endswith((".", "!", "?")), (
+            f"{cid}'s reason stops mid-sentence: {d.because.rstrip()[-60:]!r}"
+        )
 
 
 def test_a_field_stops_at_the_next_field_and_not_at_bold_prose():
