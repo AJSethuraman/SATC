@@ -13,7 +13,7 @@
    3. Nothing is remembered unless the person ticks the box that says so. The
       warning next to that box is about the library computer, and it means it. */
 
-import { parseMoney, formatCents, formatDollars } from './money.mjs';
+import { parseMoney, formatCents, formatDollars, roundToDollars } from './money.mjs';
 import { compute, emptyReturn } from './engine.mjs';
 import { loadYear, supportedYears } from './years.mjs';
 import { mileage, simplifiedHomeOffice, mealsHalf, netPurchases, REFUSALS } from './helpers.mjs';
@@ -64,6 +64,21 @@ export function start(root) {
       else state.ret.entries[id] = parsed.cents;
     }
     refresh();
+  }
+
+  /* A FIELD THAT DISAPPEARS MUST TAKE ITS VALUE WITH IT.
+     Hiding a section left the figures behind in the return: the walk of
+     6 September 2026 unticked the stock question after typing a paint bill into
+     Part III, and the downloaded PDF still carried a whole Cost of goods sold
+     section -- the same bill counted twice, the profit understated by 12,483.91,
+     with no field anywhere on the page to correct it. The mirror of "blank is
+     not zero": a value with no field is a ghost, and it reaches the document. */
+  function forget(ids) {
+    for (const id of ids) {
+      delete state.ret.entries[id];
+      delete state.raw[id];
+      delete state.errors[id];
+    }
   }
 
   function syncOtherRows() {
@@ -303,7 +318,13 @@ export function start(root) {
     const cogsToggle = el('label', { class: 'toggle' }, [
       el('input', {
         type: 'checkbox', checked: state.showCogs,
-        onchange: (e) => { state.showCogs = e.target.checked; buildForm(); refresh(); },
+        onchange: (e) => {
+          state.showCogs = e.target.checked;
+          // Clearing on the way OUT, not on the way in: the fields are about to
+          // stop existing, and a figure nobody can see or edit still counts.
+          if (!state.showCogs) forget([...COGS_LINES, '41']);
+          buildForm(); refresh();
+        },
       }),
       el('span', { text: 'I buy or make things to sell, and I count stock' }),
     ]);
@@ -327,9 +348,15 @@ export function start(root) {
 
     form.append(section('Working from home', null, [
       choice('homemethod', 'Which way did you work it out?', [['simplified', 'The square-foot method'], ['actual', 'The detailed way, on Form 8829'], ['none', 'I am not claiming it']],
-        () => state.ret.homeOfficeMethod || 'none', (v) => { state.ret.homeOfficeMethod = v === 'none' ? null : v; }),
-      moneyField('30', L('30'), null, homeHelper()),
-    ]));
+        () => state.ret.homeOfficeMethod || 'none', (v) => {
+          state.ret.homeOfficeMethod = v === 'none' ? null : v;
+          // Same bug as the stock box, different block: saying you are not
+          // claiming it has to actually stop it being claimed.
+          if (v === 'none') forget(['30']);
+          buildForm();
+        }),
+      state.ret.homeOfficeMethod ? moneyField('30', L('30'), null, homeHelper()) : null,
+    ].filter(Boolean)));
 
     // These two sections are always built and simply shown or hidden. Rebuilding
     // the form when a figure appears would throw away the caret mid-word, which
@@ -381,7 +408,13 @@ export function start(root) {
       return;
     }
     const dollars = state.ret.rounding === 'dollars';
-    const show = (id) => (out.line[id].source === 'empty' ? '—' : formatDollars(out.line[id].cents, { dollars }));
+    // formatDollars does NOT round -- money.mjs says so in its own comment --
+    // so the panel has to round first, exactly as report.mjs does before
+    // writing a document. Without this the screen read 50,985 while the PDF
+    // read 50,986, and the PDF was right.
+    const show = (id) => (out.line[id].source === 'empty'
+      ? '—'
+      : formatDollars(dollars ? roundToDollars(out.line[id].cents) : out.line[id].cents, { dollars }));
 
     const figures = el('dl', { class: 'figures' }, [
       ...[['Money coming in', '7'], ['Money going out', '28'], ['Working from home', '30']].flatMap(([label, id]) => [
@@ -391,8 +424,20 @@ export function start(root) {
       el('dd', { class: 'big', text: show('31') }),
     ]);
 
+    /* WHAT THE ENGINE CANNOT SEE. Two of these live in the browser, not in the
+       return, so the engine never hears about them and the panel stayed silent:
+       a figure that would not parse (the buttons went dead with no reason given
+       anywhere the reader was looking), and a listed cost with a description and
+       no amount (dropped from the document without a word). */
+    const typos = Object.entries(state.errors)
+      .map(([id, message]) => ({ level: 'blocker', line: id, message: `${message} Until then this line is left out.` }));
+    const halfRows = state.otherRows.filter((r) => r.label.trim() && !parseMoney(r.raw).cents).length;
     const problems = [
+      ...typos,
       ...out.blockers.map((b) => ({ level: 'blocker', message: b.message })),
+      ...(halfRows ? [{ level: 'warn', line: '48', message: halfRows === 1
+        ? 'One thing you listed has no amount, so it is left out.'
+        : `${halfRows} things you listed have no amount, so they are left out.` }] : []),
       ...out.notices,
     ];
     const notices = el('ul', { class: 'notices' }, problems.map((n) => el('li', { class: n.level }, [

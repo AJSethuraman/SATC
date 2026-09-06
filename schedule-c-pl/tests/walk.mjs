@@ -170,6 +170,85 @@ async function main() {
   check(after, 'the invitation to hand it over appears after the file, not before');
   await page.screenshot({ path: join(SHOTS, '05-after-download.png'), fullPage: false });
 
+  // ── the five the walk of 6 September found, each written to go red ──
+  //
+  // Every one of these passed the whole 178-check bar before the fix. They are
+  // browser checks because all five are about what the SCREEN and the FILE say,
+  // which is the half no unit test reaches.
+
+  // Defect 1 · a figure typed under Stock must not outlive its field.
+  await page.check('.block:has-text("Stock and what it cost you") input[type="checkbox"]');
+  await page.fill('#f38', '12483.91');
+  const withStock = (await page.locator('.figures dd.big').textContent()).trim();
+  check(withStock !== net, 'a stock figure changes the profit while the section is open', withStock);
+  await page.uncheck('.block:has-text("Stock and what it cost you") input[type="checkbox"]');
+  const afterUntick = (await page.locator('.figures dd.big').textContent()).trim();
+  check(afterUntick === net, 'and unticking the box takes the figure with it', `it says ${afterUntick}, was ${net}`);
+  {
+    const wait = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download the PDF' }).click();
+    const doc = await readPdf(readFileSync(await (await wait).path()));
+    check(!doc.text.includes('12,483.91'),
+      'and the downloaded PDF carries no ghost of it');
+    // NOT `!includes('Cost of goods sold')` -- that phrase is a LINE LABEL on
+    // lines 4 and 42, which the worksheet prints whether or not they carry a
+    // figure, because printing every line blanks included is what a worksheet
+    // is for. "Goods available" is line 40's label on the STATEMENT only, so
+    // its absence is what actually says the section did not render.
+    check(!doc.text.includes('Goods available'),
+      'and the profit and loss has no cost of goods sold section');
+  }
+
+  // Defect 3 · saying you are not claiming it has to stop it being claimed.
+  await page.check('#homemethod-none');
+  const noHome = await page.locator('.figures dd').nth(2).textContent();
+  check(noHome.trim() === '—', 'choosing "I am not claiming it" drops the home office', noHome);
+  check(await page.locator('.field[data-line="30"]').count() === 0,
+    'and takes its field off the page');
+
+  // Defect 2 · the panel and the document must agree in whole-dollar mode.
+  await page.check('#homemethod-simplified');
+  await page.fill('#f30', '600');
+  // FORCE THE CASE THIS IS ABOUT. Truncating and rounding agree whenever the
+  // cents are under 50, so a run that happens to land there proves nothing --
+  // which is exactly what the first version of this check did. Nudge the profit
+  // until its cents are 50 or more, and say so if that could not be arranged.
+  const centsOf = async () => {
+    const t = (await page.locator('.figures dd.big').textContent()).trim();
+    return Number(t.replace(/[^0-9.]/g, '').split('.')[1] || 0);
+  };
+  if (await centsOf() < 50) await page.fill('#f6', '0.60');
+  check(await centsOf() >= 50,
+    'the whole-dollar check is exercising a figure that rounds up', `cents ${await centsOf()}`);
+
+  await page.check('#rounding-dollars');
+  const panelWhole = (await page.locator('.figures dd.big').textContent()).trim();
+  {
+    const wait = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download the PDF' }).click();
+    const doc = await readPdf(readFileSync(await (await wait).path()));
+    const bare = panelWhole.replace(/[$()]/g, '');
+    check(doc.text.includes(bare),
+      'the whole-dollar profit on screen is the one in the file', `screen ${panelWhole}`);
+  }
+  await page.check('#rounding-cents');
+
+  // Defect 4 · a listed cost with no amount is said out loud, not dropped.
+  await page.getByRole('button', { name: 'Add another' }).click();
+  const lastRow = page.locator('.rows .row').last();
+  await lastRow.locator('input').first().fill('Sign writing for the van');
+  const halfRowPanel = await page.locator('#summary').innerText();
+  check(/no amount/.test(halfRowPanel), 'a listed cost with no amount is reported', halfRowPanel.slice(0, 160));
+
+  // Defect 5 · dead buttons must say which line killed them.
+  await page.fill('#f21', '518.7.5');
+  const deadPanel = await page.locator('#summary').innerText();
+  check(/21/.test(deadPanel) && /numbers only/.test(deadPanel),
+    'a refused figure is named on the panel, not only beside the field', deadPanel.slice(0, 200));
+  check(await page.getByRole('button', { name: 'Download the PDF' }).isDisabled(),
+    'and the download stays disabled while it stands');
+  await page.fill('#f21', '518.75');
+
   // ── a draft is not kept unless asked ────────────────────────────────
   const before = await page.evaluate(() => localStorage.length);
   check(before === 0, 'nothing is stored on the device by default', `${before} keys were written`);
