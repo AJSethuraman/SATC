@@ -294,6 +294,60 @@ def _first_divergence(stored: str, live: str) -> tuple[int, str, str]:
     return len(matched), stopped, around
 
 
+#: How a passage says it left something out. Chosen over a bare "..." because
+#: that occurs inside real IRS prose, and over "…" because a passage carrying a
+#: single character nobody can see is not marking anything to a reader.
+ELLIPSIS = "[...]"
+
+
+def _segments(text: str) -> list:
+    """A stored passage split at its marked omissions.
+
+    WHY A PASSAGE IS EVER ALLOWED TO OMIT ANYTHING. Publication 583 says the
+    statement balance may not agree if the statement "Includes bank charges you
+    did not enter in your books ... , or Does not include deposits made after
+    the statement date". Two branches, opposite answers, one sentence — and
+    #264 found that serving them as one entry is a defect, because a desk asked
+    about an uncleared cheque gets handed the bank-charge branch as well.
+
+    So the split is right. What was wrong until 6 September 2026 is that the
+    second half stored the sentence's opening and then jumped to its own
+    branch with NOTHING SAYING SO, and an answerer reading it had no way to know
+    a branch had been removed. The firm, on the fourth docket: "Mark the
+    omission."
+
+    THE MARK MUST COST SOMETHING OR IT IS DECORATION. A tie-out compares our
+    text against the publisher's, and an unmarked cut simply fails to be found
+    — which is how this was discovered. A marked one is checked segment by
+    segment, in order, so the mark buys honesty rather than an exemption.
+    """
+    return [x for x in (seg.strip() for seg in text.split(normalise(ELLIPSIS)))
+            if x]
+
+
+def elided_match(ours: str, live: str) -> tuple:
+    """`(matched, first_segment_not_found)` for a passage with marked omissions.
+
+    IN ORDER, AND THAT IS THE WHOLE STRICTNESS. Each segment is searched from
+    where the last one ended, so a mark cannot reorder the source, cannot join
+    two passages the document separates the other way round, and cannot cover a
+    word changed inside a segment. Only the material BETWEEN segments is
+    unchecked, which is exactly what the reader is being told to notice.
+
+    Split out of `check` so it can be exercised without a network. `check`
+    fetches, and this repository's desk suite replaces the socket layer
+    outright -- so logic left inline there is logic no test can reach, and the
+    guard would have been a claim about a function nobody could run.
+    """
+    pos = 0
+    for seg in _segments(ours):
+        at = live.find(seg, pos)
+        if at < 0:
+            return False, seg
+        pos = at + len(seg)
+    return True, ""
+
+
 def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]:
     out: list[Line] = []
     fetched: dict[str, tuple[str, str] | Exception] = {}
@@ -330,6 +384,32 @@ def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]
             here = dict(fetched_at=got.at, sha256=got.sha256,
                         doc_bytes=got.nbytes)
             used = got.url
+            # A MARKED OMISSION IS A CLAIM, AND IT IS CHECKED RATHER THAN
+            # EXCUSED. See `_segments` for why the mark exists at all; here is
+            # what it costs. Every segment must appear in the live document AND
+            # IN ORDER, so "[...]" cannot be used to staple together two
+            # passages that the source separates the other way round, nor to
+            # hide a word changed in the middle of a sentence. What it may not
+            # check is what was left out, which is the whole point of asking a
+            # reader to see that something was.
+            if ELLIPSIS in stored:
+                ok, failed = elided_match(ns, nl)
+                if ok:
+                    out.append(Line(desk_name, p.citation, source.id,
+                                    source.title, used, len(ns), "TIED",
+                                    how="elided",
+                                    matched_chars=sum(len(x) for x in _segments(ns)),
+                                    excerpt=_window(nl, _segments(ns)[0][:60],
+                                                    span=900), **here))
+                else:
+                    n, stopped, around = _first_divergence(failed, nl)
+                    out.append(Line(desk_name, p.citation, source.id,
+                                    source.title, used, len(ns), "DIFFERS",
+                                    matched_chars=n, stopped_at=stopped,
+                                    live_around=around,
+                                    excerpt=_window(nl, failed[:max(n, 40)],
+                                                    span=700), **here))
+                continue
             if ns and ns in nl:
                 out.append(Line(desk_name, p.citation, source.id, source.title,
                                 used, len(ns), "TIED", how="exact",
