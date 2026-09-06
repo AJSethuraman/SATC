@@ -47,7 +47,15 @@ HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 
 import ask                                                  # noqa: E402
-import record                                               # noqa: E402
+import record
+
+# THE COMPARISON LIVES IN ONE PLACE AND IT IS NOT THIS FILE. `proving` asks the
+# same question of one served answer that this asks of all 533 passages, and two
+# copies of the folding table would disagree within a week. It is also the only
+# arrangement that lets `proving` be imported at all from a module the test suite
+# reaches: this file fetches, so importing it pulls in `ssl`, and the desk's
+# conftest replaces the socket layer.
+from comparing import ELLIPSIS, FOLD, _segments, elided_match, normalise  # noqa: F401                                               # noqa: E402
 
 #: The regulations are fetched AS OF A DATE and the date is printed on the
 #: exhibit, because "the same period" is one of the four checks. eCFR's versioner
@@ -188,13 +196,6 @@ def _fetch(url: str) -> bytes:
 #: different quote and dash characters between HTML, XML and PDF; that is a
 #: rendering difference and not a difference in what the authority says. Anything
 #: beyond this list would start hiding the differences this exists to find.
-FOLD = {
-    "‘": "'", "’": "'", "“": '"', "”": '"',
-    "–": "-", "—": "-", "−": "-", " ": " ",
-    "′": "'", "ﬁ": "fi", "ﬂ": "fl",
-}
-
-
 def _squash(text: str) -> str:
     """Every space removed, and the soft hyphen a PDF breaks words with.
 
@@ -206,52 +207,6 @@ def _squash(text: str) -> str:
     which is why it is reported separately rather than folded into TIED.
     """
     return re.sub(r"\s+", "", text.replace("\xad", ""))
-
-
-def normalise(text: str) -> str:
-    text = unicodedata.normalize("NFKC", text)
-    for bad, good in FOLD.items():
-        text = text.replace(bad, good)
-    return " ".join(text.split())
-
-
-@dataclass
-class Line:
-    """One passage, and what happened when it was put to its publisher."""
-    desk: str
-    citation: str
-    source_id: str
-    source_title: str
-    url: str
-    stored_chars: int
-    verdict: str                      # TIED | DIFFERS | COULD NOT
-    #: HOW it tied, and it is reported rather than collapsed. "exact" means the
-    #: publisher's characters, after only the typographic folding declared in
-    #: FOLD. "spacing" means it tied only once whitespace was ignored -- which is
-    #: honest for a PDF, where the extractor invents spaces inside words
-    #: ("Y ou", "infor-\nmation"), and for an HTML page whose block markup falls
-    #: inside a sentence. A reader is entitled to know which of the two it was.
-    how: str = ""
-    obstacle: str = ""
-    #: The longest run of the stored text that IS in the live document, and the
-    #: first word where it stops. A DIFFERS that cannot say where it differs is
-    #: an assertion.
-    matched_chars: int = 0
-    stopped_at: str = ""
-    live_around: str = ""
-    #: THE CAPTURE, AND WHY IT IS A HASH RATHER THAN A PHOTOGRAPH. The skill asks
-    #: for the source screenshotted with the figure visible. Attempted and it
-    #: does not work here: this machine's browser cannot reach the publishers
-    #: even when pointed at the egress proxy (ERR_CONNECTION_RESET), while the
-    #: HTTP client can. So the capture is the document itself -- its SHA-256, its
-    #: length, the moment it was fetched, and the publisher's own words around
-    #: the match, quoted rather than described. For text this is the stronger
-    #: evidence: a reader re-fetches the URL, recomputes the hash and gets the
-    #: same digits, which is a check a screenshot cannot offer.
-    fetched_at: str = ""
-    sha256: str = ""
-    doc_bytes: int = 0
-    excerpt: str = ""
 
 
 def _window(live: str, needle: str, *, span: int = 260) -> str:
@@ -294,58 +249,44 @@ def _first_divergence(stored: str, live: str) -> tuple[int, str, str]:
     return len(matched), stopped, around
 
 
-#: How a passage says it left something out. Chosen over a bare "..." because
-#: that occurs inside real IRS prose, and over "…" because a passage carrying a
-#: single character nobody can see is not marking anything to a reader.
-ELLIPSIS = "[...]"
+@dataclass
+class Line:
+    """One passage, and what happened when it was put to its publisher."""
+    desk: str
+    citation: str
+    source_id: str
+    source_title: str
+    url: str
+    stored_chars: int
+    verdict: str                      # TIED | DIFFERS | COULD NOT
+    #: HOW it tied, and it is reported rather than collapsed. "exact" means the
+    #: publisher's characters, after only the typographic folding declared in
+    #: FOLD. "spacing" means it tied only once whitespace was ignored -- which is
+    #: honest for a PDF, where the extractor invents spaces inside words
+    #: ("Y ou", "infor-\nmation"), and for an HTML page whose block markup falls
+    #: inside a sentence. A reader is entitled to know which of the two it was.
+    how: str = ""
+    obstacle: str = ""
+    #: The longest run of the stored text that IS in the live document, and the
+    #: first word where it stops. A DIFFERS that cannot say where it differs is
+    #: an assertion.
+    matched_chars: int = 0
+    stopped_at: str = ""
+    live_around: str = ""
+    #: THE CAPTURE, AND WHY IT IS A HASH RATHER THAN A PHOTOGRAPH. The skill asks
+    #: for the source screenshotted with the figure visible. Attempted and it
+    #: does not work here: this machine's browser cannot reach the publishers
+    #: even when pointed at the egress proxy (ERR_CONNECTION_RESET), while the
+    #: HTTP client can. So the capture is the document itself -- its SHA-256, its
+    #: length, the moment it was fetched, and the publisher's own words around
+    #: the match, quoted rather than described. For text this is the stronger
+    #: evidence: a reader re-fetches the URL, recomputes the hash and gets the
+    #: same digits, which is a check a screenshot cannot offer.
+    fetched_at: str = ""
+    sha256: str = ""
+    doc_bytes: int = 0
+    excerpt: str = ""
 
-
-def _segments(text: str) -> list:
-    """A stored passage split at its marked omissions.
-
-    WHY A PASSAGE IS EVER ALLOWED TO OMIT ANYTHING. Publication 583 says the
-    statement balance may not agree if the statement "Includes bank charges you
-    did not enter in your books ... , or Does not include deposits made after
-    the statement date". Two branches, opposite answers, one sentence — and
-    #264 found that serving them as one entry is a defect, because a desk asked
-    about an uncleared cheque gets handed the bank-charge branch as well.
-
-    So the split is right. What was wrong until 6 September 2026 is that the
-    second half stored the sentence's opening and then jumped to its own
-    branch with NOTHING SAYING SO, and an answerer reading it had no way to know
-    a branch had been removed. The firm, on the fourth docket: "Mark the
-    omission."
-
-    THE MARK MUST COST SOMETHING OR IT IS DECORATION. A tie-out compares our
-    text against the publisher's, and an unmarked cut simply fails to be found
-    — which is how this was discovered. A marked one is checked segment by
-    segment, in order, so the mark buys honesty rather than an exemption.
-    """
-    return [x for x in (seg.strip() for seg in text.split(normalise(ELLIPSIS)))
-            if x]
-
-
-def elided_match(ours: str, live: str) -> tuple:
-    """`(matched, first_segment_not_found)` for a passage with marked omissions.
-
-    IN ORDER, AND THAT IS THE WHOLE STRICTNESS. Each segment is searched from
-    where the last one ended, so a mark cannot reorder the source, cannot join
-    two passages the document separates the other way round, and cannot cover a
-    word changed inside a segment. Only the material BETWEEN segments is
-    unchecked, which is exactly what the reader is being told to notice.
-
-    Split out of `check` so it can be exercised without a network. `check`
-    fetches, and this repository's desk suite replaces the socket layer
-    outright -- so logic left inline there is logic no test can reach, and the
-    guard would have been a claim about a function nobody could run.
-    """
-    pos = 0
-    for seg in _segments(ours):
-        at = live.find(seg, pos)
-        if at < 0:
-            return False, seg
-        pos = at + len(seg)
-    return True, ""
 
 
 def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]:

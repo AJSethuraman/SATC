@@ -66,6 +66,7 @@ REASONS = (
     "context_not_on_file",      # the rule needs a fact the FILE should hold. not the client.
     "no_field_for_this_fact",   # nobody ever decided this should be written down
     "client_rule_governs",      # the file records the firm's own call for THIS client
+    "authority_has_moved",      # the publisher no longer carries what we stored
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
@@ -255,6 +256,15 @@ class Served:
     #: an empty caveat and an absent one must not look alike, so the flag is what
     #: is tested and this is what is shown.
     caveat: str = ""
+    #: A `proving.Proof` when the caller asked for one, and None when they did
+    #: not. Typed loosely on purpose: `proving` imports the record and reaches
+    #: the network, and this module must do neither. THE ENGINE NEVER SETS THIS.
+    #: It is attached by `ask.answer` after `serve` has already decided, so the
+    #: rule that verification reads stored text is not bent to carry it.
+    #:
+    #: None means NOT ASKED FOR, never "asked for and fine". A proof that could
+    #: not be taken is a `Proof` with verdict COULD NOT, and it says so.
+    proof: object = None
 
 
 @dataclass(frozen=True)

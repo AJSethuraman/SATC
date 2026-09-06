@@ -437,7 +437,11 @@ def test_a_refusal_reaching_outside_the_desk_is_not_counted_as_a_near_miss(tmp_p
 #: of the field is that the choice is not the brain's.
 UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
                 "contradicts_ratified_position", "model_gave_up",
-                "client_rule_governs", "no_field_for_this_fact"}
+                "client_rule_governs", "no_field_for_this_fact",
+                # A brain cannot know the publisher changed its page: nothing it
+                # is shown comes from the publisher. Only `proving` can raise it,
+                # and only with a transport in hand.
+                "authority_has_moved"}
 
 
 def test_a_brain_is_offered_every_reason_it_could_observe():

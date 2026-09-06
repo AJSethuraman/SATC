@@ -112,13 +112,26 @@ def brief(question: str, desk: record.Desk,
 def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", desks: Path = DESKS, keep: bool = True,
-           context: record.Context | None = None):
+           context: record.Context | None = None, prove=None):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
     because the queue is the only thing that says what the record is missing, and
     a refusal thrown away is a finding destroyed. Pass `keep=False` only when
     measuring, never when answering.
+
+    `prove` IS A TRANSPORT, NOT A FLAG, and that is deliberate. The firm asked
+    for this on the fourth docket -- *"the agents tie out their position to
+    prove it to the desk"* -- and a boolean would mean this function reaches the
+    network whenever something, somewhere, is configured true. Pass a callable
+    and it is fetched; pass nothing and nothing is fetched, which is what the
+    whole suite passes.
+
+    The gate runs FIRST and is unchanged. A proof is taken only on an answer the
+    engine already agreed to serve, so this can add a refusal and can never
+    remove one. Where the publisher no longer carries the passage the answer is
+    withdrawn (`authority_has_moved`); where the publisher could not be reached
+    the answer stands and says the proof could not be taken.
     """
     desk = record.load(desks / desk_name)
     # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
@@ -136,6 +149,22 @@ def answer(question: str, desk_name: str, *, position: str = "",
                                  working=working)
 
     out = engine.serve(proposed, desk, question=question, context=context)
+    if prove is not None and isinstance(out, engine.Served):
+        import dataclasses
+
+        import proving
+        p = proving.prove(out, desk, prove)
+        if p.verdict == proving.DIFFERS:
+            out = engine.Refusal(
+                proving.MOVED,
+                f"{out.citation!r} resolves in this desk's record, and the "
+                f"publisher no longer carries it: {p.note}. The record is the "
+                f"only witness to that text, which is not enough to serve it on",
+                ask=f"Re-read {p.url or out.citation} and bring the stored "
+                    f"passage back into line with it, or retire the citation. "
+                    f"Until then this desk has no authority for the answer.")
+        else:
+            out = dataclasses.replace(out, proof=p)
     if isinstance(out, engine.Refusal) and keep:
         path = desks / desk_name / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
