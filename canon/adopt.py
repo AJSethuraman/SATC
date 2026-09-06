@@ -201,6 +201,22 @@ def read_repo(repo: Path, *, limit: int = 400, within: str = "") -> Reading:
                          f"from other branches — this history is squashed or "
                          f"this branch is behind, and the reading is that much "
                          f"thinner than it looks")
+    # A SHALLOW CLONE HAS NO DENOMINATOR AT ALL, and this reported one anyway.
+    # `git log --all` is grafted at the clone's depth too, so `everywhere`
+    # equals what was read and the branch check above stays silent: the report
+    # said "9 of 9 commit(s) read" for a folder whose real history is longer,
+    # and 9 of 9 reads as "all of it". Found by pointing the adopter at
+    # `invoice-generator` in a cloud session, where every checkout is shallow.
+    #
+    # There is no way to learn the true count without fetching, and adoption
+    # does not touch the network. So the number is not corrected -- it is
+    # withdrawn as a denominator, which is the honest version.
+    if _git(repo, "rev-parse", "--is-shallow-repository").strip() == "true":
+        unread.insert(0, "however much history is behind this clone's graft "
+                         "point — it is SHALLOW, so the count above is what "
+                         "this checkout holds and not what the project has. "
+                         "`git fetch --unshallow` and read it again before "
+                         "treating the denominator as one")
     stamps = sorted(c.when for c in commits) or ["—", "—"]
     return Reading(project=within or root.name, commits=tuple(commits),
                    reachable=everywhere, docs=docs, unread=tuple(unread),

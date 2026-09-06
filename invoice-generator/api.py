@@ -111,9 +111,19 @@ def _populate_invoice_from_json(invoice, data):
     invoice.shipping, ok = parse_money(data.get("shipping"), 0.0)
     if not ok:
         errors.append("shipping must be a finite number.")
-    invoice.amount_paid, ok = parse_money(data.get("amount_paid"), 0.0)
+    # Parsed, refused, and only THEN recorded -- the refusal has to happen on
+    # the requested figure, because `set_manual_paid_total` floors a negative
+    # at the confirmed total and a floored value would look valid by the time
+    # `_validate` saw it.
+    requested_paid, ok = parse_money(data.get("amount_paid"), 0.0)
     if not ok:
         errors.append("amount_paid must be a finite number.")
+    elif requested_paid < 0:
+        errors.append("amount_paid cannot be negative.")
+    elif requested_paid:
+        invoice.set_manual_paid_total(
+            requested_paid, note="Recorded when the invoice was created"
+        )
 
     invoice.notes = str(data.get("notes", "")).strip()
     invoice.terms = str(data.get("terms", "")).strip()
@@ -302,8 +312,20 @@ def create_invoice():
             warnings.append(warning)
 
     # Pre-render the PDF so pdf_url works immediately.
+    #
+    # WITH THE PAY URL, because round six removed `_render_invoice_html`'s
+    # "fall back to `invoice.stripe_payment_url`" behaviour — correctly, since
+    # that resurrected stale links the caller had just refused — and these two
+    # API paths were passing nothing. An invoice created with
+    # `create_payment_link: true` was then rendered with no payment section at
+    # all. `pay_url_for` is the same gated durable link the browser routes use.
     try:
-        generate_pdf(current_app._get_current_object(), invoice)
+        from app import pay_url_for
+
+        generate_pdf(
+            current_app._get_current_object(), invoice,
+            pay_url=pay_url_for(invoice),
+        )
     except Exception as exc:  # pragma: no cover - rendering env issues
         warnings.append(f"PDF generation deferred: {exc}")
 
@@ -354,10 +376,13 @@ def invoice_pdf(invoice_id):
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
 
-    from app import generate_pdf
+    from app import generate_pdf, pay_url_for
 
     try:
-        out_path = generate_pdf(current_app._get_current_object(), invoice)
+        out_path = generate_pdf(
+            current_app._get_current_object(), invoice,
+            pay_url=pay_url_for(invoice),
+        )
     except RuntimeError as exc:
         return jsonify(error=str(exc)), 503
     return send_file(

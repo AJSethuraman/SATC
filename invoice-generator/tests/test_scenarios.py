@@ -138,7 +138,7 @@ def sent_mail(monkeypatch):
     outbox = []
 
     def fake_send(config, to_email, invoice, pdf_path, payment_url=None,
-                  html_body=None, user=None):
+                  html_body=None, user=None, view_url=None):
         outbox.append(
             {
                 "to": to_email,
@@ -216,6 +216,15 @@ def _snapshot(invoice):
         paid_session_ids=invoice.paid_session_ids,
         client_email=invoice.client_email,
         item_count=len(invoice.items),
+        # The payment ledger. Read here for the same reason the totals are:
+        # `payments` is a relationship, and it is unreachable once the app
+        # context closes.
+        ledger_total=invoice.ledger_total,
+        confirmed_paid=invoice.confirmed_paid,
+        manual_paid=invoice.manual_paid,
+        payments=[
+            (p.amount, p.source, p.external_id) for p in invoice.payments
+        ],
     )
 
 
@@ -419,7 +428,11 @@ def test_duplicate_webhook_delivery_does_not_double_credit(app, client):
     invoice = reload_invoice(app, invoice_id)
     assert invoice.amount_paid == 1100.00
     assert invoice.balance_due == 0.0
-    assert invoice.paid_session_ids == "cs_test_retried"
+    # ONE ledger entry for three deliveries. The idempotency key moved from a
+    # comma-joined string on the invoice to the entry's own `external_id`
+    # when the ledger landed; the behaviour it guards is unchanged.
+    assert invoice.payments == [(1100.00, "stripe", "cs_test_retried")]
+    assert invoice.ledger_total == invoice.amount_paid
 
 
 def test_webhook_with_a_bad_signature_is_rejected(app, client):
@@ -678,19 +691,20 @@ def test_overdue_outranks_partial_on_the_badge(app, client):
     assert "INV-0001" in history
 
 
-def test_mark_unpaid_erases_a_recorded_stripe_payment(app, client):
-    """Documents that "mark as unpaid" zeroes real, Stripe-confirmed money.
+def test_mark_unpaid_cannot_erase_a_stripe_confirmed_payment(app, client):
+    """"Mark as unpaid" reverses what a person typed, and nothing else.
 
-    Current behaviour, pinned deliberately. ``mark_unpaid`` exists to reverse a
-    manual "mark as paid", but it cannot tell a manual entry from a webhook
-    credit: it sets ``amount_paid`` to 0 outright. A 400.00 card payment that
-    Stripe really took is erased, and because its session id stays in
-    ``paid_session_ids`` the webhook will never re-credit it — the money cannot
-    be recovered by any action in the app.
+    THIS TEST USED TO ASSERT THE OPPOSITE, deliberately, under the name
+    ``test_mark_unpaid_erases_a_recorded_stripe_payment``. It pinned the
+    defect: `mark_unpaid` set ``amount_paid = 0`` outright, so a 400.00 card
+    payment Stripe had really taken was erased by one click -- and erased
+    permanently, because the spent session id stayed in ``paid_session_ids``
+    and the webhook would never re-credit it. Its docstring said: "Once
+    payments are recorded individually, it SHOULD fail -- rewrite it to assert
+    the Stripe-confirmed 400.00 survives." This is that rewrite.
 
-    This test is a tripwire, not an endorsement. Once payments are recorded
-    individually (see docs/invoicer-review.md), it SHOULD fail — rewrite it to
-    assert the Stripe-confirmed 400.00 survives.
+    A card payment is a fact about the world. Reversing one is a refund, which
+    happens at the processor.
     """
     make_invoice(client)
     invoice_id = only_invoice(app).id
@@ -700,12 +714,40 @@ def test_mark_unpaid_erases_a_recorded_stripe_payment(app, client):
     client.post(f"/invoice/{invoice_id}/mark-unpaid")
 
     after = reload_invoice(app, invoice_id)
-    assert after.amount_paid == 0.0, "the real 400.00 is gone"
-    assert "cs_test_cardpayment" in after.paid_session_ids
+    assert after.amount_paid == 400.00, "the real 400.00 survives the button"
+    assert after.confirmed_paid == 400.00
+    assert after.manual_paid == 0.0
+    assert after.display_status == "Partial", "reopened, but not to zero"
+    assert after.balance_due == 1100.00 - 400.00
 
-    # Replaying the original webhook cannot bring it back.
+    # The entry itself is still there and still says where the money came from.
+    assert after.payments == [(400.00, "stripe", "cs_test_cardpayment")]
+
+    # And a replayed webhook still does not double-count it.
     post_webhook(app, checkout_event(invoice_id, "cs_test_cardpayment", 40000))
-    assert reload_invoice(app, invoice_id).amount_paid == 0.0
+    replayed = reload_invoice(app, invoice_id)
+    assert replayed.amount_paid == 400.00
+    assert len(replayed.payments) == 1
+
+
+def test_mark_unpaid_does_reverse_a_manual_mark_paid(app, client):
+    """The thing the button is actually for still works.
+
+    Reversing is an ENTRY, not a deletion: the original stays legible, so
+    "this was marked paid in error" remains an answerable question.
+    """
+    make_invoice(client)
+    invoice_id = only_invoice(app).id
+    client.post(f"/invoice/{invoice_id}/mark-paid")
+    assert reload_invoice(app, invoice_id).amount_paid == 1100.00
+
+    client.post(f"/invoice/{invoice_id}/mark-unpaid")
+
+    after = reload_invoice(app, invoice_id)
+    assert after.amount_paid == 0.0
+    assert after.display_status == "Sent"
+    assert [p[1] for p in after.payments] == ["manual", "reversal"]
+    assert [p[0] for p in after.payments] == [1100.00, -1100.00]
 
 
 def test_deleting_an_invoice_removes_its_line_items(app, client):

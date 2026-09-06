@@ -13,12 +13,15 @@ import logging
 import math
 import mimetypes
 import os
+import re
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
 from flask import (
     Flask,
+    Response,
     abort,
     current_app,
     flash,
@@ -39,11 +42,20 @@ from flask_login import (
 )
 from flask_wtf import CSRFProtect
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.exc import IntegrityError
 from markupsafe import Markup, escape
 
 import email_utils
 import stripe_utils
 from config import Config
+from currencies import (
+    CURRENCY_CHOICES,
+    CURRENCIES,
+    decimals_for,
+    format_unit_price,
+    symbol_for,
+)
+from designs import DEFAULT_DESIGN, FAMILIES, all_designs, resolve
 from helpers import (
     currency_symbol,
     format_money,
@@ -159,6 +171,102 @@ def _ensure_schema():
         )
     if not column_exists("invoices", "client_email"):
         safe_exec(["ALTER TABLE invoices ADD COLUMN client_email VARCHAR(255)"])
+    # The design gallery (designs.py). Both are nullable with no backfill:
+    # designs.resolve(None) returns the pre-gallery look, so an existing row
+    # needs no value to keep printing exactly as it always did. Nullable is
+    # also what makes these safe under a rolling deploy — gunicorn runs two
+    # workers and _ensure_schema runs per worker at boot, so for a moment one
+    # worker is inserting rows without these columns.
+    #
+    # NOTE FOR THE NEXT COLUMN: this function knows nothing about the models.
+    # It ALTERs only the names hardcoded here, and db.create_all() creates
+    # missing TABLES but never alters an existing one. A column added to
+    # models.py without a block here brings down every query against the table
+    # in production Postgres with UndefinedColumn, while passing every local
+    # test on a SQLite file that was created fresh from the models.
+    if not column_exists("invoices", "design"):
+        safe_exec(["ALTER TABLE invoices ADD COLUMN design VARCHAR(64)"])
+    if not column_exists("invoices", "doc_title"):
+        safe_exec(["ALTER TABLE invoices ADD COLUMN doc_title VARCHAR(40)"])
+
+    # THE PAYMENT LEDGER'S OPENING BALANCES.
+    #
+    # `db.create_all()` above makes the `payments` table itself -- it creates
+    # missing TABLES, which is why this one needs no ALTER while a new COLUMN
+    # does. What it cannot do is populate it, and an invoice carrying
+    # amount_paid = 400 with an empty ledger would read as unpaid the moment
+    # anything asked the ledger instead of the cache. So every invoice that
+    # already has money against it gets one entry standing for it.
+    #
+    # `source = 'migrated'` rather than 'manual' because that is what it is:
+    # a figure carried over, whose origin (card, cheque, mark-as-paid) the old
+    # schema did not record and this cannot invent. It counts as manual for
+    # reversal, since treating an unknown origin as confirmed would let a
+    # mistyped total masquerade as a card payment nobody may reverse.
+    #
+    # Idempotent by the NOT IN: once an invoice has any ledger row it is
+    # skipped, so this is safe to run per worker at every boot, which is
+    # exactly how _ensure_schema runs.
+    # The NOT IN alone is NOT a guard against two workers doing this at once:
+    # both can read an empty payments table and both insert a full set, and the
+    # doubled ledger then synchronises amount_paid to twice what was paid. The
+    # synthetic `migrated:<id>` reference is what lets the unique constraint on
+    # (invoice_id, external_id) catch the second one -- its INSERT violates the
+    # constraint, safe_exec rolls the whole statement back, and exactly one set
+    # survives. The NOT IN stays so the ordinary re-boot is a no-op rather than
+    # a caught exception.
+    # THIS RUNS BEFORE THE LEDGER BACKFILL BELOW, AND THE ORDER IS THE POINT.
+    # It fills the idempotency key for invoices credited from a Stripe session
+    # before that column existed, so a post-deploy webhook retry of the same
+    # session is not counted twice.
+    #
+    # It used to run a hundred lines further down, after the ledger backfill,
+    # and on one upgrade path that was wrong in a way that costs money.
+    # Upgrading from a schema with no `paid_session_ids` at all, the ALTER adds
+    # it as NULL; the ledger backfill then read that NULL, found no
+    # provenance, and wrote a card payment as a REVERSIBLE 'migrated' entry;
+    # only afterwards did this statement fill the column in. "Mark as unpaid"
+    # could then erase money Stripe had confirmed, and `has_credited` — reading
+    # the column this had by then populated — refused the webhook replay that
+    # would have restored it. That is the D-2 bug the ledger was built to
+    # remove, back again through a second door.
+    #
+    # Idempotent: it only fills blanks. Raised by Codex on PR #289, round ten.
+    if column_exists("invoices", "paid_session_ids"):
+        safe_exec(
+            [
+                "UPDATE invoices SET paid_session_ids = stripe_session_id "
+                "WHERE stripe_session_id IS NOT NULL "
+                "AND (paid_session_ids IS NULL OR paid_session_ids = '') "
+                "AND (status = 'Paid' OR amount_paid > 0)"
+            ]
+        )
+
+    safe_exec([
+        "INSERT INTO payments "
+        "(invoice_id, amount, currency, source, external_id, note, created_at) "
+        # PROVENANCE IS PRESERVED WHERE THE OLD SCHEMA RECORDED IT. An
+        # invoice paid by card before this table existed carries its Checkout
+        # ids in `paid_session_ids`. Labelling that money 'migrated' would make
+        # it count as manual -- and therefore reversible by "mark as unpaid",
+        # which is the exact bug the ledger was built to remove, walking back
+        # in through the migration for every invoice that predates it. Worse,
+        # `has_credited` still recognises the legacy session id, so a webhook
+        # replay could not restore what the button erased.
+        "SELECT id, amount_paid, currency, "
+        "CASE WHEN paid_session_ids IS NOT NULL AND paid_session_ids != '' "
+        "THEN 'stripe' ELSE 'migrated' END, "
+        "'migrated:' || CAST(id AS TEXT), "
+        "CASE WHEN paid_session_ids IS NOT NULL AND paid_session_ids != '' "
+        "THEN 'Opening balance carried over when the payment ledger was "
+        "added; confirmed by Stripe before that' "
+        "ELSE 'Opening balance carried over when the payment ledger was "
+        "added' END, "
+        "created_at "
+        "FROM invoices "
+        "WHERE amount_paid > 0 "
+        "AND id NOT IN (SELECT invoice_id FROM payments)"
+    ])
     if not column_exists("invoices", "stripe_account_id"):
         safe_exec(
             ["ALTER TABLE invoices ADD COLUMN stripe_account_id VARCHAR(64)"]
@@ -194,19 +302,9 @@ def _ensure_schema():
     ]:
         if not column_exists("users", col):
             safe_exec([ddl])
-    # Backfill the idempotency key for invoices already credited from a Stripe
-    # session before this column existed, so a post-deploy webhook retry of
-    # that same session isn't counted again. Idempotent (only fills blanks);
-    # kept separate so a failure can't roll back the grandfather updates.
-    if column_exists("invoices", "paid_session_ids"):
-        safe_exec(
-            [
-                "UPDATE invoices SET paid_session_ids = stripe_session_id "
-                "WHERE stripe_session_id IS NOT NULL "
-                "AND (paid_session_ids IS NULL OR paid_session_ids = '') "
-                "AND (status = 'Paid' OR amount_paid > 0)"
-            ]
-        )
+    # (The `paid_session_ids` backfill that used to sit here now runs BEFORE
+    # the ledger backfill above, because the ledger reads it. See the comment
+    # there.)
 
     # Grandfather any pre-existing accounts regardless of which worker added
     # the columns (idempotent; only touches rows left NULL by ALTER). This is
@@ -285,7 +383,20 @@ def create_app(config_class=Config):
         return db.session.get(User, int(user_id))
 
     app.jinja_env.globals.update(
-        format_money=format_money, currency_symbol=currency_symbol
+        format_money=format_money,
+        currency_symbol=currency_symbol,
+        # The 157-currency table. `currency_symbol` only knows 14 and returns
+        # an empty string for anything else, which would print a bare number
+        # with no indication of what money it is.
+        symbol_for=symbol_for,
+        # The unit-price column only: a rate may carry more precision than
+        # the currency, and clamping it makes the row fail to multiply out.
+        format_unit_price=format_unit_price,
+        places_for=decimals_for,
+        # So a page can say why online payment is unavailable instead of
+        # offering a button that fails.
+        is_chargeable=stripe_utils.is_chargeable,
+        why_not_chargeable=stripe_utils.why_not_chargeable,
     )
     app.jinja_env.filters["nl2br"] = nl2br
     app.jinja_env.filters["fmtdate"] = fmtdate
@@ -308,11 +419,106 @@ def create_app(config_class=Config):
 # --------------------------------------------------------------------------
 # Form handling
 # --------------------------------------------------------------------------
+def _restate_status(invoice):
+    """Bring the stored status back in line with what has been paid.
+
+    `status` IS STORED, NOT DERIVED, so every path that can move either side of
+    the balance has to say so. Two directions:
+
+    * An edit can raise the total above what has already been paid — add a line
+      item to a settled invoice, remove a discount, bump a rate. Left alone the
+      invoice keeps showing "Paid" while money is owed, and the History KPIs
+      skip it, because outstanding only sums invoices whose status != "Paid".
+      Reopening it makes the balance visible and chaseable.
+      (tests/test_scenarios.py::test_editing_a_paid_invoice_upward_reopens_it)
+
+    * An invoice can arrive already settled. The generator has an "amount paid"
+      box, so somebody recording an invoice they were paid on the spot fills in
+      the full amount and presses Save — and it was stored as a Draft with a
+      zero balance, counted as neither paid nor outstanding. Same on the
+      ordinary create form. This was three copies of the same three lines in
+      the edit path only; now it is one function every writing path calls.
+      (Raised by Codex on PR #289, round five.)
+
+    Partial payment is deliberately NOT a status: `display_status` derives
+    "Partial" from the ledger, so a part-paid Draft still reads correctly.
+    """
+    if invoice.balance_due > 0 and invoice.status == "Paid":
+        invoice.status = "Sent"
+    elif (
+        invoice.status != "Paid"
+        and (invoice.amount_paid or 0) > 0
+        and invoice.balance_due <= 0
+    ):
+        invoice.status = "Paid"
+
+
+#: An SVG's own namespace declaration is an http URL — `xmlns=
+#: "http://www.w3.org/2000/svg"` is mandatory — so "contains http" rejects
+#: every valid SVG ever uploaded. Namespace URIs are identifiers, never
+#: fetched, so they come out before anything is scanned. The first version of
+#: this check did not do that and silently dropped every logo; its own test
+#: caught it before it left the branch.
+_SVG_XMLNS = re.compile(r"""\sxmlns(:[\w.-]+)?\s*=\s*("|')[^"']*\2""", re.I)
+
+#: A reference a renderer would actually dereference. `data:` is a logo
+#: embedded in the file itself and `#fragment` points inside the same
+#: document; every other value goes somewhere, and "somewhere" is the problem.
+_SVG_REF = re.compile(
+    r"""(?:xlink:href|href|src)\s*=\s*("|')\s*(?!data:|\#)[^"']*\1""", re.I
+)
+
+#: `url(...)` in a style or a fill, doing the same thing by another spelling.
+_SVG_URL_FN = re.compile(r"""url\(\s*("|')?\s*(?!\#|data:)[A-Za-z0-9./\\]""")
+
+#: Constructs a logo has no use for at all.
+_SVG_FORBIDDEN = (
+    "<script", "javascript:", "<foreignobject", "<iframe", "<embed",
+    "<!entity", "<!doctype", "<?xml-stylesheet",
+)
+
+
+def _svg_reaches_outside(data):
+    """True if an SVG references anything beyond itself.
+
+    Deliberately blunt, and deliberately the SECOND layer. The real boundary
+    is `pdf._no_network_fetcher`, which refuses every non-`data:` URL at the
+    moment of fetch and therefore covers obfuscations this never will — an
+    entity-encoded scheme, say. This one turns a hostile upload away at the
+    door rather than storing it and trusting it to stay inert, and it makes
+    the refusal cheap.
+
+    What counts as reaching outside: an `href`/`src`/`xlink:href` that is
+    neither a `data:` URI nor a same-document `#fragment`; a `url(...)` doing
+    the same; or any of the constructs above.
+    """
+    try:
+        text = data.decode("utf-8", errors="ignore")
+    except Exception:
+        return True
+    if any(bad in text.lower() for bad in _SVG_FORBIDDEN):
+        return True
+    stripped = _SVG_XMLNS.sub(" ", text)
+    return bool(_SVG_REF.search(stripped) or _SVG_URL_FN.search(stripped))
+
+
 def _read_logo(file_storage):
     """Return (bytes, mimetype) for a valid uploaded logo, or (None, None).
 
     Raster images are verified with Pillow so a corrupt file can't get stored
-    and later break PDF rendering. SVGs are passed through unchecked.
+    and later break PDF rendering.
+
+    SVGs USED TO BE PASSED THROUGH UNCHECKED, and that stopped being tolerable
+    when `/generator/pdf` began accepting uploads with no login: an SVG is a
+    document, WeasyPrint resolves what a document points at, and the fetch
+    happens on the application server. `<image href="http://169.254.169.254/">`
+    in an uploaded logo is an unauthenticated SSRF, with the response able to
+    reach the PDF handed back to the uploader.
+
+    The renderer now refuses every non-`data:` URL (see pdf._no_network_fetcher),
+    which is the real boundary. This check is the second layer: an SVG that
+    references anything external, or carries a script, is rejected at the door
+    rather than relied upon to be harmless once it is inside.
     """
     if not file_storage or not file_storage.filename:
         return None, None
@@ -327,6 +533,8 @@ def _read_logo(file_storage):
         or mimetypes.guess_type(file_storage.filename)[0]
         or "image/png"
     )
+    if mime == "image/svg+xml" and _svg_reaches_outside(data):
+        return None, None
     if mime != "image/svg+xml":
         # A MISSING LIBRARY IS NOT A CORRUPT IMAGE, and it used to be reported
         # as one: `PIL` was imported here and declared in neither requirements
@@ -371,17 +579,40 @@ def _due_from_terms(issue_date, terms, custom):
     return None
 
 
-def _populate_invoice_from_form(invoice, form, files=None):
+def _populate_invoice_from_form(
+    invoice, form, files=None, sender=None, currency=None
+):
     """Fill an Invoice instance from submitted form data (create or edit).
-
-    The sender block is taken from the user's business profile (snapshot),
-    and the currency from their default — neither is collected per invoice.
 
     Returns a list of validation errors raised by the *parsing* itself (a
     money box that was filled in but does not hold a number, or line-item
     arrays that do not line up). They are handed to ``_validate_invoice``
     rather than raised, so the owner gets them alongside the other messages
     on the re-rendered form.
+
+    ## Two front doors, one function
+
+    ``sender`` and ``currency`` used to be read straight off ``current_user``
+    here. They are parameters now because the anonymous generator has no
+    logged-in user: it collects the sender block and the currency on the
+    document itself. Passing them in is what lets the signed-out editor reuse
+    this function *exactly* — the same coercion, the same refusals, the same
+    line-item reconstruction — instead of growing a second parser beside it.
+    That mattered before: the web form and the JSON API once had separate
+    money coercion with separate holes, which is why ``helpers.parse_money``
+    exists at all. A third one would have been a third set of holes.
+
+    Both default to the logged-in user's values when omitted, so the owner's
+    form calls this exactly as it always did.
+
+    ## Fields are only written when the form actually carries them
+
+    Several fields below are guarded by ``in form`` rather than read with a
+    default. That guard is load-bearing for money: the owner's form does not
+    post ``amount_paid``, so reading it with a default of 0.0 would silently
+    zero a Stripe-confirmed payment every time somebody edited a part-paid
+    invoice — the edit would look successful and the balance due would jump
+    back to the full amount. Absent means "leave alone", not "set to zero".
     """
     errors = []
 
@@ -395,9 +626,13 @@ def _populate_invoice_from_form(invoice, form, files=None):
         return value
 
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
-    invoice.from_info = current_user.from_info
+    invoice.from_info = (
+        current_user.from_info if sender is None else (sender or "").strip()
+    )
     invoice.bill_to = (form.get("bill_to") or "").strip()
     invoice.client_email = (form.get("client_email") or "").strip()
+    if "ship_to" in form:
+        invoice.ship_to = (form.get("ship_to") or "").strip()
 
     invoice.invoice_date = parse_date(form.get("invoice_date")) or date.today()
     invoice.payment_terms = (form.get("payment_terms") or "").strip()
@@ -405,14 +640,58 @@ def _populate_invoice_from_form(invoice, form, files=None):
         invoice.invoice_date, invoice.payment_terms, form.get("due_date")
     )
     invoice.po_number = (form.get("po_number") or "").strip()
-    invoice.currency = (current_user.default_currency or "USD").strip().upper()
+    # AN INVOICE KEEPS ITS CURRENCY unless the submission names a new one.
+    # The owner's Edit form has no currency field, so it calls this with
+    # currency=None -- which used to mean "use the account default" and
+    # therefore silently re-denominated any invoice saved from the generator in
+    # anything else. A ¥150,000 invoice came back as $150,000 on the first
+    # edit, with its payment rows still snapshotted in yen.
+    if currency is not None:
+        chosen = currency
+    elif invoice.currency:
+        chosen = invoice.currency
+    else:
+        chosen = current_user.default_currency
+    invoice.currency = (chosen or "USD").strip().upper()
 
-    # Tax and discount are entered as percentages in the UI.
+    # Tax and discount default to percentages, which is what the owner's form
+    # posts (it has no flat/percent control). The generator does have one, so
+    # honour it when the form carries it. A missing box is not "flat" — it is
+    # the older front door not asking, and flipping the meaning of a tax value
+    # because a checkbox was absent would restate the tax on every edit.
     invoice.tax_value = money("tax", "Tax")
-    invoice.tax_is_percent = True
+    if "tax_is_percent" in form:
+        invoice.tax_is_percent = form.get("tax_is_percent") == "1"
+    else:
+        invoice.tax_is_percent = True
     invoice.discount_value = money("discount", "Discount")
-    invoice.discount_is_percent = True
+    if "discount_is_percent" in form:
+        invoice.discount_is_percent = form.get("discount_is_percent") == "1"
+    else:
+        invoice.discount_is_percent = True
     invoice.shipping = money("shipping", "Shipping")
+    # See the docstring: absent means leave alone, never zero. When it IS
+    # present it states a total, which the ledger reconciles to by appending
+    # the difference -- an assignment here would be the very overwrite the
+    # Payment table exists to remove, and it could reduce the figure below a
+    # confirmed card payment.
+    if "amount_paid" in form:
+        requested_paid = money("amount_paid", "Amount paid")
+        if requested_paid < 0:
+            # A negative "paid" is not a refund: it makes the balance due
+            # LARGER than the total, so a $100 invoice with -500 reads as $600
+            # owed and puts $500 nobody will ever pay into the outstanding KPI.
+            # The JSON API has refused this since before the ledger; the form
+            # let it through.
+            errors.append("Amount paid cannot be negative.")
+        else:
+            invoice.set_manual_paid_total(requested_paid)
+
+    if "design" in form:
+        invoice.design = resolve(form.get("design"))["id"]
+    if "doc_title" in form:
+        title = (form.get("doc_title") or "").strip().upper()[:40]
+        invoice.doc_title = title or "INVOICE"
 
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
@@ -487,7 +766,7 @@ def _populate_invoice_from_form(invoice, form, files=None):
     return errors
 
 
-def _validate_invoice(invoice, parse_errors=None):
+def _validate_invoice(invoice, parse_errors=None, anonymous=False):
     """Return a list of human-readable validation errors.
 
     ``parse_errors`` carries anything ``_populate_invoice_from_form`` could
@@ -499,7 +778,14 @@ def _validate_invoice(invoice, parse_errors=None):
     if not invoice.invoice_number:
         errors.append("Invoice number is required.")
     if not invoice.from_info:
-        errors.append("Add your business profile in Account first.")
+        # The fix differs by front door, and "go to Account" is useless advice
+        # to somebody who has no account and is looking straight at the box
+        # they need to fill in.
+        errors.append(
+            "Add your business name at the top of the invoice."
+            if anonymous
+            else "Add your business profile in Account first."
+        )
     if not invoice.bill_to:
         errors.append("'Bill To' client information is required.")
     if not invoice.items:
@@ -615,6 +901,69 @@ def _serializer():
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
+def safe_next(raw, fallback):
+    """A same-site path to return to, or the fallback.
+
+    "starts with /" alone is not enough: "//evil.example.com/x" is a
+    protocol-relative URL, so the browser leaves the site entirely, and
+    "/\\evil.example.com" is treated the same way by some browsers. A phishing
+    link to /login?next=//evil.example.com lands the user on an attacker's page
+    immediately after a successful sign-in, which is exactly when they are
+    primed to trust it.
+
+    It lived inside `login` until signup needed it too. Guarded by
+    tests/test_scenarios.py::test_login_next_parameter_cannot_redirect_off_site.
+    """
+    if (
+        not raw
+        or not raw.startswith("/")
+        or raw.startswith("//")
+        or raw.startswith("/\\")
+    ):
+        return fallback
+    return raw
+
+
+def can_pay_online(invoice):
+    """Whether pressing a pay button on this invoice could actually work.
+
+    TWO THINGS HAVE TO BE TRUE and for a while only the first was asked: the
+    owner has connected a Stripe account, AND the currency is one this adapter
+    will charge in. `stripe_utils.guard_chargeable` refuses the rest at the
+    door, so offering the button anyway means the client meets a refusal that
+    was written for the owner to read.
+    """
+    return bool(
+        invoice.owner
+        and invoice.owner.can_accept_payments
+        and stripe_utils.is_chargeable(invoice.currency)
+    )
+
+
+def public_url_for(invoice):
+    """The durable, signed link a client opens. Needs an app context."""
+    token = make_token(invoice.id, salt="invoice-public")
+    return current_app.config["APP_BASE_URL"].rstrip("/") + url_for(
+        "public_invoice", token=token
+    )
+
+
+def pay_url_for(invoice):
+    """The public link, but only where it leads somewhere payable.
+
+    MODULE LEVEL BECAUSE THE API NEEDS IT TOO. It began as a closure inside
+    `create_app`, so `api.py` could not reach it — and when round six removed
+    the "fall back to the stored Checkout URL" behaviour, the two API render
+    paths (`api.py:316` and `api.py:370`) silently lost their payment section
+    even for an invoice created with `create_payment_link: true`. A helper the
+    web routes can call and the API cannot is a helper that will be
+    reimplemented differently, or forgotten.
+
+    Raised by Codex on PR #289, round seven.
+    """
+    return public_url_for(invoice) if can_pay_online(invoice) else None
+
+
 def make_token(value, salt):
     return _serializer().dumps(value, salt=salt)
 
@@ -658,9 +1007,25 @@ def _send_verification(user):
 # Routes
 # --------------------------------------------------------------------------
 def register_routes(app):
-    def owned_or_404(invoice_id):
-        """Fetch an invoice that belongs to the current user, else 404."""
-        invoice = db.session.get(Invoice, invoice_id)
+    def owned_or_404(invoice_id, for_update=False):
+        """Fetch an invoice that belongs to the current user, else 404.
+
+        ``for_update`` takes the row lock, and EVERY ROUTE THAT MOVES MONEY
+        must pass it. Locking only the webhook left the other half of the same
+        race: an owner pressing "mark as paid" reads the invoice unlocked, and
+        a webhook holding the lock records a card payment underneath them. The
+        owner's write then waits — but its arithmetic does not, so both rows
+        land and the later writer restores a cache computed before the other
+        existed (ledger 1,500, cache 1,100).
+
+        SQLite renders no lock clause and serialises writes at the file level;
+        on Postgres this is what actually holds. Read-only routes stay unlocked
+        so a page view never blocks behind a payment.
+        """
+        query = Invoice.query.filter_by(id=invoice_id)
+        if for_update:
+            query = query.with_for_update()
+        invoice = query.first()
         if invoice is None or invoice.user_id != current_user.id:
             abort(404)
         return invoice
@@ -669,8 +1034,18 @@ def register_routes(app):
     @app.route("/signup", methods=["GET", "POST"])
     @limiter.limit("10 per hour", methods=["POST"])
     def signup():
+        # WHERE THEY WERE GOING. The signed-out generator sends people here
+        # with `?next=/generator`, because the invoice they have just typed is
+        # in that browser and the page there offers to bring it over. The form
+        # posted to a bare `/signup` and this route always redirected to
+        # `/account`, so the parameter was dropped twice and the offer was
+        # never reached down the advertised path — the draft simply sat there,
+        # with nothing in the signed-in navigation leading back to it either.
+        # Raised by Codex on PR #289, round ten, and by the walkthrough of
+        # 6 September (defect 7).
+        nxt = safe_next(request.args.get("next"), "")
         if current_user.is_authenticated:
-            return redirect(url_for("history"))
+            return redirect(nxt or url_for("history"))
         if request.method == "POST":
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
@@ -689,7 +1064,8 @@ def register_routes(app):
                 for e in errors:
                     flash(e, "error")
                 return render_template(
-                    "signup.html", email=email, business_name=business_name
+                    "signup.html", email=email,
+                    business_name=business_name, next_url=nxt,
                 ), 400
 
             user = User(email=email)
@@ -715,13 +1091,19 @@ def register_routes(app):
                     db.session.commit()
                     login_user(user)
                     flash("Welcome! Your account is ready.", "success")
-                    return redirect(url_for("history"))
-                return redirect(url_for("login"))
+                    return redirect(nxt or url_for("history"))
+                # They have to confirm their address first, so the last hop is
+                # the login form — carry the destination to it rather than
+                # putting a redirect target inside an email.
+                return redirect(url_for("login", next=nxt) if nxt
+                                else url_for("login"))
 
             login_user(user)
             flash("Welcome! Your account is ready.", "success")
-            return redirect(url_for("account"))
-        return render_template("signup.html", email="", business_name="")
+            return redirect(nxt or url_for("account"))
+        return render_template(
+            "signup.html", email="", business_name="", next_url=nxt
+        )
 
     @app.route("/login", methods=["GET", "POST"])
     @limiter.limit("10 per minute;50 per hour", methods=["POST"])
@@ -745,24 +1127,9 @@ def register_routes(app):
                     "login.html", email=email, unverified=True
                 ), 403
             login_user(user, remember=bool(request.form.get("remember")))
-            nxt = request.args.get("next")
-            # "starts with /" alone is not enough: "//evil.example.com/x" is a
-            # protocol-relative URL, so the browser leaves the site entirely.
-            # "/\evil.example.com" is treated the same way by some browsers.
-            # A phishing link to /login?next=//evil.example.com lands the user
-            # on an attacker's page immediately after a successful sign-in,
-            # which is exactly when they are primed to trust it.
-            #
-            # Caught by tests/test_scenarios.py::
-            #   test_login_next_parameter_cannot_redirect_off_site
-            if (
-                not nxt
-                or not nxt.startswith("/")
-                or nxt.startswith("//")
-                or nxt.startswith("/\\")
-            ):
-                nxt = url_for("history")
-            return redirect(nxt)
+            return redirect(
+                safe_next(request.args.get("next"), url_for("history"))
+            )
         return render_template("login.html", email="")
 
     @app.route("/logout", methods=["POST"])
@@ -1078,6 +1445,7 @@ def register_routes(app):
         return render_template(
             "invoice_form.html",
             invoice=None,
+            form_currency=current_user.default_currency,
             suggested_number=suggested,
             today=date.today().isoformat(),
         )
@@ -1100,7 +1468,11 @@ def register_routes(app):
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
+                form_currency=(
+                    invoice.currency or current_user.default_currency
+                ),
             ), 400
+        _restate_status(invoice)
         db.session.add(invoice)
         db.session.commit()
         logger.info(
@@ -1115,9 +1487,14 @@ def register_routes(app):
     @login_required
     def view_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
+        from pdf import _business_context
+
         return render_template(
             "invoice_detail.html",
             invoice=invoice,
+            business=_business_context(invoice, allow_svg=True),
+            design=resolve(invoice.design),
+            doc_title=(invoice.doc_title or "INVOICE"),
             public_url=_public_url(invoice),
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
             smtp_configured=email_utils.can_send(app.config, current_user),
@@ -1143,6 +1520,11 @@ def register_routes(app):
             invoice=invoice,
             suggested_number=invoice.invoice_number,
             today=date.today().isoformat(),
+            # THE INVOICE'S currency, not the account's. An invoice saved from
+            # the generator in another currency kept it on submit but was
+            # still LABELLED and previewed in the account default, so a KWD
+            # 1.235 invoice showed as $1.24 on the very page used to edit it.
+            form_currency=invoice.currency or current_user.default_currency,
         )
 
     @app.route("/invoice/<int:invoice_id>", methods=["POST"])
@@ -1161,25 +1543,11 @@ def register_routes(app):
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
+                form_currency=(
+                    invoice.currency or current_user.default_currency
+                ),
             ), 400
-        # An edit can raise the total above what has already been paid (add a
-        # line item to a settled invoice, remove a discount, bump a rate). The
-        # stored status is not derived, so without this the invoice keeps
-        # showing "Paid" while money is owed — and the History KPIs skip it,
-        # because outstanding only sums invoices whose status != "Paid". Reopen
-        # it so the balance is visible and chaseable. The reverse case (an edit
-        # that lowers the total to at or below what was paid) settles it.
-        #
-        # Caught by tests/test_scenarios.py::
-        #   test_editing_a_paid_invoice_upward_reopens_it
-        if invoice.balance_due > 0 and invoice.status == "Paid":
-            invoice.status = "Sent"
-        elif (
-            invoice.status != "Paid"
-            and (invoice.amount_paid or 0) > 0
-            and invoice.balance_due <= 0
-        ):
-            invoice.status = "Paid"
+        _restate_status(invoice)
         db.session.commit()
         flash("Invoice updated.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1201,7 +1569,7 @@ def register_routes(app):
     def download_pdf(invoice_id):
         invoice = owned_or_404(invoice_id)
         try:
-            out_path = _generate_pdf(invoice, pay_url=_public_url(invoice))
+            out_path = _generate_pdf(invoice, pay_url=_pay_url(invoice))
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1215,9 +1583,22 @@ def register_routes(app):
     @app.route("/invoice/<int:invoice_id>/mark-paid", methods=["POST"])
     @login_required
     def mark_paid(invoice_id):
-        invoice = owned_or_404(invoice_id)
+        invoice = owned_or_404(invoice_id, for_update=True)
+        # Record the SHORTFALL as a manual entry, rather than overwriting the
+        # total. On an invoice already part-paid by card, assigning the total
+        # turned "400.00 by card and 700.00 by cheque" into one indistinguishable
+        # 1100.00 -- and if the card payment was later disputed there was
+        # nothing left to say which part of it was the card's.
+        # The invoice's own precision, not two places -- a KWD 1.235
+        # invoice computed a 1.24 shortfall and stored 1.240, overstating
+        # the ledger by half a fils and leaving a hidden overpayment.
+        outstanding = invoice._round(invoice.total - invoice.ledger_total)
+        if outstanding > 0:
+            invoice.record_payment(
+                outstanding, source="manual", note="Marked as paid"
+            )
         invoice.status = "Paid"
-        invoice.amount_paid = invoice.total
+        invoice.resync_amount_paid_from_db()
         db.session.commit()
         flash("Invoice marked as paid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1225,17 +1606,41 @@ def register_routes(app):
     @app.route("/invoice/<int:invoice_id>/mark-unpaid", methods=["POST"])
     @login_required
     def mark_unpaid(invoice_id):
-        # Reverse a "mark as paid": clear the recorded payment and reopen the
-        # invoice. We keep paid_session_ids so a stale Stripe webhook retry of
-        # an already-seen session can't silently re-credit it.
-        invoice = owned_or_404(invoice_id)
-        invoice.status = "Sent"
-        invoice.amount_paid = 0.0
+        # Reverse a "mark as paid" -- and ONLY that.
+        #
+        # This used to set `amount_paid = 0` outright, which meant one click
+        # erased money Stripe had really taken, and the erasure was permanent:
+        # the spent session id stayed in `paid_session_ids`, so replaying the
+        # very webhook that recorded the payment hit the "already credited"
+        # branch and did nothing. Recorded in docs/REPO-INVENTORY.md as the
+        # last money bug in this app; the firm's answer on 5 September 2026
+        # was "Fix it before any client sees it."
+        #
+        # A card payment is a fact about the world and a button in our UI does
+        # not get to undo it. Reversing one is a refund; that happens at the
+        # processor and comes back as its own event.
+        invoice = owned_or_404(invoice_id, for_update=True)
+        invoice.reverse_manual_payments(note="Reopened with 'mark as unpaid'")
+        # Reopen only if reversing the manual part actually leaves a balance.
+        # A card payment covering the whole invoice survives this button, so
+        # the invoice is still settled and must not come back reading "Sent"
+        # with nothing owing.
+        invoice.resync_amount_paid_from_db()
+        invoice.status = "Paid" if invoice.balance_due <= 0 else "Sent"
         # Drop the spent Checkout Session so nothing copies/sends a dead link;
         # a fresh session is created on demand when the invoice is paid again.
         invoice.stripe_session_id = None
         invoice.stripe_payment_url = None
         db.session.commit()
+        if invoice.confirmed_paid > 0:
+            flash(
+                "Reopened. "
+                f"{format_money(invoice.confirmed_paid, invoice.currency)} "
+                "confirmed by Stripe is still recorded against this invoice — "
+                "reversing a card payment is a refund, which is done in Stripe.",
+                "success",
+            )
+            return redirect(url_for("view_invoice", invoice_id=invoice.id))
         flash("Invoice marked as unpaid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
@@ -1252,7 +1657,7 @@ def register_routes(app):
 
         public_url = _public_url(invoice)
         try:
-            out_path = _generate_pdf(invoice, pay_url=public_url)
+            out_path = _generate_pdf(invoice, pay_url=_pay_url(invoice))
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1261,7 +1666,7 @@ def register_routes(app):
             "email_invoice.html",
             invoice=invoice,
             public_url=public_url,
-            can_pay=current_user.can_accept_payments,
+            can_pay=_can_pay_online(invoice),
         )
         try:
             email_utils.send_invoice_email(
@@ -1269,7 +1674,8 @@ def register_routes(app):
                 to_email,
                 invoice,
                 out_path,
-                payment_url=public_url,
+                payment_url=_pay_url(invoice),
+                view_url=public_url,
                 html_body=html_body,
                 user=current_user,
             )
@@ -1303,6 +1709,29 @@ def register_routes(app):
             "public_invoice", token=token
         )
 
+    def _can_pay_online(invoice):
+        return can_pay_online(invoice)
+
+    def _pay_url(invoice):
+        """The public link, but only where it leads somewhere payable.
+
+        The PDF turns a non-empty `pay_url` into a "Pay $X ->" button. Passing
+        `_public_url` unconditionally put that button on every PDF we generate,
+        including invoices in currencies we refuse to charge and invoices whose
+        owner has no Stripe account at all — the printed page invited a payment
+        the software would then decline. `public_invoice` had already been
+        fixed to ask this question; `download_pdf`, `email_invoice` and
+        `public_pdf` had not, so the web page and the PDF of the same invoice
+        disagreed about whether it could be paid.
+
+        Falling back to no button is the safe direction: the invoice still
+        carries the full public URL in the email, and that page tells the
+        client what to do.
+
+        Raised by Codex on PR #289, round five.
+        """
+        return pay_url_for(invoice)
+
     def _invoice_from_token(token):
         inv_id = read_token(
             token, salt="invoice-public", max_age=PUBLIC_MAX_AGE
@@ -1317,10 +1746,20 @@ def register_routes(app):
     @app.route("/i/<token>")
     def public_invoice(token):
         invoice = _invoice_from_token(token)
-        can_pay = bool(invoice.owner and invoice.owner.can_accept_payments)
+        # AND the currency has to be one we can actually charge. This asked
+        # only whether the OWNER was set up, so a client holding an invoice in
+        # a refused currency was shown "Pay online in seconds", clicked it, and
+        # hit a refusal meant for the owner. Inviting a client to pay and then
+        # failing is worse than never offering.
+        can_pay = _can_pay_online(invoice)
+        from pdf import _business_context
+
         return render_template(
             "public_invoice.html",
             invoice=invoice,
+            business=_business_context(invoice, allow_svg=True),
+            design=resolve(invoice.design),
+            doc_title=(invoice.doc_title or "INVOICE"),
             can_pay=can_pay,
             token=token,
         )
@@ -1340,7 +1779,7 @@ def register_routes(app):
         invoice = _invoice_from_token(token)
         try:
             out_path = generate_pdf(
-                app, invoice, pay_url=_public_url(invoice)
+                app, invoice, pay_url=_pay_url(invoice)
             )
         except RuntimeError as exc:
             flash(str(exc), "error")
@@ -1399,6 +1838,203 @@ def register_routes(app):
         )
         return redirect(session.url)
 
+    # ---- the signed-out invoice generator ------------------------------
+    #
+    # The app's front door used to be a login wall: you could not see an
+    # invoice, never mind make one, without signing up first. This is the
+    # other order — make the invoice, then decide whether you want an account
+    # to send it and be paid for it. Nothing here writes to the database, and
+    # nothing here needs an email address.
+
+    def _join_block(name, rest):
+        """Join a name line and an address block into one stored field.
+
+        The document splits a party into a bold name line and the address
+        under it, because that is how the printed invoice sets it. The model
+        stores one text field. Joining here rather than in
+        ``_populate_invoice_from_form`` keeps that function free of a branch
+        it would only ever take for one caller.
+        """
+        parts = [(name or "").strip(), (rest or "").strip()]
+        return "\n".join(p for p in parts if p)
+
+    def _generator_invoice(raw, files=None):
+        """Build an UNSAVED Invoice from the generator's form.
+
+        Returns ``(invoice, errors)``. The invoice is transient: it is never
+        added to a session, so nothing reaches the database on this path.
+        ``tests/test_generator.py`` asserts the row count does not move.
+        """
+        form = raw.copy()
+        form["bill_to"] = _join_block(
+            raw.get("bill_to_name"), raw.get("bill_to_address")
+        )
+        form["ship_to"] = _join_block(
+            raw.get("ship_to_name"), raw.get("ship_to_address")
+        )
+        sender = _join_block(raw.get("from_name"), raw.get("from_address"))
+
+        invoice = Invoice()
+        # Column defaults are applied by the database on INSERT, and this row
+        # is never inserted — so a transient invoice starts with None in every
+        # one of them. Set what the document reads before it is rendered.
+        invoice.status = "Draft"
+        invoice.amount_paid = 0.0
+        invoice.tax_is_percent = True
+        invoice.discount_is_percent = True
+        errors = _populate_invoice_from_form(
+            invoice,
+            form,
+            files=files,
+            sender=sender,
+            currency=raw.get("currency"),
+        )
+        return invoice, _validate_invoice(invoice, errors, anonymous=True)
+
+    def _generator_context(invoice, errors=None):
+        from pdf import _business_context
+
+        design = resolve(
+            invoice.design if invoice is not None else DEFAULT_DESIGN
+        )
+        return {
+            "invoice": invoice,
+            "business": _business_context(invoice, allow_svg=True),
+            "design": design,
+            "designs": all_designs(),
+            "design_count": len(all_designs()),
+            "families": FAMILIES,
+            "doc_title": invoice.doc_title or "INVOICE",
+            "currency_choices": CURRENCY_CHOICES,
+            # Symbol and minor units for the live totals. The preview has to
+            # know that the yen takes no decimals for the same reason the
+            # gateway does.
+            "currency_js": {
+                c["code"]: {"s": c["symbol"], "d": c["decimals"]}
+                for c in CURRENCIES.values()
+            },
+            "zero_money": format_money(0, invoice.currency or "USD"),
+            # WHOSE DRAFT THIS IS. The browser copy used one origin-wide key,
+            # so a signed-in sender's business details and their client's name,
+            # address and prices were restored for whoever opened the generator
+            # next on that machine — the following anonymous visitor, or a
+            # second account. Signing out did not clear it. Scoping the key is
+            # what stops that; the page also adopts an anonymous draft on the
+            # way in, so signing up mid-invoice still keeps your work, and
+            # purges every other scope's draft it finds.
+            #
+            # Raised by Codex on PR #289, round seven.
+            "draft_scope": (
+                f"u{current_user.id}"
+                if current_user.is_authenticated
+                else "anon"
+            ),
+            "errors": errors or [],
+        }
+
+    @app.route("/generator")
+    def generator():
+        invoice = Invoice()
+        invoice.status = "Draft"
+        invoice.invoice_date = date.today()
+        invoice.currency = (
+            current_user.default_currency
+            if current_user.is_authenticated
+            else "USD"
+        )
+        invoice.design = DEFAULT_DESIGN
+        invoice.doc_title = "INVOICE"
+        invoice.amount_paid = 0.0
+        # Stated, not left to the column defaults — this row is never inserted,
+        # so those defaults never run and both flags would arrive as None. The
+        # document renders the flat/percent control from them, and `not None`
+        # is True, so a fresh page came up with BOTH set to flat: an 8.25 typed
+        # into the tax box was billed as 8.25 of currency rather than 8.25%.
+        # Percent for both matches what the signed-in form has always posted.
+        invoice.tax_is_percent = True
+        invoice.discount_is_percent = True
+        invoice.tax_value = 0.0
+        invoice.discount_value = 0.0
+        invoice.shipping = 0.0
+        invoice.payment_terms = "Net 14"
+        invoice.due_date = _due_from_terms(date.today(), "Net 14", None)
+        if current_user.is_authenticated:
+            invoice.from_info = current_user.from_info
+            invoice.invoice_number = next_invoice_number(current_user.id)
+        return render_template("generator.html", **_generator_context(invoice))
+
+    @app.route("/generator/theme.css")
+    def generator_theme():
+        """The document stylesheet for one design.
+
+        The gallery fetches this and swaps it in, which is what makes a design
+        change keep everything already typed: the markup is identical for
+        every design, so only these rules move.
+        """
+        css = render_template(
+            "_invoice_css.html", design=resolve(request.args.get("design"))
+        )
+        return Response(css, mimetype="text/css")
+
+    @app.route("/generator/pdf", methods=["POST"])
+    # An unauthenticated endpoint that renders a PDF is real work for anyone
+    # who asks, so it is capped. The limit is generous enough that a person
+    # iterating on one invoice will not meet it.
+    @limiter.limit("40 per hour")
+    def generator_pdf():
+        invoice, errors = _generator_invoice(request.form, request.files)
+        if errors:
+            return (
+                render_template(
+                    "generator.html", **_generator_context(invoice, errors)
+                ),
+                422,
+            )
+        # Rendered into a temporary directory and returned as bytes: the
+        # shared INVOICES_DIR names its files after the invoice id, and an
+        # unsaved invoice has none — two anonymous senders would have written
+        # over each other's file and downloaded the wrong invoice.
+        from pdf import render_invoice_pdf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "invoice.pdf"
+            render_invoice_pdf(invoice, out)
+            data = out.read_bytes()
+
+        import re as _re
+
+        stem = _re.sub(r"[^A-Za-z0-9._-]", "-", invoice.invoice_number or "")
+        stem = stem.strip(".-") or "invoice"
+        return Response(
+            data,
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{stem}.pdf"',
+                "Content-Length": str(len(data)),
+            },
+        )
+
+    @app.route("/generator/save", methods=["POST"])
+    @login_required
+    def generator_save():
+        """Keep a generated invoice against the signed-in account."""
+        invoice, errors = _generator_invoice(request.form, request.files)
+        if errors:
+            return (
+                render_template(
+                    "generator.html", **_generator_context(invoice, errors)
+                ),
+                422,
+            )
+        invoice.user_id = current_user.id
+        if not invoice.invoice_number:
+            invoice.invoice_number = next_invoice_number(current_user.id)
+        _restate_status(invoice)
+        db.session.add(invoice)
+        db.session.commit()
+        flash("Invoice saved.", "success")
+        return redirect(url_for("view_invoice", invoice_id=invoice.id))
+
     @app.route("/history")
     @login_required
     def history():
@@ -1429,6 +2065,38 @@ def register_routes(app):
         )
         overdue = sum(i.balance_due for i in all_inv if i.is_overdue)
         paid_total = sum(i.total for i in all_inv if i.status == "Paid")
+        # BROKEN OUT BY CURRENCY, because adding them together is arithmetic
+        # on things that are not the same kind of thing. A $100 invoice and a
+        # ¥10,000 invoice were summed and the result labelled with the account
+        # default: "$10,100". Every one of these three figures was meaningless
+        # the moment an account held two currencies -- which the generator's
+        # currency picker turns from an edge case into an ordinary Tuesday.
+        #
+        # Recorded as KNOWN by exercise.py before this ("the History KPIs add
+        # different currencies together") and raised again by Codex on #289.
+        # It is not a display preference: printing a number that is not true
+        # is the thing docs/DESIGN-PRINCIPLES.md means by refusing rather than
+        # defaulting.
+        #
+        # An account with ONE currency renders exactly as it always did.
+        by_currency = {}
+        for inv in all_inv:
+            code = (inv.currency or "USD").upper()
+            row = by_currency.setdefault(
+                code,
+                {"currency": code, "outstanding": 0.0, "outstanding_count": 0,
+                 "overdue": 0.0, "overdue_count": 0, "paid_total": 0.0},
+            )
+            if inv.status != "Paid":
+                row["outstanding"] += inv.balance_due
+                if inv.balance_due > 0:
+                    row["outstanding_count"] += 1
+            if inv.is_overdue:
+                row["overdue"] += inv.balance_due
+                row["overdue_count"] += 1
+            if inv.status == "Paid":
+                row["paid_total"] += inv.total
+
         kpis = {
             "outstanding": outstanding,
             "outstanding_count": sum(
@@ -1438,6 +2106,14 @@ def register_routes(app):
             "overdue_count": sum(1 for i in all_inv if i.is_overdue),
             "paid_total": paid_total,
             "total_count": len(all_inv),
+            # Sorted so the account's own currency leads, then alphabetically.
+            "by_currency": sorted(
+                by_currency.values(),
+                key=lambda r: (
+                    r["currency"] != (current_user.default_currency or "USD"),
+                    r["currency"],
+                ),
+            ),
         }
         return render_template(
             "invoices.html",
@@ -1482,13 +2158,18 @@ def register_routes(app):
                     inv.invoice_date.isoformat() if inv.invoice_date else "",
                     bill_to_oneline,
                     inv.currency,
-                    f"{inv.subtotal:.2f}",
-                    f"{inv.discount_amount:.2f}",
-                    f"{inv.tax_amount:.2f}",
-                    f"{(inv.shipping or 0):.2f}",
-                    f"{inv.total:.2f}",
-                    f"{(inv.amount_paid or 0):.2f}",
-                    f"{inv.balance_due:.2f}",
+                    # AT THE INVOICE'S OWN PRECISION. `:.2f` silently
+                    # truncated a KWD 1.235 invoice to 1.24 in the one artifact
+                    # an accountant imports, while the database, the PDF and
+                    # the API all said 1.235. An export that disagrees with the
+                    # document it exports is worse than no export.
+                    f"{inv.subtotal:.{inv.places}f}",
+                    f"{inv.discount_amount:.{inv.places}f}",
+                    f"{inv.tax_amount:.{inv.places}f}",
+                    f"{(inv.shipping or 0):.{inv.places}f}",
+                    f"{inv.total:.{inv.places}f}",
+                    f"{(inv.amount_paid or 0):.{inv.places}f}",
+                    f"{inv.balance_due:.{inv.places}f}",
                     inv.status,
                 ]
             )
@@ -1565,16 +2246,29 @@ def register_routes(app):
             # account it belongs to; legacy platform charges have none.
             event_account = event.get("account")
             invoice_id = (session.get("metadata") or {}).get("invoice_id")
+            # LOADED FOR UPDATE, so two payments settling one invoice at the
+            # same moment take turns instead of overwriting each other's cache.
+            # Each visit to /pay creates its own Checkout Session, so the
+            # unique constraint on (invoice_id, external_id) does not cover
+            # this -- both rows are legitimate and distinct. SQLite renders no
+            # lock clause and serialises writes at the file level anyway; on
+            # Postgres this is the thing that actually holds.
             invoice = None
             if invoice_id:
                 try:
-                    invoice = db.session.get(Invoice, int(invoice_id))
+                    invoice = (
+                        Invoice.query.filter_by(id=int(invoice_id))
+                        .with_for_update()
+                        .first()
+                    )
                 except (TypeError, ValueError):
                     invoice = None
             if invoice is None and session_id:
-                invoice = Invoice.query.filter_by(
-                    stripe_session_id=session_id
-                ).first()
+                invoice = (
+                    Invoice.query.filter_by(stripe_session_id=session_id)
+                    .with_for_update()
+                    .first()
+                )
 
             # Authorize the event so a session on one account can't mark
             # another user's invoice paid:
@@ -1631,15 +2325,12 @@ def register_routes(app):
                 paid_cents = session.get("amount_total") or 0
                 sess_currency = (session.get("currency") or "").lower()
                 inv_currency = (invoice.currency or "usd").lower()
-                counted = [
-                    s for s in (invoice.paid_session_ids or "").split(",") if s
-                ]
                 if not session_id:
                     logger.warning(
                         "stripe webhook: event missing session id for "
                         "invoice=%s — not credited", invoice.id,
                     )
-                elif session_id in counted:
+                elif invoice.has_credited(session_id):
                     logger.info(
                         "stripe webhook: session %s already credited to "
                         "invoice=%s — no change", session_id, invoice.id,
@@ -1651,22 +2342,63 @@ def register_routes(app):
                         invoice.id, sess_currency, inv_currency,
                     )
                 else:
-                    invoice.amount_paid = round(
-                        (invoice.amount_paid or 0.0) + paid_cents / 100.0, 2
+                    # Appended to the ledger, which is also where the
+                    # idempotency key now lives (Payment.external_id). The
+                    # legacy comma-joined `paid_session_ids` is still READ by
+                    # `has_credited`, for invoices paid before this table
+                    # existed, but is no longer written -- two records of the
+                    # same fact drift, and this one drifting means crediting
+                    # a payment twice.
+                    # DECODED WITH THE CURRENCY'S OWN EXPONENT, not /100.
+                    # Stripe's `amount_total` is in the currency's smallest
+                    # unit, which is the yen itself for JPY and a thousandth
+                    # for KWD. See stripe_utils.from_minor_units for why
+                    # getting this wrong on only one side of the round trip is
+                    # worse than getting it wrong on both.
+                    paid_amount = stripe_utils.from_minor_units(
+                        paid_cents, sess_currency
                     )
-                    counted.append(session_id)
-                    invoice.paid_session_ids = ",".join(counted)
+                    invoice.record_payment(
+                        paid_amount,
+                        source="stripe",
+                        external_id=session_id,
+                        currency=sess_currency.upper(),
+                        note="Stripe Checkout",
+                    )
+                    # From the table, not from this session's collection --
+                    # see Invoice.resync_amount_paid_from_db.
+                    invoice.resync_amount_paid_from_db()
                     logger.info(
-                        "stripe webhook: credited %.2f %s to invoice=%s "
-                        "(session=%s)", paid_cents / 100.0, inv_currency,
+                        "stripe webhook: credited %s %s to invoice=%s "
+                        "(session=%s)", paid_amount, inv_currency,
                         invoice.id, session_id,
                     )
-                # Recompute paid status from the (stable) accumulated amount.
-                if int(round((invoice.amount_paid or 0.0) * 100)) >= int(
-                    round(invoice.total * 100)
-                ):
+                # Recompute paid status from the (stable) accumulated amount,
+                # compared in whole minor units of the invoice's own currency.
+                # Scaling both sides by 100 happened to work, since the error
+                # cancels in a comparison -- but it silently discards the third
+                # decimal of a KWD invoice, where 12.344 and 12.345 are
+                # different amounts of money.
+                _settled = stripe_utils.to_minor_units(
+                    invoice.amount_paid or 0.0, inv_currency
+                ) >= stripe_utils.to_minor_units(invoice.total, inv_currency)
+                if _settled:
                     invoice.status = "Paid"
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    # The unique constraint fired: another worker credited this
+                    # same Checkout Session between our `has_credited` and our
+                    # commit. That is the constraint doing its job, and the
+                    # outcome we wanted -- one credit. Answer 200: a 5xx makes
+                    # Stripe retry and eventually disable the endpoint, which
+                    # then drops OTHER invoices' payments.
+                    db.session.rollback()
+                    logger.info(
+                        "stripe webhook: session %s was credited concurrently "
+                        "to invoice=%s — no change", session_id, invoice.id,
+                    )
+                    return "", 200
                 logger.info(
                     "stripe webhook: invoice=%s now amount_paid=%s total=%s "
                     "status=%s", invoice.id, invoice.amount_paid,

@@ -2,6 +2,8 @@
 import math
 from datetime import datetime
 
+from currencies import format_amount
+
 CURRENCY_SYMBOLS = {
     "USD": "$",
     "EUR": "€",
@@ -25,13 +27,22 @@ def currency_symbol(code):
 
 
 def format_money(amount, code="USD"):
-    """Return a human-friendly currency string, e.g. ``$1,250.00``."""
-    try:
-        amount = float(amount or 0.0)
-    except (TypeError, ValueError):
-        amount = 0.0
-    symbol = currency_symbol(code)
-    return f"{symbol}{amount:,.2f}"
+    """Return a human-friendly currency string, e.g. ``$1,250.00``.
+
+    Delegates to ``currencies.format_amount``, which honours the currency's
+    **minor units** instead of assuming two decimal places everywhere. For the
+    two-decimal currencies — which is every one this app offered before the
+    picker existed, bar JPY — the output is character-for-character what this
+    function always returned, and ``tests/test_currencies.py`` holds that.
+
+    What changes is the rest of the world's money. ``format_money(1500,
+    "JPY")`` used to render ``¥1,500.00``: decimals the yen does not have, on
+    a document a client reads. It now renders ``¥1,500``. The same table is
+    what ``stripe_utils.to_minor_units`` consults, so the figure printed on
+    the invoice and the figure charged to the card are derived from one
+    source rather than two that disagreed.
+    """
+    return format_amount(amount, code)
 
 
 def parse_money(value, default=0.0):

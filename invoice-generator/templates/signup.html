@@ -55,7 +55,10 @@
 
       {% include "_flashes.html" %}
 
-      <form method="post" action="{{ url_for('signup') }}">
+      {#- `next_url` is the sanitised return target the route worked out; posting to
+    a bare /signup dropped it, so somebody who typed an invoice signed out and
+    pressed "Save & send it" never came back to the page holding it. -#}
+<form method="post" action="{{ url_for('signup', next=next_url) if next_url else url_for('signup') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="field"><label class="label">Business name <span class="muted" style="font-weight:400">(optional)</span></label><input class="input" name="business_name" value="{{ business_name or '' }}" placeholder="Lumen Studio"/></div>
         <div class="field"><label class="label">Work email</label><input class="input" type="email" name="email" value="{{ email or '' }}" placeholder="you@business.com" required/></div>

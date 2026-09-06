@@ -428,6 +428,10 @@ class Snapshot:
     is_overdue: bool = False
     is_partial: bool = False
     paid_session_ids: str = ""
+    ledger_total: float = 0.0
+    confirmed_paid: float = 0.0
+    manual_paid: float = 0.0
+    payments: list = field(default_factory=list)
     line_amounts: list = field(default_factory=list)
     line_descriptions: list = field(default_factory=list)
     due_date: object = None
@@ -448,6 +452,10 @@ def snapshot(invoice) -> Snapshot:
         amount_paid=invoice.amount_paid or 0.0, balance_due=invoice.balance_due,
         is_overdue=invoice.is_overdue, is_partial=invoice.is_partial,
         paid_session_ids=invoice.paid_session_ids or "",
+        ledger_total=invoice.ledger_total,
+        confirmed_paid=invoice.confirmed_paid,
+        manual_paid=invoice.manual_paid,
+        payments=[(p.amount, p.source, p.external_id) for p in invoice.payments],
         line_amounts=[i.amount for i in invoice.items],
         line_descriptions=[i.description for i in invoice.items],
         due_date=invoice.due_date,
@@ -545,7 +553,13 @@ def verify_pdf(path: Path, inv: Snapshot) -> list[str]:
 
     # A money figure as the PDF prints it: an optional symbol or currency
     # word ("CHF 1,000.00" has a space in it), then the digits.
-    money = r"((?:[A-Z]{2,4} )?[^\s\d]{0,2}-?[\d,]+\.\d\d)"
+    #
+    # THE DECIMAL PART IS OPTIONAL, and the count varies. This used to demand
+    # `\.\d\d`, which is right for the ~140 two-decimal currencies and wrong
+    # for the other 17: the yen has no sub-unit, so a correct ¥1,000 total
+    # matched nothing and this reported "no line labelled 'Total'" on a PDF
+    # that was perfectly good. The Kuwaiti dinar has three.
+    money = r"((?:[A-Z]{2,4} )?[^\s\d]{0,2}-?[\d,]+(?:\.\d{2,3})?)"
 
     want_total = normalise(format_money(inv.total, inv.currency))
     if want_total not in flat:
@@ -1255,9 +1269,13 @@ def chapter_money(w: World):
 # ══════════════════════════════════════════════════════════════════════════
 def chapter_currency(w: World):
     R.chapter = "currency"
+    # JPY carries NO decimal places, and that is the whole point of it being
+    # in this list. It read "¥1,000.00" until 5 September 2026 -- decimals the
+    # yen does not have, on a document a client reads -- and the same wrong
+    # assumption in stripe_utils was charging a ¥1,500 invoice as ¥150,000.
     expectations = {
         "USD": "$1,000.00", "EUR": "€1,000.00", "GBP": "£1,000.00",
-        "JPY": "¥1,000.00", "INR": "₹1,000.00",
+        "JPY": "¥1,000", "INR": "₹1,000.00",
         "CHF": "CHF 1,000.00", "BRL": "R$1,000.00",
     }
     for code, want in expectations.items():
@@ -1281,9 +1299,12 @@ def chapter_currency(w: World):
         if pdf.status_code == 200:
             w.keep_pdf(pdf, inv, f"currency-{code}")
 
-    R.check("an unknown currency code does not crash the formatter",
-            format_money(1000.0, "XYZ") == "1,000.00",
-            f"XYZ renders as {format_money(1000.0, 'XYZ')!r} — no symbol at all")
+    # An unknown code now renders AS the code. It used to render as a bare
+    # "1,000.00" with no symbol at all, which is worse than ugly: a figure on
+    # an invoice with nothing saying what money it is in.
+    R.check("an unknown currency code renders as the code itself",
+            format_money(1000.0, "XYZ") == "XYZ1,000.00",
+            f"XYZ renders as {format_money(1000.0, 'XYZ')!r}")
 
     # Changing the account default does not restate historical invoices, and
     # must not: an invoice raised in dollars was agreed in dollars.
@@ -1299,18 +1320,22 @@ def chapter_currency(w: World):
     R.equal("changing the account default leaves old invoices in their currency",
             still.currency, inv_usd.currency)
 
-    # ...but the History KPIs add them all up and label the sum with the new
-    # default. This is finding 7 of docs/invoicer-review.md, left alone there
-    # as a product decision. It is reachable with no API involved at all —
-    # the owner only has to change their default currency once.
+    # ...and the History KPIs no longer add them all up. This was finding 7 of
+    # docs/invoicer-review.md, left alone there as a product decision and
+    # standing here as a tripwire until 6 September 2026: seven invoices in
+    # seven currencies were summed into ONE figure and labelled with whatever
+    # the account default happened to be. It is not a product decision to
+    # print a number that is not true.
     history = w.a.get("/history").get_data(as_text=True)
-    mixed = re.search(r"outstanding", history, re.I)
-    euro_labelled = "€" in history
-    R.tripwire(
-        "the History KPIs add different currencies together",
-        bool(mixed) and euro_labelled,
-        "seven invoices in seven currencies are summed into one figure and "
-        "labelled with the account default (now EUR)",
+    R.check(
+        "the History KPIs report each currency separately",
+        all(sym in history for sym in ("$", "€", "£", "¥")),
+        "an account holding seven currencies must show them apart, not summed",
+    )
+    R.check(
+        "...and no figure is labelled with a currency it is not in",
+        history.count("€") >= 1 and history.count("$") >= 1,
+        "the euro and dollar totals are both present and distinct",
     )
     w.a.post("/account/business", {
         "business_name": OWNER_A["business_name"],
@@ -1357,8 +1382,9 @@ def chapter_payments(w: World):
     settled = read(w.app, "PAY-partial")
     R.equal("the balance clears on the second payment", settled.balance_due, 0.0)
     R.equal("the invoice reads Paid", settled.display_status, "Paid")
-    R.equal("both sessions are recorded against it",
-            len(settled.paid_session_ids.split(",")), 2, compared=2)
+    R.equal("both sessions are recorded against it, individually",
+            [p[2] for p in settled.payments],
+            ["cs_partial_001", "cs_partial_002"], compared=2)
 
     # ── overpayment ──────────────────────────────────────────────────────
     raise_invoice(w.a, "PAY-over", CLIENT_MARINE, [("Survey", 1, "500.00")])
@@ -1413,27 +1439,33 @@ def chapter_payments(w: World):
     R.equal("mark-unpaid reopens it", reopened.display_status, "Sent")
     R.equal("...and clears the recorded payment", reopened.amount_paid, 0.0)
 
-    # The same button on a Stripe-confirmed payment. This is finding 4a of
-    # docs/invoicer-review.md, left alone there because the fix is a Payment
-    # ledger table.
+    # The same button on a Stripe-confirmed payment. This was finding 4a of
+    # docs/invoicer-review.md and stood here as a tripwire until the Payment
+    # ledger landed on 5 September 2026; it is now checked rather than known.
     raise_invoice(w.a, "PAY-erased", CLIENT_CHAMBERS,
                   [("Advisory", 1, "400.00")])
     erased = read(w.app, "PAY-erased")
     deliver(w.app, checkout_event(erased.id, "cs_erased_001", 40000,
                                   account=w.stripe_account_a))
     w.a.post(f"/invoice/{erased.id}/mark-unpaid")
-    gone = read(w.app, "PAY-erased")
+    kept = read(w.app, "PAY-erased")
+    R.equal("mark-unpaid cannot erase a Stripe-confirmed payment",
+            kept.amount_paid, 400.0)
+    R.equal("...and it is still recorded as the card's", kept.confirmed_paid,
+            400.0)
+    # Settled in full BY CARD, so it stays settled -- reversing the manual
+    # part of nothing leaves the card payment covering the whole 400.00. The
+    # first version of this check said "Partial" and the harness caught it:
+    # the invoice is not partly paid, it is paid, and the button did not
+    # change that.
+    R.equal("...and the invoice is still settled, because the card settled it",
+            kept.display_status, "Paid")
     replay = deliver(w.app, checkout_event(erased.id, "cs_erased_001", 40000,
                                            account=w.stripe_account_a))
-    unrecoverable = read(w.app, "PAY-erased")
-    R.tripwire(
-        "mark-unpaid erases a Stripe-confirmed payment, unrecoverably",
-        gone.amount_paid == 0.0 and unrecoverable.amount_paid == 0.0
-        and replay.status_code == 200,
-        "$400 confirmed by Stripe is set to 0 by one click, and replaying the "
-        "original event will not restore it because the session id is still "
-        "in paid_session_ids",
-    )
+    replayed = read(w.app, "PAY-erased")
+    R.equal("...and a replayed webhook does not double it",
+            (replay.status_code, replayed.amount_paid, len(replayed.payments)),
+            (200, 400.0, 1))
 
     # mark-paid over a partial payment.
     raise_invoice(w.a, "PAY-mixed", CLIENT_CHAMBERS,
@@ -1443,12 +1475,14 @@ def chapter_payments(w: World):
                                   account=w.stripe_account_a))
     w.a.post(f"/invoice/{mixed.id}/mark-paid")
     blended = read(w.app, "PAY-mixed")
-    R.tripwire(
-        "mark-paid over a partial payment loses where the money came from",
-        blended.amount_paid == 1100.0 and blended.paid_session_ids != "",
-        "$400 by card and $700 by cheque are now one indistinguishable "
-        "1100.00; if the card payment is disputed there is no record of it",
-    )
+    R.equal("mark-paid over a partial payment settles the invoice",
+            blended.amount_paid, 1100.0)
+    R.equal("...and the card's share is still knowable", blended.confirmed_paid,
+            400.0)
+    R.equal("...and only the shortfall was added by hand", blended.manual_paid,
+            700.0)
+    R.equal("...as two entries, not one blended figure",
+            [p[1] for p in blended.payments], ["stripe", "manual"])
 
     # Deleting a paid invoice.
     raise_invoice(w.a, "PAY-deleted", CLIENT_CHAMBERS,

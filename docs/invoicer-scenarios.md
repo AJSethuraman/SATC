@@ -11,9 +11,9 @@ like the other two.
 
 | | Runs on | Asserts | Produces |
 |---|---|---|---|
-| `tests/` (57 tests) | fixtures | properties that must never regress | nothing |
+| `tests/` (216 tests) | fixtures | properties that must never regress | nothing |
 | `docs/invoicer-review.md` | a running instance, by hand, once | nothing; it is prose | a list of findings |
-| `exercise.py` (281 checks) | a live app, every time | that each step happened, on the artifact | 48 invoices, 53 PDFs, real email |
+| `exercise.py` (288 checks) | a live app, every time | that each step happened, on the artifact | 48 invoices, 53 PDFs, real email |
 
 `pytest` is the gate. This is the demonstration — the thing you run when
 somebody asks "show me it works," and the thing that opens what came out
@@ -33,8 +33,12 @@ verified by Stripe's own verifier. Everything goes over real HTTP through the
 Flask test client with **CSRF protection and the rate limiter left on**, plus
 a live Werkzeug server for the browser check.
 
-Last run: **281 checks · 600 things compared · 53 PDFs opened · 0 surprises ·
-16 known and documented · 1 not checked.**
+Last run, 5 September 2026, after the payment ledger landed: **288 checks over
+14 chapters · 607 things compared · 53 PDFs opened · 276 ok · 0 FAILED ·
+11 known and documented · 1 not checked · no surprises.**
+
+The previous figures here (281 checks, 600 compared, 16 known) were measured on
+27 August and had gone stale by the time anyone read them. These are from a run.
 
 Everything it writes goes to `invoice-generator/out/`, which this pass added to
 `.gitignore` (**S22.4** — the first version of the sister harness wrote a
@@ -273,30 +277,47 @@ with a public link until its `invoices` table is rebuilt.
 The harness's tripwire on this fired the moment the behaviour changed, which is
 what a tripwire is for. It is now two standing assertions
 
-### 2. No payments ledger: three ways real money is destroyed — HIGH
+### 2. No payments ledger: three ways real money is destroyed — **TWO FIXED 5 Sep 2026, one remaining**
 
-`docs/invoicer-review.md` finding 4, unchanged, and all three halves are
-reproduced here:
+`docs/invoicer-review.md` finding 4. The firm was asked on 5 September 2026
+whether to fix this before any client saw the app and answered *"Fix it before
+any client sees it."* The `Payment` ledger landed the same day. Two of the
+three halves are closed; the third is not, and is restated below as its own
+entry rather than being quietly carried inside a heading that now says FIXED.
 
-* **mark-unpaid erases a Stripe-confirmed payment.** $400.00 confirmed by
-  Stripe becomes $0.00 on one click, and replaying the original webhook will
-  **not** restore it — the session id is still in `paid_session_ids`, so the
-  handler treats it as already credited. The money cannot be recovered by any
-  action in the app.
-* **mark-paid over a partial payment loses the provenance.** $400.00 by card
-  and $700.00 by cheque become one indistinguishable `1100.00`. If the card
-  payment is later disputed there is no record of what it was.
-* **deleting a paid invoice destroys the payment record.** $900.00 that Stripe
-  still holds a charge for now has no counterpart in this system to reconcile
-  against.
+* ~~**mark-unpaid erases a Stripe-confirmed payment.**~~ **FIXED.**
+  `mark_unpaid` now reverses only what a person entered by hand
+  (`Invoice.reverse_manual_payments`). A card payment is a fact about the
+  world and a button in this UI does not undo it; reversing one is a refund,
+  which happens at the processor. The two harness tripwires that pinned this
+  are now standing assertions, and
+  `test_mark_unpaid_erases_a_recorded_stripe_payment` was rewritten as
+  `test_mark_unpaid_cannot_erase_a_stripe_confirmed_payment` — its own
+  docstring had asked for exactly that rewrite.
+* ~~**mark-paid over a partial payment loses the provenance.**~~ **FIXED.**
+  `mark_paid` records the *shortfall* as a manual entry instead of assigning
+  the total, so $400.00 by card and $700.00 by cheque stay two entries.
+  `Invoice.confirmed_paid` and `Invoice.manual_paid` report them separately.
+* **deleting a paid invoice destroys the payment record.** **STILL OPEN.**
+  $900.00 that Stripe still holds a charge for has no counterpart in this
+  system to reconcile against. The ledger does not fix this on its own —
+  `Invoice.payments` cascades on delete, so the entries go with the invoice.
+  The fix is a soft delete when any payment exists, which is a separate
+  decision about what "delete" should mean here and was not taken. The
+  harness still reports it as KNOWN.
 
-**Why left alone.** Unchanged from the review: this needs a `Payment` table
-(invoice_id, amount, currency, source `stripe|manual`, stripe_session_id,
-created_at, reversed_at), `Invoice.amount_paid` becoming a derived sum, both
-`mark-*` routes writing rows instead of assigning a float, a soft delete when
-any payment exists, and the idempotency key moving from a comma-separated
-string to a unique index. That is a schema change plus a backfill plus a
-rework of the webhook credit path, on a production-autodeploying app.
+**What was built.** `Payment(invoice_id, amount, currency, source, external_id,
+note, created_at)`, `source` in `stripe|manual|reversal|migrated` and `amount`
+signed so a reversal is its own entry rather than the absence of the original.
+`Invoice.amount_paid` is kept as a **cache** — a dozen readers use it, one of
+them raw SQL — and is no longer assigned by anything: `record_payment`,
+`reverse_manual_payments` and `set_manual_paid_total` append and recompute it.
+`tests/test_payment_ledger.py` ties the two together after every operation, the
+way a control account ties to its subsidiary ledger. The idempotency key moved
+from the comma-joined `paid_session_ids` onto each entry's `external_id`;
+`has_credited` still reads the legacy string so a replay for an invoice paid
+before the table existed cannot double-credit. `_ensure_schema` backfills one
+`migrated` entry per invoice that already had money against it, idempotently.
 
 ### 3. Invoices lose a cent to binary float rounding — MEDIUM, and it is a charging change — NEW
 

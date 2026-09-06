@@ -22,6 +22,8 @@ from pathlib import Path
 
 from flask import current_app, render_template
 
+from designs import resolve
+
 _WEASY_AVAILABLE = None
 
 
@@ -74,16 +76,78 @@ def _business_context(invoice, allow_svg):
     return {
         "name": lines[0] if lines else "",
         "lines": lines[1:],
+        # The address as one editable block. The PDF renders ``lines``; the
+        # editor needs the same text back in a textarea, and deriving it here
+        # keeps one definition of "the sender block" rather than two that
+        # split the string on slightly different rules.
+        "address_text": "\n".join(lines[1:]),
         "logo_uri": _logo_data_uri(invoice, allow_svg=allow_svg),
     }
 
 
 def _render_invoice_html(invoice, allow_svg, pay_url=None):
+    # An invoice saved before the design gallery existed has no design, and
+    # ``resolve`` hands back the default — which reproduces the look this app
+    # shipped with, so a historical invoice re-renders unchanged rather than
+    # coming out of the printer in a skin its client has never seen.
+    design = resolve(getattr(invoice, "design", None))
     return render_template(
         "invoice_pdf.html",
         invoice=invoice,
         business=_business_context(invoice, allow_svg=allow_svg),
-        pay_url=pay_url if pay_url is not None else invoice.stripe_payment_url,
+        design=design,
+        doc_title=(getattr(invoice, "doc_title", None) or "INVOICE"),
+        # NO FALLBACK. This read `pay_url if pay_url is not None else
+        # invoice.stripe_payment_url`, which quietly undid the caller's
+        # refusal: `_pay_url` returns None precisely when payment must NOT be
+        # offered, and the fallback then printed whatever Checkout URL happened
+        # to be stored on the row. That is a stale link by construction — a
+        # session created before the currency allowlist, or before the owner
+        # disconnected Stripe — invited onto the client's PDF by the very call
+        # that had just decided not to invite them.
+        #
+        # Every caller now says what it means: `app.generate_pdf` passes
+        # `_pay_url(invoice)`, and the anonymous generator passes nothing.
+        # A stored `stripe_payment_url` is a one-shot Checkout session that
+        # expires within a day, so printing it on a document was never right.
+        #
+        # Raised by Codex on PR #289, round six.
+        pay_url=pay_url,
+    )
+
+
+def _no_network_fetcher(url, *args, **kwargs):
+    """Resolve data: URIs and refuse everything else.
+
+    AN INVOICE PDF HAS NO BUSINESS MAKING A NETWORK REQUEST. The logo is
+    embedded as a base64 data URI before rendering; nothing else in the
+    template references an external resource. Without this, WeasyPrint
+    dereferences whatever a document points at, from the application server.
+
+    That became an UNAUTHENTICATED SSRF the moment `/generator/pdf` started
+    accepting uploads without a login. `_read_logo` passes SVGs through
+    unchecked, so anyone could post an SVG carrying
+
+        <image href="http://169.254.169.254/latest/meta-data/iam/..."/>
+
+    and have the server fetch it — with the response capable of landing in the
+    PDF handed straight back to them. Cloud metadata, internal services, any
+    host the container can reach.
+
+    Refusing at the fetcher covers every route into the renderer at once,
+    including ones added later, which a check on the upload alone would not.
+    The upload check in `_read_logo` is kept as well: two independent layers,
+    because this one is a security boundary rather than a nicety.
+
+    Raised by Codex on PR #289, round five.
+    """
+    from weasyprint import default_url_fetcher
+
+    if url.startswith("data:"):
+        return default_url_fetcher(url, *args, **kwargs)
+    raise ValueError(
+        f"Refused to fetch an external resource while rendering an invoice: "
+        f"{url[:80]}"
     )
 
 
@@ -98,9 +162,11 @@ def _render_with_weasyprint(invoice, output_path, pay_url=None):
         ) from exc
 
     html_string = _render_invoice_html(invoice, allow_svg=True, pay_url=pay_url)
-    HTML(string=html_string, base_url=str(Path(output_path).parent)).write_pdf(
-        str(output_path)
-    )
+    HTML(
+        string=html_string,
+        base_url=str(Path(output_path).parent),
+        url_fetcher=_no_network_fetcher,
+    ).write_pdf(str(output_path))
 
 
 def _render_with_xhtml2pdf(invoice, output_path, pay_url=None):

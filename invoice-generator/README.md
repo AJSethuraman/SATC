@@ -124,10 +124,32 @@ The database and tables are created automatically on first run; open
 http://localhost:5000 and sign up. For auto-reload during development use
 `flask --app app run --debug`.
 
+## The signed-out generator (`/generator`)
+
+The front door is an invoice you type into, not a form behind a login. Open
+`/generator`, fill in the document itself, pick a design, and download the PDF
+— **no account, no email address, nothing written to the database.** An account
+is only needed to keep an invoice, email it, or take payment for it.
+
+- **The page is the invoice.** Every field is edited in place, in the face and
+  at the size it will print at. The editor and the PDF render the *same*
+  template (`templates/_invoice_document.html`) with the *same* stylesheet
+  (`templates/_invoice_css.html`), in two modes — so the preview is the
+  artifact rather than a lookalike.
+- **48 designs** (`designs.py`): six layout families across eight palettes.
+  Every design produces identical markup, so switching one swaps a single
+  stylesheet and keeps everything already typed.
+- **157 currencies** (`currencies.py`) with correct **minor units** — the yen
+  takes no decimals, the Kuwaiti dinar takes three.
+- **The draft lives in the browser.** A reload does not lose it. It is never
+  sent anywhere until a button is pressed.
+
 ## Features
 
 - **Accounts** — email/password sign-up and login (hashed passwords); each
   user sees only their own invoices and gets a personal API key.
+- **Signed-out generator** — `/generator`, described above: a WYSIWYG
+  invoice, 48 designs, 157 currencies, PDF download with no account.
 - **Web GUI** — invoice form with from/business, bill-to, optional ship-to,
   invoice number, date, payment terms, due date, PO number, currency, line
   items (description/qty/rate/amount), tax, discount, shipping, amount paid,
@@ -161,6 +183,8 @@ invoice-generator/
 ├── app.py                  # Flask app factory, auth + web routes
 ├── api.py                  # JSON REST API blueprint (per-user keys)
 ├── config.py               # Environment-driven configuration
+├── designs.py              # The 48-design gallery (families x palettes)
+├── currencies.py           # ISO 4217 table: symbols and minor units
 ├── models.py               # User / Invoice / LineItem + total calculations
 ├── helpers.py              # Currency formatting & form parsing
 ├── pdf.py                  # PDF rendering (WeasyPrint / xhtml2pdf dispatch)

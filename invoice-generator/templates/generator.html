@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Free invoice generator · Invoicer</title>
+<meta name="description" content="Make an invoice and download the PDF. No account, no email address, nothing to install."/>
+{% from "_invoice_document.html" import document, line_row %}
+
+{# The document's own stylesheet — the SAME partial the PDF includes, with the
+   same resolved design. Swapping this one <style> block is how the gallery
+   reskins the page live: the markup underneath never moves, so a half-typed
+   line survives a change of design. #}
+<style id="theme">
+{% include "_invoice_css.html" %}
+</style>
+
+{# Editor chrome. Never seen by the PDF, so it is free to use flexbox, grid,
+   sticky positioning and anything else the print engines cannot do. #}
+<style>
+  :root { --chrome: #0f172a; --chrome-2: #1e293b; --edge: #e2e8f0; --page: #eef1f6; }
+  * { box-sizing: border-box; }
+  body { background: var(--page); }
+  .chrome { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; }
+
+  /* ---- top bar ---- */
+  .bar { position: sticky; top: 0; z-index: 50; background: var(--chrome); color: #fff; padding: 10px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .bar .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; letter-spacing: -0.2px; }
+  .bar .brand svg { width: 19px; height: 19px; }
+  .bar .grow { flex: 1; }
+  .bar label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-right: 6px; }
+  .bar select { background: var(--chrome-2); color: #fff; border: 1px solid #334155; border-radius: 7px; padding: 7px 9px; font: inherit; max-width: 220px; }
+  .btn { border: 0; border-radius: 8px; padding: 9px 15px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-primary { background: #fff; color: var(--chrome); }
+  .btn-primary:hover { background: #e2e8f0; }
+  .btn-ghost { background: transparent; color: #cbd5e1; border: 1px solid #334155; }
+  .btn-ghost:hover { color: #fff; border-color: #64748b; }
+
+  /* ---- layout ---- */
+  .wrap { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 24px; align-items: start; padding: 24px; max-width: 1240px; margin: 0 auto; }
+  .paperwrap { display: flex; justify-content: center; overflow-x: auto; }
+  /* A4 at the same scale the PDF prints at, with @page's own margins, so the
+     sheet on screen is the sheet on paper rather than an approximation. */
+  .paper { width: 210mm; min-height: 297mm; padding: 14mm; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.09), 0 12px 32px rgba(15,23,42,.10); border-radius: 2px; flex: none; }
+  .paper .pad { padding: 0; }
+
+  .rail { position: sticky; top: 66px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: #fff; border: 1px solid var(--edge); border-radius: 11px; padding: 13px; }
+  .card h3 { margin: 0 0 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #64748b; }
+  .hint { color: #64748b; font-size: 11.5px; margin: 8px 0 0; }
+
+  /* ---- design gallery ---- */
+  .gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 288px; overflow-y: auto; padding-right: 3px; }
+  .swatch { border: 1.5px solid var(--edge); border-radius: 6px; padding: 0; cursor: pointer; background: #fff; overflow: hidden; aspect-ratio: 3/4; display: flex; flex-direction: column; }
+  .swatch:hover { border-color: #94a3b8; }
+  .swatch[aria-pressed="true"] { border-color: var(--chrome); box-shadow: 0 0 0 2px var(--chrome); }
+  .swatch .sw-head { height: 34%; }
+  .swatch .sw-body { flex: 1; padding: 3px; display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+  .swatch .sw-line { height: 2px; border-radius: 1px; background: #cbd5e1; }
+  .swatch .sw-line.short { width: 55%; }
+  .famfilter { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 9px; }
+  .famfilter button { border: 1px solid var(--edge); background: #fff; border-radius: 999px; padding: 3px 9px; font: inherit; font-size: 11px; cursor: pointer; color: #475569; }
+  .famfilter button[aria-pressed="true"] { background: var(--chrome); color: #fff; border-color: var(--chrome); }
+
+  /* ---- line-item controls (absolutely positioned so they take no layout
+     space in the document, and so the sheet stays exactly A4) ---- */
+  .items td.desc { position: relative; }
+  .delrow { position: absolute; left: -24px; top: 50%; transform: translateY(-50%); width: 19px; height: 19px; border: 0; border-radius: 50%; background: transparent; color: #cbd5e1; font-size: 15px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s; padding: 0; }
+  .items tr:hover .delrow { opacity: 1; }
+  .delrow:hover { background: #fee2e2; color: #dc2626; }
+  #addline { margin-top: 7px; border: 1px dashed #cbd5e1; background: #fff; color: #475569; border-radius: 7px; padding: 6px 11px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; cursor: pointer; }
+  #addline:hover { border-color: #94a3b8; color: var(--chrome); }
+  .pctsel { cursor: pointer; }
+  #logo-slot[data-empty="1"] { border: 1.5px dashed #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; font-family: -apple-system, sans-serif; cursor: pointer; width: 130px; }
+  #logo-slot[data-empty="1"]::after { content: "+ Add your logo"; }
+  #logo-slot img { max-height: 46px; }
+
+  /* `display:flex` beats the `hidden` attribute, so the bar showed to
+     everybody — including anonymous visitors, who were told they had started
+     an invoice before signing in and given two buttons with no handlers on
+     them. Found by the browser probe, not by a test. */
+  .offer[hidden] { display: none; }
+  .offer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+           background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a;
+           border-radius: 9px; padding: 10px 13px; margin: 16px auto 0;
+           max-width: 210mm; }
+  .offer .grow { flex: 1; }
+  /* Not `.btn-ghost`: that button is styled for the dark top bar, and on this
+     pale blue its label came out almost unreadable. Looked at, not assumed. */
+  .offer .btn { background: #1d4ed8; border: 1px solid #1d4ed8; color: #fff;
+                border-radius: 7px; padding: 7px 13px; font: inherit;
+                font-weight: 600; cursor: pointer; }
+  .offer .btn:hover { background: #1e40af; }
+  /* Discarding somebody's work should not look as inviting as keeping it. */
+  .offer .btn-plain, .offer .btn-plain:hover {
+    background: transparent; border-color: transparent; color: #1e3a8a;
+    font-weight: 400; text-decoration: underline; }
+  .btn-plain { background: transparent; border: 1px solid transparent; color: #1e3a8a;
+               text-decoration: underline; cursor: pointer; padding: 6px 8px; font: inherit; }
+  .errors { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 9px; padding: 11px 13px; margin: 0 auto 16px; max-width: 210mm; }
+  .errors ul { margin: 5px 0 0; padding-left: 18px; }
+
+  @media (max-width: 1100px) {
+    .wrap { grid-template-columns: 1fr; }
+    .rail { position: static; }
+    .gallery { grid-template-columns: repeat(8, 1fr); max-height: none; }
+  }
+  @media print { .bar, .rail, .delrow, #addline { display: none !important; } .paper { box-shadow: none; width: auto; padding: 0; } }
+</style>
+</head>
+<body class="chrome">
+
+<form method="post" id="gen" action="{{ url_for('generator_pdf') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <input type="hidden" name="design" id="design-input" value="{{ design.id }}"/>
+
+  <header class="bar">
+    <span class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>
+      Invoicer
+    </span>
+    <span>
+      <label for="currency">Currency</label>
+      <select id="currency" name="currency">
+        {% for code, label in currency_choices %}
+        <option value="{{ code }}" {{ 'selected' if code == invoice.currency }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </span>
+    <span class="grow"></span>
+    {% if current_user.is_authenticated %}
+    <button class="btn btn-ghost" type="submit" formaction="{{ url_for('generator_save') }}">Save to my invoices</button>
+    {% else %}
+    <a class="btn btn-ghost" href="{{ url_for('signup', next=url_for('generator')) }}" style="text-decoration:none;display:inline-block">Save &amp; send it</a>
+    {% endif %}
+    <button class="btn btn-primary" type="submit">Download PDF</button>
+  </header>
+
+  {#- Offered, never taken. See the draft comment in the script below: no
+      invoice moves from an anonymous browser into an account without somebody
+      pressing this, because nothing else can tell whether it is theirs. -#}
+  <div class="offer" id="offer" hidden>
+    <span>You started an invoice on this computer before signing in.</span>
+    <span class="grow"></span>
+    <button type="button" class="btn" id="offer-yes">Bring it over</button>
+    <button type="button" class="btn btn-plain" id="offer-no">Discard it</button>
+  </div>
+
+  {% if errors %}
+  <div class="errors" style="margin-top:16px">
+    <strong>This invoice was not made:</strong>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="wrap">
+    <div class="paperwrap">
+      <div class="paper">
+        {{ document(invoice, business, design, editable=True, doc_title=doc_title) }}
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="card">
+        <h3>Design — {{ design_count }} to choose from</h3>
+        <div class="famfilter" id="famfilter">
+          <button type="button" data-fam="all" aria-pressed="true">All</button>
+          {% for key, fam in families.items() %}
+          <button type="button" data-fam="{{ key }}" aria-pressed="false">{{ fam.label }}</button>
+          {% endfor %}
+        </div>
+        <div class="gallery" id="gallery">
+          {% for d in designs %}
+          <button type="button" class="swatch" data-design="{{ d.id }}" data-fam="{{ d.family }}"
+                  title="{{ d.label }} — {{ d.blurb }}" aria-pressed="{{ 'true' if d.id == design.id else 'false' }}">
+            <span class="sw-head" style="background:{{ d.accent if d.head in ('band','stripe') else d.ink }}"></span>
+            <span class="sw-body">
+              <span class="sw-line" style="background:{{ d.accent }}"></span>
+              <span class="sw-line short"></span>
+              <span class="sw-line"></span>
+            </span>
+          </button>
+          {% endfor %}
+        </div>
+        <p class="hint">Switching a design keeps everything you have typed.</p>
+      </div>
+
+      <div class="card">
+        <h3>Your logo</h3>
+        <input type="file" name="logo" id="logo" accept=".png,.jpg,.jpeg,.gif,.svg" style="width:100%;font-size:12px"/>
+        <p class="hint">PNG or SVG. It is embedded in the PDF — nothing is uploaded to a public folder.</p>
+      </div>
+
+      <div class="card">
+        <h3>What happens to this</h3>
+        <p class="hint" style="margin-top:0">
+          Nothing is saved anywhere until you ask. <strong>Download PDF</strong> makes the
+          file and keeps no copy. Your draft stays in this browser so a refresh
+          will not lose it.
+        </p>
+        <p class="hint">
+          {% if current_user.is_authenticated %}
+          <strong>Save to my invoices</strong> keeps it, so you can send it and be paid online.
+          {% else %}
+          To email it and take payment online, you will need an account.
+          {% endif %}
+        </p>
+      </div>
+    </aside>
+  </div>
+</form>
+
+{# The empty row the "add a line" button clones. Rendered by the SAME macro
+   that renders a loaded row, so an added line cannot differ from a saved one. #}
+<template id="rowtpl">{{ line_row(true, invoice, '', '1', '', zero_money) }}</template>
+
+<script>
+const CURRENCIES = {{ currency_js | tojson }};
+const DEFAULT_DESIGN = {{ design.id | tojson }};
+const THEME_URL = {{ url_for('generator_theme') | tojson }};
+/* WHOSE DRAFT THIS IS, AND WHO SAYS SO.
+
+   One origin-wide key meant a signed-in sender's business details — and their
+   client's name, address, line descriptions and prices — came back for whoever
+   opened this page next in the same browser. Two fixes narrowed that and
+   neither closed it. Scoping the key to the viewer still adopted the anonymous
+   draft on any signed-in visit, so a stranger's abandoned invoice reached the
+   next person to log in. Requiring a marker left by pressing "Save & send it"
+   still could not tell whether the person who eventually signed in was the
+   person who pressed it: leave the machine on the signup page and the next
+   arrival inherits the lot.
+
+   THE THIRD ANSWER IS TO STOP GUESSING. No draft is adopted automatically at
+   all. If you are signed in and this browser holds an anonymous draft, the
+   page says so and offers it; a person decides, which is the only thing that
+   can actually tell whether it is theirs. One click in the sign-up flow buys
+   the whole class of problem away.
+
+   What is still automatic is deletion. Every other viewer's draft is purged on
+   sight — which loses another account's unfinished invoice when two people
+   share a browser, deliberately: an unfinished invoice is worth less than a
+   client's details sitting in a stranger's browser. The pre-fix unscoped key
+   goes the same way, and is never offered, because nobody can say whose it
+   was and guessing is the whole bug.
+
+   Raised by Codex on PR #289, rounds seven, eight and nine. */
+const DRAFT_PREFIX = "invoicer.draft.";
+const DRAFT_SCOPE = "{{ draft_scope }}";
+const DRAFT_KEY = DRAFT_PREFIX + "v2." + DRAFT_SCOPE;
+const ANON_KEY = DRAFT_PREFIX + "v2.anon";
+const SIGNED_IN = {{ 'true' if draft_scope != 'anon' else 'false' }};
+const SAVE_PATH = "{{ url_for('generator_save') }}";
+
+function purgeOtherDrafts() {
+  // Mine stays. The anonymous one stays only while signed in, because that is
+  // the one the offer below is about — and deleting it unasked would throw
+  // away the work the sign-up flow exists to carry across.
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(DRAFT_PREFIX)) continue;
+      if (k === DRAFT_KEY) continue;
+      if (SIGNED_IN && k === ANON_KEY) continue;
+      localStorage.removeItem(k);
+    }
+  } catch (_) {}
+}
+purgeOtherDrafts();
+
+/* The offer. Only a person can say whether the draft this browser is holding
+   belongs to the account now signed into it, so a person is asked. Both
+   answers end with the anonymous copy gone, so it is asked once. */
+function offerAnonymousDraft() {
+  if (!SIGNED_IN) return;
+  let carried = null;
+  try {
+    if (localStorage.getItem(DRAFT_KEY)) return;   // they are already working
+    carried = localStorage.getItem(ANON_KEY);
+  } catch (_) { return; }
+  if (!carried) return;
+
+  const bar = document.getElementById("offer");
+  if (!bar) return;
+  bar.hidden = false;
+  const done = () => {
+    try { localStorage.removeItem(ANON_KEY); } catch (_) {}
+    bar.hidden = true;
+  };
+  document.getElementById("offer-yes").addEventListener("click", () => {
+    try { localStorage.setItem(DRAFT_KEY, carried); } catch (_) {}
+    done();
+    restoreDraft();
+    recalc();
+  });
+  document.getElementById("offer-no").addEventListener("click", done);
+}
+
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+
+/* ---- money -------------------------------------------------------------
+   Mirrors models.Invoice's derived totals step for step, including where it
+   rounds. This is a PREVIEW: every figure is recomputed server-side from the
+   same posted values before anything is rendered to PDF or saved, so the
+   server stays authoritative. JS rounds halves up where Python rounds to
+   even, which can differ by one minor unit on an exact half — the PDF shows
+   the server's answer.                                                     */
+function cur() { return $("#currency").value || "USD"; }
+function meta() { return CURRENCIES[cur()] || { s: cur(), d: 2 }; }
+/* Rounds the double itself, the way Python's round() does, instead of scaling
+   by a power of ten and rounding the product. The difference is not academic:
+   8.25% of 990 is stored as a double a hair BELOW 81.675, so Python gives
+   81.67 — but multiplying by 100 first lands on exactly 8167.5, which rounds
+   half-up to 81.68. The preview read $1,071.68 while the PDF printed
+   $1,071.67, which is the one thing an editor that calls itself a preview may
+   not do. Exact ties can still differ by one minor unit (Python rounds them
+   to even, toFixed away from zero); the server's figure is the one that
+   prints, and it is recomputed from the posted values either way. */
+function rnd(n, d) { return Number(n.toFixed(d)); }
+function num(el) { const v = parseFloat(String(el.value).replace(/,/g, "")); return Number.isFinite(v) ? v : 0; }
+function money(n) {
+  const m = meta();
+  const mag = rnd(Math.abs(n), m.d);
+  const sign = n < 0 && mag !== 0 ? "-" : "";
+  return sign + m.s + mag.toLocaleString("en-US", { minimumFractionDigits: m.d, maximumFractionDigits: m.d });
+}
+
+function recalc() {
+  // EVERY STEP ROUNDS AT THE SELECTED CURRENCY'S PRECISION, not at two places.
+  // Hardcoding 2 here made the preview disagree with the document it is a
+  // preview of: with KWD selected, 1 x 1.235 showed KD1.240 on screen while
+  // the submitted invoice and the downloaded PDF both said KD1.235. Rounding
+  // a line at the wrong precision also feeds the wrong base into the tax step,
+  // so the divergence compounds down the column rather than staying in one
+  // cell. The server is still authoritative; this is what keeps it honest.
+  const d = meta().d;
+  let sub = 0;
+  $$("#lines tr").forEach(row => {
+    const amt = rnd(num($(".qty", row)) * num($(".rate", row)), d);
+    sub += amt;
+    $(".amt", row).textContent = money(amt);
+  });
+  sub = rnd(sub, d);
+
+  const discPct = $("[name=discount_is_percent]").value === "1";
+  const discVal = num($("[name=discount]"));
+  const disc = rnd(discPct ? sub * discVal / 100 : discVal, d);
+  const base = rnd(sub - disc, d);
+
+  const taxPct = $("[name=tax_is_percent]").value === "1";
+  const taxVal = num($("[name=tax]"));
+  const tax = rnd(taxPct ? base * taxVal / 100 : taxVal, d);
+
+  const ship = rnd(num($("[name=shipping]")), d);
+  const total = rnd(base + tax + ship, d);
+  const paid = rnd(num($("[name=amount_paid]")), d);
+
+  $("#t-sub").textContent = money(sub);
+  $("#t-disc").textContent = "−" + money(disc);
+  $("#t-tax").textContent = money(tax);
+  $("#t-ship").textContent = money(ship);
+  $("#t-tot").textContent = money(total);
+  $("#t-paid").textContent = "−" + money(paid);
+  $("#t-bal").textContent = money(rnd(total - paid, d));
+
+  $$(".pctsel").forEach(sel => { sel.options[1].textContent = meta().s.trim() || cur(); });
+  saveDraft();
+}
+
+/* ---- line items ---- */
+function addLine(focus) {
+  const row = $("#rowtpl").content.firstElementChild.cloneNode(true);
+  $("#lines").appendChild(row);
+  if (focus) $("input[name=item_description]", row).focus();
+  recalc();
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("#addline")) { addLine(true); }
+  const del = e.target.closest(".delrow");
+  if (del) {
+    const rows = $$("#lines tr");
+    if (rows.length > 1) del.closest("tr").remove(); else $$("input,textarea", rows[0]).forEach(i => i.value = "");
+    recalc();
+  }
+});
+
+/* ---- design gallery: swap the stylesheet, touch nothing else ---- */
+async function pickDesign(id) {
+  const res = await fetch(THEME_URL + "?design=" + encodeURIComponent(id));
+  if (!res.ok) return;
+  $("#theme").textContent = await res.text();
+  $("#design-input").value = id;
+  $$(".swatch").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.design === id)));
+  saveDraft();
+}
+$("#gallery").addEventListener("click", e => {
+  const b = e.target.closest(".swatch");
+  if (b) pickDesign(b.dataset.design);
+});
+$("#famfilter").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  $$("#famfilter button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  $$(".swatch").forEach(s => { s.style.display = (b.dataset.fam === "all" || s.dataset.fam === b.dataset.fam) ? "" : "none"; });
+});
+
+/* ---- logo preview ---- */
+$("#logo").addEventListener("change", e => {
+  const file = e.target.files[0], slot = $("#logo-slot");
+  if (!file || !slot) return;
+  const reader = new FileReader();
+  reader.onload = () => { slot.dataset.empty = "0"; slot.innerHTML = '<img alt="Your logo"/>'; $("img", slot).src = reader.result; };
+  reader.readAsDataURL(file);
+});
+if ($("#logo-slot")) $("#logo-slot").addEventListener("click", () => $("#logo").click());
+
+/* ---- textareas grow with their content, so the sheet reflows like the page ---- */
+function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
+$$("textarea[data-autogrow]").forEach(grow);
+
+/* ---- draft persistence -------------------------------------------------
+   The whole point of a no-signup generator is that you can start typing
+   immediately. That promise breaks the first time somebody reloads and loses
+   ten line items, so the draft lives in this browser. It is never sent
+   anywhere: localStorage is per-origin and per-device, and the server sees
+   these values only when the sender presses a button.                      */
+function formState() {
+  const state = { design: $("#design-input").value, fields: {}, lines: [] };
+  $$("#gen input, #gen textarea, #gen select").forEach(el => {
+    if (!el.name || el.type === "file" || el.name === "csrf_token") return;
+    if (el.name.startsWith("item_")) return;
+    state.fields[el.name] = el.value;
+  });
+  $$("#lines tr").forEach(row => state.lines.push({
+    d: $("input[name=item_description]", row).value,
+    q: $(".qty", row).value,
+    r: $(".rate", row).value,
+  }));
+  return state;
+}
+let saveTimer;
+function saveDraft() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(formState())); } catch (_) {}
+  }, 250);
+}
+function restoreDraft() {
+  let state;
+  try { state = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (_) { return; }
+  if (!state) return;
+  Object.entries(state.fields || {}).forEach(([name, value]) => {
+    const el = $("#gen [name='" + CSS.escape(name) + "']");
+    // Overwrite unconditionally. Guarding on `!el.value` meant every field the
+    // server had already filled in — the totals boxes start at "0", the date at
+    // today — refused its saved value, so a reload restored the client's name
+    // and the line items but silently dropped the tax, the discount and the
+    // amount paid, and the balance due came back wrong. restoreDraft only runs
+    // when there are no validation errors on the page, so there is no
+    // server-side state here worth preserving over the sender's own draft.
+    if (el) el.value = value;
+  });
+  if (state.lines && state.lines.length) {
+    $("#lines").innerHTML = "";
+    state.lines.forEach(l => {
+      addLine(false);
+      const row = $("#lines tr:last-child");
+      $("input[name=item_description]", row).value = l.d || "";
+      $(".qty", row).value = l.q || "";
+      $(".rate", row).value = l.r || "";
+    });
+  }
+  if (state.design && state.design !== DEFAULT_DESIGN) pickDesign(state.design);
+  $$("textarea[data-autogrow]").forEach(grow);
+}
+
+/* ---- wiring ---- */
+document.addEventListener("input", e => {
+  if (e.target.matches("textarea[data-oneline]") && e.target.value.includes("\n")) {
+    // These wrap visually but hold ONE line: the value is the first line of a
+    // two-part field (name, then address), so a typed newline would silently
+    // move half the business name into the address block.
+    const pos = e.target.selectionStart;
+    e.target.value = e.target.value.replace(/\n/g, " ");
+    e.target.setSelectionRange(pos, pos);
+  }
+  if (e.target.matches("textarea[data-autogrow]")) grow(e.target);
+  if (e.target.closest("#gen")) recalc();
+});
+document.addEventListener("change", e => { if (e.target.closest("#gen")) recalc(); });
+/* Clear the draft only where the draft has actually gone somewhere.
+   This used to fire on ANY submit, and "Download PDF" is a submit: the file
+   arrived, the page stayed exactly where it was, and the saved draft was
+   already gone — so the next refresh emptied the form. The page promises the
+   opposite two inches above this script ("Your draft stays in this browser so
+   a refresh doesn't lose it"), and downloading the PDF is the single most
+   likely thing to be followed by a refresh.
+   "Save to my invoices" is the one submit that leaves: it writes the invoice
+   to the account and redirects away, so the browser copy has a home now.
+   No `submitter` (older browser, or a scripted submit) means keep the draft —
+   losing somebody's work is the worse half of the trade.
+   Raised by Codex on PR #289, round five. */
+$("#gen").addEventListener("submit", e => {
+  const goingToSave = e.submitter && e.submitter.formAction &&
+    e.submitter.formAction.endsWith(SAVE_PATH);
+  if (goingToSave) { try { localStorage.removeItem(DRAFT_KEY); } catch (_) {} }
+});
+
+offerAnonymousDraft();
+{% if not errors %}restoreDraft();{% else %}
+/* The save was refused and the server re-rendered the form with what was
+   typed. The draft was cleared on the way out, so put it back from what is on
+   the page — otherwise a validation error costs the sender their draft. */
+saveDraft();
+{% endif %}
+recalc();
+</script>
+</body>
+</html>

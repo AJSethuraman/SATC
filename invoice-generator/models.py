@@ -5,6 +5,8 @@ Tables:
 * ``User``     - account with hashed password and a per-user API key.
 * ``Invoice``  - header / totals / metadata, owned by a user.
 * ``LineItem`` - each billed row.
+* ``Payment``  - each payment received, individually. See its docstring: the
+  invoice's ``amount_paid`` is a CACHE of this ledger, not the record.
 
 Monetary inputs (tax, discount, shipping) are stored as raw values plus a flag
 indicating whether the value is a percentage or a flat amount, mirroring the
@@ -19,6 +21,8 @@ from datetime import datetime, date
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from currencies import decimals_for
 
 db = SQLAlchemy()
 
@@ -182,6 +186,11 @@ class Invoice(db.Model):
     discount_value = db.Column(db.Float, default=0.0)
     discount_is_percent = db.Column(db.Boolean, default=False)
     shipping = db.Column(db.Float, default=0.0)
+    # A CACHE OF THE `payments` LEDGER, not the record -- see Payment's
+    # docstring. Nothing assigns to this directly any more; `record_payment`
+    # and `reverse_manual_payments` recompute it. It stays a column because a
+    # dozen readers use it, including one raw SQL statement in _ensure_schema
+    # and the History KPIs, and because a property cannot be queried in SQL.
     amount_paid = db.Column(db.Float, default=0.0)
 
     # Free text
@@ -191,6 +200,18 @@ class Invoice(db.Model):
     # Branding (logo stored in the DB, not on disk)
     logo_data = db.Column(db.LargeBinary, nullable=True)
     logo_mimetype = db.Column(db.String(64), nullable=True)
+
+    # The chosen look, e.g. "band-emerald". See designs.py. NULLABLE on
+    # purpose: every invoice written before the gallery existed has no design,
+    # and designs.resolve(None) hands back the look the app already shipped,
+    # so those invoices re-print exactly as their clients first saw them.
+    # Nullable also makes the column safe to add under a rolling deploy — a
+    # worker still running the old code inserts rows without it.
+    design = db.Column(db.String(64), nullable=True)
+    # "INVOICE" / "QUOTE" / "RECEIPT" / "ESTIMATE". The document is the same
+    # shape either way; only the word at the top and the label on the number
+    # change. Nullable for the same reason as `design`.
+    doc_title = db.Column(db.String(40), nullable=True)
 
     # Workflow / integrations
     status = db.Column(db.String(20), default="Draft")  # Draft | Sent | Paid
@@ -216,40 +237,71 @@ class Invoice(db.Model):
         order_by="LineItem.position",
     )
 
+    payments = db.relationship(
+        "Payment",
+        backref="invoice",
+        cascade="all, delete-orphan",
+        order_by="Payment.id",
+    )
+
     @property
     def has_logo(self):
         return self.logo_data is not None
 
     # --- Derived totals -------------------------------------------------
+    #
+    # EVERY FIGURE ROUNDS TO THE CURRENCY'S OWN MINOR UNIT, not to two places.
+    # Hardcoding 2 was right for the fourteen currencies this app used to
+    # offer and wrong for a quarter of the 157 it offers now, in both
+    # directions:
+    #
+    #   * A KWD line of 1 x 1.235 printed "KD1.235" as the unit price and
+    #     "KD1.240" as the amount, on the same row, because the display
+    #     honoured the dinar's three places and the arithmetic did not.
+    #   * A JPY invoice of 3 x 100.5 STORED 301.5 -- an amount of yen that
+    #     cannot exist. It displayed as ¥302 and charged ¥302, so the number
+    #     in the database was the only one that was wrong, which is the
+    #     hardest kind to notice.
+    #
+    # Caught by Codex on PR #289. Guarded by tests/test_currency_precision.py.
+
+    @property
+    def places(self):
+        """How many decimal places this invoice's currency actually has."""
+        return decimals_for(self.currency)
+
+    def _round(self, value):
+        return round(value, self.places)
+
     @property
     def subtotal(self):
-        return round(sum(item.amount for item in self.items), 2)
+        return self._round(sum(item.amount for item in self.items))
 
     @property
     def discount_amount(self):
         if self.discount_is_percent:
-            return round(self.subtotal * (self.discount_value or 0) / 100.0, 2)
-        return round(self.discount_value or 0.0, 2)
+            return self._round(self.subtotal * (self.discount_value or 0) / 100.0)
+        return self._round(self.discount_value or 0.0)
 
     @property
     def taxable_base(self):
-        return round(self.subtotal - self.discount_amount, 2)
+        return self._round(self.subtotal - self.discount_amount)
 
     @property
     def tax_amount(self):
         if self.tax_is_percent:
-            return round(self.taxable_base * (self.tax_value or 0) / 100.0, 2)
-        return round(self.tax_value or 0.0, 2)
+            return self._round(self.taxable_base * (self.tax_value or 0) / 100.0)
+        return self._round(self.tax_value or 0.0)
 
     @property
     def total(self):
-        return round(
-            self.taxable_base + self.tax_amount + (self.shipping or 0.0), 2
+        return self._round(
+            self.taxable_base + self.tax_amount + (self.shipping or 0.0)
         )
 
     @property
     def balance_due(self):
-        return round(self.total - (self.amount_paid or 0.0), 2)
+        return self._round(self.total - (self.amount_paid or 0.0))
 
     @property
     def is_overdue(self):
@@ -288,6 +340,249 @@ class Invoice(db.Model):
                 return line.strip()
         return "—"
 
+    # --- the payment ledger ---------------------------------------------
+    #
+    # THE ONLY THREE WAYS MONEY MOVES ON AN INVOICE. Everything that used to
+    # assign to `amount_paid` goes through one of these, so the ledger and the
+    # cache cannot disagree and no caller has to remember to keep them in step.
+
+    @property
+    def ledger_total(self):
+        """What the ledger says is paid. `amount_paid` must equal this."""
+        return self._round(sum(p.amount or 0.0 for p in self.payments))
+
+    @property
+    def confirmed_paid(self):
+        """The part a payment processor confirmed. Not reversible in this app."""
+        return self._round(
+            sum(p.amount or 0.0 for p in self.payments if p.is_confirmed)
+        )
+
+    @property
+    def manual_paid(self):
+        """The part somebody entered by hand, net of any reversals."""
+        return self._round(
+            sum(
+                p.amount or 0.0
+                for p in self.payments
+                if p.source in ("manual", "reversal", "migrated")
+            )
+        )
+
+    def has_credited(self, external_id):
+        """Has this processor reference already been counted?
+
+        Reads the ledger AND the legacy ``paid_session_ids`` string. Both,
+        because invoices that were paid before this table existed carry their
+        session ids only in that string -- and a replayed webhook for one of
+        them must still not double-credit. Nothing writes the legacy column
+        any more; it is read for exactly this reason and can be dropped once
+        no invoice predating the ledger is still live.
+        """
+        if not external_id:
+            return False
+        if any(p.external_id == external_id for p in self.payments):
+            return True
+        legacy = [s for s in (self.paid_session_ids or "").split(",") if s]
+        return external_id in legacy
+
+    def record_payment(
+        self, amount, source, external_id=None, note="", currency=None
+    ):
+        """Append a payment and refresh the cache. Returns the Payment."""
+        payment = Payment(
+            amount=self._round(float(amount or 0.0)),
+            currency=(currency or self.currency or ""),
+            source=source,
+            external_id=external_id,
+            note=note[:255],
+        )
+        self.payments.append(payment)
+        self._sync_amount_paid()
+        return payment
+
+    def reverse_manual_payments(self, note=""):
+        """Undo what a person entered by hand. Returns the amount reversed.
+
+        **Confirmed payments are not touched, and that is the point.** The old
+        `mark_unpaid` set `amount_paid = 0` outright, which meant a button in
+        our UI could erase money Stripe had already moved. It cannot: a card
+        payment is a fact about the world, and reversing it is a refund, which
+        happens at the processor and arrives back here as its own event.
+
+        The reversal is an ENTRY, not a deletion -- the original stays legible,
+        so "this was marked paid in error on the 5th" is still answerable.
+        """
+        outstanding = self.manual_paid
+        if outstanding == 0:
+            return 0.0
+        self.record_payment(
+            -outstanding,
+            source="reversal",
+            note=note or "Reversed a manual payment entry",
+        )
+        return outstanding
+
+    def set_manual_paid_total(self, target, note=""):
+        """Adjust the MANUAL entries until the total paid reads ``target``.
+
+        This is what a typed "amount paid" box means: a person stating what
+        they have received. It is expressed as a delta rather than an
+        assignment so it lands in the ledger like everything else.
+
+        **Confirmed payments are a floor.** A figure typed into a form can
+        raise the total or lower it down to what a processor has confirmed,
+        and no further -- the same rule as `reverse_manual_payments`, applied
+        at the other door. Somebody correcting a typo must not be able to
+        delete a card payment by typing a smaller number over it.
+        """
+        target = self._round(float(target or 0.0))
+        floor = self.confirmed_paid
+        if target < floor:
+            target = floor
+        delta = self._round(target - self.ledger_total)
+        if delta == 0:
+            return 0.0
+        self.record_payment(
+            delta,
+            source="manual" if delta > 0 else "reversal",
+            note=note or "Amount paid entered on the invoice",
+        )
+        return delta
+
+    def _sync_amount_paid(self):
+        self.amount_paid = self.ledger_total
+
+    def resync_amount_paid_from_db(self):
+        """Recompute the cache with SQL, from every row the database holds.
+
+        `_sync_amount_paid` sums the payments THIS SESSION knows about, which
+        is right for one writer and wrong for two. The unique constraint stops
+        the same Checkout Session being credited twice, but two DIFFERENT
+        sessions can settle one invoice at the same moment -- each visit to
+        `/pay` creates its own -- and then:
+
+            worker A: loads (paid 0), adds 400, writes cache 400, commits
+            worker B: loaded (paid 0), adds 700, writes cache 700, commits
+
+        Both inserts satisfy the constraint, so the ledger correctly holds
+        1,100 while the cache says 700 and the invoice never settles. A lost
+        update, and the kind that only appears under load.
+
+        Two things fix it together: the webhook loads the invoice FOR UPDATE so
+        the second worker waits, and this recomputes from the table rather than
+        from the collection, so what it writes accounts for rows it never saw.
+        The flush is what makes the payment we just appended visible to the
+        aggregate inside our own transaction.
+
+        Raised by Codex on PR #289, second round.
+        """
+        from sqlalchemy import func, select
+
+        db.session.flush()
+        total = db.session.execute(
+            select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+                Payment.invoice_id == self.id
+            )
+        ).scalar()
+        self.amount_paid = self._round(total or 0.0)
+
+
+class Payment(db.Model):
+    """One payment against one invoice. The record; never overwritten.
+
+    ## Why this table exists
+
+    ``Invoice.amount_paid`` used to be the whole record: a single mutable
+    float that every path overwrote. Three things followed from that, all of
+    them recorded in ``docs/REPO-INVENTORY.md`` as the last money bug left in
+    this app, and the firm's answer on 5 September 2026 was *"Fix it before
+    any client sees it."*
+
+    1. **"Mark as unpaid" destroyed real money.** It set ``amount_paid = 0``
+       without being able to tell a card payment from a typo. A 400.00
+       payment Stripe had actually taken was gone in one click.
+    2. **It was unrecoverable.** The spent Checkout Session id stayed in
+       ``paid_session_ids``, so replaying the very webhook that recorded the
+       payment hit the "already credited" branch and did nothing.
+    3. **Two payments became one number.** 400.00 by card and 700.00 by
+       cheque stored as ``1100.00``; if the card payment was later disputed
+       there was nothing to say which part of it was the card's.
+
+    A ledger fixes all three at once, and it is what an accounting practice
+    would expect to exist: entries are appended, never edited, and a reversal
+    is its own entry rather than the absence of the original.
+
+    ## amount_paid is now a cache of this, and must tie out
+
+    ``Invoice.amount_paid`` is kept because a dozen readers use it -- the
+    templates, the CSV export, the JSON API, the History KPIs and one raw SQL
+    statement in ``_ensure_schema``. It is no longer written directly by
+    anything: every change goes through ``Invoice.record_payment`` or
+    ``Invoice.reverse_manual_payments``, which append here and then recompute
+    it. ``tests/test_payment_ledger.py`` ties the two together after every
+    operation, the way a control account ties to its subsidiary ledger.
+
+    ``amount`` is signed: positive is money in, negative is a reversal.
+    ``source`` says who to believe -- ``stripe`` is money a processor
+    confirmed moved, and nothing in this application's UI may reverse it.
+    """
+
+    __tablename__ = "payments"
+
+    # THE IDEMPOTENCY KEY IS ENFORCED BY THE DATABASE, not by the read that
+    # precedes the write. `has_credited` asks whether a processor reference is
+    # already in the ledger, but gunicorn runs two workers and Stripe delivers
+    # a retry concurrently -- so both can answer "no" before either commits,
+    # and the payment lands twice. A check-then-insert is not a guard.
+    #
+    # Migrated opening balances carry a synthetic `migrated:<invoice_id>`
+    # reference for the same reason: _ensure_schema's backfill runs per worker
+    # at boot, and two workers can both find no rows and both insert a full
+    # set. With this constraint the loser's INSERT violates it and rolls the
+    # whole statement back, which leaves exactly one set.
+    #
+    # NULL is exempt in both SQLite and Postgres -- several manual payments on
+    # one invoice are legitimate and carry no reference at all.
+    __table_args__ = (
+        db.UniqueConstraint(
+            "invoice_id", "external_id", name="uq_payment_invoice_external"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey("invoices.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # Signed. Positive = money in; negative = a reversal of an earlier entry.
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    # Snapshotted, because an invoice's currency can be edited afterwards and
+    # a payment happened in whatever currency it happened in.
+    currency = db.Column(db.String(8), default="")
+
+    # "stripe"   - a processor confirmed the money moved. Not reversible here.
+    # "manual"   - somebody in this app said it was paid (cash, cheque, bank).
+    # "reversal" - undoing a manual entry. Never generated for a stripe one.
+    # "migrated" - the opening balance carried over when this table was added.
+    source = db.Column(db.String(20), nullable=False, default="manual")
+
+    # The Stripe Checkout Session id, for stripe rows. This is the
+    # idempotency key that stops a webhook retry counting twice, and it is
+    # now held per-payment instead of in a comma-joined string on the invoice.
+    external_id = db.Column(db.String(255), nullable=True, index=True)
+
+    note = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def is_confirmed(self):
+        """Money a payment processor says actually moved."""
+        return self.source == "stripe"
+
 
 class LineItem(db.Model):
     __tablename__ = "line_items"
@@ -303,4 +598,13 @@ class LineItem(db.Model):
 
     @property
     def amount(self):
-        return round((self.quantity or 0.0) * (self.rate or 0.0), 2)
+        """Rounded to the parent invoice's currency, not to two places.
+
+        A line item has no currency of its own, so it asks the invoice. A
+        detached row -- one built in a test, or read before its parent is
+        loaded -- falls back to two, which is right for all but 23 of the 157
+        currencies and is the only answer available without inventing one.
+        """
+        invoice = getattr(self, "invoice", None)
+        digits = decimals_for(invoice.currency) if invoice is not None else 2
+        return round((self.quantity or 0.0) * (self.rate or 0.0), digits)

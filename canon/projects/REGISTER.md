@@ -55,3 +55,18 @@ originally named the documents that govern them, and both read better without.
 **Where it lives:** Its own repository, separate from the SATC monorepo. Runs on the Forge, bound to loopback, and published across the private tailnet by Tailscale Serve rather than by binding a public interface.
 
 **Convictions that apply:** none recorded
+
+---
+
+## invoice-generator
+
+**What it is:** A self-hosted invoicing application: an invoice you type into directly — the editor and the PDF are one template rendered twice — with a payment ledger behind it whose entries are appended and never edited.
+
+**What it is for:** The firm's clients, and eventually invoicing on their behalf. Each user links their own Stripe account, so their customers pay them and the money never passes through the practice.
+
+**Stack:** Python, Flask, SQLAlchemy, WeasyPrint
+
+**Where it lives:** Its own folder in the SATC monorepo, deployed to Render. Part of the practice line, not the analytics consulting line.
+
+**Convictions that apply:** C15
+

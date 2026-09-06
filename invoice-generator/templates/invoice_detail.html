@@ -8,6 +8,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+{% from "_invoice_document.html" import document %}
+
+{# The document's own stylesheet — the same partial the PDF and the editor
+   include, with the same resolved design. After style.css so the document's
+   rules win inside the sheet. #}
+<style id="theme">
+{% include "_invoice_css.html" %}
+</style>
+
 <style>
   .detail { display:grid; grid-template-columns: 1fr 340px; gap: var(--space-8); align-items:start; }
   /* invoice paper preview */
@@ -95,60 +104,16 @@
 
     <div class="detail">
       <!-- INVOICE PAPER -->
+      {#- ONE DOCUMENT, RENDERED ONCE. This page used to rebuild the invoice
+          in its own classes, so it ignored the design the sender chose and the
+          title they typed: an invoice saved as `band-emerald` and headed QUOTE
+          showed here navy and headed INVOICE, while the PDF beside it was
+          emerald and said QUOTE — the owner's own screen disagreeing with the
+          file their client receives.
+          Raised by Codex on PR #289, round seven. -#}
       <div class="paper">
         <div class="paper__in">
-          <div class="paper__top">
-            <div class="paper__from">
-              {% if invoice.has_logo %}<img src="{{ url_for('invoice_logo', invoice_id=invoice.id) }}" alt="Logo"/>{% endif %}
-              <div class="nm">{{ from_lines[0] if from_lines else '' }}</div>
-              {% if from_lines[1:] %}<div class="ad">{% for line in from_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
-            </div>
-            <div>
-              <div class="paper__title">INVOICE</div>
-              <div class="paper__meta">
-                <div><span class="k">Invoice #</span><span class="v mono">{{ invoice.invoice_number }}</span></div>
-                {% if invoice.invoice_date %}<div><span class="k">Issued</span><span class="v">{{ invoice.invoice_date | fmtdate }}</span></div>{% endif %}
-                {% if invoice.due_date %}<div><span class="k">Due</span><span class="v"{% if invoice.is_overdue %} style="color:var(--red-600)"{% endif %}>{{ invoice.due_date | fmtdate }}</span></div>{% endif %}
-                {% if invoice.payment_terms %}<div><span class="k">Terms</span><span class="v">{{ invoice.payment_terms }}</span></div>{% endif %}
-                {% if invoice.po_number %}<div><span class="k">PO #</span><span class="v">{{ invoice.po_number }}</span></div>{% endif %}
-              </div>
-            </div>
-          </div>
-
-          <div class="parties">
-            <div>
-              <div class="lbl">Bill to</div>
-              <div class="nm">{{ bill_lines[0] if bill_lines else '—' }}</div>
-              {% if bill_lines[1:] %}<div class="ad">{% for line in bill_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
-              {% if invoice.client_email %}<div class="ad">{{ invoice.client_email }}</div>{% endif %}
-            </div>
-            {% if ship_lines %}
-            <div>
-              <div class="lbl">Ship to</div>
-              <div class="nm">{{ ship_lines[0] }}</div>
-              {% if ship_lines[1:] %}<div class="ad">{% for line in ship_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
-            </div>
-            {% endif %}
-          </div>
-
-          <table class="li">
-            <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
-            <tbody>
-              {% for item in invoice.items %}
-              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_money(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-
-          <div class="sums">
-            <div><span class="k">Subtotal</span><span class="v">{{ format_money(invoice.subtotal, invoice.currency) }}</span></div>
-            {% if invoice.discount_amount %}<div><span class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</span><span class="v" style="color:var(--green-700)">−{{ format_money(invoice.discount_amount, invoice.currency) }}</span></div>{% endif %}
-            {% if invoice.tax_amount or invoice.tax_value %}<div><span class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</span><span class="v">{{ format_money(invoice.tax_amount, invoice.currency) }}</span></div>{% endif %}
-            {% if invoice.shipping %}<div><span class="k">Shipping</span><span class="v">{{ format_money(invoice.shipping, invoice.currency) }}</span></div>{% endif %}
-            <div class="grand"><span class="k">Total</span><span class="v">{{ format_money(invoice.total, invoice.currency) }}</span></div>
-            {% if invoice.amount_paid %}<div><span class="k">Amount paid</span><span class="v">−{{ format_money(invoice.amount_paid, invoice.currency) }}</span></div>{% endif %}
-            <div class="bal"><span class="k">Balance due</span><span class="v">{{ format_money(invoice.balance_due, invoice.currency) }}</span></div>
-          </div>
+          {{ document(invoice, business, design, editable=False, doc_title=doc_title) }}
         </div>
       </div>
 
@@ -190,6 +155,10 @@
             <a class="btn btn--ghost btn--block" href="{{ public_url }}" target="_blank">Preview client view</a>
             {% if not current_user.can_accept_payments %}
             <div class="notice notice--info"><span>Connect Stripe (Account) so clients can pay this invoice online.</span></div>
+            {% elif not is_chargeable(invoice.currency) %}
+            {#- Said here rather than discovered by pressing a button that then
+                fails. The invoice is fine; only paying online is withheld. -#}
+            <div class="notice notice--warn"><span>This invoice can't be paid online. {{ why_not_chargeable(invoice.currency) }} You can still send it and record the payment yourself.</span></div>
             {% endif %}
 
             {% if invoice.balance_due > 0 %}
