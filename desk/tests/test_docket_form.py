@@ -32,6 +32,17 @@ def counted():
     return df._counted()
 
 
+#: The nine matters the SECOND docket carried, taken from the page published on
+#: 5 September 2026 (artifact d1372697) rather than from this module. It is the
+#: only independent record of what was already open -- without it, "which matters
+#: are new" is a flag this file reads back out of the same list that sets it, and
+#: a mutation that unmarks one survives because both sides move together. Two did.
+SECOND_DOCKET = {
+    "dec-ir45-wording", "dec-override", "dec-guidance", "dec-courts-again",
+    "dec-merge-275",
+}
+
+
 @pytest.fixture(scope="module")
 def independent():
     """The same figures, counted from the record and the module -- NOT from
@@ -67,13 +78,28 @@ def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted, inde
 def test_the_preface_counts_what_the_cards_actually_are(page, counted, independent):
     """It hard-coded "Five of these nine" on the second docket and this caught it
     on the run that wrote it -- the same drift the filter labels had."""
-    n, pos, dec = independent["n"], independent["pos"], independent["dec"]
-    assert "%s of these %s did not exist" % (
-        df._word(dec).capitalize(), df._word(n)) in page
-    assert "%s are positions you held; %s are decisions" % (
-        df._word(pos).capitalize(), df._word(dec)) in page
+    n = independent["n"]
+    fresh, from_tieout = counted["fresh"], counted["from_tieout"]
+    assert "%s of these %s are new since the last docket" % (
+        df._word(fresh).capitalize(), df._word(n)) in page
+    assert "%s of them out of the tie-out" % df._word(from_tieout) in page
+    # AND THE TWO ARE NOT THE SAME NUMBER, which is what the sentence got wrong:
+    # it read "four ... came out of the tie-out" when three did and the fourth
+    # came from a CI failure that night.
+    assert from_tieout <= fresh
+    # AGAINST THE PREVIOUS DOCKET, not against this module's own flag.
+    keys = {r["key"] for r in df.OTHERS}
+    assert SECOND_DOCKET <= keys, (
+        f"matters carried over have been renamed or dropped: "
+        f"{sorted(SECOND_DOCKET - keys)}. A docket that renames a matter loses "
+        f"the answer already given for it.")
+    assert fresh == len(keys - SECOND_DOCKET), (
+        f"the page says {fresh} matters are new; the ones absent from the second "
+        f"docket are {sorted(keys - SECOND_DOCKET)}")
+    assert from_tieout == sum(1 for r in df.OTHERS
+                              if r.get("new") and r["group"] == "From the tie-out")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
-    assert counted["rules"] + counted["concl"] == pos
+    assert counted["rules"] + counted["concl"] == independent["pos"]
 
 
 def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independent):
@@ -85,9 +111,9 @@ def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independen
     held_back = sum(1 for r in df.items()
                     if "Do not ratify" in (r.get("note") or {}).get("rec", ""))
     assert waiting == held_back, "the held-back count is not read off the notes"
-    said = ("All but %s of the %s you held now answerable" % (
+    said = ("All but %s of the %s positions you held are answerable" % (
         df._word(waiting), df._word(pos))) if waiting else (
-        "Every one of the %s you held now answerable" % df._word(pos))
+        "Every one of the %s positions you held are answerable" % df._word(pos))
     assert said in page
 
 

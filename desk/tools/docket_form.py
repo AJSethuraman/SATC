@@ -29,6 +29,7 @@ from __future__ import annotations
 import html
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
@@ -38,7 +39,9 @@ sys.path.insert(0, str(HERE))
 import record                                               # noqa: E402
 from position_walkthrough import positions                  # noqa: E402
 
-DATE = "5 September 2026"
+#: Today, not a date typed into the file. The third docket went out headed
+#: "5 September" because this was a literal and the run happened after midnight.
+DATE = "%d %s %d" % (date.today().day, date.today().strftime("%B"), date.today().year)
 
 #: The decisions no authority settles. Each carries BOTH outcomes and what it
 #: costs to be wrong, because a decision handed over without its downside is one
@@ -47,132 +50,231 @@ OTHERS = [
  {"key": "dec-ir45-wording", "group": "The rewards desk", "tag": "Blocks 19 scores",
   "title": "Two ways of saying the same thing, and the desk refuses itself over it.",
   "position": "Reword POS2 in the regulation's words, and keep your $2,000 rule as its second sentence.",
-  "context": "Nineteen of that desk's nineteen problems cannot be scored at all, "
-             "because two stored passages are the regulation's own worked examples "
-             "and carry their answers with them. The fix is to point those problems "
-             "at the rule the examples themselves name — <b>§ 1.6041-1(a)(1)(iv)</b> "
-             "— and drop the examples. <b>But you ratified POS2 on that exact "
-             "paragraph this morning.</b> A position you have ratified is served "
-             "word for word and the engine refuses an answer that restates it, so "
-             "the moment those problems cite it their own recorded answers are "
-             "refused as contradicting you.<br><br>"
+  "context": "Still open from the last docket. Nineteen of that desk's nineteen "
+             "problems cannot be scored at all, because two stored passages are "
+             "the regulation's own worked examples and carry their answers with "
+             "them. The fix is to point those problems at the rule the examples "
+             "themselves name — <b>&sect; 1.6041-1(a)(1)(iv)</b> — and drop the "
+             "examples. <b>But you ratified POS2 on that exact paragraph.</b> A "
+             "ratified position is served word for word and the engine refuses an "
+             "answer that restates it, so the moment those problems cite it their "
+             "own recorded answers are refused as contradicting you.<br><br>"
              "<b>Yours:</b> <i>no Form 1099-NEC for a payment settled by card or "
              "through a third party payment network; track the rest against $2,000 "
-             "per payee per calendar year</i><br>"
-             "<b>The regulation's:</b> <i>the payor is not required to file an "
-             "information return under section 6041</i><br><br>"
-             "They mean the same thing. The engine is exact on purpose — that "
-             "exactness is what stops a model handing your position back with the "
-             "conclusion reversed — so it cannot see that.",
+             "per payee per calendar year</i><br><b>The regulation's:</b> <i>the "
+             "payor is not required to file an information return under section "
+             "6041</i><br><br>They mean the same thing. The engine is exact on "
+             "purpose — that exactness is what stops a model handing your position "
+             "back with the conclusion reversed — so it cannot see that.",
   "either": [("Reword POS2 to the regulation's phrasing",
               "Your $2,000 tracking rule survives as a second sentence, the desk "
-              "stops refusing itself, and 19 scores come back. Your position now "
-              "reads in the regulation's words rather than your own."),
+              "stops refusing itself, and 19 scores come back."),
              ("Keep your wording and reword the problems",
-              "Your sentence stands exactly as you ratified it. The scored problems "
-              "then no longer read as the regulation writes them, which weakens the "
-              "one thing that makes the denominator meaningful — the answers are "
-              "not ours.")],
-  "rec": "Reword POS2. The problems are the regulation's worked examples and their "
-         "wording is not ours to move; your meaning is fully preserved by keeping "
-         "the $2,000 rule as a second sentence.",
+              "Your sentence stands as ratified. The scored problems then no "
+              "longer read as the regulation writes them, which weakens the one "
+              "thing that makes the denominator meaningful.")],
+  "rec": "Reword POS2. The problems are the regulation's worked examples and "
+         "their wording is not ours to move; your meaning is fully preserved.",
   "picks": ["Reword POS2", "Keep my wording", "Not yet"]},
+
+ {"key": "dec-prove", "new": True, "group": "From the tie-out", "tag": "Your idea, tonight",
+  "title": "Should an answering agent have to prove its citation, not just name one?",
+  "position": "Yes — an answer may carry proof, and the desk records the proof with it.",
+  "context": "Your words: <i>“going forward thinking like the agents tie out their "
+             "position to prove it to the desk.”</i> Today the gate checks that a "
+             "citation <b>resolves in our record</b>. It has no way to check that "
+             "the record is true — which is the gap tonight's tie-out just closed "
+             "for the whole corpus, once.<br><br>What this adds: "
+             "<code>answer(..., prove=True)</code> re-fetches the cited source, "
+             "confirms the passage is still there, and files the hash with the "
+             "answer. A served answer would carry evidence rather than a reference.",
+  "either": [("Build it",
+              "Every answer that opts in is provable by whoever reads it later, and "
+              "the desk catches its own corpus drifting the day it drifts. It makes "
+              "an answer slower and it fails when a publisher is down — so it has "
+              "to be optional, and what happens on a failed proof is its own "
+              "question."),
+             ("Leave it to the periodic run",
+              "The corpus tie-out already covers all 533 and can run nightly. "
+              "Cheaper, and nothing an answerer does depends on a website being up. "
+              "The gap is that a passage could drift and be served wrongly until "
+              "the next run.")],
+  "rec": "Build it, optional and off by default, and schedule the corpus run as "
+         "well. They answer different questions: one proves the answer in front of "
+         "you, the other proves the record behind all of them.",
+  "picks": ["Build it", "Periodic run only", "Both", "Not yet"]},
+
+ {"key": "dec-6041-sources", "new": True, "group": "From the tie-out", "tag": "Record defect, proven",
+  "title": "One source URL is recorded for four statute sections and serves one.",
+  "position": "Split it into one source per section, each with the URL that actually carries it.",
+  "context": "The tie-out found this and no test could have. The rewards desk "
+             "stores &sect;&sect; 6041, 6041A, 6050W and 6071 under a single source "
+             "whose URL is the House's page for <b>&sect; 6041 alone</b>. All four "
+             "passages are <b>verbatim correct</b> — each checked on its own page — "
+             "so nothing served was ever wrong. <b>But a reader following the link "
+             "for three of them lands on a page that does not contain them</b>, and "
+             "the “6041A” visible there is &sect; 6041's own cross-reference.<br><br>"
+             "Not fixed, because the fix renumbers the desk's sources, which "
+             "touches its routing file and every passage's source id.",
+  "either": [("Split into four sources",
+              "Every link goes where its text is. Mechanical, but it renumbers S2 "
+              "into four ids and edits SUBJECTS.md."),
+             ("Leave it and note it",
+              "Nothing served is wrong today. The next person to follow one of "
+              "those links finds the wrong page.")],
+  "rec": "Split it. A citation whose link does not carry the text is exactly what "
+         "the tie-out exists to find, and leaving a known-wrong link teaches the "
+         "next agent that links are decorative.",
+  "picks": ["Split into four", "Leave and note it", "Not yet"]},
+
+ {"key": "dec-583-quotation", "new": True, "group": "From the tie-out", "tag": "Record defect, proven",
+  "title": "A stored passage drops half the publisher's sentence without saying so.",
+  "position": "Mark the omission, so an answerer can see a branch was removed.",
+  "context": "Publication 583 says the statement balance may not agree if the "
+             "statement <i>“<b>Includes</b> bank charges you did not enter in your "
+             "books…, or <b>Does not include</b> deposits made after the statement "
+             "date…”</i> — two branches. The cash desk stores the second and drops "
+             "the first, with nothing marking the cut.<br><br><b>The split itself "
+             "is right</b> and you know why: the branches have opposite answers, "
+             "and serving them as one entry is the defect #264 found. What is wrong "
+             "is that an answerer cannot tell a branch was removed.",
+  "either": [("Mark the omission",
+              "An ellipsis. One character, and the passage stops presenting itself "
+              "as a whole sentence."),
+             ("Store the publisher's sentence whole",
+              "Both branches stored once, and the per-citation narrowing — which "
+              "exists now and did not when this was written — keeps them apart when "
+              "the desk answers. Truer to the source; more to change.")],
+  "rec": "Mark the omission now, and store it whole when the rewards wording above "
+         "is settled — that change touches the same machinery.",
+  "picks": ["Mark the omission", "Store it whole", "Not yet"]},
+
+ {"key": "dec-cd-fix", "new": True, "group": "Housekeeping", "tag": "main is red",
+  "title": "Two tests on main cannot import what they test. Shall I fix them?",
+  "position": "Open a small branch against main with the three-line fix.",
+  "context": "<code>pytest (client-documents)</code> now fails on every branch, "
+             "including this one, and it is not this branch's: two test files added "
+             "to main import <code>pricing</code> and <code>merge</code> without "
+             "the <code>sys.path</code> line that <b>twelve</b> of their siblings "
+             "have. Reproduced on main's own tree with CI's exact command.<br><br>"
+             "Not pushed here, because carrying an unrelated fix inside a desk PR "
+             "puts it under the wrong review.",
+  "either": [("Let me open the branch",
+              "Three lines — or one root conftest.py that stops the next new test "
+              "file hitting the same thing. main goes green for everybody."),
+             ("Leave it to whoever owns client-documents",
+              "It is their area and they may be mid-change. main stays red "
+              "meanwhile, which hides the next real failure.")],
+  "rec": "Let me open it. Three lines, matching a convention already in twelve "
+         "files, and a red base branch hides the next real failure from everyone.",
+  "picks": ["Open the branch", "Leave it to them", "Not yet"]},
 
  {"key": "dec-override", "group": "How positions work", "tag": "Blocks 1 position",
   "title": "Can a position be the firm's default and still be overridden for one client?",
   "position": "Keep positions unconditional; write an override as a recorded fact the caller passes in.",
-  "context": "Holding the safe-harbour election you said it is <i>“the kind of "
-             "policy that gets enacted because it makes sense and only enacted when "
-             "we don't have another Answer … it's possible for a particular client "
-             "we have to be needed treating differently.”</i> Nothing in the record "
-             "can say that today: every position is unconditional.",
+  "context": "Still open. Holding the safe-harbour election you said it is <i>“the "
+             "kind of policy that gets enacted because it makes sense and only "
+             "enacted when we don't have another Answer … it's possible for a "
+             "particular client we have to be needed treating differently.”</i> "
+             "Nothing in the record can say that today: every position is "
+             "unconditional.",
   "either": [("Keep them unconditional",
               "The desk holds no client data at all, which is how it is built. The "
-              "override lives in the engagement record and arrives as a fact the "
-              "caller passes — the same mechanism as the client's trade, already "
-              "working. Nothing new to build."),
+              "override arrives as a fact the caller passes — the same mechanism as "
+              "the client's trade, already working. Nothing new to build."),
              ("Give positions a per-client exception table",
               "One place to look up what a named client does differently. It puts "
               "client-keyed data inside the plugin for the first time, and the PII "
               "rule then applies to a component that had been exempt from it.")],
-  "rec": "Keep them unconditional. It needs nothing built, the desk still cannot "
-         "see who the client is, and answering this way makes the safe-harbour "
-         "position ratifiable as written.",
+  "rec": "Keep them unconditional. Nothing to build, the desk still cannot see who "
+         "the client is, and it makes the safe-harbour position ratifiable as "
+         "written.",
   "picks": ["Keep unconditional", "Exception table", "Not yet"]},
 
  {"key": "dec-guidance", "group": "How positions work", "tag": "Your ask, 5 Sep",
   "title": "Should the desk answer from IRS guidance where no rule and no position reaches?",
   "position": "Serve it — and mark it as guidance rather than as the rule.",
-  "context": "You asked for this holding the rewards position: <i>“if we don't have "
-             "an opinion and have a good reason to form one, maybe we just use a "
-             "safe Harbor Rule which in this case would be deferring to whatever "
-             "the IRS says.”</i> Today a non-binding source refuses "
-             "<code>authority_permits_choice</code> — the rule leaves a choice and "
-             "you make it once. That is why the same question keeps coming back to "
-             "you, which is the complaint.",
+  "context": "Still open. You asked for this holding the rewards position: <i>“if we "
+             "don't have an opinion and have a good reason to form one, maybe we "
+             "just use a safe Harbor Rule which in this case would be deferring to "
+             "whatever the IRS says.”</i> Today a non-binding source refuses "
+             "<code>authority_permits_choice</code>, which is why the same question "
+             "keeps coming back to you.<br><br><b>The tie-out sharpened this.</b> On "
+             "your own $500 question the regulation and the guidance genuinely "
+             "differ — &sect; 1.263(a)-1(f)(1)(ii)(D) says $500, Notice 2015-82 says "
+             "$2,500 — so a desk serving guidance without saying so would hand you a "
+             "number the regulation does not contain.",
   "either": [("Leave it as it is",
               "Nothing is ever served on somebody's reading of a rule. You keep "
               "being asked the same question until you answer it once."),
              ("Let guidance answer, marked as guidance",
-              "Far fewer questions reach you. The reader is told which they are "
-              "leaning on — and on your own $500 question the regulation and the "
-              "guidance genuinely differ, so the distinction is not cosmetic.")],
-  "rec": "Serve it, marked. It is a change to what a served answer carries, not a "
-         "hole in the gate: nothing uncited is served either way.",
+              "Far fewer questions reach you, and the reader is told which they are "
+              "leaning on.")],
+  "rec": "Serve it, marked. It changes what a served answer carries, not what the "
+         "gate lets through: nothing uncited is served either way.",
   "picks": ["Serve it, marked", "Leave it", "Not yet"]},
 
  {"key": "dec-courts-again", "group": "Sources", "tag": "Your answer contradicts itself",
   "title": "You chose \u201ckeep the court hosts closed\u201d and then wrote that you want them open.",
   "position": "Say which half you meant. I recorded the choice and flagged it rather than picking.",
-  "context": "You clicked <b>Keep them closed</b> and wrote: <i>“I want to open "
-             "everything we can use. We should just kind of determine what good "
-             "sources are out there cause like there's no reason for them not to "
-             "use this court case I don't want to be the one to answer it. The only "
+  "context": "Still open. You clicked <b>Keep them closed</b> and wrote: <i>“I want "
+             "to open everything we can use… there's no reason for them not to use "
+             "this court case I don't want to be the one to answer it. The only "
              "reason we are talking so much now is because I can't trust the "
-             "answers.”</i><br><br>My reading is that the button was about the five "
-             "blocked hosts and the words are about something else: you want the "
-             "desks to have <b>more reachable authority</b> so the firm stops being "
-             "the source of last resort. Those are two different jobs.",
+             "answers.”</i><br><br><b>The tie-out speaks to that last sentence.</b> "
+             "531 of 533 passages are now proven to be what the publisher publishes. "
+             "That is a different kind of trust from “the desk reasons well”, and it "
+             "is the kind that was missing.",
   "either": [("The button: keep the five hosts closed",
               "Nothing changes in the plumbing. A case reaches a desk only when you "
-              "hand the opinion over — slower, and a human reads every case before "
-              "it counts."),
-             ("The words: go and widen what the desks can reach",
-              "A real piece of work, and it is not about courts: it is finding which "
-              "reachable sources (irs.gov, ecfr.gov and what else) would answer the "
-              "questions that keep escalating to you.")],
-  "rec": "Both, in that order — the hosts stay closed and I go and widen the "
-         "reachable sources, which is the thing that actually stops questions "
-         "reaching you.",
+              "hand the opinion over."),
+             ("The words: widen what the desks can reach",
+              "Find which reachable sources would answer the questions that keep "
+              "escalating to you. Not about courts at all.")],
+  "rec": "Both, in that order — hosts stay closed, and I widen the reachable "
+         "sources, which is the thing that actually stops questions reaching you.",
   "picks": ["Both, hosts stay closed", "Just keep hosts closed", "Open the hosts", "Not yet"]},
 
  {"key": "dec-merge-275", "group": "Housekeeping", "tag": "PR #275",
-  "title": "Nine commits are sitting green on a branch. Merge them?",
+  "title": "Fourteen commits are sitting on a branch. Merge them?",
   "position": "Merge it.",
-  "context": "406 tests passing, twenty-three mutations killed, every check green. It "
-             "carries your twenty-two answers, the client-context input, and the "
-             "harness fixes. <b>I have not merged it</b> because <code>main</code> "
-             "publishes and you are at the keyboard.",
+  "context": "406 tests passing and every check green <b>except</b> "
+             "<code>pytest (client-documents)</code>, which is red on main too and "
+             "is its own matter above. It carries your twenty-two answers, the "
+             "client-context input, the harness fixes and tonight's tie-out.<br><br>"
+             "<b>Not merged</b>, because <code>main</code> publishes and you are at "
+             "the keyboard.",
   "either": [("Merge it",
-              "The record on main matches what you decided today. Anything found "
-              "later is a new branch, which is normal."),
+              "The record on main matches what you decided. The red check is main's "
+              "own and merging does not make it worse."),
              ("Read it first",
-              "Costs nothing but time. The diff is large but almost all of it is "
-              "documentation and tests.")],
-  "rec": "Merge it. Nothing in it is client-facing and nothing publishes to the "
-         "website; the two things still open are recorded as open rather than "
-         "guessed at.",
+              "Costs time. Most of the diff is documentation, tests and eight "
+              "tie-out PDFs.")],
+  "rec": "Merge it, and let me fix the client-documents import separately.",
   "picks": ["Merge it", "I will read it first", "Not yet"]},
 ]
 
 CHANGED = [
- ("406", "desk tests passing", "run just now; 368 when today started"),
- ("23", "mutations killed", "every new assertion proved capable of failing"),
- ("19", "problems still unscoreable", "down from 34 — all on one desk, and matter 5"),
- ("13", "of your 43 close questions", "reach a desk that now expects a fact on file"),
+ ("531 of 533", "passages tied to the publisher", "fetched live from eCFR, irs.gov and uscode.house.gov"),
+ ("2", "differences", "both real, both on this docket"),
+ ("0", "could not", "every source reached on the first or second try"),
+ ("406", "desk tests passing", "run just now; 368 when yesterday started"),
 ]
 
 LANDED = [
+ ("New", "<b>The whole stored corpus is tied out.</b> Every one of the 533 passages the "
+         "desks hand an answering agent, fetched back from the publisher that wrote it "
+         "and compared. <b>No test in this repository could answer this</b> — they all "
+         "read the same stored files, so a passage transcribed wrongly is stored "
+         "wrongly, served wrongly and asserted wrongly, and every green stays green. "
+         "Eight PDFs in <code>desk/tie-outs/</code>, one per desk plus the roster."),
+ ("Found", "<b>Right text, wrong link.</b> Three passages cite statute sections whose "
+           "recorded source URL does not carry them. Every word is verbatim correct, so "
+           "nothing served was wrong and nothing could have caught it but following the "
+           "link. That is matter 3."),
+ ("Found", "<b>A partial quotation that does not say it is one</b>, and a publisher's "
+           "interface text inside a sentence we quote without it. Matters 4 and — for "
+           "the second, which I judged in our favour — recorded rather than raised."),
  ("22 of 22", "You answered every matter on the last docket. Thirteen positions ratified — "
               "eleven as drafted, two with your edit — and four held. <b>Ratified positions "
               "went from 2 to 15.</b>"),
@@ -195,6 +297,12 @@ LANDED = [
 ]
 
 UNCHECKED = [
+ ("The tie-out proves the words, not the reading.", "That § 1.263(a)-1(f)(1)(ii)(D) "
+  "says $500 is now established. Whether $500 is the number that governs a client is a "
+  "question about Notice 2015-82 and about your election, and no fetch settles it."),
+ ("It proves containment, not completeness.", "It asks whether our passage occurs in "
+  "the publisher's document — not whether we stored the whole of what that citation "
+  "covers. The Publication 583 finding is exactly that failure, caught by accident."),
  ("No desk has been run against a real client file.", "Every number here is against "
   "public worked examples. That is deliberate — a score against answers we wrote "
   "ourselves measures agreement, not correctness — but it means none of this has met "
@@ -209,6 +317,11 @@ UNCHECKED = [
 ]
 
 WRONG = [
+ ("The tie-out's first run reported 88 differences and 34 of them were mine.", "Then 18, "
+  "of which 16 were mine too. Both times the checker was the defect — markup tags "
+  "replaced by spaces, and a PDF extractor reading a kerned column as <code>Y ou</code>. "
+  "<b>A checker that invents differences is worse than no checker</b>, because somebody "
+  "goes and “fixes” the record to match it. Both are written up in the exhibits."),
  ("I told you the full-text prompt shape fits no desk.", "It fits one. I measured it while "
   "four desks could not be prompted at all, so their sizes were never taken — <b>a "
   "denominator over the rows that happened to be readable</b>, which is the exact failure "
@@ -285,9 +398,16 @@ def _counted():
     # than counted by hand -- the preface states how many are answerable now, and
     # a number typed there goes stale the moment one is ratified.
     waiting = [r for r in pos if "Do not ratify" in (r["note"] or {}).get("rec", "")]
+    # NEW SINCE THE LAST DOCKET, and where each came from. The preface said
+    # "four ... came out of the tie-out" and that was wrong by one: three came
+    # from the tie-out and the fourth from a CI failure the same night. Flagged
+    # on the matter rather than counted in a sentence.
+    fresh = [r for r in rows if r.get("new")]
+    from_tieout = [r for r in fresh if r["group"] == "From the tie-out"]
     return {
         "rows": rows, "n": len(rows), "pos": len(pos), "dec": len(rows) - len(pos),
         "waiting": len(waiting), "answerable": len(pos) - len(waiting),
+        "fresh": len(fresh), "from_tieout": len(from_tieout),
         "rules": len(rules), "concl": len(pos) - len(rules),
         "turns": len(turns), "blind": blind, "ratified": ratified,
     }
@@ -305,26 +425,23 @@ def render() -> str:
         measured = ("Only <b>%s</b> of them sits on a citation its own desk's "
                     "scored problems turn on" % _word(c["turns"]))
     preface = (
-      "<p><b>%(decw)s of these %(nw)s did not exist this morning.</b> You "
-      "answered twenty-two matters, thirteen positions went into the record, and "
-      "the answers themselves opened new questions — which is what a good answer "
-      "does. %(posw)s are positions you held; %(decw2)s are decisions, and one of "
-      "them is blocking nineteen scores on its own.</p>"
-      "<p><b>%(ansv)s of the %(posw2)s you held now answerable.</b> Two were waiting "
-      "on an input that did not exist — the desk being told what the client does, "
-      "and whose return it is — and that was built today. One was waiting on a "
-      "question the desk already held the answer to and nobody had asked. The "
-      "fourth is waiting on a decision that is on this page.</p>"
-      "<p><b>And one correction, because it is the failure this whole thing is "
-      "built against.</b> I told you the full-text prompt shape fits no desk. It "
-      "fits one. I had measured it while four desks could not be prompted at all, "
-      "so their sizes were never taken — <b>a denominator over the rows that "
-      "happened to be readable</b>, on the same afternoon I built the guard "
-      "against exactly that. It is corrected and the figures are now asserted by "
-      "name.</p>"
-    ) % {"decw": _word(c["dec"]).capitalize(), "nw": _word(c["n"]),
-         "posw": _word(c["pos"]).capitalize(), "decw2": _word(c["dec"]),
-         "posw2": _word(c["pos"]),
+      "<p><b>%(freshw)s of these %(nw)s are new since the last docket — "
+      "%(tow)s of them out of the tie-out you asked for</b>, and two of those are "
+      "defects in the record that no test in this repository could have found. "
+      "The rest were already open.</p>"
+      "<p><b>What the tie-out settles.</b> Every one of the 533 passages the desks "
+      "hand an answering agent was fetched back from the publisher that wrote it. "
+      "<b>531 are, character for character, what that publisher publishes today.</b> "
+      "That was an assumption yesterday and it is a measurement now — and it is a "
+      "different kind of trust from “the desk reasons well”, which is still the "
+      "scoreboard's job and still unproven on four desks.</p>"
+      "<p><b>%(ansv)s of the %(posw)s positions you held are answerable</b>, two "
+      "because the input they were waiting on now exists and one because the desk "
+      "already held the answer to the question you held it for. The fourth waits "
+      "on a decision on this page.</p>"
+    ) % {"posw": _word(c["pos"]),
+         "freshw": _word(c["fresh"]).capitalize(), "nw": _word(c["n"]),
+         "tow": _word(c["from_tieout"]),
          "ansv": ("All but %s" % _word(c["waiting"])) if c["waiting"]
                  else "Every one"}
     lede = ("%s of them are positions to approve or reject. %s are choices no rule "
