@@ -1,0 +1,17 @@
+{
+  "name": "satc-schedule-c-pl",
+  "private": true,
+  "type": "module",
+  "description": "Free Schedule C profit & loss tool for satcllp.com. Browser-only, no backend.",
+  "scripts": {
+    "test": "node --test tests/",
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "walk": "node tests/walk.mjs"
+  },
+  "devDependencies": {
+    "fast-check": "^4.9.0",
+    "pdfjs-dist": "^4.10.38",
+    "playwright": "^1.49.0"
+  }
+}

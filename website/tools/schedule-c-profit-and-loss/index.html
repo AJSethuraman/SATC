@@ -1,0 +1,2226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule C profit and loss — free, in your browser | SATC</title>
+<meta name="description" content="Put in your business income and expenses for the year and get a profit and loss statement and a Schedule C worksheet back, as a PDF and a spreadsheet. Free, no sign-up, and your figures never leave your computer.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://satcllp.com/tools/schedule-c-profit-and-loss/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E">
+<style>
+/* System fonts only, on purpose. A web font means a request to somebody else's
+   server the moment the page opens, and the promise on this page is that it
+   makes no requests at all. A typeface is not worth breaking that for. */
+
+:root {
+  --navy: #132437;
+  --navy-soft: #29405b;
+  --gold: #c0a265;
+  --ink: #17202b;
+  --muted: #5c6b7c;
+  --line: #dfe3e8;
+  --page: #fbfaf7;
+  --card: #ffffff;
+  --bad: #9b2226;
+  --warn: #8a5a00;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.55 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: var(--navy-soft); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.2; }
+
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--navy); color: #fff; padding: .6rem 1rem; z-index: 10; }
+
+/* ── header ─────────────────────────────────────────────────────────── */
+.top {
+  background: var(--navy);
+  color: #f4f1ea;
+  padding: 2.4rem 1.5rem 2.6rem;
+  border-bottom: 4px solid var(--gold);
+}
+.top > * { max-width: 62rem; margin-inline: auto; }
+.firm { margin: 0 0 1.4rem; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.firm a { color: inherit; text-decoration: none; }
+.firm a:hover { text-decoration: underline; }
+.top h1 { margin: 0 0 .6rem; font-size: clamp(1.9rem, 4.5vw, 2.7rem); color: #fff; }
+.lede { margin: 0 0 1.5rem; font-size: 1.08rem; max-width: 44rem; color: #dfe6ef; }
+.promises { margin: 0; padding: 0; list-style: none; display: grid; gap: .7rem; max-width: 52rem; }
+.promises li { font-size: .93rem; color: #cdd7e2; padding-left: 1.1rem; border-left: 2px solid var(--navy-soft); }
+.promises strong { color: #fff; font-weight: 600; }
+
+.noscript { max-width: 62rem; margin: 1.5rem auto; padding: 1rem 1.2rem; background: #fff6e5; border: 1px solid #e8d3a0; }
+
+/* ── layout ─────────────────────────────────────────────────────────── */
+.layout {
+  max-width: 62rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+@media (min-width: 62rem) {
+  .layout { grid-template-columns: minmax(0, 1fr) 20rem; }
+  .summary { position: sticky; top: 1.5rem; }
+}
+
+.block {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1.3rem 1.4rem 1.5rem;
+  margin: 0 0 1.4rem;
+}
+.block h2 { margin: 0 0 .3rem; font-size: 1.18rem; }
+.blurb { margin: 0 0 1.1rem; color: var(--muted); font-size: .9rem; }
+
+/* ── fields ─────────────────────────────────────────────────────────── */
+.field { padding: .55rem 0; border-top: 1px solid #f0f2f4; display: grid; gap: .35rem; }
+.field:first-of-type { border-top: 0; }
+.field > label { display: flex; align-items: baseline; gap: .55rem; font-size: .93rem; }
+.line-no {
+  font: 600 .72rem/1.6 var(--mono);
+  color: var(--muted);
+  background: #f1f3f5;
+  border-radius: 2px;
+  padding: 0 .35rem;
+  min-width: 2.1rem;
+  text-align: center;
+  flex: none;
+}
+.line-label { flex: 1; }
+
+.entry { display: flex; align-items: stretch; max-width: 15rem; }
+.currency { display: flex; align-items: center; padding: 0 .5rem; background: #f1f3f5; border: 1px solid var(--line); border-right: 0; color: var(--muted); font-size: .9rem; }
+input[type="text"], input[type="date"], select {
+  font: 400 .95rem var(--sans);
+  padding: .42rem .55rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+  min-width: 0;
+}
+.entry input { font-family: var(--mono); text-align: right; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.hint { margin: 0; font-size: .82rem; color: var(--muted); }
+.error { margin: 0; font-size: .82rem; color: var(--bad); min-height: 0; }
+.error:empty { display: none; }
+
+.choice { border: 0; padding: .6rem 0 .2rem; margin: 0; display: grid; gap: .3rem; }
+.choice legend { padding: 0; font-size: .9rem; color: var(--ink); }
+.radio { display: flex; align-items: center; gap: .45rem; font-size: .9rem; color: var(--muted); }
+.toggle { display: flex; align-items: flex-start; gap: .5rem; font-size: .92rem; margin-bottom: .6rem; }
+
+.helper { margin-top: .3rem; font-size: .88rem; }
+.helper > summary { cursor: pointer; color: var(--navy-soft); width: fit-content; }
+.helper-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
+.helper-row input { max-width: 9rem; font-family: var(--mono); text-align: right; }
+.helper-out { margin: .2rem 0 0; font-size: .85rem; color: var(--navy-soft); }
+.helper-out:empty { display: none; }
+
+.rows { display: grid; gap: .5rem; margin-bottom: .8rem; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 10rem auto; gap: .4rem; align-items: stretch; }
+@media (max-width: 34rem) { .row { grid-template-columns: minmax(0, 1fr); } }
+
+button { font: 500 .88rem var(--sans); cursor: pointer; border-radius: 2px; }
+.ghost { background: #fff; border: 1px solid var(--line); color: var(--navy-soft); padding: .42rem .7rem; }
+.ghost:hover { border-color: var(--navy-soft); }
+.primary { background: var(--navy); border: 1px solid var(--navy); color: #fff; padding: .62rem .9rem; width: 100%; }
+.primary:hover:not(:disabled) { background: var(--navy-soft); }
+.primary:disabled { background: #e9ecef; border-color: var(--line); color: #9aa5b1; cursor: not-allowed; }
+
+.refusals { margin: 0; padding-left: 1.1rem; display: grid; gap: .6rem; font-size: .88rem; color: var(--muted); }
+.refusals strong { color: var(--ink); }
+
+/* ── running total ──────────────────────────────────────────────────── */
+.summary {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--gold);
+  border-radius: 3px;
+  padding: 1.2rem 1.3rem 1.4rem;
+}
+.summary h2 { margin: 0 0 .8rem; font-size: 1.05rem; }
+.summary h3 { margin: 1.2rem 0 .5rem; font-size: .95rem; }
+.figures { margin: 0 0 1rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .8rem; }
+.figures dt { font-size: .88rem; color: var(--muted); }
+.figures dd { margin: 0; font-family: var(--mono); font-size: .9rem; text-align: right; }
+.figures .big { font-size: 1.02rem; color: var(--ink); font-weight: 600; padding-top: .5rem; border-top: 1px solid var(--line); }
+.downloads { display: grid; gap: .5rem; margin: 1rem 0; }
+
+.notices { margin: 0; padding: 0; list-style: none; display: grid; gap: .6rem; font-size: .84rem; }
+.notices li { display: flex; gap: .5rem; align-items: flex-start; color: var(--muted); }
+.notices li.warn, .notices li.blocker { color: var(--warn); }
+.notices li.blocker { color: var(--bad); }
+
+.keep { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.handoff { margin: 1rem 0 0; font-size: .85rem; color: var(--muted); }
+
+/* ── after the download, and the footer ─────────────────────────────── */
+.after {
+  max-width: 62rem;
+  margin: 0 auto 2rem;
+  padding: 1.6rem 1.5rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+}
+.after h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+.after p { margin: 0 0 .8rem; max-width: 42rem; }
+.cta { display: inline-block; background: var(--navy); color: #fff; padding: .6rem 1.1rem; text-decoration: none; border-radius: 2px; }
+.cta:hover { background: var(--navy-soft); }
+
+.foot { background: #f2f0ec; border-top: 1px solid var(--line); padding: 2rem 1.5rem 2.6rem; }
+.foot > * { max-width: 62rem; margin-inline: auto; }
+.foot h2 { margin: 0 0 .8rem; font-size: 1.05rem; }
+.foot p { margin: 0 0 .7rem; font-size: .89rem; color: var(--muted); max-width: 46rem; }
+.meta { font-size: .82rem !important; }
+
+@media print {
+  .top, .summary, .foot, .after, .skip { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to the tool</a>
+
+<header class="top">
+  <p class="firm"><a href="https://satcllp.com/">Sethuraman Accounting, Tax &amp; Consulting</a></p>
+  <h1>Schedule C profit and loss</h1>
+  <p class="lede">Put in what your business took and what it spent. Get back a profit and loss statement and a Schedule&nbsp;C worksheet — as a PDF and as a spreadsheet you can still edit.</p>
+  <ul class="promises">
+    <li><strong>Free, and no sign-up.</strong> No email, no account, nothing to click past to get your file.</li>
+    <li><strong>Your figures stay on your computer.</strong> There is no server to send them to. Turn your internet off and this page still works — that is the test.</li>
+    <li><strong>Built by a CPA.</strong> The line numbers come from the IRS form for the year you pick, and they change between years.</li>
+  </ul>
+</header>
+
+<noscript>
+  <p class="noscript">This tool does its arithmetic in your browser, so it needs JavaScript switched on. That is also why nothing you type is ever sent anywhere.</p>
+</noscript>
+
+<main id="tool" class="layout"></main>
+
+<section id="after-download" class="after" hidden>
+  <h2>You have your file</h2>
+  <p>If handing this year to someone would be a relief, that is what we do. We take on sole traders, we tell you the price before we start, and nothing begins until you have seen it and said yes.</p>
+  <p><a class="cta" href="https://satcllp.com/?from=schedule-c#intake">Tell us about your year</a></p>
+</section>
+
+<footer class="foot">
+  <h2>The small print, in plain words</h2>
+  <p>These are your own figures, sorted into the boxes Schedule C uses. It is not a tax return, and it does not say what you are allowed to deduct — that is your call, or your preparer's.</p>
+  <p>Nothing you type is sent anywhere. The page holds no analytics script and makes no requests once it has loaded. If you tick the box to keep a draft, it is kept in this browser and nowhere else.</p>
+  <p>Using this tool does not make you a client of ours. If you would like it to, <a href="https://satcllp.com/?from=schedule-c#intake">there is a form</a>.</p>
+  <p class="meta">Sethuraman Accounting, Tax &amp; Consulting LLP · <a href="https://satcllp.com/">satcllp.com</a> · <a href="https://satcllp.com/privacy.html">Privacy</a></p>
+  <p class="meta" id="build-stamp">Built from source 9409abe79216. Tax years 2023, 2024 and 2025.</p>
+</footer>
+
+<script type="module">
+/* ── src/money.mjs ─────────────────────────────────────────────── */
+/* Money is integer cents. There is no float in this file and there is none in
+   the engine, because a P&L that is off by a cent is a P&L nobody trusts.
+
+   Absence is not zero. A line the user never touched returns null, and null
+   travels all the way to the page, where it renders as blank rather than as
+   $0.00. "I have no vehicle expenses" and "I have not filled that in yet" are
+   different facts and the tool is not allowed to merge them. */
+
+// About $100 billion. Chosen so that every total in the engine — at most ~40
+// lines added together — stays far below Number.MAX_SAFE_INTEGER (9.007e15)
+// and every integer is therefore exact. A sole proprietorship above this is
+// not a typo we should accept quietly.
+const MAX_CENTS = 9_999_999_999_999;
+
+const CLEAN = /[\s  ,$]/g;
+// Accepts '.5' and '5.' too — people type both.
+const SHAPE = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
+
+/** Parse user text into cents. Never throws, never guesses, never rounds
+    silently. Returns one of:
+      { ok: true,  cents: null }      the field is empty
+      { ok: true,  cents: <integer> }
+      { ok: false, error: '<plain sentence>' } */
+function parseMoney(raw) {
+  if (raw === null || raw === undefined) return { ok: true, cents: null };
+  let s = String(raw).replace(CLEAN, '');
+  if (s === '') return { ok: true, cents: null };
+
+  // Accountants write a negative in parentheses and so do bank exports.
+  let negative = false;
+  if (s.startsWith('(') && s.endsWith(')')) { negative = true; s = s.slice(1, -1); }
+  if (s === '') return { ok: false, error: 'That looks like empty brackets.' };
+
+  if (!SHAPE.test(s)) return { ok: false, error: 'Use numbers only, like 1234.56' };
+  if (s.startsWith('-')) { negative = !negative; s = s.slice(1); }
+  else if (s.startsWith('+')) s = s.slice(1);
+
+  const [whole, frac = ''] = s.split('.');
+  const wholeDigits = whole === '' ? '0' : whole;
+  if (frac.length > 2) return { ok: false, error: 'Cents only go to two places.' };
+  if (wholeDigits.length > 15) return { ok: false, error: 'That number is too big for this tool.' };
+
+  const cents = Number(wholeDigits) * 100 + Number((frac + '00').slice(0, 2));
+  if (cents > MAX_CENTS) return { ok: false, error: 'That number is too big for this tool.' };
+  return { ok: true, cents: negative ? -cents : cents };
+}
+
+/** Whole dollars, the way the IRS asks for them: under 50 cents drops, 50
+    through 99 goes up. Symmetric about zero, so a loss rounds the same way a
+    profit does. Returns cents that are a whole number of dollars. */
+function roundToDollars(cents) {
+  if (cents === null || cents === undefined) return null;
+  const sign = cents < 0 ? -1 : 1;
+  const abs = Math.abs(cents);
+  const dollars = Math.floor(abs / 100) + (abs % 100 >= 50 ? 1 : 0);
+  // `|| 0` is not cosmetic: -1 cent rounds to -0, which is a different value
+  // from 0 to Object.is, to a strict assertion, and to anything that keys off
+  // the sign. A property test found it. No figure leaves here as -0.
+  return sign * dollars * 100 || 0;
+}
+
+/** Add, treating an untouched line as nothing rather than as zero. Returns a
+    number always — a total of nothing is zero, and that is a real answer. */
+function sumCents(values) {
+  let total = 0;
+  for (const v of values) if (v !== null && v !== undefined) total += v;
+  return total;
+}
+
+const GROUPS = /\B(?=(\d{3})+(?!\d))/g;
+
+/** Format for a screen or a document. `dollars: true` drops the cents; it does
+    NOT round — round first with roundToDollars if that is what you meant. */
+function formatCents(cents, { dollars = false, blank = '' } = {}) {
+  if (cents === null || cents === undefined) return blank;
+  const negative = cents < 0;
+  const abs = Math.abs(cents);
+  const whole = String(Math.floor(abs / 100)).replace(GROUPS, ',');
+  const body = dollars ? whole : `${whole}.${String(abs % 100).padStart(2, '0')}`;
+  return negative ? `(${body})` : body;
+}
+
+/** The same figure with a currency mark, for prose and for headline numbers. */
+function formatDollars(cents, opts = {}) {
+  if (cents === null || cents === undefined) return opts.blank ?? '';
+  const body = formatCents(cents, opts);
+  return body.startsWith('(') ? `($${body.slice(1)}` : `$${body}`;
+}
+
+/* ── src/lines.mjs ─────────────────────────────────────────────── */
+/* The Schedule C line structure.
+
+   Every `label` below is the wording on the IRS form itself, taken from the
+   accessibility text inside the official PDF rather than retyped from memory.
+   The extraction script and the raw output for each year are in ../evidence/,
+   and tests/lines.test.mjs asserts this table still matches them. That is the
+   whole defence against a line label quietly going stale.
+
+   One thing genuinely moves between years and it is not cosmetic: for 2023 and
+   2024 line 27a is "Other expenses (from line 48)" and 27b is the energy
+   efficient commercial buildings deduction. For 2025 the IRS SWAPPED them. A
+   tool that hardcodes either arrangement is wrong for half the years it
+   supports, so the slot is a parameter — see `buildLines(otherExpensesLine)`.
+
+   `label`  — what the form says. Used on the Schedule C worksheet.
+   `plLabel`— what a person says. Used on the profit and loss statement.
+   `kind`   — 'entry' the filer types it, 'computed' we work it out,
+              'info' it is not money (a date, a method, a yes/no).           */
+
+const ENERGY_LABEL = 'Energy efficient commercial bldgs deduction (attach Form 7205)';
+const OTHER_LABEL = 'Other expenses (from line 48)';
+
+/** The 24 expense lines that line 28 adds up, in form order. */
+const EXPENSE_LINES = [
+  '8', '9', '10', '11', '12', '13', '14', '15', '16a', '16b', '17', '18',
+  '19', '20a', '20b', '21', '22', '23', '24a', '24b', '25', '26', '27a', '27b',
+];
+
+/** Part III lines that line 40 adds up. */
+const COGS_LINES = ['35', '36', '37', '38', '39'];
+
+function buildLines(otherExpensesLine) {
+  if (otherExpensesLine !== '27a' && otherExpensesLine !== '27b') {
+    throw new Error(`other expenses must sit on 27a or 27b, not ${otherExpensesLine}`);
+  }
+  const energyLine = otherExpensesLine === '27a' ? '27b' : '27a';
+  const L = (id, part, kind, label, plLabel, extra = {}) =>
+    ({ id, part, kind, label, plLabel, ...extra });
+
+  const lines = [
+    // ── Part I · Income ────────────────────────────────────────────────
+    L('1', 'I', 'entry', 'Gross receipts or sales', 'Sales and receipts', { group: 'revenue' }),
+    L('2', 'I', 'entry', 'Returns and allowances', 'Less: returns and allowances', { group: 'revenue', negates: true }),
+    L('3', 'I', 'computed', 'Subtract line 2 from line 1', 'Net sales', { group: 'revenue', formula: { op: 'sub', of: ['1', '2'] }, subtotal: true }),
+    L('4', 'I', 'computed', 'Cost of goods sold (from line 42)', 'Cost of goods sold', { group: 'cogs', formula: { op: 'copy', of: ['42'] }, negates: true }),
+    L('5', 'I', 'computed', 'Gross profit. Subtract line 4 from line 3', 'Gross profit', { group: 'cogs', formula: { op: 'sub', of: ['3', '4'] }, subtotal: true }),
+    L('6', 'I', 'entry', 'Other income, including federal and state gasoline or fuel tax credit or refund', 'Other income', { group: 'revenue' }),
+    L('7', 'I', 'computed', 'Gross income. Add lines 5 and 6', 'Gross income', { group: 'revenue', formula: { op: 'sum', of: ['5', '6'] }, subtotal: true }),
+
+    // ── Part II · Expenses ─────────────────────────────────────────────
+    L('8', 'II', 'entry', 'Advertising', 'Advertising'),
+    L('9', 'II', 'entry', 'Car and truck expenses', 'Car and truck', { helper: 'mileage' }),
+    L('10', 'II', 'entry', 'Commissions and fees', 'Commissions and fees'),
+    L('11', 'II', 'entry', 'Contract labor', 'Contract labour and subcontractors'),
+    L('12', 'II', 'entry', 'Depletion', 'Depletion'),
+    L('13', 'II', 'entry', 'Depreciation and section 179 expense deduction (not included in Part III)', 'Depreciation and equipment written off'),
+    L('14', 'II', 'entry', 'Employee benefit programs (other than on line 19)', 'Employee benefits'),
+    L('15', 'II', 'entry', 'Insurance (other than health)', 'Insurance'),
+    L('16a', 'II', 'entry', 'Interest: Mortgage (paid to banks, etc.)', 'Mortgage interest'),
+    L('16b', 'II', 'entry', 'Interest: Other', 'Other interest'),
+    L('17', 'II', 'entry', 'Legal and professional services', 'Legal and professional fees'),
+    L('18', 'II', 'entry', 'Office expense', 'Office expenses'),
+    L('19', 'II', 'entry', 'Pension and profit-sharing plans', 'Pension and profit sharing'),
+    L('20a', 'II', 'entry', 'Rent or lease: Vehicles, machinery, and equipment', 'Rent: vehicles and equipment'),
+    L('20b', 'II', 'entry', 'Rent or lease: Other business property', 'Rent: property'),
+    L('21', 'II', 'entry', 'Repairs and maintenance', 'Repairs and maintenance'),
+    L('22', 'II', 'entry', 'Supplies (not included in Part III)', 'Supplies'),
+    L('23', 'II', 'entry', 'Taxes and licenses', 'Taxes and licences'),
+    L('24a', 'II', 'entry', 'Travel and meals: Travel', 'Travel'),
+    L('24b', 'II', 'entry', 'Travel and meals: Deductible meals', 'Meals (deductible part)', { helper: 'meals' }),
+    L('25', 'II', 'entry', 'Utilities', 'Utilities'),
+    L('26', 'II', 'entry', 'Wages (less employment credits)', 'Wages'),
+    // 27a always comes before 27b on the page. Which of them is "other
+    // expenses" is what moves between years, not their order.
+    ...['27a', '27b'].map((slot) => (slot === otherExpensesLine
+      ? L(slot, 'II', 'computed', OTHER_LABEL, 'Other expenses', { formula: { op: 'copy', of: ['48'] }, fromDetail: 'other' })
+      : L(slot, 'II', 'entry', ENERGY_LABEL, 'Energy efficient buildings deduction'))),
+    L('28', 'II', 'computed', 'Total expenses before expenses for business use of home. Add lines 8 through 27b', 'Total expenses before home office', { formula: { op: 'sum', of: EXPENSE_LINES }, subtotal: true }),
+    L('29', 'II', 'computed', 'Tentative profit or (loss). Subtract line 28 from line 7', 'Profit before home office', { formula: { op: 'sub', of: ['7', '28'] }, subtotal: true }),
+    L('30', 'II', 'entry', 'Expenses for business use of your home', 'Business use of your home', { helper: 'home' }),
+    L('31', 'II', 'computed', 'Net profit or (loss). Subtract line 30 from line 29', 'Net profit or (loss)', { formula: { op: 'sub', of: ['29', '30'] }, total: true }),
+    L('32', 'II', 'info', 'If you have a loss, check the box that describes your investment in this activity', 'Investment at risk'),
+
+    // ── Part III · Cost of Goods Sold ──────────────────────────────────
+    L('33', 'III', 'info', 'Method(s) used to value closing inventory', 'Inventory valuation method'),
+    L('34', 'III', 'info', 'Was there any change in determining quantities, costs, or valuations between opening and closing inventory?', 'Change in inventory method'),
+    L('35', 'III', 'entry', "Inventory at beginning of year. If different from last year's closing inventory, attach explanation", 'Opening inventory'),
+    L('36', 'III', 'entry', 'Purchases less cost of items withdrawn for personal use', 'Purchases', { helper: 'purchases' }),
+    L('37', 'III', 'entry', 'Cost of labor. Do not include any amounts paid to yourself', 'Cost of labour'),
+    L('38', 'III', 'entry', 'Materials and supplies', 'Materials and supplies'),
+    L('39', 'III', 'entry', 'Other costs', 'Other costs'),
+    L('40', 'III', 'computed', 'Add lines 35 through 39', 'Goods available', { formula: { op: 'sum', of: COGS_LINES }, subtotal: true }),
+    L('41', 'III', 'entry', 'Inventory at end of year', 'Closing inventory', { negates: true }),
+    L('42', 'III', 'computed', 'Cost of goods sold. Subtract line 41 from line 40', 'Cost of goods sold', { formula: { op: 'sub', of: ['40', '41'] }, total: true }),
+
+    // ── Part IV · Information on Your Vehicle ──────────────────────────
+    L('43', 'IV', 'info', 'When did you place your vehicle in service for business purposes?', 'Vehicle first used for business'),
+    // The form asks 44a/b/c as one sentence with three boxes. Split here so
+    // each figure gets its own line, which is why these three are the only
+    // labels in this table that are not the form's own words.
+    L('44a', 'IV', 'info', 'Business miles', 'Business miles', { reworded: true }),
+    L('44b', 'IV', 'info', 'Commuting miles', 'Commuting miles', { reworded: true }),
+    L('44c', 'IV', 'info', 'Other miles', 'Other miles', { reworded: true }),
+    L('45', 'IV', 'info', 'Was your vehicle available for personal use during off-duty hours?', 'Available for personal use'),
+    L('46', 'IV', 'info', 'Do you (or your spouse) have another vehicle available for personal use?', 'Another vehicle available'),
+    L('47a', 'IV', 'info', 'Do you have evidence to support your deduction?', 'Evidence kept'),
+    L('47b', 'IV', 'info', 'If "Yes," is the evidence written?', 'Evidence is written'),
+
+    // ── Part V · Other Expenses ────────────────────────────────────────
+    L('48', 'V', 'computed', `Total other expenses. Enter here and on line ${otherExpensesLine}`, 'Total other expenses', { formula: { op: 'detail', of: ['other'] }, total: true }),
+  ];
+
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  return { lines, byId, otherExpensesLine, energyLine };
+}
+
+/* ── years/2023.mjs ────────────────────────────────────────────── */
+/* Tax year 2023. Every figure below carries the page it came from, and
+   tests/years.test.mjs refuses to load a year whose parameter has no source.
+   A tax number without a citation is folklore. */
+const YEAR_2023 = {
+  year: 2023,
+  status: 'final',
+  form: {
+    title: 'Schedule C (Form 1040) — Profit or Loss From Business',
+    revision: '2023, Cat. No. 11334P',
+    source: 'https://www.irs.gov/pub/irs-prior/f1040sc--2023.pdf',
+    instructions: 'https://www.irs.gov/pub/irs-prior/i1040sc--2023.pdf',
+    retrieved: '2026-09-06',
+  },
+  // 2023 keeps the older arrangement: other expenses on 27a.
+  otherExpensesLine: '27a',
+  parameters: {
+    standardMileage: {
+      // Held as tenths of a cent so 65.5 is an integer, and as periods because
+      // the IRS has split a year mid-way before and did so again for 2026.
+      periods: [{ from: '2023-01-01', through: '2023-12-31', tenthCents: 655 }],
+      display: '65.5 cents a mile',
+      source: 'https://www.irs.gov/pub/irs-drop/n-23-03.pdf',
+      cite: 'IRS Notice 2023-03 (announced in IR-2022-234)',
+    },
+    simplifiedHomeOffice: {
+      ratePerSqFtCents: 500,
+      maxSqFt: 300,
+      display: '$5 a square foot',
+      source: 'https://www.irs.gov/pub/irs-prior/i1040sc--2023.pdf',
+      cite: '2023 Instructions for Schedule C, line 30 (Simplified Method)',
+    },
+    mealsDeductiblePercent: {
+      percent: 50,
+      display: 'half of what you spent',
+      source: 'https://www.irs.gov/pub/irs-prior/i1040sc--2023.pdf',
+      cite: '2023 Instructions for Schedule C, line 24b',
+      caveat: 'Some meals are not half. Drivers under federal hours-of-service rules deduct 80%, and a few meals count in full.',
+    },
+  },
+};
+
+/* ── years/2024.mjs ────────────────────────────────────────────── */
+/* Tax year 2024. Every figure below carries the page it came from, and
+   tests/years.test.mjs refuses to load a year whose parameter has no source.
+   A tax number without a citation is folklore. */
+const YEAR_2024 = {
+  year: 2024,
+  status: 'final',
+  form: {
+    title: 'Schedule C (Form 1040) — Profit or Loss From Business',
+    revision: '2024, Cat. No. 11334P',
+    source: 'https://www.irs.gov/pub/irs-prior/f1040sc--2024.pdf',
+    instructions: 'https://www.irs.gov/pub/irs-prior/i1040sc--2024.pdf',
+    retrieved: '2026-09-06',
+  },
+  // 2024 keeps the older arrangement: other expenses on 27a.
+  otherExpensesLine: '27a',
+  parameters: {
+    standardMileage: {
+      // Held as tenths of a cent so 65.5 is an integer, and as periods because
+      // the IRS has split a year mid-way before and did so again for 2026.
+      periods: [{ from: '2024-01-01', through: '2024-12-31', tenthCents: 670 }],
+      display: '67 cents a mile',
+      source: 'https://www.irs.gov/tax-professionals/standard-mileage-rates',
+      cite: 'IRS Notice 2024-08 (announced in IR-2023-239)',
+    },
+    simplifiedHomeOffice: {
+      ratePerSqFtCents: 500,
+      maxSqFt: 300,
+      display: '$5 a square foot',
+      source: 'https://www.irs.gov/pub/irs-prior/i1040sc--2024.pdf',
+      cite: '2024 Instructions for Schedule C, line 30 (Simplified Method)',
+    },
+    mealsDeductiblePercent: {
+      percent: 50,
+      display: 'half of what you spent',
+      source: 'https://www.irs.gov/pub/irs-prior/i1040sc--2024.pdf',
+      cite: '2024 Instructions for Schedule C, line 24b',
+      caveat: 'Some meals are not half. Drivers under federal hours-of-service rules deduct 80%, and a few meals count in full.',
+    },
+  },
+};
+
+/* ── years/2025.mjs ────────────────────────────────────────────── */
+/* Tax year 2025. Every figure below carries the page it came from, and
+   tests/years.test.mjs refuses to load a year whose parameter has no source.
+   A tax number without a citation is folklore. */
+const YEAR_2025 = {
+  year: 2025,
+  status: 'final',
+  form: {
+    title: 'Schedule C (Form 1040) — Profit or Loss From Business',
+    revision: '2025, created 4/3/25, Cat. No. 11334P',
+    source: 'https://www.irs.gov/pub/irs-pdf/f1040sc.pdf',
+    instructions: 'https://www.irs.gov/instructions/i1040sc',
+    retrieved: '2026-09-06',
+  },
+  // 2025 is the year the IRS swapped 27a and 27b.
+  otherExpensesLine: '27b',
+  parameters: {
+    standardMileage: {
+      // Held as tenths of a cent so 65.5 is an integer, and as periods because
+      // the IRS has split a year mid-way before and did so again for 2026.
+      periods: [{ from: '2025-01-01', through: '2025-12-31', tenthCents: 700 }],
+      display: '70 cents a mile',
+      source: 'https://www.irs.gov/pub/irs-drop/n-25-05.pdf',
+      cite: 'IRS Notice 2025-5 (announced in IR-2024-312)',
+    },
+    simplifiedHomeOffice: {
+      ratePerSqFtCents: 500,
+      maxSqFt: 300,
+      display: '$5 a square foot',
+      source: 'https://www.irs.gov/instructions/i1040sc',
+      cite: '2025 Instructions for Schedule C, line 30 (Simplified Method)',
+    },
+    mealsDeductiblePercent: {
+      percent: 50,
+      display: 'half of what you spent',
+      source: 'https://www.irs.gov/instructions/i1040sc',
+      cite: '2025 Instructions for Schedule C, line 24b',
+      caveat: 'Some meals are not half. Drivers under federal hours-of-service rules deduct 80%, and a few meals count in full.',
+    },
+  },
+};
+
+/* ── src/years.mjs ─────────────────────────────────────────────── */
+/* Which tax years this tool will answer for, and the refusal when it is asked
+   about one it does not know.
+
+   Adding January's year is meant to be dull: copy last year's file, change the
+   three or four figures, add one line here, run the tests. YEAR-UPDATE.md is
+   the runbook and tests/years.test.mjs is what stops a year shipping with an
+   uncited number in it. */
+
+
+
+
+const YEARS = new Map([YEAR_2025, YEAR_2024, YEAR_2023].map((y) => [y.year, y]));
+
+/** Newest first — the order the year picker shows them in. */
+function supportedYears() {
+  return [...YEARS.keys()].sort((a, b) => b - a);
+}
+
+function hasYear(year) {
+  return YEARS.has(Number(year));
+}
+
+/** Throws rather than falling back to the nearest year it does know. A
+    Schedule C filled in against the wrong year's line numbers is a confident
+    wrong answer, which is worse than no answer. */
+function loadYear(year) {
+  const data = YEARS.get(Number(year));
+  if (!data) {
+    throw new Error(
+      `This tool does not have tax year ${year} on file. It has ` +
+      `${supportedYears().join(', ')}. It will not guess a year's line numbers ` +
+      `from another year's — the IRS moved lines 27a and 27b in 2025.`,
+    );
+  }
+  const structure = buildLines(data.otherExpensesLine);
+  return { ...data, ...structure };
+}
+
+/* ── src/helpers.mjs ───────────────────────────────────────────── */
+/* Three optional calculators, and a clear account of why there are only three.
+
+   The tool organises figures the filer already has. It does not decide what is
+   deductible. So a calculator only earns its place here if it is (a) pure
+   arithmetic on a published IRS figure and (b) something the filer has already
+   decided to use. Standard mileage, the simplified home office method and the
+   fifty percent on meals all pass. Everything else — actual vehicle costs,
+   depreciation, Form 8829, the at-risk limit — does not, and REFUSALS below
+   says so out loud rather than leaving a silence the user has to interpret. */
+
+const fail = (error) => ({ ok: false, error });
+
+function rateForYear(yearData) {
+  const periods = yearData.parameters.standardMileage.periods;
+  if (periods.length !== 1) return null; // a split year needs miles per period
+  return periods[0].tenthCents;
+}
+
+/** Business miles × the year's rate. Miles are whole miles; the IRS rate is
+    held in tenths of a cent so 65.5 never becomes a float. */
+function mileage({ miles, yearData }) {
+  const n = Number(miles);
+  if (miles === '' || miles === null || miles === undefined || !Number.isFinite(n)) {
+    return fail('Enter the business miles you drove.');
+  }
+  if (!Number.isInteger(n)) return fail('Whole miles, please.');
+  if (n < 0) return fail('Miles cannot be negative.');
+  if (n > 5_000_000) return fail('That is more miles than this tool will accept.');
+
+  const tenthCents = rateForYear(yearData);
+  if (tenthCents === null) {
+    return fail(
+      'The rate changed part-way through this year, so the miles have to be ' +
+      'split across the two periods. Work it out and enter the total.',
+    );
+  }
+  const raw = n * tenthCents; // tenths of a cent, exact
+  const cents = Math.floor(raw / 10) + (raw % 10 >= 5 ? 1 : 0);
+  return {
+    ok: true,
+    cents,
+    basis: `${n.toLocaleString('en-US')} business miles at ${yearData.parameters.standardMileage.display}`,
+    cite: yearData.parameters.standardMileage.cite,
+  };
+}
+
+/** The simplified method: $5 a square foot, capped at 300 square feet. It does
+    NOT apply the gross income limit — the engine does that, because the limit
+    depends on line 29 and this function has never seen line 29. */
+function simplifiedHomeOffice({ sqft, yearData }) {
+  const n = Number(sqft);
+  if (sqft === '' || sqft === null || sqft === undefined || !Number.isFinite(n)) {
+    return fail('Enter the square feet you use for business.');
+  }
+  if (!Number.isInteger(n)) return fail('Whole square feet, please.');
+  if (n < 0) return fail('Square feet cannot be negative.');
+  if (n > 100_000) return fail('That is larger than this method allows for.');
+
+  const { ratePerSqFtCents, maxSqFt, display } = yearData.parameters.simplifiedHomeOffice;
+  const counted = Math.min(n, maxSqFt);
+  return {
+    ok: true,
+    cents: counted * ratePerSqFtCents,
+    basis: counted < n
+      ? `${maxSqFt} square feet at ${display} — the most this method counts`
+      : `${counted} square feet at ${display}`,
+    capped: counted < n,
+    cite: yearData.parameters.simplifiedHomeOffice.cite,
+  };
+}
+
+/** Half of what was spent on meals. The caveat travels with the answer, because
+    a driver under hours-of-service rules deducts 80% and this would be wrong. */
+function mealsHalf({ spentCents, yearData }) {
+  if (spentCents === null || spentCents === undefined) return fail('Enter what you spent on meals.');
+  if (!Number.isInteger(spentCents)) return fail('Enter what you spent on meals.');
+  if (Math.abs(spentCents) > MAX_CENTS) return fail('That number is too big for this tool.');
+
+  const { percent, display, caveat, cite } = yearData.parameters.mealsDeductiblePercent;
+  const sign = spentCents < 0 ? -1 : 1;
+  const abs = Math.abs(spentCents) * percent;
+  const cents = sign * (Math.floor(abs / 100) + (abs % 100 >= 50 ? 1 : 0));
+  return { ok: true, cents, basis: display, caveat, cite };
+}
+
+/** Gross purchases less what the owner took for themselves — line 36 is
+    already a net figure on the form, and people forget the second half. */
+function netPurchases({ purchasesCents, personalUseCents }) {
+  if (purchasesCents === null || purchasesCents === undefined) return fail('Enter what you bought.');
+  const personal = personalUseCents ?? 0;
+  return {
+    ok: true,
+    cents: purchasesCents - personal,
+    basis: 'what you bought, less anything you took for yourself',
+  };
+}
+
+/** What this tool will not work out, and what to use instead. Shown in the
+    interface and printed on the worksheet, so a filer is never left to assume
+    a blank line means zero. */
+const REFUSALS = [
+  {
+    line: '9',
+    subject: 'Car and truck costs, if you are not using the mileage rate',
+    because: 'Adding up petrol, repairs and depreciation needs the cost of the vehicle and the share of miles that were for business.',
+    instead: 'Work out the deduction the way you always do, or use the mileage rate above.',
+  },
+  {
+    line: '13',
+    subject: 'Depreciation and equipment written off',
+    because: 'It depends on what each item cost, when you started using it, and what you have already claimed in earlier years.',
+    instead: 'Take the figure from your depreciation schedule or Form 4562 and type it in.',
+  },
+  {
+    line: '30',
+    subject: 'Business use of your home, the detailed way',
+    because: 'The detailed method needs your mortgage or rent, taxes, insurance, utilities and repairs, split by floor area.',
+    instead: 'Use Form 8829 and enter the result, or use the square-foot method above.',
+  },
+  {
+    line: '32',
+    subject: 'Whether a loss is one you can actually use this year',
+    because: 'That depends on money you have at risk, on other income, and on rules that reach outside this form.',
+    instead: 'This tool shows the loss. Whether you can take it all this year is a question for your return.',
+  },
+];
+
+/** The refusals that bear on this particular return. All four on every
+    document is noise; the one about depreciation on a return with $9,800 of
+    it is the whole point. */
+function relevantRefusals(result) {
+  const has = (id) => result.line[id] && result.line[id].source !== 'empty' && result.line[id].cents !== 0;
+  return REFUSALS.filter((r) => {
+    if (r.line === '32') return result.line['31'].cents < 0;
+    return has(r.line);
+  });
+}
+
+/* ── src/engine.mjs ────────────────────────────────────────────── */
+/* Work out every line of a Schedule C from what the filer typed.
+
+   Three rules hold everywhere in here:
+
+   1. Exact integers. Cents in, cents out, no float touches a total.
+   2. Empty is not zero. A line nobody filled in keeps `source: 'empty'` all the
+      way to the page, where it prints blank. A line someone deliberately
+      entered as zero prints 0.00.
+   3. It refuses rather than picking. Two figures that disagree — a total typed
+      over a list that already adds up — is a blocker, not a coin toss.
+
+   What it will not do is decide anything. Nothing here asks whether a cost is
+   deductible; it adds up figures the filer brought and puts them on the line
+   the form puts them on. Where a rule does exist and is pure arithmetic on a
+   published IRS figure, it lives in helpers.mjs and the filer opts into it. */
+
+
+
+function emptyReturn(year = 2025) {
+  return {
+    year,
+    business: { name: '', activity: '' },
+    accountingMethod: 'cash',
+    materiallyParticipated: null,
+    entries: {},
+    details: {},
+    vehicle: {},
+    inventory: { method: null, changed: null },
+    atRisk: null,
+    homeOfficeMethod: null,
+    rounding: 'cents',
+  };
+}
+
+const EMPTY = { cents: 0, source: 'empty' };
+
+function compute(input) {
+  const yearData = loadYear(input.year);
+  const { byId, otherExpensesLine } = yearData;
+  const entries = input.entries || {};
+  const details = input.details || {};
+  const blockers = [];
+  const notices = [];
+  const note = (line, message) => notices.push({ level: 'note', line, message });
+  const warn = (line, message, extra = {}) => notices.push({ level: 'warn', line, message, ...extra });
+
+  // ── detail lists ────────────────────────────────────────────────────
+  // A list of rows may stand behind an entry line. If it does, it wins and the
+  // line is not separately typeable. Both at once is a contradiction we refuse.
+  const detailTotals = new Map();
+  for (const [key, rows] of Object.entries(details)) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    detailTotals.set(key, sumCents(rows.map((r) => r.cents)));
+  }
+
+  const resolving = new Set();
+  const resolved = new Map();
+
+  function valueOf(id) {
+    if (resolved.has(id)) return resolved.get(id);
+    if (resolving.has(id)) throw new Error(`line ${id} depends on itself`);
+    resolving.add(id);
+    const out = derive(id);
+    resolving.delete(id);
+    resolved.set(id, out);
+    return out;
+  }
+
+  function derive(id) {
+    const line = byId.get(id);
+    if (!line) throw new Error(`no line ${id} on the ${yearData.year} Schedule C`);
+
+    if (line.kind === 'entry') {
+      const typed = entries[id];
+      const listed = detailTotals.get(id);
+      if (listed !== undefined && typed !== undefined && typed !== null) {
+        blockers.push({
+          line: id,
+          message: `Line ${id} has both a total typed in and a list of items. Keep one.`,
+        });
+        return EMPTY;
+      }
+      if (listed !== undefined) return { cents: listed, source: 'detail' };
+      if (typed === undefined || typed === null) return EMPTY;
+      return { cents: typed, source: 'entered' };
+    }
+
+    if (line.kind === 'info') return EMPTY;
+
+    // computed
+    if (entries[id] !== undefined && entries[id] !== null) {
+      blockers.push({
+        line: id,
+        message: `Line ${id} is worked out from the other lines, so it cannot be typed in.`,
+      });
+    }
+    const f = line.formula;
+    if (!f) return EMPTY;
+
+    if (f.op === 'detail') {
+      const listed = detailTotals.get(f.of[0]);
+      if (listed === undefined) return EMPTY;
+      return { cents: listed, source: 'detail' };
+    }
+    const parts = f.of.map(valueOf);
+    const anyFilled = parts.some((p) => p.source !== 'empty');
+    let cents;
+    if (f.op === 'sum') cents = sumCents(parts.map((p) => p.cents));
+    else if (f.op === 'sub') cents = parts[0].cents - parts[1].cents;
+    else if (f.op === 'copy') cents = parts[0].cents;
+    else throw new Error(`unknown formula ${f.op} on line ${id}`);
+    return { cents, source: anyFilled ? 'computed' : 'empty' };
+  }
+
+  const line = {};
+  for (const l of yearData.lines) line[l.id] = valueOf(l.id);
+
+  // ── what the filer should know, said plainly ────────────────────────
+  const v = (id) => line[id].cents;
+  const filled = (id) => line[id].source !== 'empty';
+  const miles = Number(input.vehicle?.businessMiles ?? NaN);
+
+  if (v('9') !== 0 && !(Number.isFinite(miles) && miles > 0)) {
+    note('9', 'Schedule C asks how many miles you drove. Add them under vehicle details.');
+  }
+  if (v('13') !== 0) {
+    note('13', 'Depreciation usually means Form 4562 goes with the return too.');
+  }
+  if (v(yearData.energyLine) !== 0) {
+    note(yearData.energyLine, 'This one needs Form 7205 attached.');
+  }
+  if (filled('1') && v('2') > v('1')) {
+    note('2', 'Refunds to customers come to more than sales. Worth a second look.');
+  }
+  for (const id of EXPENSE_LINES) {
+    if (filled(id) && v(id) < 0) {
+      note(id, `Line ${id} is a negative number. That happens with a refund — check it is meant.`);
+    }
+  }
+  if (filled('41') && v('41') > v('40')) {
+    note('41', 'Closing stock is worth more than everything you had to sell, so cost of goods sold came out below zero.');
+  }
+  if (input.homeOfficeMethod === 'simplified' && v('30') > 0) {
+    const room = Math.max(v('29'), 0);
+    if (v('30') > room) {
+      warn('30', 'The square-foot method cannot push your business into a loss.', { cap: room });
+    }
+  }
+  if (v('31') < 0) {
+    if (input.atRisk === null || input.atRisk === undefined) {
+      warn('32', 'You have a loss, so Schedule C asks whether all the money in the business was yours to lose.');
+    } else if (input.atRisk === 'some') {
+      note('32', 'Some of the money was not at risk, so Form 6198 goes with the return and the loss may be cut back.');
+    }
+    if (input.materiallyParticipated === false) {
+      note('31', 'You said you did not work in the business regularly, which limits how much of the loss you can use this year.');
+    }
+  }
+  const otherRows = (details.other || []).length;
+  if (otherRows > 9) {
+    note('48', 'Schedule C has room for nine of these. More than that goes on an attached list.');
+  }
+
+  const hasFigures = yearData.lines.some((l) => l.kind === 'entry' && line[l.id].source !== 'empty');
+  if (!hasFigures) {
+    blockers.push({ line: null, message: 'Nothing has been entered yet.' });
+  }
+
+  return {
+    year: yearData.year,
+    yearData,
+    line,
+    notices,
+    blockers,
+    hasFigures,
+    otherExpensesLine,
+    netProfitCents: v('31'),
+  };
+}
+
+/* ── src/report.mjs ────────────────────────────────────────────── */
+/* Turn a computed return into the two things a person actually wants.
+
+   They are two documents because they have two readers. The profit and loss
+   statement is for the filer, a bank, a landlord — it reads like a statement
+   and never says "line 27b". The Schedule C worksheet is for whoever prepares
+   the return — it is the form's own order, its own wording, every line
+   including the empty ones, so a figure can be copied across without anyone
+   having to work out where it goes.
+
+   Both come from one computation, so they cannot disagree.
+
+   Whole-dollar mode follows the 1040 instructions exactly: add with the cents
+   in, round only the total. That is deliberately NOT the same as rounding each
+   figure and adding the rounded ones, and it means a printed column can be a
+   dollar off from its own printed total. Rather than hide that, `footing`
+   below reports it and the documents print a line saying why. */
+
+
+
+const ROUNDING_NOTE =
+  'Figures are rounded to whole dollars. The IRS asks for the cents to be added '
+  + 'in and only the total rounded, so a column can look a dollar out.';
+
+/** One presented figure: the exact cents, and the string the reader sees. */
+function present(cents, rounding, { blank = '' } = {}) {
+  if (cents === null || cents === undefined) return { cents: null, text: blank };
+  const shown = rounding === 'dollars' ? roundToDollars(cents) : cents;
+  return { cents: shown, text: formatCents(shown, { dollars: rounding === 'dollars' }) };
+}
+
+function row(result, id, { force = false, negate = false } = {}) {
+  const line = result.yearData.byId.get(id);
+  const value = result.line[id];
+  if (!force && value.source === 'empty') return null;
+  return {
+    id,
+    label: line.plLabel,
+    formLabel: line.label,
+    cents: value.cents,
+    source: value.source,
+    negate,
+  };
+}
+
+const compact = (rows) => rows.filter(Boolean);
+
+/** The profit and loss statement. Reads top to bottom like a statement. */
+function statement(result, { rounding = 'cents' } = {}) {
+  const R = (id, opts) => row(result, id, opts);
+  const has = (ids) => ids.some((id) => result.line[id].source !== 'empty');
+  const sections = [];
+
+  sections.push({
+    heading: 'Income',
+    rows: compact([R('1'), R('2', { negate: true })]),
+    footer: R('3', { force: true }),
+  });
+
+  const cogsUsed = has([...COGS_LINES, '41']);
+  if (cogsUsed) {
+    sections.push({
+      heading: 'Cost of goods sold',
+      rows: compact([...COGS_LINES.map((id) => R(id)), R('40', { force: true }), R('41', { negate: true })]),
+      footer: R('42', { force: true }),
+    });
+    sections.push({ heading: 'Gross profit', rows: [], footer: R('5', { force: true }) });
+  }
+
+  if (result.line['6'].source !== 'empty') {
+    sections.push({ heading: 'Other income', rows: compact([R('6')]), footer: null });
+  }
+  sections.push({ heading: 'Gross income', rows: [], footer: R('7', { force: true }) });
+
+  sections.push({
+    heading: 'Expenses',
+    rows: compact(EXPENSE_LINES.map((id) => R(id))),
+    footer: R('28', { force: true }),
+  });
+
+  const homeUsed = result.line['30'].source !== 'empty';
+  sections.push({
+    heading: 'Result',
+    rows: compact([homeUsed ? R('29', { force: true }) : null, homeUsed ? R('30') : null]),
+    footer: R('31', { force: true }),
+    final: true,
+  });
+
+  return { kind: 'statement', title: 'Profit and loss', sections, rounding };
+}
+
+/** The Schedule C worksheet. Form order, form wording, blanks left blank. */
+function worksheet(result, { rounding = 'cents' } = {}) {
+  const { yearData } = result;
+  const parts = [];
+  const moneyParts = [
+    ['I', 'Part I · Income'],
+    ['II', 'Part II · Expenses'],
+    ['III', 'Part III · Cost of goods sold'],
+  ];
+  for (const [part, heading] of moneyParts) {
+    const rows = yearData.lines
+      .filter((l) => l.part === part && l.kind !== 'info')
+      .map((l) => ({
+        id: l.id,
+        label: l.label,
+        cents: result.line[l.id].cents,
+        source: result.line[l.id].source,
+        computed: l.kind === 'computed',
+      }));
+    parts.push({ heading, rows });
+  }
+
+  const other = (result.rows?.other) || [];
+  parts.push({
+    heading: `Part V · Other expenses (carried to line ${result.otherExpensesLine})`,
+    rows: other.map((r, i) => ({ id: String(i + 1), label: r.label, cents: r.cents, source: 'entered' }))
+      .concat([{ id: '48', label: yearData.byId.get('48').label, cents: result.line['48'].cents, source: result.line['48'].source, computed: true }]),
+  });
+
+  return { kind: 'worksheet', title: `${yearData.year} Schedule C worksheet`, parts, rounding };
+}
+
+/** Part IV and the yes/no answers — facts, not figures, but a preparer needs
+    them and a blank one is a question that gets asked later. */
+function answers(result, input) {
+  const yes = (v) => (v === true ? 'Yes' : v === false ? 'No' : 'Not answered');
+  const num = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v))
+    ? 'Not answered' : Number(v).toLocaleString('en-US'));
+  const veh = input.vehicle || {};
+  return [
+    { label: 'Accounting method', value: { cash: 'Cash', accrual: 'Accrual', other: 'Other' }[input.accountingMethod] || 'Not answered' },
+    { label: 'Worked in the business regularly (line G)', value: yes(input.materiallyParticipated) },
+    { label: 'All the money in it was yours to lose (line 32)', value: input.atRisk === 'all' ? 'Yes' : input.atRisk === 'some' ? 'No — some was not at risk' : 'Not answered' },
+    { label: 'Vehicle first used for business (line 43)', value: veh.placedInService || 'Not answered' },
+    { label: 'Business miles (line 44a)', value: num(veh.businessMiles) },
+    { label: 'Commuting miles (line 44b)', value: num(veh.commutingMiles) },
+    { label: 'Other miles (line 44c)', value: num(veh.otherMiles) },
+    { label: 'Vehicle available for personal use (line 45)', value: yes(veh.personalUse) },
+    { label: 'Another vehicle available (line 46)', value: yes(veh.anotherVehicle) },
+    { label: 'Records kept to back it up (line 47a)', value: yes(veh.evidence) },
+    { label: 'Those records are written (line 47b)', value: yes(veh.evidenceWritten) },
+    { label: 'How closing stock was valued (line 33)', value: { cost: 'Cost', lower: 'Lower of cost or market', other: 'Other' }[input.inventory?.method] || 'Not answered' },
+    { label: 'Change in how stock was counted or valued (line 34)', value: yes(input.inventory?.changed) },
+  ];
+}
+
+/** Does a printed column add up to its printed total? In cents it always does.
+    In whole dollars it may not, and this is how the documents know to say so. */
+function footing(result, rounding) {
+  if (rounding !== 'dollars') return { off: false, lines: [] };
+  const checks = [
+    ['28', EXPENSE_LINES],
+    ['40', COGS_LINES],
+  ];
+  const off = [];
+  for (const [totalId, parts] of checks) {
+    const shownParts = sumCents(parts.map((id) => roundToDollars(result.line[id].cents)));
+    const shownTotal = roundToDollars(result.line[totalId].cents);
+    if (shownParts !== shownTotal) off.push(totalId);
+  }
+  return { off: off.length > 0, lines: off };
+}
+
+const REFUSAL_NOTES = REFUSALS;
+
+/* ── src/pdf.mjs ───────────────────────────────────────────────── */
+/* A PDF writer, written out rather than pulled in.
+
+   Three reasons it is not a library. The tool's whole claim is that nothing
+   leaves the browser, and that claim is only as good as the code a person can
+   read — a megabyte of minified third-party script makes it unauditable. The
+   output has to be checked by tests down to the figure, which is far easier
+   when the bytes are ours. And a document with a CPA's name on it should not
+   change shape because a dependency shipped a minor version.
+
+   It writes PDF 1.4 with uncompressed content streams, so you can open the file
+   in a text editor and read the numbers. That is a feature: the proof that the
+   PDF says what the screen said is a grep away.
+
+   Figures are set in Courier — a fixed-width face, so a column of money aligns
+   exactly with no font metrics to embed and nothing to get subtly wrong. */
+
+const PAGE_W = 612, PAGE_H = 792;
+const MARGIN = 54;
+const RIGHT = PAGE_W - MARGIN;
+const COURIER_W = 0.6; // every Courier glyph, in em
+
+// WinAnsiEncoding for the handful of non-ASCII characters our copy uses.
+const WINANSI = new Map(Object.entries({
+  '–': '\x96', '—': '\x97', '‘': '\x91', '’': '\x92',
+  '“': '\x93', '”': '\x94', '…': '\x85', '·': '\xb7',
+  ' ': ' ', 'é': '\xe9', '£': '\xa3', '•': '\x95',
+}));
+
+function encodeText(s) {
+  let out = '';
+  for (const ch of String(s)) {
+    const mapped = WINANSI.get(ch);
+    if (mapped !== undefined) { out += mapped; continue; }
+    const code = ch.codePointAt(0);
+    out += code < 256 ? ch : '?';
+  }
+  return out.replace(/[\\()]/g, (c) => `\\${c}`);
+}
+
+class Doc {
+  constructor() {
+    this.pages = [];
+    this.newPage();
+  }
+
+  newPage() {
+    this.ops = [];
+    this.pages.push(this.ops);
+    this.y = PAGE_H - MARGIN;
+    return this.y;
+  }
+
+  space(needed) {
+    if (this.y - needed < MARGIN + 24) this.newPage();
+  }
+
+  text(str, x, y, { font = 'F1', size = 9, gray = 0 } = {}) {
+    if (str === '' || str === null || str === undefined) return;
+    this.ops.push(`q ${gray} g BT /${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${encodeText(str)}) Tj ET Q`);
+  }
+
+  right(str, xRight, y, { size = 9, gray = 0, font = 'F3' } = {}) {
+    if (!str) return;
+    const width = String(str).length * COURIER_W * size;
+    this.text(str, xRight - width, y, { font, size, gray });
+  }
+
+  rule(y, { from = MARGIN, to = RIGHT, gray = 0.75, width = 0.5 } = {}) {
+    this.ops.push(`q ${gray} G ${width} w ${from} ${y.toFixed(2)} m ${to} ${y.toFixed(2)} l S Q`);
+  }
+
+  /** Wrap on spaces at a rough character budget. Helvetica is proportional and
+      we carry no width table, so the budget is deliberately conservative —
+      a short line is a cosmetic problem, an overrun is a broken document. */
+  paragraph(str, x, { size = 8, gray = 0.25, width = RIGHT - MARGIN, leading = 11 } = {}) {
+    const perLine = Math.floor(width / (size * 0.5));
+    const words = String(str).split(/\s+/);
+    let cur = '';
+    const lines = [];
+    for (const w of words) {
+      if (cur && (cur + ' ' + w).length > perLine) { lines.push(cur); cur = w; } else cur = cur ? `${cur} ${w}` : w;
+    }
+    if (cur) lines.push(cur);
+    for (const l of lines) {
+      this.space(leading);
+      this.y -= leading;
+      this.text(l, x, this.y, { size, gray });
+    }
+  }
+}
+
+function figure(cents, source, rounding) {
+  if (source === 'empty') return '';
+  return formatCents(rounding === 'dollars' ? Math.round(cents / 100) * 100 : cents, { dollars: rounding === 'dollars' });
+}
+
+function drawStatement(doc, stmt, result) {
+  const { rounding } = stmt;
+  doc.y -= 6;
+  doc.space(20); doc.y -= 14;
+  doc.text('Profit and loss', MARGIN, doc.y, { font: 'F2', size: 13 });
+
+  for (const sec of stmt.sections) {
+    doc.space(30);
+    doc.y -= 18;
+    doc.text(sec.heading, MARGIN, doc.y, { font: 'F2', size: 9.5 });
+    doc.y -= 4;
+    doc.rule(doc.y);
+    for (const r of sec.rows) {
+      doc.space(14);
+      doc.y -= 12;
+      doc.text(r.label, MARGIN + 10, doc.y);
+      doc.right(`(${r.id})`, MARGIN + 220, doc.y, { size: 7.5, gray: 0.5 });
+      const shown = figure(r.cents, r.source, rounding);
+      doc.right(r.negate && r.cents > 0 ? `(${shown})` : shown, RIGHT, doc.y);
+    }
+    if (sec.footer) {
+      doc.space(18);
+      doc.y -= 5;
+      doc.rule(doc.y, { from: RIGHT - 96 });
+      doc.y -= 11;
+      doc.text(sec.footer.label, MARGIN + (sec.rows.length ? 10 : 10), doc.y, { font: 'F2', size: 9 });
+      doc.right(`(${sec.footer.id})`, MARGIN + 220, doc.y, { size: 7.5, gray: 0.5 });
+      doc.right(figure(sec.footer.cents, sec.footer.source, rounding), RIGHT, doc.y, { size: 9.5 });
+      if (sec.final) { doc.y -= 3; doc.rule(doc.y, { from: RIGHT - 96, gray: 0.2 }); doc.y -= 2; doc.rule(doc.y, { from: RIGHT - 96, gray: 0.2 }); }
+    }
+  }
+  void result;
+}
+
+function drawWorksheet(doc, sheet) {
+  const { rounding } = sheet;
+  doc.space(40);
+  doc.y -= 26;
+  doc.text(sheet.title, MARGIN, doc.y, { font: 'F2', size: 13 });
+  doc.y -= 4;
+  doc.paragraph('Every line, in the order Schedule C asks for them. Blank means nothing was entered, not zero.', MARGIN, { size: 7.5 });
+
+  for (const part of sheet.parts) {
+    doc.space(28);
+    doc.y -= 16;
+    doc.text(part.heading, MARGIN, doc.y, { font: 'F2', size: 9.5 });
+    doc.y -= 4;
+    doc.rule(doc.y);
+    for (const r of part.rows) {
+      doc.space(13);
+      doc.y -= 11;
+      doc.text(r.id, MARGIN, doc.y, { font: 'F3', size: 8, gray: 0.45 });
+      const label = r.label.length > 78 ? `${r.label.slice(0, 77)}…` : r.label;
+      doc.text(label, MARGIN + 26, doc.y, { size: 8.5, gray: r.computed ? 0.35 : 0 });
+      doc.right(figure(r.cents, r.source, rounding), RIGHT, doc.y, { size: 8.5 });
+    }
+  }
+}
+
+function drawAnswers(doc, rows) {
+  doc.space(40);
+  doc.y -= 22;
+  doc.text('What the form also asks', MARGIN, doc.y, { font: 'F2', size: 11 });
+  doc.y -= 4;
+  doc.rule(doc.y);
+  for (const r of rows) {
+    doc.space(13);
+    doc.y -= 11;
+    doc.text(r.label, MARGIN + 10, doc.y, { size: 8.5 });
+    doc.text(r.value, MARGIN + 320, doc.y, { size: 8.5, gray: r.value === 'Not answered' ? 0.55 : 0 });
+  }
+}
+
+function drawNotes(doc, heading, items) {
+  if (!items.length) return;
+  doc.space(36);
+  doc.y -= 22;
+  doc.text(heading, MARGIN, doc.y, { font: 'F2', size: 11 });
+  doc.y -= 4;
+  doc.rule(doc.y);
+  for (const it of items) {
+    doc.space(16);
+    doc.y -= 12;
+    doc.text(it.line ? `Line ${it.line}` : 'Note', MARGIN, doc.y, { font: 'F2', size: 8 });
+    doc.paragraph(it.message, MARGIN + 52, { size: 8, gray: 0.2, width: RIGHT - MARGIN - 52, leading: 10 });
+    doc.y -= 1;
+  }
+}
+
+function serialise(doc, meta) {
+  const objects = [];
+  const add = (body) => { objects.push(body); return objects.length; };
+
+  const fontIds = {
+    F1: add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'),
+    F2: add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'),
+    F3: add('<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>'),
+  };
+  const resources = `<< /Font << /F1 ${fontIds.F1} 0 R /F2 ${fontIds.F2} 0 R /F3 ${fontIds.F3} 0 R >> >>`;
+
+  const pagesId = objects.length + 1 + doc.pages.length * 2;
+  const pageIds = [];
+  for (const ops of doc.pages) {
+    const stream = ops.join('\n');
+    const contentId = add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    pageIds.push(add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources ${resources} /Contents ${contentId} 0 R >>`));
+  }
+  const realPagesId = add(`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map((i) => `${i} 0 R`).join(' ')}] >>`);
+  const infoId = add(`<< /Title (${encodeText(meta.title)}) /Producer (SATC Schedule C profit and loss tool) /Creator (satcllp.com) /CreationDate (D:${meta.stamp}) >>`);
+  const catalogId = add(`<< /Type /Catalog /Pages ${realPagesId} 0 R >>`);
+
+  let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
+  const offsets = [0];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefAt = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i += 1) {
+    out += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  out += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R /Info ${infoId} 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+
+  const bytes = new Uint8Array(out.length);
+  for (let i = 0; i < out.length; i += 1) bytes[i] = out.charCodeAt(i) & 0xff;
+  if (realPagesId !== pagesId) throw new Error('page tree id drifted — the /Parent references would dangle');
+  return bytes;
+}
+
+/** Build the PDF. `include` picks which of the two documents go in it. */
+function buildPdf({ result, input, stmt, sheet, answerRows, meta, include = ['statement', 'worksheet'], footingNote = null }) {
+  const doc = new Doc();
+
+  doc.text(meta.firm, MARGIN, doc.y, { font: 'F2', size: 10 });
+  doc.right(meta.site, RIGHT, doc.y, { font: 'F1', size: 8.5, gray: 0.4 });
+  doc.y -= 6;
+  doc.rule(doc.y, { gray: 0.35, width: 1 });
+  doc.y -= 16;
+  doc.text(meta.businessName || 'Your business', MARGIN, doc.y, { font: 'F2', size: 15 });
+  doc.y -= 13;
+  doc.text(`Tax year ${result.year}${meta.activity ? ` · ${meta.activity}` : ''}`, MARGIN, doc.y, { size: 9, gray: 0.3 });
+  doc.y -= 11;
+  doc.text(`Prepared ${meta.prepared}`, MARGIN, doc.y, { size: 9, gray: 0.3 });
+
+  if (include.includes('statement')) drawStatement(doc, stmt, result);
+  if (include.includes('worksheet')) {
+    drawWorksheet(doc, sheet);
+    drawAnswers(doc, answerRows);
+  }
+
+  if (footingNote) drawNotes(doc, 'About the rounding', [{ line: null, message: footingNote }]);
+  drawNotes(doc, 'Worth checking', result.notices.map((n) => ({ line: n.line, message: n.message })));
+  drawNotes(doc, 'What this tool did not work out', meta.refusals.map((r) => ({
+    line: r.line, message: `${r.subject}. ${r.because} ${r.instead}`,
+  })));
+
+  doc.space(60);
+  doc.y -= 26;
+  doc.rule(doc.y, { gray: 0.6 });
+  doc.paragraph(meta.disclaimer, MARGIN, { size: 8, gray: 0.3 });
+  doc.paragraph(meta.invitation, MARGIN, { size: 8, gray: 0.3 });
+
+  void input;
+  return serialise(doc, meta);
+}
+
+/* ── src/xlsx.mjs ──────────────────────────────────────────────── */
+/* An .xlsx writer, also written out rather than pulled in — same three reasons
+   as pdf.mjs, plus one more: the widely used spreadsheet library was pulled
+   from npm, and a free tool with a CPA's name on it should not depend on a
+   package whose distribution can move.
+
+   An .xlsx file is a zip of XML. This writes the zip with no compression, so
+   every byte in it is readable, and with a fixed timestamp, so building the
+   same figures twice produces the same file — which is what lets a test assert
+   the output is stable.
+
+   The totals are real SUM formulas, not pasted numbers. Someone who opens this
+   to change a figure gets a working spreadsheet rather than a picture of one.
+   The cached value is written alongside each formula, so a reader that does not
+   recalculate still shows the right answer, and a test can check the two agree. */
+
+const enc = new TextEncoder();
+
+// ── zip ───────────────────────────────────────────────────────────────
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function zip(files) {
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const put = (b) => { chunks.push(b); offset += b.length; };
+
+  for (const { name, data } of files) {
+    const nameBytes = enc.encode(name);
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + nameBytes.length);
+    const dv = new DataView(local.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true);      // version needed to extract
+    dv.setUint16(6, 0, true);       // flags
+    dv.setUint16(8, 0, true);       // stored, not deflated
+    dv.setUint16(10, 0, true);      // time 00:00
+    dv.setUint16(12, 33, true);     // date 1980-01-01 — fixed, so builds repeat
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, data.length, true);
+    dv.setUint32(22, data.length, true);
+    dv.setUint16(26, nameBytes.length, true);
+    local.set(nameBytes, 30);
+    const headerAt = offset;
+    put(local);
+    put(data);
+
+    const cd = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true);
+    cv.setUint16(14, 33, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint32(42, headerAt, true);
+    cd.set(nameBytes, 46);
+    central.push(cd);
+  }
+
+  const cdStart = offset;
+  for (const cd of central) put(cd);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, central.length, true);
+  ev.setUint16(10, central.length, true);
+  ev.setUint32(12, offset - cdStart, true);
+  ev.setUint32(16, cdStart, true);
+  put(eocd);
+
+  const out = new Uint8Array(offset);
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return out;
+}
+
+// ── xml ───────────────────────────────────────────────────────────────
+// Control characters are not legal in XML 1.0 and Excel refuses the whole file
+// if one gets in, so they are dropped rather than escaped.
+const ILLEGAL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
+const esc = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(ILLEGAL, '');
+
+const COLS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+/** Cents as the exact decimal text Excel should store. No division, so no
+    float ever represents the money on its way into the file. */
+function centsToDecimal(cents, wholeDollars = false) {
+  if (cents === null || cents === undefined) return '';
+  const sign = cents < 0 ? '-' : '';
+  const abs = Math.abs(cents);
+  if (wholeDollars) {
+    const d = Math.floor(abs / 100) + (abs % 100 >= 50 ? 1 : 0);
+    return `${sign}${d}`;
+  }
+  return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+}
+
+class Sheet {
+  constructor(name, widths) { this.name = name; this.widths = widths; this.rows = []; }
+
+  add(cells) { this.rows.push(cells); return this.rows.length; }
+
+  blank() { return this.add([]); }
+
+  xml() {
+    const cols = this.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+    const body = this.rows.map((cells, ri) => {
+      const r = ri + 1;
+      if (!cells.length) return `<row r="${r}"/>`;
+      const cs = cells.map((cell, ci) => {
+        if (cell === null || cell === undefined || cell.v === '' || cell.v === null) return '';
+        const ref = `${COLS[ci]}${r}`;
+        const s = cell.s ? ` s="${cell.s}"` : '';
+        if (cell.f) return `<c r="${ref}"${s}><f>${esc(cell.f)}</f><v>${esc(cell.v)}</v></c>`;
+        if (cell.n) return `<c r="${ref}"${s}><v>${esc(cell.v)}</v></c>`;
+        return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(cell.v)}</t></is></c>`;
+      }).join('');
+      return `<row r="${r}">${cs}</row>`;
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + `<cols>${cols}</cols><sheetData>${body}</sheetData></worksheet>`;
+  }
+}
+
+const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00;(#,##0.00)"/><numFmt numFmtId="165" formatCode="#,##0;(#,##0)"/></numFmts>
+<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="15"/><name val="Calibri"/></font><font><sz val="9"/><color rgb="FF666666"/><name val="Calibri"/></font></fonts>
+<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top style="thin"><color rgb="FF999999"/></top><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="8">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="165" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+</cellXfs></styleSheet>`;
+
+const STYLE = { plain: 0, bold: 1, money: 2, moneyTotal: 3, title: 4, muted: 5, wholeMoney: 6, wholeMoneyTotal: 7 };
+
+function pack(sheets) {
+  const files = [
+    { name: '[Content_Types].xml', data: enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>') },
+    { name: '_rels/.rels', data: enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+    { name: 'xl/workbook.xml', data: enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + sheets.map((s, i) => `<sheet name="${esc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets></workbook>') },
+    { name: 'xl/_rels/workbook.xml.rels', data: enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`) },
+    { name: 'xl/styles.xml', data: enc.encode(STYLES) },
+  ];
+  sheets.forEach((s, i) => files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(s.xml()) }));
+  return zip(files);
+}
+
+/** Build the workbook. Three sheets: the statement, the worksheet, and the
+    detail behind them. */
+function buildXlsx({ result, stmt, sheet, answerRows, meta, rows = {}, rounding = 'cents' }) {
+  const whole = rounding === 'dollars';
+  const M = whole ? STYLE.wholeMoney : STYLE.money;
+  const MT = whole ? STYLE.wholeMoneyTotal : STYLE.moneyTotal;
+  const num = (cents, source, style) => (source === 'empty'
+    ? null
+    : { v: centsToDecimal(cents, whole), n: true, s: style });
+
+  // ── sheet 1 · profit and loss ────────────────────────────────────────
+  const pl = new Sheet('Profit and loss', [40, 8, 16]);
+  pl.add([{ v: meta.businessName || 'Your business', s: STYLE.title }]);
+  pl.add([{ v: `Profit and loss — tax year ${result.year}`, s: STYLE.bold }]);
+  pl.add([{ v: `Prepared ${meta.prepared}. The figures are yours; the order follows Schedule C.`, s: STYLE.muted }]);
+  pl.blank();
+
+  for (const sec of stmt.sections) {
+    pl.add([{ v: sec.heading, s: STYLE.bold }]);
+    for (const r of sec.rows) {
+      pl.add([{ v: `  ${r.label}` }, { v: r.id, s: STYLE.muted }, num(r.cents, r.source, M)]);
+    }
+    if (sec.footer) {
+      pl.add([{ v: sec.footer.label, s: STYLE.bold }, { v: sec.footer.id, s: STYLE.muted },
+        num(sec.footer.cents, sec.footer.source, MT)]);
+    }
+    pl.blank();
+  }
+
+  // ── sheet 2 · the worksheet, with live totals ────────────────────────
+  const ws = new Sheet(`Schedule C ${result.year}`, [8, 62, 16]);
+  ws.add([{ v: sheet.title, s: STYLE.title }]);
+  ws.add([{ v: 'Blank means nothing was entered — it does not mean zero.', s: STYLE.muted }]);
+  ws.blank();
+
+  const rowOf = new Map();
+  const pending = [];
+  for (const part of sheet.parts) {
+    ws.add([{ v: '' }, { v: part.heading, s: STYLE.bold }]);
+    for (const r of part.rows) {
+      const at = ws.add([{ v: r.id, s: STYLE.muted }, { v: r.label }, num(r.cents, r.source, r.computed ? MT : M)]);
+      if (!rowOf.has(r.id)) rowOf.set(r.id, at);
+      if (r.computed) pending.push({ id: r.id, at, cents: r.cents, source: r.source });
+    }
+    ws.blank();
+  }
+
+  // Now that every line has a row, give the computed ones a real formula.
+  const cell = (id) => (rowOf.has(id) ? `C${rowOf.get(id)}` : null);
+  const FORMULAS = {
+    3: ['sub', '1', '2'], 4: ['copy', '42'], 5: ['sub', '3', '4'], 7: ['add', '5', '6'],
+    28: ['range', '8', '27b'], 29: ['sub', '7', '28'], 31: ['sub', '29', '30'],
+    40: ['range', '35', '39'], 42: ['sub', '40', '41'],
+  };
+  FORMULAS[result.otherExpensesLine] = ['copy', '48'];
+  for (const p of pending) {
+    const spec = FORMULAS[p.id];
+    if (!spec || p.source === 'empty') continue;
+    const [op, a, b] = spec;
+    let f = null;
+    if (op === 'sub' && cell(a) && cell(b)) f = `${cell(a)}-${cell(b)}`;
+    else if (op === 'add' && cell(a) && cell(b)) f = `${cell(a)}+${cell(b)}`;
+    else if (op === 'copy' && cell(a)) f = `${cell(a)}`;
+    else if (op === 'range' && cell(a) && cell(b)) f = `SUM(${cell(a)}:${cell(b)})`;
+    if (!f) continue;
+    ws.rows[p.at - 1][2] = { v: centsToDecimal(p.cents, whole), f, s: MT };
+  }
+
+  // ── sheet 3 · detail ─────────────────────────────────────────────────
+  const detail = new Sheet('Detail', [40, 60]);
+  detail.add([{ v: 'Behind the figures', s: STYLE.title }]);
+  detail.blank();
+  detail.add([{ v: `Other expenses — carried to line ${result.otherExpensesLine}`, s: STYLE.bold }]);
+  for (const r of (rows.other || [])) detail.add([{ v: r.label }, { v: centsToDecimal(r.cents, whole), n: true, s: M }]);
+  detail.blank();
+  detail.add([{ v: 'What the form also asks', s: STYLE.bold }]);
+  for (const a of answerRows) detail.add([{ v: a.label }, { v: a.value }]);
+  detail.blank();
+  detail.add([{ v: 'Worth checking', s: STYLE.bold }]);
+  for (const n of result.notices) detail.add([{ v: n.line ? `Line ${n.line}` : 'Note' }, { v: n.message }]);
+  if (!result.notices.length) detail.add([{ v: 'Nothing flagged.', s: STYLE.muted }]);
+  detail.blank();
+  detail.add([{ v: 'What this tool did not work out', s: STYLE.bold }]);
+  for (const r of meta.refusals) detail.add([{ v: `Line ${r.line} — ${r.subject}` }, { v: `${r.because} ${r.instead}` }]);
+  detail.blank();
+  detail.add([{ v: meta.disclaimer }]);
+  detail.add([{ v: meta.invitation }]);
+
+  return pack([pl, ws, detail]);
+}
+
+/* ── src/document.mjs ──────────────────────────────────────────── */
+/* One place that assembles a finished document, so the PDF and the spreadsheet
+   cannot disagree about what they say or when they were made.
+
+   The wording below is the wording a client reads, and it follows the house
+   rule for that register: say the thing in words the reader already brought
+   with them. No sentence here exists only to protect us — copy.spec.py checks
+   that, and checks the length. */
+
+
+
+
+
+const FIRM = 'Sethuraman Accounting, Tax & Consulting LLP';
+const SITE = 'satcllp.com';
+
+const DISCLAIMER =
+  'These are your own figures, sorted into the boxes Schedule C uses. It is not '
+  + 'a tax return, and it does not say what you are allowed to deduct. Nothing '
+  + 'was sent anywhere — it was worked out on your own computer.';
+
+const INVITATION =
+  'If you would rather hand this year to someone, we take on sole traders. '
+  + 'Sethuraman Accounting, Tax & Consulting — satcllp.com.';
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** A date a person reads, built from the parts rather than from a locale, so
+    the same input always produces the same document. */
+function longDate(date) {
+  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function pdfStamp(date) {
+  const p = (n, w = 2) => String(n).padStart(w, '0');
+  return `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}`
+    + `${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}Z`;
+}
+
+/** Safe for a download on any operating system, and still recognisable. */
+function fileName(kind, year, businessName) {
+  const slug = String(businessName || 'Schedule-C')
+    .normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 48)
+    || 'Schedule-C';
+  return `${slug}-${year}-${kind}`;
+}
+
+/** Everything both writers need, worked out once. */
+function prepare(input, { now = new Date(), rounding = null } = {}) {
+  const result = compute(input);
+  const mode = rounding || input.rounding || 'cents';
+  result.rows = { other: (input.details && input.details.other) || [] };
+  const stmt = statement(result, { rounding: mode });
+  const sheet = worksheet(result, { rounding: mode });
+  const answerRows = answers(result, input);
+  const foot = footing(result, mode);
+  const meta = {
+    firm: FIRM,
+    site: SITE,
+    title: `Profit and loss ${result.year} — ${input.business?.name || 'sole trader'}`,
+    businessName: input.business?.name || '',
+    activity: input.business?.activity || '',
+    prepared: longDate(now),
+    stamp: pdfStamp(now),
+    disclaimer: DISCLAIMER,
+    invitation: INVITATION,
+    refusals: relevantRefusals(result),
+    allRefusals: REFUSALS,
+  };
+  return {
+    result, stmt, sheet, answerRows, meta, rounding: mode,
+    footingNote: foot.off ? ROUNDING_NOTE : null,
+  };
+}
+
+function pdfFor(input, opts = {}) {
+  const p = prepare(input, opts);
+  if (p.result.blockers.length) {
+    throw new Error(p.result.blockers.map((b) => b.message).join(' '));
+  }
+  return {
+    bytes: buildPdf({ ...p, input, include: opts.include || ['statement', 'worksheet'] }),
+    name: `${fileName('profit-and-loss', p.result.year, p.meta.businessName)}.pdf`,
+    prepared: p,
+  };
+}
+
+function xlsxFor(input, opts = {}) {
+  const p = prepare(input, opts);
+  if (p.result.blockers.length) {
+    throw new Error(p.result.blockers.map((b) => b.message).join(' '));
+  }
+  return {
+    bytes: buildXlsx({ ...p, rows: p.result.rows }),
+    name: `${fileName('profit-and-loss', p.result.year, p.meta.businessName)}.xlsx`,
+    prepared: p,
+  };
+}
+
+/* ── src/ui.mjs ────────────────────────────────────────────────── */
+/* The page.
+
+   Built from the line table rather than hand-written, so a form field cannot
+   exist that the engine does not know about, and a line cannot be added to the
+   table without appearing on the page.
+
+   Three things here are deliberate and easily lost:
+
+   1. A field that has never been touched stays empty. It is never given a
+      helpful 0, because the whole document depends on blank meaning blank.
+   2. Bad input is refused where it was typed, next to the field, and the total
+      simply does not move. The tool never quietly reads "12.345" as 12.34.
+   3. Nothing is remembered unless the person ticks the box that says so. The
+      warning next to that box is about the library computer, and it means it. */
+
+
+
+
+
+
+const STORAGE_KEY = 'satc.schedule-c.draft.v1';
+const HANDOFF = 'https://satcllp.com/?from=schedule-c#intake';
+
+const el = (tag, attrs = {}, kids = []) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') node.className = v;
+    else if (k === 'text') node.textContent = v;
+    else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? '' : String(v));
+  }
+  for (const kid of [].concat(kids)) if (kid) node.append(kid);
+  return node;
+};
+
+function start(root) {
+  const state = {
+    ret: emptyReturn(2025),
+    raw: {},          // what is literally in each box, so a refusal is visible
+    errors: {},
+    otherRows: [{ label: '', raw: '' }],
+    remember: false,
+    include: 'both',
+    showCogs: false,
+  };
+
+  restore(state);
+
+  const summary = el('aside', { class: 'summary', id: 'summary' });
+  const form = el('form', { class: 'sheet', autocomplete: 'off', onsubmit: (e) => e.preventDefault() });
+  root.append(form, summary);
+
+  // ── reading and writing the state ───────────────────────────────────
+  function setMoney(id, text) {
+    state.raw[id] = text;
+    const parsed = parseMoney(text);
+    if (!parsed.ok) { state.errors[id] = parsed.error; delete state.ret.entries[id]; }
+    else {
+      delete state.errors[id];
+      if (parsed.cents === null) delete state.ret.entries[id];
+      else state.ret.entries[id] = parsed.cents;
+    }
+    refresh();
+  }
+
+  function syncOtherRows() {
+    const rows = [];
+    for (const row of state.otherRows) {
+      const parsed = parseMoney(row.raw);
+      if (parsed.ok && parsed.cents !== null) rows.push({ label: row.label.trim() || 'Other', cents: parsed.cents });
+    }
+    state.ret.details = rows.length ? { other: rows } : {};
+  }
+
+  // ── the form ────────────────────────────────────────────────────────
+  function moneyField(id, label, hint, helper) {
+    const input = el('input', {
+      type: 'text', inputmode: 'decimal', id: `f${id}`, value: state.raw[id] || '',
+      'aria-describedby': `h${id}`,
+      oninput: (e) => setMoney(id, e.target.value),
+    });
+    const error = el('p', { class: 'error', id: `e${id}`, role: 'alert' });
+    const field = el('div', { class: 'field' }, [
+      el('label', { for: `f${id}` }, [
+        el('span', { class: 'line-no', text: id }),
+        el('span', { class: 'line-label', text: label }),
+      ]),
+      el('div', { class: 'entry' }, [el('span', { class: 'currency', text: '$' }), input]),
+      hint ? el('p', { class: 'hint', id: `h${id}`, text: hint }) : null,
+      error,
+      helper || null,
+    ]);
+    field.dataset.line = id;
+    return field;
+  }
+
+  function helperBox(title, build) {
+    const out = el('p', { class: 'helper-out' });
+    const box = el('details', { class: 'helper' }, [el('summary', { text: title })]);
+    build(box, out);
+    box.append(out);
+    return box;
+  }
+
+  function mileageHelper() {
+    return helperBox('Work it out from miles', (box, out) => {
+      const input = el('input', { type: 'text', inputmode: 'numeric', 'aria-label': 'Business miles' });
+      const apply = el('button', { type: 'button', class: 'ghost', text: 'Use this figure' });
+      const run = () => {
+        const y = loadYear(state.ret.year);
+        const r = mileage({ miles: input.value.replace(/[\s,]/g, ''), yearData: y });
+        if (!r.ok) { out.textContent = r.error; apply.disabled = true; return null; }
+        out.textContent = `${formatDollars(r.cents)} — ${r.basis}. Source: ${r.cite}.`;
+        apply.disabled = false;
+        return r;
+      };
+      input.addEventListener('input', run);
+      apply.addEventListener('click', () => {
+        const r = run();
+        if (!r) return;
+        const miles = Number(input.value.replace(/[\s,]/g, ''));
+        state.ret.vehicle.businessMiles = miles;
+        setMoney('9', formatCents(r.cents));
+        document.getElementById('f9').value = formatCents(r.cents);
+        // Line 44a asks for the same miles. Fill it in rather than making the
+        // person type them twice and risk two different answers.
+        const milesField = document.getElementById('businessMiles');
+        if (milesField) milesField.value = String(miles);
+      });
+      box.append(
+        el('p', { class: 'hint', text: 'Only if you are using the standard mileage rate. If you are claiming what the vehicle actually cost you, enter that figure instead — this tool does not work that out.' }),
+        el('div', { class: 'helper-row' }, [input, apply]),
+      );
+    });
+  }
+
+  function mealsHelper() {
+    return helperBox('Take half of what I spent', (box, out) => {
+      const input = el('input', { type: 'text', inputmode: 'decimal', 'aria-label': 'Total spent on meals' });
+      const apply = el('button', { type: 'button', class: 'ghost', text: 'Use this figure' });
+      const run = () => {
+        const parsed = parseMoney(input.value);
+        if (!parsed.ok || parsed.cents === null) { out.textContent = parsed.error || ''; apply.disabled = true; return null; }
+        const r = mealsHalf({ spentCents: parsed.cents, yearData: loadYear(state.ret.year) });
+        out.textContent = `${formatDollars(r.cents)} — ${r.basis}. ${r.caveat}`;
+        apply.disabled = false;
+        return r;
+      };
+      input.addEventListener('input', run);
+      apply.addEventListener('click', () => {
+        const r = run();
+        if (!r) return;
+        setMoney('24b', formatCents(r.cents));
+        document.getElementById('f24b').value = formatCents(r.cents);
+      });
+      box.append(el('div', { class: 'helper-row' }, [input, apply]));
+    });
+  }
+
+  function homeHelper() {
+    return helperBox('Work it out from the square feet', (box, out) => {
+      const input = el('input', { type: 'text', inputmode: 'numeric', 'aria-label': 'Square feet used for business' });
+      const apply = el('button', { type: 'button', class: 'ghost', text: 'Use this figure' });
+      const run = () => {
+        const r = simplifiedHomeOffice({ sqft: input.value.replace(/[\s,]/g, ''), yearData: loadYear(state.ret.year) });
+        if (!r.ok) { out.textContent = r.error; apply.disabled = true; return null; }
+        out.textContent = `${formatDollars(r.cents)} — ${r.basis}. Source: ${r.cite}.`;
+        apply.disabled = false;
+        return r;
+      };
+      input.addEventListener('input', run);
+      apply.addEventListener('click', () => {
+        const r = run();
+        if (!r) return;
+        state.ret.homeOfficeMethod = 'simplified';
+        setMoney('30', formatCents(r.cents));
+        document.getElementById('f30').value = formatCents(r.cents);
+      });
+      box.append(
+        el('p', { class: 'hint', text: 'This is the square-foot method. If you worked yours out the detailed way on Form 8829, enter that figure instead.' }),
+        el('div', { class: 'helper-row' }, [input, apply]),
+      );
+    });
+  }
+
+  function purchasesHelper() {
+    return helperBox('Take off what I used myself', (box, out) => {
+      const bought = el('input', { type: 'text', inputmode: 'decimal', 'aria-label': 'What you bought' });
+      const own = el('input', { type: 'text', inputmode: 'decimal', 'aria-label': 'What you took for yourself' });
+      const apply = el('button', { type: 'button', class: 'ghost', text: 'Use this figure' });
+      const run = () => {
+        const a = parseMoney(bought.value); const b = parseMoney(own.value);
+        if (!a.ok || a.cents === null) { out.textContent = a.error || ''; apply.disabled = true; return null; }
+        const r = netPurchases({ purchasesCents: a.cents, personalUseCents: b.ok ? b.cents : 0 });
+        out.textContent = `${formatDollars(r.cents)} — ${r.basis}.`;
+        apply.disabled = false;
+        return r;
+      };
+      bought.addEventListener('input', run); own.addEventListener('input', run);
+      apply.addEventListener('click', () => {
+        const r = run();
+        if (!r) return;
+        setMoney('36', formatCents(r.cents));
+        document.getElementById('f36').value = formatCents(r.cents);
+      });
+      box.append(el('div', { class: 'helper-row' }, [bought, own, apply]));
+    });
+  }
+
+  function section(title, blurb, kids) {
+    return el('section', { class: 'block' }, [
+      el('h2', { text: title }),
+      blurb ? el('p', { class: 'blurb', text: blurb }) : null,
+      ...kids,
+    ]);
+  }
+
+  function choice(name, label, options, get, set) {
+    return el('fieldset', { class: 'choice' }, [
+      el('legend', { text: label }),
+      ...options.map(([value, text]) => {
+        const input = el('input', {
+          type: 'radio', name, id: `${name}-${value}`, value,
+          checked: get() === value,
+          onchange: () => { set(value); refresh(); },
+        });
+        return el('label', { class: 'radio', for: `${name}-${value}` }, [input, el('span', { text })]);
+      }),
+    ]);
+  }
+
+  function otherExpensesBlock() {
+    const list = el('div', { class: 'rows' });
+    const draw = () => {
+      list.replaceChildren();
+      state.otherRows.forEach((row, i) => {
+        const label = el('input', {
+          type: 'text', value: row.label, 'aria-label': `What it was, item ${i + 1}`, placeholder: 'What it was',
+          oninput: (e) => { row.label = e.target.value; syncOtherRows(); refresh(); },
+        });
+        const amount = el('input', {
+          type: 'text', inputmode: 'decimal', value: row.raw, 'aria-label': `Amount, item ${i + 1}`, placeholder: '0.00',
+          oninput: (e) => { row.raw = e.target.value; syncOtherRows(); refresh(); },
+        });
+        const remove = el('button', {
+          type: 'button', class: 'ghost', text: 'Remove', 'aria-label': `Remove item ${i + 1}`,
+          onclick: () => {
+            state.otherRows.splice(i, 1);
+            if (!state.otherRows.length) state.otherRows.push({ label: '', raw: '' });
+            syncOtherRows(); draw(); refresh();
+          },
+        });
+        list.append(el('div', { class: 'row' }, [label, el('div', { class: 'entry' }, [el('span', { class: 'currency', text: '$' }), amount]), remove]));
+      });
+    };
+    draw();
+    return section('Anything else you spent money on', 'Things with no line of their own — software, bank charges, a licence. Schedule C has room for nine; more than that goes on an attached list.', [
+      list,
+      el('button', {
+        type: 'button', class: 'ghost', text: 'Add another',
+        onclick: () => { state.otherRows.push({ label: '', raw: '' }); draw(); refresh(); },
+      }),
+    ]);
+  }
+
+  function buildForm() {
+    const y = loadYear(state.ret.year);
+    const L = (id) => y.byId.get(id).plLabel;
+    form.replaceChildren();
+
+    form.append(section('Which year, and whose business', null, [
+      el('div', { class: 'field' }, [
+        el('label', { for: 'year', text: 'Tax year' }),
+        el('select', {
+          id: 'year',
+          onchange: (e) => { state.ret.year = Number(e.target.value); buildForm(); refresh(); },
+        }, supportedYears().map((yr) => el('option', { value: yr, selected: yr === state.ret.year, text: String(yr) }))),
+      ]),
+      el('div', { class: 'field' }, [
+        el('label', { for: 'bizname', text: 'Business name (goes at the top of the page)' }),
+        el('input', { type: 'text', id: 'bizname', value: state.ret.business.name, oninput: (e) => { state.ret.business.name = e.target.value; refresh(); } }),
+      ]),
+      el('div', { class: 'field' }, [
+        el('label', { for: 'bizwhat', text: 'What the business does' }),
+        el('input', { type: 'text', id: 'bizwhat', value: state.ret.business.activity, oninput: (e) => { state.ret.business.activity = e.target.value; refresh(); } }),
+      ]),
+      choice('method', 'How you count income', [['cash', 'When the money arrives'], ['accrual', 'When the work is done'], ['other', 'Something else']],
+        () => state.ret.accountingMethod, (v) => { state.ret.accountingMethod = v; }),
+      choice('participate', 'Did you work in this business regularly through the year?', [['yes', 'Yes'], ['no', 'No']],
+        () => (state.ret.materiallyParticipated === null ? '' : state.ret.materiallyParticipated ? 'yes' : 'no'),
+        (v) => { state.ret.materiallyParticipated = v === 'yes'; }),
+    ]));
+
+    form.append(section('Money coming in', 'What the business took, before you take anything off it.', [
+      moneyField('1', L('1'), 'Everything the business was paid, including what came on a 1099.'),
+      moneyField('2', L('2'), 'Refunds and credits you gave customers.'),
+      moneyField('6', L('6'), 'Anything else the business earned that is not a sale.'),
+    ]));
+
+    const cogsToggle = el('label', { class: 'toggle' }, [
+      el('input', {
+        type: 'checkbox', checked: state.showCogs,
+        onchange: (e) => { state.showCogs = e.target.checked; buildForm(); refresh(); },
+      }),
+      el('span', { text: 'I buy or make things to sell, and I count stock' }),
+    ]);
+    const cogsFields = state.showCogs
+      ? [...COGS_LINES.map((id) => moneyField(id, L(id), null, id === '36' ? purchasesHelper() : null)), moneyField('41', L('41'))]
+      : [];
+    form.append(section('Stock and what it cost you', 'Only if you hold stock. Skip it if you sell your time.', [cogsToggle, ...cogsFields]));
+
+    const expenseFields = EXPENSE_LINES
+      .filter((id) => id !== y.otherExpensesLine)
+      .map((id) => moneyField(id, L(id),
+        id === '9' ? 'The deduction you are claiming, not what the vehicle cost to run.'
+          : id === '13' ? 'From your depreciation schedule or Form 4562. This tool does not work it out.'
+            : id === '24b' ? 'The part you can deduct — usually half.'
+              : id === '26' ? 'Wages you paid other people. Not money you took yourself.'
+                : null,
+        id === '9' ? mileageHelper() : id === '24b' ? mealsHelper() : null));
+    form.append(section('Money going out', 'Enter the figure you are claiming on each line. This tool arranges what you give it — it does not decide what counts.', expenseFields));
+
+    form.append(otherExpensesBlock());
+
+    form.append(section('Working from home', null, [
+      choice('homemethod', 'Which way did you work it out?', [['simplified', 'The square-foot method'], ['actual', 'The detailed way, on Form 8829'], ['none', 'I am not claiming it']],
+        () => state.ret.homeOfficeMethod || 'none', (v) => { state.ret.homeOfficeMethod = v === 'none' ? null : v; }),
+      moneyField('30', L('30'), null, homeHelper()),
+    ]));
+
+    // These two sections are always built and simply shown or hidden. Rebuilding
+    // the form when a figure appears would throw away the caret mid-word, which
+    // is exactly when a person is typing that figure.
+    state.vehicleSection = section('Your vehicle', 'Schedule C asks these when you claim car or truck costs.', [
+        el('div', { class: 'field' }, [
+          el('label', { for: 'placed', text: 'When you first used it for the business' }),
+          el('input', { type: 'date', id: 'placed', value: state.ret.vehicle.placedInService || '', oninput: (e) => { state.ret.vehicle.placedInService = e.target.value; refresh(); } }),
+        ]),
+        ...[['businessMiles', 'Business miles'], ['commutingMiles', 'Miles getting to and from work'], ['otherMiles', 'All other miles']].map(([key, label]) => el('div', { class: 'field' }, [
+          el('label', { for: key, text: label }),
+          el('input', { type: 'text', inputmode: 'numeric', id: key, value: state.ret.vehicle[key] ?? '', oninput: (e) => { state.ret.vehicle[key] = e.target.value.replace(/[\s,]/g, ''); refresh(); } }),
+        ])),
+        ...[['personalUse', 'Was it available for your own use off duty?'], ['anotherVehicle', 'Do you or your spouse have another vehicle?'], ['evidence', 'Do you have records to back the deduction up?'], ['evidenceWritten', 'Are those records written down?']]
+          .map(([key, label]) => choice(key, label, [['yes', 'Yes'], ['no', 'No']],
+            () => (state.ret.vehicle[key] === undefined ? '' : state.ret.vehicle[key] ? 'yes' : 'no'),
+            (v) => { state.ret.vehicle[key] = v === 'yes'; })),
+    ]);
+    state.lossSection = section('You have a loss', 'Schedule C asks one more question when the year ends down.', [
+      choice('atrisk', 'Was all the money in this business yours to lose?', [['all', 'Yes, all of it'], ['some', 'No, some of it was not']],
+        () => state.ret.atRisk || '', (v) => { state.ret.atRisk = v; }),
+    ]);
+    form.append(state.vehicleSection, state.lossSection);
+
+    form.append(section('What this tool will not do', null, [
+      el('ul', { class: 'refusals' }, REFUSALS.map((r) => el('li', {}, [
+        el('strong', { text: `${r.subject}. ` }),
+        el('span', { text: `${r.because} ${r.instead}` }),
+      ]))),
+    ]));
+  }
+
+  // ── the running total, and the way out ──────────────────────────────
+  function refresh() {
+    syncOtherRows();
+    for (const [id, message] of Object.entries(state.errors)) {
+      const box = document.getElementById(`e${id}`);
+      if (box) box.textContent = message;
+    }
+    for (const line of loadYear(state.ret.year).lines) {
+      if (state.errors[line.id]) continue;
+      const box = document.getElementById(`e${line.id}`);
+      if (box) box.textContent = '';
+    }
+
+    let out;
+    try { out = compute(state.ret); } catch (e) {
+      summary.replaceChildren(el('p', { class: 'error', text: e.message }));
+      return;
+    }
+    const dollars = state.ret.rounding === 'dollars';
+    const show = (id) => (out.line[id].source === 'empty' ? '—' : formatDollars(out.line[id].cents, { dollars }));
+
+    const figures = el('dl', { class: 'figures' }, [
+      ...[['Money coming in', '7'], ['Money going out', '28'], ['Working from home', '30']].flatMap(([label, id]) => [
+        el('dt', { text: label }), el('dd', { text: show(id) }),
+      ]),
+      el('dt', { class: 'big', text: out.line['31'].cents < 0 ? 'Loss for the year' : 'Profit for the year' }),
+      el('dd', { class: 'big', text: show('31') }),
+    ]);
+
+    const problems = [
+      ...out.blockers.map((b) => ({ level: 'blocker', message: b.message })),
+      ...out.notices,
+    ];
+    const notices = el('ul', { class: 'notices' }, problems.map((n) => el('li', { class: n.level }, [
+      n.line ? el('span', { class: 'line-no', text: n.line }) : null,
+      el('span', { text: n.message }),
+    ])));
+
+    if (state.vehicleSection) state.vehicleSection.hidden = !state.ret.entries['9'];
+    if (state.lossSection) state.lossSection.hidden = out.line['31'].cents >= 0;
+
+    const ready = out.blockers.length === 0 && Object.keys(state.errors).length === 0;
+    const pdfBtn = el('button', { type: 'button', class: 'primary', disabled: !ready, text: 'Download the PDF', onclick: () => download('pdf') });
+    const xlBtn = el('button', { type: 'button', class: 'primary', disabled: !ready, text: 'Download the spreadsheet', onclick: () => download('xlsx') });
+
+    // The panel is rebuilt each time, so put the caret back where it was.
+    const focused = document.activeElement;
+    const focusedId = focused && summary.contains(focused) ? focused.id : null;
+
+    // replaceChildren turns a null argument into the text "null", so the list is
+    // filtered rather than passed straight through. This printed "nullnull" on
+    // the page until a screenshot caught it.
+    summary.replaceChildren(...[
+      el('h2', { text: 'Where you are' }),
+      figures,
+      choice('rounding', 'How to show the figures', [['cents', 'Dollars and cents'], ['dollars', 'Whole dollars, the way it is filed']],
+        () => state.ret.rounding, (v) => { state.ret.rounding = v; }),
+      choice('include', 'What goes in the PDF', [['both', 'Both'], ['statement', 'The profit and loss only'], ['worksheet', 'The Schedule C worksheet only']],
+        () => state.include, (v) => { state.include = v; }),
+      el('div', { class: 'downloads' }, [pdfBtn, xlBtn]),
+      problems.length ? el('h3', { text: 'Worth checking' }) : null,
+      problems.length ? notices : null,
+      el('div', { class: 'keep' }, [
+        el('label', { class: 'toggle' }, [
+          el('input', {
+            type: 'checkbox', checked: state.remember,
+            onchange: (e) => { state.remember = e.target.checked; if (!state.remember) clearStorage(); else save(state); },
+          }),
+          el('span', { text: 'Keep what I have typed on this device' }),
+        ]),
+        el('p', { class: 'hint', text: 'Off by default. It saves in this browser only, and never leaves it. Do not tick it on a shared or library computer.' }),
+        el('button', { type: 'button', class: 'ghost', text: 'Clear everything', onclick: () => { clearStorage(); window.location.reload(); } }),
+      ]),
+      el('p', { class: 'handoff' }, [
+        el('span', { text: 'Would rather not do this again next year? ' }),
+        el('a', { href: HANDOFF, text: 'We take on sole traders.' }),
+      ]),
+    ].filter(Boolean));
+    if (focusedId) document.getElementById(focusedId)?.focus();
+    if (state.remember) save(state);
+  }
+
+  function download(kind) {
+    const opts = { include: state.include === 'both' ? ['statement', 'worksheet'] : [state.include] };
+    const made = kind === 'pdf' ? pdfFor(state.ret, opts) : xlsxFor(state.ret, opts);
+    const type = kind === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const url = URL.createObjectURL(new Blob([made.bytes], { type }));
+    const link = el('a', { href: url, download: made.name });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    document.getElementById('after-download')?.removeAttribute('hidden');
+  }
+
+  buildForm();
+  refresh();
+  return { state, refresh, buildForm };
+}
+
+// ── keeping a draft, only when asked ──────────────────────────────────
+function save(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ret: state.ret, raw: state.raw, otherRows: state.otherRows, showCogs: state.showCogs, remember: true,
+    }));
+  } catch { /* a browser with storage switched off is not an error */ }
+}
+
+function restore(state) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved || !saved.remember) return;
+    Object.assign(state, { ...saved, errors: {} });
+  } catch { clearStorage(); }
+}
+
+function clearStorage() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* nothing to do */ }
+}
+
+
+/* ── boot ──────────────────────────────────────────────────────────── */
+const __root = document.getElementById('tool');
+try {
+  start(__root);
+} catch (err) {
+  __root.replaceChildren(Object.assign(document.createElement('p'), {
+    className: 'error',
+    textContent: 'This page could not start: ' + err.message,
+  }));
+}
+</script>
+</body>
+</html>
