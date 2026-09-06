@@ -424,9 +424,22 @@ just left it, through the same browser:
 | 7 | "Clear everything" with no guard | **fixed** | A confirmation appears — *"Clear everything you have typed?"* — and dismissing it keeps every figure. |
 | 8 | British spellings | **fixed** | No *labour*, *licence* or *petrol* anywhere in the page's text. |
 
-Defects **6, 9, 10, 11, 12, 13 and 14** were not re-checked here: 6 and 9 live in
-the delivered documents rather than on a screen, and 10 to 14 were not part of
-the same commits. The register above stands for those.
+The other seven were not re-checked through the browser, but the source now
+carries a fix for six of them, each citing this walk in a comment:
+
+| # | Defect | Where it was fixed |
+|---|---|---|
+| 6 | Lines 33/34 always "Not answered" | `report.mjs` — the two rows now print only when the stock section was actually used, and line 32 says *"Does not apply — the year made a profit"* rather than pretending it was skipped |
+| 9 | Five IRS labels cut at 78 characters | `pdf.mjs` — *"WRAP, NEVER CUT"*; the label now wraps |
+| 10 | Mileage rate double-count unflagged | `engine.mjs` — a notice on line 9: *"The mileage rate already covers your vehicle's insurance, fuel and repairs."* |
+| 11 | Unlabelled helper boxes | `ui.mjs` — `helperBox` now promotes every `aria-label` into a visible `<label>` |
+| 13 | Empty "Worth checking" heading | `ui.mjs` — the panel now says *"Nothing flagged."*, the same sentence the documents use |
+| 14 | A check that could not go red | `walk.mjs` — `isVisible()` instead of `count()`, **and** an assertion that the block is *not* visible before line 9 is filled |
+
+**Defect 12 is the one still open.** The meals helper still has no hint above its
+box: lines 9 and 30 warn you before you type, and 24b — the one where "what I
+spent" most invites the wrong number — still only speaks after the figure is in.
+The near-empty third page of the PDF, noted under defect 14, is also untouched.
 
 **One thing the second run is not.** It proves the screens changed in the
 direction asked for. It does not prove the fixes are complete — that is what the

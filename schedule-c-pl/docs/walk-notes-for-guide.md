@@ -5,6 +5,11 @@ Notes taken while filling the tool in as a self-employed house painter, tax year
 screen in front of me**, in the order I hit them — not a restatement of the IRS
 instructions. Where I guessed, the guess and the reason are written down.
 
+Several of the screen faults noted below were fixed in the source later the same
+day (see `WALKTHROUGH-DEFECTS.md`). **The confusions are not affected by that** —
+they are about what goes on which line, which is the guide's job and never was
+the tool's.
+
 The through-line: *the tool sorts figures, it does not tell you which box a cost
 belongs in.* That is the correct scope for the tool (`DECISIONS.md` §2) and it
 is exactly why the guide page has to exist. Almost everything below is a "which
@@ -116,9 +121,10 @@ The two lads I sub out to on big jobs. Two questions, neither answered on screen
 - **Do I have to give them a 1099-NEC?** (Over $600, yes.) The tool nudges about Form 4562 on line 13 but says nothing about 1099-NEC here, which is the far commoner obligation.
 - **Sub or employee?** If you set their hours and supply their kit, the IRS may call them an employee and this is the wrong line.
 
-*(Note for whoever writes the page: the screen says "Contract labour". The
-worksheet in the same PDF says "Contract labor". Pick the American spelling —
-see the defects note.)*
+*(Note for whoever writes the page: at the time of the walk the screen said
+"Contract labour" while the worksheet in the same PDF said "Contract labor".
+That was fixed in the source later the same day — the page now says "Contract
+labor and subcontractors" throughout. Use the American spelling.)*
 
 ### Line 13 · Depreciation and equipment written off
 **The dead end.** I bought a sprayer for $1,150 this year. The label reads like
