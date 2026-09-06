@@ -9,9 +9,10 @@ date. Where a source cannot be read by a desk at all — a licence forbidding th
 content reaching a model — a position here is the desk's entire knowledge of it,
 and the citation is how a reader gets to the text themselves.
 
-**Both entries below are PROPOSALS.** Neither carries a `Ratified` field, so the
-engine will not serve either one, and every rewards problem on this desk
-escalates until the firm answers. That is the correct state: on the rewards half
+**One of the three below is ratified and two are PROPOSALS.** POS2 carries a
+`Ratified` field; POS1 and POS3 do not, so the engine will not serve either of
+those and every question they would answer escalates until the firm says yes.
+That is the correct state, and on the rewards half it is the only available one:
 there is no primary authority to fall back on, so the firm's word is the only
 thing that can close it.
 
@@ -116,7 +117,7 @@ still does not cover them.
 
 **Citation:** 26 CFR 1.6041-1(a)(1)(iv) · **Recorded:** 2026-09-05
 
-**Position:** no Form 1099-NEC for a payment settled by card or through a third party payment network; track the rest against $2,000 per payee per calendar year
+**Position:** the payor is not required to file an information return under section 6041
 
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"this is fair I guess digging deeper and stuff makes sense and of course there
@@ -151,4 +152,69 @@ Pub. L. 119-21 § 70433(a), applicable to payments made after 31 December 2025,
 and is indexed for inflation from 2027 under § 6041(h). The regulation has not
 been conformed. Anyone reading § 1.6041-1 alone will get the old number.
 
+**REWORDED 6 September 2026, on the firm's instruction, and this is what changed.**
+The old wording carried TWO rules under one citation: the relief, which this
+paragraph states, and *"track the rest against $2,000 per payee per calendar
+year"*, which it does not state and does not rest on. Nineteen problems on this
+desk could not be scored at all while they were joined, and the reason is worth
+recording because it is not obvious.
+
+A ratified position OUTRANKS the stored regulation on the same citation and is
+served verbatim, so `_check` refuses any answer that restates it differently.
+IR4 and IR5 are the regulation's own worked examples of this paragraph, and
+their recorded answers are the regulation's own conclusion. Pointed at this
+citation while the position said something broader, both would have refused as
+`contradicts_ratified_position` — the desk refusing the regulation for
+disagreeing with the firm's summary of it.
+
+So the position is now the paragraph's own sentence, and the firm's $2,000
+handling moved to **POS3**, on `§ 1.6050W-1(c)(3)`, which is the rule it actually
+turns on. Nothing was dropped and nothing was decided here: the same words, on
+the citation that carries them.
+
+**The $2,000 figure itself is not a position and never was.** 26 U.S.C.
+§ 6041(a) says $2,000 for payments made after 31 December 2025 (Pub. L. 119-21
+§ 70433(a)), indexed from 2027 under § 6041(h). The regulation cited here still
+says $600 and has not been conformed. Read the threshold from the statute.
+
 **Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+Reworded 6 September 2026 on the firm's instruction: *"Reword POS2."*
+
+---
+
+## POS3 · When you cannot tell which rail a payment took, report it
+
+**Citation:** 26 CFR 1.6050W-1(c)(3) · **Recorded:** 2026-09-06
+
+**Position:** where a payment for services shows no evidence it settled through a third party payment network, treat it as outside section 6050W and count it toward the $2,000 threshold
+
+**Why:** This is the second half of what the firm ratified as POS2 on 5 September
+2026 — *"track the rest against $2,000 per payee per calendar year"* — moved to
+the rule it actually turns on. **It is a proposal, not a ratification.** The
+words are theirs and the citation is not, and a citation is not a detail: it is
+what a reader opens to check the answer. So it waits for a yes.
+
+**The judgement is real and the record says so in its own words.** POS2's
+research recorded that the relief covers a *third party network transaction*,
+which this paragraph defines as settlement under an arrangement where a
+substantial number of PROVIDERS OF GOODS OR SERVICES hold accounts and have
+agreed to settle for providing them — and then: *"A peer-to-peer transfer sent as
+a personal payment is not obviously settled under such an arrangement, and no
+source reached says what a payer should do when it cannot tell which kind of
+transfer it made."*
+
+That is the gap, and it is the shape of a position exactly: the authority stops,
+and somebody has to decide. The firm's reasoning for the conservative side is
+already recorded — **reporting a payment that did not need reporting costs a
+form; missing one costs a penalty.**
+
+**Why it is NOT on § 6041(a), where the $2,000 lives.** The threshold is not a
+choice — the statute states it, and IR1 is scored against the statute's own
+conclusion. A position on that citation would be served in place of the statute
+and would refuse IR1 for quoting it. What the firm decided is not the number; it
+is **which payments get counted against it when the rail is unknown**, and that
+is this paragraph.
+
+**What this does not cover.** A transfer that is known to have gone through the
+goods-and-services rail (POS2 answers it) and a transfer known to be personal and
+not for services (section 6041 never reached it). Only the unknown middle.

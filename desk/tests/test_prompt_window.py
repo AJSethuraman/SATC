@@ -72,6 +72,17 @@ def test_the_index_shape_fits_every_desk_and_the_full_text_fits_one():
     denominator taken over the rows that happened to be readable is the failure
     this repository is named for, and it caught me on the same afternoon I wrote
     the guard.
+
+    AND ON 6 SEPTEMBER 2026 THE DENOMINATOR BECAME WHOLE. The last blocked desk,
+    `rewards-and-information-returns`, was 0 of 19 promptable while two worked
+    examples sat in its corpus; it is 19 of 19, and every one of the seven desks
+    now contributes a real size in both shapes. Nothing is being measured over
+    the rows that happened to be readable any more, because every row is.
+
+    THE FULL-TEXT ANSWER DID NOT CHANGE WHEN THE MISSING ROW ARRIVED, and that
+    is worth one line: rewards comes in at 9,953 against 7,616 of room, so it
+    joins the five that do not fit rather than the one that does. The earlier
+    correction stands on its own now instead of on an incomplete set.
     """
     room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
     index, text = {}, {}
@@ -90,14 +101,26 @@ def test_the_index_shape_fits_every_desk_and_the_full_text_fits_one():
             if sizes:
                 into[desk.name] = max(sizes)
 
-    # SIX, NOT SEVEN. `rewards-and-information-returns` contributes no size at
-    # all: all 19 of its problems are blocked by the three worked examples in its
-    # corpus, recorded in `test_corpus_is_rules.py`. When those are fixed this
-    # goes red, which is the two tests holding hands rather than a nuisance.
+    # SEVEN, AND IT WAS SIX UNTIL 6 SEPTEMBER 2026. This assertion is the reason
+    # anyone noticed: `rewards-and-information-returns` contributed no size at
+    # all while its corpus carried two worked examples, and the comment here
+    # predicted that fixing them would turn this line red. It did, on the commit
+    # that fixed them -- the two tests holding hands rather than a nuisance.
+    #
+    # NAMED, NOT COUNTED. `len(index) == 7` would pass while a desk silently
+    # swapped places with another, which is the same failure as measuring over
+    # the readable rows.
     assert sorted(index) == [
         "capitalization-and-de-minimis", "cash-and-bank", "fixed-assets",
-        "meals-and-entertainment", "personal-or-business", "vehicle-expense",
+        "meals-and-entertainment", "personal-or-business",
+        "rewards-and-information-returns", "vehicle-expense",
     ], f"the set of promptable desks moved: {sorted(index)}"
+    # AND EVERY DESK CONTRIBUTES TO BOTH SHAPES, which is the claim the docstring
+    # above actually rests on. A desk blocked in `text` but not `index` would
+    # leave the full-text finding measured over six again, silently.
+    assert sorted(text) == sorted(index), (
+        f"a desk is promptable in one shape and not the other: "
+        f"{sorted(set(index) ^ set(text))}")
     assert not [d for d, n in index.items() if n > room], \
         f"the index shape no longer fits: {[(d, n) for d, n in index.items() if n > room]}"
 

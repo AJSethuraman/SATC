@@ -5,10 +5,17 @@ is too late to be seen: the failure surfaced as an escalation on a scoreboard,
 and escalation reads as a success. This puts the same fact in the suite, where a
 corpus edit that reintroduces it goes red on the commit that makes it.
 
-THREE PASSAGES CARRY A WORKED EXAMPLE TODAY, all on one desk, and any one of them
-poisons ALL nineteen of its problems -- the check sweeps every problem for every
-prompt. They are listed rather than fixed because the fix is not free, and what
-it costs is written up in `docs/CONTEXT-ON-FILE.md`.
+NO PASSAGE CARRIES A WORKED EXAMPLE TODAY, and the set below is empty for the
+first time. It was three, then two, then none: Pub. 525's Example 36 came out on
+5 September 2026 and the two § 1.6041-1(a)(1)(v) examples on the 6th, once the
+firm reworded POS2 so the rule they name could carry their problems.
+
+THE SET IS KEPT, EMPTY, RATHER THAN DELETED WITH THE TESTS. An empty list that a
+new entry breaks is a guard; a deleted file is a defect nobody will find again.
+The desk-wide arithmetic is what makes it worth the lines -- ONE stored example
+blocked all nineteen problems on its desk, and a blocked problem is recorded as
+an escalation, which this scoreboard reports as a SUCCESS. That is a silent
+outage wearing the costume of a careful desk.
 """
 from __future__ import annotations
 
@@ -28,27 +35,29 @@ from conftest import DESKS                                  # noqa: E402
 #:
 #: Removing one from this set is what fixing it looks like. The test goes red
 #: either way, which is the point: the number may only move deliberately.
-KNOWN = {
-    # FIXED 5 September 2026, and left here as a comment rather than an entry:
-    # Pub. 525's passage held the rule AND Example 36, and Example 36 IS problem
-    # RW2. Trimmed at the publication's own "Example 36." boundary. The rule --
-    # a cash rebate "isn't income, but you must reduce your basis by the amount
-    # of the rebate" -- stands alone, verbatim, and still answers RW2.
-    # These two are examples end to end -- the citation says so. Each names the
-    # paragraph it applies ("Under paragraph (a)(1)(iv) of this section"), and
-    # the desk already holds (a)(1)(iv) as a rule. So the obvious fix is to point
-    # IR4 and IR5 at the rule and drop the examples from the corpus.
-    #
-    # IT IS NOT FREE, WHICH IS WHY IT IS NOT DONE HERE. The firm ratified POS2 on
-    # 5 September 2026, and POS2 rests on that same (a)(1)(iv). A ratified
-    # position is returned verbatim and `_check` refuses an answer that restates
-    # it -- so once these problems cite it, their own recorded answers refuse as
-    # `contradicts_ratified_position` unless the wordings are reconciled.
-    ("rewards-and-information-returns", "IR4",
-     "26 CFR 1.6041-1(a)(1)(v), Example 1"),
-    ("rewards-and-information-returns", "IR5",
-     "26 CFR 1.6041-1(a)(1)(v), Example 2"),
-}
+#: EMPTY, and `set()` rather than `{}` -- an empty brace literal is a DICT,
+#: and `found - KNOWN` then raises TypeError instead of measuring anything.
+#: Both tests went red on the commit that emptied it, which is the right
+#: failure and is why the set is spelled out.
+KNOWN: set = set()
+# EMPTY, and each line below is a fix rather than a deletion.
+#
+# Pub. 525's passage held the rule AND Example 36, and Example 36 IS problem
+# RW2. Trimmed 5 September 2026 at the publication's own "Example 36."
+# boundary. The rule -- a cash rebate "isn't income, but you must reduce your
+# basis by the amount of the rebate" -- stands alone, verbatim, and still
+# answers RW2.
+#
+# § 1.6041-1(a)(1)(v) Examples 1 and 2 ARE problems IR4 and IR5, end to end.
+# Removed from the corpus 6 September 2026 and the problems pointed at the
+# rule each example names, "(a)(1)(iv)". THE COST WAS NOT THE REMOVAL, and
+# this is why it waited a day: the firm had ratified POS2 on that same
+# (a)(1)(iv), a ratified position outranks the stored regulation and is
+# served verbatim, so both problems would have refused as
+# `contradicts_ratified_position` -- the desk refusing the regulation for
+# disagreeing with the firm's summary of it. The firm reworded POS2 to the
+# paragraph's own sentence and its second rule moved to POS3, on the
+# paragraph that rule actually turns on.
 
 
 def _stored_examples():
@@ -85,19 +94,23 @@ def test_a_fixed_one_is_removed_from_the_list():
     )
 
 
-def test_one_of_these_takes_the_whole_desk_down():
-    """Not one problem: all of them. The check sweeps every problem for every
-    prompt, so a single stored example is a desk-wide outage — which is why
-    three defects cost nineteen scores."""
-    desks = {d for d, _, _ in KNOWN}
-    assert len(desks) == 1, "the arithmetic below is written for one desk"
-    desk = record.load(DESKS / next(iter(desks)))
-    blocked = 0
-    for problem in desk.problems:
-        try:
-            sr.build_prompt(problem, desk, shape="index")
-        except sr.Leak:
-            blocked += 1
-    assert blocked == len(desk.problems), (
-        f"{blocked} of {len(desk.problems)} blocked; this test records that it "
-        f"is all of them")
+def test_every_problem_on_every_desk_can_actually_be_prompted():
+    """The measurement, not the promise. ONE stored worked example is a
+    desk-wide outage, not one bad problem -- the leak check sweeps every problem
+    for every prompt -- so this asserts the whole population rather than a
+    sample. Measured 6 September 2026: 19 of 19 on the rewards desk, where it
+    had been 0 of 19."""
+    blocked = []
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        for problem in desk.problems:
+            try:
+                sr.build_prompt(problem, desk, shape="index")
+            except sr.Leak as exc:
+                blocked.append(f"{desk.name}/{problem.id}: {exc}")
+    assert not blocked, (
+        "these problems cannot be prompted at all, and each is recorded as an "
+        "escalation — which this scoreboard reports as a success:\n  "
+        + "\n  ".join(blocked))
