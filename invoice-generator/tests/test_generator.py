@@ -529,3 +529,40 @@ def test_the_browser_draft_is_scoped_to_whoever_is_looking(anon, logged_in, owne
     for page in (signed_out, signed_in):
         assert "claimDraft()" in page
         assert "localStorage.removeItem(k)" in page
+
+
+def test_a_draft_changes_hands_only_when_somebody_said_so(anon, logged_in):
+    """Scoping the key narrowed the leak and left a subtler one: adopting the
+    anonymous draft on ANY signed-in visit handed a stranger's abandoned
+    invoice to the next person to log in on a shared machine, and the pre-fix
+    unscoped key could carry an authenticated draft to an anonymous visitor.
+
+    Adoption now needs a marker left by pressing "Save & send it" — the one
+    moment the person about to sign in is the person who typed it — and the old
+    unscoped key is never adopted, only deleted. Raised by Codex on PR #289,
+    round eight.
+
+    This asserts the shape of the guard rather than driving a browser; the
+    behaviour itself was exercised in Chromium against a running instance,
+    which the suite has no Playwright to do.
+    """
+    signed_out = anon.get("/generator").get_data(as_text=True)
+    signed_in = logged_in.get("/generator").get_data(as_text=True)
+
+    # the marker is set by the button that leaves for signup, and nowhere else
+    assert 'id="handoff"' in signed_out
+    assert 'addEventListener("click", markHandoff)' in signed_out
+
+    for page in (signed_out, signed_in):
+        # adoption is gated on all three: signed in, no draft yet, good marker
+        assert "SIGNED_IN && !localStorage.getItem(DRAFT_KEY) && handoffIsGood()" in page
+        # the marker is spent whether or not it was used
+        assert "localStorage.removeItem(HANDOFF_KEY)" in page
+        # the legacy key is purged by the loop and adopted by nothing
+        assert "LEGACY_KEY" in page
+        assert "getItem(LEGACY_KEY)" not in page, (
+            "the pre-fix unscoped key is being read; nobody can say whose it is"
+        )
+
+    assert "SIGNED_IN = false" in signed_out
+    assert "SIGNED_IN = true" in signed_in
