@@ -75,6 +75,28 @@
   #logo-slot[data-empty="1"]::after { content: "+ Add your logo"; }
   #logo-slot img { max-height: 46px; }
 
+  /* `display:flex` beats the `hidden` attribute, so the bar showed to
+     everybody — including anonymous visitors, who were told they had started
+     an invoice before signing in and given two buttons with no handlers on
+     them. Found by the browser probe, not by a test. */
+  .offer[hidden] { display: none; }
+  .offer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+           background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a;
+           border-radius: 9px; padding: 10px 13px; margin: 16px auto 0;
+           max-width: 210mm; }
+  .offer .grow { flex: 1; }
+  /* Not `.btn-ghost`: that button is styled for the dark top bar, and on this
+     pale blue its label came out almost unreadable. Looked at, not assumed. */
+  .offer .btn { background: #1d4ed8; border: 1px solid #1d4ed8; color: #fff;
+                border-radius: 7px; padding: 7px 13px; font: inherit;
+                font-weight: 600; cursor: pointer; }
+  .offer .btn:hover { background: #1e40af; }
+  /* Discarding somebody's work should not look as inviting as keeping it. */
+  .offer .btn-plain, .offer .btn-plain:hover {
+    background: transparent; border-color: transparent; color: #1e3a8a;
+    font-weight: 400; text-decoration: underline; }
+  .btn-plain { background: transparent; border: 1px solid transparent; color: #1e3a8a;
+               text-decoration: underline; cursor: pointer; padding: 6px 8px; font: inherit; }
   .errors { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 9px; padding: 11px 13px; margin: 0 auto 16px; max-width: 210mm; }
   .errors ul { margin: 5px 0 0; padding-left: 18px; }
 
@@ -109,10 +131,20 @@
     {% if current_user.is_authenticated %}
     <button class="btn btn-ghost" type="submit" formaction="{{ url_for('generator_save') }}">Save to my invoices</button>
     {% else %}
-    <a class="btn btn-ghost" id="handoff" href="{{ url_for('signup', next=url_for('generator')) }}" style="text-decoration:none;display:inline-block">Save &amp; send it</a>
+    <a class="btn btn-ghost" href="{{ url_for('signup', next=url_for('generator')) }}" style="text-decoration:none;display:inline-block">Save &amp; send it</a>
     {% endif %}
     <button class="btn btn-primary" type="submit">Download PDF</button>
   </header>
+
+  {#- Offered, never taken. See the draft comment in the script below: no
+      invoice moves from an anonymous browser into an account without somebody
+      pressing this, because nothing else can tell whether it is theirs. -#}
+  <div class="offer" id="offer" hidden>
+    <span>You started an invoice on this computer before signing in.</span>
+    <span class="grow"></span>
+    <button type="button" class="btn" id="offer-yes">Bring it over</button>
+    <button type="button" class="btn btn-plain" id="offer-no">Discard it</button>
+  </div>
 
   {% if errors %}
   <div class="errors" style="margin-top:16px">
@@ -186,75 +218,82 @@
 const CURRENCIES = {{ currency_js | tojson }};
 const DEFAULT_DESIGN = {{ design.id | tojson }};
 const THEME_URL = {{ url_for('generator_theme') | tojson }};
-/* WHOSE DRAFT THIS IS, AND HOW IT CHANGES HANDS.
+/* WHOSE DRAFT THIS IS, AND WHO SAYS SO.
 
    One origin-wide key meant a signed-in sender's business details — and their
    client's name, address, line descriptions and prices — came back for whoever
-   opened this page next in the same browser. Scoping the key to the viewer
-   fixed the obvious direction and left a subtler one: adopting the anonymous
-   draft on any signed-in visit meant a stranger's abandoned invoice was handed
-   to the next person who logged in on a shared machine, and the pre-fix
-   unscoped key could carry an authenticated draft straight to an anonymous
-   visitor. Narrowing a leak is not closing it.
+   opened this page next in the same browser. Two fixes narrowed that and
+   neither closed it. Scoping the key to the viewer still adopted the anonymous
+   draft on any signed-in visit, so a stranger's abandoned invoice reached the
+   next person to log in. Requiring a marker left by pressing "Save & send it"
+   still could not tell whether the person who eventually signed in was the
+   person who pressed it: leave the machine on the signup page and the next
+   arrival inherits the lot.
 
-   So adoption now needs somebody to have said, in this browser, "I am taking
-   this draft with me": pressing "Save & send it" leaves a marker naming the
-   anonymous key and the moment. Only a marker that is present, recent and
-   unspent hands the draft over, and it is spent the first time it is used.
+   THE THIRD ANSWER IS TO STOP GUESSING. No draft is adopted automatically at
+   all. If you are signed in and this browser holds an anonymous draft, the
+   page says so and offers it; a person decides, which is the only thing that
+   can actually tell whether it is theirs. One click in the sign-up flow buys
+   the whole class of problem away.
 
-   The old unscoped key is never adopted, only deleted. Nobody can say whose it
-   was, and guessing is the whole bug.
+   What is still automatic is deletion. Every other viewer's draft is purged on
+   sight — which loses another account's unfinished invoice when two people
+   share a browser, deliberately: an unfinished invoice is worth less than a
+   client's details sitting in a stranger's browser. The pre-fix unscoped key
+   goes the same way, and is never offered, because nobody can say whose it
+   was and guessing is the whole bug.
 
-   Everything else under the prefix is purged on sight. That deletes another
-   account's draft when two people share a browser, which is a deliberate
-   trade: an unfinished invoice is worth less than a client's details sitting
-   in a stranger's browser.
-
-   Raised by Codex on PR #289, rounds seven and eight. */
+   Raised by Codex on PR #289, rounds seven, eight and nine. */
 const DRAFT_PREFIX = "invoicer.draft.";
 const DRAFT_SCOPE = "{{ draft_scope }}";
 const DRAFT_KEY = DRAFT_PREFIX + "v2." + DRAFT_SCOPE;
 const ANON_KEY = DRAFT_PREFIX + "v2.anon";
-const LEGACY_KEY = DRAFT_PREFIX + "v1";        // the unscoped key, pre-fix
-const HANDOFF_KEY = "invoicer.handoff.v1";
-const HANDOFF_WINDOW_MS = 15 * 60 * 1000;      // long enough to make an account
 const SIGNED_IN = {{ 'true' if draft_scope != 'anon' else 'false' }};
 const SAVE_PATH = "{{ url_for('generator_save') }}";
 
-/* Called when the signed-out sender presses "Save & send it". This is the one
-   moment we know the person about to sign in is the person who typed it. */
-function markHandoff() {
+function purgeOtherDrafts() {
+  // Mine stays. The anonymous one stays only while signed in, because that is
+  // the one the offer below is about — and deleting it unasked would throw
+  // away the work the sign-up flow exists to carry across.
   try {
-    localStorage.setItem(HANDOFF_KEY, JSON.stringify({ from: ANON_KEY, at: Date.now() }));
-  } catch (_) {}
-}
-
-function handoffIsGood() {
-  let m;
-  try { m = JSON.parse(localStorage.getItem(HANDOFF_KEY) || "null"); } catch (_) { return false; }
-  if (!m || m.from !== ANON_KEY || typeof m.at !== "number") return false;
-  return (Date.now() - m.at) < HANDOFF_WINDOW_MS;
-}
-
-function claimDraft() {
-  try {
-    const inheriting = SIGNED_IN && !localStorage.getItem(DRAFT_KEY) && handoffIsGood();
-    if (inheriting) {
-      const carried = localStorage.getItem(ANON_KEY);
-      if (carried) localStorage.setItem(DRAFT_KEY, carried);
-    }
-    // Spent either way: a marker that survives its trip becomes a standing
-    // invitation for the next person to sign in.
-    localStorage.removeItem(HANDOFF_KEY);
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith(DRAFT_PREFIX) && k !== DRAFT_KEY) {
-        localStorage.removeItem(k);
-      }
+      if (!k || !k.startsWith(DRAFT_PREFIX)) continue;
+      if (k === DRAFT_KEY) continue;
+      if (SIGNED_IN && k === ANON_KEY) continue;
+      localStorage.removeItem(k);
     }
   } catch (_) {}
 }
-claimDraft();
+purgeOtherDrafts();
+
+/* The offer. Only a person can say whether the draft this browser is holding
+   belongs to the account now signed into it, so a person is asked. Both
+   answers end with the anonymous copy gone, so it is asked once. */
+function offerAnonymousDraft() {
+  if (!SIGNED_IN) return;
+  let carried = null;
+  try {
+    if (localStorage.getItem(DRAFT_KEY)) return;   // they are already working
+    carried = localStorage.getItem(ANON_KEY);
+  } catch (_) { return; }
+  if (!carried) return;
+
+  const bar = document.getElementById("offer");
+  if (!bar) return;
+  bar.hidden = false;
+  const done = () => {
+    try { localStorage.removeItem(ANON_KEY); } catch (_) {}
+    bar.hidden = true;
+  };
+  document.getElementById("offer-yes").addEventListener("click", () => {
+    try { localStorage.setItem(DRAFT_KEY, carried); } catch (_) {}
+    done();
+    restoreDraft();
+    recalc();
+  });
+  document.getElementById("offer-no").addEventListener("click", done);
+}
 
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -461,17 +500,13 @@ document.addEventListener("change", e => { if (e.target.closest("#gen")) recalc(
    No `submitter` (older browser, or a scripted submit) means keep the draft —
    losing somebody's work is the worse half of the trade.
    Raised by Codex on PR #289, round five. */
-/* The one moment we can be sure the person about to sign in is the person who
-   typed this: they pressed the button that takes them there. */
-const handoffLink = $("#handoff");
-if (handoffLink) handoffLink.addEventListener("click", markHandoff);
-
 $("#gen").addEventListener("submit", e => {
   const goingToSave = e.submitter && e.submitter.formAction &&
     e.submitter.formAction.endsWith(SAVE_PATH);
   if (goingToSave) { try { localStorage.removeItem(DRAFT_KEY); } catch (_) {} }
 });
 
+offerAnonymousDraft();
 {% if not errors %}restoreDraft();{% else %}
 /* The save was refused and the server re-rendered the form with what was
    typed. The draft was cleared on the way out, so put it back from what is on

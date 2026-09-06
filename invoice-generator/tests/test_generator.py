@@ -525,44 +525,45 @@ def test_the_browser_draft_is_scoped_to_whoever_is_looking(anon, logged_in, owne
 
     assert 'DRAFT_SCOPE = "anon"' in signed_out
     assert f'DRAFT_SCOPE = "u{owner}"' in signed_in
-    # and the page clears what is not its own on the way in
     for page in (signed_out, signed_in):
-        assert "claimDraft()" in page
+        assert "purgeOtherDrafts()" in page
         assert "localStorage.removeItem(k)" in page
 
 
-def test_a_draft_changes_hands_only_when_somebody_said_so(anon, logged_in):
-    """Scoping the key narrowed the leak and left a subtler one: adopting the
-    anonymous draft on ANY signed-in visit handed a stranger's abandoned
-    invoice to the next person to log in on a shared machine, and the pre-fix
-    unscoped key could carry an authenticated draft to an anonymous visitor.
+def test_no_draft_moves_into_an_account_without_somebody_saying_so(
+    anon, logged_in
+):
+    """Two fixes narrowed this and neither closed it.
 
-    Adoption now needs a marker left by pressing "Save & send it" — the one
-    moment the person about to sign in is the person who typed it — and the old
-    unscoped key is never adopted, only deleted. Raised by Codex on PR #289,
-    round eight.
+    Scoping the key still adopted the anonymous draft on any signed-in visit,
+    so a stranger's abandoned invoice reached the next person to log in.
+    Requiring a marker left by pressing "Save & send it" still could not tell
+    whether the person who eventually signed in was the person who pressed it:
+    leave the machine on the signup page and the next arrival inherits the lot.
 
-    This asserts the shape of the guard rather than driving a browser; the
-    behaviour itself was exercised in Chromium against a running instance,
-    which the suite has no Playwright to do.
+    So nothing is adopted automatically. The page offers the draft and a person
+    decides. Raised by Codex on PR #289, rounds seven, eight and nine.
     """
     signed_out = anon.get("/generator").get_data(as_text=True)
     signed_in = logged_in.get("/generator").get_data(as_text=True)
 
-    # the marker is set by the button that leaves for signup, and nowhere else
-    assert 'id="handoff"' in signed_out
-    assert 'addEventListener("click", markHandoff)' in signed_out
+    # the offer exists, starts hidden, and is only wired up when signed in
+    assert 'id="offer"' in signed_in and "hidden" in signed_in
+    assert "offerAnonymousDraft()" in signed_in
+    assert 'id="offer-yes"' in signed_in and 'id="offer-no"' in signed_in
+    assert "if (!SIGNED_IN) return;" in signed_in
 
+    # nothing anywhere copies the anonymous draft without a click
     for page in (signed_out, signed_in):
-        # adoption is gated on all three: signed in, no draft yet, good marker
-        assert "SIGNED_IN && !localStorage.getItem(DRAFT_KEY) && handoffIsGood()" in page
-        # the marker is spent whether or not it was used
-        assert "localStorage.removeItem(HANDOFF_KEY)" in page
-        # the legacy key is purged by the loop and adopted by nothing
-        assert "LEGACY_KEY" in page
-        assert "getItem(LEGACY_KEY)" not in page, (
-            "the pre-fix unscoped key is being read; nobody can say whose it is"
-        )
+        assert "markHandoff" not in page, "the marker heuristic is back"
+        assert "HANDOFF_KEY" not in page
+        # the only setItem of DRAFT_KEY from ANON_KEY sits inside the handler
+        before_click = page[: page.index('id="offer-yes"')] if 'id="offer-yes"' in page else page
+        assert "setItem(DRAFT_KEY, carried)" not in before_click
 
     assert "SIGNED_IN = false" in signed_out
     assert "SIGNED_IN = true" in signed_in
+
+    # and an anonymous viewer is never offered anything, so the anonymous key
+    # is simply theirs
+    assert "offer-yes" not in signed_out or 'hidden' in signed_out
