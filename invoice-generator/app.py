@@ -1587,7 +1587,8 @@ def register_routes(app):
                 to_email,
                 invoice,
                 out_path,
-                payment_url=public_url,
+                payment_url=_pay_url(invoice),
+                view_url=public_url,
                 html_body=html_body,
                 user=current_user,
             )

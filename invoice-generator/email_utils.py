@@ -166,7 +166,7 @@ def send_email(config, to_email, subject, body, user=None):
 
 def send_invoice_email(
     config, to_email, invoice, pdf_path, payment_url=None, html_body=None,
-    user=None,
+    user=None, view_url=None,
 ):
     """Send the invoice PDF as an attachment to ``to_email``.
 
@@ -186,8 +186,23 @@ def send_invoice_email(
         "",
         f"Please find attached invoice {invoice.invoice_number}.",
     ]
+    # TWO HALVES OF ONE EMAIL HAVE TO SAY THE SAME THING. The HTML alternative
+    # asks `can_pay` before it offers a payment; this one used to print "Pay
+    # online here" whenever it had any URL at all, so a client whose mail
+    # client shows plain text — which is most corporate accounts-payable
+    # software — was invited to pay an invoice in a currency this adapter
+    # refuses, or one whose owner has no Stripe account, and arrived at a page
+    # with no payment on it.
+    #
+    # `view_url` is separate and unconditional: withholding the payment
+    # invitation must not cost the reader the link to their own invoice.
+    #
+    # Raised by Codex on PR #289, round six, and independently by the
+    # walkthrough of 6 September (defect 3).
     if payment_url:
         body_lines += ["", f"Pay online here: {payment_url}"]
+    elif view_url:
+        body_lines += ["", f"View it online here: {view_url}"]
     body_lines += ["", "Thank you for your business."]
     msg.set_content("\n".join(body_lines))
     if html_body:

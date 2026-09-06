@@ -19,6 +19,12 @@ they say the wiring is connected, which is the failure that actually happened.
 2. **Within a module** — every bare `name()` call resolves somewhere in its
    scope chain: locals, enclosing functions (this codebase is full of closures
    defined inside `create_app`), module globals, builtins.
+3. **Across an import** — every `from <ours> import <name>` resolves, including
+   the function-local ones. Checks 1 and 2 both walk past those: check 2 binds
+   the imported name and asks no further, and check 1 only sees
+   `module.attribute`. So deleting `pdf._business_context`, imported inside
+   `app.generate_pdf`, left both green while downloading a PDF raised
+   ImportError.
 
 Both were run against a checkout with the five functions removed and both
 failed; that is why they are here rather than as a note in a commit message.
@@ -165,6 +171,59 @@ def unresolved_calls(module_name):
 def test_every_call_in_the_module_resolves(module_name):
     unresolved = unresolved_calls(module_name)
     assert not unresolved, "\n".join(unresolved)
+
+
+# --- three: names imported out of one of our modules --------------------
+#
+# THE FIRST TWO SCANS BOTH MISS A FUNCTION-LOCAL `from … import …`, and this
+# codebase is full of them. `_binds_directly` adds an imported name to the
+# scope so the call resolves, and the cross-module scan only looks at
+# `module.attribute`, so deleting `pdf._business_context` — imported inside
+# `app.generate_pdf` — left both scans green while the route raised
+# ImportError the moment anybody downloaded a PDF. That is the same class of
+# deletion this file exists to stop, walking straight past it.
+#
+# Raised by Codex on PR #289, round six.
+
+def imported_names(path):
+    """Every `from <ours> import <name>`, as (module, name, line)."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or node.level:
+            continue                       # relative imports are not ours
+        if node.module not in OURS:
+            continue
+        for alias in node.names:
+            if alias.name == "*":
+                continue                   # nothing to resolve
+            found.add((node.module, alias.name, node.lineno))
+    return found
+
+
+ALL_IMPORTS = sorted(
+    (str(path.name), module, name, line)
+    for path in (ROOT / f"{m}.py" for m in OURS)
+    if path.exists()
+    for module, name, line in imported_names(path)
+)
+
+
+def test_the_import_scan_found_something():
+    """The scan that always passes is the scan nobody notices is broken."""
+    assert len(ALL_IMPORTS) > 5
+    assert any(m == "pdf" for _, m, _, _ in ALL_IMPORTS)
+
+
+@pytest.mark.parametrize(
+    "caller, module, name, line",
+    ALL_IMPORTS,
+    ids=[f"{c}:{ln}:from {m} import {n}" for c, m, n, ln in ALL_IMPORTS],
+)
+def test_the_imported_name_exists(caller, module, name, line):
+    assert hasattr(importlib.import_module(module), name), (
+        f"{caller}:{line} imports {name} from {module}, which does not have it"
+    )
 
 
 def test_the_five_that_were_lost_are_back():

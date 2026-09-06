@@ -138,7 +138,7 @@ def sent_mail(monkeypatch):
     outbox = []
 
     def fake_send(config, to_email, invoice, pdf_path, payment_url=None,
-                  html_body=None, user=None):
+                  html_body=None, user=None, view_url=None):
         outbox.append(
             {
                 "to": to_email,

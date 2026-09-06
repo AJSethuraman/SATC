@@ -97,7 +97,22 @@ def _render_invoice_html(invoice, allow_svg, pay_url=None):
         business=_business_context(invoice, allow_svg=allow_svg),
         design=design,
         doc_title=(getattr(invoice, "doc_title", None) or "INVOICE"),
-        pay_url=pay_url if pay_url is not None else invoice.stripe_payment_url,
+        # NO FALLBACK. This read `pay_url if pay_url is not None else
+        # invoice.stripe_payment_url`, which quietly undid the caller's
+        # refusal: `_pay_url` returns None precisely when payment must NOT be
+        # offered, and the fallback then printed whatever Checkout URL happened
+        # to be stored on the row. That is a stale link by construction — a
+        # session created before the currency allowlist, or before the owner
+        # disconnected Stripe — invited onto the client's PDF by the very call
+        # that had just decided not to invite them.
+        #
+        # Every caller now says what it means: `app.generate_pdf` passes
+        # `_pay_url(invoice)`, and the anonymous generator passes nothing.
+        # A stored `stripe_payment_url` is a one-shot Checkout session that
+        # expires within a day, so printing it on a document was never right.
+        #
+        # Raised by Codex on PR #289, round six.
+        pay_url=pay_url,
     )
 
 

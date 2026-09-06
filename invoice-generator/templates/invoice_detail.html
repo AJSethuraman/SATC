@@ -135,7 +135,7 @@
             <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
             <tbody>
               {% for item in invoice.items %}
-              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_money(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
+              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_unit_price(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
               {% endfor %}
             </tbody>
           </table>
