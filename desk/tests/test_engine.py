@@ -14,7 +14,7 @@ import pytest
 import engine
 import record
 from conftest import DESKS, NetworkUsed
-from engine import (Answer, EngineError, Outcome, REASONS, Refusal, grade, report,
+from engine import (Answer, EngineError, Outcome, REASONS, Refusal, Served, grade, report,
                     serve, tally)
 
 
@@ -132,7 +132,19 @@ def test_only_one_reason_is_not_fixable():
 
 def test_authority_that_only_interprets_escalates_rather_than_answers(
         tmp_path, problem):
-    """A Big 4 guide's reading must never be handed over in a regulation's voice."""
+    """A Big 4 guide's reading must never be handed over in a regulation's voice.
+
+    THE CLAIM IS UNCHANGED AND THE MECHANISM IS NOT, since 6 September 2026.
+    The firm answered "Serve it, marked" on the fourth docket, so where no rule
+    reaches — and this desk holds no binding source at all — the guide's reading
+    is served with `binding=False` and a caveat naming it as the Service's
+    stated position rather than settled law. Refusing it protected nobody: it
+    sent the same question back to the firm every time it was asked, which is
+    what they asked to stop.
+
+    What may never happen is the guide being served in a REGULATION's voice, and
+    that is now asserted directly rather than implied by a refusal.
+    """
     d = tmp_path / "secondary-only"
     (d / "extracted").mkdir(parents=True)
     (d / "SOURCES.md").write_text(
@@ -149,8 +161,14 @@ def test_authority_that_only_interprets_escalates_rather_than_answers(
     desk = record.load(d)
     r = grade(Answer(position="must capitalize", citation="GUIDE 1"),
               desk.problems[0], desk)
-    assert r.outcome is Outcome.ESCALATED
-    assert r.reason == "authority_permits_choice"
+    assert r.outcome is Outcome.CORRECT
+
+    out = serve(Answer(position="must capitalize", citation="GUIDE 1"), desk,
+                question="f")
+    assert isinstance(out, Served)
+    # THE VOICE IS THE ASSERTION. It is served, and it is not served as a rule.
+    assert out.binding is False
+    assert "not the rule" in out.caveat
 
 
 # ── the denominator is reported so the costly number is read first ────────────
@@ -307,9 +325,96 @@ def test_a_confident_answer_on_interpretive_authority_is_escalated_by_the_engine
     desk = _secondary_desk(tmp_path)
     p = desk.problems[0]
     r = engine.grade(Answer(position=p.answer, citation=p.citation), p, desk)
-    assert r.outcome is engine.Outcome.ESCALATED
-    assert r.escalated_by == engine.ENGINE
-    assert r.reason == "authority_permits_choice"
+    # IT IS GRADED NOW, WHICH IS THE POINT. A problem that could only ever
+    # escalate was a problem no brain was ever tested on, and an escalation
+    # reads as a success on this scoreboard.
+    assert r.outcome is engine.Outcome.CORRECT
+
+    out = engine.serve(Answer(position=p.answer, citation=p.citation), desk,
+                       question=p.facts)
+    assert isinstance(out, engine.Served)
+    assert out.binding is False, "a secondary source served as though it settled it"
+    assert "not the rule" in out.caveat and out.tier in out.caveat
+
+
+def _mixed_desk(tmp_path):
+    """A desk holding BOTH a rule and a publication about it, declared.
+
+    This is the shape the guidance fallback must not open: the regulation says
+    one thing, the plain-English page says another, and a model that finds the
+    page easier to read must not be allowed to answer from it. The record has a
+    live example — § 1.263(a)-1 says $500, the IRS tangible-property page says
+    $2,500, and the tie-out confirmed both on 6 September 2026.
+    """
+    d = tmp_path / "mixed"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · The regulation\n\n"
+        "**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-06\n\n"
+        "**Citation prefix:** REG\n\n**Why:** public domain.\n\n---\n\n"
+        "## S2 · The plain-English page about it\n\n"
+        "**Tier:** secondary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-06\n\n"
+        "**Citation prefix:** PAGE\n\n**Why:** public domain.\n",
+        encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## mixed · a desk with a rule and a summary of it\n\n"
+        "**Answered from S1:** threshold\n\n"
+        "**Answered from S2:** threshold\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** PAGE 1\n\n**Answer:** $2,500\n\n"
+        "**Facts:** what is the threshold?\n", encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06\n\n> $500\n\n"
+        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06\n\n> $2,500\n",
+        encoding="utf-8")
+    return record.load(d)
+
+
+def test_guidance_may_not_be_served_where_the_desk_holds_the_rule(tmp_path):
+    """The condition the whole fallback rests on, on the shape that motivates it.
+
+    Without it, "serve guidance where no rule reaches" becomes "serve guidance",
+    and a model dodges a regulation by citing the summary of it. The refusal
+    names what it is: the desk holds binding authority for what was asked."""
+    desk = _mixed_desk(tmp_path)
+    out = engine.serve(Answer(position="$2,500", citation="PAGE 1"), desk,
+                       question="what is the threshold?")
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "authority_permits_choice"
+    assert "holds binding authority" in out.detail
+    # AND THE RULE ITSELF STILL SERVES, so this is a narrowing and not a wall.
+    ok = engine.serve(Answer(position="$500", citation="REG 1"), desk,
+                      question="what is the threshold?")
+    assert isinstance(ok, engine.Served) and ok.binding is True
+
+
+def test_a_desk_that_cannot_tell_whether_a_rule_reaches_refuses(tmp_path):
+    """The middle case, and it fails toward the firm rather than toward an
+    answer. A desk holding binding sources but declaring no mapping cannot say
+    whether a rule reaches this question — and "I could not check" must never
+    read the same as "I checked and it is fine"."""
+    d = tmp_path / "unmapped"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · The regulation\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-06\n\n"
+        "**Citation prefix:** REG\n\n**Why:** public domain.\n\n---\n\n"
+        "## S2 · A page\n\n**Tier:** secondary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-06\n\n"
+        "**Citation prefix:** PAGE\n\n**Why:** public domain.\n", encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** PAGE 1\n\n**Answer:** a\n\n**Facts:** f\n",
+        encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06\n\n> rule\n\n"
+        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06\n\n> reading\n",
+        encoding="utf-8")
+    out = engine.serve(Answer(position="a", citation="PAGE 1"), record.load(d),
+                       question="f")
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "authority_permits_choice"
 
 
 def test_a_desk_that_declines_is_recorded_as_the_one_that_declined(tmp_path):
@@ -327,7 +432,10 @@ def test_a_desk_that_declines_is_recorded_as_the_one_that_declined(tmp_path):
 def test_the_two_escalations_are_distinguishable_at_all(tmp_path):
     """The assertion the two tests above exist to make jointly: same outcome,
     same reason, and still tellable apart."""
-    desk = _secondary_desk(tmp_path)
+    # ON A DESK THAT STILL REFUSES. `_secondary_desk` holds no rule at all, so
+    # since 6 September 2026 the engine serves it marked rather than stopping
+    # it — and the distinction this test is about only exists where it stops.
+    desk = _mixed_desk(tmp_path)
     p = desk.problems[0]
     stopped = engine.grade(Answer(position=p.answer, citation=p.citation), p, desk)
     declined = engine.grade(Answer(position="", escalated=True,
@@ -377,6 +485,21 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
 NOT_ABOUT_AUTHORITY = {
     "facts_not_established": "ask the client",
     "document_not_requested": "obtain a document nobody requested",
+    # The third of the same family, and it is resolved by NEITHER of the above:
+    # the fact should already be in our own engagement record, so the answer is
+    # to look there and, when it is not there, to notice that the intake missed
+    # it. The firm, 5 September 2026: "if they're missing that piece of
+    # information, something was just missing from the file."
+    "context_not_on_file": "read our own file, and fix the intake that skipped it",
+    # The fourth and fifth, asked for by the firm on 6 September 2026. Both are
+    # about the FILE rather than the authority, and they are separated because
+    # a different person fixes each.
+    "client_rule_governs": "read the rule the firm already recorded for this client",
+    # AND THIS ONE IS NOT FIXED BY READING ANYTHING. There is nowhere to read.
+    # The firm: "if the follow up has no answer we know there's a legit hole to
+    # fix because the accountant or firm never assigned it up front ... What if
+    # this mattered only sometimes and we never even made a field for it."
+    "no_field_for_this_fact": "decide, as a firm, whether this fact is recorded at all",
 }
 
 

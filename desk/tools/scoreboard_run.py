@@ -47,6 +47,7 @@ so. Rule 10: a scoreboard that tidies the answer is measuring the tidier.
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 import urllib.error
@@ -81,7 +82,7 @@ class AdapterGaveUp(Exception):
 #: harness's word for an abandoned run, not a choice.
 OFFERABLE = ("authority_absent", "authority_permits_choice", "no_citation",
              "citation_does_not_support", "facts_not_established",
-             "document_not_requested")
+             "document_not_requested", "context_not_on_file")
 
 _TEMPLATE = """\
 You are a desk. You answer only from the authority listed below, and you cite it.
@@ -131,7 +132,7 @@ def build_prompt(problem: Problem, desk: Desk, *, shape: str = "index") -> str:
         positions=" | ".join(admissible(desk)),
         reasons=", ".join(OFFERABLE),
     )
-    check_no_leak(prompt, problem, desk)
+    check_no_leak(prompt, problem, desk, shape=shape)
     return prompt
 
 
@@ -168,11 +169,29 @@ def admissible(desk: Desk) -> list[str]:
     return sorted({p.answer for p in desk.problems})
 
 
-class Leak(Exception):
-    """Something the brain must not see reached the prompt."""
+class Leak(scoreboard.HarnessError):
+    """Something the brain must not see reached the prompt.
+
+    A `HarnessError`, AND IT WAS A PLAIN EXCEPTION UNTIL 5 SEPTEMBER 2026, WHICH
+    QUIETLY DESTROYED FOUR DESKS' SCORES. `forge_adapter.ask` builds the prompt
+    before it calls anything, so this raised inside `ask` -- and `scoreboard.run`
+    catches `Exception` there and turns it into an escalation with reason
+    `model_gave_up`, which is rule 9 working exactly as designed for the failure
+    it was written for.
+
+    This is not that failure. Reproduced on the rewards desk with no model
+    running at all: 19 of 19 problems recorded, every one an ESCALATION, and
+    escalation is a SUCCESS on this scoreboard. A desk whose every prompt the
+    harness refused to build would have published as a perfectly careful one.
+
+    Nothing published was wrong -- both Forge runs were on the two desks that do
+    not leak -- and that is luck, not a control. The class this belongs in was
+    already here, written on this same file for this exact shape of bug.
+    """
 
 
-def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
+def check_no_leak(prompt: str, problem: Problem, desk: Desk,
+                  *, shape: str = "index") -> None:
     """Re-read the finished prompt for the three things it must never carry.
 
     A whitelist that is only enforced by how the template was written is a
@@ -213,12 +232,39 @@ def check_no_leak(prompt: str, problem: Problem, desk: Desk) -> None:
             f"{problem.id}: the prompt carries the problem's title "
             f"({problem.title!r}); several titles name the outcome"
         )
-    # The answer may appear only where the template lists the admissible
-    # conclusions, once per conclusion. Anywhere else it is the answer key.
-    if _bare(prompt).count(_bare(problem.answer)) > 1:
+    # THE ANSWER'S OWN WORDS MAY APPEAR IN THE AUTHORITY, AND NOWHERE ELSE.
+    #
+    # This counted over the whole prompt and refused 15 problems across three
+    # desks on `not deductible` -- because § 1.274-11(a) says entertainment is
+    # not deductible. That is a rule stating its own outcome, which is what a
+    # rule is for, and a model that reads it and concludes that has reasoned
+    # correctly from authority. The check could not tell the desk working from
+    # the answer key leaking, so it called both a leak and made 15 problems
+    # unmeasurable.
+    #
+    # NARROWED, NOT RELAXED, and the difference is where a leak could actually
+    # live. The authority is the one part of this prompt the model is TOLD to
+    # read and cite. Everywhere else -- the facts, the source titles, the
+    # citation index, the template itself -- the conclusion has no business
+    # appearing, and all of it is still counted. `test_scoreboard.py` proves
+    # each of those is still caught.
+    # AND THE LIST OF CONCLUSIONS IS CUT OUT RATHER THAN ALLOWED FOR. The rule
+    # was "at most one occurrence in the whole prompt", which refused four more
+    # problems for a reason that was not a leak at all: one admissible
+    # conclusion is a substring of another. `an allowable deduction` occurs
+    # inside `not an allowable deduction`, `a qualified business use` inside
+    # `not a qualified business use` -- two occurrences, one list, no leak.
+    #
+    # Removing both blocks and requiring ZERO is exact, and it is stricter than
+    # the count it replaces: a single stray occurrence anywhere else used to be
+    # within budget and now is not.
+    outside = _bare(prompt).replace(
+        _bare("\n".join(corpus_lines(desk, shape))), " ")
+    outside = outside.replace(_bare(" | ".join(admissible(desk))), " ")
+    if _bare(problem.answer) in outside:
         raise Leak(
             f"{problem.id}: {problem.answer!r} appears in the prompt outside the "
-            f"list of admissible conclusions"
+            f"list of admissible conclusions and outside the quoted authority"
         )
 
 
@@ -299,6 +345,68 @@ def _first_object(text: str) -> dict | None:
     return None
 
 
+# -- the window, which the answer shares --------------------------------------
+
+#: Tokens reserved for the reply. It comes OUT of `num_ctx`, which is the whole
+#: of what the model holds -- prompt and answer together. Sized against the
+#: window alone, a prompt that "fits" leaves the answer nowhere to go.
+NUM_PREDICT = 512
+
+#: A few tokens for whatever the runtime wraps the message in. Small, and it
+#: exists so the boundary is not exactly the cliff edge.
+OVERHEAD = 64
+
+#: Characters per token, DELIBERATELY LOW so the estimate runs high. English
+#: prose is nearer 4; regulation text is not prose -- it is dense with section
+#: numbers, parentheses and punctuation, all of which tokenise short. An
+#: estimate that under-counts is the one failure this must not have, because
+#: under-counting means the check passes and the prompt is cut anyway.
+CHARS_PER_TOKEN = 3.2
+
+
+class PromptTooLong(scoreboard.HarnessError):
+    """The prompt does not fit the window, so the run must not proceed.
+
+    A `HarnessError` and not an `AdapterGaveUp`, and the difference is the whole
+    point. A give-up is the brain failing and rule 9 says that still produces a
+    denominator. This is OURS: the request would not error, it would silently
+    drop the front of the prompt -- and the front of this prompt is the
+    instruction to cite. The run would finish, report a denominator that reads
+    exactly like a real one, and be a measurement of a desk nobody asked.
+
+    `ollama()`'s docstring has described this failure since it was written and
+    nothing checked it. That is the shape of nearly every real bug in this
+    operation: the claim in one place, the behaviour in another.
+    """
+
+
+def estimate_tokens(text: str) -> int:
+    """A pessimistic estimate. Never a count -- there is no tokeniser here.
+
+    Called an estimate everywhere it is used, because a number that is really a
+    guess and is reported as a measurement is worse than no number.
+    """
+    return math.ceil(len(text) / CHARS_PER_TOKEN)
+
+
+def check_fits(prompt: str, *, num_ctx: int, where: str = "") -> int:
+    """Raise unless the prompt leaves room for an answer. Returns the estimate."""
+    estimate = estimate_tokens(prompt)
+    room = num_ctx - NUM_PREDICT - OVERHEAD
+    if estimate > room:
+        raise PromptTooLong(
+            f"{where or 'this prompt'} is about {estimate:,} tokens and the "
+            f"window leaves {room:,} for it ({num_ctx:,} less {NUM_PREDICT} for "
+            f"the reply and {OVERHEAD} of overhead). Over that, the request does "
+            f"not error -- it drops the front of the prompt, which here is the "
+            f"instruction to cite, and the run would report a denominator for a "
+            f"desk nobody asked. Send the index shape rather than the full text "
+            f"(--corpus index), split the desk, or raise --num-ctx to at least "
+            f"{estimate + NUM_PREDICT + OVERHEAD:,} on a box that can hold it."
+        )
+    return estimate
+
+
 # -- the two brains -----------------------------------------------------------
 
 OLLAMA = "http://127.0.0.1:11434/api/chat"
@@ -316,13 +424,19 @@ def ollama(model: str, prompt: str, *, num_ctx: int, timeout: int = 900) -> str:
     answer from, and the window is the budget. That is a deliberate configuration
     of this run and is recorded in its notes, not a fact about the model.
     """
+    # THE CHOKE POINT, and it is checked here rather than asked for in a
+    # docstring. LOCAL-LLM-PATTERN rule 6: the same policy written as prose was
+    # obeyed "100%, 4%, 0% of runs"; at the API choke point it is obeyed always,
+    # from every path -- including the paths written after it.
+    check_fits(prompt, num_ctx=num_ctx, where=f"the prompt for {model}")
+
     payload = json.dumps({
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "think": False,
         "options": {"temperature": 0, "seed": 0, "num_ctx": num_ctx,
-                    "num_predict": 512},
+                    "num_predict": NUM_PREDICT},
     }).encode()
     req = urllib.request.Request(
         OLLAMA, data=payload, headers={"Content-Type": "application/json"})

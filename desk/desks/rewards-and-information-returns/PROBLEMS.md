@@ -8,14 +8,40 @@ answers we wrote measures agreement, not correctness.
 outcome, or that names the paragraph governing it, is answered by copying rather
 than by knowing — and a problem set that leaks scores well while proving nothing.
 
-**Nine of these cannot grade correct, and that is the point.** Every rewards
-problem rests on secondary or tertiary authority, because no primary authority on
-the subject exists to rest on. The engine refuses a confident answer on
-non-binding authority before it ever compares the conclusion, so those nine
-escalate — which is the desk saying, accurately, that this is a call for the firm
-and not a rule it can read out. The ten information-return problems rest on the
-Code and on Treasury regulations and grade normally. Reading the two halves as
-one number would hide exactly the difference worth reading.
+**And take the conclusion from the RULE, not from the caption above it.** IR6 and
+IR9 read *"no return of information is required"* until 6 September 2026, which
+is the heading eCFR prints over § 1.6041-3 — a caption, not operative text. The
+section's own sentence is *"Returns of information are not required under section
+6041 and §§ 1.6041-1 and 1.6041-2 for payments described in paragraphs (a)
+through (q) of this section."* Two things were wrong with the caption version and
+only one of them was visible: it was not the authority's words, and it was a
+substring of the source's own title, so the answer key sat in the citation index
+of every prompt on this desk. The second was invisible for as long as a
+desk-wide outage stopped any prompt being built at all.
+
+**Eight of these are answered from guidance and say so, and one still cannot be
+answered at all.** Every rewards problem rests on secondary or tertiary
+authority, because no primary authority on the subject exists to rest on.
+
+**This paragraph read "nine of these cannot grade correct, and that is the
+point" until 6 September 2026**, when the firm answered *"Serve it, marked"* on
+the fourth docket. The engine had refused any confident answer on non-binding
+authority before it ever compared the conclusion — which read as the desk saying
+accurately that this was the firm's call, and also meant nine problems no brain
+was ever tested on. They could only escalate, and an escalation is recorded here
+as a success.
+
+Now, where no rule reaches, guidance answers with `binding=False` and a caveat
+naming the tier. **RW7 is the exception and it is the instructive one:** it rests
+on the private letter ruling, and this desk holds § 1.61-1 — binding authority,
+declared for gross income, which is what RW7 is about. A rule reaches it, so the
+ruling may not be served in the rule's place. That is the condition doing its job
+rather than a gap.
+
+The ten information-return problems rest on the Code and on Treasury regulations
+and grade with no caveat. **The two halves are still not one number** — what
+separates them is no longer the outcome but the caveat, and reading them as one
+figure hides exactly the difference worth reading.
 
 ---
 
@@ -141,7 +167,7 @@ one number would hide exactly the difference worth reading.
 
 ## IR4 · Paid by credit card
 
-**Citation:** 26 CFR 1.6041-1(a)(1)(v), Example 1
+**Citation:** 26 CFR 1.6041-1(a)(1)(iv)
 
 **Answer:** the payor is not required to file an information return under section 6041
 
@@ -151,7 +177,7 @@ one number would hide exactly the difference worth reading.
 
 ## IR5 · Paid through a third party payment network
 
-**Citation:** 26 CFR 1.6041-1(a)(1)(v), Example 2
+**Citation:** 26 CFR 1.6041-1(a)(1)(iv)
 
 **Answer:** the payor is not required to file an information return under section 6041
 
@@ -163,7 +189,7 @@ one number would hide exactly the difference worth reading.
 
 **Citation:** 26 CFR 1.6041-3(p)
 
-**Answer:** no return of information is required
+**Answer:** returns of information are not required under section 6041
 
 **Facts:** A business pays a plumbing company $9,000 during the calendar year for repair work at its premises. The plumbing company is a corporation. It provides no legal services and no medical and health care services.
 
@@ -193,7 +219,7 @@ one number would hide exactly the difference worth reading.
 
 **Citation:** 26 CFR 1.6041-3(c)
 
-**Answer:** no return of information is required
+**Answer:** returns of information are not required under section 6041
 
 **Facts:** A business pays a supplier $30,000 during the calendar year on bills for merchandise bought for the business.
 

@@ -427,8 +427,21 @@ def test_a_refusal_reaching_outside_the_desk_is_not_counted_as_a_near_miss(tmp_p
 #: `contradicts_ratified_position` is the engine comparing an answer against the
 #: firm's words, which the brain has not been shown; and `model_gave_up` is the
 #: harness's word for an abandoned run, never a choice.
+#: `client_rule_governs` and `no_field_for_this_fact` join for the same reason
+#: as `contradicts_ratified_position`: each is the ENGINE comparing something
+#: against the record, not the brain noticing something about its own answer.
+#: One reads the caller's context against a position's `Unless:` line; the other
+#: reads that line against the desk's `Records:` declaration. Neither is in the
+#: prompt, and neither should be — a brain that can CHOOSE to raise "this client
+#: has a standing rule" is a brain that can choose not to, and the whole point
+#: of the field is that the choice is not the brain's.
 UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
-                "contradicts_ratified_position", "model_gave_up"}
+                "contradicts_ratified_position", "model_gave_up",
+                "client_rule_governs", "no_field_for_this_fact",
+                # A brain cannot know the publisher changed its page: nothing it
+                # is shown comes from the publisher. Only `proving` can raise it,
+                # and only with a transport in hand.
+                "authority_has_moved"}
 
 
 def test_a_brain_is_offered_every_reason_it_could_observe():

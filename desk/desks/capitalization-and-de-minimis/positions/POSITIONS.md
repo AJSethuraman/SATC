@@ -29,6 +29,9 @@ has already spoken on all three.
 
 **Position:** elect the de minimis safe harbor; attach the election statement to the timely filed original return
 
+**Unless:** capitalization_rule
+
+
 **Why:** The election is the choice the regulation leaves open. It is annual, it
 is made by attaching a statement, and it cannot be made on an amended return
 without the Commissioner's consent — so a year where nobody decided is a year
@@ -52,6 +55,18 @@ statement was attached. Whatever checks that lives in the return-preparation
 software, not here — and if nothing checks it today, that is a finding, not a
 position.
 
+**WHY THIS CARRIES AN `Unless:` LINE, added 6 September 2026 while the firm held
+it.** Their words: *"This needs to ensure that there is no already standing rule
+for that client in particular. The desk should ask that follow up if it is not
+clear, right?"* — and on the threshold, *"we shouldn't ignore client level rules
+set with judgment with the desk answering broadly."*
+
+**THIS DESK RECORDS NOTHING, and that is the finding rather than a defect in the
+line.** The follow-up cannot be answered by reading the file, because there is no
+such field. The engine refuses `no_field_for_this_fact`, which says the gap is in
+what the firm decided to write down rather than in what this client was asked:
+*"What if this mattered only sometimes and we never even made a field for it."*
+
 ---
 
 ## POS2 · The firm's capitalisation threshold is the de minimis ceiling — $2,500 per invoice or per item, no financial statement
@@ -59,6 +74,9 @@ position.
 **Citation:** IRS Tangible Property Final Regulations, "What is the de minimis safe harbor election?" · **Recorded:** 2026-09-05
 
 **Position:** $2,500 per invoice or per item; $5,000 where the client has an applicable financial statement
+
+**Unless:** capitalization_rule
+
 
 **Why:** Q4 asked what the firm's capitalisation threshold is, and on the close
 that produced it the judgement was made 127 times without one. The firm, 5
@@ -82,6 +100,18 @@ the client to have a book policy at the beginning of the year; the safe harbour
 protects amounts under whichever is lower, that policy or the ceiling. Setting
 the firm's default at the ceiling means the client's own policy has to say
 $2,500 too, which is POS3.
+
+**WHY THIS CARRIES AN `Unless:` LINE, added 6 September 2026 while the firm held
+it.** Their words: *"This needs to ensure that there is no already standing rule
+for that client in particular. The desk should ask that follow up if it is not
+clear, right?"* — and on the threshold, *"we shouldn't ignore client level rules
+set with judgment with the desk answering broadly."*
+
+**THIS DESK RECORDS NOTHING, and that is the finding rather than a defect in the
+line.** The follow-up cannot be answered by reading the file, because there is no
+such field. The engine refuses `no_field_for_this_fact`, which says the gap is in
+what the firm decided to write down rather than in what this client was asked:
+*"What if this mattered only sometimes and we never even made a field for it."*
 
 ---
 
@@ -113,3 +143,5 @@ consistent accounting procedure or policy existing at the beginning of the
 taxable year. If you have AFS, you must have the accounting procedures in
 writing."* Writing it down anyway is cheap and is what proves consistency, so
 this position asks for it — but it asks for it as practice, not as law.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.

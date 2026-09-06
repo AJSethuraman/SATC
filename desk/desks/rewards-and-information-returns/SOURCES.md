@@ -5,6 +5,11 @@ reached, and what may be copied here from it. `Checked` is the date a person las
 confirmed the entry against the source; a citation with no date is a claim about
 the present that nobody re-examines.
 
+**THE NUMBERING IS NOT CONTIGUOUS AND THAT IS DELIBERATE.** S13, S14 and S15
+came out of S2 on 6 September 2026 and are appended rather than inserted, because
+renumbering S3–S12 would have rewritten the `Source:` line of every passage on
+this desk to fix three. An id is a handle, not a position.
+
 **Nothing here is a default.** A source missing any field is a parse error rather
 than a guess, because a field that was never read and a field that was empty look
 identical downstream. Where a source permits storing, `Why` carries the term that
@@ -34,15 +39,53 @@ that is the desk reporting the state of the authority rather than a defect.
 
 ---
 
-## S2 · Internal Revenue Code §§ 6041, 6041A, 6050W, 6071 — information at source
+## S2 · Internal Revenue Code § 6041 — Information at source
 
-**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-05
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-06
 
-**Citation prefix:** 26 USC
+**Citation prefix:** 26 USC 6041
 
 **Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041&num=0&edition=prelim
 
-**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. The four sections are one source because they are one document reached one way and they carry the same tier, access and licence; they are cited apart. Each page states its own currency, and the pages read on 5 September 2026 say "Text contains those laws in effect on September 4, 2026" — which matters more here than usual, because § 6041(a) was amended in 2025 and the regulation under it was not.
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. § 6041(a) was amended to $2,000 in 2025 and the regulation under it was not, which is why the page's own currency line matters more here than usual: read on 6 September 2026 it says "Text contains those laws in effect on September 5, 2026".
+
+**THIS ENTRY WAS FOUR SECTIONS UNTIL 6 SEPTEMBER 2026, AND THE TIE-OUT IS WHAT FOUND IT.** It read "§§ 6041, 6041A, 6050W, 6071 — information at source" and carried the single URL above, on the reasoning that "the four sections are one document reached one way". They are not one document. That URL is the granule for § 6041 and serves only § 6041 — checked: the stored text for 6041A, 6050W and 6071 is ABSENT from it, longest matching prefix three characters. All six passages are verbatim correct, so nothing served was ever wrong and no test in this repository could have seen it; only following the link could. Right text, wrong link. The firm, on the fourth docket: "Split into four."
+
+---
+
+## S13 · Internal Revenue Code § 6041A — Returns regarding remuneration for services and direct sales
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-06
+
+**Citation prefix:** 26 USC 6041A
+
+**Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041A&num=0&edition=prelim
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Split out of S2 on 6 September 2026. Its own page, its own granule: "Text contains those laws in effect on September 5, 2026". THE PREFIX BOUNDARY IS LOAD-BEARING — `26 USC 6041` and `26 USC 6041A` overlap as strings, and `record.from_source` is what keeps them apart, because the character after a prefix must not be alphanumeric. Without that rule this split would have silently pointed every 6041A citation at S2.
+
+---
+
+## S14 · Internal Revenue Code § 6050W — Returns relating to payments made in settlement of payment card and third party network transactions
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-06
+
+**Citation prefix:** 26 USC 6050W
+
+**Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6050W&num=0&edition=prelim
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Split out of S2 on 6 September 2026. Its own page: "Text contains those laws in effect on September 5, 2026". This is the statute behind § 1.6050W-1 (S6), which is where the payment-app question is actually decided; the two are cited apart because one is the Code and the other the regulation under it.
+
+---
+
+## S15 · Internal Revenue Code § 6071 — Time for filing returns and other documents
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-06
+
+**Citation prefix:** 26 USC 6071
+
+**Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6071&num=0&edition=prelim
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Split out of S2 on 6 September 2026. **It is not even in the same Part of the Code as the other three** — §§ 6041, 6041A and 6050W sit under Subchapter A, Part III, Subpart B, and this one under Part V, "Time for Filing Returns and Other Documents". The page says so itself, which is independent evidence that the four were never one document.
 
 ---
 

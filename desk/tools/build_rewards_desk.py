@@ -308,10 +308,21 @@ SPEC = [
      "\n(ii) \nInformation returns required under other provisions", 1, 1),
     ("S3", "26 CFR 1.6041-1(a)(1)(iv)", "reg-1.6041-1",
      "(iv) \nInformation returns required under section 6050W", "\n(v) \nExamples.", 1, 1),
-    ("S3", "26 CFR 1.6041-1(a)(1)(v), Example 1", "reg-1.6041-1",
-     "Example 1.\nRestaurant owner A", "\nExample 2.", 1, 1),
-    ("S3", "26 CFR 1.6041-1(a)(1)(v), Example 2", "reg-1.6041-1",
-     "Example 2.\nRestaurant owner A", "\n(2) \nPrescribed form.", 1, 1),
+    # THE TWO EXAMPLES OF (a)(1)(v) ARE DELIBERATELY NOT SLICED, and putting
+    # them back is a desk-wide outage rather than one bad passage.
+    #
+    # They are worked examples end to end, and they are IR4 and IR5 -- the
+    # problems' fact patterns were lifted from them, so the stored text carried
+    # each problem's own conclusion. `check_no_leak` sweeps EVERY problem for
+    # EVERY prompt, so two stored examples blocked all nineteen problems on this
+    # desk, and a blocked problem is recorded as an escalation, which this
+    # scoreboard reports as a SUCCESS. Measured 6 September 2026: 19 of 19.
+    #
+    # Nothing an answerer needs is lost. Each example names the paragraph it
+    # applies -- "Under paragraph (a)(1)(iv) of this section" -- and that rule is
+    # sliced above. The corpus is the rules; the worked examples are the
+    # questions. `tests/test_corpus_is_rules.py` fails on the commit that
+    # reintroduces one.
     ("S3", "26 CFR 1.6041-1(b)(1)", "reg-1.6041-1",
      "(b) \nPersons engaged in trade or business", "\n(2) \nSpecial rule for REMICs.", 1, 1),
     ("S3", "26 CFR 1.6041-1(d)(2)", "reg-1.6041-1",
