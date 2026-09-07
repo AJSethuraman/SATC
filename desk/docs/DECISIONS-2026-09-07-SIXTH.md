@@ -107,3 +107,40 @@ with no access to that machine, its Chrome, or its GPU.
 So the searcher design has been drawn around a machine that is not connected to
 anything. That is not a detail — it is the reason `dec-searcher-scope` could not
 have been answered usefully, and the firm spotted it before this session did.
+
+---
+
+## Built, 7 September 2026: the searcher, and the docket card that asked twice
+
+**The whitelist died on one question.** *"how would you know you need to access a
+site not on the whitelist before being asked?"* You cannot ask permission for a
+site you do not yet know you need, so an allow-list makes discovery the one thing
+the discovery tool cannot do. `searching.py` looks anywhere; the gate is on the
+record, not on the reaching. `desk/runs/2026-09-07/SEARCH.md` is the first real
+run: § 1.162-3 found through a live search, two passages tied out at eCFR and
+Cornell, both held back as source proposals because neither publisher is declared
+on `fixed-assets`.
+
+**And a second complaint the same day, which was not about positions at all.**
+*"i have no clue why you will even ask me things on the docket like 'should i
+ratify this' when your last thing is a recommendation saying 'i wouldn't activate
+this, it is missing a field'."*
+
+I had been measuring the wrong thing — word counts and sentence shapes in the
+POSITIONS. The dribble is the CARD. Two faults, both now structural rather than
+stylistic:
+
+- The recommendation sat last, under four labelled blocks, so the reader
+  assembled the point before reaching it. It now leads, directly under the title,
+  and the supporting blocks are one click away.
+- The picks were a constant that never read the recommendation, so the fifth
+  docket offered **Ratify it** first on two cards whose own recommendation said
+  do not ratify. A recommendation now names its pick, that pick is offered first,
+  and a card recommending something it does not offer raises `DocketError` at
+  build time. The preface's held-back count reads the same field instead of
+  matching the phrase "Do not ratify" in prose.
+
+**Two cards were asking settled questions and are gone**: the search-scope card
+(you answered it) and the merge card for #300 (it merged). Replaced by the two
+decisions that are actually open — admitting eCFR and Cornell for § 1.162-3, and
+merging #305.

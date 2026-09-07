@@ -97,38 +97,46 @@ OTHERS = [
   "rec": "Redraft them. You have now objected to the wording of a position twice on "
          "two dockets, which is the strongest signal available that it is the wording "
          "and not the rule that is blocking you.",
+  "rec_pick": 'Redraft them',
   "picks": ["Redraft them", "Leave the wording alone", "Redraft just this one",
             "Not yet"]},
 
- {"key": "dec-searcher-scope", "new": True, "group": "The searching agent",
-  "tag": "Blocks the rest of the design",
-  "title": "When a desk has no answer, where may it go looking?",
-  "position": "Limit the search to the eCFR, IRS.gov and the US Code.",
-  "context": "You asked for an agent that goes and finds authority when a desk cannot "
-             "answer, and checks what it finds the way we check everything else.<br><br>"
-             "<b>Measuring first changed the design.</b> Of the 30 recorded failures "
-             "from your September close, 11 were \u201cno authority on file\u201d "
-             "\u2014 the rest needed a document or an answer from the client, which no "
-             "amount of searching fixes.<br><br><b>And the missing rule is almost "
-             "always on a site we already use.</b> Tax law lives on three: the eCFR, "
-             "IRS.gov and the US Code. A real example from your own record: one rule we "
-             "hold switches itself off for tips covered by <b>section 6053</b>, and we "
-             "do not hold section 6053. That is not an open-internet problem \u2014 it "
-             "is a page on a site we already trust that nobody has fetched.",
-  "either": [("Those three sites only",
-              "Everything it finds is a source you have already accepted, so nothing "
-              "waits on a new decision about whether we may copy from it. It can run "
-              "unattended. It will not find court decisions or anything in a paid "
-              "database."),
-             ("Let it search anywhere",
-              "It could reach case law and commentary. But then something has to judge "
-              "whether a page is authority at all \u2014 a law firm\u2019s marketing "
-              "page is not \u2014 and that judgement is the part with no safe default.")],
-  "rec": "Those three sites, at first. It is where nearly all of it is, and it is the "
-         "version that can run without you in the room. Widening later costs nothing; "
-         "starting wide means the first thing it does is make a legal call.",
-  "picks": ["Those three sites only", "Let it search anywhere",
-            "Add one more site \u2014 I will say which", "Not yet"]},
+ {"key": "dec-admit-publishers", "new": True, "group": "The searching agent",
+  "tag": "Built and run \u2014 one decision left",
+  "title": "Two publishers tied out. Do they become sources?",
+  "position": "Admit eCFR and Cornell\u2019s LII on fixed-assets, for \u00a7 1.162-3.",
+  "context": "<b>Your question killed the design I was about to build.</b> I had the "
+             "searcher limited to three sites you already trust. You wrote: <i>\u201chow "
+             "would you know you need to access a site not on the whitelist before being "
+             "asked?\u201d</i> You cannot ask permission for a site you do not yet know "
+             "you need \u2014 so a list of approved sites means it can only ever find "
+             "what we already have.<br><br><b>So it looks anywhere, and the gate is on "
+             "keeping, not looking.</b> Nothing it finds goes into the record unless the "
+             "words are still on the publisher\u2019s own page today AND the publisher is "
+             "one you have accepted. Anything else comes to you, like this.<br><br>"
+             "<b>One real question, run through it.</b> The fixed-assets desk holds "
+             "\u00a7 1.263(a)-3, whose own examples point at \u00a7 1.162-3 \u2014 and it "
+             "cannot follow the pointer. One search, eight results, four passages read: "
+             "two are real and check out, one was too short to prove which paragraph it "
+             "came from, one site refused us. The two that check out are the definition "
+             "of materials and supplies, and the desk cannot use either until you say "
+             "where it may read them from.",
+  "either": [("Admit both",
+              "The desk answers materials-and-supplies questions instead of handing "
+              "them back. Both are free government-text publishers; eCFR is the "
+              "government\u2019s own and Cornell\u2019s is a university library. Nothing "
+              "is copied that is not checked against the publisher first."),
+             ("Leave the gap open",
+              "The desk keeps refusing the question, which is honest \u2014 it is not "
+              "guessing. The cost is that this comes back to you every time somebody "
+              "asks about spare parts, and the searcher will keep finding the same two "
+              "pages.")],
+  "rec": "Admit eCFR and leave Cornell for now. eCFR is the government publishing its "
+         "own regulation and you already rely on it for \u00a7 1.263(a)-3 \u2014 this is "
+         "the same site, one section over. Cornell is a faithful copy rather than the "
+         "source, so it earns nothing eCFR does not already give us.",
+  "rec_pick": "Admit eCFR only",
+  "picks": ["Admit eCFR only", "Admit both", "Leave the gap open", "Not yet"]},
 
  {"key": "dec-parser", "new": True, "group": "The record",
   "tag": "31 examples, and it turned into a research problem",
@@ -157,31 +165,35 @@ OTHERS = [
   "rec": "One timeboxed attempt. The pass mark is real and unfakeable, so it cannot "
          "quietly half-work \u2014 but it is now a research problem rather than a typo, "
          "and I would stop rather than loosen the check to get a number.",
+  "rec_pick": 'Have another go',
   "picks": ["Have another go", "Leave them", "Not yet"]},
 
- {"key": "dec-merge-300", "new": True, "group": "Housekeeping",
-  "tag": "10 commits, everything verified",
-  "title": "Merge tonight\u2019s work?",
-  "position": "Merge <a href='https://github.com/AJSethuraman/SATC/pull/300'>#300</a>.",
-  "context": "The desks went from 531 to 727 stored passages, and from 4 worked "
-             "examples to 200. <b>Every one of the 727 was fetched back from the "
-             "publisher and compared word for word</b> \u2014 0 differences, 0 "
-             "unreachable \u2014 and against last week\u2019s text rather than "
-             "January\u2019s, which is a second thing that was quietly wrong and is "
-             "now fixed.<br><br>Five defects surfaced on the way, four of them mine, "
-             "all fixed and guarded. Three things I told you turned out to be wrong "
-             "and are corrected in the record rather than dropped.<br><br>561 tests "
-             "pass. The desk job is green.",
+ {"key": "dec-merge-305", "new": True, "group": "Housekeeping",
+  "tag": "The searcher \u2014 569 tests, desk job green",
+  "title": "Merge the searching agent?",
+  "position": "Merge <a href=\'https://github.com/AJSethuraman/SATC/pull/305\'>#305</a>.",
+  "context": "<b>#300 is already in.</b> That was the worked examples \u2014 531 to 727 "
+             "stored passages, 4 to 200 examples, every one fetched back from its "
+             "publisher and compared word for word. It merged clean and this card is "
+             "not asking about it again.<br><br>This is the searcher: it looks anywhere, "
+             "checks what it finds against the publisher\u2019s own page, and can put "
+             "nothing in the record without you. 47 new tests, and I broke seven of its "
+             "safety rules on purpose to confirm the tests catch each one.<br><br>"
+             "<b>Two defects of my own turned up by running it for real</b>, both fixed "
+             "here: it recognised only one of the two web addresses eCFR uses for the "
+             "same page, and it recorded the address it asked for rather than the one "
+             "the words actually came from.",
   "either": [("Merge it",
-              "It goes to <code>main</code>. Nothing here touches a client file or "
-              "anything a client sees."),
+              "It goes to <code>main</code>. Nothing here touches a client file, "
+              "anything a client sees, or any desk\u2019s record \u2014 the searcher "
+              "cannot write to a desk at all."),
              ("Hold it",
               "It sits on the branch. Nothing else is waiting on it, so holding costs "
               "nothing except that the next piece of work starts further from "
               "<code>main</code>.")],
-  "rec": "Merge it. It is additive to the record, every passage is verified against "
-         "its publisher, and the parts I am least sure about are written down as open "
-         "rather than shipped as done.",
+  "rec": "Merge it. It adds a tool and no authority \u2014 the two passages it found are "
+         "on the card above, waiting on you, and neither is in the record.",
+  "rec_pick": "Merge it",
   "picks": ["Merge it", "Hold it", "Not yet"]},
 
  {"key": "dec-courts-again", "group": "Sources",
@@ -210,6 +222,7 @@ OTHERS = [
   "rec": "Keep them closed and let the searching agent answer the question underneath "
          "it \u2014 which sources would actually settle the questions that keep coming "
          "to you. That is a measurement, not a policy change.",
+  "rec_pick": 'Keep hosts closed',
   "picks": ["Keep hosts closed", "Open the hosts", "Look into LexisNexis first",
             "Not yet"]},
 ]
@@ -219,7 +232,7 @@ CHANGED = [
  ("727 of 727", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("4 \u2192 200", "worked examples the desks hold", "the government applying its own rules to real facts"),
  ("531 \u2192 727", "stored passages in all", "262,000 characters of authority to 497,000"),
- ("561", "desk tests passing", "514 before the searcher; 470 when this branch started"),
+ ("569", "desk tests passing", "514 before the searcher; 470 when this branch started"),
 ]
 
 LANDED = [
@@ -324,6 +337,47 @@ def _md(t: str) -> str:
     return out.replace("\n\n", "</p><p>").replace("\n", " ")
 
 
+class DocketError(Exception):
+    """A card that would ask a question it has already answered."""
+
+
+#: The picks a proposed position is offered. Held here rather than beside each
+#: position because the choice is the same one every time: it is the firm's own
+#: words being ratified, not a design decision with alternatives.
+POSITION_PICKS = ("Ratify it", "Ratify with an edit", "No", "Not yet")
+
+
+def _ordered(row: dict) -> list:
+    """The picks with the recommended one first, checked against the reasoning.
+
+    THE FIRM, 7 SEPTEMBER 2026: *"i have no clue why you will even ask me things
+    on the docket like 'should i ratify this' when your last thing is a
+    recommendation saying 'i wouldn't activate this, it is missing a field'."*
+
+    That is exactly what the fifth docket did. Two capitalisation positions
+    carried a recommendation reading "do not ratify until the field exists" and
+    the buttons underneath still led with **Ratify it** — because the
+    recommendation was prose and the picks were a constant that nothing read. The
+    page argued one way and asked the other, and the reader had to notice.
+
+    So the recommendation now NAMES its pick, and a card whose recommendation
+    argues for something it does not offer fails the build. Not a review note: a
+    reviewer catching this is a reviewer who has to read every card against its
+    own buttons, which is the work the generator exists to remove.
+    """
+    picks, pick = list(row["picks"]), row.get("rec_pick", "")
+    rec = row.get("rec") or (row.get("note") or {}).get("rec", "")
+    if rec and not pick:
+        raise DocketError(
+            f"{row['key']} recommends something and does not say which pick it "
+            f"means. Name it in `rec_pick`, from: {picks}")
+    if pick and pick not in picks:
+        raise DocketError(
+            f"{row['key']} recommends {pick!r}, which is not one of the buttons "
+            f"it offers: {picks}. The card would ask a question it has answered.")
+    return ([pick] + [x for x in picks if x != pick]) if pick else picks
+
+
 def items():
     rows = []
     for p in positions():
@@ -341,10 +395,13 @@ def items():
             "unlocks": p["unlocks"],
             "why": _md(p["why"]),
             "note": p["note"],
-            "picks": ["Ratify it", "Ratify with an edit", "No", "Not yet"],
+            "rec_pick": (p["note"] or {}).get("rec_pick", ""),
+            "picks": list(POSITION_PICKS),
         })
     for o in OTHERS:
         rows.append(dict(o, kind="decision"))
+    for r in rows:
+        r["picks"] = _ordered(r)
     return rows
 
 
@@ -375,7 +432,8 @@ def _counted():
     # A POSITION THIS DOCKET ITSELF SAYS TO HOLD BACK, read off the note rather
     # than counted by hand -- the preface states how many are answerable now, and
     # a number typed there goes stale the moment one is ratified.
-    waiting = [r for r in pos if "Do not ratify" in (r["note"] or {}).get("rec", "")]
+    waiting = [r for r in pos if r["rec_pick"] not in ("Ratify it",
+                                                      "Ratify with an edit")]
     # NEW SINCE THE LAST DOCKET, and where each came from. The preface said
     # "four ... came out of the tie-out" and that was wrong by one: three came
     # from the tie-out and the fourth from a CI failure the same night. Flagged
@@ -539,6 +597,17 @@ h3.t{font-size:1.28rem;line-height:1.26;margin:0 0 .7rem}
 .blk.silent h4{color:var(--amber)}
 .blk.rec{background:var(--soft);border-left:2px solid var(--ink)}
 .blk.rec h4{color:var(--ink)}
+/* THE RECOMMENDATION LEADS. It sat last, under four labelled blocks, and the
+   reader had to assemble the point before reaching it. */
+.reclead{margin:.8rem 0;padding:.7rem .9rem;background:var(--sheet);
+ border:1px solid var(--ink);border-left-width:3px}
+.reclead h4{margin:0 0 .25rem;font-size:.66rem;letter-spacing:.09em;
+ text-transform:uppercase;font-family:"Public Sans",sans-serif;color:var(--ink)}
+.reclead p{margin:0;max-width:64ch;font-size:1rem}
+.pick.is-rec{border-color:var(--ink);font-weight:600}
+.pick.is-rec::after{content:" \u00b7 recommended";font-weight:400;
+ font-size:.72rem;color:var(--ink3)}
+.pick.is-rec[aria-pressed="true"]::after{color:inherit}
 details.why{margin:.8rem 0}
 details.why summary{cursor:pointer;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
  color:var(--ink3);font-weight:700}
@@ -651,25 +720,32 @@ function card(d) {
       <span class="chip kind">${kindLabel}</span>
     </div>
     <h3 class="t">${esc(d.title)}</h3>
+    ${(n.rec || d.rec) ? `<div class="reclead"><h4>What I would do</h4><p>${n.rec || esc(d.rec)}</p></div>` : ""}
     <div class="says"><b>${d.kind === "decision" ? "What I would put in place" : "What the desk would say, in your words"}</b>&ldquo;${esc(d.position)}&rdquo;</div>
     ${d.citation ? `<div class="rests">Rests on <span class="c">${esc(d.citation)}</span><br>${esc(d.source)}</div>` : ""}
     ${d.context ? `<p class="ctx">${d.context}</p>` : ""}
-    ${n.read ? `<div class="blk rec"><h4>Before you decide</h4><p>${n.read}</p></div>` : ""}
-    ${n.for ? `<div class="blk for"><h4>What supports it</h4><p>${n.for}</p></div>` : ""}
-    ${n.against ? `<div class="blk against"><h4>What cuts against it</h4><p>${n.against}</p></div>` : ""}
-    ${n.silent ? `<div class="blk silent"><h4>What the authority does not say</h4><p>${n.silent}</p></div>` : ""}
     ${(d.either || []).map((e, i) => `<div class="blk ${i === 0 ? "for" : "against"}"><h4>${esc(e[0])}</h4><p>${esc(e[1])}</p></div>`).join("")}
-    ${d.kind === "position" ? `<div class="blk rec"><h4>What saying yes changes</h4><p>${
-      d.unlocks > 0
-        ? `<b>${d.unlocks}</b> of this desk's scored problems turn on this exact citation, so ratifying makes them answerable.`
-        : `<b>No scored problem changes.</b> What changes is that the desk stops handing the question back and starts saying ${d.shape === "rule" ? "what to do next" : "this, in your words, with the citation behind it"}.`
-    }</p></div>` : ""}
-    ${(n.rec || d.rec) ? `<div class="blk rec"><h4>What I would do</h4><p>${n.rec || esc(d.rec)}</p></div>` : ""}
-    ${d.why ? `<details class="why"><summary>The full reasoning as drafted</summary><div class="d"><p>${d.why}</p></div></details>` : ""}
+    ${n.against ? `<div class="blk against"><h4>What cuts against it</h4><p>${n.against}</p></div>` : ""}
+    ${(() => {
+      const more = [
+        n.read ? `<div class="blk rec"><h4>Before you decide</h4><p>${n.read}</p></div>` : "",
+        n.for ? `<div class="blk for"><h4>What supports it</h4><p>${n.for}</p></div>` : "",
+        n.silent ? `<div class="blk silent"><h4>What the authority does not say</h4><p>${n.silent}</p></div>` : "",
+        d.kind === "position" ? `<div class="blk rec"><h4>What saying yes changes</h4><p>${
+          d.unlocks > 0
+            ? `<b>${d.unlocks}</b> of this desk's scored problems turn on this exact citation, so ratifying makes them answerable.`
+            : `<b>No scored problem changes.</b> What changes is that the desk stops handing the question back and starts saying ${d.shape === "rule" ? "what to do next" : "this, in your words, with the citation behind it"}.`
+        }</p></div>` : "",
+        d.why ? `<div class="blk"><h4>The full reasoning as drafted</h4><p>${d.why}</p></div>` : "",
+      ].filter(Boolean);
+      return more.length
+        ? `<details class="why"><summary>What else I looked at (${more.length})</summary><div class="d">${more.join("")}</div></details>`
+        : "";
+    })()}
     <div class="answer">
       <label for="ta-${d.key}">Your answer</label>
       <div class="picks">
-        ${d.picks.map(p => `<button type="button" class="pick" data-choice="${esc(p)}" aria-pressed="${s.choice === p}">${esc(p)}</button>`).join("")}
+        ${d.picks.map(p => `<button type="button" class="pick${p === d.rec_pick ? " is-rec" : ""}" data-choice="${esc(p)}" aria-pressed="${s.choice === p}">${esc(p)}</button>`).join("")}
       </div>
       <textarea id="ta-${d.key}" placeholder="Reword it and I will use your words, not the draft's.">${esc(s.notes || "")}</textarea>
       <div class="saved" role="status" aria-live="polite"></div>
