@@ -182,9 +182,26 @@ def serve_answers(path: Path) -> int:
             "checked_subject": out.checked_subject if ok else None,
             "reason": "" if ok else out.reason,
             "detail": "" if ok else out.detail,
+            # THE CHAIN, CARRIED. `engine.Refusal` sets `fact` and
+            # `by_position` together on exactly the refusals that turn on a
+            # fact, and the firm made that pair the CONDITION of a desk being
+            # allowed to ask for a field: *"that seems low stakes and required
+            # and i would approve it fairly easily"* -- on the ask arriving with
+            # which position wanted it. This writer recorded the reason and the
+            # prose and dropped both, so `tools/holes.py` read a run's holes
+            # unable to name the field or the position, and the only way back to
+            # either was parsing `detail`'s sentence -- which is inferring, the
+            # one thing none of this may do.
+            "fact": "" if ok else out.fact,
+            "by_position": "" if ok else out.by_position,
             "working": a.get("working", ""),
         })
-    out_path = BRIEFS / "served.json"
+    # BESIDE THE ANSWERS IT SERVED, not in a directory named after today. This
+    # wrote to `runs/asked-<today>/` whatever it was handed, so re-serving an
+    # earlier run landed its result in a run it was not from, and the evening's
+    # re-ask had to be moved by hand. A record of what the desks did belongs
+    # with the input that produced it, or the two drift.
+    out_path = path.resolve().parent / "served.json"
     out_path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     print(f"{len(rows)} answers · {served} the engine would serve · "
           f"{refused} it would refuse")
@@ -194,7 +211,13 @@ def serve_answers(path: Path) -> int:
         mark = "SERVED " if r["served"] else "REFUSED"
         print(f"  {mark} Q{r['q']:<3} {r['desk']:<32} "
               f"{r['position'] or r['reason']}")
-    print(f"\n-> {out_path.relative_to(HERE)}")
+    # `relative_to` RAISES rather than falling back, and this ran from a path
+    # outside the tree the first time it was pointed at one.
+    try:
+        shown = out_path.relative_to(HERE)
+    except ValueError:
+        shown = out_path
+    print(f"\n-> {shown}")
     return 0
 
 

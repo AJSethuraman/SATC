@@ -100,14 +100,26 @@ point of step 4:
 | `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | you decide the fact exists at all |
 
 The second is a **hole in what the firm tracks**, and it is found by doing real
-work rather than by auditing. Read them out:
+work rather than by auditing. Read them out — and note the path takes the
+version from the listing rather than a number typed here, for the same reason as
+above:
 
 ```
-python3 ~/.claude/plugins/cache/satc/desk/0.6.0/tools/holes.py
+python3 ~/.claude/plugins/cache/satc/desk/$(python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])")/tools/holes.py
 ```
 
-Holes first, then gaps, never summed. **As of 7 September it reports no holes** —
-the mechanism is live and has not fired, which is itself the finding.
+It opens by naming **what it read** — three places a refusal lands — then holes,
+then gaps, and it never adds the filed queue to the live run.
+
+**As of 7 September: no holes, and five gaps** on the close run — two desks
+waiting on `capitalization_rule`, one on `trade`, two on `taxpayer`. Each names
+the fact and the position that asked for it.
+
+**The zero was briefly wrong, and the way it was wrong is worth knowing.** The
+first version of this report read one of the three stores and printed
+*"Gaps (0) — the mechanism is live and has not fired"* while those five stood in
+the run. Nothing was broken; it was an unfinished read reported as a finding. A
+count now says what it was counted over, so you can tell the two apart.
 
 ---
 

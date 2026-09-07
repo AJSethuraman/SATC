@@ -10,8 +10,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The paragraph settles the half of the question this desk's authority reaches: a taxpayer's meals not incurred travelling away from home are nondeductible personal expenses, and it names its own exception \u2014 'except as permitted under section 162 or 212'. Provision to a crew is that exception, and it is a section 162 question this desk holds no authority on. So the supermarket line is personal until somebody says who ate it.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The paragraph settles the half of the question this desk's authority reaches: a taxpayer's meals not incurred travelling away from home are nondeductible personal expenses, and it names its own exception \u2014 'except as permitted under section 162 or 212'. Provision to a crew is that exception, and it is a section 162 question this desk holds no authority on. So the supermarket line is personal until somebody says who ate it."
   },
   {
     "q": 8,
@@ -24,8 +25,9 @@
     "checked_subject": null,
     "reason": "context_not_on_file",
     "detail": "\"26 CFR 1.262-1(b)(8) \u2014 the test for a serviceman's equipment\" is answered by the firm's position POS1, which cannot be applied without trade on file. That is the engagement's to record, not the client's to be asked",
-    "working": "This is the firm's own ratified position and it is squarely the question. The regulation's test is whether the equipment is especially required by the profession and does not merely take the place of articles required in civilian life \u2014 the item and the profession, not the seller. The close raised this as 'whatever card it was bought on', which is the same point from the other side.",
-    "showed": 0
+    "fact": "trade",
+    "by_position": "POS1",
+    "working": "This is the firm's own ratified position and it is squarely the question. The regulation's test is whether the equipment is especially required by the profession and does not merely take the place of articles required in civilian life \u2014 the item and the profession, not the seller. The close raised this as 'whatever card it was bought on', which is the same point from the other side."
   },
   {
     "q": 18,
@@ -38,8 +40,9 @@
     "checked_subject": null,
     "reason": "authority_absent",
     "detail": "escalated by the desk",
-    "working": "This desk's authority draws the personal/business line \u2014 \u00a7 1.262-1, \u00a7 1.162-1 and Pub 587. Nothing in it settles the expense/asset line. \u00a7 1.162-1(a) lists 'supplies' and 'incidental repairs' among business expenses and stops there; the test for when a purchase must be capitalised instead is \u00a7 1.263(a)-3, which this desk does not hold. The question is real and reaches the wrong desk.",
-    "showed": 34
+    "fact": "",
+    "by_position": "",
+    "working": "This desk's authority draws the personal/business line \u2014 \u00a7 1.262-1, \u00a7 1.162-1 and Pub 587. Nothing in it settles the expense/asset line. \u00a7 1.162-1(a) lists 'supplies' and 'incidental repairs' among business expenses and stops there; the test for when a purchase must be capitalised instead is \u00a7 1.263(a)-3, which this desk does not hold. The question is real and reaches the wrong desk."
   },
   {
     "q": 31,
@@ -52,8 +55,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position on the general rule, and it answers the close's point directly. The close is right that the money left the account and must land somewhere; the position says where it must NOT land on the strength of a bank feed alone \u2014 owner draws, decided from the seller's name. The line is flagged and asked about, which keeps the bank reconcilable without deciding what was bought from evidence that cannot say.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position on the general rule, and it answers the close's point directly. The close is right that the money left the account and must land somewhere; the position says where it must NOT land on the strength of a bank feed alone \u2014 owner draws, decided from the seller's name. The line is flagged and asked about, which keeps the bank reconcilable without deciding what was bought from evidence that cannot say."
   },
   {
     "q": 33,
@@ -66,8 +70,9 @@
     "checked_subject": null,
     "reason": "facts_not_established",
     "detail": "escalated by the desk",
-    "working": "The rule is clear and this desk holds it: \u00a7 1.162-1(a) allows the ordinary and necessary expenditures directly connected with or pertaining to the trade or business, and \u00a7 1.262-1(a) disallows personal expenses. What decides this subscription is a fact about the client \u2014 whether the business has a space where the service is played for customers, which is what the close means by 'a waiting room'. A card statement cannot carry that, and nothing on file records it.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The rule is clear and this desk holds it: \u00a7 1.162-1(a) allows the ordinary and necessary expenditures directly connected with or pertaining to the trade or business, and \u00a7 1.262-1(a) disallows personal expenses. What decides this subscription is a fact about the client \u2014 whether the business has a space where the service is played for customers, which is what the close means by 'a waiting room'. A card statement cannot carry that, and nothing on file records it."
   },
   {
     "q": 18,
@@ -80,8 +85,9 @@
     "checked_subject": null,
     "reason": "citation_does_not_support",
     "detail": "the question is about bank, which this desk answers from S2; '26 CFR 1.446-1(a)(4)(ii)' comes from S1. A citation from a source the desk does not use for this subject is not this question's authority, however real it is",
-    "working": "The paragraph answers the question as asked and does it in the regulation's own words: expenditures made during the year 'shall be properly classified as between capital and expense', and its example is plant and equipment with a useful life extending substantially beyond the taxable year. So a hardware-store line can absolutely be an asset. What the rule needs and a bank feed does not carry is what the line was \u2014 which is the close's own point about line detail, not a gap in the authority.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The paragraph answers the question as asked and does it in the regulation's own words: expenditures made during the year 'shall be properly classified as between capital and expense', and its example is plant and equipment with a useful life extending substantially beyond the taxable year. So a hardware-store line can absolutely be an asset. What the rule needs and a bank feed does not carry is what the line was \u2014 which is the close's own point about line detail, not a gap in the authority."
   },
   {
     "q": 31,
@@ -94,8 +100,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position, and it settles exactly the distinction the close is drawing. A reconciling item is a difference between the statement and the books that needs no entry \u2014 a cheque not yet cleared. Personal spending on the business card is not that: the money left the account, the statement and the books both have to show it, and the books are what get updated. 'Excluded' would make it a reconciling item, which it is not, and the account would be out by that amount.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position, and it settles exactly the distinction the close is drawing. A reconciling item is a difference between the statement and the books that needs no entry \u2014 a cheque not yet cleared. Personal spending on the business card is not that: the money left the account, the statement and the books both have to show it, and the books are what get updated. 'Excluded' would make it a reconciling item, which it is not, and the account would be out by that amount."
   },
   {
     "q": 6,
@@ -108,8 +115,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position and it is this question exactly. It also corrects the close's premise: a taproom charge is not entertainment by virtue of being a taproom. Drink is food or beverage at 50 percent, and it becomes entertainment only where the record shows it was provided at or during an entertainment activity. The vendor's name decides neither, which is why the third outcome -- held for the client -- exists.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position and it is this question exactly. It also corrects the close's premise: a taproom charge is not entertainment by virtue of being a taproom. Drink is food or beverage at 50 percent, and it becomes entertainment only where the record shows it was provided at or during an entertainment activity. The vendor's name decides neither, which is why the third outcome -- held for the client -- exists."
   },
   {
     "q": 7,
@@ -122,8 +130,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position, on the paragraph stating the three conditions it turns on -- not lavish, the taxpayer or an employee present, provided to the taxpayer or a business associate. It answers the close's 'third answer' point directly: 100 percent is reachable, but only where the record NAMES which exception in \u00a7 1.274-12(c)(2) is claimed. Absent that the line is flagged rather than booked at either rate.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position, on the paragraph stating the three conditions it turns on -- not lavish, the taxpayer or an employee present, provided to the taxpayer or a business associate. It answers the close's 'third answer' point directly: 100 percent is reachable, but only where the record NAMES which exception in \u00a7 1.274-12(c)(2) is claimed. Absent that the line is flagged rather than booked at either rate."
   },
   {
     "q": 33,
@@ -136,8 +145,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The objective test settles it and it is written to defeat exactly the argument the question raises: if an activity is generally considered to be entertainment it is treated as entertainment 'regardless of whether the expenditure can also be described otherwise, and even though the expenditure relates to the taxpayer alone'. Television streaming is generally considered entertainment, so calling it a business subscription does not move it, and \u00a7 1.274-11(a) disallows the expenditure. The waiting room in the question is a different question: whether a display for clients is ordinary and necessary under section 162 is not this desk's authority, and the desk does not reach it.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The objective test settles it and it is written to defeat exactly the argument the question raises: if an activity is generally considered to be entertainment it is treated as entertainment 'regardless of whether the expenditure can also be described otherwise, and even though the expenditure relates to the taxpayer alone'. Television streaming is generally considered entertainment, so calling it a business subscription does not move it, and \u00a7 1.274-11(a) disallows the expenditure. The waiting room in the question is a different question: whether a display for clients is ordinary and necessary under section 162 is not this desk's authority, and the desk does not reach it."
   },
   {
     "q": 9,
@@ -150,8 +160,9 @@
     "checked_subject": null,
     "reason": "context_not_on_file",
     "detail": "'PLR 201027015, LAW AND ANALYSIS' is answered by the firm's position POS1, which cannot be applied without taxpayer on file. That is the engagement's to record, not the client's to be asked",
-    "working": "The firm's ratified position, and it is the close's own point in the firm's words: a reward earned on spending reduces what was paid rather than adding to what was earned. It also says where it goes -- against the cost it arose from -- which is what stops a Credit Card Rewards income account being created and overstating taxable income.",
-    "showed": 0
+    "fact": "taxpayer",
+    "by_position": "POS1",
+    "working": "The firm's ratified position, and it is the close's own point in the firm's words: a reward earned on spending reduces what was paid rather than adding to what was earned. It also says where it goes -- against the cost it arose from -- which is what stops a Credit Card Rewards income account being created and overstating taxable income."
   },
   {
     "q": 29,
@@ -164,8 +175,9 @@
     "checked_subject": null,
     "reason": "context_not_on_file",
     "detail": "'PLR 201027015, LAW AND ANALYSIS' is answered by the firm's position POS1, which cannot be applied without taxpayer on file. That is the engagement's to record, not the client's to be asked",
-    "working": "The same position answers it, because it is the same question asked from the other side. Q9 asks whether rewards are income; this asks whether they are revenue. The position settles both: not income, and booked against the cost that produced them. Recorded as its own answer rather than a pointer, because a close question answered by cross-reference is one nobody can check.",
-    "showed": 0
+    "fact": "taxpayer",
+    "by_position": "POS1",
+    "working": "The same position answers it, because it is the same question asked from the other side. Q9 asks whether rewards are income; this asks whether they are revenue. The position settles both: not income, and booked against the cost that produced them. Recorded as its own answer rather than a pointer, because a close question answered by cross-reference is one nobody can check."
   },
   {
     "q": 12,
@@ -178,8 +190,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position on the paragraph that defines the rail, and it is the operative half of this question. A payment for services reported by a third party payment network under section 6050W is carved out of the payor's own filing duty; one that shows no evidence of settling that way is not, so it counts toward the threshold. That is what makes tracking payee totals necessary before January rather than in it -- the position decides which payments count, and the counting cannot start after the year has closed.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position on the paragraph that defines the rail, and it is the operative half of this question. A payment for services reported by a third party payment network under section 6050W is carved out of the payor's own filing duty; one that shows no evidence of settling that way is not, so it counts toward the threshold. That is what makes tracking payee totals necessary before January rather than in it -- the position decides which payments count, and the counting cannot start after the year has closed."
   },
   {
     "q": 4,
@@ -192,8 +205,9 @@
     "checked_subject": null,
     "reason": "context_not_on_file",
     "detail": "'IRS Tangible Property Final Regulations, \"What is the de minimis safe harbor election?\"' is the firm's default position (POS2), which holds unless this client is treated differently on 'capitalization_rule'. Nothing on file says either way, and a default applied without looking is not a default",
-    "working": "The firm's ratified position, and it is the question. It also answers the close's complaint about 127 judgement calls: the threshold is per invoice or per item, so it is applied line by line by a rule rather than decided line by line by a person. The $5,000 figure is not an alternative the firm may choose -- it is what the guidance allows a taxpayer who has an applicable financial statement, which is a fact about the client.",
-    "showed": 0
+    "fact": "capitalization_rule",
+    "by_position": "POS2",
+    "working": "The firm's ratified position, and it is the question. It also answers the close's complaint about 127 judgement calls: the threshold is per invoice or per item, so it is applied line by line by a rule rather than decided line by line by a person. The $5,000 figure is not an alternative the firm may choose -- it is what the guidance allows a taxpayer who has an applicable financial statement, which is a fact about the client."
   },
   {
     "q": 16,
@@ -206,8 +220,9 @@
     "checked_subject": null,
     "reason": "context_not_on_file",
     "detail": "'IRS Tangible Property Final Regulations, \"What is the de minimis safe harbor election?\"' is the firm's default position (POS2), which holds unless this client is treated differently on 'capitalization_rule'. Nothing on file says either way, and a default applied without looking is not a default",
-    "working": "The same threshold answers it, and the close has already stated why: a purchase in the hundreds is expensed under the safe harbour and capitalised without it, so the line IS the threshold and the election. Recorded as its own answer rather than a pointer to Q4, because the asset side is where a preparer meets it. Section 179 and bonus depreciation are a different question -- they change how a capitalised asset is recovered, not whether it is capitalised -- and this desk holds no authority on either.",
-    "showed": 0
+    "fact": "capitalization_rule",
+    "by_position": "POS2",
+    "working": "The same threshold answers it, and the close has already stated why: a purchase in the hundreds is expensed under the safe harbour and capitalised without it, so the line IS the threshold and the election. Recorded as its own answer rather than a pointer to Q4, because the asset side is where a preparer meets it. Section 179 and bonus depreciation are a different question -- they change how a capitalised asset is recovered, not whether it is capitalised -- and this desk holds no authority on either."
   },
   {
     "q": 18,
@@ -220,8 +235,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "The firm's ratified position, and it adds the half the close missed. Line detail is necessary and not sufficient: the safe harbour that keeps a small purchase out of assets requires the client to have had an expensing policy, and the position says it must be recorded at engagement with its effective date. A policy written in March cannot support the safe harbour for the year being closed, so a line that could have been expensed becomes an asset for want of a document nobody asked for in January.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "The firm's ratified position, and it adds the half the close missed. Line detail is necessary and not sufficient: the safe harbour that keeps a small purchase out of assets requires the client to have had an expensing policy, and the position says it must be recorded at engagement with its effective date. A policy written in March cannot support the safe harbour for the year being closed, so a line that could have been expensed becomes an asset for want of a document nobody asked for in January."
   },
   {
     "q": 12,
@@ -234,8 +250,9 @@
     "checked_subject": null,
     "reason": "authority_absent",
     "detail": "escalated by the desk",
-    "working": "This desk holds \u00a7 1.263(a)-1 and the tangible property guidance -- when an amount paid must be capitalised rather than expensed. Nothing in it concerns information returns, payee totals or filing thresholds. The question is real and reaches the wrong desk; the rewards-and-information-returns desk is the one that holds \u00a7 6041 and \u00a7 6050W.",
-    "showed": 89
+    "fact": "",
+    "by_position": "",
+    "working": "This desk holds \u00a7 1.263(a)-1 and the tangible property guidance -- when an amount paid must be capitalised rather than expensed. Nothing in it concerns information returns, payee totals or filing thresholds. The question is real and reaches the wrong desk; the rewards-and-information-returns desk is the one that holds \u00a7 6041 and \u00a7 6050W."
   },
   {
     "q": 16,
@@ -248,8 +265,9 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "\u00a7 1.263(a)-3, which this desk was built on, decides whether money spent on property the taxpayer ALREADY OWNS is an improvement; it does not reach a purchase. \u00a7 1.263(a)-2(d)(1), declared on this desk this afternoon, draws the line the question asks for, and it names its own two exceptions -- \u00a7 1.162-3 for materials and supplies and \u00a7 1.263(a)-1(f) for the de minimis safe harbour -- both of which are authority the firm already holds. So the tool-or-asset line is not a threshold this desk invents: it is capitalise, unless one of those two carries it.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "\u00a7 1.263(a)-3, which this desk was built on, decides whether money spent on property the taxpayer ALREADY OWNS is an improvement; it does not reach a purchase. \u00a7 1.263(a)-2(d)(1), declared on this desk this afternoon, draws the line the question asks for, and it names its own two exceptions -- \u00a7 1.162-3 for materials and supplies and \u00a7 1.263(a)-1(f) for the de minimis safe harbour -- both of which are authority the firm already holds. So the tool-or-asset line is not a threshold this desk invents: it is capitalise, unless one of those two carries it."
   },
   {
     "q": 18,
@@ -262,7 +280,8 @@
     "checked_subject": true,
     "reason": "",
     "detail": "",
-    "working": "This is the paragraph the searcher found and the firm admitted eCFR for, and it is the definition the close is missing. A hardware-store line that is a component bought to maintain, repair or improve something the client already owns is a material or supply -- not a fixed asset -- unless it came as part of a single unit of property. That is the test the line detail has to answer, and it says what to look for rather than leaving 'not a consumable' as the only category on the other side.",
-    "showed": 0
+    "fact": "",
+    "by_position": "",
+    "working": "This is the paragraph the searcher found and the firm admitted eCFR for, and it is the definition the close is missing. A hardware-store line that is a component bought to maintain, repair or improve something the client already owns is a material or supply -- not a fixed asset -- unless it came as part of a single unit of property. That is the test the line detail has to answer, and it says what to look for rather than leaving 'not a consumable' as the only category on the other side."
   }
 ]
