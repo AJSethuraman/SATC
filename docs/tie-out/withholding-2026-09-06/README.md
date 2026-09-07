@@ -6,12 +6,19 @@ to end; nothing here is confirmed by SATC's own software.
 ## Roster
 
 ```
-Tied out: 29 of 30 checks
-  DIFFERS      1   the 2025 standard deduction was superseded by P.L. 119-21
-  TIED        29   18 printed bracket bases · 1 full computed figure ·
-                   5 safe-harbour parameters · 5 safe-harbour branches
+Tied out: 42 of 44 checks
+  DIFFERS      2   the 2025 standard deduction, superseded by P.L. 119-21
+                   the $400 floor on Schedule SE, absent from the engine
+  TIED        42   18 printed bracket bases · 1 full computed figure ·
+                   5 safe-harbour parameters · 5 safe-harbour branches ·
+                   5 Schedule SE constants · 8 SE computation cases
   COULD NOT    0
 ```
+
+**Both differences are fixed on `main` the day they were found.** Neither was
+findable from inside: in each case the engine's own tests work out their expected
+answers from the same constants the engine reads, so the code and the tests
+agreed with each other while both were wrong about the form.
 
 The one that differs is fixed on `main` as of the same day — see
 `satc_system/configs/crosswalk/federal/2025.yaml` and its `supersedes:` block.
@@ -47,12 +54,33 @@ on the $150,000 test — a single character — makes a taxpayer at exactly
 $150,000 of prior-year AGI pay 110% instead of 100%. Pub 505 says *"more
 than"*. That test goes red.
 
+## The Schedule SE tie-out
+
+Enforced in `satc_system/tests/test_se_tax_matches_schedule_se.py`, which carries
+every figure as a literal with its **line number on the form**.
+
+The engine had every rate and the wage base right, and implemented lines 7
+through 13 exactly — including the part most likely to be wrong, where wages
+already taxed for social security eat into the room under the cap. **It did not
+have line 4c**: *"Combine lines 4a and 4b. If less than $400, stop; you don't
+owe self-employment tax."* On net earnings of $400 it charged $56.52.
+
+The floor is tested **after** the 92.35% step, which is what line 4c does and is
+easy to get backwards: net earnings of $430 are above $400 and still owe nothing,
+because line 4a brings them to $397.10.
+
+**One thing here is inferred, not quoted.** Form 8959 line 8 reads *"your
+self-employment income from Schedule SE (Form 1040), Part I, line 6"* — a line
+you never reach when 4c stops you — so the Additional Medicare Tax sees nothing
+either. Form 8959's instructions do not address the "Schedule SE was not
+required" case. Marked as an inference in the code and the test.
+
 ## What these still do not prove
 
-The capital-gains stacking, the self-employment tax, the Additional Medicare
-Tax, the Net Investment Income Tax, the per-paycheck W-4 line 4c arithmetic, and
-the paystub reader. Each has a unit test; each of those tests works out its
-expected answer from the same constants the engine uses.
+The capital-gains stacking, the Additional Medicare Tax's own thresholds, the Net
+Investment Income Tax, the per-paycheck W-4 line 4c arithmetic, and the paystub
+reader. Each has a unit test; each of those tests works out its expected answer
+from the same constants the engine uses.
 
 State withholding is not modelled at all, and most SATC clients file an Ohio
 return.
