@@ -134,10 +134,14 @@ the IRS agrees to it sooner. It is a decision about several years, not one.
      carries the line "Setting what an S corporation owner pays themselves".
      Confirm the guide should not point at it. -->
 
-<!-- [CONFIRM: Ohio's cities. Section 04 says a city wants the wage side. What a
-     city does with an S corporation owner's share of the profit was not
-     verifiable from here and is deliberately absent. Confirm that is the right
-     scope, or supply the treatment for the firm's own catchment. -->
+<!-- RETIRED 7 Sep 2026, not answered: the Ohio's-cities marker that stood here.
+     Its own words are kept at open item 3 of SOURCES-entity-choice.md, with the
+     reasoning; they are not repeated here because the gate matches the literal
+     marker text and a quotation of a retired one would read as a live one.
+     Short version: section 04 no longer says a city wants the wage side. The
+     firm cut that at C063 ("ohio-specific stuff should maybe be shelved for
+     now") and the bullet is generic, so the marker was asking them to approve a
+     scope they had already set. It comes back if Ohio does. -->
 
 <!-- [CONFIRM: the closing line below. The firm asked for a generic one — "it
      should not be taken as advice on a particular return... make the wording

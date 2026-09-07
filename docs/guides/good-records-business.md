@@ -54,7 +54,7 @@ rather than after.
   the first year the car is used for the business. A leased car stays on that
   method for the whole lease, renewals included.
 - **Home office.** The square footage of the room and of the house, plus the
-  year's bills for the house &mdash; utilities and insurance to start with. What
+  year's bills for the house — utilities and insurance to start with. What
   counts here shifts, so send more than you think we need and ask us if you are
   unsure.
 - **Meals.** A receipt does not carry who was there or why. Write it on the

@@ -118,7 +118,7 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
 | A fund or another company cannot hold the stock | [S corporations](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporations) — "May not be partnerships, corporations or non-resident alien shareholders". A fund is named in the guide because the common ones are partnerships; the page's own category is the partnership, not the fund. **The citizenship half of this rule is stated once, in section 03**, rather than twice — repeating it tripped the page's own no-repeated-phrase check, and saying it once where the eligibility list lives is the clearer place for it |
 | One class of stock leaves no room for investor terms | [S corporations](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporations) — "Have only one class of stock". That a single class forecloses preferences and liquidation terms is the firm's own reading of the consequence, not a quotation |
 | Rental profit carries no self-employment tax to start with | **A REAL RULE, NOT A JUDGEMENT CALL — and not verifiable from here.** [Instructions for Schedule SE](https://www.irs.gov/instructions/i1040sse) fetches and does carry a "Rental real estate business" heading, but the body under it did not extract, so nothing here has read the exclusion in context. The rule is section 1402(a)(1): rents from real property are excluded from net earnings from self-employment. The guide's "to start with" is doing real work — the exclusion drops away where services are provided to occupants, as in a hotel or a bed and breakfast, and for a real estate dealer. **This row was previously filed under practice, which was the wrong bucket**: it is a statute, and it needs a citation someone can read |
-| Taking a property back out of a corporation later is taxed as though it had been sold | **UNVERIFIABLE FROM HERE, AND SAYING SO.** The cited [practice unit PDF](https://www.irs.gov/pub/fatca/int_practice_units/sco_t_010.pdf) extracts to 2,203 characters of unusable text. The rule the claim states is section 311(b), and **a practice unit is a training aid rather than authority** — if this stays in the guide it needs a citation that is both readable and primary |
+| Taking a property back out of a corporation later is taxed as though it had been sold | **CITATION REPLACED. THE PRACTICE UNIT IS OUT.** The row cited an [IRS practice unit PDF](https://www.irs.gov/pub/fatca/int_practice_units/sco_t_010.pdf) — training material rather than authority, and it extracted to 2,203 characters of unusable text, so it was never readable either. The rule is statutory and both halves of it fetch and read cleanly through this file's own `fetch()` and `strip_html()`. [26 U.S.C. § 311(b)(1)](https://www.law.cornell.edu/uscode/text/26/311): where a corporation distributes property to a shareholder and "the fair market value of such property exceeds its adjusted basis (in the hands of the distributing corporation)", then "gain shall be recognized to the distributing corporation as if such property were sold to the distributee at its fair market value". That section sits in subchapter C, and the bullet is about an S corporation, so the reach is [26 U.S.C. § 1371(a)](https://www.law.cornell.edu/uscode/text/26/1371): "subchapter C shall apply to an S corporation and its shareholders". **Two pages, both primary, both carrying the words attributed to them** — checked 7 September 2026 by fetching each with this file's own fetcher rather than by reading it in a browser |
 | Money the company borrows gives a shareholder no room to deduct losses; in a partnership it does | [S corporation stock and debt basis](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporation-stock-and-debt-basis) — the excess is deductible only "up to the shareholder's basis in loans personally made to the S corporation". A loan the company took from a bank is not one the shareholder made, which is the distinction the guide draws |
 
 ## 08 · Undoing it is slow
@@ -143,12 +143,47 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
    no further. The price page already carries the line *"Setting what an S
    corporation owner pays themselves."* Marked in the draft.
 
-3. **`[CONFIRM: Ohio's cities.]`** Section 04 says a city wants the wage side,
-   which is safe. What a city does with an S corporation owner's *share of the
-   profit* is not on the page: Ohio municipal law reaches net profit at the
-   business, and the treatment of a shareholder's distributive share turns on
-   the municipality. Verified for nothing here. Either confirm the silence or
-   supply the treatment for the firm's own catchment. Marked in the draft.
+3. **`[CONFIRM: Ohio's cities.]`** — **RETIRED 7 September 2026. The premise
+   was cut out from under it and it was never re-marked.** The original text is
+   kept below, because a question that is deleted is a question nobody can
+   audit:
+
+   > Section 04 says a city wants the wage side, which is safe. What a city
+   > does with an S corporation owner's *share of the profit* is not on the
+   > page: Ohio municipal law reaches net profit at the business, and the
+   > treatment of a shareholder's distributive share turns on the
+   > municipality. Verified for nothing here. Either confirm the silence or
+   > supply the treatment for the firm's own catchment. Marked in the draft.
+
+   **Why it is retired, and not answered.** It asks the firm to confirm the
+   scope of a sentence that is no longer on the page. When it was written,
+   section 04 read *"Ohio and the city where the work happens want their share
+   of the wage — a registration each, and returns of their own."* The firm cut
+   that at C063 in `FIRM-REVIEW.md`:
+
+   > still need more context - honestly ohio-specific stuff should maybe be
+   > shelved for now. let's focus federal then go beyond
+
+   and, on this row itself (C064):
+
+   > RITA is really integral - i'd focus RITA before Ohio. i think this is
+   > likely true? like yeah a city wants to know how much money entities made?
+
+   The bullet was genericised to *"Wages bring state and local obligations too
+   — a registration and returns for each."* — true everywhere, naming no state
+   and no city. So the guide already does the thing the marker was asking the
+   firm to approve, on the firm's own instruction, and there is nothing
+   municipal left on the page for the question to be about. Answering it would
+   mean asking the firm to rule a second time on something they already ruled.
+
+   **What is still true, and where it now lives.** Ohio's municipal treatment
+   of a shareholder's distributive share is unverified, and the firm rates RITA
+   as the piece that matters. That is not a question about this page; it is
+   work that has to happen before any municipal sentence can be written. It is
+   recorded in the row for that bullet in the table above (*"the specific
+   municipal assertion is out until someone reads a RITA business page and
+   writes down what it says"*) and it stays there. **If Ohio comes back off the
+   shelf, this marker comes back with it.**
 
 4. **`[CONFIRM: the closing not-advice line.]`** The firm settled that there
    should be one and how it should read — *"it should not be taken as advice on

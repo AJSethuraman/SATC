@@ -776,3 +776,108 @@ wrong tool: it is session-only and would not have survived the night.
 - **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
   Deferred deliberately; the disk holding the vault is unencrypted and the
   recovery key must go to Bitwarden before it is turned on.
+
+---
+
+## Sunday 7 September 2026 — the guides' open questions, and one that was live and wrong
+
+**Goal:** the three client guides carry wording the firm has approved, and the
+questions they have not answered are answered. Done is every `[CONFIRM:]` gone
+and `python3 website/build-guides.py --publish-ready` exiting 0.
+
+**Distance at the close: 5 markers open at the start, 4 open now.** One was
+retired. Two of the remaining four are one question asked twice, and the other
+two are a second question asked twice, so what is actually outstanding is **two
+decisions, both the firm's, neither of which a session may make for them.** Both
+are written up as answerable questions with a recommendation and the exact diff
+that lands on a yes.
+
+### Found by reading the live page, which no check does
+
+`satcllp.com/guides/business-records.html` section 04 has been printing
+**`&mdash;`** as literal text to every visitor since the guides went live on
+7 September. `good-records-business.md` line 57 carried an HTML entity in a
+Markdown draft, and `build-guides.py` escapes `&` to `&amp;` before anything
+else, so the entity reached the reader as its own source.
+
+Nothing was going to catch it. `copy.spec.py` bans wording, not characters.
+`build-guides.py --check` compares the built page to the draft and the built
+page reproduced the draft faithfully — the draft was the thing that was wrong.
+`tenets.spec.py` reads the drafts through `visible_text()`, which never looks at
+an ampersand. It took opening the page.
+
+Fixed in the draft and regenerated. **A guard now exists** in `tenets.spec.py`:
+no HTML entity in a draft, matched on the raw text with the `[CONFIRM:` comments
+removed, because an entity inside a note to the firm never reaches a page.
+Mutation-tested five ways — the exact bug, a numeric entity, a hex entity, an
+entity inside a comment, and bare ampersands in prose. Five killed or correctly
+ignored, no survivors.
+
+### One marker retired, and why that is not the same as answering it
+
+`entity-choice.md` carried *"[CONFIRM: Ohio's cities. Section 04 says a city
+wants the wage side..."*. **Section 04 no longer says that.** The bullet used to
+read *"Ohio and the city where the work happens want their share of the wage"*
+and the firm cut it at C063 in `FIRM-REVIEW.md`:
+
+> still need more context - honestly ohio-specific stuff should maybe be
+> shelved for now. let's focus federal then go beyond
+
+It is now *"Wages bring state and local obligations too — a registration and
+returns for each"*, which names no state and no city. So the marker was asking
+the firm to approve a scope they had already set, about a sentence that is not
+on the page. Answering it would mean asking them to rule twice.
+
+**It was not deleted to get a build green.** Its full text and the reasoning are
+kept at open item 3 of `SOURCES-entity-choice.md`, the draft carries a note
+saying where it went, and it comes back if Ohio comes off the shelf. The
+underlying unknown — what an Ohio municipality does with a shareholder's
+distributive share, and the firm's own *"RITA is really integral"* — is not
+resolved and is recorded in the table row for that bullet, where it belongs.
+
+### The practice unit is out
+
+`entity-choice.md` section 07: *"Taking a property back out of a corporation
+later is taxed as though it had been sold."* It rested on an IRS practice unit
+PDF — training material rather than authority, and 2,203 characters of
+unreadable extract besides.
+
+Replaced with the statute, in two pieces because the bullet is about an S
+corporation and the rule is in subchapter C:
+
+- **26 U.S.C. § 311(b)(1)** — gain is recognized *"as if such property were
+  sold to the distributee at its fair market value"*.
+- **26 U.S.C. § 1371(a)** — *"subchapter C shall apply to an S corporation and
+  its shareholders"*.
+
+Both checked by fetching them through `verify_sources.py`'s own `fetch()` and
+`strip_html()`, not by reading them in a browser: the phrase is split across a
+definition link in Cornell's markup and a raw grep misses it. Both carry the
+words attributed to them. **The page's wording did not change** — only what
+stands behind it.
+
+### What was checked, and what was not
+
+Ran here: `pricing.spec.py` 66/66, `copy.spec.py` 36/36,
+`build-guides.py --check` (4 files match), `tenets.spec.py` 0 failing,
+`build-guides.py --publish-ready` — 4 remaining, exits 1 by design.
+
+**Not run: `intake.spec.py`.** Playwright launches against a
+`PLAYWRIGHT_BROWSERS_PATH` of `/opt/pw-browsers` that this Windows machine
+cannot override from the shell. **What is therefore unproven is the intake
+form's behaviour** — and nothing in this branch touches `intake-config.js`,
+`intake.js` or `index.html`, so the exposure is that CI is the only thing that
+has looked. It runs there.
+
+**Not run: `verify_sources.py` end to end.** The two statute pages were fetched
+and probed individually; the other 87 claims were not re-checked and their
+verdicts are whatever the last full run said.
+
+### Still open — both are the firm's, and neither is a blocker on anything else
+
+- **The not-advice line.** All three guides end with a sentence nobody
+  approved, live now. Two of the four markers.
+- **What an S corp owner pays themselves.** The guides say nothing about it
+  and the price page carries a line for it. The other two markers.
+- **T-03** — unchanged and untouched. Written up as a pricing suggestion for
+  the firm to pass on, per `HANDOFF.md` §4a. Not reconciled here.
