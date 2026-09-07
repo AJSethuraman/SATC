@@ -1,0 +1,58 @@
+[
+ {
+  "q": 7,
+  "desk": "personal-or-business",
+  "question": "Are groceries ever deductible? Supermarket spending is personal unless it is job-site provision for a crew \u2014 in which case it may be 100% deductible rather than 50%, a third answer again.",
+  "position": "the owner's own meals not incurred travelling away from home are not deductible",
+  "citation": "26 CFR 1.262-1(b)(5) \u2014 meals not incurred away from home",
+  "working": "The paragraph settles the half of the question this desk's authority reaches: a taxpayer's meals not incurred travelling away from home are nondeductible personal expenses, and it names its own exception \u2014 'except as permitted under section 162 or 212'. Provision to a crew is that exception, and it is a section 162 question this desk holds no authority on. So the supermarket line is personal until somebody says who ate it."
+ },
+ {
+  "q": 8,
+  "desk": "personal-or-business",
+  "question": "Is this clothing deductible? Work clothing is deductible only if it is not suitable for everyday wear. Trade workwear generally qualifies; ordinary retail clothing does not, whatever card it was bought on.",
+  "position": "ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer",
+  "citation": "26 CFR 1.262-1(b)(8) \u2014 the test for a serviceman's equipment",
+  "working": "This is the firm's own ratified position and it is squarely the question. The regulation's test is whether the equipment is especially required by the profession and does not merely take the place of articles required in civilian life \u2014 the item and the profession, not the seller. The close raised this as 'whatever card it was bought on', which is the same point from the other side."
+ },
+ {
+  "q": 18,
+  "desk": "personal-or-business",
+  "question": "Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "escalated": true,
+  "reason": "authority_absent",
+  "working": "This desk's authority draws the personal/business line \u2014 \u00a7 1.262-1, \u00a7 1.162-1 and Pub 587. Nothing in it settles the expense/asset line. \u00a7 1.162-1(a) lists 'supplies' and 'incidental repairs' among business expenses and stops there; the test for when a purchase must be capitalised instead is \u00a7 1.263(a)-3, which this desk does not hold. The question is real and reaches the wrong desk."
+ },
+ {
+  "q": 31,
+  "desk": "personal-or-business",
+  "question": "Personal spending on a business card is not \"excluded\" \u2014 it is a draw. The money left the business account either way. Booking it nowhere makes the bank unreconcilable by exactly the amount of it.",
+  "position": "flag it for attention and ask the client what was bought; do not book it to owner draws on the seller's name",
+  "citation": "26 CFR 1.262-1(a) \u2014 the general rule",
+  "working": "The firm's ratified position on the general rule, and it answers the close's point directly. The close is right that the money left the account and must land somewhere; the position says where it must NOT land on the strength of a bank feed alone \u2014 owner draws, decided from the seller's name. The line is flagged and asked about, which keeps the bank reconcilable without deciding what was bought from evidence that cannot say."
+ },
+ {
+  "q": 33,
+  "desk": "personal-or-business",
+  "question": "Is streaming television ever a business subscription? Entertainment streaming on a business card is personal unless there is a waiting room.",
+  "escalated": true,
+  "reason": "facts_not_established",
+  "working": "The rule is clear and this desk holds it: \u00a7 1.162-1(a) allows the ordinary and necessary expenditures directly connected with or pertaining to the trade or business, and \u00a7 1.262-1(a) disallows personal expenses. What decides this subscription is a fact about the client \u2014 whether the business has a space where the service is played for customers, which is what the close means by 'a waiting room'. A card statement cannot carry that, and nothing on file records it."
+ },
+ {
+  "q": 18,
+  "desk": "cash-and-bank",
+  "question": "Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "position": "yes \u2014 an expenditure whose useful life extends substantially beyond the year is charged to a capital account, not to expense",
+  "citation": "26 CFR 1.446-1(a)(4)(ii)",
+  "working": "The paragraph answers the question as asked and does it in the regulation's own words: expenditures made during the year 'shall be properly classified as between capital and expense', and its example is plant and equipment with a useful life extending substantially beyond the taxable year. So a hardware-store line can absolutely be an asset. What the rule needs and a bank feed does not carry is what the line was \u2014 which is the close's own point about line detail, not a gap in the authority."
+ },
+ {
+  "q": 31,
+  "desk": "cash-and-bank",
+  "question": "Personal spending on a business card is not \"excluded\" \u2014 it is a draw. The money left the business account either way. Booking it nowhere makes the bank unreconcilable by exactly the amount of it.",
+  "position": "an entry in the books",
+  "citation": "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" \u2014 what the books are updated for",
+  "working": "The firm's ratified position, and it settles exactly the distinction the close is drawing. A reconciling item is a difference between the statement and the books that needs no entry \u2014 a cheque not yet cleared. Personal spending on the business card is not that: the money left the account, the statement and the books both have to show it, and the books are what get updated. 'Excluded' would make it a reconciling item, which it is not, and the account would be out by that amount."
+ }
+]
