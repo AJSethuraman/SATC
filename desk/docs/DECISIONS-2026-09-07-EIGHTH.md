@@ -1,0 +1,83 @@
+# The eighth docket, and the evening that followed
+
+Three matters, published as `artifact/1750afce`, answered at **17:20 UTC on
+7 September 2026** — all three taking the recommendation. What follows is what
+each one caused, and the four findings that came out of doing them.
+
+## `dec-merge-316` — **Merge it**
+
+Merged as `103a944`. The plugin became installable at 0.5.0, verified by
+installing it rather than by reading the manifest: `ask.consult` from the
+installed copy routed a real question and returned a 66,000-character brief.
+
+## `dec-263a2` — **Declare it**
+
+§ 1.263(a)-2 declared on fixed-assets, two paragraphs, tied out against eCFR's
+own versioner file.
+
+**The loop closed for the first time.** A desk refused for want of a rule; the
+searcher found it and would not store it; the firm declared the source; the desk
+answers. Checked rather than asserted — the question routes to fixed-assets, the
+brief carries both paragraphs, and `serve` returns SERVED on
+§ 1.263(a)-2(d)(1) with the subject gate actually run.
+
+## `dec-check-absent` — **Build the check**
+
+An `authority_absent` refusal now reports what the desk put in front of the
+model. Run against the refusal that prompted it: **76 passages, ten of them from
+§ 1.274-11** — printed directly under the sentence claiming § 1.274-11 was
+absent. It reports and does not overrule.
+
+---
+
+## What the evening found
+
+**1. The routing defect was one defect, not two — and I had said twice that it
+was two.** `rewards/POS3`, ratified that afternoon, sits on § 1.6050W-1(c)(3),
+and `peer-to-peer` was registered to a different source. The desk cited the
+firm's own position and the engine refused it. *Ratifying a position and not
+routing to its source is ratifying nothing.* Fixed, with a standing guard that
+every ratified position sits on a source something routes to.
+
+The second one — Q18 at the cash desk — **was never a defect**. That question
+reached the cash desk on the incidental word *bank*; the model then reached for a
+method-of-accounting rule to answer a capital-versus-expense question, and the
+gate stopped it. Retracted where the claim was made.
+
+**2. Two recorded answers were stale the moment their desks changed.** Q16's
+escalation was true when written and false by evening; Q33's was **wrong when
+written** — it claimed the desk held nothing on a regulation it held ten
+paragraphs of. Re-asked from the current brief, in a run dated so it cannot be
+mistaken for the morning's. **7 of 19 served becomes 10.**
+
+**3. A decision was recorded and never carried out.** `dec-cap-field` — *"Add the
+field"* — closed a finding the firm raised themselves. What got added was the
+`Records:` line. **The field was never built anywhere**: not the engagement
+record, not the registry, not `satc_system`'s intake or models. Two of the close's
+questions refuse against it.
+
+A session tried to fix that by deleting the declaration and was wrong: the line is
+the firm's answer, and deleting it would erase the decision rather than surface
+the gap. The tests carried the history that caught it. **What is open is the
+work, not the label.**
+
+**4. A version that does not move is a version nobody gets.** After #323 merged,
+`plugin update` reported *"already at the latest version"* — and the installed
+copy still carried the deleted `engagements.py` and had no `holes.py`. Caught by
+listing the installed tree rather than trusting the command. Bumped to 0.6.0.
+
+---
+
+## What is left before a pilot
+
+| | |
+|---|---|
+| 3 refusals | want a fact about the client — **a real engagement** |
+| 2 refusals | want `capitalization_rule`, a field the firm approved and nobody built |
+| 2 refusals | questions that reached a desk whose authority does not cover them — correct |
+| 1 refusal | the subject gate working — correct |
+| 1 refusal | ask the client |
+
+**The firm has still not seen any of this run.** Everything above was measured by
+the session that built it. `docs/TRY-IT.md` is the twenty minutes that fixes
+that, and it names what would make the test fail.
