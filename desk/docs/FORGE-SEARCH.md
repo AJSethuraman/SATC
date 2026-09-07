@@ -41,13 +41,15 @@ claude plugin list
 
 `desk` should read **0.5.0**.
 
-**Verified on 7 September, and it does not yet.** The marketplace installs from
-`main`, and 0.5.0 is on the branch in #316. Running the two commands today
-installs **0.4.0**, which has the searcher and the desks — the gap command below
-runs correctly against it, checked — but **not** `run-down-a-question`, the skill
-this prompt tells the session to load, and not the engagement file. So the
-install step is blocked until #316 merges. The searcher itself can be driven by
-hand at 0.4.0 by anyone who reads `tools/search_run.py`.
+**Verified by installing it, 7 September 2026.** #316 merged as `103a944` and
+0.5.0 is what the two commands now land — `run-down-a-question`, the skill this
+prompt tells the session to load, included. Confirmed from the installed copy
+rather than from the repository: `ask.consult` routed a real question and the
+gap command below ran correctly against it.
+
+*(This paragraph said the opposite for about an hour. It was written before the
+merge, correctly, and went stale the moment the merge landed — which is what a
+document that states a version always does.)*
 
 ---
 

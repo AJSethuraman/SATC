@@ -28,8 +28,8 @@ changes nothing on disk.
 claude plugin list
 ```
 
-`desk` must read **0.5.0**. If it reads 0.4.0 the searcher's skill and the
-engagement file are not there.
+`desk` must read **0.5.0**. If it reads 0.4.0 the searcher's skill
+(`run-down-a-question`) and the holes report are not there.
 
 ---
 
