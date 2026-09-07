@@ -143,6 +143,27 @@
       </tr>
       {% endfor %}
     </table>
+    {# THE COUNT, SAID ONCE, ABOVE THE CITATION IT RELATES TO. D26's second half,
+       and the firm's answer was "warn on the screen" -- not block.
+       Per-row flags already existed; a preparer reading twenty rows should not
+       have to total them up to find out whether this file is in good order. And
+       it says WHAT TO DO, because a warning that names no remedy is a warning
+       people learn to scroll past. #}
+    {% set gaps = state.provenance_gaps() %}
+    {% if gaps %}
+    <p class="note flag">
+      <b>{{ gaps | length }} of {{ received | length }}</b> arrival(s) have an
+      incomplete record — most often because nobody said how they arrived.
+      <b>Nothing is blocked by this</b>: the return can still be prepared and
+      filed. Close the gap by re-running intake with <em>How did these arrive?</em>
+      answered, or by marking the document Received above with a channel.
+    </p>
+    {% elif received %}
+    <p class="note tie">
+      All {{ received | length }} arrival(s) carry a complete
+      26 CFR §1.6695-2 record — how, when, from whom, and by what means.
+    </p>
+    {% endif %}
     <p class="note">
       How and when a document was obtained, and from whom, is required by
       26 CFR §1.6695-2(b)(4)(i)(C) — not a nicety.
