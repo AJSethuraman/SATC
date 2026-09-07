@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -43,7 +44,23 @@ import routing                                             # noqa: E402
 HERE = Path(__file__).resolve().parents[1]
 CORPUS = HERE / "docs" / "CLOSE-QUESTIONS-2026-09-05.md"
 TRIAGE = HERE / "docs" / "CLOSE-QUESTIONS-TRIAGE.md"
-BRIEFS = HERE / "runs" / "asked-2026-09-05"
+#: WHERE A RUN LANDS, DATED BY THE DAY THE DESKS WERE ASKED -- never a constant.
+#: This was `runs/asked-2026-09-05`, hardcoded, so every later run overwrote the
+#: 5 September evidence in place and the folder went on claiming a date it no
+#: longer held. Found on 7 September, when a re-run silently rewrote seventeen
+#: briefs to carry POS3 and the marked omission -- both real, both from two days
+#: after the date on the directory.
+#:
+#: `runs/` and `tie-outs/` are exempt from the corpus-figure sweep precisely
+#: because they are DATED ARTIFACTS, and that exemption is only safe while the
+#: date is true: "when the record moves, the exhibits are RE-RUN and re-dated,
+#: never patched." A tool that can only write into yesterday makes patching the
+#: default and re-dating impossible.
+#:
+#: The CORPUS keeps its own date and always will -- the questions were asked by
+#: the close on 5 September. What varies is the day the desks answered them.
+RUN_DAY = date.today().isoformat()
+BRIEFS = HERE / "runs" / f"asked-{RUN_DAY}"
 
 
 def kind_a() -> list[tuple[int, str, str]]:

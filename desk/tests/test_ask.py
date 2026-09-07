@@ -232,7 +232,7 @@ def test_a_narrowing_may_not_rest_on_a_position_nobody_ratified(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule\n",
         encoding="utf-8")
     (d / "positions" / "POSITIONS.md").write_text(
         "## POS1 · A proposal\n\n**Citation:** 26 CFR 2 · "

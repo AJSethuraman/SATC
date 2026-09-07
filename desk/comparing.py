@@ -2,7 +2,7 @@
 
 WHY THIS IS A MODULE AND NOT A SECTION OF `tools/tieout.py`. Two things compare
 our text against a source now: the corpus tie-out, which asks the question of all
-531 passages on demand, and `proving`, which asks it of ONE answer at the moment
+every stored passage on demand, and `proving`, which asks it of ONE answer at the moment
 it is served. If each held its own folding table and its own reading of a marked
 omission they would disagree within a week, and the two would report different
 verdicts about the same passage with nothing comparing them — which is the shape

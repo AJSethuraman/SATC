@@ -29,6 +29,8 @@ asked in those words.
 
 ## capitalization-and-de-minimis · When a purchase is expensed under the de minimis safe harbour and when it is capitalised
 
+**Records:** capitalization_rule
+
 **Answered from S1:** de minimis, de minimis safe harbor, de minimis safe harbour
 safe harbor election, safe harbour election, capitalization threshold,
 capitalisation threshold, capitalize, capitalise, capitalized, capitalised,

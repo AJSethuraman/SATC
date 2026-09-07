@@ -210,6 +210,8 @@ Reworded 6 September 2026 on the firm's instruction: *"Reword POS2."*
 
 **Position:** where a payment for services shows no evidence it settled through a third party payment network, treat it as outside section 6050W and count it toward the $2,000 threshold
 
+**Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended, and with the redraft of its wording still owed (matter `dec-register`).
+
 **Why:** This is the second half of what the firm ratified as POS2 on 5 September
 2026 — *"track the rest against $2,000 per payee per calendar year"* — moved to
 the rule it actually turns on. **It is a proposal, not a ratification.** The

@@ -50,7 +50,7 @@ import ask                                                  # noqa: E402
 import record
 
 # THE COMPARISON LIVES IN ONE PLACE AND IT IS NOT THIS FILE. `proving` asks the
-# same question of one served answer that this asks of all 531 passages, and two
+# same question of one served answer that this asks of every stored passage, and two
 # copies of the folding table would disagree within a week. It is also the only
 # arrangement that lets `proving` be imported at all from a module the test suite
 # reaches: this file fetches, so importing it pulls in `ssl`, and the desk's
@@ -58,9 +58,50 @@ import record
 from comparing import ELLIPSIS, FOLD, _segments, elided_match, normalise  # noqa: F401                                               # noqa: E402
 
 #: The regulations are fetched AS OF A DATE and the date is printed on the
-#: exhibit, because "the same period" is one of the four checks. eCFR's versioner
-#: refuses a future date, so this is the last date known good rather than today.
-AS_OF = "2026-01-01"
+#: exhibit, because "the same period" is one of the four checks.
+#:
+#: ASKED, NOT TYPED, SINCE 7 SEPTEMBER 2026. This was the literal "2026-01-01",
+#: with a comment saying eCFR's versioner refuses a future date and that January
+#: was therefore the last date known good. The first half is true -- the
+#: versioner 404s from about five days back -- and the second was simply stale:
+#: measured that day, it served 2026-09-01 perfectly well, so the corpus was
+#: being verified against text EIGHT MONTHS older than the newest available, and
+#: an amendment in between would have tied out clean against a superseded
+#: version.
+#:
+#: eCFR publishes the answer, so this asks for it: `titles.json` carries
+#: `latest_issue_date` per title. One request, exact, and no date to go stale in
+#: a constant -- the same lesson as a run folder named for a fixed day.
+#:
+#: (Re-run at 2026-08-28 the whole corpus still tied, 705 of 705, so nothing this
+#: record holds had moved in those eight months. The pin was over-conservative
+#: rather than wrong -- but it was over-conservative in a way that could only
+#: ever have hidden a difference, never revealed one.)
+_FALLBACK_AS_OF = "2026-01-01"
+_as_of_cache: list = []
+
+
+def as_of() -> str:
+    """The newest issue date eCFR serves for title 26, asked once per run.
+
+    NEVER SILENTLY DEFAULTED. If the question cannot be asked, the fallback is
+    used and SAID so in the returned exhibit's own terms -- a verification date
+    that quietly slipped eight months is the failure this replaced.
+    """
+    if _as_of_cache:
+        return _as_of_cache[0]
+    try:
+        titles = json.loads(_fetch("https://www.ecfr.gov/api/versioner/v1/titles.json"))
+        date = next(t["latest_issue_date"] for t in titles["titles"]
+                    if t.get("number") == 26)
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
+            raise ValueError(f"latest_issue_date is {date!r}")
+    except Exception as exc:
+        print(f"  ! could not ask eCFR for its latest issue date ({exc}); "
+              f"falling back to {_FALLBACK_AS_OF}", file=sys.stderr)
+        date = _FALLBACK_AS_OF
+    _as_of_cache.append(str(date))
+    return _as_of_cache[0]
 
 UA = "satc-desk-tieout (accounting record verification; contact via repository)"
 
@@ -126,10 +167,10 @@ def _ecfr_url(source_url: str) -> str:
     m = re.search(r"title-(\d+)/section-([^/?#]+)", source_url)
     if m:
         title, section = m.group(1), m.group(2)
-        return (f"https://www.ecfr.gov/api/versioner/v1/full/{AS_OF}/"
+        return (f"https://www.ecfr.gov/api/versioner/v1/full/{as_of()}/"
                 f"title-{title}.xml?section={section}")
     # already a versioner URL: re-point it at the date this run declares
-    return re.sub(r"/full/\d{4}-\d{2}-\d{2}/", f"/full/{AS_OF}/", source_url)
+    return re.sub(r"/full/\d{4}-\d{2}-\d{2}/", f"/full/{as_of()}/", source_url)
 
 
 _USC = re.compile(r"\b(\d+ USC|26 U\.?S\.?C\.?)\s*(\d+[A-Z]?)")

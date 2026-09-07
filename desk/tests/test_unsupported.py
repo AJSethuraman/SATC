@@ -63,7 +63,7 @@ def test_an_interpretive_source_is_served_marked_and_never_as_the_rule(tmp_path)
         "## P1 · x\n\n**Citation:** G 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "g.md").write_text(
-        "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n> reading\n",
+        "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n> reading\n",
         encoding="utf-8")
     out = serve(Answer(position="a", citation="G 1"), record.load(d),
                 question="a question")

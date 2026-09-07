@@ -143,6 +143,12 @@ def from_source(citation: str, prefix: str) -> bool:
     return not rest or not rest[0].isalnum()
 
 
+#: What a stored passage IS. Closed, because a third kind would be a judgement
+#: about authority and this module records rather than judges.
+RULE, EXAMPLE = "rule", "example"
+KINDS = (RULE, EXAMPLE)
+
+
 @dataclass(frozen=True)
 class Passage:
     """One piece of authority text, stored because its source permits it."""
@@ -150,6 +156,35 @@ class Passage:
     source_id: str
     checked: str
     text: str
+    #: RULE or EXAMPLE, and it is RECORDED rather than guessed from the text.
+    #:
+    #: WHY THE DISTINCTION HAS TO EXIST IN THE RECORD. A regulation's worked
+    #: examples are its most useful authority for classifying a real entry --
+    #: the government applying its own rule to a fact pattern and stating the
+    #: answer -- and they are also, for six of these desks, where the PROBLEMS
+    #: come from. Storing them and grading on them at once is how the first
+    #: corpus leaked its own answer key: 21 examples, 21 problems, and a
+    #: frontier model that solved the set as a matching puzzle rather than by
+    #: reasoning (`extract_ecfr.py`, and `runs/2026-09-04/SCOREBOARD.md`).
+    #:
+    #: The answer was to drop the examples, which fixed grading and quietly cost
+    #: the answering side the best thing in the document. Marking them instead
+    #: lets one store serve both: `ask.brief` prints everything, and
+    #: `ask.brief_for_grading` prints no example at all.
+    #:
+    #: THE REFUSAL LIVES IN THE PARSER, NOT HERE, and the split is deliberate.
+    #: `parse_passages` requires `Kind` and raises without it, because THE
+    #: RECORD is the thing that must not default -- an example silently read as
+    #: a rule is precisely the leak this field closes, and a falling-back parser
+    #: would reopen it without failing anything ("refuse rather than default").
+    #:
+    #: The dataclass keeps `rule` for construction in Python, where the only
+    #: caller is a test building a fixture. Checked rather than assumed: the
+    #: sole production construction of a Passage is `parse_passages` itself, and
+    #: `test_a_worked_example_is_marked_as_one.py` asserts that stays true. Were
+    #: a second one to appear, this default would become the unsafe direction
+    #: again and that test is what says so.
+    kind: str = RULE
 
 
 @dataclass(frozen=True)
@@ -497,6 +532,25 @@ class Desk:
         return next((p for p in self.positions
                      if p.citation == citation and not p.proposed), None)
 
+    def rules_only(self) -> "Desk":
+        """This desk with its worked examples withheld. FOR GRADING ONLY.
+
+        ONE DEFINITION, BECAUSE TWO WOULD DRIFT. Both readers of the record need
+        it -- `ask.brief_for_grading` for the answering side's own scoring, and
+        `scoreboard_run.corpus_lines` for the prompt a graded brain sees -- and
+        this repository has already paid for a comparison kept in two copies
+        (`comparing.py` exists because `tieout` and `proving` each had one).
+
+        WHAT IT DOES NOT TOUCH: `engine._check`. Whether a citation resolves to
+        real authority is a different question from whether a graded model was
+        shown it, and a worked example IS real authority. So an example stays
+        servable and stays unshowable, which is the split the whole `kind` field
+        exists to express.
+        """
+        import dataclasses
+        return dataclasses.replace(
+            self, passages=tuple(p for p in self.passages if p.kind != EXAMPLE))
+
     def authority_for(self, citation: str):
         """Whatever backs this citation: stored text, or the firm's own words.
 
@@ -676,6 +730,7 @@ def parse_passages(text: str) -> list[Passage]:
             source_id=_inline(block, "Source", where),
             checked=_date(_inline(block, "Checked", where), "checked", where),
             text=text_,
+            kind=_one_of(_inline(block, "Kind", where), KINDS, "Kind", where),
         ))
     return out
 

@@ -1,4 +1,23 @@
-"""The corpus is the rules. The worked examples are the questions.
+"""No worked example reaches a graded prompt UNMARKED.
+
+THIS FILE SAID "the corpus is the rules" UNTIL 7 SEPTEMBER 2026, and the corpus
+is no longer only the rules -- deliberately. The desks were measured holding
+223,804 characters of worked examples they did not store, against a whole corpus
+of 261,740: they were missing more authority than they held, from documents
+already fetched and already declared. A worked example is the government
+applying its own rule to a fact pattern and stating the outcome, which is the
+closest thing in the record to the question a bookkeeper actually asks.
+
+WHAT DID NOT CHANGE IS WHY THIS FILE EXISTS. An example the graded brain can see
+carries its own conclusion into every prompt on that desk. So the examples are
+stored and MARKED, `Passage.kind` says which is which, and three readers withhold
+them: `corpus_lines` (what the prompt shows), `citation_index` (what a reply is
+scored against) and `ask.brief_for_grading`.
+
+THE DEFECT IS THEREFORE A DIFFERENT SHAPE NOW, and this file tests for the new
+one: a passage that carries a problem's fact pattern and is filed as a RULE. That
+passage reaches the prompt, carries the answer, and nothing marks it. A marked
+example doing the same thing is the design working.
 
 `check_no_leak` has always said this and enforced it at prompt-build time, which
 is too late to be seen: the failure surfaced as an escalation on a scoreboard,
@@ -69,6 +88,13 @@ def _stored_examples():
         for problem in desk.problems:
             probe = sr._bare(max(sr._SENTENCES.split(problem.facts), key=len))
             for passage in desk.passages:
+                # MARKED EXAMPLES ARE EXPECTED and are not the defect: they
+                # are withheld from the prompt by kind. `fixed-assets` stores
+                # all 117 of its section's examples, 16 of which ARE its
+                # problems. Counting those would make this guard fire forever
+                # on the desks that are correct, which is how a guard dies.
+                if passage.kind != record.RULE:
+                    continue
                 if probe in sr._bare(passage.text):
                     found.add((desk.name, problem.id, passage.citation))
     return found
@@ -78,10 +104,11 @@ def test_no_new_worked_example_enters_the_corpus():
     found = _stored_examples()
     new = found - KNOWN
     assert not new, (
-        f"stored authority now carries {sorted(new)}. A worked example in the "
-        f"corpus carries its own conclusion into every prompt on that desk, and "
-        f"the desk then scores an escalation for every problem without a model "
-        f"ever running — which this scoreboard reports as a success."
+        f"stored authority now carries {sorted(new)} as a RULE. It is a worked "
+        f"example -- it holds a problem's own fact pattern -- so it reaches the "
+        f"prompt with its conclusion in it, and the desk scores an escalation "
+        f"for every problem without a model ever running, which this scoreboard "
+        f"reports as a success. Mark it `Kind: example` and it is withheld."
     )
 
 

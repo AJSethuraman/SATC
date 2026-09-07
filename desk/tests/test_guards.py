@@ -20,7 +20,7 @@ GOOD_SOURCE = ("## S1 · A source\n\n"
                "Government in the public domain.\n")
 GOOD_PROBLEM = ("## P1 · x\n\n**Citation:** 26 CFR 1\n\n"
                 "**Answer:** must capitalize\n\n**Facts:** f\n")
-GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
                 "> must capitalize\n")
 
 
@@ -264,7 +264,7 @@ def test_a_corpus_that_is_exactly_the_answer_key_fails_the_build(tmp_path):
                       "**Answer:** must capitalize\n\n**Facts:** g\n")
     two_passages = (GOOD_PASSAGE
                     + "\n## 26 CFR 2\n\n**Source:** S1 · "
-                      "**Checked:** 2026-09-04\n\n> must capitalize\n")
+                      "**Checked:** 2026-09-04 · **Kind:** rule\n\n> must capitalize\n")
     d = build(tmp_path, problem=two_problems, passage=two_passages)
     with pytest.raises(guards.GuardFailure, match="authority corpus IS the answer key"):
         guards.check(d)
@@ -278,9 +278,9 @@ def test_one_rule_stored_beside_the_keyed_ones_is_enough(tmp_path):
                       "**Answer:** must capitalize\n\n**Facts:** g\n")
     three_passages = (GOOD_PASSAGE
                       + "\n## 26 CFR 2\n\n**Source:** S1 · "
-                        "**Checked:** 2026-09-04\n\n> must capitalize\n"
+                        "**Checked:** 2026-09-04 · **Kind:** rule\n\n> must capitalize\n"
                       + "\n## 26 CFR 3\n\n**Source:** S1 · "
-                        "**Checked:** 2026-09-04\n\n> some other rule\n")
+                        "**Checked:** 2026-09-04 · **Kind:** rule\n\n> some other rule\n")
     d = build(tmp_path, problem=two_problems, passage=three_passages)
     assert guards.check(d)
 

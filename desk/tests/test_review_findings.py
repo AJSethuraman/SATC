@@ -140,7 +140,7 @@ def test_an_undated_and_aged_passage_is_counted_once(tmp_path):
         "## P1 · x\n\n**Citation:** X 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## X 1\n\n**Source:** S1 · **Checked:** 2000-01-01\n\n> t\n",
+        "## X 1\n\n**Source:** S1 · **Checked:** 2000-01-01 · **Kind:** rule\n\n> t\n",
         encoding="utf-8")
     r = staleness.check(record.load(d), lambda s: None, today="2026-09-06")
     assert r.total == 1, f"one passage reported as {r.total} entries"

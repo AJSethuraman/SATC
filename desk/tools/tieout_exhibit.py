@@ -313,7 +313,7 @@ that wrote it. <b>The question is not whether our tests pass.</b> It is whether 
 authority we serve is what the authority actually says — which no test in this
 repository can answer, because they all read the same stored files.</p>
 
-{DIAGRAM % {"as_of": tieout.AS_OF}}
+{DIAGRAM % {"as_of": tieout.as_of()}}
 
 <h2>The roster</h2>
 <div class="stats">
@@ -477,7 +477,7 @@ repository can answer this</b>, because every test reads the same stored files: 
 passage transcribed wrongly is stored wrongly, served wrongly and asserted
 wrongly, and every green stays green.</p>
 
-{DIAGRAM % {"as_of": tieout.AS_OF}}
+{DIAGRAM % {"as_of": tieout.as_of()}}
 
 <h2>The roster</h2>
 <div class="stats">
@@ -499,7 +499,7 @@ sample of one worked link by link.</p>
 {WRONG}
 
 <h2>What this does not prove</h2>
-{LIMITS % {"as_of": tieout.AS_OF}}
+{LIMITS % {"as_of": tieout.as_of()}}
 </body></html>"""
 
 
@@ -523,7 +523,7 @@ if __name__ == "__main__":
         per_desk.append((name, lines))
         h = OUT / f"TIE-OUT-{name}-{RUN_DATE}.html"
         h.write_text(exhibit(name, lines, ours).replace(
-            "%(as_of)s", tieout.AS_OF), encoding="utf-8")
+            "%(as_of)s", tieout.as_of()), encoding="utf-8")
         render_pdf(h, h.with_suffix(".pdf"))
         print(f"  {name:34} {len(lines):>4} passages -> {h.with_suffix('.pdf').name}")
 

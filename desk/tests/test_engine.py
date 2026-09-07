@@ -156,7 +156,7 @@ def test_authority_that_only_interprets_escalates_rather_than_answers(
         "## P1 · x\n\n**Citation:** GUIDE 1\n\n**Answer:** must capitalize\n\n"
         "**Facts:** f\n", encoding="utf-8")
     (d / "extracted" / "g.md").write_text(
-        "## GUIDE 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n> a reading\n",
+        "## GUIDE 1\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n> a reading\n",
         encoding="utf-8")
     desk = record.load(d)
     r = grade(Answer(position="must capitalize", citation="GUIDE 1"),
@@ -248,7 +248,7 @@ def _human_only_desk(tmp_path, *, position="not required to capitalize",
         "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
     if passage_text is not None:
         (d / "extracted" / "p.md").write_text(
-            "## ASC 360-10\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+            "## ASC 360-10\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
             f"> {passage_text}\n", encoding="utf-8")
     import record
     return record.load(d)
@@ -310,9 +310,9 @@ def _secondary_desk(tmp_path):
         "**Answer:** treat it as a reconciling item\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## GUIDE 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n"
+        "## GUIDE 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n"
         "> the guide's reading\n\n"
-        "## GUIDE 2\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n"
+        "## GUIDE 2\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n"
         "> another paragraph\n",
         encoding="utf-8")
     return record.load(d)
@@ -366,8 +366,8 @@ def _mixed_desk(tmp_path):
         "## P1 · x\n\n**Citation:** PAGE 1\n\n**Answer:** $2,500\n\n"
         "**Facts:** what is the threshold?\n", encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06\n\n> $500\n\n"
-        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06\n\n> $2,500\n",
+        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06 · **Kind:** rule\n\n> $500\n\n"
+        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06 · **Kind:** rule\n\n> $2,500\n",
         encoding="utf-8")
     return record.load(d)
 
@@ -408,8 +408,8 @@ def test_a_desk_that_cannot_tell_whether_a_rule_reaches_refuses(tmp_path):
         "## P1 · x\n\n**Citation:** PAGE 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06\n\n> rule\n\n"
-        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06\n\n> reading\n",
+        "## REG 1\n\n**Source:** S1 · **Checked:** 2026-09-06 · **Kind:** rule\n\n> rule\n\n"
+        "## PAGE 1\n\n**Source:** S2 · **Checked:** 2026-09-06 · **Kind:** rule\n\n> reading\n",
         encoding="utf-8")
     out = engine.serve(Answer(position="a", citation="PAGE 1"), record.load(d),
                        question="f")
@@ -761,7 +761,7 @@ def test_a_mapping_to_a_source_that_does_not_exist_fails_the_load(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule\n",
         encoding="utf-8")
     (d / "SUBJECTS.md").write_text(
         "## broken · A desk\n\n**Answered from S9:** widgets\n", encoding="utf-8")
@@ -800,7 +800,8 @@ def _overlapping_desk(tmp_path, *, prefixes, passage_citation, passage_source,
         f"**Answer:** yes\n\n**Facts:** how do widgets work\n", encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
         f"## {passage_citation}\n\n**Source:** {passage_source} · "
-        f"**Checked:** 2026-09-05\n\n> a rule about widgets\n", encoding="utf-8")
+        f"**Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule about widgets\n",
+        encoding="utf-8")
     (d / "SUBJECTS.md").write_text(
         f"## overlap · A desk\n\n**Answered from {answers_from}:** widgets\n",
         encoding="utf-8")
@@ -923,7 +924,7 @@ def test_a_narrowing_may_not_introduce_a_subject(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule\n",
         encoding="utf-8")
     (d / "SUBJECTS.md").write_text(
         "## widen · A desk\n\n**Answered from S1:** widgets\n\n"
@@ -946,7 +947,7 @@ def test_a_narrowing_to_a_citation_the_desk_lacks_fails_the_load(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule\n",
         encoding="utf-8")
     (d / "SUBJECTS.md").write_text(
         "## ghost · A desk\n\n**Answered from S1:** widgets\n\n"

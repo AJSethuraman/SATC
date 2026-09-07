@@ -221,14 +221,27 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
     not do the thing the firm objected to. Ratification is simulated here rather
     than performed; the roster in `test_a_position_is_ratified_by_the_firm.py`
     is what stops it being performed by accident.
+
+    THE REFUSAL CHANGED ON 7 SEPTEMBER 2026 AND THAT IS THE MECHANISM WORKING.
+    It was `no_field_for_this_fact`: the desk recorded nothing, so the follow-up
+    named a fact the firm had never decided to write down anywhere. That was the
+    finding — "what if this mattered only sometimes and we never even made a
+    field for it" — and the firm closed it on the fifth docket by answering
+    "Add the field".
+
+    So the desk records `capitalization_rule` now, and the refusal is
+    `context_not_on_file`: there IS somewhere to put the answer, and this
+    client's file has not got one. A different sentence, and a better one — it
+    sends someone to the client rather than to the firm.
     """
     import dataclasses
     desk = record.load(DESKS / "capitalization-and-de-minimis")
     held = [q for q in desk.positions if q.unless]
     assert len(held) == 2, [q.id for q in desk.positions if q.unless]
-    assert desk.records == (), (
-        "this desk records something now; the finding below was that it records "
-        "nothing, which is what makes the follow-up unanswerable")
+    assert desk.records == ("capitalization_rule",), (
+        f"this desk records {desk.records}; the firm answered 'Add the field' "
+        f"on the fifth docket and `capitalization_rule` is what both held "
+        f"positions ask about")
 
     for q in held:
         asif = dataclasses.replace(desk, positions=(
@@ -236,7 +249,7 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
         out = engine.serve(engine.Answer(position=q.position, citation=q.citation),
                            asif, question="do we capitalise this?")
         assert isinstance(out, engine.Refusal), f"{q.id} served broadly"
-        assert out.reason == "no_field_for_this_fact", (q.id, out.reason)
+        assert out.reason == "context_not_on_file", (q.id, out.reason)
         assert "capitalization_rule" in out.ask
 
 
@@ -288,7 +301,12 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
 
     out = front.answer("do we capitalise a $900 laptop?", src.name,
                        position=q.position, citation=q.citation, desks=desks)
-    assert out.reason == "no_field_for_this_fact"
+    # `context_not_on_file` since 7 September 2026, and the change is the point.
+    # It was `no_field_for_this_fact` while the desk recorded nothing; the firm
+    # answered "Add the field" on the fifth docket, so the question now has
+    # somewhere to be answered and this client's file simply has not answered
+    # it. The queue is what carries it either way.
+    assert out.reason == "context_not_on_file"
 
     filed = (desks / src.name / "unsupported" / "asked.md").read_text()
     assert "**Asked:**" in filed, "the follow-up never reached the queue"
@@ -297,3 +315,53 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # AND THE VALUE OF NOTHING IS IN THERE. This file lives in the repository.
     assert "$900" not in filed.split("**Question:**")[1].split("**Concluded:**")[0] \
         or True  # the question itself is the caller's and is quoted deliberately
+
+
+def test_the_ratified_defaults_now_ask_on_the_REAL_record():
+    """The desk asks its follow-up for real, not in a simulated copy.
+
+    THIS TEST WAS THE OTHER WAY ROUND THIS MORNING, and it carried a note saying
+    what to do on the day the firm ratified: rewrite it to assert the follow-up
+    fires on the record rather than on a copy. They ratified both capitalization
+    positions on the sixth docket at 13:09Z, so this is that rewrite.
+
+    WHAT IT REPLACES, AND WHY THE OLD FORM MATTERED. Until today both positions
+    were proposals, and a proposal is not the firm's word — `desk.position()`
+    never returns one, so the `Unless:` check never ran. The desk ANSWERED
+    safe-harbour questions straight from the regulation without asking whether
+    that client had a standing rule of its own. I described that to the firm
+    backwards, twice, and the docket repeated it.
+
+    So the fact worth pinning is the one that is now true: ratified, these
+    positions refuse until somebody says what the client's rule is, and every
+    simulation is gone from this path.
+    """
+    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    held = [q for q in desk.positions if q.unless]
+    assert held, "this desk holds no defaulting position; the test proves nothing"
+
+    for q in held:
+        assert not q.proposed, (
+            f"{q.id} is a proposal again. If it was un-ratified deliberately, "
+            f"note that the desk goes back to answering these broadly.")
+        src = next(x.id for x in desk.sources
+                   if record.from_source(q.citation, x.citation_prefix))
+        question = f"what about {sorted(desk.answered_from[src])[0]}?"
+        answer = engine.Answer(position=q.position, citation=q.citation)
+
+        # NOTHING ON FILE -> it asks, in a sentence, naming the field.
+        out = engine.serve(answer, desk, question=question)
+        assert isinstance(out, engine.Refusal) and out.reason == "context_not_on_file", (q.id, out)
+        assert "capitalization_rule" in out.ask and "?" in out.ask
+
+        # LOOKED, AND THIS CLIENT IS ORDINARY -> the firm's default applies.
+        ordinary = record.Context(facts={"capitalization_rule": record.NO_STANDING_RULE})
+        assert isinstance(engine.serve(answer, desk, question=question,
+                                       context=ordinary), engine.Served), q.id
+
+        # THIS CLIENT HAS ITS OWN RULE -> hand off, and never print the value.
+        special = record.Context(facts={"capitalization_rule": "capitalise over $500 for the Hollis trust"})
+        out = engine.serve(answer, desk, question=question, context=special)
+        assert isinstance(out, engine.Refusal) and out.reason == "client_rule_governs", (q.id, out)
+        for text in (out.detail, out.ask, repr(out)):
+            assert "Hollis" not in text and "$500" not in text, text

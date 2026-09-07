@@ -3,7 +3,7 @@
 THIS EXISTED ONLY AS A PROMISE UNTIL 5 SEPTEMBER 2026. `routing.
 refusal_naming_the_desk` has always handed a stopped agent the sentence "Ask
 <desk> with ask_desk, then come back with the citation" — and there was no
-`ask_desk`. Seven desks, 531 stored passages, an engine that verifies every
+`ask_desk`. Seven desks, the whole stored corpus, an engine that verifies every
 citation, a gate measured at zero false refusals across 98 problems, and nothing
 a caller could invoke. The record was complete and unreachable.
 
@@ -107,6 +107,35 @@ def brief(question: str, desk: record.Desk,
     for p in desk.passages:
         out += [f"### {p.citation}", "", f"> {p.text}", ""]
     return "\n".join(out)
+
+
+def brief_for_grading(question: str, desk: record.Desk,
+                      context: record.Context | None = None) -> str:
+    """The same brief with every worked example withheld. FOR SCORING ONLY.
+
+    WHAT THIS IS PROTECTING. Six of these desks draw their PROBLEMS from the
+    worked examples of the regulation they store. Print those examples to
+    something being scored and the corpus carries its own answer key -- which is
+    not a hypothetical: the first record this repository built stored the 21
+    examples it also graded on, and the frontier row solved the set as a matching
+    puzzle rather than by reasoning (`runs/2026-09-04/SCOREBOARD.md`).
+
+    WHY EXCLUDING THE PROBLEM'S OWN CITATION IS NOT ENOUGH, which is the whole
+    reason this is a function and not a note. A problem is cited to the RULE its
+    analysis names -- `(h)(1)`, say -- and never to the example it was drawn
+    from. So a filter on the problem's citation leaves the example that states
+    the answer sitting in the brief, under a different citation, fully readable.
+    The class has to go, not the row.
+
+    `scoreboard.py` records the rule this replaces: "THE ADAPTER MUST NEVER BE
+    HANDED THE PASSAGE FOR THE PROBLEM'S OWN CITATION [...] This cannot be tested
+    here: the thing that answers is injected and does not exist yet (#227). It is
+    a constraint on whoever writes it, recorded rather than assumed." A
+    constraint recorded rather than assumed is still prose, and prose policy in
+    this operation is policy one run in three (LOCAL-LLM-PATTERN rule 6). This is
+    the choke point instead.
+    """
+    return brief(question, desk.rules_only(), context)
 
 
 def answer(question: str, desk_name: str, *, position: str = "",
