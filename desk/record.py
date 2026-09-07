@@ -215,6 +215,35 @@ class Problem:
     context: "Context" = None
 
 
+def shown(desk) -> tuple:
+    """The passages a brief puts in front of an answerer. ONE DEFINITION.
+
+    `ask.brief` prints these and `engine.serve` counts them, and they must be the
+    same set or the count the engine reports about a refusal is a number from a
+    brief nobody saw. Two implementations of "what the model was shown" is the
+    same shape of bug `comparing.py` exists to prevent one layer down.
+    """
+    return tuple(desk.passages)
+
+
+def shown_by_source(desk) -> dict:
+    """`{source id: how many passages}` — the shape of what was shown.
+
+    A total alone does not check the claim that was actually made. The meals desk
+    escalated saying *"§ 1.274-11's own text is not in this desk's record"* while
+    the desk held ten passages of it: a total of 76 would have looked large and
+    proved nothing, and the per-source line is what makes that sentence false on
+    its face.
+    """
+    out = {}
+    for p in shown(desk):
+        for src in desk.sources:
+            if p.citation.startswith(src.citation_prefix):
+                out[src.id] = out.get(src.id, 0) + 1
+                break
+    return out
+
+
 @dataclass(frozen=True)
 class Context:
     """What the CALLER already recorded about the matter. Never inferred here.

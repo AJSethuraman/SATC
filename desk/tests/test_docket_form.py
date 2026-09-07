@@ -81,6 +81,17 @@ def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted, inde
         "the generator's own count disagrees with the record"
     n, pos, dec = independent["n"], independent["pos"], independent["dec"]
     assert n == pos + dec, "a row is neither a position nor a decision"
+    if not n:
+        # AN EMPTY DOCKET MUST SAY SO, not render the form with zeroes in it. The
+        # firm answered the seventh docket and got it back still asking; the
+        # sentence the skill asks for is the one thing this generator could not
+        # produce.
+        assert ">Nothing is waiting on you</h1>" in page
+        assert ">Nothing needs deciding</h2>" in page
+        assert 'class="bar"' not in page, (
+            "the filter bar is rendered above a list with nothing in it")
+        assert "things waiting on you" not in page
+        return
     assert ">%s things waiting on you<" % df._word(n).capitalize() in page
     assert ">0 of %d answered<" % n in page
     assert ">All %d<" % n in page
@@ -93,7 +104,11 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
     on the run that wrote it -- the same drift the filter labels had."""
     n = independent["n"]
     fresh, from_tieout = counted["fresh"], counted["from_tieout"]
-    assert "%s of them are new" % df._word(fresh) in page
+    if n:
+        assert "%s of them are new" % df._word(fresh) in page
+    else:
+        assert "of them are new" not in page, (
+            "the preface counts how many matters are new on a page with none")
     assert from_tieout <= fresh
 
     # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
@@ -137,7 +152,8 @@ def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independen
         # it -- "Every one of the no positions" is what the old sentence rendered
         # -- so what is asserted instead is that the page says they are all
         # ratified, which is the true statement at zero.
-        assert "no position is waiting" in page
+        if counted["n"]:
+            assert "no position is waiting" in page
         assert "all %s" % df._word(counted["ratified"]) in page
         return
     said = ("%s of the %s positions here are answerable today" % (
@@ -172,6 +188,9 @@ def test_the_browser_tab_carries_the_same_count_as_the_page(page, independent):
     every test above reads the BODY. A figure is a figure wherever it is
     printed."""
     n = independent["n"]
+    if not n:
+        assert "<title>Docket \u00b7 All Answered</title>" in page
+        return
     assert "<title>Docket \u00b7 %s Open</title>" % df._word(n).capitalize() in page
 
 
@@ -286,6 +305,8 @@ def test_a_card_with_no_recommendation_keeps_its_picks_as_written():
 def test_the_recommendation_is_rendered_above_the_thing_it_is_about(page):
     """It sat last, under four labelled blocks, and the reader had to assemble
     the point before reaching it. The firm asked to lead with it."""
+    if not df.items():
+        return  # nothing is open, so no card is rendered and there is no order
     lead = page.index('class="reclead"')
     says = page.index('class="says"')
     assert page.index('${esc(d.title)}') < lead < says, (
@@ -304,3 +325,68 @@ def test_the_held_back_count_is_read_from_the_structured_field(counted):
     assert "Do not ratify" not in body, (
         "the preface's held-back count is back to matching on prose")
     assert "rec_pick" in body
+
+
+# ---------------------------------------------------------------------------
+# A DOCKET THAT HAS BEEN ANSWERED MUST NOT ASK AGAIN.
+#
+# The firm filled the seventh docket in at 15:49 on 7 September 2026. The page
+# was then republished with a new goal on it and the same four cards -- three
+# showing their answers, one, answered in conversation rather than on the form,
+# still showing as open -- and their reply was *"i am generally confused i have
+# filled this docket out"*. They had. Nothing checked that a matter reported as
+# answered was gone from the questions, because until now nothing on the page
+# could report one as answered at all.
+
+
+def test_a_matter_cannot_be_open_and_answered_at_once():
+    keys = {a["key"] for a in df.ANSWERED}
+    open_keys = {o["key"] for o in df.OTHERS}
+    assert not (keys & open_keys), sorted(keys & open_keys)
+
+
+def test_the_build_refuses_a_matter_that_is_both(monkeypatch):
+    """Not a review note. A reviewer catching this is a reviewer who has to read
+    every card against a second list, which is the work the generator removes."""
+    one = df.ANSWERED[0]
+    monkeypatch.setattr(df, "OTHERS", [{
+        "key": one["key"], "group": "g", "tag": "t", "title": one["title"],
+        "position": "p", "context": "c", "either": [], "rec": "r",
+        "rec_pick": "Not yet", "picks": ["Not yet"]}])
+    with pytest.raises(df.DocketError) as e:
+        df.items()
+    assert one["key"] in str(e.value)
+
+
+def test_every_answered_matter_says_what_the_answer_caused(page):
+    """An answer read back without its consequence is a receipt, not a report."""
+    assert df.ANSWERED, "the page reports nothing about what was answered"
+    for a in df.ANSWERED:
+        for field in ("said", "title", "caused", "where"):
+            assert a[field].strip(), "%s has an empty %s" % (a["key"], field)
+        assert a["said"] in page, "%s: the answer is not on the page" % a["key"]
+        assert a["caused"] in page, "%s: what it caused is not on the page" % a["key"]
+
+
+def test_the_answered_read_back_survives_a_new_matter_arriving(page, monkeypatch):
+    """It used to be rendered only on the empty page, so the record of what the
+    firm's answers CAUSED existed exactly while there was nothing beside it to
+    read, and a docket carrying new matters dropped it silently.
+
+    THE OPEN MATTER IS INJECTED rather than read off today's docket. The first
+    version asserted `df.OTHERS` was non-empty and skipped otherwise -- so it
+    proved the fix on the afternoon it was written and became a no-op three
+    hours later when the firm answered everything."""
+    assert ">What you already answered, and what it did<" in page  # empty page
+
+    monkeypatch.setattr(df, "OTHERS", [{
+        "key": "dec-invented", "group": "g", "tag": "t", "title": "a matter",
+        "position": "p", "context": "c", "either": [], "rec": "r",
+        "rec_pick": "Not yet", "picks": ["Not yet"]}])
+    with_open = df.render()
+    assert ">Waiting on you<" in with_open, "the injected matter did not render"
+    assert ">What you already answered, and what it did<" in with_open, (
+        "the read-back vanished as soon as something was open")
+    for a in df.ANSWERED:
+        assert a["said"] in with_open
+        assert a["caused"] in with_open

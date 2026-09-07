@@ -30,13 +30,35 @@ for desk, brief in ask.consult("the bank statement shows a $10 service charge "
 fact the engagement should already have recorded — what the client does, whose
 return it is. Hand it over; the desk will not work it out, deliberately.
 
+**Read them off the engagement's file rather than typing them.** One file per
+engagement, kept wherever the firm keeps its files — never inside this plugin,
+and `load` refuses a path that is.
+
 ```python
-import record
+import engagements
+
+context = engagements.load("~/engagements/alpha-2026.md").context()
 
 for desk, brief in ask.consult(
         "they bought clothing at that store — is it a personal expense?",
-        context=record.Context(facts={"trade": "general contractor"})):
+        context=context):
     ...
+```
+
+`engagements.gaps(engagement)` tells you, before you ask anything, which facts
+no desk can be given and which desk will refuse without each one. There is a
+command for both:
+
+```
+python3 $CLAUDE_PLUGIN_ROOT/tools/engagement.py new alpha-2026 > ~/engagements/alpha-2026.md
+python3 $CLAUDE_PLUGIN_ROOT/tools/engagement.py check ~/engagements/alpha-2026.md
+```
+
+Typing the facts inline still works and is right for a one-off:
+
+```python
+import record
+context = record.Context(facts={"trade": "general contractor"})
 ```
 
 The same `context=` goes to `ask.answer(...)`. Leave it off and you get a desk

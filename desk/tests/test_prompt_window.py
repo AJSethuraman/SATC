@@ -307,14 +307,18 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: 22,329 -> 26,382. And again when the firm admitted eCFR for § 1.162-3 on the
 #: seventh docket: fixed-assets 22,231 -> 22,456 and 75,063 -> 75,288, two
 #: paragraphs on both sides, because a stored RULE is shown to a graded model
-#: and these are rules. THE FIRST FIGURE IN EACH PAIR DID NOT MOVE ANYWHERE, and
+#: and these are rules. And again on the EIGHTH docket, when the firm declared
+#: § 1.263(a)-2 on the same desk -- **"Declare it"**, 7 September 2026 -- for the
+#: same reason and the same amount either side: 22,456 -> 22,967 and
+#: 75,288 -> 75,799. THE FIRST FIGURE IN EACH PAIR DID NOT MOVE ANYWHERE when
+#: EXAMPLES were added, and
 #: that is the property worth noticing rather than the growth: it is the brief a
 #: GRADED model sees, examples withheld, and adding 34 examples changed none of
 #: the seven. The withholding is doing what it claims.
 ANSWERING_BRIEF = {
     "capitalization-and-de-minimis":   (8_548, 19_416),
     "cash-and-bank":                  (15_142, 20_685),
-    "fixed-assets":                   (22_456, 75_288),
+    "fixed-assets":                   (22_967, 75_799),
     "meals-and-entertainment":        (11_750, 20_734),
     "personal-or-business":            (3_607, 4_112),
     "rewards-and-information-returns": (9_432, 20_123),
