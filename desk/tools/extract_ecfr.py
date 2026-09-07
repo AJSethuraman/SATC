@@ -279,21 +279,33 @@ _RUN_IN = re.compile(r"^\x01[^\x02]*\x02\s*—\s*(?=\()"
                      r"|^\x01[^\x02]*\.\x02\s+(?=\()")
 
 
-#: TWO PARAGRAPHS RESERVED TOGETHER IN ONE ELEMENT. § 1.274-5T writes
-#: "(k) and (l) [Reserved] For further guidance, see § 1.274-5(k) and (l)." as a
-#: single <P>. A reader taking only the leading label leaves the outline standing
-#: at (k), and the (m) that follows is not (k)'s successor -- so the section had
-#: no consistent reading at all, on the very last element of 105.
+#: TWO PARAGRAPHS RESERVED TOGETHER IN ONE ELEMENT, in the three ways these
+#: sections write it:
 #:
-#: ONLY THE "and" FORM, and only because that is the form these sections write.
-#: "through" would name a RANGE, and expanding a range needs the alphabet, which
-#: is not known until `placements` has chosen a depth. A section writing one will
-#: refuse loudly here rather than be read approximately.
+#:     (k) and (l) [Reserved]        § 1.274-5T, on the last of its 105 elements
+#:     (a)-(b) [Reserved]            § 1.274-5, on its first
+#:     (2)(i) and (ii) [Reserved]    § 1.274-5 again, continuing the DEEPEST
+#:                                   label rather than the leading one
 #:
-#: Anchored immediately after the leading label, like every other continuation
-#: rule in this reader: a body that mentions "and (l)" in the middle of a
-#: sentence is not a candidate.
-_SPAN = re.compile(r"^and\s+\((\x01?)([a-zA-Z0-9]{1,4})\x02?\)\s")
+#: A reader taking only the labels it opens leaves the outline standing at the
+#: first of them, and the paragraph that follows is not its successor -- so both
+#: sections had no consistent reading at all, one of them on its opening line.
+#:
+#: THE EXPANSION NEEDS NO ALPHABET, WHICH IS WHY IT CAN HAPPEN HERE. "and" names
+#: exactly the two labels written down. A dash or "through" names a range, and a
+#: range would need the alphabet -- unknown until `placements` has chosen a depth
+#: -- EXCEPT where the two are adjacent, and then the range IS the two written
+#: down whichever alphabet it is in. A range spanning more than two is refused
+#: rather than guessed at; no section here writes one.
+#:
+#: WHAT KEEPS IT SAFE IS THE ANCHOR, NOT THE TRAILING BOUNDARY. The match starts
+#: immediately after the labels the element opens, so a body mentioning "and (l)"
+#: in the middle of a sentence is never a candidate. The `(?:\s|$)` on the end
+#: was tried as a mutation and broke nothing; it stays because it is the shape
+#: these sections write, not because it is load bearing. Said here rather than
+#: implied, for the same reason `_RUN_IN` says it about its full stop.
+_SPAN = re.compile(r"^(and|through|[-\u2010-\u2015])\s*"
+                   r"\((\x01?)([a-zA-Z0-9]{1,4})\x02?\)(?:\s|$)")
 
 
 @dataclass(frozen=True)
@@ -307,6 +319,24 @@ class Paragraph:
         return "".join(f"({p})" for p in self.path)
 
 
+#: A RUN-IN HEADING WHOSE ITALICS ARE BROKEN ACROSS THE LABEL, in the
+#: government's own file. § 1.62-2 writes
+#:
+#:     <I>Returning amounts in excess of expenses—(</I>1<I>) In general.</I>
+#:
+#: putting the em-dash and the opening parenthesis inside the italics and the
+#: numeral outside, where every other run-in in the CFR writes
+#: `<I>Substantiation</I>—(1) <I>In general.</I>`. The two are the same sentence
+#: typeset two ways, and the reader saw a heading in one and not the other -- so
+#: § 1.62-2 had no consistent reading at all and the vehicle desk lost its
+#: examples to a stray tag.
+#:
+#: THIS MOVES FENCES, NEVER TEXT. Strip the fences from either side and the
+#: string is identical, which is the property that makes it a repair rather than
+#: an edit -- and the label comes out PLAIN, which is what (f)(1) is.
+_MISFENCED = re.compile(rf"—\({_I1}([a-zA-Z0-9]{{1,4}}){_I0}\)")
+
+
 def _marked(elem) -> str:
     """The element's text with its italic runs fenced, so a label keeps its face."""
     out = [elem.text or ""]
@@ -314,23 +344,50 @@ def _marked(elem) -> str:
         inner = "".join(kid.itertext())
         out.append(f"{_I0}{inner}{_I1}" if kid.tag == "I" else inner)
         out.append(kid.tail or "")
-    return " ".join("".join(out).split())
+    text = " ".join("".join(out).split())
+    return _MISFENCED.sub(rf"{_I1}—(\1){_I0}", text)
 
 
 def chains_of(elem) -> list[list[tuple[str, bool, str]]]:
-    """The label chains this element opens -- more than one when it reserves a
-    span. Usually exactly one, which is `labels(elem)`."""
-    chain = labels(elem)
+    """The label chains this element opens -- more than one when it spans two
+    paragraphs. Usually exactly one, which is `labels(elem)`."""
+    chain, rest = _read_labels(elem)
     if not chain:
         return []
-    label, italic, text = chain[0]
-    if len(chain) == 1 and (m := _SPAN.match(_after_label(elem))) is not None:
-        # Both paragraphs carry the element's own words, with the "and (l)"
-        # that named the second one taken off the front of each: it is a label,
-        # not part of what either paragraph says.
-        body = _plain(_after_label(elem)[m.end():])
-        return [[(label, italic, body)], [(m.group(2), bool(m.group(1)), body)]]
-    return [chain]
+    m = _SPAN.match(rest)
+    if m is None:
+        return [chain]
+    connector, italic, label = m.group(1), bool(m.group(2)), m.group(3)
+    run = ((label,) if connector == "and"
+           else _span_between(chain[-1][0], label))
+    if run is None:
+        # A RANGE NO SINGLE ALPHABET SETTLES -- "(i) through (v)" is five roman
+        # numerals or fourteen letters, and nothing here can tell which. It is
+        # left unexpanded, the section fails to read, and it says so. No section
+        # this reader is pointed at writes one.
+        return [chain]
+    # Every paragraph in the span carries the element's own words with the span
+    # taken off the front: "and (l)" is a label, not part of what any of them say.
+    body = _plain(rest[m.end():])
+    return ([chain[:-1] + [(chain[-1][0], chain[-1][1], body)]]
+            + [[(x, italic, body)] for x in run])
+
+
+def _span_between(first: str, second: str) -> tuple[str, ...] | None:
+    """The labels from after `first` through `second`, if one alphabet settles it.
+
+    THE DEPTH IS NOT KNOWN HERE and does not have to be. A range names two
+    labels, and where exactly one alphabet holds both of them in that order, the
+    run between them is the same whatever depth the pair turns out to sit at:
+    "(3)-(7)" is 4, 5, 6, 7 in the only alphabet that has a 3 and a 7. Where two
+    alphabets qualify -- "(i) through (v)" is five roman numerals or fourteen
+    letters -- there is no answer here and it returns none rather than a guess.
+    """
+    runs = {letters[letters.index(first) + 1: letters.index(second) + 1]
+            for level in ALPHABETS for letters, _ in level
+            if first in letters and second in letters
+            and letters.index(second) > letters.index(first)}
+    return runs.pop() if len(runs) == 1 else None
 
 
 def _after_label(elem) -> str:
@@ -341,6 +398,10 @@ def _after_label(elem) -> str:
 
 
 def labels(elem) -> list[tuple[str, bool, str]]:
+    return _read_labels(elem)[0]
+
+
+def _read_labels(elem) -> tuple[list[tuple[str, bool, str]], str]:
     """Every paragraph this element opens: `(label, italic, its text)`.
 
     RUN-IN HEADINGS OPEN MORE THAN ONE PARAGRAPH. "(c) Coordination with other
@@ -381,8 +442,9 @@ def labels(elem) -> list[tuple[str, bool, str]]:
             text = rest
             continue
         out.append((label, italic, _plain(rest)))
+        text = rest
         break
-    return out
+    return out, text
 
 
 def _plain(text: str) -> str:

@@ -531,6 +531,45 @@ def _elem(text: str):
 # -- the sections that used to refuse, and the acceptance test they now pass --
 
 X446 = ROOT / "tools" / "fixtures" / "1.446-1.xml"
+X622 = ROOT / "tools" / "fixtures" / "1.62-2.xml"
+X2745 = ROOT / "tools" / "fixtures" / "1.274-5.xml"
+
+
+def _lands(xml):
+    """`(paragraphs, underdetermined, cited, dangling)` for a whole section."""
+    paragraphs, underdetermined = ex.outline(xml)
+    held = {p.label for p in paragraphs}
+    cited = set()
+    for p in paragraphs:
+        cited |= ex.cited_paths(p.text)
+    return paragraphs, underdetermined, cited, sorted(c for c in cited
+                                                      if c not in held)
+
+
+def test_the_two_sections_that_held_out_longest_read_now():
+    """§ 1.62-2 and § 1.274-5 were still refusing after the first four causes
+    were fixed, and I said so in the record before saying they worked.
+
+    § 1.62-2's cause is in the government's file rather than in the regulation:
+    its italics are broken across a paragraph number. § 1.274-5's is a span
+    written three ways, one of them on its opening line.
+    """
+    paragraphs, underdetermined, cited, dangling = _lands(X622)
+    assert underdetermined == [] and dangling == []
+    assert len(cited) == 21 and len(paragraphs) == 49
+    # The repaired run-in, and the plain label it carries.
+    assert {"(f)", "(f)(1)", "(f)(2)"} <= {p.label for p in paragraphs}
+
+    paragraphs, underdetermined, cited, dangling = _lands(X2745)
+    assert underdetermined == []
+    assert len(paragraphs) == 92
+    # ONE DEAD REFERENCE, AND IT IS THE REGULATION'S. § 1.274-5(b) is reserved
+    # to § 1.274-5T, so this section names a (b)(2) it does not contain. The
+    # same residue § 1.263(a)-3 has two of, not a reading that is partly wrong.
+    assert dangling == ["(b)(2)"], dangling
+    assert {"(a)", "(b)", "(c)(2)(i)", "(c)(2)(ii)"} <= {p.label for p in paragraphs}
+    # The three-way span, expanded: (c)(3) through (c)(7) from "(3)-(7)".
+    assert {f"(c)({n})" for n in range(3, 8)} <= {p.label for p in paragraphs}
 
 
 def test_why_four_sections_could_not_be_read_and_what_it_took():
@@ -633,14 +672,74 @@ def test_two_paragraphs_reserved_in_one_element_open_both(tmp_path):
         "the label that named the second paragraph is not part of what it says")
 
 
-def test_only_the_and_form_of_a_span_is_read(tmp_path):
-    """"through" names a RANGE, and expanding one needs the alphabet, which is
-    not known until a depth has been chosen. It refuses rather than guessing."""
+def test_a_span_written_with_a_dash_is_read_too(tmp_path):
+    """§ 1.274-5 opens "(a)-(b) [Reserved]" — on its FIRST element, so the
+    section had no reading from the very top."""
     xml = tmp_path / "s.xml"
-    xml.write_text("<DIV8><P>(a) One.</P><P>(b) through (d) [Reserved]</P>"
-                   "<P>(e) Five.</P></DIV8>", encoding="utf-8")
+    xml.write_text("<DIV8><P>(a)-(b) [Reserved]</P><P>(c) Three.</P></DIV8>",
+                   encoding="utf-8")
+    assert {p.label for p in ex.outline(xml)[0]} == {"(a)", "(b)", "(c)"}
+
+
+def test_a_span_continues_the_deepest_label_not_the_leading_one(tmp_path):
+    """"(2)(i) and (ii) [Reserved]" spans (i) and (ii), not (2) and something.
+    The first version fired only when the element opened one label."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(1) Two.</P>"
+                   "<P>(2)(i) and (ii) [Reserved]</P><P>(iii) Four.</P></DIV8>",
+                   encoding="utf-8")
+    held = {p.label for p in ex.outline(xml)[0]}
+    assert {"(a)(2)(i)", "(a)(2)(ii)", "(a)(2)(iii)"} <= held
+
+
+def test_a_range_of_more_than_two_expands_when_one_alphabet_settles_it():
+    """§ 1.274-5 writes "(3)-(7)" and "(1) through (3)". The depth is not known
+    where this is read and does not have to be: exactly one alphabet holds a 3
+    and a 7, so the run between them is the same wherever the pair sits."""
+    assert ex._span_between("3", "7") == ("4", "5", "6", "7")
+    assert ex._span_between("a", "d") == ("b", "c", "d")
+
+
+def test_a_range_two_alphabets_could_read_is_refused():
+    """"(i) through (v)" is five roman numerals or fourteen letters, and nothing
+    at this point can tell which. None, rather than a guess."""
+    assert ex._span_between("i", "v") is None
+    assert ex._span_between("d", "a") is None, "a range must run forwards"
+
+
+def test_a_range_that_cannot_be_settled_leaves_the_section_unreadable(tmp_path):
+    """And it fails loudly rather than placing the endpoints and dropping the
+    middle, which would silently lose paragraphs."""
+    xml = tmp_path / "s.xml"
+    # At the top level, so the unexpanded span really does break the sequence:
+    # (i) follows (h), and the (w) after it can only succeed a span that ran to
+    # (v). Left unexpanded there is no reading at all.
+    xml.write_text("<DIV8><P>(h) One.</P>"
+                   "<P>(i) through (v) [Reserved]</P><P>(w) Next.</P></DIV8>",
+                   encoding="utf-8")
     with pytest.raises(ValueError, match="cannot be read as a CFR outline"):
         ex.outline(xml)
+
+
+def test_a_run_in_heading_with_its_italics_broken_across_the_label_is_repaired():
+    """THE GOVERNMENT'S OWN FILE, and it cost the vehicle desk its examples.
+
+    § 1.62-2 writes
+    `<I>Returning amounts in excess of expenses—(</I>1<I>) In general.</I>`,
+    putting the em-dash and the opening parenthesis inside the italics and the
+    numeral outside, where every other run-in in the CFR writes
+    `<I>Substantiation</I>—(1) <I>In general.</I>`. The reader saw a heading in
+    one and not the other.
+
+    THE REPAIR MOVES FENCES, NEVER TEXT — strip the italics from either side and
+    the string is identical — and the label comes out PLAIN, which is what
+    (f)(1) is.
+    """
+    broken = _p("<P>(f) <I>Returning amounts—(</I>1<I>) In general.</I> Body.</P>")
+    whole = _p("<P>(f) <I>Returning amounts</I>—(1) <I>In general.</I> Body.</P>")
+    assert ex.labels(broken) == ex.labels(whole)
+    assert ex.labels(broken) == [("f", False, "Returning amounts"),
+                                 ("1", False, "In general. Body.")]
 
 
 def test_an_unlabelled_element_continues_the_paragraph_above_it(tmp_path):

@@ -230,3 +230,51 @@ docket card claimed otherwise until this correction. Both are diagnosed:
 
 Found by checking a claim I had already written into a task, which is the only
 reason it was caught before the firm read it.
+
+### And then the last two, an hour after that: all eleven read
+
+Seven causes in total, not the three prototyped and not the five reported above.
+
+- **§ 1.62-2's cause is in the file, not the regulation.** The XML reads
+  `<I>Returning amounts in excess of expenses—(</I>1<I>) In general.</I>` —
+  the em-dash and the opening parenthesis inside the italics, the numeral
+  outside — where every other run-in in the CFR writes
+  `<I>Substantiation</I>—(1) <I>In general.</I>`. The same sentence, typeset two
+  ways. The repair moves fences and never text: strip the italics from either
+  side and the string is identical, and the label comes out plain, which is what
+  (f)(1) is. A stray tag cost the vehicle desk every example it might have had.
+- **§ 1.274-5 writes a reserved span three ways** — `(a)-(b)` on its opening
+  line, `(2)(i) and (ii)` continuing the deepest label of a chain rather than
+  the leading one, and true ranges `(3)-(7)` and `(1) through (3)`.
+
+  The range is the interesting one. Expanding it looked like it needed the
+  depth, and the depth is not known where labels are read. It does not: a range
+  names two labels, and where exactly one alphabet holds both of them in that
+  order, the run between them is the same whatever depth the pair turns out to
+  sit at. `(3)-(7)` is 4, 5, 6, 7 in the only alphabet with a 3 and a 7. Where
+  two alphabets qualify — `(i) through (v)` is five roman numerals or fourteen
+  letters — it returns nothing and the section fails to read, loudly.
+
+| section | paragraphs | self-citations landed |
+|---|---|---|
+| § 1.263(a)-3 | 172 | 76 of 76 (100 of 102 over the whole file, unchanged) |
+| § 1.274-5T | 123 | 24 of 24 |
+| § 1.274-12 | 96 | 28 of 28 |
+| § 1.274-5 | 92 | 24 of 25 |
+| § 1.446-1 | 77 | 30 of 30 |
+| § 1.280F-6 | 70 | 22 of 22 |
+| § 1.263(a)-1 | 68 | 24 of 24 |
+| § 1.162-3 | 64 | 28 of 28 |
+| § 1.62-2 | 49 | 21 of 21 |
+| § 1.274-11 | 15 | 5 of 5 |
+| § 1.162-2 | 8 | 0 of 0 |
+
+§ 1.274-5's one dead reference is the regulation's own: its (b) is reserved to
+§ 1.274-5T, so it names a (b)(2) it does not contain. That is the residue
+§ 1.263(a)-3 has two of, not a reading that is partly wrong.
+
+**Fifteen mutations tried across the seven rules; fourteen failed the suite.**
+The fifteenth — dropping the trailing word boundary from the span pattern —
+broke nothing, and the comment now says so rather than claiming it is load
+bearing. The anchor does that work, the same finding `_RUN_IN` already records
+about its full stop.
