@@ -301,3 +301,72 @@ def test_that_index_still_carries_the_rules():
     index = sr.citation_index(desk)
     rules = {p.citation for p in desk.passages if p.kind == record.RULE}
     assert set(index) == rules and len(index) == 172, len(index)
+
+
+# ── an example must hang off the paragraph that announces it ─────────────────
+
+def test_every_lead_in_has_its_own_examples_stored_beneath_it():
+    """THE GUARD THAT WOULD HAVE CAUGHT A REAL MIS-CITATION, 7 September 2026.
+
+    A paragraph whose text announces examples -- "The following examples
+    illustrate the application of this paragraph (f)" -- is a promise that
+    examples follow. If the record holds none under that paragraph's own
+    citation, they were attached somewhere else, and "somewhere else" is another
+    rule of the same regulation.
+
+    That is exactly what happened. § 1.263(a)-3(g)(2)(ii) is lettered rather
+    than numbered, the extractor matched lead-ins by prose that assumed a
+    number, and its four examples were filed under (f)(4) -- leasehold
+    improvements -- while being about removing columns and disposing of
+    shingles under (g)(2), removal costs. Their own text says "Assume the same
+    facts as Example 1", which under the wrong numbering pointed at the wrong
+    example as well.
+
+    Nothing else could have caught it. All four are dropped as problems, so the
+    answer key never saw them; they were wrong only in the corpus, and only once
+    the corpus began holding examples at all.
+    """
+    for d in _HAS_SOURCES:
+        desk = record.load(d)
+        # SCOPED PER SOURCE, and the narrowing is a finding in itself. Asked per
+        # DESK, this fires on `personal-or-business`: it announces § 1.262-1(b)'s
+        # examples and stores none of them, while holding four from Pub. 587. But
+        # that is the OTHER gap -- a regulation whose examples were never
+        # extracted -- and it is true of four desks today, deliberately and
+        # recorded above. Conflating the two would make this guard read as a
+        # mis-citation report on desks that have no mis-citation.
+        by_source = {}
+        for p in desk.passages:
+            if p.kind == record.EXAMPLE:
+                by_source.setdefault(p.source_id, set()).add(p.citation)
+        for p in desk.passages:
+            if p.kind != record.RULE or not _LEADIN.search(p.text[:220]):
+                continue
+            held = by_source.get(p.source_id)
+            if not held:
+                continue          # this source's examples are not stored at all
+            beneath = [c for c in held if c.startswith(p.citation + " Example")]
+            assert beneath, (
+                f"{d.name}: {p.citation} announces examples and the record "
+                f"holds none under it. They were filed under another paragraph "
+                f"of the same regulation, which cites them to the wrong rule.")
+
+
+def test_the_four_corrected_examples_are_where_the_section_puts_them():
+    """The correction itself, asserted against the section's own subject.
+
+    (g)(2) is removal costs; (f) is leasehold improvements. Kept as a named case
+    rather than only as the rule above, because the rule would also pass if all
+    four moved somewhere else wrong.
+    """
+    desk = record.load(DESKS / "fixed-assets")
+    moved = [p for p in desk.passages
+             if p.citation.startswith("26 CFR 1.263(a)-3(g)(2)(ii) Example")]
+    assert len(moved) == 4, [p.citation for p in moved]
+    joined = " ".join(p.text for p in moved)
+    for token in ("columns and girders", "shingles"):
+        assert token in joined, f"the removal-cost examples no longer mention {token}"
+    # AND (f)(4) KEEPS ITS OWN SIX, so the correction moved four rather than ten.
+    f4 = [p for p in desk.passages
+          if p.citation.startswith("26 CFR 1.263(a)-3(f)(4) Example")]
+    assert len(f4) == 6, [p.citation for p in f4]
