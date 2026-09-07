@@ -244,6 +244,44 @@ NO_SOURCE_SERIES = {
                        "Searched the chart data column by column first; it is "
                        "not in there"),
 }
+#: The Case-Shiller check that ran and whose verdict never reached this file.
+#: {series: the record fred_caseshiller.py wrote}. Absent is handled: if the
+#: check has not been run for this build, the rows say the history is not
+#: obtainable and claim nothing about a current month, rather than repeating a
+#: sentence about a check nobody executed.
+_CS = SB / "fred_caseshiller_results.json"
+CASE_SHILLER = ({r["series"]: r for r in json.loads(_CS.read_text())}
+                if _CS.exists() else {})
+#: Only the series whose tie is against a PUBLISHED LEVEL. Selected on the
+#: units, which say what the number is; the first version tested the `basis`
+#: prose for the word "level" and matched all 22, because the change records
+#: describe themselves as pinning the move "not the absolute level".
+CS_LEVEL_TIES = {sid: r for sid, r in CASE_SHILLER.items()
+                 if r.get("verdict") == "TIED"
+                 and "percent change" not in r.get("units", "")}
+
+
+def case_shiller_note(series):
+    """What was checked for this series, in the reader's words. None if not ours."""
+    r = CASE_SHILLER.get(series)
+    if r is None:
+        return None
+    if r.get("verdict") != "TIED":
+        return ("S&P Dow Jones Indices sells the history. The most recent "
+                "month was checked against their free release and DID NOT "
+                "agree -- see the tie-out record.")
+    if series in CS_LEVEL_TIES:
+        return None                      # that row is verified; no gap to explain
+    return ("S&P Dow Jones Indices sells the history, so no month here is "
+            "checked against a published level. What WAS checked, on %s: S&P "
+            "publishes the month-on-month change in its free release, and the "
+            "change implied by this series' last two values matches it exactly "
+            "(%s vs %s). That pins the MOVE between the last two months. It "
+            "does not verify any level, and no earlier month is checked at all."
+            % (r.get("date_new", "the most recent month"),
+               r.get("ours"), r.get("theirs")))
+
+
 NO_SOURCE_WHY = {
     "hpi_caseshiller": ("S&P Dow Jones Indices sells the history. Its free "
                         "monthly press release carries the current month, and "
@@ -262,6 +300,7 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
     w.writerow(["series_id", "title", "date", "value", "units", "frequency",
                 "publisher", "verified", "verified_against", "why_not_verified",
                 "source_url"])
+    MACRO_VERIFIED = 0
     for r in fred_rows:
         meta = SEED_ROWS.get(r["series"]) or NEW_META.get(r["series"]) \
             or fred_meta.get(r["series"], {})
@@ -274,6 +313,18 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
                          .replace(" Z.1 complete data package", "") \
                          .replace(" All-Transactions house price index", "")
         ok = r["verdict"] == "TIED"
+        # The one Case-Shiller series that ties to a PUBLISHED LEVEL, on the
+        # month it was checked. Same entity, same date, same basis, same
+        # units -- a verification by every test that word has to pass, and it
+        # was being reported as unverified because the check's result was
+        # never carried back into this file.
+        cs_level = CS_LEVEL_TIES.get(r["series"])
+        cs_against = ""
+        if cs_level and r["date"] == cs_level.get("date_new"):
+            ok = True
+            cs_against = ("S&P Dow Jones Indices press release, %s"
+                          % cs_level.get("source_where", "published level"))
+        MACRO_VERIFIED += bool(ok)
         w.writerow([
             r["series"], meta.get("title", block.get("title", "")), r["date"],
             r["ours"], meta.get("units", ""), meta.get("frequency", ""),
@@ -285,8 +336,13 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
             if (cat == "hpi_caseshiller"
                 or r["series"] in ("CSUSHPINSA", "CSUSHPISA")) else pub,
             "yes" if ok else "no",
-            r["source"] if ok else "",
-            "" if ok else (NO_SOURCE_SERIES.get(r["series"])
+            (cs_against or r["source"]) if ok else "",
+            # The Case-Shiller note comes FIRST, because for those series the
+            # generic "S&P sells the history" line is true and useless: it
+            # says nothing about the check that was actually run against S&P's
+            # own release, which tied 22 of 22 and was invisible here.
+            "" if ok else (case_shiller_note(r["series"])
+                           or NO_SOURCE_SERIES.get(r["series"])
                            or (NO_SOURCE_SERIES["_BLS_PENDING"]
                                # Keyed off the GROUP, not a phrase in the
                                # source string. Matching on "Labor Statistics"
@@ -306,17 +362,67 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
 print("macro-observations.csv : %d rows" % len(fred_rows))
 
 # ------------------------------------------------------------ not comparable --
+#: The row said: "Balances are point-in-time and are unaffected."
+#:
+#: True of each measurement and false of the series, which is what a reader
+#: charts. Every balance is a correct figure for the institution as it stood
+#: that day -- and the institution is a different size on either side of the
+#: line. Measured across the whole set on 7 September 2026: FIFTEEN of the 31
+#: measurable merger quarters carry a total-asset step of 10% or more. Truist
+#: doubles (+100.6%); First-Citizens nearly doubles taking on Silicon Valley
+#: Bridge Bank (+96.6%).
+#:
+#: "Unaffected" is the word that did the damage: it is the sentence somebody
+#: relies on when deciding a balance series is safe to trend. So the row now
+#: says what actually happens and carries the size of the step, per bank, per
+#: quarter, computed from the delivered values rather than described.
+def _asset_step(cert, quarter):
+    """Total assets the quarter before and the quarter of the merger."""
+    y, mth = int(quarter[:4]), int(quarter[5:7])
+    before = {3: "%d-12-31" % (y - 1), 6: "%d-03-31" % y,
+              9: "%d-06-30" % y, 12: "%d-09-30" % y}[mth]
+    got = {}
+    for r in bank_rows:
+        if (r["cert"] == cert and r["field"] == "ASSET"
+                and r["repdte"] in (before, quarter)):
+            got[r["repdte"]] = float(r["ours"])
+    if len(got) != 2 or not got.get(before):
+        return None, None, None
+    return got[before], got[quarter], (got[quarter] / got[before] - 1) * 100
+
+
 with (OUT / "not-comparable-periods.csv").open("w", newline="", encoding="utf-8") as fh:
     w = csv.writer(fh)
     w.writerow(["cert", "bank", "report_date", "acquired_cert", "effective",
-                "fdic_change_code", "what_this_means"])
+                "fdic_change_code", "total_assets_quarter_before",
+                "total_assets_this_quarter", "change_in_total_assets_pct",
+                "what_this_means"])
+    steps = 0
     for m in mergers:
-        w.writerow([m["survivor"], m["name"], m["quarter"], m["acquired"],
-                    m["effective"], m["code"],
-                    "Quarterly charge-off flows for this bank in this quarter "
-                    "mix two banks and are not a quarter of anything. Balances "
-                    "are point-in-time and are unaffected."])
-print("not-comparable-periods.csv : %d merger events" % len(mergers))
+        before, after, pct = _asset_step(m["survivor"], m["quarter"])
+        if pct is not None and abs(pct) >= 10:
+            steps += 1
+        if pct is None:
+            size = ("The size of the step could not be computed here because "
+                    "total assets are not present for both quarters.")
+        else:
+            size = ("Total assets go from %s to %s, a change of %+.1f%%. That "
+                    "is not growth; it is a different institution."
+                    % (format(before, ",.0f"), format(after, ",.0f"), pct))
+        w.writerow([
+            m["survivor"], m["name"], m["quarter"], m["acquired"],
+            m["effective"], m["code"],
+            "" if before is None else format(before, ".0f"),
+            "" if after is None else format(after, ".0f"),
+            "" if pct is None else format(pct, ".1f"),
+            "Quarterly charge-off flows for this bank in this quarter mix two "
+            "banks and are not a quarter of anything. THE BALANCES EITHER SIDE "
+            "OF THIS QUARTER ARE NOT THE SAME INSTITUTION EITHER: each figure "
+            "is correct for the bank as it stood that day, but a balance "
+            "charted across this line compares a bank with a bigger bank under "
+            "one name. " + size])
+print("not-comparable-periods.csv : %d merger events, %d with a total-asset "
+      "step of 10%% or more" % (len(mergers), steps))
 
 # ------------------------------------------------------------ field meanings --
 with (OUT / "field-dictionary.csv").open("w", newline="", encoding="utf-8") as fh:
@@ -341,8 +447,13 @@ summary = {
     "bank_fdic_computed": bc.get("COMPUTED BY THE FDIC", 0),
     "bank_not_comparable": bc.get("NOT COMPARABLE (SPANS A MERGER)", 0),
     "bank_differs": bc.get("DIFFERS", 0),
-    "macro_observations": len(fred_rows), "macro_verified": fc.get("TIED", 0),
-    "macro_no_source": fc.get("NO SOURCE FOR THIS PERIOD", 0),
+    # Counted off the rows this run WROTE, not off the verdicts it was handed.
+    # The two are not the same thing -- a row verified against a source the
+    # verifier did not know about is verified in the file and not in the
+    # verdict -- and a summary that disagrees with the file it summarises is
+    # the failure this whole feed is written against.
+    "macro_observations": len(fred_rows), "macro_verified": MACRO_VERIFIED,
+    "macro_no_source": len(fred_rows) - MACRO_VERIFIED,
     "macro_differs": fc.get("DIFFERS", 0),
 }
 summary["total_values"] = summary["bank_values"] + summary["macro_observations"]

@@ -364,3 +364,63 @@ def test_the_events_the_deliverable_publishes_are_the_ones_it_marks():
     # not add one of their own are the two double acquisitions. Asserted so
     # that a merger going unmarked cannot hide inside the difference.
     assert len({(e["cert"], e["report_date"]) for e in events}) == MERGER_QUARTERS
+
+
+# --------------------------------------------------------------------------
+# The two claims the deliverable made that its own data contradicted
+# --------------------------------------------------------------------------
+def test_the_merger_rows_do_not_tell_the_reader_balances_are_unaffected():
+    """Every merger row said "Balances are point-in-time and are unaffected."
+
+    True of each measurement and false of the series, which is the thing a
+    reader charts. Measured on 7 September 2026: 15 of the 31 measurable
+    merger quarters carry a total-asset step of 10% or more, and Truist Bank
+    doubles at 2019-12-31 -- +100.6%, which is BB&T absorbing SunTrust and not
+    growth. The word "unaffected" is what somebody leans on when deciding a
+    balance series is safe to trend across the line.
+    """
+    with NOT_COMPARABLE_CSV.open(encoding="utf-8") as handle:
+        events = list(csv.DictReader(handle))
+
+    for e in events:
+        assert "unaffected" not in e["what_this_means"].lower(), e["bank"]
+        assert "NOT THE SAME INSTITUTION" in e["what_this_means"], e["bank"]
+
+    # and the size of the step is IN the row, not left for the reader to work
+    # out from another file
+    stepped = [e for e in events if e["change_in_total_assets_pct"]
+               and abs(float(e["change_in_total_assets_pct"])) >= 10]
+    assert len(stepped) == 15, (
+        "the number of merger quarters that move total assets by 10%% or more "
+        "changed to %d; re-measure before trusting the prose that quotes it"
+        % len(stepped))
+    worst = max(stepped, key=lambda e: abs(float(e["change_in_total_assets_pct"])))
+    assert worst["bank"] == "Truist Bank" and worst["report_date"] == "2019-12-31"
+    assert float(worst["change_in_total_assets_pct"]) > 100
+
+
+def test_a_series_with_one_verified_row_is_not_called_unchecked_throughout():
+    """LIMITS counts "whole series, unchecked for their entire history".
+
+    A series with even one verified observation is not one of those. The
+    Case-Shiller national index ties to a published S&P level on its most
+    recent month, and was still being counted among the series with no
+    obtainable source, because the set was built from unverified ROWS instead
+    of from series with no verified row at all.
+    """
+    rows = list(csv.DictReader(
+        (PKG / "verified-data" / "macro-observations.csv").open(encoding="utf-8")))
+    verified = {r["series_id"] for r in rows if r["verified"] == "yes"}
+    unverified = {r["series_id"] for r in rows if r["verified"] != "yes"}
+    partly = verified & unverified
+
+    assert "CSUSHPINSA" in partly, (
+        "the national Case-Shiller index should have exactly its checked month "
+        "verified; if it has none, fred_caseshiller.py's result stopped "
+        "reaching the deliverable again")
+    # A series counted as having no obtainable source must have nothing verified
+    for sid in partly:
+        assert sid in verified and sid in unverified
+    assert len(unverified - verified) == 23, (
+        "series with NOTHING verified moved from 23 to %d"
+        % len(unverified - verified))

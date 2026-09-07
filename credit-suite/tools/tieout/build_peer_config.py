@@ -41,23 +41,39 @@ sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 from credit_suite.sources.fdic import series_seed as SEED         # noqa: E402
 
 
-def legal_name(cert):
-    """The institution name off the front page of that bank's latest filing.
+def legal_name(cert, newest=True):
+    """The institution name off the front page of one of that bank's filings.
 
     The FFIEC facsimile prints `Institution Name` and then the legal name on
     its own line. Reading the first capitalised run instead picks up the cover
     page's `Board of Governors of the Federal Reserve System` -- which is what
     my first version did, and it flagged Bank of New York Mellon as a mismatch
     when the filing plainly says BANK OF NEW YORK MELLON,THE.
+
+    ``newest`` picks which end of the ten years to read. Both matter: the
+    newest says whether the certificate is the bank we print today, the oldest
+    whether it was the same institution when the window opens.
+
+    Sorted CHRONOLOGICALLY, which these filenames are not. They are
+    `filing-<cert>-MMDDYYYY.pdf`, so a plain sort orders by month first and
+    "the latest filing" was whichever December sorted last -- 31 December 2025
+    rather than the 30 June 2026 filing that is actually the newest. Every
+    identity in `config/peers.json` had been checked against the wrong end of
+    a six-month gap.
     """
-    pdfs = sorted((SB / "banks").glob("filing-%s-*.pdf" % cert))
+    def when(path):
+        d = path.stem.rsplit("-", 1)[1]          # MMDDYYYY
+        return d[4:], d[:2], d[2:4]
+
+    pdfs = sorted((SB / "banks").glob("filing-%s-*.pdf" % cert), key=when)
     if not pdfs:
         return None, None
-    doc = pymupdf.open(pdfs[-1])
+    chosen = pdfs[-1] if newest else pdfs[0]
+    doc = pymupdf.open(chosen)
     text = doc[0].get_text()
     doc.close()
     m = re.search(r"Institution Name\s*\n\s*(.+)", text)
-    return (m.group(1).strip() if m else None), pdfs[-1].name
+    return (m.group(1).strip() if m else None), chosen.name
 
 
 def matches(ours, theirs):
@@ -69,17 +85,27 @@ def matches(ours, theirs):
     return a[:9] in b or b[:9] in a
 
 
-entries, unverified = [], []
+entries, unverified, renamed = [], [], []
 for slot, cert, name, group, active in SEED.PEERS:
     legal, filing = legal_name(str(cert))
+    oldest, oldest_filing = legal_name(str(cert), newest=False)
     ok = matches(name, legal)
+    # Same certificate, different name at the start of the window. Cosmetic
+    # for a charter conversion; not cosmetic when the institution absorbed
+    # another one and kept the certificate, which is the Truist case.
+    same_throughout = bool(oldest) and matches(legal or "", oldest)
     entries.append({"slot": slot, "cert": str(cert), "name": name,
                     "group": group, "active": active == "TRUE",
                     "legal_name_on_filing": legal,
                     "checked_against": filing,
-                    "identity_verified": bool(ok)})
+                    "identity_verified": bool(ok),
+                    "legal_name_at_window_start": oldest,
+                    "window_start_filing": oldest_filing,
+                    "same_name_throughout": same_throughout})
     if not ok:
         unverified.append((name, cert, legal))
+    if oldest and not same_throughout:
+        renamed.append((name, str(cert), oldest, legal))
     print("  slot %2d  %-7s %-26s %-44s %s"
           % (slot, cert, name[:26], (legal or "NO FILING ON DISK")[:44],
              "" if ok else "<-- NOT THIS BANK?"))
@@ -92,6 +118,17 @@ doc = {
                  "this project proves the FDIC agrees with a filing for a given "
                  "certificate; only this proves the certificate is the bank we "
                  "print beside it.",
+    "_over_time": "`same_name_throughout` is false where the institution "
+                  "behind the certificate carried a different name on the "
+                  "oldest filing in the window. A certificate is stable and "
+                  "the bank behind it is not. One of the two is a rename that "
+                  "changed nothing about the institution: ZB, National "
+                  "Association became Zions Bancorporation, N.A. The other is "
+                  "not cosmetic at all -- everything before December 2019 "
+                  "under the label 'Truist Bank' is Branch Banking and Trust, "
+                  "which is half the bank that carries the name afterwards. "
+                  "See not-comparable-periods.csv for the size of that step "
+                  "and of every other one.",
     "generated": "2026-09-07",
     "slots_built": 40,
     "banks": entries,
@@ -102,6 +139,10 @@ print("\n%d banks, %d slots built, %d free"
       % (len(entries), doc["slots_built"], doc["slots_built"] - len(entries)))
 print("identity verified against the filing's own front page: %d of %d"
       % (sum(1 for e in entries if e["identity_verified"]), len(entries)))
+print("same name on the oldest and the newest filing: %d of %d"
+      % (sum(1 for e in entries if e["same_name_throughout"]), len(entries)))
+for nm, cert, was, now in renamed:
+    print("   %-7s %-38s -> %s" % (cert, was, now))
 if unverified:
     print("\nNOT VERIFIED -- do not run these until the certificate is confirmed:")
     for name, cert, legal in unverified:

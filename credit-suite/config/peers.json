@@ -1,6 +1,7 @@
 {
  "_what": "The peer group. Generated from series_seed.PEERS by tools/tieout/build_peer_config.py -- edit the seed, not this.",
  "_identity": "`identity_verified` means the certificate's own filed Call Report names this bank on its front page. Everything else in this project proves the FDIC agrees with a filing for a given certificate; only this proves the certificate is the bank we print beside it.",
+ "_over_time": "`same_name_throughout` is false where the institution behind the certificate carried a different name on the oldest filing in the window. A certificate is stable and the bank behind it is not. One of the two is a rename that changed nothing about the institution: ZB, National Association became Zions Bancorporation, N.A. The other is not cosmetic at all -- everything before December 2019 under the label 'Truist Bank' is Branch Banking and Trust, which is half the bank that carries the name afterwards. See not-comparable-periods.csv for the size of that step and of every other one.",
  "generated": "2026-09-07",
  "slots_built": 40,
  "banks": [
@@ -11,8 +12,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "JPMORGAN CHASE BANK, NATIONAL ASSOCIATION",
-   "checked_against": "filing-628-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-628-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "JPMORGAN CHASE BANK, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-628-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 2,
@@ -21,8 +25,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "WELLS FARGO BANK, NATIONAL ASSOCIATION",
-   "checked_against": "filing-3511-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-3511-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "WELLS FARGO BANK, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-3511-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 3,
@@ -31,8 +38,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "BANK OF AMERICA, NATIONAL ASSOCIATION",
-   "checked_against": "filing-3510-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-3510-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "BANK OF AMERICA, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-3510-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 4,
@@ -41,8 +51,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "CITIBANK, N.A.",
-   "checked_against": "filing-7213-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-7213-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "CITIBANK, N.A.",
+   "window_start_filing": "filing-7213-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 5,
@@ -51,8 +64,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "U.S. BANK NATIONAL ASSOCIATION",
-   "checked_against": "filing-6548-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-6548-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "U.S. BANK NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-6548-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 6,
@@ -61,8 +77,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "PNC BANK, NATIONAL ASSOCIATION",
-   "checked_against": "filing-6384-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-6384-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "PNC BANK, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-6384-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 7,
@@ -71,8 +90,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "TRUIST BANK",
-   "checked_against": "filing-9846-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-9846-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "BRANCH BANKING AND TRUST COMPANY",
+   "window_start_filing": "filing-9846-09302016.pdf",
+   "same_name_throughout": false
   },
   {
    "slot": 8,
@@ -81,8 +103,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "CAPITAL ONE, NATIONAL ASSOCIATION",
-   "checked_against": "filing-4297-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-4297-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "CAPITAL ONE, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-4297-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 9,
@@ -91,8 +116,11 @@
    "group": "self",
    "active": true,
    "legal_name_on_filing": "KEYBANK NATIONAL ASSOCIATION",
-   "checked_against": "filing-17534-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-17534-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "KEYBANK NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-17534-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 10,
@@ -101,8 +129,11 @@
    "group": "counterparty",
    "active": true,
    "legal_name_on_filing": "BANK OF NEW YORK MELLON,THE",
-   "checked_against": "filing-639-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-639-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "BANK OF NEW YORK MELLON,THE",
+   "window_start_filing": "filing-639-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 11,
@@ -111,8 +142,11 @@
    "group": "counterparty",
    "active": true,
    "legal_name_on_filing": "GOLDMAN SACHS BANK USA",
-   "checked_against": "filing-33124-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-33124-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "GOLDMAN SACHS BANK USA",
+   "window_start_filing": "filing-33124-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 12,
@@ -121,8 +155,11 @@
    "group": "counterparty",
    "active": true,
    "legal_name_on_filing": "MORGAN STANLEY BANK, N.A.",
-   "checked_against": "filing-32992-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-32992-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "MORGAN STANLEY BANK, N.A.",
+   "window_start_filing": "filing-32992-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 13,
@@ -131,8 +168,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "FIFTH THIRD BANK, NATIONAL ASSOCIATION",
-   "checked_against": "filing-6672-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-6672-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "FIFTH THIRD BANK",
+   "window_start_filing": "filing-6672-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 14,
@@ -141,8 +181,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "HUNTINGTON NATIONAL BANK,THE",
-   "checked_against": "filing-6560-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-6560-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "HUNTINGTON NATIONAL BANK,THE",
+   "window_start_filing": "filing-6560-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 15,
@@ -151,8 +194,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "FIRST-CITIZENS BANK & TRUST COMPANY",
-   "checked_against": "filing-11063-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-11063-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "FIRST-CITIZENS BANK & TRUST COMPANY",
+   "window_start_filing": "filing-11063-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 16,
@@ -161,8 +207,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "CITIZENS BANK, NATIONAL ASSOCIATION",
-   "checked_against": "filing-57957-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-57957-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "CITIZENS BANK, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-57957-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 17,
@@ -171,8 +220,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "MANUFACTURERS AND TRADERS TRUST COMPANY",
-   "checked_against": "filing-588-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-588-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "MANUFACTURERS AND TRADERS TRUST COMPANY",
+   "window_start_filing": "filing-588-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 18,
@@ -181,8 +233,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "REGIONS BANK",
-   "checked_against": "filing-12368-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-12368-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "REGIONS BANK",
+   "window_start_filing": "filing-12368-09302016.pdf",
+   "same_name_throughout": true
   },
   {
    "slot": 19,
@@ -191,8 +246,11 @@
    "group": "peer",
    "active": true,
    "legal_name_on_filing": "ZIONS BANCORPORATION, NATIONAL ASSOCIATION",
-   "checked_against": "filing-2270-12312025.pdf",
-   "identity_verified": true
+   "checked_against": "filing-2270-06302026.pdf",
+   "identity_verified": true,
+   "legal_name_at_window_start": "ZB, NATIONAL ASSOCIATION",
+   "window_start_filing": "filing-2270-09302016.pdf",
+   "same_name_throughout": false
   }
  ]
 }

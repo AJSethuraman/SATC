@@ -25,6 +25,15 @@ def _rows(name):
 BANK = _rows("bank-values.csv")
 MACRO = _rows("macro-observations.csv")
 MERGERS = _rows("not-comparable-periods.csv")
+#: How many merger quarters move total assets by 10% or more, and the worst.
+#: Read off the delivered file, because the sentence beside it is a claim about
+#: that file and the last one of those to be typed instead of counted said
+#: balances were "unaffected".
+_STEPS = [m for m in MERGERS if m.get("change_in_total_assets_pct")
+          and abs(float(m["change_in_total_assets_pct"])) >= 10]
+MERGER_STEPS = len(_STEPS)
+BIGGEST_STEP = (max(_STEPS, key=lambda m: abs(
+    float(m["change_in_total_assets_pct"]))) if _STEPS else None)
 #: The banks in the set that are not commercial lenders, read off the peer
 #: list rather than counted by hand in a sentence.
 OTHERS = [b["name"] for b in
@@ -58,10 +67,22 @@ MACRO_NOT = len(MACRO) - MACRO_TIED
 MACRO_PENDING = sum(1 for r in MACRO if r["verified"] != "yes"
                     and r["why_not_verified"].startswith("not yet checked"))
 MACRO_UNOBTAINABLE = MACRO_NOT - MACRO_PENDING
+#: Series where NOT ONE observation is verified. A series with even a single
+#: verified row is not "unchecked for its entire history" and must not be
+#: counted as one: CSUSHPINSA's most recent month ties to a published S&P
+#: level, and it was still being listed among the whole series with no
+#: obtainable source, because the set was built from unverified ROWS rather
+#: than from series with no verified row at all.
+_ANY_VERIFIED = {r["series_id"] for r in MACRO if r["verified"] == "yes"}
 UNOBTAINABLE_SERIES = sorted({r["series_id"] for r in MACRO
                               if r["verified"] != "yes"
+                              and r["series_id"] not in _ANY_VERIFIED
                               and not r["why_not_verified"].startswith(
                                   "not yet checked")})
+#: Series that are partly verified -- some rows checked, some not. Reported
+#: separately, because folding them into either bucket misstates one of them.
+PARTLY_VERIFIED = sorted(_ANY_VERIFIED & {
+    r["series_id"] for r in MACRO if r["verified"] != "yes"})
 SERIES = sorted({r["series_id"] for r in MACRO})
 BY_PUB = collections.Counter(r["publisher"] for r in MACRO if r["verified"] == "yes")
 UNVERIFIED = collections.Counter(r["series_id"] for r in MACRO
@@ -150,13 +171,27 @@ START_HERE = [
     ("caution", "1. UNITS. Bank values are THOUSANDS of dollars unless the row "
                 "says otherwise. A bank total of 4,091,315,000 means $4.09 "
                 "trillion."),
-    ("caution", "2. MERGER QUARTERS. When a bank absorbs another bank, its "
-                "quarterly charge-off figures for that quarter mix two banks. "
-                "%d such quarters are listed on NOT COMPARABLE, and %s rows "
-                "say usable_for_trend = no. One of these produced a charge-off "
-                "rate of 670%% in an earlier version of this work. That is "
-                "what a merger looks like when nothing flags it."
+    ("caution", "2. MERGER QUARTERS, AND THIS IS THE ONE THAT CATCHES PEOPLE. "
+                "When a bank absorbs another bank, two different things go "
+                "wrong and only one of them is flagged row by row. Its "
+                "quarterly charge-off figures for that quarter mix two banks: "
+                "%d such quarters are listed on NOT COMPARABLE and %s rows say "
+                "usable_for_trend = no. One of those produced a charge-off "
+                "rate of 670%% in an earlier version of this work."
      % (len(MERGERS), n(BANK_TREND_NO))),
+    ("warn", "   The second one is not flagged on any row, because no single "
+             "value is wrong. THE BALANCES EITHER SIDE OF A MERGER ARE NOT "
+             "THE SAME BANK. Every figure is correct for the institution as it "
+             "stood that day, and the institution is a different size on "
+             "either side of the line, under one name. %d of the %d merger "
+             "quarters carry a step of 10%% or more in total assets%s. NOT "
+             "COMPARABLE now carries the size of every step, per bank, so you "
+             "can see which ones matter before you chart anything across them."
+     % (MERGER_STEPS, len(MERGERS),
+        (" -- the largest is %s at %s, %+.0f%%"
+         % (BIGGEST_STEP["bank"], BIGGEST_STEP["report_date"],
+            float(BIGGEST_STEP["change_in_total_assets_pct"]))
+         if BIGGEST_STEP else ""))),
     ("", ""),
     ("h2", "How to check any bank number yourself, in about a minute"),
     ("p", "1. Find the row. Note the cited_line -- for example RCFD2170 -- and "
@@ -191,11 +226,16 @@ LIMITS = [
                  len(UNOBTAINABLE_SERIES), len(SERIES)))
      if MACRO_PENDING else
      ("2. %s MACRO OBSERVATIONS HAVE NO OBTAINABLE SOURCE, and they are not "
-      "spread evenly -- they are %d whole series out of %d, unchecked for "
-      "their entire history rather than here and there. They are marked "
-      "verified = no and shaded, and each row says why in why_not_verified. "
-      "They are: %s."
+      "spread evenly -- they are %d whole series out of %d rather than a "
+      "scatter of gaps, plus %d more where only the most recent month is "
+      "checked. Most are Case-Shiller, whose history S&P Dow Jones Indices "
+      "sells; the most recent month of all 22 WAS checked against S&P's own "
+      "free release and all 22 agreed, which for 21 of them pins the "
+      "month-on-month move rather than the level, and for the national index "
+      "is a published level. Each row says exactly what was and was not "
+      "checked in why_not_verified. They are: %s."
       % (n(MACRO_UNOBTAINABLE), len(UNOBTAINABLE_SERIES), len(SERIES),
+         len(PARTLY_VERIFIED),
          ", ".join(UNOBTAINABLE_SERIES[:6])
          + (" and %d more" % (len(UNOBTAINABLE_SERIES) - 6)
             if len(UNOBTAINABLE_SERIES) > 6 else "")))),

@@ -14,7 +14,7 @@ both sides had a value. Nothing here is a plausible-looking code.
 
 That method exists because a citation can be documented, confident and wrong.
 The same session found ``LNLSGR`` citing RC-C Part I line 12 when the FDIC has
-always used RC 4.a + 4.b; the two agreed in 471 of 480 bank-quarters, so no test
+always used RC 4.a + 4.b; the two agreed in 471 of the 480 bank-quarters then in the set, so no test
 ever caught it. It paid again immediately: the scan reported the commercial
 commitment total as three lines, and three lines is short by up to $1.4bn at
 every bank with foreign offices -- and exact at the four without them, which is
@@ -35,75 +35,75 @@ from __future__ import annotations
 FEED_ROWS = [
     # ---- 1-2 · the credit lines behind the balances -----------------------
     ("UCCRCD", "RC-L 1.b", "Unused credit card lines",
-     "3815", "480 of 480 bank-quarters"),
+     "3815", "760 of 760 bank-quarters"),
     ("UCLOC", "RC-L 1.a",
      "Unused revolving lines secured by 1-4 family homes",
-     "3814", "480 of 480 bank-quarters"),
+     "3814", "760 of 760 bank-quarters"),
 
     # ---- 3 · the column that was always blank -----------------------------
     ("DRRENRSQ", "RI-B Pt I 4 col A",
      "CRE nonfarm nonresidential gross charge-offs, quarterly",
      "RIADC895+RIADC897 (year-to-date, differenced)",
-     "120 of 120 first-quarter filings, where the year-to-date IS the quarter"),
+     "728 of 728 comparable bank-quarters; derived on the 190 first-quarter filings, where the year-to-date IS the quarter. The other 32 span a merger or follow one and cannot be formed from the filings at all"),
     ("CRRENRSQ", "RI-B Pt I 4 col B",
      "CRE nonfarm nonresidential recoveries, quarterly",
      "RIADC896+RIADC898 (year-to-date, differenced)",
-     "120 of 120 first-quarter filings"),
+     "728 of 728 comparable bank-quarters; derived on the 190 first-quarter filings. The other 32 span a merger or follow one and cannot be formed from the filings at all"),
 
     # ---- 4 · the loan class that had no losses ----------------------------
     ("NTRELOCQ", "RI-B Pt I 1.c.(1) cols A-B",
      "Home equity line net charge-offs, quarterly",
      "RIAD5411-RIAD5412 (year-to-date, differenced)",
-     "120 of 120 first-quarter filings"),
+     "728 of 728 comparable bank-quarters; derived on the 190 first-quarter filings. The other 32 span a merger or follow one and cannot be formed from the filings at all"),
 
     # ---- 5 · the denominator the regulator actually uses -------------------
     ("RBC", "RC-R Pt I 3792", "Total risk-based capital",
      "RCFA3792 or RCFW3792 -- the column that binds",
-     "480 of 480; exactly one column ties in every bank-quarter"),
+     "759 of 760; exactly one column ties in every bank-quarter but one. The exception is Huntington at 2026-03-31, where the FDIC publishes 945 less than the filed line and no reason has been found -- it is delivered as a difference, not adjusted"),
 
     # ---- 6 · the real Texas ratio -----------------------------------------
     ("ORE", "RC 7", "Other real estate owned -- property taken back",
-     "2150", "480 of 480 bank-quarters"),
+     "2150", "760 of 760 bank-quarters"),
     ("INTAN", "RC 10", "Intangible assets, which absorb no losses",
      "2143 (0426+3163 before 2018-06-30)",
-     "480 of 480; the form changed at 2018-06-30 and both eras are exact"),
+     "760 of 760; the form changed at 2018-06-30 and both eras are exact"),
 
     # ---- 9 · commercial commitments ---------------------------------------
     ("UCCOMRES", "RC-L 1.c.(1)(a)+(b)",
      "Unused commitments on construction and land",
-     "F164+F165", "480 of 480 bank-quarters"),
+     "F164+F165", "760 of 760 bank-quarters"),
     ("UCCOMREU", "RC-L 1.c.(2)",
      "Unused CRE commitments not secured by property",
-     "6550", "480 of 480 bank-quarters"),
+     "6550", "760 of 760 bank-quarters"),
     ("UCOTHER", "RC-L 1.e",
      "Unused commitments to businesses and other borrowers",
      "J457+J458+J459 (J457+PV11+J459+PV10 from 2024-12-31)",
-     "396 of 396 before the recoding, 84 of 84 after"),
+     "760 of 760 across the recoding at 2024-12-31; both eras exact"),
 
     # ---- 10 · lending to non-banks ----------------------------------------
     ("LNNDEPD", "RC-C Pt I 9.b.(2)",
      "Loans to nondepository financial institutions (domestic)",
      "RCONJ454",
-     "480 of 480; DOMESTIC -- the consolidated RCFDJ454 is larger at every "
+     "760 of 760; DOMESTIC -- the consolidated RCFDJ454 is larger at every "
      "bank with foreign offices and is not what the FDIC publishes"),
 
     # ---- 12 · loans modified because the borrower is in trouble ------------
     ("RSLNLTOT", "RC-C Pt I Mem 1", "Restructured loans, total",
-     "HK25", "456 of 480; the line does not exist before 2017-03-31"),
+     "HK25", "722 of 722; the line does not exist before 2017-03-31, so 38 bank-quarters have nothing to cite"),
     ("RSLNREFM", "RC-C Pt I Mem 1",
      "Restructured 1-4 family residential",
-     "F576", "480 of 480 bank-quarters"),
+     "F576", "760 of 760 bank-quarters"),
     ("RSCI", "RC-C Pt I Mem 1", "Restructured commercial and industrial",
-     "K163+K164", "480 of 480 bank-quarters"),
+     "K163+K164", "760 of 760 bank-quarters"),
     ("RSCONS", "RC-C Pt I Mem 1", "Restructured consumer loans",
-     "K158+K159", "480 of 480 bank-quarters"),
+     "K158+K159", "760 of 760 bank-quarters"),
     ("RSMULT", "RC-C Pt I Mem 1", "Restructured multifamily",
-     "K160", "480 of 480 bank-quarters"),
+     "K160", "760 of 760 bank-quarters"),
     ("RSOTHER", "RC-C Pt I Mem 1", "Restructured, all other",
-     "K165", "480 of 480 bank-quarters"),
+     "K165", "760 of 760 bank-quarters"),
     ("NARSNRES", "RC-N Mem",
      "Restructured CRE already on nonaccrual",
-     "K116+K119", "480 of 480 bank-quarters"),
+     "K116+K119", "760 of 760 bank-quarters"),
 ]
 
 FEED_FIELDS = [r[0] for r in FEED_ROWS]
@@ -136,7 +136,8 @@ RECODINGS = {
 #: and the advanced one (column W); which binds varies by bank and by quarter,
 #: so the row records the column that tied rather than asserting one.
 #:
-#: Naming a single column here would be right for 398 of 480 bank-quarters and
+#: Naming a single column here would be right for 398 of the 480 bank-quarters
+#: then in the set and
 #: wrong for 82, and every spot check would land in the 398.
 #: field -> ((amount code, its ratio code), ...). The framework is chosen from
 #: the RATIOS -- the lower one binds -- and only then is the amount compared, so

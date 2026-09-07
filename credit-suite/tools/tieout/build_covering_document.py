@@ -76,6 +76,15 @@ TOTAL_TIED = BANK_TIED + MACRO_TIED
 QUARTERS = sorted({r["report_date"] for r in BANK})
 CERTS = sorted({r["cert"] for r in BANK})
 IDS = sum(1 for b in PEERS["banks"] if b.get("identity_verified"))
+SAME_THROUGHOUT = sum(1 for b in PEERS["banks"]
+                      if b.get("same_name_throughout"))
+RENAMED = [b for b in PEERS["banks"] if b.get("legal_name_at_window_start")
+           and not b.get("same_name_throughout")]
+#: Merger quarters whose total assets step by 10% or more, and the worst one.
+STEPS = [m for m in MERGERS if m.get("change_in_total_assets_pct")
+         and abs(float(m["change_in_total_assets_pct"])) >= 10]
+WORST_STEP = (max(STEPS, key=lambda m: abs(
+    float(m["change_in_total_assets_pct"]))) if STEPS else None)
 
 
 def n(x):
@@ -458,6 +467,27 @@ A('<p>That check exists because searching the regulator for a holding '
   '&ldquo;PNC&nbsp;Financial&rdquo; returns PlainsCapital Bank of University '
   'Park, Texas &mdash; a real, live, unrelated bank that would have tied to '
   'the dollar under the wrong label.</p>')
+A('<p>A certificate is stable; the institution behind it is not. Checked at '
+  'the other end of the ten years as well: <b>%d of %d</b> carry the same '
+  'legal name on the oldest filing as on the newest. %s</p>'
+  % (SAME_THROUGHOUT, len(PEERS["banks"]),
+     "" if not RENAMED else
+     ("The exceptions are " + "; ".join(
+         "<b>%s</b>, filed in %s as %s" % (b["name"], QUARTERS[0][:4],
+                                           b["legal_name_at_window_start"])
+         for b in RENAMED) + ". One is a rename and nothing else. The other "
+      "is not: everything before December 2019 under the label "
+      "&ldquo;Truist Bank&rdquo; is Branch Banking and Trust, which is half "
+      "the bank that carries the name afterwards.")))
+
+A('<h3>And the hop between the check and this file</h3>')
+A('<p>Each verifier compares against the filed document a value it holds in '
+  'memory; the delivered files are written afterwards. That last hop was '
+  'described and never executed &mdash; so on 7 September 2026 it was: every '
+  'delivered value was compared with the value its verifier actually held. '
+  '<b>%s of %s identical, none moved, none unchecked.</b> Rerun it with '
+  '<span class="mono">tools/tieout/prove_delivered_is_what_was_checked.py'
+  '</span>.</p>' % (n(TOTAL), n(TOTAL)))
 
 A('<h2>Check any number yourself, in about a minute</h2>')
 A('<p>No account, no login. This is a public record.</p>')
@@ -524,6 +554,19 @@ A('<div class="note"><p>Every one of those was found by pointing the machinery '
   'works.</p></div>')
 
 A('<h2>What this does not prove</h2>')
+A('<div class="note warn"><p><b>Read this one before you chart a bank across '
+  'a merger.</b> Every value here is correct for the institution as it stood '
+  'that day &mdash; and on either side of a merger that institution is a '
+  'different size, under the same name. <b>%d of the %d merger quarters move '
+  'total assets by 10%% or more%s.</b> No single value is wrong, so no '
+  'value-level check can catch it: it is a property of the SERIES, not of any '
+  'number in it. NOT COMPARABLE in the workbook carries the size of every '
+  'step, per bank, per quarter.</p></div>'
+  % (len(STEPS), len(MERGERS),
+     ("" if not WORST_STEP else
+      ", the largest being %s at %s, %+.0f%%"
+      % (WORST_STEP["bank"], WORST_STEP["report_date"],
+         float(WORST_STEP["change_in_total_assets_pct"])))))
 A('<ul>')
 A('<li><b>Not that the banks are right.</b> A value can match its filing '
   'exactly and the filing can still be wrong. This proves faithful copying.</li>')
@@ -531,9 +574,13 @@ A('<li><b>There is no vintage.</b> These are the figures as published when '
   'they were pulled. Banks amend Call Reports and agencies revise series, so a '
   'value verified today may not match the same source in six months. Nothing '
   'here records which revision a figure came from.</li>')
-A('<li><b>%s macro observations have no obtainable source</b>, and they are '
-  'not spread thinly across the set &mdash; they are whole series, unchecked '
-  'for their entire history. Each row says which and why.</li>' % n(MACRO_NOT))
+A('<li><b>%s macro observations have no obtainable source.</b> They are '
+  'whole series rather than a scatter of gaps, and most are Case-Shiller, '
+  'whose history S&amp;P Dow Jones Indices sells. The most recent month of '
+  'all 22 of those WAS checked against the S&amp;P free release and all 22 '
+  'agreed &mdash; for 21 that pins the month-on-month move rather than the '
+  'level, and for the national index it is a published level. Each row says '
+  'exactly what was and was not checked.</li>' % n(MACRO_NOT))
 A('<li><b>The %d banks are not a like-for-like peer group.</b> %s are not '
   'commercial lenders. Their balance sheets are shaped nothing like a '
   'lender\'s and a peer ranking that mixes them will mislead; they are marked '
