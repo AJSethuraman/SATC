@@ -141,7 +141,7 @@ OTHERS = [
  {"key": "dec-add-examples", "new": True, "group": "The record",
   "tag": "You said have another go \u2014 it worked",
   "title": "Six regulations read now. Add their examples to three desks?",
-  "position": "Add the worked examples from the sections that now read to the cash, "
+  "position": "Add the worked examples from the nine sections that read to the cash, "
               "vehicle and meals desks.",
   "context": "<b>You said \u201chave another go\u201d and set the pass mark yourself: a "
              "regulation names its own paragraphs, and a reading is right when every "
@@ -149,16 +149,20 @@ OTHERS = [
              "\u00a7 1.446-1 cites \u2014 which I told you was not good enough to ship, "
              "because three quarters is not the ordinary residue of dead "
              "cross-references, it is a reading that is partly wrong.<br><br>"
-             "<b>It now finds all thirty.</b> Six sections that would not read at all "
-             "now read, every self-citation lands in every one of them, and "
-             "\u00a7 1.263(a)-3 \u2014 the one that already worked \u2014 reads "
-             "identically: the same 172 paragraphs and the same two dead references it "
-             "had before.<br><br>There were five causes, not the three I had found. Two "
-             "were the ones I described to you; the other three were a label sitting "
-             "directly on another with no heading between them, two paragraphs reserved "
-             "together in one line, and a paragraph with no number on it at all.<br><br>"
-             "<b>What is left is your call, because it changes what the desks are "
-             "scored on.</b>",
+             "<b>It now finds all thirty</b>, and \u00a7 1.263(a)-3 \u2014 the one that "
+             "already worked \u2014 reads identically: the same 172 paragraphs and the "
+             "same two dead references it had before.<br><br>There were five causes, "
+             "not the three I had found. Two were the ones I described to you; the "
+             "other three were a label sitting directly on another with no heading "
+             "between them, two paragraphs reserved together in one line, and a "
+             "paragraph with no number on it at all.<br><br><b>Two of the eleven "
+             "regulations these three desks rely on still will not read</b>, and I said "
+             "otherwise for an hour: \u00a7 1.274-5 and \u00a7 1.62-2. Both are now "
+             "diagnosed rather than mysterious \u2014 one writes a reserved span with a "
+             "dash instead of the word \u201cand\u201d, and the other has its italics "
+             "broken across a paragraph number in the government\u2019s own file. "
+             "Neither is fixed.<br><br><b>What is left is your call, because it changes "
+             "what the desks are scored on.</b>",
   "either": [("Add them",
               "Three desks that hold rules and no worked examples get them \u2014 the "
               "government applying its own rule to a real fact pattern, which is the "

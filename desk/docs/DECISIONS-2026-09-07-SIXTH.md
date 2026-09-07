@@ -203,3 +203,30 @@ caught it by going from 102 to 103.
 
 **Eight mutations, all caught.** Nothing here has been added to a desk: the
 reading is a separate change from what any desk is scored on.
+
+### Correction, one hour later: three sections were refusing, not six
+
+The paragraph above and the commit that carried it (`ae9323d`) say "six sections
+that would not read at all now read". **Three did.** § 1.162-3, § 1.162-4 and
+§ 1.263(a)-1 were already reading before any of this; the three that were
+refusing and now read are § 1.446-1, § 1.274-5T and § 1.274-12. Every one of the
+nine tested lands every path it cites, which is the part that was true.
+
+**And two of the eleven regulations these desks rely on still refuse**, which the
+docket card claimed otherwise until this correction. Both are diagnosed:
+
+- **§ 1.274-5** opens `(a)-(b) [Reserved]` — the same span as § 1.274-5T's
+  `(k) and (l)`, written with a dash. It also writes `(2)(i) and (ii) [Reserved]`,
+  a span continuing the deepest label of a multi-label chain, which the new rule
+  only reads when the chain is one label long. Expanding a true range needs the
+  alphabet, which is not known until `placements` has chosen a depth — so the
+  honest fix is to defer the expansion into `placements` rather than widen the
+  regex.
+- **§ 1.62-2** has broken markup in the government's own XML:
+  `<I>Returning amounts in excess of expenses—(</I>1<I>) In general.</I>` puts
+  the em-dash and the opening parenthesis inside the italics and the numeral
+  outside. The run-in reader looks for an italic run closed by an em-dash and
+  finds neither shape.
+
+Found by checking a claim I had already written into a task, which is the only
+reason it was caught before the firm read it.
