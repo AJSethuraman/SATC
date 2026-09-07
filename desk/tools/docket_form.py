@@ -427,10 +427,19 @@ def render() -> str:
       "the new ones come straight out of what you wrote on the last form \u2014 "
       "including the one about how these positions are written, which you were "
       "right about.</p>"
-      "<p><b>%(ansv)s of the %(posw)s positions here are answerable today.</b> One "
-      "reason they keep coming back is on this page as matter 1: they are written "
-      "in a register you have now objected to twice, and a position you cannot "
-      "read is one you cannot ratify.</p>"
+      "<p><b>A correction, and it inverts what the last docket told you.</b> That "
+      "page said the desk was REFUSING the safe-harbour questions and that adding "
+      "the field would stop it. It was not refusing. Measured on 7 September: "
+      "asked about the safe harbour with nothing on file, the desk answers "
+      "straight from the regulation and never asks whether that client has a rule "
+      "of its own \u2014 which is the thing you objected to in the first place. The "
+      "follow-up only runs off a position you have RATIFIED; a proposal is nobody\u2019s "
+      "word, so the desk never consults it. Adding the field was necessary and it "
+      "was never the switch.</p>"
+      "<p><b>%(ansv)s of the %(posw)s positions here are answerable today</b>, and "
+      "nothing is blocking them but your yes. The remaining objection is the "
+      "wording, which is matter 1 \u2014 a separate question from whether the rule is "
+      "right.</p>"
     ) % {"posw": _word(c["pos"]),
          "freshw": _word(c["fresh"]), "nw": _word(c["n"]).capitalize(),
          "ansv": ("%s" % _word(c["answerable"]).capitalize()) if c["waiting"]

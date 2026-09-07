@@ -315,3 +315,65 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # AND THE VALUE OF NOTHING IS IN THERE. This file lives in the repository.
     assert "$900" not in filed.split("**Question:**")[1].split("**Concluded:**")[0] \
         or True  # the question itself is the caller's and is quoted deliberately
+
+
+def test_an_unratified_default_leaves_the_desk_answering_broadly():
+    """THE CONSEQUENCE I DESCRIBED BACKWARDS TO THE FIRM, 7 September 2026.
+
+    The fifth docket told them the desk was REFUSING the safe-harbour questions
+    and that adding `capitalization_rule` would stop it. Both halves were wrong
+    in the same way: the refusal it described only exists once the position is
+    RATIFIED, and every test of it simulates that ratification. On the real
+    record, where both positions are proposals, nothing refuses at all.
+
+    What actually happens is worse and is the thing the firm objected to. A
+    proposal is not the firm's word, so `desk.position()` never returns it and
+    the `Unless:` check never runs. The answer resolves against the stored
+    regulation and is served — over the top of a client the file may say is
+    treated differently, without ever asking.
+
+    `test_a_proposal_is_not_reached_at_all` above asserts the mechanism but not
+    this, because its fixture desk holds no passages: the citation resolves to
+    nothing and the refusal it sees is `authority_absent`, a different reason
+    for a different cause. Only a desk that HOLDS the authority shows what a
+    proposal costs.
+
+    So: ratifying is what makes the desk careful, and not ratifying is not the
+    cautious option. That is the opposite of how it was put to them, and this is
+    the assertion that stops it being put that way again.
+    """
+    import dataclasses
+    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    held = [q for q in desk.positions if q.unless]
+    assert held, "this desk holds no defaulting position; the test proves nothing"
+
+    for q in held:
+        assert q.proposed, (
+            f"{q.id} is ratified now — good. Rewrite this test to assert the "
+            f"follow-up fires on the real record instead of on a copy.")
+        answer = engine.Answer(position=q.position, citation=q.citation)
+        # A QUESTION THAT REACHES THIS POSITION'S OWN SOURCE, taken from the
+        # desk's subject list rather than typed. POS1 sits on the regulation
+        # (S1) and POS2 on the IRS guidance page (S3); one question cannot
+        # reach both, and asking the wrong one gets `citation_does_not_support`
+        # — a real refusal for an unrelated reason, which would make this test
+        # pass while proving nothing. It did, on the first run.
+        src = next(x.id for x in desk.sources
+                   if record.from_source(q.citation, x.citation_prefix))
+        subject = sorted(desk.answered_from[src])[0]
+        question = f"what about {subject}?"
+
+        served = engine.serve(answer, desk, question=question)
+        assert isinstance(served, engine.Served), (
+            f"{q.id}: a proposal no longer leaves the answer served. If the "
+            f"engine now refuses, say so on the docket — the firm was told the "
+            f"opposite once already.")
+
+        # AND RATIFYING IT IS WHAT ADDS THE QUESTION. Simulated, in a copy; the
+        # roster test is what stops it being performed by accident.
+        asif = dataclasses.replace(desk, positions=(
+            dataclasses.replace(q, ratified="simulated, for this test only"),))
+        guarded = engine.serve(answer, asif, question=question)
+        assert isinstance(guarded, engine.Refusal) and \
+            guarded.reason == "context_not_on_file", (q.id, guarded)
+        assert "capitalization_rule" in guarded.ask
