@@ -253,3 +253,94 @@ Both from printing it for a person rather than asserting on it.
 largest desk. The judge — a second model handed only the paragraph and the
 conclusion — is the fix, and it is not built. What changed is that the answer no
 longer *looks* checked when it is not.
+
+---
+
+## The Forge closed a set of books on 0.7.2 — 0.7.3 is what it found
+
+**The firm, on my saying 0.7.2 was verified:** *"stop assuming it works until you
+test it with a forge prompt. it has to receive and give it back."* Correct. Every
+"verified" that evening meant *I called `ask.answer` in my own container and read
+the object back*. That proves a function returns. It does not prove a session
+receives a question, loads the skill, routes it, and hands a person something
+usable.
+
+So a Forge session was asked to **do the work** rather than test it — close a set
+of books, ask three questions, write what it would put in front of the
+accountant. It reported that **the round trip works**, and that the two fields
+0.7.2 added do the job:
+
+> *"A reader who has never opened the CFR sees 'deducted, not capitalized'
+> sitting three lines above 'must capitalize… include the invoice price.' The
+> answer refutes itself on sight."*
+
+And its honest limit, which is the right way to hold it: *"it worked here because
+the contradiction is in the passage's first clause… It converts 'impossible to
+catch' into 'catchable if you read', which is the correct trade, not a solved
+problem."*
+
+**Four defects, none of which a test would have found, and two of which I had
+introduced within the hour.**
+
+### 1 · `passage` echoed the answer on a ratified position — my own fix from an hour earlier
+
+`serve` resolves through `authority_for`, which on a ratified citation returns
+the **Position** — and a Position has no `.text`. My fix for the empty field fell
+back to `.position`, so it printed:
+
+```
+an entry in the books            <- position
+> an entry in the books          <- "the words it rests on"
+```
+
+The tester: *"the whole argument for `passage` is 'so the reader can check the
+conclusion against the words it rests on' — and here the words it rests on are
+the Pub. 583 text, which is not shown. **The one case where the reader is told a
+human already decided is the case where the underlying authority becomes
+invisible.**"* The text was reachable the entire time: `desk.passage()` on the
+same citation carries 2,683 characters of it. Source text wins now; the firm's
+words remain the fallback only for a citation-only `human_only` source.
+
+### 2 · An escalation handed back instrumentation and withheld the reasoning
+
+`Refusal` carried `showed_by_source={'S1': 63, 'S2': 40, …}` and **not** the
+agent's `working` — the reasoning `ask-desk` insists is written in full. It went
+only to the queue.
+
+> *"So the one answer where the agent has the most to say hands the caller the
+> least, and I had to write the accountant's paragraph from my own memory rather
+> than from anything the desk returned. Meanwhile `showed_by_source` — pure
+> instrumentation — does come back. That is exactly backwards for a human
+> reader."*
+
+Carried now, set once where every refusal passes through so a later one cannot
+drop it.
+
+### 3 · The skill's documented first line does not run
+
+`sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])` raises `KeyError` in a
+plain shell — the variable is set when a skill is *invoked*, not otherwise. That
+is line one of first use. A test now **executes** the published snippet with the
+variable stripped, because a snippet that only looks right is what shipped.
+
+### 4 · The Skill tool served a SKILL.md three releases stale
+
+`desk:ask-desk` resolved to the 0.4.0 cache — a file with no mention of
+`unchecked` or `passage`. **An agent following it exactly would have produced the
+pre-0.7.2 output and never known.** The tester only printed the fields because it
+went and read the 0.7.2 file directly.
+
+**This one is not fully fixed and should not be recorded as if it were.** The
+skill now tells the reader how to check which version they loaded and to
+`/reload-plugins` before trusting it. That is a warning, not a guarantee — the
+resolution happens in the harness, not here.
+
+### And one reversal, recorded rather than quietly applied
+
+A test written that afternoon *required* the `unchecked` sentence to inventory
+three checks, reasoning that a bare disclaimer trains a reader to skip it. The
+Forge, after handing three of them to an accountant: *"at the fortieth of a
+close, the eye slides off the capitals… the middle inventory of what was checked
+is the part I would actually cut."* They did the work; they win. One clause still
+names what was checked, so it is not bare — and the tier and source were printed
+beside the citation anyway, so the inventory said it twice.

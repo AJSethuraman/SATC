@@ -360,6 +360,24 @@ class Refusal:
     #: with the model and with whoever reads the queue. An engine that REFUSED the
     #: escalation would be deciding the merits, which is the wrong side of the
     #: line every other part of this file draws.
+    #: THE ASKER'S OWN REASONING, HANDED BACK. It went only to the queue.
+    #:
+    #: THE FORGE, 7 September 2026, closing a set of books for real: the desk
+    #: escalated `authority_absent` and returned `detail="escalated by the
+    #: desk"`, an empty `ask`, and `showed_by_source={'S1': 63, 'S2': 40, ...}`.
+    #: The agent's `working` — the reasoning about WHY nothing reaches, which
+    #: `ask-desk` insists is written in full — was not on the object at all.
+    #:
+    #: *"So the one answer where the agent has the most to say hands the caller
+    #: the least, and I had to write the accountant's paragraph from my own
+    #: memory rather than from anything the desk returned. Meanwhile
+    #: `showed_by_source` — pure instrumentation — does come back. That is
+    #: exactly backwards for a human reader."*
+    #:
+    #: The queue keeps it so the firm learns what authority is missing. The
+    #: caller needs it too, and for a different reason: it is the only sentence
+    #: in an escalation that tells a person what to do next.
+    working: str = ""
     showed: int = 0
     #: `{source id: passages}` — a total alone does not falsify the claim that was
     #: actually made. The claim named a source, so the answer has to be by source.
@@ -855,7 +873,8 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     if answer.escalated:
         _reason(answer.reason)
         if answer.reason != "authority_absent":
-            return Refusal(answer.reason, "escalated by the desk")
+            return Refusal(answer.reason, "escalated by the desk",
+                           working=answer.working)
         # ONLY `authority_absent`, because it is the only escalation that is a
         # claim about the RECORD. `facts_not_established` is a claim about the
         # client and `authority_permits_choice` is a reading of authority the
@@ -864,12 +883,16 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         by_source = record_mod.shown_by_source(desk)
         total = len(record_mod.shown(desk))
         return Refusal(
-            answer.reason, "escalated by the desk",
+            answer.reason, "escalated by the desk", working=answer.working,
             showed=total, showed_by_source=by_source)
 
     refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:
-        return refusal
+        # CARRIED HERE RATHER THAN AT FIFTEEN CONSTRUCTION SITES, so no refusal
+        # can be added later that quietly drops it.
+        import dataclasses as _dc
+        return (_dc.replace(refusal, working=answer.working)
+                if answer.working else refusal)
     # A RATIFIED POSITION IS THE FIRM'S WORD AND IS NEVER CAVEATED, whatever the
     # tier of the source under it -- that is the whole point of `human_only`, and
     # of the firm being the last layer. Only a passage from a non-binding source
@@ -904,13 +927,30 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         checked_subject=bool(
             question and any(_canon_touches()(question, t) for t in desk.fires_on)
         ),
-        # A POSITION HAS NO PASSAGE TEXT, and the first version of this served
-        # "Read the passage." with nothing under it. Found by running the round
-        # trip rather than by a test: a ratified position carries the firm's own
-        # WORDS in `.position`, and on a `human_only` source those words are the
-        # desk's entire knowledge of the authority — so they are the thing to
-        # put in front of the reader, and there is nothing else to offer.
+        # THE AUTHORITY UNDERNEATH, not the answer restated.
+        #
+        # `_check` resolves through `authority_for`, which on a ratified
+        # citation hands back the POSITION — and a Position has no `.text`,
+        # only `.position`. The first fix for the resulting empty field fell
+        # back to `.position`, which made the field echo the answer:
+        #
+        #     an entry in the books            <- position
+        #     > an entry in the books          <- "the words it rests on"
+        #
+        # The Forge tester, 7 September 2026: *"the whole argument for `passage`
+        # is 'so the reader can check the conclusion against the words it rests
+        # on' — and here the words it rests on are the Pub. 583 text, which is
+        # not shown. The one case where the reader is told a human already
+        # decided is the case where the underlying authority becomes
+        # invisible."* Correct, and the text was reachable the whole time:
+        # `desk.passage()` on the same citation carries 2,683 characters of it.
+        #
+        # So the SOURCE TEXT wins wherever the desk holds any, and the firm's
+        # words are the fallback only for a citation-only source — `human_only`,
+        # where a position genuinely IS the desk's entire knowledge of the
+        # authority and there is nothing else to show.
         passage=(getattr(passage, "text", "")
+                 or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
         # TWO DIFFERENT SENTENCES, BECAUSE TWO DIFFERENT THINGS ARE TRUE.
         #
@@ -933,14 +973,17 @@ def serve(answer: Answer, desk: Desk, *, question: str,
              "refuses one that disagrees. What NOBODY checked is whether their "
              "position fits these particular facts. That judgement is yours.")
             if from_position else
-            ("NOBODY CHECKED THAT THIS PARAGRAPH SAYS THIS. What was checked: "
-             f"the citation resolves in this desk's record, {source.id} is a "
-             f"source this desk answers this subject from, and it is "
-             f"{source.tier} authority"
-             + (" the firm has declared binding" if binding
-                else " that does not bind")
-             + ". All of that is about the SOURCE. None of it is about the "
-               "conclusion above. Read the passage below.")),
+            # SHORTER THAN IT WAS, because it has to survive repetition. The
+            # Forge, after handing three of these to an accountant: *"at one
+            # answer it lands; at the fortieth of a close, the eye slides off
+            # the capitals and the reader stops reading the part that varies.
+            # The load-bearing content is the first clause plus 'read the
+            # passage below'; the middle inventory of what was checked is the
+            # part I would actually cut."* Cut. What was checked is a property
+            # of the source and is already printed beside the citation.
+            ("Nobody checked that this paragraph says this — only that the "
+             "citation resolves and the source is one this desk uses here. "
+             "Read the passage below.")),
     )
 
 
