@@ -104,7 +104,10 @@ def brief(question: str, desk: record.Desk,
                         f"{', '.join(q.unless)}, and nothing here says whether "
                         f"this one is. The desk will ask rather than assume.", ""]
     out += ["", "## The authority", ""]
-    for p in desk.passages:
+    # `record.shown` and not `desk.passages`: the engine counts the same call
+    # when it reports how much a desk put in front of a model that then said the
+    # desk held nothing. Two readings of "what was shown" is one too many.
+    for p in record.shown(desk):
         out += [f"### {p.citation}", "", f"> {p.text}", ""]
     return "\n".join(out)
 

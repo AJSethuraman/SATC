@@ -299,9 +299,9 @@ NEXT = {
 CHANGED = [
  ("6 \u2192 12", "of 19 the engine would serve", "the five that refused for want of a file, given one"),
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
- ("792 of 792", "passages fetched back and compared", "0 differences, 0 unreachable"),
+ ("794 of 794", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("630", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("638", "desk tests passing", "514 when today\u2019s work started; canon 181"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 
@@ -592,7 +592,7 @@ def _preface(c) -> str:
       + waiting +
       "<p><b>All three thin desks now hold every worked example their own "
       "regulations carry.</b> 63 added \u2014 19 to cash, 12 to vehicle, 32 to "
-      "meals \u2014 and all 792 stored passages were fetched back from their "
+      "meals \u2014 and all 794 stored passages were fetched back from their "
       "publishers and compared word for word: no differences, nothing "
       "unreachable. No proposal is open and all %s ratified positions stand.</p>"
       % _word(c["ratified"])

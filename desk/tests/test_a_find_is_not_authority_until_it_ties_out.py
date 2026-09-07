@@ -312,22 +312,38 @@ def _tied(citation, url):
         fetched_from=url, verdict=searching.TIED, occurrences=1)
 
 
+#: A SECTION THIS DESK DOES NOT DECLARE, found rather than typed. The first
+#: version of these two tests used § 1.263(a)-2 -- and the firm declared it on
+#: the eighth docket an hour later, which turned both of them green for the wrong
+#: reason and then red. An example that the record can absorb is not an example.
+def _undeclared(desk, *candidates):
+    prefixes = {s.citation_prefix for s in desk.sources}
+    for c in candidates:
+        if not any(c.startswith(x) or x.startswith(c) for x in prefixes):
+            return c
+    raise AssertionError(f"this desk declares all of {candidates}; pick another")
+
+
 def test_one_more_section_from_a_publisher_this_desk_reads_says_so():
     desk = record.load(HERE / "desks" / "fixed-assets")
+    section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
     what, why = searching.dispose(
-        _tied("26 CFR 1.263(a)-2(d)(1)",
-              "https://www.ecfr.gov/current/title-26/section-1.263(a)-2"), desk)
+        _tied(f"{section}(b)(1)",
+              "https://www.ecfr.gov/current/title-26/section-"
+              + section.split()[-1]), desk)
     assert what == searching.PROPOSE
-    assert "26 CFR 1.263(a)-2" in why, why
+    assert section in why, why
     assert "not a new publisher" in why, why
     assert "already reads ecfr.gov" in why, why
 
 
 def test_a_publisher_nobody_here_reads_is_still_the_bigger_ask():
     desk = record.load(HERE / "desks" / "fixed-assets")
+    section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
     what, why = searching.dispose(
-        _tied("26 CFR 1.263(a)-2(d)(1)",
-              "https://www.law.cornell.edu/cfr/text/26/1.263(a)-2"), desk)
+        _tied(f"{section}(b)(1)",
+              "https://www.law.cornell.edu/cfr/text/26/"
+              + section.split()[-1]), desk)
     assert what == searching.PROPOSE
     assert "admit law.cornell.edu" in why, why
 

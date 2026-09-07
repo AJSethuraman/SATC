@@ -112,6 +112,15 @@ class Unsupported:
     #: it under.
     needs_field: str = ""
     asked_by: str = ""
+    #: WHAT THE DESK PUT IN FRONT OF THE MODEL that then said the desk held
+    #: nothing. `authority_absent` only — see `engine.Refusal.showed`.
+    #:
+    #: A REFUSAL THAT MAY BE FALSE LOOKS EXACTLY LIKE ONE THAT IS TRUE, and this
+    #: queue is where the difference has to be visible or the entry is worse than
+    #: nothing: it sends somebody searching for authority the desk already holds.
+    #: Rendered as prose rather than a number so a reader does not have to know
+    #: which source id is which regulation.
+    showed: str = ""
 
     @property
     def near_miss(self) -> bool:
@@ -163,6 +172,8 @@ class Unsupported:
             # position id are neither, and `_inline` has no optional form.
             lines += ["", f"**Needs field:** {_oneline(self.needs_field)}",
                       "", f"**Asked by:** {_oneline(self.asked_by)}"]
+        if self.showed:
+            lines += ["", f"**Desk showed:** {_oneline(self.showed)}"]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -188,6 +199,7 @@ def parse(text: str) -> list[Unsupported]:
             falls_under=_field(block, "Falls under", where, required=False),
             asked=_field(block, "Asked", where, required=False),
             needs_field=_field(block, "Needs field", where, required=False),
+            showed=_field(block, "Desk showed", where, required=False),
             asked_by=_field(block, "Asked by", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
@@ -393,6 +405,25 @@ def from_question(question: str, *, why: str = "", model: str = "",
     )
 
 
+def _showed(result, desk) -> str:
+    """The measurement, put into words a reader does not need a key for.
+
+    `{'S2': 10}` means nothing to somebody reading the queue; *"S2 · Treasury
+    Regulation § 1.274-11 — 10"* is the sentence that makes the claim above it
+    false on sight. Empty for every reason but `authority_absent`, and empty when
+    the desk really did show nothing, because "0 passages" is a refusal agreeing
+    with itself and not a finding.
+    """
+    total = getattr(result, "showed", 0) or 0
+    if not total:
+        return ""
+    by = getattr(result, "showed_by_source", None) or {}
+    titles = {s.id: s.title for s in (desk.sources if desk is not None else ())}
+    parts = [f"{sid} {titles.get(sid, '')} — {n}".replace("  ", " ").strip()
+             for sid, n in sorted(by.items())]
+    return f"{total} passages: " + "; ".join(parts) if parts else f"{total} passages"
+
+
 def from_refusal(question: str, answer, result, *, model: str = "",
                  existing: list[Unsupported] | None = None,
                  today: str | None = None, desk=None) -> Unsupported:
@@ -431,6 +462,7 @@ def from_refusal(question: str, answer, result, *, model: str = "",
                      if result.reason == "no_field_for_this_fact" else ""),
         asked_by=(getattr(result, "by_position", "") or ""
                   if result.reason == "no_field_for_this_fact" else ""),
+        showed=_showed(result, desk),
         id=next_id(existing),
         question=question,
         concluded=answer.position or "(no position offered)",
