@@ -46,61 +46,27 @@ DATE = "%d %s %d" % (date.today().day, date.today().strftime("%B"), date.today()
 #: The decisions no authority settles. Each carries BOTH outcomes and what it
 #: costs to be wrong, because a decision handed over without its downside is one
 #: somebody makes twice.
-#: Every matter the FIFTH docket carried, taken from the page published on
-#: 6 September 2026 (artifact 80788800) and READ BACK from its own store on the
-#: 7th. It is the only independent record of what was already open: without it,
+#: Every matter the SIXTH docket carried, READ BACK from `artifact/83e68c31`'s
+#: own store rather than from this session's memory of publishing it. It is the only independent record of what was already open: without it,
 #: "which matters are new" is read out of the same list that sets it.
 #:
-#: All six were answered between 01:33 and 01:59 UTC on 7 September. Two were
-#: decisions to build and both are built. Four came back "Not yet" and are
-#: carried here.
-FIFTH_DOCKET = {
-    "dec-cap-field",
+#: All eight were answered between 13:09 and 13:16 UTC on 7 September. Three
+#: were ratifications, two were instructions to build, and both of those are
+#: built. Nothing from that page is carried here: a matter the firm has answered
+#: is not a matter, and asking it again is the fault this page was rebuilt to
+#: stop.
+SIXTH_DOCKET = {
     "dec-courts-again",
+    "dec-merge-300",
+    "dec-parser",
+    "dec-register",
+    "dec-searcher-scope",
     "pos-capitalization-and-de-minimis-POS1",
     "pos-capitalization-and-de-minimis-POS2",
-    "pos-personal-or-business-POS1",
     "pos-rewards-and-information-returns-POS3",
 }
 
 OTHERS = [
- {"key": "dec-register", "new": True, "group": "How positions are written",
-  "tag": "Your words, and they land",
-  "title": "You called a position AI dribble. You were right, and it is not one position.",
-  "position": "Redraft every proposed position in plain words and bring them back.",
-  "context": "You wrote, on the payment-rail position: <i>\u201cok right now this entire "
-             "thing sounds like a ton of just AI dribble, what in the world are you "
-             "communicating with some of these\u201d</i><br><br>Here is the sentence you "
-             "were reading:<br><br><i>\u201cwhere a payment for services shows no evidence "
-             "it settled through a third party payment network, treat it as outside "
-             "section 6050W and count it toward the $2,000 threshold\u201d</i><br><br>"
-             "In plain words that is: <b>if we cannot tell whether a payment went "
-             "through a card processor, assume it did not, and count it.</b> Same rule, "
-             "and you can decide whether you agree with it.<br><br>"
-             "<b>This is not one bad sentence.</b> The repository already has a rule "
-             "about this \u2014 <i>never transcribe a spec; no term a first-time reader "
-             "would have to look up; a sentence past ~25 words was written to be "
-             "complete rather than to be read</i> \u2014 and it is written for what "
-             "clients see. Positions are not client-facing, so nothing enforced it, and "
-             "they drifted into the register of the thing that generated them. "
-             "<b>A position you cannot read is one you cannot ratify</b>, which makes "
-             "this the reason some of them keep coming back \u201cNot yet\u201d.",
-  "either": [("Redraft them",
-              "I rewrite all three proposed positions in plain words \u2014 the rule "
-              "unchanged, only the wording \u2014 and bring them back next to the current "
-              "text so you can see exactly what moved. Nothing is ratified on my say-so."),
-             ("Leave the wording alone",
-              "They stay as drafted. That is a real answer: the wording is precise, and "
-              "precision is worth something in a document that governs a filing "
-              "position. The cost is that they stay hard to read, and so hard to "
-              "ratify.")],
-  "rec": "Redraft them. You have now objected to the wording of a position twice on "
-         "two dockets, which is the strongest signal available that it is the wording "
-         "and not the rule that is blocking you.",
-  "rec_pick": 'Redraft them',
-  "picks": ["Redraft them", "Leave the wording alone", "Redraft just this one",
-            "Not yet"]},
-
  {"key": "dec-admit-publishers", "new": True, "group": "The searching agent",
   "tag": "Built and run \u2014 one decision left",
   "title": "Two publishers tied out. Do they become sources?",
@@ -112,230 +78,219 @@ OTHERS = [
              "you need \u2014 so a list of approved sites means it can only ever find "
              "what we already have.<br><br><b>So it looks anywhere, and the gate is on "
              "keeping, not looking.</b> Nothing it finds goes into the record unless the "
-             "words are still on the publisher\u2019s own page today AND the publisher is "
-             "one you have accepted. Anything else comes to you, like this.<br><br>"
+             "words are still on the publisher\u2019s own page today AND the publisher "
+             "is one you have accepted. Anything else comes to you, like this.<br><br>"
              "<b>One real question, run through it.</b> The fixed-assets desk holds "
-             "\u00a7 1.263(a)-3, whose own examples point at \u00a7 1.162-3 \u2014 and it "
-             "cannot follow the pointer. One search, eight results, four passages read: "
-             "two are real and check out, one was too short to prove which paragraph it "
-             "came from, one site refused us. The two that check out are the definition "
-             "of materials and supplies, and the desk cannot use either until you say "
-             "where it may read them from.",
+             "\u00a7 1.263(a)-3, whose own examples point at \u00a7 1.162-3 \u2014 and "
+             "it cannot follow the pointer. One search, eight results, four passages "
+             "read: two are real and check out, one was too short to prove which "
+             "paragraph it came from, one site refused us. The two that check out are "
+             "the definition of materials and supplies, and the desk cannot use either "
+             "until you say where it may read them from.",
   "either": [("Admit both",
               "The desk answers materials-and-supplies questions instead of handing "
               "them back. Both are free government-text publishers; eCFR is the "
-              "government\u2019s own and Cornell\u2019s is a university library. Nothing "
-              "is copied that is not checked against the publisher first."),
+              "government\u2019s own and Cornell\u2019s is a university library. "
+              "Nothing is copied that is not checked against the publisher first."),
              ("Leave the gap open",
               "The desk keeps refusing the question, which is honest \u2014 it is not "
               "guessing. The cost is that this comes back to you every time somebody "
-              "asks about spare parts, and the searcher will keep finding the same two "
+              "asks about spare parts, and the searcher keeps finding the same two "
               "pages.")],
   "rec": "Admit eCFR and leave Cornell for now. eCFR is the government publishing its "
-         "own regulation and you already rely on it for \u00a7 1.263(a)-3 \u2014 this is "
-         "the same site, one section over. Cornell is a faithful copy rather than the "
-         "source, so it earns nothing eCFR does not already give us.",
+         "own regulation and you already rely on it for \u00a7 1.263(a)-3 \u2014 this "
+         "is the same site, one section over. Cornell is a faithful copy rather than "
+         "the source, so it earns nothing eCFR does not already give us.",
   "rec_pick": "Admit eCFR only",
   "picks": ["Admit eCFR only", "Admit both", "Leave the gap open", "Not yet"]},
 
- {"key": "dec-add-examples", "new": True, "group": "The record",
-  "tag": "You said have another go \u2014 all eleven read",
-  "title": "Every regulation these desks rely on reads now. Add the examples?",
-  "position": "Add the worked examples from the nine sections that read to the cash, "
-              "vehicle and meals desks.",
-  "context": "<b>You said \u201chave another go\u201d and set the pass mark yourself: a "
-             "regulation names its own paragraphs, and a reading is right when every "
-             "one of them is found.</b> The best attempt before this found 24 of the 31 "
-             "\u00a7 1.446-1 cites \u2014 which I told you was not good enough to ship, "
-             "because three quarters is not the ordinary residue of dead "
-             "cross-references, it is a reading that is partly wrong.<br><br>"
-             "<b>It now finds all thirty, and all eleven regulations these three desks "
-             "rely on read.</b> \u00a7 1.263(a)-3 \u2014 the one that already worked "
-             "\u2014 reads identically: the same 172 paragraphs and the same two dead "
-             "references it had before.<br><br><b>Seven causes, not the three I had "
-             "found</b>, and I told you mid-way that six of them were done when three "
-             "were. The last two were the stubborn ones: one regulation writes a "
-             "reserved range three different ways, one of them on its opening line, and "
-             "another has its italics broken across a paragraph number in the "
-             "government\u2019s own file \u2014 a stray tag, and it cost the vehicle "
-             "desk every example it might have had.<br><br><b>What is left is your call, "
-             "because it changes what the desks are scored on.</b>",
-  "either": [("Add them",
-              "Three desks that hold rules and no worked examples get them \u2014 the "
-              "government applying its own rule to a real fact pattern, which is the "
-              "closest thing in the record to the question a bookkeeper asks. Their "
-              "scores move, because the set they are measured on changes."),
-             ("Leave the desks alone",
-              "The reader fix stands on its own and costs nothing. The desks stay as "
-              "they are, thinner but with the scores you have already seen. The "
-              "examples can be added any time.")],
-  "rec": "Add them, but as a separate change with its own before-and-after scores on "
-         "the page. The reading is proven and the examples are real; what I do not want "
-         "is a desk\u2019s score moving in the same commit that moves the reader, "
-         "because then neither number explains the other.",
-  "rec_pick": "Add them, separately",
-  "picks": ["Add them, separately", "Add them now", "Leave the desks alone",
+ {"key": "dec-register-standing", "new": True, "group": "How positions are written",
+  "tag": "You corrected me \u2014 and it may have emptied the job",
+  "title": "The standing check on how positions are worded: still wanted?",
+  "position": "Do not build it yet. The complaint it was for turned out to be elsewhere.",
+  "context": "<b>You answered this on the last docket and then told me I had the target "
+             "wrong.</b> You said <i>\u201credraft them\u201d</i>, and added: "
+             "<i>\u201cwe have to ensure our rules are followed as answers are added to "
+             "the desk.\u201d</i> I read that as: build a mechanical check on how a "
+             "position is worded, the way we already check the price page.<br><br>Then "
+             "you said: <i>\u201cwhen i say AI dribble i don\u2019t necessarily mean "
+             "that the position itself is. i mean how you explain it.\u201d</i><br><br>"
+             "<b>That was the real fault and it is fixed.</b> The card on this page now "
+             "leads with what I would do instead of burying it under four sections, and "
+             "a card can no longer offer you \u201cRatify it\u201d while its own "
+             "recommendation says do not \u2014 that is a build error now, not "
+             "something a reader has to catch.<br><br><b>What I do not know is whether "
+             "the positions themselves still need a rule.</b> I measured before "
+             "assuming: length is not the tell. The position you called dribble is 29 "
+             "words against a median of 27, and the meals positions run 61 to 73 and "
+             "drew no complaint. So I have no measured rule to write, and writing one "
+             "anyway is how the dribble got there in the first place.",
+  "either": [("Drop it \u2014 the card was the problem",
+              "Nothing more is built. The docket card fix stands, and if a position "
+              "reads badly again you tell me and we look at that one."),
+             ("Still want the check",
+              "I go and measure what actually separates a position you accepted from "
+              "one you rejected, and bring you the rule before writing it \u2014 not a "
+              "word count borrowed from the price page.")],
+  "rec": "Drop it. You have told me twice now that the problem is how I explain things, "
+         "and both times I found the fault in my writing rather than in the record. A "
+         "rule invented to satisfy an instruction is the thing this repository keeps "
+         "catching.",
+  "rec_pick": "Drop it \u2014 the card was the problem",
+  "picks": ["Drop it \u2014 the card was the problem", "Still want the check",
             "Not yet"]},
 
  {"key": "dec-merge-305", "new": True, "group": "Housekeeping",
-  "tag": "The searcher \u2014 585 tests, desk job green",
-  "title": "Merge the searching agent?",
+  "tag": "6 commits, 585 desk tests, job green",
+  "title": "Merge today\u2019s work?",
   "position": "Merge <a href=\'https://github.com/AJSethuraman/SATC/pull/305\'>#305</a>.",
-  "context": "<b>#300 is already in.</b> That was the worked examples \u2014 531 to 727 "
-             "stored passages, 4 to 200 examples, every one fetched back from its "
-             "publisher and compared word for word. It merged clean and this card is "
-             "not asking about it again.<br><br>This is the searcher: it looks anywhere, "
-             "checks what it finds against the publisher\u2019s own page, and can put "
-             "nothing in the record without you. 47 new tests, and I broke seven of its "
-             "safety rules on purpose to confirm the tests catch each one.<br><br>"
-             "<b>Two defects of my own turned up by running it for real</b>, both fixed "
-             "here: it recognised only one of the two web addresses eCFR uses for the "
-             "same page, and it recorded the address it asked for rather than the one "
-             "the words actually came from.",
+  "context": "Three things, none of which touches a client file, anything a client "
+             "sees, or any desk\u2019s record.<br><br><b>The searching agent.</b> It "
+             "looks anywhere, checks what it finds against the publisher\u2019s own "
+             "page, and can put nothing in the record without you. 47 tests, and I "
+             "broke seven of its safety rules on purpose to confirm each one is "
+             "caught.<br><br><b>The docket card.</b> Leads with the recommendation; "
+             "cannot offer a button its own recommendation argues against.<br><br>"
+             "<b>The reader.</b> Seven causes, all eleven regulations reading. Fifteen "
+             "mutations tried, fourteen caught \u2014 and the fifteenth broke nothing, "
+             "so the comment now says that rule is not load bearing instead of claiming "
+             "it is.",
   "either": [("Merge it",
-              "It goes to <code>main</code>. Nothing here touches a client file, "
-              "anything a client sees, or any desk\u2019s record \u2014 the searcher "
-              "cannot write to a desk at all."),
+              "It goes to <code>main</code>. The searcher becomes available to any "
+              "session; the reader fix applies the next time anything is extracted."),
              ("Hold it",
-              "It sits on the branch. Nothing else is waiting on it, so holding costs "
-              "nothing except that the next piece of work starts further from "
-              "<code>main</code>.")],
-  "rec": "Merge it. It adds a tool and no authority \u2014 the two passages it found are "
-         "on the card above, waiting on you, and neither is in the record.",
+              "It sits on the branch. Nothing is waiting on it except the two decisions "
+              "above, which need it merged before they can be acted on.")],
+  "rec": "Merge it. It adds tools and no authority \u2014 the two passages the searcher "
+         "found are on this page waiting on you, and neither is in the record.",
   "rec_pick": "Merge it",
   "picks": ["Merge it", "Hold it", "Not yet"]},
-
- {"key": "dec-courts-again", "group": "Sources",
-  "tag": "Carried a third time \u2014 and your note started something",
-  "title": "The court hosts, still open.",
-  "position": "Say which half you meant. I have still not read an answer into it.",
-  "context": "<b>Your note last time became a design.</b> You wrote: <i>\u201cok as we "
-             "talk about this the more it seems to make sense to simply run it through "
-             "the tie-out process and verify it in the moment\u201d</i> \u2014 and "
-             "that idea, verifying a source when it is used rather than approving it in "
-             "advance, is what the searching agent above is built around. Recorded as "
-             "yours.<br><br><b>The original question is still unanswered.</b> Two "
-             "dockets ago you pressed a button (keep the five court hosts closed) and "
-             "wrote words beside it (open everything we can use). Those point opposite "
-             "ways. I have not picked one for you.<br><br><b>LexisNexis is not "
-             "started.</b> Every source here is a government work in the public domain, "
-             "which is why we may store the text. A licensed database is a different "
-             "shape and would need you to decide what may be copied before a single "
-             "passage could be kept.",
-  "either": [("Keep the five hosts closed",
-              "Nothing changes. A court decision reaches a desk when you hand it over, "
-              "which is what happened with Anikeev."),
-             ("Open them",
-              "They refused automated access last time I tried. Opening them is a "
-              "policy change here plus a real chance they still refuse.")],
-  "rec": "Keep them closed and let the searching agent answer the question underneath "
-         "it \u2014 which sources would actually settle the questions that keep coming "
-         "to you. That is a measurement, not a policy change.",
-  "rec_pick": 'Keep hosts closed',
-  "picks": ["Keep hosts closed", "Open the hosts", "Look into LexisNexis first",
-            "Not yet"]},
 ]
 
+#: BEHAVIOUR 19, ADDED TO CANON THIS MORNING AS 1.13.0: name the goal, report the
+#: distance, then stop. Its incident is this session -- *"i feel like sometimes the
+#: feedback is endless for the sake of being endless, when a stated goal can be
+#: worked towards then moved naturally"* -- and the docket is where the firm asked
+#: for it to live, so that the goal survives the session in the log rather than in
+#: a session's memory of it.
+#:
+#: THE ONE ITEM SILENCE APPROVES, and the page says so in those words. Every other
+#: matter blocks until answered; this one proceeds unless the firm objects.
+#: Objecting is a line, agreeing is nothing.
+#:
+#: TWO MATTERS CAME OFF THIS PAGE TO GET HERE. "Add the 34 examples" and "read the
+#: 29 written as prose" were drafted as decisions, and they are not decisions --
+#: they are the work. Behaviour 19: *"do not manufacture the next decision.
+#: Behaviour 13 says decisions go to the human; it does not say produce some."*
+NEXT = {
+ "goal": "Get the three thin desks holding the worked examples their own "
+         "regulations already contain \u2014 cash, vehicle and meals.",
+ "ends": "It ends when each of the three holds every example its sections carry, "
+         "with the before-and-after scores on the page.",
+ "distance": "0 of 3 desks done.",
+ "detail": "34 examples are extractable today \u2014 19 for cash, 12 for vehicle, "
+           "3 for meals. A further <b>29 exist and the reader cannot see any of "
+           "them</b>: three of the meals desk\u2019s regulations write an example "
+           "as an ordinary numbered paragraph rather than in a tagged block, so "
+           "the sections read perfectly and still yield nothing. All 29 are on "
+           "meals \u2014 the desk that looked thin and was actually unreadable in "
+           "a second way nobody had counted. Found while checking a number for "
+           "this page.",
+}
+
 CHANGED = [
- ("6 of 6", "matters you answered", "two were instructions to build; both are built"),
- ("727 of 727", "passages fetched back and compared", "0 differences, 0 unreachable"),
- ("4 \u2192 200", "worked examples the desks hold", "the government applying its own rules to real facts"),
- ("531 \u2192 727", "stored passages in all", "262,000 characters of authority to 497,000"),
- ("585", "desk tests passing", "514 before the searcher; 470 when this branch started"),
+ ("8 of 8", "matters you answered last time", "two were instructions to build; both are built"),
+ ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
+ ("34", "worked examples ready to add", "and 29 more the reader still cannot see"),
+ ("2 of 4", "passages the searcher found and proved", "on its first real question"),
+ ("585", "desk tests passing", "514 when today\u2019s work started; 47 of the new ones are the searcher\u2019s"),
 ]
 
 LANDED = [
- ("New", "<b>The desks hold their regulations\u2019 worked examples.</b> They had four. "
-         "They have 200. These are the passages where the IRS takes a fact pattern and "
-         "says what the answer is \u2014 the closest thing in the whole record to the "
-         "question somebody actually asks while closing a set of books."),
- ("Found", "<b>The desks were missing more authority than they held.</b> 224,000 "
-           "characters of worked examples across six regulations, never extracted, "
-           "against a whole corpus of 262,000. Not an oversight \u2014 they were "
-           "dropped on purpose years of sessions ago, because a desk that stores the "
-           "examples it is also TESTED on is holding its own answer key. Right for "
-           "testing, and it quietly cost the answering side the best thing in the "
-           "document."),
- ("Fixed", "<b>They are marked now instead of deleted.</b> Each passage says whether it "
-           "is a rule or a worked example, and three separate places hide the examples "
-           "from anything being scored. The two examples deleted on Saturday for "
-           "leaking into a test are back, and that desk still scores 19 of 19."),
- ("Found", "<b>\u201cRoof\u201d appeared three times in the fixed-asset desk\u2019s "
-           "own practice questions \u2014 which we wrote \u2014 and zero times in its "
-           "actual authority.</b> The regulation is full of roof cases; it is the "
-           "classic did-you-repair-it-or-improve-it question. It now appears 49 times."),
- ("Found", "<b>Four examples were filed under the wrong rule.</b> One regulation labels "
-           "a heading differently from the rest, the reader did not notice, and four "
-           "examples about tearing out columns and disposing of shingles were filed "
-           "under leasehold improvements. Their own text says \u201cassume the same "
-           "facts as Example 1\u201d, which under the wrong numbering pointed at the "
-           "wrong example too."),
- ("Found", "<b>Text was being stored that the publisher never printed.</b> Long "
-           "passages are wrapped across lines for readability, and the wrapping split "
-           "words at hyphens \u2014 so \u201cload-carrying\u201d was stored as "
-           "\u201cload- carrying\u201d. That passage could never again be proved "
-           "against its source. Every passage stored before today dodged it by luck."),
- ("Found", "<b>Everything was being verified against January\u2019s text.</b> The "
-           "check was pinned to 1 January on a note saying that was as recent as the "
-           "government\u2019s site allowed. It was not \u2014 the site serves last "
-           "week. That failure can only ever hide a change, never invent one. The tool "
-           "now asks the site for its own latest date."),
- ("Found", "<b>A run folder named for a date was overwriting that date\u2019s "
-           "evidence.</b> Re-running rewrote seventeen briefs inside a folder still "
-           "claiming to be from two days earlier. Nothing failed; only <code>git</code> "
-           "noticed."),
+ ("New", "<b>The searching agent, built and run against live publishers.</b> When a "
+         "desk has no answer it goes and looks \u2014 anywhere, because you were right "
+         "that a list of approved sites can only find what we already have. It reads "
+         "the passage off the publisher\u2019s own page rather than off the search "
+         "result, and it can put nothing in the record without you."),
+ ("Run", "<b>One real gap, end to end.</b> The fixed-assets desk holds a regulation "
+         "whose own examples point at \u00a7 1.162-3, and it could not follow the "
+         "pointer. One search, eight results, four passages read: two check out, one "
+         "was too short to prove which paragraph it came from, one site refused us. "
+         "Both good ones are waiting on you, above."),
+ ("Fixed", "<b>Every regulation these three desks rely on reads now.</b> Seven "
+           "separate causes. Two I had described to you, and five I had not \u2014 "
+           "including a paragraph with no number on it, two paragraphs reserved on one "
+           "line, and one regulation whose italics are broken across a paragraph "
+           "number in the government\u2019s own file. That last one, a stray tag, had "
+           "cost the vehicle desk every example it might have had."),
+ ("Fixed", "<b>This page cannot ask you something it has already answered.</b> The "
+           "recommendation used to sit last, under four sections of argument. It now "
+           "leads. And a card can no longer offer <i>Ratify it</i> as its first button "
+           "while its own recommendation says do not \u2014 which is exactly what the "
+           "docket before last did to you, twice. It is a build failure now, not "
+           "something a reader has to notice."),
+ ("Found", "<b>A citation was being read as naming paragraphs that do not exist.</b> "
+           "<i>\u201cparagraph (c)(1)(iii), (iv), or (v)\u201d</i> was read as citing "
+           "a paragraph called \u201c(v)\u201d. Not just a miscount \u2014 that list "
+           "is where the tool picks which rule an example is filed under, so a bare "
+           "\u201c(v)\u201d was a candidate rule on any regulation whose examples "
+           "live under (v). Same class as the four examples filed under the wrong rule "
+           "on Saturday."),
+ ("Found", "<b>29 worked examples exist that the reader cannot see at all</b>, all of "
+           "them on the meals desk. It is the Next above."),
 ]
 
 UNCHECKED = [
  ("No model has answered anything, again.", "Every number here measures the record and "
   "the machinery around it. Nothing has been asked to reason about a client\u2019s "
-  "books, so \u201c200 worked examples\u201d is a fact about the library and not yet "
-  "about the advice."),
- ("No desk has met a real client file.", "Still true, still deliberate \u2014 scoring "
-  "against answers we wrote ourselves measures agreement rather than correctness \u2014 "
-  "and still the largest gap between this and something you could use."),
- ("The scoreboard was not re-run.", "The rewards desk gained 38 worked examples today "
-  "and I have not measured what that does to its scores. It should not change them "
-  "\u2014 examples are hidden from anything being scored \u2014 but should-not is not "
-  "measured."),
- ("Four regulations still will not read.", "About 31 worked examples behind them. Three "
-  "causes found, none shipped, because all three together still are not enough."),
- ("The exhibits were opened, but by machine.", "I pulled the text back out of the PDFs "
-  "to prove they are readable and carry the right figures. Nobody has looked at one "
-  "with their eyes."),
- ("The register problem was diagnosed, not fixed.", "Nothing was reworded. That is "
-  "matter 1 on this page, because rewriting a position you did not ask me to rewrite is "
-  "the exact thing the positions store exists to prevent."),
+  "books."),
+ ("No desk has met a real client file.", "Still true, still deliberate, and still the "
+  "largest gap between this and something you could use."),
+ ("Nothing was added to any desk.", "So no desk\u2019s score has moved, and none of "
+  "today\u2019s work has been measured by what it does to an answer. That is the "
+  "Next."),
+ ("The 29 invisible examples were counted, not extracted.", "29 is the number of "
+  "paragraphs that begin <i>\u201cExample 1.\u201d</i> in those three regulations. How "
+  "many survive the filters that keep a desk from being tested on its own answer key "
+  "is not known until it is built."),
+ ("The scoreboard was not re-run.", "It has not been run since the rewards desk gained "
+  "38 examples yesterday. It should not have changed \u2014 examples are hidden from "
+  "anything being scored \u2014 but should-not is not measured."),
+ ("Only two of the six test suites were run here.", "desk (585 passed, 1 skipped) and "
+  "canon (181 passed), both run just now. client-documents, satc_system, "
+  "invoice-generator and credit-suite ran on the server; four had reported green and "
+  "two were still running when I last looked. Nothing in today\u2019s work touches "
+  "any of them."),
+ ("The exhibits were opened, but by machine.", "Nobody has looked at one with their "
+  "eyes."),
 ]
 
 WRONG = [
- ("<b>You answered this docket two hours before I read it.</b>", "01:33 to 01:59 UTC. I "
-  "worked until 03:40 without looking. Two of your six answers were instructions to "
-  "build something and both sat there while a large pile of other work went in on top. "
-  "The rule I broke is written down in the skill I was following: <i>\u201can answer "
-  "sitting in a store nobody reads back is worse than no form at all.\u201d</i> They "
-  "are built now."),
- ("<b>I published a diagnosis that was wrong, and then found out by building it.</b>", "I "
-  "told you a regulation \u201cskips a numbering level\u201d and that its own citations "
-  "proved it. The citations were real; my reading of them was not \u2014 it uses a "
-  "different <i>alphabet</i> at the same level. Corrected in the record rather than "
-  "quietly dropped, because the wrong version had already been committed."),
- ("<b>I said a safeguard was doing work it was not doing.</b>", "I wrote in the code that "
-  "one particular check was what kept the reader from misfiring. Then I deliberately "
-  "broke that check twice and nothing failed. Something else entirely was doing the "
-  "protecting. A safeguard everyone believes in that does nothing is worse than none, "
-  "because it stops anyone looking for the real one."),
- ("<b>I told you the desks held zero worked examples. They held four.</b>", "All four on "
-  "one desk, all put there by hand by whoever built it, and they are the most useful "
-  "passages on that desk \u2014 which is the argument I was making, made better by the "
-  "thing I got wrong."),
- ("<b>One of my own tests passed for no reason.</b>", "I wrote a check to prove the "
-  "worked examples stay hidden from anything being scored, sabotaged it to confirm it "
-  "fires, and one sabotage survived: the list an answer is judged against still "
-  "included examples the model was never shown. That is the number that detects "
-  "answering from memory. Found by attacking my own work, not by writing it."),
+ ("<b>I told you six regulations had started reading. Three had.</b>", "The other three "
+  "were already reading before I touched anything. I caught it an hour later by "
+  "checking a claim I had already written into a follow-up note \u2014 and by then it "
+  "was in a commit message and on the draft of this page, promising you examples on "
+  "desks whose regulations still would not read. Corrected in the record rather than "
+  "quietly fixed. Both of those now read too."),
+ ("<b>I ran this docket on the old rulebook.</b>", "canon updated to 1.13.0 this "
+  "morning with a new standing behaviour \u2014 name the goal, report the distance, "
+  "then stop. The plugin here was still on the version from Thursday, nine releases "
+  "behind, and building the page loaded the old instructions. You told me to look at "
+  "it. The install command that actually installs is a different one from the command "
+  "that refreshes the list, which is the trap canon\u2019s own log already "
+  "describes."),
+ ("<b>Two of the things on this page were not decisions.</b>", "\u201cAdd the 34 "
+  "examples\u201d and \u201cread the 29 the reader cannot see\u201d were drafted as "
+  "matters for you. They are not \u2014 they are the work, and the new behaviour says "
+  "so plainly: <i>do not manufacture the next decision.</i> They are the Next block "
+  "instead, and the page went from five things waiting on you to three."),
+ ("<b>I spent an hour measuring the wrong thing about the wording.</b>", "You said a "
+  "position read like AI dribble, and I went and measured word counts and sentence "
+  "shapes across all twenty positions. Then you told me you meant how I <i>explain</i> "
+  "a position, not the position. The measurement was not wasted \u2014 it is why "
+  "matter 2 says I have no rule to write \u2014 but I built the wrong thing first "
+  "because I did not ask."),
 ]
-
 
 def _md(t: str) -> str:
     out = html.escape(t)
@@ -453,7 +408,7 @@ def _counted():
     # the test that checked it read the same flag. A POSITION cannot carry the
     # flag at all -- it comes out of `desks/` -- so a flag-only count silently
     # missed POS3, which did not exist this morning.
-    fresh = [r for r in rows if r["key"] not in FIFTH_DOCKET]
+    fresh = [r for r in rows if r["key"] not in SIXTH_DOCKET]
     from_tieout = [r for r in fresh if r["group"] == "From the tie-out"]
     return {
         "rows": rows, "n": len(rows), "pos": len(pos), "dec": len(rows) - len(pos),
@@ -476,46 +431,54 @@ def render() -> str:
         measured = ("Only <b>%s</b> of them sits on a citation its own desk's "
                     "scored problems turn on" % _word(c["turns"]))
     preface = (
-      "<p><b>You answered all six of the last docket \u2014 and I did not read your "
-      "answers for two hours.</b> You filled the form in between 01:33 and 01:59. "
-      "I worked until 03:40 without looking. Two of the six were instructions to "
-      "build something and both sat there while a large pile of other work went in "
-      "on top of them. They are built now, and the rule I broke is written into "
-      "the skill I was following: <i>an answer sitting in a store nobody reads "
-      "back is worse than no form at all.</i></p>"
-      "<p><b>The desks went from 4 worked examples to 200.</b> These are the "
-      "passages where the IRS takes a real fact pattern and says what the answer "
-      "is \u2014 the closest thing in the record to the question somebody asks "
-      "while closing a set of books. They had been dropped on purpose, long ago, "
-      "for a good reason that only applied to testing. All 727 stored passages "
-      "were fetched back from their publishers and compared word for word: no "
-      "differences, nothing unreachable.</p>"
-      "<p><b>%(nw)s things wait on you, and %(freshw)s of them are new.</b> Two of "
-      "the new ones come straight out of what you wrote on the last form \u2014 "
-      "including the one about how these positions are written, which you were "
-      "right about.</p>"
-      "<p><b>A correction, and it inverts what the last docket told you.</b> That "
-      "page said the desk was REFUSING the safe-harbour questions and that adding "
-      "the field would stop it. It was not refusing. Measured on 7 September: "
-      "asked about the safe harbour with nothing on file, the desk answers "
-      "straight from the regulation and never asks whether that client has a rule "
-      "of its own \u2014 which is the thing you objected to in the first place. The "
-      "follow-up only runs off a position you have RATIFIED; a proposal is nobody\u2019s "
-      "word, so the desk never consults it. Adding the field was necessary and it "
-      "was never the switch.</p>"
-      "<p><b>%(ansv)s of the %(posw)s positions here are answerable today</b>, and "
-      "nothing is blocking them but your yes. The remaining objection is the "
-      "wording, which is matter 1 \u2014 a separate question from whether the rule is "
-      "right.</p>"
-    ) % {"posw": _word(c["pos"]),
-         "freshw": _word(c["fresh"]), "nw": _word(c["n"]).capitalize(),
-         "ansv": ("%s" % _word(c["answerable"]).capitalize()) if c["waiting"]
-                 else "Every one"}
-    lede = ("%s of them are positions to approve or reject. %s are choices no rule "
-            "settles." % (_word(c["pos"]).capitalize(), _word(c["dec"]).capitalize()))
+      "<p><b>I read your eight answers this time, and both build orders are "
+      "built.</b> Last docket I left them sitting for two hours. The searcher is "
+      "running against live publishers and the reader now reads every regulation "
+      "these desks rely on \u2014 which is what you meant by <i>have another "
+      "go</i>.</p>"
+      "<p><b>You set the pass mark for the reader and it is met.</b> A regulation "
+      "names its own paragraphs; a reading is right when every one of them is "
+      "found. The best attempt before today found 24 of the 31 that one section "
+      "names, and I told you that was not good enough to ship. It now finds all "
+      "thirty, across eleven regulations, and the one that already worked reads "
+      "identically \u2014 same 172 paragraphs, same two dead references.</p>"
+      "<p><b>%(nw)s things wait on you, and %(freshw)s of them are new.</b> "
+      "Nothing from the last page is carried forward: you answered all eight, and "
+      "asking an answered question again is the fault this page was rebuilt to "
+      "stop.</p>"
+      "<p><b>The fault you named was mine, not the record\u2019s.</b> You said the "
+      "dribble was in how I <i>explain</i> a position, not in the position. You "
+      "were right, and it was worse than wording \u2014 the page was arguing one "
+      "way and asking the other. The recommendation now leads instead of sitting "
+      "under four sections of argument, and a card that recommends against "
+      "something can no longer offer it as the first button. Matter 2 is what is "
+      "left of that: whether the positions themselves still need a rule, which I "
+      "no longer think they do.</p>"
+      "<p><b>Nothing was added to any desk.</b> All %(rat)s ratified positions "
+      "stand, no proposals are open, and the corpus is the same 727 passages it "
+      "was this morning. Every number on this page is about the machinery, not "
+      "about an answer anyone has given.</p>"
+    ) % {"nw": _word(c["n"]).capitalize(), "freshw": _word(c["fresh"]),
+         "rat": _word(c["ratified"])}
+    lede = ("%s are choices no rule settles; no position is waiting \u2014 all %s "
+            "are ratified." % (_word(c["dec"]).capitalize(), _word(c["ratified"])))
     return _PAGE % (_word(c["n"]).capitalize(), _CSS, DATE, headline, lede,
-                    preface, c["n"], c["n"], c["pos"], c["dec"], _blocks(c),
+                    preface, _next_block(), c["n"], c["n"], c["pos"], c["dec"],
+                    _blocks(c),
                     json.dumps(c["rows"]), _JS)
+
+
+def _next_block() -> str:
+    return ('<div class="next"><h4>Next</h4>'
+            '<p class="goal">%(goal)s</p>'
+            '<p class="ends">%(ends)s <b>%(distance)s</b></p>'
+            '<p class="detail">%(detail)s</p>'
+            '<p class="silence"><b>Unless you say otherwise, this is what I '
+            'proceed with.</b> Everything below this block waits for your answer. '
+            'This one does not \u2014 objecting is a line, agreeing is nothing. It '
+            'approves what I work on next and nothing else: a position still needs '
+            'your explicit yes, and nothing reaches a client without you.</p>'
+            '</div>') % NEXT
 
 
 def _blocks(c) -> str:
@@ -608,6 +571,14 @@ h3.t{font-size:1.28rem;line-height:1.26;margin:0 0 .7rem}
 .blk.rec h4{color:var(--ink)}
 /* THE RECOMMENDATION LEADS. It sat last, under four labelled blocks, and the
    reader had to assemble the point before reaching it. */
+.next{margin:1.2rem 0;padding:.9rem 1.1rem;background:var(--ledger-soft);
+ border:1px solid var(--ledger);border-left-width:4px}
+.next h4{margin:0 0 .3rem;font-size:.66rem;letter-spacing:.09em;
+ text-transform:uppercase;font-family:"Public Sans",sans-serif;color:var(--ledger)}
+.next .goal{margin:0 0 .35rem;font-size:1.06rem;font-weight:600;max-width:64ch}
+.next .ends,.next .detail,.next .silence{margin:.35rem 0;max-width:64ch;
+ font-size:.94rem;color:var(--ink2)}
+.next .silence{color:var(--ink)}
 .reclead{margin:.8rem 0;padding:.7rem .9rem;background:var(--sheet);
  border:1px solid var(--ink);border-left-width:3px}
 .reclead h4{margin:0 0 .25rem;font-size:.66rem;letter-spacing:.09em;
@@ -669,6 +640,8 @@ _PAGE = """<title>Docket · %s Open</title>
 <div id="offline" class="banner">Answers are not saving — this view could not reach the store. Tell me in the conversation instead.</div>
 
 <div class="preface">%s</div>
+
+%s
 
 <div class="bar">
   <span class="tally" id="tally">0 of %d answered</span>

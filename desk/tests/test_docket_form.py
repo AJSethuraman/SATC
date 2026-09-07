@@ -41,15 +41,17 @@ def counted():
 #: about itself, checked here against a copy of the previous docket -- and a
 #: POSITION cannot carry that flag at all, because positions come out of `desks/`.
 #: So POS3, which did not exist that morning, counted as old. The generator now
-#: derives "new" by difference against `FIFTH_DOCKET`, and this file asserts the
+#: derives "new" by difference against `SIXTH_DOCKET`, and this file asserts the
 #: two sets agree, which is the same independence with the arithmetic in one
 #: place instead of two.
-FIFTH_DOCKET = {
-    "dec-cap-field",
+SIXTH_DOCKET = {
     "dec-courts-again",
+    "dec-merge-300",
+    "dec-parser",
+    "dec-register",
+    "dec-searcher-scope",
     "pos-capitalization-and-de-minimis-POS1",
     "pos-capitalization-and-de-minimis-POS2",
-    "pos-personal-or-business-POS1",
     "pos-rewards-and-information-returns-POS3",
 }
 
@@ -96,24 +98,24 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
 
     # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
     # thirteen-key list would drift; one copy checked from outside cannot.
-    assert df.FIFTH_DOCKET == FIFTH_DOCKET, (
+    assert df.SIXTH_DOCKET == SIXTH_DOCKET, (
         f"the generator and this test disagree about what the last docket "
-        f"carried: {sorted(df.FIFTH_DOCKET ^ FIFTH_DOCKET)}")
+        f"carried: {sorted(df.SIXTH_DOCKET ^ SIXTH_DOCKET)}")
 
     # AND "NEW" IS A DIFFERENCE, NOT A FLAG. Computed here from the rendered
     # rows rather than read off `counted`, so a generator that stopped
     # subtracting would go red.
     keys = {r["key"] for r in counted["rows"]}
-    assert fresh == len(keys - FIFTH_DOCKET), (
+    assert fresh == len(keys - SIXTH_DOCKET), (
         f"the page says {fresh} are new; the ones absent from the fourth docket "
-        f"are {sorted(keys - FIFTH_DOCKET)}")
+        f"are {sorted(keys - SIXTH_DOCKET)}")
     # A POSITION CAN BE NEW, which a `"new": True` flag could never express --
     # positions come out of `desks/`, not out of `OTHERS`. Asserted as the
     # DERIVATION rather than as a fact about any one docket: this one happens to
     # carry no new position, and the sixth would have gone red on a test that
     # demanded one.
-    assert all(k in keys for k in keys - FIFTH_DOCKET)
-    assert not any(r.get("new") and r["key"] in FIFTH_DOCKET for r in counted["rows"]), (
+    assert all(k in keys for k in keys - SIXTH_DOCKET)
+    assert not any(r.get("new") and r["key"] in SIXTH_DOCKET for r in counted["rows"]), (
         "a row is flagged new that the last docket already carried; new is a "
         "difference against that set, never a flag somebody typed")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
@@ -129,6 +131,15 @@ def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independen
     held_back = sum(1 for r in df.items()
                     if "Do not ratify" in (r.get("note") or {}).get("rec", ""))
     assert waiting == held_back, "the held-back count is not read off the notes"
+    if pos == 0:
+        # NO PROPOSED POSITION IS OPEN, for the first time since these dockets
+        # began. The preface must not claim anything about a set with nothing in
+        # it -- "Every one of the no positions" is what the old sentence rendered
+        # -- so what is asserted instead is that the page says they are all
+        # ratified, which is the true statement at zero.
+        assert "no position is waiting" in page
+        assert "all %s" % df._word(counted["ratified"]) in page
+        return
     said = ("%s of the %s positions here are answerable today" % (
         df._word(answerable).capitalize(), df._word(pos))) if waiting else (
         "Every one of the %s positions here are answerable today" % df._word(pos))

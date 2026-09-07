@@ -278,3 +278,46 @@ The fifteenth — dropping the trailing word boundary from the span pattern —
 broke nothing, and the comment now says so rather than claiming it is load
 bearing. The anchor does that work, the same finding `_RUN_IN` already records
 about its full stop.
+
+---
+
+## Seventh docket published: `artifact/1750afce`
+
+Three matters, all new — nothing from the sixth docket is carried, because all
+eight were answered and asking an answered question again is the fault the card
+rebuild exists to stop. `dec-courts-again` came off the page for that reason: it
+was answered "Keep hosts closed" with no note, which settles it.
+
+1. `dec-admit-publishers` — eCFR and Cornell's LII for § 1.162-3, from the
+   searcher's first real run. Recommendation: admit eCFR only.
+2. `dec-register-standing` — whether the standing check on how positions are
+   worded is still wanted, given the firm's correction that the complaint was
+   about how a position is EXPLAINED. Recommendation: drop it.
+3. `dec-merge-305` — merge the pull request. Recommendation: merge.
+
+**And a `Next` block, which is new to the page and new to canon.** canon 1.13.0
+landed on `main` this morning with behaviour 19 — *name the goal, report the
+distance, then stop* — and its docket skill asks for the goal to sit above the
+decisions as **the one item silence approves**. The goal: get the three thin
+desks holding the worked examples their own regulations contain. Distance: 0 of
+3 desks.
+
+**Two matters came off the page to get there.** "Add the 34 examples" and "read
+the 29 written as prose" were drafted as decisions. They are not decisions —
+they are the work. Behaviour 19: *"do not manufacture the next decision.
+Behaviour 13 says decisions go to the human; it does not say produce some."*
+
+**The docket was built on the old skill.** The plugin here was still on canon
+1.12.0 — nine releases behind — so `/canon:docket` loaded the version without
+behaviour 19 or the `Next` block. The firm caught it. `claude plugin marketplace
+update satc` refreshes the listing and installs nothing; `claude plugin update
+canon@satc` is the command that installs, and it is the trap canon's own log
+already describes.
+
+**Measured for this docket, and one of the numbers is a finding.** The eleven
+sections yield **72** worked examples the extractor can see and **29** it cannot:
+§ 1.274-11, § 1.274-12 and § 1.274-5 write an example as an ordinary numbered
+paragraph rather than in a tagged block, so those sections read perfectly and
+return nothing. All 29 are on the meals desk — the desk that appeared to gain
+almost nothing today. It was not thin; it was unreadable in a second way nobody
+had counted.
