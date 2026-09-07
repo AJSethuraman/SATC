@@ -220,9 +220,20 @@ years = [(y, min(y + SPAN, 2026)) for y in range(1976, 2027, SPAN + 1)]
 
 
 def have(sid, lo, hi):
-    """Whether the cache already holds any month in that span for that series."""
+    """Whether the cache already holds the WHOLE span for that series.
+
+    The first version asked whether it held ANY month in the span, so a span
+    that had been half-filled by a failed batch looked complete and was never
+    re-requested. That left Wyoming missing 1986-1995 -- one state, one decade,
+    120 observations -- while every other state was whole, which is exactly the
+    shape of gap that gets called a data limitation instead of a bug.
+
+    A span counts as held when every year in it has at least one month. That is
+    still not "every month", but it cannot be satisfied by a single stray year.
+    """
     got = BLS_DATA.get(sid, {})
-    return any(lo <= int(d[:4]) <= hi for d in got)
+    years = {int(d[:4]) for d in got}
+    return all(y in years for y in range(lo, hi + 1))
 
 
 for lo, hi in years:

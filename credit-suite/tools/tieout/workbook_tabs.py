@@ -158,17 +158,27 @@ LIMITS = [
              "series, so a value verified today may not match the same source "
              "in six months. Nothing here records which revision a figure is. "
              "Treat the whole workbook as a snapshot dated 5 September 2026."),
-    ("warn", "2. %s MACRO OBSERVATIONS ARE NOT VERIFIED, and they split two "
-             "ways. %s are NOT YET CHECKED -- the Bureau of Labor Statistics "
-             "caps unregistered use at 25 requests a day and this run spent "
-             "them; every one of those that was reached ties, and the rest "
-             "close on the next run. The other %s have no obtainable source at "
-             "all: %d whole series out of %d, unchecked for their entire "
-             "history rather than here and there. All of them are marked "
-             "verified = no and shaded, and every row says which it is in "
-             "why_not_verified."
-     % (n(MACRO_NOT), n(MACRO_PENDING), n(MACRO_UNOBTAINABLE),
-        len(UNOBTAINABLE_SERIES), len(SERIES))),
+    ("warn", ("2. %s MACRO OBSERVATIONS ARE NOT VERIFIED, and they split two "
+              "ways. %s are NOT YET CHECKED -- the Bureau of Labor Statistics "
+              "caps unregistered use at 25 requests a day and this run spent "
+              "them; every one of those that was reached ties, and the rest "
+              "close on the next run. The other %s have no obtainable source "
+              "at all: %d whole series out of %d, unchecked for their entire "
+              "history rather than here and there. All of them are marked "
+              "verified = no and shaded, and every row says which it is in "
+              "why_not_verified."
+              % (n(MACRO_NOT), n(MACRO_PENDING), n(MACRO_UNOBTAINABLE),
+                 len(UNOBTAINABLE_SERIES), len(SERIES)))
+     if MACRO_PENDING else
+     ("2. %s MACRO OBSERVATIONS HAVE NO OBTAINABLE SOURCE, and they are not "
+      "spread evenly -- they are %d whole series out of %d, unchecked for "
+      "their entire history rather than here and there. They are marked "
+      "verified = no and shaded, and each row says why in why_not_verified. "
+      "They are: %s."
+      % (n(MACRO_UNOBTAINABLE), len(UNOBTAINABLE_SERIES), len(SERIES),
+         ", ".join(UNOBTAINABLE_SERIES[:6])
+         + (" and %d more" % (len(UNOBTAINABLE_SERIES) - 6)
+            if len(UNOBTAINABLE_SERIES) > 6 else "")))),
     ("warn", "3. PROVENANCE IS STRONGER ON THE BANK SIDE. Every one of the %s "
              "bank rows names its exact line and links to the exact filing -- "
              "you can click through and put a finger on the number. On the "
@@ -331,12 +341,16 @@ def proven_tab(audit):
         ("p", "%s   checked against the agency that computes the series: "
               "FHFA's own file, the Federal Reserve's own table, the Z.1 data "
               "package." % n(MACRO_TIED)),
+        # Only when there IS something pending. A line reading "0 NOT YET
+        # CHECKED" above a paragraph explaining a rate limit is an explanation
+        # for a thing that is not happening, and the reader has to work out
+        # that it does not apply.
         ("p", "%s   NOT YET CHECKED, and that is different from unobtainable. "
               "The Bureau of Labor Statistics allows 25 requests a day to "
               "anyone who has not registered a key, and this run spent them. "
               "Every observation that WAS checked ties. These close on the "
               "next run."
-         % n(MACRO_PENDING)),
+         % n(MACRO_PENDING)) if MACRO_PENDING else ("", ""),
         ("p", "%s   no obtainable source: %d whole series, unchecked for their "
               "whole history, each row saying why."
          % (n(MACRO_UNOBTAINABLE), len(UNOBTAINABLE_SERIES))),

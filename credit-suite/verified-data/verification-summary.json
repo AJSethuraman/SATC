@@ -5,9 +5,9 @@
  "bank_not_comparable": 110,
  "bank_differs": 0,
  "macro_observations": 77081,
- "macro_verified": 46719,
- "macro_no_source": 30362,
+ "macro_verified": 65843,
+ "macro_no_source": 11238,
  "macro_differs": 0,
  "total_values": 118841,
- "total_verified": 84449
+ "total_verified": 103573
 }
