@@ -27,6 +27,7 @@ established the answer is UNKNOWN -- never a silent "fine".
 from __future__ import annotations
 
 import csv
+import json
 import dataclasses
 from collections import defaultdict
 from pathlib import Path
@@ -38,15 +39,30 @@ from credit_suite.sources.fdic import consistency as C
 
 PKG = Path(__file__).resolve().parents[1]
 #: The shape of the deliverable, pinned as its factors rather than as one
-#: number, so a change says WHICH of the three moved. Ten years of the
-#: FDIC's quarterly panel for the twelve-bank set.
-BANKS = 12
+#: number, so a change says WHICH of the three moved.
+#:
+#: The bank count comes from the PEER LIST, not from a literal. It read 12
+#: until 7 September 2026, when the firm added seven banks and ten tests in
+#: this file went red on the size of the panel rather than on anything about
+#: the data. The quarter count stays pinned: ten years is a decision, and a
+#: run that silently covered nine should fail here.
+BANKS = sum(1 for b in json.loads(
+    (PKG / "config" / "peers.json").read_text(encoding="utf-8"))["banks"]
+    if b["active"])
 QUARTERS = 40
-PANEL = BANKS * QUARTERS                           # 480 bank-quarters
+PANEL = BANKS * QUARTERS                           # 19 x 40 = 760
 CLASSES = 4                                        # the four loan classes
-#: Acquisitions by the twelve banks inside the ten years, from the FDIC's
-#: own institution history through the shipped `mergers` module.
-MERGER_EVENTS = 11
+#: Acquisitions by those banks inside the ten years, from the FDIC's own
+#: institution history through the shipped `mergers` module. Eleven over the
+#: original twelve banks; the seven added on 7 September brought twenty-two
+#: more, ten of them First-Citizens alone.
+MERGER_EVENTS = 33
+#: The bank-quarters those events land in, which is FEWER than the events.
+#: First-Citizens absorbed two institutions in the fourth quarter of 2018 and
+#: two more in the second of 2019. One event per affected quarter held for the
+#: twelve-bank set and stopped holding the moment a serial acquirer joined it;
+#: a quarter is uncomparable once, however many banks were merged into it.
+MERGER_QUARTERS = 31
 
 BANK_VALUES = PKG / "verified-data" / "bank-values.csv"
 NOT_COMPARABLE_CSV = PKG / "verified-data" / "not-comparable-periods.csv"
@@ -166,15 +182,19 @@ def test_the_zeros_in_the_deliverable_are_filed_nils_not_blank_cells(panel):
     nonzero = {prefix: sum(1 for fields in panel.values()
                            if fields[prefix + "RERES"] != 0)
                for prefix in C.NESTED_PREFIXES}
-    assert nonzero == {"LN": 474, "P3": 458, "P9": 354, "NA": 465}
+    # Re-measured 7 September 2026 on the nineteen-bank panel. These are
+    # counts of the panel, so they move when the panel does; they are pinned
+    # rather than derived so that a change is something somebody has to look
+    # at. Over twelve banks they were LN 474, P3 458, P9 354, NA 465.
+    assert nonzero == {"LN": 754, "P3": 738, "P9": 611, "NA": 745}
 
-    # Re-measured 7 September 2026, after the field list went from 68 to 87.
-    # 6,964 of the 7,010 were compared against an explicit zero on the bank's
-    # own filing; the nineteen new fields contribute 1,625 zeros of which 1,616
-    # tie. A zero here means the bank told its regulator zero.
+    # Re-measured 7 September 2026, after the field list went from 68 to 87
+    # and the panel from twelve banks to nineteen. 8,555 of the 8,621 were
+    # compared against an explicit zero on the bank's own filing. A zero here
+    # means the bank told its regulator zero.
     zeros = sum(1 for fields in panel.values()
                 for value in fields.values() if value == 0.0)
-    assert zeros == 7010, (
+    assert zeros == 8621, (
         "the count of exact zeros moved; re-run the tie-out and re-measure how "
         "many of them tie to a filed zero before trusting the number below")
     assert C.nesting_identity(panel).examined == CLASSES * PANEL
@@ -219,7 +239,8 @@ def test_folding_the_revolving_line_back_in_breaches_it_ninety_seven_times(panel
                     for prefix in ("P9", "NA"))
         if total > fields["NCLNLS"]:
             breaches += 1
-    assert breaches == 278
+    # 278 over the twelve-bank panel; re-measured on the nineteen.
+    assert breaches == 484
 
 
 def test_a_bucket_larger_than_the_total_it_is_drawn_from_is_caught(panel):
@@ -336,6 +357,10 @@ def test_the_events_the_deliverable_publishes_are_the_ones_it_marks():
     marked = [key for key in _panel()
               if C.flow_comparability(key[0], key[1], dict(record)).verdict
               == C.NOT_COMPARABLE]
-    assert len(marked) == MERGER_EVENTS
+    assert len(marked) == MERGER_QUARTERS
     assert len(C.FLOW_FIELDS) == 7
-    assert len(marked) * len(C.FLOW_FIELDS) == MERGER_EVENTS * 7
+    assert len(marked) * len(C.FLOW_FIELDS) == MERGER_QUARTERS * 7
+    # Every event is accounted for by a marked quarter, and the two that do
+    # not add one of their own are the two double acquisitions. Asserted so
+    # that a merger going unmarked cannot hide inside the difference.
+    assert len({(e["cert"], e["report_date"]) for e in events}) == MERGER_QUARTERS

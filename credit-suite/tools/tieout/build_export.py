@@ -108,9 +108,13 @@ VERDICT_PLAIN = {
     "DIFFERS": "DOES NOT MATCH the filing -- do not use without reading the note",
 }
 
-#: Verdicts that mean the figure cannot be compared like the quarter before it.
+#: Verdicts that mean the figure should not be charted beside its neighbours.
+#: DIFFERS is one of them: a row whose verified_meaning reads "DOES NOT MATCH
+#: the filing" and whose next column says it is usable for a trend contradicts
+#: itself, and the reader has no way to know which half to believe.
 NOT_FOR_TREND = {"NOT COMPARABLE (SPANS A MERGER)",
-                 "NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)"}
+                 "NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)",
+                 "DIFFERS"}
 
 # --------------------------------------------------------------- bank data --
 with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:

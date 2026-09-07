@@ -77,7 +77,15 @@ if unknown:
         "not a certificate in the peer set and not a year: %s\n"
         "certificates are %s"
         % (", ".join(unknown), ", ".join(sorted(index))))
+# Both files. The exhibits covered the 68 original fields and NONE of the 19
+# the firm added on 6 September -- for any bank, including the twelve. The
+# workbook says 87 fields per bank-quarter and the photographic evidence
+# behind it covered 68, which nothing anywhere said. The strip cutter had
+# already been merging both; this had not.
 rows = json.loads((SB / "bank_deep_rows.json").read_text())
+_new = SB / "bank_new_rows.json"
+if _new.exists():
+    rows = rows + json.loads(_new.read_text())
 # Every shard, not just the first file written. `deep_bank_strips.py` names
 # its output after the certs it was asked for, so photographing seven banks
 # separately produced `deep_strips-6672-....json` -- which this read nothing
@@ -85,9 +93,17 @@ rows = json.loads((SB / "bank_deep_rows.json").read_text())
 # indistinguishable in the exhibit from one nobody photographed, so the
 # denominator is asserted below rather than left to be noticed.
 strips = json.loads((SB / "deep_strips.json").read_text())
-for _shard in sorted(SB.glob("deep_strips-*.json")):
+# Oldest first, and merged FIELD by field. Sorting by name put the seven-bank
+# shard after the single-bank one, so `deep_strips-6672-...json` replaced
+# 6560's whole quarter dict with an earlier, thinner version of it -- and the
+# photograph of the one row in 66,120 that disagrees was cut, shrunk, indexed
+# and then dropped on the floor between the index and the page. Replacing a
+# quarter loses whatever that shard did not have; merging its fields cannot.
+for _shard in sorted(SB.glob("deep_strips-*.json"),
+                     key=lambda f: f.stat().st_mtime):
     for _cert, _quarters in json.loads(_shard.read_text()).items():
-        strips.setdefault(_cert, {}).update(_quarters)
+        for _iso, _fields in _quarters.items():
+            strips.setdefault(_cert, {}).setdefault(_iso, {}).update(_fields)
 _unphotographed = sorted(set(index) - set(strips))
 assert not _unphotographed, (
     "no strips for cert(s) %s -- run tools/tieout/deep_bank_strips.py for them"
@@ -125,6 +141,12 @@ def money(v):
     v = float(v)
     if v == 0:
         return "0"
+    # A whole number prints whole, at any size. The four decimals are for
+    # ratios; on an exact difference of -945 they read as a rounding residue,
+    # which is the very thing this function was written to avoid -- it just
+    # only guarded the zero.
+    if v == int(v):
+        return "{:,.0f}".format(v)
     return "{:,.0f}".format(v) if abs(v) >= 1000 else "{:,.4f}".format(v)
 
 

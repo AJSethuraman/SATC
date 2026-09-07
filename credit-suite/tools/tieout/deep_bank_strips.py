@@ -70,9 +70,16 @@ if _new.exists():
 #: Only the fields whose verdict says they were compared against a filed line.
 #: A ratio the FDIC computes has no row to photograph, and a quarter that spans
 #: a merger has two filings behind it rather than one line.
+#:
+#: DIFFERS belongs here just as much as TIES, and did not until 7 September
+#: 2026: the one row in 66,120 that disagrees with its filing was the one row
+#: with no photograph of the filing beside it. A difference is the thing a
+#: reader most wants to see for themselves, and it was the only thing they
+#: could not.
+PHOTOGRAPHABLE = {"TIES", "DIFFERS"}
 WANTED = {}
 for r in rows:
-    if r["verdict"] != "TIES":
+    if r["verdict"] not in PHOTOGRAPHABLE:
         continue
     WANTED.setdefault((r["cert"], r["repdte"]), {})[r["field"]] = r["cited"]
 
