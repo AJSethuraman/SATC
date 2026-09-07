@@ -183,134 +183,129 @@ OTHERS = [
 #: they are the work. Behaviour 19: *"do not manufacture the next decision.
 #: Behaviour 13 says decisions go to the human; it does not say produce some."*
 NEXT = {
- "goal": "Get the three thin desks holding the worked examples their own "
-         "regulations already contain \u2014 cash, vehicle and meals.",
- "ends": "It ends when each of the three holds every example its sections carry, "
-         "with the before-and-after scores on the page.",
- "distance": "3 of 3 desks done. This goal is met.",
- "detail": "<b>63 worked examples went in and every one of the 790 stored "
-           "passages was fetched back from its publisher and compared word for "
-           "word \u2014 0 differences, 0 unreachable.</b> Cash had none and has "
-           "19. Vehicle had 10 and has 22. Meals had none and has 32.<br><br>"
-           "Meals needed the reader taught a second way of writing an example "
-           "first: three of its regulations number the example as an ordinary "
-           "paragraph instead of tagging it, and four of those put the facts in "
-           "the paragraphs underneath a bare <i>\u201cExample 1.\u201d</i> "
-           "heading.<br><br><b>The check caught me stitching those four "
-           "together.</b> Joining the pieces with a space stored a run of words "
-           "the government never printed as one, and all four came back as "
-           "differences on their first comparison. They are stored with the gap "
-           "marked now, so a reader can see something was left out and the check "
-           "still finds each piece in order.<br><br><b>Nothing is waiting on "
-           "this. It is done.</b>",
+ "goal": "Answer the close's own 18 questions from the desks and put every "
+         "answer through the production path, so you can see what a desk "
+         "actually hands back \u2014 not how big its library is.",
+ "ends": "It ends when all 18 are answered, each one showing the conclusion, "
+         "the citation behind it, how binding that authority is, and whether "
+         "the engine would let it out at all.",
+ "distance": "0 of 18 answered.",
+ "detail": "<b>Nothing has ever been asked to reason on this record.</b> Every "
+           "number I have given you all day \u2014 790 passages, 63 examples, "
+           "585 tests \u2014 measures the library and the machinery. None of it "
+           "measures an answer. These 18 come from a real close that could not "
+           "finish, they have no answer key, and that is the point: what comes "
+           "back is what a desk would hand a preparer.<br><br>"
+           "<b>This goal refuses two things, and naming them is the rule.</b> It "
+           "refuses the scoreboard: worked examples are withheld from anything "
+           "being graded, by three separate mechanisms, so a graded score "
+           "<i>cannot</i> move when examples are added and asking for one would "
+           "be measuring nothing. And it refuses telling you an answer is right "
+           "\u2014 nobody knows these answers, which is why they were asked. I "
+           "report what the desk would say and whether the engine would serve "
+           "it; agreeing is yours.<br><br><b>A finding already, from routing "
+           "them:</b> the vehicle desk gained 12 worked examples today and "
+           "<b>not one of the 18 questions reaches it.</b> Either the close "
+           "never raised a vehicle question or the routing does not fire on "
+           "one, and those are different problems.",
 }
 
 CHANGED = [
- ("8 of 8", "matters you answered last time", "two were instructions to build; both are built"),
- ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
+ ("0 of 3", "matters on the last page answered", "they are unchanged and still below"),
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("790 of 790", "passages fetched back and compared", "0 differences, 0 unreachable"),
- ("585", "desk tests passing", "514 when today\u2019s work started; 47 of the new ones are the searcher\u2019s"),
+ ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
+ ("585", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 
 LANDED = [
  ("New", "<b>The searching agent, built and run against live publishers.</b> When a "
-         "desk has no answer it goes and looks \u2014 anywhere, because you were right "
-         "that a list of approved sites can only find what we already have. It reads "
-         "the passage off the publisher\u2019s own page rather than off the search "
-         "result, and it can put nothing in the record without you."),
+         "desk has no answer it goes and looks \u2014 anywhere, because you were "
+         "right that a list of approved sites can only find what we already have. "
+         "It reads the passage off the publisher\u2019s own page rather than off "
+         "the search result, and it can put nothing in the record without you."),
  ("Run", "<b>One real gap, end to end.</b> The fixed-assets desk holds a regulation "
          "whose own examples point at \u00a7 1.162-3, and it could not follow the "
-         "pointer. One search, eight results, four passages read: two check out, one "
-         "was too short to prove which paragraph it came from, one site refused us. "
-         "Both good ones are waiting on you, above."),
- ("Fixed", "<b>Every regulation these three desks rely on reads now.</b> Seven "
-           "separate causes. Two I had described to you, and five I had not \u2014 "
-           "including a paragraph with no number on it, two paragraphs reserved on one "
-           "line, and one regulation whose italics are broken across a paragraph "
-           "number in the government\u2019s own file. That last one, a stray tag, had "
-           "cost the vehicle desk every example it might have had."),
+         "pointer. One search, eight results, four passages read: two check out, "
+         "one was too short to prove which paragraph it came from, one site refused "
+         "us. Both good ones are waiting on you, above."),
+ ("New", "<b>All three thin desks now hold their regulations\u2019 worked "
+         "examples.</b> Cash had none and has 19; vehicle had 10 and has 22; meals "
+         "had none and has 32. Every one fetched back from its publisher and "
+         "matched word for word, along with all 727 already there."),
+ ("Fixed", "<b>Every regulation these desks rely on reads now.</b> Seven separate "
+           "causes. Two I had described to you and five I had not \u2014 including "
+           "a paragraph with no number on it, two paragraphs reserved on one line, "
+           "and one regulation whose italics are broken across a paragraph number "
+           "in the government\u2019s own file. That last one, a stray tag, had cost "
+           "the vehicle desk every example it might have had."),
+ ("Fixed", "<b>The reader now knows both ways the government writes an "
+           "example.</b> Most regulations tag it; three of the meals desk\u2019s "
+           "number it as an ordinary paragraph. Read only for the tag, the "
+           "extractor returned nothing from sections it was reading perfectly."),
  ("Fixed", "<b>This page cannot ask you something it has already answered.</b> The "
-           "recommendation used to sit last, under four sections of argument. It now "
-           "leads. And a card can no longer offer <i>Ratify it</i> as its first button "
-           "while its own recommendation says do not \u2014 which is exactly what the "
-           "docket before last did to you, twice. It is a build failure now, not "
-           "something a reader has to notice."),
+           "recommendation used to sit last, under four sections of argument. It "
+           "now leads. And a card can no longer offer <i>Ratify it</i> as its first "
+           "button while its own recommendation says do not \u2014 which is what "
+           "the docket before last did to you, twice."),
+ ("Caught", "<b>The comparison caught me stitching four examples together.</b> I "
+            "joined the pieces of four examples with a space, storing a run of "
+            "words the government never printed as one \u2014 paragraph numbers "
+            "sit between them. All four came back as differences the first time "
+            "they were checked. Stored with the gap marked, they pass."),
  ("Found", "<b>A citation was being read as naming paragraphs that do not exist.</b> "
            "<i>\u201cparagraph (c)(1)(iii), (iv), or (v)\u201d</i> was read as citing "
            "a paragraph called \u201c(v)\u201d. Not just a miscount \u2014 that list "
            "is where the tool picks which rule an example is filed under, so a bare "
            "\u201c(v)\u201d was a candidate rule on any regulation whose examples "
-           "live under (v). Same class as the four examples filed under the wrong rule "
-           "on Saturday."),
- ("New", "<b>All three thin desks now hold their regulations\u2019 worked "
-         "examples.</b> Cash had none and has 19; vehicle had 10 and has 22; meals "
-         "had none and has 32. Every one was fetched back from its publisher and "
-         "matched word for word, along with all 727 already there."),
- ("Fixed", "<b>The reader now knows both ways the government writes an example.</b> "
-           "Most regulations tag it; three of the meals desk\u2019s number it as an "
-           "ordinary paragraph, and four of those put the facts in the paragraphs "
-           "underneath a bare heading. Read only for the tag, the extractor returned "
-           "nothing from sections it was reading perfectly."),
- ("Caught", "<b>The comparison caught me stitching four examples together.</b> I "
-            "joined the pieces of those four with a space, which stored a run of "
-            "words the government never printed as one \u2014 paragraph numbers sit "
-            "between them. All four came back as differences the first time they "
-            "were checked. Stored with the gap marked, they pass."),
+           "live under (v). Same class as the four examples filed under the wrong "
+           "rule on Saturday."),
+ ("Fixed", "<b>The pull request\u2019s description had gone stale.</b> It opened "
+           "as the searcher alone and is now nine commits, still quoting a test "
+           "count from six commits earlier and describing none of the reader "
+           "work. Rewritten to cover all four pieces, corrections included."),
 ]
 
 UNCHECKED = [
- ("No model has answered anything, again.", "Every number here measures the record and "
-  "the machinery around it. Nothing has been asked to reason about a client\u2019s "
-  "books."),
- ("No desk has met a real client file.", "Still true, still deliberate, and still the "
-  "largest gap between this and something you could use."),
- ("No desk\u2019s score has been re-measured since the examples went in.", "Scoring "
-  "asks a model to answer, and no model has been asked anything today. What IS "
-  "measured is that the brief a GRADED model sees did not change size on any of the "
-  "seven desks \u2014 34 examples went in and the withholding held \u2014 so the "
-  "scores should not move. Should-not is not measured."),
- ("The 29 invisible examples were counted, not extracted.", "29 is the number of "
-  "paragraphs that begin <i>\u201cExample 1.\u201d</i> in those three regulations. How "
-  "many survive the filters that keep a desk from being tested on its own answer key "
-  "is not known until it is built."),
- ("The scoreboard was not re-run.", "It has not been run since the rewards desk gained "
-  "38 examples yesterday. It should not have changed \u2014 examples are hidden from "
-  "anything being scored \u2014 but should-not is not measured."),
- ("Only two of the six test suites were run here.", "desk (585 passed, 1 skipped) and "
-  "canon (181 passed), both run just now. client-documents, satc_system, "
-  "invoice-generator and credit-suite ran on the server; four had reported green and "
-  "two were still running when I last looked. Nothing in today\u2019s work touches "
-  "any of them."),
- ("The exhibits were opened, but by machine.", "Nobody has looked at one with their "
-  "eyes."),
+ ("No model has answered anything, all day.", "That is the Next above, and it is "
+  "the largest gap between this and something you could use."),
+ ("No desk has met a real client file.", "Still true and still deliberate."),
+ ("The scoreboard was not re-run, and re-running it would prove nothing.", "It "
+  "grades against an answer key with the worked examples withheld, so adding 63 of "
+  "them cannot move it. What IS measured: the brief a graded model sees did not "
+  "change size on any of the seven desks. The withholding held."),
+ ("Only two of the six test suites were run here.", "desk (585 passed, 1 skipped) "
+  "and canon (181 passed), both just now. The other four ran on the server and all "
+  "are green; nothing in today\u2019s work touches them."),
+ ("The searcher has only ever been driven by hand.", "One question, by me. It has "
+  "never run unattended, and there is no recorded failure it would fire on \u2014 "
+  "all 22 in the queue are wrong-citation failures, not missing-authority ones."),
+ ("The exhibits were opened, but by machine.", "Nobody has looked at one with "
+  "their eyes."),
 ]
 
 WRONG = [
- ("<b>I told you six regulations had started reading. Three had.</b>", "The other three "
-  "were already reading before I touched anything. I caught it an hour later by "
-  "checking a claim I had already written into a follow-up note \u2014 and by then it "
-  "was in a commit message and on the draft of this page, promising you examples on "
-  "desks whose regulations still would not read. Corrected in the record rather than "
-  "quietly fixed. Both of those now read too."),
- ("<b>I ran this docket on the old rulebook.</b>", "canon updated to 1.13.0 this "
-  "morning with a new standing behaviour \u2014 name the goal, report the distance, "
-  "then stop. The plugin here was still on the version from Thursday, nine releases "
-  "behind, and building the page loaded the old instructions. You told me to look at "
-  "it. The install command that actually installs is a different one from the command "
-  "that refreshes the list, which is the trap canon\u2019s own log already "
-  "describes."),
- ("<b>Two of the things on this page were not decisions.</b>", "\u201cAdd the 34 "
-  "examples\u201d and \u201cread the 29 the reader cannot see\u201d were drafted as "
-  "matters for you. They are not \u2014 they are the work, and the new behaviour says "
-  "so plainly: <i>do not manufacture the next decision.</i> They are the Next block "
-  "instead, and the page went from five things waiting on you to three."),
- ("<b>I spent an hour measuring the wrong thing about the wording.</b>", "You said a "
-  "position read like AI dribble, and I went and measured word counts and sentence "
-  "shapes across all twenty positions. Then you told me you meant how I <i>explain</i> "
-  "a position, not the position. The measurement was not wasted \u2014 it is why "
-  "matter 2 says I have no rule to write \u2014 but I built the wrong thing first "
-  "because I did not ask."),
+ ("<b>I promised you before-and-after scores, and they cannot exist.</b>", "The goal "
+  "on the last page said the desks would gain their examples \u201cwith the "
+  "before-and-after scores on the page\u201d. Scoring withholds worked examples by "
+  "construction \u2014 three separate mechanisms do it \u2014 so a score cannot "
+  "move when examples are added. I wrote a measurement into a goal without checking "
+  "that the measurement was possible. The Next above is what the honest version "
+  "looks like."),
+ ("<b>I told you six regulations had started reading. Three had.</b>", "The other "
+  "three were already reading before I touched anything. I caught it an hour later "
+  "by checking a claim I had already written into a note \u2014 and by then it was "
+  "in a commit message and on a draft of this page, promising you examples on desks "
+  "whose regulations still would not read. Both of those now read too."),
+ ("<b>I ran the last docket on the old rulebook.</b>", "canon had a new standing "
+  "behaviour \u2014 name the goal, report the distance, then stop \u2014 and the "
+  "copy here was nine releases behind, so building the page loaded the old "
+  "instructions. You told me to look. It has since moved again, to twenty "
+  "behaviours, and this page is built on that one."),
+ ("<b>Two of the things on the last page were not decisions.</b>", "\u201cAdd the "
+  "examples\u201d and \u201cread the ones the reader cannot see\u201d were "
+  "drafted as matters for you. They were the work. Both are done."),
 ]
 
 def _md(t: str) -> str:

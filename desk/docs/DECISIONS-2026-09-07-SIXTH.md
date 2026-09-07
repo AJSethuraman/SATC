@@ -321,3 +321,47 @@ paragraph rather than in a tagged block, so those sections read perfectly and
 return nothing. All 29 are on the meals desk — the desk that appeared to gain
 almost nothing today. It was not thin; it was unreadable in a second way nobody
 had counted.
+
+---
+
+## Eighth docket, same page: `artifact/1750afce`
+
+**The three matters are unchanged and unanswered** — read back from the page's
+own store, which returned zero documents. Republished onto the same page rather
+than opening a new one: a second page asking the same three questions cannot see
+the first one's answers.
+
+**The last goal is met and a new one is named.** All three thin desks hold every
+worked example their regulations carry.
+
+> **Next:** answer the close's own 18 questions from the desks and put every
+> answer through the production path. **0 of 18 answered.**
+
+Shaped to refuse, per behaviour 20:
+
+- **It refuses the scoreboard.** Worked examples are withheld from anything
+  being graded by three separate mechanisms, so a graded score *cannot* move
+  when examples are added. Asking for one would be measuring nothing.
+- **It refuses saying an answer is right.** These 18 have no answer key — that
+  is why they were asked. The desk proposes; the firm disposes.
+
+**A finding from routing them:** the vehicle desk gained 12 worked examples today
+and **not one of the 18 questions reaches it.** Either the close never raised a
+vehicle question or the routing does not fire on one; those are different
+problems and this does not yet say which.
+
+**And a candidate goal killed by measuring it.** "Run the searcher over the
+recorded failures" looked obvious. The queue holds 22 failures, all of them
+`citation_does_not_support`, and **none is `authority_absent`** — the only reason
+that opens a gap. The searcher has no recorded work to do. Measured before
+proposing rather than after starting.
+
+### What I got wrong, and it is in the goal I wrote
+
+The seventh docket's Next promised the examples would go in *"with the
+before-and-after scores on the page"*. **Those scores cannot exist.** Scoring
+withholds worked examples by construction, so adding 63 of them cannot move a
+score. I wrote a measurement into a goal without checking the measurement was
+possible, and repeated it in a commit message. Behaviour 20 asks a goal to be
+shaped so it can refuse; this one asked for something the system refuses on
+purpose.
