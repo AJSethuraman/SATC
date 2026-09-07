@@ -47,6 +47,35 @@ position declares what it cannot be applied without on a `Needs:` line. Unmet, i
 refuses `context_not_on_file` — a third kind of missing thing, resolved by
 reading our own file rather than by asking the client or chasing a document.
 
+### The file those facts come out of
+
+`engagements.py` reads one engagement's facts off a file, so the context above
+is not typed in by hand each time.
+
+```
+python tools/engagement.py new alpha-2026 > ~/engagements/alpha-2026.md
+python tools/engagement.py check ~/engagements/alpha-2026.md
+```
+
+```python
+import engagements
+context = engagements.load("~/engagements/alpha-2026.md").context()
+```
+
+**The file does not live in this plugin, and `load` refuses one that does.**
+`desk` has to lift out whole, it holds no client data, and it is a checkout that
+gets pushed — an engagement file inside it is a client's affairs one `git add -A`
+from being published. The path is the caller's.
+
+It refuses a fact no desk declares, a fact with no value, a fact with nobody's
+name and no date on it, and any value shaped like an SSN or an EIN. `gaps()`
+answers the half that matters: which declared facts this file does not record,
+and which desk will refuse without each one.
+
+Measured on 7 September 2026: of the eighteen close questions put through the
+production path, five refused `context_not_on_file`. Handed a file recording
+`trade`, `taxpayer` and `capitalization_rule`, **all five are served.**
+
 `skills/ask-desk` is the same thing written for an agent to follow.
 
 **The split is the mechanism.** A model does not choose the desk — routing is a

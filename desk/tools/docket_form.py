@@ -164,21 +164,34 @@ NEXT = {
            "only thing that carries facts is a worked example\u2019s own "
            "<code>On file</code> line \u2014 a test fixture. That is why five of "
            "the eighteen answers refused with <i>the file does not record this</i>: "
-           "there is no file.<br><br>So the first step needs no client at all: "
-           "somewhere for an engagement\u2019s facts to live, which is exactly the "
-           "kind of thing you just approved a desk to ask for.",
+           "there was no file.<br><br><b>That blocker is now cleared, and the "
+           "five it was costing are measured.</b> An engagement\u2019s facts have "
+           "somewhere to live \u2014 outside this plugin, because a client\u2019s "
+           "affairs in a checkout that gets pushed is one <code>git add</code> from "
+           "being published. Handed a file recording those three facts, <b>all five "
+           "of those refusals are served</b>: 7 became 12 of 19. The stand-in file "
+           "that proved it is labelled as one and is not a client. What is left is "
+           "the client.",
 }
 
 CHANGED = [
- ("6 of 18", "close questions the engine would serve", "12 refused; 11 of those are the desk working"),
+ ("6 \u2192 12", "of 19 the engine would serve", "the five that refused for want of a file, given one"),
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("792 of 792", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("592", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("615", "desk tests passing", "514 when today\u2019s work started; canon 181"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 
 LANDED = [
+ ("New", "<b>An engagement\u2019s facts have somewhere to live.</b> Three desks "
+         "ask for a fact on file and nothing produced one, so five of the "
+         "close\u2019s eighteen answers refused against a file that did not exist. "
+         "There is a reader for one now. It refuses a fact no desk asks for, a "
+         "fact nobody put their name and a date on, and any value shaped like an "
+         "SSN or an EIN \u2014 and it refuses to read a file kept inside the "
+         "plugin at all. Eight guards, each one broken on purpose to confirm it "
+         "catches."),
  ("New", "<b>The searching agent, built and run against live publishers.</b> When a "
          "desk has no answer it goes and looks \u2014 anywhere, because you were "
          "right that a list of approved sites can only find what we already have. "
