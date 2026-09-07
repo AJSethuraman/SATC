@@ -263,3 +263,99 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
                 return
     pytest.fail("no desk has one admissible conclusion inside another, so the "
                 "case these four were refused for no longer exists to prove")
+
+
+# -- the OTHER prompt, which nothing has ever measured -------------------------
+
+#: Estimated tokens in `ask.brief()` per desk, measured 7 September 2026. THE
+#: ANSWERING brief, not the graded one -- `sr.build_prompt` shows rules only and
+#: is checked above; this is what `ask_desk` hands a real answerer, examples
+#: included.
+#:
+#: SIX OF SEVEN DO NOT FIT AN 8,192-TOKEN WINDOW, AND SIX OF SEVEN DID NOT FIT
+#: BEFORE TODAY EITHER. Storing the worked examples made them larger; it moved
+#: no desk from fitting to not fitting. The before column is exact rather than
+#: remembered -- `desk.rules_only()` IS the corpus as it stood this morning.
+#:
+#: WHY IT IS A ROSTER AND NOT AN ASSERTION THAT THEY FIT. They do not, and
+#: pretending otherwise would fail the build over a fact rather than a
+#: regression. LOCAL-LLM-PATTERN rule 1 is the stake: a request over the window
+#: "does not error -- it silently drops the front of the prompt", and the front
+#: of this prompt is the instruction to answer only from what follows. A desk
+#: whose brief overflows does not refuse; it answers from recall and cites
+#: whatever it remembers, which the engine then refuses as `authority_absent`
+#: and the scoreboard records as a careful escalation.
+#:
+#: So the number is published, and it may only move deliberately.
+ANSWERING_BRIEF = {
+    "capitalization-and-de-minimis":   (8_286, 19_154),
+    "cash-and-bank":                  (15_142, 15_142),
+    "fixed-assets":                   (22_231, 75_063),
+    "meals-and-entertainment":        (11_750, 11_750),
+    "personal-or-business":            (3_548,  4_052),
+    "rewards-and-information-returns": (9_369, 13_123),
+    "vehicle-expense":                (20_889, 22_329),
+}
+
+
+def _answering_sizes():
+    import ask
+    out = {}
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        out[desk.name] = (sr.estimate_tokens(ask.brief("a question", desk.rules_only())),
+                          sr.estimate_tokens(ask.brief("a question", desk)))
+    return out
+
+
+def test_the_answering_brief_is_the_size_the_roster_says():
+    got = _answering_sizes()
+    assert got == ANSWERING_BRIEF, (
+        "the answering brief changed size. That is allowed -- it is what "
+        "storing authority does -- but the figure is published and must move "
+        "deliberately:\n"
+        + "\n".join(f"  {k}: roster {ANSWERING_BRIEF.get(k)} measured {v}"
+                    for k, v in got.items() if ANSWERING_BRIEF.get(k) != v))
+
+
+def test_storing_the_examples_moved_no_desk_out_of_the_window():
+    """The claim that matters about today, asserted rather than argued.
+
+    Six desks already overflowed an 8B window this morning. If storing the
+    examples had pushed a SEVENTH over, that would be a cost of this change; it
+    did not, and the one desk that fits still fits.
+    """
+    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
+    for name, (before, after) in _answering_sizes().items():
+        assert not (before <= room < after), (
+            f"{name} fitted the window before the worked examples were stored "
+            f"({before:,}) and does not now ({after:,}). That is a desk this "
+            f"change broke.")
+
+
+def test_at_least_one_desk_fits_so_the_measurement_is_not_vacuous():
+    """Narrowing. A room of zero would satisfy everything above."""
+    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
+    fits = [n for n, (_, a) in _answering_sizes().items() if a <= room]
+    assert fits == ["personal-or-business"], fits
+
+
+def test_nothing_checks_this_window_on_the_answering_path():
+    """THE GAP ITSELF, recorded because it is the finding.
+
+    `sr.build_prompt` calls `fits_window`; `ask.brief` calls nothing. The graded
+    path refuses a prompt it cannot send, and the answering path -- the one a
+    real question goes down -- has never had the check at all. Six of seven
+    desks would silently lose their citation instruction on an 8B model today.
+
+    This asserts the ABSENCE so that closing it goes red here, deliberately,
+    rather than being closed by accident and never noticed.
+    """
+    import ask
+    src = (pathlib.Path(__file__).resolve().parents[1] / "ask.py").read_text()
+    body = src.split("def brief(")[1].split("\ndef ")[0]
+    assert "fits_window" not in body and "num_ctx" not in body, (
+        "`ask.brief` now checks the window. Good -- update this test and the "
+        "roster above to say what it does when the brief does not fit.")

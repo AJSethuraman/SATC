@@ -154,6 +154,70 @@ however real it is.
 
 > (2) Professional fees. Fees for professional services paid to attorneys, physicians, and members of other professions are required to be reported in returns of information if paid by persons engaged in a trade or business and paid in the course of such trade or business.
 
+### 26 CFR 1.6041-1(a)(1)(v) Example 1
+
+> Restaurant owner A, in the course of business, pays $600 of fixed or determinable income to B, a repairman, by credit card. B is one of a network of unrelated persons that has agreed to accept A's credit card as payment under an agreement that provides standards and mechanisms for settling the transactions between a merchant acquiring bank and the persons who accept the cards. Merchant acquiring bank Y is responsible for making the payment to B. Under paragraph (a)(1)(iv) of this section, A, as payor, is not required to file an information return under section 6041 with respect to the transaction because Y, as the payment settlement entity for the payment card transaction, is required to file an information return under section 6050W.
+
+### 26 CFR 1.6041-1(a)(1)(v) Example 2
+
+> Restaurant owner A, in the course of business, pays $600 of fixed or determinable income to B, a repairman, through a third party payment network. B is one of a substantial number of persons who have established accounts with Y, a third party settlement organization that provides standards and mechanisms for settling the transactions and guarantees payments to those persons for goods or services purchased through the network. Y is responsible for making the payment to B. Under paragraph (a)(1)(iv) of this section, A, as payor, is not required to file an information return under section 6041 with respect to the transaction because the transaction is a third party network transaction that is subject to reporting under section 6050W. Solely for purposes of determining whether A is eligible for relief from reporting under section 6041, the de minimis threshold for third party network transactions in § 1.6050W-1(c)(4) is disregarded.
+
+### 26 CFR 1.6041-1(e)(5) Example 1
+
+> Bank B provides financing to C, a real estate developer, for a construction project. B makes disbursements from the account for labor, materials, services, and other expenses related to the construction project. In connection with the payments, B performs the following functions: approves payments to the general contractor or subcontractors; ensures that loan proceeds are properly applied and that all approved bills are properly paid to avoid mechanics' or materialmen's liens; conducts site inspections to determine whether work has been completed (but does not check the quality of the work). B is performing management or oversight functions in connection with the payments and is subject to the information reporting requirements of section 6041 with respect to payments.
+
+### 26 CFR 1.6041-1(e)(5) Example 2
+
+> Mortgage company D holds a mortgage on business property owned by E. When the property is damaged by a storm, E's insurance company issues a check payable to both D and E in settlement of E's claim. Pursuant to the contract between D and E, D holds the insurance proceeds in an escrow account and makes disbursements, according to E's instructions, to contractors and subcontractors performing repairs on the property. D is not performing management or oversight functions, but D has a significant economic interest in the payments because the purpose of the arrangement is to ensure that property on which D holds a mortgage is repaired or replaced. D is subject to the information reporting requirements of section 6041 with respect to the payments to contractors.
+
+### 26 CFR 1.6041-1(e)(5) Example 3
+
+> Settlement agent F provides real estate closing services to real estate brokers and agents. F deposits money received from the buyer or lender in an escrow account and makes payments from the account to real estate agents or brokers, appraisers, land surveyors, building inspectors, or similar service providers according to the provisions of the real estate contract and written instructions from the lender. F may also make disbursements pursuant to oral instructions of the seller or purchaser at closing. F is not performing management or oversight functions and does not have a significant economic interest in the payments, and is not subject to the information reporting requirements of section 6041. For the rules relating to F's obligation to report the gross proceeds of the sale, see section 6045(e) and § 1.6045-4.
+
+### 26 CFR 1.6041-1(e)(5) Example 4
+
+> Assume the same facts as in Example 3. In addition, the seller instructs F to hire a contractor to perform repairs on the property. F selects the contractor, negotiates the cost, monitors the progress of the project, and inspects the work to ensure it complies with the contract. With respect to the payments to the contractor, F is performing management or oversight functions and is subject to the information reporting requirements of section 6041.
+
+### 26 CFR 1.6041-1(e)(5) Example 5
+
+> G is a rental agent who manages certain rental property on behalf of property owner H. G finds tenants, arranges leases, collects rent, responds to tenant inquiries regarding maintenance, and hires and makes payments to repairmen. G subtracts her commission and any maintenance payments from rental payments and remits the remainder to H. With respect to payments to repairmen, G is performing management or oversight functions and is subject to the information reporting requirements of section 6041. With respect to the payment of rent to H, G is subject to the information reporting requirements of section 6041 regardless of whether she performs management or oversight functions or has a significant economic interest in the payment. See § 1.6041-3(d) for rules relating to rental agents. See § 1.6041-1(f) to determine the amount that G should report to H as rent.
+
+### 26 CFR 1.6041-1(e)(5) Example 6
+
+> Literary agent J receives a payment from publisher L of fees earned by J's client, author K. J deposits the payment into a bank account in J's name. From time to time and as directed by K, J makes payments from these funds to attorneys, managers, and other third parties for services rendered to K. After subtracting J's commission, J pays K the net amount. J does not order or direct the provision of services by the third parties to K, and J exercises no discretion in making the payments to the third parties or to K. J is not performing management or oversight functions and does not have a significant economic interest in the payments and is not subject to the information reporting requirements of section 6041 in connection with the payments to K or to the third parties. For the rules relating to L's obligation to report the payment of the fees to K, see paragraphs (a)(1)(i) and (f) of this section. For the rules relating to K's obligation to report the payment of the commission to J and the payments to the third parties for services, see paragraphs (a)(1)(i) and (d)(2) of this section.
+
+### 26 CFR 1.6041-1(e)(5) Example 7
+
+> Attorney P deposits into a client trust fund a settlement payment from R, the defendant in a breach of contract action for lost profits in which P represented plaintiff Q. P makes payments from the client trust fund to service providers such as expert witnesses and private investigators for expenses incurred in the litigation. P decides whom to hire, negotiates the amount of payment, and determines that the services have been satisfactorily performed. In the event of a dispute with a service provider, P withholds payment until the dispute is settled. With respect to payments to the service providers, P is performing management or oversight functions and is subject to the information reporting requirements of section 6041.
+
+### 26 CFR 1.6041-1(e)(5) Example 8
+
+> Assume the same facts as in Example 7. In addition, assume that after paying the service providers and deducting his legal fee, P pays Q the remaining funds that P had received from the settlement with R. With respect to the payment to Q, P is not performing management or oversight functions, does not have a significant economic interest in the payment, and is not subject to the information reporting requirements of section 6041. For the rules relating to R's obligation to report the payment of the settlement proceeds to P, see section 6045(f) and the regulations thereunder. For the rules relating to R's obligation to report the payment of the settlement proceeds to Q, see paragraphs (a)(1)(i) and (f) of this section. For the rules relating to Q's obligation to report the payment of attorney fees to P, see paragraphs (a)(1)(i) and (d)(2) of this section.
+
+### 26 CFR 1.6041-1(e)(5) Example 9
+
+> Medical insurer S operates as the administrator of a health care program under a contract with a state. S makes payments of government funds to health care providers who provide care to eligible patients. S receives and reviews claims submitted by patients or health care providers, determines if the claims meet all the requirements of the program (e.g., that the care is authorized and that the patients are eligible beneficiaries), and determines the amount of payment. S is performing management or oversight functions and is subject to the information reporting requirements of section 6041 with respect to the payments.
+
+### 26 CFR 1.6041-1(e)(5) Example 10
+
+> Race track employee T holds deposits made by horse owner U in a special escrow account in U's name. U enters into a contract with jockey V to ride U's horse in a race at the track. As directed by U, T pays V the fee for riding U's horse from U's escrow account. T is not performing management or oversight functions, does not have a significant economic interest in the payment, and is not subject to the information reporting requirements of section 6041. For the rules relating to U's obligation to report the payment of the fee to V, see paragraph (a)(1)(i) of this section.
+
+### 26 CFR 1.6041-1(e)(5) Example 11
+
+> X is a certified public accountant employed by Firm Y, and is not a partner. Client Z pays X directly for accounting services. X remits the amount received to Y, as required by the terms of his employment. X does not have any reporting obligation with respect to the payment to Y. For the rules relating to Z's obligation to report the payment to Y for services, see paragraphs (a)(1)(i) and (d)(2) of this section.
+
+### 26 CFR 1.6041-1(e)(5) Example 12
+
+> Bank contracts with Title Company with respect to the disbursement of funds on a construction loan. Pursuant to their arrangement, the contractor sends draw requests to Title Company, which inspects the work, verifies the amount requested, and then sends the draw request to Bank with supporting documents. Bank pays Title Company the amount of the draw request, and Title Company insures Bank against any loss if it cannot obtain the necessary lien waivers. Bank has a significant economic interest in the payment as a mortgagee, and Title Company exercises management or oversight over the payment. Since Title Company is closest in the chain to the contractor, Title Company should report the payment, unless the parties agree in writing that Bank will report the payment.
+
+### 26 CFR 1.6041-1(f)(2) Example 1
+
+> Attorney P represents client Q in a breach of contract action for lost profits against defendant R. R settles the case for $100,000 damages and $40,000 for attorney fees. Under applicable law, the full $140,000 is includible in Q's gross taxable income. R issues a check payable to P and Q in the amount of $140,000. R is required to make an information return reporting a payment to Q in the amount of $140,000. For the rules with respect to R's obligation to report the payment to P, see section 6045(f) and the regulations thereunder.
+
+### 26 CFR 1.6041-1(f)(2) Example 2
+
+> Assume the same facts as in Example 1, except that R issues a check to Q for $100,000 and a separate check to P for $40,000. R is required to make an information return reporting a payment to Q in the amount of $140,000. For the rules with respect to R's obligation to report the payment to P, see section 6045(f) and the regulations thereunder.
+
 ### 26 CFR 1.6041-3 (introductory text)
 
 > Returns of information are not required under section 6041 and §§ 1.6041-1 and 1.6041-2 for payments described in paragraphs (a) through (q) of this section. See § 1.6041-4 for reporting exemptions regarding payments to foreign persons.
