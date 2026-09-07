@@ -87,11 +87,13 @@ rather than after.
   insurance, that amount belongs in your W-2 wages. Fixing it after the W-2 has
   gone out means reissuing forms.
 
-<!-- [CONFIRM: nothing here touches what an owner pays themselves. Setting or
-     reviewing officer compensation sits outside the engagement in
-     fee-schedule.yaml (`assumed.officer_compensation`), so the guide stays
-     silent on it. Confirm that silence is what the firm wants on a public
-     page, given an S corp owner searching this topic is exactly who finds it. -->
+<!-- ANSWERED 7 Sep 2026: the silence stays HERE, and the S-corp guide breaks it.
+     The firm chose one bullet, on entity-choice.md section 05 only, pointing at
+     the price page. This page keeps saying nothing about what an owner pays
+     themselves — two guides carrying the same sentence is one guide split in
+     half, and tenets.spec.py fails on any run of prose shared between them. The
+     reader who searches this topic is sent on by the "Also here" link to
+     "What people mean by 'S corp'", which is where the bullet is. -->
 
 ---
 
@@ -116,4 +118,4 @@ first.
 
 ---
 
-This is general information, not advice about a particular business.
+This is general information, not advice about a particular return or business.

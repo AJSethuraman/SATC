@@ -139,9 +139,19 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
    that gates the two records guides, and it gates this page harder.
 
 2. **`[CONFIRM: does the guide point at the fact that setting an owner's wage
-   is hourly work?]`** Section 05 ends "Nothing on this page sets one" and goes
-   no further. The price page already carries the line *"Setting what an S
-   corporation owner pays themselves."* Marked in the draft.
+   is hourly work?]`** — **ANSWERED 7 September 2026: yes, and it now does.**
+   Section 05 carries one more bullet after *"Nothing on this page sets one"*:
+
+   > If you want us to set one or check yours, it has [its own line on the price
+   > page](../pricing.html).
+
+   It names no figure and cannot: this page is downstream of
+   `fee-schedule.yaml`, and the line it points at is generated from
+   `assumed.officer_compensation` there. **Nineteen words, no amount, no
+   promise about who does it or how long it takes.**
+
+   The business guide deliberately does not carry the same bullet — see open
+   item 5 of `SOURCES.md`. This is the page that reader lands on.
 
 3. **`[CONFIRM: Ohio's cities.]`** — **RETIRED 7 September 2026. The premise
    was cut out from under it and it was never re-marked.** The original text is
@@ -185,16 +195,23 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
    writes down what it says"*) and it stays there. **If Ohio comes back off the
    shelf, this marker comes back with it.**
 
-4. **`[CONFIRM: the closing not-advice line.]`** The firm settled that there
-   should be one and how it should read — *"it should not be taken as advice on
-   a particular return, sure... this is a particular time we can deflect legal
-   assurance - it is just helpful free advice. make the wording fairly
-   generic."* No sentence was supplied, so one was written: **"This is general
-   information, not advice about a particular business."** Two questions on it.
-   Are those the words? And do the other two guides now carry the same sentence,
-   worded identically — tenet 4 says two things doing the same job look the
-   same, and open item 4 in `SOURCES.md` is the same question left open there.
-   Marked in the draft.
+4. **`[CONFIRM: the closing not-advice line.]`** — **ANSWERED 7 September 2026,
+   both halves.** The firm had settled that there should be one and how it
+   should read — *"it should not be taken as advice on a particular return,
+   sure... this is a particular time we can deflect legal assurance - it is just
+   helpful free advice. make the wording fairly generic."* — but supplied no
+   sentence, so one was written and shipped unapproved. It is approved now, and
+   the answer to the second half was **no, the three pages did not match**:
+
+   > This is general information, not advice about a particular return or
+   > business.
+
+   The words are the ones that were already live, with the noun opened out.
+   `build-guides.py` used to pick it from the page (*return* here, *business* on
+   the other two), so three pages carried two sentences. It no longer picks; the
+   sentence is one literal in the shell, and `tenets.spec.py`'s FURNITURE
+   exemption matches the settled form. Tenet 4 satisfied: two things doing the
+   same job now look the same.
 
 5. **`[CONFIRM: the deduction on business profit is still permanent.]`** Section
    06 leans on the fact that a wage does not qualify for it. The exclusion of

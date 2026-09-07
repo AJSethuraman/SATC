@@ -161,10 +161,19 @@ print("--- the pages against each other")
 # it three times. So it is furniture, like a wordmark in a header and again in
 # a footer, and it comes out before the pages are compared.
 #
+# It really is word for word now. Until 7 September 2026 the builder picked the
+# noun from the page -- "a particular return" on the individual guide, "a
+# particular business" on the other two -- so the three pages carried two
+# sentences and this pattern was loose enough not to notice. The firm settled it
+# that day, choosing one sentence for all three; the alternation below keeps the
+# older single-noun forms matching so a draft that has not been through the
+# rewrite is still exempted rather than reported as repetition.
+#
 # Exempted by matching the sentence, not by skipping a trailing block: a real
 # repetition that happened to sit at the foot of a page would still be caught.
 FURNITURE = re.compile(
-    r"this is general information,? not advice about a particular [a-z]+\.?",
+    r"this is general information,? not advice about a particular "
+    r"(?:return or business|[a-z]+)\.?",
     re.I)
 
 grams = {}

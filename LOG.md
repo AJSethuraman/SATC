@@ -881,3 +881,66 @@ verdicts are whatever the last full run said.
   and the price page carries a line for it. The other two markers.
 - **T-03** — unchanged and untouched. Written up as a pricing suggestion for
   the firm to pass on, per `HANDOFF.md` §4a. Not reconciled here.
+
+### The firm answered, same day — the goal is met
+
+Three decisions went out as a docket. All three came back within four minutes.
+
+**D1, the not-advice line — option A.** One sentence, word for word on all three
+guides: *"This is general information, not advice about a particular return or
+business."* These are the words that had been live since the guides went up,
+with the noun opened out. The second half of the question turned out to have an
+answer nobody had noticed: **the three pages did not match.** `build-guides.py`
+chose the noun from the page — *return* on the individual guide, *business* on
+the other two — so three pages carried two sentences. It no longer chooses; the
+sentence is one literal in the shell, and the drafts, the body strip and
+`tenets.spec.py`'s FURNITURE exemption all moved with it.
+
+Nothing was invented to get there, which is what `docs/pricing-for-website.md`
+§4 forbids. The firm was shown the words already on their site and approved
+them; the only change is the word that made the pages disagree.
+
+**D2, what an S corp owner pays themselves — option A.** One bullet, S-corp
+guide only, section 05, after *"Nothing on this page sets one"*:
+
+> If you want us to set one or check yours, it has [its own line on the price
+> page](../pricing.html).
+
+Nineteen words, no amount, no promise about who does the work. It cannot carry a
+figure — this page is downstream of `fee-schedule.yaml` and the line it points
+at is generated from `assumed.officer_compensation`. **The business guide keeps
+its silence deliberately**: two guides carrying the same sentence is one guide
+split in half, and `tenets.spec.py` fails on any run of prose shared between a
+pair of them. That reader is sent on by the "Also here" link.
+
+**T-03 — option C, leave it**, with an instruction attached:
+
+> ok you do not control pricing - give feedback on what you are unsure about /
+> what seems to need decided so i can run it by the proper agent
+
+So the suggestion block is not sent by me and not acted on. It is written up in
+the docket for the firm to route, and T-03 stays as it is in
+`docs/pricing-open-threads.md` — still disagreeing with the schedule, still
+recorded as a trap in `HANDOFF.md` §7.
+
+### Where it ended
+
+```
+python website/build-guides.py --publish-ready   ->  No open questions. exit 0
+```
+
+**5 markers at the start, 0 now.** One retired because its premise was gone,
+four answered by the firm. None deleted to make a build green.
+
+| | |
+|---|---|
+| `pricing.spec.py` | 66 / 66 |
+| `copy.spec.py` | 36 / 36 |
+| `build-guides.py --check` | 4 files match |
+| `tenets.spec.py` | 0 failing |
+| `build-guides.py --publish-ready` | **exit 0** |
+| `intake.spec.py` | **not run** — Playwright cannot launch here; CI is the only thing that has looked at the intake form |
+
+Still true and unchanged by any of this: **nobody has read the three guides end
+to end.** The firm said they would before publication and the pages went up
+anyway. Checks passing is not approval, and this branch does not make it one.

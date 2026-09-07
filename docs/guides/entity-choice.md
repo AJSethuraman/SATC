@@ -81,6 +81,8 @@ the same work would cost from someone else, in a business like yours.
 - Somebody has to reach the figure, record how they got there, and keep that
   record.
 - Nothing on this page sets one.
+- If you want us to set one or check yours, it has
+  [its own line on the price page](../pricing.html).
 
 ---
 
@@ -127,12 +129,15 @@ Against it:
 Drop the election and you generally cannot make it again for five years unless
 the IRS agrees to it sooner. It is a decision about several years, not one.
 
-<!-- [CONFIRM: this page stays silent on the fact that setting or reviewing an
-     owner's wage sits outside the flat engagement and is hourly work
-     (`assumed.officer_compensation` in fee-schedule.yaml). Section 05 says
-     "nothing on this page sets one" and stops there. The price page already
-     carries the line "Setting what an S corporation owner pays themselves".
-     Confirm the guide should not point at it. -->
+<!-- ANSWERED 7 Sep 2026: no, it should point at it, and now does. Section 05
+     carries one bullet after "Nothing on this page sets one" sending the reader
+     to the price page, which already lists "Setting what an S corporation owner
+     pays themselves" among the hourly situations. The bullet names no figure and
+     never will — this page is downstream of fee-schedule.yaml, and the line it
+     points at is generated from `assumed.officer_compensation` there.
+     The business guide deliberately does NOT carry the same bullet: the two
+     pages must not say the same thing twice, and this is the page that reader
+     lands on. -->
 
 <!-- RETIRED 7 Sep 2026, not answered: the Ohio's-cities marker that stood here.
      Its own words are kept at open item 3 of SOURCES-entity-choice.md, with the
@@ -143,17 +148,19 @@ the IRS agrees to it sooner. It is a decision about several years, not one.
      now") and the bullet is generic, so the marker was asking them to approve a
      scope they had already set. It comes back if Ohio does. -->
 
-<!-- [CONFIRM: the closing line below. The firm asked for a generic one — "it
-     should not be taken as advice on a particular return... make the wording
-     fairly generic." These are not the firm's words, because none were given.
-     Confirm the sentence, and whether the other two guides carry the same one,
-     worded identically. -->
+<!-- ANSWERED 7 Sep 2026. The firm settled the closing line and settled that all
+     three guides carry it identically. It is the sentence that was already live,
+     with the noun opened out from "a particular business" to "a particular
+     return or business" so that one sentence fits all three pages — nothing new
+     is claimed by it, and it is still the "fairly generic" they asked for. The
+     builder no longer picks a noun per page. Recorded at open item 4 of
+     SOURCES-entity-choice.md. -->
 
 ---
 
 Been told you should be an S corp? What decides it is your profit, and what
 your own work is worth.
 
-This is general information, not advice about a particular business.
+This is general information, not advice about a particular return or business.
 
 **[Tell us about your situation →](/#intake)**
