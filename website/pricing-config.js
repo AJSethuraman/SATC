@@ -159,7 +159,6 @@ window.SATC_PRICING = {
   hourlyApplies: [
     'Keyed brokerage statements',
     'An interest in a company based abroad',
-    'A letter from the IRS or the state you would like us to handle',
     'Setting what an S corporation owner pays themselves',
     'Books that need cleaning up or reconciling'
   ]
