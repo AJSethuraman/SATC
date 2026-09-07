@@ -29,6 +29,8 @@ has already spoken on all three.
 
 **Position:** elect the de minimis safe harbor; attach the election statement to the timely filed original return
 
+**Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended, once the field it waits on existed.
+
 **Unless:** capitalization_rule
 
 
@@ -74,6 +76,8 @@ what the firm decided to write down rather than in what this client was asked:
 **Citation:** IRS Tangible Property Final Regulations, "What is the de minimis safe harbor election?" · **Recorded:** 2026-09-05
 
 **Position:** $2,500 per invoice or per item; $5,000 where the client has an applicable financial statement
+
+**Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended.
 
 **Unless:** capitalization_rule
 
