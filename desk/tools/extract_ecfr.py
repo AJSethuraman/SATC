@@ -37,6 +37,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from comparing import ELLIPSIS                            # noqa: E402
 from record import under as _under                        # noqa: E402
 
 #: HOW THE REGULATION ACTUALLY STATES A CONCLUSION, read off the corpus rather
@@ -213,19 +214,39 @@ def _roman(n: int) -> str:
     return out
 
 
-LEVELS = (
-    tuple(chr(c) for c in range(ord("a"), ord("z") + 1)),
-    tuple(str(i) for i in range(1, 100)),
-    tuple(_roman(i) for i in range(1, 40)),
-    tuple(chr(c) for c in range(ord("A"), ord("Z") + 1)),
-    tuple(str(i) for i in range(1, 100)),
-    tuple(_roman(i) for i in range(1, 40)),
-)
+LOWER = tuple(chr(c) for c in range(ord("a"), ord("z") + 1))
+UPPER = tuple(chr(c) for c in range(ord("A"), ord("Z") + 1))
+ARABIC = tuple(str(i) for i in range(1, 100))
+ROMAN = tuple(_roman(i) for i in range(1, 40))
 
-#: Levels the CFR sets in italics (zero-based): the second arabic and the
-#: second roman run. A plain `(1)` cannot be at level 5 and an italic one
-#: cannot be at level 2.
-ITALIC_LEVELS = frozenset({4, 5})
+#: What each depth may be labelled with, as `(letters, italic)`. The italic flag
+#: is part of the alphabet rather than a property of the depth, and that is the
+#: whole of what changed here.
+#:
+#: A DEPTH MAY OFFER MORE THAN ONE ALPHABET, and § 1.446-1 is why. I published,
+#: and then corrected, a diagnosis saying that section SKIPS the (A) level. It
+#: does not. It uses a DIFFERENT ALPHABET AT THE SAME LEVEL, and it uses both in
+#: the same section:
+#:
+#:     (c)(1)(ii)(A), (B), (C)     plain capitals, the modern scheme
+#:     (c)(1)(iv)(a), (b)          italic lowercase, the 1957 scheme
+#:
+#: Both sit at depth 3. A single alphabet per depth cannot read a section that
+#: writes both, so § 1.446-1, § 1.274-5T and two more had NO consistent reading
+#: at all and `outline()` refused them -- correctly, on a gap in the reader.
+#:
+#: The italic flag is what keeps this from becoming ambiguous: depth 0 is
+#: lowercase PLAIN and depth 3's second alphabet is lowercase ITALIC, so a label
+#: never belongs to both, and the sequence rules below still have exactly one
+#: alphabet to run against once a branch has opened.
+ALPHABETS = (
+    ((LOWER, False),),
+    ((ARABIC, False),),
+    ((ROMAN, False),),
+    ((UPPER, False), (LOWER, True)),
+    ((ARABIC, True),),
+    ((ROMAN, True),),
+)
 
 _I0, _I1 = "\x01", "\x02"       # fences around italic runs, never in real text
 _LABEL = re.compile(r"^\((\x01?)([a-zA-Z0-9]{1,4})\x02?\)\s*")
@@ -259,6 +280,35 @@ _RUN_IN = re.compile(r"^\x01[^\x02]*\x02\s*—\s*(?=\()"
                      r"|^\x01[^\x02]*\.\x02\s+(?=\()")
 
 
+#: TWO PARAGRAPHS RESERVED TOGETHER IN ONE ELEMENT, in the three ways these
+#: sections write it:
+#:
+#:     (k) and (l) [Reserved]        § 1.274-5T, on the last of its 105 elements
+#:     (a)-(b) [Reserved]            § 1.274-5, on its first
+#:     (2)(i) and (ii) [Reserved]    § 1.274-5 again, continuing the DEEPEST
+#:                                   label rather than the leading one
+#:
+#: A reader taking only the labels it opens leaves the outline standing at the
+#: first of them, and the paragraph that follows is not its successor -- so both
+#: sections had no consistent reading at all, one of them on its opening line.
+#:
+#: THE EXPANSION NEEDS NO ALPHABET, WHICH IS WHY IT CAN HAPPEN HERE. "and" names
+#: exactly the two labels written down. A dash or "through" names a range, and a
+#: range would need the alphabet -- unknown until `placements` has chosen a depth
+#: -- EXCEPT where the two are adjacent, and then the range IS the two written
+#: down whichever alphabet it is in. A range spanning more than two is refused
+#: rather than guessed at; no section here writes one.
+#:
+#: WHAT KEEPS IT SAFE IS THE ANCHOR, NOT THE TRAILING BOUNDARY. The match starts
+#: immediately after the labels the element opens, so a body mentioning "and (l)"
+#: in the middle of a sentence is never a candidate. The `(?:\s|$)` on the end
+#: was tried as a mutation and broke nothing; it stays because it is the shape
+#: these sections write, not because it is load bearing. Said here rather than
+#: implied, for the same reason `_RUN_IN` says it about its full stop.
+_SPAN = re.compile(r"^(and|through|[-\u2010-\u2015])\s*"
+                   r"\((\x01?)([a-zA-Z0-9]{1,4})\x02?\)(?:\s|$)")
+
+
 @dataclass(frozen=True)
 class Paragraph:
     """One paragraph of the section, outside its examples, at its full path."""
@@ -270,6 +320,24 @@ class Paragraph:
         return "".join(f"({p})" for p in self.path)
 
 
+#: A RUN-IN HEADING WHOSE ITALICS ARE BROKEN ACROSS THE LABEL, in the
+#: government's own file. § 1.62-2 writes
+#:
+#:     <I>Returning amounts in excess of expenses—(</I>1<I>) In general.</I>
+#:
+#: putting the em-dash and the opening parenthesis inside the italics and the
+#: numeral outside, where every other run-in in the CFR writes
+#: `<I>Substantiation</I>—(1) <I>In general.</I>`. The two are the same sentence
+#: typeset two ways, and the reader saw a heading in one and not the other -- so
+#: § 1.62-2 had no consistent reading at all and the vehicle desk lost its
+#: examples to a stray tag.
+#:
+#: THIS MOVES FENCES, NEVER TEXT. Strip the fences from either side and the
+#: string is identical, which is the property that makes it a repair rather than
+#: an edit -- and the label comes out PLAIN, which is what (f)(1) is.
+_MISFENCED = re.compile(rf"—\({_I1}([a-zA-Z0-9]{{1,4}}){_I0}\)")
+
+
 def _marked(elem) -> str:
     """The element's text with its italic runs fenced, so a label keeps its face."""
     out = [elem.text or ""]
@@ -277,10 +345,64 @@ def _marked(elem) -> str:
         inner = "".join(kid.itertext())
         out.append(f"{_I0}{inner}{_I1}" if kid.tag == "I" else inner)
         out.append(kid.tail or "")
-    return " ".join("".join(out).split())
+    text = " ".join("".join(out).split())
+    return _MISFENCED.sub(rf"{_I1}—(\1){_I0}", text)
+
+
+def chains_of(elem) -> list[list[tuple[str, bool, str]]]:
+    """The label chains this element opens -- more than one when it spans two
+    paragraphs. Usually exactly one, which is `labels(elem)`."""
+    chain, rest = _read_labels(elem)
+    if not chain:
+        return []
+    m = _SPAN.match(rest)
+    if m is None:
+        return [chain]
+    connector, italic, label = m.group(1), bool(m.group(2)), m.group(3)
+    run = ((label,) if connector == "and"
+           else _span_between(chain[-1][0], label))
+    if run is None:
+        # A RANGE NO SINGLE ALPHABET SETTLES -- "(i) through (v)" is five roman
+        # numerals or fourteen letters, and nothing here can tell which. It is
+        # left unexpanded, the section fails to read, and it says so. No section
+        # this reader is pointed at writes one.
+        return [chain]
+    # Every paragraph in the span carries the element's own words with the span
+    # taken off the front: "and (l)" is a label, not part of what any of them say.
+    body = _plain(rest[m.end():])
+    return ([chain[:-1] + [(chain[-1][0], chain[-1][1], body)]]
+            + [[(x, italic, body)] for x in run])
+
+
+def _span_between(first: str, second: str) -> tuple[str, ...] | None:
+    """The labels from after `first` through `second`, if one alphabet settles it.
+
+    THE DEPTH IS NOT KNOWN HERE and does not have to be. A range names two
+    labels, and where exactly one alphabet holds both of them in that order, the
+    run between them is the same whatever depth the pair turns out to sit at:
+    "(3)-(7)" is 4, 5, 6, 7 in the only alphabet that has a 3 and a 7. Where two
+    alphabets qualify -- "(i) through (v)" is five roman numerals or fourteen
+    letters -- there is no answer here and it returns none rather than a guess.
+    """
+    runs = {letters[letters.index(first) + 1: letters.index(second) + 1]
+            for level in ALPHABETS for letters, _ in level
+            if first in letters and second in letters
+            and letters.index(second) > letters.index(first)}
+    return runs.pop() if len(runs) == 1 else None
+
+
+def _after_label(elem) -> str:
+    """The element's marked text with its leading label removed."""
+    text = _marked(elem)
+    m = _LABEL.match(text)
+    return text[m.end():] if m else text
 
 
 def labels(elem) -> list[tuple[str, bool, str]]:
+    return _read_labels(elem)[0]
+
+
+def _read_labels(elem) -> tuple[list[tuple[str, bool, str]], str]:
     """Every paragraph this element opens: `(label, italic, its text)`.
 
     RUN-IN HEADINGS OPEN MORE THAN ONE PARAGRAPH. "(c) Coordination with other
@@ -302,21 +424,63 @@ def labels(elem) -> list[tuple[str, bool, str]]:
             out.append((label, italic, _plain(heading)))
             text = rest[run_in.end():]
             continue
+        if _LABEL.match(rest):
+            # A LABEL SITTING DIRECTLY ON ANOTHER, WITH NO HEADING BETWEEN THEM.
+            # "(2)(i) Except as otherwise expressly provided..." and
+            # "(ii) (a) A change in the method of accounting..." are both one
+            # <P> in § 1.446-1 opening two paragraphs, and neither carries the
+            # italic run-in heading that was the only way this loop continued.
+            # The parent has no text of its own -- its content IS the child --
+            # so it is recorded with none rather than given the child's body.
+            #
+            # WHAT KEEPS IT HONEST is `placements`: a deeper label is descended
+            # into only when it OPENS its level, and a chain whose deeper labels
+            # do not all open yields no reading at all rather than a short path
+            # with a long chain. So a body that merely happens to begin with a
+            # parenthesised token cannot become a paragraph -- it would have to
+            # begin with the first label of the next level down.
+            out.append((label, italic, ""))
+            text = rest
+            continue
         out.append((label, italic, _plain(rest)))
+        text = rest
         break
-    return out
+    return out, text
 
 
 def _plain(text: str) -> str:
     return " ".join(text.replace(_I0, "").replace(_I1, "").split())
 
 
+def _alphabet(depth: int, label: str, italic: bool) -> tuple | None:
+    """The alphabet at `depth` this label belongs to, or None if none does.
+
+    Returns the alphabet rather than a yes/no because everything downstream --
+    what opens a level, what succeeds what -- has to run against the SAME one
+    the label came from, and a depth may now offer two.
+    """
+    if not 0 <= depth < len(ALPHABETS):
+        return None
+    for letters, is_italic in ALPHABETS[depth]:
+        if is_italic == italic and label in letters:
+            return letters
+    return None
+
+
 def _fits(depth: int, label: str, italic: bool) -> bool:
-    return label in LEVELS[depth] and (depth in ITALIC_LEVELS) == italic
+    return _alphabet(depth, label, italic) is not None
 
 
-def _successor(depth: int, label: str) -> str | None:
-    alphabet = LEVELS[depth]
+def _opens(depth: int, label: str, italic: bool) -> bool:
+    """Whether this label is the FIRST of the alphabet it belongs to here."""
+    alphabet = _alphabet(depth, label, italic)
+    return alphabet is not None and alphabet[0] == label
+
+
+def _successor(depth: int, label: str, italic: bool) -> str | None:
+    alphabet = _alphabet(depth, label, italic)
+    if alphabet is None:
+        return None
     i = alphabet.index(label)
     return alphabet[i + 1] if i + 1 < len(alphabet) else None
 
@@ -330,34 +494,35 @@ def placements(chains: list[list[tuple[str, bool]]]) -> list[list[tuple[str, ...
     """
     readings: list[list[tuple[str, ...]]] = []
 
-    def walk(i: int, stack: tuple[str, ...], acc: list[tuple[str, ...]]) -> None:
+    def walk(i: int, stack: tuple, acc: list[tuple[str, ...]]) -> None:
+        """`stack` carries `(label, italic)` because the face is part of the
+        identity now: at depth 3 a plain `A` and an italic `a` are different
+        alphabets, and the successor rule has to know which one it is in."""
         if i == len(chains):
             readings.append(acc)
             return
         chain = chains[i]
         label, italic = chain[0]
-        for depth in range(min(len(stack), len(LEVELS) - 1) + 1):
+        for depth in range(min(len(stack), len(ALPHABETS) - 1) + 1):
             if not _fits(depth, label, italic):
                 continue
             if depth < len(stack):
-                if _successor(depth, stack[depth]) != label:
+                if _successor(depth, *stack[depth]) != label:
                     continue
             # A new level opens with the first of its alphabet -- except the
             # very first element, which may be any top-level letter so that a
             # fragment of a section can be read. The stack is never empty
             # again after it, so this is exactly one element wide.
-            elif stack and LEVELS[depth][0] != label:
+            elif stack and not _opens(depth, label, italic):
                 continue
-            path = stack[:depth] + (label,)
+            path = stack[:depth] + ((label, italic),)
             for deeper, deeper_italic in chain[1:]:
-                d = len(path)
-                if d < len(LEVELS) and _fits(d, deeper, deeper_italic) \
-                        and LEVELS[d][0] == deeper:
-                    path = path + (deeper,)
+                if _opens(len(path), deeper, deeper_italic):
+                    path = path + ((deeper, deeper_italic),)
                 else:
                     break
             else:
-                walk(i + 1, path, acc + [path])
+                walk(i + 1, path, acc + [tuple(l for l, _ in path)])
 
     walk(0, (), [])
     return readings
@@ -375,12 +540,31 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
     """
     root = ET.parse(xml_path).getroot()
     elements = [c for c in root if c.tag in ("P", "PSPACE")]
-    chains = [labels(e) for e in elements]
-    for n, (elem, chain) in enumerate(zip(elements, chains), 1):
-        if not chain:
-            raise ValueError(
-                f"element {n} of the section carries no paragraph label: "
-                f"{_plain(_marked(elem))[:60]!r}")
+    chains: list[list[tuple[str, bool, str]]] = []
+    #: `{index into chains: the unlabelled elements that follow it}`.
+    #:
+    #: AN ELEMENT WITH NO LABEL IS A CONTINUATION, NOT A DEFECT. § 1.274-12
+    #: writes "(B) Example. The following example illustrates the application of
+    #: this paragraph (c)(2)(v)." and then puts the example itself in a separate
+    #: <P> carrying no label at all. Raising on it cost the section entirely, and
+    #: the honest reading is the one the layout states: the text belongs to the
+    #: paragraph immediately above it.
+    #:
+    #: It stays an error BEFORE the first label, because then there is no
+    #: paragraph for it to continue and attaching it anywhere would be a guess.
+    continuations: dict[int, list[str]] = {}
+    for n, elem in enumerate(elements, 1):
+        opened = chains_of(elem)
+        if not opened:
+            if not chains:
+                raise ValueError(
+                    f"element {n} of the section carries no paragraph label and "
+                    f"nothing precedes it to continue: "
+                    f"{_plain(_marked(elem))[:60]!r}")
+            continuations.setdefault(len(chains) - 1, []).append(
+                _plain(_marked(elem)))
+            continue
+        chains.extend(opened)
     readings = placements([[(l, it) for l, it, _ in ch] for ch in chains])
     if not readings:
         raise ValueError("the section's labels cannot be read as a CFR outline; "
@@ -397,6 +581,8 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
         base = len(path) - len(chain)
         for k, (_label, _italic, text) in enumerate(chain):
             paragraphs.append(Paragraph(path=path[:base + k + 1], text=text))
+        for text in continuations.get(i, ()):
+            paragraphs.append(Paragraph(path=path, text=text))
     return paragraphs, underdetermined
 
 
@@ -419,10 +605,62 @@ def cited_paths(text: str) -> set[str]:
     for m in _CITES.finditer(text):
         if m.group(3) and "§" in m.group(3):
             continue
-        for path in [m.group(1)] + re.findall(_PATH, m.group(2)):
-            if re.match(r"\([a-z]\)", path):
-                out.add(path)
+        head = m.group(1)
+        for path in [head] + re.findall(_PATH, m.group(2)):
+            resolved = path if path is head else _continues(_parts(head), path)
+            if re.match(r"\([a-z]\)", resolved):
+                out.add(resolved)
     return out
+
+
+#: The alphabet a CITATION uses at each depth. Not the same question as
+#: `ALPHABETS`, which is about what the section's own headings may be set in.
+#:
+#: THE DIFFERENCE MATTERS AND COST A WRONG PATH TO FIND. `ALPHABETS[3]` admits
+#: italic lowercase as well as plain capitals, because § 1.446-1 writes its
+#: fourth level that way. A cross-reference is plain text and says nothing about
+#: face -- so asking `ALPHABETS` whether "(j)" could sit at level 3 answers yes,
+#: and "paragraphs (g)(2)(i) and (j) of this section" resolved to the paragraph
+#: (g)(2)(i)(j), which no section has. Read against the plain hierarchy the same
+#: sentence resolves (j) to itself, which is what it says.
+_CITED_LEVELS = (LOWER, ARABIC, ROMAN, UPPER, ARABIC, ROMAN)
+
+
+def _at_level(level: int, label: str) -> bool:
+    """Whether a cited label could sit at this depth. The depth settles it:
+    `i` is the ninth letter and the first roman, and only one of those can be
+    at level 2."""
+    return 0 <= level < len(_CITED_LEVELS) and label in _CITED_LEVELS[level]
+
+
+def _continues(head: tuple[str, ...], path: str) -> str:
+    """A one-label item in an enumerated citation, resolved against its head.
+
+    "amounts paid for a component of a unit of property under paragraph
+    (c)(1)(iii), (iv), or (v) of this section" cites (c)(1)(iv) and (c)(1)(v).
+    Read literally, it cited "(iv)" and "(v)" -- paragraphs no section has -- so
+    two of the sections here reported a dangling citation that was the reader's
+    and not the regulation's. Worse than the miscount: `governing()` chooses the
+    citation an example is filed under FROM THIS SET, so a bare "(v)" is a
+    candidate rule on any section whose examples live under (v).
+
+    THE HEAD'S DEPTH SETTLES IT, and nothing else has to:
+
+        (c)(1)(iii), (iv)      (iv) is roman, the head's own level -> a SIBLING
+        (b)(3) (i), (ii)       (i) is roman, one level DOWN from arabic -> a CHILD
+        (d)(1) and (j)         (j) is neither -> a path of its own, left alone
+
+    Sibling is tried first because that is what a list of alternatives is.
+    """
+    parts = _parts(path)
+    if len(parts) != 1 or not head:
+        return path
+    label = parts[0]
+    if _at_level(len(head) - 1, label):
+        return "".join(f"({x})" for x in head[:-1] + (label,))
+    if _at_level(len(head), label):
+        return "".join(f"({x})" for x in head + (label,))
+    return path
 
 
 def _parts(path: str) -> tuple[str, ...]:
@@ -604,6 +842,73 @@ Generated by `tools/extract_ecfr.py`; do not hand-edit.
 """
 
 
+#: "Example 1." opening a paragraph. The DIGIT is what separates an example from
+#: the lead-in that announces a run of them -- "Examples. The following examples
+#: illustrate the application of paragraph (c)(2)(v)." -- which is a rule and is
+#: stored as one. Getting that distinction wrong once already cost eleven
+#: fixed-assets passages their kind.
+_PROSE_EXAMPLE = re.compile(r"^Examples? (\d+)\.(?:\s+|$)")
+
+
+def _prose_examples(paragraphs):
+    """Worked examples written as ordinary numbered paragraphs.
+
+    THE SECOND WAY THE CFR WRITES ONE, and three of the meals desk's regulations
+    write every one of theirs this way: § 1.274-12 twenty, § 1.274-5 five,
+    § 1.274-11 four. Read only from `<EXAMPLE>` blocks, `examples()` returned
+    NOTHING from those sections while `outline()` read them perfectly and every
+    cross-reference landed -- so the desk looked thin when it was unreadable in a
+    second way nobody had counted.
+
+    ITS OWN PARAGRAPH IS ITS PATH. A tagged example carries no label and hangs
+    off the paragraph announcing it; this one IS a paragraph, and citing it to a
+    parent would throw away the one thing the regulation states about where it
+    belongs.
+
+    THE BODY IS SOMETIMES NOT IN THE PARAGRAPH AT ALL. § 1.274-12 writes four of
+    them as a bare "Example 1." whose facts and analysis are in the paragraphs
+    BENEATH it -- (c)(2)(ii)(E)(1)(i), (ii), (iii) -- and writes another as a
+    bare header with an unlabelled element underneath, which `outline()` records
+    as a second paragraph at the same path. Taking only the header would store
+    five examples that state nothing, which is the failure mode this repository
+    calls a proof artifact declaring documents fine when none of them was
+    readable.
+
+    So the body is everything from the header down to the next paragraph that is
+    neither the header's own path nor beneath it. `under` is the containment rule
+    the whole plugin shares, borrowed rather than rewritten.
+    """
+    out = []
+    for i, p in enumerate(paragraphs):
+        m = _PROSE_EXAMPLE.match(p.text)
+        if m is None:
+            continue
+        body = p.text[m.end():].strip()
+        if not body:
+            rest = []
+            for q in paragraphs[i + 1:]:
+                if q.path != p.path and not _under(q.label, p.label):
+                    break
+                if q.text:
+                    rest.append(q.text)
+            # JOINED ON THE MARKED OMISSION, NOT ON A SPACE, and the tie-out is
+            # what said so. Joining with a space stored a run of words the
+            # publisher never printed as one -- the paragraph labels "(ii)" and
+            # "(iii)" sit between these segments -- so all four such passages
+            # came back DIFFERS the first time they were checked against eCFR.
+            # The mark costs something rather than exempting anything:
+            # `comparing.elided_match` checks each segment in order, from where
+            # the last one ended, so only the labels between them go unchecked.
+            body = f" {ELLIPSIS} ".join(rest).strip()
+        if not body:
+            continue
+        out.append({"path": p.label, "n": int(m.group(1)), "title": "",
+                    "para": p.path[0] if p.path else None,
+                    "sub": p.path[1] if len(p.path) > 1 else None,
+                    "text": body})
+    return out
+
+
 def examples(xml_path: Path):
     r"""Walk the section in document order, tagging each example with its paragraph.
 
@@ -635,6 +940,7 @@ def examples(xml_path: Path):
     """
     root = ET.parse(xml_path).getroot()
     paragraphs, _ = outline(xml_path)
+    yield from _prose_examples(paragraphs)
     path = para = sub = None
     n = 0
     for child in root:
@@ -644,10 +950,17 @@ def examples(xml_path: Path):
             # THE LAST paragraph this element opens. A run-in heading opens two
             # ("(c) Coordination ...—(1) In general."), and the examples that
             # follow belong to the second, not to the heading.
-            hit = None
-            for q in paragraphs:
-                if q.text and q.text in flat:
-                    hit = q
+            # THE LONGEST match, not the last, and the difference is a real
+            # defect this section exposed. A run-in opens two paragraphs and the
+            # examples belong to the second -- but "last in `paragraphs`" is not
+            # "second of this pair": § 1.274-12 has paragraphs whose entire text
+            # is "Example 1.", which is contained in EVERY element beginning
+            # "Example 1. ...", sits later in the outline, and so hijacked the
+            # hit for four unrelated elements. The body of a run-in pair is the
+            # longer of the two, so length picks the same paragraph the old rule
+            # meant to and cannot be hijacked by a short one.
+            hit = max((q for q in paragraphs if q.text and q.text in flat),
+                      key=lambda q: len(q.text), default=None)
             if hit is not None and re.search(r"\bExamples?\b", flat[:80]):
                 path, n = hit.label, 0
                 para = hit.path[0] if hit.path else None

@@ -35,6 +35,10 @@ however real it is.
 
 ## Positions the firm has already taken (their words, and binding)
 
+### 26 CFR 1.262-1(b)(8) — the test for a serviceman's equipment
+
+> ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer
+
 ### 26 CFR 1.262-1(a) — the general rule
 
 > flag it for attention and ask the client what was bought; do not book it to owner draws on the seller's name

@@ -120,3 +120,377 @@ for its source in `SOURCES.md`.
 
 > (v) Goods or services sold to customers—(A) In general. In accordance with section 274(e)(8), an expense paid or incurred for food or beverages, to the extent the food or beverages are sold to customers in a bona fide transaction for an adequate and full consideration in money or money's worth, is not subject to the deduction limitations in paragraph (a) of this section. However, money or money's worth does not include payment through services provided. Under this paragraph (c)(2)(v), a restaurant or catering business may deduct 100 percent of its costs for food or beverage items, purchased in connection with preparing and providing meals to its paying customers, which are also consumed at the worksite by employees who work in the employer's restaurant or catering business. In addition, for purposes of this paragraph (c)(2)(v), the term customer includes anyone, including an employee of the taxpayer, who is sold food or beverages in a bona fide transaction for an adequate and full consideration in money or money's worth.
 
+---
+
+## 26 CFR 1.274-12(a)(3)(i) Example 1
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Taxpayer A takes client B out to lunch. Under section 274(k) and (n) and
+> paragraph (a) of this section, A may deduct 50 percent of the food or
+> beverage expenses.
+
+---
+
+## 26 CFR 1.274-12(a)(3)(ii) Example 2
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Taxpayer C takes employee D out to lunch. Under section 274(k) and (n) and
+> paragraph (a) of this section, C may deduct 50 percent of the food or
+> beverage expenses.
+
+---
+
+## 26 CFR 1.274-12(a)(3)(iii) Example 3
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Taxpayer E holds a business meeting at a hotel during which food and
+> beverages are provided to attendees. Expenses for the business meeting,
+> other than the cost of food and beverages, are not subject to the deduction
+> limitations in section 274 and are deductible if they meet the requirements
+> for deduction under section 162. Under section 274(k) and (n) and paragraph
+> (a) of this section, E may deduct 50 percent of the food and beverage
+> expenses.
+
+---
+
+## 26 CFR 1.274-12(a)(3)(iv) Example 4
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (a)(3)(iii) of this section (Example
+> 3), except that all the attendees of the meeting are employees of E.
+> Expenses for the business meeting, other than the cost of food and
+> beverages, are not subject to the deduction limitations in section 274 and
+> are deductible if they meet the requirements for deduction under section
+> 162. Under section 274(k) and (n) and paragraph (a) of this section, E may
+> deduct 50 percent of the food and beverage expenses. The exception in
+> section 274(e)(5) does not apply to food and beverage expenses under section
+> 274(k) and (n).
+
+---
+
+## 26 CFR 1.274-12(c)(2)(i)(E)(1) Example 1
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer G provides food and beverages to its non-specified individual
+> employees without charge at a company cafeteria on its premises. The food
+> and beverages do not meet the definition of a de minimis fringe under
+> section 132(e). Thus, G treats the full fair market value of the food and
+> beverage expenses as compensation and wages, and properly determines this
+> amount under § 1.61-21. Under section 274(e)(2) and paragraph (c)(2)(i)(A)
+> of this section, the expenses associated with the food and beverages
+> provided to the employees are not subject to the 50 percent deduction
+> limitation in paragraph (a) of this section. Thus, G may deduct 100 percent
+> of the food and beverage expenses.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(i)(E)(2) Example 2
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (c)(2)(i)(E)(1) of this section
+> (Example 1), except that each employee pays $8 per day for the food and
+> beverages. The fair market value of the food and beverages is $10 per day,
+> per employee. G incurs $9 per day, per employee for the food and beverages.
+> G treats the food and beverage expenses as compensation and wages, and
+> properly determines the amount of the inclusion under § 1.61-21 to be $2 per
+> day, per employee ($10 fair market value−$8 reimbursed by the employee =
+> $2). Therefore, under paragraph (c)(2)(i)(A) of this section, G may deduct
+> 100 percent of the food and beverage expenses, or $9 per day, per employee.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(i)(E)(3) Example 3
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer H provides meals to its employees without charge. The meals are
+> properly excluded from the employees' income under section 119 as meals
+> provided for the convenience of the employer. Under § 1.61-21(b)(1), an
+> employee must include in gross income the amount by which the fair market
+> value of a fringe benefit exceeds the sum of the amount, if any, paid for
+> the benefit by or on behalf of the recipient, and the amount, if any,
+> specifically excluded from gross income by some other section of subtitle A
+> of the Code. Because the entire value of the employees' meals is excluded
+> from the employees' income under section 119, the fair market value of the
+> fringe benefit does not exceed the amount excluded from gross income under
+> subtitle A of the Code, so there is nothing to be included in the employees'
+> income under § 1.61-21. Thus, the exception in section 274(e)(2) and
+> paragraph (c)(2)(i) of this section does not apply and, assuming no other
+> exceptions provided under section 274(n)(2) and paragraph (c)(2) of this
+> section apply, H may deduct only 50 percent of the expenses for the food and
+> beverages provided to employees. In addition, the limitations in section
+> 274(k)(1) and paragraph (a)(1) of this section apply because none of the
+> exceptions in section 274(k)(2) and paragraph (c)(2) of this section apply.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(ii)(E)(1) Example 1
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employee I performs services under an arrangement in which J, an employee
+> leasing company, pays I a per diem allowance of $10x for each day that I
+> performs services for J's client, K, while traveling away from home. The per
+> diem allowance is a reimbursement of travel expenses for food or beverages
+> that I pays in performing services as an employee. J enters into a written
+> agreement with K under which K agrees to reimburse J for any substantiated
+> reimbursements for travel expenses, including meal expenses, that J pays to
+> I. The agreement does not expressly identify the party that is subject to
+> the limitations on deductions in paragraph (a) of this section. I performs
+> services for K while traveling away from home for 10 days and provides J
+> with substantiation that satisfies the requirements of section 274(d) of
+> $100x of meal expenses incurred by I while traveling away from home. J pays
+> I $100x to reimburse those expenses pursuant to their arrangement. J
+> delivers a copy of I's substantiation to K. K pays J $300x, which includes
+> $200x compensation for services and $100x as reimbursement of J's payment of
+> I's travel expenses for meals. Neither J nor K treats the $100x paid to I as
+> compensation or wages. [...] Under paragraph (b)(7)(i) of this section, I
+> and J have established a reimbursement or other expense allowance
+> arrangement for purposes of paragraph (c)(2)(ii)(B) of this section. Because
+> the reimbursement payment is not treated as compensation and wages paid to
+> I, under section 274(e)(3)(A) and paragraph (c)(2)(ii)(B)(1) of this
+> section, I is not subject to the limitations on deductions in paragraph (a)
+> of this section. Instead, under paragraph (c)(2)(ii)(B)(2) of this section,
+> J, the payor, is subject to limitations on deductions in paragraph (a) of
+> this section unless J can meet the requirements of section 274(e)(3)(B) and
+> paragraph (c)(2)(ii)(C) of this section. [...] Because the agreement between
+> J and K expressly states that K will reimburse J for substantiated
+> reimbursements for travel expenses that J pays to I, under paragraph
+> (b)(7)(ii)(A) of this section, J and K have established a reimbursement or
+> other expense allowance arrangement for purposes of paragraph (c)(2)(ii)(C)
+> of this section. J accounts to K for K's reimbursement in the manner
+> required by section 274(d) by delivering to K a copy of the substantiation J
+> received from I. Therefore, under section 274(e)(3)(B) and paragraph
+> (c)(2)(ii)(C)(2) of this section, K and not J is subject to the deduction
+> limitations in paragraph (a) of this section.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(ii)(E)(2) Example 2
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (c)(2)(ii)(E)(1) of this section
+> (Example 1) except that, under the arrangements between I and J and between
+> J and K, I provides the substantiation of the expenses directly to K, and K
+> pays the per diem directly to I. [...] Under paragraph (b)(7)(i) of this
+> section, I and K have established a reimbursement or other expense allowance
+> arrangement for purposes of paragraph (c)(2)(ii)(C) of this section. Because
+> I substantiates directly to K and the reimbursement payment was not treated
+> as compensation and wages paid to I, under section 274(e)(3)(A) and
+> paragraph (c)(2)(ii)(C)(1) of this section, I is not subject to the
+> limitations on deductions in paragraph (a) of this section. Under paragraph
+> (c)(2)(ii)(C)(2) of this section, K, the payor, is subject to the
+> limitations on deductions in paragraph (a) of this section.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(ii)(E)(3) Example 3
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (c)(2)(ii)(E)(1) of this section
+> (Example 1), except that the written agreement between J and K expressly
+> provides that the limitations of this section will apply to K. [...] Under
+> paragraph (b)(7)(ii)(B) of this section, J and K have established a
+> reimbursement or other expense allowance arrangement for purposes of
+> paragraph (c)(2)(ii)(C) of this section. Because the agreement provides that
+> the 274 deduction limitations apply to K, under section 274(e)(3)(B) and
+> paragraph (c)(2)(ii)(C) of this section, K and not J is subject to the
+> limitations on deductions in paragraph (a) of this section.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(ii)(E)(4) Example 4
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in (c)(2)(ii)(E)(1) of this section (Example 1),
+> except that the agreement between J and K does not provide that K will
+> reimburse J for travel expenses. [...] The arrangement between J and K is
+> not a reimbursement or other expense allowance arrangement within the
+> meaning of section 274(e)(3)(B) and paragraph (b)(7)(ii) of this section.
+> Therefore, even though J accounts to K for the expenses, J is subject to the
+> limitations on deductions in paragraph (a) of this section.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iii)(B)(1) Example 1
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer L invites all employees to a holiday party in a hotel ballroom that
+> includes a buffet dinner and an open bar. Under section 274(e)(4), this
+> paragraph (c)(2)(iii), and § 1.274-11(c), the cost of the party, including
+> food and beverage expenses, is not subject to the deduction limitations in
+> paragraph (a) of this section because the holiday party is a recreational,
+> social, or similar activity primarily for the benefit of non-highly
+> compensated employees. Thus, L may deduct 100 percent of the cost of the
+> party.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iii)(B)(2) Example 2
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (c)(2)(iii)(B)(1) of this section
+> (Example 1), except that Employer L invites only highly-compensated
+> employees to the holiday party, and the invoice provided by the hotel lists
+> the costs for food and beverages separately from the cost of the rental of
+> the ballroom. The costs reflect the venue's usual selling price for food or
+> beverages. The exception in this paragraph (c)(2)(iii) does not apply to the
+> rental of the ballroom or the food and beverage expenses because L invited
+> only highly-compensated employees to the holiday party. However, under §
+> 1.274-11(b)(1)(ii), the food and beverage expenses are not treated as
+> entertainment. Therefore, L is not subject to the full disallowance for its
+> separately stated food and beverage expense under section 274(a)(1) and §
+> 1.274-11(a). Unless another exception in section 274(n)(2) and paragraph
+> (c)(2) of this section applies, L may deduct only 50 percent of the food and
+> beverage costs under paragraph (a)(2) of this section. In addition, the
+> limitations in section 274(k)(1) and paragraph (a)(1) of this section apply
+> because none of the exceptions in section 274(k)(2) and paragraph (c)(2) of
+> this section apply.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iii)(B)(3) Example 3
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer M provides free coffee, soda, bottled water, chips, donuts, and
+> other snacks in a break room available to all employees. A break room is not
+> a recreational, social, or similar activity primarily for the benefit of the
+> employees, even if some socializing related to the food and beverages
+> provided occurs. Thus, the exception in section 274(e)(4) and this paragraph
+> (c)(2)(iii) does not apply and unless another exception in section 274(n)(2)
+> and paragraph (c)(2) of this section applies, M may deduct only 50 percent
+> of the expenses for food and beverages provided in the break room under
+> paragraph (a)(2) of this section. In addition, the limitations in section
+> 274(k)(1) and paragraph (a)(1) of this section apply because none of the
+> exceptions in section 274(k)(2) and paragraph (c)(2) of this section apply.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iii)(B)(4) Example 4
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer N has a written policy that employees in a certain medical
+> services-related position must be available for emergency calls due to the
+> nature of the position that requires frequent emergency responses. Because
+> these emergencies can and do occur during meal periods, N furnishes food and
+> beverages to employees in this position without charge in a cafeteria on N's
+> premises. N excludes food and beverage expenses from the employees' income
+> as meals provided for the convenience of the employer excludable under
+> section 119. Because these food and beverages are furnished for the
+> employer's convenience, and therefore are not primarily for the benefit of
+> the employees, the exception in section 274(e)(4) and this paragraph
+> (c)(2)(iii) does not apply, even if some socializing related to the food and
+> beverages provided occurs. Further, the exception in section 274(e)(2) and
+> paragraph (c)(2)(i) of this section does not apply. Thus, unless another
+> exception in section 274(n)(2) and paragraph (c)(2) of this section applies,
+> N may deduct only 50 percent of the expenses for food and beverages provided
+> to employees in the cafeteria under paragraph (a)(2) of this section. In
+> addition, the limitations in section 274(k)(1) and paragraph (a)(1) of this
+> section apply because none of the exceptions in section 274(k)(2) and
+> paragraph (c)(2) of this section apply.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iii)(B)(5) Example 5
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer O invites an employee and a client to dinner at a restaurant.
+> Because it is the birthday of the employee, O orders a special dessert in
+> celebration. Because the meal is a business meal, and therefore not
+> primarily for the benefit of the employee, the exception in section
+> 274(e)(4) and this paragraph (c)(2)(iii) does not apply, even though an
+> employee social activity in the form of a birthday celebration occurred
+> during the meal. Thus, unless another exception in section 274(n)(2) and
+> paragraph (c)(2) of this section applies, O may deduct only 50 percent of
+> the meal expense. In addition, the limitations in section 274(k)(1) and
+> paragraph (a)(1) of this section apply because none of the exceptions in
+> section 274(k)(2) and paragraph (c)(2) of this section apply.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iv)(B)(1) Example 1
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer P is a real estate agent and provides refreshments at an open house
+> for a home available for sale to the public. The refreshments are consumed
+> by P's employees, potential buyers of the property, and other real estate
+> agents. Under section 274(e)(7) and this paragraph (c)(2)(iv), the expenses
+> associated with the refreshments are not subject to the deduction
+> limitations in paragraph (a) of this section if P determines that over 50
+> percent of the food and beverages are actually or reasonably estimated to be
+> consumed by potential buyers and other real estate agents. If more than 50
+> percent of the food and beverages are not actually or reasonably estimated
+> to be consumed by the general public, only the costs attributable to the
+> food and beverages provided to the general public are excepted under section
+> 274(e)(7) and this paragraph (c)(2)(iv). In addition, the limitations in
+> section 274(k)(1) and paragraph (a)(1) of this section apply to the expenses
+> associated with the refreshments that are not excepted under section
+> 274(e)(7) and this paragraph (c)(2)(iv).
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iv)(B)(2) Example 2
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer Q is an automobile service center and provides refreshments in its
+> waiting area. The refreshments are consumed by Q's employees and customers,
+> and Q reasonably estimates that more than 50 percent of the refreshments are
+> consumed by customers. Under section 274(e)(7) and this paragraph
+> (c)(2)(iv), the expenses associated with the refreshments are not subject to
+> the deduction limitations provided for in paragraph (a) of this section
+> because the food and beverages are primarily consumed by customers. Thus, Q
+> may deduct 100 percent of the food and beverage expenses.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iv)(B)(3) Example 3
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer R operates a summer camp open to the general public for children
+> and provides breakfast and lunch, as part of the fee to attend camp, both to
+> camp counselors, who are employees, and to camp attendees, who are
+> customers. There are 20 camp counselors and 100 camp attendees. The same
+> type of meal is available to each counselor and attendee, and attendees
+> consume more than 50 percent of the food and beverages. Under section
+> 274(e)(7) and this paragraph (c)(2)(iv), the expenses associated with the
+> food and beverages are not subject to the deduction limitations in paragraph
+> (a) of this section, because over 50 percent of the food and beverages are
+> consumed by camp attendees and the food and beverages are therefore
+> primarily consumed by the general public. Thus, R may deduct 100 percent of
+> the food and beverage expenses.
+
+---
+
+## 26 CFR 1.274-12(c)(2)(iv)(B)(4) Example 4
+
+**Source:** S1 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Employer S provides food and beverages to its employees without charge at a
+> company cafeteria on its premises. Occasionally, customers or other visitors
+> also eat without charge in the cafeteria. The occasional consumption of food
+> and beverages at the company cafeteria by customers and visitors is less
+> than 50 percent of the total amount of food and beverages consumed at the
+> cafeteria. Therefore, the food and beverages are not primarily consumed by
+> the general public, and only the costs attributable to the food and
+> beverages provided to the general public are excepted under section
+> 274(e)(7) and this paragraph (c)(2)(iv). In addition, the limitations in
+> section 274(k)(1) and paragraph (a)(1) of this section apply to the expenses
+> associated with the food and beverages that are not excepted under section
+> 274(e)(7) and this paragraph (c)(2)(iv).
