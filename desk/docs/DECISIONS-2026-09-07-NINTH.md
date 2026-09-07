@@ -344,3 +344,21 @@ close, the eye slides off the capitals… the middle inventory of what was check
 is the part I would actually cut."* They did the work; they win. One clause still
 names what was checked, so it is not bare — and the tier and source were printed
 beside the citation anyway, so the inventory said it twice.
+
+### 3a · And the fix for #3 raised something else
+
+CI went red on the test written for it. On a machine with **no plugin
+installed** — a CI runner is one — the fallback's `os.listdir` threw a bare
+`FileNotFoundError` naming a path, which tells a reader nothing about what to
+do. The KeyError was gone and an equally useless traceback had taken its place.
+
+**The test was also wrong, and that is the more useful half.** It asserted the
+snippet *always succeeds*, which is false: without the plugin there is genuinely
+no desk to ask. What it should assert — and now does — is that **both outcomes
+are useful**: it resolves and says where, or it refuses in words a reader can
+act on. The snippet now exits with *"no desk plugin at ‹path›. Install it —
+`claude plugin marketplace update satc && claude plugin update desk@satc` — or
+set CLAUDE_PLUGIN_ROOT to where it lives. There is no desk to ask."*
+
+Both machines are exercised in the test: this one, where the plugin is
+installed, and a synthetic clean `HOME`, which is what CI has.

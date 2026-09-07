@@ -303,22 +303,49 @@ def test_the_unchecked_sentence_is_short_enough_to_survive_repetition():
     assert "Read the passage below" in out.unchecked
 
 
-def test_the_skills_first_line_runs_with_no_environment_variable():
+def test_the_skills_first_line_does_not_need_an_environment_variable():
     """`CLAUDE_PLUGIN_ROOT` is set when the skill is INVOKED and unset in a
-    plain shell, so the documented first line of first use raised KeyError for a
-    session that pasted it. Executed here rather than pattern-matched — a
-    snippet that only LOOKS right is what shipped last time."""
+    plain shell, so the documented first line of first use raised KeyError for
+    a session that pasted it. Executed rather than pattern-matched — a snippet
+    that only LOOKS right is what shipped.
+
+    AND THE FIRST FIX FOR THAT RAISED SOMETHING ELSE. On a machine with no
+    plugin installed — CI is one — `os.listdir` on the missing cache threw a
+    bare `FileNotFoundError` naming a path, which tells a reader nothing about
+    what to do. Caught by this test going red in CI, which is the test working.
+
+    So the assertion is not "it always succeeds", which is false: without the
+    plugin there is genuinely no desk to ask. It is that BOTH outcomes are
+    useful — it imports, or it says what is missing and how to get it.
+    """
     import re
     import subprocess
     import sys as _sys
+    import tempfile
+
     skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
     block = re.search(r"```python\n(import os, sys\n.*?)```", skill, re.S).group(1)
     snippet = block.split("import ask")[0] + "print(sys.path[0])"
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
-    done = subprocess.run([_sys.executable, "-c", snippet],
-                          capture_output=True, text=True, env=env)
-    assert done.returncode == 0, (
-        f"the skill's opening snippet raises without the variable:\n{done.stderr}")
+    base = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
+
+    # 1 · where the plugin IS installed, it must resolve and say where.
+    here = subprocess.run([_sys.executable, "-c", snippet],
+                          capture_output=True, text=True, env=base)
+    if here.returncode:
+        assert "no desk plugin at" in here.stdout + here.stderr, (
+            f"raised something unreadable:\n{here.stderr}")
+    else:
+        assert here.stdout.strip(), "resolved silently to nothing"
+
+    # 2 · where it is NOT, it must refuse in words a reader can act on —
+    #     never a traceback about a missing directory.
+    away = subprocess.run([_sys.executable, "-c", snippet], capture_output=True,
+                          text=True, env=dict(base, HOME=tempfile.mkdtemp()))
+    out = away.stdout + away.stderr
+    assert "Traceback" not in out, f"bare traceback on a clean machine:\n{out}"
+    assert "no desk plugin at" in out and "claude plugin" in out, (
+        f"does not say what is missing or how to get it:\n{out}")
+
 
 
 def test_the_skill_warns_that_the_tool_may_serve_a_stale_copy():

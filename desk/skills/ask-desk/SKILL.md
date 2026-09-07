@@ -38,8 +38,14 @@ import os, sys
 # 7 September 2026, closing a set of books. Fall back to the installed tree.
 ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
     "~/.claude/plugins/cache/satc/desk")
-if not os.path.isdir(os.path.join(ROOT, "desks")):          # a versioned cache
-    ROOT = max((os.path.join(ROOT, v) for v in os.listdir(ROOT)), key=os.path.getmtime)
+if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
+    versions = sorted(os.listdir(ROOT))                     # a versioned cache
+    ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
+if not os.path.isdir(os.path.join(ROOT, "desks")):
+    raise SystemExit(
+        f"no desk plugin at {ROOT}. Install it — `claude plugin marketplace "
+        f"update satc && claude plugin update desk@satc` — or set "
+        f"CLAUDE_PLUGIN_ROOT to where it lives. There is no desk to ask.")
 sys.path.insert(0, ROOT)
 import ask
 
