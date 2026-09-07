@@ -63,7 +63,14 @@ tr:hover td{background:#faf7f0}
 .b-Signed{background:#efe7d6;color:var(--gold-deep)}
 .b-CONFIRMED{background:#e2efe5;color:var(--green)}
 .b-NEEDS_REVIEW{background:#f7e3e1;color:var(--red)}
-.b-STAGED{background:#efe7d6;color:var(--gold-deep)}
+/* `--gold-deep` (#8A6F44) on this badge's own #efe7d6 measures 3.85:1, under
+   WCAG AA's 4.5. It reads on the STAGING screen -- where a preparer confirms
+   an extracted figure before it reaches a workpaper -- so it is small print
+   that matters. #7A6039 is the same gold two steps down and measures 4.80:1.
+   `--gold-deep` is left alone: it is legible everywhere else it is used, and
+   moving the variable to fix one badge would change links and headings that
+   were never wrong. */
+.b-STAGED{background:#efe7d6;color:#7A6039}
 .b-REJECTED{background:#eee;color:#777}
 .status-Filed,.status-Accepted{color:var(--green);font-weight:600}
 .status-In.review,.status-In.prep{color:var(--gold-deep)}
@@ -76,6 +83,18 @@ tr:hover td{background:#faf7f0}
 .btn.sm{padding:3px 9px;font-size:11.5px}
 form.inline{display:inline}
 .muted{color:var(--charcoal);font-size:12px}
+/* A MUTED COUNT IN A PANEL HEADER SITS ON NAVY, NOT ON PAPER.
+   `--charcoal` (#1F2733) against `--navy` (#0B1F3A) measures 1.10:1 -- present
+   in the DOM, invisible to a person, and WCAG AA asks for 4.5:1. Every
+   `<h2>Asked for <span class="muted">· 4 open</span></h2>` in the app was
+   rendering that count into the background.
+   Found by opening the page in a browser on 4 September 2026. Nothing in 1,685
+   passing tests could see it: the span is there, its text is correct, and a
+   test client cannot tell dark-on-dark from readable. 32 headers across ten
+   templates were affected, so this is one rule rather than 32 edits.
+   #A8B6C9 measures 8.02:1 -- still clearly secondary to the white heading
+   beside it, and legible. */
+.panel h2 .muted{color:#A8B6C9}
 .right{text-align:right}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 .tie{color:var(--green);font-weight:600}

@@ -1,0 +1,11 @@
+Dear {salutation},
+
+Just a quick note to wish you a very happy birthday from all of us at {firm_name}.
+
+No tax content, no attachments, nothing needed from you. We hope you have a good one.
+
+Warm regards,
+{preparer_name}
+{firm_name}
+
+— DRAFT for preparer review. Not sent automatically. —

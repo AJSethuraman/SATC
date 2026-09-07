@@ -18,9 +18,20 @@ is the whole manual.
 3. ```powershell
    python control_center.py --doctor
    ```
-   One command answers "will this machine work?": python deps, and which
-   data hosts your proxy allows (with the exact hostnames to give IT if
-   any are blocked). **Demo mode always works offline.**
+   One command answers "will this machine work?": python deps, credential
+   status, and which data hosts your proxy allows (with the exact
+   hostnames to give IT if any are blocked). **Demo mode always works
+   offline.**
+4. Credentials — the whole surface is ONE free key + one identifier,
+   stored in the workbooks themselves. Configure once, applied everywhere:
+   ```powershell
+   python control_center.py --configure fred_api_key "your-key"
+   python control_center.py --configure edgar_user_agent "YourOrg you@bank.com"
+   ```
+   (Or the GUI's **Configure keys...** button — one dialog, both values.)
+   FDIC, CFPB and NY Fed need nothing. The FRED key is free at
+   fredaccount.stlouisfed.org/apikeys; the EDGAR value is just SEC's
+   identify-yourself rule, not a secret.
 
 ## Daily driving
 

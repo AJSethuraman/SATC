@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from satc.models.actor import Actor
+
 # Where a value originated. Drives trust: SOURCE_DOC and PRIOR_YEAR_CARRYFORWARD
 # are the only origins allowed to populate intake fields. DRAKE_OUTPUT is for
 # reconciliation/data-mart seeding only — never to populate a workpaper input.
@@ -60,6 +62,42 @@ class Provenance:
     note: str = ""
     extractor: str = ""                   # which extractor/parser produced it
     extracted_at: datetime | None = None
+    produced_by: Actor | None = None
+    """WHO produced this value — and the taint follows the value, not the reader.
+
+    A value a model produced stays model-produced through OCR correction,
+    normalisation, and re-extraction: see :meth:`derive`. Defining "is this
+    model output?" on the *reader that last touched it* is how a laundered
+    value reaches the confirmation gate looking deterministic.
+    """
+
+    @property
+    def is_model_produced(self) -> bool:
+        return self.produced_by is not None and self.produced_by.is_model
+
+    def derive(self, *, by: Actor, note: str = "",
+               confidence: Confidence | None = None) -> Provenance:
+        """A new provenance for a value derived from this one.
+
+        **Sticky and transitive.** If either this value or the deriving actor is
+        a model, the result is model-produced. A deterministic post-processor
+        running over model output does not launder it back to clean; the only
+        thing that turns a proposal into a fact is a human at the gate.
+        """
+        # If this value was already model-produced, the derived value keeps that
+        # model as its producer no matter who derived it — deterministic
+        # post-processing cannot launder model output clean. Otherwise the
+        # deriving actor becomes the producer, so a model deriving from a clean
+        # value taints the result.
+        produced_by = self.produced_by if self.is_model_produced else by
+        return Provenance(
+            source_kind=self.source_kind,
+            confidence=confidence or self.confidence,
+            source_ref=self.source_ref,
+            note=" ".join(x for x in (self.note, note) if x),
+            extractor=self.extractor,
+            extracted_at=self.extracted_at,
+            produced_by=produced_by)
 
     def short_source(self) -> str:
         """A compact human label for a tie-out column (no PII)."""

@@ -8,6 +8,7 @@ from satc.config import load_extraction_map
 from satc.ingest import MAPPING_1040, MapExtractor, StagingGate
 from satc.ingest.extractors.base import parse_money
 from satc.fixtures import synthetic_documents
+from satc.models.actor import INTAKE
 
 
 def _gate_from_synthetic() -> StagingGate:
@@ -49,7 +50,7 @@ def test_malformed_money_routes_to_review_not_guessed():
 
 def test_auto_confirm_only_high_confidence():
     gate = _gate_from_synthetic()
-    confirmed = gate.auto_confirm_high()
+    confirmed = gate.auto_confirm_high(INTAKE)
     assert confirmed > 0
     # The malformed field stays in review.
     assert any(f.field_path == "div.box1b_qualified" for f in gate.needs_review())
@@ -60,7 +61,7 @@ def test_auto_confirm_only_high_confidence():
 
 def test_aggregation_sums_two_w2s_into_wages():
     gate = _gate_from_synthetic()
-    gate.auto_confirm_high()
+    gate.auto_confirm_high(INTAKE)
     values = gate.to_line_values(MAPPING_1040)
     # 98,000 + 47,000 across two W-2s
     assert values["wages"] == 145000.0

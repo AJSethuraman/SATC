@@ -57,3 +57,23 @@ def test_1040_prefilled_inputs_and_links(tmp_path):
         for r in ws.iter_rows() for c in r
     )
     assert has_xw_link
+
+
+def test_the_workbook_and_the_app_agree_on_a_due_date():
+    """A workbook that computes its own deadlines answers "when is this due"
+    differently from the app, forever, and nothing ever notices.
+
+    The 1120-S case is the tell: March 15, 2026 is a Sunday, so the real date is
+    the 16th. The old hardcoded table said the 15th.
+    """
+    from satc.obligations.due_dates import compute, tax_year
+    from satc.obligations.rules import rule
+    from satc.workbook.dashboards import _RULE_FOR_TYPE, _due_dates
+
+    for return_type, rule_key in _RULE_FOR_TYPE.items():
+        book_due, book_ext = _due_dates(return_type, 2025)
+        app = compute(rule(rule_key), tax_year(2025))
+        assert book_due == app.due, return_type
+        assert book_ext == app.extended_due, return_type
+
+    assert _due_dates("1120S", 2025)[0].day == 16, "the weekend shift was lost"

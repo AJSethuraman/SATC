@@ -1,4 +1,8 @@
 
+# Ephemeral subagent git worktrees (isolation mode) -- never commit
+.claude/worktrees/
+
+
 # Rendered client documents, wherever they land. `client-documents/.gitignore`
 # already covers its own; this covers the repository root, which
 # `exercise.py` wrote to on its first run before the default was changed.
@@ -16,3 +20,19 @@ __pycache__/
 # Cached source pages fetched by docs/guides/verify_sources.py. Regenerable,
 # large, and a snapshot of somebody else's site rather than our work.
 docs/guides/.source-cache/
+# Virtual environments at the repository root. Every project that has one
+# ignores its own (`client-documents/`, `satc_system/`, `invoice-generator/`),
+# but nothing covered the root, and on 3 September 2026 the first run on the
+# firm's own machine created one there -- `python -m venv .venv` at the top is
+# the obvious thing to type when three projects need dependencies at once.
+# ~200 MB, and `git add -A` would have taken all of it.
+.venv/
+venv/
+
+# Editable-install metadata. Created by `pip install -e .` and committed by
+# accident on 4 Sep 2026 while verifying the credit-suite CI recipe locally.
+*.egg-info/
+
+# Findings from an adversarial pass: taken by intake.py, never committed.
+# They are red by design; the suite is red only when something broke.
+canon/findings/

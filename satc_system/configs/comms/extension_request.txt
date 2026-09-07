@@ -1,0 +1,22 @@
+Dear {salutation},
+
+We'd like your written go-ahead to file an extension for your {tax_year} return.
+
+{extension_reason}
+
+Two things worth being clear about:
+
+  • An extension gives more time to FILE, not more time to PAY. If you expect to owe,
+    that payment is still due on the original date, and interest runs from then.
+  • Nothing is lost by extending. It is routine, it is not a red flag, and it is far
+    better than filing something rushed.
+
+Just reply "yes, please file the extension" and we'll take care of it. We won't file one
+without hearing from you.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

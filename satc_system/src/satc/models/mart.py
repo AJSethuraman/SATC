@@ -24,10 +24,12 @@ from satc.models.provenance import Provenance
 # Controlled vocabularies (port to SQL lookup tables / enums)
 # ---------------------------------------------------------------------------
 
-# Pipeline status drives the practice dashboards.
-PipelineStatus = Literal[
-    "Awaiting docs", "In prep", "In review", "Ready to file", "Filed", "Accepted", "Rejected",
-]
+# ReturnRecord no longer carries a status. Three authorities, three homes:
+#   Job.stage        — what the OWNER does next          (models/work.py)
+#   Job.client_status— what the CLIENT is told           (derived, coarser)
+#   Filing.ack_code  — whether the IRS actually has it   (models/filing.py)
+# The old PipelineStatus collapsed all three into one column and called
+# transmission "Filed", which IRS Pub 1345 contradicts.
 
 # Carryforward kinds the mart stores and rolls forward. Drake computes these; the
 # mart STORES and CARRIES them so we always hold each client's record-level data
@@ -64,12 +66,8 @@ class ReturnRecord:
     tax_year: int
     return_type: str            # "1040" | "1120S" | "1065" | "1120"
     jurisdiction: str           # "US" | "OH" | "MI" | "MA" | ...
-    status: PipelineStatus = "Awaiting docs"
     preparer_id: str = ""       # seam for multiple preparers; "" = solo default
     residency: ResidencyStatus = "NA"
-    is_extended: bool = False
-    filed_date: date | None = None
-    accepted_date: date | None = None
     # Headline results stored at the return level for fast dashboards / comparison.
     refund_amount: Decimal | None = None
     balance_due_amount: Decimal | None = None
@@ -148,43 +146,6 @@ class EstimatePayment:
     provenance: Provenance | None = None
 
 
-@dataclass(slots=True)
-class EngagementRecord:
-    """Engagement & fee data (lightweight). PK = (client_id, tax_year)."""
-
-    client_id: str
-    tax_year: int
-    engagement_letter_status: str = "Not sent"   # Not sent / Sent / Signed
-    fee_amount: Decimal | None = None
-    invoiced: bool = False
-    paid: bool = False
-    preparer_id: str = ""
-    note: str = ""
-
-
-# Document & communication repository status (audit trail).
-DocStatus = Literal["Requested", "Received", "Sent", "Signed", "N/A"]
-
-
-@dataclass(slots=True)
-class DocumentRecord:
-    """Document & communication repository row — metadata + link, never the file.
-
-    Proves what was requested, sent, received, or signed. The file itself stays in
-    SharePoint; this holds only metadata + the link. Drives the missing-documents
-    tracker and the proof-of-communication audit trail.
-    """
-
-    document_id: str
-    client_id: str
-    tax_year: int
-    doc_type: str               # W-2, 1099, organizer, signed 8879, delivery email, ...
-    status: DocStatus | str
-    as_of: date | None = None
-    sharepoint_link: str = ""
-    actor: str = ""             # who (preparer/system); de-identified handle
-    note: str = ""
-
 
 @dataclass(slots=True)
 class DataMart:
@@ -196,5 +157,6 @@ class DataMart:
     carryforwards: list[Carryforward] = field(default_factory=list)
     owner_basis: list[OwnerBasis] = field(default_factory=list)
     estimate_payments: list[EstimatePayment] = field(default_factory=list)
-    engagements: list[EngagementRecord] = field(default_factory=list)
-    documents: list[DocumentRecord] = field(default_factory=list)
+    engagements: list = field(default_factory=list)          # work.Engagement
+    requested_items: list = field(default_factory=list)     # evidence.RequestedItem
+    received_documents: list = field(default_factory=list)  # evidence.ReceivedDocument

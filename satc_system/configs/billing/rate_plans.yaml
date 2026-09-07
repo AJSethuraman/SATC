@@ -1,0 +1,109 @@
+# ── RETIRED, NOT DELETED — read this before using anything below ───────────
+#
+# **THESE PLANS DO NOT PRICE ANYTHING, AND THEY NEVER REACHED A CLIENT.**
+#
+# `rate_plan_key` was written by exactly two things: this store's own loader,
+# and four test files. No route, no form, no command has ever set a plan on an
+# engagement — and until 4 September 2026 the product never created the
+# `Engagement` row a plan would sit on either.
+#
+# THE SLIDING SCALE WAS SOMEWHERE ELSE THE WHOLE TIME. The firm, 5 September
+# 2026, asked what the student rate meant:
+#
+#   "when i say college student gets it cheaper, i literally mean hey if you
+#    are in college and working that's rough, we have the simple filer deal
+#    just for you - same with someone not in college."
+#
+# It is a cheap TIER, not a percentage off. `client-documents`'
+# `pricing.derive_tier` returns "the tier that costs this client LEAST", and it
+# runs inside the path the client's own estimate comes from. Measured: a
+# working student with one W-2 is quoted $100, $150 with a second state, and
+# `cli.py ladder` reports Essentials eligible 24 times and chosen 12 — beaten
+# by Simple Filer the other twelve.
+#
+# WHAT IS KEPT, AND WHY. `requires_basis` — a reduction must carry a recorded
+# reason — is good design whichever file does the arithmetic, and it is the
+# mechanism you would want back if the practice ever offers a hardship
+# reduction ON TOP of the cheapest package. `Invoice.issue` still refuses a
+# reduced plan with no recorded basis, and a test still proves it.
+#
+# So: nothing here is deleted, nothing here is reachable, and none of it is the
+# price. The price is `client-documents/registry/fee-schedule.yaml`.
+#
+# RATE PLANS — what a given client actually pays, and why.
+#
+# The practice bills on VALUE, adjusted for MEANS. Someone doing an ordinary
+# W-2 return on an ordinary income should not pay what a business owner with
+# three entities pays for the same hour of attention.
+#
+# Two rules make this honest rather than arbitrary:
+#
+# 1. THE DISCOUNT IS SHOWN, NOT HIDDEN. An invoice always states the standard
+#    rate, the reduction, and the reason. A client on a reduced plan sees what
+#    they were given. Quietly charging less is worse for everyone: they never
+#    learn what the work was worth, and the practice never gets the credit.
+#
+# 2. EVERY PLAN NEEDS A REASON RECORDED against the client. `requires_basis`
+#    forces it. A sliding scale with no stated basis is not a sliding scale, it
+#    is improvisation — and improvisation is what looks like discrimination
+#    when someone compares notes.
+#
+# Never expressible here, by design: a fee that depends on the refund or on a
+# tax position taken. Circular 230 §10.27 prohibits contingent fees for return
+# preparation. The engine refuses it structurally — a plan is a percentage off
+# a STANDARD RATE, and has no access to the outcome of the return.
+
+meta:
+  default_plan: standard
+
+plans:
+  - key: standard
+    name: "Standard"
+    discount_pct: 0
+    requires_basis: false
+    client_label: ""
+    note: "Full rate. The default; no basis needed."
+
+  - key: household
+    name: "Household rate"
+    discount_pct: 25
+    requires_basis: true
+    client_label: "Household rate applied"
+    note: >-
+      Ordinary personal returns for working households. The everyday case this
+      practice wants to stay affordable.
+
+  - key: fixed_income
+    name: "Fixed income"
+    discount_pct: 40
+    requires_basis: true
+    client_label: "Fixed-income rate applied"
+    note: "Retired or on a fixed income, where the fee matters more than the hour does."
+
+  - key: hardship
+    name: "Hardship"
+    discount_pct: 60
+    requires_basis: true
+    client_label: "Hardship rate applied"
+    note: >-
+      A rough year — job loss, illness, a death in the family. Offered rather
+      than waited for.
+
+  - key: pro_bono
+    name: "No charge"
+    discount_pct: 100
+    requires_basis: true
+    client_label: "No charge this year"
+    note: >-
+      Someone who needs the return done and cannot pay for it. The invoice is
+      still ITEMISED at full value, because the point is that they see what
+      they were given — a zero with no breakdown teaches nothing.
+
+  - key: commercial
+    name: "Commercial"
+    discount_pct: 0
+    requires_basis: false
+    client_label: ""
+    note: >-
+      Full rate, named separately from `standard` so the practice can tell at a
+      glance which side of the book a client sits on.

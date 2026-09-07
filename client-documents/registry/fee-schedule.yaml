@@ -119,9 +119,65 @@ basis:
   # why they are not getting it. The firm's own framing is the one to use:
   # our minimum is $200, unless your return is simpler than that.
   #
-  # A test holds the floor: no OTHER package may sit under it.
+  # NO LONGER A RULE THE SOFTWARE ENFORCES. The firm, 2 September 2026, asked
+  # directly whether the minimum binds an hourly engagement:
+  #
+  #     $200 minimum is no longer a hard and fast rule, it was my prior
+  #     starting point. i will decline engagements i dont think are worth it
+  #     on my own basis
+  #
+  # So the number stays recorded -- it is a real reference the firm reasons
+  # from, and deleting it would lose the August decision -- but it is advisory.
+  # Nothing raises a price to reach it and nothing refuses a price below it.
+  # Whether a piece of work is worth taking is a judgement, and this file's own
+  # standing rule is that a policy invented in a config file is a policy nobody
+  # decided. The firm decided the opposite of a policy here.
+  #
+  # WHAT THIS DOES NOT CHANGE: `minimum_increment` above, which is the quarter
+  # hour. That is how time is measured, not what an engagement is worth.
   minimum: 200
   minimum_exception: starter
+  minimum_is_advisory: true
+
+# ── hourly work, and the only way it reaches a bill ────────────────────────
+#
+# THE GAP THIS CLOSES. $150 an hour is published on the firm's own price page,
+# "billed to the quarter hour", under five named situations. `assumed.cleanup`
+# below tells a client in writing that reconciling their records is billed
+# hourly against the estimate. The time log measures the hours. And until this
+# block existed there was NO hourly construct in this schedule and no way for
+# an hour to become a line -- so work the firm already sells, and has already
+# promised clients it would bill, could not be billed at all. Found 2 September
+# 2026, walking the four service lines.
+#
+# THE SITUATIONS ARE THE FIRM'S OWN PUBLISHED WORDING, transcribed from
+# website/pricing-config.js `hourlyApplies` rather than restated. A client has
+# already read these sentences; the estimate must not describe the same work in
+# different words.
+#
+# NO MINIMUM APPLIES. Asked directly, 2 September 2026: "$200 minimum is no
+# longer a hard and fast rule, it was my prior starting point. i will decline
+# engagements i dont think are worth it on my own basis." So a twenty-minute
+# notice is a twenty-minute notice. `basis.minimum_increment` still holds --
+# the quarter hour is how time is measured, not what work is worth.
+#
+# HOURS ARE ESTIMATED, AND THAT IS THE POINT. The line carries a money amount
+# so `EstimateTotal` is a real number, which means the invoice's existing
+# variance check does the work: bill more hours than the estimate carried and
+# the invoice refuses without a written reason. An "hourly, amount unknown"
+# line would have bypassed the one protection the client already has.
+hourly:
+  situations:
+    keyed_brokerage:
+      label: "Keyed brokerage statements"
+    foreign_interest:
+      label: "An interest in a company based abroad"
+    notice:
+      label: "A letter from the IRS or the state you would like us to handle"
+    officer_pay:
+      label: "Setting what an S corporation owner pays themselves"
+    cleanup:
+      label: "Books that need cleaning up or reconciling"
 
 # ── how the base fee relates to the counts ────────────────────────────────
 #

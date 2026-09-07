@@ -700,3 +700,268 @@ them delete a test on the way past. What replaced it is the reason, in the
 somebody is reading at the exact moment they are wondering whether to add one.
 That list is the control, and it is a better one than the test was, because it
 arrives before the edit rather than after it.
+
+---
+
+## S31 · A claim and the behaviour it describes are two things. Build the third: something that compares them.
+
+> "there is likely things that haven't even been considered let alone built" — the firm, 1 September 2026
+
+**Every bug found in the week of 31 August was this one**, and so was the fix I
+nearly shipped for the first of them. §0 of this document says the shape is
+*something reported success without having done the work*. This is where that
+comes from: a **claim** written in one place, the **behaviour** in another, and
+nothing in between that would notice they had come apart.
+
+| The claim | The behaviour | What was missing |
+|---|---|---|
+| `_page_text` — "the document's text" | Read page 1, and page 1 of an IRS blank is a notice | Anything scoring the page it actually returned. Four forms confidently wrong |
+| `text_layer_chars` — "does this file carry text" | Asked page one of eleven | A scanned W-2 declared readable; both model rungs skipped |
+| A W-2 extraction map's box labels | Anchored across eleven pages including the instructions | **$200,000 of wages off a blank form, auto-confirmed** |
+| `Requested` — "the client owes us this" | Closed by the first form of five to arrive | A bundle that knew what it was still waiting for. Three green tests defended it |
+| `classified` — "we know what this is" | True for a LOW guess off the filename | A Schedule C named `…1040.pdf` closed a prior-year request |
+| `save_answers` refuses a TIN | The draft is written after **every question**, before that | **A client's SSN on disk in cleartext** |
+| `--what`, free text on a time entry | Written straight to a file in OneDrive | The same guard, on the fifth seam |
+| "Every block pairs a signature line with a Date line" | Examined one template of five | A sweep. True by luck |
+| `materials_deadlines`, four dates typed by hand | *"CHECK THIS AGAINST THE IRS CALENDAR each season"* — an instruction to a person | The statute. Right for 2026, wrong the first year a deadline shifts |
+| The corpus score — "the classifier is right" | Ran `classify_path`; production runs `plan_split` first | **My own fix.** 5-of-13 to 12-of-13 with intake unchanged |
+
+**The last row is the one to read twice.** The fix was measured, the number was
+true, and the number described a code path production does not use. It was
+caught by an adversarial reviewer, not by me, and not by any test — because
+every test agreed with it.
+
+**Why this is not "write more tests".** Six of those ten had passing tests over
+the claim. The bundle bug had *three*. A test asserts the claim to itself; what
+was missing is a thing that asks the behaviour and compares. Sometimes that is a
+test, when it runs the real path with a real artifact. Often it is not:
+
+* the **corpus** of fourteen real IRS forms — because generated fixtures agreed with the code that made them;
+* `procedures --check` — the written procedure regenerated from the software and diffed;
+* `settings.py` refusing a typed deadline that disagrees with the statute — two answers, so something has to compare them;
+* mutation testing — the only thing that asks whether a test would notice.
+
+**The question, before shipping anything that states a fact:**
+
+* *Where else is this fact written?* If nowhere, write down why the reader should believe it here.
+* *If it is written twice, what compares them?* Build that, or delete one of the two.
+* *Would my check notice if the behaviour changed?* Break it on purpose and see. That is the only version of this question with an answer.
+
+**And the corollary the firm's own question produces.** A list of things that
+are wrong is a list of things somebody looked for. It is a claim about coverage,
+with nothing comparing it to what a practice actually needs — which is why the
+useful denominators came from documents the firm had already written and signed:
+the engagement letters' promises, the fee schedule's priced services, the four
+deadlines in the settings file. Ask what the work requires before asking what the
+code gets wrong.
+
+---
+
+## S32 · A test that builds its own fixture proves the code agrees with itself. Start where a person starts.
+
+Three defects in one session, all found by walking one client through the real
+commands, none of them found by a suite that passed on every commit.
+
+`deadlines.return_type_for` read a `FederalForm` key. No record this system has
+ever produced carries one — `intake.compose_record` writes `_return_type`, and
+the form number survives only as prose. Eight tests exercised the function, and
+every one of them built its own record with `FederalForm` on it, because that is
+the key the code asked for. So the season board placed nothing at all, in every
+real run since it was written, while its tests stayed green.
+
+`satc collect` never handed a store to `collect()`. Ten tests covered the
+reconciliation the store enables; every one called `collect(...)` directly and
+passed a store in. The command a person types passed none, so `client_for_ref`,
+`reconcile_received` and the report lines written to announce them were dead.
+
+The shape is the same both times, and it is not "write more tests":
+
+> A fixture built to the shape the code wants is a mirror. It reflects the
+> code's own assumptions back at it, and reflection is not evidence.
+
+**The rule.** For anything a person invokes — a CLI command, an HTTP route, a
+button — at least one test enters through that door and nowhere else. It builds
+its input the way the system builds it (`intake.compose_record`, not a dict
+literal), and it calls what the person calls (`cli.main([...])`, not the
+function three layers down).
+
+**The cost is real and it is worth paying.** A front-door test is slower, harder
+to read, and fails for more reasons than the one it was written for. That last
+property is the point: the two defects above were both *extra* reasons, and
+nothing narrower would have failed for them.
+
+**How to tell whether you have one.** Delete the wiring — the argument passed,
+the store handed in, the call made — and run the suite. If it stays green, every
+test you have is a mirror. That check took under a minute for each of these, and
+it is the only version of the question with an answer.
+
+*(Related: **S28**, front to back or it isn't delivered — this is what proves
+it; **S31**, build the thing that compares — a front-door test is often that
+thing; **S2**, a check reports its denominator — the season board's honest
+"1 could not be placed" is what made the first defect visible at all.)*
+
+---
+
+## S33 · A form must eliminate work, not just claim it can. Prove the claim with a run.
+
+The firm, 2 September 2026:
+
+> *"a tenet of any checklist or interview-like form we make (maybe you can think
+> of other ideas) in our software, no matter if for clients or internal use,
+> should be it directionally eliminates work where possible. for instance, if
+> something is not applicable why would you want to answer questions around it"*
+
+The tenet was already true in intention. The interview's questions carry
+`showIf`; the close-out's carry `applies_to`; both were written to skip what
+does not apply. And then this shipped:
+
+```yaml
+- id: sorting_amount
+  question: "How much for the sorting? ($175 minimum)"
+  showIf: "count_sorting != ''"
+```
+
+It reads correctly. It never once said no. A blank number is coerced to `None`
+— a number field cannot hold `""` — and `None != ''` is True, so the fee
+question was put to every client on every return type, including a one-W-2
+client who has sent nothing in. The condition existed, was read by every person
+who touched the file, and eliminated nothing.
+
+**A condition is a claim. Build the thing that runs it** (S31). `elimination.py`
+takes every condition in every form and asks one question of each: is there any
+answer a person can actually give that makes this false? `cli.py forms` is where
+a person reads the answer, and it prints its denominator (S2) — *27 conditional
+of 52 questions examined* — because "no dead conditions" means nothing beside an
+unknown number of them.
+
+**The trap inside the check, which caught me first.** The first version offered
+`""` as a candidate answer for every question, found that `count_sorting = ""`
+hides the fee question, and declared the condition healthy — while the live bug
+was running. `""` is not a value a number field can hold. A checker that invents
+values the system cannot produce proves the code agrees with *the checker*
+(S32). Every candidate now goes through `coerce`, exactly as both front doors
+do, and `test_the_elimination_sweep_would_notice_the_bug_it_exists_for` drives
+the sweep against a schema carrying that shape on purpose.
+
+**What this does not do**, and the boundary matters: it never judges whether a
+form asks too much. Nothing in software knows what a practice needs. It answers
+the one question a machine can answer — *does this condition ever fire* — and
+leaves the rest to the person who decided the question was worth asking.
+
+**The wider reading.** The tenet says *directionally*, and the direction is the
+point. The same session moved the interview's only refusal gate from question 30
+to question 4, because a client the firm does not take was answering 29 questions
+first — and made a HARD NO end the sitting where it is ticked instead of two
+questions later. Neither was a dead condition. Both were work the form could
+have eliminated and did not.
+
+*(Related: **S31**, build the thing that compares; **S32**, start where a person
+starts; **S2**, a check reports its denominator.)*
+
+---
+
+## S34 · Generating a document does not make it true. Check the generator against the software, not the document against the generator.
+
+`docs/OPERATING-PROCEDURES.md` carries this at the top, and every word of it is
+accurate:
+
+> **GENERATED. Do not edit this file.** Every step below is read out of the
+> code that performs it… It cannot name a command that does not exist, list a
+> document a return type does not get, or claim a check the gate does not
+> perform.
+
+`procedures --check` fails when the committed copy differs from what the
+generator emits. It runs in the suite. It works.
+
+The document was wrong in nine places anyway — including the **first command in
+the first procedure**, `from-lead --lead lead.json`, which argparse refuses
+outright because `lead` is positional. It had been wrong since the day it was
+written, under that guarantee.
+
+**The check was orthogonal to every defect it existed to prevent.** It compares
+the file to `render()`. Every wrong claim was inside `render()`, typed by hand:
+the flags, the values, the counts, the prose. `_require()` verified command
+*names*, so the preamble's promise was true of names and of nothing else — and
+nobody reading it would guess that was the boundary.
+
+**The rule.** When a document is generated from software, the check that
+matters runs the document's claims against the software. Not the file against
+the generator — that only proves nobody edited the file.
+
+Concretely, for anything a generated document asserts:
+
+* **A command line?** Parse it with the real parser. `cli.build_parser()` exists
+  so `procedures.unrunnable()` can, and it caught the front-page defect on its
+  first run.
+* **A count?** Count it. "Nine carry" was true of one sample; `CARRIES` holds
+  fifteen.
+* **A behaviour?** Ask the code. Section 4 said `sign` could not know whether an
+  invoice was settled; `signing._unsettled` blocks on exactly that. The sentence
+  had been transcribed from that function's own stale docstring.
+* **A completeness claim?** Compare both directions with a looser second reading
+  — and never test for zero. The HTML appendix guard was `if not embedded`, so
+  when one of nine templates stopped matching, eight embedded and the ninth fell
+  through in silence.
+
+**And the corollary about comments.** A docstring beside working code is a claim
+about it. `signing.may_file` said "nothing in this repository records whether an
+invoice was settled" long after something did — and that sentence did not merely
+sit there being wrong: it was copied, verbatim, into the firm's operating
+procedures, where a person would act on it. Prose near code is not inert.
+
+*(Related: **S31**, build the thing that compares — this is that, one layer up;
+**S32**, start where a person starts; **S2**, a check reports its denominator —
+22 command lines checked is what makes "none would fail" worth reading.)*
+
+---
+
+## S35 · Write for the person holding the screen, not the person who built it. The difference is what they can act on.
+
+The firm sent a screenshot of their own refusal screen:
+
+> This is work the firm does not take. **firm-settings.yaml** lists it under
+> **`hard_no`** and the **interview schema** marks the options themselves.
+
+and asked: *"why would that be in our software? what software says stuff like
+that to its user?"*
+
+Their preparer sees that mid-call, with a client across the desk. A filename
+there is a thing they now have to know about and cannot do anything with.
+
+**This repository already knew this rule and had scoped it too narrowly.**
+`CLAUDE.md` records it from the price page — *"A requirement written for whoever
+builds the thing is not copy"* — and `website/pricing.spec.py` enforces it on
+published copy. Both guard what a CLIENT reads. The preparer's own screens were
+treated as internal, and *internal* was quietly read as *may talk like a
+developer*. Sweeping once the firm asked found **six** of them.
+
+**The line is not internal versus external.** It is what the reader is holding:
+
+* **A terminal may name a file, a key, a command.** Its reader is already at a
+  prompt. `python cli.py render --engagement <REF>` is the most useful sentence
+  a CLI can print, and a rule that banned it everywhere would delete the best
+  thing about the command line.
+* **A screen may not.** Its reader is doing the work, not running the software.
+  Say what happened and what they can do about it; where the rule is written
+  down is the software's own business.
+
+**Four shapes to watch for**, each of which shipped here:
+
+1. **A filename** — "read from `fee-schedule.yaml`". They are on this screen
+   precisely so they never have to open it.
+2. **A config key or identifier** — "lists it under `hard_no`", "the registry's
+   business". Names something the reader cannot see and did not choose.
+3. **A command, on a page** — "the last time `cli.py payments` asked". If the
+   point is that the number may be stale, say *that*.
+4. **The builder's word for a thing** — "merge field". A blank that fills in
+   with the client's details is a blank.
+
+**The check is `plainspoken.py`**, and its test is the part worth copying: it
+feeds the checker the five sentences that actually shipped and fails if it would
+have let them through, then feeds it the five replacements and fails if it
+objects to any. A checker proved only against synthetic examples is a checker
+proved against nothing.
+
+*(Related: **S2**, it reports 241 strings examined so a rename cannot leave it
+reading none; **S31**, the thing that compares a claim to behaviour — here the
+claim is "our software speaks plainly" and nothing had ever asked.)*

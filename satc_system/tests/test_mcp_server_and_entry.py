@@ -20,7 +20,7 @@ import pytest
 
 SAFE_TOOLS = {"list_clients", "get_client", "estimate_withholding", "read_paystub"}
 WRITE_TOOLS = {"create_person_client", "create_business_client", "run_intake",
-               "post_confirmed_intake", "set_document_status"}
+               "post_confirmed_intake", "close_request"}
 
 
 @pytest.fixture()

@@ -13,6 +13,9 @@ own source and fails if a decision is ever written into it.
 from __future__ import annotations
 
 import json
+import uuid
+import re
+from datetime import date, timedelta
 import sys
 from pathlib import Path
 
@@ -45,12 +48,39 @@ def client(tmp_path):
 
 
 def _plausible(q):
-    """Any answer this question will accept -- the tests below care about
-    reaching a later question, not about what the earlier ones said."""
+    """Any answer this question will accept AND that does not end the sitting.
+
+    These tests care about reaching a later question, not about what the
+    earlier ones said. So a HARD NO option is never picked: the refusal
+    question moved to the front of the interview on 2 September 2026 and now
+    falls inside the walk, its first option is "Needs assurance work", and
+    ticking that correctly ends the sitting -- leaving these tests reading a
+    `question` key that is not there. Skipping the blockers keeps the helper
+    doing the one job it says it does."""
+    options = [o for o in (q.get("options") or []) if not o.get("hard_no")]
+    if options:
+        return [options[0]["value"]] if q["type"] == "multi" \
+            else options[0]["value"]
     if q.get("options"):
-        return [q["options"][0]["value"]] if q["type"] == "multi" \
-            else q["options"][0]["value"]
-    return 1 if q["type"] == "number" else "x"
+        # Every option is a blocker: answering nothing is the only way past.
+        return [] if q["type"] == "multi" else ""
+    # A `year` is a number with a window around today, so "x" and 1 are both
+    # refused. The helper has to know the type or every walk stalls at
+    # `tax_year` and the tests read a `question` key that never arrives.
+    if q["type"] == "year":
+        return date.today().year
+    if q["type"] == "number":
+        return max(1, q.get("min") or 1)
+    # A question that declares a shape refuses "x". Try stock values and hand
+    # back the first that fits, rather than mapping ids -- so the next question
+    # to grow a `pattern` does not silently stall every walk in this file.
+    if q.get("pattern"):
+        for candidate in ("t@example.com", "44139", "2025-01-01", "555-0100"):
+            if re.match(q["pattern"], candidate):
+                return candidate
+        raise AssertionError(
+            f"{q['id']} declares a pattern no stock value matches; add one here")
+    return "x"
 
 
 def answer_next(client, sid, value):
@@ -70,13 +100,23 @@ def answer_next(client, sid, value):
 def drive(client, answers):
     """Run a whole interview through the HTTP API, as automation would."""
     sid = client.post("/interview", headers=JSON).get_json()["draft"]
-    while True:
+    # BOUNDED, AND IT SAYS WHERE IT STUCK. `while True` here spins forever when
+    # `answers` has no entry for a required question: the POST comes back 400,
+    # the sitting does not advance, and the next read asks the same question
+    # again. That cost ten minutes of a test run on 3 September 2026 and looked
+    # like a hang rather than a failing test.
+    for _ in range(200):
         state = client.get(f"/interview/{sid}", headers=JSON).get_json()
         if state["complete"]:
             return sid
         qid = state["question"]["id"]
-        client.post(f"/interview/{sid}", json={"answer": answers.get(qid)},
-                    headers=JSON)
+        got = client.post(f"/interview/{sid}", json={"answer": answers.get(qid)},
+                          headers=JSON)
+        if got.status_code >= 400:
+            raise AssertionError(
+                f"the sitting cannot get past {qid!r}: "
+                f"{got.get_json().get('error')}")
+    raise AssertionError("the interview did not finish in 200 questions")
 
 
 # ── the same answers reach the same outcome by either door ────────────────
@@ -106,7 +146,26 @@ def test_a_hard_no_creates_nothing_through_the_web(client, answers):
 
 
 def test_the_web_can_override_a_hard_no_only_deliberately(client, answers):
-    sid = drive(client, dict(answers) | {"red_flags": ["assurance_needed"]})
+    """A HARD NO now ends the sitting where it is ticked, so the review screen
+    the override is pressed from is showing four answers out of thirty. The
+    override means "the list is wrong" — so the questions RESUME, and only then
+    can the engagement be created. Creating from the four would refuse anyway,
+    and tell the preparer the wrong reason."""
+    a = dict(answers) | {"red_flags": ["assurance_needed"]}
+    sid = drive(client, a)
+    resumed = client.post(f"/interview/{sid}/finish", json={"override": True},
+                          headers=JSON).get_json()
+    assert resumed.get("resumed") is True, (
+        "overriding an unfinished sitting must resume it, not create from it")
+
+    # The rest of the interview, now that the block has been waved through.
+    while True:
+        state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+        if state["complete"]:
+            break
+        client.post(f"/interview/{sid}",
+                    json={"answer": a.get(state["question"]["id"])}, headers=JSON)
+
     body = client.post(f"/interview/{sid}/finish", json={"override": True},
                        headers=JSON).get_json()
     assert body["status"] == "created" and body["overridden"] is True
@@ -624,6 +683,7 @@ def _gate_that_blocks(monkeypatch, detail="a sentence the firm deleted is back")
     monkeypatch.setattr(presend, "gate", fake)
 
 
+@pytest.mark.renders
 def test_the_browser_can_build_the_pack_the_terminal_builds(client, answers):
     ref = _an_engagement(client, answers)
     got = client.post(f"/engagement/{ref}/package", json={}, headers=JSON)
@@ -642,6 +702,7 @@ def test_the_browser_can_build_the_pack_the_terminal_builds(client, answers):
     assert body["written"], "a pack with no files in it reported success"
 
 
+@pytest.mark.renders
 def test_the_browser_cannot_skip_the_gate(client, answers, monkeypatch):
     """The one claim the whole arrangement rests on, at the one step that
     blocks."""
@@ -658,6 +719,7 @@ def test_the_browser_cannot_skip_the_gate(client, answers, monkeypatch):
     )
 
 
+@pytest.mark.renders
 def test_an_override_through_the_browser_is_recorded(client, answers,
                                                      monkeypatch):
     """The firm chose blocking-with-a-logged-override. A gate a browser cannot
@@ -694,16 +756,28 @@ def test_the_browser_will_not_write_into_somebody_elses_folder(client, answers):
     assert (theirs / "their-notes.txt").read_text(encoding="utf-8") == "mine"
 
 
+@pytest.mark.renders
 def test_the_failed_checks_come_before_the_green_ones_on_the_page(
         client, answers, monkeypatch):
     """The terminal prints the check list and then the refusal under it. On a
     page that ordering puts the thing you have to act on below a wall of
-    green."""
+    green.
+
+    ANCHORED ON STRUCTURE, NOT ON COPY. This looked for the literal string
+    `check(s) failed`, and the headline became `2 checks stopped it` when the
+    bracket-s plurals went -- so a wording change broke a test about ORDERING,
+    which is not what it is here to hold. The refusal block and the table of
+    every check are the two things whose order matters; their labels are free
+    to improve.
+    """
     ref = _an_engagement(client, answers)
     _gate_that_blocks(monkeypatch)
     page = client.post(f"/engagement/{ref}/package",
                        data={}).get_data(as_text=True)
-    assert page.index("check(s) failed") < page.index("Before sending")
+    assert "class=hardno" in page, "nothing on the page says it was refused"
+    assert "plain checks" in page, "the table of every check is missing"
+    assert page.index("class=hardno") < page.index("plain checks"), \
+        "the wall of green came before the thing you have to act on"
     assert "name=reason" in page, "no way to override, and no way to ask why"
 
 
@@ -745,8 +819,12 @@ def test_the_check_table_and_the_failures_above_it_cannot_disagree():
     rows = table.split("<tr>")
     deleted = next(r for r in rows if "has deleted has come back" in r)
     enclosure = next(r for r in rows if "promised enclosure" in r)
-    assert ">FAIL<" in deleted, deleted
-    assert ">ok<" in enclosure, enclosure
+    # THE PROPERTY IS THE DISAGREEMENT, NOT THE WORDS. `ok`/`FAIL` became
+    # `fine`/`stops it` on 2 September 2026, because the mark should say what
+    # happens to the person reading rather than what the check did. The example
+    # moved and the rule did not (S25).
+    assert "mk stop" in deleted and "stops it" in deleted, deleted
+    assert "mk pass" in enclosure and ">fine<" in enclosure, enclosure
 
 
 # ── quoting a live engagement again ───────────────────────────────────────
@@ -806,22 +884,45 @@ def test_a_preview_shows_every_line_that_moves_and_records_nothing(client,
 
 def test_the_reason_is_what_writes_it(client, priced):
     """Two posts, one route. Without a reason it is a look; with one it is a
-    record -- and there is no third state where something is half written."""
+    record -- and there is no third state where something is half written.
+
+    ANCHORED ON THE RECORD, NOT ON THE PAGE IT USED TO PRINT. The firm chose,
+    3 September 2026, to delete the page whose whole content was one sentence
+    confirming this: you now land back on the client's file with the new
+    figure already on it. What this test is for is that a reason is what makes
+    the write happen, and that survived the page.
+    """
     posted = {**K1S_6,
               "reason": "the estate issued four more K-1s in June"}
-    page = client.post(f"/engagement/{priced}/requote", data=posted).data.decode()
-    assert "The new quote is recorded" in page
+    got = client.post(f"/engagement/{priced}/requote", data=posted)
+    assert got.status_code in (302, 303), "it still stops on a page of its own"
+
     log = requote.revisions(priced, client.store)
     assert len(log) == 1
     assert log[0]["reason"] == posted["reason"]
     assert engagements.load(priced, client.store)["EstimateTotal"] == log[0]["now"]
 
 
+def test_a_recorded_quote_lands_on_the_file_saying_what_just_happened(client,
+                                                                      priced):
+    """The confirmation page is gone, so the arrival has to carry the news --
+    otherwise a deletion turns a confirmed action into a silent one."""
+    got = client.post(f"/engagement/{priced}/requote",
+                      data={**K1S_6, "reason": "four more K-1s in June"},
+                      follow_redirects=True)
+    page = got.data.decode()
+    new_figure = engagements.load(priced, client.store)["EstimateTotal"]
+    assert new_figure in page, "the file does not show the figure that moved"
+    assert "four more K-1s in June" in page, "the reason vanished with the page"
+
+
 def test_the_page_that_records_it_offers_the_pack_again(client, priced):
     """The scope or the figure has moved, so the documents the client holds
-    are out of date. The next step is on the page that knows it."""
-    page = client.post(f"/engagement/{priced}/requote",
-                       data={**K1S_6, "reason": "four more K-1s in June"}).data.decode()
+    are out of date. The next step is on the page you land on."""
+    page = client.post(
+        f"/engagement/{priced}/requote",
+        data={**K1S_6, "reason": "four more K-1s in June"},
+        follow_redirects=True).data.decode()
     assert f"/engagement/{priced}/package" in page
 
 
@@ -874,3 +975,110 @@ def test_both_doors_reach_the_same_verdict(client, priced):
     assert got["difference"].endswith("more")
     assert any(m["service"] == "Schedule K-1 received" for m in got["moved"])
     assert not requote.revisions(priced, client.store)
+
+
+# ── F14 · a resubmit cannot land on the next question ──────────────────────
+
+def test_a_stale_resubmit_is_refused_rather_than_applied(client):
+    """The double-click, reproduced.
+
+    Before the fix, posting the same value twice set `federal_form` AND
+    `return_basis` — the second post carried no question id, so the server
+    applied it to whatever was current by then. On an entity sitting the stray
+    answer lands on `signer_title`, which prints verbatim in the engagement
+    letter.
+    """
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    first = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    assert first["id"] == "federal_form"
+
+    ok = client.post(f"/interview/{sid}",
+                     json={"question": "federal_form", "answer": "1040"},
+                     headers=JSON)
+    assert ok.status_code == 200
+
+    # The same post arriving again — the browser's second click.
+    again = client.post(f"/interview/{sid}",
+                        json={"question": "federal_form", "answer": "1040"},
+                        headers=JSON)
+    assert again.status_code == 409, "the stale answer was applied"
+
+    answers = web.load_draft(client.store, sid)["answers"]
+    assert answers["federal_form"] == "1040"
+    assert "return_basis" not in answers, "it landed on the next question"
+
+
+def test_a_post_that_names_no_question_still_works(client):
+    """The JSON door predates this and callers may not send it.
+
+    Present-and-wrong is the case that matters; absent is accepted so that
+    anything written before the hidden field stays working.
+    """
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    got = client.post(f"/interview/{sid}", json={"answer": "1040"}, headers=JSON)
+    assert got.status_code == 200
+    assert web.load_draft(client.store, sid)["answers"]["federal_form"] == "1040"
+
+
+def test_the_browser_form_carries_the_question_it_is_asking(client):
+    """The hidden field is what makes the guard reachable from a browser."""
+    sid = client.post("/interview").headers["Location"].rsplit("/", 1)[-1]
+    page = client.get(f"/interview/{sid}").get_data(as_text=True)
+    assert "name=question value='federal_form'" in page
+
+
+# ── F10 · abandoned sittings do not keep a prospect's address forever ──────
+
+def _aged_draft(client, sid_answers, *, days_old, **extra):
+    """A draft on disk, dated `days_old` days ago.
+
+    Written directly rather than driven through the interview: an ABANDONED
+    sitting is by definition one that never finished, and `drive` cannot
+    produce one -- it answers every question or fails.
+    """
+    sid = uuid.uuid4().hex[:12]
+    data = {"answers": dict(sid_answers),
+            "started": (date.today() - timedelta(days=days_old)).isoformat()}
+    data.update(extra)
+    web.save_draft(client.store, sid, data)
+    return sid
+
+
+def test_an_abandoned_sitting_is_deleted_after_the_retention_period(client, answers):
+    """It held a name, a street address, an email and free-text notes in
+    cleartext, in a folder that syncs to OneDrive, indefinitely."""
+    half_finished = {"client_full_name": "A Half-Finished Call",
+                     "client_address1": "1 Somewhere Street",
+                     "client_email": "someone@example.com"}
+    old = _aged_draft(client, half_finished, days_old=web.DRAFT_TTL_DAYS + 1)
+    fresh = _aged_draft(client, half_finished, days_old=1)
+
+    removed = web.purge_drafts(client.store)
+
+    assert old in removed
+    assert fresh not in removed
+    assert not web.draft_path(client.store, old).exists()
+    assert web.draft_path(client.store, fresh).exists()
+
+
+def test_a_refusal_is_kept_however_old_it_is(client, answers):
+    """Refused work is not lost work — the firm needs to know who it turned
+    away. `test_a_refusal_keeps_the_draft` pins that for a fresh one; this
+    pins that the clock does not quietly undo it."""
+    refused = _aged_draft(client, dict(answers) | {"red_flags": ["assurance_needed"]},
+                          days_old=web.DRAFT_TTL_DAYS * 5)
+    assert web.purge_drafts(client.store) == []
+    assert web.draft_path(client.store, refused).exists()
+
+
+def test_a_decline_is_kept_too(client, answers):
+    declined = _aged_draft(client, dict(answers) | {"decision": "no"},
+                           days_old=web.DRAFT_TTL_DAYS * 5)
+    assert declined not in web.purge_drafts(client.store)
+
+
+def test_a_draft_with_no_readable_date_is_kept(client, answers):
+    """The safe direction for a rule whose failure mode is destroying a record."""
+    sid = _aged_draft(client, answers, days_old=999, started="not-a-date")
+    assert web.purge_drafts(client.store) == []
+    assert web.draft_path(client.store, sid).exists()

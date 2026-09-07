@@ -1,0 +1,215 @@
+# MASSACHUSETTS OBLIGATION RULES
+#
+# Sourced from the Massachusetts Department of Revenue's own due-dates page,
+# read 2026-08-01 (page last updated 2026-03-23):
+#   https://www.mass.gov/info-details/massachusetts-dor-tax-due-dates-and-extensions
+#
+# WHY THIS FILE EXISTS SEPARATELY: SATC refuses to derive a state deadline from
+# the federal one. Massachusetts is the proof — its extension rules are nothing
+# like the federal ones. MA grants extensions AUTOMATICALLY but conditionally,
+# there are no zero extensions, and in DOR's own words:
+#
+#   "Filing an extension with the IRS does not count as filing an extension
+#    for Massachusetts."
+#
+# A system that assumed Form 4868 covered a client's MA return would file that
+# return late while showing green. That single sentence justifies the whole
+# per-jurisdiction design.
+#
+# NOT ENCODED (deliberately): personal/fiduciary estimated installments. DOR
+# publishes June 16, 2026 for the Form 1-ES second installment but June 15 for
+# the corporate Form 355-ES, and June 15, 2026 is a MONDAY — there is no
+# weekend or holiday to explain the difference. Rather than guess whether that
+# is a DOR typo or a rule we do not understand, the installments are absent and
+# the discrepancy is recorded here. Surface it to the owner; do not resolve it
+# by arithmetic.
+#
+# ALSO UNRESOLVED: Patriots' Day (third Monday in April) is a Massachusetts
+# legal holiday, and in years where the April deadline collides with it the MA
+# date should move — April 15, 2029 is a Sunday and Patriots' Day 2029 is
+# Monday April 16. The DOR page does not state a weekend/holiday shift rule, so
+# no MA holiday calendar is encoded and the federal calendar is used. This is
+# WRONG in those collision years and must be sourced before 2029.
+
+meta:
+  jurisdiction: MA
+  source: "Massachusetts DOR, Tax Due Dates and Extensions (updated 2026-03-23)"
+  source_url: "https://www.mass.gov/info-details/massachusetts-dor-tax-due-dates-and-extensions"
+  retrieved: "2026-08-01"
+
+rules:
+  # -- personal and fiduciary income ----------------------------------------
+  - key: ma_form_1
+    kind: file
+    form: "1"
+    label: "MA resident income tax return (Form 1)"
+    entity_types: [INDIVIDUAL]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension:
+      available: true
+      form: "M-4868"
+      months: 6
+      condition: >-
+        At least 80% of the total tax liability must be paid by the original
+        due date through payments, withholding and credits. There are no zero
+        extensions — a payment must be made.
+      note: >-
+        Automatic where the condition is met. The extension request itself must
+        be filed on or before the original due date and is NOT accepted after
+        midnight on that date. A return with no tax due that is simply not
+        filed receives an automatic extension. A federal extension does NOT
+        extend the Massachusetts return.
+    perfection_days: 0
+    blocking_docs: []
+    source: "MA DOR due-dates page, Personal Income section"
+    effective_filing_year: 2026
+
+  - key: ma_form_2
+    kind: file
+    form: "2"
+    label: "MA fiduciary income tax return (Form 2)"
+    entity_types: [TRUST, ESTATE]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension:
+      available: true
+      form: "M-8736"
+      months: 6
+      condition: >-
+        At least 80% of the tax liability must be paid by the original due
+        date. No zero extensions.
+    perfection_days: 0
+    blocking_docs: []
+    source: "MA DOR due-dates page, Fiduciary section"
+    effective_filing_year: 2026
+
+  # -- pass-through ----------------------------------------------------------
+  - key: ma_form_3
+    kind: file
+    form: "3"
+    label: "MA partnership return (Form 3)"
+    entity_types: [PARTNERSHIP, LLC]
+    due: {basis: fiscal_year_end, months: 3, day: 15}
+    extension:
+      available: true
+      form: ""
+      months: 6
+      note: >-
+        Automatic 6-month extension, no form and no payment condition stated
+        for partnerships. See TIR 16-10.
+    perfection_days: 0
+    blocking_docs: []
+    source: "MA DOR due-dates page, Partnership section; TIR 16-10"
+    effective_filing_year: 2026
+
+  # -- corporate excise ------------------------------------------------------
+  - key: ma_form_355s
+    kind: file
+    form: "355S"
+    label: "MA S corporation excise (Form 355S)"
+    entity_types: [SCORP]
+    due: {basis: fiscal_year_end, months: 3, day: 15}
+    extension:
+      available: true
+      form: ""
+      months: 6
+      condition: >-
+        Automatic only if the taxpayer has paid the GREATER of (1) 50% of the
+        total tax ultimately due, or (2) the minimum corporate excise, by the
+        original due date. No zero extensions.
+      note: "A federal extension does not extend the Massachusetts return."
+    perfection_days: 0
+    blocking_docs: []
+    source: "MA DOR due-dates page, Corporate section"
+    effective_filing_year: 2026
+
+  - key: ma_form_355
+    kind: file
+    form: "355"
+    label: "MA C corporation excise (Form 355)"
+    entity_types: [CCORP]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension:
+      available: true
+      form: ""
+      months: 6
+      condition: >-
+        Automatic only if the taxpayer has paid the GREATER of (1) 50% of the
+        total tax ultimately due, or (2) the minimum corporate excise, by the
+        original due date. No zero extensions.
+      note: "A federal extension does not extend the Massachusetts return."
+    perfection_days: 0
+    blocking_docs: []
+    source: "MA DOR due-dates page, Corporate section"
+    effective_filing_year: 2026
+
+  # -- sales and use ---------------------------------------------------------
+  #
+  # FILING FREQUENCY IS A FACT ABOUT THE CLIENT, NOT THEIR ENTITY TYPE. DOR
+  # sets it from prior-year liability:
+  #     $100 or less        -> annual
+  #     $101 to $1,200      -> quarterly
+  #     over $1,200         -> monthly
+  # That threshold belongs in the client's obligation profile with its source,
+  # re-checked each year — never inferred from what they filed last time.
+  #
+  # All three are "on or before the 30th day following the period", which for a
+  # January monthly period clamps to the last day of February.
+  - key: ma_st9_monthly
+    kind: file
+    form: "ST-9"
+    label: "MA sales/use tax return — monthly filer"
+    entity_types: []
+    due: {basis: fiscal_year_end, months: 1, day: 30}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    recurrence: monthly
+    source: "MA DOR due-dates page, Business/Trustee — Sales and Use"
+    effective_filing_year: 2026
+    note: "Monthly filers are those with over $1,200 in prior-year liability."
+
+  - key: ma_st9_quarterly
+    kind: file
+    form: "ST-9"
+    label: "MA sales/use tax return — quarterly filer"
+    entity_types: []
+    due: {basis: fiscal_year_end, months: 1, day: 30}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    recurrence: quarterly
+    source: "MA DOR due-dates page, Business/Trustee — Sales and Use"
+    effective_filing_year: 2026
+    note: "Quarterly filers are those with $101 to $1,200 in prior-year liability."
+
+  - key: ma_st9_annual
+    kind: file
+    form: "ST-9"
+    label: "MA sales/use tax return — annual filer"
+    entity_types: []
+    due: {basis: fiscal_year_end, months: 1, day: 30}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    recurrence: annual
+    source: "MA DOR due-dates page, Business/Trustee — Sales and Use"
+    effective_filing_year: 2026
+    note: "Annual filers are those with $100 or less in prior-year liability."
+
+  - key: ma_meals
+    kind: file
+    form: "Meals"
+    label: "MA sales tax on meals, food & beverage"
+    entity_types: []
+    due: {basis: fiscal_year_end, months: 1, day: 30}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    recurrence: monthly
+    source: "MA DOR due-dates page, Sales Tax on Meals"
+    effective_filing_year: 2026
+    note: >-
+      Monthly regardless of volume — no payment threshold. Separately, vendors
+      with over $150,000 in cumulative prior-year liability owe ADVANCE
+      payments under G.L. c. 62C §16B (in force since April 2021); that is a
+      distinct pay obligation and is not modelled here yet.

@@ -135,7 +135,39 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
       fdic.gov / federalregister.gov / cdfifund.gov all still 403 to
       automated egress — this requires a human browser.
 
-## 6 · Standing rules for new items
+## 6 · credit-suite — ground-up one-engine consolidation (grilled + PRD'd 2026-09-03)
+
+The big rebuild: collapse the six copy-pasted `.xlsm` monitors into ONE shared
+engine (`credit-suite/`), all ideas intact, growing to first-class Call Reports.
+PRD: `credit-suite/docs/prd-credit-suite-consolidation.md`. Supersedes the
+overlapping items in §2 (FRED contract-alignment — partly done 2026-09-03), §3
+(#7 BLS as an adapter, not a copy), and §4 (suite conformance check → M2).
+
+Cross-cutting principles (durable, outlive this PRD):
+- Keep emailable/DLP-safe via a build-time **inliner** (shared lib at dev time,
+  self-contained ASCII bundle out) — reversible to an installed package later.
+- `credit-review-os` stays a SEPARATE product (borrower PII + encryption); never
+  merged — it may consume engine patterns, not the reverse.
+- Every value traceable to its official record (§12); entity sets are config not
+  code (§13); carried lessons L1–L8 remain in force.
+- Build/validate on the unlocked PC → **live** verification (live FRED+FDIC pull,
+  real-Excel ExtractFiles) is part of "done", not deferred.
+
+Phased (one effort, sequenced):
+- [ ] **M1 spine:** `credit-suite` engine + inliner; migrate **FDIC + FRED**
+      (the two most divergent shapes); full rigor + **cell-for-cell output parity**
+      vs the current shipped `.xlsm`; live FRED/FDIC + real-Excel acceptance.
+- [ ] **M2:** SCOPED 4 Sep 2026 into issues #208-#214 (7 slices, dependency-ordered).
+      migrate bureau/macro/CFPB/EDGAR onto the engine; retrofit §12
+      provenance to all six; suite-wide conformance CI (single-sourced modules,
+      contract-shaped tabs, all green on push).
+- [ ] **M3:** raw **FFIEC CDR** provider + **FR Y-9C** holding-company —
+      **opens with a `research` pass** (CDR bulk Public Data Distribution vs SOAP
+      webservice; RSSD vs CERT; Call Report FFIEC 031/041 vs FR Y-9C).
+- [ ] **M4 bench:** NCUA, HMDA, SBA, FHFA NMDB adapters; cross-monitor peer sync
+      (one entity list across FDIC CERT + EDGAR CIK via a name crosswalk).
+
+## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
 found in any build -> `TEMPLATE_CONTRACT.md` carried lessons (L-series),
@@ -146,6 +178,17 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-03 -- FRED template (#1) hardening + contract-alignment pass (part of
+  the §2 debt): adversarial re-verification (4 agents: test+mutation, hazard
+  hunt, adversarial compute, cell-level workbook open) + fixes — engine-level
+  `validate_thresholds` (L8: refuse blank/non-numeric/non-positive band an
+  alert_rule reads, not silent 0.0), exit-nonzero on zero-pull, DemoProvider
+  cadence-by-declared-frequency (fixed a mislabeled watchlist YoY), 3 decoration
+  tests made load-bearing + `sloos_level` coverage, self-citation provenance
+  (per-block vintage stamp + units + FRED HYPERLINK) + optional `fred_vintage`
+  realtime pin, `VERIFICATION_REPORT.md`, and CI coverage (pytest-fred-dashboard
+  job). 44→57 tests, all mutation-proven; live FRED + real-Excel still owed
+  (needs the desk). These fold into the credit-suite M1 spine (§6).
 - 2026-07-05 -- Credit Review OS v1 shipped (credit-review-os/, issues
   #60-#68 on PR #71): config-driven C&I loan-review engine — two-layer
   config (portable program + engagement overlay), per-loan linesheets with
@@ -182,3 +225,27 @@ research pass before a spec, no exceptions.
 - 2026-07-02 — Bureau review pass: 16 findings fixed (heat inversion,
   IFERROR empty-cell coercion, raw_slots guard, MS-OVBA protection keys).
 - 2026-06-30..07-01 — Templates #1 (FRED) and #2 (bureau) shipped; PR #53.
+
+## 6 - Hosted practice app (satc_system) - the "hodgepodge" build-out (AJ, 2026-07-30)
+
+The hosted app (port 5050 on the Forge) should be the practice front door:
+client adder + interviewer (SHIPPED), plus:
+
+- [x] **Email template library** SHIPPED 2026-07-31 (feat/comms-templates):
+      configs/comms/ grew from two seed files to a seven-template registry
+      (templates.yaml + one .txt body each) - interview invite, engagement
+      letter, document request, missing items, return delivery, cover letter,
+      invoice cover. Pure logic in src/satc/comms/ (library / context /
+      render), thin blueprint at /comms + nav entry, 43 tests across
+      tests/test_comms.py + tests/test_comms_app.py. Prefills from real state
+      (document register, return refund/balance, engagement fee, vault name);
+      a merge field with no fact behind it renders as a visible
+      "[[ Fee: fill in ]]" marker and is listed on the screen - never guessed.
+      Slots only a human can answer (meeting times, scope, fee terms, invoice
+      number) get a text box. No SMTP anywhere: an ast-parsing test asserts the
+      area never imports smtplib or calls sendmail. The two seed files stay
+      byte-identical, so satc.drake.comms still renders them.
+- [ ] **Invoice generation folded in**: port the standalone invoice-generator
+      Flask app in as a satc_system piece (drop Stripe for local-first v1;
+      invoice numbering, line items, PDF/HTML render, per-client history).
+      Bigger job - own session.

@@ -1,10 +1,21 @@
 # What is in this repository
 
 Produced 2026-08-22 by a four-agent sweep of the whole tree, every open PR, and
-all 76 remote branches. Written down because the same facts kept being
+all remote branches. Written down because the same facts kept being
 rediscovered: the interview's governing PRD sat in `docs/` unreferenced for
 weeks, and a whole unmerged project has been riding along on twelve branches
 without a PR of its own.
+
+**Counts refreshed 4 September 2026**, and the refresh taught something the
+original did not know: **a hard-coded count in a document is the wrong shape.**
+The figures below moved twice in the four hours it took to check them, because
+the session doing the checking was opening branches and pull requests of its
+own. Treat every number here as of its date, and re-derive rather than trust:
+
+```
+git ls-remote --heads origin | wc -l
+gh api 'repos/AJSethuraman/SATC/pulls?state=open&per_page=100' --jq 'length'
+```
 
 Every claim below was checked against the repository. Where two agents
 disagreed, the disagreement is noted rather than averaged.
@@ -17,7 +28,7 @@ Added 27 August 2026, because both were written and neither was reachable from
 anywhere. A document nobody can find is a document nobody reads, which is the
 drift failure they are themselves about.
 
-- **`docs/SOFTWARE-TENETS.md`** — 29 tenets for the code, each cited to a real
+- **`docs/SOFTWARE-TENETS.md`** — 35 tenets for the code, each cited to a real
   bug in this repository. Read before writing software here, and before
   claiming something works. Its §0 is the shape of nearly every bug this
   project has produced: **something reported success without having done the
@@ -58,9 +69,23 @@ looked at a proxy rather than the thing.
 
 ## 1 · The shape of it
 
-**16 top-level folders, 76 remote branches, 34 open PRs.** Roughly half the
-tree is practice-operations software; the other half is credit and macro
-analytics for a separate consulting line.
+**18 project folders, 91 remote branches, 41 open PRs** (4 September 2026,
+after #177/#179/#182/#183 merged; was 16 / 76 / 34 on 22 August, and 92 / 42
+four hours before this line was rewritten). Roughly half the tree is practice-operations
+software; the other half is credit and macro analytics for a separate
+consulting line.
+
+**Two project folders have arrived since this was written** and are not in
+either row below: **`canon`** — the thirty-five tenets moved in as something
+testable, with its own suite and a plugin manifest — and **`cashew-institute`**.
+
+**Sixteen of the open pull requests are May–June prototypes** that have not
+moved in three months. A triage proposal covering all of them, sorted
+by which folders each one actually touches, is at
+`https://claude.ai/code/artifact/2ec1aebc-50a3-4fbc-80fe-9b8f577ac1bc` — the
+finding worth carrying here is that **three of them are `mergeable` while every
+file in them has been rewritten underneath**, so a green merge button is not
+evidence that a pull request still means what it meant.
 
 | | Folders | Lines |
 |---|---|---|
@@ -89,7 +114,7 @@ Verified by running it, not by reading it.
 |---|---|---|
 | **`satc_system`** | **Works.** 12,664 LOC, 87% coverage | `259 passed`, 0 skipped. Built a 16-sheet workbook; LibreOffice evaluated **202 formulas, 0 errors**. Withholding math hand-checked against brackets. 56 Flask routes, all 200 except three deliberate guards |
 | **`invoice-generator`** | **Works, deployable — with one thing to fix before real money.** Multi-tenant SaaS | 57 tests, and `exercise.py` runs 281 checks through real HTTP, **opening all 53 PDFs it produces** and comparing their totals against the database. Deploys are gated on CI (`.github/workflows/deploy-invoicer.yml`) — inert until `RENDER_DEPLOY_HOOK_URL` exists. **`amount_paid` is one mutable float with no ledger**: one click of "mark as unpaid" destroys a Stripe-confirmed payment and replaying the webhook will not restore it. Eleven more, ranked, in `docs/invoicer-scenarios.md` |
-| **`client-documents`** | **Works, end to end, and can prove it.** Interview → engagement → priced documents → the whole later life of a client → the signature, and the email it travels in | **1,123 passed, 2 skipped** (1,125 collected, re-counted 29 Aug; 1,077 on 28 Aug, and the 914 here was the figure on 22 Aug), across **21 commands** and **24 photographed walkthrough screens**. `exercise.py` runs 29 real scenarios producing 190 documents, **opening every one in a browser**, then re-quotes all 27 live engagements and re-renders the estimate. Every document a client receives passes a blocking pre-send gate. The delivery letter, organizer cover, extension notice and disengagement letter gained a front door on 27 Aug (`cli.py event`); a live engagement became re-quotable on 28 Aug (`cli.py requote` — before that an engagement was priced exactly once, at the moment it was created); and the signature and the covering email landed on 29 Aug |
+| **`client-documents`** | **Works, end to end, and can prove it.** Interview → engagement → priced documents → the whole later life of a client → the signature, and the email it travels in | **1,123 passed, 2 skipped** (1,125 collected, re-counted 29 Aug; 1,077 on 28 Aug, and the 914 here was the figure on 22 Aug), across **21 commands** and **24 photographed walkthrough screens**. `exercise.py` runs 29 real scenarios producing 190 documents, **opening every one in a browser**, then re-quotes all 27 live engagements and re-renders the estimate. **Most documents a client receives pass a blocking pre-send gate, not all** — the gate's only callers are `sending.py:177` and `previewing.py:237`, so the four `cli.py event` documents and the invoice via `render` are ungated. Corrected 4 Sep 2026; it said "Every document" and that was never true of the `event` path. The delivery letter, organizer cover, extension notice and disengagement letter gained a front door on 27 Aug (`cli.py event`); a live engagement became re-quotable on 28 Aug (`cli.py requote` — before that an engagement was priced exactly once, at the moment it was created); and the signature and the covering email landed on 29 Aug |
 | **`cowork-plugin`** | **Works**, if the desktop app is running | Three stateless withholding tools. Cannot write anything |
 | **`website`** | **Live** on satcllp.com via Cloudflare Pages | 11-step branching intake; leads land in `SATC leads.xlsx` |
 
@@ -146,6 +171,7 @@ a historical log entry.
 | **The entity request list** | Nothing today. Two lines were transcribed from section 04 of the business letter on 27 Aug and carry a `[CONFIRM:` for shortening or splitting |
 | **`accompanies` on T20's list** | The plain-language check. It is banned in `DOCUMENT-TENETS.md` and live, unobjected-to, in five templates; the linter ships without it and the tenet carries a `[CONFIRM:` |
 | **Template approval** | All **twelve** are complete; none is approved |
+| **The app redesign's seven questions** | The stage bar, the season line's client count, three page deletions, and the *Change* buttons on the review screen. Asked on 2 September 2026 in `docs/app-redesign-questions.md`; the design itself is committed at `satc-handoff/06-APP/`. Everything in it that states no new fact is already applied. **The stage bar is the one to read: it draws nine stages and the software can distinguish seven** |
 
 **On prices, this was true on 22 August and is not any more.** `fee-schedule.yaml`
 now carries the firm's own figures — an hourly rate, package amounts, per-unit

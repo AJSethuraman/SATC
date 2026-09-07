@@ -18,15 +18,36 @@ from urllib.parse import urlparse
 
 from flask import Flask, Response, redirect, render_template, request, send_file, url_for
 
+from satc.app.autonomy_views import bp as autonomy_bp
+from satc.app.billing_views import bp as billing_bp
+from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
-from satc.app.state import DOC_FLOW, STATE
+from satc.app.pricing_views import bp as pricing_bp
+from satc.app import navigation
+from satc.intake.arrival import choices as arrival_choices
+from satc.app.state import STATE
+from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
+from satc.app.work_views import bp as work_bp
 from satc.app.workflow_views import bp as workflow_bp
 from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
 
 
 _LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _working_year_now() -> int:
+    """The tax year the practice is on, derived rather than assumed.
+
+    One helper so the header, the export and the billing screen cannot disagree
+    about which year the owner is in the middle of.
+    """
+    from datetime import date
+
+    from satc.app.today_views import working_tax_year
+    rows = list(STATE.received_documents()) + list(STATE.requested_items())
+    return working_tax_year(rows, date.today())
 
 
 def _resolve_secret_key() -> bytes:
@@ -57,6 +78,12 @@ def create_app() -> Flask:
     app.register_blueprint(intake_bp)
     app.register_blueprint(workflow_bp)
     app.register_blueprint(withholding_bp)
+    app.register_blueprint(comms_bp)
+    app.register_blueprint(today_bp)
+    app.register_blueprint(billing_bp)
+    app.register_blueprint(pricing_bp)
+    app.register_blueprint(autonomy_bp)
+    app.register_blueprint(work_bp)
 
     @app.before_request
     def _local_only_guard():
@@ -75,7 +102,20 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"state": STATE, "outstanding": len(STATE.outstanding())}
+        # THE HEADER SAID `TY2024` AS A HARDCODED LITERAL, on every screen of the
+        # app, in September 2026. `working_tax_year` has existed the whole time
+        # and its own docstring says why -- "rather than hardcoded, because a
+        # constant here goes stale silently". The header was that constant.
+        #
+        # Walked past it about forty times on 5 September 2026 without seeing it:
+        # it is in the corner of every screenshot taken that night.
+        # WHICH NAV ITEM IS LIT, from the route rather than the page title.
+        # Two items used to light at once on every intake screen, because
+        # `title="Intake"` belongs to four screens across two of them. A route
+        # cannot be two things; a heading can. See `app/navigation.py`.
+        return {"state": STATE, "outstanding": len(STATE.outstanding()),
+                "working_year": _working_year_now(),
+                "nav": navigation.active(request.endpoint)}
 
     @app.route("/")
     def dashboard():
@@ -88,6 +128,7 @@ def create_app() -> Flask:
         client = request.values.get("client", "")
         tax_year = request.values.get("tax_year", "")
         found: list[dict] = []
+        problem = ""
         if folder and Path(folder).is_dir():
             classifier = load_classifier()
             for name in sorted(os.listdir(folder))[:50]:
@@ -97,21 +138,50 @@ def create_app() -> Flask:
                 c = classifier.classify_path(path)
                 found.append({"name": name, "type": c.label, "method": c.method,
                               "confidence": c.confidence, "extractable": c.extractable})
+            if not found:
+                # An empty folder and a missing one used to be the same screen:
+                # silence. A preparer cannot tell those apart from a click that
+                # never registered, so they press the button again.
+                problem = (f"“{folder}” is there, and there is nothing in it to read.")
         elif folder:
-            # Demo fallback: show the synthetic documents as if found in the folder.
-            found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type),
-                      "method": "filename", "confidence": "LOW", "extractable": True}
-                     for d in STATE.documents()]
+            # THE DEMO FALLBACK LIVED HERE, and it answered a question it had not
+            # asked the disk. Any string at all -- `/this/path/is/invented/nowhere`
+            # -- came back as “Found 6 documents in …”, listing the synthetic demo
+            # set with detected types, confidence badges and a live
+            # “Read & stage these 6 documents” button. The next screen was honest
+            # ("Read 0 fields from 0 documents"), so the preview and the read
+            # disagreed and the preview was the one with the button on it.
+            problem = (f"There is no folder at “{folder}”. Check the path — nothing "
+                       f"was read, and nothing was staged.")
         return render_template("intake.html", title="Intake", folder=folder, found=found,
-                               client=client, tax_year=tax_year)
+                               client=client, tax_year=tax_year, problem=problem,
+                               clients=STATE.client_choices(),
+                               arrivals=arrival_choices(),
+                               arrival=request.values.get("arrival", ""))
 
     @app.route("/intake/run", methods=["POST"])
     def intake_run():
         folder = request.form.get("folder", "")
         client = request.values.get("client", "")
         tax_year = request.values.get("tax_year", "")
-        STATE.run_intake(folder, client_id=client or "SATC-001000",
-                         tax_year=int(tax_year) if tax_year.strip().isdigit() else 2024)
+        # Refuse rather than default. Both of these used to fall back -- to
+        # SATC-001000 and to 2024 -- so a scan with no client posted a real
+        # client's figures onto a demo client's prior-year return.
+        missing = []
+        if not client:
+            missing.append("a client")
+        if not tax_year.strip().isdigit():
+            missing.append("a tax year")
+        if missing:
+            return render_template(
+                "intake.html", title="Intake", folder=folder, found=[],
+                client=client, tax_year=tax_year, clients=STATE.client_choices(),
+                arrivals=arrival_choices(), arrival=request.values.get("arrival", ""),
+                problem=("Choose " + " and ".join(missing) + " before reading these "
+                         "documents. Which client the figures belong to is not "
+                         "something SATC will assume."))
+        STATE.run_intake(folder, client_id=client, tax_year=int(tax_year),
+                         arrival=request.values.get("arrival", ""))
         return redirect(url_for("staging"))
 
     @app.route("/sort", methods=["GET", "POST"])
@@ -163,7 +233,17 @@ def create_app() -> Flask:
         elif action == "delete":
             STATE.delete_field(field_id)
         elif action == "edit":
-            STATE.edit_field(field_id, request.form.get("value", ""))
+            # A refused correction comes back on the screen it happened on,
+            # naming the value and what would post instead. Redirecting would
+            # drop the message, and the row would look unchanged for no visible
+            # reason -- which is the failure this refusal exists to end.
+            problem = STATE.edit_field(field_id, request.form.get("value", ""))
+            if problem:
+                return render_template("staging.html", title="Staging & confirmation",
+                                       documents=STATE.gate.documents,
+                                       summary=STATE.gate.summary(),
+                                       intake=STATE.intake_summary,
+                                       refused=problem), 200
         return redirect(url_for("staging"))
 
     @app.route("/sample/clear", methods=["POST"])
@@ -173,17 +253,65 @@ def create_app() -> Flask:
 
     @app.route("/staging/post", methods=["POST"])
     def staging_post():
-        summary = STATE.post_confirmed()
+        # `post_confirmed` refuses without a client and a year rather than
+        # defaulting to a demo client (see its docstring). A refusal is the right
+        # answer for the engine and the wrong one for a button: the existing
+        # button-walker caught this route returning HTTP 500 the moment the
+        # default came out, which is how a preparer would have met it too.
+        try:
+            summary = STATE.post_confirmed()
+        except ValueError as e:
+            return render_template("staging.html", title="Staging & confirmation",
+                                   documents=STATE.gate.documents,
+                                   summary=STATE.gate.summary(),
+                                   intake=STATE.intake_summary, refused=str(e)), 200
         return redirect(url_for("client", client_id=summary["client_id"]))
 
     @app.route("/documents")
     def documents():
-        return render_template("documents.html", title="Documents",
-                               documents=STATE.documents(), flow=DOC_FLOW)
+        """The register, now honestly two registers: asked for, and arrived."""
+        return _documents_page()
 
-    @app.route("/documents/<document_id>/<status>", methods=["POST"])
-    def documents_status(document_id: str, status: str):
-        STATE.set_document_status(document_id, status)
+    def _documents_page(refused: str = "", request_id: str = ""):
+        """One renderer, so a refusal comes back on the page it happened on.
+
+        S3 — the screen and `satc chase` make the SAME call, because whichever
+        one you ran is the one you believed. The register below is in insertion
+        order and says nothing about how long anyone has waited; the sweep is
+        the chase, and it is computed once, here, not re-derived in Jinja.
+        """
+        from satc.intake.chasing import waiting
+        return render_template("documents.html", title="Documents",
+                               chase=waiting(STATE.store),
+                               requested=STATE.requested_items(),
+                               received=STATE.received_documents(),
+                               refused=refused, refused_id=request_id)
+
+    @app.route("/documents/<request_id>/close", methods=["POST"])
+    def close_request(request_id: str):
+        """Close an open request — satisfied, or N/A with the client's reason.
+
+        The form says WHICH BUTTON was pressed. Inferring it from whether the
+        reason box happened to be filled meant an empty N/A recorded the
+        document as received.
+
+        A refusal is rendered, not raised. `mark_not_applicable` says exactly
+        why in words written for a person; turning that into a 500 would lose
+        the sentence and the row the reader was working on.
+        """
+        from satc.models.evidence import EvidenceError
+
+        try:
+            STATE.close_request(
+                request_id,
+                how=request.form.get("how", ""),
+                # How it reached us -- optional, and left EMPTY rather than
+                # invented when nobody says. The arrival row then flags its own
+                # gap instead of looking complete.
+                channel=request.form.get("channel", "").strip(),
+                reason=request.form.get("reason", "").strip())
+        except EvidenceError as exc:
+            return _documents_page(refused=str(exc), request_id=request_id), 400
         return redirect(url_for("documents"))
 
     @app.route("/setup")
@@ -194,7 +322,7 @@ def create_app() -> Flask:
     @app.route("/export")
     def export():
         out = Path(STATE.store.dir) / "SATC_DataMart_export.xlsx"
-        export_mart_to_excel(STATE.store, out)
+        export_mart_to_excel(STATE.store, out, tax_year=_working_year_now())
         return send_file(out, as_attachment=True, download_name="SATC_DataMart.xlsx")
 
     # --- JSON API: withholding compute (localhost, stateless, no PII) ---
@@ -247,7 +375,7 @@ def create_app() -> Flask:
         ret_keys = {r.return_key for r in rets}
         lines = sorted((li for li in STATE.mart.line_items if li.return_key in ret_keys),
                        key=lambda li: (li.schedule, li.line_code))
-        docs = [d for d in STATE.documents() if d.client_id == client_id]
+        docs = [d for d in STATE.received_documents() if d.client_id == client_id]
         eng = next((e for e in STATE.mart.engagements if e.client_id == client_id), None)
         return render_template("client.html", title=STATE.name(client_id),
                                client_id=client_id, returns=rets, docs=docs, engagement=eng,

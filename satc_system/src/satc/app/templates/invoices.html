@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Invoices</h2>
+  <div class="muted">
+    Every bill this practice has raised, at <strong>full value</strong> and at what the client
+    was actually charged. Nothing here is sent — issuing writes the invoice down; the covering
+    email is still yours to send from Client comms.
+  </div>
+</div>
+
+{% if draft_lines or draft.client_id %}
+<p class="flag">
+  A draft invoice is in progress{% if draft.client_id %} for {{ state.name(draft.client_id) }}{% endif %}
+  — {{ draft_lines }} line{{ '' if draft_lines == 1 else 's' }}, not yet issued.
+  <a class="btn sm" href="{{ url_for('billing.new_invoice') }}">Finish it →</a>
+</p>
+{% endif %}
+
+<div class="panel">
+  <h2>Raised <span class="muted">· {{ listed|length }}</span></h2>
+  <div class="body">
+    {% if listed %}
+    <table>
+      <tr>
+        <th>Number</th><th>Client</th><th>Year</th><th>Issued</th><th>Due</th>
+        <th class="right">Full value</th><th class="right">Charged</th><th>Status</th><th class="right"></th>
+      </tr>
+      {% for row in listed %}
+      {% set inv = row.invoice %}{% set m = row.money %}
+      <tr>
+        <td class="mono">{{ inv.invoice_id }}</td>
+        <td><strong>{{ state.name(inv.client_id) }}</strong></td>
+        <td class="muted mono">{{ inv.tax_year }}</td>
+        <td class="mono">{{ inv.issued_on.strftime('%Y-%m-%d') if inv.issued_on else '—' }}</td>
+        <td class="mono">{{ inv.due_on.strftime('%Y-%m-%d') if inv.due_on else '—' }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(inv.standard_total) }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(inv.total) }}
+          {% if inv.shows_a_discount %}
+          <div class="muted">{{ inv.rate_plan.client_label or inv.rate_plan.name }}</div>
+          {% endif %}
+        </td>
+        {# The status is COMPUTED from the ledger, never read off invoice.paid_on.
+           A flag has exactly two answers and this column needs five: settled,
+           part paid (still owed, still chaseable), overpaid, overdue, and a bill
+           recorded paid before payments were recorded facts. The last one says
+           so out loud — it is a real record, just a coarser one, and a coarse
+           record that reads identically to a computed one is the thing nobody
+           can tell apart the year they need to. #}
+        <td>
+          {% if m.over > 0 %}
+          <span class="flag">Overpaid {{ '{:,.2f}'.format(m.over) }}</span>
+          {% elif m.pre_ledger %}
+          <span class="tie">Paid {{ m.settled.strftime('%b %d, %Y') }}</span>
+          <div class="hint">pre-ledger record — no payments on file</div>
+          {% elif m.is_settled %}
+          <span class="tie">Settled {{ m.settled.strftime('%b %d') if m.settled else '' }}</span>
+          {% elif m.part_paid %}
+          <span class="flag">Part paid{% if inv.is_overdue(today) %} · overdue{% endif %}</span>
+          <div class="hint">{{ '{:,.2f}'.format(m.owed) }} still owed of
+            {{ '{:,.2f}'.format(inv.total) }}</div>
+          {% elif inv.is_overdue(today) %}<span class="flag">Overdue</span>
+          {% elif inv.is_issued %}<span class="badge b-Sent">Issued</span>
+          {% else %}<span class="badge b-Requested">Draft</span>{% endif %}
+        </td>
+        <td class="right"><a class="btn sm" href="{{ url_for('billing.view', invoice_id=inv.invoice_id) }}">Open →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="note">No invoices yet. Nothing has been billed, and nothing has been guessed at.</p>
+    {% endif %}
+    <p style="margin-top:14px">
+      <a class="btn primary" href="{{ url_for('billing.new_invoice') }}">Raise an invoice</a>
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Billed to date <span class="muted">· tax year {{ tax_year }}</span></h2>
+  <div class="body">
+    <p class="muted" style="margin-top:0">
+      Billing is piecemeal on purpose — an engagement produces several invoices as work happens.
+      This is what each client has already been charged for {{ tax_year }}, so the next invoice
+      can be raised without reconstructing it from memory. <strong>Paid</strong> and
+      <strong>Outstanding</strong> are summed from the payment ledger, invoice by invoice — a
+      part payment counts for exactly what arrived, not for nothing and not for the whole bill.
+    </p>
+    {% if running %}
+    <table>
+      <tr>
+        <th>Client</th><th class="right">Invoices</th><th class="right">Full value</th>
+        <th class="right">Charged</th><th class="right">Paid</th><th class="right">Outstanding</th>
+      </tr>
+      {% for totals in running %}
+      <tr>
+        <td><strong>{{ totals.name }}</strong> <span class="muted mono">{{ totals.client_id }}</span></td>
+        <td class="right mono">{{ totals.invoices|int }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(totals.standard_value) }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(totals.charged) }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(totals.paid) }}
+          {# Not all of this total is the same kind of fact. Saying so is the
+             whole difference between a coarse record and a wrong one. #}
+          {% if totals.pre_ledger %}
+          <div class="hint">incl. {{ totals.pre_ledger }} recorded paid
+            before the payment ledger</div>
+          {% endif %}
+        </td>
+        <td class="right mono {{ 'flag' if totals.outstanding > 0 }}">{{ '{:,.2f}'.format(totals.outstanding) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="note">Nothing issued for {{ tax_year }} yet — an unissued draft is not billed.</p>
+    {% endif %}
+  </div>
+</div>
+
+<p class="note">
+  Rates live in <span class="mono">configs/billing/services.yaml</span> and the plans in
+  <span class="mono">rate_plans.yaml</span> — changing what the practice charges is a config edit,
+  not a code change. A fee that depends on the size of a refund cannot be expressed at all
+  (Circular 230 §10.27).
+</p>
+{% endblock %}

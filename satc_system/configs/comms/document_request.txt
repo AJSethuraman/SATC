@@ -1,0 +1,24 @@
+Dear {salutation},
+
+Thank you again for trusting {firm_name} with your {tax_year} return. Based on what you
+told us about your situation, here is everything we need from you:
+
+{requested_items}
+
+Please send whatever you have — a photo or scan of each document is fine. You don't need
+to wait until you have all of it; send items as they arrive and we'll check them off as
+they come in.
+
+If an item doesn't apply to you this year, just say so and we'll close it out. And if
+you're not sure whether something counts, send it anyway — it's easier for us to set
+aside an extra document than to discover a missing one late.
+
+Please have everything to us by {due_date} so we have time to prepare the return without
+rushing.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

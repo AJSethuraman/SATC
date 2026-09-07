@@ -1,0 +1,20 @@
+Dear {salutation},
+
+A quick check-in on your {tax_year} return. Here is what we are still waiting on:
+
+{missing_items}
+
+Already received — no action needed on these:
+
+{received_items}
+
+Once the outstanding items are in, we can finish the return and get it to you for review
+and signature. If any of the items above no longer apply, or you expect one to arrive
+late, let us know and we'll plan around it.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

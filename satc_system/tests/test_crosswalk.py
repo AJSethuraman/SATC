@@ -24,9 +24,19 @@ def test_federal_2024_values_in_force():
 
 
 def test_versioning_resolves_different_year_values():
+    """Two years, two answers -- which is all this test is about.
+
+    2025 read 15000 until 6 September 2026. That was Rev. Proc. 2024-40's
+    figure, superseded for TY2025 itself by P.L. 119-21 (OBBBA) in July 2025 and
+    corrected here. The number changed; what this test asserts did not, and the
+    two years still differ, which is the property being checked.
+
+    The figures themselves are proved against the IRS in
+    `test_the_2025_tables_are_enacted_law.py`, not here.
+    """
     lib = _lib()
     assert lib.resolve(2024, "US").value("standard_deduction")["single"] == 14600
-    assert lib.resolve(2025, "US").value("standard_deduction")["single"] == 15000
+    assert lib.resolve(2025, "US").value("standard_deduction")["single"] == 15750
 
 
 def test_tcja_sunset_fixture_flags_gaps_not_guesses():

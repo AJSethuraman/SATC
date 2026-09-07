@@ -16,10 +16,31 @@
 A procedure written by hand beside software is wrong within a month,
 and nobody finds out until somebody follows it.
 
+## The screen to open first
+
+```
+python cli.py season [--within 21]
+```
+
+What is due across every engagement, soonest first, overdue at the
+top. Everything else in this document acts on ONE engagement; this is
+the only thing that looks at the whole book.
+
+The dates are not typed in anywhere. They are derived from the statute
+— IRC 6072 for the month, IRC 7503 for the shift off a weekend or a
+legal holiday, and DC Emancipation Day, which is why the 2017 and 2022
+individual deadlines were both 18 April. The date a client's papers
+are due is the filing date minus `MATERIALS_LEAD_DAYS`, currently 21.
+
+> **It says what it could not place.** An engagement whose federal
+> form or tax year cannot be read has an UNKNOWN deadline, and it is
+> named at the bottom rather than left off — a board that quietly
+> drops what it could not read says the season is quieter than it is.
+
 ## 1 · Taking on a new client
 
 ```
-python cli.py from-lead --lead lead.json --out record.json
+python cli.py from-lead lead.json --out record.json
 python cli.py interview
 ```
 
@@ -64,6 +85,15 @@ What each kind of engagement is sent:
 | A C corporation (1120) | `ccorp-letter`, `fee-estimate`, `onboarding-letter` |
 
 And conditionally: `records-release` when `PriorFirm`.
+
+### Appendix — the documents this produces
+
+- **Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html`
+- **Fee Estimate** — `satc-handoff/04-TEMPLATES/SATC Fee Estimate.html`
+- **Onboarding Letter** — `satc-handoff/04-TEMPLATES/SATC Onboarding Letter.html`
+- **Business Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Business Return.html`
+- **C Corporation Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - C Corporation.html`
+- **Records Release** — `satc-handoff/04-TEMPLATES/SATC Records Release Authorization.html` — only when `PriorFirm` is set on the record
 
 ## 3 · What the pre-send gate checks
 
@@ -208,14 +238,19 @@ That is why it can be blocked on rather than shrugged at, and why the
 form names live in a registry: the IRS renames them, and 8879-C and
 8879-S became a single 8879-CORP in December 2022.
 
-Two things this deliberately does **not** know, and says so rather
+One thing this deliberately does **not** know, and says so rather
 than assuming:
 
 - **The records release.** Addressed to the previous accountant. It
   gates nothing here, and waiting on it would stop an engagement over
   a document somebody else acts on.
-- **Whether the invoice is settled.** The engagement letter says we
-  will not e-file before it is; `invoice` writes the bill and stops.
+
+**And one it does know, which used to be listed above as unknowable.**
+An invoice that has been raised and is not recorded as settled is a
+BLOCKER here, not a silence: every engagement letter says we will not
+e-file before the bill is settled. A bill nobody has raised is not an
+unpaid bill and blocks nothing. `python cli.py payments`
+asks the processor; a bill paid another way is recorded by hand.
 
 > **Judgement, not procedure:** whether to start work on a signature
 > you have been told about but not yet seen. The register records what
@@ -279,6 +314,10 @@ question nobody can answer next February.
 > moved, the letter still reads correctly and the estimate can go on
 > its own.
 
+### Appendix — the documents this produces
+
+- **Fee Estimate** — `satc-handoff/04-TEMPLATES/SATC Fee Estimate.html`
+
 ## 6 · Billing
 
 ```
@@ -287,9 +326,13 @@ python cli.py render --engagement <REF> --docs invoice --out out
 ```
 
 One engagement has many invoices, so each is written to its own file
-rather than over the record. The invoice and the estimate must agree
-about the reference and the figure and **must not** share `PeriodLabel`
-— that is the one value naming two different spans of time.
+rather than over the record. The invoice and the estimate are checked
+against each other for the reference and the figure.
+
+`--billed` is required, and it is a judgement rather than a check:
+`PeriodLabel` means the engagement's period on the estimate and what
+this bill covers on the invoice. Nothing stops you writing the same
+words in both — on a bill for the whole engagement that is right.
 
 ### The link, and finding out that it was paid
 
@@ -316,6 +359,21 @@ answer, from a laptop, with nothing listening on the internet. **Only
 a settlement is ever written down** — an unpaid order is left alone,
 because a cached "no" goes stale the moment somebody pays.
 
+**The money is checked against the bill.** A payment that does not
+cover what is owed does not settle it: `SettledOn` stays unwritten,
+the screen says `SHORT` rather than `waiting`, and the return stays
+blocked from filing. The case this exists for is a link that outlived
+its figure — re-quote an engagement from $645 to $745 and the old
+link still cheerfully collects $645.
+
+**An overpayment is credited, not refunded.** It settles the bill —
+holding a return over the firm's own refund would be absurd — and
+the next bill on that engagement says the money is sitting there and
+prints the `--credit` line to put it on. Refunding it costs the firm
+the processing fee: Square stopped returning that on refunds to US
+sellers on 11 April 2023. Naming the overpaid invoice in the credit's
+label is what records it as given back.
+
 Once a bill is settled, `sign` stops reporting the invoice half of the
 promise as unknowable: every engagement letter says we will not e-file
 before the invoice is settled, and that becomes something the software
@@ -326,6 +384,12 @@ can actually check.
 > and marking it by hand is a decision about money that belongs to a
 > person, not to a poll.
 
+A location id looks like `LM2T2W21MZ5CY`. It is **not** the
+application id, which the developer console shows beside it and which
+names the integration rather than the business the money belongs to.
+`--check` asks Square for the location list and prints the ids by
+name, so the right one can be copied rather than hunted for.
+
 The token lives in an environment variable named by
 `registry/payments.yaml`, never in the repository — a token in the
 repository is a token in every clone, backup and screenshot. The
@@ -333,7 +397,82 @@ repository is a token in every clone, backup and screenshot. The
 carry `[CONFIRM: ]` until the firm fills them in; until then no link
 is created and the reason says so.
 
-## 7 · Closing an engagement, at the end of the cycle
+There are **two** location ids, because Square gives you two accounts:
+`location_id` for real money and `sandbox_location_id` for `--sandbox`.
+A run needs only the one it is using, so you can test before you have
+a live location — and a live invoice can never carry the test one.
+
+### Proving the money actually arrives
+
+```
+python cli.py payments --check
+python cli.py payments --check --production
+```
+
+Every automated test here talks to a stand-in for the network. They
+prove this software sends the right request and reacts correctly to
+the answer; they cannot tell a working card account from a closed
+one. `--check` asks the processor itself and reports what each step
+established — 7 of them, and it says how far it
+got, because a check that stopped early and printed a tick is worse
+than one that failed.
+
+It stops one step short on its own, because no software can pay
+itself: it leaves a $1 link and tells you to open it and pay it. On
+`--check` that is a test card and no money moves. Run it again and it
+finds the same link — the invoice number is the key, so re-running
+does not make a second one — and tells you the money was seen.
+
+> **Judgement, not procedure:** the last mile is yours, once.
+> `--check --production` makes a REAL $1 link on the live account.
+> Paying it is the only thing that proves the live location is your
+> own, and watching it reach your bank is the only thing that proves
+> the payout works. This software cannot see your bank and will
+> never claim to.
+
+### Appendix — the documents this produces
+
+- **Invoice** — `satc-handoff/04-TEMPLATES/SATC Invoice.html`
+
+## 7 · The four things that happen after the pack
+
+Everything above is one engagement being opened, priced and billed.
+These four are what happens to it afterwards, and each writes one
+document. The questions come from `registry/lifecycle.yaml`, so a
+question added there is asked here without anybody editing this.
+
+```
+python cli.py event --kind delivery --engagement <REF>
+# the four kinds are delivery, disengagement, extension, organizer
+```
+
+| Kind | When | It writes | It asks |
+| --- | --- | --- | --- |
+| `delivery` | The returns are finished and going to the client | Return Delivery | 3 question(s) + 2 list(s) |
+| `disengagement` | The engagement is ending | Disengagement | 6 question(s) + 2 list(s) |
+| `extension` | An extension has been filed | Extension Notice | 5 question(s) + 2 list(s) |
+| `organizer` | Asking a returning client for this year's papers | Organizer Cover Letter | 4 question(s) + 1 list(s) |
+
+An event reuses what it recorded last time unless you pass `--again`,
+so re-running one after a correction does not re-ask everything.
+
+### Appendix — when the return is ready to go back
+
+- **Return Delivery** — `satc-handoff/04-TEMPLATES/SATC Tax Return Delivery Letter.html`
+
+### Appendix — when an engagement has to end
+
+- **Disengagement** — `satc-handoff/04-TEMPLATES/SATC Disengagement Letter.html`
+
+### Appendix — when the return needs an extension
+
+- **Extension Notice** — `satc-handoff/04-TEMPLATES/SATC Extension Notice.html`
+
+### Appendix — when you send the organizer
+
+- **Organizer Cover Letter** — `satc-handoff/04-TEMPLATES/SATC Organizer Cover Letter.html`
+
+## 8 · Closing an engagement, at the end of the cycle
 
 ```
 python cli.py close --engagement <REF>
@@ -352,7 +491,7 @@ Drake. The questions asked depend on the return:
 
 An unanswered question is reported as unanswered, never as agreement.
 
-## 8 · The end-of-cycle control
+## 9 · The end-of-cycle control
 
 ```
 python cli.py reconcile
@@ -372,15 +511,16 @@ diligent, which is not where the problem is.
 > move to an append-only log. Next year's interview is seeded from those
 > answers, which is why it matters that they are right.
 
-## 9 · The following year
+## 10 · The following year
 
 ```
 python cli.py returning --engagement <LAST YEAR'S REF>
 ```
 
 Last year's answers are shown back to be confirmed, never assumed —
-every carried answer is still asked. Nine carry; the rest are asked
-fresh, and the command prints why each one does not carry.
+every carried answer is still asked. Up to 15 carry, depending on
+what the engagement is; the rest are asked fresh, and the command
+prints why each one does not carry.
 
 A returning client is also asked what changed: a marriage, a divorce, a
 birth, a death, a home bought or sold, a move, a retirement, an
@@ -388,7 +528,7 @@ inheritance. Those are recorded and flagged for you. What any of them
 *means* for the return is a conversation with the client, and nothing
 here turns a tick box into advice.
 
-## 10 · Demonstrating that all of it works
+## 11 · Demonstrating that all of it works
 
 ```
 cd client-documents && python exercise.py
@@ -405,5 +545,39 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `spent`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `hourly`, `forms`, `check`, `sample`
+
+## Appendix — every template, and the procedure it belongs to
+
+The firm's general rule: **each relevant template is an appendix item
+to the process it belongs to.** This index is the other direction —
+start from a template and find its procedure.
+
+Nothing here is typed. Which documents a procedure produces is read
+from `packaging.PACKS`, `packaging.CONDITIONAL` and
+`registry/lifecycle.yaml`; the filenames come from `cli.DOCUMENTS`.
+
+| Template | Procedure |
+| --- | --- |
+| Engagement Letter | Sending the opening pack |
+| Fee Estimate | Sending the opening pack |
+| Onboarding Letter | Sending the opening pack |
+| Business Engagement Letter | Sending the opening pack |
+| C Corporation Engagement Letter | Sending the opening pack |
+| Records Release | Sending the opening pack |
+| Fee Estimate | When the work changes, and the price with it |
+| Invoice | Billing |
+| Return Delivery | When the return is ready to go back |
+| Disengagement | When an engagement has to end |
+| Extension Notice | When the return needs an extension |
+| Organizer Cover Letter | When you send the organizer |
+
+12 template file(s) examined against 11 document(s) named by a procedure.
+
+**Templates that belong to no procedure yet.** Reported rather
+than hidden: a finished letter with no process behind it is work
+waiting on a decision, and a document nobody can reach is the
+same as one that does not exist.
+
+- `SATC Engagement Letter - Bookkeeping.html`
 

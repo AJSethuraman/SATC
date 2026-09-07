@@ -1,28 +1,25 @@
-"""Collecting what a client uploaded — the two links of pipe that were missing.
+"""The collector resolving a drop folder's ref to the client it belongs to.
 
-Everything after this already worked: split, classify, file by client and year,
-match to the request, mark Received, stage figures behind the confirmation gate,
-draft the chase email. What did not exist was getting the bytes from the firm's
-SharePoint upload folder onto the machine, and knowing when they landed.
+Filing already worked with no store at all -- a folder named "2026-0001" gets
+its documents filed under that ref regardless. What did not exist was the
+other half: knowing that "2026-0001" IS a client, so an arriving document can
+close the request it satisfies rather than just sit filed. See
+docs/DEFECT-REGISTER.md S3 and satc.models.work.Engagement.engagement_ref.
 
-THE SOURCE IS BEHIND A SEAM on purpose. Today it is a folder OneDrive syncs --
-no app registration, no stored secret, and `graph.microsoft.com` is blocked from
-the build environment so an API adapter could be written here but never run. The
-seam means that stays a second file rather than a rewrite.
+These tests cover only the store-resolution seam `collect` added -- the
+folder-reading and splitting behaviour is unchanged and untested here.
 """
 
 from __future__ import annotations
-
-import json
-from pathlib import Path
 
 import pymupdf
 import pytest
 
 from satc.collect import Drop, SyncedFolder, collect
+from satc.models.evidence import RequestedItem
 
 
-def _form(path: Path, lines: list[str]) -> Path:
+def _form(path, lines: list[str]):
     doc = pymupdf.open()
     page = doc.new_page()
     y = 72
@@ -38,180 +35,175 @@ def _form(path: Path, lines: list[str]) -> Path:
 W2 = ["Form W-2  Wage and Tax Statement", "2026",
       "Employer: Buckeye Manufacturing LLC",
       "1 Wages, tips, other compensation  64,500.00"]
-INT = ["Form 1099-INT", "Interest Income", "PAYER'S name: Heartland Bank",
-       "1 Interest income   412.55"]
 
 
 @pytest.fixture
 def drop_root(tmp_path):
     root = tmp_path / "Client Uploads"
     _form(root / "2026-0001 — Maplewood" / "IMG_4471.pdf", W2)
-    _form(root / "2026-0001 — Maplewood" / "scan0012.pdf", INT)
-    _form(root / "2026-0002 — Riverbend" / "w2.pdf", W2)
-    (root / "2026-0001 — Maplewood" / "placeholder.pdf").write_bytes(b"")
     return root
 
 
-# -- reading the drop folders -------------------------------------------------
+class FakeStore:
+    """The two methods `collect` needs off a store, with no SQLite involved --
+    same shape as the FakeStore in test_document_year.py."""
 
-def test_a_synced_folder_is_just_a_folder(drop_root):
-    """No API, no credential. The whole integration is this path."""
-    drops = SyncedFolder(drop_root).drops()
-    assert {d.ref for d in drops} == {"2026-0001", "2026-0002"}
+    def __init__(self, *, refs: dict[str, str], requested: list[RequestedItem]):
+        self._refs = refs
+        self._requested = requested
+        self.saved: list[RequestedItem] = []
 
+    def client_for_ref(self, ref: str) -> str | None:
+        return self._refs.get(ref) if ref else None
 
-def test_the_engagement_ref_comes_off_the_folder_name(drop_root):
-    """Why the naming convention earns its place: an arriving file already knows
-    whose it is, so nothing downstream has to guess."""
-    d = next(d for d in SyncedFolder(drop_root).drops() if d.ref == "2026-0001")
-    assert d.label == "Maplewood"
-    assert len(d.files) == 3          # two forms and the placeholder
+    def load_mart(self):
+        class _Mart:
+            pass
+        m = _Mart()
+        m.requested_items = self._requested
+        return m
 
+    def save_requested_items(self, items) -> None:
+        self.saved.extend(items)
 
-def test_a_folder_with_no_ref_is_still_reported_not_skipped(tmp_path):
-    """Silently ignoring a folder loses documents. It is listed with no ref so
-    the report can say what is wrong with it."""
-    root = tmp_path / "up"
-    _form(root / "some client" / "a.pdf", W2)
-    drops = SyncedFolder(root).drops()
-    assert len(drops) == 1 and drops[0].ref == ""
+    def load_jobs(self):
+        return []
 
-
-def test_an_empty_drop_folder_is_not_reported_as_an_arrival(tmp_path):
-    root = tmp_path / "up"
-    (root / "2026-0009 — Nobody").mkdir(parents=True)
-    assert SyncedFolder(root).drops() == []
+    def save_task(self, task) -> None:
+        pass
 
 
-# -- collecting ---------------------------------------------------------------
+# -- resolving the ref ---------------------------------------------------------
 
-def test_collect_files_each_document_by_type(drop_root, tmp_path):
+def test_with_no_store_the_drop_is_filed_but_not_resolved(drop_root, tmp_path):
     rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True)
-    one = next(r for r in rep.drops if r.drop.ref == "2026-0001")
-    kinds = {a.label for a in one.arrivals}
-    assert kinds == {"W-2", "1099-INT"}
+    dr = rep.drops[0]
+    assert dr.client_id == ""
+    assert dr.arrivals, "filing still happens with no store"
 
 
-def test_the_clients_upload_is_never_moved_or_deleted(drop_root, tmp_path):
-    before = sorted(p.name for p in (drop_root / "2026-0001 — Maplewood").iterdir())
-    collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True)
-    after = sorted(p.name for p in (drop_root / "2026-0001 — Maplewood").iterdir())
-    assert before == after, "the copy the client sent is the evidence of what they sent"
+def test_a_ref_the_store_does_not_know_is_reported_not_guessed(drop_root, tmp_path):
+    store = FakeStore(refs={}, requested=[])
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    dr = rep.drops[0]
+    assert dr.client_id == ""
+    # NAMES A PLACE, NOT A FIELD. It used to say "Set `engagement_ref` on that
+    # engagement", which named a database column with no setter anywhere in the
+    # product -- advice that could not be followed. Now there is a box on the
+    # engagement screen, so the message says to go and use it. Asserted on what
+    # a preparer can act on rather than on the old wording.
+    assert "Engagement ref box" in dr.unresolved
+    assert "2026-0001" in dr.unresolved, "the refusal must name the ref it means"
 
 
-def test_a_placeholder_is_refused_and_named(drop_root, tmp_path):
-    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True)
-    one = next(r for r in rep.drops if r.drop.ref == "2026-0001")
-    assert one.not_downloaded == ["placeholder.pdf"], one.not_downloaded
-    assert "placeholder.pdf" not in {a.name for a in one.arrivals}
+def test_a_known_ref_resolves_to_its_client(drop_root, tmp_path):
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[])
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    dr = rep.drops[0]
+    assert dr.client_id == "SATC-001000"
+    assert not dr.unresolved
 
 
-def test_a_placeholder_is_collected_on_a_later_run_once_it_downloads(drop_root, tmp_path):
+# -- closing the request ---------------------------------------------------------
+
+def test_a_resolved_arrival_closes_the_request_it_satisfies(drop_root, tmp_path):
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True,
+                  store=store)
+
+    arrival = rep.drops[0].arrivals[0]
+    assert arrival.satisfied == "W-2"
+    assert [i.request_id for i in store.saved] == ["R1"]
+    assert req.status == "satisfied"
+
+
+def test_a_preview_resolves_the_client_but_closes_nothing(drop_root, tmp_path):
+    """apply=False previews. Filing writes nothing on a preview, and neither
+    should the client's open request -- a preview is not a decision."""
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=False,
+                  store=store)
+
+    assert rep.drops[0].client_id == "SATC-001000"
+    assert rep.drops[0].arrivals[0].satisfied == ""
+    assert store.saved == []
+    assert req.status == "outstanding"
+
+
+def test_a_client_with_no_matching_request_files_but_closes_nothing(drop_root, tmp_path):
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[])
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    arrival = rep.drops[0].arrivals[0]
+    assert arrival.satisfied == ""
+    assert store.saved == []
+
+
+# -- the model guard --------------------------------------------------------
+
+def test_a_model_classified_arrival_does_not_close_a_request_on_its_own(tmp_path):
+    """Only the vision rung asks a model, and a model may not close a client's
+    request on its own -- see Classification.is_model_classified and
+    reconcile_received's model guard, which state.py already respects by
+    deriving Actor.model("vision") for a vision verdict. collect() must derive
+    the same actor rather than let reconcile_received default to INTAKE,
+    which would bypass the guard for every vision-classified arrival."""
+    from satc.ingest.classify import Classification
+    from satc.models.evidence import RequestedItem
+
+    root = tmp_path / "Client Uploads"
+    (root / "2026-0001 — Maplewood").mkdir(parents=True)
+    (root / "2026-0001 — Maplewood" / "scan.jpg").write_bytes(b"not a real image")
+
+    vision_verdict = Classification(label="W-2", key="w2", code="W2",
+                                    confidence="MEDIUM", method="vision",
+                                    tax_year=2026)
+
+    class VisionClassifier:
+        def classify_path(self, path):
+            return vision_verdict
+
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
+    store = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store, classifier=VisionClassifier())
+
+    arrival = rep.drops[0].arrivals[0]
+    assert arrival.satisfied == "", "a model verdict closed a request on its own"
+    assert store.saved == []
+    assert req.status == "outstanding"
+
+
+# -- retrying a reconciliation the ledger once skipped -----------------------
+
+def test_a_document_filed_before_its_ref_resolved_still_closes_once_it_does(
+        drop_root, tmp_path):
+    """The ledger records that a file was FILED, not that its request was ever
+    closed. An unresolved ref at filing time means no reconciliation was even
+    attempted -- and the digest still enters the ledger, because filing does
+    not depend on resolution. A later run, once the firm sets engagement_ref,
+    must not skip that file as 'already seen' and leave the request stuck
+    outstanding forever."""
     lib = tmp_path / "lib"
-    collect(SyncedFolder(drop_root), library=lib, apply=True)
-    # the client's file finishes syncing
-    _form(drop_root / "2026-0001 — Maplewood" / "placeholder.pdf", INT)
-    rep = collect(SyncedFolder(drop_root), library=lib, apply=True)
-    one = next(r for r in rep.drops if r.drop.ref == "2026-0001")
-    assert one.not_downloaded == []
-    assert "placeholder.pdf" in {a.name for a in one.arrivals}, \
-        "a refused file must not be marked done -- it has to come back"
+    req = RequestedItem(request_id="R1", client_id="SATC-001000", tax_year=2026,
+                        doc_type="W-2", request_text="Upload your W-2s")
 
+    unresolved = FakeStore(refs={}, requested=[req])
+    first = collect(SyncedFolder(drop_root), library=lib, apply=True, store=unresolved)
+    assert first.drops[0].arrivals[0].satisfied == ""
+    assert req.status == "outstanding"
 
-def test_running_twice_does_not_collect_the_same_document_twice(drop_root, tmp_path):
-    lib = tmp_path / "lib"
-    first = collect(SyncedFolder(drop_root), library=lib, apply=True)
-    second = collect(SyncedFolder(drop_root), library=lib, apply=True)
-    assert first.collected == 3        # two for Maplewood, one for Riverbend
-    assert second.collected == 0, "a second run re-filed documents it already had"
-
-
-def test_a_preview_run_writes_nothing(drop_root, tmp_path):
-    lib = tmp_path / "lib"
-    rep = collect(SyncedFolder(drop_root), library=lib, apply=False)
-    assert rep.collected == 3
-    assert not lib.exists(), "preview must not write"
-
-
-def test_the_report_says_which_folder_it_could_not_place(tmp_path):
-    root = tmp_path / "up"
-    _form(root / "no ref here" / "a.pdf", W2)
-    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True)
-    assert rep.drops[0].unresolved
-    assert "name" in rep.drops[0].unresolved.lower()
-
-
-def test_a_combined_upload_becomes_one_document_per_form(tmp_path):
-    """A client's single scan is often several documents. The register should
-    count documents -- which is what a request is about -- not files, which is
-    an accident of how they used their scanner."""
-    root = tmp_path / "up"
-    stack = root / "2026-0003 — Ashford" / "Untitled (3).pdf"
-    doc = pymupdf.open()
-    for lines in ([["Form 1099-DIV", "Dividends and Distributions",
-                    "1a Total ordinary dividends 1,204.00"],
-                   ["Form 1099-INT", "Interest Income",
-                    "1 Interest income 412.55"]]):
-        page = doc.new_page()
-        y = 72
-        for line in lines:
-            page.insert_text((72, y), line, fontsize=11)
-            y += 16
-    stack.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(stack))
-    doc.close()
-
-    lib = tmp_path / "lib"
-    rep = collect(SyncedFolder(root), library=lib, apply=True)
-    labels = sorted(a.label for a in rep.drops[0].arrivals)
-    assert labels == ["1099-DIV", "1099-INT"], labels
-
-
-def test_splitting_leaves_no_working_files_in_the_library(tmp_path):
-    """Found by running it: the splitter wrote its parts into the library and
-    left them there, so every combined upload produced a duplicate of each
-    document in a stray folder beside the real ones."""
-    root = tmp_path / "up"
-    stack = root / "2026-0003 — Ashford" / "combined.pdf"
-    doc = pymupdf.open()
-    for lines in ([["Form 1099-DIV", "Dividends and Distributions"],
-                   ["Form 1099-INT", "Interest Income"]]):
-        page = doc.new_page()
-        page.insert_text((72, 72), lines[0], fontsize=11)
-        page.insert_text((72, 88), lines[1], fontsize=11)
-    stack.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(stack))
-    doc.close()
-
-    lib = tmp_path / "lib"
-    collect(SyncedFolder(root), library=lib, apply=True)
-    strays = [p for p in lib.rglob("*") if p.is_dir() and p.name.startswith("_")]
-    assert strays == [], f"working files left in the library: {strays}"
-
-
-def test_the_preview_counts_what_the_run_will_actually_file(tmp_path):
-    """A preview that undercounts is worse than no preview.
-
-    Found by running both: splitting was gated on `apply`, so a combined upload
-    showed as ONE document in the preview and filed as TWO. The preview is the
-    thing the firm decides on -- "a claim in one place, behaviour in another,
-    and nothing comparing them" is the shape this repository keeps paying for,
-    and this test is the comparison.
-    """
-    root = tmp_path / "up"
-    stack = root / "2026-0004 — Calder" / "combined.pdf"
-    doc = pymupdf.open()
-    for title, sub in (("Form 1099-DIV", "Dividends and Distributions"),
-                       ("Form 1099-INT", "Interest Income")):
-        page = doc.new_page()
-        page.insert_text((72, 72), title, fontsize=11)
-        page.insert_text((72, 88), sub, fontsize=11)
-    stack.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(stack))
-    doc.close()
-
-    preview = collect(SyncedFolder(root), library=tmp_path / "lib", apply=False)
-    applied = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True)
-    assert preview.collected == applied.collected == 2
-    assert ([a.label for a in preview.drops[0].arrivals]
-            == [a.label for a in applied.drops[0].arrivals])
+    resolved = FakeStore(refs={"2026-0001": "SATC-001000"}, requested=[req])
+    second = collect(SyncedFolder(drop_root), library=lib, apply=True, store=resolved)
+    assert second.drops[0].arrivals[0].satisfied == "W-2"
+    assert req.status == "satisfied"

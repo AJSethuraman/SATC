@@ -163,5 +163,9 @@ class PaystubReader:
             if not confident:
                 uncertain.add(LABEL_PAY_FREQUENCY)
 
+        # Layout templates and profiles -- no model, no network. Same stub in,
+        # same fields out. Missed on the first pass of the deterministic flag
+        # and caught by the default being False, which is the default working.
         return ReadResult(labeled_fields=labeled, uncertain_labels=uncertain,
+                          deterministic=True,
                           backend="PaystubReader")

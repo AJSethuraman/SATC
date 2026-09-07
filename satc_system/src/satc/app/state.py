@@ -14,8 +14,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from satc.config import load_extraction_map
+from satc.models.actor import INTAKE, Actor
 from satc.fixtures import synthetic_documents
-from satc.ids import return_key
+from satc.ids import content_document_id_for_path, part_document_id, return_key
 from satc.ingest import (
     MAPPING_1040,
     MapExtractor,
@@ -30,12 +31,10 @@ from satc.ingest.readers import (
     TextAnchorReader,
     VisionDocumentReader,
 )
-from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
+from satc.models.mart import DataMart, ReturnRecord
 from satc.persistence import SATCStore
 from satc.settings import cloud_vision_enabled
 
-# Status flow for a document in the repository.
-DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
 
 # Friendly names for the reader backends (shown in intake notes).
 _READER_LABELS = {
@@ -44,11 +43,71 @@ _READER_LABELS = {
 }
 
 
+def acting_actor() -> Actor:
+    """WHO is acting right now — derived from the PRINCIPAL, never from the
+    transport, and never accepted as an argument.
+
+    **THIS LINE USED TO BE THE DEFECT.** It read::
+
+        return Actor.owner() if has_request_context() else Actor.system("headless")
+
+    and the docstring above it promised the opposite — *"Anything else — a
+    script, a scheduled sweep, an API tool, a model rung — gets a system actor
+    and is refused."* **A script is exactly what it did not catch**, because
+    `app.test_client()` creates a request context in one line, with no browser
+    and no person. Reproduced 4 September 2026: inside a test request context
+    this returned `Actor(kind='human', name='owner')`, `require_human` passed,
+    and a Python script issued an invoice and recorded a payment. The gate read
+    **how the call arrived** rather than **who made it**.
+
+    Now it asks :mod:`satc.principals`, which reads a role the LAUNCHER set —
+    a header on the request or a variable in the environment — and which the
+    caller cannot widen for itself. The firm chose that shape on 4 September
+    2026: *"Adopt the Occam shape — launcher-set role and assignment."*
+
+    Still true, and still the point: nothing can CLAIM to be the owner. What
+    changed is that being in a request is no longer proof of being one.
+
+    A caller that declares nothing is the owner — the desktop UI and the
+    owner's own scripts. That is deliberate and documented in
+    :mod:`satc.principals`; this box has no authentication and a restrictive
+    default would only teach everyone to pass ``owner`` everywhere.
+    """
+    from satc.principals import current
+
+    principal = current()
+    if principal.is_owner:
+        return Actor.owner()
+    if principal.role == "headless":
+        # Unchanged from before this module existed: a process with no request
+        # and no declared role is not a person and never was.
+        return Actor.system("headless")
+    # NOT a model actor unless the role says so. `Actor.model` demands a model
+    # name and carries "may propose, never accept"; a role is not a model, and
+    # inventing a name here would put a fiction in the provenance record.
+    return Actor.system(principal.role)
+
 # How much text a PDF must carry before we call its text layer usable. A page of
 # a real form runs to hundreds of characters; a stray watermark or a scanner's
 # empty /Contents can leave a handful. Set low on purpose -- the point is to tell
 # "nothing to read" from "something to read", not to judge quality.
 TEXT_LAYER_MIN = 40
+
+
+def _skipped_note(pages: list[int]) -> str:
+    """What to say when the page rule left pages out. Empty when it did not.
+
+    PORTED from the branch that added multi-page reading. A form's own pages are
+    read and its instruction pages are not, and a note that says only "read from
+    the form" hides which pages were skipped -- so a page the rule got WRONG
+    looks identical to one it got right. S2: a check reports its denominator.
+    """
+    if not pages:
+        return ""
+    which = ", ".join(str(p) for p in pages)
+    return (f"read from the form's own pages; page{'s' if len(pages) > 1 else ''} "
+            f"{which} looked like the instructions and {'were' if len(pages) > 1 else 'was'} "
+            f"not read. ")
 
 
 def text_layer_chars(fpath) -> int:
@@ -89,7 +148,10 @@ def text_layer_chars(fpath) -> int:
 
 @dataclass
 class AppState:
-    store: SATCStore = field(default_factory=lambda: SATCStore(os.environ.get("SATC_DATA_DIR")))
+    # No argument: SATCStore resolves SATC_DATA_DIR itself now. Passing it
+    # in was one of the two places that happened to get it right while
+    # six others did not.
+    store: SATCStore = field(default_factory=SATCStore)
     mart: DataMart = field(default_factory=DataMart)
     names: dict[str, str] = field(default_factory=dict)
     gate: StagingGate = field(default_factory=StagingGate)
@@ -145,7 +207,7 @@ class AppState:
     # -- new vs returning client (drives the branched interview) ----------
     def is_returning(self, client_id: str) -> bool:
         """A client we've worked with before — prior engagement OR a return on file."""
-        if any(e.client_id == client_id for e in self.store.load_intake_engagements()):
+        if any(e.client_id == client_id for e in self.store.load_jobs()):
             return True
         return any(r.client_id == client_id for r in self.mart.returns)
 
@@ -154,21 +216,74 @@ class AppState:
 
         Used to pre-fill a returning client's interview with last year's answers.
         """
-        engs = [e for e in self.store.load_intake_engagements() if e.client_id == client_id]
+        engs = [e for e in self.store.load_jobs() if e.client_id == client_id]
         if workflow_key:
             same = [e for e in engs if e.workflow_key == workflow_key]
             if same:
                 return same[-1]
         return engs[-1] if engs else None
 
-    def documents(self) -> list[DocumentRecord]:
-        return self.mart.documents
+    def requested_items(self) -> list:
+        """Everything asked of clients — open or closed."""
+        return self.mart.requested_items
 
-    def outstanding(self) -> list[DocumentRecord]:
-        return [d for d in self.mart.documents if d.status == "Requested"]
+    def received_documents(self) -> list:
+        """Everything that has actually arrived."""
+        return self.mart.received_documents
+
+    def outstanding(self) -> list:
+        """Open requests. Injected into every page by the context processor."""
+        return [i for i in self.mart.requested_items if i.is_open]
+
+    def blocking_outstanding(self) -> list:
+        """Open requests that stop prep — the ones that are not just noise."""
+        return [i for i in self.outstanding() if i.blocks_prep]
+
+    def provenance_gaps(self, client_id: str = "", tax_year: int | None = None) -> list:
+        """Arrivals whose §1.6695-2 record is incomplete. WARNS; NEVER BLOCKS.
+
+        The firm's answer to D26's second half, 6 September 2026: **"Warn on the
+        screen."** Not block — and the reasoning is the software's own. IRS Pub
+        1345 genuinely forbids transmitting before the W-2s are in hand, so a
+        MISSING DOCUMENT stops a return and should. A document that is here, and
+        whose provenance nobody wrote down, is a record-keeping gap: it is about
+        what the practice can show afterwards, not about whether the return is
+        right. Stopping an April filing over a dropdown somebody skipped in
+        February teaches people to route around the refusal, and a refusal people
+        route around is worse than a warning they read.
+
+        So this returns the rows and says nothing about whether work may
+        continue. Nothing calls `blocks_transmission` with it, deliberately.
+        """
+        rows = [d for d in self.received_documents() if not d.has_known_provenance]
+        if client_id:
+            rows = [d for d in rows if d.client_id == client_id]
+        if tax_year is not None:
+            rows = [d for d in rows if d.tax_year == tax_year]
+        return rows
 
     def returns(self):
         return self.mart.returns
+
+    def filings(self, return_key: str = "") -> list:
+        return self.store.load_filings(return_key)
+
+    def return_status(self, return_key: str) -> str:
+        """A return's honest FILING status, DERIVED from its acks.
+
+        Named ``return_status`` and not ``filing_status`` because
+        :meth:`filing_status` already means the client's TAX filing status
+        (single, married filing jointly). Two very different things that both
+        want the word "filing"; a shadowing definition silently broke the
+        interview screen until a test caught it.
+
+        Never stored. The truth is the ack the owner keyed off Drake; a second
+        stored copy is how a dashboard ends up saying "Filed" about a return
+        the IRS rejected.
+        """
+        from satc.models.filing import status_line_for
+
+        return status_line_for(self.store.load_filings(return_key))
 
     def clients(self) -> list[str]:
         seen: list[str] = []
@@ -178,19 +293,105 @@ class AppState:
         return seen
 
     # -- mutations (write through to the store) ---------------------------
-    def set_document_status(self, document_id: str, status: str) -> None:
-        if status not in DOC_FLOW:
+    def close_request(self, request_id: str, *, reason: str = "",
+                      how: str = "", channel: str = "") -> None:
+        """Close an open request — satisfied, or not applicable WITH A REASON.
+
+        Replaces set_document_status(). The old call took any of five statuses
+        spanning four lifecycles and wrote it to one column; this one can only
+        do the thing a request can actually do.
+
+        `how` IS THE CALLER'S INTENT AND IT IS NOT THE SAME QUESTION AS WHETHER
+        A REASON WAS TYPED. This branched on `if reason:` alone, so pressing the
+        N/A button with an empty box fell through to the satisfied path and
+        **recorded the document as RECEIVED** — the register then said a client
+        had sent something they had not.
+
+        `mark_not_applicable` has always refused a blank reason, in the same
+        words the screen prints underneath the form. The web route could not
+        reach it: an empty reason never got that far. A guard nothing can reach
+        is not a guard.
+
+        Found on 4 September 2026 by the first test that pressed the button
+        rather than photographing it, after the firm asked whether anything
+        actually used the software.
+        """
+        from satc.models.evidence import mark_not_applicable
+
+        # Old callers pass only `reason`, and their intent is unambiguous from
+        # it. New ones say which button was pressed and get held to it.
+        how = how or ("not_applicable" if reason else "received")
+
+        for item in self.mart.requested_items:
+            if item.request_id != request_id:
+                continue
+            if how == "not_applicable":
+                mark_not_applicable(item, reason)      # raises on a blank reason
+            else:
+                item.status = "satisfied"
+                # THE ARRIVAL IS WRITTEN BEFORE THE REQUEST IS CLOSED, and the
+                # order is deliberate: if the arrival write fails, the request
+                # stays open, which is the safe direction to fail in. The other
+                # way round leaves a closed ask with nothing recorded against
+                # it -- the very defect this exists to end.
+                #
+                # And the reload belongs AFTER the save, not inside the record.
+                # The first version reloaded the mart from the store while
+                # `item` was still unsaved, so the freshly-closed request came
+                # back OPEN in memory and the tracker never counted down.
+                # `test_closing_a_request_drops_it_off_the_tracker` caught it.
+                self._record_arrival(item, channel=channel)
+            self.store.save_requested_items([item])
+            self.reload()
             return
-        self.store.set_document_status(document_id, status)   # durable
-        for d in self.mart.documents:                          # keep view in sync
-            if d.document_id == document_id:
-                d.status = status
+
+    def _record_arrival(self, item, *, channel: str = "") -> None:
+        """Write the ARRIVAL, not just the closed request.
+
+        THE SCREEN KEEPS TWO REGISTERS AND SAYS WHY -- "what we asked for, and
+        what has arrived" -- and the second one carries its own justification:
+        "How and when a document was obtained, and from whom, is required by
+        26 CFR 1.6695-2(b)(4)(i)(C) -- not a nicety."
+
+        Pressing **Received** closed the first register and wrote nothing to the
+        second. The ask went to `satisfied`, the nav badge counted down, and
+        `Arrived` still read "Nothing has arrived yet." So the one button on the
+        screen meaning "it came in" left no record of the three things the
+        citation names. Found by walking it, 5 September 2026.
+
+        WHAT IS DERIVED AND WHAT IS NOT. `furnished_by_client` and the client are
+        derived, not guessed: this request was made TO that client, and closing
+        it as received is the statement that they answered it. The DATE is now,
+        which is when the preparer recorded it. The CHANNEL -- email, portal,
+        paper -- is genuinely unknown unless somebody says, so it is left empty
+        and the row flags itself `provenance incomplete` rather than inventing
+        one. An arrival that is honest about its gap is worth more than a
+        complete-looking record nobody can rely on.
+
+        Idempotent: the id is derived from the request, so pressing Received
+        twice records one arrival rather than two.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        self.store.save_received_documents([ReceivedDocument(
+            document_id=f"received-{item.request_id}",
+            client_id=item.client_id,
+            tax_year=item.tax_year,
+            doc_type=item.doc_type,
+            obtained_how="furnished_by_client",
+            obtained_at=datetime.now(),
+            furnished_by=self.name(item.client_id),
+            channel=(channel or "").strip(),
+            satisfies_request_id=item.request_id,
+        )])
 
     def confirm_field(self, field_id: str) -> None:
-        self.gate.confirm(field_id, by="preparer (UI)")
+        self.gate.confirm(field_id, acting_actor())
 
     def reject_field(self, field_id: str) -> None:
-        self.gate.reject(field_id, by="preparer (UI)")
+        self.gate.reject(field_id, acting_actor())
 
     def unconfirm_field(self, field_id: str) -> None:
         self.gate.unconfirm(field_id)
@@ -198,14 +399,29 @@ class AppState:
     def delete_field(self, field_id: str) -> None:
         self.gate.delete_field(field_id)
 
-    def edit_field(self, field_id: str, raw_value: str) -> None:
-        """Hand-correct a staged value (parses money the same conservative way reads do)."""
+    def edit_field(self, field_id: str, raw_value: str) -> str:
+        """Hand-correct a staged value (parses money the same conservative way reads do).
+
+        Returns ``""`` when the correction was taken, or a sentence saying why it
+        was not. The gate refuses a non-numeric correction to a field that holds an
+        amount; before it did, the correction was displayed as confirmed and the
+        machine's original figure was posted instead. See ``StagingGate.edit``.
+        """
         from satc.ingest.extractors.base import parse_money
         amount, _conf, _note = parse_money(raw_value)   # None if it isn't a clean number
-        self.gate.edit(field_id, value_text=raw_value.strip(), value_amount=amount)
+        if self.gate.edit(field_id, acting_actor(),
+                          value_text=raw_value.strip(), value_amount=amount):
+            return ""
+        field = next((f for f in self.gate.all_fields() if f.field_id == field_id), None)
+        if field is None:
+            return "That row is no longer on this screen."
+        return (f"“{raw_value.strip()}” is not an amount, and {field.label} holds one. "
+                f"Nothing was changed: the figure read off the document "
+                f"({field.value_amount}) is still what would post. Type a number, or "
+                f"use Delete if the row does not belong here at all.")
 
     def auto_confirm(self) -> int:
-        return self.gate.auto_confirm_high(by="auto (UI)")
+        return self.gate.auto_confirm_high(INTAKE)
 
     # -- sample data (the built-in demo) ----------------------------------
     def _sample_client_ids(self) -> set[str]:
@@ -236,19 +452,54 @@ class AppState:
         self.reload()
 
     # -- intake: actually read the files in a folder ----------------------
-    def run_intake(self, folder: str, *, client_id: str = "SATC-001000",
-                   tax_year: int = 2024) -> dict:
+    def run_intake(self, folder: str, *, client_id: str, tax_year: int,
+                   arrival: str = "") -> dict:
         """Read every file in ``folder`` and stage the values. Returns a summary.
 
         Each file is classified by *content* — not its name — so a W-2 named
         ``scan001.pdf`` is still recognized. A combined multi-form PDF is split into
         its parts first, and each document is read by the cheapest sufficient
         backend: fillable form fields, then the free text layer, then vision.
+
+        ``client_id`` AND ``tax_year`` ARE REQUIRED, AND THAT IS THE FIX.
+        This signature read ``client_id: str = "SATC-001000", tax_year: int = 2024``
+        until 5 September 2026. Nothing on the ``/intake`` screen ever supplied
+        either, so **every document any preparer scanned was posted to a hardcoded
+        demo client, in the prior tax year.** A walk found it by scanning two
+        invented W-2s and watching 92,400 + 58,150 land as ``Wages 150,550.00`` on a
+        third party's 1040 workpaper — 2025 forms, filed into 2024. 3,247 passing
+        tests did not catch it, because several of them *passed the default in*.
+
+        Defaulting is the wrong shape for both. A client is not a preference with a
+        sensible fallback; there is no such thing as a document that belongs to
+        whoever the system happened to think of first. `DESIGN-PRINCIPLES.md` already
+        says it — refuse rather than default — and this is the case it was written
+        for.
+
+        ``arrival`` IS HOW THE BATCH GOT HERE, asked once on the screen — the
+        firm's answer to D26 on 6 September 2026, "ask once per folder". Until
+        then this method wrote nothing at all to the arrivals register, so the
+        register 26 CFR §1.6695-2(b)(4)(i)(C) requires had never held a real row.
+
+        It is the one thing a folder scan genuinely cannot work out: a client
+        emailed it, the preparer pulled it off a portal, it is last year's
+        carry-forward — the file on disk is identical either way. Blank resolves
+        to `not_recorded`, which writes `unknown` and lets the row flag itself
+        rather than inventing a plausible answer. See `satc.intake.arrival`.
         """
         import os
         import tempfile
 
         from satc.intake import reconcile_received
+
+        if not client_id:
+            raise ValueError(
+                "run_intake needs a client: reading documents without one used to "
+                "post them to SATC-001000, whoever that turned out to be.")
+        if not tax_year:
+            raise ValueError(
+                "run_intake needs a tax year: it decides which return the figures "
+                "land on, and it is never safe to assume last year's.")
 
         # L8: if an intake root is configured, refuse folders outside it so an
         # agent-supplied path can't reach arbitrary directories. No-op when unset.
@@ -258,12 +509,17 @@ class AppState:
             if root_p != folder_p and root_p not in folder_p.parents:
                 raise ValueError(f"intake folder {folder} is outside SATC_INTAKE_ROOT ({root})")
 
-        self.intake_context = {"client_id": client_id, "tax_year": tax_year}
+        from satc.intake import arrival as arrivals
+
+        how_it_arrived = arrivals.resolve(arrival)
+        self.intake_context = {"client_id": client_id, "tax_year": tax_year,
+                               "arrival": how_it_arrived.key}
         self.gate = StagingGate()          # fresh working area for this intake
         self.intake_sources = set()        # allow-list of source files for /source
         files_read = 0
         fields_staged = 0
         reconciled = 0
+        arrivals_written: list = []
         notes: list[str] = []
         allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
         classifier = load_classifier(has_key=allow_cloud)
@@ -281,56 +537,169 @@ class AppState:
         with tempfile.TemporaryDirectory() as tmp:
             for path in files:
                 parts = split_to_dir(path, tmp, classifier) if path.suffix.lower() == ".pdf" else []
+                # The id is a CONTENT HASH, not the filename: two files named
+                # W2.pdf in different year folders used to collide, and a staged
+                # field id is f"{document_id}:{field_path}" — so a confirm could
+                # land on the wrong document's field. The filename survives as a
+                # display label, which stays local and is never exported.
+                parent_id = content_document_id_for_path(path)
                 if parts:
                     notes.append(f"{path.name}: combined PDF — split into {len(parts)} documents.")
-                    docs = [(c, fp, f"{path.name} ▸ part {i} · {c.label}")
+                    docs = [(c, fp, part_document_id(parent_id, i),
+                             f"{path.name} ▸ part {i} · {c.label}")
                             for i, (c, fp) in enumerate(parts, start=1)]
                 else:
                     c = classifier.classify_path(path)
-                    docs = [(c, path, path.name)]
+                    docs = [(c, path, parent_id, path.name)]
 
-                for c, fpath, doc_id in docs:
+                for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
+                    # THE ARRIVAL, WRITTEN FOR EVERY DOCUMENT THAT CAME IN --
+                    # not only the ones that happen to close a request.
+                    #
+                    # D26: nothing in `src/` had ever written to this register.
+                    # It is done here, in the per-document loop and before the
+                    # reconciliation below, because the two registers answer
+                    # different questions: `Arrived` is what turned up, and it is
+                    # true whether or not anybody asked for it. A document nobody
+                    # requested is exactly the kind of thing a preparer needs to
+                    # see, and hanging the write off the request-matching branch
+                    # would have recorded only the expected ones.
+                    arrivals_written.append(self._arrival_from_intake(
+                        doc_id=doc_id, client_id=client_id, tax_year=tax_year,
+                        doc_type=(c.label if c.classified else "unidentified"),
+                        display_name=display, source_path=str(fpath),
+                        how_it_arrived=how_it_arrived))
                     # A multi-form page closes nothing on its own -- see
                     # matching.is_multi. It is filed and flagged; which requests
                     # it actually satisfies is the preparer's call.
                     if c.classified and not c.multi:   # close the loop: does this satisfy an open request?
+                        # The actor is derived from WHICH RUNG classified it.
+                        # Only the vision rung asks a model, and a model may not
+                        # close a client request -- it may only point at one.
+                        classified_by = (Actor.model("vision") if c.is_model_classified
+                                         else Actor.system(f"classifier:{c.method}"))
                         matched = reconcile_received(self.store, client_id=client_id,
-                                                     doc_type=c.label, doc_year=c.tax_year)
+                                                     doc_type=c.label,
+                                                     doc_year=c.tax_year,
+                                                     classified_by=classified_by)
                         if matched is not None:
                             reconciled += 1
-                            notes.append(f"{doc_id} → ✓ satisfies your request “{matched.doc_type}” "
+                            notes.append(f"{display} → ✓ satisfies your request “{matched.doc_type}” "
                                          f"— marked Received.")
+                        elif c.is_model_classified:
+                            from satc.intake.service import find_match
+                            likely = find_match(self.store, client_id=client_id, doc_type=c.label)
+                            if likely is not None:
+                                notes.append(
+                                    f"{display} → looks like it satisfies your request "
+                                    f"“{likely.doc_type}”, but a model read it — open Documents "
+                                    f"and mark it Received if you agree.")
                     if not c.extractable:
                         what = c.label if c.classified else "unrecognized document"
-                        notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")
+                        notes.append(f"{display} → {what} ({how}): filed, not extracted.")
                         continue
                     cfg = load_extraction_map(c.key)
                     result, problem = self._read_document(fpath, cfg, allow_cloud)
                     if result is None:
-                        notes.append(f"{doc_id} → {c.label} ({how}): {problem}")
+                        notes.append(f"{display} → {c.label} ({how}): {problem}")
                         continue
+                    # THE PAGE, CARRIED. Every other part of this was already
+                    # built: `ReadResult.pages` maps label -> page number,
+                    # `TextAnchorReader` anchors page by page precisely so it
+                    # can fill it, and `MapExtractor.extract` takes `pages=`.
+                    # This call did not pass it, so `SourceRef.page` was None on
+                    # every staged field and a workpaper citation read `Doc <id>`
+                    # with no page -- which is the state that let $200,000 of
+                    # wages lifted off an instructions page look identical to a
+                    # figure read off the form.
                     staged = MapExtractor(cfg).extract(
                         document_id=doc_id, client_id=client_id, tax_year=tax_year,
-                        labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+                        labeled_fields=result.labeled_fields, confidences=result.confidence_map(),
+                        pages=result.pages)
                     staged.source_path = str(path)        # retain the file for compare-to-source
+                    staged.display_name = display          # local UI label; never exported
                     if parts:
-                        staged.source_note = doc_id        # which part of the combined PDF
+                        staged.source_note = display       # which part of the combined PDF
                     self.gate.add(staged)
                     self.intake_sources.add(str(path))
                     files_read += 1
                     fields_staged += len(staged.fields)
                     via = _READER_LABELS.get(result.backend, result.backend)
-                    notes.append(f"{doc_id} → {c.label} ({how}): staged "
+                    notes.append(f"{display} → {c.label} ({how}): staged "
                                  f"{len(staged.fields)} fields via {via}.")
 
-        self.gate.auto_confirm_high(by="auto (intake)")
-        if reconciled:
+        self.gate.auto_confirm_high(INTAKE)
+        # ONE WRITE FOR THE WHOLE RUN, and it happens before the reload so the
+        # Arrived table is populated by the time the screen redraws.
+        if arrivals_written:
+            self.store.save_received_documents(arrivals_written)
+        if reconciled or arrivals_written:
             self.reload()              # refresh documents view with the new Received statuses
+
+        # SAY WHAT THE RUN RECORDED ABOUT PROVENANCE, on the page it happened on.
+        # An `unknown` batch is a legitimate answer and must not read as a
+        # failure -- but it must not pass silently either, or the register fills
+        # with gaps nobody chose.
+        if arrivals_written:
+            incomplete = [d for d in arrivals_written if not d.has_known_provenance]
+            if not incomplete:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s): "
+                    f"{how_it_arrived.label.lower()} — a complete "
+                    f"26 CFR §1.6695-2 record for each.")
+            else:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s), "
+                    f"{len(incomplete)} without complete provenance. Nothing is "
+                    f"blocked; the Documents screen flags them, and you can say "
+                    f"how each arrived there.")
+
         self.intake_summary = {"folder": folder, "files_read": files_read,
                                "fields_staged": fields_staged, "reconciled": reconciled,
+                               "arrivals": len(arrivals_written),
+                               "arrival_label": how_it_arrived.label,
                                "notes": notes}
         return self.intake_summary
+
+    def _arrival_from_intake(self, *, doc_id: str, client_id: str, tax_year: int,
+                             doc_type: str, display_name: str, source_path: str,
+                             how_it_arrived):
+        """One `ReceivedDocument` for a document a folder scan turned up.
+
+        WHAT IS DERIVED AND WHAT IS ASKED, which is the whole shape of D26:
+
+          when          NOW. When the preparer ran the intake.
+          whose         the client the run was pointed at -- `run_intake`
+                        refuses without one, so this is never a guess.
+          what          the classifier's label, or "unidentified".
+          how / channel ASKED, once, for the batch. The one thing a file on
+                        disk cannot answer.
+          from whom     the client's name where the answer says the CLIENT
+                        furnished it, and blank otherwise -- a third party
+                        sending something says who it was not, not who it was.
+
+        The id is derived from the document rather than generated, so re-running
+        an intake over the same folder updates the same rows instead of filling
+        the register with duplicates of one document.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        return ReceivedDocument(
+            document_id=f"intake-{doc_id}",
+            client_id=client_id,
+            tax_year=tax_year,
+            doc_type=doc_type,
+            obtained_how=how_it_arrived.obtained_how,
+            obtained_at=datetime.now(),
+            furnished_by=(self.name(client_id) if how_it_arrived.furnished_by_client
+                          else ""),
+            channel=how_it_arrived.channel,
+            display_name=display_name,
+            source_path=source_path,
+        )
 
     @staticmethod
     def _read_document(fpath: Path, cfg: dict, allow_cloud: bool):
@@ -361,9 +730,13 @@ class AppState:
                     return result, ""
                 chars = text_layer_chars(fpath)
                 if chars >= TEXT_LAYER_MIN:
-                    result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
+                    anchors = TextAnchorReader(cfg)
+                    result = anchors.read(str(fpath))                 # 2) text layer (local)
                     if result.labeled_fields:
-                        return result, ""
+                        # WHICH PAGES WERE LEFT OUT, when the page rule skipped
+                        # any. Silence here made a mis-skipped page look exactly
+                        # like a correctly-skipped one.
+                        return result, _skipped_note(getattr(anchors, "skipped_pages", []))
                     # THE DOCUMENT WAS READABLE AND WE FAILED ON IT. Falling
                     # straight to OCR here is what hid this from the firm for a
                     # season: OCR rasterises text that was already there, reads
@@ -422,13 +795,22 @@ class AppState:
         1040 line ids with aggregation (every W-2 box 1 summed into wages, etc.).
         The return is created if it doesn't exist; re-posting is idempotent.
         """
-        client_id = client_id or self.intake_context.get("client_id") or "SATC-001000"
-        tax_year = tax_year or self.intake_context.get("tax_year") or 2024
+        # The same defect as `run_intake`, one step further downstream: this used to
+        # end `or "SATC-001000"` / `or 2024`, so a post with no context of its own
+        # wrote the figures onto a demo client's return in the prior year. The
+        # context is set by `run_intake`, which now cannot run without both.
+        client_id = client_id or self.intake_context.get("client_id")
+        tax_year = tax_year or self.intake_context.get("tax_year")
+        if not client_id or not tax_year:
+            raise ValueError(
+                "post_confirmed needs a client and a tax year. Nothing was staged "
+                "by an intake run that recorded them, and guessing is how staged "
+                "figures used to land on somebody else's return.")
         rk = return_key(client_id, tax_year, return_type, jurisdiction)
         ret = next((r for r in self.mart.returns if r.return_key == rk), None)
         if ret is None:
             ret = ReturnRecord(return_key=rk, client_id=client_id, tax_year=tax_year,
-                               return_type=return_type, jurisdiction=jurisdiction, status="In prep")
+                               return_type=return_type, jurisdiction=jurisdiction)
             self.mart.returns.append(ret)
 
         items = self.gate.to_line_items(rk, MAPPING_1040)
@@ -446,19 +828,27 @@ class AppState:
         self.store.delete_intake_line_items(rk)
         self.store.save_mart(self.mart)
         self.reload()
+        # WHAT BECAME OF EVERY CONFIRMED VALUE, not just how many lines came
+        # out. D8: the button said "Post 10 confirmed" and the result said
+        # "posted 6", with nothing on the page explaining the four. Nothing was
+        # lost -- two W-2s aggregate onto shared 1040 lines -- but a count that
+        # shrinks without an explanation cannot be told apart from one that did
+        # lose something, and the reviewer's question had no answer anywhere.
+        account = self.gate.posting_account(MAPPING_1040)
         self.posted_summary = {"return_key": rk, "client_id": client_id, "posted": len(items),
+                               "account": account,
                                "lines": [(li.label, float(li.amount) if li.amount is not None
                                           else li.text_value) for li in items]}
         return self.posted_summary
 
     # -- client intake & engagement workflows -----------------------------
-    def intake_engagements(self) -> list:
+    def jobs(self) -> list:
         """All generated engagements (workflow instances), newest first."""
-        return list(reversed(self.store.load_intake_engagements()))
+        return list(reversed(self.store.load_jobs()))
 
-    def engagement(self, engagement_id: str):
-        return next((e for e in self.store.load_intake_engagements()
-                     if e.engagement_id == engagement_id), None)
+    def engagement(self, job_id: str):
+        return next((e for e in self.store.load_jobs()
+                     if e.job_id == job_id), None)
 
     def relationships(self) -> list:
         return self.store.load_relationships()
@@ -485,19 +875,62 @@ class AppState:
         self.reload()
         return eng
 
+    def record_decision(self, approval) -> bool:
+        """Write down what the owner did with a draft. Returns whether it was NEW.
+
+        Idempotent on the approval's own derived id (principle 8): a double
+        click, a page reload, or the owner checking whether they already logged
+        it lands on the same row. The return value is what lets the screen say
+        "already recorded" rather than silently doing nothing — which is the
+        difference between a no-op the owner understands and one they do not.
+        """
+        from satc.autonomy.approval import merge
+
+        _ledger, added = merge(self.store.load_approvals(), [approval])
+        if added:
+            self.store.save_approvals(added)
+        return bool(added)
+
+    def create_engagement_from_intake(self, **kw):
+        """The door the app uses. Deadline computed, not keyed in.
+
+        ``create_engagement`` above takes a ``due_date`` off a form, which makes
+        a typed date drive the whole engagement — and left ``obligation_key``
+        empty, which is why the work queue's deadline ranking could never fire
+        on a real job. This routes through the interview instead, so the
+        engagement the owner GENERATES is derived the same way as the plan they
+        just READ. Two derivations for one engagement is two answers to the same
+        question.
+        """
+        from satc.intake.service import create_engagement_from_intake
+
+        plan = create_engagement_from_intake(self.store, **kw)
+        self.reload()
+        return plan
+
     def set_task_completed(self, task_id: str, completed: bool = True) -> None:
         """Mark an engagement task done/undone (durable)."""
-        for eng in self.store.load_intake_engagements():
+        for eng in self.store.load_jobs():
             for task in eng.tasks:
                 if task.task_id == task_id:
-                    task.completed = completed
+                    task.status = "done" if completed else "not_started"
                     self.store.save_task(task)
                     return
 
     def workflow_catalog(self) -> dict[str, list]:
         """Workflows offered per client type, for the intake screens."""
-        from satc.intake.workflows import workflows_for_client_type
-        return {ct: workflows_for_client_type(ct) for ct in ("person", "business")}
+        from satc.intake.workflows import workflow_catalog_with_problems
+
+        catalog: dict[str, list] = {}
+        broken: list = []
+        for ct in ("person", "business"):
+            good, bad = workflow_catalog_with_problems(ct)
+            catalog[ct] = good
+            broken.extend(bad)
+        # Kept so a screen can SAY a workflow file is broken. A picker that is
+        # simply shorter than it was yesterday tells the owner nothing.
+        self.broken_workflows = broken
+        return catalog
 
     # -- bulk client import (CSV / spreadsheet / Drake export) ------------
     def preview_client_import(self, *, csv_text: str | None = None, rows: list[dict] | None = None):
@@ -544,7 +977,8 @@ class AppState:
     def pipeline_counts(self) -> dict[str, int]:
         out: dict[str, int] = {}
         for r in self.mart.returns:
-            out[r.status] = out.get(r.status, 0) + 1
+            label = self.filing_status(r.return_key)
+            out[label] = out.get(label, 0) + 1
         return out
 
     def fees_total(self) -> float:

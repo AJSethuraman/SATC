@@ -82,13 +82,16 @@ def engaged(tmp_path):
     return {"store": store, "ref": out.ref}
 
 
-def _run(kind, engaged, tmp_path, payload=None):
+def _run(kind, engaged, tmp_path, payload=None, force=""):
     f = tmp_path / f"{kind}.json"
     f.write_text(json.dumps(payload or ANSWERS[kind]), encoding="utf-8")
     out = tmp_path / kind
-    code = cli.main(["event", "--kind", kind, "--engagement", engaged["ref"],
-                     "--store", str(engaged["store"]), "--answers", str(f),
-                     "--out", str(out), "--no-pdf"])
+    argv = ["event", "--kind", kind, "--engagement", engaged["ref"],
+            "--store", str(engaged["store"]), "--answers", str(f),
+            "--out", str(out), "--no-pdf"]
+    if force:
+        argv += ["--force", "--reason", force]
+    code = cli.main(argv)
     return code, sorted(out.glob("*.html")) if out.exists() else []
 
 
@@ -177,7 +180,19 @@ def test_missing_names_what_is_still_needed():
 
 @pytest.mark.parametrize("kind", sorted(ANSWERS))
 def test_each_event_produces_its_document(kind, engaged, tmp_path):
+    """**EXTENSION IS EXPECTED TO BE REFUSED, and that is a real finding rather
+    than a broken test.** See `test_an_extension_is_refused_because_the_record_
+    contradicts_itself` below for the whole story; in short, an extension moves
+    the materials deadline and leaves the original deliverable promise standing,
+    so the pack tells the client two things that cannot both be true. The gate
+    caught it the first time it ran over a real lifecycle document.
+    """
     code, made = _run(kind, engaged, tmp_path)
+    if kind == "extension":
+        assert code == 1 and made == [], (
+            "the extension record no longer contradicts itself -- if that was "
+            "fixed on purpose, move this back to the ordinary case below")
+        return
     assert code == 0, kind
     assert len(made) == 1, made
 
@@ -227,11 +242,44 @@ def test_the_delivery_letter_says_what_was_delivered(engaged, tmp_path):
 
 def test_the_extension_notice_says_what_to_pay(engaged, tmp_path):
     """The failure this whole registry exists to stop: a heading warning that
-    the payment deadline has not moved, and nothing about the payment."""
-    _, made = _run("extension", engaged, tmp_path)
+    the payment deadline has not moved, and nothing about the payment.
+
+    Forced past the gate ON PURPOSE, because the thing under test is the
+    document's CONTENT and the gate is refusing it for a fact about the record
+    (below). Forcing here is honest -- the override is logged like any other,
+    and the alternative is a content test that silently stops running the day a
+    record fails a check for an unrelated reason.
+    """
+    _, made = _run("extension", engaged, tmp_path,
+                   force="the record contradicts itself; testing the wording")
     said = made[0].read_text(encoding="utf-8")
     assert "$450.00" in said
     assert "October 15, 2027" in said
+
+
+def test_an_extension_is_refused_because_the_record_contradicts_itself(
+        engaged, tmp_path):
+    """**THE PRE-SEND GATE'S SECOND REAL CATCH**, 5 September 2026, on the day
+    `event` was first put behind it.
+
+    An extension supplies `MaterialsDeadline` -- "send everything by 1 August
+    2027" -- and changes nothing else. The engagement's original
+    `FirstDeliverable` promise, 1 April 2027, stays exactly where it was. So
+    the pack tells the client it will deliver four months before it asks them
+    for the papers.
+
+    The agreement check has always been able to see this. Nothing on the
+    `event` path ever asked it, so every extension notice this practice has
+    produced went out over a record that says two things that cannot both be
+    true.
+
+    **This test asserts the REFUSAL, not the fix.** What an extension should do
+    to the deliverable promise -- move it, clear it, or ask -- is the firm's
+    process, not a thing to decide in a test file. Recorded as W14.
+    """
+    code, made = _run("extension", engaged, tmp_path)
+    assert code == 1, "the extension was written despite the contradiction"
+    assert made == [], "a refused event left a document behind"
 
 
 def test_the_disengagement_letter_names_what_ends(engaged, tmp_path):

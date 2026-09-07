@@ -1,0 +1,247 @@
+# FIRM POLICY — SATC's own dates. NOT law.
+#
+# Everything in this file is the owner's choice and carries NO citation. It is
+# kept in a separate file from the statutory rules on purpose: the operating
+# model's hardest-won lesson is that a firm-policy date and a statutory date
+# must never be mistaken for each other. Law is in federal.yaml (and, once
+# sourced, per-state files); preference is here.
+#
+# The UI must render these visibly differently from computed statutory dates.
+# `is_firm_policy` is True on anything derived from this file.
+
+meta:
+  note: >-
+    Owner-set dates. Edit freely — nothing here has a source because nothing
+    here has an authority behind it. If a date in this file ever acquires a
+    citation, it belongs in the statutory config instead.
+
+# The internal document cutoff: "have your documents to us by this date, or we
+# extend." A FIXED calendar date rather than an offset from the deadline —
+# the owner's call, on the grounds that a fixed date is what you actually tell
+# a client, and "March 1" survives a conversation better than "45 days before
+# your deadline."
+#
+# Trade-off accepted: a fixed date does NOT follow the statutory date when the
+# deadline shifts for a weekend or holiday. In a year where April 15 moves to
+# April 18, a March 1 cutoff stays March 1 and the working window quietly grows
+# by three days. That is harmless in this direction; it would not be if a
+# cutoff were ever set AFTER a deadline, which the loader refuses.
+#
+# Deliberately NOT shifted off weekends: a cutoff is a request to a client, not
+# an act with legal consequence, and "get it to us by Sunday March 1" is a
+# perfectly good thing to say.
+cutoffs:
+  form_1040: {month: 3, day: 1}
+  form_1065: {month: 2, day: 1}
+  form_1120s: {month: 2, day: 1}
+  form_1120: {month: 3, day: 1}
+  form_1041: {month: 3, day: 1}
+  form_990: {month: 4, day: 1}
+
+# How long before a deadline the queue starts shouting. Also pure preference.
+alerts:
+  approaching_days: 30      # "coming up"
+  urgent_days: 7            # "this week"
+
+# WHAT TO PICK UP FIRST — the owner's judgement about their own week.
+#
+# In March almost everything is blocked on somebody else, so the scarce thing is
+# not hours, it is unblocked work. The queue answers "what can I pick up right
+# now, and which one first". WHICH ONE FIRST is a preference and nothing more.
+# There is no authority anywhere that says a file nobody has touched in a
+# fortnight outranks one due in three weeks — that is a judgement about how this
+# practice likes to work, and a different owner would weigh it differently.
+#
+# So, like everything else in this file, none of it carries a citation, and
+# anything derived from it is flagged `ordering_is_firm_policy` so the screen can
+# render a rank as a suggestion rather than as a fact. Turn a weight to 0 and
+# that factor stops mattering; the ordering changes and nothing breaks.
+#
+# The one thing NOT settable here is the deadline itself. How close a deadline
+# is comes from the cited statutory rules in configs/obligations/ — a date typed
+# into this file would be a preference wearing the clothes of law, which is the
+# exact confusion this file exists to prevent.
+queue:
+  # Inside this many days, a statutory deadline starts pulling a job up the
+  # list; further out than this it contributes nothing. Overdue keeps pulling
+  # harder, up to double, and then stops — so one ancient file cannot own the
+  # top of the queue forever.
+  horizon_days: 45
+
+  # A job with no recorded movement for this long counts as fully stale. This is
+  # the "quietly slipping" detector, and it is guesswork about attention span,
+  # not about tax.
+  stale_after_days: 14
+
+  # How much each factor pulls. Relative to each other only — the absolute
+  # numbers mean nothing.
+  weights:
+    deadline: 1.0     # how close the STATUTORY deadline is (computed, never typed)
+    idle: 0.4         # how long since anything was recorded against this job
+    unblocks: 0.3     # how much other work finishing this one frees up
+    quick_win: 0.2    # how few tasks are left — the one that clears the board
+
+# WHAT WE PROMISE — turnaround this practice offers. Preference, not law.
+#
+# "We come back on a notice within two business days" is something the owner
+# said and can unsay. Nothing enforces it, nobody can fine you for it, and the
+# worst consequence of breaking one is an apology. That is the whole difference
+# from the dates in configs/obligations/, and it is why these live here: a
+# missed promise and a missed filing date must never render the same way.
+#
+# The loader REFUSES an SLA that carries a citation, a source or an authority —
+# the mirror image of the statutory loader, which refuses a rule that carries
+# none. If a turnaround here ever turns out to be required by law (the 24-hour
+# taxpayer notification after an e-file rejection is a real example, and is
+# deliberately NOT in this file), it is an obligation and belongs in
+# configs/obligations/ with its source.
+#
+# Each promise needs four things, and business_days is not optional: two
+# business days and two calendar days are different promises, and SATC will not
+# guess which one you meant.
+#
+#   days           how long
+#   business_days  true skips weekends and federal holidays; false counts every
+#                  day, including Sunday. A calendar-day promise is NOT moved
+#                  off a weekend — §7503 shifts acts with legal consequence, and
+#                  shifting a promise would hand us time we never offered.
+#   starts_when    the fact the clock starts at
+#   ends_when      the fact that stops it
+#
+# starts_when/ends_when are picked from a fixed list SATC knows (see
+# satc/work/sla.py) — and MOST OF THEM ARE NOT RECORDED ANYWHERE YET. There is
+# no inbound message in this system, no "the documents went complete" moment,
+# and no delivery fact at all. Where a fact is missing SATC refuses to say
+# whether the promise was kept and names what is missing, rather than showing a
+# green tick derived from a guess. Four of the five below are in that state
+# today; that is a fair picture of the practice, not a bug in the config.
+#
+# THAT REFUSAL IS SAID ONCE, NOT ONCE PER JOB. Which promises this build can
+# measure is a fact about the SOFTWARE — identical for every client, every
+# workflow and every week — so it belongs on a capability screen
+# (`unmeasurable_promises()`), beside the other things this build cannot do. A
+# per-engagement screen walks `measurable_slas()` instead and shows only rows
+# that move when the owner keys something. Four byte-identical refusals on
+# every plan the owner ever opens is how a screen teaches its reader to scroll
+# (principle 13) — and the row they scroll past next is the one that mattered.
+#
+# Leave the four unmeasurable promises here. They are what this practice
+# actually offers, and each row disappears from the capability list on the day
+# the entity it names lands — which is what makes that list a real one.
+slas:
+  first_response:
+    label: First reply to a client's message
+    days: 1
+    business_days: true
+    starts_when: client_message_received
+    ends_when: reply_sent
+
+  notice_turnaround:
+    label: Substantive response to an IRS or state notice
+    days: 2
+    business_days: true
+    starts_when: notice_received
+    ends_when: notice_response_sent
+
+  return_turnaround:
+    label: Return out once the documents are complete
+    days: 10
+    business_days: true
+    starts_when: documents_complete
+    ends_when: return_delivered
+
+  signature_acknowledged:
+    label: Acknowledging a signed 8879
+    days: 1
+    business_days: true
+    starts_when: authorization_signed
+    ends_when: acknowledgement_sent
+
+  # The one promise SATC can actually check today, because both ends of its
+  # clock are keyed off Drake and recorded: the rejection ack, and the next
+  # transmission. Not the Pub 1345 notification — that is a legal duty and is
+  # not in this file.
+  efile_reject_turnaround:
+    label: Fixing and retransmitting a rejected return
+    days: 2
+    business_days: true
+    starts_when: efile_rejected
+    ends_when: efile_retransmitted
+
+# STANDING TEXT — wording that is the same for every client, written once.
+#
+# These were previously "fill it in yourself" slots on every single draft, which
+# is not caution, it is homework. Nothing here is a fact about a client, so
+# nothing here can be wrong about one — it is just how this firm says things.
+standing_text:
+  meeting_place: "a phone call or our office, whichever is easier for you"
+  records_return_note: >-
+    Any records you gave us are yours and will be returned to you promptly on
+    request, at no charge and regardless of any outstanding fee. Tell us where
+    to send them and we will do so.
+  payment_instructions: >-
+    You can pay by check made out to Sethuraman Accounting, Tax & Consulting, or
+    ask us for bank details if you would rather transfer it.
+
+# AUTONOMY — how many clean sends in a row it takes to trust a (template,
+# client) pair. Governed by docs/AUTONOMY-CHARTER.md; this is the ONE knob the
+# charter leaves to the owner rather than the code (charter §4). Like
+# everything else in this file, none of it carries a citation — there is no
+# authority anywhere that says five is right and six is wrong, only a
+# practice's own comfort with how much evidence is enough.
+#
+# Nothing here turns "earned" into "sends anything". A pair reaching earned
+# still changes exactly one recorded fact — see the charter §10 and the
+# no-SMTP test that has to keep passing regardless of what these numbers say.
+autonomy:
+  # How many CONSECUTIVE zero-edit approvals, for the SAME pair, it takes to
+  # move draft_only -> earned. Two thresholds because getting a birthday note
+  # wrong and getting an invoice amount wrong are not the same size of
+  # mistake, and the evidence bar should not pretend otherwise.
+  thresholds:
+    routine: 5              # informational, no money, no date, no filing step
+    money_or_deadline: 10   # carries an amount, a statutory date, or a filing
+                             # consequence — a wrong send here is the expensive
+                             # kind of wrong, so it needs twice the proof
+
+  # How often the three preconditions in satc/autonomy/preconditions.py have
+  # to be re-confirmed before the gate goes stale. Quarterly, on the theory
+  # that a backup nobody has checked in three months might as well not exist,
+  # and that is a cadence the owner can live with checking. A lapsed
+  # confirmation FREEZES accrual — it does not erase what is already earned.
+  precondition_reconfirm_days: 90
+
+  # WHICH TEMPLATES ARE money_or_deadline, decided by hand, not inferred from
+  # the template's name or content (charter §4: "config, not inference"). A
+  # template left off BOTH lists below is treated as money_or_deadline anyway
+  # — the stricter rung — because a template nobody has classified is a
+  # template nobody has thought about, and that is not evidence it is safe.
+  #
+  # The routine list is the one that actually does something: everything not
+  # on it is money_or_deadline, full stop. The money_or_deadline list below is
+  # kept anyway so a reviewer can see the reasoning written down, and so the
+  # loader can catch a template accidentally listed under both.
+  templates:
+    routine:
+      - interview_invite       # scheduling only, nothing at stake if reworded
+      - welcome
+      - missing_items          # a nudge; the deadline it serves is elsewhere
+      - organizer_send
+      - status_update          # explicitly asks for nothing
+      - prior_year_check
+      - season_thanks
+      - year_end_planning      # an invitation to talk, not a stated date
+      - referral_thanks
+      - birthday
+
+    money_or_deadline:
+      - engagement_letter      # states the fee
+      - document_request       # states the engagement due date
+      - extension_request      # a wrong send here can cost reasonable-cause
+                                # protection on a late return — filing consequence
+      - return_delivery        # states the refund/balance-due result
+      - cover_letter            # rides with the same result as return_delivery
+      - signature_request      # nothing can be transmitted without this — an
+                                # IRS rule, not a preference
+      - invoice_cover          # states the fee
+      - disengagement          # states that no further returns will be filed

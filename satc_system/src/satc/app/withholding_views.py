@@ -60,12 +60,40 @@ _DRAKE_TO_ESTIMATOR_STATUS = {
 }
 _ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
 
+# AND THE FORM THE INTERVIEW ACTUALLY STORES, which is neither of the above.
+#
+# `satc.app.intake_views` has its own `FILING_STATUSES` -- a list of DISPLAY
+# LABELS ("Married filing jointly"), where this module's is a list of
+# (code, label) pairs. The interview writes the label to the client record, and
+# this mapper knew only estimator codes and Drake abbreviations, so every real
+# client came back "" and the estimator silently stayed on Single.
+#
+# Found by walking it, 5 September 2026: a client whose record holds
+# `filing_status: 'Married filing jointly'` pressed **Load client** -- on a panel
+# that promises to "prefill the stable household info -- FILING STATUS -- from an
+# existing client" -- and the household stayed Single. That is not cosmetic:
+# Single takes a $15,000 standard deduction and the single brackets where MFJ
+# takes $30,000 and the joint ones, and every figure on the screen still ties out
+# internally, because the arithmetic is right and only the input is wrong.
+_LABEL_TO_ESTIMATOR_STATUS = {label.casefold(): code for code, label in FILING_STATUSES}
+# The interview offers a fifth status this estimator has no separate code for.
+# QSS uses the joint brackets and the joint standard deduction, which is exactly
+# what `_DRAKE_TO_ESTIMATOR_STATUS` already does with the Drake code "QSS".
+_LABEL_TO_ESTIMATOR_STATUS["qualifying surviving spouse"] = "married_jointly"
+
 
 def _estimator_filing_status(stored: str) -> str:
-    """Map a client's stored filing status to an estimator code (or '' if none)."""
+    """Map a client's stored filing status to an estimator code (or '' if none).
+
+    Accepts all three shapes the practice actually holds: an estimator code, the
+    display label the interview stores, and a Drake abbreviation.
+    """
     s = (stored or "").strip()
     if s in _ESTIMATOR_STATUSES:
         return s
+    by_label = _LABEL_TO_ESTIMATOR_STATUS.get(s.casefold())
+    if by_label:
+        return by_label
     return _DRAKE_TO_ESTIMATOR_STATUS.get(s.upper(), "")
 
 _JOBS_KEY = "wh_jobs"          # list[dict] of per-job paystub fields, per session

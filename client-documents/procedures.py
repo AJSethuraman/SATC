@@ -26,10 +26,12 @@ from __future__ import annotations
 
 import inspect
 import re
+from functools import lru_cache
 from pathlib import Path
 
 import closeout
 import packaging
+import payments
 import presend
 
 ROOT = Path(__file__).resolve().parent
@@ -47,13 +49,131 @@ RETURN_TYPES = [
 def commands() -> list[str]:
     """Every subcommand the CLI actually offers, read from its own parser.
 
-    Read from source rather than by building the parser, because building it
-    imports the world; the point is only that this list cannot drift from the
-    commands that exist.
+    ASKED, NOT READ. This used to scrape `add_parser("...")` out of
+    `inspect.getsource(cli.main)`, which broke silently the moment the parser
+    moved into `build_parser` -- and would have broken the same way for any
+    refactor, or for a subcommand added through a helper. Worse, it read the
+    file from disk, so editing `cli.py` while the suite ran made every
+    procedures test fail for a reason that had nothing to do with them.
+
+    The parser is now handed out, so this asks it.
     """
     import cli
-    src = inspect.getsource(cli.main)
-    return re.findall(r'add_parser\("([a-z-]+)"', src)
+    choices = cli.build_parser()._subparsers._group_actions[0].choices
+    return list(choices)
+
+
+def invocations(text: str) -> list[str]:
+    """Every `python cli.py ...` invocation the document prints.
+
+    Continuation lines are joined: the document wraps long commands with a
+    trailing backslash, exactly as a person would type them, and checking the
+    first half alone would pass a command whose second half is wrong.
+    """
+    out: list[str] = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("python cli.py "):
+            while line.endswith("\\") and i + 1 < len(lines):
+                i += 1
+                line = line[:-1].rstrip() + " " + lines[i].strip()
+            out.append(line)
+        i += 1
+    return out
+
+
+def unrunnable(text: str | None = None) -> list[str]:
+    """Every command line in the document that argparse would refuse.
+
+    WHY THIS EXISTS, and it is the whole lesson of this file. `_require`
+    below checks that a command NAME exists, and the document's own preamble
+    then promises it "cannot name a command that does not exist". True of
+    names. Every FLAG, argument and value in every code block was typed by
+    hand into `render()` and checked by nothing -- so the first command in the
+    first procedure, `from-lead --lead lead.json`, had been wrong since it was
+    written: `lead` is a positional and argparse refuses the flag outright. A
+    new preparer's first act failed, on the front page, under a guarantee that
+    it could not.
+
+    That is this repository's own recurring bug shape, relocated one layer up:
+    a claim in one place, the behaviour in another, and nothing comparing them
+    (S31). This is the thing that compares them. It parses each line the
+    document prints with the real parser, in a mode that raises instead of
+    exiting, and reports what would not run.
+
+    Values are replaced with harmless stand-ins before parsing: the point is
+    the SHAPE of the invocation -- which flags exist, what takes an argument,
+    what is positional -- not whether a file named lead.json is on this disk.
+    """
+    import argparse
+    import shlex
+    import cli
+
+    text = text if text is not None else render()
+    problems: list[str] = []
+
+    parser = _quiet_parser()
+    for line in invocations(text):
+        # Placeholders go FIRST, before the shell split: the document writes
+        # things like `<LAST YEAR'S REF>`, and an apostrophe inside one makes
+        # `shlex` read the rest of the line as a quoted string.
+        body = re.sub(r"<[^>]+>", "PLACEHOLDER",
+                      line.replace("python cli.py ", "", 1))
+        argv = shlex.split(body)
+        if "#" in argv:
+            argv = argv[:argv.index("#")]
+        argv = [a for a in argv if not a.startswith("#")]
+        # Optional pieces are written `[--within 21]`; the document means "you
+        # may add this", so it is checked as though it were there.
+        argv = [a.strip("[]") for a in argv if a.strip("[]")]
+        try:
+            parser.parse_args(argv)
+        except _ParserRefused as exc:
+            problems.append(f"{line}\n      -> {exc}")
+    return problems
+
+
+class _ParserRefused(Exception):
+    pass
+
+
+def _stand_in(arg: str) -> str:
+    """A placeholder the document prints, replaced with something parseable."""
+    if arg.startswith("<") and arg.endswith(">"):
+        return "PLACEHOLDER"
+    return arg
+
+
+def _quiet_parser():
+    """The CLI's own parser, made to raise instead of exiting.
+
+    `cli.build_parser()` is the real thing a person meets -- not a description
+    of it -- so this cannot drift from what actually runs.
+    """
+    import cli
+
+    parser = cli.build_parser()
+
+    def refuse(message):
+        raise _ParserRefused(message)
+
+    def stop(status=0, message=None):
+        if status:
+            raise _ParserRefused(message or f"exit {status}")
+
+    for target in [parser] + list(
+            parser._subparsers._group_actions[0].choices.values()):
+        target.error = refuse
+        target.exit = stop
+    return parser
+
+
+def _carry_count() -> int:
+    """How many answers can carry from last year, asked of the list itself."""
+    import interview
+    return len(interview.CARRIES)
 
 
 def _require(name: str) -> str:
@@ -100,6 +220,169 @@ def advisory_checks() -> list[str]:
     return [f"{a.key} ({a.tenet}) — {a.what}" for a in _notes.ADVISORIES]
 
 
+# ── every template belongs to a procedure ─────────────────────────────────
+#
+# THE FIRM'S GENERAL RULE, 2 September 2026:
+#
+#     "each relevant template is included as an appendix item to the process
+#      it belongs to (this is a general rule)"
+#
+# DERIVED, NEVER TYPED. Which documents a procedure produces is already stated
+# by the software -- `packaging.PACKS` for the opening pack, `lifecycle.yaml`
+# for the events, the invoice command for the invoice -- so this reads those
+# rather than restating them. A typed list beside them would be a second claim
+# about the same fact with nothing comparing the two, which is how the pack and
+# the renderer disagreed for a fortnight (see cli.opening_package).
+#
+# AND IT IS CHECKED BOTH WAYS. `template_audit` reports templates that belong
+# to no procedure AND procedures that name a template which does not exist. One
+# direction alone passes trivially: a document set with no procedures has no
+# orphans.
+
+APPENDIX_TITLE = "Appendix"
+
+
+def templates_by_procedure() -> dict[str, list[str]]:
+    """Which document ids each numbered procedure produces, in reading order."""
+    import packaging
+    import lifecycle
+
+    opening: list[str] = []
+    for docs in packaging.PACKS.values():
+        for doc in docs:
+            if doc not in opening:
+                opening.append(doc)
+    # Documents that ride along for the clients they apply to -- the records
+    # release travels only when there is a predecessor firm. Conditional is
+    # still "belongs to this procedure": the appendix says when.
+    for doc in packaging.CONDITIONAL:
+        if doc not in opening:
+            opening.append(doc)
+
+    events = lifecycle.load()
+    by_event = {kind: event.document
+                for kind, event in events.items() if event.document}
+
+    # `sign` PRODUCES NOTHING. It reads signature blocks out of templates that
+    # already exist and writes `signatures.json`. This entry used to be a
+    # hardcoded `("delivery-letter",)` -- in the function whose own comment
+    # above says DERIVED, NEVER TYPED -- so section 4 carried an appendix for
+    # a document it does not produce, and the delivery letter appeared twice
+    # in the index: once against a procedure that does not make it, and once
+    # against the lifecycle event that does.
+    out = {
+        "Sending the opening pack": opening,
+        # `requote` re-prices and re-writes the estimate; `invoice` writes the
+        # invoice. Both read from the command's own `--docs`/render path, so
+        # these two are the one place a typed name is unavoidable -- and they
+        # are asserted against `document_files()` so a rename cannot pass.
+        "When the work changes, and the price with it":
+            [d for d in ("fee-estimate",) if d in document_files()],
+        "Billing": [d for d in ("invoice",) if d in document_files()],
+    }
+    for kind, doc in sorted(by_event.items()):
+        out[f"When {_event_title(kind)}"] = [doc]
+    return {k: v for k, v in out.items() if v}
+
+
+def _events():
+    """The lifecycle events, loaded once."""
+    import lifecycle
+    return lifecycle.load()
+
+
+def _event_title(kind: str) -> str:
+    """A lifecycle event, named the way a procedure heading names it."""
+    return {
+        "delivery": "the return is ready to go back",
+        "organizer": "you send the organizer",
+        "extension": "the return needs an extension",
+        "disengagement": "an engagement has to end",
+    }.get(kind, kind)
+
+
+@lru_cache(maxsize=1)
+def document_files() -> dict[str, tuple[str, str]]:
+    """`{id: (filename, label)}`, read from the CLI's own map.
+
+    LAZY, because `cli` imports this module: reading it at import time made a
+    circular import that only bit when a test imported `procedures` first.
+    """
+    import cli
+    return dict(cli.DOCUMENTS)
+
+
+def template_audit(template_dir: Path | None = None) -> dict:
+    """Both directions, each with its denominator (S2).
+
+    `orphans`  templates on disk that no procedure claims.
+    `missing`  documents a procedure produces whose template is not there.
+    `examined` how many of each was looked at, because "no orphans" across
+               zero templates is not the same report as "no orphans" across
+               twelve.
+    """
+    template_dir = Path(template_dir or ROOT.parent / "satc-handoff" / "04-TEMPLATES")
+    on_disk = {p.name for p in template_dir.glob("*.html")
+               if not p.name.startswith("_")}
+
+    claimed_ids = {d for docs in templates_by_procedure().values() for d in docs}
+    claimed_files, missing = set(), []
+    for doc in sorted(claimed_ids):
+        entry = document_files().get(doc)
+        if entry is None:
+            missing.append(f"{doc} (no template is registered for it)")
+            continue
+        filename = entry[0]
+        claimed_files.add(filename)
+        if filename not in on_disk:
+            missing.append(f"{doc} -> {filename} (not in {template_dir.name})")
+
+    return {
+        "orphans": sorted(on_disk - claimed_files),
+        "missing": missing,
+        "templates_examined": len(on_disk),
+        "documents_examined": len(claimed_ids),
+    }
+
+
+def _appendix(add, procedure: str) -> None:
+    """The templates this procedure produces, as its own appendix item.
+
+    The firm's general rule, 2 September 2026: "each relevant template is
+    included as an appendix item to the process it belongs to". A procedure
+    that tells somebody to send a document and does not say which document is
+    a procedure they have to already know the answer to.
+    """
+    docs = templates_by_procedure().get(procedure) or []
+    if not docs:
+        return
+    # NAMED WHEN THE SECTION HOLDS MORE THAN ONE. Section 7 carries four
+    # events, and four consecutive headings all reading "Appendix — the
+    # documents this produces" tell a reader nothing about which is which.
+    if procedure.startswith("When ") and procedure not in (
+            "When the work changes, and the price with it",):
+        add(f"### {APPENDIX_TITLE} — {procedure[0].lower() + procedure[1:]}")
+    else:
+        add(f"### {APPENDIX_TITLE} — the documents this produces")
+    add("")
+    for doc in docs:
+        entry = document_files().get(doc)
+        if entry is None:
+            add(f"- `{doc}` — **no template is registered for this.**")
+            continue
+        filename, label = entry
+        when = ""
+        if doc in _conditional_docs():
+            when = f" — only when `{_conditional_docs()[doc]}` is set on the record"
+        add(f"- **{label}** — `satc-handoff/04-TEMPLATES/{filename}`{when}")
+    add("")
+
+
+def _conditional_docs() -> dict[str, str]:
+    import packaging
+    return dict(packaging.CONDITIONAL)
+
+
 def render() -> str:
     """The document."""
     lines: list[str] = []
@@ -124,11 +407,39 @@ def render() -> str:
     add("and nobody finds out until somebody follows it.")
     add("")
 
+    # ── 0 · the season ────────────────────────────────────────────────────
+    add("## The screen to open first")
+    add("")
+    add("```")
+    add(f"python cli.py {_require('season')} [--within 21]")
+    add("```")
+    add("")
+    add("What is due across every engagement, soonest first, overdue at the")
+    add("top. Everything else in this document acts on ONE engagement; this is")
+    add("the only thing that looks at the whole book.")
+    add("")
+    add("The dates are not typed in anywhere. They are derived from the statute")
+    add("— IRC 6072 for the month, IRC 7503 for the shift off a weekend or a")
+    add("legal holiday, and DC Emancipation Day, which is why the 2017 and 2022")
+    add("individual deadlines were both 18 April. The date a client's papers")
+    add("are due is the filing date minus `MATERIALS_LEAD_DAYS`, currently 21.")
+    add("")
+    add("> **It says what it could not place.** An engagement whose federal")
+    add("> form or tax year cannot be read has an UNKNOWN deadline, and it is")
+    add("> named at the bottom rather than left off — a board that quietly")
+    add("> drops what it could not read says the season is quieter than it is.")
+    add("")
+
     # ── 1 · taking on a client ────────────────────────────────────────────
     add("## 1 · Taking on a new client")
     add("")
     add("```")
-    add(f"python cli.py {_require('from-lead')} --lead lead.json --out record.json")
+    # `lead` is POSITIONAL. This line read `--lead lead.json` from the day it
+    # was written and argparse refused it -- the first command in the first
+    # procedure, under a preamble promising the document could not name a
+    # command that does not exist. `unrunnable()` now parses every line here
+    # with the real parser, so a wrong flag cannot ship again.
+    add(f"python cli.py {_require('from-lead')} lead.json --out record.json")
     add(f"python cli.py {_require('interview')}")
     add("```")
     add("")
@@ -179,6 +490,7 @@ def render() -> str:
     add("")
 
     # ── 3 · the gate ──────────────────────────────────────────────────────
+    _appendix(add, "Sending the opening pack")
     add("## 3 · What the pre-send gate checks")
     add("")
     add("`package` runs these before it writes anything. Nothing has reached the")
@@ -306,14 +618,25 @@ def render() -> str:
     add("form names live in a registry: the IRS renames them, and 8879-C and")
     add("8879-S became a single 8879-CORP in December 2022.")
     add("")
-    add("Two things this deliberately does **not** know, and says so rather")
+    add("One thing this deliberately does **not** know, and says so rather")
     add("than assuming:")
     add("")
     add("- **The records release.** Addressed to the previous accountant. It")
     add("  gates nothing here, and waiting on it would stop an engagement over")
     add("  a document somebody else acts on.")
-    add("- **Whether the invoice is settled.** The engagement letter says we")
-    add("  will not e-file before it is; `invoice` writes the bill and stops.")
+    add("")
+    # THIS PARAGRAPH USED TO SAY THE OPPOSITE, for a year after it stopped
+    # being true. `signing._unsettled` blocks on an unsettled invoice and has
+    # since payments were wired; the sentence here was transcribed from that
+    # function's own stale docstring, which still said nothing recorded
+    # whether a bill was paid. A preparer read section 4, believed billing
+    # could not gate signing, and was then blocked with no explanation.
+    add("**And one it does know, which used to be listed above as unknowable.**")
+    add("An invoice that has been raised and is not recorded as settled is a")
+    add("BLOCKER here, not a silence: every engagement letter says we will not")
+    add(f"e-file before the bill is settled. A bill nobody has raised is not an")
+    add(f"unpaid bill and blocks nothing. `python cli.py {_require('payments')}`")
+    add("asks the processor; a bill paid another way is recorded by hand.")
     add("")
     add("> **Judgement, not procedure:** whether to start work on a signature")
     add("> you have been told about but not yet seen. The register records what")
@@ -327,6 +650,7 @@ def render() -> str:
     add("")
 
     # ── 4 · the work changed ──────────────────────────────────────────────
+    _appendix(add, "Getting it signed")
     add("## 5 · When the work changes, and the price with it")
     add("")
     add("```")
@@ -381,6 +705,7 @@ def render() -> str:
     add("")
 
     # ── 4 · billing ───────────────────────────────────────────────────────
+    _appendix(add, "When the work changes, and the price with it")
     add("## 6 · Billing")
     add("")
     add("```")
@@ -389,9 +714,19 @@ def render() -> str:
     add("```")
     add("")
     add("One engagement has many invoices, so each is written to its own file")
-    add("rather than over the record. The invoice and the estimate must agree")
-    add("about the reference and the figure and **must not** share `PeriodLabel`")
-    add("— that is the one value naming two different spans of time.")
+    add("rather than over the record. The invoice and the estimate are checked")
+    add("against each other for the reference and the figure.")
+    add("")
+    # THIS SAID "MUST NOT SHARE PeriodLabel" AS THOUGH IT WERE ENFORCED. It is
+    # not, and enforcing it would be wrong: a bill covering the whole
+    # engagement legitimately reads "2026 tax year", the same as the estimate.
+    # What IS enforced is only that `--billed` is given at all. A "must not" in
+    # a document that promises it "cannot claim a check the gate does not
+    # perform" reads as a guarantee; this one was an intention.
+    add("`--billed` is required, and it is a judgement rather than a check:")
+    add("`PeriodLabel` means the engagement's period on the estimate and what")
+    add("this bill covers on the invoice. Nothing stops you writing the same")
+    add("words in both — on a bill for the whole engagement that is right.")
     add("")
     add("### The link, and finding out that it was paid")
     add("")
@@ -419,6 +754,21 @@ def render() -> str:
     add("a settlement is ever written down** — an unpaid order is left alone,")
     add("because a cached \"no\" goes stale the moment somebody pays.")
     add("")
+    add("**The money is checked against the bill.** A payment that does not")
+    add("cover what is owed does not settle it: `SettledOn` stays unwritten,")
+    add("the screen says `SHORT` rather than `waiting`, and the return stays")
+    add("blocked from filing. The case this exists for is a link that outlived")
+    add("its figure — re-quote an engagement from $645 to $745 and the old")
+    add("link still cheerfully collects $645.")
+    add("")
+    add("**An overpayment is credited, not refunded.** It settles the bill —")
+    add("holding a return over the firm's own refund would be absurd — and")
+    add("the next bill on that engagement says the money is sitting there and")
+    add("prints the `--credit` line to put it on. Refunding it costs the firm")
+    add("the processing fee: Square stopped returning that on refunds to US")
+    add("sellers on 11 April 2023. Naming the overpaid invoice in the credit's")
+    add("label is what records it as given back.")
+    add("")
     add("Once a bill is settled, `sign` stops reporting the invoice half of the")
     add("promise as unknowable: every engagement letter says we will not e-file")
     add("before the invoice is settled, and that becomes something the software")
@@ -429,6 +779,12 @@ def render() -> str:
     add("> and marking it by hand is a decision about money that belongs to a")
     add("> person, not to a poll.")
     add("")
+    add("A location id looks like `LM2T2W21MZ5CY`. It is **not** the")
+    add("application id, which the developer console shows beside it and which")
+    add("names the integration rather than the business the money belongs to.")
+    add("`--check` asks Square for the location list and prints the ids by")
+    add("name, so the right one can be copied rather than hunted for.")
+    add("")
     add("The token lives in an environment variable named by")
     add("`registry/payments.yaml`, never in the repository — a token in the")
     add("repository is a token in every clone, backup and screenshot. The")
@@ -436,9 +792,80 @@ def render() -> str:
     add("carry `[CONFIRM: ]` until the firm fills them in; until then no link")
     add("is created and the reason says so.")
     add("")
+    add("There are **two** location ids, because Square gives you two accounts:")
+    add("`location_id` for real money and `sandbox_location_id` for `--sandbox`.")
+    add("A run needs only the one it is using, so you can test before you have")
+    add("a live location — and a live invoice can never carry the test one.")
+    add("")
+    add("### Proving the money actually arrives")
+    add("")
+    add("```")
+    add(f"python cli.py {_require('payments')} --check")
+    add(f"python cli.py {_require('payments')} --check --production")
+    add("```")
+    add("")
+    add("Every automated test here talks to a stand-in for the network. They")
+    add("prove this software sends the right request and reacts correctly to")
+    add("the answer; they cannot tell a working card account from a closed")
+    add("one. `--check` asks the processor itself and reports what each step")
+    add(f"established — {payments.CHECK_STEPS} of them, and it says how far it")
+    add("got, because a check that stopped early and printed a tick is worse")
+    add("than one that failed.")
+    add("")
+    add("It stops one step short on its own, because no software can pay")
+    add("itself: it leaves a $1 link and tells you to open it and pay it. On")
+    add("`--check` that is a test card and no money moves. Run it again and it")
+    add("finds the same link — the invoice number is the key, so re-running")
+    add("does not make a second one — and tells you the money was seen.")
+    add("")
+    add("> **Judgement, not procedure:** the last mile is yours, once.")
+    add("> `--check --production` makes a REAL $1 link on the live account.")
+    add("> Paying it is the only thing that proves the live location is your")
+    add("> own, and watching it reach your bank is the only thing that proves")
+    add("> the payout works. This software cannot see your bank and will")
+    add("> never claim to.")
+    add("")
 
     # ── 5 · closing ───────────────────────────────────────────────────────
-    add("## 7 · Closing an engagement, at the end of the cycle")
+    _appendix(add, "Billing")
+    # ── the four lifecycle events ─────────────────────────────────────────
+    # THESE HAD NO SECTION AT ALL. Four of the eleven client documents are
+    # produced by `event`, and the document named them only inside a comma
+    # list of every command. Section 5 even told the reader that a live
+    # engagement turning into work the firm does not take needs the
+    # disengagement letter -- and never said how to produce one.
+    add("## 7 · The four things that happen after the pack")
+    add("")
+    add("Everything above is one engagement being opened, priced and billed.")
+    add("These four are what happens to it afterwards, and each writes one")
+    add("document. The questions come from `registry/lifecycle.yaml`, so a")
+    add("question added there is asked here without anybody editing this.")
+    add("")
+    add("```")
+    # A REAL KIND, NOT A PLACEHOLDER. `--kind` is a choice, so `<KIND>` is
+    # not merely unhelpful -- argparse refuses it, and `unrunnable()` says so.
+    add(f"python cli.py {_require('event')} --kind {sorted(_events())[0]} "
+        f"--engagement <REF>")
+    add(f"# the four kinds are {', '.join(sorted(_events()))}")
+    add("```")
+    add("")
+    add("| Kind | When | It writes | It asks |")
+    add("| --- | --- | --- | --- |")
+    for kind, event in sorted(_events().items()):
+        label = document_files().get(event.document,
+                                     (event.document, event.document))[1]
+        asks = f"{len(event.questions)} question(s)"
+        if event.rows:
+            asks += f" + {len(event.rows)} list(s)"
+        add(f"| `{kind}` | {event.what.rstrip('.')} | {label} | {asks} |")
+    add("")
+    add("An event reuses what it recorded last time unless you pass `--again`,")
+    add("so re-running one after a correction does not re-ask everything.")
+    add("")
+    for kind in sorted(_events()):
+        _appendix(add, f"When {_event_title(kind)}")
+
+    add("## 8 · Closing an engagement, at the end of the cycle")
     add("")
     add("```")
     add(f"python cli.py {_require('close')} --engagement <REF>")
@@ -456,7 +883,7 @@ def render() -> str:
     add("")
 
     # ── 6 · the control ───────────────────────────────────────────────────
-    add("## 8 · The end-of-cycle control")
+    add("## 9 · The end-of-cycle control")
     add("")
     add("```")
     add(f"python cli.py {_require('reconcile')}")
@@ -478,15 +905,22 @@ def render() -> str:
     add("")
 
     # ── 7 · next year ─────────────────────────────────────────────────────
-    add("## 9 · The following year")
+    add("## 10 · The following year")
     add("")
     add("```")
     add(f"python cli.py {_require('returning')} --engagement <LAST YEAR'S REF>")
     add("```")
     add("")
     add("Last year's answers are shown back to be confirmed, never assumed —")
-    add("every carried answer is still asked. Nine carry; the rest are asked")
-    add("fresh, and the command prints why each one does not carry.")
+    # COUNTED, NOT REMEMBERED. This read "Nine carry" and was typed: nine is
+    # what happened to carry for one individual sample. `interview.CARRIES`
+    # holds more than that, and five of them are entity-only -- so a preparer
+    # rolling a partnership forward and counting nine confirmations would
+    # conclude six answers had been lost.
+    add(f"every carried answer is still asked. Up to {_carry_count()} carry, "
+        f"depending on")
+    add("what the engagement is; the rest are asked fresh, and the command")
+    add("prints why each one does not carry.")
     add("")
     add("A returning client is also asked what changed: a marriage, a divorce, a")
     add("birth, a death, a home bought or sold, a move, a retirement, an")
@@ -496,7 +930,7 @@ def render() -> str:
     add("")
 
     # ── 8 · demonstrating it ──────────────────────────────────────────────
-    add("## 10 · Demonstrating that all of it works")
+    add("## 11 · Demonstrating that all of it works")
     add("")
     add("```")
     add("cd client-documents && python exercise.py")
@@ -515,6 +949,49 @@ def render() -> str:
     add("")
     add(", ".join(f"`{c}`" for c in commands()))
     add("")
+    # ── the index, and what it could not place ────────────────────────────
+    audit = template_audit()
+    add("## Appendix — every template, and the procedure it belongs to")
+    add("")
+    add("The firm's general rule: **each relevant template is an appendix item")
+    add("to the process it belongs to.** This index is the other direction —")
+    add("start from a template and find its procedure.")
+    add("")
+    add("Nothing here is typed. Which documents a procedure produces is read")
+    add("from `packaging.PACKS`, `packaging.CONDITIONAL` and")
+    add("`registry/lifecycle.yaml`; the filenames come from `cli.DOCUMENTS`.")
+    add("")
+    add("| Template | Procedure |")
+    add("| --- | --- |")
+    for procedure, docs in templates_by_procedure().items():
+        for doc in docs:
+            entry = document_files().get(doc)
+            name = entry[1] if entry else doc
+            add(f"| {name} | {procedure} |")
+    add("")
+    add(f"{audit['templates_examined']} template file(s) examined against "
+        f"{audit['documents_examined']} document(s) named by a procedure.")
+    add("")
+    if audit["missing"]:
+        add("**A procedure names a document with no template:**")
+        add("")
+        for miss in audit["missing"]:
+            add(f"- {miss}")
+        add("")
+    if audit["orphans"]:
+        add("**Templates that belong to no procedure yet.** Reported rather")
+        add("than hidden: a finished letter with no process behind it is work")
+        add("waiting on a decision, and a document nobody can reach is the")
+        add("same as one that does not exist.")
+        add("")
+        for orphan in audit["orphans"]:
+            add(f"- `{orphan}`")
+        add("")
+    if not audit["missing"] and not audit["orphans"]:
+        add("Every template belongs to a procedure, and every procedure names")
+        add("a template that exists.")
+        add("")
+
     return "\n".join(lines) + "\n"
 
 

@@ -1,0 +1,86 @@
+# THE TRAP DRILL — configs/autonomy/traps.yaml
+#
+# docs/AUTONOMY-CHARTER.md section 7: a nightly drill runs the whole engine
+# against a SYNTHETIC practice seeded with known traps. Each trap has ONE
+# correct behaviour, and it is always a refusal or a visible flag — never
+# silence. A miss demotes the capability it guards.
+#
+# WHAT LIVES HERE vs WHAT LIVES IN CODE. Which capability a trap guards, and
+# why it exists, is a decision about the PRACTICE — worth being able to read
+# and edit without touching Python, the same reasoning as
+# configs/firm_policy.yaml. The CHECK ITSELF — the synthetic scenario and the
+# assertion — is bespoke logic and lives in satc/autonomy/traps.py, one
+# function per key below. satc.autonomy.traps refuses to run a key declared
+# here with no matching function, and refuses (at import) a function with no
+# entry here — the two lists must agree, the same discipline
+# satc.comms.library holds a template registry to.
+#
+# ADDING A TRAP when a real defect is found: write the check function in
+# traps.py, then add its entry here. The entry is what makes it show up on
+# the drill and on the digest; the function is what makes it real.
+#
+# CAPABILITY names the thing a miss demotes. Deliberately coarser than the
+# (template_key, client_id) ladder the charter's streaks run on (section 4) —
+# a trap failing means the RULE protecting a whole area is broken, not that
+# one client's history looks bad, so the demotion is area-wide.
+
+traps:
+  # `holds` names the templates a miss on this capability holds at draft_only.
+  # OMIT IT AND EVERY TEMPLATE IS HELD — that is deliberate, and it is the
+  # direction a tripwire has to fail in. A capability whose blast radius nobody
+  # has written down is one nobody has thought about, and guessing it is narrow
+  # is how a demotion becomes decorative (charter section 7).
+  - key: zero_line_invoice
+    capability: billing.invoice_issue
+    holds: [invoice_cover]
+    summary: >-
+      An invoice with no lines must never be issuable — a bill for $0.00
+      against real work, sitting in the register looking ordinary.
+    shipped_as: >-
+      "An invoice issued with zero lines" — docs/BRIEFING.md section 6.
+
+  - key: stale_chase_date
+    capability: documents.chase
+    holds: [document_request, missing_items, prior_year_check]
+    summary: >-
+      How long a document has been outstanding must be computed against the
+      day the drill actually runs, never a date baked in when the row was
+      first generated or read from some other clock.
+    shipped_as: >-
+      "A chase whose date has gone stale" — docs/AUTONOMY-CHARTER.md
+      section 7.
+
+  # No `holds`: every draft in the practice goes through render, so a merge that
+  # can put one client's fact in another's letter holds ALL of them.
+  - key: cross_client_merge
+    capability: comms.render
+    summary: >-
+      Rendering one client's draft must never leave a trace of another
+      client's facts in it — no value may survive between two clients'
+      renders through shared state.
+    shipped_as: >-
+      "A merge that would put one client's fact in another client's letter"
+      — docs/AUTONOMY-CHARTER.md section 7.
+
+  - key: duplicate_payment
+    capability: payments.dedupe
+    holds: [invoice_cover]
+    summary: >-
+      The same payment arriving twice — a re-imported bank export, a replayed
+      webhook, a second read of the same deposit — must fold into the
+      existing record, never be counted as new money.
+    shipped_as: >-
+      "A payment already recorded, arriving again" —
+      docs/AUTONOMY-CHARTER.md section 7; the payment-hash collision in
+      docs/BRIEFING.md section 6 is the same failure shape from the other
+      direction (two genuinely different payments colliding into one).
+
+  - key: stale_cheque_matches_future_invoice
+    capability: payments.reconcile
+    holds: [invoice_cover]
+    summary: >-
+      A payment cannot be auto-matched to an invoice that did not exist yet
+      when the money arrived — that is a coincidence in the amount, not
+      evidence about which bill it paid.
+    shipped_as: >-
+      "A 1999 cheque matching a 2026 invoice" — docs/BRIEFING.md section 6.

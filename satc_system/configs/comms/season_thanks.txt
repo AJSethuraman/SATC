@@ -1,0 +1,17 @@
+Dear {salutation},
+
+Your {tax_year} return is filed and behind you — thank you for trusting us with it
+another year.
+
+If anything arrives from the IRS or the state over the coming months, send it to us
+before you do anything else. Most notices are routine and many are simply wrong, but
+they all have deadlines.
+
+Otherwise, enjoy the quiet. We'll be in touch before next season.
+
+Warm regards,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

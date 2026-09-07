@@ -54,7 +54,7 @@ def build_data_mart_sheet(ws: Worksheet, mart: DataMart) -> dict[str, dict]:
 
     row, f, l = _table(ws, row, "Return register", [
         "client_id", "year", "type", "juris", "status", "residency", "refund", "balance due"],
-        [[r.client_id, r.tax_year, r.return_type, r.jurisdiction, r.status, r.residency,
+        [[r.client_id, r.tax_year, r.return_type, r.jurisdiction, r.residency,
           _num(r.refund_amount), _num(r.balance_due_amount)] for r in mart.returns],
         formats=[NF.TEXT, NF.YEAR, NF.TEXT, NF.TEXT, NF.TEXT, NF.TEXT, NF.USD, NF.USD])
     # Columns: B=client C=year D=type E=juris F=status G=residency H=refund I=balance

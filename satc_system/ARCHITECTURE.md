@@ -41,6 +41,7 @@ Almost every change maps to exactly one layer:
 | **Questionnaires / workflows** | `src/satc/intake/workflows.py`, `src/satc/app/workflow_views.py` | `configs/workflows/` | `tests/test_workflows_engine.py`, `tests/test_workflow_configs.py`, `tests/test_workflow_overrides.py` |
 | **Withholding estimate** (the math) | `src/satc/withholding/engine.py` | `configs/crosswalk/federal/*.yaml` | `tests/test_withholding_engine.py` |
 | **Reading a paystub → estimate** | `src/satc/ingest/readers/paystub.py`, `src/satc/withholding/intake.py` | — | `tests/test_paystub_reader.py` |
+| **A client email/letter draft** (wording, merge fields) | `src/satc/comms/` | `configs/comms/` | `tests/test_comms.py`, `tests/test_comms_app.py` |
 | **Prior-year roll-forward / pro forma** | `src/satc/proforma/` | — | `tests/test_proforma.py` |
 | **Drake export** | `src/satc/drake/` | `configs/drake/` | `tests/test_drake.py`, `tests/test_input_generator.py` |
 | **The Excel workbook** (sheets, layout) | `src/satc/workbook/` | `configs/line_sheets/` | `tests/test_build.py` |

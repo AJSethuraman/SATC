@@ -27,6 +27,7 @@ reading order. **Date of this snapshot: 2026-08-20.**
 | **`03-COLLATERAL/`** | Letterhead, statements, report cover, signature, portal, figures, proposal deck | Reference for new work |
 | **`04-TEMPLATES/`** | The six client documents + field docs + shared stylesheet + skeleton | The merge pipeline |
 | **`05-INVOICER/`** | Invoicer app design system and app notes | Whoever restyles the Flask app |
+| **`06-APP/`** | The practice app's own design: six patterns, one stylesheet, and the screens it would cut | Whoever restyles `client-documents/web.py` |
 | **`99-DECISION-HISTORY/`** | Rejected palettes, marks, and website directions | **Nobody, unless tempted to reopen a settled decision** |
 
 ---
@@ -82,6 +83,23 @@ The Flask app's own design system and notes. **Its client-facing invoice PDF is
 still on the old warm palette** and must be brought onto
 `04-TEMPLATES/SATC Invoice.html`. Two different invoices can currently reach a
 client — the most visible defect in the project.
+
+## 06-APP
+
+The internal practice app -- `client-documents/web.py`, the screens a preparer
+uses. Nothing here is a client-facing surface. Four spec pages plus
+`satc-app.css`, which is the app's stylesheet and is meant to be lifted whole;
+`spec.css` styles the four spec pages themselves and ships nowhere -- it is kept
+only so the pages open and read correctly in a browser.
+
+Read `00 Patterns and cuts.html` first: six patterns (the stage bar, the tally,
+the five state marks, a third colour for `[CONFIRM: ...]`, the season line in the
+chrome, and the wording changes) and the list of screens it would delete.
+
+**Not all of it is applied, and the parts that are not are not oversights.** The
+nine-stage bar, the season line's client count, and every deletion are claims
+about what the software knows or decisions about a preparer's workflow, and both
+belong to the firm. `docs/app-redesign-questions.md` is what is waiting on them.
 
 ---
 

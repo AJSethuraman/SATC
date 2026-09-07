@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Price history</h2>
+  <div class="muted">
+    Every time this practice changed what it charges — what moved, from what to what, when,
+    and who did it. Kept for the practice's own use: a rate that has not moved since 2024 and
+    a rate that moved three times last spring are different facts, and neither is legible from
+    the price list on its own.
+  </div>
+  <div class="muted">The record begins on <span class="mono">{{ begins }}</span>. What the
+    files said before that is only knowable from the files' own history.</div>
+</div>
+
+{% if error %}
+{# The billing config does not currently parse. That does not make the record
+   unreadable — the history is a fact of its own, and losing it because a rate
+   was mistyped this morning would be the record failing on the day it is needed.
+   The rows below are shown; only the friendly names are missing. #}
+<p class="flag">{{ error }} Until it parses, changes below are listed by code rather than by name.</p>
+{% endif %}
+
+<div class="panel">
+  <h2>Show</h2>
+  <div class="body">
+    <form method="get" action="{{ url_for('pricing.price_history') }}">
+      <select class="field-input" name="service" aria-label="Which price">
+        <option value="">Everything</option>
+        {% for choice in choices %}
+        <option value="{{ choice }}" {{ 'selected' if choice == target }}>{{ names.get(choice, choice) }}{% if choice not in names %} — no longer in the catalogue{% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="field-input mono" type="text" name="on" value="{{ asked }}"
+             placeholder="rate on YYYY-MM-DD" style="width:170px"
+             aria-label="What was the rate on this date">
+      <button class="btn sm primary" type="submit">Show</button>
+      {% if target or asked %}
+      <a class="btn sm" href="{{ url_for('pricing.price_history') }}">Clear</a>
+      {% endif %}
+      <a class="btn sm" href="{{ url_for('pricing.pricing') }}">← Prices</a>
+      <p class="note">Pick one service and a date to ask what it was charging that day.</p>
+    </form>
+  </div>
+</div>
+
+{% if when_problem %}
+<p class="flag">{{ when_problem }}</p>
+{% elif answer %}
+<div class="panel">
+  <h2>{{ names.get(target, target) }} on <span class="mono">{{ asked }}</span></h2>
+  <div class="body">
+    {# The basis travels with the number because the number gets quoted to a
+       client. An unanswerable date comes back unanswered rather than filled in
+       with today's figure dressed up as history (principles 1, 2 and 5). #}
+    {% if answer.is_known %}
+    <p><strong class="mono">{{ '{:,.2f}'.format(answer.rate) }}</strong></p>
+    <p class="muted">How we know: {{ answer.basis }}.</p>
+    {% else %}
+    <p class="flag">Not recorded — {{ answer.basis }}.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Changes <span class="muted">· {{ rows|length }}</span></h2>
+  <div class="body">
+    {% if rows %}
+    <table>
+      <tr>
+        <th>When</th><th>What</th><th class="right">From</th><th class="right">To</th>
+        <th>Who</th><th>Why</th>
+      </tr>
+      {% for c in rows %}
+      <tr>
+        <td class="mono">{{ c.when_label }}</td>
+        <td>
+          <strong>{{ names.get(c.subject, c.subject) }}</strong>
+          <div class="muted mono">{{ c.subject }}</div>
+          {% if c.subject not in names %}
+          <div class="hint">no longer in the catalogue — the record outlives the price</div>
+          {% endif %}
+        </td>
+        {# A rate and a discount are different kinds of number and must not read
+           alike: 25 dollars off a 450 return and 25% off it are not the same
+           change, and a column that renders both as "25" is a column nobody can
+           read a year later. #}
+        {% set unit = '%' if c.kind == kind_discount else '' %}
+        <td class="right mono">
+          {% if c.old_value is none %}<span class="muted">not recorded</span>
+          {% else %}{{ c.old_value }}{{ unit }}{% endif %}
+        </td>
+        <td class="right mono">
+          {% if c.new_value is none %}<span class="muted">not recorded</span>
+          {% else %}{{ c.new_value }}{{ unit }}{% endif %}
+        </td>
+        <td>
+          {% if c.author_is_recorded %}<span class="muted">{{ c.author_label }}</span>
+          {% else %}<span class="flag">author not recorded</span>{% endif %}
+        </td>
+        <td>
+          {% if c.note %}{{ c.note }}
+          {% elif c.author_is_recorded %}<span class="muted">no reason recorded</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    {# An empty table with headings is wallpaper: it reads as a screen that
+       failed rather than as a practice that has not changed a price yet. #}
+    <p class="muted">
+      {% if target %}
+      Nothing recorded against {{ names.get(target, target) }} since the record began on
+      <span class="mono">{{ begins }}</span>. Its price is whatever
+      <span class="mono">configs/billing/</span> was written with.
+      {% else %}
+      No price has changed since the record began on <span class="mono">{{ begins }}</span>.
+      When one does — here or by hand in the YAML — this is where it will say what moved
+      and, where anyone recorded it, why.
+      {% endif %}
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

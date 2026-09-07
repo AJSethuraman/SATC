@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAT-C practice app &mdash; money, and settings</title>
+<link rel="stylesheet" href="satc-app.css"><link rel="stylesheet" href="spec.css">
+</head><body><div class="sheet">
+<div class="wm">SAT<span class="hy"></span>C<i>LLP</i></div>
+<div class="rule"></div>
+<div class="meta"><span>Internal &mdash; the software that runs the practice</span><span>Design, 2 September 2026</span></div>
+<nav class="jobs"><a href="00 Patterns and cuts.html">Patterns and cuts</a><a href="01 The day and the interview.html">The day, and the interview</a><a href="02 The file and the documents.html">One client&rsquo;s file, and the gate</a><a href="03 Money and settings.html" aria-current="page">Money, and settings</a></nav>
+
+<h1>Money, re-pricing, and the two settings screens</h1>
+<p class="lede">Four things can be true of a bill and three of them looked the same. Then the re-quote, which is a good screen with the wrong thing at the top. Then the two settings screens, which are the only screens in the software that change what a future client reads &mdash; and should say so.</p>
+
+<section class="blk"><p class="no">Job 05</p>
+<h2>Four things that can be true of a bill</h2>
+<p>The interesting one is <b>part paid</b> &mdash; money arrived and did not cover it. That is not a status, it is a shortfall, and a shortfall has a number. So the amount column carries a fill: how much of the bill has arrived. <b>No link</b> is a fact about the bill, not a failure, so it is grey and quiet. <b>Paid</b> is done and gets the smallest treatment on the page, because a paid bill is not work.</p>
+<p>The long paragraph explaining that the page shows what was last written down becomes a timestamp on the summary line. Same promise, one line, and it is the reassurance the paragraph was reaching for.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span><span class="sep"></span><a href="#">4 clients due before it</a></p></header>
+<main class="page">
+<div class="head split"><div><h1>One bill needs you</h1><p class="lede">Money arrived for Marcus Ellwood and did not cover the bill.</p></div><p class="tally">4 bills raised &middot; <b>$2,410.00</b> outstanding<br>last checked with the card processor at 08:14 today</p></div>
+<h2>Needs you<span class="n">1 of 4</span></h2>
+<div class="cols" style="grid-template-columns:96px minmax(160px,1fr) 120px auto"><span>invoice</span><span>client</span><span>amount</span><span>status</span></div>
+<div class="rows">
+<a class="bill" href="#"><span class="ref">2026-0007</span><span class="who"><b>Marcus Ellwood</b><span>Raised 12 August &middot; paid through the link</span></span><span class="amt">$705.00<span class="fill" style="--pc:43%"><i></i></span></span><span class="st"><span class="mk wait">your call</span><span class="part">$300.00 arrived &middot; $405.00 short</span></span></a>
+</div>
+<h2>Out with the client<span class="n">2 of 4</span></h2>
+<div class="rows">
+<a class="bill" href="#"><span class="ref">2026-0012</span><span class="who"><b>Fenwick Creek Dental</b><span>Raised 2 September &middot; payment link sent</span></span><span class="amt">$1,285.00<span class="fill" style="--pc:0%"><i></i></span></span><span class="st"><span class="mk pass">link sent</span><span class="part" style="color:var(--ink-2)">nothing arrived yet</span></span></a>
+<a class="bill" href="#"><span class="ref">2026-0004</span><span class="who"><b>Halloway Fabrication LLC</b><span>Raised 26 August &middot; no payment link on this bill</span></span><span class="amt">$420.00<span class="fill" style="--pc:0%"><i></i></span></span><span class="st"><span class="mk none">no link</span><span class="part" style="color:var(--ink-2)">they were asked to pay by transfer</span></span></a>
+</div>
+<h2>Settled<span class="n">1 of 4</span></h2>
+<div class="rows">
+<div class="bill settled"><span class="ref">2026-0001</span><span class="who"><b>Mr. and Mrs. Daniel Reyes</b><span>Raised 14 August &middot; paid 21 August through the link</span></span><span class="amt">$645.00<span class="fill" style="--pc:100%"><i></i></span></span><span class="st"><span class="mk done">paid</span></span></div>
+</div>
+</main></div>
+<p class="cap"><b>Money</b> &mdash; part paid is the only row with a partly-filled bar, and the shortfall is written in words beside it</p>
+<pre>&lt;a class="bill" href="/e/2026-0007"&gt;
+  &lt;span class="ref"&gt;2026-0007&lt;/span&gt;
+  &lt;span class="who"&gt;&lt;b&gt;Marcus Ellwood&lt;/b&gt;&lt;span&gt;Raised 12 August &middot; paid through the link&lt;/span&gt;&lt;/span&gt;
+  &lt;span class="amt"&gt;$705.00&lt;span class="fill" style="--pc:43%"&gt;&lt;i&gt;&lt;/i&gt;&lt;/span&gt;&lt;/span&gt;
+  &lt;span class="st"&gt;&lt;span class="mk wait"&gt;your call&lt;/span&gt;
+    &lt;span class="part"&gt;$300.00 arrived &middot; $405.00 short&lt;/span&gt;&lt;/span&gt;&lt;/a&gt;
+
+<b>part paid</b>   class="mk wait"  + --pc set to what arrived   the only row that needs a person
+<b>link sent</b>   class="mk pass"  + --pc:0%
+<b>no link</b>     class="mk none"  &mdash; a fact about the bill, not a failure
+<b>paid</b>        class="bill settled" + class="mk done" + --pc:100%</pre>
+<p><b>Why part paid is &ldquo;your call&rdquo; and not a refusal:</b> nothing is broken &mdash; money came in and the arithmetic does not close. Only the firm decides whether that is a short payment to chase, a fee that was agreed down, or somebody paying in two halves. So it takes the third colour, and it is the reason the day page has a row for Marcus Ellwood.</p>
+</section>
+
+<section class="blk"><p class="no">Job 03, continued</p>
+<h2>Re-pricing: the reason box is the screen</h2>
+<p>Seventeen answers with what is on file beside them, and only the changed ones matter. So the changed ones are the only thing at full strength and everything else is available underneath &mdash; and the summary at the top counts them, because <b>&ldquo;you have changed two of seventeen answers&rdquo;</b> is the sentence that stops a mistake.</p>
+<p>Then the difference. What was at the top of that screen was the total; what belongs at the top is the reason, because in February somebody asks why this client was charged more than the letter says and this sentence is the whole answer. The total stays &mdash; it just is not the thing you read first.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<div class="head split"><div><p class="sub">2026-0001 &middot; Mr. and Mrs. Daniel Reyes</p><h1>What this changes</h1><p class="lede">You changed two of seventeen answers. Nobody typed a figure &mdash; the same schedule that priced this in January priced it again.</p></div><p class="stage big"><span class="n">2 of 9</span><span class="track" style="--to:2"><i></i></span><span class="nm">priced</span></p></div>
+<table class="diff"><tr><th>Service</th><th>Was</th><th>Now</th><th>Change</th></tr>
+<tr><td>Form 1040 with Schedules C, SE, E, and A</td><td>$500.00</td><td>$500.00</td><td class="same">&mdash;</td></tr>
+<tr><td>Rental schedule &mdash; one property</td><td>$145.00</td><td class="up">$290.00</td><td class="up">+$145.00</td></tr>
+<tr><td>K-1s as reported &mdash; two</td><td>&mdash;</td><td>$0.00</td><td class="same">&mdash;</td></tr>
+<tr class="sum"><td>Total</td><td>$645.00</td><td>$790.00</td><td class="up">+$145.00</td></tr></table>
+<h2>What moved<span class="n">2 answers</span></h2>
+<dl class="facts">
+<div class="fact"><dt>Rental properties<i>RentalCount</i></dt><dd>one &rarr; <b>two</b></dd><button class="ch">change</button></div>
+<div class="fact"><dt>Also filed alongside<i>AdditionalForms</i></dt><dd>&ldquo;Two K-1s as reported&rdquo; &rarr; <b>&ldquo;Two K-1s as reported, and a second rental&rdquo;</b></dd><button class="ch">change</button></div>
+</dl>
+<div class="ovr" data-gate style="border-left:3px solid var(--navy)">
+<h3>Why did the price move?</h3>
+<p>Required, and it is the point of the screen. &ldquo;Bought a second rental in April&rdquo; works. &ldquo;Updated&rdquo; does not.</p>
+<label class="f" for="w2">In one sentence, for whoever reads this file next year</label>
+<textarea id="w2" placeholder="Bought a second rental in April; it is let and the depreciation starts this year."></textarea>
+<div class="go"><button class="btn" disabled>Record the new quote</button><em>Write the reason first.</em></div>
+</div>
+<p class="tally" style="display:block;margin-top:16px">Recording it keeps the two changed answers, writes the new figure, and puts the reason in this client&rsquo;s file with today&rsquo;s date. The engagement letter still reads correctly &mdash; only the estimate needs to go out again. &nbsp;<a href="#">or go back and change something else</a></p>
+</main></div>
+<p class="cap"><b>Re-pricing</b> &mdash; the difference, then what moved, then the reason as a locked control; the page that used to follow this one is now the line under the button</p>
+<p><b>The page I cut:</b> <em>&ldquo;The new quote is recorded&rdquo;</em>. Recording lands you back on the client&rsquo;s file with the new figure on it and the line about whether the letter still reads correctly &mdash; which is the only sentence that page carried.</p>
+</section>
+
+<section class="blk"><p class="no">Job 06</p>
+<h2>Settings: the two screens that change what a future client reads</h2>
+<p>These are the only screens in the software with that property, and neither says so. Both now open with one line that does &mdash; not a warning box, a subtitle, because it is a fact about the screen rather than an alarm. And both are two columns, because twenty-four prices down a single column is a scroll for no reason.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<div class="head split"><div><h1>What the firm charges</h1><p class="lede">Changing a price here changes what the website publishes and what every later estimate quotes. It does not touch an estimate already sent.</p></div><p class="tally"><b>24</b> prices &middot; last changed 4 August</p></div>
+<h2>Returns</h2>
+<div class="grid2">
+<a class="pr" href="#"><b>Form 1040 &mdash; individual<i>the base return, before schedules</i></b><span>$500.00</span></a>
+<a class="pr" href="#"><b>Form 1065 &mdash; partnership<i>up to four partners</i></b><span>$1,150.00</span></a>
+<a class="pr" href="#"><b>Form 1120 &mdash; C corporation<i>&nbsp;</i></b><span>$1,400.00</span></a>
+<a class="pr" href="#"><b>Form 1120-S &mdash; S corporation<i>&nbsp;</i></b><span>$1,250.00</span></a>
+<a class="pr" href="#"><b>Amended return<i>per year amended</i></b><span>$375.00</span></a>
+<a class="pr" href="#"><b>State return &mdash; resident<i>each</i></b><span>$95.00</span></a>
+</div>
+<h2>Schedules and additions</h2>
+<div class="grid2">
+<a class="pr" href="#"><b>Rental schedule<i>each property</i></b><span>$145.00</span></a>
+<a class="pr" href="#"><b>Self-employed<i>Schedule C, each business</i></b><span>$225.00</span></a>
+<a class="pr" href="#"><b>K-1 as reported<i>each, no reconstruction</i></b><span>$0.00</span></a>
+<a class="pr" href="#"><b>Sorting records before they can be worked<i>per hour</i></b><span>$120.00</span></a>
+<a class="pr" href="#"><b>Local return<i>each municipality</i></b><span>$60.00</span></a>
+<a class="pr" href="#"><b>Extension<i>&nbsp;</i></b><span>$0.00</span></a>
+</div>
+<p class="tally" style="display:block;margin-top:18px">and <b>12 more</b> &mdash; <a href="#">show all 24</a></p>
+</main></div>
+<p class="cap"><b>What the firm charges</b> &mdash; two columns, grouped, and a price of $0.00 is stated rather than hidden: it is a promise the estimate makes</p>
+<pre>&lt;a class="pr" href="/prices/rental"&gt;
+  &lt;b&gt;Rental schedule&lt;i&gt;each property&lt;/i&gt;&lt;/b&gt;
+  &lt;span&gt;$145.00&lt;/span&gt;&lt;/a&gt;</pre>
+
+<h3>The wording of a letter, and one section open</h3>
+<p>The section editor is right as it is; what it needs is for the merge fields to stop looking like ordinary text. They are the one thing on the screen you can break by deleting, so they are set in the third colour &mdash; the software is waiting on the client&rsquo;s own details there. Everything else on the page is the firm&rsquo;s own sentences and looks like sentences.</p>
+<p>Adding a section is this same screen with an empty one open, not a page of its own.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<div class="head split"><div><p class="sub">Letter wording</p><h1>Engagement letter &mdash; tax preparation</h1><p class="lede">What you change here is what every future client of this kind reads. It does not touch a letter already sent.</p></div><p class="tally"><b>10</b> sections &middot; <b>37</b> sentences &middot; last changed 4 August</p></div>
+<div class="rows" style="border-top:1px solid var(--hairline);margin-top:14px">
+<div class="row" style="grid-template-columns:44px 1fr auto"><span class="ref">01</span><span class="who"><b>What we will prepare</b><span>5 sentences &middot; names the client, the year and every return</span></span><span class="mk pass">5 sentences</span></div>
+<div class="row" style="grid-template-columns:44px 1fr auto"><span class="ref">02</span><span class="who"><b>What this engagement is not</b><span>3 sentences &middot; no audit, no representation</span></span><span class="mk pass">3 sentences</span></div>
+</div>
+<h2>04 &mdash; Your deadline, and extensions<span class="n">open for editing</span></h2>
+<label class="f" for="s">The sentences a client reads, exactly as they will read them</label>
+<textarea id="s" style="min-height:150px;max-width:100%;font:15px/1.7 var(--mono)">We will have your returns ready for signature by &lt;&lt;FirstDeliverableTarget&gt;&gt;, provided we have everything we ask for by &lt;&lt;MaterialsDeadline&gt;&gt;. If your material reaches us later than that, we will file an extension on your behalf and tell you what to pay with it. **An extension gives you more time to file, not more time to pay.**</textarea>
+<div class="ask" style="margin-top:16px"><h3>The parts in double angle brackets are filled in per client</h3><p>You can move the words around them; leave them in place. Deleting one takes the date or the fee off the letter. Two are in this section: <b>&lt;&lt;FirstDeliverableTarget&gt;&gt;</b> and <b>&lt;&lt;MaterialsDeadline&gt;&gt;</b>.</p><p class="said">**like this** makes a phrase bold. It is the only mark this box understands.</p></div>
+<div class="acts"><div class="act"><button class="btn">Save this section</button><p>Takes effect on the next letter written, not on any already sent.</p></div></div>
+</main></div>
+<p class="cap"><b>One section, open</b> &mdash; the merge fields are the only thing on the screen a person can break, so the only thing in colour</p>
+<p><b>What I would have the software do here, and it is one line of Python:</b> count the merge fields in the section as saved and refuse the save if a field that was there has gone, the same way the gate refuses a pack. That turns &ldquo;leave it in place&rdquo; from an instruction into a rule &mdash; and it is exactly the kind of thing a test can prove.</p>
+</section>
+
+<section class="blk"><p class="no">Last</p>
+<h2>What ships, in order</h2>
+<ul>
+<li><b>The stylesheet, and the chrome.</b> One file, one line on the body, and the standing today line. Every screen improves before you have redrawn any of them, because the marks and the tallies are already in it.</li>
+<li><b>The gate.</b> The most important control in the software, and the one where the current design costs you the most: it buries the two things you have to act on under eleven rows of things you do not.</li>
+<li><b>The day.</b> Needs a real answer from the data &mdash; the three groups, and the rule that a row may only sit in <em>Waiting on you</em> if the software can name what it is waiting for.</li>
+<li><b>Money and the shelf.</b> Both are mostly the marks applied honestly, plus the shortfall bar.</li>
+<li><b>The four pages I would delete</b>, whenever it is convenient. Nothing depends on them.</li>
+</ul>
+<p>Where a sentence on any of these screens is the firm&rsquo;s to write and not mine, I have left <code>[CONFIRM: &hellip;]</code> in it rather than invent one &mdash; there are two, both on the engagement letter, and they are the reason the third colour exists.</p>
+</section>
+
+<div class="foot">Previous: <a href="02 The file and the documents.html">one client&rsquo;s file, and the gate</a>. Start: <a href="00 Patterns and cuts.html">the patterns, and what I would cut</a>. The stylesheet is <code>satc-app.css</code>; nothing on these four pages needs anything else.</div>
+</div>
+<script>document.querySelectorAll('[data-gate]').forEach(function(g){var t=g.querySelector('textarea'),b=g.querySelector('button'),n=g.querySelector('em');function u(){var ok=t.value.trim().length>11;b.disabled=!ok;n.textContent=ok?'Goes in this client\u2019s file, with today\u2019s date.':'Write the reason first.';}t.addEventListener('input',u);u();});</script>
+</body></html>

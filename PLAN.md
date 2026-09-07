@@ -209,6 +209,20 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Recommended roadmap (synthesized 2026-07-04 — awaiting owner sign-off on the big items)
 
+- **The agent factory — a skill that builds an expert.** The firm's own thought, raised
+  4 September 2026 while specifying expert desks: *"it might make sense for us to make a
+  dedicated skill or some session or whatever that helps create an agent and perform the
+  required research and validate its findings and run it up against bassy's judgment with
+  canon."* It runs the research, validates the findings against primary sources, and puts
+  the result up against the record before anything ships. Sibling to
+  `docs/prd-expert-desks.md`, not part of it — the desks work has to prove the shape
+  first, or the factory is built against an imagined product.
+- **The second expert desk, and its metric.** v2 of the desks work, and it is the proof
+  that the mechanism generalised: the number to report is **how many changes the second
+  desk forces on the shared layer.** Zero means general; four means it was accounting
+  wearing a framework's clothes. The domain should be deliberately far from accounting —
+  law, prompting, or market research were all named.
+
 **Phase 0 — Safe-for-real-data (gating; must precede any real-SSN handoff):**
 1. **Vault encryption at rest** (SQLCipher or AES-256, key via Windows DPAPI so a non-technical user
    needs no passphrase). *Legally non-waivable* per FTC Safeguards §314.4(c)(3) even under <5,000
@@ -221,8 +235,10 @@ same legal duties either way — Phase 0 below stands regardless.
   `client-documents/docs/prd-1040-fee-estimate.md`. Reshape `fee-schedule.yaml` to hold
   the four-package ladder, the $50 per-form rule and the allowances, fill in the signed
   prices, and prove a real estimate out of both front doors.
-- **Phase B — the invoice bridge.** Estimate line items → an invoice. Its first question
-  is the one deliberately left open below: which processor the client actually sees.
+- **Phase B — the invoice bridge.** Estimate line items → an invoice **carrying a Square
+  payment link**. Its first question — which processor the client sees — was answered
+  2026-09-04 (Square; Invoicer retired). What is left is the wiring: `payments.py` builds
+  the link and nothing calls it, while the delivery letter already promises it.
 - **Phase C — entity returns.** The `1120S/1065/1120` bases and the five business-return
   gates (balance sheet $350, payroll $150, inventory $125, assets bought this year $95,
   first year $250), on the pattern Phase A establishes.
@@ -340,23 +356,61 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
       The current v0.7.0 exe predates the withholding API and the `--mcp` agent mode.
 
 ### Next (pending synthesis of the five reports)
-- [ ] Triage security-audit findings; fix criticals (expect: vault encryption at rest,
-      CSRF on form routes, local API auth)
-- [ ] Triage handoff-audit blockers; write the "give this to a colleague" package
-- [ ] Compliance gap list (WISP template, §7216/AI stance) → decide what SATC must do vs document
-- [ ] Roadmap: what to build next, informed by industry table-stakes research
+
+**Three of these four were done and never ticked** — checked against the code and
+the files on 4 September 2026, not against this document. Left visible rather
+than deleted, because the fourth is real and deleting the list would have taken
+it with them.
+
+- [x] ~~Triage security-audit findings; fix criticals~~ — **superseded by Phase 0
+      above**, which is marked COMPLETE and names each fix. Verified on the code:
+      `persistence/crypto.py` (AES-256-GCM at rest), `app/server.py:79-83`
+      (rejects a cross-origin state change), `app/server.py:35,324` (binds
+      127.0.0.1, `_LOCAL_HOSTS` gate).
+- [x] ~~Triage handoff-audit blockers; write the "give this to a colleague"
+      package~~ — `satc_system/docs/QUICKSTART_WINDOWS.md` exists; Phase 1 above
+      records it as "the doc the handoff audit said was missing".
+- [x] ~~Roadmap~~ — **"Recommended roadmap"** above, synthesized 2026-07-04.
+- [ ] **The WISP. This one is real, and it is the only thing in this list that
+      is.** See the FTC Safeguards findings above: the <5,000-consumer exemption
+      waives the *written risk assessment*, the pen-test, the *written incident
+      response plan* and the annual board report — and **the WISP itself is
+      listed as NOT waived**, alongside encryption, MFA, access controls, a
+      Qualified Individual, service-provider oversight, training and secure
+      disposal. IRS Pub 5708 is a small-firm template. Nothing in this
+      repository is a WISP; searched 4 September 2026.
+
+      **Two things since 3 September make it more pressing, not less:**
+      the Forge now holds real client data rather than a test rig, and the daily
+      backup sends the vault to Microsoft — which puts a **service provider** in
+      scope, and service-provider oversight is on the non-waived list too.
+      Encryption at rest, the other non-waived item this repository owns, is
+      done.
 
 ### Decided, not yet done
 - [ ] Windows quickstart doc for Claude Desktop setup (exact config-file steps, both
       from-source `satc-mcp` and future `SATC.exe --mcp` paths)
 
 ### Explicitly deferred (decided against for now)
-- **Square vs Stripe — `delivery.payment_instruction`.** The firm takes Square; Invoicer
-  is Stripe end to end (`stripe_utils.py`, a webhook, four templates). One has to move
-  before that sentence can be written honestly. Confirmed 2026-08-25 that it blocks the
-  **invoice** template only — the fee estimate references neither `PaymentInstruction`
-  nor `MaterialsDeadline` — so it was fenced out of the estimate work rather than
-  decided under time pressure. It is Phase B's first question.
+- ~~**Square vs Stripe — `delivery.payment_instruction`.**~~ **DECIDED 2026-09-04:
+  Invoicer is retired.** The firm takes Square, Invoicer is Stripe end to end
+  (`invoice-generator/stripe_utils.py`, `stripe==10.5.0`, and no Square anywhere in it),
+  and the document pipeline is where invoicing actually lives. PR #139 — the Invoicer
+  restyle — was closed with the decision. The branch is kept; nothing was deleted.
+
+  **What the decision did NOT do, and this is the part that matters.** Retiring Invoicer
+  removes the *conflict*; it does not build the link. Three facts, each verified in
+  source rather than read off a document:
+
+  | | |
+  |---|---|
+  | `registry/firm-settings.yaml:101` | promises the client *"the secure Square link on your invoice"* |
+  | `invoicing.py:35` | says it deliberately **"does not take payment"** — the bridge stops at the document |
+  | `payments.py:303` | can build a Square payment link, **and nothing outside that file calls it** |
+
+  So a client reading a delivery letter today is told to pay through a link the invoice
+  does not carry. That is now the whole of Phase B, and it was never Invoicer's to close.
+  The Stripe-vs-Square question is answered; the wiring is not written.
 - **The 2026 materials deadlines** — four firm settings that block the engagement and
   organizer letters, not the estimate. Each needs a lead time chosen against the filing
   date, which is its own conversation (2026-08-25).
@@ -379,6 +433,98 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-09-04 — Docket answers (desk build).** Four decisions put to the firm as a
+  form and answered there; recorded here because an answer that lives only in a page
+  has to be asked again.
+
+  **Merge the desk build.** *"Merge it."* PR #235 — seven of eleven desk slices plus
+  the scoreboard harness. Merging is the precondition for issue #230, the hook switch.
+
+  **Issue #227 runs on the Forge, not from a cloud session.** *"Run it on the Forge."*
+  A cloud session reaches neither Ollama nor the GPU, and a frontier-only row would
+  answer none of what C10 asks — the whole question is what the local lean costs, and
+  one row cannot say. Remote Control on that machine is where both rows exist.
+
+  **The nine older draft pull requests get triaged.** *"Triage and report back."*
+  Read and report; close nothing without a further yes. The repository was carrying
+  ten open pull requests, all drafts, nine of them predating the desk work — a pile
+  nobody triages is where the next genuine thing stops being noticed.
+
+  **The Codification licence's AI clause is checked at purchase.** *"Will check the
+  clause and report."* §3(b) of the free licence bars use in connection with large
+  language models under any circumstances; whether Professional View carries the same
+  clause is unread. It decides one field: ASC stays `human_only` or becomes
+  `signed_in_browser`. The design is built so that is a data edit, not a rebuild.
+
+  **Later the same day, the firm put it on the backburner:** *"backburner the paid cert,
+  we will test the process and see what we learn."* So ASC stays `human_only`, and the
+  first desk proves the mechanism on federal authority — public, binding, and free —
+  before anyone spends money to widen it. This is the right order and not merely the
+  cheap one: a licence bought to feed a process nobody has run yet is a bet on a design
+  that has produced no evidence. What the fixed-assets desk scores is the evidence, and
+  it decides whether the paid view is worth buying at all.
+
+- **2026-09-04 — An agent reads what the firm pays for, on the machine that is already
+  signed in.** Standing rule for any agent of this practice that reaches the web, recorded
+  while specifying a browser capability for the desks (issue #231).
+
+  **Where it runs decides what it can reach, and the two cases are not alike.** An
+  Anthropic-hosted cloud session sits behind an egress proxy: Chromium is pre-installed
+  there, `no_proxy` covers only localhost, the Anthropic API and package registries, and a
+  browser's traffic is refused exactly as any other client's is — so inside a cloud
+  container a different client is not a different permission, and the fix is the
+  environment's allowlist rather than another tool. A **Remote Control session on the
+  firm's own machine is not that**: it *"uses your machine's network and files, not a cloud
+  environment"*, so there is no proxy and nothing to route around. The first version of
+  this entry generalised the container's constraint to every session and was wrong.
+
+  **A fresh browser is not the firm's browser.** Reaching a licensed source is not the same
+  as being able to read it: Checkpoint or ASC Professional View answer to a signed-in
+  session, so the capability that matters is driving the browser profile that is *already*
+  logged in, on the machine that holds it. That is what the firm meant by *"as though it is
+  using my work computer"*, and it is why this belongs on the Forge — not because a cloud
+  container is blocked, but because a cloud container is nobody.
+
+  **Reachable is not the same as permitted, and reading grants no storage right.** Terms
+  and robots.txt still decide whether a source may be accessed automatically, wherever the
+  session runs — a question separate from copyright, and unread for FASB as of this date. A
+  licensed source stays uncacheable whatever client read it: the citation and tier are
+  recorded, the text is not. Credentials never enter a repository in any form.
+
+- **2026-09-04 — Expert desks: the mechanism is the deliverable, one desk is the
+  proof.** Grilled this session; spec in `docs/prd-expert-desks.md`. A *desk* is an
+  expert a doer agent consults so a question does not reach the firm — it answers only
+  from cited authority, states how binding that authority is, and escalates rather than
+  guesses. Three rulings worth keeping out of the PRD, because they outlive it:
+
+  **Roles divide by information, not by subject.** The firm's first shape was one agent
+  per topic — GAAP, cash basis, fixed assets. C7 says *"the division is not headcount,
+  it is information"*, and each of those decomposes into an engine plus an input rather
+  than into a brain: basis is a recorded fact about the engagement that selects rules,
+  and fixed assets is a depreciation engine plus one judgment call. The split that
+  survives is doer → desk → firm.
+
+  **Big 4 guidance is not primary authority.** Proposed as such and corrected in the
+  grill. It is one firm's reading of the standard, and a record that flattens the
+  distinction hands over a whitepaper's opinion in the same voice as a regulation —
+  which is the *"large conjecture"* failure the firm named in the same breath. Three
+  tiers; anything resting only on tier 2 or 3 is an escalation, not an answer.
+
+  **What may be stored is a per-source fact, not a policy.** Researched, not assumed —
+  `docs/research/accounting-authority-sources.md`. FASB's notice forbids content being
+  *"stored in a retrieval system"*, and a git repository is one; 17 U.S.C. § 105 puts
+  federal authority in the public domain. Offline storage does not change the analysis;
+  a licence the firm holds might. So `may_store` is a field per source, defaulting to
+  `license_check`, which stores nothing.
+
+- **2026-09-04 — The Forge is a flag, not a gate, until VRAM allows.** Anything the
+  practice builds is scored on the Forge *and* on a frontier model, two denominators
+  reported side by side and never summed. The firm: *"it's also acceptable that it would
+  not work on our current hardware, that should just be flagged. at some point we will
+  have enough vram, for now we are limited."* This is how C10's lean gets honoured
+  without becoming a rule that stalls work — the cost of running local is measured
+  rather than argued about.
 
 - **2026-08-27 — The pre-send gate blocks, with a logged override.** The firm's
   choice over advisory-only and over blocking-with-no-escape: *a gate with no

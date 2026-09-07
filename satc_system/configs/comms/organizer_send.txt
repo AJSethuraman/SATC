@@ -1,0 +1,17 @@
+Dear {salutation},
+
+Attached is your {tax_year} organizer. It walks through the situations that affect your
+return so we can tell you exactly which documents to gather — rather than sending you a
+generic list and hoping.
+
+It should take fifteen minutes. Where nothing has changed since last year, just say so.
+
+When it's done, reply with it attached (a photo of each page is fine) and we'll take it
+from there.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

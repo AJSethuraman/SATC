@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Client comms</h2>
+  <div class="muted">
+    Pick a client and a template — we fill in everything the practice already knows and
+    <strong>visibly mark</strong> what it doesn't. Nothing is sent from here: copy the draft
+    into your mail client, read it once more, and send it yourself.
+  </div>
+</div>
+
+{% for note in notes %}<p class="flag">{{ note }}</p>{% endfor %}
+
+<div class="panel">
+  <h2>1 · Who and what</h2>
+  <div class="body">
+    <form method="get" action="{{ url_for('comms.comms') }}">
+      <p>
+        <label class="muted">Client</label><br>
+        <select class="field-input" name="client" onchange="this.form.submit()">
+          <option value="">— choose a client —</option>
+          {% for cid, name in clients %}
+          <option value="{{ cid }}" {{ 'selected' if cid == client_id }}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">Tax year <span class="hint">(blank = the year on their newest engagement)</span></label><br>
+        <input class="field-input" type="number" name="tax_year" value="{{ tax_year }}" placeholder="e.g. 2024">
+      </p>
+      <input type="hidden" name="template" value="{{ template.key if template else '' }}">
+      <button class="btn" type="submit">Apply</button>
+      {% if client_id %}
+      <span class="muted" style="margin-left:10px">
+        <span class="mono">{{ client_id }}</span>
+        {% if client_email %} · <span class="mono">{{ client_email }}</span>
+        {% else %} · <span class="flag">no email on file</span>{% endif %}
+      </span>
+      {% endif %}
+    </form>
+
+    <table style="margin-top:14px">
+      <tr><th>Template</th><th>What it's for</th><th class="right"></th></tr>
+      {% for stage, templates in stages %}
+      <tr><td colspan="3" class="muted mono" style="padding-top:12px">{{ stage }}</td></tr>
+        {% for t in templates %}
+        <tr>
+          <td><strong>{{ t.name }}</strong>
+            <div class="muted mono">{{ t.kind }}</div></td>
+          <td class="muted">{{ t.description }}</td>
+          <td class="right">
+            {% if client_id %}
+            <a class="btn sm {{ 'primary' if template and template.key == t.key }}"
+               href="{{ url_for('comms.comms', client=client_id, template=t.key, tax_year=tax_year) }}">
+              {{ 'Showing' if template and template.key == t.key else 'Draft →' }}</a>
+            {% else %}<span class="hint">pick a client first</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+{% if draft %}
+<div class="panel">
+  <h2>2 · {{ draft.name }} for {{ state.name(client_id) }}</h2>
+  <div class="body">
+    {% if draft.is_complete %}
+      <p class="note" style="margin-top:0">✓ Every merge field was filled from this client's record. Read it once, then send.</p>
+    {% else %}
+      <p class="flag" style="margin-top:0">
+        {{ draft.unfilled|length }} slot{{ '' if draft.unfilled|length == 1 else 's' }} could not be filled
+        from what's on file — each is marked <span class="mono">[[ … : fill in ]]</span> in the text below.
+        We don't guess at these.
+      </p>
+    {% endif %}
+
+    {% if prefilled %}
+    <p class="muted">Prefilled from their record: {{ prefilled|join(', ') }}.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('comms.comms') }}">
+      <input type="hidden" name="client" value="{{ client_id }}">
+      <input type="hidden" name="template" value="{{ template.key }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
+
+      {% if preparer_fields %}
+      <div class="well" style="margin-bottom:12px">
+        <p class="muted" style="margin-top:0">
+          These are yours to write — no stored fact can supply them. Fill any in and re-render.
+        </p>
+        {% for p in preparer_fields %}
+        <p>
+          <label class="muted">{{ p.label }}</label>
+          {% if p.note %}<span class="hint"> — {{ p.note }}</span>{% endif %}<br>
+          <textarea class="field-input" name="fill_{{ p.name }}" rows="2"
+                    placeholder="{{ p.label }}">{{ fills.get(p.name, '') }}</textarea>
+        </p>
+        {% endfor %}
+        <button class="btn" type="submit">Re-render with these</button>
+      </div>
+      {% endif %}
+
+      {% if draft.subject %}
+      <p><label class="muted">Subject</label><br>
+        <input class="field-input" id="draftsubject" value="{{ draft.subject }}" readonly></p>
+      {% endif %}
+
+      <label class="muted">{{ 'Body' if draft.kind == 'email' else 'Letter' }}</label>
+      <textarea id="drafttext" class="codebox" rows="24" readonly>{{ draft.body }}</textarea>
+
+      <p style="margin-top:12px">
+        <button class="btn primary" type="button" onclick="satcCopyDraft()">⧉ Copy the draft</button>
+        {% if draft.kind == 'email' %}
+        <a class="btn" href="mailto:{{ client_email }}?subject={{ draft.subject|urlencode }}&amp;body={{ draft.body|urlencode }}">✉ Open in your mail app</a>
+        <button class="btn" type="submit" formaction="{{ url_for('comms.comms_outlook') }}">Open an Outlook draft</button>
+        {% endif %}
+        <span class="hint" id="copied" style="margin-left:8px"></span>
+      </p>
+      <p class="note">
+        SATC never sends mail. These buttons hand you the text — reviewing and sending stay yours.
+      </p>
+    </form>
+
+    {# ---------------------------------------------------- what happened to it #}
+    {# The click the autonomy ladder was waiting for. Everything under
+       /autonomy derives from these records, and until this form existed the
+       scoreboard was complete and permanently empty (charter §11).
+
+       Recording is NOT sending. It says what the owner did after SATC handed
+       them the text, which is the only thing SATC can honestly know. #}
+    <div class="panel" style="margin-top:16px">
+      <h2>What did you do with it?</h2>
+      <div class="body">
+        <p class="note">Worth a click even though nothing is automated: it is the only
+          way SATC finds out whether its drafts are any good, and the reason codes are
+          what tell a wrong <em>fact</em> apart from a letter that should not have been
+          suggested at all. Nothing here sends anything.</p>
+
+        <form method="post" action="{{ url_for('comms.comms_decide') }}">
+          <input type="hidden" name="client" value="{{ client_id }}">
+          <input type="hidden" name="template" value="{{ selected }}">
+          <input type="hidden" name="tax_year" value="{{ tax_year or '' }}">
+          <input type="hidden" name="invoice" value="{{ invoice_id or '' }}">
+          {# Whatever the preparer typed into the fill-in boxes has to travel with
+             the decision, or the server re-renders a DIFFERENT draft than the one
+             on screen and compares a hash of text nobody saw. #}
+          {% for name, value in (fills or {}).items() %}
+          <input type="hidden" name="fill_{{ name }}" value="{{ value }}">
+          {% endfor %}
+
+          <p>
+            <button class="btn primary" type="submit" name="outcome" value="as_written">
+              ✓ I sent this as written</button>
+          </p>
+
+          <details style="margin-top:6px">
+            <summary class="muted">I changed it, or didn't send it</summary>
+            <div style="margin-top:10px">
+              <label class="muted">Why — pick the closest</label>
+              <select class="field-input" name="reason">
+                {% for code, means in reason_codes.items() %}
+                <option value="{{ code }}">{{ means }}</option>
+                {% endfor %}
+              </select>
+
+              <label class="muted" style="margin-top:10px;display:block">
+                What you actually sent — <span class="muted">leave empty if nothing went
+                out. Pasting it lets SATC see exactly what it got wrong.</span></label>
+              <textarea class="codebox" name="sent_text" rows="8"
+                        placeholder="Paste the version you sent, or leave empty"></textarea>
+
+              <label class="muted" style="margin-top:10px;display:block">
+                Anything worth remembering (optional)</label>
+              <input class="field-input" name="note" placeholder="e.g. the fee was last year's">
+
+              <p style="margin-top:10px">
+                <button class="btn" type="submit" name="outcome" value="changed">
+                  Record the correction</button>
+              </p>
+            </div>
+          </details>
+        </form>
+      </div>
+    </div>
+
+    {% if unfilled_labels %}
+    <table style="margin-top:10px">
+      <tr><th>Still to fill</th><th>Merge field</th></tr>
+      {% for label, name in unfilled_labels %}
+      <tr><td>{{ label }}</td><td class="muted mono">{{ '{' ~ name ~ '}' }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function satcCopyDraft(){
+  var subject = document.getElementById('draftsubject');
+  var body = document.getElementById('drafttext');
+  var text = (subject ? 'Subject: ' + subject.value + '\n\n' : '') + body.value;
+  var scratch = document.createElement('textarea');
+  scratch.value = text;
+  document.body.appendChild(scratch);
+  scratch.select();
+  try { document.execCommand('copy'); document.getElementById('copied').textContent = 'Copied.'; }
+  catch (e) { document.getElementById('copied').textContent = 'Select the text and copy it.'; }
+  document.body.removeChild(scratch);
+}
+</script>
+{% elif client_id %}
+<p class="muted">Choose a template above to draft it for {{ state.name(client_id) }}.</p>
+{% endif %}
+
+<p class="note">
+  Templates live in <span class="mono">configs/comms/</span> — editing the wording, or adding a
+  new one, is a config change. Drake stays the system of record for anything a return says.
+</p>
+{% endblock %}

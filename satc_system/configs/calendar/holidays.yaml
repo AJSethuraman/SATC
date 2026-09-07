@@ -1,0 +1,101 @@
+# LEGAL HOLIDAYS — the calendar behind every computed tax deadline.
+#
+# Data, not code. A due date is NEVER stored as a constant: it is computed from
+# a rule ("the 15th day of the 4th month after the tax year ends") and then
+# shifted off weekends and legal holidays. That shift is what makes April 15
+# land on April 18 in some years — and why last year's date is worthless this
+# year.
+#
+# THE SHIFT RULE (IRC §7503): when the last day for performing an act falls on
+# a Saturday, Sunday, or legal holiday, the act is timely if performed on the
+# next succeeding day that is none of those.
+#
+# WHY DC HOLIDAYS COUNT NATIONWIDE: §7503 counts a legal holiday in the
+# District of Columbia. Emancipation Day (April 16) is a DC holiday, so it
+# moves the April filing deadline for everyone, not just DC filers. This is the
+# single most-missed rule in the tax calendar.
+#
+# OBSERVANCE (5 U.S.C. §6103(b)): a fixed-date federal holiday falling on a
+# Saturday is observed the preceding Friday; on a Sunday, the following Monday.
+# The observed date is the one that shifts a deadline.
+#
+# Sources:
+#   IRC §7503        — https://www.law.cornell.edu/uscode/text/26/7503
+#   5 U.S.C. §6103   — https://www.law.cornell.edu/uscode/text/5/6103
+#   Juneteenth       — Pub. L. 117-17 (June 17, 2021)
+#   DC Emancipation  — DC Code §1-612.02(a)(1A)
+
+meta:
+  jurisdiction: US
+  source: "IRC §7503; 5 U.S.C. §6103(b)"
+  note: >-
+    Federal legal public holidays plus the DC holiday that §7503 imports.
+    State holidays are NOT here: a state deadline shifted by a state holiday
+    needs its own dated config, and SATC refuses to guess one.
+
+holidays:
+  - key: new_years_day
+    name: "New Year's Day"
+    rule: {type: fixed, month: 1, day: 1}
+    observed: true
+
+  - key: mlk_day
+    name: "Birthday of Martin Luther King, Jr."
+    rule: {type: nth_weekday, month: 1, weekday: mon, n: 3}
+    observed: false        # already always a Monday
+
+  - key: washingtons_birthday
+    name: "Washington's Birthday"
+    rule: {type: nth_weekday, month: 2, weekday: mon, n: 3}
+    observed: false
+
+  - key: dc_emancipation_day
+    name: "DC Emancipation Day"
+    rule: {type: fixed, month: 4, day: 16}
+    observed: true
+    jurisdiction_note: >-
+      A District of Columbia holiday, not a federal one — but §7503 counts DC
+      holidays, so it moves the April 15 deadline nationwide. When April 16
+      falls on a Saturday it is observed Friday April 15, pushing the filing
+      deadline to Monday April 17.
+
+  - key: memorial_day
+    name: "Memorial Day"
+    rule: {type: last_weekday, month: 5, weekday: mon}
+    observed: false
+
+  - key: juneteenth
+    name: "Juneteenth National Independence Day"
+    rule: {type: fixed, month: 6, day: 19}
+    observed: true
+    effective_from_year: 2021    # Pub. L. 117-17
+
+  - key: independence_day
+    name: "Independence Day"
+    rule: {type: fixed, month: 7, day: 4}
+    observed: true
+
+  - key: labor_day
+    name: "Labor Day"
+    rule: {type: nth_weekday, month: 9, weekday: mon, n: 1}
+    observed: false
+
+  - key: columbus_day
+    name: "Columbus Day"
+    rule: {type: nth_weekday, month: 10, weekday: mon, n: 2}
+    observed: false
+
+  - key: veterans_day
+    name: "Veterans Day"
+    rule: {type: fixed, month: 11, day: 11}
+    observed: true
+
+  - key: thanksgiving
+    name: "Thanksgiving Day"
+    rule: {type: nth_weekday, month: 11, weekday: thu, n: 4}
+    observed: false
+
+  - key: christmas_day
+    name: "Christmas Day"
+    rule: {type: fixed, month: 12, day: 25}
+    observed: true

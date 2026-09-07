@@ -6,8 +6,9 @@
 #   make price    set the firm's fees from hours x your rate
 #   make hours    what each price buys, in hours, at that rate
 #   make web      the browser front door: interview, and the wording editor
+#   make fast     everything except the ones that open a document
 #   make test     everything
-.PHONY: help install doctor check demo price hours web test clean
+.PHONY: help install doctor check demo price hours web fast test clean
 help:
 	@echo "make install   deps, including the Chromium PDF engine"
 	@echo "make doctor    what is blocking a real render"
@@ -16,7 +17,9 @@ help:
 	@echo "make price     set the firm's fees from hours x your rate"
 	@echo "make web       the browser front door, on http://127.0.0.1:5051"
 	@echo "               -- run an interview, or edit the wording at /templates"
-	@echo "make test      the whole suite"
+	@echo "make fast      the inner loop: everything but the nine that"
+	@echo "               open a document. ~4 min instead of ~11."
+	@echo "make test      the whole suite. Run this before you push."
 
 install:
 	pip install -r requirements.txt
@@ -31,7 +34,16 @@ check:
 	python cli.py check samples/tax-opening-package.json
 
 web:
-	python web.py
+	python web.py $(ARGS)
+
+# The browser front door, pointed somewhere that is not the firm's
+# clients. Until 5 Sep 2026 it could not be: `create_app(store=...)`
+# accepted one and the entry point never passed it, so every run opened
+# the real engagement store.
+#
+#     make web-scoped STORE=/tmp/scratch
+web-scoped:
+	python web.py --store $(STORE)
 
 price:
 	python cli.py price
@@ -44,6 +56,13 @@ demo:
 	@echo
 	@echo "Open the PDFs in out/demo/."
 
+# THE INNER LOOP. Leaves out the nine `renders` tests, which are 64% of
+# the wall clock and the ones that prove a client can read what this
+# produces. The run says so at the end, in the place the result is read.
+fast:
+	python -m pytest -q -m "not renders"
+
+# EVERYTHING, and the default. This is what CI runs.
 test:
 	python -m pytest -q
 

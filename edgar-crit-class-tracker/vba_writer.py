@@ -18,52 +18,155 @@ load -- the common, well-tolerated shape for an injected standard module.
 from __future__ import annotations
 
 import struct
+from math import ceil, log2
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 # ==========================================================================
-# MS-OVBA compression (raw-chunk encoding: spec-valid, no copy-token matcher)
+# MS-OVBA compression ([MS-OVBA] 2.4.1), WITH copy tokens
 # ==========================================================================
-# A compressed (flag=1) all-literal chunk of N bytes encodes to N + ceil(N/8)
-# bytes; the chunk-data cap is 4096, so keep each compressed chunk <= this many
-# decompressed bytes.
-_MAX_LITERAL_CHUNK = 3640
+# This emitted literals only until 4 September 2026, and that is issue #180: the
+# ExtractFiles button did not work in any monitor, in any shipped workbook.
+#
+# The arithmetic that makes literal-only impossible: a CompressedChunkHeader
+# carries the chunk size in 12 bits, capping a chunk at 4098 bytes, while the
+# spec requires every NON-FINAL chunk to decompress to exactly 4096. An
+# all-literal encoding of 4096 bytes needs 4096 + 512 flag bytes, which does not
+# fit. So no literal-only compressor can produce a valid multi-chunk container,
+# and every module over ~3.6 KB needs more than one chunk. Both shipped macros
+# do.
+#
+# The previous code worked around that with RawChunks for full 4096-byte
+# windows. That round-trips through olevba, which is why the offline bar was
+# green for months, and real Excel refuses it -- "An error occurred while loading
+# '<module>'", after which the macro is simply absent. Proved by bisecting DOWN
+# from a project Excel itself authored: swapping our module stream into it was
+# the single change that broke it, and swapping this one in fixed it.
+#
+# So the matcher is not an optimisation. It is the only way to emit a legal
+# stream. (It also compresses ~2x, which is why both macros now fit in a single
+# chunk -- pleasant, and NOT the thing that fixes them: a padded 9,962-byte
+# module spanning several chunks was verified to load and run in real Excel.)
+
+MAX_CHUNK = 4096
 
 
-def _compressed_literal_chunk(window: bytes) -> bytes:
-    """A CompressedChunk (flag=1) whose tokens are ALL literals -- valid per
-    [MS-OVBA] without an LZ matcher. Each FlagByte=0x00 introduces up to 8
-    literal bytes."""
+def _copy_token_help(difference: int) -> Tuple[int, int, int, int]:
+    """[MS-OVBA] 2.4.1.3.19.1.
+
+    The offset/length bit split depends on how far into the chunk the token
+    sits, so the same (offset, length) encodes differently at different
+    positions. Getting this wrong produces a stream that decompresses to
+    plausible-looking rubbish rather than an error, which is why the tests check
+    against the reference decompressor rather than against these numbers.
+    """
+    bit_count = max(int(ceil(log2(difference))), 4) if difference > 0 else 4
+    length_mask = 0xFFFF >> bit_count
+    offset_mask = (~length_mask) & 0xFFFF
+    maximum_length = (0xFFFF >> bit_count) + 3
+    return length_mask, offset_mask, bit_count, maximum_length
+
+
+def _longest_match(data: bytes, chunk_start: int, at: int,
+                   end: int) -> Tuple[int, int]:
+    """Longest earlier occurrence WITHIN this chunk. Returns (offset, length).
+
+    Never looks before ``chunk_start``: each chunk decompresses independently,
+    so a match reaching into the previous chunk would decode to nonsense.
+    """
+    difference = at - chunk_start
+    if difference == 0:
+        return 0, 0
+    _lm, _om, _bc, maximum_length = _copy_token_help(difference)
+    best_length = 0
+    best_offset = 0
+    for candidate in range(at - 1, chunk_start - 1, -1):
+        length = 0
+        while (at + length < end and length < maximum_length
+               and data[candidate + length] == data[at + length]):
+            length += 1
+        if length > best_length:
+            best_length, best_offset = length, at - candidate
+            if best_length == maximum_length:
+                break
+    if best_length < 3:                    # a 2-byte match costs as much as it saves
+        return 0, 0
+    return best_offset, best_length
+
+
+def _compress_chunk(data: bytes, start: int, end: int) -> Tuple[bytes, int]:
+    """Encode one chunk; returns (chunk bytes, decompressed bytes consumed).
+
+    The body is capped at 4096 bytes because the header carries the size in 12
+    bits: a longer body wraps at 4095 and the chunk silently claims a size it
+    does not have. That is a corrupt stream, not a large one, and it is why the
+    encoder stops adding tokens rather than trusting the input to be
+    compressible. Incompressible data hits this immediately -- a full window of
+    it encodes to 4096 + 512 flag bytes.
+    """
     tokens = bytearray()
-    for i in range(0, len(window), 8):
-        tokens.append(0x00)                         # 8 literal flags, all 0
-        tokens += window[i:i + 8]
-    size_field = (len(tokens) + 2) - 3
-    header = (size_field & 0x0FFF) | 0x3000 | 0x8000   # sig 0b011, flag=1
-    return struct.pack("<H", header) + bytes(tokens)
+    flags = 0
+    slot = 0
+    body = bytearray()
+    at = start
+    limit = min(end, start + MAX_CHUNK)
+    full_window = (limit - start) == MAX_CHUNK
+    while at < limit:
+        offset, length = _longest_match(data, start, at, limit)
+        added = 2 if length >= 3 else 1
+        # The +1 is the FlagByte for the group currently being filled. It is not
+        # in `body` yet -- it is written when the group of eight closes -- so it
+        # must be counted on EVERY token, not only on the one that opens the
+        # group. Counting it only at `slot == 0` let the body finish one byte
+        # over the cap, and one byte over is enough for the 12-bit size field to
+        # wrap: a 4097-byte body announced itself as 3, and the stream decoded
+        # into nonsense.
+        projected = len(body) + 1 + len(tokens) + added
+        if projected > MAX_CHUNK:
+            break
+        if length >= 3:
+            _lm, _om, bit_count, _ml = _copy_token_help(at - start)
+            token = ((offset - 1) << (16 - bit_count)) | (length - 3)
+            tokens += struct.pack("<H", token)
+            flags |= 1 << slot
+            at += length
+        else:
+            tokens.append(data[at])
+            at += 1
+        slot += 1
+        if slot == 8:
+            body.append(flags)
+            body += tokens
+            tokens = bytearray()
+            flags = 0
+            slot = 0
+    if slot:
+        body.append(flags)
+        body += tokens
+
+    consumed = at - start
+    # Ran out of header space before finishing a FULL window: that is what a
+    # RawChunk is for, and 4096 is its only legal size. Taking it here also
+    # keeps the chunk non-short, which the next chunk depends on.
+    if full_window and consumed < MAX_CHUNK:
+        header = (4095 & 0x0FFF) | 0x3000                  # flag 0 = raw
+        return (struct.pack("<H", header) + data[start:start + MAX_CHUNK],
+                MAX_CHUNK)
+    if consumed == MAX_CHUNK and len(body) >= MAX_CHUNK:
+        header = (4095 & 0x0FFF) | 0x3000
+        return struct.pack("<H", header) + data[start:at], consumed
+    header = ((len(body) + 2 - 3) & 0x0FFF) | 0x3000 | 0x8000
+    return struct.pack("<H", header) + bytes(body), consumed
 
 
 def compress(data: bytes) -> bytes:
-    """Compress per [MS-OVBA] 2.4.1.
-
-    CompressedContainer = 0x01 signature byte + CompressedChunks. Full 4096-byte
-    windows are emitted as RawChunks (flag=0, exactly 4096 bytes -- the only
-    legal raw size); any trailing remainder is emitted as one or more
-    all-literal compressed chunks. This round-trips exactly and is accepted by
-    both Excel and olevba (which rejects short raw chunks).
-    """
+    """CompressedContainer per [MS-OVBA] 2.4.1: 0x01 signature, then chunks."""
     out = bytearray([0x01])
-    n = len(data)
-    i = 0
-    while i < n:
-        window = data[i:i + 4096]
-        if len(window) == 4096:
-            header = (4095 & 0x0FFF) | 0x3000      # flag=0 raw, full chunk
-            out += struct.pack("<H", header) + window
-        else:
-            for j in range(0, len(window), _MAX_LITERAL_CHUNK):
-                out += _compressed_literal_chunk(window[j:j + _MAX_LITERAL_CHUNK])
-        i += 4096
+    at = 0
+    while at < len(data):
+        chunk, consumed = _compress_chunk(data, at, len(data))
+        out += chunk
+        at += consumed
     return bytes(out)
 
 

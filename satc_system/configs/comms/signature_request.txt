@@ -1,0 +1,16 @@
+Dear {salutation},
+
+Your {tax_year} return is ready and waiting on one thing: your signature on Form 8879.
+
+We cannot transmit the return to the IRS until we have it back — that's an IRS rule, not
+a preference of ours. Once it's signed, filing usually happens the same day.
+
+If anything in the return looks wrong, tell us before you sign rather than after. It is
+far easier to correct now.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

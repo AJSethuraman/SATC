@@ -35,6 +35,11 @@ questions:
     type: boolean
     risk_flag: K-2/K-3 foreign activity review
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+services:
+  - service: return_1120s
+    because: this engagement is your S corporation return and its K-1s
+
 tasks:
   - template_id: s-corp-upload-trial-balance
     title: Request year-end trial balance

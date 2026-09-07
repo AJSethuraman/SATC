@@ -1,0 +1,5 @@
+
+# Built workbooks handed to the desk. Output, not source; the runner and
+# chartbook regenerate them. Added 4 Sep 2026 after a git add -A nearly took
+# two live-data workbooks and their lock files into a commit.
+example-output/

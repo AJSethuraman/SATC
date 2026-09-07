@@ -1,0 +1,778 @@
+# The practice log
+
+**What the firm decided, in their words, and what it caused.**
+
+Canon's behaviour 14 is *keep the log where the work is*, and the docket is
+written to read from this file. There was no such file until 4 September 2026,
+so every answer given that day lived in three places and no single one —
+commit messages, `docs/DEFECT-REGISTER.md`, and pages published to the firm.
+A session tomorrow would have started from whichever it happened to find.
+
+**What belongs here:** a decision the firm made, quoted where they wrote it,
+with what it caused. Not a summary of the work — that is what the git history
+and the defect register are for.
+
+**What does not:** anything a client said, any name, any figure off a return.
+This file is read by every session and shared with none of them.
+
+---
+
+## Monday 7 September 2026 — the queue emptied, and the next goal named
+
+**Nothing was asked of the firm today.** The six answers of 6 September were the
+whole instruction set, and this is what they produced. Recorded here rather than
+in a docket's "what changed", because the queue is now empty and the next session
+needs to read what was done rather than infer it.
+
+| Answer | What it produced |
+|---|---|
+| *"Fix the three, flag the rest"* | #302 — the 2025 tables reconciled to enacted law |
+| *"Build it, safe-harbour tie-out first"* | #303 — safe harbour tied to IRS Pub 505 |
+| *"Ask once per folder"* + *"Warn on the screen"* | #304 — intake records arrivals |
+| *"Build it next"* | #307 — what a filed return implies, read never priced |
+| *"Read the eight and report back"* | eight read; #160 and #140 closed as superseded |
+
+**All 33 walk defects are now fixed or withdrawn.** The register reads 32 fixed,
+1 withdrawn, 0 open. It opened on 5 September at 0 of 33.
+
+### The $165 was real, and the file had predicted it
+
+`configs/crosswalk/federal/2025.yaml` carried the standard deduction as the IRS
+published it in **October 2024**. **P.L. 119-21 (OBBBA), signed 4 July 2025**,
+raised it for tax year 2025 itself. Every estimate the software produced was too
+high — $165 on a single filer with $100,000 of wages, more on a joint return.
+
+The file's own note said *"reconcile to enacted law before filing TY2025"*,
+written when the table was built, and nothing enforced it. **No test could have
+caught it**: the engine's tests work out their expected answers from the same
+table the engine reads, so the code and the tests agreed with each other while
+both were wrong about the law. `/canon:tie-out` caught it by going to the IRS.
+
+The fix was scoped by the firm's own answer — the three figures, not the whole
+Act. What OBBBA else changed (tips, overtime, car loan interest, seniors, the
+SALT cap, the child tax credit) is now **declared in the dated table** and
+printed with every estimate, because a half-reconciled table that looks current
+is more dangerous than one that is obviously stale.
+
+### Two things the work found on its own
+
+**The read of a filed return nearly missed state returns entirely.** A state
+return is its own `ReturnRecord` with a different jurisdiction, so it leaves no
+trace in the federal return's line items — and most SATC clients file an Ohio
+return. `unmatched_units()` reported it, which is what that function exists for.
+
+**`gh` cannot take a pull request out of draft on this machine.** GitHub's REST
+API works; the GraphQL API refuses with a rate limit for a user id that is not
+the one `rate_limit` reports quota for. Closing, commenting, creating and merging
+all went through REST. **#156 is merge-ready and blocked on one click** — see the
+docket.
+
+### The next goal, and where it came from
+
+Canon 1.13.0 landed today (#306) carrying behaviour 19 — *name the goal, report
+the distance, then stop* — written from the firm's own words on 7 September:
+*"i feel like sometimes the feedback is endless for the sake of being endless,
+when a stated goal can be worked towards then moved naturally."*
+
+The goal it produced, which the 7 September docket carries and which silence
+approves: **tie the rest of the withholding engine to the IRS.** Nine parts of
+that engine decide a client's number; three are now tied to a source outside our
+own code and six are not. The firm answered *"build it, safe-harbour tie-out
+first"* on the withholding service, and the remaining six are what stands between
+the estimator and something the practice can charge for.
+
+**Distance: 3 of 9 tied, 6 left** — capital-gains stacking, self-employment tax,
+Additional Medicare, Net Investment Income Tax, the per-paycheck W-4 line 4c
+arithmetic, and the paystub reader. State withholding is a tenth part and is not
+modelled at all, which is a build rather than a tie-out.
+
+---
+
+## Sunday 6 September 2026 — six for six, and one of them is a live defect
+
+Every matter answered, and every one took the recommendation. No overrules, and
+nothing written in the free-text boxes — so what follows is the recommendation
+each answer selected, quoted as it stood on the page.
+
+Four of the six were **carried unanswered from the 5 September docket**. That is
+recorded because it is the reason the tie-out happened at all: with the queue
+stalled, the day went into proving one number rather than into building the next
+thing.
+
+| | Asked | Answered |
+|---|---|---|
+| **1** | how far to reconcile the 2025 tax tables to OBBBA | *"Fix the three, flag the rest"* |
+| **2** | build the mid-year withholding review as a priced service | *"Build it, safe-harbour tie-out first"* |
+| **3** | what intake records about how a document arrived | *"Ask once per folder"* |
+| **4** | whether unknown provenance blocks filing | *"Warn on the screen"* |
+| **5** | the final invoice computed from the filed return | *"Build it next"* |
+| **6** | the eight old pull requests | *"Read the eight and report back"* |
+
+### Matter 1 is the one with a deadline on it
+
+The withholding estimator overstates 2025 federal tax, today, on every estimate
+it produces. `configs/crosswalk/federal/2025.yaml` holds the standard deduction
+as the IRS published it in **October 2024**; **P.L. 119-21 (OBBBA), signed
+4 July 2025**, raised it for tax year 2025 itself — single 15,000 → 15,750, MFJ
+30,000 → 31,500, HOH 22,500 → 23,625. On the sample case that is **$165** of tax
+the estimator invents.
+
+The answer scopes the fix deliberately: **the three figures, not the whole Act.**
+OBBBA also created deductions for tips, overtime, car loan interest and seniors,
+raised the SALT cap and changed the child tax credit, and none of those are
+modelled. Those carry eligibility rules and phase-outs that are real tax
+judgement, and a half-reconciled table that looks current is more dangerous than
+one that is obviously stale — so the screen says what is still missing.
+
+**This was found by `/canon:tie-out`, not by the test suite**, and could not have
+been found by it: the engine's tests work out their expected answers from the
+same tables the engine reads, so the code and the tests agree with each other and
+both are wrong. The file itself carried the instruction — *"reconcile to enacted
+law before filing TY2025"* — written when the table was built, and nothing
+enforced it.
+
+### Matter 2 rests on an answer given somewhere else
+
+The question was whether to sell the mid-year withholding review. The half that
+would have been hardest to ask — whether it should instead be a free calculator
+on the website — the firm had **already answered two days earlier**, on the free
+Schedule C tool:
+
+> *"It is not my concern to fill out a form for them. This is already helpful
+> when free and I would expect them to pay us if they wanted to take it to that
+> step themselves through our own work."*
+
+That answer lives in **PR #298**, which is still a draft, so it is not on `main`
+and this log did not have it. It was found by reading the repository rather than
+this session's memory of the week, which is the whole reason a docket is built
+that way — and it stopped a question being put to the firm twice.
+
+**That quotation is a candidate conviction and belongs to the session that
+recorded it.** Nothing has entered `CONVICTIONS.md` here.
+
+### What the six answers put in the queue
+
+1. The three OBBBA figures, with the test tied to the IRS page rather than to our
+   own table, and a note on screen naming what is not modelled.
+2. A tie-out of the **safe-harbour** figure — the number a client actually acts
+   on, and the only one in the recommendation still unproved.
+3. Intake asks once per folder how the documents arrived, defaulting to
+   `unknown`; a row with no provenance **warns and does not block**.
+4. The final invoice, starting by reading a filed return and reporting what it
+   implies, before anything writes an invoice from it.
+5. A read of the eight old pull requests, one line each.
+
+---
+
+## Saturday 5 September 2026 — the docket after the walk, five for five
+
+Every decision answered. Three took the recommendation, one overruled it, and
+one went somewhere better than either option I had offered.
+
+| | Asked | Answered |
+|---|---|---|
+| **A** | merge #262 / #263 / #267 | *"Merge all three, then a docs PR"* |
+| **B** | fix the three data-corrupting defects now | *"Fix all three now"* |
+| **C** | what an invoice does with no estimate — refuse, or fall back | **neither** — see below |
+| **D** | give the interview an "unknown" answer | *"Add it, start unanswered"* |
+| **E** | the three security preconditions | **overruled me** — *"Defer to the bookkeeping launch"* |
+
+**C is the one worth writing down, because I asked the wrong question.** I
+offered refuse-or-fall-back at the moment of billing. The firm:
+
+> *"the final invoice is what really should be made after we do the return and
+> can actually compute it so like I would expect us to be able to feed a final
+> return to our software and have it identify the schedules and stuff that we
+> filled out and price the engagement at the end and then you know it would
+> pretty much need to ask if there was hourly work and stuff"*
+
+So the estimate and the final invoice are **two different acts on two different
+days**, and the invoice is derived from what was actually filed rather than from
+what was predicted. That does not collide with *"one price, and it's the one on
+the client's estimate"* — that decision was about which price LIST governs, not
+about when the amount is fixed. The same fee schedule prices both; one prices a
+prediction, the other prices the work. `CLAUDE.md` already names the seam this
+needs — `cli.py close` records what was filed, in-house — and the engagement
+letter already promises the client a written estimate before any additional work
+begins, so a final invoice above the estimate is a promise to check rather than a
+surprise to allow. Not built; scoped only.
+
+**E is the second overrule onto the bookkeeping launch**, and the position is
+consistent: W5 and W8 went there on 4 September for the same reason. Worth
+recording what I checked rather than assumed, because the Autonomy screen reads
+*"never recorded"* for all three and the machine is further along than that:
+`SATC - Back up client data to OneDrive` last ran 4 Sep 12:30 and the Occam books
+backup at 03:00 today, **both result 0**. Tailnet Lock is genuinely off —
+`Tailnet Lock is NOT enabled`, read off the box. The real gaps are Tailnet Lock
+and a restore nobody has ever tested, not the absence of a backup.
+
+**What B produced:** three stacked pull requests, #276 → #277 → #278, and
+**1,779 → 1,797 passing, 0 failing.** Each guard sits on the engine rather than
+the view, so every caller meets it instead of the one door the walk happened to
+use.
+
+**The mutation runs earned their place three times over.** The headline test for
+#276 was decorative in two successive drafts — first it handed the client in
+explicitly, which the old code honoured too; then it asserted on the set of
+returns, which cannot change because the demo client already has that return and
+the post reuses it; then it counted line items, which cannot change either
+because the post is idempotent and REPLACES them. Only a value-by-value ledger
+comparison could see it. In #278 the control would have passed for the wrong
+reason, because `client_choices()[0]` is a partnership the personal workflow
+refuses anyway.
+
+**And one existing test was passing because of the defect.** `test_filing` read
+the global `STATE`, which the button-walker empties by pressing "Clear sample
+data" — and then refilled, because pressing `/intake/run` and `/staging/post`
+manufactured a `SATC-001000` / 2024 return out of the very defaults being
+removed. It builds its own state now.
+## Saturday 5 September 2026, small hours — the walk, and the two prices
+
+The firm: *"It's time for you to literally use the browser, use all of the
+buttons, go through every screen, make sure everything works, do an example for
+everything… It's okay if this takes a while."*
+
+Walked both applications in Chrome on `walk/2026-09-05` — `main` with #262, #263
+and #267 merged, on the firm's answer that the walk should cover *"the product
+you actually intend"* rather than what happens to be on main. Scratch stores
+throughout; this checkout holds no live client data, and the owner's own
+instances on ports 5050 and 5051 were left alone.
+
+**Denominator: 1,779 + 1,468 = 3,247 passing tests, 0 failing, and not one of
+them is red because of anything below.** Twenty-five defects on the desk and six
+in the engagement browser, in `docs/WALKTHROUGH-DEFECTS.md`.
+
+**The three that matter.** `state.py:363` reads
+`def run_intake(self, folder, *, client_id: str = "SATC-001000", tax_year: int = 2024)`
+— so every document scanned through `/intake` posts to a **hardcoded demo client
+id** and to **tax year 2024**, whatever the preparer meant and whatever year the
+form says. I proved it by scanning two invented W-2s and watching 92,400 + 58,150
+land on a third party's 1040 workpaper. Second: a correction typed into a money
+field that is not a number is silently discarded and the machine's original
+figure posted instead, while the row goes on reading `CONFIRMED · human:owner`.
+Third: `/intake/plan` says *"Pick a client first"*, offers no way to pick one,
+guards only the tax year — and **Generate this engagement** then creates a real
+engagement belonging to nobody, with document requests that survive a sample-data
+clear.
+
+**And the two apps disagree about the price.** Same client, same 2025 Form 1040,
+same ref `2026-0001`: the client's estimate says **$350.00** (Simple Filer $100 +
+extension $75 + sorting $175), the desk's invoice says **$450.00**. #267 retired
+the second price list on the quote path; the **Prices** screen and the invoice
+catalogue still read it, and the invoice screen also shows *"No rate plan
+agreed"* while applying a 60% discount.
+
+**What is good is very good**, and the walk should say so: the gate is real and
+counts honestly (*"11 checks, nothing flagged — 1 check had nothing to look
+at"*), stage→gate→place leaves nothing behind on a refusal, the withholding
+estimator's TY2025 arithmetic ties out to the cent when recomputed
+independently, the engagement-ref control refuses `banana` by name, N/A demands a
+reason, and the Autonomy screen refuses to let a model attest on the owner's
+behalf.
+
+**I was wrong three times and withdrew each** — most instructively about the
+overpayment, which I wrote up twice as a defect before opening `/today` and
+finding the product had already thought it through, down to naming the gap I
+believed I had found. Five of my seven mistakes were caught by opening the thing
+rather than reasoning about it, which is the lesson the walk exists to apply to
+the product.
+
+**The procedure is the other deliverable and the one that gets skipped.**
+`docs/walkthrough/satc-front-to-back-2026-09-05/` — 22 numbered steps, a
+screenshot each, what a correct screen looks like, and a **Careful** note only
+where a step would otherwise walk somebody into one of the faults above. One
+self-contained 19-page PDF with every picture embedded, so it can be handed to
+somebody who does not have the repository.
+
+---
+
+## Saturday 5 September 2026 — one price, and the second list is retired
+
+The firm, after correcting me on what the student rate means:
+
+> *yes — retire it. Rewrite the 28 tests so they assert satc_system identifies
+> the work and shows the engagement's price, rather than pricing it. One price,
+> and it's the one on the client's estimate.*
+
+**The rewrite turned on one word.** Almost every failing test asked what was on
+`quote.lines`, and every one of them meant *what work is on this quote* rather
+than *what did this file charge for it*. Redefining the helper to read both
+buckets fixed a dozen of them without changing a single claim — the answers
+still put the work on the quote, the work still names the answer that put it
+there, the order is still the config's.
+
+**Reading `lines` alone would have been worse than red.** A dozen assertions
+of the form "this work is NOT on the quote" would have passed because nothing
+is ever on `lines` now: green, vacuous, and silently no longer testing
+anything. That is the failure this repository names first, arriving through a
+test edit.
+
+**Two things nearly got lost, and both were caught by rewriting rather than
+deleting.**
+
+`priced_by` won the whole branch, so the moment the engagement took over the
+figure, *"the interview does not record how many states"* stopped being said at
+all. That fact is not about who prices it — the engagement needs the number
+too. The reasons compose now.
+
+And `letter_facts` states a fee only when the total is the whole price, which
+is never true here any more. Left alone, **every engagement letter would have
+rendered `[[ Fee: fill in ]]`** — technically honest, useless in practice, and
+a good way to have somebody type a number in by hand. The letter reads the
+engagement's own figure now, through the ref.
+
+**One principle had to be restated rather than repaired.** A test held that an
+unpriced entry is a warning, so an ordinary one-state client must not get one.
+Every service is unpriced now, so being on that list is not a warning any more —
+it is just the quote. What still separates them is the REASON, and that is what
+it asserts.
+
+`rate_plans.yaml` keeps its plans and says at the top what it is: retired, never
+reachable, and not the price. `requires_basis` stays, because a reduction
+needing a recorded reason is good design whichever file does the arithmetic.
+
+**And I leaked an environment variable again, inside the hour.** A fixture set
+`SATC_ENGAGEMENTS` through `os.environ` to give the letter a price to read —
+the same shape as the `SATC_ROLE` leak that turned 29 unrelated tests red last
+night. This one decides where a client's PRICE is read from. Added to the
+conftest guard that already existed for exactly this.
+
+
+## Saturday 5 September 2026 — I raised a collision that was not there
+
+I told the firm their price decision collided with two things they believe, and
+stopped D10 one step from finished to say so. **The challenge was wrong, and it
+was wrong because I had invented what "the student rate" meant.**
+
+The firm, asked:
+
+> *when i say college student gets it cheaper, i literally mean hey if you are
+> in college and working that's rough, we have the simple filer deal just for
+> you - same with someone not in college.*
+>
+> *so like the estimate generator is supposed to find the lowest cost we can for
+> someone based on their situation whether that be starting with one of our 4
+> packages and adding to it, or making some sort of weird custom package that is
+> lower than a standard package but gets you what you need*
+>
+> *this was assured that it was done to me... is it not??*
+
+**It is a cheap tier, not a percentage off.** I had assumed the reduction lived
+in `satc_system/configs/billing/rate_plans.yaml` — `household`, `hardship`,
+`pro_bono` — and built a whole Bassy challenge on the fee schedule having no
+discounts. The fee schedule is right not to have discounts. The deal *is* the
+ladder finding the cheapest package that covers the client.
+
+**And it is built.** `pricing.derive_tier` returns "the tier that costs this
+client LEAST", its docstring quotes the firm from 25 August saying to put it in
+the mechanism rather than a test, and it runs inside `line_items()` → `price()`
+→ `intake.finish`, which is the path the client's own estimate comes from.
+Measured, not read:
+
+| the client | the estimate |
+|---|---|
+| working student, W-2 only | **$100.00** Simple Filer |
+| the same person plus a brokerage statement | $200.00 Essentials |
+| student with a second state | **$150.00** — Simple Filer plus one state |
+| self-employed, standard books | $500.00 Self-Employed |
+
+The $150 is exactly the *"weird custom package that is lower than a standard
+package"*. And `cli.py ladder` sweeps the shapes and reports Essentials eligible
+24 times and chosen 12 — **beaten by Simple Filer the other twelve**, which is
+the guarantee working out loud.
+
+**Then the second half of the mistake.** `rate_plan_key` — the percentage
+mechanism I stopped work to protect — is written by nothing but the store's own
+loader and four test files. No route, no form, no command sets a rate plan on an
+engagement, and until last night the product never created the row it sits on.
+**I halted a decision to defend a mechanism that has never been reachable.**
+
+What I should have done before raising it: price a student. It took one command.
+
+
+## Friday 4 September 2026, late — the second docket, and one overrule
+
+Asked directly whether I was trying to say the work was finished. I was not, but
+the reporting read that way: shipping one decision at a time and calling each
+verified is accurate per item and misleading in aggregate.
+
+| | Asked | Answered |
+|---|---|---|
+| **D7** | five client documents ship past the pre-send gate | *"Gate the five documents next"* |
+| **D8** | nothing records that a return was filed, so the 7-year clock never starts | **overruled me** — *"Defer with W5/W8 to the bookkeeping launch"* |
+| **D9** | `make web` always opens the real client store | *"Let make web take a store"* |
+| **D10** | the price, with the third option D3 unlocked | *"Show the engagement price via the ref"* |
+
+**D8 is the one I was wrong to raise, and the overrule was already on record.**
+I argued the filing writer should come next because it is the missing piece
+under W5 and W8. The firm deferred it to the same place — and W8's own entry
+already carried their words for it: *"note those as things to deal with when we
+are ready to market the bookkeeping officially."* The answer was in the register
+before I asked the question. Nothing is destroyed today, so nothing is at risk
+today, and the three pieces of the retention promise get built together rather
+than one at a time.
+
+**The false gate claim was corrected without asking**, and that half was never a
+decision. `CLAUDE.md` told every session that every client document passes a
+blocking pre-send gate; the gate has two callers and neither is on the `event`
+path. A wrong safety claim in the file every session loads is worse than the gap
+it describes, because a gap invites a look and a claim forecloses one.
+
+**Then closing the gap caught something my own test did not.** The first version
+applied the pack gate wholesale and refused an ordinary single-document render:
+the fee estimate promises the engagement letter as an enclosure, and a
+one-document render does not hold one. That is the estimate being correct.
+**A gate that refuses correct everyday use is a gate everybody learns to
+`--force` past, and then it protects nothing.** Exactly one of the nine checks
+is about completeness rather than about the documents, so that one is skipped
+for a deliberate subset — and *named* as skipped, never dropped. Nine checks for
+a chosen document, ten for a whole pack, and a test pins the difference at one.
+
+My test had only asserted that a gate was mentioned. Running it found the rest.
+## Friday 4 September 2026, late — the join, and who is calling
+
+**D3 first, because its answer dissolved D4's fork.** Both assessment agents
+reported that `engagement_ref` had no writer. Reading it here found something
+larger: **every use of `mart.engagements` in `src/` was a read.** The only
+writers were the synthetic fixtures and the store's own loader, so an
+`Engagement` existed for the four demo clients and for nobody else — the rate
+plan agreed, the fee, invoiced, paid and the ref were all unreachable for a real
+client. It was not a missing setter. It was a missing row.
+
+`engagement_for` is the producer now, `create=False` by default so a lookup
+cannot quietly manufacture one, and only the call that genuinely means *this
+client has a contract for this year* asks for it. The ref gets a box on the
+engagement screen, because **a route with no control on any page is a route
+nobody can reach**, which was the whole defect in the first place.
+
+**The guard worth keeping is the duplicate one.** `client_for_ref` returns
+nothing when a ref names two clients — correct, since picking one arbitrarily
+closes the wrong client's document request. But at collection time that silence
+is indistinguishable from "nobody set it". Refused at the keyboard it costs a
+sentence; found in the drop folder it costs an afternoon.
+
+**D2 turned out to be one line.** `require_human` was never wrong; sixteen
+choke points call it and all sixteen are fine. Only `acting_actor` was wrong,
+and only in how it decided: it asked Flask whether a request existed rather than
+asking who was calling. Pointing it at a principal fixed every one of the
+sixteen without touching any of them.
+
+**One case is deliberately still open, and saying so is the point.** A caller
+*in a live request* that declares no role is still the owner — Occam's own call,
+for the reason its module states: no authentication here, the tailnet is the
+perimeter, and a restrictive default only teaches everybody to pass `owner`
+everywhere. Written into the docstring so a later session does not "improve" it.
+
+**But I first applied that rule too widely, and it was a loosening.** The
+version I described a message earlier sent *every* undeclared caller to the
+environment — so a headless script, no request and no role, came back as the
+owner. `acting_actor` had refused that caller since the day it was written. I
+had closed the agent hole and opened a wider one, and said so out loud before
+noticing.
+
+`test_actor_gate.py` caught it: two tests that existed for exactly this,
+failing on exactly this. **A security change that makes any previously-refused
+caller permitted is a regression however good its intent**, and the intent was
+the thing that made it easy to miss — I was looking at whether the new hole was
+closed, not at whether an old one had opened. There are three cases now, not
+two, and the invariant is its own test: for every combination of request and
+role, the new answer may be stricter than the old and never looser.
+
+**And I broke twenty-nine tests with an environment variable.** The two tests of
+the MCP entry point let `SATC_ROLE=ai_staff` escape, because `main()` writes
+`os.environ` directly and `monkeypatch` never learned the key had been touched.
+Pricing, staging and delivery all went red, every one of them refusing the owner
+because the owner had quietly become an agent. **They passed alone and failed in
+a full run**, which is the shape of every order-dependent test anybody has ever
+had to debug.
+
+The repair for it went wrong in the opposite direction first. Written as an
+assertion, it errored seven honest tests: an autouse fixture tears down *before*
+the `monkeypatch` a test requested, so it read every legitimate `setenv` as a
+leak. Ordering cannot be fixed from that side. **So it restores rather than
+asserts, and is named as a repair rather than a check** — a check that cannot
+tell a leak from a correct use is not a check worth having, and putting the
+value back removes the whole class either way.
+
+
+## Friday 4 September 2026, evening — the docket came back, six for six
+
+Every decision answered, every one taking the recommendation, no amendments.
+Recorded here because an answer that lives only in a form has to be asked again.
+
+| | Asked | Answered |
+|---|---|---|
+| **D1** | `--store` reaches production Square | *"--no-link defaults on any non-default --store"* |
+| **D2** | a script with a request context is the owner | *"Adopt the Occam shape — launcher-set role and assignment"* |
+| **D3** | two applications, one practice, no join | *"client-documents owns the engagement; satc_system holds the return"* |
+| **D4** | two price lists disagreeing by 55% | *"registry/fee-schedule.yaml is the price"* |
+| **D5** | should we use Fable 5.1 | *"No Fable for SATC work"* |
+| **D6** | `desk/` is failing the same way | *"Tell the other session"* |
+
+**D3 is the one that unlocks the others.** Naming `client-documents` the owner of
+an engagement settles the join, the price question and the invoice numbering at
+once — they were three symptoms of not having decided it.
+
+**D5 is NOT a standing position, and I had it wrong within the hour.** I wrote
+that it was, and offered to draft it as a conviction. The firm: *"this isn't a
+conviction, i will just use it when i feel like it or want to test it."*
+
+So the finding stands and the rule does not. Fable 5.1 requires 30-day data
+retention with no zero-retention option, and it produced the weaker of two
+reports on the same brief at roughly twice the cost per token — all true, and
+none of it makes a policy. **A measurement is not a commitment**, and turning
+one into a rule on the firm's behalf is how a record fills up with things they
+never decided. Declined on the record so it is not re-proposed.
+
+**D1 built the same evening.** `payments.link_follows_the_store` decides once,
+at the seam: `--no-link` never, `--link` always, otherwise the default store
+gets a link and no other store does — and the suppression is printed rather than
+silent. `--link` had to exist, because a safety default with no override is not
+a default, it is a wall.
+
+**The test for it was decoration on the first attempt, and only the mutation run
+found that out.** It put a tripwire on the HTTP transport and asserted the
+output said "no link". Both halves were wrong. `processor()` refuses before any
+transport is touched when no token is configured — the state of every test
+machine — so the tripwire could never fire and the test proved *no token here*,
+not *no call made*. And "No link on this bill —" is exactly what the **old** code
+printed when the processor refused, so the assertion matched the bug's own
+output. It passed against the defect it was written to catch. Rebuilt to watch
+`link_for`, to stub `processor` so the tripwire is genuinely reachable, and to
+assert the one phrase only the new path produces. Then mutated again: it fails
+now, on the tripwire, which is what makes the nine passes worth anything.
+
+
+## Friday 4 September 2026, evening — the evening two agents read the code and one ran it
+
+Two agents got the byte-identical brief — *can a person run this end to end, can
+an agent* — one on Fable 5.1, one on Opus 5, as the honest test of whether Fable
+earns a place. **The comparison answered itself in a way I did not expect: the
+difference that mattered was not the model, it was that one of them ran the
+software.** Both serious findings came from the run that executed things, and
+neither is visible from reading.
+
+**`--store` isolates the files and not the money.** `cli.py invoice` reaches the
+firm's production Square account whichever store you point it at. The standing
+instruction on this machine is *point tests at a temp store*; an agent obeying it
+believes it is isolated and is not. It came back `400 — idempotency key already
+used`, so nothing was created — and a 400 is what a *differing* body returns. A
+matching amount returns the existing link, and the test client is handed a real
+client's payment link.
+
+**A script with no human in it is the owner.** `acting_actor()` returns
+`Actor.owner()` for anything holding a Flask request context, which
+`app.test_client()` creates. Its docstring promises the opposite in the sentence
+above it, naming *a script* as the case it catches. Reproduced here independently.
+
+Both are one shape: **a control that reads how a call arrived rather than who
+made it.** Neither was patched — a security gate and a money seam are the firm's
+call — and both are recorded as W9 and W10.
+
+**Then two of my own, found the same way.** `SATC_DATA_DIR` was documented as
+always winning and honoured by two callers out of eight; one of the six was
+`reset`, which deletes the vault, so a run scoped to a scratch directory would
+have deleted the live store. And a locked `pytest-of-<user>` directory on this
+machine — a DACL even `icacls` cannot read back — was erroring **467 tests here
+and 1,165 in client-documents** at setup. `canon/conftest.py` had already solved
+that one and written down both of its traps.
+
+**The number I would have reported was false.** I was carrying "1,712 passed" and
+"1,434 passed", both true when measured that morning, and the second was actually
+*zero passing* by evening. A green number goes stale the moment the machine under
+it changes — which is this repository's own first tenet pointed at its own test
+run. It only got caught because something else made me re-run them.
+
+**And my own walker was wrong four times out of four.** Written to walk the app
+like a person, it read the first `<form>` on each page — the sidebar's "clear
+sample data" form, on every screen — so it pressed that button and reported that
+`/clients/new` had no fields and created no client. Scoped to the page's own
+content, the app did the right thing at every step. That is the fourth time in
+two days a checker built to find faults produced the fault itself, and it is why
+the count above can be believed at all: **the walker's findings were checked
+before they were reported, and none of them survived.**
+
+
+## 4 September 2026
+
+The day Square went live, the day the payment loop was proved with real money,
+and the day the firm asked whether anything actually presses the buttons.
+
+### Decided
+
+| | The firm | What it caused |
+|---|---|---|
+| **The retention clock** | *"end of engagement"*, then: *"you can look at the engagement letter, it outlines the end of the engagement and you likely need to build a control to record it"* | `satc/retention.py`. Read out of the letters rather than assumed: delivery, or signature **and** transmission, or written notice — never acceptance, and payment is not in the clause. Bookkeeping has no "concludes when" at all, so notice is its only ending |
+| **Bookkeeping retention** | *"note those as things to deal with when we are ready to market the bookkeeping officially"* | W8 gated to the bookkeeping launch. A tax engagement ends by itself; a bookkeeping one never does, so it cannot get a disposal date until written notice is recorded |
+| **No login for the local apps** | *"this is all local to here and you'd have to be literally on my lan"* | Compensating controls written into WISP §A4a. Still needs his signature as Qualified Individual |
+| **The screen not locking** | *"leave it and outline it in the WISP so we know it's a risk"* | B11 recorded as an **accepted risk**, not closed. It is the assumption A4a rests on |
+| **`forge-readonly`** | *"Disable it"* | Disabled. `Account active: No`. Its Full Name was "Forge read-only agent" — created deliberately, never used |
+| **The Render deploy workflow** | *"Delete it"* | `.github/workflows/deploy-invoicer.yml` deleted. It fired on every merge and failed every time; the hook was never set, so nothing ever reached Render |
+| **Invoicer** | *"Retire Invoicer"* | Closed PR #139. The firm takes Square; Invoicer was Stripe end to end |
+| **The $1 live test** | *"i can invoice myself for $1 and pay it with a live card as our final test"*, then *"i got the notification from square that i was paid $1 i trust it"* | Done. 7 of 7 on the live account, order `T3yIEJw8D0j…`, settled. Recorded as P1 |
+| **The vault key** | Confirmed stored in Bitwarden | W6 closed. The copy that matters is the 44 characters inside the DPAPI wrapper, not the wrapped file — a wrapped copy cannot be unwrapped on a replacement machine |
+| **Three non-practice PRs** | *"Close those three"* | #100, #101, #102 closed. Branches kept |
+| **The other 38** | *"Leave them, triage later"* | Untouched. One triage of all of them when there is a quiet slot |
+| **The cross-checkout venv** | *"Fix it"* | `client-documents/.venv` built in the real checkout; the launchers no longer reach into a scratch folder |
+| **Opening the software** | *"Go and look"*, then *"do the instructions you understand have you not only open screens and screenshot them, but you are pressing buttons and opening screens and 'typing' stuff to make sure it actually works?"* | Five browser tests that press the buttons, and the bug they immediately found — see below. Plus `exercise.py` run for the first time in this checkout |
+| **This file** | *"Start one, backfill today"* | This file |
+
+### What the firm's questions found, that the software did not
+
+- **The N/A button recorded documents as received.** An empty reason box took
+  the *satisfied* path, so the register would say a client sent a document they
+  had not. The refusal existed in the model and the browser could not reach it.
+  Found by the first test that pressed a button, an hour after the firm asked
+  whether anything did. 1,685 tests were green throughout.
+- **Every panel count was invisible** — `#1F2733` on `#0B1F3A`, 1.10:1, across
+  32 headings in ten templates. Found by opening the page.
+- **The test suite was driving desktop Outlook**, opening compose windows on
+  the firm's own screen across two runs, four of which saved themselves into
+  Drafts. *"it opened once and i didnt know what was happening."* Nothing was
+  ever sent — there is no `.Send()` in this codebase. Fixing it also made the
+  suite five times faster: 957s → 197s.
+
+### Corrections to the record
+
+- Commit `0906429` claimed it recorded the BitLocker finding and the retention
+  answer. It carried three files, not four; a `git stash` had dropped them.
+  Redone in `1967bf1`.
+- The open pull request count was reported as 12, then 14, then 20 in one day.
+  All three were a row limit read back as a total. **It is 38.**
+- `CLAUDE.md` said the suite was 1,412 / 2 and that `exercise.py` produces
+  **190 documents**. Measured 4 September: the suite is **1,434 / 2** and the
+  harness produced **109** documents across 29 scenarios. The count was
+  corrected; the 190 was not explained and is flagged in place rather than
+  quietly rewritten.
+- **Ten tests skip until the harnesses have run**, and say so only in the
+  skip reason. A checkout that has never run them reports 1,424 / 12 and looks
+  healthy. Both checkouts now read 1,434 / 2, and the two remaining skips are a
+  real data condition rather than a missing capability.
+
+### The Square payout field, and what it cannot tell you
+
+The firm: *"that $482 is in my bank right now, i'm unsure you can see it through
+this but that is certainly interesting."*
+
+They were right to doubt it. Square's Payouts API reports
+`destination.type: SQUARE_STORED_BALANCE` for **all three** payouts — including
+the April and May ones the firm confirms reached their bank. The field reads
+identically for money that arrived and money that has not, so it cannot answer
+"did the transfer land". The suggestion to add it to `payments --check` is
+withdrawn: it would have been a line that looks like an answer and is not one.
+
+### Every screen, opened
+
+*"it's time to work through all of the screens — like for real."*
+`tests/test_every_screen_in_a_browser.py` now opens all 27 of them in Chromium,
+with the list discovered from the app's own `url_map` so a screen added next
+month is covered the day it lands. Two findings, and **two of the first three
+were my own test being wrong**, which is the reason to check the checker:
+
+- the contrast walker never read an element's own background, so it reported a
+  badge that was dark red on pale pink as 2.08:1 red on navy — a colour that
+  was never wrong and would have been "fixed";
+- the STAGED badge is genuinely 3.85:1, on the screen where a preparer confirms
+  an extracted figure before it reaches a workpaper. Darkened to 4.80:1;
+- `/source` was flagged as a broken screen. It is not a screen: it serves an
+  original client document and refuses any path the last intake did not read.
+  The 404 was the allow-list working, and it is now asserted rather than merely
+  excluded — an exclusion outlives the guard it was written around.
+
+### And every button
+
+*"sounds like you know what to do, then."*
+
+The crawl follows links rather than reading a list, so it reaches **46 pages**
+where the screen sweep reached 27 — the difference being every detail page,
+which is where the buttons live. **203 forms**, and every one of them lands on
+a route that accepts the method it uses. Then all 202 POST buttons were pressed
+with an empty form, which is what a person does by accident: **no 500s**.
+
+**Three of the findings were the checker, not the app.** It reported two dead
+buttons that were `method="get"` filter forms; it called two self-posting forms
+orphans when a form with no `action` posts to its own page; and its own registry
+of "endpoints with no button" was wrong in both directions at once — one missing,
+three carrying excuses that had gone stale.
+
+**And two of my own tests were order-dependent**, which is the fault this
+repository hunts hardest. `STATE` is module-level, so the crawl sees whatever
+store the previous 1,600 tests left behind: staged fields get confirmed, drafts
+get cleared, and buttons that render alone do not render after a full run. Split
+rather than pinned — what is structurally never a button is asserted in both
+directions, and what depends on the data is documented and asserted in neither.
+
+### What the buttons do, not just that they work
+
+*"All of them, take the time."* — and *"Close anything older than August,
+unless this sound super destructive."*
+
+**32 open pull requests → 9.** Twenty-three closed, branches and commits kept.
+**Two deliberately not closed**, which is what the caveat was for: **#23**, the
+Consumer Credit Red-Flag Monitor the firm had already asked to keep, and
+**#88**, opened in July and worked on this week — closing by creation date
+would have killed live work.
+
+**Twelve behavioural tests**, pressing through the front door and reading the
+store back. 202 buttons are about fifteen verbs; the verbs now carry the state
+change their labels promise: Received records satisfied and invents no reason;
+N/A with a reason keeps the reason; a blank N/A changes nothing and refuses
+visibly; Confirm confirms, Reject does not confirm, Delete removes, Edit stores
+what was typed, and an unrecognised action is inert. Endpoints not asserted here
+are named with where they are covered instead — a list, not silence.
+
+**And the same lesson twice more, in my own tests.** Five of them SKIPPED in the
+full suite while passing alone, because they borrowed a staged field the earlier
+1,600 tests had already confirmed. The first fix added a fallback that built
+one — worse, because alone the fallback never ran, so a wrong import inside it
+passed in isolation and failed only in the full suite. **A branch that runs in
+one ordering and not the other is not covered.** There is no branch now.
+
+### Late: the model question, and two projects that were not on the map
+
+**Fable 5.1 — asked, read, answered.** The firm: *"should you be using fable 5.1
+for anything"*. Read from the model reference rather than from memory, which was
+the right call: it is **$10/$50 per MTok against Opus 5's $5/$25**, and it
+**requires 30-day data retention** — not available under zero data retention
+unless Anthropic expressly authorises it. The vision reader (`claude-opus-4-8`
+today) can send client tax documents to Anthropic, so a mandated 30-day retention
+is a compliance problem there, not a feature. The recommendation was to stay;
+**the firm overruled it** — *"Try Fable on one hard task and compare"* — and the
+end-to-end process assessment was run on both Fable 5.1 and Opus 5 on the same
+brief.
+
+**`canon` and `desk` were not in `CLAUDE.md`.** Canon had **zero mentions** in
+the file every session reads first, and `desk` — 43 files, 174 tests, arrived
+that day across five pull requests — none. Both added.
+
+The firm corrected the desk entry as it was being written: *"some of the stuff
+you are reading and is in-process under design by another session - such as
+desk"*. The row was rewritten to say so. **A map entry written from a README by
+a session that does not own the design is a pointer, not a specification**, and
+one that reads as settled is worse than none — the next session would build
+against a description that is still moving. The repository map going stale is
+the failure `docs/REPO-INVENTORY.md` exists for; a map that is confidently wrong
+about live work is the same failure arriving faster.
+
+**BitLocker** — *"Remind me in a week"*. A cloud routine fires 11 September at
+10:00, carrying the steps and the recovery-key warning. `CronCreate` was the
+wrong tool: it is session-only and would not have survived the night.
+
+### Still open at the end of the day
+
+- **W5 / B4** — the seven-year destruction promise has no mechanism. Deferred
+  to run alongside the backup work.
+- **W8** — written notice is recorded nowhere. Gated to the bookkeeping launch.
+- **B8** — the disk is not encrypted. Measured, recorded, not acted on.
+- **The WISP** — 49 open questions and no signature.
+- ~~Every screen except Documents has never been opened by anything.~~
+  **Closed 4 September.** All 27 open in a browser on every run, and 203
+  forms across 46 pages were pressed — none breaks the app.
+- ~~Pressing a button proves only that it does not crash.~~ **Closed
+  4 September.** Fifteen verbs now assert the record they write. What is still
+  only crash-tested are the client-side withholding controls and anything
+  needing state the demo store does not build — named in `NOT_ASSERTED`
+  rather than left to inference.
+- **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
+  Deferred deliberately; the disk holding the vault is unencrypted and the
+  recovery key must go to Bitwarden before it is turned on.

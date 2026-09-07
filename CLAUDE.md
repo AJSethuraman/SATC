@@ -18,8 +18,10 @@ collects/retains client info, and provides small services around Drake.
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
-| `client-documents/` | The document pipeline and the whole life of an engagement: interview → priced documents → billing → delivery, extension, disengagement → close-out and reconciliation. CLI **and** browser front doors over one core. **Every document a client receives passes a blocking pre-send gate**; `docs/OPERATING-PROCEDURES.md` is generated from the software and must not be edited by hand | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q` (1,123 passed, 2 skipped), then `python exercise.py` — 29 real scenarios, 190 documents, **every one opened in a browser**. `make web` for the browser front door |
+| `client-documents/` | The document pipeline and the whole life of an engagement: interview → priced documents → billing → delivery, extension, disengagement → close-out and reconciliation. CLI **and** browser front doors over one core. **Most documents a client receives pass a blocking pre-send gate — NOT all of them.** The gate has exactly two callers, `sending.py:177` and `previewing.py:237`, and neither is on the path `cli.py event` takes: the delivery letter, the organizer cover, the extension notice, the disengagement letter and the invoice via `render` ship UNGATED. *(This line read "Every document" until 4 Sep 2026, when it was checked against the callers and found false. `docs/WHERE-THINGS-STAND.md` had the gap recorded as "the biggest hole still open"; this file asserted the opposite, and it is the file loaded into every session.)*; `docs/OPERATING-PROCEDURES.md` is generated from the software and must not be edited by hand | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q` (**1,434 passed, 2 skipped**, ~8 min — measured 4 Sep 2026 in both checkouts), then `python exercise.py` — 29 real scenarios, **109 documents**, every one opened in a browser, and `python capture.py` — 22 screens, 97 controls, photographed. **Ten of those tests skip until the two harnesses have run**, silently, so a suite that has never seen them reports 1,424 / 12 and looks fine. *(This line said 190 documents until 4 Sep 2026; the run produced 109 and the difference is not explained — recorded rather than quietly corrected.)* `make web` for the browser front door |
 | `satc-handoff/` | Brand, the ten client document templates + their FIELDS specs, the authoring contract, the run log and the open-questions list | HTML/CSS/Markdown, no build | Read `satc-handoff/START-HERE.md`; templates render in a browser |
+| `canon/` | **The practice brain, and it is a plugin — installed, not imported.** Thirty-five tenets each cited to a real bug, the firm's convictions in their own words, and eighteen standing behaviours for how a session conducts itself. Count Bassy challenges a decision from that record and never from an opinion; `/canon:docket` hands back what is open as a form the firm fills in. Holds no client data and mirrors no project's code, deliberately — it has to lift out whole | Python, stdlib only | `cd canon && pytest -q` (138). Installed with `claude plugin update canon`; `marketplace update` refreshes the listing and does **not** install |
+| `desk/` | **⚠ UNDER ACTIVE DESIGN BY ANOTHER SESSION as of 4 Sep 2026 — read it before relying on it, and expect it to have moved.** Expert desks: what an agent consults so a question does not reach the firm. A desk answers only from authority it can cite, says how binding that authority is, and escalates rather than guesses; the citation rule is enforced in `engine.py` rather than asked for in a prompt, because the same policy written as skill prose was obeyed *"100%, 4%, 0% of runs"*. One desk exists so far: `fixed-assets`. Depends on `canon`; canon uses nothing from it. **This row is a pointer, not a specification** — it was written from the README by a session that does not own the design | Python, stdlib only | `cd desk && pytest -q` (174 at the time of writing). Offline by construction — `conftest.py` replaces the socket layer, and a test proves that guard can fail |
 | `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
 
 **The repo also holds nine credit and macro analytics projects** —
@@ -46,6 +48,23 @@ work on them to `BACKLOG.md`, not `PLAN.md`.
   `satc_system/configs/...`.
 - **New projects go in their own top-level folder** with their own README,
   dependencies, and tests — mirroring the existing ones.
+
+## Read these first, every session
+
+Three documents define what "right" looks like here. They are short, and they
+are binding — read them before building, not after.
+
+| Document | Answers |
+|---|---|
+| **`docs/DESIGN-PRINCIPLES.md`** | **What any change has to be true of.** The anti-drift doc: never invent a value, facts are recorded not inferred, refuse rather than default, the model proposes and the engine disposes, propose never dispose. Each principle is enforced by a test, not by intention. |
+| `docs/LOCAL-LLM-PATTERN.md` | The ten rules for anything touching the local model. Binding wherever a model is involved. |
+| `satc_system/ARCHITECTURE.md` | Which of the four layers a change belongs in, and which test guards it. |
+
+**`DESIGN-PRINCIPLES.md` must stay current.** When a decision changes a
+principle, update that file **in the same commit** — a principle that lives only
+in a commit message is one the next session will not read. When adding anything,
+answer its three questions: which principle does this rest on, which does it
+strain, and what test makes it stick.
 
 ## Client-facing copy is a different register from everything else
 
@@ -146,7 +165,7 @@ ship a placeholder. `exercise.py` reports those as **waiting on the firm**, not
 as failures.
 
 And never claim something works without opening the artifact. `docs/SOFTWARE-TENETS.md`
-is 29 tenets on that theme, each cited to a real bug in this repository; the
+is 35 tenets on that theme, each cited to a real bug in this repository; the
 first one exists because a proof artifact once declared 190 documents fine when
 every one of them was unreadable.
 

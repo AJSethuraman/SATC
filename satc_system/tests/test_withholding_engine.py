@@ -20,23 +20,41 @@ def test_available_years_are_the_fully_published_federal_tables():
 
 
 def test_single_filer_ordinary_tax_matches_brackets():
-    # $78,000 wages - $15,000 standard deduction = $63,000 taxable.
+    # $78,000 wages - $15,750 standard deduction = $62,250 taxable.
+    #
+    # THE DEDUCTION CHANGED UNDER THIS TEST ON 6 SEPTEMBER 2026, and the way it
+    # changed is worth keeping. It read $15,000 -- Rev. Proc. 2024-40's figure,
+    # superseded for TY2025 itself by P.L. 119-21 (OBBBA) nine months later. The
+    # arithmetic here was right and the constant was wrong, and because this test
+    # works its expected answer out from the same table the engine reads, it
+    # agreed with the engine while both were wrong about the law.
+    #
+    # That is the limit of a test shaped like this one: it proves the engine walks
+    # brackets correctly, and it cannot prove the brackets are the law's.
+    # `test_the_2025_tables_are_enacted_law.py` does that, from IRS literals.
     r = _estimate(filing_status="single", tax_year=2025,
                   paystub={"pay_frequency": "annual", "taxable_wages_per_period": 78000,
                            "pay_periods_remaining": 1})
-    assert r.breakdown.taxable_income == Decimal("63000.00")
-    # 10%*11925 + 12%*(48475-11925) + 22%*(63000-48475) = 1192.50 + 4386 + 3195.50
-    assert r.breakdown.ordinary_income_tax == Decimal("8774.00")
+    assert r.breakdown.taxable_income == Decimal("62250.00")
+    # 10%*11925 + 12%*(48475-11925) + 22%*(62250-48475) = 1192.50 + 4386 + 3030.50
+    assert r.breakdown.ordinary_income_tax == Decimal("8609.00")
 
 
 def test_capital_gains_stack_on_top_of_ordinary_income():
-    # $20k ordinary TI + $40k LTCG: $28,350 fills the 0% band, $11,650 taxed at 15%.
+    # $35,000 wages - $15,750 standard deduction = $19,250 of ordinary taxable
+    # income; $40,000 of long-term gain stacks ON TOP of it. The 0% band runs to
+    # $48,350, leaving $29,100 of room, so $10,900 of the gain is taxed at 15%.
+    #
+    # The figures moved with the deduction on 6 September 2026 (see the note on
+    # the test above); the stacking behaviour under test did not.
     r = _estimate(filing_status="single", tax_year=2025,
                   paystub={"pay_frequency": "annual", "taxable_wages_per_period": 35000,
                            "pay_periods_remaining": 1},
                   other_income={"long_term_capital_gains": 40000})
-    assert r.breakdown.ordinary_income_tax == Decimal("2161.50")
-    assert r.breakdown.capital_gains_tax == Decimal("1747.50")
+    # 1192.50 + 12%*(19250-11925) = 1192.50 + 879.00
+    assert r.breakdown.ordinary_income_tax == Decimal("2071.50")
+    # 15% * (40000 - 29100)
+    assert r.breakdown.capital_gains_tax == Decimal("1635.00")
 
 
 def test_self_employment_tax_uses_split_se_rates():

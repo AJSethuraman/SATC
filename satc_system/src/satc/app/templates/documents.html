@@ -1,43 +1,173 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="hero">
-  <h2>Documents &amp; communications.</h2>
-  <div class="muted">One row per document. The status is how you mark things off — and it drives the missing-docs tracker automatically. Files stay in SharePoint; this holds the record + link.</div>
-</div>
-
-<div class="panel">
-  <h2>Repository</h2>
-  <div class="body">
-    <table>
-      <tr><th>Client</th><th>Document</th><th>Status</th><th>Date</th><th>Logged by</th><th class="right">Mark as…</th></tr>
-      {% for d in documents %}
-      <tr>
-        <td>{{ state.name(d.client_id) }}</td>
-        <td>{{ d.doc_type }}{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}</td>
-        <td><span class="badge b-{{ d.status }}">{{ d.status }}</span></td>
-        <td class="muted">{{ d.as_of }}</td>
-        <td class="muted">{{ d.actor }}</td>
-        <td class="right">
-          {% for s in ['Received','Sent','Signed'] %}
-            {% if d.status != s %}
-            <form class="inline" method="post" action="{{ url_for('documents_status', document_id=d.document_id, status=s) }}">
-              <button class="btn sm {{ 'primary' if s=='Received' }}" type="submit">{{ s }}</button></form>
-            {% endif %}
-          {% endfor %}
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
+  <h2>Documents</h2>
+  <div class="muted">
+    Two registers, because they are two different things: what we <strong>asked for</strong>,
+    and what has <strong>arrived</strong>. A single list could never say that a K-1 is
+    expected-late rather than missing, or that a 1099 is not applicable
+    <em>because the client closed the account</em>.
   </div>
 </div>
 
 <div class="panel">
-  <h2>Still outstanding — the missing-docs tracker</h2>
+  <h2>Who owes us a document <span class="muted">· {{ chase.rows | length }} to chase</span></h2>
   <div class="body">
-    {% if not state.outstanding() %}<p class="note tie">Nothing outstanding. 🎉</p>{% endif %}
-    {% for d in state.outstanding() %}
-    <p class="note"><span class="flag">●</span> <strong>{{ state.name(d.client_id) }}</strong> — {{ d.doc_type }}: {{ d.note }}</p>
-    {% endfor %}
+    {% if chase.examined_nothing %}
+    <p class="note tie">
+      Nothing looked at — this store holds no document requests and no jobs, so
+      there is nothing here to chase yet. That is a different report from
+      "nothing outstanding", and only one of them is good news.
+    </p>
+    {% elif not chase.rows and chase.opened_today %}
+    {# THE HEADLINE HAS TO MATCH THE REGISTER UNDERNEATH IT. This said
+       "Nothing outstanding." while the register below read "Asked for · 5
+       open", every row badged `outstanding`. The behaviour is right -- a
+       same-day ask is held back, because chasing on the morning you asked is
+       noise -- but five things ARE outstanding and none is DUE TO BE CHASED,
+       and those are different sentences. `waiting()` already counts what it
+       held back; nothing was reading the count. #}
+    <p class="note tie">
+      Nothing to chase yet &mdash; {{ chase.opened_today }} asked for today, and
+      chasing on the morning you asked is noise rather than a chase. They appear
+      here tomorrow. Nothing else is outstanding.
+    </p>
+    {% elif not chase.rows %}
+    <p class="note tie">Nothing outstanding.</p>
+    {% else %}
+    <table>
+      <tr><th>Waiting</th><th>Client</th><th>What we asked for</th><th>Still missing</th></tr>
+      {% for w in chase.rows %}
+      <tr>
+        {% if w.waiting_days() is none %}
+        {# Said out loud, every time. A blank here would read as "just asked",
+           which is the one thing an undated request is not. #}
+        <td>not known<div class="muted">no date on this request</div></td>
+        {% else %}
+        <td>{{ w.waiting_days() }} day(s)</td>
+        {% endif %}
+        <td>{{ w.client }}<div class="muted mono">{{ w.client_id }} · {{ w.tax_year }}</div></td>
+        <td>{{ w.doc_type }}<div class="muted">{{ w.asked_for }}</div></td>
+        <td>
+          {% if w.part_way %}<div class="muted">{{ w.part_way }}: {{ w.here }}</div>{% endif %}
+          {% if w.still_missing %}{{ w.still_missing }}{% else %}<span class="muted">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <p class="note">
+      Longest wait first, and a request with <strong>no date sorts to the top</strong> —
+      an unmeasurable wait may well be the oldest one here, and ranking it as new
+      is how a forgotten request stays forgotten.
+      {{ chase.requests }} register row(s) read across {{ chase.clients }} client(s),
+      {{ chase.jobs }} job(s).
+      {% if chase.opened_today %}
+      {{ chase.opened_today }} more asked for today, held back — chasing on the
+      morning you asked is noise, not a chase.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Asked for <span class="muted">· {{ requested | selectattr('is_open') | list | length }} open</span></h2>
+  <div class="body">
+    {% if not requested %}<p class="note tie">Nothing has been requested yet.</p>{% endif %}
+    <table>
+      <tr><th>Client</th><th>Document</th><th>Blocks</th><th>Status</th><th class="right">Close it</th></tr>
+      {% for i in requested %}
+      <tr>
+        <td>{{ state.name(i.client_id) }}<div class="muted mono">{{ i.tax_year }}</div></td>
+        <td>{{ i.doc_type }}{% if i.request_text %}<div class="muted">{{ i.request_text }}</div>{% endif %}</td>
+        <td>
+          {% if i.blocking == 'blocking' %}<span class="badge b-Requested">prep</span>
+          {% elif i.blocking == 'expected_late' %}<span class="badge b-NEEDS_REVIEW">filing only</span>
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        <td>
+          {% if i.is_open %}<span class="badge b-Requested">outstanding</span>
+            {% if i.requested_at %}<div class="muted mono">asked {{ i.requested_at.strftime('%b %d') }}</div>{% endif %}
+          {% elif i.status == 'not_applicable' %}<span class="badge b-Sent">n/a</span>
+            <div class="muted">{{ i.not_applicable_reason }}</div>
+          {% else %}<span class="badge b-Received">satisfied</span>{% endif %}
+        </td>
+        <td class="right">
+          {% if i.is_open %}
+          {# HOW IT ARRIVED, asked here because the register below cites a
+             regulation that requires it. Optional on purpose: an unrecorded
+             channel flags itself as incomplete on the arrival, which is more
+             use than a mandatory box people learn to fill with a full stop. #}
+          <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
+            <input class="field-input" type="text" name="channel" placeholder="how it arrived — email, portal, paper…" style="width:190px">
+            <button class="btn sm" type="submit" name="how" value="received">Received</button>
+          </form>
+          <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
+            <input class="field-input" type="text" name="reason" placeholder="not applicable because…" style="width:190px">
+            <button class="btn sm" type="submit" name="how" value="not_applicable">N/A</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% if refused %}
+    <p class="note tie" style="border-left:3px solid var(--red);padding-left:12px">
+      <strong>Not closed.</strong> {{ refused }}
+    </p>
+    {% endif %}
+    <p class="note">
+      Marking something not applicable <strong>needs a reason</strong> — "they closed that
+      account in March" is a record that the gap was considered. A bare N/A is
+      indistinguishable from never having asked.
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Arrived <span class="muted">· {{ received | length }}</span></h2>
+  <div class="body">
+    {% if not received %}<p class="note tie">Nothing has arrived yet.</p>{% endif %}
+    <table>
+      <tr><th>Client</th><th>Document</th><th>How it got here</th><th>When</th></tr>
+      {% for d in received %}
+      <tr>
+        <td>{{ state.name(d.client_id) }}<div class="muted mono">{{ d.tax_year }}</div></td>
+        <td>{{ d.doc_type }}{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}</td>
+        <td>
+          {{ d.obtained_how.replace('_', ' ') }}{% if d.furnished_by %} · {{ d.furnished_by }}{% endif %}
+          {% if d.channel %}<div class="muted mono">{{ d.channel }}</div>{% endif %}
+          {% if not d.has_known_provenance %}<span class="flag">provenance incomplete</span>{% endif %}
+        </td>
+        <td class="muted mono">{{ d.obtained_at.strftime('%b %d, %Y') if d.obtained_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {# THE COUNT, SAID ONCE, ABOVE THE CITATION IT RELATES TO. D26's second half,
+       and the firm's answer was "warn on the screen" -- not block.
+       Per-row flags already existed; a preparer reading twenty rows should not
+       have to total them up to find out whether this file is in good order. And
+       it says WHAT TO DO, because a warning that names no remedy is a warning
+       people learn to scroll past. #}
+    {% set gaps = state.provenance_gaps() %}
+    {% if gaps %}
+    <p class="note flag">
+      <b>{{ gaps | length }} of {{ received | length }}</b> arrival(s) have an
+      incomplete record — most often because nobody said how they arrived.
+      <b>Nothing is blocked by this</b>: the return can still be prepared and
+      filed. Close the gap by re-running intake with <em>How did these arrive?</em>
+      answered, or by marking the document Received above with a channel.
+    </p>
+    {% elif received %}
+    <p class="note tie">
+      All {{ received | length }} arrival(s) carry a complete
+      26 CFR §1.6695-2 record — how, when, from whom, and by what means.
+    </p>
+    {% endif %}
+    <p class="note">
+      How and when a document was obtained, and from whom, is required by
+      26 CFR §1.6695-2(b)(4)(i)(C) — not a nicety.
+    </p>
   </div>
 </div>
 {% endblock %}

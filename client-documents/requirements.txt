@@ -24,3 +24,15 @@ playwright
 # inside the function and says so if it is missing, because rendering a
 # letter should not depend on a spreadsheet nobody opened.
 openpyxl
+
+# Reading back a PDF this software just wrote. Test-only -- nothing in the
+# pipeline parses a PDF, but `test_a_signature_is_never_the_only_thing_on_a_page`
+# has to open one and count what is on the last page, because the bug it exists
+# for (a near-blank page carrying only a signature block) is invisible to any
+# check that stops at the HTML.
+#
+# DECLARED 3 September 2026, on the first machine that did not happen to have it
+# already. The test had been skipping there with "no Chromium/pypdf here", which
+# is the honest message and the wrong outcome: a check that never runs unless
+# the box was built for something else is not a check the suite owns.
+pypdf

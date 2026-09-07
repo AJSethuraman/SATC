@@ -1,0 +1,59 @@
+# What each real blank must classify as. The denominator for the scanner.
+#
+# THESE ARE THE REAL IRS FORMS, fetched by the firm on 31 August 2026 and handed
+# over. They are the only files in this project that test what actually decides a
+# classification: the real AcroForm field names, the real layout, and the real
+# text-layer reading order. Everything else in the corpus is text this repository
+# generated, and generated text proves almost nothing.
+#
+# THE FIRST RUN, before any fix, on these fourteen files:
+#
+#     8 right · 4 WRONG · 1 unclassified
+#
+# and three of the eight were right only because the FILE WAS NAMED `fw2.pdf` --
+# the content classifier failed on those too and the filename rung covered for it.
+# A client's upload is called `IMG_4471.pdf`. So content-only accuracy was 5 of 13.
+#
+# AFTER THE PAGE FIX (31 Aug 2026):
+#
+#     13 of 13 by content · 0 by filename · 0 WRONG · 0 unclassified
+#
+# All four wrong answers were ONE bug. Page 1 of a real IRS document is a notice
+# -- "Attention: Which Revision To Use for Which Year" -- byte-identical across
+# forms, whose worked example is 1099-NEC. Every rung in the package read page 1.
+# The 1098-T, 1099-G, 1099-MISC and 1099-R each scored their own type correctly
+# on page 2, and page 2 was never read. `src/satc/ingest/pages.py` now answers
+# "which pages are the form", once, for every rung.
+#
+# The synthetic corpus scored 10 of 12 with zero wrong on the same day. That gap
+# is the whole reason this folder exists, and it is exactly what the firm said
+# would happen: "the synthetic tests weren't doing it -- it was miscategorising
+# W-2s and stuff."
+#
+# `expect: null` means the type is not configured, so Unclassified is the correct
+# and honest answer -- not a failure.
+
+expect:
+  fw2:        "W-2"
+  f1099int:   "1099-INT"
+  f1099div:   "1099-DIV"
+  f1099nec:   "1099-NEC"
+  f1099msc:   "1099-MISC"
+  f1099r:     "1099-R"
+  f1099g:     "1099-G"
+  f1098:      "1098"
+  f1098t:     "1098-T"
+  f1095a:     "1095-A"
+  f1040:      "Prior-year 1040"
+  f1065sk1:   "Schedule K-1 (1065)"
+  f1120ssk:   "Schedule K-1 (1120-S)"
+  f1040sc:    null      # Schedule C is not a configured type
+
+# Not here, and why:
+#   f1099b   -- the IRS's own page for it is broken. The firm, 31 Aug 2026:
+#               "1099-b was legit broken on the irs website the link leads back
+#               to the same page." Not a fetch bug and not a guessed filename.
+#
+# The filename the fetch scripts guessed for the 1120-S K-1 WAS wrong, though:
+# `f1120ssk1.pdf` does not exist, `f1120ssk.pdf` does. Corrected in both scripts
+# and the one-liner.

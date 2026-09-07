@@ -1,7 +1,285 @@
 """Test setup: isolate the SQLite store in a temp dir (don't touch build/data)."""
 
 import os
+import pytest
 import tempfile
+from pathlib import Path
 
 # Must be set before satc.app.state (which builds the module-level STATE) imports.
 os.environ.setdefault("SATC_DATA_DIR", tempfile.mkdtemp(prefix="satc_test_store_"))
+
+
+# ── pytest needs a scratch root it can actually use ──────────────────────────
+#
+# MEASURED ON THIS MACHINE, 4 September 2026: **467 of the 958 tests that ask
+# for `tmp_path` errored**, every one of them at *setup*, before a line of the
+# test ran. The cause is not in this repository. `<temp>/pytest-of-<user>` was
+# left with a DACL that denies everything — `icacls` cannot even read it back,
+# and PowerShell is refused the same way — so pytest cannot scan its own
+# scratch root and every `tmp_path` request dies with `PermissionError`
+# `[WinError 5]`.
+#
+# The symptom looks nothing like the cause. A session reading 467 errors in
+# tests it did not touch concludes the code is broken.
+#
+# `canon/conftest.py` hit this first and worked out the whole shape of it; this
+# is that reasoning applied here, deliberately copied rather than imported —
+# canon lifts out whole and nothing may depend on it from outside.
+#
+# Repairing the locked directory needs an elevated shell, which a test suite
+# may not assume. Choosing a different root needs nothing.
+#
+# THE ROOT MAY NOT LIVE INSIDE THE REPOSITORY. Tried in canon: the no-client-
+# data guard walks the tree, read the fixtures the fix had just written, and
+# reported a taxpayer identifier that was never there. Every tree-walking check
+# in this suite would do the same.
+#
+# Short on purpose: Windows still refuses paths past ~260 characters, and a
+# generous root spends the budget that `pytest-of-<user>/pytest-<n>/<long test
+# name>/` needs. The failure then arrives as a subprocess exit code that says
+# nothing about length.
+_TEMPROOT = "PYTEST_DEBUG_TEMPROOT"
+
+
+def _usable_scratch_root() -> Path | None:
+    """The root to impose, or None to leave pytest's own choice standing.
+
+    Falling back is correct rather than fatal: a machine whose default root is
+    fine needs nothing from this, and a machine where neither works should show
+    its own errors rather than one invented here.
+    """
+    if os.environ.get(_TEMPROOT):
+        return None                    # an operator chose one; not ours to override
+    root = Path(tempfile.gettempdir()) / "satc-pt"
+    if Path(__file__).resolve().parents[1] in root.resolve().parents:
+        return None                    # inside the tree: every tree walk would read it
+    if len(str(root)) > 100:
+        return None                    # no better than the default, harder to explain
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        probe = root / ".write-probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except OSError:
+        return None                    # unwritable too; let the default speak
+    return root
+
+
+SCRATCH_ROOT = _usable_scratch_root()
+if SCRATCH_ROOT is not None:
+    os.environ[_TEMPROOT] = str(SCRATCH_ROOT)
+
+
+# ── no test may drive the desktop Outlook ────────────────────────────────────
+#
+# `/comms/outlook` calls `open_outlook_draft` unmocked (`comms_views.py:398`),
+# which on a machine with pywin32 and classic Outlook does
+# `Dispatch("Outlook.Application")` and `mail.Display(False)` — a real compose
+# window, on the owner's screen, for every test that posts to that route.
+#
+# THAT HAPPENED. A full-suite run on 4 September 2026 opened Outlook drafts on
+# the firm's machine, and they noticed before we did. Nothing was sent — there
+# is no `.Send()` anywhere in this codebase, and no smtplib — but a test suite
+# with a visible side effect on the owner's desktop is a test suite that will
+# eventually be run less often, which is the real cost.
+#
+# IT ALSO MADE THE SUITE DISAGREE WITH ITSELF. `outlook_available()` is True in
+# the checkout that has pywin32 and False in the one that does not, so
+# `test_the_outlook_route_states_the_same_fee_the_screen_does` passed in one
+# checkout and failed in the other on the same commit — recorded as W7 while
+# the cause was still unknown. This is the cause.
+#
+# Forced to the unavailable branch, which is the one every machine without
+# pywin32 already takes, so the tests exercise the path most installs run.
+# A test that wants the COM branch monkeypatches it back itself.
+@pytest.fixture(autouse=True)
+def _no_desktop_outlook(monkeypatch):
+    try:
+        from satc.intake import email_draft
+    except ImportError:
+        return
+    monkeypatch.setattr(
+        email_draft, "open_outlook_draft",
+        lambda **kw: email_draft.DraftResult(
+            False, "unavailable", "disabled in tests: no test drives desktop Outlook"))
+    monkeypatch.setattr(email_draft, "outlook_available", lambda: False)
+
+# ── a run that opened no screen has to say so ────────────────────────────────
+#
+# `client-documents` has had this since August, after a proof declared 190
+# documents fine when every one was unreadable. `satc_system` did not, and on
+# 4 September the count beside every panel heading rendered at 1.10:1 against
+# its own background -- invisible -- through 1,685 passing tests. Every one
+# drove Flask's test client, which proves a page came back and cannot tell
+# dark-on-dark from readable, or a live button from a dead one.
+#
+# So: a run that skipped or deselected the `renders` tests must SAY SO, at the
+# end, where the number is read. A green line from a run that opened no screen
+# looks exactly like a green line from one that opened all of them, and only
+# one means what the reader takes it to mean. Behaviour 2 -- report the
+# denominator -- applied to the test run itself.
+#
+# THE MARKER ALONE WOULD BE A SMOKE ALARM WITH NO BATTERY. It only fires when
+# something is skipped, so it is worth nothing without at least one real
+# browser test to skip: `tests/test_documents_in_a_browser.py`.
+
+_UNOPENED: list = []
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "renders: opens the app in a real browser. Skipped without Playwright, "
+        "and a run that skips them says so.")
+
+
+def pytest_deselected(items):
+    """What pytest actually dropped -- not what this file guesses it dropped.
+
+    `pytest_collection_modifyitems` sees only THIS run's collection, so
+    selecting a single file leaves nothing to count and the banner goes silent
+    on exactly the runs most likely to mislead. This hook is handed the real
+    deselections whatever was selected. Learned the same way in
+    `client-documents/tests/conftest.py`.
+    """
+    _UNOPENED.extend(i for i in items if i.get_closest_marker("renders"))
+
+
+def pytest_runtest_logreport(report):
+    if report.when == "setup" and report.skipped and "renders" in report.keywords:
+        _UNOPENED.append(report.nodeid)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    if not _UNOPENED:
+        return
+    write = terminalreporter.write_line
+    write("")
+    write("=" * 70)
+    write(f"  NO SCREEN WAS OPENED. {len(_UNOPENED)} browser test(s) did not run.")
+    write("")
+    write("  Everything above drove Flask's test client, which proves a page")
+    write("  came back. It cannot see that a heading is invisible against its")
+    write("  own background, or that a button posts nothing.")
+    write("")
+    write("  Both of those were real here on 4 September 2026.")
+    write("")
+    write("  Green above does not mean the screen works. Install Playwright")
+    write("  and its browser, then run the whole suite:")
+    write("      pip install playwright && python -m playwright install chromium")
+    write("=" * 70)
+
+# ── a number means nothing without the environment that produced it ──────────
+#
+# W7: the same commit passed in one checkout and failed in the other. Identical
+# source, identical config, identically seeded store. The cause turned out to be
+# pywin32 -- present in one venv, absent in the other -- so `/comms/outlook`
+# took the COM branch in one and the mailto fallback in the other.
+#
+# Finding that one cause was not the same as finding the cause LIST, and I
+# stopped at the first. Counted afterwards: the two checkouts differ by 35
+# installed packages, and this source has eight `except ImportError` /
+# `*_available()` probes that change behaviour on what happens to be installed.
+# Any of them can do the same thing again, quietly, and the failure looks like
+# a flaky test rather than an environment.
+#
+# So every run says what it had. Two runs whose capability lines match are
+# comparable; two whose lines differ have explained their own disagreement
+# before anybody goes looking for a bug. Behaviour 2 -- report the denominator
+# -- applied to the environment rather than to the count.
+
+def _capabilities() -> list[tuple[str, bool, str]]:
+    """(name, present, what it changes). Probed, never assumed."""
+    out = []
+
+    def probe(name, fn, changes):
+        try:
+            out.append((name, bool(fn()), changes))
+        except Exception:                     # noqa: BLE001 - absent is an answer
+            out.append((name, False, changes))
+
+    def _outlook():
+        from satc.intake.email_draft import outlook_available
+        return outlook_available()
+
+    def _browser():
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            p.chromium.launch().close()
+        return True
+
+    def _corpus():
+        """ASKED THE WAY THE TESTS ASK IT.
+
+        The first version checked that `corpus/` existed and was not empty. It
+        is never empty -- it ships a README, a manifest and two fetch scripts --
+        so the line said "yes" on a machine where every corpus test skipped for
+        want of documents. A capability row that disagrees with the suite it
+        describes is worse than no row: it is a denominator that lies.
+        """
+        from satc.scoreboard import load_corpus
+        return bool(load_corpus())
+
+    probe("desktop Outlook (pywin32)", _outlook, "/comms/outlook: COM draft vs mailto fallback")
+    probe("Playwright + Chromium", _browser, "whether any screen is opened at all")
+    probe("document corpus", _corpus, "the scoreboard tests")
+    try:
+        from satc import settings
+        probe("local OCR (Tesseract)", settings.ocr_enabled, "the reader ladder's OCR rung")
+        probe("local vision (Ollama)", settings.ollama_enabled, "the reader ladder's model rung")
+        probe("cloud vision", settings.cloud_vision_enabled, "whether documents may leave the machine")
+    except Exception:                          # noqa: BLE001
+        pass
+    return out
+
+
+def pytest_report_header(config):
+    """Printed at the TOP, where somebody reading a number will see it."""
+    rows = _capabilities()
+    width = max(len(n) for n, _, _ in rows)
+    lines = ["what this run could reach (a different answer here is a different suite):"]
+    for name, present, changes in rows:
+        lines.append(f"  {'yes' if present else 'NO ':4} {name:<{width}}   {changes}")
+    return lines
+
+
+# ── no test may leave a role behind ──────────────────────────────────────────
+#
+# `SATC_ROLE` decides whether the caller is the owner or an agent, so a test
+# that leaks one turns every later test into a different principal. **THAT
+# HAPPENED**, 4 September 2026: two tests of the MCP entry point let
+# `SATC_ROLE=ai_staff` escape -- `main()` writes `os.environ` directly with
+# `setdefault`, so `monkeypatch` never learned the key was touched -- and 29
+# unrelated tests went red across pricing, staging and delivery, every one of
+# them refusing the owner because the owner had quietly become an agent. They
+# passed alone and failed in a full run.
+#
+# **THIS RESTORES; IT DOES NOT ASSERT, and the difference is deliberate.** The
+# first version raised on any change and was immediately wrong: an autouse
+# fixture tears down BEFORE the `monkeypatch` a test requested, so it saw every
+# legitimate `monkeypatch.setenv` as a leak and errored seven honest tests.
+# Ordering cannot be fixed from this side -- `monkeypatch` would have to depend
+# on this fixture, not the other way round.
+#
+# So it is a repair rather than a check, and is named as one. A check that
+# cannot tell a leak from a correct use is not a check worth having; putting
+# the value back removes the whole class of failure either way.
+# SATC_ENGAGEMENTS joined the list on 5 Sep 2026: it decides where the
+# engagement PRICE is read from, so a test that leaves one set changes what
+# every later quote says a client was charged. A fixture set it directly
+# through os.environ the same afternoon -- the same shape as the SATC_ROLE
+# leak that turned 29 unrelated tests red.
+_PRINCIPAL_KEYS = ("SATC_ROLE", "SATC_ASSIGNMENT", "SATC_PRINCIPALS",
+                   "SATC_ENGAGEMENTS")
+
+
+@pytest.fixture(autouse=True)
+def _principals_are_put_back():
+    """Restore the principal environment after every test, whatever touched it."""
+    before = {k: os.environ.get(k) for k in _PRINCIPAL_KEYS}
+    yield
+    for k, v in before.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v

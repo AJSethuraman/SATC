@@ -35,9 +35,24 @@ import presend  # noqa: E402
 
 HAS_BROWSER = False
 try:  # pragma: no cover - environment probe
-    import playwright.sync_api  # noqa: F401
-    HAS_BROWSER = Path(presend.CHROMIUM).exists()
-except ImportError:  # pragma: no cover
+    from playwright.sync_api import sync_playwright
+
+    # ASK THE SAME QUESTION `presend.render` ASKS. `presend.CHROMIUM` is a
+    # PINNED build -- `/opt/pw-browsers/chromium` unless `SATC_CHROMIUM` says
+    # otherwise -- and `presend.py:177` uses it ONLY if it is there, falling
+    # back to whatever Playwright installed. This probe used to check the
+    # pinned path alone, so on any machine without that exact Linux directory
+    # it concluded "no browser" while `presend` rendered perfectly well.
+    #
+    # Found on Windows, 3 September 2026: `exercise.py` opened 190 documents
+    # in a browser on the same machine where this said there was none, and
+    # the render-gate tests skipped quietly through a full green run.
+    if Path(presend.CHROMIUM).exists():
+        HAS_BROWSER = True
+    else:
+        with sync_playwright() as pw:
+            HAS_BROWSER = Path(pw.chromium.executable_path).exists()
+except Exception:  # pragma: no cover - no playwright, or no browser downloaded
     HAS_BROWSER = False
 
 needs_browser = pytest.mark.skipif(
@@ -194,6 +209,7 @@ def test_the_manifest_the_client_gets_is_the_one_the_gate_read(packed, tmp_path)
             f"the manifest names {name!r} and the pack does not carry it")
 
 
+@pytest.mark.renders
 def test_a_pack_missing_an_asset_is_refused_and_nothing_is_written(
         packed, tmp_path, monkeypatch):
     """THE ORIGINAL BUG, reproduced: the templates are there, the assets are
@@ -212,6 +228,7 @@ def test_a_pack_missing_an_asset_is_refused_and_nothing_is_written(
         "opens the folder")
 
 
+@pytest.mark.renders
 def test_force_without_a_reason_is_refused(packed, tmp_path, monkeypatch):
     crippled = tmp_path / "templates"
     shutil.copytree(cli.TEMPLATE_DIR, crippled)
@@ -223,6 +240,7 @@ def test_force_without_a_reason_is_refused(packed, tmp_path, monkeypatch):
     assert not out.exists() or not any(out.iterdir())
 
 
+@pytest.mark.renders
 def test_force_with_a_reason_writes_the_pack_and_logs_what_failed(
         packed, tmp_path, monkeypatch):
     """The override is what makes this a gate rather than a wall. What makes
@@ -871,7 +889,7 @@ def test_a_signature_is_never_the_only_thing_on_a_page(packed, tmp_path):
 
     thin = []
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(executable_path=presend.CHROMIUM)
+        browser = pw.chromium.launch(**presend.launch_args())
         page = browser.new_page()
         page.route("**://fonts.g*.com/**", lambda r: r.abort())
         try:

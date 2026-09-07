@@ -1,0 +1,19 @@
+Dear {salutation},
+
+A quick update on your {tax_year} return, so you're not wondering.
+
+Where things stand:
+
+{missing_items}
+
+Once those are in, we'll finish the return and send it to you to review before anything
+is filed. Nothing goes to the IRS without your signature.
+
+No action needed beyond the items above.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

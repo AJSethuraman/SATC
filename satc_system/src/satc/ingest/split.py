@@ -44,6 +44,8 @@ def classify_pages(path: str | Path, classifier: DocumentClassifier) -> list[Cla
     reader = PdfReader(str(path))
     use_ocr = getattr(classifier, "ocr_text_provider", None) is not None
     out: list[Classification] = []
+    from satc.ingest.pages import is_guidance
+
     for i, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
         if not text.strip() and use_ocr:          # scanned page: OCR it locally
@@ -53,6 +55,22 @@ def classify_pages(path: str | Path, classifier: DocumentClassifier) -> list[Cla
                 text = ocr_pdf_page_text(path, i)
             except Exception:  # noqa: BLE001
                 text = ""
+        # A PAGE OF INSTRUCTIONS IS NOT A DOCUMENT. This is the path production
+        # runs -- `sort_folder`, `intake` and `collect` all split before they
+        # classify -- and without this it made a whole document out of every
+        # notice and instruction page inside a form. Measured on the real
+        # blanks, 31 Aug 2026: one eleven-page W-2 became SIX "documents", one
+        # of them a HIGH-confidence `Prior-year 1040` cut from a W-2
+        # instruction page; and `f1099g.pdf` led with a HIGH `1099-NEC` made
+        # out of its notice page, which `reconcile_received` would have used to
+        # close the client's open 1099-NEC request.
+        #
+        # UNCLASSIFIED rather than dropped: `segment_pages` attaches a
+        # non-verdict page to the run around it, so the instructions stay with
+        # the form they belong to and no page is lost.
+        if is_guidance(text):
+            out.append(UNCLASSIFIED)
+            continue
         out.append(classifier.classify_text(text, method="text") or UNCLASSIFIED)
     return out
 
@@ -69,6 +87,16 @@ def segment_pages(classes: list[Classification]) -> list[Segment]:
             current.end = i                      # continuation / same form
         else:
             segments.append(Segment(c, i, i))    # a different form starts here
+
+    # A DOCUMENT THAT OPENS WITH A NON-VERDICT. The loop attaches an
+    # unclassified page to the form BEFORE it, and at the top of a file there is
+    # no form before it -- so a leading notice page became a document of its own
+    # and every real IRS blank "split" into two. The same reasoning applies at
+    # either end: a page we could not name belongs with the document it is bound
+    # to, and the only document it can be bound to here is the one that follows.
+    if len(segments) > 1 and _category(segments[0].classification) is None:
+        segments[1].start = segments[0].start
+        segments.pop(0)
     return segments
 
 

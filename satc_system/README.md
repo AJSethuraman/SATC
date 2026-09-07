@@ -175,4 +175,16 @@ satc app                       # opens http://127.0.0.1:5050
 satc sort /path/to/client/folder          # preview the sort plan
 satc sort /path/to/client/folder --apply  # write clean copies
 satc seed && satc export DataMart.xlsx     # seed store, export the mart to Excel
+satc chase                                # who owes us a document, longest wait first
 ```
+
+**`satc chase` is the morning list.** The engagement letter promises *"we will
+tell you what we need and when, and we will chase it"*; this is the chasing
+half. One line per outstanding request — how long it has been out, the words the
+client was actually sent, and, for a request that names several forms, which of
+them have arrived and which have not. A request with no date on it is shown as
+an unknown wait at the top of the list rather than sorted as if it were new, and
+one opened this morning is held back with the others counted underneath, because
+chasing on the day you asked is noise. It ends with what it looked at, so a
+clear register never reads the same as an empty one. The same sweep drives the
+Documents screen in `satc app`.

@@ -1,0 +1,42 @@
+# Line endings, declared rather than left to each machine's git config.
+#
+# `core.autocrlf=true` is the Windows default and rewrites LF to CRLF on
+# checkout. Harmless for a file nobody reads back; NOT harmless for one this
+# software writes to and asserts about. On 3 September 2026, the first time
+# this branch was checked out on Windows, `test_the_lf_file_stays_lf` failed
+# before a line of code ran -- git had already converted `rate_plans.yaml` on
+# the way to disk.
+#
+# The test was right and the repository was silent. This is the repository
+# saying what it needs.
+* text=auto
+
+# Config this app edits and writes back. The editor preserves LF; checkout
+# must not undo that.
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.sh   text eol=lf
+
+# Windows entry points, which keep CRLF to be safe in every shell.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# credit-suite's Python sources, for the same reason as the goldens above. The
+# mutation harness matches multi-line anchors against the working tree byte for
+# byte, so on a checkout where core.autocrlf rewrote them (Git's Windows
+# default) every multi-line mutation fails to find its target and the harness
+# cannot run at all. Added 4 Sep 2026 after exactly that happened on the build
+# PC: `formula-text-blind: expected 1 occurrence ... found 0`.
+credit-suite/**/*.py text eol=lf
+
+# canon's record, for a third instance of the same thing. `canon/release.py`
+# hashes CONVICTIONS.md, TENETS.md and two skills so a version says what it
+# contains; hashing raw bytes made that digest depend on WHO checked the repo
+# out, because nothing here forced LF for Markdown. Same commit, different hash
+# on Windows, and the check fails on one platform or the other whichever machine
+# wrote it. Caught in review on 4 Sep 2026, before it reached a Windows box.
+#
+# `release.py` normalises line endings when hashing, so the check is correct
+# either way. This is the second belt: the file on disk is the same file
+# everywhere, which is what the two incidents above are about.
+canon/**/*.md text eol=lf

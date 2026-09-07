@@ -58,10 +58,13 @@ class VisionDocumentReader:
     """Reads a document image/PDF into labeled fields using Claude vision."""
 
     def __init__(self, config: dict[str, Any], *, client: Any = None,
-                 model: str = DEFAULT_MODEL, page: int = 1) -> None:
+                 model: str = DEFAULT_MODEL, page: int | None = None) -> None:
         self.doc_type = config.get("doc_type", "document")
         self.field_specs = config.get("fields", [])
         self.model = model
+        # None means "the first page that is the form", resolved per document --
+        # see satc.ingest.pages.first_form_page. It defaulted to 1, and page 1 of
+        # a real IRS document is a notice.
         self.page = page
         self._client = client  # injectable; lazily created if None
 
@@ -95,7 +98,10 @@ class VisionDocumentReader:
     def _image_bytes(self, source: str) -> tuple[bytes, str]:
         path = Path(source)
         if path.suffix.lower() == ".pdf":
-            return _rasterize_pdf(path, self.page)
+            from satc.ingest.pages import first_form_page
+
+            page = self.page if self.page is not None else first_form_page(path)
+            return _rasterize_pdf(path, page)
         return path.read_bytes(), _media_type(path)
 
     def _call_model(self, image_b64: str, media_type: str) -> dict[str, Any]:
@@ -118,7 +124,7 @@ class VisionDocumentReader:
 
     @classmethod
     def classify_form(cls, source: str, labels: list[str], *, client: Any = None,
-                      model: str = DEFAULT_MODEL, page: int = 1) -> str | None:  # pragma: no cover - needs a key
+                      model: str = DEFAULT_MODEL, page: int | None = None) -> str | None:  # pragma: no cover - needs a key
         """Name the form in ``source`` as one of ``labels`` (cheap classify-only call).
 
         Used as the last rung of the classification ladder when a document has no

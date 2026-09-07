@@ -1,0 +1,220 @@
+# FEDERAL OBLIGATION RULES — what is owed, when, and whether it can be extended.
+#
+# Data, not code. Each rule says how to COMPUTE a due date from a period; it
+# never states a date. Dates are derived (see src/satc/obligations/due_dates.py)
+# and then shifted off weekends and legal holidays per IRC §7503.
+#
+# WHY NO DATES LIVE HERE: "March 15" is true until the year it is a Sunday.
+# Every date in this file would be wrong in some year, so there are none.
+#
+# EACH RULE CARRIES ITS SOURCE. Per CLAUDE.md, a tax parameter without a
+# citation is a bug. `effective_filing_year` exists because several of these
+# are keyed to the year of FILING, not the tax year.
+#
+# KINDS:
+#   file    — file a return with a jurisdiction
+#   pay     — remit money (a SEPARATE duty from filing; an extension to file is
+#             never an extension to pay)
+#   furnish — give a statement to a recipient (K-1 to a partner, W-2 to an
+#             employee). Distinct from filing the same form with the IRS.
+#   deposit — payroll tax deposits
+#   report  — informational reports that are not returns (FBAR)
+#
+# DUE-DATE BASIS:
+#   fiscal_year_end  — months/day after the period end (the normal case)
+#   fixed            — a specific month/day in the year AFTER the period
+#   quarter_end      — months/day after the quarter end
+
+meta:
+  jurisdiction: US
+  note: >-
+    Federal only. State obligations need their own dated config per state —
+    SATC refuses to default a state deadline to the federal one, because
+    several states differ (Virginia's extension is automatic with no form).
+
+rules:
+  # -- individuals ----------------------------------------------------------
+  - key: form_1040
+    kind: file
+    form: "1040"
+    label: "Individual income tax return"
+    entity_types: [INDIVIDUAL]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension:
+      available: true
+      form: "4868"
+      months: 6
+      note: >-
+        Extends the time to FILE only. Treas. Reg. §1.6081-4(b)(4) requires the
+        total amount properly estimated as tax; Rev. Rul. 79-113 invalidated a
+        zero-liability extension, so a $0 estimate is an error, not a warning.
+    perfection_days: 5
+    perfection_source: >-
+      Drake KB 13325 — "The perfection period for 1040 returns and Form 4868
+      extensions is 5 days." A practitioner blog stating 10 days for 1040 is
+      wrong; 10 applies to business returns. Building 10 into an Oct 15
+      workflow would file returns late.
+    blocking_docs: ["W-2", "W-2G", "1099-R"]
+    blocking_source: >-
+      IRS Pub 1345 — the ERO must have these in hand before originating an
+      e-filed return (or a Form 4852 substitute on file).
+    source: "IRS Instructions for Form 1040; IRC §6072(a)"
+    effective_filing_year: 2026
+
+  # -- pass-through entities ------------------------------------------------
+  - key: form_1065
+    kind: file
+    form: "1065"
+    label: "Partnership return"
+    entity_types: [PARTNERSHIP, LLC]
+    due: {basis: fiscal_year_end, months: 3, day: 15}
+    extension: {available: true, form: "7004", months: 6}
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 1065; IRC §6072(b)"
+    effective_filing_year: 2026
+    note: >-
+      Late-filing penalty runs per partner per month (§6698), so alert severity
+      should scale with partner count.
+
+  - key: form_1120s
+    kind: file
+    form: "1120S"
+    label: "S corporation return"
+    entity_types: [SCORP]
+    due: {basis: fiscal_year_end, months: 3, day: 15}
+    extension: {available: true, form: "7004", months: 6}
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 1120-S; IRC §6072(b)"
+    effective_filing_year: 2026
+
+  - key: form_1120
+    kind: file
+    form: "1120"
+    label: "C corporation return"
+    entity_types: [CCORP]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension: {available: true, form: "7004", months: 6}
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 1120; IRC §6072(b)"
+    effective_filing_year: 2026
+    note: >-
+      The June-30 fiscal-year seven-month extension has sunset: per the Form
+      7004 instructions, for tax years beginning in 2026 the automatic
+      extension period is 6 months. Do not special-case June 30 for new years.
+
+  - key: form_1041
+    kind: file
+    form: "1041"
+    label: "Estate or trust return"
+    entity_types: [TRUST, ESTATE]
+    due: {basis: fiscal_year_end, months: 4, day: 15}
+    extension:
+      available: true
+      form: "7004"
+      months: 5.5
+      note: >-
+        FIVE AND A HALF months, not six — a calendar-year 1041 extends to
+        September 30, not October 15. Form 7004 instructions state the 5½-month
+        period explicitly. Getting this wrong gives a beneficiary's 1040 a
+        15-day K-1 window instead of the 30 days everyone assumes.
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 7004 (Rev. December 2025); IRC §6072(a)"
+    effective_filing_year: 2026
+
+  # -- exempt organizations -------------------------------------------------
+  - key: form_990
+    kind: file
+    form: "990"
+    label: "Exempt organization return"
+    entity_types: [NONPROFIT]
+    due: {basis: fiscal_year_end, months: 5, day: 15}
+    extension: {available: true, form: "8868", months: 6}
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 990"
+    effective_filing_year: 2026
+
+  - key: form_990n
+    kind: file
+    form: "990-N"
+    label: "Exempt organization electronic notice (e-Postcard)"
+    entity_types: [NONPROFIT]
+    due: {basis: fiscal_year_end, months: 5, day: 15}
+    extension:
+      available: false
+      note: >-
+        Form 990-N cannot be extended. The UI must physically refuse to offer
+        relief that does not exist.
+    perfection_days: 0
+    blocking_docs: []
+    source: "IRS Instructions for Form 990-N"
+    effective_filing_year: 2026
+
+  # -- information returns (furnish and file are TWO duties) ----------------
+  - key: w2_furnish
+    kind: furnish
+    form: "W-2"
+    label: "Furnish W-2 to employees"
+    entity_types: []
+    due: {basis: fixed, month: 1, day: 31}
+    extension:
+      available: false
+      note: >-
+        Form 8809 explicitly excludes W-2 and 1099-NEC from automatic
+        extension. There is no relief to offer.
+    perfection_days: 0
+    blocking_docs: []
+    source: "General Instructions for Forms W-2 and W-3"
+    effective_filing_year: 2026
+
+  - key: form_1099nec
+    kind: file
+    form: "1099-NEC"
+    label: "File and furnish 1099-NEC"
+    entity_types: []
+    due: {basis: fixed, month: 1, day: 31}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    source: "General Instructions for Certain Information Returns"
+    effective_filing_year: 2026
+    note: >-
+      Same January 31 date for both furnishing to the recipient and filing with
+      the IRS, which is why this is one rule. 1099-MISC splits the two dates and
+      therefore needs two rules when it is added.
+
+  # -- payroll --------------------------------------------------------------
+  - key: form_941
+    kind: file
+    form: "941"
+    label: "Employer's quarterly federal tax return"
+    entity_types: []
+    due: {basis: quarter_end, months: 1, day: 31}
+    extension: {available: false}
+    perfection_days: 10
+    blocking_docs: []
+    source: "IRS Instructions for Form 941"
+    effective_filing_year: 2026
+    recurrence: quarterly
+
+  # -- estimated payments ---------------------------------------------------
+  - key: estimate_1040
+    kind: pay
+    form: "1040-ES"
+    label: "Individual estimated tax installment"
+    entity_types: [INDIVIDUAL]
+    due: {basis: installments, months: [4, 6, 9, 13], day: 15}
+    extension: {available: false}
+    perfection_days: 0
+    blocking_docs: []
+    source: "IRS Instructions for Form 1040-ES; IRC §6654(c)"
+    effective_filing_year: 2026
+    note: >-
+      Four installments over UNEQUAL income periods, the last falling in
+      January of the following year (month 13). Corporations differ — they run
+      months 4, 6, 9, 12 with no January installment — so 1120-W needs its own
+      rule rather than reusing this one.

@@ -1,0 +1,58 @@
+[
+ {
+  "q": 4,
+  "desk": "capitalization-and-de-minimis",
+  "question": "Q4 — What is the capitalisation threshold? The de minimis safe harbour allows expensing items under $2,500 with an election on the return. Without a stated firm threshold, every tool purchase is a judgement call — and on this client it was a judgement call made 127 times.",
+  "escalated": true,
+  "reason": "authority_permits_choice",
+  "working": "The authority printed here never states a capitalisation threshold. It states a CEILING on one and leaves the threshold itself to the taxpayer: 1.263(a)-1(f)(1)(i)(B)(1) and (f)(1)(ii)(B)(1) both condition the safe harbour on the taxpayer having, at the beginning of the taxable year, accounting procedures expensing 'property costing less than a specified dollar amount' - specified by the taxpayer, not by the regulation. The ceiling is $5,000 per invoice or item with an applicable financial statement ((f)(1)(i)(D)) and $2,500 without it (the $500 in (f)(1)(ii)(D) as raised by Notice 2015-82). The IRS page adds that a book policy ABOVE the ceiling may still be deducted if it clearly reflects income, so even the ceiling is not a hard line. Two things must therefore come back before a number can be stated: the firm has to choose the policy amount and put it in place at the START of the year (it cannot be set retroactively at close, and the election under (f)(5) is irrevocable and must cover every qualifying item in the year), and someone has to establish whether this client has an applicable financial statement, which fixes which ceiling applies. The 127 judgement calls cannot be resolved by this desk; they are waiting on a firm policy decision plus that one client fact."
+ },
+ {
+  "q": 12,
+  "desk": "capitalization-and-de-minimis",
+  "question": "Q12 — Do payments to individuals create a 1099-NEC obligation? Peer-to-peer payments to individuals for services can. Does the workflow track payee totals, and does anything surface the threshold before January?",
+  "escalated": true,
+  "reason": "authority_absent",
+  "working": "Nothing printed in this desk's record touches information reporting. The three sources are 1.263(a)-1 (capital expenditures), 1.162-3 (materials and supplies) and the IRS tangible property page - all of them about whether an amount paid for TANGIBLE PROPERTY is expensed or capitalised. None of them mentions Form 1099-NEC, payments for services, payee totals, a reporting threshold, or a January deadline. There is no paragraph here that could be stretched to reach it without inventing authority. This question belongs to a desk holding the information-reporting rules (section 6041/6041A and their regulations, and the Form 1099-NEC instructions), which this desk does not have."
+ },
+ {
+  "q": 16,
+  "desk": "capitalization-and-de-minimis",
+  "question": "Q16 — Where is the line between a tool and a fixed asset? The capitalisation threshold again, asked from the asset side. A single tool purchase in the hundreds is expensed under the safe harbour and capitalised without it, and Section 179 or bonus depreciation may apply either way.",
+  "escalated": true,
+  "reason": "authority_permits_choice",
+  "working": "Asked from the asset side, the same gap appears as in Q4: this authority draws no single line between a tool and a fixed asset. What it does draw is a floor and a ceiling with a taxpayer choice in between. The floor is definitional and needs no election - 1.162-3(c)(1)(iv) makes a unit of property costing $200 or less a material or supply, and (c)(1)(iii) does the same for one with an economic useful life of 12 months or less. Above that, whether a tool is expensed turns on the de minimis election, which is optional ('a taxpayer electing to apply'), whose dollar amount is the taxpayer's own 'specified dollar amount' under (f)(1)(i)(B)(1)/(f)(1)(ii)(B)(1), and whose ceiling depends on the AFS fact. And the IRS page's own answer forecloses reading the ceiling as the line at all: amounts above it are not forced into capitalisation, they simply fall back to 'the normal rules that apply'. Those normal rules for ACQUIRED property live in 1.263(a)-2, which is not printed in this desk's record, so this desk cannot state the line above the ceiling either. Two decisions must come back before this is answerable: the firm's own policy amount, in place at the beginning of the year, and whether the election is being made for the year at all. Section 179 and bonus depreciation, raised in the question, are outside every source printed here."
+ },
+ {
+  "q": 16,
+  "desk": "fixed-assets",
+  "question": "Q16 — Where is the line between a tool and a fixed asset? The capitalisation threshold again, asked from the asset side. A single tool purchase in the hundreds is expensed under the safe harbour and capitalised without it, and Section 179 or bonus depreciation may apply either way.",
+  "escalated": true,
+  "reason": "authority_absent",
+  "working": "This desk holds one source, 1.263(a)-3, and that section is about amounts paid to IMPROVE tangible property already owned. Its own overview says so, and (d) requires capitalisation only of amounts paid to improve a unit of property, tested by whether activities performed AFTER the property is placed in service are a betterment, a restoration, or an adaptation to a new or different use. A tool bought at the hardware counter is an acquisition, not an improvement to an existing unit of property. The rules that would decide it - 1.263(a)-2 for costs to acquire or produce a unit of property, and 1.263(a)-1(f) for the de minimis safe harbour - are referred to by cross-reference inside this section but are not printed in this desk's record, and a cross-reference is not authority I may cite. The small-taxpayer safe harbour in (h) does not help either: it is limited to eligible BUILDING property. Noted deliberately: the capitalization-and-de-minimis desk was asked this same question and escalated for a different reason (the rule reaches it there, but leaves the threshold to the firm). Here the rule does not reach it at all."
+ },
+ {
+  "q": 18,
+  "desk": "capitalization-and-de-minimis",
+  "question": "Q18 — Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "escalated": true,
+  "reason": "facts_not_established",
+  "working": "The rule is clear; the facts are not. Every test printed here is applied item by item to a described thing: 1.263(a)-1(f)(1)(i)(D) and (f)(1)(ii)(D) measure the limit 'per invoice (or per item as substantiated by the invoice)'; (f)(3)(i) requires delivery, installation and similar costs on the SAME invoice to be added to the item's cost and, where one invoice covers several properties, allocated across them by a reasonable method before each is tested; and 1.162-3(c)(1) classifies by what the thing is and how long it lasts - a component to repair a unit of property, fuel or a similar item consumed within 12 months, a unit of property with a useful life of 12 months or less, or one costing $200 or less. A bank feed carries a merchant name and a total, which satisfies none of those tests. (f)(6), the anti-abuse rule, cuts the other way too: a single item cannot be split across componentised invoice lines to get under the limit, so the line detail is needed to see what the unit of property actually is. So: yes, a hardware-store purchase can be an asset, and which of the year's purchases are cannot be settled from the feed. Someone has to get the itemised receipts from the client for the trade-supplier purchases and, for anything installed into existing property, establish whether it was a repair or an improvement - the improvement rules in 1.263(a)-3 are not printed in this desk's record."
+ },
+ {
+  "q": 18,
+  "desk": "cash-and-bank",
+  "question": "Q18 — Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "position": "Yes, some of them are assets, and the bank feed can never tell you which - the purchase invoices must be obtained, and any asset among them carries its own permanent record.",
+  "citation": "IRS Pub. 583 (12/2024), \"Supporting Documents\"",
+  "working": "This paragraph settles both halves of what the close actually raised. First, it treats assets as an ordinary category of what a business buys - 'Assets are the property, such as machinery and furniture you own and use in your business' - and requires records verifying when and how the asset was acquired, its purchase price, cost of improvements, section 179 and depreciation taken, how it was used, and how it was disposed of; the documents it names as showing that are purchase and sales invoices, closing statements and cancelled checks. So a purchase from a trade supplier does become an asset when it is such property, and it then needs a permanent record that an expense line does not. Second, on the bank feed specifically, the same paragraph is explicit that an account statement is admitted only as proof of PAYMENT, and that 'proof of payment of an amount, by itself, does not establish you are entitled to a tax deduction. You should also keep other documents, such as credit card sales slips and invoices, to show that you also incurred the cost.' The feed is that statement and nothing more, so it cannot support either the deduction or the asset record. What this desk does NOT decide is the tax classification test - which items over which amount must be capitalised - which is not in this record; it decides only that the invoice, not the feed, is the document that has to be in hand."
+ },
+ {
+  "q": 18,
+  "desk": "personal-or-business",
+  "question": "Q18 — Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "escalated": true,
+  "reason": "authority_absent",
+  "working": "This desk's authority is about WHOSE expense it is, not about when an expense becomes an asset. 1.262-1 denies deductions for personal, living and family expenses; 1.162-1 describes what an ordinary and necessary business expense includes; Pub. 587 is entirely about business use of a home. None of it states a capitalisation rule, a threshold, a useful-life test, or a definition of a fixed asset. The closest text is 1.162-1(a), which lists 'supplies, incidental repairs' among business expenses and parenthetically points at section 263 for commissions - a cross-reference, not a rule I may cite, and section 263 is not printed here. Reaching for it would be exactly the stretch this desk is meant to refuse. If the intended question for THIS desk is instead whether the hardware-store purchases are business at all rather than household spending, that is answerable from 1.262-1(a) in principle, but only once the itemised receipts exist - which is the same missing line detail the question already names. As asked, though, the gap is authority, not facts."
+ }
+]

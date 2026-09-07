@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{#
+  THE DIGEST AND THE SCOREBOARD — docs/AUTONOMY-CHARTER.md section 8.
+
+  Everything on this page is COUNTED from satc.autonomy.digest.digest_for() /
+  week_for(), which read the recorded approval ledger, the precondition gate,
+  and (for today only) a live trap drill — never a sentence a model wrote.
+  Regenerate this page for the same past day twice and it reads identically;
+  that is the whole point of a digest rather than a claim.
+#}
+{% block content %}
+<div class="hero">
+  <h2>Autonomy digest — {{ day.strftime('%B %d, %Y') }}</h2>
+  <div class="muted">
+    Actions proposed, approvals versus corrections, the streak position of every pair, and
+    the trap drill — for one day. <strong>The five correction reasons are never added
+    together into one figure</strong> (charter §6): <span class="mono">should_not_have_flagged</span>
+    and <span class="mono">wrong_fact</span> are different practices in different trouble.
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('autonomy.digest_view') }}" style="margin-bottom:14px">
+  <label class="muted">Jump to a day</label><br>
+  <input class="field-input" type="date" name="day" value="{{ day.isoformat() }}" style="width:180px">
+  <button class="btn sm" type="submit">Show that day</button>
+  {% if not is_today %}
+  <a class="btn sm" href="{{ url_for('autonomy.digest_view') }}">Back to today</a>
+  {% endif %}
+</form>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+
+{% if digest is none %}
+{# error case already shown above; nothing else to render #}
+
+{% else %}
+
+{% if not ever_decided %}
+<div class="panel">
+  <h2>No decision has ever been recorded</h2>
+  <div class="body">
+    <p class="flag" style="margin-top:0">Every figure below reads zero, and that is the honest
+      position, not a bug.</p>
+    <p class="muted">
+      Charter §11 names this gap by name: nothing yet records that the owner sent a draft
+      unchanged. <span class="mono">satc.autonomy.approval.record_approval</span> /
+      <span class="mono">record_correction</span> exist and are tested, but nothing on the
+      comms screen calls either of them yet — wiring that click is a separate deliverable, and
+      the one this whole ladder is waiting on.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Today's decisions</h2>
+  <div class="body">
+    <table>
+      {# CHARTER SECTION 6: the reason codes are NEVER totalled. This row summed
+         them and printed the total beside "approved unchanged" — which is the
+         single accuracy figure the charter forbids, wearing a different label.
+         should_not_have_flagged at 30% and wrong_fact at 30% are different
+         practices in different trouble, and one number hides which. Each code
+         is counted on its own, below. #}
+      <tr><th>Proposed</th><th>Approved unchanged</th><th>Gave up</th></tr>
+      <tr>
+        <td class="mono">{{ digest.proposed }}</td>
+        <td class="mono">{{ digest.approved_clean }}</td>
+        <td class="mono">{{ digest.gave_up }}</td>
+      </tr>
+    </table>
+    {% if is_today %}
+    <p class="muted">
+      "Proposed" is a live read of today's queue (drafts with a template on offer right now) —
+      not yet a day-by-day historical count. A past day always shows 0 here for that reason,
+      not because nothing happened.
+    </p>
+    {% else %}
+    <p class="muted">
+      This is a past day: "Proposed" and the trap drill have no historical record in this
+      build (see the note on the ladder screen) and read 0 / not run here on purpose, rather
+      than a number nobody can back up.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Corrections, by reason <span class="muted">· never totalled into one figure</span></h2>
+  <div class="body">
+    <table>
+      <tr><th>Reason</th><th class="right">Count</th><th>Means</th></tr>
+      {% for code, meaning in reason_codes.items() %}
+      <tr>
+        <td class="mono">{{ code }}</td>
+        <td class="right mono">{{ digest.corrections.for_code(code) }}</td>
+        <td class="muted">{{ meaning }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note">
+      <span class="mono">should_not_have_flagged</span> at some rate and
+      <span class="mono">wrong_fact</span> at the same rate are different practices in
+      different trouble — one is noise, the other reaches a client as a falsehood. This page
+      will never print a single "accuracy" number that hides which one you are looking at.
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Streak position <span class="muted">· {{ digest.rungs|length }}</span></h2>
+  <div class="body">
+    {% if not digest.rungs %}
+    <p class="muted">No pair is on the ladder as of this day.</p>
+    {% else %}
+    <table>
+      <tr><th>Template</th><th>Client</th><th>Rung</th><th>Streak</th><th>Why</th></tr>
+      {% for r in digest.rungs %}
+      <tr>
+        <td class="mono">{{ r.pair[0] }}</td>
+        <td class="mono">{{ r.pair[1] }}</td>
+        <td>
+          {% if r.state == 'earned' %}<span class="badge b-Received">earned</span>
+          {% else %}<span class="badge b-Requested">draft_only</span>{% endif %}
+        </td>
+        <td class="mono">{{ r.streak }} of {{ r.needed }}</td>
+        <td class="muted">{{ r.why }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% if not digest.gate.holds %}
+    <p class="flag">{{ digest.gate.why }}</p>
+    <p class="muted">See <a href="{{ url_for('autonomy.ladder') }}">Autonomy</a> to record a
+      precondition.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Trap drill <span class="muted">· charter §7</span></h2>
+  <div class="body">
+    {% if not digest.drill_ran %}
+    <p class="muted" style="margin-top:0">No drill result is on record for this day.
+      {% if is_today %}That should not happen — the drill runs live when this page loads.
+      {% else %}This build has no nightly history yet; see the note above.{% endif %}</p>
+    {% else %}
+    <p class="{{ 'flag' if digest.any_trap_missed else 'note' }}" style="margin-top:0">
+      {% if digest.any_trap_missed %}
+      {{ digest.drill.misses|length }} trap{{ '' if digest.drill.misses|length == 1 else 's' }}
+      missed. A miss demotes the capability it guards to draft_only — this is not a skip, it
+      is the check that is allowed to fail (principle 12).
+      {% else %}
+      All {{ digest.drill.traps|length }} traps passed.
+      {% endif %}
+    </p>
+    <table>
+      <tr><th>Trap</th><th>Capability</th><th>Result</th><th>Why</th></tr>
+      {% for t in digest.drill.traps %}
+      <tr>
+        <td class="mono">{{ t.key }}</td>
+        <td class="mono">{{ t.capability }}</td>
+        <td>{% if t.passed %}<span class="tie">passed</span>{% else %}<span class="flag">missed</span>{% endif %}</td>
+        <td class="muted">{{ t.why }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Last 7 days <span class="muted">· ending {{ scoreboard.ending.strftime('%b %d, %Y') }}</span></h2>
+  <div class="body">
+    <table>
+      <tr><th>Proposed</th><th>Approved unchanged</th><th class="right">Trap misses</th>
+        <th class="right">Gave up</th></tr>
+      <tr>
+        <td class="mono">{{ scoreboard.proposed_total }}</td>
+        <td class="mono">{{ scoreboard.approved_clean_total }}</td>
+        <td class="right mono">{{ scoreboard.drill_misses_total }}</td>
+        <td class="right mono">{{ scoreboard.gave_up_total }}</td>
+      </tr>
+    </table>
+    <table style="margin-top:10px">
+      <tr><th>Reason</th><th class="right">7-day count</th></tr>
+      {% for code, meaning in reason_codes.items() %}
+      <tr><td class="mono">{{ code }}</td><td class="right mono">{{ scoreboard.corrections_total.for_code(code) }}</td></tr>
+      {% endfor %}
+    </table>
+    <h3 style="margin-top:14px">What moved</h3>
+    {% if not scoreboard.moved %}
+    <p class="muted">No pair's rung changed across this window.</p>
+    {% else %}
+    <ul>
+      {% for line in scoreboard.moved %}<li class="mono">{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

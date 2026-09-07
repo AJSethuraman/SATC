@@ -20,10 +20,19 @@ def test_core_screens_render(client):
         assert client.get(path).status_code == 200
 
 
-def test_mark_document_received_updates_status_and_tracker(client):
-    doc = STATE.outstanding()[0]               # a "Requested" document
+def test_closing_a_request_drops_it_off_the_tracker(client):
+    item = STATE.outstanding()[0]
     before = len(STATE.outstanding())
-    resp = client.post(f"/documents/{doc.document_id}/Received")
+    resp = client.post(f"/documents/{item.request_id}/close")
     assert resp.status_code in (301, 302)      # redirect back
-    assert doc.status == "Received"
-    assert len(STATE.outstanding()) == before - 1   # dropped off the missing-docs tracker
+    assert not item.is_open
+    assert len(STATE.outstanding()) == before - 1
+
+
+def test_closing_a_request_as_not_applicable_keeps_the_reason(client):
+    """A bare N/A is indistinguishable from never having asked."""
+    item = STATE.outstanding()[0]
+    client.post(f"/documents/{item.request_id}/close",
+                data={"reason": "they closed that account in March"})
+    assert item.status == "not_applicable"
+    assert item.not_applicable_reason == "they closed that account in March"

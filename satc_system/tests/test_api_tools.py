@@ -112,3 +112,24 @@ def test_http_meta_endpoint():
     assert "single" in body["filing_statuses"]
     assert "biweekly" in body["pay_frequencies"]
     assert body["default_tax_year"] == 2025
+
+
+def test_an_actor_serialises_to_its_handle_not_its_fields():
+    """One wire representation of an actor, everywhere.
+
+    dataclasses.asdict would expand an Actor into {"kind": "human", ...},
+    giving consumers two shapes to distinguish — and the expanded one invites
+    reconstructing a human actor from a payload, which is exactly the hole the
+    actor model closes.
+    """
+    from satc.api.tools import _to_json
+    from satc.models.actor import Actor
+    from satc.models.provenance import Provenance
+
+    assert _to_json(Actor.owner()) == "human:owner"
+    assert _to_json(Actor.model("qwen3:8b", "1")) == "model:qwen3:8b@1"
+
+    nested = _to_json(Provenance(source_kind="SOURCE_DOC",
+                                 produced_by=Actor.model("qwen3:8b")))
+    assert nested["produced_by"] == "model:qwen3:8b"
+    assert not isinstance(nested["produced_by"], dict)

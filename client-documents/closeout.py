@@ -209,11 +209,39 @@ def apply_to_answers(ref: str, divergences: list[Divergence],
         (engagements._dir(store, ref) / "interview.json").read_text(
             encoding="utf-8"))
 
+    by_id = {q["id"]: q for q in load()}
+
     moved = []
     for d in divergences:
-        moved.append({"answer": d.against, "was": answers.get(d.against),
+        # WHAT WAS COMPARED, NOT WHAT THE KEY HOLDS. `compare` may read the
+        # count off the LIST it came from (`or_list`), and it did: a real run
+        # reported "count_states: we were told 2, filed as 1" and then logged
+        # the move as "None -> 1", because `answers["count_states"]` was empty
+        # and the 2 had come from `answers["states"]`. Two readings of one
+        # fact, and the log took the wrong one -- so the evidence of the move
+        # disagreed with the report that justified it.
+        moved.append({"answer": d.against, "was": d.asked,
                       "now": d.filed, "because": d.question})
         answers[d.against] = d.filed
+
+        # AND THE LIST THAT COUNT CAME FROM IS NOW WRONG. Moving the count to
+        # 1 while `states` still reads ["Ohio", "Michigan"] leaves next year's
+        # interview seeded with two answers that contradict each other -- and
+        # the `or_list` fallback will not fire again to catch it, because the
+        # count is now set. Nothing here can know WHICH state was not filed,
+        # so it does not choose one: the list is set aside with its reason,
+        # and next year's interview asks the question again rather than
+        # inheriting a list the software already knows is wrong.
+        backing = (by_id.get(d.question) or {}).get("or_list")
+        if backing and isinstance(answers.get(backing), list) \
+                and len(answers[backing]) != d.filed:
+            answers.setdefault("_superseded", {})[backing] = {
+                "was": answers.pop(backing),
+                "because": f"{d.against} was moved to {d.filed} at close-out; "
+                           f"which of these was not filed is not recorded here",
+            }
+            moved.append({"answer": backing, "was": "set aside",
+                          "now": None, "because": d.question})
 
     engagements.save_answers(answers, ref, store)
 

@@ -1,0 +1,18 @@
+Dear {salutation},
+
+We're heading into the last stretch of the year, which is the only point where we can
+still change your {tax_year} outcome rather than just report it.
+
+A short conversation now can be worth a lot more than a careful one in April. Things
+worth a look: retirement contributions, timing of income or deductions, estimated
+payments, and anything that changed this year — a house, a job, a business, a marriage.
+
+If you'd like to talk it through, reply and we'll find a time. We can meet at
+{meeting_place}.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

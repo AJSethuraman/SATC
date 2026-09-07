@@ -1,0 +1,20 @@
+Dear {salutation},
+
+We're working through your {tax_year} return and comparing it against what you sent us
+last year. A few things we had then haven't turned up this year:
+
+{prior_year_questions}
+
+None of these is necessarily a problem — accounts get closed, jobs change, investments get
+sold. We'd just rather ask than assume, because a document we never receive is the one
+thing our review cannot catch on its own.
+
+A one-line answer to each is plenty. If something no longer applies, just say so and we'll
+close it out.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Prices</h2>
+  <div class="muted">
+    What the practice charges, and what each kind of client pays for it. Changing a box here
+    edits <strong>the YAML file itself</strong> — one line of it — and nothing else. There is no
+    override sitting on top: hand-editing those files stays exactly as supported as it was
+    before this screen existed, and whichever way a price is changed, the file is the answer.
+  </div>
+  <div class="muted mono">{{ services_file }}<br>{{ plans_file }}</div>
+</div>
+
+{% if error %}
+{# The refusal is the product. It arrives as a sentence, on this page, with the
+   value still in its box below — never as a 500, and never as an edit that
+   disappeared without a word. #}
+<p class="flag">{{ error }}</p>
+{% endif %}
+{% if note %}
+<p class="tie">{{ note }}</p>
+{% endif %}
+
+{% if outside %}
+{# Somebody edited the YAML outside the app. Said out loud rather than folded in
+   silently: the record now carries rows with no author, and a reader a year from
+   now has to be able to tell those apart from a change made here. #}
+<p class="flag">
+  {{ outside|length }} price{{ '' if outside|length == 1 else 's' }} changed in the file since
+  SATC last read it, and {{ 'it has' if outside|length == 1 else 'they have' }} been added to
+  the record with no author — SATC noticed the change, it did not make it.
+  {% for c in outside %}<br><span class="mono">{{ c.summary() }}</span>{% endfor %}
+</p>
+{% endif %}
+
+<div class="panel">
+  <h2>What a change reaches</h2>
+  <div class="body">
+    <p>{{ what_a_rate_does }}</p>
+    {# Not the same answer for a discount, and saying so is the whole point of
+       this panel. The owner would otherwise reasonably assume the two behave
+       alike — they read alike on this screen — and find out from a client
+       holding an invoice whose total no longer matches. #}
+    <p class="flag">{{ what_a_discount_does }}</p>
+    <p class="note">
+      Every change is written down: what moved, from what to what, when, and who did it.
+      <a class="btn sm" href="{{ url_for('pricing.price_history') }}">Price history →</a>
+    </p>
+  </div>
+</div>
+
+{% macro when_last(was, unit) %}
+  {# A price nobody has touched is a thing worth seeing, and it is NOT the same
+     fact as a price changed long ago. Nothing recorded is said as nothing
+     recorded, rather than dressed up as a date (principle 1). And a change SATC
+     merely noticed never renders like one it was there for (principle 2). #}
+  {% if was %}
+  <span class="mono">{{ was.when_label }}</span>
+  <div class="hint">
+    {% if was.old_value is none %}not recorded{% else %}{{ was.old_value }}{{ unit }}{% endif %}
+    →
+    {% if was.new_value is none %}not recorded{% else %}{{ was.new_value }}{{ unit }}{% endif %}
+  </div>
+  {% if was.author_is_recorded %}
+  <div class="muted">{{ was.author_label }}</div>
+  {% else %}
+  <div class="flag">author not recorded — changed outside the app</div>
+  {% endif %}
+  {% if was.note %}<div class="muted">{{ was.note }}</div>{% endif %}
+  {% else %}
+  <span class="muted">never changed here</span>
+  <div class="hint">as the file was written</div>
+  {% endif %}
+{% endmacro %}
+
+{% for category, svcs in groups %}
+<div class="panel">
+  <h2>{{ category }} <span class="muted">· {{ svcs|length }}</span></h2>
+  <div class="body">
+    <table>
+      <tr>
+        <th>Service</th><th>Charged</th><th>Standard rate</th><th>Last changed</th>
+      </tr>
+      {% for svc in svcs %}
+      <tr>
+        <td>
+          <strong>{{ svc.name }}</strong>
+          <div class="muted mono">{{ svc.code }}</div>
+          {% if svc.label_for_client != svc.name %}
+          <div class="hint">Reads on the invoice as &ldquo;{{ svc.label_for_client }}&rdquo;</div>
+          {% endif %}
+        </td>
+        <td class="muted">
+          {% if svc.unit == 'fixed' %}once, however long it took
+          {% elif svc.unit == 'per_form' %}per form
+          {% else %}per hour{% endif %}
+          {% if svc.is_free %}<div class="tie">no charge</div>{% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('pricing.set_rate') }}">
+            <input type="hidden" name="code" value="{{ svc.code }}">
+            {# What the file looked like when this page was drawn. A tab left
+               open while the YAML was hand-edited submits a stale form, and the
+               editor refuses it rather than throwing the hand edit away. #}
+            <input type="hidden" name="stamp" value="{{ stamps.get('services', '') }}">
+            {% set shown = entered[svc.code] if svc.code in entered else '{:.2f}'.format(svc.standard_rate) %}
+            <input class="field-input mono" type="text" name="rate" value="{{ shown }}"
+                   style="width:110px" aria-label="Standard rate for {{ svc.name }}">
+            <input class="field-input" type="text" name="why" value=""
+                   placeholder="why (optional)" style="width:200px"
+                   aria-label="Why {{ svc.name }} changed">
+            <button class="btn sm primary" type="submit">Save</button>
+          </form>
+        </td>
+        <td>{{ when_last(last.get(svc.code), '') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="panel">
+  <h2>Rate plans <span class="muted">— what a given client pays relative to standard</span></h2>
+  <div class="body">
+    <p class="note">
+      The practice bills on value, adjusted for means. A plan is a percentage off the standard
+      rate and nothing else — there is nowhere to put a share of a refund, which is how
+      Circular 230 §10.27 is kept structurally rather than remembered.
+    </p>
+    <table>
+      <tr>
+        <th>Plan</th><th>Basis required</th><th>Discount</th><th>Last changed</th>
+      </tr>
+      {% for rp in plans %}
+      <tr>
+        <td>
+          <strong>{{ rp.name }}</strong>
+          {% if rp.key == default_plan %}<span class="badge">default</span>{% endif %}
+          <div class="muted mono">{{ rp.key }}</div>
+          {% if rp.note %}<div class="hint">{{ rp.note }}</div>{% endif %}
+        </td>
+        <td class="muted">
+          {% if rp.requires_basis %}<span class="flag">a reason, recorded</span>
+          {% else %}not needed{% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('pricing.set_discount') }}">
+            <input type="hidden" name="key" value="{{ rp.key }}">
+            <input type="hidden" name="stamp" value="{{ stamps.get('plans', '') }}">
+            {% set shown = entered[rp.key] if rp.key in entered else '{:g}'.format(rp.discount_pct) %}
+            <input class="field-input mono" type="text" name="discount_pct" value="{{ shown }}"
+                   style="width:70px" aria-label="Discount for {{ rp.name }}"> %
+            <input class="field-input" type="text" name="why" value=""
+                   placeholder="why (optional)" style="width:200px"
+                   aria-label="Why {{ rp.name }} changed">
+            <button class="btn sm primary" type="submit">Save</button>
+          </form>
+        </td>
+        <td>{{ when_last(last.get(rp.key), '%') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

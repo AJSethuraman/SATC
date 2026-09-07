@@ -69,7 +69,7 @@ def test_engagement_email_outlook_falls_back_to_text(client):
     eng = STATE.create_engagement(client_id=cid, workflow_key="personal_1040_core",
                                   due_date="2026-04-15", tax_year=2025,
                                   answers={"newSatcClient": "no"})
-    body = client.post(f"/engagements/{eng.engagement_id}/email/outlook").get_data(as_text=True)
+    body = client.post(f"/engagements/{eng.job_id}/email/outlook").get_data(as_text=True)
     assert "mailto:" in body          # universal fallback link
     assert "Requested items" in body  # the generated subject/body is shown
 

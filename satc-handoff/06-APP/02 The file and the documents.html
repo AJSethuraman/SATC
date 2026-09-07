@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAT-C practice app &mdash; one client&rsquo;s file, and the gate</title>
+<link rel="stylesheet" href="satc-app.css"><link rel="stylesheet" href="spec.css">
+</head><body><div class="sheet">
+<div class="wm">SAT<span class="hy"></span>C<i>LLP</i></div>
+<div class="rule"></div>
+<div class="meta"><span>Internal &mdash; the software that runs the practice</span><span>Design, 2 September 2026</span></div>
+<nav class="jobs"><a href="00 Patterns and cuts.html">Patterns and cuts</a><a href="01 The day and the interview.html">The day, and the interview</a><a href="02 The file and the documents.html" aria-current="page">One client&rsquo;s file, and the gate</a><a href="03 Money and settings.html">Money, and settings</a></nav>
+
+<h1>One client&rsquo;s file, and the control that refuses</h1>
+<p class="lede">The client&rsquo;s page answers &ldquo;where is this one, and what is stopping it&rdquo; above the fold, and puts the twenty-six recorded facts below that &mdash; they are reference, not answer. Then the document shelf, then the gate, which is the most important control in the software and currently reads as a paragraph.</p>
+
+<section class="blk"><p class="no">Job 03</p>
+<h2>The client&rsquo;s file</h2>
+<p>Three things at the top: who, where they are in the nine stages, and what is stopping them. The three buttons that used to sit in the middle of the page come up with them, because on this screen the buttons <em>are</em> the answer. The record of what the sitting collected stays, unchanged in content, under a heading that says what it is.</p>
+<p>The interstitial that used to say <em>&ldquo;Engagement 2026-0001 created&rdquo;</em> is gone &mdash; creating lands you here, with the line at the top.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span><span class="sep"></span><a href="#">4 clients due before it</a></p></header>
+<main class="page">
+<div class="crumb"><span><b>Created just now</b> &mdash; priced from the same schedule the website publishes.</span><a class="x" href="#">dismiss</a></div>
+<div class="head split"><div><p class="sub">2026-0001 &middot; 2026 tax year</p><h1>Mr. and Mrs. Daniel Reyes</h1></div><p class="stage big wait"><span class="n">2 of 9</span><span class="track" style="--to:2"><i></i></span><span class="nm">priced &mdash; waiting on you</span></p></div>
+<div class="ask"><h3>Waiting on you &mdash; one sentence</h3><p>The engagement letter needs a line saying what happens if an extension is refused. Until it is written the letter can be built but not released, and it will print with this in place of it:</p><p class="said">[CONFIRM: what the firm does if an extension is refused]</p></div>
+<div class="acts"><div class="act"><a class="btn" href="#">Build the signing pack</a><p>Every document this client signs, checked before any of it goes out. Nothing is sent by pressing this.</p></div>
+<div class="act"><a class="btn ghost" href="#">Signatures</a><p>Who still has to sign, and where you write down one that has come back.</p></div>
+<div class="act"><a class="btn ghost" href="#">Update the quote</a><p>The work changed &mdash; a second rental, another K-1. You see every line that moves before anything is recorded.</p></div></div>
+<h2>The fee estimate<span class="n">priced 2 September</span></h2>
+<table class="money"><tr><th>Service</th><th class="r">Amount</th></tr>
+<tr><td>Form 1040 with Schedules C, SE, E, and A</td><td class="r">$500.00</td></tr>
+<tr><td>Rental schedule &mdash; one property</td><td class="r">$145.00</td></tr>
+<tr class="sum"><td>Total</td><td class="r">$645.00</td></tr></table>
+<h2>What the sitting recorded<span class="n">26 answers</span></h2>
+<dl class="facts">
+<div class="fact"><dt>Client &mdash; full legal name<i>ClientFullName</i></dt><dd>Mr. and Mrs. Daniel Reyes</dd><button class="ch">change</button></div>
+<div class="fact"><dt>Where they are<i>ClientCity</i></dt><dd>Solon, OH 44139</dd><button class="ch">change</button></div>
+<div class="fact"><dt>Taxpayer<i>TaxpayerName</i></dt><dd>Daniel Reyes</dd><button class="ch">change</button></div>
+<div class="fact"><dt>Spouse<i>SpouseName</i></dt><dd>Maria Reyes</dd><button class="ch">change</button></div>
+<div class="fact"><dt>Federal returns and schedules<i>FederalReturns</i></dt><dd>Form 1040 with Schedules C, SE, E, and A</dd><button class="ch">change</button></div>
+<div class="fact"><dt>What the letter says about a refused extension<i>ExtensionRefusedNote</i></dt><dd class="none">[CONFIRM: what the firm does if an extension is refused]</dd><button class="ch">change</button></div>
+</dl>
+<p class="tally" style="display:block;margin-top:12px">and <b>20 more</b> &mdash; <a href="#">show all 26</a></p>
+</main></div>
+<p class="cap"><b>The client&rsquo;s file</b> &mdash; stage top right, the one thing waiting on you under it, the three buttons above the record rather than below it</p>
+<pre>&lt;div class="head split"&gt;
+  &lt;div&gt;&lt;p class="sub"&gt;2026-0001 &middot; 2026 tax year&lt;/p&gt;
+    &lt;h1&gt;Mr. and Mrs. Daniel Reyes&lt;/h1&gt;&lt;/div&gt;
+  &lt;p class="stage big wait"&gt;&hellip;&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class="acts"&gt;
+  &lt;div class="act"&gt;&lt;a class="btn" href="&hellip;"&gt;Build the signing pack&lt;/a&gt;
+    &lt;p&gt;Every document this client signs, checked before &hellip;&lt;/p&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+</section>
+
+<section class="blk"><p class="no">Job 04</p>
+<h2>The shelf: what this file can produce</h2>
+<p>This is where <b>blocked</b> and <b>nobody has built it</b> stop looking alike. A card that is blocked has a solid oxblood edge and says what is missing. A card nobody has built has a dashed edge, no fill, and no complaint &mdash; there is nothing wrong with it. A card waiting on the firm has the third colour. A built one is the only kind with a date on it.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<div class="head split"><div><p class="sub">2026-0001 &middot; Mr. and Mrs. Daniel Reyes</p><h1>What this file can produce</h1><p class="lede">Nine documents. Four are built. Nothing on this shelf has been sent.</p></div><p class="stage big"><span class="n">3 of 9</span><span class="track" style="--to:3"><i></i></span><span class="nm">pack built</span></p></div>
+<h2>Built<span class="n">this morning, 08:52</span></h2>
+<div class="shelf">
+<a class="doc ready" href="#"><div class="t"><h3>Engagement letter</h3><span class="mk done">built</span></div><p>Tax preparation. Ten sections, both signature lines.</p><p class="why" style="color:var(--ink-2)">11 checks, all fine &middot; 1,249 words read</p></a>
+<a class="doc blocked" href="#"><div class="t"><h3>Fee estimate</h3><span class="mk stop">stops it</span></div><p>Two services, $645.00.</p><p class="why">The figure on the estimate and the figure in the letter do not agree</p></a>
+<a class="doc waiting" href="#"><div class="t"><h3>Records-release authority</h3><span class="mk wait">your call</span></div><p>For the previous accountant, Halloran &amp; Reeve CPAs.</p><p class="why">One sentence is unwritten &mdash; it will print as [CONFIRM: &hellip;]</p></a>
+<a class="doc ready" href="#"><div class="t"><h3>Onboarding letter</h3><span class="mk done">built</span></div><p>What happens next, and what we need from them.</p><p class="why" style="color:var(--ink-2)">11 checks, all fine &middot; 604 words read</p></a>
+</div>
+<h2>Not built<span class="n">nothing is wrong with these</span></h2>
+<div class="shelf">
+<a class="doc unbuilt" href="#"><div class="t"><h3>Invoice</h3><span class="mk notyet">not built</span></div><p>Raised when the work is done, not with the opening pack.</p></a>
+<a class="doc unbuilt" href="#"><div class="t"><h3>Organizer cover letter</h3><span class="mk notyet">not built</span></div><p>Next January, asking for the year&rsquo;s papers.</p></a>
+<a class="doc unbuilt" href="#"><div class="t"><h3>Extension notice</h3><span class="mk notyet">not built</span></div><p>If an extension is filed.</p></a>
+<a class="doc unbuilt" href="#"><div class="t"><h3>Delivery letter</h3><span class="mk notyet">not built</span></div><p>When the returns are finished and going back.</p></a>
+<a class="doc unbuilt" href="#"><div class="t"><h3>Disengagement letter</h3><span class="mk notyet">not built</span></div><p>If the engagement ends.</p></a>
+</div>
+</main></div>
+<p class="cap"><b>The shelf</b> &mdash; the two headings do the heavy lifting: <b>built</b>, then <b>not built &mdash; nothing is wrong with these</b></p>
+<pre>&lt;a class="doc ready"   href="&hellip;"&gt;   <b>built and checked</b>
+&lt;a class="doc blocked" href="&hellip;"&gt;   <b>a fact is wrong or missing &mdash; solid oxblood edge</b>
+&lt;a class="doc waiting" href="&hellip;"&gt;   <b>waiting on the firm &mdash; the third colour</b>
+&lt;a class="doc unbuilt" href="&hellip;"&gt;   <b>nobody has built it &mdash; dashed edge, no complaint</b></pre>
+<p>This shelf is also what replaces the page that said <em>&ldquo;4 documents in /tmp/&hellip;/pack&rdquo;</em>. A pack that built cleanly needs a date and a check count, and both fit on the card.</p>
+</section>
+
+<section class="blk"><p class="no">Job 04 &mdash; the one that matters</p>
+<h2>The gate</h2>
+<p>Today the page leads with a bordered paragraph and then eleven rows of table, and the eye lands on the table because it is the biggest thing. That is backwards: the table is the <em>evidence</em>, and you only read evidence after you know the verdict. So:</p>
+<ul>
+<li><b>The verdict, in the first inch</b>, as a sentence with a number in it. Nothing above it but who the client is.</li>
+<li><b>What is unresolved, as objects</b> &mdash; one card each, saying which document, what the check read, and what you would do about it. This is the list the old page buried.</li>
+<li><b>The override is a locked control.</b> The reason comes first and the button will not enable until it is written. That is not friction for its own sake: the button&rsquo;s whole purpose is to put a sentence in the file, so a button that can be pressed without one is a bug.</li>
+<li><b>The eleven checks fold away</b>, with their denominators on the summary line, so the evidence is one keystroke from the verdict and not on top of it.</li>
+</ul>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<p class="sub">2026-0001 &middot; Mr. and Mrs. Daniel Reyes &middot; the signing pack</p>
+<div class="halt"><h2>Not sent. One check stopped it.</h2>
+<p>Nothing was written and nothing was sent &mdash; you have the same pack you had before. A pack that does not survive being opened is not a pack; it is a folder the client cannot read.</p>
+<ul class="stops">
+<li><div class="t"><h3>A word the firm has ruled out</h3><span class="mk stop">stops it</span></div><p class="in">the engagement letter &middot; section 04, your deadline and extensions</p>
+<p>The sentence uses <b>pursuant</b>. The firm has ruled that word out of anything a client reads.</p>
+<p class="fix">Say the thing itself instead &mdash; <b>&ldquo;under the extension we file for you&rdquo;</b>. Change it in the wording, not in this client&rsquo;s copy, or the next client gets it too.</p></li>
+<li class="waiting"><div class="t"><h3>One sentence is unwritten</h3><span class="mk wait">your call</span></div><p class="in">the records-release authority &middot; section 02</p>
+<p>The letter needs a line saying what happens if an extension is refused. The software will not invent it, so it prints as it stands:</p>
+<p class="fix"><b>[CONFIRM: what the firm does if an extension is refused]</b></p></li>
+</ul>
+<div class="ovr" data-gate>
+<h3>Send it past these checks</h3>
+<p>For when you can see the check is wrong about this document &mdash; not to get past one you have not read.</p>
+<label class="f" for="why">Why is this going out as it is?</label>
+<textarea id="why" placeholder="Name the thing. &ldquo;The deleted line is inside a quotation from the client&rsquo;s own letter&rdquo; is a reason; &ldquo;urgent&rdquo; is not."></textarea>
+<div class="go"><button class="btn danger" disabled>Send it past these checks</button><em>Write the reason first.</em></div>
+</div>
+<details class="checks"><summary><span>Everything that was looked at</span><span class="tally"><b>11</b> checks &middot; 9 fine &middot; 1 stopped it &middot; 1 had nothing to look at</span></summary>
+<table>
+<tr><td class="mk-c"><span class="mk stop">stops it</span></td><td class="what"><b>no word the firm has ruled out, and no British spelling</b></td><td class="looked tally">96 words in 4 documents read</td></tr>
+<tr><td class="mk-c"><span class="mk none">nothing to look at</span></td><td class="what"><b>every clause named in a letter is a real section</b></td><td class="looked tally empty">no clause was named</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>every document opens and reads</b></td><td class="looked tally">4 documents opened</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>no sentence the firm has deleted has come back</b></td><td class="looked tally">76 sentences in 4 documents read</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>the documents agree with each other</b></td><td class="looked tally">8 agreements checked</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>everything a letter promises to enclose is in the pack</b></td><td class="looked tally">3 promises checked</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>what the firm must say by law is on the page</b></td><td class="looked tally">14 requirements checked</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>section numbers read 01 upwards with none missing</b></td><td class="looked tally">3 numbered documents read</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>no identification number appears on any page</b></td><td class="looked tally">8 shapes in 4 documents checked</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>no empty bullet and no empty row</b></td><td class="looked tally">37 bullets and rows read</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>every file a document refers to is in the pack</b></td><td class="looked tally">8 references checked</td></tr>
+</table></details>
+<p class="tally" style="display:block;margin-top:14px">A check marked <b>nothing to look at</b> did not pass. It examined nothing, and nothing is known about it either.</p>
+</div></main></div>
+<p class="cap"><b>The gate, blocked</b> &mdash; verdict, then the two unresolved things as objects, then a locked override, then the evidence folded away</p>
+<pre>&lt;div class="halt"&gt;
+  &lt;h2&gt;Not sent. One check stopped it.&lt;/h2&gt;
+  &lt;p&gt;Nothing was written and nothing was sent &hellip;&lt;/p&gt;
+  &lt;ul class="stops"&gt;
+    &lt;li&gt;                        <b>a refusal</b>
+      &lt;div class="t"&gt;&lt;h3&gt;A word the firm has ruled out&lt;/h3&gt;
+        &lt;span class="in"&gt;the engagement letter &middot; section 04&lt;/span&gt;&lt;/div&gt;
+      &lt;p&gt;The sentence uses &lt;b&gt;pursuant&lt;/b&gt; &hellip;&lt;/p&gt;
+      &lt;p class="fix"&gt;Say the thing itself instead &hellip;&lt;/p&gt;&lt;/li&gt;
+    &lt;li class="waiting"&gt;&hellip;&lt;/li&gt;   <b>waiting on the firm, not broken</b>
+  &lt;/ul&gt;
+  &lt;div class="ovr" data-gate&gt;&hellip;&lt;/div&gt;
+  &lt;details class="checks"&gt;&hellip;&lt;/details&gt;
+&lt;/div&gt;</pre>
+<p><b>The whole script</b>, and it is the only script on the screen. If it does not run, the button is enabled and the server refuses an empty reason exactly as it does now &mdash; so nothing depends on it.</p>
+<pre>&lt;script&gt;
+document.querySelectorAll('[data-gate]').forEach(function(g){
+  var t=g.querySelector('textarea'),b=g.querySelector('button'),n=g.querySelector('em');
+  function u(){var ok=t.value.trim().length&gt;11;b.disabled=!ok;
+    n.textContent=ok?'Goes in this client&rsquo;s file, with today&rsquo;s date and the checks it passed.'
+                    :'Write the reason first.';}
+  t.addEventListener('input',u);u();
+});
+&lt;/script&gt;</pre>
+<p><b>Where I changed the wording:</b> the failing check named a file &mdash; <em>SAT-C Engagement Letter - Reyes - 2026.html</em>. It now names the document and the section, because that is the thing you would go and open. And the check itself was called <em>&ldquo;no banned legalese and no British spelling&rdquo;</em>; <b>banned</b> is a word about the software&rsquo;s rules, so it now reads <b>&ldquo;no word the firm has ruled out&rdquo;</b> &mdash; the firm ruled, not the linter.</p>
+
+<h3>The same gate, clean</h3>
+<p>Nothing to press, so it is short. The check count and what it read stay available, folded, because in February you will want to know whether the prose read actually ran.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<p class="sub">2026-0001 &middot; Mr. and Mrs. Daniel Reyes &middot; the signing pack</p>
+<div class="head split"><div><h1>Four documents, built and checked</h1><p class="lede">Nothing has been sent. They are on the shelf and ready to go out when you are.</p></div><p class="stage big"><span class="n">3 of 9</span><span class="track" style="--to:3"><i></i></span><span class="nm">pack built</span></p></div>
+<div class="acts"><div class="act"><a class="btn" href="#">Send the pack</a><p>Goes to Daniel and Maria Reyes at the address on the record.</p></div>
+<div class="act"><a class="btn ghost" href="#">Open the shelf</a><p>Read any of the four before it goes.</p></div></div>
+<details class="checks"><summary><span>Everything that was looked at</span><span class="tally"><b>11</b> checks &middot; 10 fine &middot; 1 had nothing to look at</span></summary>
+<table>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>every document opens and reads</b></td><td class="looked tally">4 documents opened</td></tr>
+<tr><td class="mk-c"><span class="mk none">nothing to look at</span></td><td class="what"><b>every clause named in a letter is a real section</b></td><td class="looked tally empty">no clause was named</td></tr>
+<tr><td class="mk-c"><span class="mk pass">fine</span></td><td class="what"><b>no word the firm has ruled out, and no British spelling</b></td><td class="looked tally">1,249 words in 4 documents read</td></tr>
+</table></details>
+</main></div>
+<p class="cap"><b>The gate, clean</b> &mdash; this replaces the page marked &ldquo;nothing to press, read it and go on&rdquo;</p>
+</section>
+
+<section class="blk"><p class="no">Job 03, continued</p>
+<h2>Signatures</h2>
+<p>The list is the answer: who has not signed, and how long it has been. The recording form is one panel, and the reference field appears only for a signing service &mdash; which is what makes it obviously required when it is there. Signed lines move below the rule with the date and how it came back, because <em>how</em> is the first thing anybody asks a year later.</p>
+<div class="frame app">
+<header class="bar"><a class="mark" href="#">SAT<span class="hy"></span>C</a><p class="today"><b>Wednesday 2 September</b><span class="sep"></span><span class="soon">next: <b>15 September</b> &mdash; partnerships and S corporations on extension</span></p></header>
+<main class="page">
+<div class="head split"><div><p class="sub">2026-0001 &middot; Mr. and Mrs. Daniel Reyes</p><h1>Two signatures still out</h1><p class="lede">Sent 14 August, 19 days ago. They were given until 28 August.</p></div><p class="stage big halt"><span class="n">4 of 9</span><span class="track" style="--to:4"><i></i></span><span class="nm">sent &mdash; overdue</span></p></div>
+<h2>Still out<span class="n">2 of 5</span></h2>
+<div class="cols"><span>who</span><span>what they sign</span><span></span><span>waiting</span></div>
+<div class="rows">
+<a class="row late" href="#"><span class="ref">spouse</span><span class="who"><b>Maria Reyes</b><span>Authority to release records to us</span></span><span class="mk stop">19 days late</span><span class="when"><b>19 days</b>due 28 August</span></a>
+<a class="row late" href="#"><span class="ref">spouse</span><span class="who"><b>Maria Reyes</b><span>Engagement letter</span></span><span class="mk stop">19 days late</span><span class="when"><b>19 days</b>due 28 August</span></a>
+</div>
+<h2>Came back<span class="n">3 of 5</span></h2>
+<div class="rows">
+<div class="row"><span class="ref">taxpayer</span><span class="who"><b>Daniel Reyes</b><span>Engagement letter &mdash; signed in front of you</span></span><span class="mk done">signed</span><span class="when"><b>16 August</b>recorded 18 August</span></div>
+<div class="row"><span class="ref">taxpayer</span><span class="who"><b>Daniel Reyes</b><span>Authority to release records &mdash; through a signing service, reference 4K-8821-QT</span></span><span class="mk done">signed</span><span class="when"><b>16 August</b>recorded 16 August</span></div>
+</div>
+<h2>Write down one that has come back</h2>
+<div style="max-width:560px">
+<label class="f" for="d">The day they signed &mdash; the date on the page, not the day you found out</label>
+<input id="d" type="date" value="2026-08-29" style="max-width:220px">
+<ul class="picks" style="margin-top:18px">
+<li><label><input type="radio" name="how" checked><span>Signed in front of you</span></label></li>
+<li><label><input type="radio" name="how"><span>Came back by email or on paper</span></label></li>
+<li><label><input type="radio" name="how"><span>Signed through a signing service, with its own trail</span></label></li>
+</ul>
+<div class="acts"><div class="act"><button class="btn">Record it</button><p>Added to the file, never written over. A mistake is corrected by recording the right one.</p></div></div>
+</div>
+</main></div>
+<p class="cap"><b>Signatures</b> &mdash; <b>came back</b> keeps how it came back on the row, because that is what the record is for</p>
+<p><b>What I cut here:</b> the reference field is not on the screen until the signing-service option is chosen. One radio, one field, shown together &mdash; a field that is sometimes required and always visible is the thing people learn to skip.</p>
+</section>
+
+<div class="foot">Next: <a href="03 Money and settings.html">money, re-pricing, and the two settings screens</a>. Previous: <a href="01 The day and the interview.html">the day, and the interview</a>.</div>
+</div>
+<script>document.querySelectorAll('[data-gate]').forEach(function(g){var t=g.querySelector('textarea'),b=g.querySelector('button'),n=g.querySelector('em');function u(){var ok=t.value.trim().length>11;b.disabled=!ok;n.textContent=ok?'Goes in this client\u2019s file, with today\u2019s date and the checks it passed.':'Write the reason first.';}t.addEventListener('input',u);u();});</script>
+</body></html>

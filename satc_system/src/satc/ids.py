@@ -77,3 +77,57 @@ def opaque_id(prefix: str) -> str:
     import uuid
 
     return f"{prefix}-{uuid.uuid4()}"
+
+
+# --- document identity -------------------------------------------------------
+#
+# A document's id is derived from its CONTENT, not its filename. Three reasons,
+# all of them things that were actually wrong:
+#
+#   1. Correctness. document_id used to be ``path.name``, and a staged field's id
+#      is ``f"{document_id}:{field_path}"``. Two files with the same basename in
+#      different subfolders — ``2024/W2.pdf`` and ``2023/W2.pdf`` — produced the
+#      same field ids, and StagingGate._find returns the FIRST match. A confirm
+#      could land on the wrong document's field.
+#   2. Privacy. The id is written into the data mart and exported to Excel, and
+#      client filenames routinely carry the client's name. A hash carries none.
+#   3. Idempotence (doctrine rule 4). Re-reading the same file — an original and
+#      the copy ``sort_folder`` made — yields the SAME id, so re-staging is a
+#      no-op rather than a duplicate.
+#
+# The human-readable name still exists: it lives on ``StagedDocument.display_name``
+# for the local UI, and deliberately never travels into the mart or an export.
+
+_DOC_ID_CHARS = 16
+
+
+def content_document_id(data: bytes, *, prefix: str = "doc") -> str:
+    """A stable id derived from a document's bytes: ``doc-a3f91c2e4b5d6e7f``.
+
+    Same bytes always give the same id, on any machine, in any run — which is
+    what makes re-reading a file idempotent instead of duplicative.
+    """
+    import hashlib
+
+    return f"{prefix}-{hashlib.sha256(data).hexdigest()[:_DOC_ID_CHARS]}"
+
+
+def part_document_id(parent_id: str, index: int) -> str:
+    """The id of one part split out of a combined PDF.
+
+    Derived from the parent's id so the relationship survives, and so a part is
+    stable across runs even though its bytes live only in a temp directory.
+    """
+    return f"{parent_id}.p{int(index)}"
+
+
+def content_document_id_for_path(path) -> str:
+    """Hash a file on disk. Streams, so a large scan does not load into memory."""
+    import hashlib
+    from pathlib import Path
+
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"doc-{digest.hexdigest()[:_DOC_ID_CHARS]}"

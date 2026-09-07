@@ -124,6 +124,14 @@ delivery:
 # average deadline is 16 DAYS before filing. Three weeks is 21.
 # See docs/market-fee-benchmarks.md.
 #
+# DERIVED NOW, NOT REMEMBERED. `deadlines.py` computes these from IRC 6072 and
+# 7503 -- the filing date, weekend and Emancipation Day shifts applied, minus
+# MATERIALS_LEAD_DAYS. A season missing from this block is derived rather than
+# refused, so rolling the year forward is no longer something anyone has to
+# remember. A date TYPED here still wins, because it is what a client was told
+# -- but one that DISAGREES with the statute is refused, naming both, since that
+# means the file is stale or the policy moved.
+#
 # THESE ARE THE 2026 TAX YEAR, FILED IN 2027. Individual and calendar-year C
 # corporation returns are due 15 April 2027; partnerships and S corporations
 # are due 15 March 2027. Neither falls on a weekend or a holiday in 2027, so
