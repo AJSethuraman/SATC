@@ -142,5 +142,13 @@
   "escalated": true,
   "reason": "authority_absent",
   "working": "This desk holds \u00a7 1.263(a)-3, which decides whether an amount paid on property the taxpayer ALREADY OWNS is an improvement -- a betterment, a restoration, or an adaptation to a new or different use. Buying a tool is an acquisition, not an improvement, and the threshold that decides it is the de minimis safe harbour under \u00a7 1.263(a)-1(f). This desk's own rule names that as an exception it defers to rather than a rule it states: 'except as provided in paragraph (h) or paragraph (n) of this section or under \u00a7 1.263(a)-1(f)'. Following that cross-reference out of the desk would be answering from a paragraph the desk does not hold. The capitalization-and-de-minimis desk holds it and this question also reached it."
+ },
+ {
+  "q": 18,
+  "desk": "fixed-assets",
+  "question": "Does a hardware-store purchase ever become an asset? A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.",
+  "position": "a component acquired to maintain, repair or improve a unit of property, and not acquired as part of a single unit of property, is a material or supply rather than an asset",
+  "citation": "26 CFR 1.162-3(c)(1)(i)",
+  "working": "This is the paragraph the searcher found and the firm admitted eCFR for, and it is the definition the close is missing. A hardware-store line that is a component bought to maintain, repair or improve something the client already owns is a material or supply -- not a fixed asset -- unless it came as part of a single unit of property. That is the test the line detail has to answer, and it says what to look for rather than leaving 'not a consumable' as the only category on the other side."
  }
 ]

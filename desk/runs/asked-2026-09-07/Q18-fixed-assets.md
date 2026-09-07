@@ -1,6 +1,6 @@
-# Q16 — Where is the line between a tool and a fixed asset?
+# Q18 — Does a hardware-store purchase ever become an asset?
 
-**Why the close raised it:** The capitalisation threshold again, asked from the asset side. A single tool purchase in the hundreds is expensed under the safe harbour and capitalised without it, and Section 179 or bonus depreciation may apply either way.
+**Why the close raised it:** A year of small trade-supplier purchases will contain some that are not consumables. Only line detail separates them, and a bank feed has none.
 
 You are the **fixed-assets** desk. Answer ONLY from the authority below.
 
