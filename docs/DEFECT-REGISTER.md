@@ -366,3 +366,32 @@ separate fact, unenforced — past three the return may still be worth filing, i
 just cannot produce a refund, which is the shape of a review flag rather than an
 input refusal. Confirmed against irs.gov, 3 September 2026, at the firm's
 instruction.
+
+---
+
+## OPEN · The privacy page does not mention the leads workbook
+
+**Found 7 September 2026**, resolving a `[CONFIRM]` marker carried by #138.
+
+`website/privacy.html` tells a client what happens to what they type into the
+contact form. It names **Formspree** — the service that receives the form — and
+its 30-day copy. It does **not** mention that a Power Automate flow files every
+submission as a row in a **workbook** (`docs/leads-to-excel.md`), which is a
+second copy, in a second place, kept indefinitely.
+
+**Why it matters.** That workbook holds real names, emails and phone numbers, and
+it is the copy that outlives the 30 days the page does disclose. A privacy page
+that discloses the temporary copy and not the permanent one describes the
+lesser half.
+
+**Why it is not fixed here.** The fix is a sentence on a page a client reads, and
+`CLAUDE.md` is explicit: *change nothing a client reads or pays.* Drafting privacy
+wording is the firm's, not an agent's — so this is recorded rather than written.
+
+**What it does not block.** The "What happens next" block on `index.html` is
+accurate as it stands: it names Formspree and links to the privacy page. The gap
+is in the destination, not the pointer, so #138 was not held back for it.
+
+**To close it:** the firm decides whether the workbook is disclosed, and in what
+words. Then `website/privacy.html`, and `copy.spec.py` gets a check that the
+page names every place a submission lands.
