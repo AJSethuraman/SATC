@@ -67,6 +67,47 @@ SIXTH_DOCKET = {
 }
 
 OTHERS = [
+ {"key": "dec-desk-asks-for-code", "new": True, "group": "When the software is what is missing",
+  "tag": "Your question \u2014 and the queue has no answer for it",
+  "title": "A desk asks for something that does not exist yet. Who approves building it?",
+  "position": "A field to record a fact is the only thing I build on the desk\u2019s say-so. Everything else comes to you.",
+  "context": "<b>You already asked for the detecting half, and it is built and has "
+             "never once fired.</b> On 6 September you said: <i>\u201cif the follow up "
+             "has no answer we know there\u2019s a legit hole to fix because the "
+             "accountant or firm never assigned it up front\u2026 What if this "
+             "mattered only sometimes and we never even made a field for it.\u201d</i> "
+             "The engine has a refusal for exactly that \u2014 <b>no_field_for_this_"
+             "fact</b>, meaning the desk needs an answer that has nowhere to be written "
+             "down. It is live code. No position has yet named a fact with no field, so "
+             "it has fired zero times.<br><br><b>What is missing is what happens next.</b> "
+             "The refusal queue lists five things it can ask for: add a source, take a "
+             "position, ask the client, request a document, or leave it visible. "
+             "<b>None of them is \u201cchange the software\u201d.</b> So a desk can "
+             "notice the hole and has no way to ask for it to be filled.<br><br>"
+             "<b>The trap, and it is why this is a decision and not a build.</b> A desk "
+             "asks for a field because a position it holds names a fact. If the position "
+             "is wrong, or asks for more than it needs, the field request inherits that "
+             "\u2014 and you would be approving a change to the software on the "
+             "strength of a chain you cannot see. Whatever we do, the ask has to arrive "
+             "carrying which position wanted it and why.",
+  "either": [("A field, and only a field",
+              "Somewhere to record a fact is additive, reversible, and invisible to "
+              "clients \u2014 nothing is deleted and nothing changes what a preparer "
+              "does. I build those and tell you, each one naming the position that "
+              "asked. Anything that adds a step to the close, changes a workflow, or "
+              "touches what a client reads comes to you as a matter like this one."),
+             ("Everything comes to me",
+              "No exceptions: every ask a desk makes for a software change waits for "
+              "your yes, field or not. Slower, and the queue fills with one-line asks "
+              "you have to read \u2014 but there is no chain you did not see.")],
+  "rec": "A field, and only a field. Your instinct is right that it is low stakes, and "
+         "the reason is specific rather than general: a field only creates somewhere to "
+         "write, so the worst case is an empty column nobody fills. A step in the close "
+         "is different \u2014 it changes what a person does every time \u2014 and that "
+         "is where the line should sit.",
+  "rec_pick": "A field, and only a field",
+  "picks": ["A field, and only a field", "Everything comes to me", "Not yet"]},
+
  {"key": "dec-admit-publishers", "new": True, "group": "The searching agent",
   "tag": "Built and run \u2014 one decision left",
   "title": "Two publishers tied out. Do they become sources?",
