@@ -31,6 +31,7 @@ from conftest import DESKS, ROOT
 
 sys.path.insert(0, str(ROOT / "tools"))
 import extract_ecfr as ex          # noqa: E402
+import scoreboard_run as sr        # noqa: E402
 
 XML = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
 DESK = DESKS / "fixed-assets"
@@ -184,32 +185,69 @@ def _rules_text() -> str:
                     for c in root if c.tag in ("P", "PSPACE"))
 
 
-def test_every_stored_passage_is_verbatim_from_outside_the_examples():
-    """Asserted over the committed record. The stems are not the point here;
-    the source is: a passage that cannot be found in the section's text outside
-    its <EXAMPLE> elements is either retyped or a worked example."""
+def _examples_text() -> str:
+    root = ET.parse(XML).getroot()
+    return " ".join(
+        " ".join(" ".join("".join(kid.itertext()).split())
+                 for kid in c if kid.tag != "HED")
+        for c in root if c.tag == "EXAMPLE")
+
+
+def test_the_marking_is_truthful_against_the_section_itself():
+    """Every passage is verbatim from the half of the section its `Kind` claims.
+
+    THE STRONGEST FORM OF THIS CHECK, and it only became available once the
+    examples were stored. Before, a passage could only be tested against the
+    rules -- "not found outside the <EXAMPLE> elements" meant retyped or leaked.
+    Now the record makes a CLAIM about each passage, and the section itself can
+    contradict it: a rule must occur in the <P>/<PSPACE> text, an example must
+    occur inside an <EXAMPLE>, and a passage in the wrong half is a mismarking
+    that no amount of internal consistency would reveal.
+    """
     desk = record.load(DESK)
-    assert len(desk.passages) > 100, "the corpus is not the section's rules"
-    rules = _rules_text()
+    assert len(desk.passages) > 100, "the corpus is not the section"
+    rules, examples_ = _rules_text(), _examples_text()
     for p in desk.passages:
-        assert p.text in rules, (
-            f"{p.citation} is not verbatim from the section's rules: "
-            f"{p.text[:80]!r}")
+        where, name = ((rules, "the section's rules")
+                       if p.kind == record.RULE
+                       else (examples_, "the section's worked examples"))
+        assert p.text in where, (
+            f"{p.citation} is filed as a {p.kind} but is not verbatim from "
+            f"{name}: {p.text[:80]!r}")
 
 
-def test_the_stored_authority_holds_no_problems_worked_example():
-    """The leak, at its new boundary. Written against every example in the
-    section and every problem's facts, not against the extractor's own view of
-    what it stored."""
+def test_every_worked_example_is_stored_and_every_one_is_marked():
+    """The other direction, and the reason this change was made at all.
+
+    Measured 7 September 2026: this section carries 223,804 characters of worked
+    examples across six regulations and the desks held none of them. An example
+    silently dropped is the defect now; before, it was an example silently kept.
+    """
     desk = record.load(DESK)
-    corpus = " ".join(p.text for p in desk.passages).casefold()
+    stored = {p.text for p in desk.passages if p.kind == record.EXAMPLE}
+    missing = [f"({e['para']})({e['sub']}) Example {e['n']}"
+               for e in ex.examples(XML)
+               if " ".join(e["text"].split()) not in stored]
+    assert not missing, f"the section's examples are not all stored: {missing}"
+    assert len(stored) == 117, f"{len(stored)} examples stored, not 117"
+
+
+def test_no_worked_example_is_filed_among_the_rules():
+    """The leak, at the boundary that still matters. An example filed as a RULE
+    reaches the prompt with its own conclusion in it -- and `corpus_lines`,
+    `citation_index` and `ask.brief_for_grading` all withhold by KIND, so a
+    mismarking is the one thing that defeats all three at once."""
+    desk = record.load(DESK)
+    rules_held = " ".join(p.text for p in desk.passages
+                          if p.kind == record.RULE).casefold()
     for e in ex.examples(XML):
         opening = " ".join(e["text"].split())[:120].casefold()
-        assert opening not in corpus, (
-            f"({e['para']})({e['sub']}) Example {e['n']} is in the authority")
+        assert opening not in rules_held, (
+            f"({e['para']})({e['sub']}) Example {e['n']} is filed as a rule")
     for q in desk.problems:
         probe = max(re.split(r"(?<=\.)\s+", q.facts), key=len).casefold()
-        assert probe not in corpus, f"{q.id}'s facts are in the authority"
+        assert probe not in rules_held, (
+            f"{q.id}'s facts are among the rules, so they reach the prompt")
 
 
 def test_checked_on_a_rule_passage_is_the_fetch_date_never_the_run():
@@ -296,7 +334,22 @@ def test_build_refuses_a_problem_whose_stipulation_names_its_own_rule(tmp_path):
     assert [(e["title"], e["rule"]) for e, _ in kept] == [("Clean.", "(j)")]
     assert "**Citation:** 26 CFR 1.263(a)-3(j)\n" in problems[0]
     assert "(j)(1)" not in problems[0].split("**Facts:**")[1]
-    assert len(passages) == 3, "(j), (j)(1) and (j)(2), never the examples"
+    # THREE RULES AND BOTH EXAMPLES. This asserted `== 3, "never the examples"`
+    # until 7 September 2026; the examples are stored now and marked, so
+    # `ask.brief_for_grading` can withhold them by kind instead of the corpus
+    # never having them. What it was really protecting still holds: the passage
+    # count has no relation to the problem count -- here five against one.
+    assert len(passages) == 5
+    rules = [x for x in passages if "**Kind:** rule" in x]
+    stored_examples = [x for x in passages if "**Kind:** example" in x]
+    assert len(rules) == 3 and len(stored_examples) == 2
+    # AND THE ONE THAT COULD NOT BE A PROBLEM IS STILL AUTHORITY. "Leaks." was
+    # dropped above because its stipulation names its own governing paragraph --
+    # a scoring defect, not a legal one. The government still published it.
+    assert any("Example 1" in x for x in stored_examples), (
+        "the example dropped as a problem was dropped from the corpus too; "
+        "'we cannot grade this' is not 'this is not law'")
+    assert all("**Kind:** example" not in x for x in rules)
 
 
 def _kept_by_facts() -> dict:
@@ -379,4 +432,11 @@ def test_problems_md_states_the_citation_spread_and_its_baseline():
     top = max(stated.values())
     assert (f"Always citing the most common one matches {top} of "
             f"{len(desk.problems)} ({top * 100 // len(desk.problems)}%)") in text
-    assert f"holds **{len(desk.passages)}** paragraphs for **{len(desk.problems)}** problems" in text
+    # READ OFF THE PROMPT PATH, NOT OFF `desk.passages`. Since the corpus began
+    # holding the section's 117 worked examples, those two are different
+    # numbers: this desk stores 289, of which 172 are the index it cites
+    # from. The sentence claims the latter, so the check asks the code that
+    # builds the index rather than counting the record.
+    shown = len(sr.corpus_lines(desk, "index"))
+    assert shown == sum(1 for p in desk.passages if p.kind == record.RULE)
+    assert f"holds **{shown}** paragraphs for **{len(desk.problems)}** problems" in text

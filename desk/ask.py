@@ -3,7 +3,7 @@
 THIS EXISTED ONLY AS A PROMISE UNTIL 5 SEPTEMBER 2026. `routing.
 refusal_naming_the_desk` has always handed a stopped agent the sentence "Ask
 <desk> with ask_desk, then come back with the citation" — and there was no
-`ask_desk`. Seven desks, 531 stored passages, an engine that verifies every
+`ask_desk`. Seven desks, the whole stored corpus, an engine that verifies every
 citation, a gate measured at zero false refusals across 98 problems, and nothing
 a caller could invoke. The record was complete and unreachable.
 
@@ -30,7 +30,6 @@ Retained is not accepted: nothing filed is ever returned to a caller.
 """
 from __future__ import annotations
 
-import dataclasses
 from pathlib import Path
 
 import engine
@@ -136,14 +135,7 @@ def brief_for_grading(question: str, desk: record.Desk,
     this operation is policy one run in three (LOCAL-LLM-PATTERN rule 6). This is
     the choke point instead.
     """
-    return brief(question, _rules_only(desk), context)
-
-
-def _rules_only(desk: record.Desk) -> record.Desk:
-    """`desk` with its worked examples removed and everything else untouched."""
-    return dataclasses.replace(
-        desk, passages=tuple(p for p in desk.passages
-                             if p.kind != record.EXAMPLE))
+    return brief(question, desk.rules_only(), context)
 
 
 def answer(question: str, desk_name: str, *, position: str = "",

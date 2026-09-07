@@ -127,7 +127,7 @@ CHANGED = [
 ]
 
 LANDED = [
- ("New", "<b>The whole stored corpus is tied out.</b> Every one of the 531 passages the "
+ ("New", "<b>The whole stored corpus is tied out.</b> Every one of the passages the "
          "desks hand an answering agent, fetched back from the publisher that wrote it "
          "and compared. <b>No test in this repository could answer this</b> — they all "
          "read the same stored files, so a passage transcribed wrongly is stored "

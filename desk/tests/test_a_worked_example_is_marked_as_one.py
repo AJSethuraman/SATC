@@ -1,8 +1,8 @@
 """A regulation's worked examples are its best authority and its answer key.
 
 THE MEASUREMENT THAT FORCED THIS, 7 September 2026. Two agents re-fetched all 34
-declared sources and located every one of the 531 stored passages in the
-publishers' live documents -- the record is true. But across six regulations the
+declared sources and located every stored passage in the publishers' live
+documents -- the record is true. But across six regulations the
 desks hold 223,804 characters of worked examples and stored NONE of them, against
 a whole corpus of 261,740 characters. The desks were missing more authority than
 they held, from documents already fetched and already declared.
@@ -35,9 +35,11 @@ import pytest
 
 HERE = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / "tools"))
 
 import ask                                                   # noqa: E402
 import record                                                # noqa: E402
+import scoreboard_run as sr                                  # noqa: E402
 from conftest import DESKS                                   # noqa: E402
 
 _HAS_SOURCES = [d for d in sorted(DESKS.iterdir()) if (d / "SOURCES.md").is_file()]
@@ -111,15 +113,24 @@ def test_the_only_thing_that_builds_a_passage_outside_a_test_is_the_parser():
 
 # ── what is marked, in the record we actually hold ───────────────────────────
 
-def test_the_worked_examples_in_the_record_are_the_four_that_are_there():
-    """DERIVED AND COMPARED, never typed. Four, all on `personal-or-business`,
-    all IRS Pub. 587 illustrations a person chose by hand -- on the desk that
-    answers "personal or business", which is the question worked examples are
-    best at. Every other desk holds none, which is the finding."""
-    marked = {(d, p.citation) for d, p in _kinds() if p.kind == record.EXAMPLE}
-    assert len(marked) == 4, sorted(marked)
-    assert {d for d, _ in marked} == {"personal-or-business"}
-    assert all("Pub. 587" in c for _, c in marked)
+def test_the_worked_examples_in_the_record_are_where_they_should_be():
+    """DERIVED AND COMPARED, never typed.
+
+    IT WAS FOUR AN HOUR AGO, and the four are worth remembering: IRS Pub. 587
+    illustrations a person chose by hand on the desk that answers "personal or
+    business" -- the question worked examples are best at. Every other desk held
+    none, which was the finding that produced this change.
+
+    Now `fixed-assets` holds all 117 of § 1.263(a)-3's examples, because the
+    extractor stores them and marks them. The other five desks still hold none:
+    each is built from a regulation the extractor has not been re-run over, and
+    that gap is the remaining work rather than a decision.
+    """
+    per = {}
+    for d, p in _kinds():
+        if p.kind == record.EXAMPLE:
+            per[d] = per.get(d, 0) + 1
+    assert per == {"fixed-assets": 117, "personal-or-business": 4}, per
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():
@@ -186,3 +197,107 @@ def test_the_grading_brief_keeps_every_rule():
         missing = [p.citation for p in desk.passages
                    if p.kind == record.RULE and p.text[:80] not in text]
         assert not missing, f"{d.name}: the grading brief dropped rules {missing}"
+
+
+# ── the corruption the storing of examples exposed ───────────────────────────
+
+_BROKEN_HYPHEN = re.compile(r"\w- [a-z]")
+
+
+def test_no_stored_passage_has_a_word_broken_at_a_hyphen():
+    """A passage broken across a wrap must rejoin to what the publisher printed.
+
+    FOUND 7 SEPTEMBER 2026, BY DIFFING THE STORED TEXT AGAINST THE SECTION. The
+    extractor wraps at 78 columns for the diff's sake, and `textwrap` breaks on
+    hyphens by default; `parse_passages` rejoins lines with a space. So a wrap
+    landing inside "load-carrying" stored it as "load- carrying" -- text the
+    publisher never printed, in a passage that can therefore never tie out
+    again, and the tie-out is the only thing that would ever have said so.
+
+    THE EXISTING CORPUS DODGED IT ENTIRELY, which is why nothing caught it: no
+    rule paragraph happened to wrap inside a hyphenated word, so the corpus tied
+    out 531 of 531 with the bug fully present. Storing § 1.263(a)-3's worked
+    examples hit it six times in the first run.
+
+    A record that only breaks on some inputs is broken on all of them. This
+    sweeps the whole corpus rather than the six.
+    """
+    broken = []
+    for desk_name, p in _kinds():
+        for m in _BROKEN_HYPHEN.finditer(p.text):
+            broken.append(f"{desk_name} · {p.citation}: "
+                          f"{p.text[max(0, m.start() - 25):m.end() + 15]!r}")
+    assert not broken, (
+        "a word is broken at a hyphen, so the stored text is not what the "
+        "publisher printed and the passage can never tie out:\n  "
+        + "\n  ".join(broken))
+
+
+def test_the_extractor_wraps_without_breaking_hyphens():
+    """The mechanism, beside the record. The sweep above passes on a corpus that
+    was never rebuilt; this fails on the commit that reintroduces the wrap."""
+    import textwrap
+    text = ("A replaces the storage area of the truck with a new one rated for "
+            "a load-carrying capacity fifty percent greater than before, which "
+            "is a betterment.")
+    rejoined = " ".join(
+        l.lstrip("> ").strip() for l in
+        textwrap.wrap(text, 78, initial_indent="> ", subsequent_indent="> ",
+                      break_on_hyphens=False))
+    assert rejoined == text, "the wrap does not round-trip"
+    # AND THE DEFAULT REALLY DOES CORRUPT IT, so the argument above is load
+    # bearing rather than decorative.
+    with_default = " ".join(
+        l.lstrip("> ").strip() for l in
+        textwrap.wrap(text, 78, initial_indent="> ", subsequent_indent="> "))
+    assert with_default != text and "load- carrying" in with_default
+
+
+# ── what a reply is scored against must be what the prompt showed ────────────
+
+def test_the_citation_index_is_exactly_what_the_prompt_showed():
+    """A MUTATION SURVIVED WITHOUT THIS, 7 September 2026.
+
+    `corpus_lines` withholds the worked examples from a graded prompt; three
+    tests catch it if that stops. `citation_index` — the set a reply is checked
+    against to score `citation_off_index` — was changed in the same commit for
+    the same reason, and NOTHING failed when it was changed back.
+
+    The damage is quiet and points the wrong way. `citation_off_index` counts
+    replies citing something that was not in front of the model, which is the
+    one number that detects a brain answering from RECALL of the regulation
+    rather than from the brief it was handed. Counting the examples as on-index
+    makes exactly those replies read as legitimate, and the detector reports
+    fewer of the thing it exists to find.
+
+    So the two are asserted as one fact rather than separately: the index a
+    reply is scored against IS the set of citations the prompt showed.
+    """
+    for d in _HAS_SOURCES:
+        desk = record.load(d)
+        index = sr.citation_index(desk)
+        lines = [ln.strip() for ln in sr.corpus_lines(desk, "index")]
+        # COMPARED BY PREFIX, not by splitting on the separator. A citation may
+        # itself contain " — " (`IRS Pub. 587 (2025), "Exclusive Use" — the den
+        # the family also uses`), so splitting the line truncates the citation
+        # and the test fails on a record that is correct. It did.
+        assert len(lines) == len(index), (
+            f"{d.name}: the prompt shows {len(lines)} lines against an index of "
+            f"{len(index)}; a reply is scored against a set the model was not "
+            f"shown")
+        for ln in lines:
+            assert any(ln.startswith(c) for c in index), (
+                f"{d.name}: the prompt shows a citation the index does not "
+                f"carry: {ln[:70]!r}")
+        examples = {p.citation for p in desk.passages if p.kind == record.EXAMPLE}
+        assert not (examples & set(sr.citation_index(desk))), (
+            f"{d.name}: worked examples are on the index a reply is scored "
+            f"against, so citing one the model never saw reads as on-index")
+
+
+def test_that_index_still_carries_the_rules():
+    """Narrowing. An empty index would satisfy the test above perfectly."""
+    desk = record.load(DESKS / "fixed-assets")
+    index = sr.citation_index(desk)
+    rules = {p.citation for p in desk.passages if p.kind == record.RULE}
+    assert set(index) == rules and len(index) == 172, len(index)

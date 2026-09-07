@@ -532,6 +532,25 @@ class Desk:
         return next((p for p in self.positions
                      if p.citation == citation and not p.proposed), None)
 
+    def rules_only(self) -> "Desk":
+        """This desk with its worked examples withheld. FOR GRADING ONLY.
+
+        ONE DEFINITION, BECAUSE TWO WOULD DRIFT. Both readers of the record need
+        it -- `ask.brief_for_grading` for the answering side's own scoring, and
+        `scoreboard_run.corpus_lines` for the prompt a graded brain sees -- and
+        this repository has already paid for a comparison kept in two copies
+        (`comparing.py` exists because `tieout` and `proving` each had one).
+
+        WHAT IT DOES NOT TOUCH: `engine._check`. Whether a citation resolves to
+        real authority is a different question from whether a graded model was
+        shown it, and a worked example IS real authority. So an example stays
+        servable and stays unshowable, which is the split the whole `kind` field
+        exists to express.
+        """
+        import dataclasses
+        return dataclasses.replace(
+            self, passages=tuple(p for p in self.passages if p.kind != EXAMPLE))
+
     def authority_for(self, citation: str):
         """Whatever backs this citation: stored text, or the firm's own words.
 

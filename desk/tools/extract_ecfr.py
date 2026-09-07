@@ -538,13 +538,27 @@ the URL recorded there.
 source, which is why it is separate from `positions/` — that store holds what the
 firm decided, and there an agent only proposes.
 
-**What is stored: the rules, not the worked examples.** Every paragraph of the
-section outside its examples, at its full path — {elements} elements opening
-{rules} paragraphs. Not one worked example is here; the examples are the
-problems in `PROBLEMS.md`, and a corpus that held them would hold its own answer
-key. A run-in heading such as "(c) Coordination with other provisions of the
-Code—(1) In general." opens two paragraphs, so (c) is stored as its heading and
-(c)(1) as the text that follows.
+**What is stored: the rules AND the worked examples, each marked.** Every
+paragraph of the section outside its examples, at its full path — {elements}
+elements opening {rules} paragraphs, marked `Kind: rule` — and every one of the
+section's {n_examples} worked examples, complete with its conclusion, marked
+`Kind: example`. A run-in heading such as "(c) Coordination with other
+provisions of the Code—(1) In general." opens two paragraphs, so (c) is stored
+as its heading and (c)(1) as the text that follows.
+
+**Why the examples are here, and why the mark is not decoration.** They are the
+best authority in this document for classifying a real entry: the government
+applying its own rule to a fact pattern and stating the outcome. They are also
+where `PROBLEMS.md` comes from, so a graded brain that could see them would be
+handed its own answer key — which happened, and was solved as a matching puzzle
+rather than by reasoning. So they are withheld by KIND at three choke points:
+`corpus_lines` (what a graded prompt shows), `citation_index` (what a reply is
+scored against) and `ask.brief_for_grading`. An answering desk sees everything;
+a graded one sees the rules.
+
+This paragraph said "Not one worked example is here" until 7 September 2026,
+which was true of the file and wrong about the record: measured across six
+regulations, the desks were missing more authority than they held.
 
 **How the paths were reconstructed, and how that is checked.** The eCFR XML is
 flat; nesting exists only in the label sequence. Three facts about the source
@@ -633,8 +647,21 @@ def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
     run: never invent a value, and refuse rather than default.
 
     Returns `(all_examples, kept, dropped, problems, passages)`. `passages` are
-    the section's RULE paragraphs -- never the examples -- so their count has no
-    relation to the count of problems, and a test asserts it does not.
+    the section's rule paragraphs AND every worked example, each marked with its
+    `Kind`.
+
+    THAT SECOND HALF WAS ABSENT UNTIL 7 SEPTEMBER 2026, and this docstring said
+    "never the examples". The reason it said so is at the top of this file and is
+    still true: a corpus holding the examples it is also GRADED on carries its
+    own answer key, and the frontier row solved such a set as a matching puzzle.
+    What was wrong was the remedy. Dropping them fixed grading and silently cost
+    the answering side the best authority in the document -- measured at 223,804
+    characters across six regulations, against a whole corpus of 261,740.
+
+    So the examples are stored and MARKED, and `ask.brief_for_grading` withholds
+    them by kind. One store, two readers. The count of passages still has no
+    relation to the count of problems -- more so now, since every example is
+    stored and only some become problems -- and a test still asserts it.
     """
     if not checked:
         raise ValueError(
@@ -669,8 +696,20 @@ def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
             continue
         kept.append(({**e, "facts": facts, "answer": verdict, "rule": rule}, None))
 
+    # `break_on_hyphens=False`, AND IT IS A CORRECTNESS FIX RATHER THAN A STYLE
+    # ONE. textwrap breaks on hyphens by default, so a wrap landing inside
+    # "load-carrying" stores it across two lines; `parse_passages` rejoins lines
+    # with a space and the passage becomes "load- carrying", which is not what
+    # the publisher printed. That passage can never tie out again, and the
+    # tie-out is the only thing that would ever say so.
+    #
+    # Every passage stored before this change dodged it by luck -- no rule
+    # paragraph happened to wrap inside a hyphenated word. Storing the worked
+    # examples hit it six times immediately, on `(f)(4) Example 7` and five
+    # others, and only a diff of the stored text against the section found it.
     wrap = lambda t: "\n".join(textwrap.wrap(t, 78, initial_indent="> ",
-                                             subsequent_indent="> "))
+                                             subsequent_indent="> ",
+                                             break_on_hyphens=False))
     example = lambda e: f"26 CFR {section}({e['para']})({e['sub']}) Example {e['n']}"
 
     problems = [
@@ -683,9 +722,25 @@ def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
     ]
     passages = [
         f"## 26 CFR {section}{p.label}\n\n"
-        f"**Source:** {source_id} · **Checked:** {today}\n\n"
+        f"**Source:** {source_id} · **Checked:** {today} · **Kind:** rule\n\n"
         f"{wrap(p.text)}\n"
         for p in paragraphs
+    ]
+    # EVERY EXAMPLE, COMPLETE, AND `all_ex` RATHER THAN `kept`. An example that
+    # could not become a PROBLEM -- because it states two outcomes, or leans on
+    # one not shown, or names no rule -- is still authority the government
+    # published. Dropping it from the corpus for failing a scoring test would
+    # confuse "we cannot grade this" with "this is not law".
+    #
+    # STORED WITH ITS CONCLUSION, which `scoreboard.py` already required: "The
+    # desk's STORED authority is the same example complete -- conclusion
+    # included -- because that is what the authority is, and the engine needs it
+    # to verify." The PROBLEM withholds the conclusion; the passage does not.
+    passages += [
+        f"## {example(e)}\n\n"
+        f"**Source:** {source_id} · **Checked:** {today} · **Kind:** example\n\n"
+        f"{wrap(e['text'])}\n"
+        for e in all_ex
     ]
     return all_ex, kept, dropped, problems, passages
 
@@ -745,6 +800,11 @@ def write(desk_dir: Path, problems, passages, c, corpus_facts, *,
      ).write_text(EXTRACTED_HEAD.format(
         elements=corpus_facts["elements"],
         rules=len(corpus_facts["paragraphs"]),
+        # COUNTED FROM WHAT WAS STORED, not from `all_ex`. The header is the
+        # first thing a reader believes about this file, and a figure taken
+        # from the intention rather than the artifact is how "190 documents,
+        # all fine" got written about 190 unreadable ones.
+        n_examples=sum("**Kind:** example" in x for x in passages),
         readings=corpus_facts["readings"],
         cited=len(corpus_facts["cited"]),
         resolved=len(corpus_facts["resolved"]),

@@ -149,14 +149,33 @@ def corpus_lines(desk: Desk, shape: str) -> list[str]:
     first sentence -- its heading where it has one, its operative sentence where
     it does not; `text` shows all of it.
     """
+    # RULES ONLY, AND THIS IS THE LEAK'S CHOKE POINT. Since 7 September 2026 the
+    # corpus holds every worked example of the section -- 117 on `fixed-assets`
+    # alone -- because they are the best authority in the document for
+    # classifying a real entry. They are also where the PROBLEMS come from, so a
+    # prompt that showed them would hand a graded brain its own answer key.
+    #
+    # `check_no_leak` below would catch the problem's OWN example. It would not
+    # catch the other 116, and an index of 289 lines with 117 worked conclusions
+    # in it is retrieval-by-matching again, which is the failure this whole
+    # scoreboard was rebuilt to stop (`runs/2026-09-04/SCOREBOARD.md`).
+    passages = desk.rules_only().passages
     if shape == "text":
-        return [f"  {p.citation}\n    {p.text}" for p in desk.passages]
-    return [f"  {p.citation} — {_FIRST.split(p.text, 1)[0]}" for p in desk.passages]
+        return [f"  {p.citation}\n    {p.text}" for p in passages]
+    return [f"  {p.citation} — {_FIRST.split(p.text, 1)[0]}" for p in passages]
 
 
 def citation_index(desk: Desk) -> list[str]:
-    """Every citation the desk holds, as a set a reply can be checked against."""
-    return sorted({p.citation for p in desk.passages})
+    """Every citation the PROMPT showed, as a set a reply can be checked against.
+
+    RULES ONLY, FOR THE SAME REASON `corpus_lines` IS. This scores
+    `citation_off_index` -- "the brain cited something that was not in front of
+    it". Counting the worked examples as on-index would make a citation the
+    model was never shown read as a legitimate one, and quietly shrink the very
+    number that detects a model answering from recall rather than from the
+    brief.
+    """
+    return sorted({p.citation for p in desk.rules_only().passages})
 
 
 def admissible(desk: Desk) -> list[str]:
@@ -212,7 +231,18 @@ def check_no_leak(prompt: str, problem: Problem, desk: Desk,
     # the `index` shape only a passage's first sentence is shown, so a worked
     # example stored beside the rules would pass a prompt-only probe while
     # still being what the model is told it may cite.
-    stored = _bare(" ".join(p.text for p in desk.passages))
+    # THE RULES, NOT THE WHOLE RECORD, AND THE CHANGE IS DELIBERATE. This read
+    # `desk.passages` while the corpus held no example at all, so the two were
+    # the same set and the probe was exact. Since 7 September 2026 the corpus
+    # holds every worked example -- deliberately, because they are the best
+    # authority in the document for classifying an entry -- and `corpus_lines`
+    # and `citation_index` both withhold them from the prompt.
+    #
+    # So this must probe what can actually REACH the prompt. Probing the whole
+    # record instead would fire on every desk, always, for holding the authority
+    # it is now supposed to hold -- turning a leak detector into a permanent
+    # false alarm, which is how a guard gets deleted.
+    stored = _bare(" ".join(p.text for p in desk.rules_only().passages))
     for other in desk.problems:
         probe = _bare(max(_SENTENCES.split(other.facts), key=len))
         if probe in stored:

@@ -50,7 +50,7 @@ import ask                                                  # noqa: E402
 import record
 
 # THE COMPARISON LIVES IN ONE PLACE AND IT IS NOT THIS FILE. `proving` asks the
-# same question of one served answer that this asks of all 531 passages, and two
+# same question of one served answer that this asks of every stored passage, and two
 # copies of the folding table would disagree within a week. It is also the only
 # arrangement that lets `proving` be imported at all from a module the test suite
 # reaches: this file fetches, so importing it pulls in `ssl`, and the desk's
