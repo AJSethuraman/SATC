@@ -272,6 +272,10 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: is checked above; this is what `ask_desk` hands a real answerer, examples
 #: included.
 #:
+#: (Both moved on 7 September 2026 when the firm answered the fifth docket:
+#: `capitalization` gained a `Records:` line, `personal-or-business` gained a
+#: ratified position. Neither changed which desks fit.)
+#:
 #: SIX OF SEVEN DO NOT FIT AN 8,192-TOKEN WINDOW, AND SIX OF SEVEN DID NOT FIT
 #: BEFORE TODAY EITHER. Storing the worked examples made them larger; it moved
 #: no desk from fitting to not fitting. The before column is exact rather than
@@ -295,11 +299,11 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #:
 #: So the number is published, and it may only move deliberately.
 ANSWERING_BRIEF = {
-    "capitalization-and-de-minimis":   (8_286, 19_154),
+    "capitalization-and-de-minimis":   (8_328, 19_195),
     "cash-and-bank":                  (15_142, 15_142),
     "fixed-assets":                   (22_231, 75_063),
     "meals-and-entertainment":        (11_750, 11_750),
-    "personal-or-business":            (3_548,  4_052),
+    "personal-or-business":            (3_607,  4_112),
     "rewards-and-information-returns": (9_369, 20_060),
     "vehicle-expense":                (20_889, 22_329),
 }

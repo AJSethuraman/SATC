@@ -29,6 +29,8 @@ unanswerable, because it does not sit on their citation.
 
 **Position:** ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer
 
+**Ratified:** the firm, 7 September 2026 — ratified on the fifth docket, unamended and with no note, against a recommendation to ratify it as drafted.
+
 **Needs:** trade
 
 **Why:** The firm, on an agent that classified a client's J.Crew purchases as

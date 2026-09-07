@@ -221,14 +221,27 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
     not do the thing the firm objected to. Ratification is simulated here rather
     than performed; the roster in `test_a_position_is_ratified_by_the_firm.py`
     is what stops it being performed by accident.
+
+    THE REFUSAL CHANGED ON 7 SEPTEMBER 2026 AND THAT IS THE MECHANISM WORKING.
+    It was `no_field_for_this_fact`: the desk recorded nothing, so the follow-up
+    named a fact the firm had never decided to write down anywhere. That was the
+    finding — "what if this mattered only sometimes and we never even made a
+    field for it" — and the firm closed it on the fifth docket by answering
+    "Add the field".
+
+    So the desk records `capitalization_rule` now, and the refusal is
+    `context_not_on_file`: there IS somewhere to put the answer, and this
+    client's file has not got one. A different sentence, and a better one — it
+    sends someone to the client rather than to the firm.
     """
     import dataclasses
     desk = record.load(DESKS / "capitalization-and-de-minimis")
     held = [q for q in desk.positions if q.unless]
     assert len(held) == 2, [q.id for q in desk.positions if q.unless]
-    assert desk.records == (), (
-        "this desk records something now; the finding below was that it records "
-        "nothing, which is what makes the follow-up unanswerable")
+    assert desk.records == ("capitalization_rule",), (
+        f"this desk records {desk.records}; the firm answered 'Add the field' "
+        f"on the fifth docket and `capitalization_rule` is what both held "
+        f"positions ask about")
 
     for q in held:
         asif = dataclasses.replace(desk, positions=(
@@ -236,7 +249,7 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
         out = engine.serve(engine.Answer(position=q.position, citation=q.citation),
                            asif, question="do we capitalise this?")
         assert isinstance(out, engine.Refusal), f"{q.id} served broadly"
-        assert out.reason == "no_field_for_this_fact", (q.id, out.reason)
+        assert out.reason == "context_not_on_file", (q.id, out.reason)
         assert "capitalization_rule" in out.ask
 
 
@@ -288,7 +301,12 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
 
     out = front.answer("do we capitalise a $900 laptop?", src.name,
                        position=q.position, citation=q.citation, desks=desks)
-    assert out.reason == "no_field_for_this_fact"
+    # `context_not_on_file` since 7 September 2026, and the change is the point.
+    # It was `no_field_for_this_fact` while the desk recorded nothing; the firm
+    # answered "Add the field" on the fifth docket, so the question now has
+    # somewhere to be answered and this client's file simply has not answered
+    # it. The queue is what carries it either way.
+    assert out.reason == "context_not_on_file"
 
     filed = (desks / src.name / "unsupported" / "asked.md").read_text()
     assert "**Asked:**" in filed, "the follow-up never reached the queue"

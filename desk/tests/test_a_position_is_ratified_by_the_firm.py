@@ -58,6 +58,11 @@ RATIFIED = {
     # as a decision rather than a diff. Answered "Ratify it", unamended, with no
     # note — against a recommendation to narrow it, which the firm declined.
     ("rewards-and-information-returns", "POS1"): "6 September 2026",
+    # THE FIFTH DOCKET'S ONLY RATIFICATION, answered 2026-09-07T01:38Z. The firm
+    # pressed "Ratify it" with no note, on a position the docket recommended
+    # ratifying. It sat unbuilt for two hours because this session did not read
+    # the form back — see `docs/DECISIONS-2026-09-07.md`.
+    ("personal-or-business", "POS1"): "7 September 2026",
     ("vehicle-expense", "POS1"): "5 September 2026",
     ("vehicle-expense", "POS2"): "5 September 2026",
     ("vehicle-expense", "POS3"): "5 September 2026",
