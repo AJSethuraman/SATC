@@ -17,6 +17,77 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026 — the queue emptied, and the next goal named
+
+**Nothing was asked of the firm today.** The six answers of 6 September were the
+whole instruction set, and this is what they produced. Recorded here rather than
+in a docket's "what changed", because the queue is now empty and the next session
+needs to read what was done rather than infer it.
+
+| Answer | What it produced |
+|---|---|
+| *"Fix the three, flag the rest"* | #302 — the 2025 tables reconciled to enacted law |
+| *"Build it, safe-harbour tie-out first"* | #303 — safe harbour tied to IRS Pub 505 |
+| *"Ask once per folder"* + *"Warn on the screen"* | #304 — intake records arrivals |
+| *"Build it next"* | #307 — what a filed return implies, read never priced |
+| *"Read the eight and report back"* | eight read; #160 and #140 closed as superseded |
+
+**All 33 walk defects are now fixed or withdrawn.** The register reads 32 fixed,
+1 withdrawn, 0 open. It opened on 5 September at 0 of 33.
+
+### The $165 was real, and the file had predicted it
+
+`configs/crosswalk/federal/2025.yaml` carried the standard deduction as the IRS
+published it in **October 2024**. **P.L. 119-21 (OBBBA), signed 4 July 2025**,
+raised it for tax year 2025 itself. Every estimate the software produced was too
+high — $165 on a single filer with $100,000 of wages, more on a joint return.
+
+The file's own note said *"reconcile to enacted law before filing TY2025"*,
+written when the table was built, and nothing enforced it. **No test could have
+caught it**: the engine's tests work out their expected answers from the same
+table the engine reads, so the code and the tests agreed with each other while
+both were wrong about the law. `/canon:tie-out` caught it by going to the IRS.
+
+The fix was scoped by the firm's own answer — the three figures, not the whole
+Act. What OBBBA else changed (tips, overtime, car loan interest, seniors, the
+SALT cap, the child tax credit) is now **declared in the dated table** and
+printed with every estimate, because a half-reconciled table that looks current
+is more dangerous than one that is obviously stale.
+
+### Two things the work found on its own
+
+**The read of a filed return nearly missed state returns entirely.** A state
+return is its own `ReturnRecord` with a different jurisdiction, so it leaves no
+trace in the federal return's line items — and most SATC clients file an Ohio
+return. `unmatched_units()` reported it, which is what that function exists for.
+
+**`gh` cannot take a pull request out of draft on this machine.** GitHub's REST
+API works; the GraphQL API refuses with a rate limit for a user id that is not
+the one `rate_limit` reports quota for. Closing, commenting, creating and merging
+all went through REST. **#156 is merge-ready and blocked on one click** — see the
+docket.
+
+### The next goal, and where it came from
+
+Canon 1.13.0 landed today (#306) carrying behaviour 19 — *name the goal, report
+the distance, then stop* — written from the firm's own words on 7 September:
+*"i feel like sometimes the feedback is endless for the sake of being endless,
+when a stated goal can be worked towards then moved naturally."*
+
+The goal it produced, which the 7 September docket carries and which silence
+approves: **tie the rest of the withholding engine to the IRS.** Nine parts of
+that engine decide a client's number; three are now tied to a source outside our
+own code and six are not. The firm answered *"build it, safe-harbour tie-out
+first"* on the withholding service, and the remaining six are what stands between
+the estimator and something the practice can charge for.
+
+**Distance: 3 of 9 tied, 6 left** — capital-gains stacking, self-employment tax,
+Additional Medicare, Net Investment Income Tax, the per-paycheck W-4 line 4c
+arithmetic, and the paystub reader. State withholding is a tenth part and is not
+modelled at all, which is a build rather than a tie-out.
+
+---
+
 ## Sunday 6 September 2026 — six for six, and one of them is a live defect
 
 Every matter answered, and every one took the recommendation. No overrules, and
