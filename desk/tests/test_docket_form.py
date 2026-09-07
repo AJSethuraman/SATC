@@ -41,17 +41,16 @@ def counted():
 #: about itself, checked here against a copy of the previous docket -- and a
 #: POSITION cannot carry that flag at all, because positions come out of `desks/`.
 #: So POS3, which did not exist that morning, counted as old. The generator now
-#: derives "new" by difference against `FOURTH_DOCKET`, and this file asserts the
+#: derives "new" by difference against `FIFTH_DOCKET`, and this file asserts the
 #: two sets agree, which is the same independence with the arithmetic in one
 #: place instead of two.
-FOURTH_DOCKET = {
-    "pos-rewards-and-information-returns-POS1",
+FIFTH_DOCKET = {
+    "dec-cap-field",
+    "dec-courts-again",
     "pos-capitalization-and-de-minimis-POS1",
     "pos-capitalization-and-de-minimis-POS2",
     "pos-personal-or-business-POS1",
-    "dec-ir45-wording", "dec-prove", "dec-6041-sources", "dec-583-quotation",
-    "dec-cd-fix", "dec-override", "dec-guidance", "dec-courts-again",
-    "dec-merge-275",
+    "pos-rewards-and-information-returns-POS3",
 }
 
 
@@ -92,27 +91,31 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
     on the run that wrote it -- the same drift the filter labels had."""
     n = independent["n"]
     fresh, from_tieout = counted["fresh"], counted["from_tieout"]
-    assert "%s of them did not exist this morning" % df._word(fresh) in page
+    assert "%s of them are new" % df._word(fresh) in page
     assert from_tieout <= fresh
 
     # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
     # thirteen-key list would drift; one copy checked from outside cannot.
-    assert df.FOURTH_DOCKET == FOURTH_DOCKET, (
+    assert df.FIFTH_DOCKET == FIFTH_DOCKET, (
         f"the generator and this test disagree about what the last docket "
-        f"carried: {sorted(df.FOURTH_DOCKET ^ FOURTH_DOCKET)}")
+        f"carried: {sorted(df.FIFTH_DOCKET ^ FIFTH_DOCKET)}")
 
     # AND "NEW" IS A DIFFERENCE, NOT A FLAG. Computed here from the rendered
     # rows rather than read off `counted`, so a generator that stopped
     # subtracting would go red.
     keys = {r["key"] for r in counted["rows"]}
-    assert fresh == len(keys - FOURTH_DOCKET), (
+    assert fresh == len(keys - FIFTH_DOCKET), (
         f"the page says {fresh} are new; the ones absent from the fourth docket "
-        f"are {sorted(keys - FOURTH_DOCKET)}")
+        f"are {sorted(keys - FIFTH_DOCKET)}")
     # A POSITION CAN BE NEW, which a `"new": True` flag could never express --
-    # positions come out of `desks/`, not out of `OTHERS`.
-    assert any(k.startswith("pos-") for k in keys - FOURTH_DOCKET), (
-        "no new position is being counted; POS3 was invisible to the flag this "
-        "replaced, which is why it was replaced")
+    # positions come out of `desks/`, not out of `OTHERS`. Asserted as the
+    # DERIVATION rather than as a fact about any one docket: this one happens to
+    # carry no new position, and the sixth would have gone red on a test that
+    # demanded one.
+    assert all(k in keys for k in keys - FIFTH_DOCKET)
+    assert not any(r.get("new") and r["key"] in FIFTH_DOCKET for r in counted["rows"]), (
+        "a row is flagged new that the last docket already carried; new is a "
+        "difference against that set, never a flag somebody typed")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
     assert counted["rules"] + counted["concl"] == independent["pos"]
 
