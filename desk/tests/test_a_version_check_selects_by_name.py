@@ -47,17 +47,41 @@ def _docs() -> list[pathlib.Path]:
     return sorted(HERE.glob("docs/*.md")) + sorted(HERE.glob("*.md"))
 
 
-def test_no_document_reads_the_listing_by_position():
+def test_no_command_a_reader_runs_reads_the_listing_by_position():
+    """A COMMAND, not every mention of the string.
+
+    The first version of this went red on the record of the very defect it
+    guards: `DECISIONS-2026-09-07-EIGHTH.md` quotes the broken lookup in the
+    paragraph explaining why it was broken. A guard that forbids a document from
+    QUOTING a defect makes the log unwritable, and the log is how the next
+    session learns the defect exists.
+
+    So it applies to a line that is a command — one carrying `python3`, which is
+    what the reader pastes. **This is deliberately narrower than the string.** A
+    positional lookup published some other way, in a fenced block with no
+    interpreter on the line, would pass here; the second test below is what
+    actually exercises what the documents publish, and it would catch that."""
     bad = []
     for p in _docs():
         for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-            if BY_POSITION.search(line):
+            if "python3" in line and BY_POSITION.search(line):
                 bad.append(f"{p.relative_to(HERE)}:{n}")
     assert not bad, (
-        "a version lookup selects a plugin by position: " + ", ".join(bad)
+        "a command selects a plugin by position: " + ", ".join(bad)
         + ". Name it — `next(p['version'] for p in ... if p['name']=='desk')` — "
         "or the command prints another plugin's version the day the listing "
         "is reordered, to a reader using it to check their install")
+
+
+def test_the_record_may_still_quote_the_defect_it_records():
+    """Pinned, because the narrowing above is the kind that gets tightened back
+    by a later session reading only the pattern and not the reason."""
+    log = HERE / "docs" / "DECISIONS-2026-09-07-EIGHTH.md"
+    body = log.read_text(encoding="utf-8")
+    quoted = [ln for ln in body.splitlines() if BY_POSITION.search(ln)]
+    assert quoted, "the log no longer quotes the lookup it was written about"
+    assert not any("python3" in ln for ln in quoted), (
+        "the log quotes it as a runnable command; quote the expression alone")
 
 
 def test_the_command_the_documents_publish_actually_returns_this_plugin():

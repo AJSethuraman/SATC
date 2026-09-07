@@ -124,6 +124,23 @@ certifying a stale one. Selecting by name now, and
 these documents, evaluates each published snippet to check it returns *this*
 plugin, and holds the listing and the manifest to the same number.
 
+**And that guard went red in CI on this very entry.** Its first version forbade
+the string anywhere in these documents, so the paragraph above — which quotes
+the broken lookup in order to explain it — tripped it. **A guard that stops the
+record from quoting a defect makes the log unwritable**, and the log is how the
+next session learns the defect existed at all. It applies to a line carrying
+`python3` now: a command the reader pastes, rather than every mention. A second
+test pins that the record still quotes it, because a narrowing like this is
+exactly what a later session tightens back after reading the pattern and not the
+reason.
+
+**The process failure underneath it is mine and worth more than the fix.** The
+suite was green at 653; I then wrote this log entry and pushed in the same
+breath, without re-running. The rule I broke is the one in the workflow I was
+following — *one validated push beats three speculative ones* — and the file I
+edited after the last green run was a document, which is the category that feels
+like it cannot break a build. It can: the checks here read the documents.
+
 ---
 
 ## What is left before a pilot
