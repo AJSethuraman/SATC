@@ -365,3 +365,75 @@ score. I wrote a measurement into a goal without checking the measurement was
 possible, and repeated it in a commit message. Behaviour 20 asks a goal to be
 shaped so it can refuse; this one asked for something the system refuses on
 purpose.
+
+---
+
+## The Next is met: 18 of 18 answered, and one defect found twice
+
+`runs/asked-2026-09-07/served.json`. **6 the engine would serve, 12 it would
+refuse.** Nothing here is a score — whether a served conclusion is right is the
+firm's to say.
+
+| refusal | n | what it is |
+|---|---|---|
+| `context_not_on_file` | 5 | the follow-up the firm ratified, firing |
+| `authority_absent` | 4 | the question reached a desk that does not hold it |
+| `citation_does_not_support` | 2 | **the defect** |
+| `facts_not_established` | 1 | the rule is clear; a fact about the client is not |
+
+**Eleven of the twelve refusals are the desk working.** Five are the follow-up
+the firm held two positions for and then ratified on the sixth docket, now firing
+on real questions rather than on fixtures: Q4 and Q16 will not apply the firm's
+$2,500 default without knowing whether this client is treated differently on
+`capitalization_rule`; Q8 will not apply the J.Crew rule without `trade` on file;
+Q9 and Q29 will not apply the rewards position without `taxpayer`. Four are a
+question reaching the wrong desk, and **three of those four also reached the
+right desk, which answered**.
+
+### The defect, and it appeared twice on two different desks
+
+Both times the desk held exactly the right authority and the per-subject
+narrowing refused it.
+
+**Q18, cash-and-bank.** § 1.446-1(a)(4)(ii) says it in the regulation's own
+words — *"expenditures made during the year shall be properly classified as
+between capital and expense… plant and equipment, which have a useful life
+extending substantially beyond the taxable year, shall be charged to a capital
+account"*. Refused:
+
+> the question is about **bank**, which this desk answers from S2;
+> `26 CFR 1.446-1(a)(4)(ii)` comes from S1
+
+The only subject the question matched is "bank", from the close's own phrase
+*"a bank feed has none"* — an incidental word, not what the question is about.
+
+**Q12, rewards-and-information-returns.** The firm's own ratified position on
+§ 1.6050W-1(c)(3). Refused:
+
+> the question is about **peer-to-peer, 1099-nec**, which this desk answers from
+> S11, S3; `26 CFR 1.6050W-1(c)(3)` comes from S6
+
+**The desk refused the firm's own ratified position** because the question's
+matching words are registered to different sources.
+
+This is the mirror of the defect `fixed-assets/SUBJECTS.md` already records:
+there the subjects were the regulation's vocabulary while the questions were the
+situation's. Here a situation word matched and the subject it named was the wrong
+one. **Not worked around** — the check is not loosened to produce a served
+answer.
+
+### The 63 worked examples were in front of me for all 18 and I cited none
+
+Measured rather than assumed, and it is the deflating half of today. Every brief
+carried its desk's full authority, examples included. All 18 answers rest on a
+rule or on the firm's own words. These questions ask *which rule applies* and
+*which fact is missing* — they are not fact patterns to be matched against a
+worked example. That does not make the examples worthless; it says what they are
+for is the question a bookkeeper asks about a specific entry, and none of these
+18 is that.
+
+### And a routing finding from before any of them were answered
+
+The vehicle desk gained 12 worked examples today and **not one of the 18
+questions reaches it.** Either the close never raised a vehicle question or the
+routing does not fire on one; this does not say which.

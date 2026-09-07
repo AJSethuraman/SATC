@@ -189,29 +189,33 @@ NEXT = {
  "ends": "It ends when all 18 are answered, each one showing the conclusion, "
          "the citation behind it, how binding that authority is, and whether "
          "the engine would let it out at all.",
- "distance": "0 of 18 answered.",
- "detail": "<b>Nothing has ever been asked to reason on this record.</b> Every "
-           "number I have given you all day \u2014 790 passages, 63 examples, "
-           "585 tests \u2014 measures the library and the machinery. None of it "
-           "measures an answer. These 18 come from a real close that could not "
-           "finish, they have no answer key, and that is the point: what comes "
-           "back is what a desk would hand a preparer.<br><br>"
-           "<b>This goal refuses two things, and naming them is the rule.</b> It "
-           "refuses the scoreboard: worked examples are withheld from anything "
-           "being graded, by three separate mechanisms, so a graded score "
-           "<i>cannot</i> move when examples are added and asking for one would "
-           "be measuring nothing. And it refuses telling you an answer is right "
-           "\u2014 nobody knows these answers, which is why they were asked. I "
-           "report what the desk would say and whether the engine would serve "
-           "it; agreeing is yours.<br><br><b>A finding already, from routing "
-           "them:</b> the vehicle desk gained 12 worked examples today and "
-           "<b>not one of the 18 questions reaches it.</b> Either the close "
-           "never raised a vehicle question or the routing does not fire on "
-           "one, and those are different problems.",
+ "distance": "18 of 18 answered. This goal is met.",
+ "detail": "<b>All 18 are answered and put through the production path: 6 the "
+           "engine would serve, 12 it would refuse.</b> Nothing here is a score "
+           "\u2014 whether a served answer is right is yours to say.<br><br>"
+           "<b>Eleven of the twelve refusals are the desk working.</b> Five are "
+           "the follow-up you held two positions for and then ratified, firing on "
+           "real questions for the first time: the desk will not apply your "
+           "$2,500 threshold without knowing whether this client is treated "
+           "differently, and will not apply the clothing rule without the trade "
+           "on file. Four are a question reaching a desk that genuinely does not "
+           "hold the answer \u2014 and three of those four also reached the right "
+           "desk, which answered.<br><br><b>One is a real defect, and it happened "
+           "twice on two different desks.</b> The desk held exactly the right "
+           "authority and refused it, because the only subject word the question "
+           "matched was registered to a different source. On one of them it "
+           "refused <i>your own ratified position</i>. I have not loosened the "
+           "check to make it pass.<br><br><b>And the deflating half.</b> All 63 "
+           "new worked examples were in front of me for every one of the 18, and "
+           "I cited none of them. These questions ask which rule applies and "
+           "which fact is missing. They are not entries to be matched against a "
+           "worked example \u2014 which says what the examples are for, and that "
+           "none of these 18 is it.",
+
 }
 
 CHANGED = [
- ("0 of 3", "matters on the last page answered", "they are unchanged and still below"),
+ ("6 of 18", "close questions the engine would serve", "12 refused; 11 of those are the desk working"),
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("790 of 790", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
