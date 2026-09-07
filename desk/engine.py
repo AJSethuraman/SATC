@@ -243,6 +243,42 @@ class Served:
     #: were the same answer until 5 September 2026, and the difference is four
     #: served answers on that day's Forge row.
     checked_subject: bool = False
+    #: THE SENTENCE THAT TRAVELS WITH THE ANSWER, and it is computed rather than
+    #: passed so it cannot be left off.
+    #:
+    #: THE INCIDENT, 7 September 2026. A session testing the installed plugin
+    #: aimed five traps at `fixed-assets` -- the largest desk, and the one
+    #: carrying no ratified positions at all -- and FOUR SERVED. The sharpest
+    #: cited § 1.263(a)-2(d)(1),
+    #: whose text opens *"a taxpayer must capitalize amounts paid to acquire or
+    #: produce a unit of real or personal property"*, and concluded "deducted,
+    #: not capitalized" -- the literal negation of its own citation, served
+    #: `tier=primary`, `binding=True`, no caveat.
+    #:
+    #: EVERY FIELD ON THIS OBJECT IS A PROPERTY OF THE SOURCE, NOT OF THE
+    #: CONCLUSION, and together they read to an accountant as though the answer
+    #: had been checked. `tier` is the regulation's standing. `binding` says the
+    #: firm declared that source as authority that binds -- NOT that this answer
+    #: binds. `checked_subject` is word overlap between the question and the
+    #: desk's subjects. `checked` is when somebody last confirmed the PASSAGE
+    #: against its publisher. Not one of them is a statement about whether the
+    #: paragraph says what the position claims.
+    #:
+    #: The tester's words: *"Served carries no field for 'did anyone check that
+    #: this paragraph says this?'"*. It does now, and it says no.
+    #:
+    #: THE SKILL ALREADY SAID SO AND THAT WAS NOT ENOUGH. `ask-desk` carries the
+    #: sentence *"what it does not verify is that the conclusion follows"* -- in
+    #: prose, at the top, read once by the agent and gone by the time an answer
+    #: is rendered onward to a person. A warning that does not travel with the
+    #: thing it warns about is a warning nobody reads.
+    unchecked: str = ""
+    #: THE CITED TEXT, served WITH the answer rather than left to be looked up.
+    #: Until a judge exists, a person reading the answer is the only thing
+    #: standing between a desk and a wrong entry -- and that person cannot do
+    #: the one check that matters without the paragraph in front of them. Making
+    #: them go and fetch it is what makes the review nominal.
+    passage: str = ""
     #: Whether the authority behind this answer SETTLES the question or merely
     #: reads it. False means the desk answered from guidance because no rule and
     #: no position reached, which the firm allowed on 6 September 2026 -- and
@@ -868,6 +904,43 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         checked_subject=bool(
             question and any(_canon_touches()(question, t) for t in desk.fires_on)
         ),
+        # A POSITION HAS NO PASSAGE TEXT, and the first version of this served
+        # "Read the passage." with nothing under it. Found by running the round
+        # trip rather than by a test: a ratified position carries the firm's own
+        # WORDS in `.position`, and on a `human_only` source those words are the
+        # desk's entire knowledge of the authority — so they are the thing to
+        # put in front of the reader, and there is nothing else to offer.
+        passage=(getattr(passage, "text", "")
+                 or getattr(passage, "position", "") or ""),
+        # TWO DIFFERENT SENTENCES, BECAUSE TWO DIFFERENT THINGS ARE TRUE.
+        #
+        # A POSITION-BACKED ANSWER HAS BEEN CHECKED, by the firm, and saying
+        # otherwise is a lie in the safe direction -- which is still a lie, and
+        # a worse one here: a disclaimer that cries wolf on the safest answers
+        # teaches a reader to skip it on the dangerous ones. `_check` has
+        # already refused any restatement, so the words above ARE the firm's
+        # words for this citation; there is no gap between conclusion and
+        # authority to warn about. What is left unchecked is narrower and real:
+        # whether the firm's position fits THESE facts.
+        #
+        # Found by running the round trip. Printed for a person, the first
+        # version showed the firm's position as the thing to check the answer
+        # against, when the engine forces them to be identical -- so it read as
+        # "check this against itself".
+        unchecked=(
+            ("THE FIRM RATIFIED THIS CONCLUSION for this citation, and it is "
+             "served in their words rather than a restatement — the engine "
+             "refuses one that disagrees. What NOBODY checked is whether their "
+             "position fits these particular facts. That judgement is yours.")
+            if from_position else
+            ("NOBODY CHECKED THAT THIS PARAGRAPH SAYS THIS. What was checked: "
+             f"the citation resolves in this desk's record, {source.id} is a "
+             f"source this desk answers this subject from, and it is "
+             f"{source.tier} authority"
+             + (" the firm has declared binding" if binding
+                else " that does not bind")
+             + ". All of that is about the SOURCE. None of it is about the "
+               "conclusion above. Read the passage below.")),
     )
 
 

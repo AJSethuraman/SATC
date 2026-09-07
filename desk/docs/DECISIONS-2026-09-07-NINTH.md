@@ -181,3 +181,75 @@ because code guarding a case that cannot arise is worse than none.
 - **FASB's free Basic View is labelled "For Personal and Non-Commercial Use"**,
   behind a reCAPTCHA and a terms click. That is a licence question for the firm,
   not a wall to route around, and the tester correctly stopped at it.
+
+---
+
+## What the asking agent actually gets back — 0.7.2
+
+**The firm's question: "how does it respond to the original agent?"** The Forge
+tester read dataclasses. An agent does not. So the round trip was run as an
+agent runs it — `consult`, read the brief, propose, `answer` — and printed.
+
+**The architecture, said plainly, because it explains every trap in the
+report:** `consult` hands over the authority, **the agent writes the answer and
+picks the citation**, and `serve` checks that the citation resolves, that the
+source is declared for that subject, and now that the domain matches. *Nothing
+checks the reasoning.* So *"the desk says X"* is really *"an agent said X and the
+engine did not stop it."*
+
+**And every field that came back read like verification while being a property
+of the source.** `tier` is the regulation's standing. `binding` says the firm
+declared that source as authority that binds — **not that this answer binds**.
+`checked_subject` is word overlap. `checked` is when the PASSAGE was last
+confirmed. The tester: *"Served carries no field for 'did anyone check that this
+paragraph says this?'"*
+
+**The skill already said so, and that was not enough.** `ask-desk` carries the
+sentence *"what it does not verify is that the conclusion follows"* — in prose,
+at the top, read once by the agent and gone by the time an answer is rendered
+onward to a person. **A warning that does not travel with the thing it warns
+about is a warning nobody reads.**
+
+So a served answer now carries `unchecked` and `passage`, computed in `serve`
+rather than passed, and the skill requires an agent to print both. The tester's
+sharpest trap now renders as:
+
+> **deducted, not capitalized** — 26 CFR 1.263(a)-2(d)(1) · primary
+> NOBODY CHECKED THAT THIS PARAGRAPH SAYS THIS …
+> *"a taxpayer must capitalize amounts paid to acquire or produce a unit of
+> real or personal property"*
+
+**It refutes itself on sight.** It still serves — the domain guard cannot reach
+a tax question cited to a tax regulation — but a person can now do in one glance
+the check that was previously a lookup nobody performed.
+
+**`binding` was NOT renamed.** Ten call sites to fix a reading problem is the
+wrong tool; the sentence beside it says what it means instead.
+
+---
+
+## Two defects the round trip found that no test would have
+
+Both from printing it for a person rather than asserting on it.
+
+1. **"Read the passage" with no passage.** A ratified position has no passage
+   text — it carries the firm's words in `.position` — so the cash desk served a
+   disclaimer pointing at an empty string, **which is worse than no disclaimer
+   because it looks discharged**. On a `human_only` source the firm's words are
+   the desk's entire knowledge of the authority, so they are both the right
+   thing to show and the only thing there is.
+2. **"Nobody checked" was a lie on the safest answers.** A position-backed
+   answer HAS been checked — the firm ratified that conclusion for that
+   citation, and `_check` refuses any restatement, so the served words are
+   theirs. There is no gap between conclusion and authority to warn about.
+   **A disclaimer that cries wolf on the safe cases teaches a reader to skip it
+   on the dangerous ones.** Two sentences now, and what is left unchecked on a
+   ratified answer is stated and narrower: whether the firm's position fits
+   these particular facts.
+
+## What is still true and unfixed
+
+**This is presentation, not protection.** 4 of 5 aimed traps still serve on the
+largest desk. The judge — a second model handed only the paragraph and the
+conclusion — is the fix, and it is not built. What changed is that the answer no
+longer *looks* checked when it is not.
