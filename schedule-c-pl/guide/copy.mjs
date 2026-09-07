@@ -23,11 +23,11 @@
 
 export const meta = {
   title: 'What goes on each line of Schedule C',
-  strap: 'A plain-English walk through the form, box by box, written by a CPA — '
-    + 'and the eight places sole traders most often get it wrong.',
+  strap: 'A plain-English walk through the form, box by box, from Sethuraman Accounting, Tax & Consulting. '
+    + 'It names the eight places sole traders most often get it wrong.',
   intro: [
-    'Schedule C is where a sole trader tells the IRS what the business took and what it spent. '
-    + 'The arithmetic is easy. Deciding which box a cost belongs in is not, and that is where the money goes wrong.',
+    'Schedule C is the form a sole trader files to report what the business took in and what it spent over the year. '
+    + 'Most people can add their figures up; what they get wrong is which box each cost belongs in, and that is what costs money.',
     'This page goes through the form in order, and says what each box is for. '
     + 'A handful of questions depend on your own circumstances rather than on a rule. '
     + 'It says which those are.',
