@@ -41,6 +41,7 @@ sys.path.insert(0, str(ROOT))
 import cli  # noqa: E402
 import engagements  # noqa: E402
 import intake  # noqa: E402
+import pricing  # noqa: E402
 import interview as iv  # noqa: E402
 import invoicing  # noqa: E402
 import leads  # noqa: E402
@@ -501,7 +502,8 @@ def test_a_capped_line_tells_the_client_what_happens_past_the_cap(tmp_path):
 
     page = readable(render_all(past, ["fee-estimate"])["fee-estimate"])
     assert "capped at 4" in page
-    assert "billed at $150 an hour" in page, (
+    rate = f'{pricing.load()["basis"]["rate"]:g}'
+    assert f"billed at ${rate} an hour" in page, (
         "a soft cap that does not say the time is billed reads as a hard one")
 
     inside = readable(render_all(at_cap, ["fee-estimate"])["fee-estimate"])
