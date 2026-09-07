@@ -339,33 +339,31 @@ Run it before merging anything under `website/guides/`.
   particular return. They currently carry none.
 - **T-03** — is the balance sheet inside the $950 base, or a $350 add-on that was
   never built? Should T-03 be re-marked superseded?
-- **`website/TENETS.md` does not exist** on this branch or on `main`, but
-  `copy.spec.py` tells a failing reader to go read it. It is on the unmerged
-  branch behind PR #156.
 - One guide sentence rests on an IRS **practice unit** — training material, not
   authority. Cut it or source it properly.
 
 ---
 
-## 9 · State, as of 7 September 2026
+## 9 · State, as of 7 September 2026 (after the merge)
 
-`main` is the truth. This document was written on `claude/publish-guides`
-(PR #163), which is **~344 commits behind `main`** and adds six files `main` has
-never had: `build-guides.py`, `copy.spec.py`, and four under `guides/`.
+**Everything described here is on `main`.** PR #163 merged at 14:57 UTC and the
+three guides are live on satcllp.com. PR #156 merged fifteen minutes later,
+which put `website/TENETS.md` on `main` — so `copy.spec.py`'s failure message
+now points at a file that exists.
 
-**So if you start on `main`, you will not see the guides system at all.** It
-arrives only when #163 merges — and merging it publishes three new pages.
+The full published set is six HTML pages: `index.html`, `pricing.html`,
+`privacy.html`, and the three under `guides/`.
 
-`canon/` and `.claude-plugin/marketplace.json` are on `main` and **not** on that
-branch. `canon` is the firm's practice brain: `TENETS.md`, `CONVICTIONS.md`
-(the firm's own words, which Count Bassy challenges *from*, never from its own
-opinion), and standing behaviours. Read `canon/README.md` first.
+`canon/` is the firm's practice brain and it is a **plugin — installed, not
+imported**: `claude plugin update canon`. (`marketplace update` refreshes the
+listing and installs nothing; that trap is recorded in canon's own log and has
+caught a session already.) `TENETS.md`, `CONVICTIONS.md` — the firm's own words,
+which Count Bassy challenges *from* and never from its own opinion — and the
+standing behaviours. Read `canon/README.md` first.
 
-**`CLAUDE.md`'s website row is stale on `main`.** It says *"Single `index.html`,
-no build step, no framework"* and *"no test suite — drive a real browser"*. Both
-are false: `main` has `build-pricing-config.py`, `pricing.html`, `privacy.html`,
-`pricing.spec.py` and `intake.spec.py`. Fix that line early — it is the file
-loaded into every session, and it is the first thing that will mislead you.
+`CLAUDE.md`'s website row was corrected in #163. It used to say *"Single
+`index.html`, no build step, no framework"* and *"no test suite"*, which was
+false and was the file loaded into every session.
 
 ---
 
