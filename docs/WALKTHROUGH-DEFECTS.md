@@ -16,7 +16,7 @@ ports 57986 and 5061.
 
 ## Where this stands — reconciled against `main`, 5 September 2026
 
-**31 fixed, 1 withdrawn, 1 open** of 33.
+**32 fixed, 1 withdrawn, 0 open** of 33.
 
 Every heading below carries its state, and a fixed one names the commit on
 `main` that closed it. This section exists because for most of a day the
@@ -30,7 +30,7 @@ D21 was matched to #267 on the strength of the commit subject; #267 is what D21
 and it is recorded here rather than quietly fixed, because a register nobody can
 audit is worth about as much as no register.
 
-Still open: **D26**.
+**Nothing is open.** All 33 walk defects are fixed or withdrawn, the last of them on 7 September 2026.
 
 Two of those are not mine to close — **D26** (what an intake folder scan may
 honestly claim about how a document was obtained) and the final invoice derived
@@ -535,7 +535,13 @@ register and writes nothing to the second — the second being the one the page
 says a regulation requires. Nothing asks *how* it arrived, *when*, or *from
 whom*, which are precisely the three fields the citation names.
 
-## D26 · Nothing has ever written the arrivals register
+## D26 · Nothing has ever written the arrivals register — **FIXED**
+
+> **Closed 7 September 2026** by the firm's two answers of the day before:
+> *"Ask once per folder"* and *"Warn on the screen."* Intake now writes an
+> arrival for every document it reads, asking once per batch the one thing a
+> folder scan cannot know — how it got there. A skipped answer records
+> `unknown` and the screen says so; nothing blocks.
 
 **HIGH**, and found while fixing D18 rather than by walking.
 

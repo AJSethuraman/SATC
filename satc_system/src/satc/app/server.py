@@ -24,6 +24,7 @@ from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
 from satc.app.pricing_views import bp as pricing_bp
 from satc.app import navigation
+from satc.intake.arrival import choices as arrival_choices
 from satc.app.state import STATE
 from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
@@ -154,7 +155,9 @@ def create_app() -> Flask:
                        f"was read, and nothing was staged.")
         return render_template("intake.html", title="Intake", folder=folder, found=found,
                                client=client, tax_year=tax_year, problem=problem,
-                               clients=STATE.client_choices())
+                               clients=STATE.client_choices(),
+                               arrivals=arrival_choices(),
+                               arrival=request.values.get("arrival", ""))
 
     @app.route("/intake/run", methods=["POST"])
     def intake_run():
@@ -173,10 +176,12 @@ def create_app() -> Flask:
             return render_template(
                 "intake.html", title="Intake", folder=folder, found=[],
                 client=client, tax_year=tax_year, clients=STATE.client_choices(),
+                arrivals=arrival_choices(), arrival=request.values.get("arrival", ""),
                 problem=("Choose " + " and ".join(missing) + " before reading these "
                          "documents. Which client the figures belong to is not "
                          "something SATC will assume."))
-        STATE.run_intake(folder, client_id=client, tax_year=int(tax_year))
+        STATE.run_intake(folder, client_id=client, tax_year=int(tax_year),
+                         arrival=request.values.get("arrival", ""))
         return redirect(url_for("staging"))
 
     @app.route("/sort", methods=["GET", "POST"])

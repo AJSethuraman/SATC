@@ -239,6 +239,29 @@ class AppState:
         """Open requests that stop prep — the ones that are not just noise."""
         return [i for i in self.outstanding() if i.blocks_prep]
 
+    def provenance_gaps(self, client_id: str = "", tax_year: int | None = None) -> list:
+        """Arrivals whose §1.6695-2 record is incomplete. WARNS; NEVER BLOCKS.
+
+        The firm's answer to D26's second half, 6 September 2026: **"Warn on the
+        screen."** Not block — and the reasoning is the software's own. IRS Pub
+        1345 genuinely forbids transmitting before the W-2s are in hand, so a
+        MISSING DOCUMENT stops a return and should. A document that is here, and
+        whose provenance nobody wrote down, is a record-keeping gap: it is about
+        what the practice can show afterwards, not about whether the return is
+        right. Stopping an April filing over a dropdown somebody skipped in
+        February teaches people to route around the refusal, and a refusal people
+        route around is worse than a warning they read.
+
+        So this returns the rows and says nothing about whether work may
+        continue. Nothing calls `blocks_transmission` with it, deliberately.
+        """
+        rows = [d for d in self.received_documents() if not d.has_known_provenance]
+        if client_id:
+            rows = [d for d in rows if d.client_id == client_id]
+        if tax_year is not None:
+            rows = [d for d in rows if d.tax_year == tax_year]
+        return rows
+
     def returns(self):
         return self.mart.returns
 
@@ -429,7 +452,8 @@ class AppState:
         self.reload()
 
     # -- intake: actually read the files in a folder ----------------------
-    def run_intake(self, folder: str, *, client_id: str, tax_year: int) -> dict:
+    def run_intake(self, folder: str, *, client_id: str, tax_year: int,
+                   arrival: str = "") -> dict:
         """Read every file in ``folder`` and stage the values. Returns a summary.
 
         Each file is classified by *content* — not its name — so a W-2 named
@@ -451,6 +475,17 @@ class AppState:
         whoever the system happened to think of first. `DESIGN-PRINCIPLES.md` already
         says it — refuse rather than default — and this is the case it was written
         for.
+
+        ``arrival`` IS HOW THE BATCH GOT HERE, asked once on the screen — the
+        firm's answer to D26 on 6 September 2026, "ask once per folder". Until
+        then this method wrote nothing at all to the arrivals register, so the
+        register 26 CFR §1.6695-2(b)(4)(i)(C) requires had never held a real row.
+
+        It is the one thing a folder scan genuinely cannot work out: a client
+        emailed it, the preparer pulled it off a portal, it is last year's
+        carry-forward — the file on disk is identical either way. Blank resolves
+        to `not_recorded`, which writes `unknown` and lets the row flag itself
+        rather than inventing a plausible answer. See `satc.intake.arrival`.
         """
         import os
         import tempfile
@@ -474,12 +509,17 @@ class AppState:
             if root_p != folder_p and root_p not in folder_p.parents:
                 raise ValueError(f"intake folder {folder} is outside SATC_INTAKE_ROOT ({root})")
 
-        self.intake_context = {"client_id": client_id, "tax_year": tax_year}
+        from satc.intake import arrival as arrivals
+
+        how_it_arrived = arrivals.resolve(arrival)
+        self.intake_context = {"client_id": client_id, "tax_year": tax_year,
+                               "arrival": how_it_arrived.key}
         self.gate = StagingGate()          # fresh working area for this intake
         self.intake_sources = set()        # allow-list of source files for /source
         files_read = 0
         fields_staged = 0
         reconciled = 0
+        arrivals_written: list = []
         notes: list[str] = []
         allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
         classifier = load_classifier(has_key=allow_cloud)
@@ -514,6 +554,22 @@ class AppState:
 
                 for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
+                    # THE ARRIVAL, WRITTEN FOR EVERY DOCUMENT THAT CAME IN --
+                    # not only the ones that happen to close a request.
+                    #
+                    # D26: nothing in `src/` had ever written to this register.
+                    # It is done here, in the per-document loop and before the
+                    # reconciliation below, because the two registers answer
+                    # different questions: `Arrived` is what turned up, and it is
+                    # true whether or not anybody asked for it. A document nobody
+                    # requested is exactly the kind of thing a preparer needs to
+                    # see, and hanging the write off the request-matching branch
+                    # would have recorded only the expected ones.
+                    arrivals_written.append(self._arrival_from_intake(
+                        doc_id=doc_id, client_id=client_id, tax_year=tax_year,
+                        doc_type=(c.label if c.classified else "unidentified"),
+                        display_name=display, source_path=str(fpath),
+                        how_it_arrived=how_it_arrived))
                     # A multi-form page closes nothing on its own -- see
                     # matching.is_multi. It is filed and flagged; which requests
                     # it actually satisfies is the preparer's call.
@@ -574,12 +630,76 @@ class AppState:
                                  f"{len(staged.fields)} fields via {via}.")
 
         self.gate.auto_confirm_high(INTAKE)
-        if reconciled:
+        # ONE WRITE FOR THE WHOLE RUN, and it happens before the reload so the
+        # Arrived table is populated by the time the screen redraws.
+        if arrivals_written:
+            self.store.save_received_documents(arrivals_written)
+        if reconciled or arrivals_written:
             self.reload()              # refresh documents view with the new Received statuses
+
+        # SAY WHAT THE RUN RECORDED ABOUT PROVENANCE, on the page it happened on.
+        # An `unknown` batch is a legitimate answer and must not read as a
+        # failure -- but it must not pass silently either, or the register fills
+        # with gaps nobody chose.
+        if arrivals_written:
+            incomplete = [d for d in arrivals_written if not d.has_known_provenance]
+            if not incomplete:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s): "
+                    f"{how_it_arrived.label.lower()} — a complete "
+                    f"26 CFR §1.6695-2 record for each.")
+            else:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s), "
+                    f"{len(incomplete)} without complete provenance. Nothing is "
+                    f"blocked; the Documents screen flags them, and you can say "
+                    f"how each arrived there.")
+
         self.intake_summary = {"folder": folder, "files_read": files_read,
                                "fields_staged": fields_staged, "reconciled": reconciled,
+                               "arrivals": len(arrivals_written),
+                               "arrival_label": how_it_arrived.label,
                                "notes": notes}
         return self.intake_summary
+
+    def _arrival_from_intake(self, *, doc_id: str, client_id: str, tax_year: int,
+                             doc_type: str, display_name: str, source_path: str,
+                             how_it_arrived):
+        """One `ReceivedDocument` for a document a folder scan turned up.
+
+        WHAT IS DERIVED AND WHAT IS ASKED, which is the whole shape of D26:
+
+          when          NOW. When the preparer ran the intake.
+          whose         the client the run was pointed at -- `run_intake`
+                        refuses without one, so this is never a guess.
+          what          the classifier's label, or "unidentified".
+          how / channel ASKED, once, for the batch. The one thing a file on
+                        disk cannot answer.
+          from whom     the client's name where the answer says the CLIENT
+                        furnished it, and blank otherwise -- a third party
+                        sending something says who it was not, not who it was.
+
+        The id is derived from the document rather than generated, so re-running
+        an intake over the same folder updates the same rows instead of filling
+        the register with duplicates of one document.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        return ReceivedDocument(
+            document_id=f"intake-{doc_id}",
+            client_id=client_id,
+            tax_year=tax_year,
+            doc_type=doc_type,
+            obtained_how=how_it_arrived.obtained_how,
+            obtained_at=datetime.now(),
+            furnished_by=(self.name(client_id) if how_it_arrived.furnished_by_client
+                          else ""),
+            channel=how_it_arrived.channel,
+            display_name=display_name,
+            source_path=source_path,
+        )
 
     @staticmethod
     def _read_document(fpath: Path, cfg: dict, allow_cloud: bool):
