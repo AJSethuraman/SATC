@@ -17,6 +17,71 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, later — the withholding engine is tied, 9 of 9
+
+**The goal named that morning is met**, and this is what it turned out to be
+worth. It was shaped, per behaviour 20, as an outcome rather than a category:
+
+> Every figure the withholding estimator puts on a preparer's screen can be
+> checked against an IRS document — or is marked, on the screen, as not
+> checkable.
+>
+> *First thing it refuses:* building state withholding. Not modelled at all, so
+> that is a build rather than a tie-out.
+
+**Distance ran 3 → 4 → 5 → 7 → 8 → 9 of 9**, and the refusal held: state
+withholding is still not modelled and was not built.
+
+### Three defects, all in the same direction
+
+Every one of them overstated a client's tax, and not one could have been found
+from inside the repository — the engine's own tests work out their expected
+answers from the same tables the engine reads.
+
+| Found | Cost | How |
+|---|---|---|
+| The 2025 standard deduction, superseded by OBBBA in July 2025 | **$165** on a single filer with $100,000 of wages | Following the source one step past the revenue procedure |
+| Schedule SE's own $400 floor, absent from the engine | **$56.52** on net earnings of $400 | Reading the form's lines rather than its rates |
+| The 15% and 20% capital-gains rates as uncited literals | none yet — the figures were right | Noticing they were the only tax constants with no citation |
+
+### And a mutant that survived was worth more than any of them
+
+Replacing `fifteen_start = max(ordinary_ti, zero_top)` with plain `ordinary_ti`
+left all twenty-three capital-gains tests passing. The difference only shows when
+ordinary income is **below** the 0% breakpoint **and** the gain is large enough to
+reach 20% — both at once. That is a client who sells a rental or a business in a
+low-wage year, and the answer moves by **$1,405.00**. The guard was right the
+whole time; the tests were too weak to say so.
+
+### The ninth part could not be tied, and that is a verdict
+
+**The IRS publishes nothing describing a paystub.** No federal form, no standard
+layout. Some states legislate the contents — California Labor Code 226, New York
+195.3 — and **Ohio does not**, which is where most SATC clients are. The
+obstacle was attacked before being recorded and it holds.
+
+So the estimate now says so on the screen whenever a figure came off a stub, and
+names the action. The reader scores 126 of 126 on eighteen stub shapes, and that
+corpus was written here: it measures whether the reader handles the shapes
+somebody thought of. Closing it needs real client stubs scored on the Forge,
+which cannot enter this repository.
+
+### What this cost the firm: nothing
+
+No decision was asked for. Four matters from the 7 September docket are still
+open and still theirs — the withholding review's fee, the three website pull
+requests, and the two on the credit consulting line.
+
+### What is now true of the estimator
+
+`satc_system` 1,919 → 2,076 passing. Eight of its nine computations are held
+against an IRS document; the ninth is marked on screen as unprovable. Where a
+figure is incomplete — OBBBA's unmodelled deductions, net investment income's
+missing rents and royalties — the estimate prints what is missing and which way
+the error runs, rather than looking finished.
+
+---
+
 ## Monday 7 September 2026 — the queue emptied, and the next goal named
 
 **Nothing was asked of the firm today.** The six answers of 6 September were the
