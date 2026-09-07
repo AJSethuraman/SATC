@@ -334,9 +334,12 @@ Run it before merging anything under `website/guides/`.
 
 - **The three guides have not been read end to end.** The firm said so (C070 in
   `FIRM-REVIEW.md`). Checks passing is not approval.
-- **Five `[CONFIRM:]` questions** — see `--publish-ready` above. One asks whether
-  these pages should carry a line saying they are general and not advice on a
-  particular return. They currently carry none.
+- **Four `[CONFIRM:]` questions** remain, and they are three real ones — see
+  the prompt above. **The guides DO carry a not-advice line** ("This is general
+  information, not advice about a particular return"); the open question is that
+  *we wrote it*, and `docs/pricing-for-website.md` forbids inventing assurance
+  wording. A fifth marker is stale: it asks about an Ohio sentence that was cut
+  when the firm shelved Ohio.
 - **T-03** — is the balance sheet inside the $950 base, or a $350 add-on that was
   never built? Should T-03 be re-marked superseded?
 - One guide sentence rests on an IRS **practice unit** — training material, not
@@ -369,50 +372,104 @@ false and was the file loaded into every session.
 
 ## Starting a session on this
 
-Paste this. It is here rather than in a chat log because a prompt that lives in
-somebody's scrollback is a prompt the next person does not have.
+Paste this. It lives here rather than in a chat log because the session that
+needs it is by definition not the session that was told it.
 
 ```
-You own the SATC website (satcllp.com). Read website/HANDOFF.md in full first —
-it was written for you and tells you where every rule lives rather than
-restating it. Then the five documents in its opening table.
+You own the SATC website (satcllp.com) and the open decisions on it.
 
-Three things are waiting on the firm. Do not decide any of them yourself:
+GOAL: the three client guides carry wording the firm has approved, and the two
+questions the firm has not answered are answered. Done means every [CONFIRM:]
+marker is gone and `python3 website/build-guides.py --publish-ready` exits 0.
 
-1. Five [CONFIRM: ...] questions in the guide drafts — run
-   `python3 website/build-guides.py --publish-ready` to list them. The urgent
-   one: should the client guides carry a line saying they are general
-   information and not advice on a particular return? They carry none, and
-   they are live.
+That goal refuses things. It does not authorise redesigning the site, adding
+pages, or touching prices. If you think it should change, say so and restate it
+rather than widening it quietly.
 
-2. T-03. docs/pricing-open-threads.md says "Settled — all six gates added"
-   listing $350/$150/$125/$95/$250/$75. Four of those appear nowhere in
-   client-documents/registry/fee-schedule.yaml. The schedule is what ships.
-   Do not reconcile them — ask.
+FIRST: read website/HANDOFF.md in full. It tells you where every rule lives
+rather than restating it. Then the five documents in its opening table. Do not
+skip this — most of what follows will not make sense without it.
 
-3. One sentence in the S-corp guide ("Taking a property back out of a
-   corporation later is taxed as though it had been sold") rests on an IRS
-   practice unit — training material, not authority. Real citation or cut.
+THE PAGES ARE LIVE. satcllp.com/guides/records.html, /business-records.html,
+/s-corp.html. Open them in the browser and read them as a client would before
+you touch anything.
 
-Standing rules, non-negotiable:
+--- THE DECISIONS ---
 
-- You are a DOWNSTREAM RECEIVER OF PRICING. You never edit fee-schedule.yaml
-  and never type a price into the page. Suggestions go in the handoff block
-  in HANDOFF.md section 4a, for the firm to pass to the pricing agent.
-- Never push to main — it publishes to the live domain. Branch, draft PR, let
-  a human merge. Show the firm work on the Cloudflare branch preview.
+Four [CONFIRM:] markers remain in docs/guides/*.md. Run
+`python3 website/build-guides.py --publish-ready` to see them. They are three
+real questions, and one of them is asked twice.
+
+D1 · The not-advice line is OURS, not the firm's.
+    All three guides already end with "This is general information, not advice
+    about a particular return/business." Nobody approved that sentence. The
+    firm said only "it should not be taken as advice on a particular return...
+    make the wording fairly generic" — and docs/pricing-for-website.md forbids
+    inventing legal or assurance wording. So a sentence we wrote is doing
+    assurance work on a live page under a CPA's name.
+    ASK: is that sentence right, in those words? Should all three be identical?
+    RECOMMEND: get the firm's own wording, or their explicit yes to this one.
+    This is the one to close first — it is live now.
+    (docs/guides/good-records-individuals.md:113 and entity-choice.md:142)
+
+D2 · The guides say nothing about what an S corp owner pays themselves.
+    Setting or reviewing officer compensation sits OUTSIDE the flat engagement
+    (assumed.officer_compensation in fee-schedule.yaml), and the price page
+    already carries "Setting what an S corporation owner pays themselves".
+    The guides stay silent on it.
+    ASK: is silence right? An S corp owner searching this topic is exactly who
+    lands on these pages.
+    RECOMMEND: point at the price line rather than explaining the rule. Silence
+    reads as "not a thing" to someone who needs it priced.
+    (good-records-business.md:90 and entity-choice.md:130 — same question twice)
+
+D3 · One marker is STALE and should be retired, not answered.
+    entity-choice.md:137 asks about "Section 04 says a city wants the wage
+    side". That sentence no longer exists — it was cut when the firm shelved
+    Ohio ("let's focus federal then go beyond"). Section 04 now reads "Wages
+    bring state and local obligations too."
+    RECOMMEND: confirm with the firm, then delete the marker.
+
+--- ALSO OPEN, NOT BLOCKING THE GOAL ---
+
+T-03. docs/pricing-open-threads.md says "Settled 25 Aug 2026 — all six gates
+added", listing $350/$150/$125/$95/$250/$75. Four of those amounts appear
+NOWHERE in client-documents/registry/fee-schedule.yaml, and `git log -S"125"`
+on that file returns nothing. The schedule now works as starting-price + hourly
+past the assumptions, so the gates were probably superseded and the thread
+never re-marked. DO NOT reconcile them yourself — see the pricing rule below.
+
+The S-corp guide says "Taking a property back out of a corporation later is
+taxed as though it had been sold." Its only citation is an IRS practice unit —
+internal training material, not authority. Real citation or cut it.
+
+--- STANDING RULES, NON-NEGOTIABLE ---
+
+- YOU ARE A DOWNSTREAM RECEIVER OF PRICING. The firm, 7 Sep 2026: "You do not
+  making pricing changes, period... if you have suggestions, you put them that
+  way in a format where i can give them to the proper agent." Never edit
+  fee-schedule.yaml. Never type a price onto the page. Use the suggestion block
+  in HANDOFF.md section 4a.
+- NEVER PUSH TO MAIN. It publishes to the live domain. Branch, draft PR, let a
+  human merge. Show the firm work on the Cloudflare branch preview:
+  https://<branch>.satc-bdx.pages.dev
 - pricing-config.js and guides/*.html are GENERATED. Never hand-edit them.
-- Before claiming CI passed, count the check runs on your head SHA. Nine is
-  the full set. A conflicted PR silently gets no run at all, and Cloudflare's
-  deploy event looks just like CI reporting in — that cost this branch eleven
-  days.
+- BEFORE CLAIMING CI PASSED, COUNT THE CHECK RUNS on your head SHA. Nine is the
+  full set. A conflicted PR silently gets NO run at all, and Cloudflare's deploy
+  event looks just like CI reporting in. That cost this branch eleven days of
+  unnoticed untested pushes.
 - Passing copy.spec.py is necessary, not sufficient. The firm has killed
-  sentences that cleared every rule with "literally AI dribble".
+  sentences that cleared every rule with "literally AI dribble, why can't you
+  get that?"
+- A [CONFIRM:] marker is the firm's queue, not yours. Answer it with them or
+  retire it with them; never delete one to get a build green.
 
-Your first task: <fill in>.
+--- HOW TO FINISH ---
+
+Name the goal, report the distance ("2 of 3 decided, 1 left"), and stop when it
+is met — not when you have finished explaining. A wait is not a blocker: if CI
+is running, wait for it and finish. Do not hand the firm a timer.
 ```
-
----
 
 ## Commands
 
