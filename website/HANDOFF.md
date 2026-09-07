@@ -260,6 +260,28 @@ It is listed in §8 as a question for the firm.
 added to it.** That paragraph was corrected in the schedule header on 26 August
 because it previously said the opposite.
 
+**A merge conflict switches your CI off, silently.** `test.yml` runs on
+`push` to **`main` only** — on any other branch the `pull_request` event is the
+only thing that triggers it. GitHub cannot build a merge ref for a conflicted
+PR, so while `mergeable_state` is `dirty` it schedules **no run at all**. No
+failure, no warning: the checks list is simply empty, which looks identical to
+a healthy PR if you do not count it.
+
+This branch went eleven days and three pushes with no `Tests` run and it was
+not noticed, because Cloudflare deploys on every push and its
+`check_suite.completed` event arrives looking like CI reporting in.
+
+**`check_suite.completed` is not "the tests passed."** Confirm a run exists for
+your head SHA:
+
+```
+gh run list --branch <your-branch> --workflow test.yml --limit 3
+```
+
+or read the PR's check runs and count them. Six is the full set; one means only
+Cloudflare ran. `main` moves fast enough here that a week-old branch is usually
+conflicted, so check this every time you come back to one.
+
 **A `[CONFIRM: ...]` marker does not stop a guide page shipping** — it did not,
 until 7 September. `render_body()` strips HTML comments first and the guard
 inspected the stripped text, so five open questions were deleted at build time
