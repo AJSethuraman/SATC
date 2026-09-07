@@ -339,33 +339,78 @@ Run it before merging anything under `website/guides/`.
   particular return. They currently carry none.
 - **T-03** — is the balance sheet inside the $950 base, or a $350 add-on that was
   never built? Should T-03 be re-marked superseded?
-- **`website/TENETS.md` does not exist** on this branch or on `main`, but
-  `copy.spec.py` tells a failing reader to go read it. It is on the unmerged
-  branch behind PR #156.
 - One guide sentence rests on an IRS **practice unit** — training material, not
   authority. Cut it or source it properly.
 
 ---
 
-## 9 · State, as of 7 September 2026
+## 9 · State, as of 7 September 2026 (after the merge)
 
-`main` is the truth. This document was written on `claude/publish-guides`
-(PR #163), which is **~344 commits behind `main`** and adds six files `main` has
-never had: `build-guides.py`, `copy.spec.py`, and four under `guides/`.
+**Everything described here is on `main`.** PR #163 merged at 14:57 UTC and the
+three guides are live on satcllp.com. PR #156 merged fifteen minutes later,
+which put `website/TENETS.md` on `main` — so `copy.spec.py`'s failure message
+now points at a file that exists.
 
-**So if you start on `main`, you will not see the guides system at all.** It
-arrives only when #163 merges — and merging it publishes three new pages.
+The full published set is six HTML pages: `index.html`, `pricing.html`,
+`privacy.html`, and the three under `guides/`.
 
-`canon/` and `.claude-plugin/marketplace.json` are on `main` and **not** on that
-branch. `canon` is the firm's practice brain: `TENETS.md`, `CONVICTIONS.md`
-(the firm's own words, which Count Bassy challenges *from*, never from its own
-opinion), and standing behaviours. Read `canon/README.md` first.
+`canon/` is the firm's practice brain and it is a **plugin — installed, not
+imported**: `claude plugin update canon`. (`marketplace update` refreshes the
+listing and installs nothing; that trap is recorded in canon's own log and has
+caught a session already.) `TENETS.md`, `CONVICTIONS.md` — the firm's own words,
+which Count Bassy challenges *from* and never from its own opinion — and the
+standing behaviours. Read `canon/README.md` first.
 
-**`CLAUDE.md`'s website row is stale on `main`.** It says *"Single `index.html`,
-no build step, no framework"* and *"no test suite — drive a real browser"*. Both
-are false: `main` has `build-pricing-config.py`, `pricing.html`, `privacy.html`,
-`pricing.spec.py` and `intake.spec.py`. Fix that line early — it is the file
-loaded into every session, and it is the first thing that will mislead you.
+`CLAUDE.md`'s website row was corrected in #163. It used to say *"Single
+`index.html`, no build step, no framework"* and *"no test suite"*, which was
+false and was the file loaded into every session.
+
+---
+
+## Starting a session on this
+
+Paste this. It is here rather than in a chat log because a prompt that lives in
+somebody's scrollback is a prompt the next person does not have.
+
+```
+You own the SATC website (satcllp.com). Read website/HANDOFF.md in full first —
+it was written for you and tells you where every rule lives rather than
+restating it. Then the five documents in its opening table.
+
+Three things are waiting on the firm. Do not decide any of them yourself:
+
+1. Five [CONFIRM: ...] questions in the guide drafts — run
+   `python3 website/build-guides.py --publish-ready` to list them. The urgent
+   one: should the client guides carry a line saying they are general
+   information and not advice on a particular return? They carry none, and
+   they are live.
+
+2. T-03. docs/pricing-open-threads.md says "Settled — all six gates added"
+   listing $350/$150/$125/$95/$250/$75. Four of those appear nowhere in
+   client-documents/registry/fee-schedule.yaml. The schedule is what ships.
+   Do not reconcile them — ask.
+
+3. One sentence in the S-corp guide ("Taking a property back out of a
+   corporation later is taxed as though it had been sold") rests on an IRS
+   practice unit — training material, not authority. Real citation or cut.
+
+Standing rules, non-negotiable:
+
+- You are a DOWNSTREAM RECEIVER OF PRICING. You never edit fee-schedule.yaml
+  and never type a price into the page. Suggestions go in the handoff block
+  in HANDOFF.md section 4a, for the firm to pass to the pricing agent.
+- Never push to main — it publishes to the live domain. Branch, draft PR, let
+  a human merge. Show the firm work on the Cloudflare branch preview.
+- pricing-config.js and guides/*.html are GENERATED. Never hand-edit them.
+- Before claiming CI passed, count the check runs on your head SHA. Nine is
+  the full set. A conflicted PR silently gets no run at all, and Cloudflare's
+  deploy event looks just like CI reporting in — that cost this branch eleven
+  days.
+- Passing copy.spec.py is necessary, not sufficient. The firm has killed
+  sentences that cleared every rule with "literally AI dribble".
+
+Your first task: <fill in>.
+```
 
 ---
 
