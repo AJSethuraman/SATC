@@ -430,6 +430,101 @@ a covering document that stands on its own to a reader who was not here.
 The chain is proven to run on a bank it has never seen — 6 of 6 stages on cert
 6672, no script edited — so this is volume, not new ground.
 
+### The seven peers, verified — 7 September 2026
+
+All seven are in and verified, to the same standard as the twelve: forty
+quarters each, eighty-seven fields, every value checked against that bank's own
+filed Call Report and every cited row photographed off the filed page.
+
+| | |
+|---|---|
+| bank values | **66,120** (was 32,640 over twelve banks) |
+| verified against a filed Call Report | **59,544** |
+| macro observations verified | **65,843** |
+| **total values / verified** | **143,201 / 125,387** |
+| differences | **1** |
+| certificates checked against the filing's own front page | **19 of 19** |
+| merger quarters found | **33** (eleven, over the twelve banks) |
+| suite | **613 passed, 0 failed, 0 skipped** |
+
+**Distance: 7 of 7.**
+
+### What adding them found
+
+Seven banks the code had never seen found six defects. Not one was found by a
+test, and every one was in our software rather than in anybody's data.
+
+1. **Change code 216 was not on the merger allowlist.** First-Citizens absorbed
+   Silicon Valley Bridge Bank on 26 March 2023 — the largest acquisition in
+   the whole peer set — and the FDIC files it as *Bridge Bank Resolution*.
+   The allowlist refused to guess and reported it unclassified, which is what
+   an allowlist is for; a denylist would have swallowed it. Added with a test,
+   plus a second test proving an unknown code is still refused. Mutation:
+   removing 216 turns the first test red.
+
+2. **The quarter after a first-quarter merger cannot be formed from the
+   filings.** A quarterly flow is the year's running total less what was
+   already reported, and *the first quarter's published figure IS that base* —
+   there is no earlier quarter for it to be a difference of. Huntington's first
+   quarter of 2026 was the filed year-to-date less 88, and their second was the
+   year-to-date less THAT. Five values reported as differences were arithmetic
+   that could not be done.
+
+   The first version of that check asked whether the FDIC's quarters still
+   summed to the year-to-date, and took twenty-one rows that tie perfectly and
+   called them uncomparable. **Suppressing a row that ties is the same error as
+   plugging one that does not, pointed the other way.**
+
+3. **`write_config` rebuilt the rows the gates had already checked.** `build`
+   computed the config, validated it, and then `write_config` called
+   `config_rows` again from the seed — so a roster handed to `build` was
+   honoured by every gate and by nothing that reached the workbook.
+
+4. **Nineteen fields shipped with an empty units column.** `FIELD_UNITS` is
+   built from `RAW_FIELDS` and knows nothing about the nineteen fields added on
+   6 September; `.get(field, "")` answered `""` rather than refusing, so 14,440
+   numbers in the delivered CSV had no unit beside them. One helper serves both
+   sites now, and it refuses.
+
+5. **The exhibits for all seven had no pictures in them.** Every one reported
+   *0 images* and rendered perfectly. The builder reads the shrunk strips,
+   `deepstrips-grey`; the seven had only been photographed into `deepstrips`.
+   Seventy-seven documents would have shipped as prose about numbers the reader
+   cannot see. **That is tenet one, in the project the tenet is written into.**
+   The builder now refuses, loads every strip shard, and asserts no bank in the
+   set is unphotographed.
+
+6. **A four-digit certificate was read as a year.** `2270 2026` filtered for
+   the year 2270, built nothing, and reported *0 of 0* as though there were
+   nothing to do. Five of the nineteen banks have four-digit certs and none of
+   them could be selected.
+
+### The claim that was false
+
+The record said **swapping the peer group is a one-step change, no script
+edited**. Adding seven banks turned eleven tests red. What had been proved was
+that the tie-out chain runs on a new bank — not that the product's own tests
+survive a roster change, which is what the sentence says.
+
+Fixed rather than reworded. Counts come from the seed, the free slot is
+wherever the seed stops, and the parity golden builds on the roster it was
+captured with (`tests/goldens/fdic-demo-peers.json`) so it goes on pinning the ENGINE rather than the firm's
+peer list.
+
+### The one difference, and it stays one
+
+Huntington's total risk-based capital at 31 March 2026:
+
+    the filing        29,148,027   (printed page and machine-readable copy agree)
+    the FDIC          29,147,082
+    difference              -945
+
+The filing's own total capital ratio times its risk-weighted assets reproduces
+29,148,047, so the filing is internally consistent. The second column on that
+line, `RCFW3792`, reads `NR` — there is no other column it could have come
+from. **No explanation found.** It is not adjusted, rounded away or hidden: the
+row carries both figures, the gap, and the link to the filing.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

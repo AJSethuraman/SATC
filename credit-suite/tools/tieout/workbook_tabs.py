@@ -10,6 +10,7 @@ build time. If the data changes and the prose does not, the prose changes anyway
 """
 import collections
 import csv
+import json
 import pathlib
 
 CS = pathlib.Path(__file__).resolve().parents[2]
@@ -24,6 +25,11 @@ def _rows(name):
 BANK = _rows("bank-values.csv")
 MACRO = _rows("macro-observations.csv")
 MERGERS = _rows("not-comparable-periods.csv")
+#: The banks in the set that are not commercial lenders, read off the peer
+#: list rather than counted by hand in a sentence.
+OTHERS = [b["name"] for b in
+          json.loads((CS / "config" / "peers.json").read_text(encoding="utf-8"))["banks"]
+          if b["group"] == "counterparty" and b["active"]]
 
 BANK_TIED = sum(1 for r in BANK if r["verified"] == "yes")
 BANK_TREND_NO = sum(1 for r in BANK if r["usable_for_trend"] == "no")
@@ -204,10 +210,14 @@ LIMITS = [
                 "are still ratios sitting in a raw feed. To drop them, filter "
                 "BANK DATA where verified_meaning mentions the FDIC "
                 "calculating them." % n(BANK_RATIOS)),
-    ("caution", "5. THE %d BANKS ARE NOT A LIKE-FOR-LIKE PEER GROUP. Two are "
-                "custody banks and two are broker-dealer banks. Their balance "
-                "sheets are shaped nothing like a commercial lender's, and a "
-                "peer ranking that mixes them will mislead." % len(CERTS)),
+    ("caution", "5. THE %d BANKS ARE NOT A LIKE-FOR-LIKE PEER GROUP. %s are "
+                "not commercial lenders: %s. Their balance sheets are shaped "
+                "nothing like a lender's, and a peer ranking that mixes them "
+                "will mislead. They are marked group = counterparty in the "
+                "peer list, so they are straightforward to exclude. (This read "
+                "\"two custody banks and two broker-dealer banks\" until "
+                "7 September 2026, which is four, and there are three.)"
+     % (len(CERTS), len(OTHERS), ", ".join(OTHERS))),
     ("caution", "6. %s OF THE BANK VALUES ARE EXACTLY ZERO -- categories where "
                 "a bank has no exposure. %s of those were checked against an "
                 "explicit zero on the bank's own filing, so they are a "
@@ -323,9 +333,10 @@ def proven_tab(audit):
     strips = audit.get("bank_strips")
     filings = audit.get("filings_photographed")
     photo = (("%s rows of filed Call Report pages were photographed, across %s "
-              "filings -- every bank, every quarter, with the page header in "
-              "the shot so you can see whose filing it is and for which period."
-              % (n(strips), n(filings)))
+              "filings -- %s banks, every quarter of them, with the page "
+              "header in the shot so you can see whose filing it is and for "
+              "which period."
+              % (n(strips), n(filings), n(audit.get("banks_photographed", 0))))
              if strips else
              "The photograph count has not been measured for this build, so it "
              "is not stated here. That is not the same as there being none.")
@@ -418,17 +429,26 @@ def proven_tab(audit):
               "them would otherwise have been reported as the FDIC "
               "disagreeing with the filings when nothing was wrong with "
               "either." % len(MERGERS)),
-        ("p", "Adding the firm's seven peers in September 2026 found four more "
-              "faults, all in our software rather than in anybody's data. The "
-              "largest acquisition in the whole set -- First-Citizens taking "
-              "on Silicon Valley Bridge Bank in March 2023 -- was filed by the "
-              "regulator under a code the merger list did not carry, and was "
-              "reported as unrecognised rather than quietly dropped. The "
-              "quarter after a merger that lands in a first quarter turned out "
-              "not to be formable from the filings at all. The workbook "
-              "builder rebuilt the bank list AFTER checking it, so a checked "
-              "list and a built list could differ. And the nineteen fields "
-              "added a day earlier were shipping with no units beside them."),
-        ("p", "None of those four was found by a test. They were found by "
-              "pointing the same machinery at banks it had never seen."),
+        ("p", "Adding the firm's seven peers in September 2026 found six more "
+              "faults, every one of them in our software rather than in "
+              "anybody's data. The largest acquisition in the whole set -- "
+              "First-Citizens taking on Silicon Valley Bridge Bank in March "
+              "2023 -- was filed by the regulator under a code the merger list "
+              "did not carry, and was reported as unrecognised rather than "
+              "quietly dropped. The quarter after a merger that lands in a "
+              "first quarter turned out not to be formable from the filings at "
+              "all. The workbook builder rebuilt the bank list AFTER checking "
+              "it, so a checked list and a built list could differ. The "
+              "nineteen fields added a day earlier were shipping with no units "
+              "beside them."),
+        ("p", "And two in the evidence itself: the exhibits for all seven new "
+              "banks were built with NO photographs in them and rendered "
+              "perfectly, because the pictures had been cut into one folder "
+              "and read from another; and a four-digit certificate was being "
+              "read as a year, so five of the nineteen banks could not be "
+              "selected at all. The exhibit builder now refuses to finish a "
+              "document that carries values and no pictures."),
+        ("p", "None of the six was found by a test. They were found by "
+              "pointing the same machinery at banks it had never seen, and by "
+              "opening what came out."),
     ]

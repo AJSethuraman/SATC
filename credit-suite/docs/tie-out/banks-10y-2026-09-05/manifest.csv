@@ -43,6 +43,39 @@ cert,bank,year,values,tied_to_the_filing,photographs,megabytes,pdf
 7213,Citibank NA,2024,272,240,420,3.7,TIE-OUT-7213-Citibank-NA-2024.pdf
 7213,Citibank NA,2025,272,240,420,3.7,TIE-OUT-7213-Citibank-NA-2025.pdf
 7213,Citibank NA,2026,136,120,210,2.0,TIE-OUT-7213-Citibank-NA-2026.pdf
+57957,Citizens Bank NA,2016,136,116,204,2.0,TIE-OUT-57957-Citizens-Bank-NA-2016.pdf
+57957,Citizens Bank NA,2017,272,240,420,3.8,TIE-OUT-57957-Citizens-Bank-NA-2017.pdf
+57957,Citizens Bank NA,2018,272,240,420,3.8,TIE-OUT-57957-Citizens-Bank-NA-2018.pdf
+57957,Citizens Bank NA,2019,272,233,398,3.7,TIE-OUT-57957-Citizens-Bank-NA-2019.pdf
+57957,Citizens Bank NA,2020,272,240,420,3.9,TIE-OUT-57957-Citizens-Bank-NA-2020.pdf
+57957,Citizens Bank NA,2021,272,240,420,3.9,TIE-OUT-57957-Citizens-Bank-NA-2021.pdf
+57957,Citizens Bank NA,2022,272,233,398,3.8,TIE-OUT-57957-Citizens-Bank-NA-2022.pdf
+57957,Citizens Bank NA,2023,272,240,420,3.9,TIE-OUT-57957-Citizens-Bank-NA-2023.pdf
+57957,Citizens Bank NA,2024,272,240,420,3.9,TIE-OUT-57957-Citizens-Bank-NA-2024.pdf
+57957,Citizens Bank NA,2025,272,240,420,3.9,TIE-OUT-57957-Citizens-Bank-NA-2025.pdf
+57957,Citizens Bank NA,2026,136,120,210,2.0,TIE-OUT-57957-Citizens-Bank-NA-2026.pdf
+6672,Fifth Third Bank NA,2016,136,116,204,2.0,TIE-OUT-6672-Fifth-Third-Bank-NA-2016.pdf
+6672,Fifth Third Bank NA,2017,272,240,420,3.8,TIE-OUT-6672-Fifth-Third-Bank-NA-2017.pdf
+6672,Fifth Third Bank NA,2018,272,240,420,3.8,TIE-OUT-6672-Fifth-Third-Bank-NA-2018.pdf
+6672,Fifth Third Bank NA,2019,272,233,398,3.7,TIE-OUT-6672-Fifth-Third-Bank-NA-2019.pdf
+6672,Fifth Third Bank NA,2020,272,240,420,3.9,TIE-OUT-6672-Fifth-Third-Bank-NA-2020.pdf
+6672,Fifth Third Bank NA,2021,272,240,420,3.9,TIE-OUT-6672-Fifth-Third-Bank-NA-2021.pdf
+6672,Fifth Third Bank NA,2022,272,240,420,3.9,TIE-OUT-6672-Fifth-Third-Bank-NA-2022.pdf
+6672,Fifth Third Bank NA,2023,272,240,420,3.8,TIE-OUT-6672-Fifth-Third-Bank-NA-2023.pdf
+6672,Fifth Third Bank NA,2024,272,240,420,3.8,TIE-OUT-6672-Fifth-Third-Bank-NA-2024.pdf
+6672,Fifth Third Bank NA,2025,272,240,420,3.8,TIE-OUT-6672-Fifth-Third-Bank-NA-2025.pdf
+6672,Fifth Third Bank NA,2026,136,113,188,1.9,TIE-OUT-6672-Fifth-Third-Bank-NA-2026.pdf
+11063,First-Citizens Bank & Trust,2016,136,108,170,1.8,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2016.pdf
+11063,First-Citizens Bank & Trust,2017,272,224,352,3.5,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2017.pdf
+11063,First-Citizens Bank & Trust,2018,272,224,352,3.5,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2018.pdf
+11063,First-Citizens Bank & Trust,2019,272,224,352,3.4,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2019.pdf
+11063,First-Citizens Bank & Trust,2020,272,230,370,3.6,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2020.pdf
+11063,First-Citizens Bank & Trust,2021,272,236,388,3.7,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2021.pdf
+11063,First-Citizens Bank & Trust,2022,272,233,398,3.8,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2022.pdf
+11063,First-Citizens Bank & Trust,2023,272,233,398,3.8,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2023.pdf
+11063,First-Citizens Bank & Trust,2024,272,240,420,3.8,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2024.pdf
+11063,First-Citizens Bank & Trust,2025,272,240,420,3.8,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2025.pdf
+11063,First-Citizens Bank & Trust,2026,136,120,210,2.0,TIE-OUT-11063-First-Citizens-Bank-&-Trust-2026.pdf
 33124,Goldman Sachs Bank USA,2016,136,116,204,1.8,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2016.pdf
 33124,Goldman Sachs Bank USA,2017,272,240,420,3.4,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2017.pdf
 33124,Goldman Sachs Bank USA,2018,272,240,420,3.5,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2018.pdf
@@ -54,6 +87,17 @@ cert,bank,year,values,tied_to_the_filing,photographs,megabytes,pdf
 33124,Goldman Sachs Bank USA,2024,272,240,420,3.7,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2024.pdf
 33124,Goldman Sachs Bank USA,2025,272,240,420,3.7,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2025.pdf
 33124,Goldman Sachs Bank USA,2026,136,120,210,1.9,TIE-OUT-33124-Goldman-Sachs-Bank-USA-2026.pdf
+6560,Huntington National Bank,2016,136,109,182,1.8,TIE-OUT-6560-Huntington-National-Bank-2016.pdf
+6560,Huntington National Bank,2017,272,240,420,3.8,TIE-OUT-6560-Huntington-National-Bank-2017.pdf
+6560,Huntington National Bank,2018,272,237,398,3.7,TIE-OUT-6560-Huntington-National-Bank-2018.pdf
+6560,Huntington National Bank,2019,272,240,417,3.8,TIE-OUT-6560-Huntington-National-Bank-2019.pdf
+6560,Huntington National Bank,2020,272,240,420,3.9,TIE-OUT-6560-Huntington-National-Bank-2020.pdf
+6560,Huntington National Bank,2021,272,233,398,3.8,TIE-OUT-6560-Huntington-National-Bank-2021.pdf
+6560,Huntington National Bank,2022,272,240,420,3.9,TIE-OUT-6560-Huntington-National-Bank-2022.pdf
+6560,Huntington National Bank,2023,272,240,420,3.9,TIE-OUT-6560-Huntington-National-Bank-2023.pdf
+6560,Huntington National Bank,2024,272,240,420,3.9,TIE-OUT-6560-Huntington-National-Bank-2024.pdf
+6560,Huntington National Bank,2025,272,233,398,3.8,TIE-OUT-6560-Huntington-National-Bank-2025.pdf
+6560,Huntington National Bank,2026,136,108,170,1.8,TIE-OUT-6560-Huntington-National-Bank-2026.pdf
 628,JPMorgan Chase Bank NA,2016,136,116,204,2.0,TIE-OUT-628-JPMorgan-Chase-Bank-NA-2016.pdf
 628,JPMorgan Chase Bank NA,2017,272,240,420,3.9,TIE-OUT-628-JPMorgan-Chase-Bank-NA-2017.pdf
 628,JPMorgan Chase Bank NA,2018,272,240,420,3.9,TIE-OUT-628-JPMorgan-Chase-Bank-NA-2018.pdf
@@ -76,6 +120,17 @@ cert,bank,year,values,tied_to_the_filing,photographs,megabytes,pdf
 17534,KeyBank NA,2024,272,240,420,3.8,TIE-OUT-17534-KeyBank-NA-2024.pdf
 17534,KeyBank NA,2025,272,240,420,3.8,TIE-OUT-17534-KeyBank-NA-2025.pdf
 17534,KeyBank NA,2026,136,120,210,2.0,TIE-OUT-17534-KeyBank-NA-2026.pdf
+588,Manufacturers and Traders Trust,2016,136,116,204,2.0,TIE-OUT-588-Manufacturers-and-Traders-Trust-2016.pdf
+588,Manufacturers and Traders Trust,2017,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2017.pdf
+588,Manufacturers and Traders Trust,2018,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2018.pdf
+588,Manufacturers and Traders Trust,2019,272,240,420,3.8,TIE-OUT-588-Manufacturers-and-Traders-Trust-2019.pdf
+588,Manufacturers and Traders Trust,2020,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2020.pdf
+588,Manufacturers and Traders Trust,2021,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2021.pdf
+588,Manufacturers and Traders Trust,2022,272,233,398,3.8,TIE-OUT-588-Manufacturers-and-Traders-Trust-2022.pdf
+588,Manufacturers and Traders Trust,2023,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2023.pdf
+588,Manufacturers and Traders Trust,2024,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2024.pdf
+588,Manufacturers and Traders Trust,2025,272,240,420,3.9,TIE-OUT-588-Manufacturers-and-Traders-Trust-2025.pdf
+588,Manufacturers and Traders Trust,2026,136,120,210,2.0,TIE-OUT-588-Manufacturers-and-Traders-Trust-2026.pdf
 32992,Morgan Stanley Bank NA,2016,136,114,188,1.9,TIE-OUT-32992-Morgan-Stanley-Bank-NA-2016.pdf
 32992,Morgan Stanley Bank NA,2017,272,236,388,3.2,TIE-OUT-32992-Morgan-Stanley-Bank-NA-2017.pdf
 32992,Morgan Stanley Bank NA,2018,272,238,408,3.4,TIE-OUT-32992-Morgan-Stanley-Bank-NA-2018.pdf
@@ -98,6 +153,17 @@ cert,bank,year,values,tied_to_the_filing,photographs,megabytes,pdf
 6384,PNC Bank NA,2024,272,240,420,3.9,TIE-OUT-6384-PNC-Bank-NA-2024.pdf
 6384,PNC Bank NA,2025,272,240,420,3.9,TIE-OUT-6384-PNC-Bank-NA-2025.pdf
 6384,PNC Bank NA,2026,136,113,188,1.9,TIE-OUT-6384-PNC-Bank-NA-2026.pdf
+12368,Regions Bank,2016,136,116,204,2.0,TIE-OUT-12368-Regions-Bank-2016.pdf
+12368,Regions Bank,2017,272,240,420,3.8,TIE-OUT-12368-Regions-Bank-2017.pdf
+12368,Regions Bank,2018,272,240,420,3.8,TIE-OUT-12368-Regions-Bank-2018.pdf
+12368,Regions Bank,2019,272,240,420,3.7,TIE-OUT-12368-Regions-Bank-2019.pdf
+12368,Regions Bank,2020,272,240,420,3.7,TIE-OUT-12368-Regions-Bank-2020.pdf
+12368,Regions Bank,2021,272,233,398,3.6,TIE-OUT-12368-Regions-Bank-2021.pdf
+12368,Regions Bank,2022,272,240,420,3.7,TIE-OUT-12368-Regions-Bank-2022.pdf
+12368,Regions Bank,2023,272,240,416,3.7,TIE-OUT-12368-Regions-Bank-2023.pdf
+12368,Regions Bank,2024,272,240,419,3.7,TIE-OUT-12368-Regions-Bank-2024.pdf
+12368,Regions Bank,2025,272,240,420,3.7,TIE-OUT-12368-Regions-Bank-2025.pdf
+12368,Regions Bank,2026,136,120,210,1.9,TIE-OUT-12368-Regions-Bank-2026.pdf
 9846,Truist Bank,2016,136,116,204,2.0,TIE-OUT-9846-Truist-Bank-2016.pdf
 9846,Truist Bank,2017,272,240,420,3.8,TIE-OUT-9846-Truist-Bank-2017.pdf
 9846,Truist Bank,2018,272,240,420,3.8,TIE-OUT-9846-Truist-Bank-2018.pdf
@@ -131,4 +197,14 @@ cert,bank,year,values,tied_to_the_filing,photographs,megabytes,pdf
 3511,Wells Fargo Bank NA,2024,272,240,420,3.9,TIE-OUT-3511-Wells-Fargo-Bank-NA-2024.pdf
 3511,Wells Fargo Bank NA,2025,272,240,420,3.9,TIE-OUT-3511-Wells-Fargo-Bank-NA-2025.pdf
 3511,Wells Fargo Bank NA,2026,136,120,210,2.0,TIE-OUT-3511-Wells-Fargo-Bank-NA-2026.pdf
+2270,Zions Bancorporation NA,2016,136,116,204,1.9,TIE-OUT-2270-Zions-Bancorporation-NA-2016.pdf
+2270,Zions Bancorporation NA,2017,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2017.pdf
+2270,Zions Bancorporation NA,2018,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2018.pdf
+2270,Zions Bancorporation NA,2019,272,236,388,3.6,TIE-OUT-2270-Zions-Bancorporation-NA-2019.pdf
+2270,Zions Bancorporation NA,2020,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2020.pdf
+2270,Zions Bancorporation NA,2021,272,236,388,3.6,TIE-OUT-2270-Zions-Bancorporation-NA-2021.pdf
+2270,Zions Bancorporation NA,2022,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2022.pdf
+2270,Zions Bancorporation NA,2023,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2023.pdf
+2270,Zions Bancorporation NA,2024,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2024.pdf
+2270,Zions Bancorporation NA,2025,272,236,388,3.7,TIE-OUT-2270-Zions-Bancorporation-NA-2025.pdf
 2270,Zions Bancorporation NA,2026,136,118,194,1.9,TIE-OUT-2270-Zions-Bancorporation-NA-2026.pdf

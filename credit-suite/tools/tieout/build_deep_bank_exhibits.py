@@ -402,6 +402,23 @@ with (RECORD / "manifest.csv").open("w", newline="", encoding="utf-8") as fh:
         _w.writerow(rows[_k])
 print("manifest    : %d rows (%d rebuilt now, %d kept, %d dropped as missing)"
       % (len(rows), len(built), kept - len(built) - len(gone), len(gone)))
+
+# The workbook quotes the photograph counts on its WHAT WAS PROVEN tab, and it
+# read them out of a file nothing wrote. It said "63,544 rows across 480
+# filings" long after there were nineteen banks and 760 filings, because a
+# hand-written number goes on being right after it stops being true -- the same
+# fault as the "NONE DISAGREED" headline above it. Measured here, by the run
+# that makes the thing being counted.
+audit = {
+    "bank_strips": sum(int(v[5] or 0) for v in rows.values()),
+    "filings_photographed": sum(len(q) for q in strips.values()),
+    "banks_photographed": len(strips),
+    "exhibits": len(rows),
+    "exhibit_mb": round(sum(float(v[6] or 0) for v in rows.values())),
+}
+(SB / "evidence_audit.json").write_text(json.dumps(audit, indent=1),
+                                        encoding="utf-8")
+print("audit       : %s" % json.dumps(audit))
 print("exhibits in : %s" % OUT)
 print("manifest    : %s" % (RECORD / "manifest.csv"))
 print("\nexhibits built : %d of %d" % (len(built), len(pairs)))
