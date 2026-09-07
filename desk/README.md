@@ -47,34 +47,21 @@ position declares what it cannot be applied without on a `Needs:` line. Unmet, i
 refuses `context_not_on_file` — a third kind of missing thing, resolved by
 reading our own file rather than by asking the client or chasing a document.
 
-### The file those facts come out of
+### When a fact cannot be supplied
 
-`engagements.py` reads one engagement's facts off a file, so the context above
-is not typed in by hand each time.
+There is no file to create. The caller passes what it already has, and the facts
+live wherever the firm keeps them — Occam's workbook, the engagement folder, the
+interview. A desk that went looking would be inferring.
 
-```
-python tools/engagement.py new alpha-2026 > ~/engagements/alpha-2026.md
-python tools/engagement.py check ~/engagements/alpha-2026.md
-```
+Not supplying one is an answer, and there are two of them:
 
-```python
-import engagements
-context = engagements.load("~/engagements/alpha-2026.md").context()
-```
+| | Meaning | Who fixes it |
+|---|---|---|
+| `context_not_on_file` | there IS somewhere to record this and it is not recorded | a preparer fills it in |
+| `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | the firm decides the fact exists at all |
 
-**The file does not live in this plugin, and `load` refuses one that does.**
-`desk` has to lift out whole, it holds no client data, and it is a checkout that
-gets pushed — an engagement file inside it is a client's affairs one `git add -A`
-from being published. The path is the caller's.
-
-It refuses a fact no desk declares, a fact with no value, a fact with nobody's
-name and no date on it, and any value shaped like an SSN or an EIN. `gaps()`
-answers the half that matters: which declared facts this file does not record,
-and which desk will refuse without each one.
-
-Measured on 7 September 2026: of the eighteen close questions put through the
-production path, five refused `context_not_on_file`. Handed a file recording
-`trade`, `taxpayer` and `capitalization_rule`, **all five are served.**
+The second is a hole in what the firm tracks. `python3 tools/holes.py` reads both
+out of the refusal queue, holes first — see `docs/WHERE-FACTS-LIVE.md`.
 
 `skills/ask-desk` is the same thing written for an agent to follow.
 

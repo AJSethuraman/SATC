@@ -30,40 +30,30 @@ for desk, brief in ask.consult("the bank statement shows a $10 service charge "
 fact the engagement should already have recorded — what the client does, whose
 return it is. Hand it over; the desk will not work it out, deliberately.
 
-**Read them off the engagement's file rather than typing them.** One file per
-engagement, kept wherever the firm keeps its files — never inside this plugin,
-and `load` refuses a path that is.
-
 ```python
-import engagements
-
-context = engagements.load("~/engagements/alpha-2026.md").context()
+import record
 
 for desk, brief in ask.consult(
         "they bought clothing at that store — is it a personal expense?",
-        context=context):
+        context=record.Context(facts={"trade": "general contractor"})):
     ...
 ```
 
-`engagements.gaps(engagement)` tells you, before you ask anything, which facts
-no desk can be given and which desk will refuse without each one. There is a
-command for both:
+**The caller passes what it already has.** There is no file to make and no place
+to put one — the facts live wherever the firm keeps them, and this layer only
+takes them. A desk that went looking for a container would be inferring, which
+is the one thing it must not do.
 
-```
-python3 $CLAUDE_PLUGIN_ROOT/tools/engagement.py new alpha-2026 > ~/engagements/alpha-2026.md
-python3 $CLAUDE_PLUGIN_ROOT/tools/engagement.py check ~/engagements/alpha-2026.md
-```
+**When you cannot supply a fact, that is the answer, not a failure.** Two
+refusals, and they are not the same:
 
-Typing the facts inline still works and is right for a one-off:
+| | Meaning | Who fixes it |
+|---|---|---|
+| `context_not_on_file` | there IS somewhere to record this and it is not recorded | a preparer fills it in |
+| `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | the firm decides the fact exists at all |
 
-```python
-import record
-context = record.Context(facts={"trade": "general contractor"})
-```
-
-The same `context=` goes to `ask.answer(...)`. Leave it off and you get a desk
-that answers everything it can and refuses the rules that need what you did not
-say — which is the correct behaviour, not a degraded one.
+The second is a **hole in what the firm tracks**, found by real work rather than
+by an audit. `python3 $CLAUDE_PLUGIN_ROOT/tools/holes.py` reads them out.
 
 `consult` routes the question and hands back **everything that desk will let you
 answer from** — its sources, the firm's own ratified positions, and its stored
@@ -100,7 +90,7 @@ that was correct. The reasons:
 | `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
 | `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
 | `document_not_requested` | a document that already exists settles it and nobody asked for it | request it by name |
-| `context_not_on_file` | the rule needs a fact about the engagement that our own file should hold | read the file — and fix the intake that skipped it |
+| `context_not_on_file` | the rule needs a fact there IS somewhere to record and nobody has | record it — and fix the intake that skipped it |
 
 **`context_not_on_file` is not the client's fault and not the desk's.** The firm,
 5 September 2026: *"the Accountant should've already recorded and known what sort

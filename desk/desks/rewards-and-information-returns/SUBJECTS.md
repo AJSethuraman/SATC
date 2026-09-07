@@ -50,7 +50,23 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 **Answered from S5:** 1.6041-6, form 1099, nonemployee compensation, filing date, filing dates
 
-**Answered from S6:** 1.6050W-1, participating payee, payment settlement entity, third party network transaction, third party network transactions, third party settlement organization, third party payment network, payment card, payment app, payment apps, Venmo, PayPal, Cash App
+**Answered from S6:** 1.6050W-1, participating payee, payment settlement entity, third party network transaction, third party network transactions, third party settlement organization, third party payment network, payment card, payment app, payment apps, peer-to-peer, Venmo, PayPal, Cash App
+
+**`peer-to-peer` WAS REGISTERED TO S3 AND NOT TO S6, AND THAT REFUSED THE FIRM'S
+OWN RATIFIED POSITION.** POS3 sits on § 1.6050W-1(c)(3) — S6 — and says what to
+do when a payment for services shows no evidence of settling through a third
+party payment network. On 7 September the close's own question, *"do payments to
+individuals create a 1099-NEC obligation? Peer-to-peer payments to individuals
+for services can"*, matched only `peer-to-peer` and `1099-nec`, which route to S3
+and S11. The desk cited POS3 — correctly, and quoting the firm — and
+`engine.serve` refused it `citation_does_not_support`, because no source
+answering this question's subjects covers that citation.
+
+**Ratifying a position and not routing to its source is ratifying nothing**, and
+that is the same sentence this repository already wrote about admitting a
+publisher and not routing to it. A peer-to-peer payment is precisely the case
+§ 1.6050W-1(c)(3) decides; the word belongs on both sources, because both are
+genuinely on point and the desk should see them together.
 
 **Answered from S7:** rebate, rebates, purchase price, purchase price adjustment, kickbacks, Medicaid, gross receipts, discounts
 

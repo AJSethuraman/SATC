@@ -41,13 +41,15 @@ claude plugin list
 
 `desk` should read **0.5.0**.
 
-**Verified on 7 September, and it does not yet.** The marketplace installs from
-`main`, and 0.5.0 is on the branch in #316. Running the two commands today
-installs **0.4.0**, which has the searcher and the desks — the gap command below
-runs correctly against it, checked — but **not** `run-down-a-question`, the skill
-this prompt tells the session to load, and not the engagement file. So the
-install step is blocked until #316 merges. The searcher itself can be driven by
-hand at 0.4.0 by anyone who reads `tools/search_run.py`.
+**Verified by installing it, 7 September 2026.** #316 merged as `103a944` and
+0.5.0 is what the two commands now land — `run-down-a-question`, the skill this
+prompt tells the session to load, included. Confirmed from the installed copy
+rather than from the repository: `ask.consult` routed a real question and the
+gap command below ran correctly against it.
+
+*(This paragraph said the opposite for about an hour. It was written before the
+merge, correctly, and went stale the moment the merge landed — which is what a
+document that states a version always does.)*
 
 ---
 
@@ -163,7 +165,18 @@ the engine's word — it is the model's claim about its own record, and nothing
 checks it. Here the claim was false and the refusal looked exactly like the three
 correct ones. That is a real hole in the seam, recorded rather than patched.
 
-**And two other refusals in that run are a routing defect, not authority.** Q18
-at the cash desk and Q12 at the rewards desk: the desk holds the right authority
-and per-subject narrowing refuses it. Found twice, recorded, deliberately not
-worked around.
+**One other refusal in that run was a routing defect. It is fixed, and the
+second one I kept calling a defect was not.**
+
+**Q12 at the rewards desk was real.** `POS3` — ratified that afternoon — sits on
+§ 1.6050W-1(c)(3), and `peer-to-peer` was registered only to a different source.
+The desk cited the firm's own position, correctly and in their words, and the
+engine refused it. The subject is registered on both sources now and the question
+serves: 7 of 19 became 8.
+
+**Q18 at the cash desk was NOT a defect, and I said it was, twice.** That
+question — *does a hardware-store purchase ever become an asset* — reached the
+cash desk because it happens to contain the word *bank* ("a bank feed has
+none"). The cash desk has no subject registered anywhere near capital-versus-
+expense; the model reached for § 1.446-1 anyway, and the engine stopped it. That
+is the gate doing exactly its job. `fixed-assets` answered the same question.

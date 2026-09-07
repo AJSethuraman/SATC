@@ -422,6 +422,20 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
                 f"position points at and what a refusal prints; two characters "
                 f"or a bare number is an accident, not a name."
             )
+        # AND IT HAS TO LOOK LIKE A NAME. Removing the last fact from a desk on
+        # 7 September, the line was left in place reading `**Records:**
+        # *(nothing)*` -- and the parser read the placeholder AS A FACT. The desk
+        # declared it recorded something called `*(nothing)*`, `serve` would have
+        # treated it as a fact an engagement could be missing, and the brief
+        # would have printed it to an answerer. A list with nothing in it is
+        # written by leaving the list out, and this is what says so.
+        if not _FACT_NAME.match(name):
+            raise RecordError(
+                f"{desk_name}: Records names {name!r}, which is not a fact name "
+                f"-- letters, digits and underscores. A desk that records "
+                f"nothing has no `Records:` line at all; a placeholder in one is "
+                f"read as a fact and reaches an answerer as a real question."
+            )
     if len(set(records)) != len(records):
         raise RecordError(f"{desk_name}: Records names the same fact twice")
 
@@ -605,6 +619,10 @@ class Desk:
 
 
 # ── parsing ───────────────────────────────────────────────────────────────────
+
+#: What a fact may be called: the thing a position points at and a refusal
+#: prints. Letters, digits, underscores -- nothing that reads as prose.
+_FACT_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 _SUBJ_HEAD = _HEAD
