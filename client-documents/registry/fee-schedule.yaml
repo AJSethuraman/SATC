@@ -89,7 +89,38 @@ currency: USD
 # every budget below is calibrated to an estimate, not to a fact. Change the
 # rate and every budget moves with it; that is the point of storing it once.
 basis:
-  rate: 150
+  # $150 from the build until 7 September 2026, when it was measured against
+  # the profession's own survey for the first time and found to be five years
+  # stale.
+  #
+  # The National Society of Accountants Income and Fees Survey puts EAST NORTH
+  # CENTRAL -- Ohio's census district -- at $148.15 an hour for federal and
+  # state tax return work in 2020-21. Adjusted by cumulative CPI-U inflation of
+  # 23.23%, that is $182.57 in 2026 dollars. $150 was almost exactly the
+  # UNADJUSTED 2021 average: the rate had been set against a correct benchmark
+  # and then never moved.
+  #
+  # $175 closes 77% of that gap in one step rather than all of it. A 21.7% rise
+  # landing on existing clients at once is a different conversation from a
+  # 16.7% one, and this leaves room to reach par next year without a second
+  # jump. Set in September deliberately -- months before it reaches anyone in a
+  # January engagement.
+  #
+  # THE FIRM, 7 September 2026: "let's adjust hourly but keep our core pricing
+  # in place - you are the owner of tax pricing so ensure it gets updating".
+  # Core pricing is untouched: every base tier, per-unit and per-form amount in
+  # this file is a literal and none of them derive from this number. What does
+  # move with it is the published hourly rate, the five situations under
+  # `hourly:`, and the "beyond that the time is billed at {rate} an hour"
+  # phrasing wherever a cap is exceeded -- which is the rate applying, and is
+  # the point.
+  #
+  # Working: docs/pricing-the-withholding-review.md
+  rate: 175
+  rate_superseded:
+    was: 150
+    until: "2026-09-07"
+    reason: "NSA 2020-21 survey, East N. Central $148.15/hr, +23.23% CPI-U = $182.57 par"
 
   # Time rounds. Invoices do not.
   #
