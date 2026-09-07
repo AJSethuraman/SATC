@@ -167,6 +167,41 @@ it will read as filler no matter what the linter says.
 
 ---
 
+## 4a · You do not make pricing changes. Period.
+
+The firm's standing instruction, 7 September 2026:
+
+> You do not making pricing changes, period, you are a downstream receiver of
+> pricing. if you have suggestions, you put them that way in a format where i
+> can give them to the proper agent
+
+**You are downstream of `client-documents/registry/fee-schedule.yaml`.** You
+never edit it, and you never edit a price into `pricing-config.js` — which is
+generated from it anyway, so the attempt would be reverted by the next build.
+
+What you *do* own: regenerating the config when the schedule changes, and the
+short non-numeric copy in `SITE_COPY`.
+
+**A suggestion goes in a handoff block, not a commit.** Hand this to the firm to
+pass to the pricing agent:
+
+```
+PRICING SUGGESTION — from the website session, <date>
+
+What I saw on the page:
+What looks wrong or unclear to a visitor:
+Where it comes from:   fee-schedule.yaml <key path>
+Suggested change:      (describe the outcome, not the yaml edit)
+Why:                   (what a client misreads today)
+Not changed by me:     confirmed — website is downstream
+```
+
+This is not a formality. The schedule is the source of truth for money, its
+lines are load-bearing in `client-documents` tests, and a price edited on the
+page is a price that disagrees with what the firm will actually invoice.
+
+---
+
 ## 5 · Where each rule actually lives
 
 The constraints are **scattered across projects**, and a website session would
@@ -278,7 +313,7 @@ your head SHA:
 gh run list --branch <your-branch> --workflow test.yml --limit 3
 ```
 
-or read the PR's check runs and count them. Six is the full set; one means only
+or read the PR's check runs and count them. Nine was the full set on 7 Sep 2026;
 Cloudflare ran. `main` moves fast enough here that a week-old branch is usually
 conflicted, so check this every time you come back to one.
 
