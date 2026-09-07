@@ -28,8 +28,14 @@ changes nothing on disk.
 claude plugin list
 ```
 
-`desk` must read **0.5.0**. If it reads 0.4.0 the searcher's skill
-(`run-down-a-question`) and the holes report are not there.
+`desk` must read **0.6.0**. Anything lower and the holes report is not there —
+and 0.5.0 still ships the engagement file that was deleted.
+
+**A version that does not move is a version nobody gets.** `plugin update` reads
+the marketplace listing, so content merged to `main` without a bump reports
+*"already at the latest version"* and installs nothing. Caught twice on
+7 September; the second time only because the installed copy was exercised
+rather than trusted.
 
 ---
 
@@ -92,7 +98,7 @@ The second is a **hole in what the firm tracks**, and it is found by doing real
 work rather than by auditing. Read them out:
 
 ```
-python3 ~/.claude/plugins/cache/satc/desk/0.5.0/tools/holes.py
+python3 ~/.claude/plugins/cache/satc/desk/0.6.0/tools/holes.py
 ```
 
 Holes first, then gaps, never summed. **As of 7 September it reports no holes** —

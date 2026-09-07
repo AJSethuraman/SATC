@@ -39,11 +39,11 @@ Check it took:
 claude plugin list
 ```
 
-`desk` should read **0.5.0**.
+`desk` should read **0.6.0**.
 
 **Verified by installing it, 7 September 2026.** #316 merged as `103a944` and
-0.5.0 is what the two commands now land — `run-down-a-question`, the skill this
-prompt tells the session to load, included. Confirmed from the installed copy
+0.6.0 is what the two commands land, and `run-down-a-question` — the skill this
+prompt tells the session to load — is in it. Confirmed from the installed copy
 rather than from the repository: `ask.consult` routed a real question and the
 gap command below ran correctly against it.
 
