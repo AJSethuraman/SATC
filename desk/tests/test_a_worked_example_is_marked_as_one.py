@@ -158,10 +158,12 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
         if p.kind == record.EXAMPLE:
             per[d] = per.get(d, 0) + 1
     assert per == {"capitalization-and-de-minimis": 31,
+                   "cash-and-bank": 19,
                    "fixed-assets": 117,
+                   "meals-and-entertainment": 3,
                    "personal-or-business": 4,
                    "rewards-and-information-returns": 38,
-                   "vehicle-expense": 10}, per
+                   "vehicle-expense": 22}, per
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():

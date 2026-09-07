@@ -187,22 +187,23 @@ NEXT = {
          "regulations already contain \u2014 cash, vehicle and meals.",
  "ends": "It ends when each of the three holds every example its sections carry, "
          "with the before-and-after scores on the page.",
- "distance": "0 of 3 desks done.",
- "detail": "34 examples are extractable today \u2014 19 for cash, 12 for vehicle, "
-           "3 for meals. A further <b>29 exist and the reader cannot see any of "
-           "them</b>: three of the meals desk\u2019s regulations write an example "
-           "as an ordinary numbered paragraph rather than in a tagged block, so "
-           "the sections read perfectly and still yield nothing. All 29 are on "
-           "meals \u2014 the desk that looked thin and was actually unreadable in "
-           "a second way nobody had counted. Found while checking a number for "
-           "this page.",
+ "distance": "2 of 3 desks done \u2014 cash and vehicle are complete.",
+ "detail": "<b>The 34 that could be extracted are in</b>, and every one of the "
+           "761 stored passages was fetched back from its publisher and compared "
+           "word for word \u2014 0 differences, 0 unreachable. Cash went from no "
+           "worked examples to 19 and vehicle from 10 to 22; both are complete."
+           "<br><br><b>Meals is the one left, and it is short by 29.</b> Three of "
+           "its regulations write an example as an ordinary numbered paragraph "
+           "rather than in a tagged block, so those sections read perfectly and "
+           "the extractor returns nothing from them. It has 3 of the 32 examples "
+           "its own authority carries. That is the rest of this goal.",
 }
 
 CHANGED = [
  ("8 of 8", "matters you answered last time", "two were instructions to build; both are built"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("34", "worked examples ready to add", "and 29 more the reader still cannot see"),
- ("2 of 4", "passages the searcher found and proved", "on its first real question"),
+ ("34", "worked examples added, all tied out", "and 29 more the reader still cannot see"),
+ ("761 of 761", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("585", "desk tests passing", "514 when today\u2019s work started; 47 of the new ones are the searcher\u2019s"),
 ]
 
@@ -236,8 +237,13 @@ LANDED = [
            "\u201c(v)\u201d was a candidate rule on any regulation whose examples "
            "live under (v). Same class as the four examples filed under the wrong rule "
            "on Saturday."),
- ("Found", "<b>29 worked examples exist that the reader cannot see at all</b>, all of "
-           "them on the meals desk. It is the Next above."),
+ ("New", "<b>Two of the three thin desks now hold their regulations\u2019 worked "
+         "examples.</b> Cash had none and has 19; vehicle had 10 and has 22; meals "
+         "had none and has 3. Every one was fetched back from its publisher and "
+         "matched word for word, along with all 727 that were already there."),
+ ("Found", "<b>29 more worked examples exist that the reader cannot see at all</b>, "
+           "every one of them on the meals desk. It is the Next above, and it is "
+           "why meals holds 3 of the 32 its own authority carries."),
 ]
 
 UNCHECKED = [
@@ -246,9 +252,11 @@ UNCHECKED = [
   "books."),
  ("No desk has met a real client file.", "Still true, still deliberate, and still the "
   "largest gap between this and something you could use."),
- ("Nothing was added to any desk.", "So no desk\u2019s score has moved, and none of "
-  "today\u2019s work has been measured by what it does to an answer. That is the "
-  "Next."),
+ ("No desk\u2019s score has been re-measured since the examples went in.", "Scoring "
+  "asks a model to answer, and no model has been asked anything today. What IS "
+  "measured is that the brief a GRADED model sees did not change size on any of the "
+  "seven desks \u2014 34 examples went in and the withholding held \u2014 so the "
+  "scores should not move. Should-not is not measured."),
  ("The 29 invisible examples were counted, not extracted.", "29 is the number of "
   "paragraphs that begin <i>\u201cExample 1.\u201d</i> in those three regulations. How "
   "many survive the filters that keep a desk from being tested on its own answer key "
@@ -454,10 +462,12 @@ def render() -> str:
       "something can no longer offer it as the first button. Matter 2 is what is "
       "left of that: whether the positions themselves still need a rule, which I "
       "no longer think they do.</p>"
-      "<p><b>Nothing was added to any desk.</b> All %(rat)s ratified positions "
-      "stand, no proposals are open, and the corpus is the same 727 passages it "
-      "was this morning. Every number on this page is about the machinery, not "
-      "about an answer anyone has given.</p>"
+      "<p><b>Two of the three thin desks now hold every worked example their "
+      "regulations carry.</b> 34 added \u2014 19 to cash, 12 to vehicle, 3 to "
+      "meals \u2014 and all 761 stored passages were fetched back from their "
+      "publishers and compared word for word: no differences, nothing "
+      "unreachable. All %(rat)s ratified positions stand and no proposal is "
+      "open.</p>"
     ) % {"nw": _word(c["n"]).capitalize(), "freshw": _word(c["fresh"]),
          "rat": _word(c["ratified"])}
     lede = ("%s are choices no rule settles; no position is waiting \u2014 all %s "
