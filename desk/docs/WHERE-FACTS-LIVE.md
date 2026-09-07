@@ -113,6 +113,35 @@ software. What is missing is the pointer, not the distinction.
 
 ---
 
+## The finding this file was almost the wrong answer to
+
+**`capitalization_rule` is declared and nothing implements it — and that is not
+a mistake to undo, it is a decision that was recorded and never carried out.**
+
+On the fifth docket the firm answered `dec-cap-field`: **"Add the field"**,
+closing a finding they had raised themselves — *"what if this mattered only
+sometimes and we never even made a field for it."* What got added was the
+`Records:` line on the capitalisation desk. **The field itself was never built
+anywhere**: not on the engagement record, not in the document registry, not in
+`satc_system`'s intake or models — checked, 7 September evening.
+
+So the desk now says *there is somewhere to put this and this client's file has
+not got one*, and there is nowhere. Two of the close's questions refuse that way.
+
+**A session tried to fix this by removing the declaration** so the engine would
+fire `no_field_for_this_fact` and the hole would surface. That was wrong and was
+reverted within minutes: the line is the firm's answer to a question they were
+asked, and deleting it would erase their decision rather than surface the gap.
+The tests carried the history that caught it — three of them state, in as many
+words, that the refusal changed *because* the firm said add the field.
+
+**What is actually open:** the firm decided a field should exist. Nothing built
+it. That is a piece of work, not a relabelling, and it is the largest thing
+standing between the capitalisation desk and answering the two questions it
+refuses.
+
+---
+
 ## Still unknown, and not to be guessed
 
 - Occam's workbook schema, and which sheet or field holds the client's trade.

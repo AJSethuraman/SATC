@@ -100,3 +100,68 @@ def test_it_runs_against_the_real_queue(capsys):
 def test_a_missing_queue_says_so_and_fails(capsys, tmp_path):
     assert holes.main([str(tmp_path / "nope.md")]) == 1
     assert "no queue at" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# A FACT NAME HAS TO LOOK LIKE ONE, and this is the bug that produced the rule.
+#
+# On 7 September a session set out to remove the last fact from a desk's
+# `Records:` line and left the line in place, reading `**Records:** *(nothing)*`.
+# The parser read the placeholder AS A FACT. The desk then declared it recorded
+# something called `*(nothing)*`; `serve` would have treated it as a fact an
+# engagement could be missing, and `ask.brief` would have printed it to an
+# answerer as a real question about the client.
+#
+# (The removal itself was also wrong and was reverted — the firm had answered
+# "Add the field" on `dec-cap-field` that morning, and the line is their
+# decision. The parser bug it exposed is real either way.)
+
+
+def test_a_placeholder_in_a_records_line_is_not_a_fact():
+    import record as rec
+    from pathlib import Path as _P
+    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+            .read_text(encoding="utf-8"))
+    broken = body.replace("**Records:** capitalization_rule",
+                          "**Records:** *(nothing)*")
+    with pytest.raises(rec.RecordError) as e:
+        rec.parse_subjects(broken, 'capitalization-and-de-minimis')
+    assert "not a fact name" in str(e.value)
+
+
+@pytest.mark.parametrize("name", ["*(nothing)*", "the trade", "n/a", "-", "(none)"])
+def test_only_a_name_gets_through(name):
+    import record as rec
+    from pathlib import Path as _P
+    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+            .read_text(encoding="utf-8"))
+    with pytest.raises(rec.RecordError):
+        rec.parse_subjects(body.replace("**Records:** capitalization_rule",
+                                        f"**Records:** {name}"),
+                           'capitalization-and-de-minimis')
+
+
+def test_the_real_records_lines_all_still_load():
+    """The guard must not eat the record it is guarding."""
+    import record as rec
+    n = 0
+    for d in sorted((HERE / "desks").iterdir()):
+        if (d / "SOURCES.md").is_file():
+            n += len(rec.load(d).records)
+    assert n >= 3, f"only {n} declared facts across every desk; the guard bit"
+
+
+def test_case_is_normalised_rather_than_refused():
+    """`TRADE` is not a bad name, it is the same name shouted. The parser
+    lowercases before it validates, and that is worth pinning: a guard that
+    refused it would make the record fussy about something that does not
+    matter, which is how guards get loosened later."""
+    import record as rec
+    from pathlib import Path as _P
+    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+            .read_text(encoding="utf-8"))
+    reg = rec.parse_subjects(
+        body.replace("**Records:** capitalization_rule",
+                     "**Records:** CAPITALIZATION_RULE"),
+        "capitalization-and-de-minimis")
+    assert reg.records == ("capitalization_rule",)
