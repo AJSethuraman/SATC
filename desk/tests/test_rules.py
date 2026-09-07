@@ -515,3 +515,58 @@ def _elem(text: str):
     import xml.etree.ElementTree as _ET
     frag = text.replace(ex._I0, "<I>").replace(ex._I1, "</I>")
     return _ET.fromstring(f"<P>{frag}</P>")
+
+
+# -- the four sections that still refuse, and what the evidence says ----------
+
+def test_the_cfr_does_skip_a_level_and_the_section_says_so_itself():
+    """Why § 1.446-1 cannot be read, answered from the regulation not from taste.
+
+    `placements()` admits no reading in which a level is skipped: a label opens
+    the level immediately below its parent or continues its own. § 1.446-1 goes
+    from (c)(1)(iv) straight to an italic (a), passing over the (A) level, so no
+    consistent reading exists and `outline()` refuses the whole section. Three
+    more refuse; 31 worked examples sit behind them.
+
+    THE QUESTION LOOKED LIKE A JUDGEMENT AND IS NOT ONE. A regulation cites its
+    own paragraphs, so it can be asked. § 1.446-1 names `(e)(2)(ii)(a)` --
+    roman numeral directly followed by a lowercase letter -- and thirteen more
+    like it, in its own text. The CFR skips levels, the section documents that
+    it does, and the reader is wrong to forbid it.
+
+    WHY IT IS NOT FIXED HERE. `walk()` uses one index for both the path
+    component and the alphabet level; skipping separates them, so allowing it
+    is a restructure of the placement algorithm rather than a loosened
+    condition. Italics would disambiguate it -- an italic label fits only an
+    italic level, so exactly one depth is admissible -- which is the reason to
+    expect this to come out clean rather than ambiguous. It is specified here
+    so the next session starts from the evidence instead of the puzzle.
+
+    AND NOT EVERY REFUSAL IS THIS ONE. § 1.62-2 cites no skipped path at all,
+    so whatever stops it is something else. Assuming one cause for four
+    symptoms is how a fix gets declared and only a quarter works.
+    """
+    text = XML.read_text(encoding="utf-8")
+    skipped = [p for p in ex.cited_paths(text)
+               if re.search(r"\((?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\)\([a-h]\)", p)]
+    # § 1.263(a)-3 does NOT skip, which is why it reads and why nothing above
+    # ever needed this. The evidence for skipping is in § 1.446-1, measured
+    # live on 7 September 2026: 14 of its 31 self-cited paths skip the level.
+    assert not skipped, (
+        f"§ 1.263(a)-3 now cites a skipped-level path {skipped}; it did not, "
+        f"and that is why this section reads while four others do not")
+
+
+def test_the_placement_index_is_still_the_thing_that_would_have_to_change():
+    """The restructure named, so the note above cannot rot into folklore.
+
+    `walk()` indexes the stack by depth and builds the path by appending, which
+    silently assumes path position == alphabet level. That assumption is the
+    whole obstacle, and it is one line to point at.
+    """
+    src = (ROOT / "tools" / "extract_ecfr.py").read_text(encoding="utf-8")
+    body = src.split("def placements(")[1].split("\ndef ")[0]
+    assert "stack[depth]" in body and "stack[:depth] + (label,)" in body, (
+        "`placements` no longer indexes the stack by depth. If levels and path "
+        "positions are tracked separately now, a skipped level may be readable "
+        "-- try § 1.446-1 and update the note above.")
