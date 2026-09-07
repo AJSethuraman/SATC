@@ -944,3 +944,76 @@ four answered by the firm. None deleted to make a build green.
 Still true and unchanged by any of this: **nobody has read the three guides end
 to end.** The firm said they would before publication and the pages went up
 anyway. Checks passing is not approval, and this branch does not make it one.
+
+### Tie-out: the $2,000 on the business guide, traced to the law that put it there
+
+One figure, proved link by link. `docs/tie-out/1099-nec-threshold-2026-09-07/` —
+the deliverable is the PDF; everything else in the folder is what it renders from
+and the evidence it renders.
+
+**The figure was chosen because it had been wrong.** It read `$600` until a source
+pass caught it, and a business owner acts on it directly. A figure everybody
+already trusts proves nothing and costs the same.
+
+**Verdict: TIED, difference 0.** The bullet makes four claims and all four hold:
+
+| Claim on the page | Source, located |
+|---|---|
+| `$2,000` threshold | 26 U.S.C. § 6041(a), *"of $2,000 or more in any calendar year"*; IRS Instructions Rev. 12/2026, *"at least $2,000"* |
+| was `$600` | OLRC amendment note: *Pub. L. 119–21, §70433(a), substituted "$2,000" for "$600"* |
+| indexes from 2027 | § 6041(h), *"any calendar year after 2026"*, rounded to the nearest $100 |
+| due 31 January | § 6071(c), restated in the instructions |
+
+Two branches of government, three documents, none of them ours. The statute was
+read **twice** — Cornell LII and uscode.house.gov — and the two agree.
+
+### What running it found
+
+**One. The page states a date that has moved in each of the last two seasons and
+does not say it moves.** The bullet says *"due... by January 31"* and stops. January
+31 is the statutory date, so the page is not wrong — but 31 January 2026 was a
+Saturday and the IRS's own General Instructions said **2 February 2026**; 31 January
+2027 is a Sunday, so the date a reader will actually face is **1 February 2027**.
+
+The firm gave a standing instruction on exactly this at C001: *"we can use January 31
+and other standard dates and then say that you have to account for weekends and
+holidays as well."* The individual guide obeys it. **This page obeys it once and not
+twice** — section 06 carries the moving rule for March 15, section 05's January 31
+carries nothing. One page, two dates, one rule stated. **Not fixed: it is client-facing
+copy, so it goes to the firm as a decision.**
+
+**Two. `SOURCES.md` justifies the figure with the agency's paraphrase rather than the
+rule.** It quotes the IRS — *"For tax years beginning after 2025"* — where § 70433(f)
+says *"applicable with respect to payments made after Dec. 31, 2025"*. Different
+tests. Same answer here, because § 70433(e) simultaneously changed § 6041(a) to read
+*calendar year*, and an information return runs on the calendar year regardless of the
+payer's fiscal year. Nothing on the site is wrong; the citation is looser than the rule.
+
+**Three. `uscode.house.gov` is recorded as unfetchable and it is not.** `HANDOFF.md` §6
+and `SOURCES-entity-choice.md` both carry it as blocked — *"the only source in either
+file that still cannot be fetched from here"*. Tested once; it opened. It then turned
+out to be the most useful document in the exhibit: its amendment notes prove three of
+the four claims in one image. **The obstacle was real when written and is a property of
+a container, not of the source.**
+
+### What I got wrong, in the exhibit itself
+
+- **A wedged browser tab reported six successful scrolls and moved nothing.** The IRS
+  page would not scroll — `window.scrollTo`, `scrollIntoView`, an anchor and a direct
+  `scrollTop` all returned cleanly and did nothing, because that tab's renderer had
+  timed out earlier. A fresh tab worked first time. Screenshotting without checking
+  where it landed would have put a photograph of the wrong part of the right page into
+  an exhibit, which looks exactly like evidence.
+- **The first marking attempt matched a wrapper** and washed the whole IRS document
+  yellow, banner included. Discarded rather than cropped: a page restyled wholesale by
+  the person photographing it is not a photograph of that page.
+- **The verdict banner laid its own sentence out in three columns.** `display:flex` on
+  the text block made every `<b>` a flex item. Caught by opening the rendered page,
+  which was the only thing that would have.
+
+### What it does not prove
+
+One bullet, on one of three pages. **Five other numeric claims on the same page were
+not checked** and carry whatever the last full `verify_sources.py` run gave them; that
+run was not repeated. Nothing watches for the 2027 indexation. And the firm still has
+not read the three guides end to end.
