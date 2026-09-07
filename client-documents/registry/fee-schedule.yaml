@@ -198,6 +198,36 @@ basis:
 # the invoice refuses without a written reason. An "hourly, amount unknown"
 # line would have bypassed the one protection the client already has.
 hourly:
+  # ── THE STANDING RULE FOR WORK WITH NO PRICE ────────────────────────────
+  #
+  # The firm, 7 September 2026: "generally speaking, if we have no price it
+  # should be assumed to be $175 ... but the goal would be to establish a
+  # price."
+  #
+  # Read as the hourly RATE, not a flat $175 -- a flat figure would price five
+  # minutes and six hours the same, and $175 is the rate set the same day.
+  # Correct this line if that reading is wrong; it decides what a client pays.
+  #
+  # WHAT THE RULE MEANS HERE. This block IS the fallback: a situation listed
+  # below carries no `amount` on purpose, and is billed at `basis.rate`. It is
+  # not an omission and `test_nothing_is_unpriced_by_accident` proves the
+  # difference -- everything else in this file resolves to a number, whether
+  # its own or an inherited default, and a new item arriving without one fails
+  # rather than quietly joining the fallback.
+  #
+  # AND THE SECOND HALF IS THE POINT. "The goal would be to establish a price"
+  # makes this list a WORKLIST, not a resting place. Anything sitting here is
+  # work the firm has not decided a price for yet.
+  #
+  # THE RULE CURRENTLY OVERRIDES ONE OF THE FIRM'S OWN DECISIONS, which is
+  # worth saying plainly rather than leaving to be found: on 26 August the firm
+  # ruled that notices belong in a separate letter engagement -- that is, NOT
+  # hourly. No price was ever set for that engagement, so `notice` below is
+  # billed hourly by fallback. The default is doing exactly what it is meant to
+  # do, and what it is doing is contradicting a decision. That is the strongest
+  # possible argument for the second half of the rule, and it is registered:
+  # docs/DEFECT-REGISTER.md, "There is no way to price a notice the way the
+  # firm said notices should be priced".
   situations:
     keyed_brokerage:
       label: "Keyed brokerage statements"
