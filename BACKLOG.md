@@ -388,6 +388,48 @@ with no script edited:
 Waiting on the competitor names. Everything after that is mechanical: resolve,
 confirm the matches, add to free slots (28 of 40 are free), run the chain.
 
+### Peer expansion — 7 September 2026
+
+The firm sent ten names. **Three were already in the set**: US Bancorp, PNC
+Financial and Truist Financial are the holding companies of U.S. Bank NA (6548),
+PNC Bank NA (6384) and Truist Bank (9846), all already verified over ten years.
+Seven are new, now in slots 13-19 of `series_seed.PEERS`.
+
+| Asked for | Bank that files the Call Report | Cert | Holding company on the FDIC record |
+|---|---|---|---|
+| Fifth Third Bancorp | Fifth Third Bank, National Association | 6672 | FIFTH THIRD BCORP |
+| Huntington Banc | The Huntington National Bank | 6560 | HUNTINGTON BANCSHARES INC |
+| First Citizens Banc | First-Citizens Bank & Trust Company | 11063 | FIRST CITIZENS BANCSHARES INC |
+| Citizens Financial | Citizens Bank, National Association | 57957 | CITIZENS FINANCIAL GROUP INC |
+| M&T Bank Corp | Manufacturers and Traders Trust Company | 588 | M&T BANK CORP |
+| Regions Financial | Regions Bank | 12368 | REGIONS FINANCIAL CORP |
+| Zions Bancorp | Zions Bancorporation, N.A. | 2270 | *(none — the bank IS the top-tier entity)* |
+
+**A holding company files an FR Y-9C with the Federal Reserve. It has no FDIC
+certificate and files no Call Report**, so the bank is what can enter the feed.
+Searching the FDIC for a holding-company name does not fail cleanly — it
+word-matches and returns a real, live, unrelated bank:
+
+    "PNC Financial"     -> PlainsCapital Bank, University Park TX, $12.7bn
+    "Truist Financial"  -> Parkside Financial Bank & Trust, Clayton MO, $1.1bn
+
+Both matched on the word "Financial", and either would have tied perfectly under
+the wrong label. Every certificate above was instead confirmed against the FDIC's
+own `NAMEHCR` field on that bank's record. `tools/tieout/resolve_holdcos.py`
+does this; `resolve_banks.py` does the simpler bank-name case.
+
+### Goals in flight
+
+**Next: all seven pulled and verified.** Ends when each has 40 quarters of all 87
+fields tied to its own filed Call Reports with zero differences, photographed to
+the same standard as the twelve. **Distance: 0 of 7.**
+
+**Final: one output the firm can forward to their work email.** The workbook plus
+a covering document that stands on its own to a reader who was not here.
+
+The chain is proven to run on a bank it has never seen — 6 of 6 stages on cert
+6672, no script edited — so this is volume, not new ground.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

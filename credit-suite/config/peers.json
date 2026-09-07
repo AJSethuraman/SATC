@@ -123,6 +123,76 @@
    "legal_name_on_filing": "MORGAN STANLEY BANK, N.A.",
    "checked_against": "filing-32992-12312025.pdf",
    "identity_verified": true
+  },
+  {
+   "slot": 13,
+   "cert": "6672",
+   "name": "Fifth Third Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "FIFTH THIRD BANK, NATIONAL ASSOCIATION",
+   "checked_against": "filing-6672-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 14,
+   "cert": "6560",
+   "name": "Huntington National Bank",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
+  },
+  {
+   "slot": 15,
+   "cert": "11063",
+   "name": "First-Citizens Bank & Trust",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
+  },
+  {
+   "slot": 16,
+   "cert": "57957",
+   "name": "Citizens Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
+  },
+  {
+   "slot": 17,
+   "cert": "588",
+   "name": "Manufacturers and Traders Trust",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
+  },
+  {
+   "slot": 18,
+   "cert": "12368",
+   "name": "Regions Bank",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
+  },
+  {
+   "slot": 19,
+   "cert": "2270",
+   "name": "Zions Bancorporation NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": null,
+   "checked_against": null,
+   "identity_verified": false
   }
  ]
 }

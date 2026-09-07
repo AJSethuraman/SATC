@@ -389,6 +389,28 @@ PEERS = [
     (10, 639, "Bank of New York Mellon", "counterparty", "TRUE"),  # VERIFIED
     (11, 33124, "Goldman Sachs Bank USA", "counterparty", "TRUE"),
     (12, 32992, "Morgan Stanley Bank NA", "counterparty", "TRUE"),
+    # Added 7 September 2026 at the firm's request. They named ten holding
+    # companies; three of them -- US Bancorp, PNC Financial and Truist
+    # Financial -- already own banks in slots 5, 6 and 7, so seven are new.
+    #
+    # A holding company files an FR Y-9C with the Federal Reserve, has no FDIC
+    # certificate and files no Call Report, so the BANK is what can be here.
+    # Each certificate below was confirmed against the FDIC's own NAMEHCR field
+    # on that bank's record, which carries its holding company -- not guessed
+    # from the name. Searching the FDIC for a holding company does not fail
+    # cleanly: "PNC Financial" returns PlainsCapital Bank of Texas and "Truist
+    # Financial" returns Parkside Financial Bank & Trust of Missouri, both real,
+    # both live, both matched on the word "Financial".
+    (13, 6672, "Fifth Third Bank NA", "peer", "TRUE"),
+    (14, 6560, "Huntington National Bank", "peer", "TRUE"),
+    (15, 11063, "First-Citizens Bank & Trust", "peer", "TRUE"),
+    (16, 57957, "Citizens Bank NA", "peer", "TRUE"),
+    (17, 588, "Manufacturers and Traders Trust", "peer", "TRUE"),
+    (18, 12368, "Regions Bank", "peer", "TRUE"),
+    # Zions carries no holding company on the FDIC record because the bank IS
+    # the top-tier entity -- it absorbed its holding company. Blank there is a
+    # fact about the structure, not a gap in the lookup.
+    (19, 2270, "Zions Bancorporation NA", "peer", "TRUE"),
 ]
 
 PEER_HEADER = ["slot", "cert", "name", "group", "active"]
