@@ -126,7 +126,7 @@ def test_a_passage_citing_an_unrecorded_source_is_an_error(tmp_path):
         encoding="utf-8")
     (d / "extracted" / "x.md").write_text(
         "## 26 CFR 1.263(a)-3(k)(7) Example 3\n\n"
-        "**Source:** S9 · **Checked:** 2026-09-04\n\n> text\n", encoding="utf-8")
+        "**Source:** S9 · **Checked:** 2026-09-04 · **Kind:** rule\n\n> text\n", encoding="utf-8")
     with pytest.raises(record.RecordError, match="S9"):
         record.load(d)
 
@@ -216,7 +216,7 @@ def test_the_same_source_id_defined_twice_is_refused(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1.263(a)-3(a)\n\n"
         "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1.263(a)-3(a)\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+        "## 26 CFR 1.263(a)-3(a)\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
         "> text\n", encoding="utf-8")
     with pytest.raises(record.RecordError, match="more than once"):
         record.load(d)
@@ -234,7 +234,7 @@ def test_the_same_citation_stored_twice_is_refused(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1.263(a)-3(a)\n\n"
         "**Answer:** must capitalize\n\n**Facts:** f\n", encoding="utf-8")
     body = ("## 26 CFR 1.263(a)-3(a)\n\n**Source:** S1 · "
-            "**Checked:** 2026-09-04\n\n> text\n")
+            "**Checked:** 2026-09-04 · **Kind:** rule\n\n> text\n")
     (d / "extracted" / "a.md").write_text(body, encoding="utf-8")
     (d / "extracted" / "b.md").write_text(body, encoding="utf-8")
     with pytest.raises(record.RecordError, match="stored more than once"):

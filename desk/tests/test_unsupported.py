@@ -38,8 +38,20 @@ def test_an_uncited_answer_is_never_served_even_when_it_is_right(
     assert out.reason == "no_citation"
 
 
-def test_an_interpretive_source_is_refused_rather_than_served(tmp_path):
-    """Tier 2 alone is a position for the firm, not an answer for a client."""
+def test_an_interpretive_source_is_served_marked_and_never_as_the_rule(tmp_path):
+    """Tier 2 alone is the Service's reading, and the reader is told so.
+
+    IT WAS A REFUSAL UNTIL 6 SEPTEMBER 2026. The firm answered "Serve it,
+    marked" on the fourth docket, having asked for it the day before: *"if we
+    don't have an opinion and have a good reason to form one, maybe we just use
+    a safe Harbor Rule which in this case would be deferring to whatever the IRS
+    says."*
+
+    The protection did not go away, it moved: this desk holds no binding source,
+    so no rule reaches, and what leaves carries `binding=False` and a caveat
+    naming the tier. Where a rule DOES reach, it is still refused — see
+    `test_guidance_may_not_be_served_where_the_desk_holds_the_rule`.
+    """
     import record
     d = tmp_path / "guide"
     (d / "extracted").mkdir(parents=True)
@@ -51,12 +63,16 @@ def test_an_interpretive_source_is_refused_rather_than_served(tmp_path):
         "## P1 · x\n\n**Citation:** G 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "g.md").write_text(
-        "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n> reading\n",
+        "## G 1\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n> reading\n",
         encoding="utf-8")
     out = serve(Answer(position="a", citation="G 1"), record.load(d),
                 question="a question")
-    assert isinstance(out, Refusal)
-    assert out.reason == "authority_permits_choice"
+    assert not isinstance(out, Refusal), getattr(out, "detail", "")
+    assert out.binding is False, "served as though a publication settled it"
+    assert "secondary" in out.caveat and "not the rule" in out.caveat
+    # AND `binding` IS NOT `tier` RESTATED, which is why it is its own field:
+    # a caller keying off the tier alone would caveat a ratified position too.
+    assert out.tier == "secondary"
 
 
 def test_the_gate_and_the_scoreboard_agree(fixed_assets, problem):

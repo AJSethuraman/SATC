@@ -31,6 +31,22 @@ ask.answer(question, desk, position="an entry in the books",
            citation="...", working="why that paragraph settles it")
 ```
 
+**Tell it what your own file already says.** Some rules cannot be applied
+without a fact the engagement should have recorded — what the client does, whose
+return it is. It is passed in and never worked out: a desk that inferred the
+trade from the vendor would be running the exact reasoning its own position
+forbids.
+
+```python
+ask.consult("they bought clothing at that store — is it a personal expense?",
+            context=record.Context(facts={"trade": "general contractor"}))
+```
+
+A desk declares what it expects on a `Records:` line in its `SUBJECTS.md`, and a
+position declares what it cannot be applied without on a `Needs:` line. Unmet, it
+refuses `context_not_on_file` — a third kind of missing thing, resolved by
+reading our own file rather than by asking the client or chasing a document.
+
 `skills/ask-desk` is the same thing written for an agent to follow.
 
 **The split is the mechanism.** A model does not choose the desk — routing is a

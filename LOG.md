@@ -17,7 +17,7 @@ This file is read by every session and shared with none of them.
 
 ---
 
-## Sunday 7 September 2026 — the Schedule C docket: five for five, one conviction
+## Monday 7 September 2026 — the Schedule C docket: five for five, one conviction
 
 Five decisions, all answered inside two minutes. Three took the recommendation,
 one overruled it, and the one carried over from the day before became C15.
@@ -62,6 +62,82 @@ document and looking at step 14 — the same way the `nullnull` on the tool's ow
 panel was found, and the reason `docs/SOFTWARE-TENETS.md` opens where it does.
 The builder now refuses to write a document with any markup left in it, and that
 guard was mutation-tested: reverting the fix makes it fire.
+
+---
+
+## Sunday 6 September 2026 — six for six, and one of them is a live defect
+
+Every matter answered, and every one took the recommendation. No overrules, and
+nothing written in the free-text boxes — so what follows is the recommendation
+each answer selected, quoted as it stood on the page.
+
+Four of the six were **carried unanswered from the 5 September docket**. That is
+recorded because it is the reason the tie-out happened at all: with the queue
+stalled, the day went into proving one number rather than into building the next
+thing.
+
+| | Asked | Answered |
+|---|---|---|
+| **1** | how far to reconcile the 2025 tax tables to OBBBA | *"Fix the three, flag the rest"* |
+| **2** | build the mid-year withholding review as a priced service | *"Build it, safe-harbour tie-out first"* |
+| **3** | what intake records about how a document arrived | *"Ask once per folder"* |
+| **4** | whether unknown provenance blocks filing | *"Warn on the screen"* |
+| **5** | the final invoice computed from the filed return | *"Build it next"* |
+| **6** | the eight old pull requests | *"Read the eight and report back"* |
+
+### Matter 1 is the one with a deadline on it
+
+The withholding estimator overstates 2025 federal tax, today, on every estimate
+it produces. `configs/crosswalk/federal/2025.yaml` holds the standard deduction
+as the IRS published it in **October 2024**; **P.L. 119-21 (OBBBA), signed
+4 July 2025**, raised it for tax year 2025 itself — single 15,000 → 15,750, MFJ
+30,000 → 31,500, HOH 22,500 → 23,625. On the sample case that is **$165** of tax
+the estimator invents.
+
+The answer scopes the fix deliberately: **the three figures, not the whole Act.**
+OBBBA also created deductions for tips, overtime, car loan interest and seniors,
+raised the SALT cap and changed the child tax credit, and none of those are
+modelled. Those carry eligibility rules and phase-outs that are real tax
+judgement, and a half-reconciled table that looks current is more dangerous than
+one that is obviously stale — so the screen says what is still missing.
+
+**This was found by `/canon:tie-out`, not by the test suite**, and could not have
+been found by it: the engine's tests work out their expected answers from the
+same tables the engine reads, so the code and the tests agree with each other and
+both are wrong. The file itself carried the instruction — *"reconcile to enacted
+law before filing TY2025"* — written when the table was built, and nothing
+enforced it.
+
+### Matter 2 rests on an answer given somewhere else
+
+The question was whether to sell the mid-year withholding review. The half that
+would have been hardest to ask — whether it should instead be a free calculator
+on the website — the firm had **already answered two days earlier**, on the free
+Schedule C tool:
+
+> *"It is not my concern to fill out a form for them. This is already helpful
+> when free and I would expect them to pay us if they wanted to take it to that
+> step themselves through our own work."*
+
+That answer lives in **PR #298**, which is still a draft, so it is not on `main`
+and this log did not have it. It was found by reading the repository rather than
+this session's memory of the week, which is the whole reason a docket is built
+that way — and it stopped a question being put to the firm twice.
+
+**That quotation is a candidate conviction and belongs to the session that
+recorded it.** Nothing has entered `CONVICTIONS.md` here.
+
+### What the six answers put in the queue
+
+1. The three OBBBA figures, with the test tied to the IRS page rather than to our
+   own table, and a note on screen naming what is not modelled.
+2. A tie-out of the **safe-harbour** figure — the number a client actually acts
+   on, and the only one in the recommendation still unproved.
+3. Intake asks once per folder how the documents arrived, defaulting to
+   `unknown`; a row with no provenance **warns and does not block**.
+4. The final invoice, starting by reading a filed return and reporting what it
+   implies, before anything writes an invoice from it.
+5. A read of the eight old pull requests, one line each.
 
 ---
 

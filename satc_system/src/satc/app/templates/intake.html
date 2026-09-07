@@ -35,7 +35,30 @@
         <input class="field-input" name="tax_year" id="intake-year" value="{{ tax_year }}"
                placeholder="2025" style="max-width:120px">
       </div>
+      {# HOW THE BATCH ARRIVED, ASKED ONCE. D26, and the firm's answer of
+         6 September 2026: "ask once per folder".
+         26 CFR 1.6695-2(b)(4)(i)(C) wants how, when and from whom a document
+         was obtained. A folder scan knows when (now), whose (the client above)
+         and what (the classifier). It cannot know HOW -- a client emailed it,
+         you pulled it off a portal, it is last year's file, and the bytes are
+         identical either way.
+         Not required, and the default asserts nothing: skip it and the rows say
+         `provenance incomplete` rather than carrying an answer nobody gave. #}
+      <div style="flex:1 1 320px">
+        <label class="muted" for="intake-arrival">How did these arrive?</label><br>
+        <select class="field-input" name="arrival" id="intake-arrival" style="width:100%">
+          {% for key, label in arrivals %}
+          <option value="{{ key }}"{% if key == arrival %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
+    <p class="note" style="margin:8px 0 0">
+      Asked once for the whole folder, because a file on disk cannot say how it got
+      there — and 26 CFR §1.6695-2(b)(4)(i)(C) requires a record of how, when and
+      from whom. Leave it as <em>not recorded</em> and nothing is blocked; the
+      arrivals are simply flagged as incomplete, which is honest.
+    </p>
     <input class="field-input" name="folder" style="margin-top:10px"
            placeholder="e.g.  C:\Clients\Raghavan\2025  or  a SharePoint-synced folder"
            value="{{ folder }}">

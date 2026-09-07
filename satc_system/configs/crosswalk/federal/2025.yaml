@@ -6,19 +6,67 @@ meta:
   status: in_force
   notes: >
     Federal inflation-adjusted parameters for tax year 2025 (last TCJA year under
-    the scheduled sunset). Verified against IRS Rev. Proc. 2024-40 and related
-    guidance. NOTE: several TCJA provisions were later modified by P.L. 119-21
-    (OBBBA, July 2025); reconcile to enacted law before filing TY2025.
+    the scheduled sunset), from IRS Rev. Proc. 2024-40 -- EXCEPT where P.L. 119-21
+    (OBBBA, 4 July 2025) superseded them for TY2025 itself, which is marked per
+    parameter with a `supersedes:` block holding what it replaced.
+
+    PARTIALLY RECONCILED, 6 September 2026, and the remainder is declared rather
+    than assumed: `obbba_not_modeled` below names every OBBBA provision this file
+    does NOT carry. The withholding estimator prints that list on screen with its
+    result. The instruction this note used to carry -- "reconcile to enacted law
+    before filing TY2025" -- was written when the file was built and nothing
+    enforced it, so it sat unread until a tie-out found the $165 it was worth.
 
 parameters:
+  # WHAT THIS FILE STILL DOES NOT CARRY, named so the screen can say it.
+  #
+  # The 6 September 2026 reconciliation was scoped deliberately to the standard
+  # deduction, on the firm's answer: "Fix the three, flag the rest." Every item
+  # below carries eligibility rules, phase-outs or occupation lists that are real
+  # tax judgement rather than a number to copy, and a half-reconciled table that
+  # LOOKS current is more dangerous than one that is obviously stale.
+  #
+  # This is a list of strings on purpose -- prose the preparer reads, not codes.
+  obbba_not_modeled:
+    value:
+      - "the deduction for qualified tips"
+      - "the deduction for qualified overtime"
+      - "the deduction for car loan interest"
+      - "the enhanced deduction for seniors (65+)"
+      - "the higher SALT cap ($40,000, up from $10,000)"
+      - "the higher child tax credit ($2,200, up from $2,000)"
+    citation: "P.L. 119-21 (OBBBA); IRS, 'How to update withholding to account for tax law changes for 2025'"
+
   filing_statuses:
     value: [single, mfj, mfs, hoh, qss]
     citation: "IRC sec. 1; Form 1040"
 
   standard_deduction:
-    value: {single: 15000, mfj: 30000, mfs: 15000, hoh: 22500, qss: 30000}
+    # RECONCILED TO ENACTED LAW, 6 September 2026. These are NOT the Rev. Proc.
+    # 2024-40 figures. P.L. 119-21 (OBBBA), signed 4 July 2025, raised the
+    # standard deduction FOR TAX YEAR 2025 ITSELF -- not for 2026 onwards -- so
+    # the inflation-adjusted amounts published in October 2024 were superseded
+    # nine months later and this file still held them.
+    #
+    # Found by tying one figure to the IRS on 6 September 2026: the estimator
+    # overstated federal tax by $165 on a single filer with $100,000 of wages.
+    # `docs/tie-out/withholding-2026-09-06/` carries the exhibit.
+    #
+    # No test could catch it. The engine's tests work out their expected answers
+    # from THIS FILE, so the code and the tests agreed with each other and both
+    # were wrong. `test_the_2025_tables_are_enacted_law.py` holds the enacted
+    # figures as literals with their citation, so it disagrees with this file
+    # rather than deriving from it.
+    value: {single: 15750, mfj: 31500, mfs: 15750, hoh: 23625, qss: 31500}
     unit: usd
-    citation: "Rev. Proc. 2024-40, sec. 2.15"
+    citation: "P.L. 119-21 (OBBBA) sec. 70102; IRC sec. 63(c)(7)"
+    supersedes:
+      value: {single: 15000, mfj: 30000, mfs: 15000, hoh: 22500, qss: 30000}
+      citation: "Rev. Proc. 2024-40, sec. 2.15"
+      note: >
+        Kept rather than deleted. These are the amounts SATC billed and estimated
+        against before 6 September 2026, and an estimate produced earlier is
+        explained by them.
 
   additional_std_deduction_age_or_blind:
     value: {unmarried: 2000, married_per_spouse: 1600}

@@ -9,11 +9,12 @@ date. Where a source cannot be read by a desk at all — a licence forbidding th
 content reaching a model — a position here is the desk's entire knowledge of it,
 and the citation is how a reader gets to the text themselves.
 
-**Both entries below are PROPOSALS.** Neither carries a `Ratified` field, so the
-engine will not serve either one, and every rewards problem on this desk
-escalates until the firm answers. That is the correct state: on the rewards half
-there is no primary authority to fall back on, so the firm's word is the only
-thing that can close it.
+**Two of the three below are ratified and one is a PROPOSAL.** POS1 and POS2
+carry a `Ratified` field; POS3 does not, so the engine will not serve it and
+every question it would answer escalates until the firm says yes. That is the
+correct state, and on the rewards half it is the only available one: there is no
+primary authority to fall back on, so the firm's word is the only thing that can
+close it.
 
 ---
 
@@ -22,6 +23,8 @@ thing that can close it.
 **Citation:** PLR 201027015, LAW AND ANALYSIS · **Recorded:** 2026-09-05
 
 **Position:** an adjustment to the price paid, booked against the cost it arose from, and not income
+
+**Needs:** taxpayer
 
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"it's interesting because the answer to this I'm pretty sure is card points are
@@ -59,13 +62,76 @@ citation:
    obviously fit that sentence, and NOTHING was found that addresses them. This
    position deliberately covers only rewards earned by spending.
 
-**And one thing that was looked for and could not be reached.** The Tax Court has
-decided a case on credit card rewards — *Anikeev v. Commissioner*, T.C. Memo.
-2021-23 — and every host that carries court opinions is refused by this
-environment's network policy (ustaxcourt.gov, govinfo.gov, courtlistener.com,
-law.justia.com, casetext.com all answered 403 at the proxy). A person should read
-that opinion before this position is ratified, because it is the only place the
-general answer has been tested and limited.
+**IT WAS READ. The firm handed over the opinion on 5 September 2026**, after
+every host carrying court opinions refused this environment — five were tried and
+all returned 403. What it says changes what may be ratified here.
+
+***Anikeev v. Commissioner*, T.C. Memo. 2021-23 — two holdings, cutting opposite
+ways on one set of facts.** Rewards earned buying Visa gift cards were **not**
+income, because the cards *"have product characteristics"*. Rewards earned by
+buying money orders directly and loading cash onto debit cards **were** income,
+because *"No product or service is obtained in these uses of the American Express
+cards other than cash transfers."*
+
+**It confirms the rule and refuses to be authority for it.** The IRS's own
+counsel conceded at trial that *"long-standing IRS policy is that card rewards
+are not taxable... the reward itself acts as a discount on whatever property or
+services are being purchased"*, and the court held them to it: *"respondent must
+be held to the terms of that policy."* But the last paragraph disclaims any
+broader ground:
+
+> *"We note that the above holdings are not based upon the application of the
+> cash equivalence doctrine but rather the incompatibility of the direct money
+> order purchases and the debit card reloads with the IRS policy excluding credit
+> card rewards for product and service purchases from income. These holdings are
+> based on the unique circumstances of this case."*
+
+So there is no citable holding that purchase-based rewards are non-income as a
+matter of law. There is the Service's own policy, enforced against it once, on
+facts the court called *"an extreme test"* — and a court hoping *"that respondent
+polices the IRS policy in the future in regulations or public pronouncements
+rather than relying on piecemeal litigation."*
+
+**What it adds that nothing else in this desk reaches.** The opinion distinguishes
+*Shankar v. Commissioner*, 143 T.C. 140 (2014), where bank *"Thank You Points"*
+redeemed for an airline ticket **were** income, likened to interest — *"the awards
+were not an incentive or rebate based on credit card purchases."* That is the
+first authority this desk has touching a reward **not earned by spending**. It is
+a distinction, not a holding on sign-up or referral bonuses, and this position
+still does not cover them.
+
+**And the two things it does not say, which matter more here than what it does.**
+
+1. **It never uses the word "business."** Not once — checked. It is a personal
+   return: wages, interest, dividends, capital gains. Whether the same analysis
+   reaches a contractor's business card was never asked and is not answered.
+2. **It says nothing about a purchase that was expensed rather than capitalised.**
+   The only basis reasoning in it is dictum the court declined to apply, and it
+   presupposes property with a surviving basis and a later disposition. Fuel
+   burned and a tool written off have neither. **The firm's actual open question
+   is untouched by the only case on the subject.**
+
+**Ratified:** the firm, 6 September 2026 — ratified on the fourth docket,
+unamended, with no note.
+
+**RATIFIED AS DRAFTED, NOT AS RECOMMENDED.** The docket recommended narrowing it
+to *"a card reward earned by buying goods or services reduces what was paid for
+them"*, which is the sentence that survives *Anikeev*. The firm ratified the
+wording above instead, and the wording above is what is served. The narrowing
+argument is not lost — it is in the three numbered findings on this position, and
+in the two things *Anikeev* does not say — but it is commentary now, not the
+position.
+
+**WHAT IT CHANGES TODAY: nothing that is scored, and that was checked rather than
+assumed.** This position rests on `PLR 201027015, LAW AND ANALYSIS`. No problem
+on this desk is keyed to that citation — RW7 is keyed to `Ruling request (1)`, a
+different passage of the same ruling — so no score moves. What changes is what
+the desk SAYS when an answerer cites the analysis: the firm's own sentence rather
+than a refusal on a ruling that may not be cited as precedent.
+
+**And it still refuses without `taxpayer` on file**, which is the input the firm
+asked for while holding it: *"we should probably be specifying. Hey this is the
+individual desk. This is the business desk."*
 
 ---
 
@@ -73,7 +139,7 @@ general answer has been tested and limited.
 
 **Citation:** 26 CFR 1.6041-1(a)(1)(iv) · **Recorded:** 2026-09-05
 
-**Position:** no Form 1099-NEC for a payment settled by card or through a third party payment network; track the rest against $2,000 per payee per calendar year
+**Position:** the payor is not required to file an information return under section 6041
 
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"this is fair I guess digging deeper and stuff makes sense and of course there
@@ -107,3 +173,72 @@ position cites still says $600.** 26 U.S.C. § 6041(a) was amended to $2,000 by
 Pub. L. 119-21 § 70433(a), applicable to payments made after 31 December 2025,
 and is indexed for inflation from 2027 under § 6041(h). The regulation has not
 been conformed. Anyone reading § 1.6041-1 alone will get the old number.
+
+**REWORDED 6 September 2026, on the firm's instruction, and this is what changed.**
+The old wording carried TWO rules under one citation: the relief, which this
+paragraph states, and *"track the rest against $2,000 per payee per calendar
+year"*, which it does not state and does not rest on. Nineteen problems on this
+desk could not be scored at all while they were joined, and the reason is worth
+recording because it is not obvious.
+
+A ratified position OUTRANKS the stored regulation on the same citation and is
+served verbatim, so `_check` refuses any answer that restates it differently.
+IR4 and IR5 are the regulation's own worked examples of this paragraph, and
+their recorded answers are the regulation's own conclusion. Pointed at this
+citation while the position said something broader, both would have refused as
+`contradicts_ratified_position` — the desk refusing the regulation for
+disagreeing with the firm's summary of it.
+
+So the position is now the paragraph's own sentence, and the firm's $2,000
+handling moved to **POS3**, on `§ 1.6050W-1(c)(3)`, which is the rule it actually
+turns on. Nothing was dropped and nothing was decided here: the same words, on
+the citation that carries them.
+
+**The $2,000 figure itself is not a position and never was.** 26 U.S.C.
+§ 6041(a) says $2,000 for payments made after 31 December 2025 (Pub. L. 119-21
+§ 70433(a)), indexed from 2027 under § 6041(h). The regulation cited here still
+says $600 and has not been conformed. Read the threshold from the statute.
+
+**Ratified:** the firm, 5 September 2026 — ratified on the docket, unamended.
+Reworded 6 September 2026 on the firm's instruction: *"Reword POS2."*
+
+---
+
+## POS3 · When you cannot tell which rail a payment took, report it
+
+**Citation:** 26 CFR 1.6050W-1(c)(3) · **Recorded:** 2026-09-06
+
+**Position:** where a payment for services shows no evidence it settled through a third party payment network, treat it as outside section 6050W and count it toward the $2,000 threshold
+
+**Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended, and with the redraft of its wording still owed (matter `dec-register`).
+
+**Why:** This is the second half of what the firm ratified as POS2 on 5 September
+2026 — *"track the rest against $2,000 per payee per calendar year"* — moved to
+the rule it actually turns on. **It is a proposal, not a ratification.** The
+words are theirs and the citation is not, and a citation is not a detail: it is
+what a reader opens to check the answer. So it waits for a yes.
+
+**The judgement is real and the record says so in its own words.** POS2's
+research recorded that the relief covers a *third party network transaction*,
+which this paragraph defines as settlement under an arrangement where a
+substantial number of PROVIDERS OF GOODS OR SERVICES hold accounts and have
+agreed to settle for providing them — and then: *"A peer-to-peer transfer sent as
+a personal payment is not obviously settled under such an arrangement, and no
+source reached says what a payer should do when it cannot tell which kind of
+transfer it made."*
+
+That is the gap, and it is the shape of a position exactly: the authority stops,
+and somebody has to decide. The firm's reasoning for the conservative side is
+already recorded — **reporting a payment that did not need reporting costs a
+form; missing one costs a penalty.**
+
+**Why it is NOT on § 6041(a), where the $2,000 lives.** The threshold is not a
+choice — the statute states it, and IR1 is scored against the statute's own
+conclusion. A position on that citation would be served in place of the statute
+and would refuse IR1 for quoting it. What the firm decided is not the number; it
+is **which payments get counted against it when the rail is unknown**, and that
+is this paragraph.
+
+**What this does not cover.** A transfer that is known to have gone through the
+goods-and-services rail (POS2 answers it) and a transfer known to be personal and
+not for services (section 6041 never reached it). Only the unknown middle.
