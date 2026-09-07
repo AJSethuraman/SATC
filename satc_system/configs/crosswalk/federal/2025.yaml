@@ -285,6 +285,20 @@ parameters:
     value: 0.124
     unit: ratio
     citation: "IRC sec. 1401(a) — OASDI portion of SE tax"
+  se_minimum_net_earnings:
+    # THE FLOOR SCHEDULE SE PUTS ON ITSELF, and the engine did not have it.
+    # Line 4c: "Combine lines 4a and 4b. If less than $400, stop; you don't owe
+    # self-employment tax." The test is on the amount AFTER the 92.35%
+    # adjustment, which is what line 4a produces.
+    #
+    # Found on 7 September 2026 by tying the SE computation to the form: the
+    # engine charged $56.52 on net earnings of $400, where the form charges
+    # nothing. Small money, common case -- a side gig, a little 1099 income --
+    # and it overstated the client's tax, the same direction as the $165.
+    value: 400
+    unit: usd
+    citation: "Schedule SE (Form 1040) Part I, line 4c; IRC sec. 1402(b)(2)"
+
   se_medicare_rate:
     value: 0.029
     unit: ratio

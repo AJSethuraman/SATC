@@ -223,11 +223,41 @@ def _capital_gains_tax(ordinary_ti: Decimal, preferential: Decimal,
     return tax
 
 
+def _se_earnings_subject_to_tax(net_se: Decimal, tables: TaxTables) -> Decimal:
+    """Schedule SE line 4c, and ZERO where the schedule tells you to stop.
+
+    THE FORM PUTS A FLOOR ON ITSELF AND THE ENGINE DID NOT HAVE IT. Line 4a
+    multiplies net earnings by 92.35%; line 4c then says, in the form's own
+    words, *"Combine lines 4a and 4b. If less than $400, stop; you don't owe
+    self-employment tax."*
+
+    Found on 7 September 2026 by tying the computation to the form rather than
+    to our own constants: the engine charged **$56.52 on net earnings of $400**,
+    where the form charges nothing. Small money, common case -- a side gig, a
+    little 1099 income -- and it overstated the client's tax, the same direction
+    as the standard-deduction defect found the day before.
+
+    One function because TWO places need the answer, and they must not disagree:
+    the SE tax itself, and the Additional Medicare Tax, whose Form 8959 line 8
+    reads *"Enter your self-employment income from Schedule SE (Form 1040),
+    Part I, line 6"* -- a line you never reach if 4c stopped you.
+
+    THE SECOND OF THOSE IS A CONSEQUENCE, NOT A PRINTED RULE. Form 8959's
+    instructions do not say what to do when Schedule SE was not required; this
+    follows from line 8 naming a line that does not exist in that case. Recorded
+    as an inference rather than presented as a citation.
+    """
+    if net_se <= ZERO:
+        return ZERO
+    base = net_se * tables.se_net_earnings_factor
+    return ZERO if base < tables.se_minimum_net_earnings else base
+
+
 def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
                          tables: TaxTables) -> tuple[Decimal, Decimal]:
-    if net_se <= ZERO:
+    se_base = _se_earnings_subject_to_tax(net_se, tables)
+    if se_base <= ZERO:
         return ZERO, ZERO
-    se_base = net_se * tables.se_net_earnings_factor
     ss_room = _nonneg(tables.ss_wage_base - wages_subject_to_ss)
     ss_taxable = min(se_base, ss_room)
     ss_tax = ss_taxable * tables.se_social_security_rate
@@ -238,7 +268,11 @@ def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
 
 def _additional_medicare_tax(inp: EstimatorInput, tables: TaxTables,
                              projected_wages: Decimal) -> Decimal:
-    se_base = _nonneg(inp.other_income.self_employment_net) * tables.se_net_earnings_factor
+    # Form 8959 line 8 reads Schedule SE line 6, which does not exist when line
+    # 4c stopped the schedule -- so the same floor applies here. See
+    # `_se_earnings_subject_to_tax`, which is shared so the two cannot disagree.
+    se_base = _se_earnings_subject_to_tax(
+        _nonneg(inp.other_income.self_employment_net), tables)
     medicare_wages = projected_wages + inp.other_income.spouse_taxable_wages + se_base
     threshold = tables.additional_medicare_threshold(inp.filing_status)
     excess = _nonneg(medicare_wages - threshold)

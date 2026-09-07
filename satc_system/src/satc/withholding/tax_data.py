@@ -89,6 +89,11 @@ class TaxTables:
         return _dec(self._v("se_social_security_rate"))
 
     @property
+    def se_minimum_net_earnings(self) -> Decimal:
+        """Below this, Schedule SE stops and no SE tax is owed (line 4c)."""
+        return _dec(self._v("se_minimum_net_earnings"))
+
+    @property
     def se_medicare_rate(self) -> Decimal:
         return _dec(self._v("se_medicare_rate"))
 
