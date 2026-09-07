@@ -402,3 +402,18 @@ def test_the_one_behaviour_without_an_incident_says_so():
     assert "Nineteen exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
     body = text.split("## 20 · ", 1)[1]
     assert "**Incident:** none, and stated rather than implied" in body,         "behaviour 20 does not admit it has no incident"
+
+
+def test_behaviour_19_forbids_stopping_short_and_handing_back_a_timer():
+    """The opposite edge of 19. Two runs stopped mid-work they could have
+    finished: one ended on "Starting on the six now", the other handed back a
+    rate limit that reset in 25 minutes. A report reads as complete whether or
+    not anything was done, which is why this needs a rule and not judgement."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "An announcement is not a deliverable" in flat,         "describing the work can still stand in for doing it"
+    assert "A wait is not a blocker" in flat,         "a self-clearing obstacle can still be handed back"
+    assert "Never hand the firm a timer" in flat,         "nothing forbids making the firm the retry mechanism"
+    assert "does this clear by itself, or does it need a person to act" in flat,         "no test separates a wait from a blocker"
+    assert "Stop only on one of four things" in flat, "the stopping set is open"
+    assert "The distance must move, or you must name what stopped it" in flat,         "a turn can still end having moved nothing"
