@@ -148,4 +148,11 @@ def test_no_marked_passage_leaves_nothing_to_check():
     # unmarked omission as Pub 583 and was the last DIFFERS in the corpus. The
     # firm's rule was answered about Pub 583; applying it to the same defect on
     # the same day is following it, not extending it.
-    assert seen == 3, f"{seen} marked passages across every desk, not 3"
+    # SEVEN SINCE 7 SEPTEMBER 2026, and the four new ones were not a decision --
+    # the tie-out made them. § 1.274-12 writes four of its examples as a bare
+    # "Example 1." whose facts sit in the paragraphs beneath it, and joining
+    # those with a space stored a run of words the publisher never printed as
+    # one: the labels "(ii)" and "(iii)" sit between the segments. All four came
+    # back DIFFERS on their first check against eCFR. Marked, each segment is
+    # found in order and only the labels go unchecked.
+    assert seen == 7, f"{seen} marked passages across every desk, not 7"

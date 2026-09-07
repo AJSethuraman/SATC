@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_eighteen_are_here_and_numbered_without_a_gap():
+def test_all_twenty_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 19)]
-    assert "Eighteen behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 21)]
+    assert "Twenty behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -350,3 +350,84 @@ def test_the_tie_out_skill_attacks_a_could_not_before_recording_it():
         "a COULD NOT may still be recorded on a described obstacle"
     assert "ask what it would take to get past it, and try that" in flat, \
         "nothing says to attempt the obstacle before recording the verdict"
+
+
+def test_behaviour_19_names_the_goal_and_admits_what_it_cannot_do():
+    """The rule the firm asked for, and the honesty clause that keeps it from
+    overstating itself. Behaviour 4 is prevent-don't-detect; 19 only detects,
+    and a rule that hid that would be the exact failure canon exists to stop."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Report the distance, not the effort" in flat, "no distance rule"
+    assert "The number must be able to go down" in flat,         "nothing makes the distance falsifiable"
+    assert "Do not manufacture the next decision" in flat,         "the endless-feedback failure is not forbidden"
+    assert "is not reopened" in flat, "a settled question may still be relitigated"
+    assert "This is detection, not prevention" in flat,         "19 overstates itself; it cannot stop drift and must say so"
+
+
+def test_the_docket_carries_the_next_goal_and_bounds_what_silence_approves():
+    """The firm put the goal here so it survives the session. Silence approving
+    an item is the opposite of every other item on the page, so the skill has to
+    say so -- and has to fence what silence does NOT approve, or a later session
+    reads 'autonomously' and walks a gate with it."""
+    flat = " ".join((CANON / "skills" / "docket" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Unless you say otherwise, this is what I proceed with" in flat,         "the next goal is not stated as the default"
+    assert "This one is not, and the page has to say so" in flat,         "nothing marks Next as the item that does not block"
+    assert "What silence does not approve" in flat,         "the autonomy is unbounded; the gates are not fenced off"
+    assert "a conviction needs an explicit yes" in flat, "the record gate is not named"
+
+
+def test_behaviour_20_makes_the_goal_able_to_refuse():
+    """A goal that refuses nothing approves every addition put to it, which is
+    how a build drifts one locally reasonable step at a time. The refusal is the
+    testable part -- without it this is an encouragement, not a rule."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "The first thing this goal refuses" in flat, "no refusal is required"
+    assert "the goal is not shaped" in flat,         "an unshaped goal is not sent back to the firm"
+    assert "The smallest version worth having" in flat, "no floor is named"
+    assert "It is a change to the goal, and must be named as one" in flat,         "an out-of-scope addition can still be absorbed silently"
+    assert "This is where C9 actually bites" in flat,         "20 is not tied to the conviction it enforces"
+
+
+def test_the_one_behaviour_without_an_incident_says_so():
+    """Behaviour 1 asks a rule to be cited to something real, and the file's own
+    first line claims every one came from something going wrong. Behaviour 20
+    did not. Both the entry and the count line must say so, or the file is
+    asserting something about itself that is false -- the exact drift these
+    rules exist to catch."""
+    text = (CANON / "skills" / "how-we-work" / "SKILL.md").read_text(encoding="utf-8")
+    flat = " ".join(text.split())
+    assert "Nineteen exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
+    body = text.split("## 20 · ", 1)[1]
+    assert "**Incident:** none, and stated rather than implied" in body,         "behaviour 20 does not admit it has no incident"
+
+
+def test_behaviour_19_forbids_stopping_short_and_handing_back_a_timer():
+    """The opposite edge of 19. Two runs stopped mid-work they could have
+    finished: one ended on "Starting on the six now", the other handed back a
+    rate limit that reset in 25 minutes. A report reads as complete whether or
+    not anything was done, which is why this needs a rule and not judgement."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "An announcement is not a deliverable" in flat,         "describing the work can still stand in for doing it"
+    assert "A wait is not a blocker" in flat,         "a self-clearing obstacle can still be handed back"
+    assert "Never hand the firm a timer" in flat,         "nothing forbids making the firm the retry mechanism"
+    assert "does this clear by itself, or does it need a person to act" in flat,         "no test separates a wait from a blocker"
+    assert "Stop only on one of four things" in flat, "the stopping set is open"
+    assert "The distance must move, or you must name what stopped it" in flat,         "a turn can still end having moved nothing"
+
+
+def test_behaviour_19_closes_the_goal_shrinking_loophole():
+    """The loophole in 19's own first stopping condition. An agent that scopes
+    the goal to the chunk it just finished makes "the goal is met" true after
+    every chunk, and earns a legal stop each time. A third run did exactly that:
+    it ended on "Next: Additional Medicare Tax and NIIT" with nothing blocking
+    it."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Naming what comes next is a confession, not an ending" in flat,         "an agent may still close on the next step it could have taken"
+    assert "Do not shrink the goal to the chunk you just finished" in flat,         "the goal-shrinking loophole is open"
+    assert "A goal met is the thing the firm would call done" in flat,         "nothing says whose definition of done counts"
+    assert "The denominator does not reset" in flat,         "a distance can still be restarted on a new count each turn"

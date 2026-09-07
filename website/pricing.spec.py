@@ -162,6 +162,24 @@ if foreign.get("cap_beyond") == "hourly":
           "the foreign-account line says the time past the cap is billed — the "
           "cap is SOFT, and naming it without that is a promise the firm is not making")
 
+# Rental carries THREE figures: the form fee in the amount column, and how many
+# properties it covers plus what the next one costs, both inside the detail. The
+# last two were typed into the generator's copy until 26 August 2026, so moving
+# either in the schedule left the page saying the old one and regeneration
+# agreed with itself. They interpolate now; this is the check that says so.
+rental_line = sched["per_unit"]["rental"]
+rental = next((x for x in cfg["extras"] if "rental" in x["label"].lower()), None)
+check(rental is not None, "the rental line is on the page")
+if rental:
+    said = rental["detail"].lower()
+    covers = rental_line["form_covers"]
+    check(str(covers) in said or WORD.get(covers, "\0") in said,
+          f"the rental line says how many properties the form fee covers ({covers})")
+    check(f"${rental_line['amount']}" in rental["detail"],
+          f"the rental line says what the next property costs (${rental_line['amount']})")
+    check(rental["amount"] == rental_line["form_fee"],
+          "the rental headline is the form fee, not the per-property amount")
+
 ext = next((x for x in cfg["extras"] if "extension" in (x["label"] + x["detail"]).lower()), None)
 check(ext is not None, "the extension line is on the page")
 if ext:
@@ -206,7 +224,16 @@ check('role="tablist"' in page_src and page_src.count('role="tab"') == 2,
 check('aria-controls="panelInd"' in page_src and 'aria-controls="panelBiz"' in page_src,
       "each tab names the panel it controls")
 check("hidden = j !== i" in page_src,
-      "panels start visible and JS hides one — with JS off every price still shows")
+      "the script is what hides a panel, so the markup is not the thing that "
+      "decides which tab is open")
+# This said "with JS off every price still shows" until 26 August 2026, which
+# was never true: every price is written into an empty mount by the render
+# script. Codex caught it on the publishing PR. A checker that asserts a
+# comforting falsehood is worse than one that says nothing, so the claim is
+# gone and what replaces it is the fallback the page actually has.
+check("<noscript>" in page_src and "need JavaScript" in page_src,
+      "a visitor without JavaScript is told the prices cannot load, and given "
+      "somewhere to go — they see empty headings otherwise")
 check(len(cfg["extraGroups"]) == 3,
       "the menu still has three panels — the layout places them explicitly "
       f"(found {len(cfg['extraGroups'])})")

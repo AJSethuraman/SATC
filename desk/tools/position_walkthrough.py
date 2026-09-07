@@ -45,12 +45,22 @@ FIRST = [("rewards-and-information-returns", "POS1")]
 
 #: What this session knows about a position that the record does not say, and the
 #: firm needs before answering. Empty is fine; most stand on their own text.
+#:
+#: `rec_pick` NAMES THE BUTTON THE RECOMMENDATION IS ARGUING FOR, and it is not
+#: decoration. The firm, 7 September 2026: *"i have no clue why you will even ask
+#: me things on the docket like 'should i ratify this' when your last thing is a
+#: recommendation saying 'i wouldn't activate this, it is missing a field'"* —
+#: which is exactly what the fifth docket did, because the recommendation was
+#: prose and the buttons were a fixed list that never read it. Written down, the
+#: two can be checked against each other, and `docket_form` fails the build
+#: rather than rendering a card that asks a question it has already answered.
 NOTES = {
  ("rewards-and-information-returns","POS3"): {
    "read": "<b>These are your words, moved to the citation that carries them.</b> Nothing else about them changed.",
    "for": "You ratified this sentence on 5 September as the second half of POS2: <i>“track the rest against $2,000 per payee per calendar year.”</i> POS2 carried TWO rules under one citation \u2014 the relief that paragraph states, and this, which it does not state and does not rest on. While they were joined, nineteen problems on the desk could not be scored at all.",
    "against": "<b>It is a proposal and not a ratification, deliberately.</b> The words are yours and the citation is not, and a citation is not a detail \u2014 it is what a reader opens to check the answer. Until you say yes it is not served, so your $2,000 handling is not being applied today.",
    "silent": "<b>It is NOT on \u00a7 6041(a), where the $2,000 lives.</b> The threshold is not a choice: the statute states it, and IR1 is scored against the statute's own words. A position there would be served in place of the statute and would refuse IR1 for quoting it. What you decided is which payments get counted when the rail is unknown, and \u00a7 1.6050W-1(c)(3) is the paragraph that defines the rail.",
+   "rec_pick": 'Ratify it',
    "rec": "Ratify it here. It is the sentence you already ratified, on the paragraph it actually turns on \u2014 and it is not being served while it waits.",
  },
  ("capitalization-and-de-minimis","POS2"): {
@@ -58,6 +68,7 @@ NOTES = {
    "for": "You held it saying <i>\u201cwe shouldn\u2019t ignore client level rules set with judgment with the desk answering broadly.\u201d</i> It carries <code>Unless: capitalization_rule</code>: it is the firm\u2019s DEFAULT, and it steps aside for any client the file says is treated differently.",
    "against": "<b>Not ratifying is the option that leaves the desk answering broadly.</b> That is the reverse of how the last docket put it, and the last docket was wrong. The follow-up only runs off a position you have ratified \u2014 a proposal is nobody\u2019s word, so the desk never consults it. Asked about the safe harbour today, the desk answers straight from the regulation and never asks whether that client has a rule of its own.",
    "silent": "The question you held it FOR is separately answered and stays answered: \u00a7 1.263(a)-1(f)(1)(ii)(D) says $500 and delegates to published guidance, and Notice 2015-82 is that guidance. The $2,500 is the amount the regulation points at, not a number somebody remembered.",
+   "rec_pick": 'Ratify it',
    "rec": "<b>Ratify it.</b> The blocker was the missing field and you removed it on 7 September. Ratified, it answers where the client is ordinary and hands off where they are not \u2014 which is what you asked for. Left as a proposal, it does neither.",
  },
  ("capitalization-and-de-minimis","POS1"): {
@@ -65,6 +76,7 @@ NOTES = {
    "for": "You said <i>\u201cthis needs to ensure that there is no already standing rule for that client in particular. The desk should ask that follow up if it is not clear, right?\u201d</i> It does: <code>Unless: capitalization_rule</code>, with three answers rather than two \u2014 nothing on file, looked-and-there-is-none, or a rule the file records. Only the middle one lets the firm\u2019s default apply, and only a person can put it there.",
    "against": "<b>Last time this card said \u201cdo not ratify until the field exists\u201d. The field exists \u2014 you added it \u2014 so that reason is gone.</b> What is left is the wording, which you have called hard to read. That is matter 1 on this page and it is a separate question from whether the rule is right.",
    "silent": "<b>While it stays a proposal the desk answers these questions broadly.</b> Measured 7 September: asked about the safe harbour with nothing on file, the desk answers from the regulation without asking about the client at all. Ratifying is what makes it ask first. <b>The threshold position below is in exactly the same state.</b>",
+   "rec_pick": 'Ratify it',
    "rec": "<b>Ratify it.</b> Not ratifying is not the cautious option here \u2014 it is the one that leaves the desk answering over the top of a client rule it never asked about.",
  },
  ("personal-or-business","POS1"): {
@@ -72,6 +84,7 @@ NOTES = {
    "for": "<code>Needs: trade</code> has refused rather than reasoning from the vendor since 5 September. What it could not do was SAY the question. The refusal now carries one: <i>“Does the file record trade for this engagement? … it is ours to record rather than the client's to be asked.”</i> A reason code is countable; a question is answerable, and a preparer can act on the second.",
    "against": "<b>The authority behind it is about members of the armed services and nothing else.</b> It is the clearest statement anywhere that the item and the profession decide and the seller does not \u2014 but it is not the authority that decides a contractor's shirt. That runs through \u00a7 162 and adaptability case law, and this desk holds neither.",
    "silent": "<b>It needs no field and no other matter on this page.</b> Unlike the two above, the fact it turns on is already declared and already asked for.",
+   "rec_pick": 'Ratify it',
    "rec": "Ratify. Nothing is blocking it, the input exists, the question is now legible to whoever reads the queue, and the caveat already says the coverage is narrower than the rule.",
  },
 }

@@ -14,7 +14,7 @@ collects/retains client info, and provides small services around Drake.
 
 | Folder | What it is | Stack | How to verify a change |
 |---|---|---|---|
-| `website/` | Public site — now a prospect **intake form** (hero + services + intake). Working log and decisions: **`website/INTAKE.md` — read it first.** | Single `index.html`, no build step, no framework | Serve and eyeball it: `cd website && python -m http.server 8000` (no test suite — drive a real browser) |
+| `website/` | Public site — intake form, price page, privacy, and three generated client guides. **Taking this over? `website/HANDOFF.md` first**, then `website/INTAKE.md` for the intake form's log. | Hand-written HTML/CSS/JS, **plus two generators**: `pricing-config.js` is written from `client-documents/registry/fee-schedule.yaml` by `build-pricing-config.py`, and `guides/*.html` from `docs/guides/*.md` by `build-guides.py`. **Never hand-edit either output.** | `cd website && python3 pricing.spec.py && python3 copy.spec.py && python3 build-guides.py --check && python3 intake.spec.py`. Then serve and eyeball: `python3 -m http.server 8000` |
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
@@ -104,8 +104,27 @@ The rules, in order of how often they catch something:
 6. **Read it as if saying it across a desk.** If you would not say it out loud to
    a person, do not publish it.
 
-`website/pricing.spec.py` enforces 3 and 5 mechanically over the published copy,
-and it is the pattern to copy for any other client-facing surface.
+**Rules 3 and 5 are mechanised. The other four are not, and are broken most
+often.** `website/copy.spec.py` runs the contract-word list and the 28-word cap
+over *every* published page — the home page, the price page, privacy and the
+three guides — and `website/pricing.spec.py` runs them over the price page
+alongside its schedule checks. That is the pattern to copy for any other
+client-facing surface.
+
+Passing them is necessary and not sufficient. A sentence that cleared all six
+rules was still killed by the firm as *"literally AI dribble"*: the checks catch
+wording, not a sentence that exists to satisfy a requirement rather than to tell
+the reader something.
+
+**Six rules were not enough.** They were written mid-build, and the firm rejected
+copy five more times afterwards — one sentence that passed all six drew
+*"literally AI dribble, why can't you get that?"*. **`website/TENETS.md` is the
+superset: nine tenets, ordered by how often each caught something, covering
+layout as well as words. Read it before drafting anything for the website.** The
+short version of what these six miss: they ask whether a sentence is *worded*
+right and never whether it should exist; they cover sentences that protect us but
+not ones that flatter us; and they say nothing about layout, which is what
+produces filler copy in the first place.
 
 ## Hard constraints (do not cross without explicit sign-off)
 

@@ -129,13 +129,21 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
 
     TWO DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
     BE REDISCOVERED. `cash-and-bank` (§ 1.446-1), `meals-and-entertainment`
-    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sit on sections
-    that SKIP A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic
-    (a), passing over the (A) level entirely — and `placements()` admits no
-    reading in which a level is skipped. It raises rather than placing a
-    paragraph by preference, which is right: an example whose path is a guess
-    is cited to a rule that may not be its own, the exact defect corrected
-    earlier the same day.
+    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sat on sections the
+    reader could not place at all, and it raised rather than placing a paragraph
+    by preference — which was right: an example whose path is a guess is cited
+    to a rule that may not be its own, the exact defect corrected the same day.
+
+    THE STATED CAUSE HERE WAS WRONG AND IS CORRECTED. This paragraph read "SKIP
+    A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic (a), passing
+    over the (A) level entirely". It does not skip anything. It uses a DIFFERENT
+    ALPHABET at the same level, and both in the same section: (c)(1)(ii)(A),
+    (B), (C) in plain capitals and (c)(1)(iv)(a), (b) in italic lowercase. That
+    diagnosis was corrected in the commit log the same night and this docstring
+    was not, which is how a wrong reason survives in the place people read.
+    § 1.446-1 now reads, with every one of the thirty paths it cites landing;
+    see `test_rules.py`. What these desks hold is a separate question from
+    whether the section can be read, and this count is the one to trust.
 
     § 1.6050W-1 was refused for a DIFFERENT and fixable reason and now places:
     its run-in headings close with a full stop inside the italics rather than
@@ -150,10 +158,12 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
         if p.kind == record.EXAMPLE:
             per[d] = per.get(d, 0) + 1
     assert per == {"capitalization-and-de-minimis": 31,
+                   "cash-and-bank": 19,
                    "fixed-assets": 117,
+                   "meals-and-entertainment": 32,
                    "personal-or-business": 4,
                    "rewards-and-information-returns": 38,
-                   "vehicle-expense": 10}, per
+                   "vehicle-expense": 22}, per
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():
@@ -323,7 +333,11 @@ def test_that_index_still_carries_the_rules():
     desk = record.load(DESKS / "fixed-assets")
     index = sr.citation_index(desk)
     rules = {p.citation for p in desk.passages if p.kind == record.RULE}
-    assert set(index) == rules and len(index) == 172, len(index)
+    # 174 SINCE 7 SEPTEMBER 2026: 172 from § 1.263(a)-3 and the two paragraphs of
+    # § 1.162-3 the firm admitted eCFR for. The index carries every RULE the desk
+    # holds, whichever source it came from — that is what makes the desk able to
+    # answer on the second one at all.
+    assert set(index) == rules and len(index) == 174, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

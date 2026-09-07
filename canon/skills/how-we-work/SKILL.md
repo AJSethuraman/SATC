@@ -1,12 +1,13 @@
 ---
 name: how-we-work
-description: The eighteen standing behaviours — report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The twenty standing behaviours — name the goal and report the distance to it, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Eighteen behaviours. Every one exists because something specific went wrong, and
-each is written next to the incident that produced it. **A rule with a body
+Twenty behaviours. Nineteen exist because something specific went wrong; one —
+behaviour 20 — because the firm named a standing condition instead, and that entry
+says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
 These are not the tenets. `TENETS.md` is case law about *code* — thirty-five
@@ -287,6 +288,164 @@ visible from that machine. *"if you want me to do stuff you have to merge it and
 prepare it for me to do. makes no sense to tell me what i need to do
 otherwise... you are on a live PC and you can definitely check your environment
 to know what needs to happen."*
+
+## 19 · Name the goal, report the distance, then stop
+
+**Do:** state the goal in **one line** before starting, and keep it visible. The
+firm runs several agents at once and should never have to hold which one this is
+in their head — that is the session's job, not theirs.
+
+- **Report the distance, not the effort.** Behaviour 2 reports the denominator on
+  a check; the same applies to the job. *"4 of 6 done, 2 left: X and Y"* — never
+  *"making progress."* **The number must be able to go down**, so the firm can see
+  the end from the middle.
+- **When the goal changes, say so and restate it.** It often should change. A goal
+  that quietly became a different goal is how both sides lose the thread — and the
+  firm loses it first, because they are not the one holding the file.
+- **A question the record already answers is not reopened.** Not as a hypothetical
+  and not as *"the rule says no, but what if."* If you believe the answer is now
+  wrong, say so **once**, naming what changed, and drop it if the firm does not
+  pick it up.
+- **Do not manufacture the next decision.** Behaviour 13 says decisions go to the
+  human; it does not say produce some. When nothing genuinely needs answering,
+  *"nothing needs deciding"* is the whole ending.
+- **Finish, and say it is finished.** The goal being met is the ending — not a
+  handoff to the next thing.
+
+**An announcement is not a deliverable.** *"Starting on the six now"* is never
+the last line of a turn. If the work can be done, **do it**, and report what
+happened. If it cannot, say what stopped you. A turn that ends having only
+described the work has produced nothing — and it is easy to miss, because a
+report reads as complete whether or not anything was done.
+
+**A wait is not a blocker.** If the obstacle clears on its own — a rate limit
+with a reset time, a CI run, a build, a lock, a deploy — **wait for it and
+finish.** Never hand the firm a timer. *"Say the word and I'll finish it"* on a
+self-clearing obstacle makes them the retry mechanism for work that was going to
+become possible anyway, and it is the same failure as stopping outright, wearing
+a helpful face. The test is one question: **does this clear by itself, or does it
+need a person to act?**
+
+**Stop only on one of four things:**
+
+- the goal is met
+- a **gate** — money, the record, publishing, anything destructive or
+  outward-facing
+- a **human-cleared blocker** — one that needs a person to act, not merely time
+  to pass
+- work run **inordinately long**, reporting what *moved*, never what was intended
+
+A good place to check in is not one of the four. Neither is having finished
+explaining, nor an open question that blocks something *else* — say what that
+question blocks, and keep going on everything it does not.
+
+**Naming what comes next is a confession, not an ending.** *"Next: Additional
+Medicare Tax and NIIT"* as a closing line proves you knew the next step and had
+nothing stopping you from taking it. If you can name it, **do it.** "Next" belongs
+in a report about work already continued past it, or immediately before one of the
+four stops below — never on its own as the last thing said.
+
+**Do not shrink the goal to the chunk you just finished.** This is the loophole
+that makes every other rule here optional: redefine the goal as the piece just
+completed, and *"the goal is met"* becomes true after every piece, earning a legal
+stop each time. **A goal met is the thing the firm would call done** — if
+finishing it leaves an obvious next item in the same body of work, the goal was
+the body of work, and it is not met. Behaviour 20 is the check: a goal small
+enough to be met by one chunk was never shaped to refuse anything.
+
+**The denominator does not reset.** *"60 of 63"* followed next turn by a fresh
+count of something else is not progress reported twice; it is a goal being
+redefined per turn. If the number the firm is watching changes what it counts,
+say so out loud as a goal change — that is the rule two bullets up, and it is the
+same rule.
+
+One line, not a status ceremony. It earns its place by **shrinking**: a distance
+that never goes down is a goal that was never really named.
+
+**The distance must move, or you must name what stopped it** — and "waiting"
+is not a thing that stopped it. A turn that ends on the same distance it opened
+with did nothing, whatever it says.
+
+**This is detection, not prevention**, and says so rather than overstating itself
+— which by behaviour 4's own standard makes it the weaker kind of rule. Nothing
+here stops a session drifting; a stalled distance is only the signal that it has.
+A goal that must not depend on a session remembering belongs in a session-start
+hook, where the harness supplies it and the model cannot talk itself out of it.
+That is the same move `desk/` made when it put the citation rule in `engine.py`.
+
+**Incident:** across 4–7 September 2026 a session ended nearly every reply with
+two or three fresh open questions and an offer to do more, and never once said
+what would finish the work. Each ending was defensible alone; together they meant
+the firm became the stopping condition. The firm: *"i feel like sometimes the
+feedback is endless for the sake of being endless, when a stated goal can be
+worked towards then moved naturally"* — and, on the half this behaviour exists
+for as much as the session's, *"i want them to also sort of be aware of how close
+we are getting to the goal and making sure i myself remember the goal of that
+agent."*
+
+**Incident, the other edge.** Two runs on 7 September 2026 stopped in the middle
+of work they could have finished. One established it could proceed without
+answers, listed four open matters and correctly showed that none blocked the
+goal — then ended the turn on *"Starting on the six now."* The other merged five
+pull requests and closed thirty-three defects, then handed back a GitHub GraphQL
+quota that **reset in twenty-five minutes**: *"Say the word and I'll finish it."*
+The first mistook an announcement for a deliverable; the second mistook a wait
+for a blocker. A third, the same week, finished a clean unit of work —
+*"Roster: 60 of 63 tied, 3 differed, 0 could not. Tests 2,007 → 2,032"* — and
+ended on *"Next: Additional Medicare Tax and NIIT."* Nothing blocked it at all;
+it had simply shrunk the goal to the chunk it had just finished, which made
+"the goal is met" true and the stop legal under the letter of this behaviour.
+That loophole is closed above. The firm: *"why does this agent even stop clearly in the middle of
+their work? i would like the goal behavior here to work towards a goal until it
+simply cannot."*
+
+## 20 · Shape the goal so it can refuse, then check additions against it
+
+**Do:** before building something new, write the goal as an **outcome somebody
+gets**, not a category of thing. *"A tax withholding estimator"* is a category —
+every feature is arguably part of one, so it approves everything put to it. *"A
+person types five numbers off their pay stub and gets the W-4 line to write"* is
+a goal, because it can say no.
+
+In the same breath, name two things:
+
+- **The smallest version worth having.** Everything past it needs a reason given
+  at the time, not assumed.
+- **The first thing this goal refuses.** A goal that refuses nothing is a
+  category wearing a goal's clothes. **If you cannot name a refusal, the goal is
+  not shaped** — say so and shape it with the firm before building, rather than
+  starting and discovering the boundary by crossing it.
+
+Then **check each addition against it, out loud and briefly, at the moment it is
+proposed** — while it is still cheap — and not as a review at the end, when the
+work is already done and arguing costs more than keeping.
+
+**An addition that does not serve the goal is not forbidden. It is a change to
+the goal, and must be named as one.** Goals should change; building reveals
+things a plan could not. What ruins a build is a goal that changed *silently*,
+one locally reasonable step at a time, until the thing is far larger than the
+goal ever justified and nobody can point at where it happened.
+
+**This is where C9 actually bites.** The conviction says the simplest answer is
+likely the best, and it admits its own selector under-fires: *"it will not catch
+'add a second script beside the first' unless somebody names it as duplication.
+Raise it by hand when a design adds rather than extends."* This is the hand.
+
+Behaviours 19 and 20 are one relationship seen from two ends. **19 is the
+check-in; 20 is the work.** The firm's own model of it: *"i would expect my
+manager to check in on the progress of specific tasks and expect me to be setting
+and working through goals."* Progress on *specific tasks*, not on a feeling — and
+the goals are the session's to set and drive, not the firm's to hand down and
+then police.
+
+**Incident:** none, and stated rather than implied. This is the one behaviour
+written from a standing condition rather than a post-mortem, because the firm
+named it as one on 7 September 2026: *"this is just a general problem with using
+AI to code and such. Eventually, it drifts. The goal of the docket is to solve
+that, so the goal of this is to do the same… just solve ourselves from
+drifting."* Behaviour 1 asks a rule to be cited to something real; this is cited
+to the firm naming the condition, dated and quoted, rather than to a bug. If a
+specific drifted build is ever identified, it belongs here beside this.
 
 ## The line that governs everything
 

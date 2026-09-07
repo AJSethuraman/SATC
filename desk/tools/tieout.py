@@ -163,8 +163,17 @@ def _ecfr_url(source_url: str) -> str:
     A desk records `https://www.ecfr.gov/current/title-26/section-1.263(a)-3`,
     which serves a JavaScript shell to a plain client. The versioner publishes
     the same section as XML, dated, which is both fetchable and pinned to a day.
+
+    IT READ ONE URL SHAPE, AND DESKS ONLY EVER HELD THAT ONE. eCFR also serves a
+    section under its full outline path --
+    `/current/title-26/chapter-I/subchapter-A/part-1/subject-group-ECFR…/section-1.162-3`
+    -- and that is the form its own site links and a search engine returns. The
+    old pattern required `section-` to follow `title-26/` immediately, so the
+    outline form fell through to the human page, which is the shell this function
+    exists to avoid. Nothing had ever passed one in until the searcher did: every
+    caller was a source URL a person had typed in the short form.
     """
-    m = re.search(r"title-(\d+)/section-([^/?#]+)", source_url)
+    m = re.search(r"title-(\d+)\b.*?/section-([^/?#]+)", source_url)
     if m:
         title, section = m.group(1), m.group(2)
         return (f"https://www.ecfr.gov/api/versioner/v1/full/{as_of()}/"

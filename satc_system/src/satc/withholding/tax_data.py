@@ -75,6 +75,18 @@ class TaxTables:
         return (self._by_status("ltcg_0_pct_max", status),
                 self._by_status("ltcg_15_pct_max", status))
 
+    def capital_gains_rates(self) -> tuple[Decimal, Decimal, Decimal]:
+        """The 0 / 15 / 20 percent preferential rates, in band order.
+
+        Read from the dated table like every other rate. They were literals in
+        `engine.py` until 7 September 2026 -- the only tax constants in the
+        estimator carrying no citation, in a file whose entire discipline is that
+        a reader can check each figure against the law.
+        """
+        return (_dec(self._v("ltcg_rate_0")),
+                _dec(self._v("ltcg_rate_15")),
+                _dec(self._v("ltcg_rate_20")))
+
     # -- payroll / SE / surtaxes ------------------------------------------
     @property
     def ss_wage_base(self) -> Decimal:
@@ -87,6 +99,11 @@ class TaxTables:
     @property
     def se_social_security_rate(self) -> Decimal:
         return _dec(self._v("se_social_security_rate"))
+
+    @property
+    def se_minimum_net_earnings(self) -> Decimal:
+        """Below this, Schedule SE stops and no SE tax is owed (line 4c)."""
+        return _dec(self._v("se_minimum_net_earnings"))
 
     @property
     def se_medicare_rate(self) -> Decimal:

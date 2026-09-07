@@ -160,6 +160,55 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
             "SE tax and Additional Medicare Tax use projected Box 1 taxable wages as a proxy for "
             "SS/Medicare wages. These may differ when pre-tax deferrals (401(k), etc.) reduce Box 1; "
             "any difference is typically negligible for planning.")
+    # THE FIGURES THIS RESTS ON WERE READ BY SOFTWARE, and nothing outside this
+    # repository can say whether that reading was right.
+    #
+    # Eight of the nine computations behind an estimate are now tied to an IRS
+    # document -- the brackets, the standard deduction, safe harbour, Schedule
+    # SE, the capital-gains worksheet, Forms 8959 and 8960, and the W-4 line 4c
+    # division. The ninth is the paystub reader, and it CANNOT be: **the IRS
+    # publishes nothing describing what a paystub looks like.** There is no
+    # federal form and no standard layout; a stub is whatever the employer's
+    # payroll software prints. Some states legislate the contents -- California
+    # Labor Code sec. 226, New York sec. 195.3 -- and Ohio does not.
+    #
+    # So it is MARKED rather than proved. The reader scores 126 of 126 on an
+    # eighteen-stub corpus, and that corpus was written here: it measures whether
+    # the reader handles the shapes we thought of, which is worth having and is
+    # not an accuracy figure. The only authority on whether a figure is right is
+    # the stub in the preparer's hand.
+    if any(job.ytd_taxable_wages is not None or job.ytd_federal_tax_withheld is not None
+           for job in inp.jobs):
+        notes.append(
+            "Figures taken from a paystub were read by software. Nothing outside this "
+            "machine can confirm a reading is right -- the IRS publishes no description "
+            "of a paystub, so there is nothing to check one against. Compare the wages "
+            "and withholding above against the stub before acting on this.")
+
+    # WHAT THIS ESTIMATOR'S NET INVESTMENT INCOME LEAVES OUT, said when the tax
+    # actually applies rather than in a footnote nobody reaches.
+    #
+    # Tied to Form 8960 on 7 September 2026: the lesser-of rule, the 3.8% rate
+    # and the thresholds all agree with the form. What does NOT agree is the
+    # SCOPE of "net investment income", and it runs in both directions:
+    #
+    #   too LOW   Form 8960 Part I also counts rents, royalties, annuities and
+    #             passive business income. This estimator has no field for any
+    #             of them, so a landlord's NIIT is understated.
+    #   too HIGH  Form 8960 Part II allows deductions AGAINST that income --
+    #             investment interest expense, the state tax allocable to it.
+    #             None are modelled, so somebody with them is overstated.
+    #
+    # And the statute says MAGI where this uses AGI. They are the same figure
+    # unless the taxpayer excludes foreign earned income.
+    if niit > ZERO:
+        notes.append(
+            "Net investment income here counts interest, dividends and capital gains only. "
+            "Rents, royalties, annuities and passive business income are NOT included, so a "
+            "landlord's figure is too low; deductions against investment income are not "
+            "modelled either, so somebody with investment interest expense is too high. "
+            "The threshold test uses AGI, which equals MAGI unless foreign earned income is "
+            "excluded.")
 
     marginal = _marginal_rate(ordinary_ti, tables.ordinary_brackets(status))
     effective = (total_liability / agi) if agi > ZERO else ZERO
@@ -210,6 +259,7 @@ def _capital_gains_tax(ordinary_ti: Decimal, preferential: Decimal,
     if preferential <= ZERO:
         return ZERO
     zero_top, fifteen_top = tables.capital_gains_thresholds(status)
+    rate_0, rate_15, rate_20 = tables.capital_gains_rates()
     tax = ZERO
     zero_room = _nonneg(zero_top - ordinary_ti)
     zero_amount = min(preferential, zero_room)
@@ -217,17 +267,48 @@ def _capital_gains_tax(ordinary_ti: Decimal, preferential: Decimal,
     fifteen_start = max(ordinary_ti, zero_top)
     fifteen_room = _nonneg(fifteen_top - fifteen_start)
     fifteen_amount = min(remaining, fifteen_room)
-    tax += fifteen_amount * Decimal("0.15")
+    tax += zero_amount * rate_0
+    tax += fifteen_amount * rate_15
     remaining -= fifteen_amount
-    tax += remaining * Decimal("0.20")
+    tax += remaining * rate_20
     return tax
+
+
+def _se_earnings_subject_to_tax(net_se: Decimal, tables: TaxTables) -> Decimal:
+    """Schedule SE line 4c, and ZERO where the schedule tells you to stop.
+
+    THE FORM PUTS A FLOOR ON ITSELF AND THE ENGINE DID NOT HAVE IT. Line 4a
+    multiplies net earnings by 92.35%; line 4c then says, in the form's own
+    words, *"Combine lines 4a and 4b. If less than $400, stop; you don't owe
+    self-employment tax."*
+
+    Found on 7 September 2026 by tying the computation to the form rather than
+    to our own constants: the engine charged **$56.52 on net earnings of $400**,
+    where the form charges nothing. Small money, common case -- a side gig, a
+    little 1099 income -- and it overstated the client's tax, the same direction
+    as the standard-deduction defect found the day before.
+
+    One function because TWO places need the answer, and they must not disagree:
+    the SE tax itself, and the Additional Medicare Tax, whose Form 8959 line 8
+    reads *"Enter your self-employment income from Schedule SE (Form 1040),
+    Part I, line 6"* -- a line you never reach if 4c stopped you.
+
+    THE SECOND OF THOSE IS A CONSEQUENCE, NOT A PRINTED RULE. Form 8959's
+    instructions do not say what to do when Schedule SE was not required; this
+    follows from line 8 naming a line that does not exist in that case. Recorded
+    as an inference rather than presented as a citation.
+    """
+    if net_se <= ZERO:
+        return ZERO
+    base = net_se * tables.se_net_earnings_factor
+    return ZERO if base < tables.se_minimum_net_earnings else base
 
 
 def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
                          tables: TaxTables) -> tuple[Decimal, Decimal]:
-    if net_se <= ZERO:
+    se_base = _se_earnings_subject_to_tax(net_se, tables)
+    if se_base <= ZERO:
         return ZERO, ZERO
-    se_base = net_se * tables.se_net_earnings_factor
     ss_room = _nonneg(tables.ss_wage_base - wages_subject_to_ss)
     ss_taxable = min(se_base, ss_room)
     ss_tax = ss_taxable * tables.se_social_security_rate
@@ -238,7 +319,11 @@ def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
 
 def _additional_medicare_tax(inp: EstimatorInput, tables: TaxTables,
                              projected_wages: Decimal) -> Decimal:
-    se_base = _nonneg(inp.other_income.self_employment_net) * tables.se_net_earnings_factor
+    # Form 8959 line 8 reads Schedule SE line 6, which does not exist when line
+    # 4c stopped the schedule -- so the same floor applies here. See
+    # `_se_earnings_subject_to_tax`, which is shared so the two cannot disagree.
+    se_base = _se_earnings_subject_to_tax(
+        _nonneg(inp.other_income.self_employment_net), tables)
     medicare_wages = projected_wages + inp.other_income.spouse_taxable_wages + se_base
     threshold = tables.additional_medicare_threshold(inp.filing_status)
     excess = _nonneg(medicare_wages - threshold)
