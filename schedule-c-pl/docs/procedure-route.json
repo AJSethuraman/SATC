@@ -1,0 +1,79 @@
+{
+  "heading": "The route, before step 1",
+  "lede": "Seven stages, thirty-nine steps, one browser. Roughly twenty minutes with the figures in front of you.",
+  "stages": [
+    {
+      "letter": "A",
+      "title": "Set the job up",
+      "steps": "Steps 1–8",
+      "caption": "Year, name, how you count income — and the stock question, which is the one that bites.",
+      "image": "route-a.jpg"
+    },
+    {
+      "letter": "B",
+      "title": "Money coming in",
+      "steps": "Steps 9–11",
+      "caption": "Lines 1 and 2. Check the income total before you type twenty expense lines.",
+      "image": "route-b.jpg"
+    },
+    {
+      "letter": "C",
+      "title": "Money going out",
+      "steps": "Steps 12–21",
+      "caption": "Part II line by line, the mileage and meals helpers, and the list of anything else.",
+      "image": "route-c.jpg"
+    },
+    {
+      "letter": "D",
+      "title": "Home and van",
+      "steps": "Steps 22–26",
+      "caption": "The home office, then the vehicle questions — which only exist because line 9 has a figure.",
+      "image": "route-d.jpg"
+    },
+    {
+      "letter": "E",
+      "title": "Check, then produce",
+      "steps": "Steps 27–31",
+      "caption": "Read the panel, pick cents or whole dollars, download the PDF and the spreadsheet.",
+      "image": "route-e.jpg"
+    },
+    {
+      "letter": "F",
+      "title": "Keep it and check it",
+      "steps": "Steps 32–38",
+      "caption": "Save a draft, open both files and read them, then clear the machine if it is not yours.",
+      "image": "route-f.jpg"
+    },
+    {
+      "letter": "G",
+      "title": "Prove it yourself",
+      "steps": "Step 39",
+      "caption": "Pull the network out and do it again. It still works — that is the privacy claim, checked.",
+      "image": "route-g.jpg"
+    }
+  ],
+  "sub": "What happens between the screens",
+  "notes": [
+    {
+      "what": "Tick the stock box",
+      "then": "Part III appears — six inventory lines. Untick it and they go, but anything typed in them stays in your figures."
+    },
+    {
+      "what": "Line 9 gets a figure",
+      "then": "A whole section of vehicle questions appears further down, with your miles already in it."
+    },
+    {
+      "what": "A file downloads",
+      "then": "A panel that was hidden until now appears at the foot of the page. Never before the file."
+    },
+    {
+      "what": "A figure cannot be read",
+      "then": "It is refused where you typed it, the profit above quietly leaves it out, and both download buttons go dead."
+    }
+  ],
+  "rows": [
+    3,
+    3,
+    1
+  ]
+}

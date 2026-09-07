@@ -232,6 +232,24 @@ And where a book figure is simply an error, correcting it IS the right move. Thi
 
 ---
 
+## C15 · The free tool sorts; the paid work decides
+
+**State:** held · **Recorded:** 2026-09-07 · **Applies:** anything the practice gives away
+
+> *It is not my concern to fill out a form for them. This is already helpful when free and I would expect them to pay us if they wanted to take it to that step themselves through our own work.*
+> — the firm, 6 September 2026
+
+**Why:** A free thing may arrange a person's own figures and hand them back. It does not carry them to the answer they would otherwise pay for. Where the next step is the firm's work, the tool stops and says so — and that boundary is the offer, not a gap in it.
+Asked whether the free Schedule C tool should work out self-employment tax, I argued for it: the rates are published, the arithmetic is deterministic, and it is the first thing a sole trader actually wants to know. The firm said no, and the reason was not that it is hard. It is what they are willing to be responsible for. The same line was drawn a second time the next day on the guide page, which says which box a figure belongs in and refuses to decide anybody's facts — two draws in two days is what makes this a belief rather than a preference about one feature.
+
+**Fires on:** free, no signup, giveaway, tool, calculator, guide, lead, funnel, conversion, self-employment tax, estimate, next step, hand off, handoff, refuse, stops
+
+**A challenge looks like:** extending a free surface until it produces the answer somebody would otherwise engage the firm for — usually argued as "it is only arithmetic" or "the user will be frustrated". It also looks like the opposite mistake: withholding something the free thing already has in hand, to force an enquiry. What decides is whether the next step needs the firm's judgement, not whether it would be impressive or whether it would generate a lead.
+
+**How it could be wrong:** "needs the firm's judgement" is itself a judgement, and it is the one with a commercial thumb on the scale. A step that is genuinely mechanical must not be reclassified as paid work because stopping there is good for business — that inverts the conviction into the thing it exists to prevent. And if the same answer becomes freely available elsewhere, the boundary stops being an offer and becomes a reason to go somewhere else; the firm's words are about responsibility, and responsibility is not a moat.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The

@@ -142,6 +142,11 @@ jobs:
         # left behind after a year file changes.
         run: node guide/build-guide.mjs --check
 
+      - name: The hand-over document still says what the procedure says
+        # Words, not bytes: the pictures are encoded by whichever Chromium the
+        # runner has, so a byte comparison would go red for the wrong reason.
+        run: node procedure.mjs --check
+
       - name: What a client reads
         run: python3 copy.spec.py
 

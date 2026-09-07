@@ -22,8 +22,10 @@ src/          the tool, as plain ES modules the browser could load unbundled
 years/        one file per tax year: line 27a/27b, the mileage rate, its source
 evidence/     Schedule C labels extracted from the official IRS PDFs, per year
 guide/        the line-by-line guide: copy.mjs is the prose, build-guide.mjs renders it
+docs/         the walk: its defects, its procedure, and the route the document draws
 tests/        the suite, plus walk.mjs which drives a real browser
 build.mjs     generates website/tools/schedule-c-profit-and-loss/index.html
+procedure.mjs assembles the walk's hand-over document — one file, pictures inside it
 copy.spec.py  the client-facing register rules, run against the built page
 ```
 
@@ -37,7 +39,7 @@ fixtures and evidence should not sit on a public web server. The same shape as
 ```bash
 cd schedule-c-pl
 npm install                # fast-check, pdfjs-dist, playwright — dev only
-npm test                   # 141 tests
+npm test                   # 150 tests
 npm run build              # writes both pages into website/
 python3 copy.spec.py       # 24 checks on what a client reads
 npm run walk               # drives the built page in a real browser, offline
@@ -59,9 +61,27 @@ failure mode this repo keeps writing tenets about:
 | `build.test.mjs` | The shipped file makes no requests, carries no tracker, and is one file. |
 | `walk.mjs` | A person fills the form in, offline, and the downloaded files hold what the screen held. 62 checks. |
 | `guide.test.mjs` | The guide's line numbers are looked up per year, not typed: 27a for 2023–24, 27b for 2025, and the shipped page carries the right one. |
+| `procedure.test.mjs` | The hand-over document still says what `docs/PROCEDURE-schedule-c.md` says, carries all 46 pictures inside itself, and has no step missing. |
 | `copy.spec.py` | No contract-desk verbs, no sentence over 25 words, no unexplained term of art, no promise that cannot be kept. |
 
 `FC_RUNS=5000 npm test` runs the property tests harder.
+
+## The walk, and its hand-over document
+
+`docs/WALKTHROUGH-DEFECTS.md` is what one walk of the tool found — 14 defects
+against 178 checks that were all passing. `docs/PROCEDURE-schedule-c.md` is the
+other half: the route somebody actually took, 39 steps with a marked screenshot
+each, so the run can be repeated by a person who has never seen this repository.
+
+```bash
+npm run procedure          # rebuild the one-file document, and print the PDF
+```
+
+It assembles from the Markdown, `docs/procedure-route.json` and the screenshots,
+embedding every picture as a data URI so the result can be forwarded on its own.
+**Shoot the next walk's screenshots as JPEG.** The 2026-09-06 run is 11 MB of
+PNG originals that the document only ever uses as compressed derivatives; at the
+same quality the run folder would have been about a megabyte.
 
 ## The things most likely to go wrong
 

@@ -17,6 +17,54 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Sunday 7 September 2026 — the Schedule C docket: five for five, one conviction
+
+Five decisions, all answered inside two minutes. Three took the recommendation,
+one overruled it, and the one carried over from the day before became C15.
+
+| | Asked | Answered |
+|---|---|---|
+| **A** | link the tool and the guide from the site | **overruled me** — *"Keep both unlinked"* |
+| **B** | how to mark up the guide's prose | *"Publish a copy I can comment on in place"* |
+| **C** | 21 MB of walk evidence, and a document nothing can rebuild | *"Keep this one, fix the mechanism for the next"* |
+| **D** | record what they said about self-employment tax | *"Yes — record it as written"* |
+| **E** | one guide page, or one per tax year | *"One page for the current year"* |
+
+**A is the one to read twice.** I asked it knowing the firm had answered it the
+day before, because the fact underneath had changed: yesterday only the tool
+existed, and the guide — the half that was supposed to bring anybody in — did
+not. I argued that unlinked, out of the sitemap, neither page can be found and
+the twelve-month enquiry rule in `schedule-c-pl/DECISIONS.md` cannot start
+running. **They said keep both unlinked anyway.** So the pages sit finished and
+unreachable on purpose, and nothing goes near `website/index.html` or
+`sitemap.xml` until they say otherwise. Asking again was right; arguing it a
+third time would not be.
+
+**D became C15 — *the free tool sorts; the paid work decides*.** It is in
+`canon/CONVICTIONS.md` in their own words, canon is at 1.13.0, and its 181 tests
+pass. The version had to move: an installed session reads whatever the
+marketplace number fetches, so a conviction added without a bump is a conviction
+nobody outside this checkout would ever read.
+
+**C produced the only new code.** The hand-over document from the walk — 43
+pages, 39 steps, a marked screenshot each — had been assembled by a script that
+was written once and never saved. It could not be rebuilt, corrected, or brought
+up to date: a change to the tool meant walking the whole job again from scratch.
+`schedule-c-pl/procedure.mjs` is the mechanism, with the Markdown, the route
+spec, the stylesheet and the screenshots as its inputs, and nine tests holding
+the committed document to them.
+
+**And building it found a fault in itself.** The first document it produced
+rendered *"\*\*On line 9, click \*Work it out from miles\*.\*\*"* as raw markup on
+the page, because the pattern for bold refused to span an italic inside it.
+Every assertion I had written at that moment passed. It was found by opening the
+document and looking at step 14 — the same way the `nullnull` on the tool's own
+panel was found, and the reason `docs/SOFTWARE-TENETS.md` opens where it does.
+The builder now refuses to write a document with any markup left in it, and that
+guard was mutation-tested: reverting the fix makes it fire.
+
+---
+
 ## Saturday 5 September 2026 — the docket after the walk, five for five
 
 Every decision answered. Three took the recommendation, one overruled it, and

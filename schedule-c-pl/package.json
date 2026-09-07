@@ -6,8 +6,9 @@
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
     "build": "node build.mjs && node guide/build-guide.mjs",
-    "check": "node build.mjs --check && node guide/build-guide.mjs --check",
-    "walk": "node tests/walk.mjs"
+    "check": "node build.mjs --check && node guide/build-guide.mjs --check && node procedure.mjs --check",
+    "walk": "node tests/walk.mjs",
+    "procedure": "node procedure.mjs --pdf"
   },
   "devDependencies": {
     "fast-check": "^4.9.0",
