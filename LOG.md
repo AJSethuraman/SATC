@@ -17,6 +17,79 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, late — the hourly rate moves, and two more answers
+
+### The rate: $150 → $175
+
+> *"let's adjust hourly but keep our core pricing in place - you are the owner of
+> tax pricing so ensure it gets updating and we need to give that to the
+> satcllp.com agent to update on the site and make sure it's up to date"*
+> — the firm, 7 September 2026
+
+**A correction that changed the advice.** The recommendation had been to defer
+this until before January, *"don't touch it mid-season"*. The firm: **"we are
+currently not mid-season"** — and they were right. It is September. This is
+precisely the window a rate gets reviewed in, months before it reaches anyone in
+a January engagement. The deferral was wrong and the work was done the same day.
+
+**The number.** $175, against a regional par of $182.57 — the NSA survey's
+East North Central figure of $148.15 for 2020–21, adjusted by 23.23% CPI-U. It
+closes 77% of the gap in one step rather than landing a 21.7% rise on existing
+clients at once, and leaves room to reach par without a second jump.
+
+**Core pricing held, and it was checked rather than claimed:** 24 priced amounts
+before, 24 after, **none changed**. The sample estimate's total is still $645.00.
+What moved with the rate is the published rate itself, the five `hourly:`
+situations, and the *"beyond that the time is billed at {rate} an hour"* phrasing
+where a cap is exceeded — which is the rate applying, and is the point.
+
+### What moving it found
+
+**Seven tests had hard-coded what the rate produces.** $225.00 for an hour and a
+half, $37.50 for a quarter, *"billed at $150 an hour"* — and **not one of them
+was about the rate.** They were about rounding to the quarter hour, about a soft
+cap saying what happens past it, about an hour reaching an engagement record. The
+rate is the firm's number and it will move again; a test that writes down what it
+produces makes changing it a seven-file edit, and the seventh is the one somebody
+misses. They now compute from the schedule, and with the rate set to `999` all
+seven still pass.
+
+The one test that **correctly** went red was the sample-drift guard, because a
+stored sample must match the schedule — which is how the demo record's frozen
+*"$150 an hour"* assumption sentence was caught and regenerated. That guard
+earned its place today.
+
+### The site is stale on purpose
+
+`website/pricing-config.js` still publishes $150, and `pricing.spec.py` says so
+in terms: *"The site and the fee schedule disagree. The schedule wins."* Updating
+it belongs to the **satcllp.com agent**, at the firm's instruction, and has been
+handed to it with the three commands and the two failing checks named.
+
+### Two more answers
+
+**The "engagement letter" wording — approved.** Asked whether *"that begins when
+we both sign a written agreement setting out the work and the fee"* would do, the
+firm said **"sure"**. That clears the tenet blocking `#138`. The wording went to
+the satcllp.com agent rather than being written here, since `website/` is theirs.
+
+**The privacy page — "no update".**
+
+> *"crazy to think we wouldn't record the answers ourselves. we are implicitly
+> saying nobody else nor the site saves it for someone else to see it"*
+
+**And the reasoning is the useful half.** A privacy notice is for the copies a
+client would **not** assume — a third party holding it, or the site retaining it
+for someone else to read. Formspree is exactly that, which is why it is named and
+its 30 days stated. The firm's own working file is not. So the finding had
+measured the workbook against the wrong standard: *every place a submission
+lands*, rather than *every place a client would not expect it to land*. The
+register entry is closed as declined, with what would reopen it written down —
+the workbook being read outside the firm, synced to a third party, or used for
+something other than answering the enquiry.
+
+---
+
 ## Monday 7 September 2026, night — three answers, and the goal restated
 
 ### The goal changed, twice, and the second one is the real one
