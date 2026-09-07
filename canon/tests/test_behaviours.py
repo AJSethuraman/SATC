@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_nineteen_are_here_and_numbered_without_a_gap():
+def test_all_twenty_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 20)]
-    assert "Nineteen behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 21)]
+    assert "Twenty behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -376,3 +376,29 @@ def test_the_docket_carries_the_next_goal_and_bounds_what_silence_approves():
     assert "This one is not, and the page has to say so" in flat,         "nothing marks Next as the item that does not block"
     assert "What silence does not approve" in flat,         "the autonomy is unbounded; the gates are not fenced off"
     assert "a conviction needs an explicit yes" in flat, "the record gate is not named"
+
+
+def test_behaviour_20_makes_the_goal_able_to_refuse():
+    """A goal that refuses nothing approves every addition put to it, which is
+    how a build drifts one locally reasonable step at a time. The refusal is the
+    testable part -- without it this is an encouragement, not a rule."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "The first thing this goal refuses" in flat, "no refusal is required"
+    assert "the goal is not shaped" in flat,         "an unshaped goal is not sent back to the firm"
+    assert "The smallest version worth having" in flat, "no floor is named"
+    assert "It is a change to the goal, and must be named as one" in flat,         "an out-of-scope addition can still be absorbed silently"
+    assert "This is where C9 actually bites" in flat,         "20 is not tied to the conviction it enforces"
+
+
+def test_the_one_behaviour_without_an_incident_says_so():
+    """Behaviour 1 asks a rule to be cited to something real, and the file's own
+    first line claims every one came from something going wrong. Behaviour 20
+    did not. Both the entry and the count line must say so, or the file is
+    asserting something about itself that is false -- the exact drift these
+    rules exist to catch."""
+    text = (CANON / "skills" / "how-we-work" / "SKILL.md").read_text(encoding="utf-8")
+    flat = " ".join(text.split())
+    assert "Nineteen exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
+    body = text.split("## 20 · ", 1)[1]
+    assert "**Incident:** none, and stated rather than implied" in body,         "behaviour 20 does not admit it has no incident"

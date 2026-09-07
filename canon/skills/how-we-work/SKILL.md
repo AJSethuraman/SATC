@@ -1,12 +1,13 @@
 ---
 name: how-we-work
-description: The nineteen standing behaviours — name the goal and report the distance to it, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The twenty standing behaviours — name the goal and report the distance to it, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Nineteen behaviours. Every one exists because something specific went wrong, and
-each is written next to the incident that produced it. **A rule with a body
+Twenty behaviours. Nineteen exist because something specific went wrong; one —
+behaviour 20 — because the firm named a standing condition instead, and that entry
+says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
 These are not the tenets. `TENETS.md` is case law about *code* — thirty-five
@@ -330,6 +331,54 @@ worked towards then moved naturally"* — and, on the half this behaviour exists
 for as much as the session's, *"i want them to also sort of be aware of how close
 we are getting to the goal and making sure i myself remember the goal of that
 agent."*
+
+## 20 · Shape the goal so it can refuse, then check additions against it
+
+**Do:** before building something new, write the goal as an **outcome somebody
+gets**, not a category of thing. *"A tax withholding estimator"* is a category —
+every feature is arguably part of one, so it approves everything put to it. *"A
+person types five numbers off their pay stub and gets the W-4 line to write"* is
+a goal, because it can say no.
+
+In the same breath, name two things:
+
+- **The smallest version worth having.** Everything past it needs a reason given
+  at the time, not assumed.
+- **The first thing this goal refuses.** A goal that refuses nothing is a
+  category wearing a goal's clothes. **If you cannot name a refusal, the goal is
+  not shaped** — say so and shape it with the firm before building, rather than
+  starting and discovering the boundary by crossing it.
+
+Then **check each addition against it, out loud and briefly, at the moment it is
+proposed** — while it is still cheap — and not as a review at the end, when the
+work is already done and arguing costs more than keeping.
+
+**An addition that does not serve the goal is not forbidden. It is a change to
+the goal, and must be named as one.** Goals should change; building reveals
+things a plan could not. What ruins a build is a goal that changed *silently*,
+one locally reasonable step at a time, until the thing is far larger than the
+goal ever justified and nobody can point at where it happened.
+
+**This is where C9 actually bites.** The conviction says the simplest answer is
+likely the best, and it admits its own selector under-fires: *"it will not catch
+'add a second script beside the first' unless somebody names it as duplication.
+Raise it by hand when a design adds rather than extends."* This is the hand.
+
+Behaviours 19 and 20 are one relationship seen from two ends. **19 is the
+check-in; 20 is the work.** The firm's own model of it: *"i would expect my
+manager to check in on the progress of specific tasks and expect me to be setting
+and working through goals."* Progress on *specific tasks*, not on a feeling — and
+the goals are the session's to set and drive, not the firm's to hand down and
+then police.
+
+**Incident:** none, and stated rather than implied. This is the one behaviour
+written from a standing condition rather than a post-mortem, because the firm
+named it as one on 7 September 2026: *"this is just a general problem with using
+AI to code and such. Eventually, it drifts. The goal of the docket is to solve
+that, so the goal of this is to do the same… just solve ourselves from
+drifting."* Behaviour 1 asks a rule to be cited to something real; this is cited
+to the firm naming the condition, dated and quoted, rather than to a bug. If a
+specific drifted build is ever identified, it belongs here beside this.
 
 ## The line that governs everything
 
