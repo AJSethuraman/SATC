@@ -80,4 +80,13 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    try:
+        raise SystemExit(main(sys.argv[1:]))
+    except BrokenPipeError:
+        # `engagement.py new alpha | head` is the first thing anybody does with
+        # a generator, and an unhandled BrokenPipeError prints a traceback that
+        # reads like the tool failed. Close the fd so Python does not try to
+        # flush it again on the way out and print a second one to stderr.
+        import os
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        raise SystemExit(0)

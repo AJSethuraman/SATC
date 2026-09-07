@@ -265,3 +265,17 @@ def test_a_home_relative_path_is_expanded(outside, monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(home))
     eng = engagements.load("~/engagements/alpha.md")
     assert eng.ref == "alpha-2026"
+
+
+def test_piping_the_blank_file_somewhere_does_not_print_a_traceback():
+    """`engagement.py new alpha | head` is the first thing anybody does with a
+    generator, and an unhandled BrokenPipeError prints a traceback that reads
+    like the tool failed. Found by walking the firm's own instructions against
+    the installed plugin rather than by reading them."""
+    import subprocess
+    p = subprocess.run(
+        f"python3 {HERE}/tools/engagement.py new alpha-2026 | head -3",
+        shell=True, capture_output=True, text=True)
+    assert "BrokenPipeError" not in p.stderr, p.stderr
+    assert "Traceback" not in p.stderr, p.stderr
+    assert "# Engagement · alpha-2026" in p.stdout
