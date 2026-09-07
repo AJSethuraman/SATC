@@ -298,6 +298,33 @@ footer{margin-top:clamp(34px,5vw,56px);padding:22px 0 42px;border-top:1px solid 
 """
 
 
+def open_questions() -> list[str]:
+    """Unanswered `[CONFIRM: ...]` markers in the DRAFTS, before any stripping.
+
+    This has to read the source, not the output. The guard in main() looks at the
+    rendered pages -- but render_body() strips HTML comments as its very first
+    act, and every CONFIRM in these drafts is written inside one. So the guard
+    was inspecting text the markers had already been removed from: it could
+    never fire, and had not, while five open questions were deleted at build
+    time and the pages shipped as though the firm had answered them.
+
+    That is `docs/SOFTWARE-TENETS.md` §0 exactly -- a verifier looking at a proxy
+    rather than at the thing -- committed inside the guard written to prevent it.
+    """
+    found = []
+    for src, _slug, _desc in PAGES:
+        text = (SRC / src).read_text(encoding="utf-8")
+        # Terminate on `]` OR on the end of the HTML comment. These markers are
+        # written `<!-- [CONFIRM: ... -->` with NO closing bracket, so a pattern
+        # anchored on `]` alone runs past the end of one marker and into the
+        # next: it found two of the five and gave both the wrong line. Under-
+        # reporting is the same defect as not looking at all, one step quieter.
+        for m in re.finditer(r"\[CONFIRM:.*?(?:\]|-->)", text, re.S):
+            line = text[:m.start()].count("\n") + 1
+            found.append(f"{src}:{line}  {' '.join(m.group(0).split())[:96]}")
+    return found
+
+
 def build() -> dict[str, str]:
     files: dict[str, str] = {"guide.css": CSS}
     rendered = []
@@ -324,6 +351,7 @@ def build() -> dict[str, str]:
 
 def main() -> int:
     check = "--check" in sys.argv
+    ready = "--publish-ready" in sys.argv
     files = build()
 
     # A CONFIRM marker on a public page is the one failure here that would
@@ -332,6 +360,31 @@ def main() -> int:
         if "CONFIRM" in text or "<!--" in text.replace("<!doctype", ""):
             print(f"REFUSED: {name} carries a draft marker or comment")
             return 1
+
+    # The guard above cannot see a CONFIRM written inside an HTML comment,
+    # because render_body() strips comments first. Every marker in these drafts
+    # is written that way, so the real check reads the SOURCE.
+    #
+    # Open questions do not fail an ordinary build: the firm reads these pages
+    # on a branch preview before they go live, and a build that refuses to
+    # produce the preview would stop the very review that answers them. That
+    # matches how `client-documents/exercise.py` treats a CONFIRM -- reported as
+    # waiting on the firm, never as a failure.
+    #
+    # `--publish-ready` is the gate that DOES fail. Run it before merging.
+    open_qs = open_questions()
+    if open_qs:
+        print(f"\n  {len(open_qs)} question(s) still waiting on the firm:\n")
+        for q in open_qs:
+            print(f"    {q}")
+        print("\n  These are stripped from the published pages, so a visitor never")
+        print("  sees them -- which is exactly why they are printed here.")
+        if ready:
+            print("\n  NOT PUBLISH-READY. Answer these in the drafts, or have the firm")
+            print("  rule them out, before merging to main.")
+            return 1
+    elif ready:
+        print("No open questions in the drafts.")
 
     if check:
         bad = []
