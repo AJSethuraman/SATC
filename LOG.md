@@ -17,6 +17,72 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, evening — the last hop, and ten checks that were never running
+
+**No answer arrived today.** Three matters from the morning docket are still
+open; this is what got done around them, and two of it found things.
+
+### Ten tests had never opened a screen on this box
+
+The suite reported **2,076 passed, 13 skipped** and looked healthy. Ten of those
+skips were `test_every_screen_in_a_browser` and `test_documents_in_a_browser`,
+which skip when Playwright is absent — and it had never been installed here.
+Their skip messages were honest (*"NO SCREEN IS BEING OPENED, and nothing below
+is being asserted"*); nothing had read them.
+
+Installed Playwright 1.62.0 and Chromium 151.0.7922.34 into the project venv.
+All ten now run and pass. Injecting `SATC <<InvoiceNumber>>` into `base.html`
+turns them red, so they assert something real. **Skips 13 → 3**, and the box
+now carries the browser — recorded in MANIFEST with why.
+
+### The tie-out proved the wrong pair, and I wrote it yesterday
+
+Nine parts of the withholding engine are tied to IRS documents. **Every one read
+the `ours` side out of `estimate()`** — which is not what anybody is handed. The
+preparer downloads an Excel workpaper, and between the engine and that file sits
+`build_audit_tape`, which nothing had checked figure by figure.
+
+    IRS document  =  engine          proved, nine parts
+    engine        =  the workpaper   never executed
+
+That is canon's tie-out skill describing its own named failure, and it applies to
+my own work from yesterday. The thirteen figures **do** tie, on three client
+shapes. Reading the file found two defects that are about a document being *read*
+rather than computed:
+
+* **Three labels named two different rows.** `Self-employment tax`, `Additional
+  Medicare tax` and `Net investment income tax` each headed a dollar amount in
+  the projection walk **and** a citation in the basis block. Found because it
+  broke the first draft of the test — a checker keyed by label kept the second of
+  each pair and reported three mismatches that were not there. Both were wrong:
+  my reader **and** the sheet.
+* **The `Source` line named a superseded authority** — *"IRS Rev. Proc.
+  2024-40; SSA; …"* — while the Standard deduction row three cells below cited
+  P.L. 119-21, the law that replaced it in July 2025. A header disagreeing with
+  the row beneath it, with nothing comparing them.
+
+What existed before was one test asserting that one figure appeared *somewhere*
+among the sheet’s numeric cells. It would have passed with every figure in the
+wrong row.
+
+### One of the firm’s open questions answered from the repository
+
+`#138` carries two `[CONFIRM:]` markers. The second asks whether
+`website/privacy.html` discloses Formspree and its 30-day retention. **It does**
+— three mentions and the retention period, checked on `main`. That marker can be
+struck without asking anybody. The first one cannot: it asks whether the site
+should promise a reply *"within one business day"*, and that is a promise to
+clients, so it is on the docket.
+
+`#158` was closed unmerged today. The hole it was fixing — a sitemap listing one
+URL — **is closed**: `main` lists 6, and the site has exactly 6 pages. It was
+superseded by `#163`, so closing it was right.
+
+**Totals:** `satc_system` 2,076 → **2,097 passing, 3 skipped**;
+`client-documents` **1,507 passing, 2 skipped**.
+
+---
+
 ## Monday 7 September 2026, later — the withholding engine is tied, 9 of 9
 
 **The goal named that morning is met**, and this is what it turned out to be
