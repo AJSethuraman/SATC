@@ -424,3 +424,42 @@ page would then have to say so.
 **Not built:** the `copy.spec.py` check proposed above, which would have
 enforced the wrong standard.
 
+
+---
+
+## OPEN · There is no way to price a notice the way the firm said notices should be priced
+
+**Found 7 September 2026**, by the satcllp.com session correcting a claim of
+mine, and confirmed here against the schedule.
+
+**The ruling.** 26 August 2026, the firm: *"notices and correspondence belong in
+a different letter engagement."* `assumed.notice_response` left
+`fee-schedule.yaml` for that reason, and the price page correctly stopped
+advertising a notice as hourly work (`docs/site-open-questions.md` B7).
+
+**What was left behind.** Search the fee schedule for `notice` and there is
+exactly one hit: `hourly.situations.notice`. **The separate letter engagement
+was never built.** So the only route that exists for pricing a notice is the
+hourly one the ruling was about.
+
+**Why it was not simply deleted.** Deleting it leaves a preparer unable to price
+a notice at all, which is worse than pricing it the way the ruling did not
+prefer. It stays marked `on_price_page: false` and `interim_until`, and a test
+now compares the hourly situations against the gates the page publishes, so the
+two lists cannot silently drift apart again.
+
+**How it survived.** The test asserting these are *"the firm's published
+wording"* read the schedule; the page builds its list from somewhere else
+entirely. Neither could contradict the other, so a situation that stopped being
+published stayed asserted as published for twelve days.
+
+**To close it, the firm decides two things:**
+
+1. Is a notice response a **separately quoted engagement** — its own letter, its
+   own fee — or is it hourly work after all, in which case the 26 August ruling
+   is the thing that changed?
+2. If separate: **what does it cost?** A flat fee, a starting fee, or quoted
+   each time. That is a number a client pays, so it is not an agent's to invent.
+
+Until then the interim route is honest and marked, and nothing published is
+wrong either way.

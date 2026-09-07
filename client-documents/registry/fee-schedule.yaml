@@ -203,8 +203,27 @@ hourly:
       label: "Keyed brokerage statements"
     foreign_interest:
       label: "An interest in a company based abroad"
+    # NOT ON THE PRICE PAGE, and that is not a mistake -- but what it leaves
+    # behind is. On 26 August 2026 the firm ruled: "notices and correspondence
+    # belong in a different letter engagement", and `assumed.notice_response`
+    # left this file for that reason (docs/site-open-questions.md B7). The page
+    # builds its hourly list from the `assumed` gates, so the notice line
+    # correctly stopped being advertised.
+    #
+    # THE LETTER ENGAGEMENT WAS NEVER BUILT. Search this file for "notice" and
+    # this is the only hit. So the route the firm ruled AGAINST is the only
+    # route there is: delete this entry and a preparer cannot price a notice at
+    # all, which is worse than pricing it the way the ruling did not want.
+    #
+    # It stays, deliberately, as the INTERIM route until the separate
+    # engagement exists -- and the gap is registered rather than left to be
+    # rediscovered: docs/DEFECT-REGISTER.md, "There is no way to price a notice
+    # the way the firm said notices should be priced". Naming a price for that
+    # engagement is the firm's, not an agent's.
     notice:
       label: "A letter from the IRS or the state you would like us to handle"
+      on_price_page: false
+      interim_until: "a separate letter engagement exists"
     officer_pay:
       label: "Setting what an S corporation owner pays themselves"
     cleanup:
