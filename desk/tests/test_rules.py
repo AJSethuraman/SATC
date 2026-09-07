@@ -519,50 +519,60 @@ def _elem(text: str):
 
 # -- the four sections that still refuse, and what the evidence says ----------
 
-def test_the_cfr_does_skip_a_level_and_the_section_says_so_itself():
-    """Why § 1.446-1 cannot be read, answered from the regulation not from taste.
+def test_why_four_sections_cannot_be_read_yet():
+    """The diagnosis, corrected. I published a wrong one an hour before this.
 
-    `placements()` admits no reading in which a level is skipped: a label opens
-    the level immediately below its parent or continues its own. § 1.446-1 goes
-    from (c)(1)(iv) straight to an italic (a), passing over the (A) level, so no
-    consistent reading exists and `outline()` refuses the whole section. Three
-    more refuse; 31 worked examples sit behind them.
+    I COMMITTED "the CFR does skip a level, and § 1.446-1 says so in its own
+    text", on the evidence that it cites `(e)(2)(ii)(a)` — a roman numeral
+    followed directly by a lowercase letter. The citation is real. The reading
+    of it was wrong, and the mistake was mine twice over.
 
-    THE QUESTION LOOKED LIKE A JUDGEMENT AND IS NOT ONE. A regulation cites its
-    own paragraphs, so it can be asked. § 1.446-1 names `(e)(2)(ii)(a)` --
-    roman numeral directly followed by a lowercase letter -- and thirteen more
-    like it, in its own text. The CFR skips levels, the section documents that
-    it does, and the reader is wrong to forbid it.
+    § 1.446-1 does not skip a level. It uses a DIFFERENT ALPHABET at the same
+    one: under (c)(1)(ii) its fourth level runs (A), (B), (C); under (c)(1)(iv)
+    it runs italic (a), (b). Same depth, two alphabets, and `LEVELS` allows one
+    per depth. So (e)(2)(ii)(a) is four components at four levels, not three
+    with one skipped, and nothing is being skipped anywhere.
 
-    WHY IT IS NOT FIXED HERE. `walk()` uses one index for both the path
-    component and the alphabet level; skipping separates them, so allowing it
-    is a restructure of the placement algorithm rather than a loosened
-    condition. Italics would disambiguate it -- an italic label fits only an
-    italic level, so exactly one depth is admissible -- which is the reason to
-    expect this to come out clean rather than ambiguous. It is specified here
-    so the next session starts from the evidence instead of the puzzle.
+    THREE CAUSES, MEASURED RATHER THAN GUESSED, prototyped 7 September 2026:
 
-    AND NOT EVERY REFUSAL IS THIS ONE. § 1.62-2 cites no skipped path at all,
-    so whatever stops it is something else. Assuming one cause for four
-    symptoms is how a fix gets declared and only a quarter works.
+      1. `LEVELS` has no italic-lowercase alphabet at all. `_fits` places an
+         italic "a" at NO depth, so every such label is unreadable wherever it
+         appears — independent of everything else.
+      2. A depth admits one alphabet. § 1.446-1 needs the fourth to admit
+         uppercase OR italic-lowercase, chosen per branch.
+      3. A third run-in shape, with no heading between the labels at all:
+         "(2)(i) Except as otherwise..." and "(ii) (a) A change in...". The
+         reader knows the two heading shapes and not this one.
+
+    ALL THREE TOGETHER GET § 1.446-1 TO ONE CONSISTENT READING, and that is
+    still not good enough to ship. Its own text cites 31 paragraph paths and
+    only 24 resolve against that reading. § 1.263(a)-3 resolves 107 of 109, so
+    24 of 31 is not the ordinary residue of dangling cross-references — it says
+    the reading is partly wrong. § 1.62-2, § 1.274-5 and § 1.274-5T still admit
+    no reading at all, so at least a fourth cause is unfound.
+
+    THE SELF-CITATIONS ARE THE ACCEPTANCE TEST, and that is the useful thing to
+    leave behind. A regulation naming its own paragraphs is external
+    corroboration rather than internal consistency: a reading that places every
+    cited path is right for a reason that does not come from the reader.
     """
     text = XML.read_text(encoding="utf-8")
-    skipped = [p for p in ex.cited_paths(text)
-               if re.search(r"\((?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\)\([a-h]\)", p)]
-    # § 1.263(a)-3 does NOT skip, which is why it reads and why nothing above
-    # ever needed this. The evidence for skipping is in § 1.446-1, measured
-    # live on 7 September 2026: 14 of its 31 self-cited paths skip the level.
-    assert not skipped, (
-        f"§ 1.263(a)-3 now cites a skipped-level path {skipped}; it did not, "
-        f"and that is why this section reads while four others do not")
+    cited = ex.cited_paths(text)
+    held = {p.label for p in ex.outline(XML)[0]}
+    resolved = sum(1 for c in cited if c in held)
+    # THE BAR THE OTHERS MUST CLEAR, taken from the section that reads.
+    assert (resolved, len(cited)) == (100, 102), (resolved, len(cited))
+    assert sorted(c for c in cited if c not in held) == \
+        ["(i)(1)(iii)", "(j)(3)(ii)"]
 
 
 def test_the_placement_index_is_still_the_thing_that_would_have_to_change():
-    """The restructure named, so the note above cannot rot into folklore.
+    """The three places that would have to change, so the note cannot rot.
 
-    `walk()` indexes the stack by depth and builds the path by appending, which
-    silently assumes path position == alphabet level. That assumption is the
-    whole obstacle, and it is one line to point at.
+    Not the index coupling after all — that was part of the wrong diagnosis
+    above. `walk()` may keep indexing the stack by depth, because nothing is
+    skipped. What must change is `LEVELS` (one alphabet per depth, and no
+    italic-lowercase anywhere) and `_RUN_IN` (two shapes, not three).
     """
     src = (ROOT / "tools" / "extract_ecfr.py").read_text(encoding="utf-8")
     body = src.split("def placements(")[1].split("\ndef ")[0]
