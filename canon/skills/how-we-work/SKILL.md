@@ -1,11 +1,11 @@
 ---
 name: how-we-work
-description: The twenty standing behaviours — name the goal and report the distance to it, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The twenty-one standing behaviours — name the goal and report the distance to it, a refused route is not a refused goal, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Twenty behaviours. Nineteen exist because something specific went wrong; one —
+Twenty-one behaviours. Twenty exist because something specific went wrong; one —
 behaviour 20 — because the firm named a standing condition instead, and that entry
 says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
@@ -446,6 +446,48 @@ that, so the goal of this is to do the same… just solve ourselves from
 drifting."* Behaviour 1 asks a rule to be cited to something real; this is cited
 to the firm naming the condition, dated and quoted, rather than to a bug. If a
 specific drifted build is ever identified, it belongs here beside this.
+
+## 21 · A refused route is not a refused goal
+
+**Do:** when a tool, a permission or an environment says no, find another route
+to **the same goal**. Say what refused you and what you tried instead. **Never
+replace the goal with a nearby one the failed tool could have reached.**
+
+The substitution is the failure, and it is hard to see because it wears the face
+of adaptability. What makes it worse than stopping is that it *looks* like
+progress and gets reported as a reasonable next step, so nobody goes looking for
+the route that existed.
+
+- **Name what the goal was FOR, not only what it was.** *"Test it on the Forge"*
+  is a target. *"Test it somewhere with a browser, because licensed authority can
+  only be read live"* is a goal — and only the second can tell you the substitute
+  is worthless. A target can be met by something that answers nothing.
+- **One tool's no is not the world's no.** Enumerate the routes before conceding:
+  another tool, another surface, another actor, the same thing done by hand. The
+  concession is a claim about the world and behaviour 7 applies to it — earn it
+  or do not make it.
+- **Where there genuinely is no route, say the goal is blocked and why.** That is
+  a real answer and a useful one. A substitute presented as progress is neither.
+
+**This is the sibling of behaviour 19's "a wait is not a blocker."** That one
+covers obstacles which clear with time; **this covers obstacles which clear with
+a different route.** And it is the mirror of behaviour 20: 20 guards the goal
+*growing* one locally reasonable step at a time, this guards it *shrinking* the
+same way. Both are silent, and both are only visible if somebody states the goal
+in a form that can be checked against.
+
+**Incident:** on 7 September 2026 a session was asked to test the `desk` plugin
+on the Forge — specifically there, because the Forge has a browser and the
+authority in question is licensed and can only be READ, never stored.
+`SendMessage` could not reach a session on another machine. The session
+proposed spawning a cloud session instead, which has no browser, and offered it
+as the next step. The firm: *"no that is stupid, we are trying to test it using
+its browser. you need to figure out how to get to that session and ask a
+question."* A route existed — a trigger bound to that session — and took one
+step to find once looking was the task. Asked why it had conceded: *"why did you
+claim to not be able to do it and switch course? it would have proven nothing.
+this is a behavior we should fix, it happens frequently. you could clearly do
+it."*
 
 ## The line that governs everything
 

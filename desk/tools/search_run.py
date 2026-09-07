@@ -40,6 +40,7 @@ for p in (str(HERE), str(HERE / "tools")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import domains                                              # noqa: E402
 import record                                               # noqa: E402
 import searching                                            # noqa: E402
 import tieout                                               # noqa: E402
@@ -88,6 +89,13 @@ def run(spec: dict) -> searching.Search:
                                snippet=h.get("snippet", ""), query=h.get("query", ""))
                  for h in spec.get("hits", ()))
 
+    # WHICH BODY OF AUTHORITY THE QUESTION IS IN, decided once, from words the
+    # firm wrote down rather than by the model answering. A question that fires
+    # on no domain classifies to None and `dispose` then behaves exactly as it
+    # did before -- refusing to guess a domain is the point, and guessing one to
+    # get a gate is the same error the gate exists to stop.
+    verdict = domains.classify(spec["question"])
+
     findings = []
     for prop in spec.get("proposals", ()):
         hit = next((h for h in hits if h.url == prop["found_at"]),
@@ -111,7 +119,7 @@ def run(spec: dict) -> searching.Search:
             findings.append(searching.Finding(hit, searching.REFUSE, str(exc)))
             continue
         cand = searching.check(cand, desk, transport)
-        what, why = searching.dispose(cand, desk)
+        what, why = searching.dispose(cand, desk, verdict.domain, verdict.also)
         findings.append(searching.Finding(hit, what, why, cand))
 
     return searching.Search(gap=gap, queries=tuple(spec.get("queries", ())),

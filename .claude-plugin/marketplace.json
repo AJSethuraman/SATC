@@ -8,8 +8,8 @@
     {
       "name": "canon",
       "source": "./canon",
-      "description": "Tenets \u2014 how to build, each carrying the incidents that proved it, ratified by the firm \u2014 convictions in the firm's own words, and twenty standing behaviours. Bassy challenges from that record and never from an opinion, the docket hands back open decisions as a form, and an adversarial pass hands the code to another model to break and takes back only its tests. Holds no client data.",
-      "version": "1.16.0",
+      "description": "Tenets \u2014 how to build, each carrying the incidents that proved it, ratified by the firm \u2014 convictions in the firm's own words, and twenty-one standing behaviours. Bassy challenges from that record and never from an opinion, the docket hands back open decisions as a form, and an adversarial pass hands the code to another model to break and takes back only its tests. Holds no client data.",
+      "version": "1.17.0",
       "displayName": "canon \u2014 the practice brain",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"
@@ -27,7 +27,7 @@
       "name": "desk",
       "source": "./desk",
       "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from cited authority, says how binding it is, and escalates rather than guesses. The engine verifies every citation before an answer leaves the desk. When no desk holds the answer, the searcher looks anywhere and can store nothing the firm has not admitted. A fact a desk needs that nothing anywhere records is a HOLE, read out by `tools/holes.py`. Depends on canon. Holds no client data.",
-      "version": "0.6.2",
+      "version": "0.7.3",
       "displayName": "desk \u2014 experts an agent can ask",
       "author": {
         "name": "Sethuraman Accounting, Tax & Consulting"

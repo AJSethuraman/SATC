@@ -68,6 +68,7 @@ REASONS = (
     "no_field_for_this_fact",   # nobody ever decided this should be written down
     "client_rule_governs",      # the file records the firm's own call for THIS client
     "authority_has_moved",      # the publisher no longer carries what we stored
+    "wrong_body_of_authority",  # real authority, real subject, wrong universe
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
@@ -242,6 +243,42 @@ class Served:
     #: were the same answer until 5 September 2026, and the difference is four
     #: served answers on that day's Forge row.
     checked_subject: bool = False
+    #: THE SENTENCE THAT TRAVELS WITH THE ANSWER, and it is computed rather than
+    #: passed so it cannot be left off.
+    #:
+    #: THE INCIDENT, 7 September 2026. A session testing the installed plugin
+    #: aimed five traps at `fixed-assets` -- the largest desk, and the one
+    #: carrying no ratified positions at all -- and FOUR SERVED. The sharpest
+    #: cited § 1.263(a)-2(d)(1),
+    #: whose text opens *"a taxpayer must capitalize amounts paid to acquire or
+    #: produce a unit of real or personal property"*, and concluded "deducted,
+    #: not capitalized" -- the literal negation of its own citation, served
+    #: `tier=primary`, `binding=True`, no caveat.
+    #:
+    #: EVERY FIELD ON THIS OBJECT IS A PROPERTY OF THE SOURCE, NOT OF THE
+    #: CONCLUSION, and together they read to an accountant as though the answer
+    #: had been checked. `tier` is the regulation's standing. `binding` says the
+    #: firm declared that source as authority that binds -- NOT that this answer
+    #: binds. `checked_subject` is word overlap between the question and the
+    #: desk's subjects. `checked` is when somebody last confirmed the PASSAGE
+    #: against its publisher. Not one of them is a statement about whether the
+    #: paragraph says what the position claims.
+    #:
+    #: The tester's words: *"Served carries no field for 'did anyone check that
+    #: this paragraph says this?'"*. It does now, and it says no.
+    #:
+    #: THE SKILL ALREADY SAID SO AND THAT WAS NOT ENOUGH. `ask-desk` carries the
+    #: sentence *"what it does not verify is that the conclusion follows"* -- in
+    #: prose, at the top, read once by the agent and gone by the time an answer
+    #: is rendered onward to a person. A warning that does not travel with the
+    #: thing it warns about is a warning nobody reads.
+    unchecked: str = ""
+    #: THE CITED TEXT, served WITH the answer rather than left to be looked up.
+    #: Until a judge exists, a person reading the answer is the only thing
+    #: standing between a desk and a wrong entry -- and that person cannot do
+    #: the one check that matters without the paragraph in front of them. Making
+    #: them go and fetch it is what makes the review nominal.
+    passage: str = ""
     #: Whether the authority behind this answer SETTLES the question or merely
     #: reads it. False means the desk answered from guidance because no rule and
     #: no position reached, which the firm allowed on 6 September 2026 -- and
@@ -323,6 +360,24 @@ class Refusal:
     #: with the model and with whoever reads the queue. An engine that REFUSED the
     #: escalation would be deciding the merits, which is the wrong side of the
     #: line every other part of this file draws.
+    #: THE ASKER'S OWN REASONING, HANDED BACK. It went only to the queue.
+    #:
+    #: THE FORGE, 7 September 2026, closing a set of books for real: the desk
+    #: escalated `authority_absent` and returned `detail="escalated by the
+    #: desk"`, an empty `ask`, and `showed_by_source={'S1': 63, 'S2': 40, ...}`.
+    #: The agent's `working` — the reasoning about WHY nothing reaches, which
+    #: `ask-desk` insists is written in full — was not on the object at all.
+    #:
+    #: *"So the one answer where the agent has the most to say hands the caller
+    #: the least, and I had to write the accountant's paragraph from my own
+    #: memory rather than from anything the desk returned. Meanwhile
+    #: `showed_by_source` — pure instrumentation — does come back. That is
+    #: exactly backwards for a human reader."*
+    #:
+    #: The queue keeps it so the firm learns what authority is missing. The
+    #: caller needs it too, and for a different reason: it is the only sentence
+    #: in an escalation that tells a person what to do next.
+    working: str = ""
     showed: int = 0
     #: `{source id: passages}` — a total alone does not falsify the claim that was
     #: actually made. The claim named a source, so the answer has to be by source.
@@ -695,6 +750,62 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
             ), passage, source
         return None, passage, source
 
+    # THE BODY OF AUTHORITY, checked before tier and after positions.
+    #
+    # THE TRAP, 7 September 2026, found by a session testing the installed
+    # plugin on the Forge rather than by anyone building it. Asked *"how do i
+    # know if a lease should be booked as an asset"* -- a US GAAP recognition
+    # question -- an answer citing IRS Pub. 463 (2025), "Leasing a Car" was
+    # SERVED, `checked_subject=True`. The entire cited paragraph:
+    #
+    #   "If you lease a car, truck, or van that you use in your business, you
+    #    can use the standard mileage rate or actual expenses to figure your
+    #    deductible expense. This section explains how to figure actual
+    #    expenses for a leased car, truck, or van."
+    #
+    # Two sentences about figuring a deduction. Nothing about the balance
+    # sheet, nothing about recognition. Every existing check passed and was
+    # right to: the citation resolves, and `lease` IS a declared subject of
+    # that source. The conclusion was directionally the expensive error --
+    # expense the lease, omit the right-of-use asset and the lease liability.
+    #
+    # WHY THE SUBJECT CHECK COULD NOT CATCH IT. `checked_subject` asks whether
+    # this desk answers this SUBJECT from this SOURCE. Both were true. What was
+    # false is that a federal-tax publisher can settle a US GAAP question at
+    # all, and nothing asked that. The firm named the shape before the trap was
+    # found: *"you don't check the IRS website for coding tips."*
+    #
+    # IT GATES AUTHORITY AND NEVER A POSITION, which is why it sits below the
+    # `kind == "position"` branch rather than above it. A ratified position is
+    # the firm's own word and tier does not gate it either; an engine that
+    # refused the firm's answer because of where its citation was published
+    # would be overruling them, which is the wrong side of every line this file
+    # draws.
+    #
+    # AND IT IS SILENT WHERE THE MAP IS. A question matching no domain, or a
+    # source with no url, leaves this untouched -- refusing on an absent
+    # classification would be guessing a domain to get a gate, which is the
+    # same error the gate exists to stop.
+    if source.url and question:
+        import domains as _domains
+
+        verdict = _domains.classify(question)
+        if verdict and not _domains.governs(source.url, verdict.domain):
+            also = ", ".join(d.name for d in verdict.also)
+            return Refusal(
+                "wrong_body_of_authority",
+                f"{answer.citation!r} resolves and this desk does answer "
+                f"{verdict.matched[0]!r} from {source.id} — and "
+                f"{_domains._registered(source.url)} does not settle "
+                f"{verdict.domain.name} questions. {verdict.domain.body} does. "
+                f"A paragraph in the wrong body of authority is not made into "
+                f"this question's rule by being real",
+                ask=(f"This is a {verdict.domain.name} question"
+                     + (f" that also reaches {also}" if also else "")
+                     + f". Cite {verdict.domain.body}, or escalate that no "
+                       f"desk holds the authority that governs it."),
+            ), passage, source
+
     if not source.binding:
         # SERVED, AND MARKED AS GUIDANCE -- but only where no rule reaches.
         #
@@ -762,7 +873,8 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     if answer.escalated:
         _reason(answer.reason)
         if answer.reason != "authority_absent":
-            return Refusal(answer.reason, "escalated by the desk")
+            return Refusal(answer.reason, "escalated by the desk",
+                           working=answer.working)
         # ONLY `authority_absent`, because it is the only escalation that is a
         # claim about the RECORD. `facts_not_established` is a claim about the
         # client and `authority_permits_choice` is a reading of authority the
@@ -771,12 +883,16 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         by_source = record_mod.shown_by_source(desk)
         total = len(record_mod.shown(desk))
         return Refusal(
-            answer.reason, "escalated by the desk",
+            answer.reason, "escalated by the desk", working=answer.working,
             showed=total, showed_by_source=by_source)
 
     refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:
-        return refusal
+        # CARRIED HERE RATHER THAN AT FIFTEEN CONSTRUCTION SITES, so no refusal
+        # can be added later that quietly drops it.
+        import dataclasses as _dc
+        return (_dc.replace(refusal, working=answer.working)
+                if answer.working else refusal)
     # A RATIFIED POSITION IS THE FIRM'S WORD AND IS NEVER CAVEATED, whatever the
     # tier of the source under it -- that is the whole point of `human_only`, and
     # of the firm being the last layer. Only a passage from a non-binding source
@@ -811,6 +927,63 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         checked_subject=bool(
             question and any(_canon_touches()(question, t) for t in desk.fires_on)
         ),
+        # THE AUTHORITY UNDERNEATH, not the answer restated.
+        #
+        # `_check` resolves through `authority_for`, which on a ratified
+        # citation hands back the POSITION — and a Position has no `.text`,
+        # only `.position`. The first fix for the resulting empty field fell
+        # back to `.position`, which made the field echo the answer:
+        #
+        #     an entry in the books            <- position
+        #     > an entry in the books          <- "the words it rests on"
+        #
+        # The Forge tester, 7 September 2026: *"the whole argument for `passage`
+        # is 'so the reader can check the conclusion against the words it rests
+        # on' — and here the words it rests on are the Pub. 583 text, which is
+        # not shown. The one case where the reader is told a human already
+        # decided is the case where the underlying authority becomes
+        # invisible."* Correct, and the text was reachable the whole time:
+        # `desk.passage()` on the same citation carries 2,683 characters of it.
+        #
+        # So the SOURCE TEXT wins wherever the desk holds any, and the firm's
+        # words are the fallback only for a citation-only source — `human_only`,
+        # where a position genuinely IS the desk's entire knowledge of the
+        # authority and there is nothing else to show.
+        passage=(getattr(passage, "text", "")
+                 or getattr(desk.passage(answer.citation), "text", "")
+                 or getattr(passage, "position", "") or ""),
+        # TWO DIFFERENT SENTENCES, BECAUSE TWO DIFFERENT THINGS ARE TRUE.
+        #
+        # A POSITION-BACKED ANSWER HAS BEEN CHECKED, by the firm, and saying
+        # otherwise is a lie in the safe direction -- which is still a lie, and
+        # a worse one here: a disclaimer that cries wolf on the safest answers
+        # teaches a reader to skip it on the dangerous ones. `_check` has
+        # already refused any restatement, so the words above ARE the firm's
+        # words for this citation; there is no gap between conclusion and
+        # authority to warn about. What is left unchecked is narrower and real:
+        # whether the firm's position fits THESE facts.
+        #
+        # Found by running the round trip. Printed for a person, the first
+        # version showed the firm's position as the thing to check the answer
+        # against, when the engine forces them to be identical -- so it read as
+        # "check this against itself".
+        unchecked=(
+            ("THE FIRM RATIFIED THIS CONCLUSION for this citation, and it is "
+             "served in their words rather than a restatement — the engine "
+             "refuses one that disagrees. What NOBODY checked is whether their "
+             "position fits these particular facts. That judgement is yours.")
+            if from_position else
+            # SHORTER THAN IT WAS, because it has to survive repetition. The
+            # Forge, after handing three of these to an accountant: *"at one
+            # answer it lands; at the fortieth of a close, the eye slides off
+            # the capitals and the reader stops reading the part that varies.
+            # The load-bearing content is the first clause plus 'read the
+            # passage below'; the middle inventory of what was checked is the
+            # part I would actually cut."* Cut. What was checked is a property
+            # of the source and is already printed beside the citation.
+            ("Nobody checked that this paragraph says this — only that the "
+             "citation resolves and the source is one this desk uses here. "
+             "Read the passage below.")),
     )
 
 

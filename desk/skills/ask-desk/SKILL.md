@@ -16,9 +16,37 @@ skill runs inside whatever repository you are working in, and `desk` is installe
 elsewhere — so a bare `import ask` raises `ModuleNotFoundError` on the first line
 of the first use.
 
+**And check which version you loaded before you trust what this file says.** A
+session on the Forge invoked `desk:ask-desk` and the tool served it the SKILL.md
+from a plugin cache three releases stale — a file with no mention of the two
+fields the current release exists to deliver. Everything below would have been
+followed correctly and produced the old output:
+
+```
+python3 -c "import json,os;p=os.path.expanduser('~/.claude/plugins/cache/satc/desk');print(sorted(os.listdir(p))[-1])"
+```
+
+If that is not the version in `claude plugin list`, **`/reload-plugins` before
+going further** — an install does not reach the Skill tool until the session
+reloads, and nothing says so at the point it bites.
+
 ```python
 import os, sys
-sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])
+# `CLAUDE_PLUGIN_ROOT` is set when this skill is INVOKED as a skill, and is
+# unset in a plain shell — so the documented first line of first use raised
+# `KeyError` for a session that pasted it into `python3 -c`. Found on the Forge,
+# 7 September 2026, closing a set of books. Fall back to the installed tree.
+ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
+    "~/.claude/plugins/cache/satc/desk")
+if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
+    versions = sorted(os.listdir(ROOT))                     # a versioned cache
+    ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
+if not os.path.isdir(os.path.join(ROOT, "desks")):
+    raise SystemExit(
+        f"no desk plugin at {ROOT}. Install it — `claude plugin marketplace "
+        f"update satc && claude plugin update desk@satc` — or set "
+        f"CLAUDE_PLUGIN_ROOT to where it lives. There is no desk to ask.")
+sys.path.insert(0, ROOT)
 import ask
 
 for desk, brief in ask.consult("the bank statement shows a $10 service charge "
@@ -119,9 +147,39 @@ clothing, and nothing says what was bought" is a work item.
 ## What comes back if it is served
 
 The firm's own words where a position exists, the citation, the tier of the
-source, and whether the subject could be checked at all. **What it does not
-verify is that the conclusion follows** — only that the authority exists, that it
-binds or carries the firm's word, and that it shares a subject with the question.
+source, and whether the subject could be checked at all.
+
+**Every one of those is a property of the SOURCE, and none is about your
+conclusion.** `tier` is the regulation's standing. `binding` means the firm
+declared that source as authority that binds — not that your answer binds.
+`checked_subject` is word overlap. `checked` is when somebody last confirmed the
+passage against its publisher. Together they read as *"this was checked"*, and
+the thing a reader thinks was checked is the one thing that was not.
+
+**So a served answer carries two more fields, and you MUST pass both on:**
+
+| | |
+|---|---|
+| `unchecked` | one sentence saying nobody verified the conclusion against the paragraph. Always set. Never drop it |
+| `passage` | the cited text itself, so whoever reads your answer can do that check in one glance instead of going to look it up |
+
+```python
+print(out.position)
+print(f"{out.citation} · {out.tier}" + (" · binds" if out.binding else ""))
+print(out.unchecked)
+print(f"> {out.passage}")
+```
+
+**This is not boilerplate to trim.** On 7 September 2026 a session aimed five
+traps at the largest desk and four served — one citing § 1.263(a)-2(d)(1), whose
+own text says *"a taxpayer must capitalize amounts paid to acquire or produce a
+unit of real or personal property"*, to conclude **"deducted, not capitalized"**.
+Primary, binding, no caveat. Printed with its passage underneath, that answer
+refutes itself on sight. Printed without, it reads as settled law.
+
+**Until a judge exists, the person reading your answer is the only check on it**
+— and they cannot perform it if you hand them a conclusion without the words it
+rests on.
 
 ## Two questions do not belong here
 
