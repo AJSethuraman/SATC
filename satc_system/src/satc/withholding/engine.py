@@ -210,6 +210,7 @@ def _capital_gains_tax(ordinary_ti: Decimal, preferential: Decimal,
     if preferential <= ZERO:
         return ZERO
     zero_top, fifteen_top = tables.capital_gains_thresholds(status)
+    rate_0, rate_15, rate_20 = tables.capital_gains_rates()
     tax = ZERO
     zero_room = _nonneg(zero_top - ordinary_ti)
     zero_amount = min(preferential, zero_room)
@@ -217,9 +218,10 @@ def _capital_gains_tax(ordinary_ti: Decimal, preferential: Decimal,
     fifteen_start = max(ordinary_ti, zero_top)
     fifteen_room = _nonneg(fifteen_top - fifteen_start)
     fifteen_amount = min(remaining, fifteen_room)
-    tax += fifteen_amount * Decimal("0.15")
+    tax += zero_amount * rate_0
+    tax += fifteen_amount * rate_15
     remaining -= fifteen_amount
-    tax += remaining * Decimal("0.20")
+    tax += remaining * rate_20
     return tax
 
 

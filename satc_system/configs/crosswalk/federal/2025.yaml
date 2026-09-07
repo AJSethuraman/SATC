@@ -128,6 +128,29 @@ parameters:
     unit: usd
     citation: "Rev. Proc. 2024-40, sec. 2.03"
 
+  # THE RATES THEMSELVES, which lived as bare literals in `engine.py` until
+  # 7 September 2026 -- `Decimal("0.15")` and `Decimal("0.20")`, the only tax
+  # constants in the estimator with no citation and no date on them. Every other
+  # figure the engine uses comes from this file precisely so a reader can check
+  # it against the law; two rates had quietly opted out.
+  #
+  # Found while tying the capital-gains stacking to Rev. Proc. 2024-40 sec. 2.03,
+  # which names the "maximum zero rate amounts and maximum 15 percent rate
+  # amounts" -- and therefore names the rates, while the thresholds beside them
+  # were cited and the rates were not.
+  ltcg_rate_0:
+    value: 0.00
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(B); Rev. Proc. 2024-40 sec. 2.03 ('maximum zero rate amounts')"
+  ltcg_rate_15:
+    value: 0.15
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(C); Rev. Proc. 2024-40 sec. 2.03 ('maximum 15 percent rate amounts')"
+  ltcg_rate_20:
+    value: 0.20
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(D) — the residual rate above the 15% breakpoint"
+
   qbi_threshold:
     value: {single: 197300, mfj: 394600, mfs: 197300, hoh: 197300, qss: 394600}
     unit: usd

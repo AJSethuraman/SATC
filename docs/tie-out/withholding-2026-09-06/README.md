@@ -6,12 +6,14 @@ to end; nothing here is confirmed by SATC's own software.
 ## Roster
 
 ```
-Tied out: 42 of 44 checks
-  DIFFERS      2   the 2025 standard deduction, superseded by P.L. 119-21
+Tied out: 60 of 63 checks
+  DIFFERS      3   the 2025 standard deduction, superseded by P.L. 119-21
                    the $400 floor on Schedule SE, absent from the engine
-  TIED        42   18 printed bracket bases · 1 full computed figure ·
+                   the 15% and 20% capital-gains rates, uncited literals in code
+  TIED        60   18 printed bracket bases · 1 full computed figure ·
                    5 safe-harbour parameters · 5 safe-harbour branches ·
-                   5 Schedule SE constants · 8 SE computation cases
+                   5 Schedule SE constants · 8 SE computation cases ·
+                   8 capital-gains breakpoints · 8 stacking cases · 2 rate checks
   COULD NOT    0
 ```
 
@@ -75,11 +77,32 @@ you never reach when 4c stops you — so the Additional Medicare Tax sees nothin
 either. Form 8959's instructions do not address the "Schedule SE was not
 required" case. Marked as an inference in the code and the test.
 
+## The capital-gains tie-out
+
+Two authorities, because the answer needs both: **Rev. Proc. 2024-40 §2.03** for
+the breakpoints ($48,350 and $533,400 for a single filer), and the **Qualified
+Dividends and Capital Gain Tax Worksheet** from the Form 1040 instructions for
+the METHOD. The test writes that worksheet out longhand by its own line numbers,
+so it is a genuinely different route to the number than the engine's seven lines
+— and a test asserts it never becomes a call into the engine.
+
+The stacking was right in all eight cases. **The rates were not cited**: `0.15`
+and `0.20` were bare literals in `engine.py`, the only tax constants in the
+estimator with no citation and no date, in a file whose whole discipline is that
+a reader can check every figure against the law. They are in the dated table now.
+
+**A mutant survived this one, and that was the most useful thing in it.**
+Replacing `fifteen_start = max(ordinary_ti, zero_top)` with plain `ordinary_ti`
+left all twenty-three tests passing. The difference only shows when ordinary
+income is *below* the 0% breakpoint **and** the gain is large enough to reach
+20% — a client who sells a rental or a business in a low-wage year. On $36,000 of
+wages and a $600,000 gain the answer moves by **$1,405.00**. The guard was right
+the whole time; the tests were too weak to say so, and now there are twenty-five.
+
 ## What these still do not prove
 
-The capital-gains stacking, the Additional Medicare Tax's own thresholds, the Net
-Investment Income Tax, the per-paycheck W-4 line 4c arithmetic, and the paystub
-reader. Each has a unit test; each of those tests works out its expected answer
+The Additional Medicare Tax's own thresholds, the Net Investment Income Tax, the
+per-paycheck W-4 line 4c arithmetic, and the paystub reader. Each has a unit test; each of those tests works out its expected answer
 from the same constants the engine uses.
 
 State withholding is not modelled at all, and most SATC clients file an Ohio
