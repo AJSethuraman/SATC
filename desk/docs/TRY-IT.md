@@ -28,14 +28,19 @@ changes nothing on disk.
 claude plugin list
 ```
 
-`desk` must read **0.6.0**. Anything lower and the holes report is not there —
-and 0.5.0 still ships the engagement file that was deleted.
+**Check it against the listing, not against a number written here.** A document
+that states a version goes stale the moment the version moves — this one did,
+twice in four hours.
 
-**A version that does not move is a version nobody gets.** `plugin update` reads
-the marketplace listing, so content merged to `main` without a bump reports
-*"already at the latest version"* and installs nothing. Caught twice on
-7 September; the second time only because the installed copy was exercised
-rather than trusted.
+```
+python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])"
+```
+
+That number and `plugin list` must agree. If `plugin list` is lower the update
+did not land, **and `plugin update` will still have said "already at the latest
+version"** — content merged without a version bump reaches nobody and the
+command reports success. Anything below 0.6.0 also still ships the engagement
+file that was deleted.
 
 ---
 
