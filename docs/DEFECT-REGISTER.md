@@ -369,7 +369,7 @@ instruction.
 
 ---
 
-## OPEN · The privacy page does not mention the leads workbook
+## CLOSED, DECLINED · The privacy page does not mention the leads workbook
 
 **Found 7 September 2026**, resolving a `[CONFIRM]` marker carried by #138.
 
@@ -395,3 +395,32 @@ is in the destination, not the pointer, so #138 was not held back for it.
 **To close it:** the firm decides whether the workbook is disclosed, and in what
 words. Then `website/privacy.html`, and `copy.spec.py` gets a check that the
 page names every place a submission lands.
+
+### Answered 7 September 2026 — no change
+
+The firm, asked whether the privacy page should disclose the leads workbook:
+
+> *"crazy to think we wouldn't record the answers ourselves. we are implicitly
+> saying nobody else nor the site saves it for someone else to see it"*
+
+and, on the page: **"no update"**.
+
+**The reasoning, as recorded rather than inferred:** a client filling in a
+contact form already assumes the firm keeps what they wrote — that is what
+sending it means. What a privacy notice is *for* is the copies a client would
+NOT assume: a third party holding it, or the site itself retaining it for
+somebody else to read. Formspree is exactly that, which is why it is named and
+why its 30 days are stated. The firm's own working file is not.
+
+**So this was not a gap.** The finding measured the workbook against the wrong
+standard — "every place a submission lands" rather than "every place a client
+would not expect it to land", and only the second is what the page promises.
+
+**What would reopen it:** the workbook being read by anyone outside the firm,
+synced to a third-party service, or used for something other than answering the
+enquiry. Any of those is a copy a client has not implicitly agreed to, and the
+page would then have to say so.
+
+**Not built:** the `copy.spec.py` check proposed above, which would have
+enforced the wrong standard.
+
