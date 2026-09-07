@@ -162,4 +162,25 @@ def load_tax_tables(year: int | None) -> tuple[TaxTables, list[str]]:
         notes.append(
             f"Federal tax tables for {requested} are not fully published in the crosswalk; "
             f"using {used} tables for this estimate.")
-    return TaxTables(_LIBRARY.resolve(used, "US")), notes
+    crosswalk = _LIBRARY.resolve(used, "US")
+
+    # WHAT THE TABLE DOES NOT CARRY, SAID ON THE SCREEN.
+    #
+    # On 6 September 2026 a tie-out found that this file held the standard
+    # deduction as published in October 2024, superseded for TY2025 itself by
+    # P.L. 119-21 in July 2025 -- $165 of tax invented on the sample case. The
+    # firm's answer was "fix the three, flag the rest": reconcile the deduction,
+    # and DECLARE the OBBBA provisions still not modelled rather than leave a
+    # preparer to assume the figure is current in every respect.
+    #
+    # Read from the crosswalk rather than written here, so the list is a fact
+    # the dated table carries and cannot drift from the year it describes. A
+    # year that models everything simply has no such key and says nothing.
+    missing = crosswalk.value("obbba_not_modeled")
+    if missing:
+        notes.append(
+            f"These {used} figures are reconciled to enacted law for the standard "
+            f"deduction and the rate brackets. Still NOT modelled: "
+            + "; ".join(str(m) for m in missing)
+            + ". An estimate for somebody they apply to will be too high.")
+    return TaxTables(crosswalk), notes
