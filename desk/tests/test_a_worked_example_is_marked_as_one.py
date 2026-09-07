@@ -121,16 +121,31 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     business" -- the question worked examples are best at. Every other desk held
     none, which was the finding that produced this change.
 
-    Now `fixed-assets` holds all 117 of § 1.263(a)-3's examples, because the
-    extractor stores them and marks them. The other five desks still hold none:
-    each is built from a regulation the extractor has not been re-run over, and
-    that gap is the remaining work rather than a decision.
+    Now four desks hold them. `fixed-assets` has all 117 of § 1.263(a)-3's,
+    written by the builder; the rest were APPENDED by `tools/add_examples.py`,
+    which touches no problem and no existing passage — because only
+    `fixed-assets` was ever machine-built, and re-running the builder over a
+    hand-curated desk would overwrite the answer key a person chose.
+
+    THREE DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
+    BE REDISCOVERED. `cash-and-bank` (§ 1.446-1), `meals-and-entertainment`
+    (§ 1.274-5, § 1.274-5T) and part of the others sit on sections whose label
+    sequences `outline()` cannot read as one consistent CFR outline, so it
+    raises rather than placing a paragraph by preference. An example whose path
+    is a guess is cited to a rule that may not be its own — the exact defect
+    corrected on this same day — so those sections keep their rules and wait.
+    `meals-and-entertainment`'s other three sections and two of the rewards
+    desk's simply carry no worked examples at all.
     """
     per = {}
     for d, p in _kinds():
         if p.kind == record.EXAMPLE:
             per[d] = per.get(d, 0) + 1
-    assert per == {"fixed-assets": 117, "personal-or-business": 4}, per
+    assert per == {"capitalization-and-de-minimis": 31,
+                   "fixed-assets": 117,
+                   "personal-or-business": 4,
+                   "rewards-and-information-returns": 16,
+                   "vehicle-expense": 10}, per
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():

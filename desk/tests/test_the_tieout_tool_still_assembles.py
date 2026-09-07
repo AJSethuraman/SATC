@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parents[1]
@@ -102,3 +103,58 @@ def test_the_brief_is_parsed_back_out_of_real_text():
         stored = desk.passage(citation)
         assert comparing.normalise(text)[:80] == \
             comparing.normalise(stored.text)[:80], citation
+
+
+def test_the_as_of_date_is_asked_for_rather_than_typed():
+    """A verification date in a constant slips, and slipping only ever hides.
+
+    MEASURED 7 SEPTEMBER 2026. `AS_OF` was the literal "2026-01-01", with a
+    comment saying eCFR's versioner refuses a future date so January was the
+    last date known good. The first half holds — the versioner 404s from about
+    five days back. The second was stale: it served 2026-09-01 that day, so the
+    corpus was being verified against text eight months older than the newest
+    available, and an amendment in between would have tied out clean against a
+    superseded version.
+
+    A stale verification date is worse than an absent one. It cannot produce a
+    false DIFFERS; it can only fail to produce a true one.
+    """
+    assert not hasattr(tieout, "AS_OF"), (
+        "`AS_OF` is back as a module constant. The date eCFR is asked about "
+        "must be asked FOR — `titles.json` carries `latest_issue_date` — or it "
+        "goes stale silently and can only ever hide a difference.")
+    assert callable(tieout.as_of)
+    for fn in (tieout._ecfr_url,):
+        assert "as_of" in fn.__code__.co_names, (
+            f"{fn.__name__} no longer asks for the as-of date")
+
+
+def test_the_fallback_exists_and_is_never_silent():
+    """Unknown is a third answer here too. If eCFR cannot be asked, the run
+    still happens — and says on stderr which date it fell back to, because a
+    verification quietly performed against the wrong period is the failure this
+    whole change is about."""
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", tieout._FALLBACK_AS_OF)
+    src = (HERE / "tools" / "tieout.py").read_text(encoding="utf-8")
+    body = src.split("def as_of(")[1].split("\ndef ")[0]
+    assert "except Exception" in body and "file=sys.stderr" in body, (
+        "the fallback is silent; a date that slipped without saying so is "
+        "exactly what this replaced")
+
+
+def test_the_exhibit_generator_still_reaches_a_name_that_exists():
+    """The near miss this file was written for, one module over. Renaming
+    `AS_OF` left four references in `tieout_exhibit.py` pointing at a name that
+    no longer existed, and nothing in the suite runs that generator."""
+    import builtins
+    import tieout_exhibit as te
+    src = (HERE / "tools" / "tieout_exhibit.py").read_text(encoding="utf-8")
+    # ATTRIBUTE ACCESS, NOT THE FILENAME. The first version of this matched
+    # `tieout.py` written in prose and reported that the module lacks an
+    # attribute called `py`. A test whose first failure is its own is one nobody
+    # trusts the second time.
+    reached = re.findall(r"\btieout\.([A-Za-z_][A-Za-z_0-9]*)\s*[(\.,)\]}]", src)
+    assert reached, "the pattern found no attribute access at all"
+    for name in set(reached):
+        assert hasattr(tieout, name), (
+            f"tieout_exhibit reaches `tieout.{name}`, which does not exist")
