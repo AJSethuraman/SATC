@@ -44,8 +44,8 @@ def test_all_twenty_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 21)]
-    assert "Twenty behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 22)]
+    assert "Twenty-one behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -399,7 +399,7 @@ def test_the_one_behaviour_without_an_incident_says_so():
     rules exist to catch."""
     text = (CANON / "skills" / "how-we-work" / "SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(text.split())
-    assert "Nineteen exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
+    assert "Twenty exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
     body = text.split("## 20 · ", 1)[1]
     assert "**Incident:** none, and stated rather than implied" in body,         "behaviour 20 does not admit it has no incident"
 

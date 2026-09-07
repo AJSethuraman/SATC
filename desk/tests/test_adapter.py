@@ -441,7 +441,20 @@ UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
                 # A brain cannot know the publisher changed its page: nothing it
                 # is shown comes from the publisher. Only `proving` can raise it,
                 # and only with a transport in hand.
-                "authority_has_moved"}
+                "authority_has_moved",
+                # NOR CAN IT KNOW WHICH BODY OF AUTHORITY GOVERNS. The brief
+                # shows it passages and their sources; it never shows it
+                # `DOMAINS.md`, and the classification is a lookup over a map
+                # the firm wrote rather than a judgement about the question.
+                #
+                # AND OFFERING IT WOULD BE THE WRONG SHAPE ANYWAY. This gate
+                # exists because a brain served IRS Pub. 463 on a US GAAP
+                # recognition question and was confident. Handing that same
+                # brain the words "wrong body of authority" asks it to
+                # self-diagnose the thing it just failed at -- the preparer
+                # doing the verifying act, which C6 and C7 put on the other
+                # side of the line.
+                "wrong_body_of_authority"}
 
 
 def test_a_brain_is_offered_every_reason_it_could_observe():

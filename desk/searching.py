@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import re
 
+import domains
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -260,13 +261,55 @@ def section_of(citation: str) -> str:
     return m.group(1).strip() if m else citation.strip()
 
 
-def dispose(cand: Candidate, desk) -> tuple[str, str]:
-    """What may become of this candidate, and why. NEVER an answer to anything."""
+def dispose(cand: Candidate, desk, domain=None, also=()) -> tuple[str, str]:
+    """What may become of this candidate, and why. NEVER an answer to anything.
+
+    `domain` IS THE BODY OF AUTHORITY THE QUESTION IS IN, and `also` the other
+    bodies the same question reaches; both are passed in rather than worked out
+    here, because deciding them is a lookup over the firm's own map and this
+    function's job is to dispose, not to classify.
+
+    `domain` is checked
+    before anything else about the candidate, because a publisher that cannot
+    settle this KIND of question is not made able to by tying out.
+
+    THE INCIDENT, 7 September 2026. The firm asked whether a lease goes on the
+    balance sheet. This function returned PROPOSE on four passages off irs.gov,
+    all of them about the tax treatment of a lease, and the report recommended
+    admitting them -- correctly, by every rule it had. Every check passed: the
+    words were re-fetched and matched character for character, one occurrence
+    each, and irs.gov was a publisher the desk already read. The firm:
+    *"you don't check the IRS website for coding tips"*.
+
+    Nothing here knew the question was a US GAAP question. Passed None, this
+    behaves exactly as it did -- so a caller that does not classify is not
+    silently protected, which is why the searcher classifies and this does not.
+    """
     if cand.verdict == UNCHECKED:
         raise SearchError(
             f"{cand.citation} has not been checked against its publisher. "
             f"Nothing is disposed of on the strength of a search result."
         )
+    if domain is not None and not domains.governs(cand.fetched_from
+                                                  or cand.found_at, domain):
+        host = _host(cand.fetched_from or cand.found_at)
+        why = (f"{host or 'this publisher'} does not settle {domain.name} "
+               f"questions. {domain.body} does, and a passage that ties out "
+               f"somewhere else is still an answer from the wrong body of "
+               f"authority — usable to FIND the rule, never to be the rule.")
+        # AND SAY WHERE IT WOULD HAVE BEEN RIGHT, because on a question that
+        # straddles two bodies it usually IS right about the other half. The
+        # four IRS passages this gate was built for are sound law on whether a
+        # lease is deducted as rent; they simply do not reach whether one goes
+        # on the balance sheet. Refusing them flat throws that away and reports
+        # a searched question as unanswered, which is a second wrong answer.
+        for other in also or ():
+            if domains.governs(cand.fetched_from or cand.found_at, other):
+                why += (f" It WOULD be competent for the {other.name} half of "
+                        f"this question, which is a separate question with a "
+                        f"separate answer.")
+                break
+        return REFUSE, why
     if desk.passage(cand.citation) is not None:
         return HELD, (
             f"fix the routing, not the record. The desk already holds this and "

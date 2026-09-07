@@ -68,6 +68,7 @@ REASONS = (
     "no_field_for_this_fact",   # nobody ever decided this should be written down
     "client_rule_governs",      # the file records the firm's own call for THIS client
     "authority_has_moved",      # the publisher no longer carries what we stored
+    "wrong_body_of_authority",  # real authority, real subject, wrong universe
     "model_gave_up",            # ran out of window or abandoned the task
 )
 
@@ -694,6 +695,62 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"is the firm's word and a desk does not revise it",
             ), passage, source
         return None, passage, source
+
+    # THE BODY OF AUTHORITY, checked before tier and after positions.
+    #
+    # THE TRAP, 7 September 2026, found by a session testing the installed
+    # plugin on the Forge rather than by anyone building it. Asked *"how do i
+    # know if a lease should be booked as an asset"* -- a US GAAP recognition
+    # question -- an answer citing IRS Pub. 463 (2025), "Leasing a Car" was
+    # SERVED, `checked_subject=True`. The entire cited paragraph:
+    #
+    #   "If you lease a car, truck, or van that you use in your business, you
+    #    can use the standard mileage rate or actual expenses to figure your
+    #    deductible expense. This section explains how to figure actual
+    #    expenses for a leased car, truck, or van."
+    #
+    # Two sentences about figuring a deduction. Nothing about the balance
+    # sheet, nothing about recognition. Every existing check passed and was
+    # right to: the citation resolves, and `lease` IS a declared subject of
+    # that source. The conclusion was directionally the expensive error --
+    # expense the lease, omit the right-of-use asset and the lease liability.
+    #
+    # WHY THE SUBJECT CHECK COULD NOT CATCH IT. `checked_subject` asks whether
+    # this desk answers this SUBJECT from this SOURCE. Both were true. What was
+    # false is that a federal-tax publisher can settle a US GAAP question at
+    # all, and nothing asked that. The firm named the shape before the trap was
+    # found: *"you don't check the IRS website for coding tips."*
+    #
+    # IT GATES AUTHORITY AND NEVER A POSITION, which is why it sits below the
+    # `kind == "position"` branch rather than above it. A ratified position is
+    # the firm's own word and tier does not gate it either; an engine that
+    # refused the firm's answer because of where its citation was published
+    # would be overruling them, which is the wrong side of every line this file
+    # draws.
+    #
+    # AND IT IS SILENT WHERE THE MAP IS. A question matching no domain, or a
+    # source with no url, leaves this untouched -- refusing on an absent
+    # classification would be guessing a domain to get a gate, which is the
+    # same error the gate exists to stop.
+    if source.url and question:
+        import domains as _domains
+
+        verdict = _domains.classify(question)
+        if verdict and not _domains.governs(source.url, verdict.domain):
+            also = ", ".join(d.name for d in verdict.also)
+            return Refusal(
+                "wrong_body_of_authority",
+                f"{answer.citation!r} resolves and this desk does answer "
+                f"{verdict.matched[0]!r} from {source.id} — and "
+                f"{_domains._registered(source.url)} does not settle "
+                f"{verdict.domain.name} questions. {verdict.domain.body} does. "
+                f"A paragraph in the wrong body of authority is not made into "
+                f"this question's rule by being real",
+                ask=(f"This is a {verdict.domain.name} question"
+                     + (f" that also reaches {also}" if also else "")
+                     + f". Cite {verdict.domain.body}, or escalate that no "
+                       f"desk holds the authority that governs it."),
+            ), passage, source
 
     if not source.binding:
         # SERVED, AND MARKED AS GUIDANCE -- but only where no rule reaches.
