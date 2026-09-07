@@ -127,13 +127,21 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     `fixed-assets` was ever machine-built, and re-running the builder over a
     hand-curated desk would overwrite the answer key a person chose.
 
-    THREE DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
+    TWO DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
     BE REDISCOVERED. `cash-and-bank` (§ 1.446-1), `meals-and-entertainment`
-    (§ 1.274-5, § 1.274-5T) and part of the others sit on sections whose label
-    sequences `outline()` cannot read as one consistent CFR outline, so it
-    raises rather than placing a paragraph by preference. An example whose path
-    is a guess is cited to a rule that may not be its own — the exact defect
-    corrected on this same day — so those sections keep their rules and wait.
+    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sit on sections
+    that SKIP A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic
+    (a), passing over the (A) level entirely — and `placements()` admits no
+    reading in which a level is skipped. It raises rather than placing a
+    paragraph by preference, which is right: an example whose path is a guess
+    is cited to a rule that may not be its own, the exact defect corrected
+    earlier the same day.
+
+    § 1.6050W-1 was refused for a DIFFERENT and fixable reason and now places:
+    its run-in headings close with a full stop inside the italics rather than
+    with an em-dash, which the reader did not recognise. Twenty-two examples
+    came back with it, and § 1.263(a)-3 read identically before and after —
+    172 paragraphs, 0 underdetermined, the same 117 example citations.
     `meals-and-entertainment`'s other three sections and two of the rewards
     desk's simply carry no worked examples at all.
     """
@@ -144,7 +152,7 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     assert per == {"capitalization-and-de-minimis": 31,
                    "fixed-assets": 117,
                    "personal-or-business": 4,
-                   "rewards-and-information-returns": 16,
+                   "rewards-and-information-returns": 38,
                    "vehicle-expense": 10}, per
 
 

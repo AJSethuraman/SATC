@@ -300,7 +300,7 @@ ANSWERING_BRIEF = {
     "fixed-assets":                   (22_231, 75_063),
     "meals-and-entertainment":        (11_750, 11_750),
     "personal-or-business":            (3_548,  4_052),
-    "rewards-and-information-returns": (9_369, 13_123),
+    "rewards-and-information-returns": (9_369, 20_060),
     "vehicle-expense":                (20_889, 22_329),
 }
 

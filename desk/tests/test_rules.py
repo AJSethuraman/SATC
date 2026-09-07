@@ -440,3 +440,78 @@ def test_problems_md_states_the_citation_spread_and_its_baseline():
     shown = len(sr.corpus_lines(desk, "index"))
     assert shown == sum(1 for p in desk.passages if p.kind == record.RULE)
     assert f"holds **{shown}** paragraphs for **{len(desk.problems)}** problems" in text
+
+
+# -- the two shapes a run-in heading takes ------------------------------------
+
+def test_a_run_in_heading_is_recognised_in_both_shapes():
+    """One <P> can open more than one paragraph, and the CFR writes that two ways.
+
+    § 1.263(a)-3 closes every one of its thirty run-ins with an EM-DASH:
+    "(c) Coordination with other provisions of the Code—(1) In general." That is
+    the only shape the reader knew until 7 September 2026.
+
+    § 1.6050W-1 and § 1.446-1 close theirs with the heading's own FULL STOP,
+    inside the italics, followed by a bare space: "(iv) [i]Combinations of the
+    foregoing methods.[/i] (a) In accordance with..." The reader saw only the
+    leading label, the italic (a) that followed had no level to continue, and
+    no consistent reading of the section existed at all -- so `outline()`
+    refused it. Correctly, and for a gap in the reader rather than in the
+    regulation. § 1.6050W-1 places now, and brought 22 worked examples with it.
+    """
+    I0, I1 = ex._I0, ex._I1
+    dash = f"(c) {I0}Coordination with other provisions of the Code{I1}—(1) In general. Text."
+    stop = f"(iv) {I0}Combinations of the foregoing methods.{I1} ({I0}a{I1}) In accordance with."
+    for text, expect in ((dash, [("c", False), ("1", False)]),
+                         (stop, [("iv", False), ("a", True)])):
+        got = [(l, i) for l, i, _ in ex.labels(_elem(text))]
+        assert got == expect, f"{text[:40]!r} read as {got}"
+
+
+def test_only_an_italic_run_touching_the_label_can_be_a_run_in():
+    """What actually keeps the second shape safe -- and it is NOT the full stop.
+
+    I CLAIMED IT WAS, AND A MUTATION SAID OTHERWISE. Requiring the heading's own
+    full stop looked like the thing separating a run-in heading from an italic
+    term inside a sentence, and I wrote that in the comment beside the pattern.
+    Dropping the requirement broke nothing, twice, including against a case
+    built specifically to catch it.
+
+    The reason is the ANCHOR. `_RUN_IN` is matched against the text immediately
+    following the leading label, so an italic run anywhere else in the sentence
+    is never even a candidate. A heading touches its label; a term does not.
+    That is the property, it is exact, and it is what this asserts.
+
+    The full stop stays because it is the shape § 1.446-1 and § 1.6050W-1
+    actually write and narrower costs nothing here -- not because it is load
+    bearing. Saying so is the point: a guard believed to be doing work it is
+    not is worse than no guard, because it stops anyone looking for the real one.
+    """
+    I0, I1 = ex._I0, ex._I1
+    mid = f"(a) The election under {I0}section 263A.{I1} (1) applies only to."
+    got = [(l, i) for l, i, _ in ex.labels(_elem(mid))]
+    assert got == [("a", False)], (
+        f"an italic run away from the label was read as a run-in: {got}")
+    # AND ONE THAT TOUCHES IT IS, so the test is not passing on an inert input.
+    head = f"(a) {I0}General rule.{I1} (1) Section 446(a) provides that."
+    assert [(l, i) for l, i, _ in ex.labels(_elem(head))] == \
+        [("a", False), ("1", False)]
+
+
+def test_the_section_reads_identically_after_the_second_shape_was_added():
+    """The regression harness for that change, kept rather than run once.
+
+    § 1.263(a)-3 uses only em-dashes, so recognising a second shape must leave
+    it untouched. It did: same paragraph count, nothing underdetermined, the
+    same 117 example citations.
+    """
+    paragraphs, underdetermined = ex.outline(XML)
+    assert (len(paragraphs), len(underdetermined)) == (172, 0)
+    assert len(list(ex.examples(XML))) == 117
+
+
+def _elem(text: str):
+    """A <P> whose marked text is `text`, italics already fenced."""
+    import xml.etree.ElementTree as _ET
+    frag = text.replace(ex._I0, "<I>").replace(ex._I1, "</I>")
+    return _ET.fromstring(f"<P>{frag}</P>")

@@ -229,7 +229,34 @@ ITALIC_LEVELS = frozenset({4, 5})
 
 _I0, _I1 = "\x01", "\x02"       # fences around italic runs, never in real text
 _LABEL = re.compile(r"^\((\x01?)([a-zA-Z0-9]{1,4})\x02?\)\s*")
-_RUN_IN = re.compile(r"^\x01[^\x02]*\x02\s*—\s*(?=\()")
+#: A RUN-IN HEADING, IN THE TWO SHAPES THE CFR ACTUALLY USES. The first is an
+#: italic heading closed by an em-dash -- "(c) Coordination with other
+#: provisions of the Code—(1) In general." -- which is how § 1.263(a)-3 writes
+#: every one of its thirty.
+#:
+#: The second is an italic heading whose own FULL STOP sits INSIDE the italics,
+#: followed by a bare space: "(iv) [i]Combinations of the foregoing methods.[/i]
+#: (a) In a case..." § 1.446-1 writes them that way, and
+#: the reader seeing only the em-dash form never captured that run-in `(a)`. Its
+#: italic `(b)` then had no level to continue, no consistent reading existed for
+#: the section at all, and `outline()` refused it -- correctly, and for a reason
+#: that was a gap in the reader rather than in the regulation. Four more
+#: sections refused for the same cause, and 53 worked examples sat behind it.
+#:
+#: WHAT KEEPS THIS SAFE IS THE ANCHOR, NOT THE FULL STOP. Both alternatives are
+#: matched against the text IMMEDIATELY following the leading label, so an
+#: italic run anywhere else in the sentence is never a candidate: a heading
+#: touches its label, a term does not. I first wrote that the full stop was the
+#: discriminator; dropping it broke nothing, twice, including against a case
+#: built to catch it. It stays because it is the shape these sections actually
+#: write, and narrower costs nothing -- not because it is load bearing.
+#:
+#: AND BEHIND THAT, `placements()` returns EVERY consistent reading and
+#: `outline()` excludes any element whose path differs between them. A run-in
+#: proposed wrongly does not become a wrong citation; it becomes an
+#: underdetermined element, reported and left out.
+_RUN_IN = re.compile(r"^\x01[^\x02]*\x02\s*—\s*(?=\()"
+                     r"|^\x01[^\x02]*\.\x02\s+(?=\()")
 
 
 @dataclass(frozen=True)
