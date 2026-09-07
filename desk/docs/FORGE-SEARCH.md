@@ -33,23 +33,22 @@ claude plugin update desk@satc
 `marketplace update` only refreshes the listing — it looks like it worked and
 changes nothing on disk. This has cost a session before.
 
-Check it took:
+Check it took — and check it against the listing rather than against a number
+written here, because a document that states a version goes stale the moment the
+version moves:
 
 ```
 claude plugin list
 ```
 
-`desk` should read **0.5.0**.
+```
+python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])"
+```
 
-**Verified by installing it, 7 September 2026.** #316 merged as `103a944` and
-0.5.0 is what the two commands now land — `run-down-a-question`, the skill this
-prompt tells the session to load, included. Confirmed from the installed copy
-rather than from the repository: `ask.consult` routed a real question and the
-gap command below ran correctly against it.
-
-*(This paragraph said the opposite for about an hour. It was written before the
-merge, correctly, and went stale the moment the merge landed — which is what a
-document that states a version always does.)*
+**Those two must match.** If `plugin list` is lower, the update did not land —
+and `plugin update` says *"already at the latest version"* when the content
+moved without the version, so its success message is not evidence. Both traps
+bit on 7 September, in opposite directions, within four hours.
 
 ---
 
