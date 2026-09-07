@@ -17,6 +17,63 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, later still — main was red for two hours and it was mine
+
+> *"it is messing everything else up - main is red i need it cleared up"*
+> — the firm
+
+**What I did.** Moved the hourly rate in the schedule, left
+`website/pricing-config.js` publishing the old one, called that *"stale on
+purpose"*, and handed the regeneration to the satcllp.com session. Two commits
+of mine went onto `main` behind it, both red, and every branch cut afterwards
+inherited the failure.
+
+**The handoff was not the mistake.** The site is that session's, the firm said
+so, and they regenerated it correctly and fast. They put it in a **draft** pull
+request — deliberately, because they had found something else in the same file
+they would not change without the firm's word. **A draft does not merge.** So the
+correct thing they did and the correct thing I did added up to two hours of red.
+
+**The rule already existed and I walked past it.** `test.yml` carries it in the
+sidelining note: *a permanently-red check is worse than no check, because after
+the third day nobody reads it and the next genuine failure hides behind it.* I
+had read that file the same day.
+
+**What it should have been.** A change that reddens `main` and its fix are **one
+merge**, or the change waits. Handing off the half that makes it green again is
+the same failure as leaving it broken, wearing a helpful face — which is what
+behaviour 19 says about a wait that clears by itself, and this one did not even
+clear by itself: it needed a person to un-draft.
+
+Cleared in `#328`. `main` at `1d5d9413`, Tests green, Deploy green.
+
+### And the corrections that came back with it
+
+The satcllp.com session sent two, both right, and one found a real defect.
+
+**Four hourly situations reach the page, not five.** I read `hourly.situations`
+and reported its length; the page builds from the `assumed` gates.
+
+**The fifth is the defect.** `notice` is still billable hourly after the
+26 August ruling that *"notices and correspondence belong in a different letter
+engagement"* — **and that engagement was never built.** Grep the schedule for
+`notice`: one hit. Deleting the entry would leave a preparer unable to price a
+notice at all, so it stays marked and registered, with the two questions only the
+firm can settle. A test now compares the two lists; the drift lasted twelve days
+because each read a different source and neither could contradict the other.
+
+**And my blind-spot fix from `#320` closed half the hole.** `"engagement letter"`
+is live on the home page right now in `website/intake.js:236`, and `copy.spec.py`
+reports 39/39 with it there, because `COPY_IN_SCRIPTS` names one file. My own
+commit message said a tenet has to read everything a visitor reads, and then
+listed one file.
+
+**They also refused to apply the wording the firm approved to me**, on the
+grounds that a peer session cannot carry the firm's approval. That is correct and
+I should not have relayed it as settling anything.
+
+---
+
 ## Monday 7 September 2026, late — the hourly rate moves, and two more answers
 
 ### The rate: $150 → $175
