@@ -89,7 +89,38 @@ currency: USD
 # every budget below is calibrated to an estimate, not to a fact. Change the
 # rate and every budget moves with it; that is the point of storing it once.
 basis:
-  rate: 150
+  # $150 from the build until 7 September 2026, when it was measured against
+  # the profession's own survey for the first time and found to be five years
+  # stale.
+  #
+  # The National Society of Accountants Income and Fees Survey puts EAST NORTH
+  # CENTRAL -- Ohio's census district -- at $148.15 an hour for federal and
+  # state tax return work in 2020-21. Adjusted by cumulative CPI-U inflation of
+  # 23.23%, that is $182.57 in 2026 dollars. $150 was almost exactly the
+  # UNADJUSTED 2021 average: the rate had been set against a correct benchmark
+  # and then never moved.
+  #
+  # $175 closes 77% of that gap in one step rather than all of it. A 21.7% rise
+  # landing on existing clients at once is a different conversation from a
+  # 16.7% one, and this leaves room to reach par next year without a second
+  # jump. Set in September deliberately -- months before it reaches anyone in a
+  # January engagement.
+  #
+  # THE FIRM, 7 September 2026: "let's adjust hourly but keep our core pricing
+  # in place - you are the owner of tax pricing so ensure it gets updating".
+  # Core pricing is untouched: every base tier, per-unit and per-form amount in
+  # this file is a literal and none of them derive from this number. What does
+  # move with it is the published hourly rate, the five situations under
+  # `hourly:`, and the "beyond that the time is billed at {rate} an hour"
+  # phrasing wherever a cap is exceeded -- which is the rate applying, and is
+  # the point.
+  #
+  # Working: docs/pricing-the-withholding-review.md
+  rate: 175
+  rate_superseded:
+    was: 150
+    until: "2026-09-07"
+    reason: "NSA 2020-21 survey, East N. Central $148.15/hr, +23.23% CPI-U = $182.57 par"
 
   # Time rounds. Invoices do not.
   #
@@ -167,13 +198,62 @@ basis:
 # the invoice refuses without a written reason. An "hourly, amount unknown"
 # line would have bypassed the one protection the client already has.
 hourly:
+  # ── THE STANDING RULE FOR WORK WITH NO PRICE ────────────────────────────
+  #
+  # The firm, 7 September 2026: "generally speaking, if we have no price it
+  # should be assumed to be $175 ... but the goal would be to establish a
+  # price."
+  #
+  # Read as the hourly RATE, not a flat $175 -- a flat figure would price five
+  # minutes and six hours the same, and $175 is the rate set the same day.
+  # Correct this line if that reading is wrong; it decides what a client pays.
+  #
+  # WHAT THE RULE MEANS HERE. This block IS the fallback: a situation listed
+  # below carries no `amount` on purpose, and is billed at `basis.rate`. It is
+  # not an omission and `test_nothing_is_unpriced_by_accident` proves the
+  # difference -- everything else in this file resolves to a number, whether
+  # its own or an inherited default, and a new item arriving without one fails
+  # rather than quietly joining the fallback.
+  #
+  # AND THE SECOND HALF IS THE POINT. "The goal would be to establish a price"
+  # makes this list a WORKLIST, not a resting place. Anything sitting here is
+  # work the firm has not decided a price for yet.
+  #
+  # THE RULE CURRENTLY OVERRIDES ONE OF THE FIRM'S OWN DECISIONS, which is
+  # worth saying plainly rather than leaving to be found: on 26 August the firm
+  # ruled that notices belong in a separate letter engagement -- that is, NOT
+  # hourly. No price was ever set for that engagement, so `notice` below is
+  # billed hourly by fallback. The default is doing exactly what it is meant to
+  # do, and what it is doing is contradicting a decision. That is the strongest
+  # possible argument for the second half of the rule, and it is registered:
+  # docs/DEFECT-REGISTER.md, "There is no way to price a notice the way the
+  # firm said notices should be priced".
   situations:
     keyed_brokerage:
       label: "Keyed brokerage statements"
     foreign_interest:
       label: "An interest in a company based abroad"
+    # NOT ON THE PRICE PAGE, and that is not a mistake -- but what it leaves
+    # behind is. On 26 August 2026 the firm ruled: "notices and correspondence
+    # belong in a different letter engagement", and `assumed.notice_response`
+    # left this file for that reason (docs/site-open-questions.md B7). The page
+    # builds its hourly list from the `assumed` gates, so the notice line
+    # correctly stopped being advertised.
+    #
+    # THE LETTER ENGAGEMENT WAS NEVER BUILT. Search this file for "notice" and
+    # this is the only hit. So the route the firm ruled AGAINST is the only
+    # route there is: delete this entry and a preparer cannot price a notice at
+    # all, which is worse than pricing it the way the ruling did not want.
+    #
+    # It stays, deliberately, as the INTERIM route until the separate
+    # engagement exists -- and the gap is registered rather than left to be
+    # rediscovered: docs/DEFECT-REGISTER.md, "There is no way to price a notice
+    # the way the firm said notices should be priced". Naming a price for that
+    # engagement is the firm's, not an agent's.
     notice:
       label: "A letter from the IRS or the state you would like us to handle"
+      on_price_page: false
+      interim_until: "a separate letter engagement exists"
     officer_pay:
       label: "Setting what an S corporation owner pays themselves"
     cleanup:

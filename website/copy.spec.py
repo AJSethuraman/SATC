@@ -44,6 +44,20 @@ PAGES = ["index.html", "pricing.html", "privacy.html",
          # tenets apply to what a visitor reads, whatever produced it.
          "guides/records.html", "guides/business-records.html", "guides/s-corp.html"]
 
+#: Copy that reaches a visitor WITHOUT being in any .html file. THE BLIND SPOT,
+#: found 7 September 2026: `intake-config.js` carries the questions, help text
+#: and placeholders the intake form renders, so a visitor reads them on the page
+#: -- and this file checked `.html` only. The banned phrase "as soon as we can"
+#: sat in it, live, while the spec reported 36/36 green. A tenet about what a
+#: visitor reads has to read everything a visitor reads, whatever produced it.
+COPY_IN_SCRIPTS = ["intake-config.js"]
+
+#: The keys in those scripts whose values are shown to a person. Deliberately a
+#: list and not "every string": a URL, an id or a field name is not copy, and
+#: sweeping them in would make this noisy enough to be ignored.
+VISIBLE_KEYS = ("question", "help", "placeholder", "label", "title",
+                "intro", "note", "hint", "legend", "blurb", "text")
+
 _fail = 0
 _pass = 0
 
@@ -92,8 +106,17 @@ SELF_CLAIMS = [
 # not say things like 'by one person' in general, never promise it is by someone
 # in particular", "literally do not specify stuff like we fix our own errors for
 # free".
+# SUPERSEDED 7 September 2026: "as soon as we can" came OFF this list.
+# It was swept in while the one-business-day promise was being removed, and it
+# is the opposite of what this tenet bans -- a deliberate refusal to promise a
+# time, not a promise of one. Asked on the docket "Do you want to promise a
+# reply within one business day, in writing?", the firm answered: *"No -- keep
+# 'as soon as we can'"*. That is the phrase they chose, knowingly, over the
+# alternative. It is on the live site in intake-config.js and now in index.html.
+# The rest of the list is untouched, including "business day", which is the
+# thing actually being refused.
 PROMISES = [
-    "as soon as we can", "business day", "within 24 hours", "same day",
+    "business day", "within 24 hours", "same day",
     "guaranteed", "we guarantee", "always available", "never miss",
     "at no charge", "free of charge", "no extra charge", "personally",
     "by one person", "you'll work directly with", "your dedicated",
@@ -158,9 +181,37 @@ def sentences(text: str) -> list[str]:
 
 print("SATC — the copy tenets, over every published page\n")
 
-for page in PAGES:
-    src = (HERE / page).read_text(encoding="utf-8")
-    text = visible_text(src)
+def script_copy(path: Path) -> str:
+    """The visitor-facing strings out of a config script.
+
+    Matches `key: "value"` and `key: 'value'` for the keys in VISIBLE_KEYS.
+    Not a JavaScript parser and not trying to be -- these files are hand-written
+    literals, and a parser would be a second thing to keep correct.
+    """
+    src = path.read_text(encoding="utf-8")
+    keys = "|".join(VISIBLE_KEYS)
+    # No backreference and no lookbehind: two plain alternatives instead.
+    # These are hand-written config literals, not arbitrary JavaScript.
+    pattern = (r"\b(?:" + keys
+               + r')\s*:\s*(?:"([^"]*)"'
+               + r"|'([^']*)')")
+    return " ".join(a or b for a, b in re.findall(pattern, src, re.S))
+
+
+for page in PAGES + COPY_IN_SCRIPTS:
+    path = HERE / page
+    # A config script holds DISCRETE LABELS, not prose. The vocabulary tenets
+    # apply to both -- a banned phrase is banned wherever a visitor reads it --
+    # but the shape tenets do not: "Individual tax preparation" is a three-word
+    # option, and 83 of them are not one 300-word sentence. Two of them repeat
+    # on purpose ("None of these", "I am not sure"), which is how a form is
+    # meant to work, not copy said twice.
+    is_page = page not in COPY_IN_SCRIPTS
+    if is_page:
+        text = visible_text(path.read_text(encoding="utf-8"))
+    else:
+        text = script_copy(path)
+        assert text.strip(), f"{page}: no visitor-facing strings found -- has it changed shape?"
     low = text.lower()
     sents = sentences(text)
 
@@ -180,6 +231,18 @@ for page in PAGES:
     hits = [w for w in PROMISES if w in low]
     check(not hits,
           f"no promise about a person, a time or a number — found {hits}")
+
+    # Tenets 9 and 5 measure the SHAPE of prose -- how long a sentence runs, and
+    # whether a claim is made twice. Neither is meaningful over a list of
+    # discrete form labels, so they are not run there and this says so instead
+    # of quietly skipping: a check that did not happen must not read as one that
+    # passed.
+    if not is_page:
+        print("  n/a   sentence length and repetition — not prose, "
+              "83 form labels are not one sentence and repeated options are "
+              "how a form works")
+        print()
+        continue
 
     # Tenet 9
     longs = [s for s in sents if len(s.split()) > MAX_WORDS]

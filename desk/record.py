@@ -215,6 +215,35 @@ class Problem:
     context: "Context" = None
 
 
+def shown(desk) -> tuple:
+    """The passages a brief puts in front of an answerer. ONE DEFINITION.
+
+    `ask.brief` prints these and `engine.serve` counts them, and they must be the
+    same set or the count the engine reports about a refusal is a number from a
+    brief nobody saw. Two implementations of "what the model was shown" is the
+    same shape of bug `comparing.py` exists to prevent one layer down.
+    """
+    return tuple(desk.passages)
+
+
+def shown_by_source(desk) -> dict:
+    """`{source id: how many passages}` — the shape of what was shown.
+
+    A total alone does not check the claim that was actually made. The meals desk
+    escalated saying *"§ 1.274-11's own text is not in this desk's record"* while
+    the desk held ten passages of it: a total of 76 would have looked large and
+    proved nothing, and the per-source line is what makes that sentence false on
+    its face.
+    """
+    out = {}
+    for p in shown(desk):
+        for src in desk.sources:
+            if p.citation.startswith(src.citation_prefix):
+                out[src.id] = out.get(src.id, 0) + 1
+                break
+    return out
+
+
 @dataclass(frozen=True)
 class Context:
     """What the CALLER already recorded about the matter. Never inferred here.
@@ -392,6 +421,20 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
                 f"{desk_name}: Records names {name!r}. A fact's name is what a "
                 f"position points at and what a refusal prints; two characters "
                 f"or a bare number is an accident, not a name."
+            )
+        # AND IT HAS TO LOOK LIKE A NAME. Removing the last fact from a desk on
+        # 7 September, the line was left in place reading `**Records:**
+        # *(nothing)*` -- and the parser read the placeholder AS A FACT. The desk
+        # declared it recorded something called `*(nothing)*`, `serve` would have
+        # treated it as a fact an engagement could be missing, and the brief
+        # would have printed it to an answerer. A list with nothing in it is
+        # written by leaving the list out, and this is what says so.
+        if not _FACT_NAME.match(name):
+            raise RecordError(
+                f"{desk_name}: Records names {name!r}, which is not a fact name "
+                f"-- letters, digits and underscores. A desk that records "
+                f"nothing has no `Records:` line at all; a placeholder in one is "
+                f"read as a fact and reaches an answerer as a real question."
             )
     if len(set(records)) != len(records):
         raise RecordError(f"{desk_name}: Records names the same fact twice")
@@ -576,6 +619,10 @@ class Desk:
 
 
 # ── parsing ───────────────────────────────────────────────────────────────────
+
+#: What a fact may be called: the thing a position points at and a refusal
+#: prints. Letters, digits, underscores -- nothing that reads as prose.
+_FACT_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 _SUBJ_HEAD = _HEAD

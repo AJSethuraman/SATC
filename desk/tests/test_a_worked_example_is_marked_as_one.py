@@ -337,7 +337,7 @@ def test_that_index_still_carries_the_rules():
     # § 1.162-3 the firm admitted eCFR for. The index carries every RULE the desk
     # holds, whichever source it came from — that is what makes the desk able to
     # answer on the second one at all.
-    assert set(index) == rules and len(index) == 174, len(index)
+    assert set(index) == rules and len(index) == 176, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

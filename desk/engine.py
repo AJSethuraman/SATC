@@ -25,9 +25,10 @@ make every test run depend on a government website being up, and would make
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
+import record as record_mod
 from record import Desk, Problem, Source
 
 
@@ -287,6 +288,45 @@ class Refusal:
     #: resort right now."* Nothing this engine produces reaches a client without a
     #: person in between, and that includes a question.
     ask: str = ""
+    #: THE FACT THE REFUSAL TURNS ON, and THE POSITION THAT ASKED FOR IT. Named
+    #: as fields rather than left in `detail`'s prose, because on 7 September
+    #: 2026 the firm approved letting a desk ask for a FIELD to be built --
+    #: *"that seems low stakes and required and i would approve it fairly
+    #: easily"* -- on one condition: the ask must arrive carrying WHICH POSITION
+    #: WANTED IT. A desk asks for a field because a position it holds names a
+    #: fact, so approving the field approves that position's reach. Approving a
+    #: change to the software on the strength of a chain nobody can see is what
+    #: the condition exists to stop, and a chain parsed back out of a sentence is
+    #: not a chain anybody can see.
+    #:
+    #: EMPTY ON THE REFUSALS THAT NAME NO FACT, which is most of them. Only the
+    #: three that turn on a position's `Needs:` or `Unless:` set them.
+    fact: str = ""
+    by_position: str = ""
+    #: HOW MUCH THE DESK PUT IN FRONT OF THE MODEL, on an `authority_absent`
+    #: escalation and on nothing else.
+    #:
+    #: THE INCIDENT, 7 September 2026. The meals desk escalated a question about a
+    #: streaming subscription saying *"§ 1.274-11's own text is not in this desk's
+    #: record"*. It is — ten passages of it, including the general disallowance at
+    #: (a), the definition of entertainment at (b)(1)(i) and the objective test at
+    #: (b)(1)(iii) — all of it printed in the brief the model was answering from.
+    #: The claim was false and nothing could tell: `authority_absent` is the
+    #: MODEL'S claim about its own record and this function takes it at its word.
+    #: The other three escalations in the same run were correct, and this one
+    #: looked identical.
+    #:
+    #: IT REPORTS AND IT DOES NOT OVERRULE, which is the whole shape of the thing
+    #: and the reason the firm was asked rather than told. The engine can say the
+    #: desk showed 76 passages, 10 of them from the source the model named; it
+    #: cannot say whether any of them answered the question. That judgement stays
+    #: with the model and with whoever reads the queue. An engine that REFUSED the
+    #: escalation would be deciding the merits, which is the wrong side of the
+    #: line every other part of this file draws.
+    showed: int = 0
+    #: `{source id: passages}` — a total alone does not falsify the claim that was
+    #: actually made. The claim named a source, so the answer has to be by source.
+    showed_by_source: dict = field(default_factory=dict)
 
     def __bool__(self) -> bool:            # so `if served:` reads correctly
         return False
@@ -552,6 +592,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"which cannot be applied without {', '.join(absent)} on file. "
                 f"That is the engagement's to record, not the client's to be asked",
                 ask=_follow_up(absent, ruling),
+                fact=", ".join(absent), by_position=ruling.id,
             ), passage, source
 
     # A DEFAULT IS NOT AN ANSWER UNTIL SOMEBODY HAS LOOKED FOR THE EXCEPTION.
@@ -591,6 +632,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                     ask=f"This client has a recorded rule on {fact}. Apply that "
                         f"rather than the firm's general position — and if it no "
                         f"longer reflects what the firm does, say so.",
+                    fact=fact, by_position=ruling.id,
                 ), passage, source
             if fact not in desk.records:
                 return Refusal(
@@ -603,6 +645,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                     ask=f"Is there a standing rule for this client on {fact}? "
                         f"Nothing on file can answer that, because no such field "
                         f"exists. Deciding whether it should is the firm's.",
+                    fact=fact, by_position=ruling.id,
                 ), passage, source
             return Refusal(
                 "context_not_on_file",
@@ -611,6 +654,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"differently on {fact!r}. Nothing on file says either way, and "
                 f"a default applied without looking is not a default",
                 ask=_follow_up((fact,), ruling),
+                fact=fact, by_position=ruling.id,
             ), passage, source
 
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
@@ -717,7 +761,18 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     """
     if answer.escalated:
         _reason(answer.reason)
-        return Refusal(answer.reason, "escalated by the desk")
+        if answer.reason != "authority_absent":
+            return Refusal(answer.reason, "escalated by the desk")
+        # ONLY `authority_absent`, because it is the only escalation that is a
+        # claim about the RECORD. `facts_not_established` is a claim about the
+        # client and `authority_permits_choice` is a reading of authority the
+        # desk does hold; counting passages against either would print a number
+        # that argues with nothing.
+        by_source = record_mod.shown_by_source(desk)
+        total = len(record_mod.shown(desk))
+        return Refusal(
+            answer.reason, "escalated by the desk",
+            showed=total, showed_by_source=by_source)
 
     refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:

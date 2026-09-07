@@ -493,3 +493,40 @@ a source made one of them fail. Its assertion was `calls == sorted(set(calls))`,
 which required alphabetical order as well as one-call-per-source; true for free
 with one source, false with two, and never the property the test's own name
 claimed. The duplicate is removed and the survivor asserts what it says.
+
+---
+
+## `dec-desk-asks-for-code` — **the recommendation, taken**
+
+> *"i'll take your recommendation"* — 7 September 2026.
+
+**A field, and only a field.** Built the same hour.
+
+`unsupported.py` had five resolutions and none of them changed the software. It
+has six now, and the sixth is the only one that does:
+
+> The rule is clear and there is NOWHERE to write the answer → **build the
+> field**, naming the position that asked.
+
+**It arrives carrying its chain, which was the condition.** `Refusal` gained
+`fact` and `by_position` as FIELDS rather than prose in `detail`, and
+`Unsupported` gained `needs_field` and `asked_by`. A desk asks for a field
+because a position it holds names a fact — so approving the field approves that
+position's reach, and a chain parsed back out of a sentence is not a chain
+anybody can check.
+
+**Only `no_field_for_this_fact` becomes a request.** `context_not_on_file` names
+a fact too and means the opposite: the field exists and this engagement did not
+fill it in. Copying it across would file a request to build something already
+built, and the queue's largest category would start asking for software.
+
+Proved end to end against the real position rather than a fixture — the
+capitalisation desk's POS1 with its field removed produces
+`needs_field: capitalization_rule`, `asked_by: POS1`.
+
+**Four mutations, and one survived until a test was written for it.** Deleting
+`fact=fact` from the `client_rule_governs` branch broke nothing: the field was
+assigned and nothing read it, which is the shape of a safeguard everyone
+believes in that does nothing — the same finding this record made about a
+different check five days ago. All three `Unless:` refusals now have to name
+their fact, and all three sites fail the suite when they stop.

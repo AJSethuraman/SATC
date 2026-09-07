@@ -292,3 +292,95 @@ def test_a_search_that_found_nothing_is_still_a_record(desk):
                          hits=(_hit(), _hit("https://other.example/x")))
     assert s.findings == () and len(s.hits) == 2
     assert s.of(searching.STORE) == ()
+
+
+# ---------------------------------------------------------------------------
+# WHAT THE FIRM IS ACTUALLY BEING ASKED, and the two asks are not the same size.
+# Admitting a publisher nobody here reads is a judgement about who we trust.
+# Declaring one more section from a publisher this desk ALREADY reads is a much
+# smaller thing, and putting it to the firm in the bigger words invites them to
+# re-open a decision they have already made.
+#
+# Found by running the searcher against a real gap on 7 September 2026: it asked
+# the firm to "admit ecfr.gov as a source" for § 1.263(a)-2 on a desk that reads
+# ecfr.gov for two other sections already.
+
+
+def _tied(citation, url):
+    return searching.Candidate(
+        citation=citation, text="words", kind="rule", found_at=url,
+        fetched_from=url, verdict=searching.TIED, occurrences=1)
+
+
+#: A SECTION THIS DESK DOES NOT DECLARE, found rather than typed. The first
+#: version of these two tests used § 1.263(a)-2 -- and the firm declared it on
+#: the eighth docket an hour later, which turned both of them green for the wrong
+#: reason and then red. An example that the record can absorb is not an example.
+def _undeclared(desk, *candidates):
+    prefixes = {s.citation_prefix for s in desk.sources}
+    for c in candidates:
+        if not any(c.startswith(x) or x.startswith(c) for x in prefixes):
+            return c
+    raise AssertionError(f"this desk declares all of {candidates}; pick another")
+
+
+def test_one_more_section_from_a_publisher_this_desk_reads_says_so():
+    desk = record.load(HERE / "desks" / "fixed-assets")
+    section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
+    what, why = searching.dispose(
+        _tied(f"{section}(b)(1)",
+              "https://www.ecfr.gov/current/title-26/section-"
+              + section.split()[-1]), desk)
+    assert what == searching.PROPOSE
+    assert section in why, why
+    assert "not a new publisher" in why, why
+    assert "already reads ecfr.gov" in why, why
+
+
+def test_a_publisher_nobody_here_reads_is_still_the_bigger_ask():
+    desk = record.load(HERE / "desks" / "fixed-assets")
+    section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
+    what, why = searching.dispose(
+        _tied(f"{section}(b)(1)",
+              "https://www.law.cornell.edu/cfr/text/26/"
+              + section.split()[-1]), desk)
+    assert what == searching.PROPOSE
+    assert "admit law.cornell.edu" in why, why
+
+
+#: EVERY CITATION SHAPE THE DESKS ACTUALLY HOLD. The first version split on the
+#: first "(" and turned `26 CFR 1.263(a)-2(d)(1)` into `26 CFR 1.263` -- the firm
+#: would have been asked to declare a source that does not exist.
+@pytest.mark.parametrize("citation,section", [
+    ("26 CFR 1.263(a)-2(d)(1)", "26 CFR 1.263(a)-2"),
+    ("26 CFR 1.263(a)-3(e)(2)", "26 CFR 1.263(a)-3"),
+    ("26 CFR 1.162-3(c)(1)(i)", "26 CFR 1.162-3"),
+    ("26 CFR 1.274-5T(a)", "26 CFR 1.274-5T"),
+    ("26 CFR 1.6050W-1(c)(3)", "26 CFR 1.6050W-1"),
+    ("26 CFR 1.262-1(b)(8)", "26 CFR 1.262-1"),
+    # No section in it at all -- returned whole rather than truncated to nothing.
+    ('IRS Pub. 583 (12/2024), "Reconciling the checking account"',
+     'IRS Pub. 583 (12/2024), "Reconciling the checking account"'),
+])
+def test_a_citation_names_its_section_and_is_never_truncated(citation, section):
+    assert searching.section_of(citation) == section
+
+
+def test_every_stored_citation_yields_a_section_a_desk_declares():
+    """The strongest form: run it over the whole record. A section extractor that
+    is right on seven hand-picked strings and wrong on the eighth is a bug that
+    reaches the firm as a request to declare something that does not exist."""
+    checked = 0
+    for d in sorted((HERE / "desks").iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        prefixes = {s.citation_prefix for s in desk.sources}
+        for p in desk.passages:
+            section = searching.section_of(p.citation)
+            assert any(section.startswith(x) or x.startswith(section)
+                       for x in prefixes), (
+                f"{d.name}: {p.citation!r} -> {section!r}, which matches none of "
+                f"the desk's declared prefixes {sorted(prefixes)}")
+            checked += 1
+    assert checked > 500, f"only {checked} citations checked"

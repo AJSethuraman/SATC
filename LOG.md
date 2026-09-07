@@ -17,6 +17,281 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, later still — main was red for two hours and it was mine
+
+> *"it is messing everything else up - main is red i need it cleared up"*
+> — the firm
+
+**What I did.** Moved the hourly rate in the schedule, left
+`website/pricing-config.js` publishing the old one, called that *"stale on
+purpose"*, and handed the regeneration to the satcllp.com session. Two commits
+of mine went onto `main` behind it, both red, and every branch cut afterwards
+inherited the failure.
+
+**The handoff was not the mistake.** The site is that session's, the firm said
+so, and they regenerated it correctly and fast. They put it in a **draft** pull
+request — deliberately, because they had found something else in the same file
+they would not change without the firm's word. **A draft does not merge.** So the
+correct thing they did and the correct thing I did added up to two hours of red.
+
+**The rule already existed and I walked past it.** `test.yml` carries it in the
+sidelining note: *a permanently-red check is worse than no check, because after
+the third day nobody reads it and the next genuine failure hides behind it.* I
+had read that file the same day.
+
+**What it should have been.** A change that reddens `main` and its fix are **one
+merge**, or the change waits. Handing off the half that makes it green again is
+the same failure as leaving it broken, wearing a helpful face — which is what
+behaviour 19 says about a wait that clears by itself, and this one did not even
+clear by itself: it needed a person to un-draft.
+
+Cleared in `#328`. `main` at `1d5d9413`, Tests green, Deploy green.
+
+### And the corrections that came back with it
+
+The satcllp.com session sent two, both right, and one found a real defect.
+
+**Four hourly situations reach the page, not five.** I read `hourly.situations`
+and reported its length; the page builds from the `assumed` gates.
+
+**The fifth is the defect.** `notice` is still billable hourly after the
+26 August ruling that *"notices and correspondence belong in a different letter
+engagement"* — **and that engagement was never built.** Grep the schedule for
+`notice`: one hit. Deleting the entry would leave a preparer unable to price a
+notice at all, so it stays marked and registered, with the two questions only the
+firm can settle. A test now compares the two lists; the drift lasted twelve days
+because each read a different source and neither could contradict the other.
+
+**And my blind-spot fix from `#320` closed half the hole.** `"engagement letter"`
+is live on the home page right now in `website/intake.js:236`, and `copy.spec.py`
+reports 39/39 with it there, because `COPY_IN_SCRIPTS` names one file. My own
+commit message said a tenet has to read everything a visitor reads, and then
+listed one file.
+
+**They also refused to apply the wording the firm approved to me**, on the
+grounds that a peer session cannot carry the firm's approval. That is correct and
+I should not have relayed it as settling anything.
+
+---
+
+## Monday 7 September 2026, late — the hourly rate moves, and two more answers
+
+### The rate: $150 → $175
+
+> *"let's adjust hourly but keep our core pricing in place - you are the owner of
+> tax pricing so ensure it gets updating and we need to give that to the
+> satcllp.com agent to update on the site and make sure it's up to date"*
+> — the firm, 7 September 2026
+
+**A correction that changed the advice.** The recommendation had been to defer
+this until before January, *"don't touch it mid-season"*. The firm: **"we are
+currently not mid-season"** — and they were right. It is September. This is
+precisely the window a rate gets reviewed in, months before it reaches anyone in
+a January engagement. The deferral was wrong and the work was done the same day.
+
+**The number.** $175, against a regional par of $182.57 — the NSA survey's
+East North Central figure of $148.15 for 2020–21, adjusted by 23.23% CPI-U. It
+closes 77% of the gap in one step rather than landing a 21.7% rise on existing
+clients at once, and leaves room to reach par without a second jump.
+
+**Core pricing held, and it was checked rather than claimed:** 24 priced amounts
+before, 24 after, **none changed**. The sample estimate's total is still $645.00.
+What moved with the rate is the published rate itself, the five `hourly:`
+situations, and the *"beyond that the time is billed at {rate} an hour"* phrasing
+where a cap is exceeded — which is the rate applying, and is the point.
+
+### What moving it found
+
+**Seven tests had hard-coded what the rate produces.** $225.00 for an hour and a
+half, $37.50 for a quarter, *"billed at $150 an hour"* — and **not one of them
+was about the rate.** They were about rounding to the quarter hour, about a soft
+cap saying what happens past it, about an hour reaching an engagement record. The
+rate is the firm's number and it will move again; a test that writes down what it
+produces makes changing it a seven-file edit, and the seventh is the one somebody
+misses. They now compute from the schedule, and with the rate set to `999` all
+seven still pass.
+
+The one test that **correctly** went red was the sample-drift guard, because a
+stored sample must match the schedule — which is how the demo record's frozen
+*"$150 an hour"* assumption sentence was caught and regenerated. That guard
+earned its place today.
+
+### The site is stale on purpose
+
+`website/pricing-config.js` still publishes $150, and `pricing.spec.py` says so
+in terms: *"The site and the fee schedule disagree. The schedule wins."* Updating
+it belongs to the **satcllp.com agent**, at the firm's instruction, and has been
+handed to it with the three commands and the two failing checks named.
+
+### Two more answers
+
+**The "engagement letter" wording — approved.** Asked whether *"that begins when
+we both sign a written agreement setting out the work and the fee"* would do, the
+firm said **"sure"**. That clears the tenet blocking `#138`. The wording went to
+the satcllp.com agent rather than being written here, since `website/` is theirs.
+
+**The privacy page — "no update".**
+
+> *"crazy to think we wouldn't record the answers ourselves. we are implicitly
+> saying nobody else nor the site saves it for someone else to see it"*
+
+**And the reasoning is the useful half.** A privacy notice is for the copies a
+client would **not** assume — a third party holding it, or the site retaining it
+for someone else to read. Formspree is exactly that, which is why it is named and
+its 30 days stated. The firm's own working file is not. So the finding had
+measured the workbook against the wrong standard: *every place a submission
+lands*, rather than *every place a client would not expect it to land*. The
+register entry is closed as declined, with what would reopen it written down —
+the workbook being read outside the firm, synced to a third party, or used for
+something other than answering the enquiry.
+
+---
+
+## Monday 7 September 2026, night — three answers, and the goal restated
+
+### The goal changed, twice, and the second one is the real one
+
+Mid-session the firm named the overarching goal:
+
+> *"YOUR overarching goal is to manage and ensure the SATC tax practice software
+> and pipeline while ensuring we test and such appropriately before
+> implementation. we have developed much together, we will continue to do so.
+> shorter term goals, such as what you are doing now, can be established as we
+> go."*
+
+A message immediately before it named the **website** as the goal and was
+**not meant for this session** — it was for another agent, and this session had
+already restated its goal around it before being told. Recorded because a goal
+taken from a misrouted message is exactly the failure the restating habit is
+meant to catch, and it did not catch it: the correction came from the firm, not
+from here.
+
+### The three answers, and what each caused
+
+**1 · The withholding review fee — "Not yet", with:** *"market research is
+preferable"*.
+
+So the research was done rather than the fee invented, and **it found something
+bigger than the question.** The National Society of Accountants Income and Fees
+Survey puts East North Central — Ohio's census district — at **$148.15 an hour**
+for federal and state tax return work in 2020–21. Adjusted by cumulative CPI-U
+inflation of **23.23%**, that is **$182.57** in 2026 dollars.
+
+**`fee-schedule.yaml` sets `basis.rate` to $150.00** — almost exactly the
+*unadjusted* 2021 average. The rate looks like it was set against a correct
+benchmark and never moved since, and nothing in the repository records that as a
+decision. Not an argument that it is wrong; an argument that it is undocumented,
+and that pricing a new service against it bakes the gap in.
+
+On the question actually asked: **there is no market price for a "withholding
+review"**. The IRS calls it a Paycheck Checkup and publishes it free. The nearest
+thing anybody sells is a single planning session at **$200–$500**. The
+recommendation moved from $175 to **$225 flat** — bottom of that band, 1.5 hours
+at the current rate, correctly above records sorting at $175, and it survives the
+rate correction rather than needing a rethink the moment the hourly moves.
+Written up in `docs/pricing-the-withholding-review.md`, with its own *what this
+does not prove*.
+
+**2 · "Within one business day" — No, keep "as soon as we can".**
+
+Which turned out to collide with the firm's own copy tenets, and the collision
+was worth more than the answer. **Tenet 6 had "as soon as we can" on its banned
+list**, swept in while the one-business-day promise was being removed — though it
+is the *opposite* of what that tenet bans, a deliberate refusal to promise a time
+rather than a promise of one. The entry came off, with the quote kept above it.
+"business day" stays, which is the thing actually being refused.
+
+And underneath that: **`copy.spec.py` read `.html` files only.** `intake-config.js`
+carries the questions, help text and option labels the intake form renders onto
+the home page — **83 strings a visitor reads, never examined**, while the spec
+reported 36/36 and *"every page reads the way the firm asked for"*. The banned
+phrase had been sitting in that file, live, the whole time. The checker now reads
+it: 36 → 39 checks, and two mutations die.
+
+**#138 did not merge**, and the reason is the firm's own recorded position. Its
+disclosure says a client relationship *"begins when we both sign an engagement
+letter"* — and `website/TENETS.md` says in terms that putting that phrase back
+**fails the build**, because *"i would never expect a client to understand what an
+engagement letter is inherently."* The wording has to change and that sentence is
+the firm's to write.
+
+**A second thing came out of #138** and is now an open defect:
+`website/privacy.html` discloses Formspree and its 30-day copy but **not** that a
+Power Automate flow files every submission into a workbook indefinitely. The page
+discloses the temporary copy and not the permanent one. Recorded rather than
+written — privacy wording is not an agent's sentence.
+
+**3 · The two credit-line pull requests — Close both.** Done, each with a comment
+saying what it was and that the branch keeps the work.
+
+---
+
+## Monday 7 September 2026, evening — the last hop, and ten checks that were never running
+
+**No answer arrived today.** Three matters from the morning docket are still
+open; this is what got done around them, and two of it found things.
+
+### Ten tests had never opened a screen on this box
+
+The suite reported **2,076 passed, 13 skipped** and looked healthy. Ten of those
+skips were `test_every_screen_in_a_browser` and `test_documents_in_a_browser`,
+which skip when Playwright is absent — and it had never been installed here.
+Their skip messages were honest (*"NO SCREEN IS BEING OPENED, and nothing below
+is being asserted"*); nothing had read them.
+
+Installed Playwright 1.62.0 and Chromium 151.0.7922.34 into the project venv.
+All ten now run and pass. Injecting `SATC <<InvoiceNumber>>` into `base.html`
+turns them red, so they assert something real. **Skips 13 → 3**, and the box
+now carries the browser — recorded in MANIFEST with why.
+
+### The tie-out proved the wrong pair, and I wrote it yesterday
+
+Nine parts of the withholding engine are tied to IRS documents. **Every one read
+the `ours` side out of `estimate()`** — which is not what anybody is handed. The
+preparer downloads an Excel workpaper, and between the engine and that file sits
+`build_audit_tape`, which nothing had checked figure by figure.
+
+    IRS document  =  engine          proved, nine parts
+    engine        =  the workpaper   never executed
+
+That is canon's tie-out skill describing its own named failure, and it applies to
+my own work from yesterday. The thirteen figures **do** tie, on three client
+shapes. Reading the file found two defects that are about a document being *read*
+rather than computed:
+
+* **Three labels named two different rows.** `Self-employment tax`, `Additional
+  Medicare tax` and `Net investment income tax` each headed a dollar amount in
+  the projection walk **and** a citation in the basis block. Found because it
+  broke the first draft of the test — a checker keyed by label kept the second of
+  each pair and reported three mismatches that were not there. Both were wrong:
+  my reader **and** the sheet.
+* **The `Source` line named a superseded authority** — *"IRS Rev. Proc.
+  2024-40; SSA; …"* — while the Standard deduction row three cells below cited
+  P.L. 119-21, the law that replaced it in July 2025. A header disagreeing with
+  the row beneath it, with nothing comparing them.
+
+What existed before was one test asserting that one figure appeared *somewhere*
+among the sheet’s numeric cells. It would have passed with every figure in the
+wrong row.
+
+### One of the firm’s open questions answered from the repository
+
+`#138` carries two `[CONFIRM:]` markers. The second asks whether
+`website/privacy.html` discloses Formspree and its 30-day retention. **It does**
+— three mentions and the retention period, checked on `main`. That marker can be
+struck without asking anybody. The first one cannot: it asks whether the site
+should promise a reply *"within one business day"*, and that is a promise to
+clients, so it is on the docket.
+
+`#158` was closed unmerged today. The hole it was fixing — a sitemap listing one
+URL — **is closed**: `main` lists 6, and the site has exactly 6 pages. It was
+superseded by `#163`, so closing it was right.
+
+**Totals:** `satc_system` 2,076 → **2,097 passing, 3 skipped**;
+`client-documents` **1,507 passing, 2 skipped**.
+
+---
+
 ## Monday 7 September 2026, later — the withholding engine is tied, 9 of 9
 
 **The goal named that morning is met**, and this is what it turned out to be

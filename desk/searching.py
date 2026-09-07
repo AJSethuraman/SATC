@@ -59,6 +59,8 @@ does not have.
 """
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -242,6 +244,22 @@ def check(cand: Candidate, desk, transport) -> Candidate:
     return replace(cand, verdict=TIED, **here)
 
 
+#: WHERE A CITATION'S SECTION STOPS AND ITS PARAGRAPHS START. Splitting on the
+#: first "(" turns `26 CFR 1.263(a)-2(d)(1)` into `26 CFR 1.263`, because the
+#: section name has a parenthesis IN it -- and the firm would be asked to declare
+#: a source that does not exist. Matched instead on the shape a section has:
+#: number, dot, number, an optional letter, an optional (x), a dash, a number,
+#: and an optional trailing letter for the temporary regulations.
+_SECTION = re.compile(r"^(.*?\d+\.\d+[A-Z]*(?:\([a-z]\))?-\d+[A-Z]?)")
+
+
+def section_of(citation: str) -> str:
+    """The section a citation names, or the whole citation when it names no
+    section at all -- a publication heading, say. Never a truncation."""
+    m = _SECTION.match(citation)
+    return m.group(1).strip() if m else citation.strip()
+
+
 def dispose(cand: Candidate, desk) -> tuple[str, str]:
     """What may become of this candidate, and why. NEVER an answer to anything."""
     if cand.verdict == UNCHECKED:
@@ -261,8 +279,24 @@ def dispose(cand: Candidate, desk) -> tuple[str, str]:
             COULD_NOT: f"the document could not be read: {cand.note}",
         }[cand.verdict]
     if not cand.declared:
+        # WHICH DECISION THIS IS, and they are not the same size. Admitting a
+        # publisher nobody here reads is a judgement about who we trust;
+        # declaring one more section from a publisher this desk ALREADY reads is
+        # a much smaller ask, and putting it to the firm in the bigger words
+        # invites them to re-litigate something they have already answered --
+        # which is the "asking an answered question" fault in another costume.
+        host = _host(cand.fetched_from)
+        if host and host in {_host(s.url) for s in desk.sources if s.url}:
+            already = sorted({s.citation_prefix for s in desk.sources
+                              if s.url and _host(s.url) == host})
+            return PROPOSE, (
+                f"declare {section_of(cand.citation)} as a source on "
+                f"this desk, or leave the gap open. The words tied out, and "
+                f"this desk already reads {host} for "
+                f"{', '.join(already)} — so this is one more section from a "
+                f"publisher you have accepted here, not a new publisher.")
         return PROPOSE, (
-            f"admit {_host(cand.fetched_from)} as a source, or leave the gap "
+            f"admit {host} as a source, or leave the gap "
             f"open. The words tied out there and the desk has not declared it; "
             f"whether it is authority this desk relies on is the firm's to say.")
     source = desk.source(cand.source_id)
