@@ -14,7 +14,24 @@ THREE RESOLUTIONS, NONE AUTOMATIC, ALL BY PULL REQUEST:
   real authority never loaded  -> promote to a SOURCE
   a defensible call the rules do not settle -> promote to a POSITION, in the
                                                firm's own words
+  nowhere to write the answer  -> build the FIELD, naming the position that
+                                  asked for it
   an invention                 -> leave it. its visibility IS the finding.
+
+THE SIXTH IS THE FIRM'S, 7 SEPTEMBER 2026, AND IT IS THE ONLY ONE THAT CHANGES
+THE SOFTWARE. They put it: *"it's similar to the desk saying hey you should have
+X info - and either way we probably should… that seems low stakes and required
+and i would approve it fairly easily, but maybe approvals based on desk feedback
+for coding updates?"* They then took the recommendation: **a field, and only a
+field.** Somewhere to record a fact is additive, reversible and invisible to a
+client -- the worst case is an empty column nobody fills. A step in the close
+changes what a person does every time, and that stays a decision.
+
+AND IT ARRIVES CARRYING ITS CHAIN. `needs_field` never appears without
+`asked_by`: a desk asks for a field because a POSITION it holds names a fact, so
+approving the field is approving that position's reach. `from_refusal` copies
+both off the refusal, where `engine` sets them as fields rather than leaving them
+to be read back out of a sentence.
 
 **Retained is not accepted.** An entry here is never returned to a caller and
 never counted as correct. That boundary is the whole reason keeping it is safe,
@@ -88,6 +105,13 @@ class Unsupported:
     #:
     #: It names a field and never a value -- this file lives in the repository.
     asked: str = ""
+    #: THE FACT THAT HAS NOWHERE TO LIVE, and THE POSITION THAT ASKED FOR IT.
+    #: Set together or not at all -- see the sixth resolution in this file's
+    #: preamble. A field request without the position behind it is an ask the
+    #: firm cannot check, and checking it is the whole condition they approved
+    #: it under.
+    needs_field: str = ""
+    asked_by: str = ""
 
     @property
     def near_miss(self) -> bool:
@@ -132,6 +156,13 @@ class Unsupported:
             lines += ["", f"**Falls under:** {_oneline(self.falls_under)}"]
         if self.asked:
             lines += ["", f"**Asked:** {_oneline(self.asked)}"]
+        if self.needs_field:
+            # TWO STANDALONE FIELDS, not one line with a separator. `Failed
+            # because · Recorded` gets away with sharing a line because both are
+            # closed vocabularies the parser validates; a fact name and a
+            # position id are neither, and `_inline` has no optional form.
+            lines += ["", f"**Needs field:** {_oneline(self.needs_field)}",
+                      "", f"**Asked by:** {_oneline(self.asked_by)}"]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -156,6 +187,8 @@ def parse(text: str) -> list[Unsupported]:
             believed_authority=_uncite(_quoted(block, "Believed authority", where)),
             falls_under=_field(block, "Falls under", where, required=False),
             asked=_field(block, "Asked", where, required=False),
+            needs_field=_field(block, "Needs field", where, required=False),
+            asked_by=_field(block, "Asked by", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
@@ -208,7 +241,7 @@ carries what was concluded and what it cited. A **question nobody has answered**
 — an agent that stopped mid-close and wrote down what it needed — carries no
 conclusion at all, and `Concluded` says so rather than being left blank.
 
-Five resolutions, none automatic, all by pull request:
+Six resolutions, none automatic, all by pull request:
 
 | What the reasoning shows | Resolution |
 |---|---|
@@ -216,6 +249,7 @@ Five resolutions, none automatic, all by pull request:
 | A defensible call the rules do not settle | promote to a **position**, in the firm's words |
 | The rule is clear and a FACT is missing | **ask the client.** No amount of authority closes it |
 | A named DOCUMENT settles it and nobody asked | **request it** — raised to the preparer, never to the client |
+| The rule is clear and there is NOWHERE to write the answer | **build the field**, naming the position that asked |
 | An invention | leave it. Its visibility *is* the finding |
 
 A queue that only grows is a desk nobody is feeding.
@@ -369,6 +403,12 @@ def from_refusal(question: str, answer, result, *, model: str = "",
     return Unsupported(
         falls_under=max(held, key=len) if held else "",
         asked=getattr(result, "ask", "") or "",
+        # BOTH OR NEITHER. `engine` sets them together on the refusals that name
+        # a fact; a half-filled pair would be a field request with no chain.
+        needs_field=(getattr(result, "fact", "") or ""
+                     if result.reason == "no_field_for_this_fact" else ""),
+        asked_by=(getattr(result, "by_position", "") or ""
+                  if result.reason == "no_field_for_this_fact" else ""),
         id=next_id(existing),
         question=question,
         concluded=answer.position or "(no position offered)",

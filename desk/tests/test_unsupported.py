@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import pytest
 
+import record
 import unsupported
+from conftest import DESKS
 from record import RecordError
 from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
@@ -528,6 +530,120 @@ def test_the_preamble_names_a_resolution_for_every_reason_the_queue_accepts():
             f"resolution offered anywhere the reader will look")
     rows = [l for l in unsupported.PREAMBLE.splitlines()
             if l.startswith("|") and "---" not in l][1:]
-    assert len(rows) == 5, f"the preamble lists {len(rows)} resolutions"
+    # SIX SINCE 7 SEPTEMBER 2026. The firm approved a resolution that changes
+    # the SOFTWARE rather than the record: "the rule is clear and there is
+    # nowhere to write the answer -> build the field, naming the position that
+    # asked". It is the only one of the six that does, and the naming half is
+    # the condition it was approved under.
+    assert len(rows) == 6, f"the preamble lists {len(rows)} resolutions"
     assert f"{len(rows)} resolutions" in unsupported.PREAMBLE.replace(
-        "Five", "5"), "the count in the sentence disagrees with the table"
+        "Six", "6"), "the count in the sentence disagrees with the table"
+
+
+# ── the sixth resolution: a desk may ask for a field, carrying its chain ──────
+
+def test_a_field_request_never_arrives_without_the_position_that_asked():
+    """THE CONDITION THE FIRM APPROVED IT UNDER, 7 September 2026.
+
+    They said a desk asking for somewhere to record a fact was *"low stakes and
+    required and i would approve it fairly easily"*, and took the recommendation
+    — a field, and only a field. The condition in the recommendation was that
+    the ask arrive carrying which position wanted it: a desk asks for a field
+    because a POSITION it holds names a fact, so approving the field is
+    approving that position's reach. A bare ask is a change to the software on
+    the strength of a chain nobody can see.
+    """
+    import dataclasses
+    import engine
+    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    # The state a NEWLY ratified position lands in: it names a fact the record
+    # has no field for. Reproduced by removing the field rather than by writing
+    # a fixture, so this asks the real position against the real engine.
+    bare = dataclasses.replace(
+        desk, records=tuple(r for r in desk.records
+                            if getattr(r, "name", r) != "capitalization_rule"))
+    ruling = next(p for p in bare.positions if not p.proposed)
+    answer = engine.Answer(position=ruling.position, citation=ruling.citation)
+    refusal = engine.serve(answer, bare, question="what is the threshold?")
+
+    assert refusal.reason == "no_field_for_this_fact"
+    assert refusal.fact and refusal.by_position, (
+        "the refusal names the fact and the position in PROSE only; a chain "
+        "read back out of a sentence is not a chain anybody can check")
+
+    entry = unsupported.from_refusal("what is the threshold?", answer, refusal,
+                                     desk=bare)
+    assert entry.needs_field == refusal.fact
+    assert entry.asked_by == refusal.by_position
+    assert entry.asked_by in {p.id for p in bare.positions}, (
+        "the position named must be one this desk actually holds")
+
+
+def test_only_the_no_field_refusal_becomes_a_field_request():
+    """The other refusals name a fact too, and none of them is asking for one.
+
+    `context_not_on_file` means the field EXISTS and this engagement did not
+    fill it in — a preparer's job, not a build. Copying the fact into
+    `needs_field` there would file a request to build something already built,
+    and the queue's largest category would start asking for software.
+    """
+    import dataclasses
+    import engine
+    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    ruling = next(p for p in desk.positions if not p.proposed)
+    answer = engine.Answer(position=ruling.position, citation=ruling.citation)
+    refusal = engine.serve(answer, desk, question="what is the threshold?")
+
+    assert refusal.reason == "context_not_on_file"
+    assert refusal.fact, "the refusal still names the fact, for the reader"
+    entry = unsupported.from_refusal("what is the threshold?", answer, refusal,
+                                     desk=desk)
+    assert entry.needs_field == "" and entry.asked_by == ""
+
+
+def test_a_field_request_survives_the_round_trip():
+    """It is written to a file and read back, like everything else here."""
+    entry = unsupported.Unsupported(
+        id="U1", question="q", concluded="c", believed_authority="26 CFR 1.1",
+        failed_because="no_field_for_this_fact", recorded="2026-09-07",
+        needs_field="capitalization_rule", asked_by="POS2")
+    assert unsupported.parse(entry.render()) == [entry]
+
+
+def test_every_refusal_that_turns_on_a_fact_names_it():
+    """WRITTEN BECAUSE A MUTATION SURVIVED. Deleting `fact=fact` from the
+    `client_rule_governs` branch broke nothing: the field was assigned and no
+    test ever read it, which is the shape of a safeguard everyone believes in
+    that does nothing.
+
+    All three refusals a position's `Unless:` can produce turn on one named
+    fact, and a preparer reading any of them needs to know WHICH — "this client
+    has a recorded rule" is unusable without the name of the rule.
+    """
+    import dataclasses
+    import engine
+    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    ruling = next(p for p in desk.positions if not p.proposed)
+    answer = engine.Answer(position=ruling.position, citation=ruling.citation)
+    fact = ruling.unless[0]
+
+    seen = {}
+    for ctx, expected in (
+            (None, "context_not_on_file"),
+            (record.Context({fact: "we capitalise everything over $500"}),
+             "client_rule_governs"),
+    ):
+        out = engine.serve(answer, desk, question="what is the threshold?",
+                           context=ctx)
+        seen[out.reason] = out
+        assert out.fact == fact, f"{out.reason} does not name the fact"
+        assert out.by_position == ruling.id
+
+    bare = dataclasses.replace(
+        desk, records=tuple(r for r in desk.records
+                            if getattr(r, "name", r) != fact))
+    out = engine.serve(answer, bare, question="what is the threshold?")
+    assert out.reason == "no_field_for_this_fact"
+    assert out.fact == fact and out.by_position == ruling.id
+
+    assert set(seen) == {"context_not_on_file", "client_rule_governs"}, seen

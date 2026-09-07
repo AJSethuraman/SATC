@@ -287,6 +287,21 @@ class Refusal:
     #: resort right now."* Nothing this engine produces reaches a client without a
     #: person in between, and that includes a question.
     ask: str = ""
+    #: THE FACT THE REFUSAL TURNS ON, and THE POSITION THAT ASKED FOR IT. Named
+    #: as fields rather than left in `detail`'s prose, because on 7 September
+    #: 2026 the firm approved letting a desk ask for a FIELD to be built --
+    #: *"that seems low stakes and required and i would approve it fairly
+    #: easily"* -- on one condition: the ask must arrive carrying WHICH POSITION
+    #: WANTED IT. A desk asks for a field because a position it holds names a
+    #: fact, so approving the field approves that position's reach. Approving a
+    #: change to the software on the strength of a chain nobody can see is what
+    #: the condition exists to stop, and a chain parsed back out of a sentence is
+    #: not a chain anybody can see.
+    #:
+    #: EMPTY ON THE REFUSALS THAT NAME NO FACT, which is most of them. Only the
+    #: three that turn on a position's `Needs:` or `Unless:` set them.
+    fact: str = ""
+    by_position: str = ""
 
     def __bool__(self) -> bool:            # so `if served:` reads correctly
         return False
@@ -552,6 +567,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"which cannot be applied without {', '.join(absent)} on file. "
                 f"That is the engagement's to record, not the client's to be asked",
                 ask=_follow_up(absent, ruling),
+                fact=", ".join(absent), by_position=ruling.id,
             ), passage, source
 
     # A DEFAULT IS NOT AN ANSWER UNTIL SOMEBODY HAS LOOKED FOR THE EXCEPTION.
@@ -591,6 +607,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                     ask=f"This client has a recorded rule on {fact}. Apply that "
                         f"rather than the firm's general position — and if it no "
                         f"longer reflects what the firm does, say so.",
+                    fact=fact, by_position=ruling.id,
                 ), passage, source
             if fact not in desk.records:
                 return Refusal(
@@ -603,6 +620,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                     ask=f"Is there a standing rule for this client on {fact}? "
                         f"Nothing on file can answer that, because no such field "
                         f"exists. Deciding whether it should is the firm's.",
+                    fact=fact, by_position=ruling.id,
                 ), passage, source
             return Refusal(
                 "context_not_on_file",
@@ -611,6 +629,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"differently on {fact!r}. Nothing on file says either way, and "
                 f"a default applied without looking is not a default",
                 ask=_follow_up((fact,), ruling),
+                fact=fact, by_position=ruling.id,
             ), passage, source
 
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
