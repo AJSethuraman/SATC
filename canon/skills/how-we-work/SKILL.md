@@ -339,6 +339,26 @@ A good place to check in is not one of the four. Neither is having finished
 explaining, nor an open question that blocks something *else* — say what that
 question blocks, and keep going on everything it does not.
 
+**Naming what comes next is a confession, not an ending.** *"Next: Additional
+Medicare Tax and NIIT"* as a closing line proves you knew the next step and had
+nothing stopping you from taking it. If you can name it, **do it.** "Next" belongs
+in a report about work already continued past it, or immediately before one of the
+four stops below — never on its own as the last thing said.
+
+**Do not shrink the goal to the chunk you just finished.** This is the loophole
+that makes every other rule here optional: redefine the goal as the piece just
+completed, and *"the goal is met"* becomes true after every piece, earning a legal
+stop each time. **A goal met is the thing the firm would call done** — if
+finishing it leaves an obvious next item in the same body of work, the goal was
+the body of work, and it is not met. Behaviour 20 is the check: a goal small
+enough to be met by one chunk was never shaped to refuse anything.
+
+**The denominator does not reset.** *"60 of 63"* followed next turn by a fresh
+count of something else is not progress reported twice; it is a goal being
+redefined per turn. If the number the firm is watching changes what it counts,
+say so out loud as a goal change — that is the rule two bullets up, and it is the
+same rule.
+
 One line, not a status ceremony. It earns its place by **shrinking**: a distance
 that never goes down is a goal that was never really named.
 
@@ -370,7 +390,12 @@ goal — then ended the turn on *"Starting on the six now."* The other merged fi
 pull requests and closed thirty-three defects, then handed back a GitHub GraphQL
 quota that **reset in twenty-five minutes**: *"Say the word and I'll finish it."*
 The first mistook an announcement for a deliverable; the second mistook a wait
-for a blocker. The firm: *"why does this agent even stop clearly in the middle of
+for a blocker. A third, the same week, finished a clean unit of work —
+*"Roster: 60 of 63 tied, 3 differed, 0 could not. Tests 2,007 → 2,032"* — and
+ended on *"Next: Additional Medicare Tax and NIIT."* Nothing blocked it at all;
+it had simply shrunk the goal to the chunk it had just finished, which made
+"the goal is met" true and the stop legal under the letter of this behaviour.
+That loophole is closed above. The firm: *"why does this agent even stop clearly in the middle of
 their work? i would like the goal behavior here to work towards a goal until it
 simply cannot."*
 

@@ -417,3 +417,17 @@ def test_behaviour_19_forbids_stopping_short_and_handing_back_a_timer():
     assert "does this clear by itself, or does it need a person to act" in flat,         "no test separates a wait from a blocker"
     assert "Stop only on one of four things" in flat, "the stopping set is open"
     assert "The distance must move, or you must name what stopped it" in flat,         "a turn can still end having moved nothing"
+
+
+def test_behaviour_19_closes_the_goal_shrinking_loophole():
+    """The loophole in 19's own first stopping condition. An agent that scopes
+    the goal to the chunk it just finished makes "the goal is met" true after
+    every chunk, and earns a legal stop each time. A third run did exactly that:
+    it ended on "Next: Additional Medicare Tax and NIIT" with nothing blocking
+    it."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Naming what comes next is a confession, not an ending" in flat,         "an agent may still close on the next step it could have taken"
+    assert "Do not shrink the goal to the chunk you just finished" in flat,         "the goal-shrinking loophole is open"
+    assert "A goal met is the thing the firm would call done" in flat,         "nothing says whose definition of done counts"
+    assert "The denominator does not reset" in flat,         "a distance can still be restarted on a new count each turn"
