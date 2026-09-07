@@ -170,7 +170,7 @@ OTHERS = [
              "January\u2019s, which is a second thing that was quietly wrong and is "
              "now fixed.<br><br>Five defects surfaced on the way, four of them mine, "
              "all fixed and guarded. Three things I told you turned out to be wrong "
-             "and are corrected in the record rather than dropped.<br><br>559 tests "
+             "and are corrected in the record rather than dropped.<br><br>561 tests "
              "pass. The desk job is green.",
   "either": [("Merge it",
               "It goes to <code>main</code>. Nothing here touches a client file or "
@@ -219,7 +219,7 @@ CHANGED = [
  ("727 of 727", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("4 \u2192 200", "worked examples the desks hold", "the government applying its own rules to real facts"),
  ("531 \u2192 727", "stored passages in all", "262,000 characters of authority to 497,000"),
- ("559", "desk tests passing", "514 before the searcher; 470 when this branch started"),
+ ("561", "desk tests passing", "514 before the searcher; 470 when this branch started"),
 ]
 
 LANDED = [

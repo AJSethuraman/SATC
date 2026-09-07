@@ -223,7 +223,11 @@ def check(cand: Candidate, desk, transport) -> Candidate:
     seen = live.count(ours)
     here = dict(
         source_id=source.id if source else "",
-        fetched_from=url,
+        # THE URL THE BYTES CAME FROM, which is not always the one asked for: a
+        # transport may normalise an eCFR page to the versioner XML that serves
+        # the same section to a plain client. Recording what was asked for would
+        # put a url in the report that a reader following it cannot read.
+        fetched_from=getattr(raw, "url", "") or url,
         occurrences=seen,
         checked=(getattr(raw, "at", "") or
                  datetime.now(timezone.utc).isoformat(timespec="seconds"))[:10],
@@ -247,9 +251,9 @@ def dispose(cand: Candidate, desk) -> tuple[str, str]:
         )
     if desk.passage(cand.citation) is not None:
         return HELD, (
-            f"this desk already holds {cand.citation}. Nothing to add — but the "
-            f"question refused as {ABSENT}, so what is missing is the routing to "
-            f"it, not the authority.")
+            f"fix the routing, not the record. The desk already holds this and "
+            f"still refused the question as {ABSENT}, so what is missing is the "
+            f"way to the authority rather than the authority.")
     if cand.verdict != TIED:
         return REFUSE, {
             DIFFERS: "the publisher's document does not carry these words",
@@ -258,18 +262,18 @@ def dispose(cand: Candidate, desk) -> tuple[str, str]:
         }[cand.verdict]
     if not cand.declared:
         return PROPOSE, (
-            f"{cand.citation} tied out at {_host(cand.fetched_from)}, which this "
-            f"desk has not declared as a source. The passage is real; whether "
-            f"{_host(cand.fetched_from)} is authority this desk relies on is the "
-            f"firm's to say.")
+            f"admit {_host(cand.fetched_from)} as a source, or leave the gap "
+            f"open. The words tied out there and the desk has not declared it; "
+            f"whether it is authority this desk relies on is the firm's to say.")
     source = desk.source(cand.source_id)
     if source.may_store != "full_text":
         return REFUSE, (
-            f"{source.title} is may_store={source.may_store!r}; its words may not "
-            f"be copied into the record. Cite it and let the firm take a position.")
+            f"cite it, do not copy it. {source.title} is "
+            f"may_store={source.may_store!r}, so the firm reads it and takes a "
+            f"position; the words do not come into the record.")
     return STORE, (
-        f"{cand.citation} tied out once against {source.title}, which this desk "
-        f"already relies on. Additive: the desk holds no passage at this citation.")
+        f"add it. Tied out once against {source.title}, which this desk already "
+        f"relies on, and no passage sits at this citation today.")
 
 
 def as_passage(cand: Candidate) -> record.Passage:

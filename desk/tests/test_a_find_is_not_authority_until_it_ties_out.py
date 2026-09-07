@@ -210,7 +210,7 @@ def _checked(desk, citation=None, doc=None, url=BLOG):
 
 def test_a_tied_out_quote_of_a_declared_source_may_be_stored(desk):
     what, why = searching.dispose(_checked(desk), desk)
-    assert what == searching.STORE and "Additive" in why
+    assert what == searching.STORE and why.startswith("add it.")
 
 
 def test_a_tied_out_quote_of_an_undeclared_publisher_is_a_proposal(desk):
