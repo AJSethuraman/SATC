@@ -328,6 +328,66 @@ says is built into every dashboard formula.
 
 Suite **611 passed, 0 failed** (545 + 66 merged).
 
+### Docket `0adcad79` — answered 7 September 2026
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| N1 | Competitors: add to the twelve, or replace? | **Add them** | |
+| N2 | The bank list lives in a temp folder — move it into the repo? | **Move it** | |
+| N3 | Rotate the FRED and BLS keys? | **Leave them** | |
+| N4 | PR #257 — merge or keep draft? | **Keep it draft until I look** | *"send me the excel sheet"* |
+
+The workbook was sent. Two of the four should not have been on that page: moving
+a file into the repository was an engineering call to make rather than ask, and
+it re-opened a question the record already answered on 5 September when the
+exhibits moved to the Forge for exactly the same reason. Behaviour 19 — *do not
+manufacture the next decision* — was in force and was not followed.
+
+### Goal named, and met
+
+**Swapping the peer group is a one-step change.** Ends when all six pipeline
+stages run clean against a peer list that has changed.
+
+Distance ran **0 of 6 → 6 of 6**. The first published distance was wrong and is
+worth recording as such: it read "3 of 6 done", and the three were facts about
+the code's existing shape rather than work completed — a fraction that started
+part-way for free and could not shrink. The firm asked whether the goal had been
+assessed as the behaviour requires. It had not.
+
+Proven on **cert 6672, Fifth Third Bank**, a bank the project had never touched,
+with no script edited:
+
+| | Stage | Result |
+|---|---|---|
+| 1 | filings | 40 of 40 quarters |
+| 2 | facsimiles | 40 of 40 |
+| 3 | fields | 3,480 values over 40 quarters |
+| 4 | verify | **638 tie, 0 differ** |
+| 5 | photograph | 24 cited rows locatable, 0 missing |
+| 6 | export | 3,480 rows would join the deliverable |
+
+### What landed
+
+- **`config/peers.json`** — the peer group in the repository, generated from
+  `series_seed.PEERS`, with each certificate checked against the legal name on
+  that bank's own filed front page. **12 of 12 verified.** That check existed
+  nowhere before: everything else proves the FDIC agrees with a filing FOR A
+  GIVEN CERTIFICATE and proves nothing about whether the certificate is the bank
+  whose name we print. The seed's own comment had said nine of the twelve were
+  "illustrative from public sources and must be re-verified before a live run".
+- **`tools/tieout/resolve_banks.py`** — names to certificates, showing the
+  match and stopping. It caught two of the FDIC's own quiet behaviours: the query
+  must be `search=NAME:<terms>` (a bare search returns an empty list, which reads
+  as "no such bank" rather than "wrong query" — the first version reported that
+  Fifth Third Bank does not exist), and a name outlives an institution, so
+  "Fifth Third Bank" matches a live cert 6672 and a dead cert 993.
+- **`tools/tieout/prove_peer_swap.py`** — the six-stage proof above.
+
+### Next
+
+Waiting on the competitor names. Everything after that is mechanical: resolve,
+confirm the matches, add to free slots (28 of 40 are free), run the chain.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

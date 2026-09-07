@@ -1,0 +1,128 @@
+{
+ "_what": "The peer group. Generated from series_seed.PEERS by tools/tieout/build_peer_config.py -- edit the seed, not this.",
+ "_identity": "`identity_verified` means the certificate's own filed Call Report names this bank on its front page. Everything else in this project proves the FDIC agrees with a filing for a given certificate; only this proves the certificate is the bank we print beside it.",
+ "generated": "2026-09-07",
+ "slots_built": 40,
+ "banks": [
+  {
+   "slot": 1,
+   "cert": "628",
+   "name": "JPMorgan Chase Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "JPMORGAN CHASE BANK, NATIONAL ASSOCIATION",
+   "checked_against": "filing-628-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 2,
+   "cert": "3511",
+   "name": "Wells Fargo Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "WELLS FARGO BANK, NATIONAL ASSOCIATION",
+   "checked_against": "filing-3511-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 3,
+   "cert": "3510",
+   "name": "Bank of America NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "BANK OF AMERICA, NATIONAL ASSOCIATION",
+   "checked_against": "filing-3510-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 4,
+   "cert": "7213",
+   "name": "Citibank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "CITIBANK, N.A.",
+   "checked_against": "filing-7213-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 5,
+   "cert": "6548",
+   "name": "US Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "U.S. BANK NATIONAL ASSOCIATION",
+   "checked_against": "filing-6548-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 6,
+   "cert": "6384",
+   "name": "PNC Bank NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "PNC BANK, NATIONAL ASSOCIATION",
+   "checked_against": "filing-6384-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 7,
+   "cert": "9846",
+   "name": "Truist Bank",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "TRUIST BANK",
+   "checked_against": "filing-9846-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 8,
+   "cert": "4297",
+   "name": "Capital One NA",
+   "group": "peer",
+   "active": true,
+   "legal_name_on_filing": "CAPITAL ONE, NATIONAL ASSOCIATION",
+   "checked_against": "filing-4297-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 9,
+   "cert": "17534",
+   "name": "KeyBank NA",
+   "group": "self",
+   "active": true,
+   "legal_name_on_filing": "KEYBANK NATIONAL ASSOCIATION",
+   "checked_against": "filing-17534-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 10,
+   "cert": "639",
+   "name": "Bank of New York Mellon",
+   "group": "counterparty",
+   "active": true,
+   "legal_name_on_filing": "BANK OF NEW YORK MELLON,THE",
+   "checked_against": "filing-639-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 11,
+   "cert": "33124",
+   "name": "Goldman Sachs Bank USA",
+   "group": "counterparty",
+   "active": true,
+   "legal_name_on_filing": "GOLDMAN SACHS BANK USA",
+   "checked_against": "filing-33124-12312025.pdf",
+   "identity_verified": true
+  },
+  {
+   "slot": 12,
+   "cert": "32992",
+   "name": "Morgan Stanley Bank NA",
+   "group": "counterparty",
+   "active": true,
+   "legal_name_on_filing": "MORGAN STANLEY BANK, N.A.",
+   "checked_against": "filing-32992-12312025.pdf",
+   "identity_verified": true
+  }
+ ]
+}
