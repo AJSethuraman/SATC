@@ -98,3 +98,86 @@ firm: *"storage does not matter if we can search for it in the browser... if you
 are allowed to store, all the better."* Reading and keeping are different
 questions; `DOMAINS.md` settles that ASC **governs**, and `access`/`may_store` on
 a source settle what may be done with it.
+
+---
+
+## The trap the Forge found, and why 0.7.0 did not catch it
+
+**The firm sent the plugin to a session on the Forge to be tested as a user,
+and it came back with the thing nobody building it had found.**
+
+Asked *"how do i know if a lease should be booked as an asset"*, the tester
+played an agent reaching for the nearest paragraph and proposed an answer citing
+**IRS Pub. 463 (2025), "Leasing a Car"**. It was **SERVED**, `checked_subject:
+True`. The entire cited passage:
+
+> *"If you lease a car, truck, or van that you use in your business, you can use
+> the standard mileage rate or actual expenses to figure your deductible
+> expense. This section explains how to figure actual expenses for a leased car,
+> truck, or van."*
+
+Two sentences about figuring a deduction. Nothing about the balance sheet,
+nothing about recognition. The question is a US GAAP recognition question and
+the engine served a confident *"no"* the paragraph does not contain — and
+directionally the **expensive** error: expense the lease, omit the right-of-use
+asset and the lease liability.
+
+**Every check passed and every one was right to.** The citation resolves; `lease`
+genuinely is a declared subject of that source on that desk. What nothing asked
+is whether a federal-tax publisher can settle a US GAAP question at all.
+
+**0.7.0 had the map and pointed it at the wrong door.** The domain gate guarded
+`searching.dispose` — where a passage may be STORED — and left `engine.serve`
+alone, where a passage is handed to a person. So the same map that refused four
+irs.gov proposals for this question would still serve one. It is now checked in
+`serve`, below the position branch and above the tier logic.
+
+**Two things the tester was right about that this does NOT fix**, recorded
+because the next session will otherwise think it did:
+
+- *"A domain guard fixes the lease case specifically and leaves the general hole
+  open: nobody checks that the paragraph supports the conclusion."* True. That
+  is the judge, and it is still not built.
+- **Ratified positions are doing the safety work.** Five citations of 151 on
+  that desk carry one, and the tester's first trap was caught only because it
+  happened to hit one of the five.
+
+---
+
+## What the gate broke on its first run, and the measurement that found it
+
+**It refused ELEVEN of the desks' own recorded problems** — every bank
+reconciliation on the cash desk, four de minimis problems, one rewards problem.
+Cause: `books`, `book`, `financial statement`, `financial statements` and
+`accrual` were listed as US GAAP vocabulary. **They are the ordinary words of the
+work**, and *applicable financial statement* is a defined term of
+§ 1.263(a)-1(f), which is a Treasury regulation. A domain that claims them
+swallows every bookkeeping question in the practice.
+
+The list now holds terms of art and recognition phrases: `booked as an asset` is
+in it and `booked` is not. That alone cleared all eleven, and the lease question
+still classifies `us-gaap` 2–1.
+
+**A ratified position was never at risk, and this was checked rather than
+assumed.** The cash desk exists *because* the governing authority is unreachable
+— FASB is `human_only`, so the firm ratified a position citing the IRS
+publication that describes the same timing. A gate that refused that would be
+the engine overruling the firm on their own answer. `serve` takes the position
+branch first, so it does not; a test now pins it, and no exemption was written,
+because code guarding a case that cannot arise is worse than none.
+
+## Also from that report, not yet acted on
+
+- **`binding: True` printed beside `tier: secondary`.** The field means *the firm
+  ratified this*, not *this is binding authority* — and an accountant reading it
+  next to an IRS publication will read the second. The word is wrong.
+- **A brief is ~318 KB across three desks** (fixed-assets alone 242,596
+  characters, 293 passages) against a stated design target of an 8,192-token
+  local model.
+- **`showed_by_source` leaks instrumentation** into a refusal somebody reads
+  mid-close.
+- **`python3` is not on PATH on the Forge**; the documented `holes.py` command
+  fails there and works as `python`.
+- **FASB's free Basic View is labelled "For Personal and Non-Commercial Use"**,
+  behind a reCAPTCHA and a terms click. That is a licence question for the firm,
+  not a wall to route around, and the tester correctly stopped at it.

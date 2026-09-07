@@ -35,6 +35,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "tools"))
 
 import domains                                              # noqa: E402
+import engine                                               # noqa: E402
 import record                                               # noqa: E402
 import search_run                                           # noqa: E402
 import tieout                                               # noqa: E402
@@ -296,3 +297,121 @@ def test_that_end_to_end_test_would_propose_without_the_domain(tmp_path, monkeyp
     s = search_run.run(json.loads(p.read_text(encoding="utf-8")))
     assert s.of(searching.PROPOSE), (
         "it refuses even with no domain, so the gate is not what refused it")
+
+
+# ── the trap, closed at SERVE and not only at search ─────────────────────────
+#
+# FOUND BY A SESSION TESTING THE INSTALLED PLUGIN, not by anyone building it.
+# The domain map shipped in 0.7.0 guarded the SEARCHER — where a passage may be
+# stored — and left `serve()` alone, where a passage is handed to a person. So
+# the same map that refused four irs.gov proposals for a GAAP question would
+# still serve one.
+
+
+TRAP_Q = "how do i know if a lease should be booked as an asset"
+TRAP_CITE = 'IRS Pub. 463 (2025), "Leasing a Car"'
+
+
+def test_the_trap_the_forge_found_is_refused():
+    """Every existing check passed and was RIGHT to.
+
+    The citation resolves. `lease` genuinely is a declared subject of that
+    source on that desk, so `checked_subject` was True. The whole cited
+    paragraph is two sentences about figuring a mileage deduction — nothing
+    about the balance sheet, nothing about recognition — and the answer served
+    was a confident "no" it does not contain. Directionally the expensive
+    error: expense the lease, omit the right-of-use asset and lease liability.
+    """
+    desk = record.load(HERE / "desks" / "vehicle-expense")
+    out = engine.serve(engine.Answer(
+        position="no — a leased car is not booked as an asset; deduct the "
+                 "lease payments and add any inclusion amount",
+        citation=TRAP_CITE), desk, question=TRAP_Q)
+
+    assert isinstance(out, engine.Refusal), "the trap still serves"
+    assert out.reason == "wrong_body_of_authority"
+    assert "us-gaap" in out.detail and "irs.gov" in out.detail
+    assert "Standards Codification" in out.detail
+
+
+def test_the_cited_paragraph_really_does_not_answer_the_question():
+    """PINNED AGAINST THE RECORD, so this test cannot quietly become a test of
+    something else. If that passage is ever replaced with text that DOES reach
+    recognition, the trap above stops being a trap and this says so."""
+    desk = record.load(HERE / "desks" / "vehicle-expense")
+    text = desk.passage(TRAP_CITE).text.lower()
+    assert "deductible expense" in text
+    for recognition in ("balance sheet", "right-of-use", "recognition",
+                        "liability"):
+        assert recognition not in text, (
+            f"the passage now mentions {recognition!r}; it may actually reach "
+            f"the question, and this trap needs re-picking")
+
+
+def test_the_same_desk_still_answers_its_own_questions():
+    """THE HALF THAT MATTERS MORE THAN THE GATE. A guard that refuses the trap
+    and also refuses the desk's own recorded answers has made the system worse,
+    and this is exactly what the first version did — eleven problems across
+    four desks, because `books` and `financial statements` were claimed as
+    US GAAP vocabulary when they are the ordinary words of the work."""
+    bad = []
+    for d in sorted((HERE / "desks").iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
+        for prob in desk.problems:
+            out = engine.serve(
+                engine.Answer(position=prob.answer, citation=prob.citation),
+                desk, question=prob.facts)
+            if getattr(out, "reason", "") == "wrong_body_of_authority":
+                bad.append(f"{prob.id} on {d.name}")
+    assert not bad, (
+        "the domain gate refuses these desks' OWN recorded answers: "
+        + ", ".join(bad))
+
+
+def test_a_ratified_position_is_not_overruled_by_the_gate():
+    """The cash desk exists BECAUSE the authority that governs is unreachable:
+    FASB is `human_only`, so the firm ratified a position and cited the IRS
+    publication that describes the same timing. A gate that refused that would
+    be the engine overruling the firm on their own answer — the wrong side of
+    every line `engine.py` draws, and the same reason tier does not gate a
+    position either."""
+    desk = record.load(HERE / "desks" / "cash-and-bank")
+    q = "the cheque has not cleared — does the balance sheet show the cash?"
+    assert domains.classify(q).domain.name == "us-gaap", (
+        "this question no longer classifies as us-gaap; the test proves nothing")
+    out = engine.serve(engine.Answer(
+        position="a reconciling item, no entry in the books",
+        citation='IRS Pub. 583 (12/2024), "Reconciling the checking account" '
+                 '— what the statement did not yet include'),
+        desk, question=q)
+    assert not isinstance(out, engine.Refusal), (
+        f"the firm's own ratified position was refused: "
+        f"{getattr(out, 'reason', '')}")
+
+
+def test_an_unclassified_question_leaves_serving_untouched():
+    """Silent where the map is. Refusing on an absent classification would be
+    guessing a domain in order to get a gate, which is the error the gate
+    exists to stop."""
+    desk = record.load(HERE / "desks" / "cash-and-bank")
+    q = "a charge of $10 appears that nobody entered"
+    assert not domains.classify(q), "this question now classifies; re-pick it"
+    out = engine.serve(engine.Answer(
+        position="an entry in the books",
+        citation='IRS Pub. 583 (12/2024), "Reconciling the checking account" '
+                 '— what the books are updated for'), desk, question=q)
+    assert not isinstance(out, engine.Refusal)
+
+
+def test_the_ordinary_words_of_the_work_are_not_claimed_by_us_gaap():
+    """The measured cause of the over-fire, pinned so it cannot come back. A
+    domain that claims `books` swallows every bookkeeping question in the
+    practice — and `applicable financial statement` is a defined term of
+    § 1.263(a)-1(f), which is a Treasury regulation."""
+    gaap = next(d for d in domains.load() if d.name == "us-gaap")
+    for shared in ("book", "books", "bookkeeping", "accrual",
+                   "financial statement", "financial statements"):
+        assert shared not in gaap.fires_on, (
+            f"{shared!r} is shared vocabulary, not US GAAP vocabulary")

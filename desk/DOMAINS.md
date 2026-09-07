@@ -85,7 +85,7 @@ Standards Codification
 
 **Explains itself at:** fasb.org
 
-**Fires on:** gaap, asc, codification, balance sheet, book, booked, books, bookkeeping, book value, lease, leases, leased, right-of-use, operating lease, finance lease, lessee, lessor, accrual, impairment, fair value, revenue recognition, financial statement, financial statements, disclosure
+**Fires on:** gaap, asc, codification, balance sheet, booked as an asset, book as an asset, book value, right-of-use, operating lease, finance lease, lessee, lessor, impairment, fair value, revenue recognition, lease, leases, leased, disclosure
 
 **Why these hosts:** FASB is the standard-setter the SEC recognises for US GAAP,
 so the Codification is the thing that governs and everything written about it is
@@ -93,6 +93,19 @@ commentary. **The Codification is licensed**, which is a separate question from
 authority and must not be confused with it: it is PRIMARY and it may be
 unreadable to a given environment. What a desk may do with it is `access` and
 `may_store` on the source; that it governs is settled here.
+
+**WORDS THIS DOMAIN DELIBERATELY DOES NOT CLAIM.** `book`, `books`,
+`bookkeeping`, `accrual`, `financial statement` and `financial statements` were
+in this list for about an hour, and they put ELEVEN of the desks' own recorded
+problems into `us-gaap` — every bank reconciliation on the cash desk, and every
+de minimis problem that mentions the books. They are shared vocabulary, not GAAP
+vocabulary: *applicable financial statement* is a defined term of
+§ 1.263(a)-1(f), a Treasury regulation, and a taxpayer keeps books for tax
+purposes too. A domain that claims the ordinary words of accounting swallows
+every bookkeeping question in the practice.
+
+**So this list holds terms of art and recognition phrases, not the vocabulary of
+the work.** `booked as an asset` is here and `booked` is not, for that reason.
 
 **THE FIRM ON READING RATHER THAN STORING, 7 September 2026:** *"storage does not
 matter if we can search for it in the browser... you don't need to store stuff if
