@@ -92,7 +92,7 @@ nobody can use.
   ],
   "proposals": [
     {"citation": "26 CFR 1.162-3(c)(1)(i)",
-     "text": "the exact words, copied character for character",
+     "quoted": "the exact words, copied character for character",
      "kind": "rule",
      "found_at": "https://www.ecfr.gov/current/title-26/section-1.162-3"}
   ]
@@ -119,7 +119,7 @@ cannot be filed under one.
 | Verdict | Meaning | Next |
 |---|---|---|
 | **store** | ties out, and the publisher is admitted | it may go into the desk — by pull request, with `tools/add_examples.py` |
-| **propose a source** | ties out, publisher not admitted | **to the firm.** They decide whether we read that publisher |
+| **propose a source** | ties out, no declared source covers it | **to the firm.** The report says which decision it is: a publisher nobody here reads, or one more section from a publisher this desk already reads |
 | **already held** | the desk has it | nothing. The gap was routing, not authority |
 | **refuse** | did not tie out | say so. Do not soften it, do not store it |
 

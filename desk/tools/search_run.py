@@ -92,6 +92,18 @@ def run(spec: dict) -> searching.Search:
     for prop in spec.get("proposals", ()):
         hit = next((h for h in hits if h.url == prop["found_at"]),
                    searching.Hit(url=prop["found_at"], query=prop.get("query", "")))
+        missing = [k for k in ("citation", "quoted", "found_at") if k not in prop]
+        if missing:
+            # A KeyError here is a traceback at whoever is running this, on a
+            # machine that may be nobody's. Say which key, and say it in the
+            # words the file uses -- `quoted`, not `text`, which is what the
+            # skill's own example got wrong until this ran.
+            findings.append(searching.Finding(
+                hit, searching.REFUSE,
+                f"the proposal has no {', '.join(missing)}. A proposal needs "
+                f"`citation`, `quoted` (the words EXACTLY as printed) and "
+                f"`found_at`."))
+            continue
         try:
             cand = searching.read(hit, prop["citation"], prop["quoted"],
                                   prop.get("kind", ""))
@@ -124,7 +136,7 @@ def report(s: searching.Search) -> str:
            ""]
 
     for what, heading in ((searching.STORE, "Ready to add"),
-                          (searching.PROPOSE, "Needs a publisher admitted"),
+                          (searching.PROPOSE, "Waiting on the firm"),
                           (searching.HELD, "Already held — the routing is the gap"),
                           (searching.REFUSE, "Refused")):
         group = s.of(what)
@@ -154,4 +166,9 @@ def report(s: searching.Search) -> str:
 
 
 if __name__ == "__main__":                                  # pragma: no cover
+    if len(sys.argv) != 2:
+        sys.exit("usage: search_run.py found.json > SEARCH.md\n"
+                 "  found.json: {desk, question, reason, queries[], hits[], "
+                 "proposals[]}\n"
+                 "  a proposal: {citation, quoted, found_at, kind}")
     print(report(run(json.loads(pathlib.Path(sys.argv[1]).read_text()))))
