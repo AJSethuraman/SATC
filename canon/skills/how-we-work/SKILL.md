@@ -1,11 +1,11 @@
 ---
 name: how-we-work
-description: The eighteen standing behaviours — report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The nineteen standing behaviours — name the goal and report the distance to it, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Eighteen behaviours. Every one exists because something specific went wrong, and
+Nineteen behaviours. Every one exists because something specific went wrong, and
 each is written next to the incident that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
@@ -287,6 +287,49 @@ visible from that machine. *"if you want me to do stuff you have to merge it and
 prepare it for me to do. makes no sense to tell me what i need to do
 otherwise... you are on a live PC and you can definitely check your environment
 to know what needs to happen."*
+
+## 19 · Name the goal, report the distance, then stop
+
+**Do:** state the goal in **one line** before starting, and keep it visible. The
+firm runs several agents at once and should never have to hold which one this is
+in their head — that is the session's job, not theirs.
+
+- **Report the distance, not the effort.** Behaviour 2 reports the denominator on
+  a check; the same applies to the job. *"4 of 6 done, 2 left: X and Y"* — never
+  *"making progress."* **The number must be able to go down**, so the firm can see
+  the end from the middle.
+- **When the goal changes, say so and restate it.** It often should change. A goal
+  that quietly became a different goal is how both sides lose the thread — and the
+  firm loses it first, because they are not the one holding the file.
+- **A question the record already answers is not reopened.** Not as a hypothetical
+  and not as *"the rule says no, but what if."* If you believe the answer is now
+  wrong, say so **once**, naming what changed, and drop it if the firm does not
+  pick it up.
+- **Do not manufacture the next decision.** Behaviour 13 says decisions go to the
+  human; it does not say produce some. When nothing genuinely needs answering,
+  *"nothing needs deciding"* is the whole ending.
+- **Finish, and say it is finished.** The goal being met is the ending — not a
+  handoff to the next thing.
+
+One line, not a status ceremony. It earns its place by **shrinking**: a distance
+that never goes down is a goal that was never really named.
+
+**This is detection, not prevention**, and says so rather than overstating itself
+— which by behaviour 4's own standard makes it the weaker kind of rule. Nothing
+here stops a session drifting; a stalled distance is only the signal that it has.
+A goal that must not depend on a session remembering belongs in a session-start
+hook, where the harness supplies it and the model cannot talk itself out of it.
+That is the same move `desk/` made when it put the citation rule in `engine.py`.
+
+**Incident:** across 4–7 September 2026 a session ended nearly every reply with
+two or three fresh open questions and an offer to do more, and never once said
+what would finish the work. Each ending was defensible alone; together they meant
+the firm became the stopping condition. The firm: *"i feel like sometimes the
+feedback is endless for the sake of being endless, when a stated goal can be
+worked towards then moved naturally"* — and, on the half this behaviour exists
+for as much as the session's, *"i want them to also sort of be aware of how close
+we are getting to the goal and making sure i myself remember the goal of that
+agent."*
 
 ## The line that governs everything
 

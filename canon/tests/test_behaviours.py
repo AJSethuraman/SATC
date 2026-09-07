@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_eighteen_are_here_and_numbered_without_a_gap():
+def test_all_nineteen_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 19)]
-    assert "Eighteen behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 20)]
+    assert "Nineteen behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -350,3 +350,29 @@ def test_the_tie_out_skill_attacks_a_could_not_before_recording_it():
         "a COULD NOT may still be recorded on a described obstacle"
     assert "ask what it would take to get past it, and try that" in flat, \
         "nothing says to attempt the obstacle before recording the verdict"
+
+
+def test_behaviour_19_names_the_goal_and_admits_what_it_cannot_do():
+    """The rule the firm asked for, and the honesty clause that keeps it from
+    overstating itself. Behaviour 4 is prevent-don't-detect; 19 only detects,
+    and a rule that hid that would be the exact failure canon exists to stop."""
+    flat = " ".join((CANON / "skills" / "how-we-work" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Report the distance, not the effort" in flat, "no distance rule"
+    assert "The number must be able to go down" in flat,         "nothing makes the distance falsifiable"
+    assert "Do not manufacture the next decision" in flat,         "the endless-feedback failure is not forbidden"
+    assert "is not reopened" in flat, "a settled question may still be relitigated"
+    assert "This is detection, not prevention" in flat,         "19 overstates itself; it cannot stop drift and must say so"
+
+
+def test_the_docket_carries_the_next_goal_and_bounds_what_silence_approves():
+    """The firm put the goal here so it survives the session. Silence approving
+    an item is the opposite of every other item on the page, so the skill has to
+    say so -- and has to fence what silence does NOT approve, or a later session
+    reads 'autonomously' and walks a gate with it."""
+    flat = " ".join((CANON / "skills" / "docket" / "SKILL.md")
+                    .read_text(encoding="utf-8").split())
+    assert "Unless you say otherwise, this is what I proceed with" in flat,         "the next goal is not stated as the default"
+    assert "This one is not, and the page has to say so" in flat,         "nothing marks Next as the item that does not block"
+    assert "What silence does not approve" in flat,         "the autonomy is unbounded; the gates are not fenced off"
+    assert "a conviction needs an explicit yes" in flat, "the record gate is not named"
