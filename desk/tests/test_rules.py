@@ -117,12 +117,23 @@ def test_an_underdetermined_element_is_excluded_and_named_not_placed(tmp_path):
     assert "(h)(1)(i)" in underdetermined[0] and "(i)" in underdetermined[0]
 
 
-def test_an_element_with_no_label_is_an_error_not_a_skip(tmp_path):
+def test_an_element_with_no_label_continues_the_one_above_it(tmp_path):
+    """THIS ASSERTED THE OPPOSITE UNTIL 7 SEPTEMBER 2026, and it was right to
+    while the reader had no way to place such an element: a silent skip would
+    have shrunk the corpus without a trace.
+
+    § 1.274-12 is what changed it. It writes "(B) Example. The following example
+    illustrates the application of this paragraph (c)(2)(v)." and puts the
+    example itself in a separate <P> carrying no label — so raising cost the
+    whole section, and the layout states plainly where the text belongs. It is
+    still an error before the first label, where there is nothing to continue;
+    `test_an_unlabelled_element_before_any_label_is_still_an_error` holds that.
+    """
     xml = tmp_path / "s.xml"
     xml.write_text('<DIV8><P>(a) Fine.</P><P>No label here.</P></DIV8>',
                    encoding="utf-8")
-    with pytest.raises(ValueError, match="no paragraph label"):
-        ex.outline(xml)
+    assert [(p.label, p.text) for p in ex.outline(xml)[0]] == [
+        ("(a)", "Fine."), ("(a)", "No label here.")]
 
 
 def test_the_committed_section_admits_exactly_one_reading():
@@ -517,66 +528,201 @@ def _elem(text: str):
     return _ET.fromstring(f"<P>{frag}</P>")
 
 
-# -- the four sections that still refuse, and what the evidence says ----------
+# -- the sections that used to refuse, and the acceptance test they now pass --
 
-def test_why_four_sections_cannot_be_read_yet():
-    """The diagnosis, corrected. I published a wrong one an hour before this.
+X446 = ROOT / "tools" / "fixtures" / "1.446-1.xml"
+
+
+def test_why_four_sections_could_not_be_read_and_what_it_took():
+    """The diagnosis, corrected once and then acted on.
 
     I COMMITTED "the CFR does skip a level, and § 1.446-1 says so in its own
     text", on the evidence that it cites `(e)(2)(ii)(a)` — a roman numeral
     followed directly by a lowercase letter. The citation is real. The reading
-    of it was wrong, and the mistake was mine twice over.
+    of it was wrong.
 
     § 1.446-1 does not skip a level. It uses a DIFFERENT ALPHABET at the same
     one: under (c)(1)(ii) its fourth level runs (A), (B), (C); under (c)(1)(iv)
-    it runs italic (a), (b). Same depth, two alphabets, and `LEVELS` allows one
-    per depth. So (e)(2)(ii)(a) is four components at four levels, not three
-    with one skipped, and nothing is being skipped anywhere.
+    it runs italic (a), (b). Same depth, two alphabets.
 
-    THREE CAUSES, MEASURED RATHER THAN GUESSED, prototyped 7 September 2026:
+    FIVE CAUSES IN THE END, and the three prototyped on 7 September were not
+    enough on their own — which the docket said in as many words before any of
+    this was built:
 
-      1. `LEVELS` has no italic-lowercase alphabet at all. `_fits` places an
-         italic "a" at NO depth, so every such label is unreadable wherever it
-         appears — independent of everything else.
-      2. A depth admits one alphabet. § 1.446-1 needs the fourth to admit
-         uppercase OR italic-lowercase, chosen per branch.
-      3. A third run-in shape, with no heading between the labels at all:
-         "(2)(i) Except as otherwise..." and "(ii) (a) A change in...". The
-         reader knows the two heading shapes and not this one.
+      1-2. `ALPHABETS` now admits italic lowercase, and admits it AS AN
+           ALTERNATIVE at depth 3 rather than instead of the capitals.
+      3.   A label sitting directly on another with no heading between them —
+           "(2)(i) Except as otherwise..." — which `labels` treated as the end
+           of the chain.
+      4.   A span reserved in one element: "(k) and (l) [Reserved]" leaves the
+           outline standing at (k), and § 1.274-5T's last element of 105 is the
+           (m) that is not (k)'s successor.
+      5.   An element carrying no label at all, which § 1.274-12 uses for the
+           example itself under a "(B) Example." heading.
 
-    ALL THREE TOGETHER GET § 1.446-1 TO ONE CONSISTENT READING, and that is
-    still not good enough to ship. Its own text cites 31 paragraph paths and
-    only 24 resolve against that reading. § 1.263(a)-3 resolves 107 of 109, so
-    24 of 31 is not the ordinary residue of dangling cross-references — it says
-    the reading is partly wrong. § 1.62-2, § 1.274-5 and § 1.274-5T still admit
-    no reading at all, so at least a fourth cause is unfound.
-
-    THE SELF-CITATIONS ARE THE ACCEPTANCE TEST, and that is the useful thing to
-    leave behind. A regulation naming its own paragraphs is external
-    corroboration rather than internal consistency: a reading that places every
-    cited path is right for a reason that does not come from the reader.
+    THE SELF-CITATIONS ARE THE ACCEPTANCE TEST, and it is what makes this
+    checkable by someone who does not trust the reader. A regulation naming its
+    own paragraphs is external corroboration rather than internal consistency: a
+    reading that places every path the section cites is right for a reason that
+    does not come from the reader.
     """
     text = XML.read_text(encoding="utf-8")
     cited = ex.cited_paths(text)
     held = {p.label for p in ex.outline(XML)[0]}
     resolved = sum(1 for c in cited if c in held)
-    # THE BAR THE OTHERS MUST CLEAR, taken from the section that reads.
+    # THE BAR, UNCHANGED BY ALL OF THE ABOVE. § 1.263(a)-3 read identically
+    # before and after — same count, same two dangling paths — which is the
+    # evidence that four new rules bought the other sections and cost this one
+    # nothing.
     assert (resolved, len(cited)) == (100, 102), (resolved, len(cited))
     assert sorted(c for c in cited if c not in held) == \
         ["(i)(1)(iii)", "(j)(3)(ii)"]
 
 
-def test_the_placement_index_is_still_the_thing_that_would_have_to_change():
-    """The three places that would have to change, so the note cannot rot.
+def test_the_section_that_refused_now_places_every_path_it_cites():
+    """§ 1.446-1, the flagship of the four, held to the same bar.
 
-    Not the index coupling after all — that was part of the wrong diagnosis
-    above. `walk()` may keep indexing the stack by depth, because nothing is
-    skipped. What must change is `LEVELS` (one alphabet per depth, and no
-    italic-lowercase anywhere) and `_RUN_IN` (two shapes, not three).
+    THIRTY OF THIRTY. The docket carried "24 of 31" as the best any prototype
+    reached, and said that a reading placing only three quarters of a section's
+    own cross-references is not the ordinary residue of dangling citations — it
+    is a reading that is partly wrong. This is the same measurement on the same
+    section, and there is no residue at all.
     """
-    src = (ROOT / "tools" / "extract_ecfr.py").read_text(encoding="utf-8")
-    body = src.split("def placements(")[1].split("\ndef ")[0]
-    assert "stack[depth]" in body and "stack[:depth] + (label,)" in body, (
-        "`placements` no longer indexes the stack by depth. If levels and path "
-        "positions are tracked separately now, a skipped level may be readable "
-        "-- try § 1.446-1 and update the note above.")
+    paragraphs, underdetermined = ex.outline(X446)
+    held = {p.label for p in paragraphs}
+    cited = set()
+    for p in paragraphs:
+        cited |= ex.cited_paths(p.text)
+    assert underdetermined == []
+    assert sorted(c for c in cited if c not in held) == []
+    assert len(cited) == 30, len(cited)
+    # The two alphabets, in one section, at one depth — the thing that made it
+    # unreadable, asserted as the thing that now reads.
+    assert {"(c)(1)(ii)(A)", "(c)(1)(ii)(C)"} <= held, "the plain capitals"
+    assert {"(c)(1)(iv)(a)", "(c)(1)(iv)(b)"} <= held, "the italic lowercase"
+    assert "(e)(2)(ii)(d)(1)" in held, "an italic numeral under an italic letter"
+
+
+def test_a_label_sitting_directly_on_another_opens_both(tmp_path):
+    """No heading between them, which was the only way the chain continued."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(b)(1) Two.</P></DIV8>",
+                   encoding="utf-8")
+    held = {p.label: p.text for p in ex.outline(xml)[0]}
+    assert held["(b)"] == "", "the parent's content IS the child; it has no text"
+    assert held["(b)(1)"] == "Two."
+
+
+def test_a_body_that_merely_begins_with_a_parenthesis_is_not_a_paragraph(tmp_path):
+    """What keeps the rule above safe: the deeper label must OPEN its level."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(b)(3) Not a nested label.</P></DIV8>",
+                   encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot be read as a CFR outline"):
+        ex.outline(xml)
+
+
+def test_two_paragraphs_reserved_in_one_element_open_both(tmp_path):
+    """§ 1.274-5T's last element of 105, and the reason it had no reading."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(b) and (c) [Reserved]</P>"
+                   "<P>(d) Four.</P></DIV8>", encoding="utf-8")
+    held = {p.label: p.text for p in ex.outline(xml)[0]}
+    assert set(held) == {"(a)", "(b)", "(c)", "(d)"}
+    assert held["(b)"] == held["(c)"] == "[Reserved]", (
+        "the label that named the second paragraph is not part of what it says")
+
+
+def test_only_the_and_form_of_a_span_is_read(tmp_path):
+    """"through" names a RANGE, and expanding one needs the alphabet, which is
+    not known until a depth has been chosen. It refuses rather than guessing."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(b) through (d) [Reserved]</P>"
+                   "<P>(e) Five.</P></DIV8>", encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot be read as a CFR outline"):
+        ex.outline(xml)
+
+
+def test_an_unlabelled_element_continues_the_paragraph_above_it(tmp_path):
+    """§ 1.274-12 puts "(B) Example." in one element and the example in the
+    next, with no label on it. Raising cost the section entirely."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>(a) One.</P><P>(b) Example.</P>"
+                   "<P>Employer T operates a restaurant.</P></DIV8>",
+                   encoding="utf-8")
+    at = [p.text for p in ex.outline(xml)[0] if p.label == "(b)"]
+    assert at == ["Example.", "Employer T operates a restaurant."]
+
+
+def test_an_unlabelled_element_before_any_label_is_still_an_error(tmp_path):
+    """There is nothing for it to continue, and attaching it anywhere is a
+    guess. The rule loosened by exactly one case, not generally."""
+    xml = tmp_path / "s.xml"
+    xml.write_text("<DIV8><P>No label here.</P><P>(a) Fine.</P></DIV8>",
+                   encoding="utf-8")
+    with pytest.raises(ValueError, match="nothing precedes it"):
+        ex.outline(xml)
+
+
+def test_an_enumerated_citation_is_resolved_against_its_head():
+    """"(c)(1)(iii), (iv), or (v)" cites (c)(1)(iv), not a paragraph called (iv).
+
+    NOT ONLY A MISCOUNT. `governing()` picks the citation an example is filed
+    under out of this set, so a bare "(v)" is a candidate rule on any section
+    whose examples live under (v) — the same class of defect as the four
+    examples once filed under the wrong paragraph.
+    """
+    sibling = ex.cited_paths(
+        "under paragraph (c)(1)(iii), (iv), or (v) of this section")
+    assert sibling == {"(c)(1)(iii)", "(c)(1)(iv)", "(c)(1)(v)"}
+    child = ex.cited_paths(
+        "in addition to those enumerated in paragraph (b)(3) (i), (ii), and (v)")
+    assert child == {"(b)(3)", "(b)(3)(i)", "(b)(3)(ii)", "(b)(3)(v)"}
+
+
+def test_a_citation_that_is_its_own_path_is_left_alone():
+    """"paragraphs (g)(2)(i) and (j)" names (j), not (g)(2)(i)(j).
+
+    THIS IS WHY CITATIONS ARE READ AGAINST THE PLAIN HIERARCHY and not against
+    `ALPHABETS`. A cross-reference is plain text and says nothing about face, so
+    asking `ALPHABETS` whether (j) could sit at depth 3 answers yes — italic
+    lowercase lives there — and § 1.263(a)-3 grew a dangling (g)(2)(i)(j) that
+    no section has. It was caught by the bar above going from 102 to 103.
+    """
+    assert ex.cited_paths("paragraphs (g)(2)(i) and (j) of this section") == {
+        "(g)(2)(i)", "(j)"}
+    assert ex.cited_paths("paragraphs (d)(1) and (j)") == {"(d)(1)", "(j)"}
+
+
+def test_a_level_is_still_never_skipped():
+    """The property the wrong diagnosis attacked, asserted directly.
+
+    The earlier note guarded it by checking that `placements` still indexed its
+    stack by depth. That was a source-string proxy for a behaviour, and it went
+    red the moment the stack started carrying the label's face alongside its
+    letter — a change that does not touch skipping at all. Ask the behaviour.
+    """
+    # (a)(1) then a capital: (A) opens level 3, which is one below (a)(1)'s
+    # level 1. There is no level 2 in between, so there is no reading.
+    assert ex.placements([[("a", False)], [("1", False)], [("A", False)]]) == []
+    # And the italic-lowercase alternative at that depth may not be reached by
+    # skipping either.
+    assert ex.placements([[("a", False)], [("1", False)], [("a", True)]]) == []
+    # The same labels with the roman level present read exactly one way.
+    assert ex.placements([[("a", False)], [("1", False)], [("i", False)],
+                          [("A", False)]]) == [
+        [("a",), ("a", "1"), ("a", "1", "i"), ("a", "1", "i", "A")]]
+
+
+def test_the_two_alphabets_at_one_depth_do_not_bleed_into_each_other():
+    """A branch that opened with (A) continues with (B), never with italic (b),
+    and the reverse. The face is part of the identity on the stack because of
+    exactly this."""
+    assert ex.placements([[("a", False)], [("1", False)], [("i", False)],
+                          [("A", False)], [("b", True)]]) == []
+    assert ex.placements([[("a", False)], [("1", False)], [("i", False)],
+                          [("a", True)], [("B", False)]]) == []
+    both = ex.placements([[("a", False)], [("1", False)], [("i", False)],
+                          [("a", True)], [("b", True)]])
+    assert both == [[("a",), ("a", "1"), ("a", "1", "i"),
+                     ("a", "1", "i", "a"), ("a", "1", "i", "b")]]

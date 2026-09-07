@@ -129,13 +129,21 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
 
     TWO DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
     BE REDISCOVERED. `cash-and-bank` (§ 1.446-1), `meals-and-entertainment`
-    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sit on sections
-    that SKIP A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic
-    (a), passing over the (A) level entirely — and `placements()` admits no
-    reading in which a level is skipped. It raises rather than placing a
-    paragraph by preference, which is right: an example whose path is a guess
-    is cited to a rule that may not be its own, the exact defect corrected
-    earlier the same day.
+    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sat on sections the
+    reader could not place at all, and it raised rather than placing a paragraph
+    by preference — which was right: an example whose path is a guess is cited
+    to a rule that may not be its own, the exact defect corrected the same day.
+
+    THE STATED CAUSE HERE WAS WRONG AND IS CORRECTED. This paragraph read "SKIP
+    A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic (a), passing
+    over the (A) level entirely". It does not skip anything. It uses a DIFFERENT
+    ALPHABET at the same level, and both in the same section: (c)(1)(ii)(A),
+    (B), (C) in plain capitals and (c)(1)(iv)(a), (b) in italic lowercase. That
+    diagnosis was corrected in the commit log the same night and this docstring
+    was not, which is how a wrong reason survives in the place people read.
+    § 1.446-1 now reads, with every one of the thirty paths it cites landing;
+    see `test_rules.py`. What these desks hold is a separate question from
+    whether the section can be read, and this count is the one to trust.
 
     § 1.6050W-1 was refused for a DIFFERENT and fixable reason and now places:
     its run-in headings close with a full stop inside the italics rather than

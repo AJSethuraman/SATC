@@ -138,38 +138,46 @@ OTHERS = [
   "rec_pick": "Admit eCFR only",
   "picks": ["Admit eCFR only", "Admit both", "Leave the gap open", "Not yet"]},
 
- {"key": "dec-parser", "new": True, "group": "The record",
-  "tag": "31 examples, and it turned into a research problem",
-  "title": "Four regulations will not read. Worth the work, or leave them?",
-  "position": "Timebox one more attempt at the reader; stop if the acceptance test does not pass.",
-  "context": "The desks gained 196 worked examples today \u2014 the government applying "
-             "its own rules to real fact patterns, which is the closest thing in the "
-             "record to the question a bookkeeper asks. <b>Four regulations still will "
-             "not read</b>, holding about 31 more.<br><br>The tool refuses them rather "
-             "than guessing, which is right: a paragraph number guessed wrong files an "
-             "example under a rule that is not its own, and that happened today and was "
-             "caught.<br><br><b>I found three causes and fixed none of them, because "
-             "all three together are still not enough.</b> With all three, one of the "
-             "four reads \u2014 and the regulation cites 31 of its own paragraphs, of "
-             "which only 24 land. The one that works lands 100 of 102. So the reading "
-             "is still wrong somewhere, and a fourth cause is unfound.",
-  "either": [("Have another go",
-              "Roughly 31 more worked examples, on the cash, vehicle and meals desks. "
-              "There is a real pass mark now \u2014 the regulation grades the reading "
-              "by whether every paragraph it cites is found \u2014 so it either works "
-              "or it visibly does not."),
-             ("Leave them",
-              "Those desks keep their rules and lose the examples. Nothing is broken; "
-              "they are simply thinner. The work goes to the searching agent instead, "
-              "which may reach the same text another way.")],
-  "rec": "One timeboxed attempt. The pass mark is real and unfakeable, so it cannot "
-         "quietly half-work \u2014 but it is now a research problem rather than a typo, "
-         "and I would stop rather than loosen the check to get a number.",
-  "rec_pick": 'Have another go',
-  "picks": ["Have another go", "Leave them", "Not yet"]},
+ {"key": "dec-add-examples", "new": True, "group": "The record",
+  "tag": "You said have another go \u2014 it worked",
+  "title": "Six regulations read now. Add their examples to three desks?",
+  "position": "Add the worked examples from the sections that now read to the cash, "
+              "vehicle and meals desks.",
+  "context": "<b>You said \u201chave another go\u201d and set the pass mark yourself: a "
+             "regulation names its own paragraphs, and a reading is right when every "
+             "one of them is found.</b> The best attempt before this found 24 of the 31 "
+             "\u00a7 1.446-1 cites \u2014 which I told you was not good enough to ship, "
+             "because three quarters is not the ordinary residue of dead "
+             "cross-references, it is a reading that is partly wrong.<br><br>"
+             "<b>It now finds all thirty.</b> Six sections that would not read at all "
+             "now read, every self-citation lands in every one of them, and "
+             "\u00a7 1.263(a)-3 \u2014 the one that already worked \u2014 reads "
+             "identically: the same 172 paragraphs and the same two dead references it "
+             "had before.<br><br>There were five causes, not the three I had found. Two "
+             "were the ones I described to you; the other three were a label sitting "
+             "directly on another with no heading between them, two paragraphs reserved "
+             "together in one line, and a paragraph with no number on it at all.<br><br>"
+             "<b>What is left is your call, because it changes what the desks are "
+             "scored on.</b>",
+  "either": [("Add them",
+              "Three desks that hold rules and no worked examples get them \u2014 the "
+              "government applying its own rule to a real fact pattern, which is the "
+              "closest thing in the record to the question a bookkeeper asks. Their "
+              "scores move, because the set they are measured on changes."),
+             ("Leave the desks alone",
+              "The reader fix stands on its own and costs nothing. The desks stay as "
+              "they are, thinner but with the scores you have already seen. The "
+              "examples can be added any time.")],
+  "rec": "Add them, but as a separate change with its own before-and-after scores on "
+         "the page. The reading is proven and the examples are real; what I do not want "
+         "is a desk\u2019s score moving in the same commit that moves the reader, "
+         "because then neither number explains the other.",
+  "rec_pick": "Add them, separately",
+  "picks": ["Add them, separately", "Add them now", "Leave the desks alone",
+            "Not yet"]},
 
  {"key": "dec-merge-305", "new": True, "group": "Housekeeping",
-  "tag": "The searcher \u2014 569 tests, desk job green",
+  "tag": "The searcher \u2014 579 tests, desk job green",
   "title": "Merge the searching agent?",
   "position": "Merge <a href=\'https://github.com/AJSethuraman/SATC/pull/305\'>#305</a>.",
   "context": "<b>#300 is already in.</b> That was the worked examples \u2014 531 to 727 "
@@ -232,7 +240,7 @@ CHANGED = [
  ("727 of 727", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("4 \u2192 200", "worked examples the desks hold", "the government applying its own rules to real facts"),
  ("531 \u2192 727", "stored passages in all", "262,000 characters of authority to 497,000"),
- ("569", "desk tests passing", "514 before the searcher; 470 when this branch started"),
+ ("579", "desk tests passing", "514 before the searcher; 470 when this branch started"),
 ]
 
 LANDED = [
