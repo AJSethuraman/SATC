@@ -70,6 +70,28 @@ the value here:
 
 ## 4. Give it an engagement, and watch refusals turn into answers
 
+> **⚠ Read this before step 4.** The file below is a **stand-in I invented**, and
+> the firm has said so: *"we dont have a method for creating an engagement file
+> — also we wouldn't have an engagement file so much as the occam processer
+> (which is our accounting software) has workbooks for clients."*
+>
+> **Three real containers exist and this is not one of them:** Occam's workbook
+> (one Excel workbook per client, the bookkeeping source of record),
+> `client-documents/engagements/` (one folder per engagement, ref `YYYY-NNNN`),
+> and the interview. Checked on 7 September:
+>
+> | Fact a desk asks for | Where it really is |
+> |---|---|
+> | `taxpayer` | **already recorded** — the engagement record's `EntityType` and `_return_type` |
+> | `trade` | not in the document store; Occam or the interview holds it |
+> | `capitalization_rule` | **nowhere** — which is a field request, not a missing file |
+>
+> So step 4 exercises the *mechanism* and nothing else. **Do not start keeping
+> client facts in it.** The adapters over the real containers are not built, and
+> Occam is a separate repository this session cannot read — guessing its schema
+> would be the same mistake again. `docs/WHERE-FACTS-LIVE.md` records what is
+> established and what is still unknown.
+
 Some rules cannot be applied without knowing what the client does. The desk will
 not work that out from the vendor — deliberately.
 

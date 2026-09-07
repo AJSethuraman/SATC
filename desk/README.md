@@ -49,6 +49,14 @@ reading our own file rather than by asking the client or chasing a document.
 
 ### The file those facts come out of
 
+**⚠ This is a stand-in, not the process.** The firm, 7 September 2026: *"we dont
+have a method for creating an engagement file — also we wouldn't have an
+engagement file so much as the occam processer (which is our accounting
+software) has workbooks for clients."* Occam's workbook, the engagement folder
+under `client-documents/engagements/` and the interview are the real containers;
+this reader is a fixture over an invented one until adapters exist.
+`docs/WHERE-FACTS-LIVE.md` says what is established and what is not.
+
 `engagements.py` reads one engagement's facts off a file, so the context above
 is not typed in by hand each time.
 
