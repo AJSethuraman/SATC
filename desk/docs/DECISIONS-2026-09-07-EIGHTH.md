@@ -66,6 +66,47 @@ work, not the label.**
 copy still carried the deleted `engagements.py` and had no `holes.py`. Caught by
 listing the installed tree rather than trusting the command. Bumped to 0.6.0.
 
+**5. The holes report read one of the three places a refusal lands, and its zero
+was published as a finding.** `tools/holes.py` — written that afternoon to
+surface exactly the rare thing nobody was looking at — globbed `unfiled/*.md`
+and nothing else. It printed:
+
+> Gaps (0). **None recorded.** … the mechanism is live and has not fired.
+
+Five `context_not_on_file` refusals stood in the latest run at the time, naming
+three facts and the positions that wanted them. `docs/TRY-IT.md` quoted that zero
+back to the firm as *"itself the finding"*.
+
+Refusals are recorded in **three** places, and each is written by a different
+hand:
+
+| | Written by | Durable? |
+|---|---|---|
+| `unfiled/*.md` | a human, filing questions at close | yes |
+| `desks/*/unsupported/*.md` | `ask.answer`, as the engine refuses | yes |
+| `runs/<latest>/served.json` | a measured run | no — it moves |
+
+Nothing was broken. **An unfinished read was reported as a finding**, which is
+the same shape as the tenet this repository opens with: a proof artifact
+declaring 190 documents fine when none of them was readable. The fix is not only
+to read all three — it is that a count now names **what it was counted over**, so
+a zero from a partial read cannot be mistaken for a zero from a whole one. The
+durable queues and the live run are reported apart and never summed: the queue is
+every hole ever found, holes get filled, and a total across both counts a closed
+one twice.
+
+**Two smaller things fell out of it, both losses of data that already existed.**
+`ask_the_desks.py` recorded a refusal's reason and its prose and threw away
+`fact` and `by_position` — the chain the firm made the *condition* of a desk
+being allowed to ask for a field. So a run's holes could name neither the field
+nor the position, and the only route back to either was parsing a sentence, which
+is inferring. And `serve_answers` wrote its result to `runs/asked-<today>`
+whatever answers file it was handed, so re-serving an earlier run put the result
+in a run it did not come from — which is why the evening re-ask had to be moved
+into its own directory by hand. Both fixed; the evening run was re-derived from
+its own answers file and came back **verdict-identical, 19 rows, no change to any
+served-or-refused call**, now carrying the chain.
+
 ---
 
 ## What is left before a pilot

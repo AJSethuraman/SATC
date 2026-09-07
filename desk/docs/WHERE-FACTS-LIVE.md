@@ -71,9 +71,18 @@ Two states, told apart since 6 September:
 | `context_not_on_file` | there IS somewhere to record it, and nobody has | a preparer |
 | `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | the firm deciding the fact exists |
 
-`tools/holes.py` reads them out, holes first, never summed. **It reports no holes
-as of 7 September** — the mechanism is live and has not fired, which is the
-finding rather than the absence of one.
+`tools/holes.py` reads them out, holes first, never summed. **As of 7 September:
+no holes, and five gaps** — `capitalization_rule` twice, `trade` once,
+`taxpayer` twice, each named alongside the position that asked for it.
+
+**That five was reported as a zero for several hours.** The report globbed
+`unfiled/` — the queue a human files at close — and refusals land in two other
+places: each desk's own `unsupported/`, written by `ask.answer` as it refuses,
+and the latest run's `served.json`. It printed *"the mechanism is live and has
+not fired"*, which was a claim about the mechanism made from a third of the
+evidence. It now names what it read, and the run writer keeps the fact and the
+position that wanted it instead of leaving them to be parsed back out of a
+sentence.
 
 **No adapter was built, and none is needed to start.** The sections below are
 what an adapter would have to be true of IF one is ever wanted, kept because the
