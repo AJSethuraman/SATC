@@ -233,7 +233,7 @@ CHANGED = [
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("794 of 794", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("650", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("654", "desk tests passing", "514 when today\u2019s work started; canon 181"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 

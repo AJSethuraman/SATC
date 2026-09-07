@@ -42,7 +42,7 @@ claude plugin list
 ```
 
 ```
-python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])"
+python3 -c "import json;print(next(p['version'] for p in json.load(open('.claude-plugin/marketplace.json'))['plugins'] if p['name']=='desk'))"
 ```
 
 **Those two must match.** If `plugin list` is lower, the update did not land —
