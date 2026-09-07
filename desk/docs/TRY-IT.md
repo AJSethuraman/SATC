@@ -68,60 +68,35 @@ the value here:
 
 ---
 
-## 4. Give it an engagement, and watch refusals turn into answers
-
-> **⚠ Read this before step 4.** The file below is a **stand-in I invented**, and
-> the firm has said so: *"we dont have a method for creating an engagement file
-> — also we wouldn't have an engagement file so much as the occam processer
-> (which is our accounting software) has workbooks for clients."*
->
-> **Three real containers exist and this is not one of them:** Occam's workbook
-> (one Excel workbook per client, the bookkeeping source of record),
-> `client-documents/engagements/` (one folder per engagement, ref `YYYY-NNNN`),
-> and the interview. Checked on 7 September:
->
-> | Fact a desk asks for | Where it really is |
-> |---|---|
-> | `taxpayer` | **already recorded** — the engagement record's `EntityType` and `_return_type` |
-> | `trade` | not in the document store; Occam or the interview holds it |
-> | `capitalization_rule` | **nowhere** — which is a field request, not a missing file |
->
-> So step 4 exercises the *mechanism* and nothing else. **Do not start keeping
-> client facts in it.** The adapters over the real containers are not built, and
-> Occam is a separate repository this session cannot read — guessing its schema
-> would be the same mistake again. `docs/WHERE-FACTS-LIVE.md` records what is
-> established and what is still unknown.
+## 4. Watch it ask for something, and see which kind of missing it is
 
 Some rules cannot be applied without knowing what the client does. The desk will
 not work that out from the vendor — deliberately.
 
+> Ask a desk: they bought clothing at that store — is that a personal expense?
+
+**There is no file to make.** The caller passes what it already has; the facts
+live where you already keep them — Occam's workbook, the engagement folder, the
+interview. A desk that went looking for them would be inferring, which is the one
+thing it must not do.
+
+**What matters is which kind of missing you get back**, and this is the whole
+point of step 4:
+
+| | Meaning | Who fixes it |
+|---|---|---|
+| `context_not_on_file` | there **is** somewhere to record this and nobody has | a preparer fills it in |
+| `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | you decide the fact exists at all |
+
+The second is a **hole in what the firm tracks**, and it is found by doing real
+work rather than by auditing. Read them out:
+
 ```
-python3 ~/.claude/plugins/cache/satc/desk/0.5.0/tools/engagement.py new alpha-2026 > ~/engagements/alpha-2026.md
+python3 ~/.claude/plugins/cache/satc/desk/0.5.0/tools/holes.py
 ```
 
-Open that file. It has a stub for every fact the desks ask for, each naming the
-desk that asks. Fill in what you know and **delete the rest** — a fact with no
-value is refused, which is right: a half-written record reads exactly like a
-recorded one.
-
-```
-python3 ~/.claude/plugins/cache/satc/desk/0.5.0/tools/engagement.py check ~/engagements/alpha-2026.md
-```
-
-It prints what the file holds **and what it does not**, with the desk that will
-refuse without each one. Then ask the same question again with the file:
-
-> Ask a desk, using ~/engagements/alpha-2026.md as the engagement: they bought
-> clothing at that store — is that a personal expense?
-
-**What to look for:** the same question that refused `context_not_on_file` now
-gets answered. Measured on the close's own questions: five refusals became five
-answers.
-
-**The file is yours and does not live in the plugin.** `load` refuses a path
-inside it — the plugin is a checkout that gets pushed, and a client's affairs in
-it are one `git add` from being published. Nothing with a name, an SSN or an EIN
-belongs in it either; the reader refuses anything shaped like a taxpayer number.
+Holes first, then gaps, never summed. **As of 7 September it reports no holes** —
+the mechanism is live and has not fired, which is itself the finding.
 
 ---
 

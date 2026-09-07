@@ -52,6 +52,35 @@ the next session starts from the record rather than from an assumption.
 
 ---
 
+## The simplest thing, which is what this became
+
+The firm, an hour after the correction above:
+
+> *"what's the simplest thing? like the desk can simply ask for info, if we
+> don't have it and if we do not (and it the answer can't be tied to some data
+> point) it's a hole in what we need to know"*
+
+**That is the mechanism the engine already had, and the file was the
+complication.** `engagements.py` and `tools/engagement.py` are deleted. The
+caller passes what it already has; there is nothing to create.
+
+Two states, told apart since 6 September:
+
+| | Meaning | Fixed by |
+|---|---|---|
+| `context_not_on_file` | there IS somewhere to record it, and nobody has | a preparer |
+| `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | the firm deciding the fact exists |
+
+`tools/holes.py` reads them out, holes first, never summed. **It reports no holes
+as of 7 September** — the mechanism is live and has not fired, which is the
+finding rather than the absence of one.
+
+**No adapter was built, and none is needed to start.** The sections below are
+what an adapter would have to be true of IF one is ever wanted, kept because the
+constraints were established by measurement and would otherwise be rediscovered.
+
+---
+
 ## What has to be true of any adapter
 
 - **It reads. It never becomes a store.** A fourth place a client fact lives is
