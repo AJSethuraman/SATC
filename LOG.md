@@ -17,6 +17,85 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, night — three answers, and the goal restated
+
+### The goal changed, twice, and the second one is the real one
+
+Mid-session the firm named the overarching goal:
+
+> *"YOUR overarching goal is to manage and ensure the SATC tax practice software
+> and pipeline while ensuring we test and such appropriately before
+> implementation. we have developed much together, we will continue to do so.
+> shorter term goals, such as what you are doing now, can be established as we
+> go."*
+
+A message immediately before it named the **website** as the goal and was
+**not meant for this session** — it was for another agent, and this session had
+already restated its goal around it before being told. Recorded because a goal
+taken from a misrouted message is exactly the failure the restating habit is
+meant to catch, and it did not catch it: the correction came from the firm, not
+from here.
+
+### The three answers, and what each caused
+
+**1 · The withholding review fee — "Not yet", with:** *"market research is
+preferable"*.
+
+So the research was done rather than the fee invented, and **it found something
+bigger than the question.** The National Society of Accountants Income and Fees
+Survey puts East North Central — Ohio's census district — at **$148.15 an hour**
+for federal and state tax return work in 2020–21. Adjusted by cumulative CPI-U
+inflation of **23.23%**, that is **$182.57** in 2026 dollars.
+
+**`fee-schedule.yaml` sets `basis.rate` to $150.00** — almost exactly the
+*unadjusted* 2021 average. The rate looks like it was set against a correct
+benchmark and never moved since, and nothing in the repository records that as a
+decision. Not an argument that it is wrong; an argument that it is undocumented,
+and that pricing a new service against it bakes the gap in.
+
+On the question actually asked: **there is no market price for a "withholding
+review"**. The IRS calls it a Paycheck Checkup and publishes it free. The nearest
+thing anybody sells is a single planning session at **$200–$500**. The
+recommendation moved from $175 to **$225 flat** — bottom of that band, 1.5 hours
+at the current rate, correctly above records sorting at $175, and it survives the
+rate correction rather than needing a rethink the moment the hourly moves.
+Written up in `docs/pricing-the-withholding-review.md`, with its own *what this
+does not prove*.
+
+**2 · "Within one business day" — No, keep "as soon as we can".**
+
+Which turned out to collide with the firm's own copy tenets, and the collision
+was worth more than the answer. **Tenet 6 had "as soon as we can" on its banned
+list**, swept in while the one-business-day promise was being removed — though it
+is the *opposite* of what that tenet bans, a deliberate refusal to promise a time
+rather than a promise of one. The entry came off, with the quote kept above it.
+"business day" stays, which is the thing actually being refused.
+
+And underneath that: **`copy.spec.py` read `.html` files only.** `intake-config.js`
+carries the questions, help text and option labels the intake form renders onto
+the home page — **83 strings a visitor reads, never examined**, while the spec
+reported 36/36 and *"every page reads the way the firm asked for"*. The banned
+phrase had been sitting in that file, live, the whole time. The checker now reads
+it: 36 → 39 checks, and two mutations die.
+
+**#138 did not merge**, and the reason is the firm's own recorded position. Its
+disclosure says a client relationship *"begins when we both sign an engagement
+letter"* — and `website/TENETS.md` says in terms that putting that phrase back
+**fails the build**, because *"i would never expect a client to understand what an
+engagement letter is inherently."* The wording has to change and that sentence is
+the firm's to write.
+
+**A second thing came out of #138** and is now an open defect:
+`website/privacy.html` discloses Formspree and its 30-day copy but **not** that a
+Power Automate flow files every submission into a workbook indefinitely. The page
+discloses the temporary copy and not the permanent one. Recorded rather than
+written — privacy wording is not an agent's sentence.
+
+**3 · The two credit-line pull requests — Close both.** Done, each with a comment
+saying what it was and that the branch keeps the work.
+
+---
+
 ## Monday 7 September 2026, evening — the last hop, and ten checks that were never running
 
 **No answer arrived today.** Three matters from the morning docket are still
