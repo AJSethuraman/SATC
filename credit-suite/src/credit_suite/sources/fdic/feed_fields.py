@@ -1,0 +1,172 @@
+"""The nineteen fields added to the FEED, and the filed line behind each.
+
+Added 6 September 2026, after the firm took every candidate in the first two
+tiers of the opportunity scan. They go into the feed and NOT into
+``fields.RAW_FIELDS``: that list drives ``raw_slots``, which the layout says is
+built into every dashboard formula, and the firm's answer on that was "feed
+only". A dashboard nobody asked to change does not get re-cut.
+
+**Every citation here was derived from the filings, not copied from a
+crosswalk.** For each field, the FDIC's published number was searched for in
+the bank's own XBRL -- as a single line, and as the sum or difference of
+several -- and a candidate only survived if it held in EVERY bank-quarter where
+both sides had a value. Nothing here is a plausible-looking code.
+
+That method exists because a citation can be documented, confident and wrong.
+The same session found ``LNLSGR`` citing RC-C Part I line 12 when the FDIC has
+always used RC 4.a + 4.b; the two agreed in 471 of 480 bank-quarters, so no test
+ever caught it. It paid again immediately: the scan reported the commercial
+commitment total as three lines, and three lines is short by up to $1.4bn at
+every bank with foreign offices -- and exact at the four without them, which is
+how a wrong citation survives a spot check.
+
+Two fields carry a DATED RECODING. A row naming only today's code is correct
+today and silently wrong about years of history, so both eras are written down
+with the quarter the form changed.
+"""
+from __future__ import annotations
+
+#: field -> (schedule, plain caption, citation, how it was established)
+#:
+#: A citation is written as MDRM items without a prefix where the prefix varies
+#: by form: RCFD/RIAD on the 031 a bank with foreign offices files, RCON on the
+#: 041 without. The existing map writes this as "RCON2170 (RCFD2170 031)"; here
+#: the item is given and the prefix follows the filing.
+FEED_ROWS = [
+    # ---- 1-2 · the credit lines behind the balances -----------------------
+    ("UCCRCD", "RC-L 1.b", "Unused credit card lines",
+     "3815", "480 of 480 bank-quarters"),
+    ("UCLOC", "RC-L 1.a",
+     "Unused revolving lines secured by 1-4 family homes",
+     "3814", "480 of 480 bank-quarters"),
+
+    # ---- 3 · the column that was always blank -----------------------------
+    ("DRRENRSQ", "RI-B Pt I 4 col A",
+     "CRE nonfarm nonresidential gross charge-offs, quarterly",
+     "RIADC895+RIADC897 (year-to-date, differenced)",
+     "120 of 120 first-quarter filings, where the year-to-date IS the quarter"),
+    ("CRRENRSQ", "RI-B Pt I 4 col B",
+     "CRE nonfarm nonresidential recoveries, quarterly",
+     "RIADC896+RIADC898 (year-to-date, differenced)",
+     "120 of 120 first-quarter filings"),
+
+    # ---- 4 · the loan class that had no losses ----------------------------
+    ("NTRELOCQ", "RI-B Pt I 1.c.(1) cols A-B",
+     "Home equity line net charge-offs, quarterly",
+     "RIAD5411-RIAD5412 (year-to-date, differenced)",
+     "120 of 120 first-quarter filings"),
+
+    # ---- 5 · the denominator the regulator actually uses -------------------
+    ("RBC", "RC-R Pt I 3792", "Total risk-based capital",
+     "RCFA3792 or RCFW3792 -- the column that binds",
+     "480 of 480; exactly one column ties in every bank-quarter"),
+
+    # ---- 6 · the real Texas ratio -----------------------------------------
+    ("ORE", "RC 7", "Other real estate owned -- property taken back",
+     "2150", "480 of 480 bank-quarters"),
+    ("INTAN", "RC 10", "Intangible assets, which absorb no losses",
+     "2143 (0426+3163 before 2018-06-30)",
+     "480 of 480; the form changed at 2018-06-30 and both eras are exact"),
+
+    # ---- 9 · commercial commitments ---------------------------------------
+    ("UCCOMRES", "RC-L 1.c.(1)(a)+(b)",
+     "Unused commitments on construction and land",
+     "F164+F165", "480 of 480 bank-quarters"),
+    ("UCCOMREU", "RC-L 1.c.(2)",
+     "Unused CRE commitments not secured by property",
+     "6550", "480 of 480 bank-quarters"),
+    ("UCOTHER", "RC-L 1.e",
+     "Unused commitments to businesses and other borrowers",
+     "J457+J458+J459 (J457+PV11+J459+PV10 from 2024-12-31)",
+     "396 of 396 before the recoding, 84 of 84 after"),
+
+    # ---- 10 · lending to non-banks ----------------------------------------
+    ("LNNDEPD", "RC-C Pt I 9.b.(2)",
+     "Loans to nondepository financial institutions (domestic)",
+     "RCONJ454",
+     "480 of 480; DOMESTIC -- the consolidated RCFDJ454 is larger at every "
+     "bank with foreign offices and is not what the FDIC publishes"),
+
+    # ---- 12 · loans modified because the borrower is in trouble ------------
+    ("RSLNLTOT", "RC-C Pt I Mem 1", "Restructured loans, total",
+     "HK25", "456 of 480; the line does not exist before 2017-03-31"),
+    ("RSLNREFM", "RC-C Pt I Mem 1",
+     "Restructured 1-4 family residential",
+     "F576", "480 of 480 bank-quarters"),
+    ("RSCI", "RC-C Pt I Mem 1", "Restructured commercial and industrial",
+     "K163+K164", "480 of 480 bank-quarters"),
+    ("RSCONS", "RC-C Pt I Mem 1", "Restructured consumer loans",
+     "K158+K159", "480 of 480 bank-quarters"),
+    ("RSMULT", "RC-C Pt I Mem 1", "Restructured multifamily",
+     "K160", "480 of 480 bank-quarters"),
+    ("RSOTHER", "RC-C Pt I Mem 1", "Restructured, all other",
+     "K165", "480 of 480 bank-quarters"),
+    ("NARSNRES", "RC-N Mem",
+     "Restructured CRE already on nonaccrual",
+     "K116+K119", "480 of 480 bank-quarters"),
+]
+
+FEED_FIELDS = [r[0] for r in FEED_ROWS]
+
+#: All nineteen are dollar amounts in thousands. None is a ratio, which is why
+#: none of them needs the "computed by the FDIC" treatment the eight existing
+#: ratio fields carry.
+FEED_UNITS = {f: "USD_thousands" for f in FEED_FIELDS}
+
+#: The three that are quarterly figures the FDIC differences out of a
+#: year-to-date filed line. They inherit the merger hazard every existing `*Q`
+#: field has: across a merger the difference of two year-to-date totals mixes
+#: two banks and is not a quarter of anything.
+FEED_FLOW_FIELDS = ("DRRENRSQ", "CRRENRSQ", "NTRELOCQ")
+
+#: Citations whose code changed inside the ten-year window, with the quarter it
+#: changed in. Written down because a row naming only the current code is right
+#: today and wrong about the history, and nothing else would ever say so.
+RECODINGS = {
+    "INTAN": [("2016-09-30", "2018-03-31", "0426+3163"),
+              ("2018-06-30", None, "2143")],
+    "UCOTHER": [("2016-09-30", "2024-09-30", "J457+J458+J459"),
+                ("2024-12-31", None, "J457+PV11+J459+PV10")],
+}
+
+
+#: Fields the bank files in TWO columns, where the FDIC republishes whichever
+#: one binds that quarter. Schedule RC-R Part I is filed by an
+#: advanced-approaches bank under both the standardised framework (column A)
+#: and the advanced one (column W); which binds varies by bank and by quarter,
+#: so the row records the column that tied rather than asserting one.
+#:
+#: Naming a single column here would be right for 398 of 480 bank-quarters and
+#: wrong for 82, and every spot check would land in the 398.
+#: field -> ((amount code, its ratio code), ...). The framework is chosen from
+#: the RATIOS -- the lower one binds -- and only then is the amount compared, so
+#: the check can fail on choosing wrongly. Choosing the column by which amount
+#: matched would tie by construction.
+TWO_COLUMN_FIELDS = {
+    "RBC": (("RCFA3792", "RCFA7205"), ("RCFW3792", "RCFW7205"),
+            ("RCOA3792", "RCOA7205"), ("RCOW3792", "RCOW7205")),
+}
+
+
+def binding_column(field, raw):
+    """The amount code of the framework that binds, or None if none is filed.
+
+    Both the amount and its ratio must be present for a framework to count: a
+    filing that carries one without the other cannot be ranked, and ranking it
+    anyway is how a tie-break silently becomes a coin toss.
+    """
+    filed = [(amt, float(raw[rat])) for amt, rat in TWO_COLUMN_FIELDS[field]
+             if raw.get(amt) is not None and raw.get(rat) is not None]
+    if not filed:
+        return None
+    return min(filed, key=lambda t: t[1])[0]
+
+
+def citation_for(field: str, report_date: str) -> str:
+    """The citation in force for a field on a given report date."""
+    if field in RECODINGS:
+        for start, end, expr in RECODINGS[field]:
+            if report_date >= start and (end is None or report_date <= end):
+                return expr
+    row = next((r for r in FEED_ROWS if r[0] == field), None)
+    return row[3] if row else ""

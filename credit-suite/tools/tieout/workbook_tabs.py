@@ -36,6 +36,17 @@ CERTS = sorted({r["cert"] for r in BANK})
 
 MACRO_TIED = sum(1 for r in MACRO if r["verified"] == "yes")
 MACRO_NOT = len(MACRO) - MACRO_TIED
+#: Not the same thing, and calling them the same overstates the gap. PENDING is
+#: waiting on an agency's daily request allowance and will close on the next
+#: run; UNOBTAINABLE is a paywall, a transform nobody tabulates, or a figure
+#: printed only inside 146 separate documents.
+MACRO_PENDING = sum(1 for r in MACRO if r["verified"] != "yes"
+                    and r["why_not_verified"].startswith("not yet checked"))
+MACRO_UNOBTAINABLE = MACRO_NOT - MACRO_PENDING
+UNOBTAINABLE_SERIES = sorted({r["series_id"] for r in MACRO
+                              if r["verified"] != "yes"
+                              and not r["why_not_verified"].startswith(
+                                  "not yet checked")})
 SERIES = sorted({r["series_id"] for r in MACRO})
 BY_PUB = collections.Counter(r["publisher"] for r in MACRO if r["verified"] == "yes")
 UNVERIFIED = collections.Counter(r["series_id"] for r in MACRO
@@ -147,12 +158,17 @@ LIMITS = [
              "series, so a value verified today may not match the same source "
              "in six months. Nothing here records which revision a figure is. "
              "Treat the whole workbook as a snapshot dated 5 September 2026."),
-    ("warn", "2. %s MACRO OBSERVATIONS COULD NOT BE CHECKED, and they are not "
-             "spread evenly -- they are %d whole series out of %d. Those "
-             "series are unchecked for their entire history, not here and "
-             "there. They are marked verified = no and shaded, and each row "
-             "says why in why_not_verified. They are: %s."
-     % (n(MACRO_NOT), len(UNVERIFIED), len(SERIES), _unverified_names())),
+    ("warn", "2. %s MACRO OBSERVATIONS ARE NOT VERIFIED, and they split two "
+             "ways. %s are NOT YET CHECKED -- the Bureau of Labor Statistics "
+             "caps unregistered use at 25 requests a day and this run spent "
+             "them; every one of those that was reached ties, and the rest "
+             "close on the next run. The other %s have no obtainable source at "
+             "all: %d whole series out of %d, unchecked for their entire "
+             "history rather than here and there. All of them are marked "
+             "verified = no and shaded, and every row says which it is in "
+             "why_not_verified."
+     % (n(MACRO_NOT), n(MACRO_PENDING), n(MACRO_UNOBTAINABLE),
+        len(UNOBTAINABLE_SERIES), len(SERIES))),
     ("warn", "3. PROVENANCE IS STRONGER ON THE BANK SIDE. Every one of the %s "
              "bank rows names its exact line and links to the exact filing -- "
              "you can click through and put a finger on the number. On the "
@@ -315,9 +331,15 @@ def proven_tab(audit):
         ("p", "%s   checked against the agency that computes the series: "
               "FHFA's own file, the Federal Reserve's own table, the Z.1 data "
               "package." % n(MACRO_TIED)),
+        ("p", "%s   NOT YET CHECKED, and that is different from unobtainable. "
+              "The Bureau of Labor Statistics allows 25 requests a day to "
+              "anyone who has not registered a key, and this run spent them. "
+              "Every observation that WAS checked ties. These close on the "
+              "next run."
+         % n(MACRO_PENDING)),
         ("p", "%s   no obtainable source: %d whole series, unchecked for their "
               "whole history, each row saying why."
-         % (n(MACRO_NOT), len(UNVERIFIED))),
+         % (n(MACRO_UNOBTAINABLE), len(UNOBTAINABLE_SERIES))),
         ("", ""),
         ("h2", "Photographs"),
         ("p", photo),

@@ -42,13 +42,30 @@ sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import provenance_seed as PS       # noqa: E402
 
-CODE = re.compile(r"[A-Z]{4}[A-Z0-9]{4}|(?<![A-Z0-9])[A-Z][0-9]{3}(?![0-9])")
+#: A code as it appears ON THE PAGE: four letters of prefix then a
+#: four-character item, e.g. `RCFD3815`.
+CODE = re.compile(r"[A-Z]{4}[A-Z0-9]{4}")
+
+#: A token as it appears in a CITATION, which may be either the full code
+#: or the bare item. The provenance for the new fields writes the item
+#: alone -- `3815`, `HK25`, `PV11` -- because the prefix follows whichever
+#: form the bank files. Reading citations with the page pattern found no
+#: code at all in six fields and photographed none of their 2,856 values,
+#: while reporting nothing missing: a citation with no codes in it yields
+#: an empty list, not a complaint.
+TOKEN = re.compile(r"[A-Z]{4}[A-Z0-9]{4}|[A-Z0-9]{4}")
 NUM = re.compile(r"-?[\d,]+(\.\d+)?")
 
 only = [a for a in sys.argv[1:] if a.isdigit()]
 index = json.loads((BANKS / "index.json").read_text())
 quarters = json.loads((SB / "deep" / "deep_quarters.json").read_text())
+# Both the original 68 fields and the 19 the firm added. One pass, one
+# manifest: photographing them separately would leave two evidence sets for one
+# file, which is the thing decision 2 was answered to avoid.
 rows = json.loads((SB / "bank_deep_rows.json").read_text())
+_new = SB / "bank_new_rows.json"
+if _new.exists():
+    rows = rows + json.loads(_new.read_text())
 
 #: Only the fields whose verdict says they were compared against a filed line.
 #: A ratio the FDIC computes has no row to photograph, and a quarter that spans
@@ -108,30 +125,45 @@ for entry in index:
         shots = {}
         for field, expr in sorted(want.items()):
             comps = []
-            for code in CODE.findall(expr or ""):
-                hit = codes.get(code)
-                if hit is None:
-                    comps.append({"code": code, "why": "not on this filing"})
-                    notfound += 1
-                    continue
-                pno, band = hit
-                page = doc[pno]
-                top = min(w[1] for w in band) - 5
-                bottom = max(w[3] for w in band) + 5
-                clip = pymupdf.Rect(page.rect.x0 + 2, max(page.rect.y0, top),
-                                    page.rect.x1 - 2, min(page.rect.y1, bottom))
-                png = OUT / ("%s-%s-%s.png" % (cert, mmddyyyy, code))
-                if not png.exists():
-                    page.get_pixmap(matrix=pymupdf.Matrix(2.6, 2.6),
-                                    clip=clip).save(png)
-                text = " ".join(w[4] for w in band)
-                comps.append({
-                    "code": code, "page": pno + 1, "png": png.name,
-                    "header": save_header(doc, pno, "%s-%s" % (cert, mmddyyyy)),
-                    "row": text[:300],
-                    "numbers": [w[4] for w in band
-                                if NUM.fullmatch(w[4].replace("%", ""))][-3:]})
-                cut += 1
+            for token in TOKEN.findall(expr or ""):
+                # A bare item is whichever prefixed code the bank actually
+                # filed. Resolve it against this document rather than guessing
+                # a prefix that may not be the one on the page.
+                if len(token) == 8 and token in codes:
+                    wanted_codes = [token]
+                else:
+                    item = token[-4:]
+                    wanted_codes = sorted(k for k in codes if k[4:] == item)
+                    if not wanted_codes:
+                        wanted_codes = [token]
+                for code in wanted_codes[:1]:
+                    hit = codes.get(code)
+                    if hit is None:
+                        comps.append({"code": code,
+                                      "why": "not on this filing"})
+                        notfound += 1
+                        continue
+                    pno, band = hit
+                    page = doc[pno]
+                    top = min(w[1] for w in band) - 5
+                    bottom = max(w[3] for w in band) + 5
+                    clip = pymupdf.Rect(page.rect.x0 + 2,
+                                        max(page.rect.y0, top),
+                                        page.rect.x1 - 2,
+                                        min(page.rect.y1, bottom))
+                    png = OUT / ("%s-%s-%s.png" % (cert, mmddyyyy, code))
+                    if not png.exists():
+                        page.get_pixmap(matrix=pymupdf.Matrix(2.6, 2.6),
+                                        clip=clip).save(png)
+                    text = " ".join(w[4] for w in band)
+                    comps.append({
+                        "code": code, "page": pno + 1, "png": png.name,
+                        "header": save_header(doc, pno,
+                                              "%s-%s" % (cert, mmddyyyy)),
+                        "row": text[:300],
+                        "numbers": [w[4] for w in band
+                                    if NUM.fullmatch(w[4].replace("%", ""))][-3:]})
+                    cut += 1
             shots[field] = comps
         per_bank[iso] = shots
         doc.close()

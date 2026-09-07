@@ -70,7 +70,7 @@ def panel():
 def test_the_audited_panel_is_the_size_the_deliverable_says_it_is(panel):
     """The denominator every number below is measured against."""
     assert len(panel) == BANKS * QUARTERS           # 12 banks x 40 quarters
-    assert {len(fields) for fields in panel.values()} == {68}
+    assert {len(fields) for fields in panel.values()} == {87}
 
 
 # --------------------------------------------------------------------------
@@ -168,9 +168,13 @@ def test_the_zeros_in_the_deliverable_are_filed_nils_not_blank_cells(panel):
                for prefix in C.NESTED_PREFIXES}
     assert nonzero == {"LN": 474, "P3": 458, "P9": 354, "NA": 465}
 
+    # Re-measured 7 September 2026, after the field list went from 68 to 87.
+    # 6,964 of the 7,010 were compared against an explicit zero on the bank's
+    # own filing; the nineteen new fields contribute 1,625 zeros of which 1,616
+    # tie. A zero here means the bank told its regulator zero.
     zeros = sum(1 for fields in panel.values()
                 for value in fields.values() if value == 0.0)
-    assert zeros == 5385, (
+    assert zeros == 7010, (
         "the count of exact zeros moved; re-run the tie-out and re-measure how "
         "many of them tie to a filed zero before trusting the number below")
     assert C.nesting_identity(panel).examined == CLASSES * PANEL

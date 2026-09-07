@@ -44,6 +44,26 @@ if DEEP:
     bank_rows = json.loads((SB / "bank_deep_rows.json").read_text())
     fred_rows = json.loads((SB / "fred_deep_rows.json").read_text())
     mergers = json.loads((SB / "merger_records_deep.json").read_text())
+    # One file, not two. The nineteen bank fields and sixty macro series the
+    # firm added on 6 September join the same CSVs -- every row already carries
+    # its own citation, verdict and meaning, and a second file is a thing
+    # somebody does not know exists.
+    _bn = SB / "bank_new_rows.json"
+    if _bn.exists():
+        bank_rows = bank_rows + json.loads(_bn.read_text())
+    _mn = SB / "macro_new_rows.json"
+    if _mn.exists():
+        _new = json.loads(_mn.read_text())
+        _meta = json.loads((SB / "deep" / "macro_new_meta.json").read_text())
+        for _r in _new:
+            fred_rows.append({
+                "series": _r["series"], "date": _r["date"], "ours": _r["ours"],
+                "theirs": _r["theirs"], "verdict": _r["verdict"],
+                "source": _r["source"], "tab": "macro-observations.csv",
+                "row": None})
+        NEW_MACRO_META = _meta
+    else:
+        NEW_MACRO_META = {}
 else:
     bank_rows = json.loads((SB / "bank_history_rows.json").read_text())
     fred_rows = json.loads((SB / "fred_history_rows.json").read_text())
@@ -90,6 +110,58 @@ print("bank-values.csv        : %d rows%s"
       % (len(bank_rows), "  (ten years)" if DEEP else "  (sixteen quarters)"))
 
 # -------------------------------------------------------------- macro data --
+#: Titles, units and frequency for the sixty series added on 6 September.
+#: They are not in `series_seed`, which is the dashboard's list; letting them
+#: fall through to `fred_meta` would give them whatever a snapshot happened to
+#: hold, and for these it holds nothing at all.
+NEW_META = {}
+if DEEP:
+    _STATE = {
+        "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+        "CA": "California", "CO": "Colorado", "CT": "Connecticut",
+        "DE": "Delaware", "DC": "District of Columbia", "FL": "Florida",
+        "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois",
+        "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky",
+        "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+        "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota",
+        "MS": "Mississippi", "MO": "Missouri", "MT": "Montana",
+        "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire",
+        "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+        "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
+        "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania",
+        "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota",
+        "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+        "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+        "WI": "Wisconsin", "WY": "Wyoming"}
+    _FIXED = {
+        "PCU9241269241262": ("Producer price index: premiums for homeowner's "
+                             "insurance", "index Jun 1998=100", "monthly"),
+        "TERMCBCCALLNS": ("Interest rate on credit card plans, all accounts",
+                          "percent", "quarterly"),
+        "TERMCBCCINTNS": ("Interest rate on credit card plans, accounts "
+                          "assessed interest", "percent", "quarterly"),
+        "RIFLPBCIANM60NM": ("Finance rate on 60-month new car loans",
+                            "percent", "quarterly"),
+        "CCLACBW027SBOG": ("Credit cards and other revolving plans, all "
+                           "commercial banks", "billions $", "weekly"),
+        "RHEACBW027SBOG": ("Revolving home equity loans, all commercial banks",
+                           "billions $", "weekly"),
+        "TOTCI": ("Commercial and industrial loans, all commercial banks",
+                  "billions $", "weekly"),
+        "CREACBW027SBOG": ("Commercial real estate loans, all commercial "
+                           "banks", "billions $", "weekly"),
+        "CLSACBW027SBOG": ("Consumer loans, all commercial banks",
+                           "billions $", "weekly"),
+    }
+    for _sid, (_t, _u, _f) in _FIXED.items():
+        NEW_META[_sid] = {"title": _t, "units": _u, "frequency": _f,
+                          "category": "added_2026_09"}
+    for _st, _name in _STATE.items():
+        NEW_META["%sUR" % _st] = {
+            "title": "Unemployment rate, %s (seasonally adjusted)" % _name,
+            "units": "percent", "frequency": "monthly",
+            "category": "state_unemployment"}
+
 SOURCE_URL = {
     "FHFA All-Transactions house price index":
         "https://www.fhfa.gov/hpi/download/quarterly_datasets/",
@@ -110,6 +182,16 @@ SOURCE_URL = {
 #: cannot be reached at all, and one sentence covering both is a sentence
 #: that is wrong about one of them.
 NO_SOURCE_SERIES = {
+    # The Bureau of Labor Statistics caps unregistered use at 25 requests a day
+    # and the first run of this spent them. What is cached is checked against
+    # BLS and ties; the rest is fetched when the allowance resets or when a
+    # free key is registered, which is the firm's to do. This says so per row
+    # rather than letting an unfinished fetch read as an unavailable source.
+    "_BLS_PENDING": ("not yet checked: the Bureau of Labor Statistics limits "
+                     "unregistered use to 25 requests a day and this run spent "
+                     "them. The observations that WERE checked all tie; the "
+                     "rest are waiting on the next allowance, not on a missing "
+                     "source"),
     "TOTALSLAR": ("a percent change, not a published table. The Board prints "
                   "it only for the most recent months. The LEVEL it is the "
                   "change in, TOTALSL, is checked in full -- 1,002 of 1,002 "
@@ -140,7 +222,8 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
                 "publisher", "verified", "verified_against", "why_not_verified",
                 "source_url"])
     for r in fred_rows:
-        meta = SEED_ROWS.get(r["series"], fred_meta.get(r["series"], {}))
+        meta = SEED_ROWS.get(r["series"]) or NEW_META.get(r["series"]) \
+            or fred_meta.get(r["series"], {})
         cat = meta.get("category", "")
         block = ours_fred.get(r["series"], {})
         pub = r["source"].replace(" charge-off / delinquency table", "") \
@@ -163,6 +246,18 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
             "yes" if ok else "no",
             r["source"] if ok else "",
             "" if ok else (NO_SOURCE_SERIES.get(r["series"])
+                           or (NO_SOURCE_SERIES["_BLS_PENDING"]
+                               # Keyed off the GROUP, not a phrase in the
+                               # source string. Matching on "Labor Statistics"
+                               # caught the insurance index and missed all 51
+                               # state rates, whose source reads "BLS Local
+                               # Area Unemployment Statistics" -- so 18,786
+                               # rows said "no full-history source published"
+                               # about an agency that publishes the whole
+                               # history and had simply not been asked yet.
+                               if NEW_MACRO_META.get(r["series"], [""])[0]
+                               in ("insurance", "state_unemployment")
+                               else None)
                            or NO_SOURCE_WHY.get(cat)
                            or "no full-history source published"),
             SOURCE_URL.get(r["source"], ""),
