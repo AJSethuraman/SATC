@@ -26,7 +26,7 @@ def desk(tmp_path, *, access="public_fetch", checked="2026-09-04", passage=True)
         encoding="utf-8")
     if passage:
         (d / "extracted" / "a.md").write_text(
-            f"## X 1\n\n**Source:** S1 · **Checked:** {checked}\n\n> text\n",
+            f"## X 1\n\n**Source:** S1 · **Checked:** {checked} · **Kind:** rule\n\n> text\n",
             encoding="utf-8")
     return record.load(d)
 

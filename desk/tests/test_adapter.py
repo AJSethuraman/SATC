@@ -42,7 +42,7 @@ def _scratch(tmp_path, *, extra_passage: str = ""):
         "had leaked for years.\n", encoding="utf-8")
     (d / "extracted" / "reg.md").write_text(
         "## 26 CFR 1.263(a)-3(k)(1)(vi)\n\n**Source:** S1 · **Checked:** "
-        "2026-09-04\n\n> Is for the replacement of a major component. Text of "
+        "2026-09-04 · **Kind:** rule\n\n> Is for the replacement of a major component. Text of "
         "the rule follows.\n" + extra_passage, encoding="utf-8")
     return record.load(d)
 
@@ -64,7 +64,7 @@ def test_a_worked_example_stored_as_authority_is_refused_at_the_prompt(tmp_path)
     leaking = _scratch(
         tmp_path / "b",
         extra_passage="\n---\n\n## 26 CFR 1.263(a)-3(k)(7) Example 14\n\n"
-                      "**Source:** S1 · **Checked:** 2026-09-04\n\n"
+                      "**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
                       "> K owns a building. K pays an amount to replace the "
                       "entire roof, including the decking, insulation and "
                       "membrane. Therefore, K must capitalize it.\n")
