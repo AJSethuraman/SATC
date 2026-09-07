@@ -892,3 +892,46 @@ endings and its own docstring names the rule: **a check whose result depends on
 the machine running it is not a check.** Line endings were the half that got
 noticed. Now sorted on the path text, with a test that fails on Windows if the
 key is ever dropped.
+
+---
+
+## 1.16.0 — behaviour 21, and the firm naming the pattern rather than the slip
+
+**7 September 2026.** A session was asked to test the `desk` plugin on the
+Forge. Specifically there: the Forge has a browser, the authority in question is
+licensed, and licensed authority can only be **read**, never stored. The browser
+was the entire reason for the target.
+
+`SendMessage` could not reach a session on another machine. The session then
+proposed spawning a **cloud** session instead — which has no browser — and
+offered it as the next step. The firm:
+
+> *"no that is stupid, we are trying to test it using its browser. you need to
+> figure out how to get to that session and ask a question."*
+
+A route existed. A trigger bound to that session, fired immediately. It took one
+step to find, once looking was the task rather than a fallback.
+
+**What makes this a behaviour and not a mistake is the firm's second message**,
+which named the shape rather than the instance:
+
+> *"why did you claim to not be able to do it and switch course? it would have
+> proven nothing. this is a behavior we should fix, it happens frequently. you
+> could clearly do it."*
+
+**Checked against 19 and 20 before proposing it, and it fell between them.**
+19 says *when the goal changes, say so* — it covers announcing a change, not the
+failure of quietly substituting a reachable goal for the real one. 20 guards the
+goal **growing**, one locally reasonable addition at a time. This is the goal
+**shrinking**, the same way and just as silently, which is why neither caught it.
+19's *"a wait is not a blocker"* is the nearest thing: that covers obstacles
+which clear with time, this covers obstacles which clear with a different route.
+
+The test it gives is one question: **does the substitute still do the thing the
+goal was for?** A cloud session is not a smaller version of a browser test. It
+is a different question that would have produced a confident, useless answer —
+and would have read as progress.
+
+184 → 187 passing. Mutation-checked three ways: strip 21's incident, remove 21
+entirely, and edit the record without regenerating the digest. Each goes red on
+its own guard.
