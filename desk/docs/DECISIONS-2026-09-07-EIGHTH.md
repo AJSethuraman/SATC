@@ -107,6 +107,23 @@ into its own directory by hand. Both fixed; the evening run was re-derived from
 its own answers file and came back **verdict-identical, 19 rows, no change to any
 served-or-refused call**, now carrying the chain.
 
+**6. The version check published to replace a stale number was itself a stale
+number.** `TRY-IT.md` and `FORGE-SEARCH.md` tell the reader to check their
+install against the marketplace listing rather than a figure typed into the
+prose — because a document that states a version goes stale the moment the
+version moves, which happened twice in four hours. Both then did it with:
+
+    json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version']
+
+`[1]` is `desk` only while the listing happens to hold canon then desk in that
+order. **It is a typed constant in a costume**, and the reader is pasting the
+command to decide whether their install landed — so a reorder would report
+another plugin's version as this one's, reading as a failed install or
+certifying a stale one. Selecting by name now, and
+`test_a_version_check_selects_by_name.py` refuses a positional index anywhere in
+these documents, evaluates each published snippet to check it returns *this*
+plugin, and holds the listing and the manifest to the same number.
+
 ---
 
 ## What is left before a pilot

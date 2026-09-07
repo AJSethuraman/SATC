@@ -33,7 +33,7 @@ that states a version goes stale the moment the version moves — this one did,
 twice in four hours.
 
 ```
-python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])"
+python3 -c "import json;print(next(p['version'] for p in json.load(open('.claude-plugin/marketplace.json'))['plugins'] if p['name']=='desk'))"
 ```
 
 That number and `plugin list` must agree. If `plugin list` is lower the update
@@ -105,7 +105,7 @@ version from the listing rather than a number typed here, for the same reason as
 above:
 
 ```
-python3 ~/.claude/plugins/cache/satc/desk/$(python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][1]['version'])")/tools/holes.py
+python3 ~/.claude/plugins/cache/satc/desk/$(python3 -c "import json;print(next(p['version'] for p in json.load(open('.claude-plugin/marketplace.json'))['plugins'] if p['name']=='desk'))")/tools/holes.py
 ```
 
 It opens by naming **what it read** — three places a refusal lands — then holes,
