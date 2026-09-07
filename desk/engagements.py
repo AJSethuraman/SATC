@@ -201,7 +201,12 @@ def parse(text: str, path: str = "engagement", known: dict | None = None) -> Eng
 def load(path: Path, known: dict | None = None) -> Engagement:
     """Read one engagement's file. The path is the caller's and must be outside
     this plugin — see the module note."""
-    path = Path(path).resolve()
+    # `~` IS EXPANDED HERE AND NOT BY THE CALLER. `Path.resolve` does not do it
+    # -- `Path("~/x").resolve()` is the working directory with a literal `~` in
+    # it -- so a caller pasting the documented example gets "no engagement file
+    # at /somewhere/~/engagements/...", which reads as a missing file rather
+    # than as the tilde it actually is.
+    path = Path(path).expanduser().resolve()
     if path.is_relative_to(HERE):
         raise EngagementError(
             f"{path} is inside the desk plugin. An engagement's facts are "

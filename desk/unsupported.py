@@ -259,6 +259,28 @@ A queue that only grows is a desk nobody is feeding.
 """
 
 
+#: Where the preamble stops and the entries start. The entries are `## ` blocks,
+#: so the first one is the boundary; a queue with none is all preamble.
+_FIRST_ENTRY = "\n## "
+
+
+def _refreshed(text: str) -> str:
+    """The queue's own preamble, brought up to date with the code.
+
+    IT WAS WRITTEN ONCE AND NEVER AGAIN, and that made the firm's own decision
+    invisible. `append` wrote `PREAMBLE` only when the file did not exist, so a
+    queue created on 5 September still said *five resolutions* after a sixth --
+    **build the field**, approved by the firm on 7 September -- was added to the
+    code. The table an agent reads to decide what to do about a refusal is the
+    one on disk, and it was a snapshot of the day the file happened to be made.
+
+    Only the preamble moves. Entries are never touched: they are the record.
+    """
+    cut = text.find(_FIRST_ENTRY)
+    entries = text[cut + 1:] if cut != -1 else ""
+    return PREAMBLE + entries
+
+
 def append(path: Path, entry: Unsupported) -> Path:
     """Add one entry. Creates the file with its preamble if absent.
 
@@ -270,7 +292,7 @@ def append(path: Path, entry: Unsupported) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text(PREAMBLE, encoding="utf-8")
-    text = path.read_text(encoding="utf-8")
+    text = _refreshed(path.read_text(encoding="utf-8"))
     current = parse(text)
 
     # THE ID IS DECIDED HERE, AGAINST THE QUEUE ON DISK. `from_refusal` numbers

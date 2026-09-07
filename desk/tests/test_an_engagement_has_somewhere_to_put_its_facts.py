@@ -252,3 +252,16 @@ def test_the_blank_file_as_printed_is_refused(outside, capsys):
     cli.main(["new", "alpha-2026"])
     with pytest.raises(engagements.EngagementError):
         engagements.load(outside(capsys.readouterr().out, "blank.md"))
+
+
+def test_a_home_relative_path_is_expanded(outside, monkeypatch, tmp_path):
+    """`Path("~/x").resolve()` keeps the tilde as a directory name, so the
+    documented `load("~/engagements/...")` failed as "no engagement file at
+    .../~/engagements/..." — which reads as a missing file, not a missing
+    expansion."""
+    home = tmp_path / "home"
+    (home / "engagements").mkdir(parents=True)
+    (home / "engagements" / "alpha.md").write_text(GOOD, encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    eng = engagements.load("~/engagements/alpha.md")
+    assert eng.ref == "alpha-2026"

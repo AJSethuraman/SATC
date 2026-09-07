@@ -15,6 +15,15 @@ from conftest import DESKS
 from record import RecordError
 from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
+#: THE PREAMBLE AS IT SAT ON DISK, five resolutions and no "build the field".
+#: Derived from the current one by removing the sixth row rather than pasted, so
+#: it stays a real stale preamble as the real one changes.
+PREAMBLE_WITH_FIVE = unsupported.PREAMBLE.replace(
+    "Six resolutions", "Five resolutions").replace(
+    "| The rule is clear and there is NOWHERE to write the answer | "
+    "**build the field**, naming the position that asked |\n", "")
+
+
 
 
 
@@ -647,3 +656,42 @@ def test_every_refusal_that_turns_on_a_fact_names_it():
     assert out.fact == fact and out.by_position == ruling.id
 
     assert set(seen) == {"context_not_on_file", "client_rule_governs"}, seen
+
+
+# ---------------------------------------------------------------------------
+# THE QUEUE'S PREAMBLE IS THE TABLE AN AGENT READS TO DECIDE WHAT TO DO ABOUT A
+# REFUSAL, and it was written once, on the day the file happened to be created,
+# and never again. So the queue on disk still said *five resolutions* after the
+# firm approved a sixth on 7 September -- their own decision, invisible in the
+# only place it would be acted on.
+
+
+def test_the_queue_on_disk_carries_the_resolutions_the_code_offers(tmp_path):
+    first = unsupported.Unsupported(
+        id="U1", question="a thing", concluded="", believed_authority="",
+        failed_because="authority_absent", recorded="2026-09-05",
+        model="m", working="w")
+    p = tmp_path / "q.md"
+    p.write_text(PREAMBLE_WITH_FIVE + "\n" + first.render() + "\n---\n\n",
+                 encoding="utf-8")
+    unsupported.append(p, unsupported.Unsupported(
+        id="U2", question="another", concluded="", believed_authority="",
+        failed_because="authority_absent", recorded="2026-09-07",
+        model="m", working="w"))
+    out = p.read_text(encoding="utf-8")
+    assert "Six resolutions" in out
+    assert "Five resolutions" not in out
+    assert "build the field" in out
+    # THE ENTRIES ARE NEVER TOUCHED. They are the record; only the preamble moves.
+    assert "## U1 · a thing" in out
+    assert "## U2 " in out
+
+
+def test_refreshing_the_preamble_keeps_every_entry(tmp_path):
+    body = "\n## U1 · one\n\nbody one\n\n---\n\n## U2 · two\n\nbody two\n"
+    assert unsupported._refreshed(PREAMBLE_WITH_FIVE + body) == \
+        unsupported.PREAMBLE + body.lstrip("\n")
+
+
+def test_a_queue_with_no_entries_is_all_preamble():
+    assert unsupported._refreshed(PREAMBLE_WITH_FIVE) == unsupported.PREAMBLE
