@@ -217,7 +217,7 @@ NEXT = {
 CHANGED = [
  ("6 of 18", "close questions the engine would serve", "12 refused; 11 of those are the desk working"),
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
- ("790 of 790", "passages fetched back and compared", "0 differences, 0 unreachable"),
+ ("792 of 792", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
  ("585", "desk tests passing", "514 when today\u2019s work started; canon 181"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
@@ -476,7 +476,7 @@ def render() -> str:
       "no longer think they do.</p>"
       "<p><b>All three thin desks now hold every worked example their own "
       "regulations carry.</b> 63 added \u2014 19 to cash, 12 to vehicle, 32 to "
-      "meals \u2014 and all 790 stored passages were fetched back from their "
+      "meals \u2014 and all 792 stored passages were fetched back from their "
       "publishers and compared word for word: no differences, nothing "
       "unreachable. That was the goal above and it is finished. All %(rat)s "
       "ratified positions stand and no proposal is open.</p>"

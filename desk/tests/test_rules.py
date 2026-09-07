@@ -218,7 +218,12 @@ def test_the_marking_is_truthful_against_the_section_itself():
     desk = record.load(DESK)
     assert len(desk.passages) > 100, "the corpus is not the section"
     rules, examples_ = _rules_text(), _examples_text()
-    for p in desk.passages:
+    # S1 ONLY, AND THE NARROWING IS NEW. This desk held one source until
+    # 7 September 2026, when the firm admitted eCFR for § 1.162-3 and two of its
+    # paragraphs were stored. They are verbatim from THEIR section and would
+    # never be found in this one, so a check that reads "every passage" was
+    # really reading "every passage of the only source there was".
+    for p in (q for q in desk.passages if q.source_id == "S1"):
         where, name = ((rules, "the section's rules")
                        if p.kind == record.RULE
                        else (examples_, "the section's worked examples"))
@@ -448,8 +453,14 @@ def test_problems_md_states_the_citation_spread_and_its_baseline():
     # numbers: this desk stores 289, of which 172 are the index it cites
     # from. The sentence claims the latter, so the check asks the code that
     # builds the index rather than counting the record.
-    shown = len(sr.corpus_lines(desk, "index"))
-    assert shown == sum(1 for p in desk.passages if p.kind == record.RULE)
+    # S1's RULES, NOT THE DESK'S. `PROBLEMS.md` is § 1.263(a)-3's own
+    # denominator -- every problem is a worked example FROM THAT SECTION -- so
+    # § 1.162-3's two paragraphs, admitted on 7 September 2026, do not belong in
+    # the figure however much they belong in the desk.
+    shown = sum(1 for p in desk.passages
+                if p.kind == record.RULE and p.source_id == "S1")
+    assert len(sr.corpus_lines(desk, "index")) == sum(
+        1 for p in desk.passages if p.kind == record.RULE)
     assert f"holds **{shown}** paragraphs for **{len(desk.problems)}** problems" in text
 
 

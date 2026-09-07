@@ -437,3 +437,59 @@ for is the question a bookkeeper asks about a specific entry, and none of these
 The vehicle desk gained 12 worked examples today and **not one of the 18
 questions reaches it.** Either the close never raised a vehicle question or the
 routing does not fire on one; this does not say which.
+
+---
+
+## The seventh docket's three answers, and what each caused
+
+Read back from `artifact/1750afce`, answered 15:49 UTC on 7 September 2026. All
+three took the recommendation; none carried a note.
+
+### `dec-admit-publishers` — **Admit eCFR only**
+
+Cornell's LII declined, which is the narrower of the two and the right one: it is
+a faithful copy and not the publisher. **Both** stored paragraphs were therefore
+re-read from eCFR and tied out there before being stored — including
+§ 1.162-3(c)(2), which the searcher first found at Cornell.
+
+`fixed-assets` now declares **S2 · § 1.162-3**, holding exactly the two
+paragraphs the searcher proposed. Admitting a publisher is not importing a
+section, and the rest of § 1.162-3 has not been asked for.
+
+**The subject moved with it, and that is the substance of the change.**
+`materials and supplies` was registered to S1 — to § 1.263(a)-3, which uses the
+phrase only to say what a thing is NOT, its examples citing § 1.162-3(c)(1)(i) by
+name for the definition. Left there, the desk would have declared a source it
+could never serve on the one question it answers: `engine.serve` refuses a
+citation from a source the desk does not use for THIS subject. **That is the
+defect the answering run found twice this afternoon**, and building it in on
+purpose an hour later would have been remarkable.
+
+**And the subject list under-fired on its first real test.** With `materials and
+supplies` and `material or supply` declared, a question worded the way
+§ 1.263(a)-3's own examples word it — *"are not materials or supplies under
+§ 1.162-3(c)(1)(i)"* — served with `checked_subject=False`: allowed out with the
+subject gate never run. `materials or supplies` is declared now. The form the
+regulation writes is the form a preparer will write.
+
+### `dec-register-standing` — **Drop it — the card was the problem**
+
+Nothing further is built. The docket-card fix stands: the recommendation leads,
+and a card cannot offer a pick its own recommendation argues against.
+
+### `dec-merge-305` — **Merge it**
+
+### Four guards fired on the second source, and one of them was hiding
+
+Adding a second source to a desk that had held one since it was built exposed
+three tests that had quietly conflated *the desk* with *§ 1.263(a)-3*: the
+verbatim-marking check, the `PROBLEMS.md` denominator, and the citation index.
+The first two are the section's own arithmetic and are now scoped to S1; the
+index is the desk's and correctly grew to 174.
+
+**The fourth was a test written twice, identically.** Both copies had the same
+name, so the first was shadowed and had never run — surfaced only because adding
+a source made one of them fail. Its assertion was `calls == sorted(set(calls))`,
+which required alphabetical order as well as one-call-per-source; true for free
+with one source, false with two, and never the property the test's own name
+claimed. The duplicate is removed and the survivor asserts what it says.

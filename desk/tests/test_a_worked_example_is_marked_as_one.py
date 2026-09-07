@@ -333,7 +333,11 @@ def test_that_index_still_carries_the_rules():
     desk = record.load(DESKS / "fixed-assets")
     index = sr.citation_index(desk)
     rules = {p.citation for p in desk.passages if p.kind == record.RULE}
-    assert set(index) == rules and len(index) == 172, len(index)
+    # 174 SINCE 7 SEPTEMBER 2026: 172 from § 1.263(a)-3 and the two paragraphs of
+    # § 1.162-3 the firm admitted eCFR for. The index carries every RULE the desk
+    # holds, whichever source it came from — that is what makes the desk able to
+    # answer on the second one at all.
+    assert set(index) == rules and len(index) == 174, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────
