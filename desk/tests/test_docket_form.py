@@ -368,12 +368,25 @@ def test_every_answered_matter_says_what_the_answer_caused(page):
         assert a["caused"] in page, "%s: what it caused is not on the page" % a["key"]
 
 
-def test_the_answered_read_back_survives_a_new_matter_arriving(page):
+def test_the_answered_read_back_survives_a_new_matter_arriving(page, monkeypatch):
     """It used to be rendered only on the empty page, so the record of what the
     firm's answers CAUSED existed exactly while there was nothing beside it to
-    read. A docket carrying three new matters dropped it silently."""
-    assert df.OTHERS, "this docket has nothing open, so it proves nothing here"
-    assert ">What you already answered, and what it did<" in page
+    read, and a docket carrying new matters dropped it silently.
+
+    THE OPEN MATTER IS INJECTED rather than read off today's docket. The first
+    version asserted `df.OTHERS` was non-empty and skipped otherwise -- so it
+    proved the fix on the afternoon it was written and became a no-op three
+    hours later when the firm answered everything."""
+    assert ">What you already answered, and what it did<" in page  # empty page
+
+    monkeypatch.setattr(df, "OTHERS", [{
+        "key": "dec-invented", "group": "g", "tag": "t", "title": "a matter",
+        "position": "p", "context": "c", "either": [], "rec": "r",
+        "rec_pick": "Not yet", "picks": ["Not yet"]}])
+    with_open = df.render()
+    assert ">Waiting on you<" in with_open, "the injected matter did not render"
+    assert ">What you already answered, and what it did<" in with_open, (
+        "the read-back vanished as soon as something was open")
     for a in df.ANSWERED:
-        assert a["said"] in page
-        assert a["caused"] in page
+        assert a["said"] in with_open
+        assert a["caused"] in with_open
