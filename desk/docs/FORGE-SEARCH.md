@@ -165,7 +165,18 @@ the engine's word — it is the model's claim about its own record, and nothing
 checks it. Here the claim was false and the refusal looked exactly like the three
 correct ones. That is a real hole in the seam, recorded rather than patched.
 
-**And two other refusals in that run are a routing defect, not authority.** Q18
-at the cash desk and Q12 at the rewards desk: the desk holds the right authority
-and per-subject narrowing refuses it. Found twice, recorded, deliberately not
-worked around.
+**One other refusal in that run was a routing defect. It is fixed, and the
+second one I kept calling a defect was not.**
+
+**Q12 at the rewards desk was real.** `POS3` — ratified that afternoon — sits on
+§ 1.6050W-1(c)(3), and `peer-to-peer` was registered only to a different source.
+The desk cited the firm's own position, correctly and in their words, and the
+engine refused it. The subject is registered on both sources now and the question
+serves: 7 of 19 became 8.
+
+**Q18 at the cash desk was NOT a defect, and I said it was, twice.** That
+question — *does a hardware-store purchase ever become an asset* — reached the
+cash desk because it happens to contain the word *bank* ("a bank feed has
+none"). The cash desk has no subject registered anywhere near capital-versus-
+expense; the model reached for § 1.446-1 anyway, and the engine stopped it. That
+is the gate doing exactly its job. `fixed-assets` answered the same question.
