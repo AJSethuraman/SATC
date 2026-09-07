@@ -1574,7 +1574,7 @@ def test_a_soft_cap_says_that_time_is_billed_past_it():
 
     assert line["Amount"] == "$200.00", "the per-account charge still stops at four"
     assert "capped at 4" in line["Detail"]
-    assert "150" in line["Detail"], "the rate past the cap has to be on the line"
+    assert _rate() in line["Detail"], "the rate past the cap has to be on the line"
 
 
 def test_a_hard_cap_still_reads_as_a_hard_cap():
@@ -1587,7 +1587,7 @@ def test_a_hard_cap_still_reads_as_a_hard_cap():
          "count_foreign_accounts": 12}, s)
         if i["Service"] == "Foreign account reporting"][0]
     assert "capped at 4" in line["Detail"]
-    assert "150" not in line["Detail"]
+    assert _rate() not in line["Detail"]
 
 
 def test_a_cap_beyond_nobody_recognises_refuses():
@@ -2292,6 +2292,30 @@ def test_a_c_corporation_is_never_asked_how_many_k_1s_it_issues():
 
 # ── hourly work, and the only way it reaches a bill ───────────────────────
 
+def _hourly(hours):
+    """What `hours` costs at the firm's CURRENT hourly rate, computed not typed.
+
+    THE COUPLING THIS REMOVES. Seven tests used to write the answer in --
+    $225.00 for an hour and a half, $37.50 for a quarter, "billed at $150 an
+    hour" -- true only while the rate was $150. The firm moved it to $175 on
+    7 September 2026 and all seven went red, and not one of them was about the
+    rate: they were about rounding to the quarter, about a soft cap saying what
+    happens past it, about an hour reaching an engagement record.
+
+    The rate is the firm's number and it will move again. A test that hard-codes
+    what it produces makes changing it a seven-file edit, and the seventh is the
+    one somebody misses.
+    """
+    from decimal import Decimal
+    rate = Decimal(str(pricing.load()["basis"]["rate"]))
+    return m.money(rate * Decimal(str(hours)))
+
+
+def _rate():
+    """The rate itself, as it is written on a line a client reads."""
+    return f'{pricing.load()["basis"]["rate"]:g}'
+
+
 def test_the_firm_can_bill_an_hour():
     """THE GAP THIS CLOSES. $150 an hour is published on the price page under
     five named situations, `assumed.cleanup` promises clients in writing that
@@ -2300,8 +2324,8 @@ def test_the_firm_can_bill_an_hour():
     schedule and no way for an hour to become a line. Work the firm already
     sold, and had already told clients it would bill, could not be billed."""
     line = pricing.hourly_line("cleanup", 1.5)
-    assert line["Amount"] == "$225.00"
-    assert "1.5 hours at $150.00 an hour" == line["Detail"]
+    assert line["Amount"] == _hourly(1.5)
+    assert f"1.5 hours at {_hourly(1)} an hour" == line["Detail"]
     assert line["Service"] == "Books that need cleaning up or reconciling"
 
 
@@ -2330,8 +2354,8 @@ def test_hours_round_up_to_the_quarter_and_carry_no_engagement_minimum():
     "$200 minimum is no longer a hard and fast rule, it was my prior starting
     point. i will decline engagements i dont think are worth it on my own
     basis." So a twenty-minute notice is a twenty-minute notice."""
-    assert pricing.hourly_line("notice", 0.33)["Amount"] == "$75.00"
-    assert pricing.hourly_line("notice", 0.25)["Amount"] == "$37.50"
+    assert pricing.hourly_line("notice", 0.33)["Amount"] == _hourly(0.5)
+    assert pricing.hourly_line("notice", 0.25)["Amount"] == _hourly(0.25)
     assert pricing.hourly_line("notice", 1.0)["Detail"].startswith("1 hour at"), \
         "'1.0 hours' is the tell that a number came out of a machine"
 
@@ -2359,7 +2383,7 @@ def test_hourly_work_prices_through_the_ordinary_path(answers):
     assert after["EstimateTotal"] != before
     assert after["LineItems"][-1]["Service"] == \
         "Books that need cleaning up or reconciling"
-    assert after["LineItems"][-1]["Amount"] == "$300.00"
+    assert after["LineItems"][-1]["Amount"] == _hourly(2)
     # Hourly work is what turned up, not what was quoted: it reads last.
     assert "hour" not in after["LineItems"][0]["Detail"]
 
@@ -2377,20 +2401,20 @@ def test_the_command_a_person_runs_puts_hourly_work_on_the_engagement(tmp_path, 
     assert cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
                      "--for", "cleanup", "--hours", "1.5"]) == 0
     out = capsys.readouterr().out
-    assert "$225.00" in out, out
+    assert _hourly(1.5) in out, out
 
     saved = json.loads((engagements._dir(tmp_path, ref) / "interview.json")
                        .read_text(encoding="utf-8"))
     assert saved["hourly_work"] == [{"kind": "cleanup", "hours": 1.5, "note": ""}]
     # And it prices through the ordinary path from what was saved.
-    assert "$225.00" in str(pricing.price(saved)["LineItems"])
+    assert _hourly(1.5) in str(pricing.price(saved)["LineItems"])
 
     # THE RECORD IS WHAT GETS BILLED. Saving the answers alone put the hour on
     # the estimate and nowhere else — the invoice reads LineItems and
     # EstimateTotal off the record, so it went on billing the old total while
     # the estimate said something larger. Found by walking a client through.
     record = engagements.load(ref, tmp_path)
-    assert "$225.00" in str(record["LineItems"]), (
+    assert _hourly(1.5) in str(record["LineItems"]), (
         "the hour reached the answers and not the record, so nothing bills it")
     assert record["EstimateTotal"] == pricing.price(saved)["EstimateTotal"]
 
