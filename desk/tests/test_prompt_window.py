@@ -286,6 +286,13 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: whatever it remembers, which the engine then refuses as `authority_absent`
 #: and the scoreboard records as a careful escalation.
 #:
+#: THE FIRM'S DECISION, 7 SEPTEMBER 2026: *"for the time being - this is meant to
+#: work as a claude code thing. we will get a larger gpu later."* So the 8,192
+#: window is NOT the target today and none of these six is a defect to fix. The
+#: roster stays for two reasons: it is the measurement that says what a larger
+#: GPU has to be larger THAN, and the silent-truncation failure returns the day
+#: anything small is pointed at these desks again.
+#:
 #: So the number is published, and it may only move deliberately.
 ANSWERING_BRIEF = {
     "capitalization-and-de-minimis":   (8_286, 19_154),
