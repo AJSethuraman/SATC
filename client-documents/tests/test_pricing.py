@@ -2330,15 +2330,43 @@ def test_the_firm_can_bill_an_hour():
 
 
 def test_the_hourly_situations_are_the_firm_s_published_wording():
-    """A client has already read these sentences on the price page. An estimate
-    describing the same work in different words is the failure `base_covers`
-    and the phrase registry both exist to stop — so the schedule carries the
-    published wording, and a sixth situation invented at the keyboard is
-    refused rather than quietly priced."""
+    """A client has already read FOUR of these sentences on the price page. An
+    estimate describing the same work in different words is the failure
+    `base_covers` and the phrase registry both exist to stop — so the schedule
+    carries the published wording, and a sixth situation invented at the
+    keyboard is refused rather than quietly priced.
+
+    THE DOCSTRING USED TO SAY FIVE, AND IT WAS WRONG. Caught 7 September 2026
+    by the satcllp.com session, which builds the page and knew what is on it.
+    The page's hourly list comes from the `assumed` gates, not from here, and
+    `assumed.notice_response` left the schedule on 26 August on the firm's
+    instruction — "notices and correspondence belong in a different letter
+    engagement". So one of these five is NOT published wording and a client has
+    never read it, while this test asserted that all five were.
+
+    That is the shape the whole suite exists to catch: a claim in one place, the
+    behaviour in another, and nothing comparing them. It survived because the
+    test read the schedule and the page reads something else, so neither could
+    contradict the other. The assertion below now names which is which.
+    """
     situations = pricing.hourly_situations()
     assert situations["notice"] == \
         "A letter from the IRS or the state you would like us to handle"
-    assert len(situations) == 5
+    assert len(situations) == 5, "five things can be billed hourly"
+
+    # WHICH of them a client has actually read, stated rather than assumed. The
+    # page builds from the `assumed` gates; anything here that is not gated
+    # there is an internal route with no published wording behind it.
+    schedule = pricing.load()
+    gated = {k for k, v in schedule.get("assumed", {}).items()
+             if isinstance(v, dict) and v.get("beyond") == "hourly"}
+    unpublished = {k for k, v in schedule["hourly"]["situations"].items()
+                   if isinstance(v, dict) and v.get("on_price_page") is False}
+    assert unpublished == {"notice"}, (
+        "an hourly situation stopped being published and nothing marked it")
+    assert len(gated) == len(situations) - len(unpublished), (
+        f"{len(gated)} gates on the page against "
+        f"{len(situations) - len(unpublished)} situations claiming to be published")
     with pytest.raises(pricing.PricingError) as exc:
         pricing.hourly_line("advice", 1)
     assert "not one of the firm's hourly situations" in str(exc.value)
