@@ -48,3 +48,70 @@ for its source in `SOURCES.md`.
 
 > (c) Exceptions. Paragraph (a) of this section does not apply to any expenditure described in section 274(e)(1), (2), (3), (4), (5), (6), (7), (8), or (9).
 
+---
+
+## 26 CFR 1.274-11(d)(1) Example 1
+
+**Source:** S2 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Taxpayer A invites, B, a business associate, to a baseball game to discuss a
+> proposed business deal. A purchases tickets for A and B to attend the game.
+> The baseball game is entertainment as defined in § 1.274-11(b)(1) and thus,
+> the cost of the game tickets is an entertainment expenditure and is not
+> deductible by A.
+
+---
+
+## 26 CFR 1.274-11(d)(2) Example 2
+
+**Source:** S2 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (d)(1) of this section (Example 1),
+> except that A also buys hot dogs and drinks for A and B from a concession
+> stand. The cost of the hot dogs and drinks, which are purchased separately
+> from the game tickets, is not an entertainment expenditure and is not
+> subject to the disallowance under § 1.274-11(a) and section 274(a)(1).
+> Therefore, A may deduct 50 percent of the expenses associated with the hot
+> dogs and drinks purchased at the game if the expenses meet the requirements
+> of section 162 and § 1.274-12.
+
+---
+
+## 26 CFR 1.274-11(d)(3) Example 3
+
+**Source:** S2 · **Checked:** 2026-09-07 · **Kind:** example
+
+> Taxpayer C invites D, a business associate, to a basketball game. C
+> purchases tickets for C and D to attend the game in a suite, where they have
+> access to food and beverages. The cost of the basketball game tickets, as
+> stated on the invoice, includes the food or beverages. The basketball game
+> is entertainment as defined in § 1.274-11(b)(1), and, thus, the cost of the
+> game tickets is an entertainment expenditure and is not deductible by C. The
+> cost of the food and beverages, which are not purchased separately from the
+> game tickets, is not stated separately on the invoice. Thus, the cost of the
+> food and beverages is an entertainment expenditure that is subject to
+> disallowance under section 274(a)(1) and paragraph (a) of this section, and
+> C may not deduct the cost of the tickets or the food and beverages
+> associated with the basketball game.
+
+---
+
+## 26 CFR 1.274-11(d)(4) Example 4
+
+**Source:** S2 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in paragraph (d)(3) of this section (Example 3),
+> except that the invoice for the basketball game tickets separately states
+> the cost of the food and beverages and reflects the venue's usual selling
+> price if purchased separately. As in paragraph (d)(3) of this section
+> (Example 3), the basketball game is entertainment as defined in §
+> 1.274-11(b)(1), and, thus, the cost of the game tickets, other than the cost
+> of the food and beverages, is an entertainment expenditure and is not
+> deductible by C. However, the cost of the food and beverages, which is
+> stated separately on the invoice for the game tickets and reflects the
+> venue's usual selling price of the food and beverages if purchased
+> separately, is not an entertainment expenditure and is not subject to the
+> disallowance under section 274(a)(1) and paragraph (a) of this section.
+> Therefore, C may deduct 50 percent of the expenses associated with the food
+> and beverages provided at the game if the expenses meet the requirements of
+> section 162 and § 1.274-12.

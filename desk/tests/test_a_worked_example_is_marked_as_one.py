@@ -160,7 +160,7 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     assert per == {"capitalization-and-de-minimis": 31,
                    "cash-and-bank": 19,
                    "fixed-assets": 117,
-                   "meals-and-entertainment": 3,
+                   "meals-and-entertainment": 32,
                    "personal-or-business": 4,
                    "rewards-and-information-returns": 38,
                    "vehicle-expense": 22}, per

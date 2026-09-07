@@ -303,7 +303,7 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #:
 #: So the number is published, and it may only move deliberately. It moved on
 #: 7 September 2026 when the three thin desks gained the worked examples their
-#: own regulations carry: cash 15,142 -> 20,685, meals 11,750 -> 12,591, vehicle
+#: own regulations carry: cash 15,142 -> 20,685, meals 11,750 -> 20,734, vehicle
 #: 22,329 -> 26,382. THE FIRST FIGURE IN EACH PAIR DID NOT MOVE ANYWHERE, and
 #: that is the property worth noticing rather than the growth: it is the brief a
 #: GRADED model sees, examples withheld, and adding 34 examples changed none of
@@ -312,7 +312,7 @@ ANSWERING_BRIEF = {
     "capitalization-and-de-minimis":   (8_548, 19_416),
     "cash-and-bank":                  (15_142, 20_685),
     "fixed-assets":                   (22_231, 75_063),
-    "meals-and-entertainment":        (11_750, 12_591),
+    "meals-and-entertainment":        (11_750, 20_734),
     "personal-or-business":            (3_607, 4_112),
     "rewards-and-information-returns": (9_432, 20_123),
     "vehicle-expense":                (20_889, 26_382),

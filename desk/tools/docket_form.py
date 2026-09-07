@@ -187,23 +187,29 @@ NEXT = {
          "regulations already contain \u2014 cash, vehicle and meals.",
  "ends": "It ends when each of the three holds every example its sections carry, "
          "with the before-and-after scores on the page.",
- "distance": "2 of 3 desks done \u2014 cash and vehicle are complete.",
- "detail": "<b>The 34 that could be extracted are in</b>, and every one of the "
-           "761 stored passages was fetched back from its publisher and compared "
-           "word for word \u2014 0 differences, 0 unreachable. Cash went from no "
-           "worked examples to 19 and vehicle from 10 to 22; both are complete."
-           "<br><br><b>Meals is the one left, and it is short by 29.</b> Three of "
-           "its regulations write an example as an ordinary numbered paragraph "
-           "rather than in a tagged block, so those sections read perfectly and "
-           "the extractor returns nothing from them. It has 3 of the 32 examples "
-           "its own authority carries. That is the rest of this goal.",
+ "distance": "3 of 3 desks done. This goal is met.",
+ "detail": "<b>63 worked examples went in and every one of the 790 stored "
+           "passages was fetched back from its publisher and compared word for "
+           "word \u2014 0 differences, 0 unreachable.</b> Cash had none and has "
+           "19. Vehicle had 10 and has 22. Meals had none and has 32.<br><br>"
+           "Meals needed the reader taught a second way of writing an example "
+           "first: three of its regulations number the example as an ordinary "
+           "paragraph instead of tagging it, and four of those put the facts in "
+           "the paragraphs underneath a bare <i>\u201cExample 1.\u201d</i> "
+           "heading.<br><br><b>The check caught me stitching those four "
+           "together.</b> Joining the pieces with a space stored a run of words "
+           "the government never printed as one, and all four came back as "
+           "differences on their first comparison. They are stored with the gap "
+           "marked now, so a reader can see something was left out and the check "
+           "still finds each piece in order.<br><br><b>Nothing is waiting on "
+           "this. It is done.</b>",
 }
 
 CHANGED = [
  ("8 of 8", "matters you answered last time", "two were instructions to build; both are built"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("34", "worked examples added, all tied out", "and 29 more the reader still cannot see"),
- ("761 of 761", "passages fetched back and compared", "0 differences, 0 unreachable"),
+ ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
+ ("790 of 790", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("585", "desk tests passing", "514 when today\u2019s work started; 47 of the new ones are the searcher\u2019s"),
 ]
 
@@ -237,13 +243,20 @@ LANDED = [
            "\u201c(v)\u201d was a candidate rule on any regulation whose examples "
            "live under (v). Same class as the four examples filed under the wrong rule "
            "on Saturday."),
- ("New", "<b>Two of the three thin desks now hold their regulations\u2019 worked "
+ ("New", "<b>All three thin desks now hold their regulations\u2019 worked "
          "examples.</b> Cash had none and has 19; vehicle had 10 and has 22; meals "
-         "had none and has 3. Every one was fetched back from its publisher and "
-         "matched word for word, along with all 727 that were already there."),
- ("Found", "<b>29 more worked examples exist that the reader cannot see at all</b>, "
-           "every one of them on the meals desk. It is the Next above, and it is "
-           "why meals holds 3 of the 32 its own authority carries."),
+         "had none and has 32. Every one was fetched back from its publisher and "
+         "matched word for word, along with all 727 already there."),
+ ("Fixed", "<b>The reader now knows both ways the government writes an example.</b> "
+           "Most regulations tag it; three of the meals desk\u2019s number it as an "
+           "ordinary paragraph, and four of those put the facts in the paragraphs "
+           "underneath a bare heading. Read only for the tag, the extractor returned "
+           "nothing from sections it was reading perfectly."),
+ ("Caught", "<b>The comparison caught me stitching four examples together.</b> I "
+            "joined the pieces of those four with a space, which stored a run of "
+            "words the government never printed as one \u2014 paragraph numbers sit "
+            "between them. All four came back as differences the first time they "
+            "were checked. Stored with the gap marked, they pass."),
 ]
 
 UNCHECKED = [
@@ -462,12 +475,12 @@ def render() -> str:
       "something can no longer offer it as the first button. Matter 2 is what is "
       "left of that: whether the positions themselves still need a rule, which I "
       "no longer think they do.</p>"
-      "<p><b>Two of the three thin desks now hold every worked example their "
-      "regulations carry.</b> 34 added \u2014 19 to cash, 12 to vehicle, 3 to "
-      "meals \u2014 and all 761 stored passages were fetched back from their "
+      "<p><b>All three thin desks now hold every worked example their own "
+      "regulations carry.</b> 63 added \u2014 19 to cash, 12 to vehicle, 32 to "
+      "meals \u2014 and all 790 stored passages were fetched back from their "
       "publishers and compared word for word: no differences, nothing "
-      "unreachable. All %(rat)s ratified positions stand and no proposal is "
-      "open.</p>"
+      "unreachable. That was the goal above and it is finished. All %(rat)s "
+      "ratified positions stand and no proposal is open.</p>"
     ) % {"nw": _word(c["n"]).capitalize(), "freshw": _word(c["fresh"]),
          "rat": _word(c["ratified"])}
     lede = ("%s are choices no rule settles; no position is waiting \u2014 all %s "
