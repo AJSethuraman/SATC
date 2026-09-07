@@ -102,6 +102,33 @@ def evaluate(expr, b, raw=None):
     return total
 
 
+BY_QUARTER = {c: {iso_of(r): r for r in rs} for c, rs in new.items()}
+
+
+def base_is_adjusted(cert, iso, field, base):
+    """Does this quarter subtract a base that no filing carries?
+
+    Only the second quarter can be affected, and only after a merger in the
+    first: the first quarter's published figure is itself the base, so if the
+    FDIC put something other than the filed year-to-date there, nothing in the
+    documents reaches the second quarter. A merger in any later quarter leaves
+    the next quarter a plain difference of two filed year-to-dates.
+    """
+    if iso[5:7] != "06":
+        return False
+    q1 = iso[:4] + "-03-31"
+    published = (BY_QUARTER.get(cert, {}).get(q1) or {}).get(field)
+    if published is None:
+        return False
+    pb, praw = facts(cert, q1)
+    if pb is None:
+        return False
+    filed = evaluate(base, pb, praw)
+    if filed is None:
+        return False
+    return abs(float(published) - filed / 1000.0) > 0.51
+
+
 rows = []
 for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
     for r in rs:
@@ -134,6 +161,20 @@ for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
                 if iso[5:7] == "03":
                     theirs = None if cur is None else cur / 1000.0
                     rec["how"] = "first quarter: the year-to-date IS the quarter"
+                elif base_is_adjusted(cert, iso, field, base):
+                    # The first quarter's published figure IS the base the
+                    # second subtracts. Where a merger landed in a first
+                    # quarter and the FDIC published something other than the
+                    # filed year-to-date, the second quarter starts from a
+                    # number no document carries. See the same check in
+                    # verify_bank_history.py, where it was found.
+                    rec.update(theirs=None, cited=base,
+                               verdict="NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)",
+                               how=("the year-to-date already reported for this "
+                                    "year is the FDIC's own merger-adjusted "
+                                    "figure, not a line on the previous filing"))
+                    rows.append(rec)
+                    continue
                 else:
                     pb, praw = facts(cert, prev_quarter(iso))
                     pri = evaluate(base, pb, praw) if pb else None

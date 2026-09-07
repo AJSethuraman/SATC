@@ -140,9 +140,9 @@
    "name": "Huntington National Bank",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "HUNTINGTON NATIONAL BANK,THE",
+   "checked_against": "filing-6560-12312025.pdf",
+   "identity_verified": true
   },
   {
    "slot": 15,
@@ -150,9 +150,9 @@
    "name": "First-Citizens Bank & Trust",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "FIRST-CITIZENS BANK & TRUST COMPANY",
+   "checked_against": "filing-11063-12312025.pdf",
+   "identity_verified": true
   },
   {
    "slot": 16,
@@ -160,9 +160,9 @@
    "name": "Citizens Bank NA",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "CITIZENS BANK, NATIONAL ASSOCIATION",
+   "checked_against": "filing-57957-12312025.pdf",
+   "identity_verified": true
   },
   {
    "slot": 17,
@@ -170,9 +170,9 @@
    "name": "Manufacturers and Traders Trust",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "MANUFACTURERS AND TRADERS TRUST COMPANY",
+   "checked_against": "filing-588-12312025.pdf",
+   "identity_verified": true
   },
   {
    "slot": 18,
@@ -180,9 +180,9 @@
    "name": "Regions Bank",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "REGIONS BANK",
+   "checked_against": "filing-12368-12312025.pdf",
+   "identity_verified": true
   },
   {
    "slot": 19,
@@ -190,9 +190,9 @@
    "name": "Zions Bancorporation NA",
    "group": "peer",
    "active": true,
-   "legal_name_on_filing": null,
-   "checked_against": null,
-   "identity_verified": false
+   "legal_name_on_filing": "ZIONS BANCORPORATION, NATIONAL ASSOCIATION",
+   "checked_against": "filing-2270-12312025.pdf",
+   "identity_verified": true
   }
  ]
 }

@@ -23,6 +23,7 @@ sys.path.insert(0, str(CS / "src"))
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import plain as FPLAIN            # noqa: E402
+from credit_suite.sources.fdic import feed_fields as NEW         # noqa: E402
 from credit_suite.sources.fdic import fields as FF               # noqa: E402
 from credit_suite.sources.fred import series_seed as FSEED       # noqa: E402
 
@@ -76,14 +77,40 @@ ours_fred = json.loads((SB / "fred_ours.json").read_text())
 FACSIMILE = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
              "?ds=call&idType=fdiccert&id=%s&date=%s")
 
+def units_of(field):
+    """The field's units, or a refusal. Never a blank.
+
+    `fields.FIELD_UNITS` is built from RAW_FIELDS and knows nothing about the
+    nineteen fields `feed_fields` adds, so `.get(field, "")` handed back an
+    empty string for every one of them and 14,440 numbers shipped with no unit
+    beside them. A lookup that answers "" when it does not know is the shape of
+    that bug; this one stops.
+    """
+    unit = FF.FIELD_UNITS.get(field) or NEW.FEED_FIELD_UNITS.get(field)
+    assert unit, ("no unit declared for %s -- a number with no unit beside it "
+                  "is the trap this feed is written against" % field)
+    return ("thousands of dollars" if unit == "USD_thousands"
+            else "percent" if unit == "pct" else unit)
+
+
 VERDICT_PLAIN = {
     "TIES": "verified against the bank's own filed Call Report",
     "COMPUTED BY THE FDIC": ("not a filed line -- the FDIC calculates this from "
                              "filed lines that are verified here"),
     "NOT COMPARABLE (SPANS A MERGER)":
         "this quarter spans a merger, so this flow mixes two banks",
+    "NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)":
+        "a merger earlier this year moved the running total this quarter "
+        "counts from, so it cannot be checked against the filings",
+    "NOT ON THIS FILING":
+        "the bank did not report this line in this quarter, so there is "
+        "nothing on the filing to check it against",
     "DIFFERS": "DOES NOT MATCH the filing -- do not use without reading the note",
 }
+
+#: Verdicts that mean the figure cannot be compared like the quarter before it.
+NOT_FOR_TREND = {"NOT COMPARABLE (SPANS A MERGER)",
+                 "NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)"}
 
 # --------------------------------------------------------------- bank data --
 with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
@@ -93,17 +120,27 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
                 "verified_meaning", "usable_for_trend", "note",
                 "filing_url"])
     for r in bank_rows:
-        units = FF.FIELD_UNITS.get(r["field"], "")
-        merger = r["verdict"] == "NOT COMPARABLE (SPANS A MERGER)"
+        merger = r["verdict"] in NOT_FOR_TREND
+        note = r.get("how", "")
+        if r["verdict"] == "DIFFERS" and r.get("theirs") is not None:
+            # A difference that does not say what the other number was is a
+            # flag the reader cannot act on. Give them both figures and the
+            # gap, in the row itself.
+            note = ("the filing reads %s and the FDIC publishes %s, a "
+                    "difference of %s. The filing was read twice -- off the "
+                    "printed page and off the machine-readable copy of the "
+                    "same filing -- and both say the same thing. %s"
+                    % (f"{float(r['theirs']):,.0f}", f"{float(r['ours']):,.0f}",
+                       f"{float(r['ours']) - float(r['theirs']):,.0f}",
+                       r.get("how", ""))).strip()
         w.writerow([
             r["cert"], r["bank"], r["repdte"], r["field"], r["ours"],
-            "thousands of dollars" if units == "USD_thousands" else
-            ("percent" if units == "pct" else units),
+            units_of(r["field"]),
             r.get("schedule", ""), r.get("cited", ""),
             "yes" if r["verdict"] == "TIES" else "no",
             VERDICT_PLAIN.get(r["verdict"], r["verdict"]),
             "no" if merger else "yes",
-            r.get("how", ""),
+            note,
             FACSIMILE % (r["cert"], r["repdte"][5:7] + r["repdte"][8:10] + r["repdte"][:4]),
         ])
 print("bank-values.csv        : %d rows%s"
@@ -286,10 +323,8 @@ with (OUT / "field-dictionary.csv").open("w", newline="", encoding="utf-8") as f
         if r["field"] in seen:
             continue
         seen.add(r["field"])
-        units = FF.FIELD_UNITS.get(r["field"], "")
         w.writerow([r["field"], FPLAIN.describe(r["field"]) or "",
-                    "thousands of dollars" if units == "USD_thousands" else
-                    ("percent" if units == "pct" else units),
+                    units_of(r["field"]),
                     "the FDIC" if r["verdict"] == "COMPUTED BY THE FDIC"
                     else "the bank, on its Call Report"])
 print("field-dictionary.csv   : %d fields" % len(seen))

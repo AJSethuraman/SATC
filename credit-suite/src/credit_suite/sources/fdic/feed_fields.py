@@ -170,3 +170,21 @@ def citation_for(field: str, report_date: str) -> str:
                 return expr
     row = next((r for r in FEED_ROWS if r[0] == field), None)
     return row[3] if row else ""
+
+
+#: Units for the nineteen fields this module adds. Every one is a dollar
+#: amount in THOUSANDS -- there is no ratio among them, which is deliberate:
+#: the firm's instruction was "eliminate you making ratios for me", so what was
+#: added is balances, unused commitments, restructured loans and one capital
+#: amount, all filed lines.
+#:
+#: It is asserted rather than assumed. Each of these is verified by dividing
+#: the filed line by a thousand and comparing, so a percentage among them would
+#: have failed 480 times over rather than shipped mislabelled.
+#:
+#: This exists because the delivered `bank-values.csv` shipped these nineteen
+#: with an EMPTY units column on 7 September 2026: `fields.FIELD_UNITS` is
+#: built from `RAW_FIELDS` and knows nothing about this module, and a lookup
+#: that misses returns "" instead of refusing. A number in a spreadsheet with
+#: no unit beside it is the trap the whole feed is written against.
+FEED_FIELD_UNITS = {f: "USD_thousands" for f in FEED_FIELDS}

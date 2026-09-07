@@ -154,27 +154,33 @@ def test_config_parse():
     assert cfg.thresholds["TEXAS"].watch < cfg.thresholds["TEXAS"].alert  # above-dir
     assert cfg.thresholds["RBC1AAJ"].direction == "below"
     assert cfg.thresholds["LNRESNCR"].direction == "below"
-    # [PEERS]: 40 provisioned slots, 12 seeded banks, certs normalized
+    # [PEERS]: 40 provisioned slots, the seeded banks, certs normalized.
+    # The COUNT comes from the seed, not from a literal. It read 12 until
+    # 7 September 2026, when the firm added seven banks and eleven tests went
+    # red -- while the claim on record was that swapping the peer group is a
+    # one-step change. A test that pins a config value is a test that has to be
+    # edited every time the config is, which is the opposite of what it is for.
+    n_peers = len(SEED.PEERS)
     assert cfg.entity_slots == 40 and len(cfg.entities) == 40
     banked = [p for p in cfg.entities if p.has_entity]
-    assert len(banked) == 12
+    assert len(banked) == n_peers
     assert [p.slot for p in cfg.entities] == list(range(1, 41))
     jpm = next(p for p in banked if p.slot == 1)
     assert jpm.key == "628" and jpm.entity_key == "cert:628"
     assert jpm.active is True and jpm.group == "peer"
     assert next(p for p in banked if p.slot == 9).group == "self"
-    for p in cfg.entities[12:]:
+    for p in cfg.entities[n_peers:]:
         assert not p.has_entity and not p.active        # provisioned headroom
     # settings the runner depends on
     assert cfg.raw_slots == 16
     assert cfg.stale_multiplier == pytest.approx(2.0)
     # expansion peers x metrics -> the s{slot:02d}_{ID} unit ids
     admitted, refusals, excluded = R.evaluate_peers(cfg)
-    assert len(admitted) == 12 and not refusals and not excluded
+    assert len(admitted) == n_peers and not refusals and not excluded
     fspec = R.make_field_spec(jpm, "NCLNLSR")
     assert fspec.id == "s01_NCLNLSR" and fspec.geo_segment == "cert:628"
     unit_ids = {f"s{p.slot:02d}_{s.id}" for p in admitted for s in cfg.series}
-    assert len(unit_ids) == 12 * N_METRICS
+    assert len(unit_ids) == n_peers * N_METRICS
     assert {"s01_TEXAS", "s12_CRECONR", "s05_RBCRWAJ",
             "s03_NTCRCDQ_BOOK", "s07_UNRLZCAPR"} <= unit_ids
     # capacity is validated, never truncated: a 41st bank refuses with the
@@ -504,19 +510,21 @@ def test_reload_headless(populated):
 def test_watchlist_entity_gates():
     cfg = R.parse_config(BW.config_rows())
 
-    # POSITIVE: all 12 seeded CERT-keyed banks are admitted; nothing refused
+    # POSITIVE: every seeded CERT-keyed bank is admitted; nothing refused
+    n_peers = len(SEED.PEERS)
+    free = n_peers + 1                             # the first empty slot
     admitted, refusals, excluded = R.evaluate_peers(cfg)
-    assert len(admitted) == 12 and refusals == [] and excluded == []
+    assert len(admitted) == n_peers and refusals == [] and excluded == []
     assert all(re.match(R.ENTITY_KEY_PATTERN, p.entity_key) for p in admitted)
 
     # blank cert: refused BY NAME with the --lookup hint (never fetched)
-    blank = _peer(slot=13, cert="", name="Mystery Trust Co")
-    cfg.entities[12] = blank
+    blank = _peer(slot=free, cert="", name="Mystery Trust Co")
+    cfg.entities[free - 1] = blank
     admitted2, refusals2, _ = R.evaluate_peers(cfg)
-    assert len(admitted2) == 12                    # the good rows still pass
+    assert len(admitted2) == n_peers               # the good rows still pass
     assert len(refusals2) == 1
     msg = refusals2[0][1]
-    assert 'peer slot 13 "Mystery Trust Co"' in msg
+    assert 'peer slot %d "Mystery Trust Co"' % free in msg
     assert 'cert=""' in msg
     assert "Only CERT-keyed FDIC institutions" in msg
     assert '--lookup "Mystery Trust Co"' in msg
@@ -527,7 +535,7 @@ def test_watchlist_entity_gates():
     idx = next(i for i, p in enumerate(cfg3.entities) if p.slot == 2)
     cfg3.entities[idx] = replace(cfg3.entities[idx], active=False)
     admitted3, refusals3, excluded3 = R.evaluate_peers(cfg3)
-    assert len(admitted3) == 11 and refusals3 == []
+    assert len(admitted3) == n_peers - 1 and refusals3 == []
     assert [p.slot for p in excluded3] == [2]
 
     # defense in depth: a fabricated non-"A" class metric row refuses the
@@ -543,11 +551,13 @@ def test_watchlist_entity_gates():
 
     # malformed entity keys are refused default-deny
     for cert in ("12345678", "abc", "12-34", "62 8", "cert:628"):
-        reasons = R.gate_peer_row(_peer(slot=14, cert=cert, name="Bad Key"))
+        reasons = R.gate_peer_row(_peer(slot=free + 1, cert=cert,
+                                        name="Bad Key"))
         assert reasons and "Gate3" in reasons[0], cert
     # and the build-time hard gate backs the runtime gate
     cfg5 = R.parse_config(BW.config_rows())
-    cfg5.entities[13] = _peer(slot=14, cert="not-a-cert", name="Aggregate Row")
+    cfg5.entities[free] = _peer(slot=free + 1, cert="not-a-cert",
+                                name="Aggregate Row")
     with pytest.raises(R.WatchlistRefused, match="Aggregate Row"):
         R.assert_entity_gates(cfg5)
 
@@ -627,32 +637,37 @@ def test_stale_bank_flag(xlsm, tmp_path):
 # --------------------------------------------------------------------------
 def test_peer_flexibility(populated, tmp_path):
     p = str(tmp_path / "flex.xlsm")
+    # The free slot is wherever the seed stops, not slot 13. It WAS 13,
+    # and the firm's seven extra banks in September 2026 turned "the
+    # first empty slot" into an occupied one -- so the test read a
+    # populated cell and reported the flexibility gone.
+    free = len(SEED.PEERS) + 1
     shutil.copy(populated, p)                     # BUILT + populated workbook
     # capture the pre-edit dashboard formulas: the edit must move DATA, not
     # formulas (anchors depend only on the slot)
     wb = openpyxl.load_workbook(p, keep_vba=True)
-    pre_formula = wb["Dashboard_AssetQuality"].cell(BW.dash_row(13), 4).value
-    b13 = R.slot_block(13, 16)
+    pre_formula = wb["Dashboard_AssetQuality"].cell(BW.dash_row(free), 4).value
+    b13 = R.slot_block(free, 16)
     b2 = R.slot_block(2, 16)
     assert wb["Raw_FDIC"].cell(b13.first_data_row, 2).value is None  # empty slot
     assert wb["Raw_FDIC"].cell(b2.first_data_row, 2).value is not None
     wb.close()
 
     # the user edit: swap a NEW bank into free slot 13, deactivate slot 2
-    _edit_peer_row(p, 13, cert=12345, name="Swapped In Bank", group="peer",
+    _edit_peer_row(p, free, cert=12345, name="Swapped In Bank", group="peer",
                    active="TRUE")
     _edit_peer_row(p, 2, active="FALSE")
     status = R.run(p, demo=True, asof=ASOF)       # re-run -- NO rebuild
 
-    assert status["banks_landed"] == 12           # 12 seed - 1 off + 1 new
+    assert status["banks_landed"] == len(SEED.PEERS)  # seed - 1 off + 1 new
     assert status["banks_excluded"] == 1
     slots = {b["slot"] for b in status["digest"]["banks"]}
-    assert 13 in slots and 2 not in slots
+    assert free in slots and 2 not in slots
 
     wb = openpyxl.load_workbook(p, keep_vba=True)
     raw = wb["Raw_FDIC"]
-    # slot 13's raw block now carries the new unit id + data
-    assert raw.cell(b13.header_row, 2).value == "s13 cert:12345"
+    # the free slot's raw block now carries the new unit id + data
+    assert raw.cell(b13.header_row, 2).value == "s%02d cert:12345" % free
     assert raw.cell(b13.header_row, 3).value == "Swapped In Bank"
     assert raw.cell(b13.first_data_row, 2).value is not None
     assert raw.cell(b13.first_data_row, 1).value == "2026-03-31"
@@ -661,7 +676,7 @@ def test_peer_flexibility(populated, tmp_path):
     for c in range(1, 2 + len(R.RAW_FIELDS)):
         assert raw.cell(b2.first_data_row, c).value is None
     # anchors/formulas untouched: same formula text as before the edit
-    assert wb["Dashboard_AssetQuality"].cell(BW.dash_row(13), 4).value \
+    assert wb["Dashboard_AssetQuality"].cell(BW.dash_row(free), 4).value \
         == pre_formula
     wb.close()
 

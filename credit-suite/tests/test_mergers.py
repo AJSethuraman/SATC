@@ -293,3 +293,35 @@ def test_the_window_starts_at_the_first_day_of_the_oldest_charted_quarter(day, s
     September 2022, which this monitor charts. The first live run asked from
     the oldest REPDTE (2022-09-01) and missed it by two months."""
     assert mergers.quarter_start(day) == start
+
+
+def test_a_bridge_bank_resolution_is_an_acquisition():
+    """First-Citizens absorbed Silicon Valley Bridge Bank on 26 March 2023 --
+    the largest acquisition in the peer set. The FDIC files it as change code
+    216, "Bridge Bank Resolution", which the allowlist did not carry, so the
+    first run over nineteen banks reported it as an unrecognised row rather
+    than as a merger. A denylist would have swallowed it silently and the
+    quarter would have been compared as an ordinary one."""
+    found, unclassified = mergers.classify([{
+        "CHANGECODE": 216, "CHANGECODE_DESC": "Bridge Bank Resolution",
+        "ACQ_CERT": 11063, "OUT_CERT": 59334,
+        "OUT_NAME": "Silicon Valley Bridge Bank, N.A.",
+        "EFFDATE": "2023-03-26T00:00:00", "PROCDATE": "2023-03-28T00:00:00",
+    }])
+    assert unclassified == []
+    assert len(found) == 1
+    assert found[0].cert == "11063"
+    assert found[0].quarter == "2023-03-31"
+    assert "bought the whole of it" in found[0].meaning
+
+
+def test_an_unknown_change_code_is_still_refused():
+    """216 was added because the allowlist reported it, not because the
+    allowlist was loosened. A code nobody has classified must still come back
+    as unclassified rather than be treated as either answer."""
+    found, unclassified = mergers.classify([{
+        "CHANGECODE": 299, "CHANGECODE_DESC": "Something nobody has seen",
+        "ACQ_CERT": 11063, "OUT_CERT": 59334, "EFFDATE": "2023-03-26T00:00:00",
+    }])
+    assert found == []
+    assert len(unclassified) == 1

@@ -50,6 +50,13 @@ HISTORY_URL = "https://banks.data.fdic.gov/api/history"
 #: across the twelve-bank peer set (870 history rows).
 ACQUISITIONS: Dict[int, str] = {
     211: "Failure - Whole Institution",
+    # Added 7 September 2026. The allowlist refused to guess at 216 and
+    # reported it unclassified -- on First-Citizens absorbing Silicon Valley
+    # Bridge Bank, 26 March 2023, which is the largest acquisition anywhere in
+    # this peer set. A denylist would have swallowed it. Same shape as 217: the
+    # FDIC stands a failed bank up as a bridge, and a buyer takes the whole
+    # thing on, so the survivor's next filing covers a bank that was not there.
+    216: "Bridge Bank Resolution",
     217: "Passthrough Receivorship/Conservatorship Resolution",
     221: "Absorbtion - Without Assistance",
     222: "Consolidated - Without Assistance",
@@ -73,6 +80,8 @@ NOT_AN_ACQUISITION: Dict[int, str] = {
 #: making things have plain definitions in addition to the code."
 MEANING: Dict[int, str] = {
     211: "the FDIC closed a failing bank and this bank took it on",
+    216: "a failed bank was run on as a bridge bank by the FDIC, and this "
+         "bank bought the whole of it",
     217: "a failed bank was resolved through a bridge arrangement and this "
          "bank took it on",
     221: "this bank absorbed another, with no regulator assistance",

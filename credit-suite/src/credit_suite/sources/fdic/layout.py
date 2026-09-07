@@ -236,7 +236,7 @@ def metric_home(metric_id, peer_slots=R.PEER_SLOTS_DEFAULT):
 # ==========================================================================
 # _config  (the knob panel: SETTINGS / THRESHOLDS / PEERS / SERIES)
 # ==========================================================================
-def config_rows(peer_slots=R.PEER_SLOTS_DEFAULT):
+def config_rows(peer_slots=R.PEER_SLOTS_DEFAULT, peers=None):
     rows = [["Bank Counterparty & Peer Monitor (FDIC BankFind) -- CONFIG "
              "(the knob panel). Edit values here; no code change needed."], []]
     rows.append(["[SETTINGS]"])
@@ -276,7 +276,7 @@ def config_rows(peer_slots=R.PEER_SLOTS_DEFAULT):
         # number>=text comparison is silently FALSE).
         rows.append([tid, watch, alert, direction, authority])
     rows += [[], ["[PEERS]"], list(SEED.PEER_HEADER)]
-    for prow in SEED.peer_rows(peer_slots):
+    for prow in SEED.peer_rows(peer_slots, peers=peers):
         rows.append(prow)
     rows += [["# One bank per row: slot | cert | name | group | active. Add "
               "a bank = fill a free slot row + re-run the runner (no "
@@ -304,10 +304,14 @@ def config_rows(peer_slots=R.PEER_SLOTS_DEFAULT):
     return rows
 
 
-def write_config(wb, peer_slots):
+def write_config(wb, peer_slots, peers=None):
     ws = wb.create_sheet("_config")
     hide_gridlines(ws)
-    rows = config_rows(peer_slots)
+    # The SAME rows the caller parsed and gated, not a second call that could
+    # answer differently. `build` computed them, checked them, and then this
+    # function rebuilt them from the seed -- so a roster passed to `build` was
+    # honoured by every gate and by nothing that reached the workbook.
+    rows = config_rows(peer_slots, peers=peers)
     thr_cells = {}                 # id -> (watch_ref, alert_ref, direction)
     set_cells = {}                 # settings key -> value-cell ref
     peer_cells = {}                # slot -> dict(cert/name/group/active refs)
@@ -1134,8 +1138,8 @@ def write_readme(wb):
 # Orchestration
 # ==========================================================================
 def build(out_path, peer_slots=R.PEER_SLOTS_DEFAULT, code_py=None,
-          code_vba=None):
-    rows = config_rows(peer_slots)
+          code_vba=None, peers=None):
+    rows = config_rows(peer_slots, peers=peers)
     cfg = R.parse_config(rows)
     # BUILD-TIME hard gates (BUILD SPEC 0.1/sec 3): bad metric rows, bad seed
     # peers, or an over-capacity seed refuse the BUILD itself.
@@ -1151,7 +1155,7 @@ def build(out_path, peer_slots=R.PEER_SLOTS_DEFAULT, code_py=None,
     write_raw_scaffold(wb, peer_slots, raw_slots)
     # _config must be written before dashboards so threshold and [PEERS]
     # cell refs resolve.
-    thr_cells, _set_cells, peer_cells = write_config(wb, peer_slots)
+    thr_cells, _set_cells, peer_cells = write_config(wb, peer_slots, peers=peers)
 
     for tab, title, subtitle, metric_ids in LANES:
         write_dashboard(wb, tab, title, subtitle, metric_ids, peer_slots,

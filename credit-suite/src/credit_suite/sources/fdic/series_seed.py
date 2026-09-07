@@ -416,12 +416,19 @@ PEERS = [
 PEER_HEADER = ["slot", "cert", "name", "group", "active"]
 
 
-def peer_rows(peer_slots):
+def peer_rows(peer_slots, peers=None):
     """The [PEERS] table at BUILT capacity: seed banks fill the low slots,
     the remaining rows are EMPTY placeholders (slot number only) the user
     fills by hand -- add a bank = type cert/name/group/active on a free slot
-    row and re-run; no rebuild within capacity."""
-    filled = {p[0]: p for p in PEERS}
+    row and re-run; no rebuild within capacity.
+
+    ``peers`` overrides the seeded roster. It exists for the parity baseline,
+    which pins what the ENGINE does and must not move when the firm changes
+    which banks it watches. Adding seven banks on 7 September 2026 broke eleven
+    tests that had the roster baked into them -- while the claim on record was
+    that swapping the peer group is a one-step change.
+    """
+    filled = {p[0]: p for p in (PEERS if peers is None else peers)}
     rows = []
     for slot in range(1, peer_slots + 1):
         if slot in filled:

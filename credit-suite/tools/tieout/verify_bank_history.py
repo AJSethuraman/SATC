@@ -130,6 +130,45 @@ def evaluate(expr, facts, lenient=False):
     return total
 
 
+def base_is_adjusted(landed, iso, field, expr, pfacts):
+    """Is the base this quarter subtracts a figure no filing carries?
+
+    A quarterly flow is this filing's year-to-date less the base already
+    reported for the year, and normally that base is the previous filing's
+    year-to-date. There is exactly one way it stops being that.
+
+    **The first quarter's published figure IS the base the second subtracts** --
+    there is no earlier quarter for it to be a difference of. So when a merger
+    lands in a first quarter and the FDIC publishes something other than the
+    filed year-to-date, every later subtraction that year starts from a number
+    no document carries, and the second quarter cannot be formed from the
+    filings at all.
+
+    A merger in any LATER quarter does not do this. The FDIC adjusts that one
+    quarter's figure and the next quarter goes back to being a plain difference
+    of two filed year-to-dates -- which is why a first version of this check,
+    written as "the FDIC's quarters no longer sum to the year-to-date", took
+    twenty-one rows that tie perfectly against the filings and called them
+    uncomparable. Suppressing a row that ties is the same error as plugging one
+    that does not, pointed the other way.
+
+    Found on Huntington, second quarter of 2026, five fields: their first
+    quarter was the filed year-to-date less 88, and their second was the
+    year-to-date less THAT. Their own number is read here only to ask whether
+    the comparison is WELL FORMED; it never stands in for the source.
+    """
+    if pfacts is None or iso[5:7] != "06":
+        return False
+    q1 = iso[:4] + "-03-31"
+    published = (landed.get(q1) or {}).get(field)
+    if published is None:
+        return False
+    filed = evaluate(expr, pfacts)          # pfacts IS the first quarter here
+    if filed is None:
+        return False
+    return abs(float(published) - filed / 1000.0) > 0.51
+
+
 book = openpyxl.load_workbook(WB, data_only=False)
 cfg = parse_config([list(r) for r in book["_config"].iter_rows(values_only=True)], FDIC)
 # The SEED is the source of truth. Reading the workbook's own tab means
@@ -154,11 +193,18 @@ if DEEP:
 rows = []
 for entry in index:
     cert, name = entry["cert"], entry["name"]
-    ent = next(e for e in cfg.entities if getattr(e, "has_entity", False)
-               and str(e.entity_key).split(":")[-1] == cert)
-    landed = (DEEP_VALUES.get(cert, {}) if DEEP else
-              dict(backend.read_slot_block(R.slot_block(ent.slot, cfg.raw_slots),
-                                           FF.RAW_FIELDS)))
+    # In deep mode the ours side is the delivered CSV, so the workbook plays no
+    # part and its slot must not be looked up. The dashboard workbook carries
+    # the twelve it was built for; resolving a slot for a nineteenth bank threw
+    # StopIteration after twelve banks had already been checked -- and the run
+    # still exited 0 through a pipe, which is how a crash reads as a result.
+    if DEEP:
+        landed = DEEP_VALUES.get(cert, {})
+    else:
+        ent = next(e for e in cfg.entities if getattr(e, "has_entity", False)
+                   and str(e.entity_key).split(":")[-1] == cert)
+        landed = dict(backend.read_slot_block(
+            R.slot_block(ent.slot, cfg.raw_slots), FF.RAW_FIELDS))
     for iso in quarters:
         vals = landed.get(iso)
         if not vals:
@@ -217,6 +263,29 @@ for entry in index:
                 elif pfacts is None:
                     theirs = None
                     rec["how"] = "no prior filing, so the quarter cannot be formed"
+                elif base_is_adjusted(landed, iso, field, fe, pfacts):
+                    # A quarterly flow is this filing's year-to-date less the
+                    # base already reported for the year. Normally that base IS
+                    # the previous filing's year-to-date. After a merger
+                    # quarter the FDIC publishes a figure of its own that the
+                    # filings do not add up to, and from then on its base is
+                    # that figure -- so the subtraction cannot be done from the
+                    # documents at all.
+                    #
+                    # Found on Huntington, Q2 2026, five fields: the FDIC's Q1
+                    # was the filed year-to-date less 88, and their Q2 was the
+                    # Q2 year-to-date less THAT. Reproducing it needs their own
+                    # Q1 number on the source side, which is the mirror. So it
+                    # is reported as not comparable, which is what it is.
+                    rec.update(theirs=None, cited=fe,
+                               verdict="NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)",
+                               how=("the year-to-date already reported for this "
+                                    "year is the FDIC's own merger-adjusted "
+                                    "figure, not a line on the previous filing, "
+                                    "so this quarter cannot be formed by "
+                                    "subtraction from the documents"))
+                    rows.append(rec)
+                    continue
                 else:
                     pri = evaluate(fe, pfacts)
                     add, absent = 0.0, []

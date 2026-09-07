@@ -65,7 +65,22 @@ only_year = next((a for a in args if len(a) == 4 and a.isdigit()), None)
 index = {e["cert"]: e["name"] for e in
          json.loads((SB / "banks" / "index.json").read_text())}
 rows = json.loads((SB / "bank_deep_rows.json").read_text())
+# Every shard, not just the first file written. `deep_bank_strips.py` names
+# its output after the certs it was asked for, so photographing seven banks
+# separately produced `deep_strips-6672-....json` -- which this read nothing
+# from. A bank whose pages were photographed and then never looked at is
+# indistinguishable in the exhibit from one nobody photographed, so the
+# denominator is asserted below rather than left to be noticed.
 strips = json.loads((SB / "deep_strips.json").read_text())
+for _shard in sorted(SB.glob("deep_strips-*.json")):
+    for _cert, _quarters in json.loads(_shard.read_text()).items():
+        strips.setdefault(_cert, {}).update(_quarters)
+_unphotographed = sorted(set(index) - set(strips))
+assert not _unphotographed, (
+    "no strips for cert(s) %s -- run tools/tieout/deep_bank_strips.py for them"
+    % ", ".join(_unphotographed))
+print("strips loaded : %d banks, %d bank-quarters"
+      % (len(strips), sum(len(v) for v in strips.values())))
 FACSIMILE = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
              "?ds=call&idType=fdiccert&id=%s&date=%s")
 
