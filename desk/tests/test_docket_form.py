@@ -366,3 +366,14 @@ def test_every_answered_matter_says_what_the_answer_caused(page):
             assert a[field].strip(), "%s has an empty %s" % (a["key"], field)
         assert a["said"] in page, "%s: the answer is not on the page" % a["key"]
         assert a["caused"] in page, "%s: what it caused is not on the page" % a["key"]
+
+
+def test_the_answered_read_back_survives_a_new_matter_arriving(page):
+    """It used to be rendered only on the empty page, so the record of what the
+    firm's answers CAUSED existed exactly while there was nothing beside it to
+    read. A docket carrying three new matters dropped it silently."""
+    assert df.OTHERS, "this docket has nothing open, so it proves nothing here"
+    assert ">What you already answered, and what it did<" in page
+    for a in df.ANSWERED:
+        assert a["said"] in page
+        assert a["caused"] in page

@@ -122,10 +122,126 @@ ANSWERED = [
             "to any session."},
 ]
 
-#: NOTHING IS OPEN. Emptied rather than rewritten: the four that were here are in
-#: `ANSWERED` above. A key may not be in both -- `items()` refuses to build a page
-#: that would ask a question it is simultaneously reporting as answered.
-OTHERS = []
+#: THREE MATTERS, all of which arrived AFTER the page said nothing needed
+#: deciding -- which is the normal life of a docket rather than a fault. Each one
+#: blocks something concrete: the Forge cannot be set up, a desk cannot answer a
+#: question it now has the words for, and a hole found in the seam cannot be
+#: closed without the firm saying so.
+OTHERS = [
+ {"key": "dec-merge-316", "new": True, "group": "Housekeeping",
+  "tag": "Blocks the Forge \u2014 nothing else is waiting on it",
+  "title": "Merge #316? The Forge cannot be set up until it lands",
+  "position": "Merge <a href=\'https://github.com/AJSethuraman/SATC/pull/316\'>#316</a>.",
+  "context": "<b>You asked how to set the Forge up to run down questions. The "
+             "answer is two commands, and today they install the wrong "
+             "thing.</b> The marketplace installs from <code>main</code>, so "
+             "<code>claude plugin update desk@satc</code> lands 0.4.0 \u2014 which "
+             "has the searcher and the desks, but not the skill that tells a "
+             "session how to drive it, and not the engagement file.<br><br>"
+             "<b>I installed it to check rather than telling you to.</b> It "
+             "works: <code>ask.consult</code> from the installed copy routed a "
+             "real question to the cash desk and handed back a 66,000-character "
+             "brief. That is the first time anyone has confirmed the plugin "
+             "functions when installed rather than run out of the "
+             "repository.<br><br>Six commits: the field a desk may ask for, a "
+             "docket that stops re-asking answered questions, the engagement "
+             "file, the plugin bumped to 0.5.0, the searcher\u2019s skill and "
+             "Forge prompt, and three defects the Forge run itself found. "
+             "Nothing touches a client file or anything a client reads.",
+  "either": [("Merge it",
+              "The two install commands start working and the Forge can be set "
+              "up. 629 desk tests, all nine checks green, no conflict with "
+              "<code>main</code>."),
+             ("Hold it",
+              "It sits on the branch. Everything in it stays unreachable from an "
+              "installed plugin, so the Forge run cannot be set up the way the "
+              "prompt describes.")],
+  "rec": "Merge it. It is the only thing standing between you and a working "
+         "install, and I have run every piece of it \u2014 including installing "
+         "the plugin and driving a real search through the live publisher.",
+  "rec_pick": "Merge it",
+  "picks": ["Merge it", "Hold it", "Not yet"]},
+
+ {"key": "dec-263a2", "new": True, "group": "The searching agent",
+  "tag": "A search run, tied out, waiting on one word from you",
+  "title": "The desk found the rule for tool-or-asset. Does it get to keep it?",
+  "position": "Declare \u00a7 1.263(a)-2 as a source on fixed-assets, read from "
+              "eCFR \u2014 which that desk already reads.",
+  "context": "<b>This is one more section from a publisher you have already "
+             "accepted on this desk, not a new publisher.</b> fixed-assets reads "
+             "eCFR for \u00a7 1.263(a)-3 and \u00a7 1.162-3 already.<br><br>"
+             "<b>The gap was real and precise.</b> The desk holds "
+             "\u00a7 1.263(a)-3, which decides whether money spent on property "
+             "you ALREADY OWN is an improvement. Nothing in it decides a "
+             "purchase \u2014 so <i>where is the line between a tool and a fixed "
+             "asset</i> had nowhere to go.<br><br><b>\u00a7 1.263(a)-2(d)(1) is "
+             "the answer, and it points at two things the desk already "
+             "holds:</b> <i>\u201ca taxpayer must capitalize amounts paid to "
+             "acquire or produce a unit of real or personal property\u2026 except "
+             "as provided in \u00a7 1.162-3 (materials and supplies) and "
+             "\u00a7 1.263(a)-1(f) (de minimis safe harbor)\u201d</i>. Both "
+             "escapes are in the desk\u2019s record.<br><br><b>Checked, not "
+             "taken on trust.</b> Both passages were fetched back from eCFR\u2019s "
+             "own versioner file and matched word for word, once each. The "
+             "report is <code>runs/asked-2026-09-07/SEARCH-Q16.md</code>. Nothing "
+             "was written into the desk.",
+  "either": [("Declare it",
+              "The fixed-assets desk can answer the tool-or-asset question "
+              "instead of handing it back, and \u00a7 1.263(a)-2(c)(1) comes with "
+              "it \u2014 the paragraph saying this section does not override "
+              "anything the Code settles elsewhere."),
+             ("Leave the gap open",
+              "The desk keeps refusing, which is honest. The cost is that this "
+              "comes back every time somebody asks whether a purchase is an "
+              "expense or an asset, and it is one of the close\u2019s own "
+              "questions.")],
+  "rec": "Declare it. You have already accepted this publisher on this desk, the "
+         "words tied out, and the paragraph names as its own exceptions the two "
+         "rules the desk already holds \u2014 so it completes something rather "
+         "than adding something.",
+  "rec_pick": "Declare it",
+  "picks": ["Declare it", "Leave the gap open", "Not yet"]},
+
+ {"key": "dec-check-absent", "new": True, "group": "When a refusal is not true",
+  "tag": "A hole in the seam, found by measuring rather than by a test failing",
+  "title": "A desk said it held nothing. It held ten passages. Should the engine check?",
+  "position": "Build the check: an <b>authority_absent</b> escalation reports how "
+              "much authority the desk actually showed the model.",
+  "context": "<b>The meals desk refused a question saying \u201c\u00a7 1.274-11\u2019s "
+             "own text is not in this desk\u2019s record\u201d. It is.</b> Ten "
+             "passages, including the general disallowance at (a), the definition "
+             "of entertainment at (b)(1)(i) and the objective test at (b)(1)(iii) "
+             "\u2014 all of it in the brief in front of it.<br><br><b>Nothing "
+             "caught it, and nothing could.</b> <code>authority_absent</code> is "
+             "the model\u2019s claim about its own record, and the engine takes "
+             "it at its word. A false one is indistinguishable from a correct one "
+             "\u2014 the other three refusals in that run were right, and this "
+             "looked exactly the same.<br><br><b>Why it is a decision and not a "
+             "build.</b> The honest version is a measurement, not a verdict: the "
+             "engine can report that a desk showed the model 80 passages and it "
+             "said there were none, and it cannot decide whether any of those 80 "
+             "were on point. That is a judgement and it stays yours. A version "
+             "that REFUSED the escalation would be the engine overruling a model "
+             "on the merits, which is the wrong side of the line this whole "
+             "design draws.<br><br>It is also machinery, and the goal you are "
+             "letting me run says building more machinery mid-pilot is refused. "
+             "So it comes to you rather than getting built.",
+  "either": [("Build the check",
+              "Every <code>authority_absent</code> refusal arrives carrying how "
+              "much the desk showed. A claim like the meals desk\u2019s stands out "
+              "instead of reading like the correct ones. It does not overrule "
+              "anything \u2014 it reports."),
+             ("Leave it",
+              "The refusal queue keeps entries that may be wrong, and there is no "
+              "way to tell which. It cost one answer today that I found by hand; "
+              "nobody would find the next one.")],
+  "rec": "Build the check. It is the cheapest kind \u2014 a fact the engine "
+         "already has, printed \u2014 and it caught a wrong refusal the first "
+         "time anyone looked. But it is your call, because it is machinery and "
+         "the pilot goal refuses machinery.",
+  "rec_pick": "Build the check",
+  "picks": ["Build the check", "Leave it", "Not yet"]},
+]
 
 #: BEHAVIOUR 19, ADDED TO CANON THIS MORNING AS 1.13.0: name the goal, report the
 #: distance, then stop. Its incident is this session -- *"i feel like sometimes the
@@ -148,7 +264,7 @@ NEXT = {
  "ends": "It ends with one engagement\u2019s close questions put to the desks and "
          "a written record of three things: every answer served, every refusal "
          "with what it asked for, and the questions the desks never saw.",
- "distance": "0 of 1 close. Blocked on an engagement \u2014 see below.",
+ "distance": "0 of 1 close. Still blocked on an engagement \u2014 and on nothing else.",
  "detail": "<b>What it refuses, because a goal that refuses nothing is not a "
            "goal.</b> It refuses building more desk machinery: if a desk lacks "
            "authority mid-pilot, that is a finding to write down, not a thing to "
@@ -170,8 +286,14 @@ NEXT = {
            "affairs in a checkout that gets pushed is one <code>git add</code> from "
            "being published. Handed a file recording those three facts, <b>all five "
            "of those refusals are served</b>: 7 became 12 of 19. The stand-in file "
-           "that proved it is labelled as one and is not a client. What is left is "
-           "the client.",
+           "that proved it is labelled as one and is not a client.<br><br><b>Since "
+           "then the install path has been walked and the search path has been "
+           "run.</b> The plugin installs and works \u2014 checked by installing "
+           "it, not by reading it \u2014 and one real gap was searched end to "
+           "end against the live publisher, which found three defects in my own "
+           "instructions before it found the rule. Both are the three matters "
+           "below.<br><br><b>What is left is the client.</b> Every step that "
+           "does not need one is taken.",
 }
 
 CHANGED = [
@@ -179,7 +301,7 @@ CHANGED = [
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("792 of 792", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("629", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("630", "desk tests passing", "514 when today\u2019s work started; canon 181"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 
@@ -439,7 +561,7 @@ def render() -> str:
                    % (_word(c["dec"]).capitalize(), _word(c["ratified"]))))
     preface = _preface(c)
     return _PAGE % (title, _CSS, DATE, headline, lede, preface, _next_block(),
-                    _bar(c), _waiting(c), _blocks(c),
+                    _bar(c), _waiting(c), _answered(), _blocks(c),
                     json.dumps(c["rows"]), _JS)
 
 
@@ -457,7 +579,12 @@ def _preface(c) -> str:
       % (_word(c["n"]).capitalize(), _word(c["fresh"]))
     )
     return (
-      "<p><b>I read your four answers and every one of them is acted on.</b> "
+      "<p><b>Three things wait on you, and each one blocks something you asked "
+      "for.</b> The Forge cannot be set up until the branch merges; a desk found "
+      "the rule it was missing and cannot keep it without a word from you; and a "
+      "desk claimed its record was empty when it was not, which nothing catches "
+      "today.</p>"
+      "<p><b>Your four earlier answers are all acted on.</b> "
       "eCFR was admitted for \u00a7 1.162-3 and the desk answered a question with "
       "it about ninety minutes later; the field mechanism you approved is built "
       "and proved against your own capitalisation position; the wording check you "
@@ -499,15 +626,31 @@ def _waiting(c) -> str:
                 'keeps the matter open and brings it back next time. Nothing is '
                 'lost by skipping one, and nothing is recorded without an '
                 'explicit yes.</p>') % top
-    answered = "".join(
+    return ('<h2 %s>Nothing needs deciding</h2>'
+            '<p class="lead">Every matter is answered and acted on. What each '
+            'answer did is below.</p>') % top
+
+
+def _answered() -> str:
+    """What the firm already answered, and what it caused.
+
+    IT USED TO VANISH THE MOMENT A NEW MATTER ARRIVED, because it was rendered
+    only on the empty page -- so the read-back existed exactly while there was
+    nothing to read it beside. The firm's own answers and what they caused are
+    the part that says whether answering is worth anything, and they belong on
+    every docket until they are stale.
+    """
+    if not ANSWERED:
+        return ""
+    rows = "".join(
         '<li><code class="pr">%s</code> <b>%s</b> <i>%s</i><br>%s</li>'
         % (a["said"], a["title"], a["where"], a["caused"]) for a in ANSWERED)
-    return ('<h2 %s>Nothing needs deciding</h2>'
-            '<p class="lead">All %s answered, and all %s acted on. Your answer is '
+    return ('<h2 class="sec">What you already answered, and what it did</h2>'
+            '<p class="lead">All %s answered, all %s acted on. Your answer is '
             'quoted from this page\u2019s own store; what it caused is measured '
             'from the repository.</p>'
-            '<ul class="plain">%s</ul>') % (top, _word(len(ANSWERED)),
-                                            _word(len(ANSWERED)), answered)
+            '<ul class="plain">%s</ul>') % (_word(len(ANSWERED)),
+                                            _word(len(ANSWERED)), rows)
 
 
 def _next_block() -> str:
@@ -688,6 +831,8 @@ _PAGE = """<title>%s</title>
 
 %s
 <div id="list"></div>
+
+%s
 
 <h2 class="sec">What changed</h2>
 <p class="lead">Denominators, measured now rather than remembered.</p>
