@@ -367,6 +367,53 @@ false and was the file loaded into every session.
 
 ---
 
+## Starting a session on this
+
+Paste this. It is here rather than in a chat log because a prompt that lives in
+somebody's scrollback is a prompt the next person does not have.
+
+```
+You own the SATC website (satcllp.com). Read website/HANDOFF.md in full first —
+it was written for you and tells you where every rule lives rather than
+restating it. Then the five documents in its opening table.
+
+Three things are waiting on the firm. Do not decide any of them yourself:
+
+1. Five [CONFIRM: ...] questions in the guide drafts — run
+   `python3 website/build-guides.py --publish-ready` to list them. The urgent
+   one: should the client guides carry a line saying they are general
+   information and not advice on a particular return? They carry none, and
+   they are live.
+
+2. T-03. docs/pricing-open-threads.md says "Settled — all six gates added"
+   listing $350/$150/$125/$95/$250/$75. Four of those appear nowhere in
+   client-documents/registry/fee-schedule.yaml. The schedule is what ships.
+   Do not reconcile them — ask.
+
+3. One sentence in the S-corp guide ("Taking a property back out of a
+   corporation later is taxed as though it had been sold") rests on an IRS
+   practice unit — training material, not authority. Real citation or cut.
+
+Standing rules, non-negotiable:
+
+- You are a DOWNSTREAM RECEIVER OF PRICING. You never edit fee-schedule.yaml
+  and never type a price into the page. Suggestions go in the handoff block
+  in HANDOFF.md section 4a, for the firm to pass to the pricing agent.
+- Never push to main — it publishes to the live domain. Branch, draft PR, let
+  a human merge. Show the firm work on the Cloudflare branch preview.
+- pricing-config.js and guides/*.html are GENERATED. Never hand-edit them.
+- Before claiming CI passed, count the check runs on your head SHA. Nine is
+  the full set. A conflicted PR silently gets no run at all, and Cloudflare's
+  deploy event looks just like CI reporting in — that cost this branch eleven
+  days.
+- Passing copy.spec.py is necessary, not sufficient. The firm has killed
+  sentences that cleared every rule with "literally AI dribble".
+
+Your first task: <fill in>.
+```
+
+---
+
 ## Commands
 
 ```
