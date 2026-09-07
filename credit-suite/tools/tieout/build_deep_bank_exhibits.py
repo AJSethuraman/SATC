@@ -58,12 +58,25 @@ sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 from credit_suite.sources.fdic import plain as FPLAIN             # noqa: E402
 
 args = sys.argv[1:]
-only_cert = next((a for a in args if len(a) <= 6 and a.isdigit()
-                  and len(a) != 4), None)
-only_year = next((a for a in args if len(a) == 4 and a.isdigit()), None)
 
 index = {e["cert"]: e["name"] for e in
          json.loads((SB / "banks" / "index.json").read_text())}
+
+# A four-digit number was read as a YEAR and never as a certificate, so
+# `build_deep_bank_exhibits.py 2270 2026` filtered for a year 2270 and built
+# nothing, reporting "0 of 0" as though there were nothing to do. Five of the
+# nineteen banks have four-digit certs -- 628, 639, 2270, 6560, 6672 -- and
+# none of them could be selected. A KNOWN certificate wins; only a number that
+# is not a certificate is read as a year.
+only_cert = next((a for a in args if a in index), None)
+only_year = next((a for a in args if a not in index
+                  and len(a) == 4 and a.isdigit()), None)
+unknown = [a for a in args if a != only_cert and a != only_year]
+if unknown:
+    raise SystemExit(
+        "not a certificate in the peer set and not a year: %s\n"
+        "certificates are %s"
+        % (", ".join(unknown), ", ".join(sorted(index))))
 rows = json.loads((SB / "bank_deep_rows.json").read_text())
 # Every shard, not just the first file written. `deep_bank_strips.py` names
 # its output after the certs it was asked for, so photographing seven banks
@@ -328,13 +341,31 @@ if only_year:
     pairs = [p for p in pairs if p[1] == only_year]
 
 started = time.time()
-built, failed = [], []
+built, failed, blind = [], [], []
 for cert, year in pairs:
     got = build(cert, year)
     (built if got["pdf"] else failed).append(got)
+    if got["pdf"] and got["values"] and not got["images"]:
+        blind.append(got)
     print("  %-26s %s  %4d values, %4d images, %4.1f MB  %s"
           % (got["bank"][:26], year, got["values"], got["images"], got["mb"],
              got["pdf"] or "FAILED TO RENDER"), flush=True)
+
+# An exhibit whose pictures did not embed renders perfectly and proves
+# nothing, and it is indistinguishable from one that worked until somebody
+# opens it. That is tenet one, and it happened again on 7 September 2026: the
+# builder prefers the SHRUNK strips, `deepstrips-grey`, and seven banks had
+# only been photographed into `deepstrips`. Every page said "0 images" and the
+# run went on to completion.
+if blind:
+    banks = sorted({("%s %s" % (b["bank"], b["year"])) for b in blind})
+    raise SystemExit(
+        "REFUSING: %d exhibit(s) carry values and NO photographs.\n"
+        "  %s\n"
+        "The pages were cut into %s but this build reads %s. Run\n"
+        "  python tools/tieout/shrink_strips.py\n"
+        "and build again. An exhibit without its pictures is not evidence."
+        % (len(blind), "\n  ".join(banks[:12]), SB / "deepstrips", STRIPS))
 
 (SB / "deep_exhibits.json").write_text(json.dumps(built, indent=1),
                                        encoding="utf-8")

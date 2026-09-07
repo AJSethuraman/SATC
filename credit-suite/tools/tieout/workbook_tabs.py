@@ -29,7 +29,16 @@ BANK_TIED = sum(1 for r in BANK if r["verified"] == "yes")
 BANK_TREND_NO = sum(1 for r in BANK if r["usable_for_trend"] == "no")
 BANK_RATIOS = sum(1 for r in BANK if "FDIC calculates" in r["verified_meaning"])
 BANK_MERGER = sum(1 for r in BANK if "spans a merger" in r["verified_meaning"])
-BANK_NOLINE = len(BANK) - BANK_TIED - BANK_RATIOS - BANK_MERGER
+BANK_BASE = sum(1 for r in BANK
+                if "moved the running total" in r["verified_meaning"])
+#: Rows the filing and the FDIC do not agree on. READ OFF THE DELIVERED FILE.
+#: This tab said "NONE DISAGREED" as a typed sentence until 7 September 2026,
+#: when a difference appeared and the sentence went on saying it. A claim about
+#: the data that is not computed from the data is the exact failure this whole
+#: workbook exists to stop, printed on its own headline.
+BANK_DIFFERS = [r for r in BANK if "DOES NOT MATCH" in r["verified_meaning"]]
+BANK_NOLINE = (len(BANK) - BANK_TIED - BANK_RATIOS - BANK_MERGER
+               - BANK_BASE - len(BANK_DIFFERS))
 QUARTERS = sorted({r["report_date"] for r in BANK})
 FIELDS = sorted({r["field"] for r in BANK})
 CERTS = sorted({r["cert"] for r in BANK})
@@ -119,12 +128,17 @@ START_HERE = [
           "why." % len(MERGERS)),
     ("", ""),
     ("h2", "The headline"),
-    ("ok", "%s of %s values were compared against a document published by "
-           "somebody who does not work for us -- the bank's own filed Call "
-           "Report, or the agency that computes the series. None of them "
-           "disagreed. The %s that could not be checked each say why, in their "
-           "own row."
-     % (n(TOTAL_TIED), n(TOTAL), n(TOTAL - TOTAL_TIED))),
+    ("ok" if not BANK_DIFFERS else "warn",
+     "%s of %s values were compared against a document published by somebody "
+     "who does not work for us -- the bank's own filed Call Report, or the "
+     "agency that computes the series. %s The %s that could not be checked "
+     "each say why, in their own row."
+     % (n(TOTAL_TIED), n(TOTAL),
+        "None of them disagreed." if not BANK_DIFFERS
+        else ("%s disagreed -- see WHAT WAS PROVEN, which names %s."
+              % (n(len(BANK_DIFFERS)),
+                 "it" if len(BANK_DIFFERS) == 1 else "them")),
+        n(TOTAL - TOTAL_TIED))),
     ("", ""),
     ("h2", "The two things to know before you chart anything"),
     ("caution", "1. UNITS. Bank values are THOUSANDS of dollars unless the row "
@@ -319,10 +333,24 @@ def proven_tab(audit):
     return [
         ("h1", "What was proven, and how"),
         ("", ""),
-        ("ok", "%s of %s values were compared against a document published by "
-               "somebody outside this firm. NONE DISAGREED."
-         % (n(TOTAL_TIED), n(TOTAL))),
+        ("ok" if not BANK_DIFFERS else "warn",
+         "%s of %s values were compared against a document published by "
+         "somebody outside this firm. %s"
+         % (n(TOTAL_TIED), n(TOTAL),
+            "NONE DISAGREED." if not BANK_DIFFERS
+            else ("%s DISAGREED, and %s listed below."
+                  % (n(len(BANK_DIFFERS)),
+                     "it is" if len(BANK_DIFFERS) == 1 else "they are")))),
         ("", ""),
+    ] + ([] if not BANK_DIFFERS else [
+        ("h2", "What disagreed"),
+    ] + [("p", "%s, %s, %s. %s" % (r["bank"], r["report_date"], r["field"],
+                                   r["note"])) for r in BANK_DIFFERS] + [
+        ("p", "A difference is a finding, not a failure. It is not adjusted, "
+              "rounded away or hidden: both numbers are in the row, in BANK "
+              "DATA, with the link to the filing so you can look yourself."),
+        ("", ""),
+    ]) + [
         ("h2", "The bank side -- %s values" % n(len(BANK))),
         ("p", "%s   checked line by line against that bank's own filed Call "
               "Report for that quarter." % n(BANK_TIED)),
@@ -333,6 +361,10 @@ def proven_tab(audit):
         ("p", "%s   quarterly flows in a quarter that spans a merger. Not "
               "compared, because such a quarter is not a quarter of one bank. "
               "See NOT COMPARABLE." % n(BANK_MERGER)),
+        ("p", "%s   quarterly flows in the quarter AFTER a merger that landed "
+              "in a first quarter. A quarter is the year's running total less "
+              "what was already reported, and a merger moves what was already "
+              "reported to a figure no filing carries." % n(BANK_BASE)),
         ("p", "%s   a line that is not on the form for that quarter. Forms "
               "change, and a line that did not exist yet cannot be cited."
          % n(BANK_NOLINE)),
@@ -381,8 +413,22 @@ def proven_tab(audit):
               "Both numbers were correct as published. The citation was wrong, "
               "which is invisible until somebody follows it. It is fixed, and "
               "all %s now agree." % n(BANK_TIED)),
-        ("p", "It also found that eleven quarters in the ten years span a "
-              "merger, where the sixteen-quarter version had seen six. Five "
-              "quarters would have been reported as the FDIC disagreeing with "
-              "the filings when nothing was wrong with either."),
+        ("p", "It also found that %s quarters in the ten years span a merger, "
+              "where the first sixteen-quarter run had seen six. Every one of "
+              "them would otherwise have been reported as the FDIC "
+              "disagreeing with the filings when nothing was wrong with "
+              "either." % len(MERGERS)),
+        ("p", "Adding the firm's seven peers in September 2026 found four more "
+              "faults, all in our software rather than in anybody's data. The "
+              "largest acquisition in the whole set -- First-Citizens taking "
+              "on Silicon Valley Bridge Bank in March 2023 -- was filed by the "
+              "regulator under a code the merger list did not carry, and was "
+              "reported as unrecognised rather than quietly dropped. The "
+              "quarter after a merger that lands in a first quarter turned out "
+              "not to be formable from the filings at all. The workbook "
+              "builder rebuilt the bank list AFTER checking it, so a checked "
+              "list and a built list could differ. And the nineteen fields "
+              "added a day earlier were shipping with no units beside them."),
+        ("p", "None of those four was found by a test. They were found by "
+              "pointing the same machinery at banks it had never seen."),
     ]
