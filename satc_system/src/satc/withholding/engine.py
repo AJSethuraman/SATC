@@ -160,6 +160,55 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
             "SE tax and Additional Medicare Tax use projected Box 1 taxable wages as a proxy for "
             "SS/Medicare wages. These may differ when pre-tax deferrals (401(k), etc.) reduce Box 1; "
             "any difference is typically negligible for planning.")
+    # THE FIGURES THIS RESTS ON WERE READ BY SOFTWARE, and nothing outside this
+    # repository can say whether that reading was right.
+    #
+    # Eight of the nine computations behind an estimate are now tied to an IRS
+    # document -- the brackets, the standard deduction, safe harbour, Schedule
+    # SE, the capital-gains worksheet, Forms 8959 and 8960, and the W-4 line 4c
+    # division. The ninth is the paystub reader, and it CANNOT be: **the IRS
+    # publishes nothing describing what a paystub looks like.** There is no
+    # federal form and no standard layout; a stub is whatever the employer's
+    # payroll software prints. Some states legislate the contents -- California
+    # Labor Code sec. 226, New York sec. 195.3 -- and Ohio does not.
+    #
+    # So it is MARKED rather than proved. The reader scores 126 of 126 on an
+    # eighteen-stub corpus, and that corpus was written here: it measures whether
+    # the reader handles the shapes we thought of, which is worth having and is
+    # not an accuracy figure. The only authority on whether a figure is right is
+    # the stub in the preparer's hand.
+    if any(job.ytd_taxable_wages is not None or job.ytd_federal_tax_withheld is not None
+           for job in inp.jobs):
+        notes.append(
+            "Figures taken from a paystub were read by software. Nothing outside this "
+            "machine can confirm a reading is right -- the IRS publishes no description "
+            "of a paystub, so there is nothing to check one against. Compare the wages "
+            "and withholding above against the stub before acting on this.")
+
+    # WHAT THIS ESTIMATOR'S NET INVESTMENT INCOME LEAVES OUT, said when the tax
+    # actually applies rather than in a footnote nobody reaches.
+    #
+    # Tied to Form 8960 on 7 September 2026: the lesser-of rule, the 3.8% rate
+    # and the thresholds all agree with the form. What does NOT agree is the
+    # SCOPE of "net investment income", and it runs in both directions:
+    #
+    #   too LOW   Form 8960 Part I also counts rents, royalties, annuities and
+    #             passive business income. This estimator has no field for any
+    #             of them, so a landlord's NIIT is understated.
+    #   too HIGH  Form 8960 Part II allows deductions AGAINST that income --
+    #             investment interest expense, the state tax allocable to it.
+    #             None are modelled, so somebody with them is overstated.
+    #
+    # And the statute says MAGI where this uses AGI. They are the same figure
+    # unless the taxpayer excludes foreign earned income.
+    if niit > ZERO:
+        notes.append(
+            "Net investment income here counts interest, dividends and capital gains only. "
+            "Rents, royalties, annuities and passive business income are NOT included, so a "
+            "landlord's figure is too low; deductions against investment income are not "
+            "modelled either, so somebody with investment interest expense is too high. "
+            "The threshold test uses AGI, which equals MAGI unless foreign earned income is "
+            "excluded.")
 
     marginal = _marginal_rate(ordinary_ti, tables.ordinary_brackets(status))
     effective = (total_liability / agi) if agi > ZERO else ZERO
