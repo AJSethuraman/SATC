@@ -1017,3 +1017,61 @@ One bullet, on one of three pages. **Five other numeric claims on the same page 
 not checked** and carry whatever the last full `verify_sources.py` run gave them; that
 run was not repeated. Nothing watches for the 2027 indexation. And the firm still has
 not read the three guides end to end.
+
+### Walked the live site as a client — 5 defects against ~106 passing checks, none caught
+
+`docs/WALKTHROUGH-DEFECTS-website.md`. Six published pages, in Chrome, as a
+single-member LLC owner wondering about an S corp election. Home → Pricing →
+guides → the intake form, to the last step. **Nothing was submitted** — pressing
+"Send to SATC" puts a real lead in the inbox, so that click was not made.
+
+Kept separate from `docs/WALKTHROUGH-DEFECTS.md`, which is the internal apps.
+
+**The one that matters.** The consent checkbox on the live home page reads
+*"SATC is engaged only when we both sign an **engagement letter**."* That phrase
+is banned — `copy.spec.py` line 67, `CONTRACT_WORDS` — and it is banned because
+of the firm's own words: *"i would never expect a client to understand what an
+engagement letter is inherently."* The price page was fixed in August. The home
+page was not, because **nothing looks at it**: the string lives in
+`website/intake.js:236` and is injected by JavaScript, `index.html` contains it
+zero times, and `copy.spec.py` scans six `.html` files and no `.js`. The rule and
+the text are in two places with nothing comparing them.
+
+Ran the firm's three word lists over every client-visible string in the files the
+checker does not open: **one real hit**, that one. Two apparent hits in
+`build-pricing-config.py` are the comment explaining this very failure and reach
+the generated file zero times — excluded rather than counted.
+
+**The rest.** `sitemap.xml` stamps the three guides `lastmod 2026-08-26`, twelve
+days before they existed — written in `061ac96`, the same commit that created
+them, and nothing checks that file at all. The home page links to no guide
+(`grep -c "guides/" index.html` → 0), so `business-records` and `s-corp` have no
+inbound link from outside `/guides/` and the S-corp page is four hops from the
+front door. The intake wizard has no progress indicator while the home page
+promises "five minutes". `privacy.html` is the only page of six with no Open
+Graph tags.
+
+**Not defects, but decisions:** `robots.txt` blocks ClaudeBot, GPTBot,
+Google-Extended and five more under a Cloudflare-managed block. Ordinary search
+is allowed. Nobody here wrote it; it is worth choosing rather than inheriting.
+
+### What I got wrong — three times, and it is the useful part
+
+My own probe reported three defects that were not. The honeypot I called visible
+is at `left:-9999px; opacity:0; tabindex:-1; aria-hidden` — correct. The question
+I called duplicated is an `sr-only` label at `clip:rect(0,0,0,0)` — correct, and
+better accessibility than I assumed. The step I called silently stuck shows
+*"Please fill this in to continue."* — my read was from a stale render. **A
+visibility heuristic built on display/visibility/size over-fires on three common
+correct patterns**, and a sweep that filed all three would have had somebody
+break working code.
+
+### Not delivered, and why
+
+**The procedure document.** The walk skill wants two and this is one. The
+browser's display here is 736px wide and the window wedged at 640×311 with
+`outerWidth: 0`; `resize_window` reports success and does nothing. A procedure
+needs a readable screenshot per step and that viewport cannot produce one, so it
+is unwritten rather than written badly. It needs the Chrome window restored —
+one action on the machine. **Desktop-width layout is therefore unproven**, and
+every finding above was made at narrow width.
