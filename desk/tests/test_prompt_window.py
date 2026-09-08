@@ -391,7 +391,7 @@ def test_nothing_checks_this_window_on_the_answering_path():
     rather than being closed by accident and never noticed.
     """
     import ask
-    src = (pathlib.Path(__file__).resolve().parents[1] / "ask.py").read_text()
+    src = (pathlib.Path(__file__).resolve().parents[1] / "ask.py").read_text(encoding="utf-8")
     body = src.split("def brief(")[1].split("\ndef ")[0]
     assert "fits_window" not in body and "num_ctx" not in body, (
         "`ask.brief` now checks the window. Good -- update this test and the "

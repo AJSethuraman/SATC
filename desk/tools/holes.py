@@ -124,16 +124,30 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
     root = root or HERE
     found: list[tuple[str, str, object]] = []
     for p in sorted((root / "unfiled").glob("*.md")):
-        found.append((DURABLE, str(p.relative_to(root)), p))
+        found.append((DURABLE, _where(p, root), p))
     for d in sorted((root / "desks").iterdir()) if (root / "desks").is_dir() else []:
         for p in sorted((d / "unsupported").glob("*.md")):
-            found.append((DURABLE, str(p.relative_to(root)), p))
+            found.append((DURABLE, _where(p, root), p))
     runs = sorted(p for p in (root / "runs").glob("*asked-*")
                   if (p / "served.json").is_file())
     if runs:
         p = runs[-1] / "served.json"
-        found.append((LIVE, str(p.relative_to(root)), p))
+        found.append((LIVE, _where(p, root), p))
     return found
+
+
+def _where(path, root) -> str:
+    """A path as it appears IN A DOCUMENT A PERSON READS. Forward slashes, on
+    every platform.
+
+    `str(Path)` uses the platform separator, and on the firm's own Windows
+    machine this report printed `desks\\fixed-assets\\unsupported\\forge.md`
+    and a line reading `runs\\...` where the prose says `runs/`. Found by the
+    desk running this suite there on 8 September 2026 -- six failures, three of
+    them this one cause. `os.sep` leaking into a human's document is not a test
+    problem; the test was reporting a real defect in what the reader sees.
+    """
+    return pathlib.Path(path).relative_to(root).as_posix()
 
 
 def read(paths) -> list[Entry]:
@@ -141,7 +155,7 @@ def read(paths) -> list[Entry]:
     already know what they want; `stores()` is the front door."""
     out: list[Entry] = []
     for p in paths:
-        out.extend(_read_one(p, str(p)))
+        out.extend(_read_one(p, pathlib.Path(p).as_posix()))
     return out
 
 
@@ -236,9 +250,9 @@ def main(argv: list[str]) -> int:
         paths = [pathlib.Path(a) for a in argv]
         missing = [p for p in paths if not p.is_file()]
         if missing:
-            print("no queue at " + ", ".join(str(p) for p in missing))
+            print("no queue at " + ", ".join(x.as_posix() for x in missing))
             return 1
-        found = [(LIVE if p.suffix == ".json" else DURABLE, str(p), p)
+        found = [(LIVE if p.suffix == ".json" else DURABLE, p.as_posix(), p)
                  for p in paths]
     else:
         found = stores()

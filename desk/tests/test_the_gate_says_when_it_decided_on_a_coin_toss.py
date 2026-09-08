@@ -33,6 +33,7 @@ the hour it was in the list. Adding it back would close this instance and open
 eleven.
 """
 import dataclasses
+import pathlib
 
 import ask
 import domains
@@ -204,10 +205,37 @@ def test_the_note_now_fires_where_the_loser_owns_a_word_and_lost_on_count():
     assert [d.name for d, _ in v.apart] == ["us-gaap"]
 
 
-def test_it_is_printed_above_the_authority_so_it_cannot_be_read_past():
+def test_it_is_printed_above_the_conclusion_and_not_merely_above_the_authority():
+    """THE SINGLE HIGHEST-VALUE EDIT THE READER ASKED FOR, and the previous
+    version of this test pinned exactly the wrong half — above the authority,
+    below the answer:
+
+        "By the time I reach line 6 I have read the answer AND a badge saying
+         primary and binding, which reads as two independent things vouching
+         for it. The warning then has to un-sell something I have already
+         bought. PUT IT ABOVE LINE 1 AND IT IS A FRAME; LEAVE IT AT LINE 6 AND
+         IT IS A RETRACTION."
+
+    A test can pin a thing in place and still be pinning the wrong place."""
     text = str(_served(NATURAL))
-    assert (text.index("THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION")
-            < text.index("THE AUTHORITY, in full"))
+    assert text.startswith("THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION"), (
+        "the reader meets the conclusion before the warning about it")
+    where = text.index("THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION")
+    assert where < text.index("yes - capitalize") if "yes - capitalize" in text \
+        else True
+    assert where < text.index("primary ·"), "the badge vouches for it first"
+    assert where < text.index("THE AUTHORITY, in full")
+
+
+def test_the_caveat_and_the_other_position_stay_below_the_answer():
+    """They are not the same kind of warning and must not move with it. Both are
+    about the AUTHORITY the reader is being sent to, and are read after the
+    answer on purpose; the straddle note is about whether the answer is even the
+    reader's question, so it is read first or it is read too late."""
+    src = pathlib.Path(engine.__file__).read_text(encoding="utf-8")
+    render = src[src.index("out = ([self.straddle"):src.index("return \"\\n\".join(out)")]
+    assert render.index("self.caveat") > render.index("self.position")
+    assert render.index("self.alongside") > render.index("self.position")
 
 
 def test_the_note_stays_short():

@@ -230,7 +230,7 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     p = desk.problems[0]
     front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                  desks=desks, prove=lambda s, c: _Page("rewritten"))
-    filed = (desks / DESK / "unsupported" / "asked.md").read_text()
+    filed = (desks / DESK / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed
 

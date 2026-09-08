@@ -273,3 +273,109 @@ Worth recording because they are why the rest is trustworthy:
    for every desk, and nearly reported the "this desk holds it" branch as dead
    code. Called correctly it returns `('federal-tax',)` for all seven. **Finding
    withdrawn by its author before it was acted on.**
+
+---
+
+# Postscript 2: the suite proved the code works where it was written
+
+**The desk ran this suite on the firm's own Windows machine — the machine that
+matters, and the one it had never been run on.** Unmodified, at `8ebd93b9`:
+
+```
+6 failed, 903 passed, 1 skipped
+```
+
+Six failures that CI here has never seen, and a class name for them:
+
+> *"A CONTROL WHOSE OUTCOME IS DECIDED BY THE ENVIRONMENT RATHER THAN BY THE
+> CODE. Mutation cannot catch these, and that is precisely why they survive —
+> you are mutating the code, and the code is not what is deciding. […] THE SUITE
+> PROVES THE CODE WORKS WHERE IT WAS WRITTEN."*
+
+It also discarded 152 errors of its own before reporting: pytest could not write
+its temp directory. *"Not your code; I nearly reported them as yours."*
+
+## Three of the six were one cause, and it is a defect in a document
+
+`str(Path)` uses the platform separator. `tools/holes.py` builds the label a
+**person reads** that way, so on Windows the queue report printed
+
+```
+desks\fixed-assets\unsupported\forge.md
+```
+
+and a line reading `runs\` where its own prose says `runs/`. That is not a test
+being fussy; the test was reporting a real defect in the output. Every
+path-to-text boundary in that module is `.as_posix()` now.
+
+## A fourth was a codec
+
+`UnicodeDecodeError`, `cp1252.py:23`, byte `0x9d` — a file opened with no
+`encoding=`, where the default is whatever the machine's locale says. This
+corpus is `§` and `—` from end to end. Six call sites, all named now.
+
+**And the sixth failure was the fourth wearing a costume**: `ValueError:
+substring not found` on `t.index("## POS2 ·")`. Not a missing heading — a
+mangled read. The failure named the wrong thing entirely.
+
+## The fifth is the one worth the whole report
+
+`test_the_snippet_a_reader_pastes_still_bootstraps` runs the skill's opening
+snippet twice: once where the plugin is installed, once where it is not. Leg two
+emptied `HOME`.
+
+**`os.path.expanduser` reads `HOME` on POSIX and `USERPROFILE` /
+`HOMEDRIVE`+`HOMEPATH` on Windows.** So on the firm's machine leg two found the
+**real** installed plugin, resolved it correctly, and the assertion that it
+would fail to failed.
+
+> *"THAT TEST CAN ONLY PASS ON A MACHINE WITH NO DESK INSTALLED. It passes in CI
+> because CI has none. It proves the error path and says nothing about the path
+> every real user takes, on the only machine that matters."*
+
+Leg one was no better and nobody had noticed: it accepted **either** outcome —
+resolved, or refused with the right message — so it asserted nothing about which
+one happened.
+
+**Both legs are made true now instead of inherited.** Leg one points
+`CLAUDE_PLUGIN_ROOT` at this checkout, so the plugin is there on every machine
+and resolution is required. Leg two sets every variable `expanduser` consults on
+any platform, **and asserts the error names the redirected home** — proof the
+leg ran against an empty tree rather than the machine's own. That last assertion
+is the desk's own rule from the round before, applied to an environment control:
+*a negative assertion needs a positive precondition.*
+
+## What changes about how this is tested
+
+> *"RUN THE SUITE SOMEWHERE ELSE. Windows is the cheapest second environment you
+> have, it is where the firm's own desk runs, and it just produced six failures
+> for free."*
+
+> *"For any assertion that depends on absence — no plugin, no file, no network —
+> PARAMETERISE THE PRESENCE. Run it both ways. AN ABSENCE YOU CANNOT ALSO TEST
+> AS A PRESENCE IS AN ENVIRONMENT ASSERTION WEARING A TEST'S CLOTHES."*
+
+Both causes are one-line mistakes that read as correct on the machine they are
+written on, so both are greppable and both are now grepped:
+`test_the_suite_does_not_assume_the_machine_it_was_written_on` bans a text read
+or write with no encoding across every file this plugin ships, and a path
+reaching the reader through `str()` in `holes.py`.
+
+**It does not replace running it there.** A grep catches the two shapes already
+seen; the desk found them by running, and that is still the only thing that
+finds the next one.
+
+## And the note moved, which was the highest-value edit in the round
+
+It sat above the AUTHORITY and below the ANSWER — and a test pinned it there,
+**pinning exactly the wrong half**:
+
+> *"By the time I reach line 6 I have read the answer AND a badge saying primary
+> and binding, which reads as two independent things vouching for it. The
+> warning then has to un-sell something I have already bought. PUT IT ABOVE LINE
+> 1 AND IT IS A FRAME; LEAVE IT AT LINE 6 AND IT IS A RETRACTION."*
+
+It is the first thing on the page now. `caveat` and `alongside` did **not** move
+with it: both are about the authority the reader is being sent to and are read
+after the answer on purpose. This one is about whether the answer is even the
+reader's question, so it is read first or it is read too late.

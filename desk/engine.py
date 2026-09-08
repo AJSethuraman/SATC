@@ -414,18 +414,29 @@ class Served:
         # carry 'Pub. 583 binds' to an accountant on the strength of it."*
         # `binding` has only ever meant the FIRM treats this as authority that
         # binds their own work. The field said so; the rendering did not.
-        out = [self.position, "",
+        # THE STRADDLE NOTE GOES ABOVE THE CONCLUSION, NOT BELOW IT, and that
+        # is the single highest-value edit the reader asked for:
+        #
+        #   "By the time I reach line 6 I have read the answer AND a badge
+        #    saying primary and binding, which reads as two independent things
+        #    vouching for it. The warning then has to un-sell something I have
+        #    already bought. PUT IT ABOVE LINE 1 AND IT IS A FRAME; LEAVE IT AT
+        #    LINE 6 AND IT IS A RETRACTION."
+        #
+        # It sat above the AUTHORITY and below the ANSWER, and a test pinned it
+        # there -- pinning exactly the wrong half. `caveat` and `alongside` stay
+        # where they are: both are about the authority the reader is being sent
+        # to, and are read after the answer on purpose. This one is about
+        # whether the answer is even the reader's question, so it is read first
+        # or it is read too late.
+        out = ([self.straddle, ""] if self.straddle else []) + [
+               self.position, "",
                f"    {self.citation}",
                f"    {self.tier} · "
                f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
                f" · confirmed {self.checked}"]
         if self.caveat:
             out += ["", self.caveat]
-        if self.straddle:
-            # THREE LINES, for the same reason `alongside` is three: it will
-            # appear most often on answers that were already right, and a
-            # warning long enough to skip is one that gets skipped.
-            out += ["", self.straddle]
         if self.alongside:
             # THREE LINES, AND IT STAYS THREE LINES. The other position's TEXT
             # goes below the answer's own passage rather than here: this block

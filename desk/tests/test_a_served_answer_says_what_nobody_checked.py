@@ -361,20 +361,41 @@ def test_the_skills_first_line_does_not_need_an_environment_variable():
     snippet = block.split("import ask")[0] + "print(sys.path[0])"
     base = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
 
-    # 1 · where the plugin IS installed, it must resolve and say where.
-    here = subprocess.run([_sys.executable, "-c", snippet],
-                          capture_output=True, text=True, env=base)
-    if here.returncode:
-        assert "no desk plugin at" in here.stdout + here.stderr, (
-            f"raised something unreadable:\n{here.stderr}")
-    else:
-        assert here.stdout.strip(), "resolved silently to nothing"
+    # BOTH LEGS ARE MADE TRUE HERE RATHER THAN INHERITED FROM THE MACHINE, and
+    # that is the whole repair. Until 8 September leg 1 accepted either outcome
+    # and leg 2 emptied `HOME` alone. `os.path.expanduser` reads `HOME` on POSIX
+    # and `USERPROFILE` / `HOMEDRIVE`+`HOMEPATH` on Windows — so on the firm's
+    # own machine leg 2 found the REAL installed plugin, resolved it correctly,
+    # and the assertion failed. The desk that ran it named the class:
+    #
+    #   "A CONTROL WHOSE OUTCOME IS DECIDED BY THE ENVIRONMENT RATHER THAN BY
+    #    THE CODE. Mutation cannot catch these, and that is precisely why they
+    #    survive — you are mutating the code, and the code is not what is
+    #    deciding. THAT TEST CAN ONLY PASS ON A MACHINE WITH NO DESK INSTALLED.
+    #    It passes in CI because CI has none. It proves the error path and says
+    #    nothing about the path every real user takes."
+    #
+    # 1 · where the plugin IS there, it must resolve and say where. Pointed at
+    #     this checkout, so it is there on every machine.
+    here = subprocess.run([_sys.executable, "-c", snippet], capture_output=True,
+                          text=True, env=dict(base, CLAUDE_PLUGIN_ROOT=str(HERE)))
+    assert here.returncode == 0, (
+        f"could not resolve a plugin it was pointed straight at:\n{here.stderr}")
+    assert here.stdout.strip(), "resolved silently to nothing"
 
-    # 2 · where it is NOT, it must refuse in words a reader can act on —
-    #     never a traceback about a missing directory.
+    # 2 · where it is NOT. Every variable `expanduser` consults on any platform,
+    #     so the absence is real rather than assumed — and the error is checked
+    #     to NAME the redirected home, which is the positive precondition: proof
+    #     the leg ran against an empty tree instead of the machine's own.
+    empty = tempfile.mkdtemp()
+    nowhere = dict(base, HOME=empty, USERPROFILE=empty, HOMEDRIVE="",
+                   HOMEPATH=empty)
     away = subprocess.run([_sys.executable, "-c", snippet], capture_output=True,
-                          text=True, env=dict(base, HOME=tempfile.mkdtemp()))
+                          text=True, env=nowhere)
     out = away.stdout + away.stderr
+    assert empty.replace("\\", "/") in out.replace("\\", "/"), (
+        f"the home redirect did not take, so this leg tested the machine's own "
+        f"installation rather than an empty one:\n{out}")
     assert "Traceback" not in out, f"bare traceback on a clean machine:\n{out}"
     assert "no desk plugin at" in out and "claude plugin" in out, (
         f"does not say what is missing or how to get it:\n{out}")
