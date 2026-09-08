@@ -480,7 +480,19 @@ with (OUT / "field-dictionary.csv").open("w", newline="", encoding="utf-8") as f
         if r["field"] in seen:
             continue
         seen.add(r["field"])
-        w.writerow([r["field"], FPLAIN.describe(r["field"]) or "",
+        # A code with no words beside it is the thing the firm asked to stop:
+        # nineteen fields shipped that way because `plain.FIELD` knew the
+        # sixty-eight the monitor was built for and nothing about the ones
+        # added later. `describe()` refuses to guess, which is right; the
+        # build must refuse to ship the blank, which it did not.
+        meaning = FPLAIN.describe(r["field"])
+        if not meaning:
+            raise SystemExit(
+                "REFUSING: field %r has no plain-English description. Add one "
+                "to FIELD in src/credit_suite/sources/fdic/plain.py, written "
+                "from the caption on the filed form. A reader should never "
+                "meet a code with nothing beside it." % r["field"])
+        w.writerow([r["field"], meaning,
                     units_of(r["field"]),
                     "the FDIC" if r["verdict"] == "COMPUTED BY THE FDIC"
                     else "the bank, on its Call Report"])

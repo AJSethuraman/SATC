@@ -159,6 +159,71 @@ SPECIAL: Dict[str, str] = {
 #: have plain definitions in addition to the code." Thousands of dollars in the
 #: workbook; the FDIC lands them in thousands.
 FIELD = {
+    # ---- the nineteen added on 6 September 2026 --------------------------
+    # Written from the caption on the filed page, read off the photographed
+    # row. `describe()` returned None for all of them and the field
+    # dictionary shipped nineteen codes with no words beside them.
+    "UCCRCD": "Unused credit card lines -- credit the bank has promised on "
+              "cards and customers have not drawn. It is not lent yet and it "
+              "can be drawn tomorrow, which is why it is worth watching "
+              "separately from the balance.",
+    "UCLOC": "Unused home equity lines -- the undrawn part of revolving "
+             "credit secured by someone's home. Same idea as the card lines: "
+             "promised, not yet drawn.",
+    "UCCOMRES": "Unused construction commitments -- money promised for "
+                "building work, on 1-4 family homes and on other "
+                "construction, that has not been drawn down yet.",
+    "UCCOMREU": "Unused commercial real estate commitments NOT secured by "
+                "property -- promised and undrawn, and without the building "
+                "standing behind it.",
+    "UCOTHER": "Other unused commitments -- promised and undrawn credit to "
+               "businesses and other borrowers, outside cards, home equity "
+               "and construction.",
+    "RBC": "Total risk-based capital -- the capital the bank counts against "
+           "its risk-weighted assets, as the regulator defines it. The "
+           "numerator of the total capital ratio.",
+    "ORE": "Other real estate owned -- property the bank has taken back, "
+           "usually after a borrower defaulted. A bank is not in the business "
+           "of owning buildings, so a rising figure is a sign about the loans "
+           "it came from.",
+    "INTAN": "Intangible assets -- goodwill and similar, mostly created by "
+             "paying more than book value in an acquisition. It is on the "
+             "balance sheet and it absorbs no losses, which is why capital "
+             "rules subtract most of it.",
+    "LNNDEPD": "Loans to nondepository financial institutions -- lending to "
+               "finance companies, funds and other lenders rather than to "
+               "businesses or households. Domestic offices only, which is "
+               "what the FDIC publishes.",
+    "DRRENRSQ": "Charge-offs this quarter on commercial property loans "
+                "(nonfarm nonresidential) -- amounts the bank gave up on and "
+                "wrote off. Gross, before anything came back.",
+    "CRRENRSQ": "Recoveries this quarter on commercial property loans -- "
+                "money that came back on amounts already written off.",
+    "NTRELOCQ": "Net charge-offs this quarter on home equity lines -- written "
+                "off less recovered.",
+    "RSLNLTOT": "Restructured loans, total -- loans whose terms were changed "
+                "because the borrower was in financial difficulty, and which "
+                "are still being paid under the new terms. Trouble that has "
+                "been rescheduled rather than realised.",
+    "RSLNREFM": "Restructured home loans (1-4 family) -- the part of the "
+                "restructured total secured by houses.",
+    "RSCI": "Restructured commercial and industrial loans -- the part of the "
+            "restructured total lent to businesses for general purposes.",
+    "RSCONS": "Restructured consumer loans -- the part of the restructured "
+              "total lent to individuals.",
+    "RSMULT": "Restructured multifamily loans -- the part of the restructured "
+              "total secured by buildings of five or more homes.",
+    "RSOTHER": "Restructured loans, all other -- everything in the "
+               "restructured total that is not covered by the named classes "
+               "above.",
+    "NARSNRES": "Restructured commercial property loans that are ALSO on "
+                "nonaccrual -- restructured, and the bank has stopped booking "
+                "interest anyway. The rescheduling did not hold.",
+    # ---- a gap among the original sixty-eight ---------------------------
+    "LNRELOC": "Home equity lines of credit -- revolving credit secured by "
+               "1-4 family homes, drawn balances. This sits INSIDE the "
+               "residential real estate loans figure rather than beside it, "
+               "so adding the two double-counts.",
     "ASSET": "Total assets -- everything the bank owns, at book value.",
     "DEP": "Total deposits -- the money customers have placed with the bank "
            "(domestic and, for a bank with foreign offices, foreign).",

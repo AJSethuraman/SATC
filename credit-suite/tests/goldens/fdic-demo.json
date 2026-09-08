@@ -24682,6 +24682,7 @@
     "_readme!A184": ["  F8 regulatory vintages dated (CBLR 8% 7/2026; UBPR 8-band 2/2026)"],
     "_readme!A186": ["NO AI IS INVOLVED IN THE DATA PATH. The gates, metric functions, thresholds"],
     "_readme!A187": ["and staleness guard are deterministic and config-driven: the same input"],
-    "_readme!A188": ["always yields the same workbook."]
+    "_readme!A188": ["always yields the same workbook."],
+    "_provenance!G54": ["Home equity lines of credit -- revolving credit secured by 1-4 family homes, drawn balances. This sits INSIDE the residential real estate loans figure rather than beside it, so adding the two double-counts."]
   }
 }
