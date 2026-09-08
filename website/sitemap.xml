@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Every page the site serves. It listed only "/" until 26 August 2026, which
+<!-- CORRECTED 7 September 2026. The three guide rows were added in 061ac96
+     -- the same commit that CREATED those pages -- and stamped 2026-08-26,
+     twelve days before the files existed, by copying the rows above. The
+     price and privacy rows were stale for the same reason. Nothing read this
+     file, so nothing could notice; `sitemap.spec.py` reads it now and fails
+     when a lastmod is EARLIER than the page's own last commit.
+
+     Every page the site serves. It listed only "/" until 26 August 2026, which
      meant the price page — the one the firm publishes so a visitor can send the
      link rather than ask — was reachable by search only through the single nav
      link on the home page. `lastmod` is a real date per page, not the date this
@@ -14,31 +21,31 @@
   </url>
   <url>
     <loc>https://satcllp.com/pricing.html</loc>
-    <lastmod>2026-08-26</lastmod>
+    <lastmod>2026-09-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://satcllp.com/guides/records.html</loc>
-    <lastmod>2026-08-26</lastmod>
+    <lastmod>2026-09-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://satcllp.com/guides/business-records.html</loc>
-    <lastmod>2026-08-26</lastmod>
+    <lastmod>2026-09-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://satcllp.com/guides/s-corp.html</loc>
-    <lastmod>2026-08-26</lastmod>
+    <lastmod>2026-09-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://satcllp.com/privacy.html</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-09-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

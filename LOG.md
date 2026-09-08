@@ -1166,3 +1166,49 @@ so the file was never modified and the run that "passed" was the unmutated one.
 Caught by checking the file changed rather than reading the result. A mutation
 that silently fails to apply looks exactly like a surviving mutant looks exactly
 like a passing test.
+
+### The three repairs silence approved
+
+**sitemap.xml was wrong on five of six rows, and nothing had ever read it.** The
+three guide rows were added in `061ac96` — the same commit that created those
+pages — stamped `2026-08-26`, twelve days before the files existed, by copying
+the rows above. The price and privacy rows were stale for the same reason. Only
+the home page was right, and only because it genuinely had not changed.
+
+Corrected to `2026-09-07`, each verified against `git log` on the page's own
+source rather than set to today wholesale — `index.html` stays `2026-08-26`
+because that is when it last changed, and a check that moved every date would
+have been the same defect wearing a fix.
+
+**`website/sitemap.spec.py` now reads it**, and runs in CI. It checks five
+things: every published page is listed, nothing is listed that is not published,
+the file behind each URL exists, no date is in the future, and — the one that
+matters — **no `lastmod` is EARLIER than the page's own last commit.** A date
+later than the truth costs a wasted re-crawl. A date earlier tells a crawler the
+newest wording is old, which makes the sentence the firm just approved the change
+least likely to be fetched again.
+
+The guides are dated from their *drafts* as well as their generated HTML, because
+editing a draft changes the page even though a machine writes the file.
+
+Four mutants, four killed: a stale date put back, a page's row deleted, a page
+listed that does not exist, and a future date. It needs full git history, so the
+CI step checks out with `fetch-depth: 0` — otherwise it would report UNKNOWN and
+read as passing.
+
+**privacy.html has preview tags.** It was the only one of six published pages
+with no Open Graph tags, so it previewed bare wherever it was shared — and it
+gets shared at the one moment it matters, when somebody asks what the form
+collects. **No new words were written:** the title and description are the page's
+own, already live.
+
+### D9 is not mine to do
+
+The firm answered A — allow assistants to read the site, keep training blocked.
+**The block is not in this repository.** `website/robots.txt` is four lines and
+allows everything; the eight `Disallow` rules are injected by Cloudflare at serve
+time under a "Cloudflare Managed content" marker. Checked rather than assumed:
+the live file contains `ClaudeBot`, the repo file does not.
+
+So it is a setting in the Cloudflare dashboard, not a commit. Handed back as
+steps rather than done.
