@@ -114,3 +114,36 @@ The version warning added in 0.7.3 lives in the SKILL.md that does not load. It
 cannot reach the agent that needs it. **That check has to live in `ask.py` /
 `relay.py`, which are current, or in the harness — not in the file whose
 staleness is the problem.**
+
+---
+
+## Postscript: the version guard earned its keep four hours later
+
+**0.10.0 shipped at 02:20 UTC**, and it is the first release past `.9`.
+
+On 7 September the plugin-cache resolver read `sorted(os.listdir(ROOT))[-1]` — a
+**string** sort over version directory names. The Forge session found it by
+**reading the fix rather than running it**, and said so precisely:
+
+> *"It is correct today and stays correct through 0.9.x. On the first minor bump
+> past .9, an agent following the documented snippet loads a stale plugin while
+> believing it is current [...] Nothing will announce it."*
+
+Measured now, on the versions that actually exist:
+
+```
+string sort : 0.9.6      <- what 0.7.3 would have picked
+by number   : 0.10.0
+```
+
+Four hours, five releases. An agent installing 0.10.0 would have silently run
+0.9.6 — and 0.9.6 is missing the bounce guard, the research envelope and the
+follow-up desk binding. Nothing would have said so, and the version check the
+skill tells you to run would have agreed with itself.
+
+**Worth naming the shape rather than just the fix.** This was found by reading a
+diff, not by running anything: no test failed, no run misbehaved, and the code
+was correct on every input it would see for another five releases. The tests
+that hold it now (`test_a_version_check_selects_by_name.py`) had to construct a
+cache that has *already* crossed `.9`, because that is the only way to fail
+today on a bug that does not bite until later.
