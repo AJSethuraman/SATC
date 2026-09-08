@@ -435,6 +435,8 @@ class Served:
                f"    {self.tier} · "
                f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
                f" · confirmed {self.checked}"]
+        if (tied := _tieout_line(self.proof)):
+            out += [tied]
         if self.caveat:
             out += ["", self.caveat]
         if self.alongside:
@@ -466,6 +468,40 @@ class Served:
                 out += ["", f"AND THE AUTHORITY UNDER THE FIRM'S OTHER ANSWER "
                             f"({position}), in full:", "", f"> {text}"]
         return "\n".join(out)
+
+
+def _tieout_line(proof) -> str:
+    """What the tie-out attempt DID, in one line, whatever it did.
+
+    THE FIRM, 8 September 2026: *"It should state what happened when trying to
+    tie it out. I need info to make decisions down the line."* All three
+    verdicts are findings, so all three are said. A rendering that spoke only
+    on failure would teach a reader that silence means checked -- and silence
+    here means NOT ASKED FOR, which is a different thing entirely.
+
+    TYPED LOOSELY, LIKE THE FIELD. `proving` imports the record and reaches the
+    network; this module must do neither, so nothing here is imported and every
+    field is read off the object.
+    """
+    if proof is None:
+        return ""
+    verdict = getattr(proof, "verdict", "")
+    at = getattr(proof, "fetched_at", "") or "an unrecorded moment"
+    host = _host_of(getattr(proof, "url", ""))
+    if verdict == "TIED":
+        return (f"    tied out against {host or 'the publisher'} at {at} — the "
+                f"passage below is in the document served there right now")
+    note = getattr(proof, "note", "") or "no reason was recorded"
+    return (f"    NOT TIED OUT ({verdict or 'unknown'}) — {note} "
+            f"This rests on this desk's record alone; nothing has been checked "
+            f"against the publisher.")
+
+
+def _host_of(url: str) -> str:
+    """The registered host of a URL. A reader needs WHO, not which path."""
+    import urllib.parse
+    host = urllib.parse.urlsplit(url or "").hostname or ""
+    return host.lower().removeprefix("www.")
 
 
 @dataclass(frozen=True)
@@ -503,6 +539,19 @@ class Refusal:
     #: three that turn on a position's `Needs:` or `Unless:` set them.
     fact: str = ""
     by_position: str = ""
+    #: A `proving.Proof` when a tie-out was attempted, and None when none was.
+    #: Typed loosely for the same reason as `Served.proof`, and set by
+    #: `ask.answer` rather than here.
+    #:
+    #: A REFUSAL CAUSED BY A TIE-OUT MUST SAY WHAT THE TIE-OUT DID, and before
+    #: this field it could not: `authority_has_moved` carried the proof's note
+    #: inside a sentence and dropped the host, the moment and the digest, so the
+    #: one refusal that exists BECAUSE something was fetched was the one nobody
+    #: could re-run by hand. #343's candidate path needs the same field for the
+    #: opposite case -- a citation no desk holds, refused because the fetch
+    #: failed -- where the whole content of the refusal is what happened when
+    #: trying.
+    proof: object = None
     #: WHICH DESK REFUSED. Empty only where nothing routed.
     #:
     #: A QUESTION REACHES MORE THAN ONE DESK, and a printed refusal did not say
@@ -604,6 +653,11 @@ class Refusal:
         # inverts that teaches a reader the shape means nothing.
         out = [f"THE DESK DID NOT ANSWER — {self.reason}"
                + (f"  ·  {self.desk}" if self.desk else ""), f"    {self.detail}"]
+        # WHAT THE TIE-OUT DID, WHERE ONE WAS TRIED. Directly under the detail,
+        # because on the refusals that exist because of a fetch it IS the
+        # detail -- the host asked, the moment, and what came back.
+        if (tied := _tieout_line(self.proof)):
+            out += [tied]
         if self.working:
             out += ["", self.working]
         if self.ask:

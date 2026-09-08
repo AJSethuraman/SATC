@@ -215,6 +215,14 @@ def answer(question: str, desk_name: str, *, position: str = "",
     withdrawn (`authority_has_moved`); where the publisher could not be reached
     the answer stands and says the proof could not be taken.
 
+    EVERY ATTEMPT IS RECORDED, WHATEVER IT DID, into the desk's `tie-outs/`
+    store, under `keep` like a refusal is. The firm asked for it in as many
+    words -- *"It should state what happened when trying to tie it out. I need
+    info to make decisions down the line."* -- and the decisions it is for are
+    about PUBLISHERS rather than about any one answer: one unreachable source is
+    a shrug, forty against the same host is a source to retire. `attempts.py`
+    says what is written and what is deliberately not.
+
     `judged` IS A SECOND READER'S VERDICT, and it is the same trade as `prove`:
     an input, never something this function goes and obtains. Pass a
     `judging.Judgment` -- who read the passage, whether it carries the
@@ -251,6 +259,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
     if prove is not None and isinstance(out, engine.Served):
         import dataclasses
 
+        import attempts
         import proving
         p = proving.prove(out, desk, prove)
         if p.verdict == proving.DIFFERS:
@@ -261,9 +270,24 @@ def answer(question: str, desk_name: str, *, position: str = "",
                 f"only witness to that text, which is not enough to serve it on",
                 ask=f"Re-read {p.url or out.citation} and bring the stored "
                     f"passage back into line with it, or retire the citation. "
-                    f"Until then this desk has no authority for the answer.")
+                    f"Until then this desk has no authority for the answer.",
+                # THE WITHDRAWAL CARRIES ITS OWN EVIDENCE. This refusal exists
+                # BECAUSE something was fetched, and before the field existed it
+                # was the one refusal in the engine nobody could re-run by hand:
+                # the note survived inside a sentence and the host, the moment
+                # and the digest did not.
+                proof=p, desk=desk.name)
         else:
             out = dataclasses.replace(out, proof=p)
+        # RECORDED WHATEVER IT DID, and gated by `keep` for the same reason
+        # refusals are: `keep=False` means measuring. The firm asked for this in
+        # as many words -- *"It should state what happened when trying to tie it
+        # out. I need info to make decisions down the line."* -- and a decision
+        # about a PUBLISHER cannot be made from the one attempt in front of you.
+        # A TIED is kept too: a source that ties out for months and then stops is
+        # only visible if the months were written down.
+        if keep:
+            attempts.record(desks, desk_name, p)
     if judged is not None and isinstance(out, engine.Served):
         import dataclasses
 

@@ -43,6 +43,25 @@ ONLY_WHEN_SERVED = tuple(
     f for f in engine.Served.__dataclass_fields__
     if f not in engine.Refusal.__dataclass_fields__)
 
+#: FIELDS DELIBERATELY CARRIED BY BOTH BRANCHES, listed by hand because each one
+#: is a decision, and the test below is what forces it to be made rather than
+#: drifted into.
+#:
+#: `proof` was the first, on 8 September 2026, and it is exactly the case the
+#: Forge desk predicted: a `Refusal` gained the field because a refusal caused by
+#: a tie-out has to say what the tie-out did (#345), and `ONLY_WHEN_SERVED`
+#: silently stopped covering it the moment it did.
+#:
+#: THEY ARE ADDED TO WHAT THE SCAN COVERS, NOT DROPPED FROM IT. `AttributeError`
+#: no longer protects them -- that is what being on both branches means -- so the
+#: silent form is the ONLY protection left, and the ambiguity is unchanged:
+#: `getattr(out, "proof", None) is None` passes on a refusal that never reached
+#: the stage that would have set it.
+ON_BOTH = ("proof",)
+
+#: What a negative assertion may not reach through a `getattr` default.
+GUARDED = ONLY_WHEN_SERVED + ON_BOTH
+
 #: The shape of an assertion about absence.
 ABSENT = re.compile(r"""== ?["']{2}|== ?\(\)|\bis None\b|\bnot \b""")
 
@@ -61,11 +80,11 @@ def test_no_field_lives_on_both_branches_at_once():
     the guard rather than the code it guards — which is the thing mutation
     cannot do.
 
-    `ONLY_WHEN_SERVED` is the DIFFERENCE of the two dataclasses. Today the
-    intersection is empty, so it happens to be all of `Served`, and the coverage
-    is complete: `AttributeError` catches every cross-branch access loudly and
-    the scan below catches the silent one. **Correct, and correct by a
-    coincidence of the current shape.**
+    `ONLY_WHEN_SERVED` is the DIFFERENCE of the two dataclasses. It was written
+    when the intersection was empty, so it happened to be all of `Served`, and
+    the coverage was complete: `AttributeError` catches every cross-branch
+    access loudly and the scan below catches the silent one. **Correct, and
+    correct by a coincidence of the shape at the time.**
 
         "THE DAY A FIELD LANDS ON BOTH DATACLASSES, THREE THINGS HAPPEN AT ONCE
          AND ALL SILENTLY:
@@ -79,15 +98,21 @@ def test_no_field_lives_on_both_branches_at_once():
 
     So this is prevention rather than detection, and it fails on the commit that
     creates the risk — the only moment anyone will be thinking about it.
-    `working` on a `Served` is the obvious future candidate; if the firm wants
-    it, this goes red, it moves to an explicit list, and the scan keeps covering
-    it. That is the decision being forced, not forbidden."""
+
+    IT HAS NOW FIRED ONCE, and the prediction was right in mechanism and wrong
+    only in which field. The guess was `working` on a `Served`; it was `proof`
+    on a `Refusal`, added on 8 September because a refusal caused by a tie-out
+    has to say what the tie-out did. This test went red on that commit, the
+    field went into `ON_BOTH`, and the scan widened to cover it. That is the
+    decision being forced, not forbidden — and `ON_BOTH` is hand-typed so the
+    next one has to be made in the same place rather than drifted into."""
     both = set(engine.Served.__dataclass_fields__) & set(
         engine.Refusal.__dataclass_fields__)
-    assert not both, (
-        f"{sorted(both)} live on both branches: `AttributeError` no longer "
-        f"protects them and ONLY_WHEN_SERVED no longer covers them. Decide "
-        f"here, not later — add them to an explicit list the scan reads.")
+    assert both == set(ON_BOTH), (
+        f"{sorted(both ^ set(ON_BOTH))} changed which branches they live on: "
+        f"`AttributeError` no longer protects a field that joined both, and "
+        f"`ONLY_WHEN_SERVED` no longer covers it. Decide here, not later — put "
+        f"it in ON_BOTH, which the scan reads, or take it off one branch.")
 
 
 def test_the_fields_this_guards_actually_exist():
@@ -97,6 +122,12 @@ def test_the_fields_this_guards_actually_exist():
     assert "straddle" in ONLY_WHEN_SERVED
     assert "judged" in ONLY_WHEN_SERVED
     assert "reason" not in ONLY_WHEN_SERVED, "reason is on Refusal too"
+    # AND THE HAND-TYPED HALF IS REAL. A name in `ON_BOTH` that no longer sits
+    # on both branches would quietly widen the scan onto nothing.
+    for field in ON_BOTH:
+        assert field in engine.Served.__dataclass_fields__
+        assert field in engine.Refusal.__dataclass_fields__
+    assert set(GUARDED) == set(ONLY_WHEN_SERVED) | set(ON_BOTH)
 
 
 def test_no_test_asserts_a_served_field_is_absent_through_a_getattr_default():
@@ -109,7 +140,7 @@ def test_no_test_asserts_a_served_field_is_absent_through_a_getattr_default():
                 stripped = line.strip()
                 if not stripped.startswith("assert") or not ABSENT.search(stripped):
                     continue
-                for field in ONLY_WHEN_SERVED:
+                for field in GUARDED:
                     if f'getattr(' in stripped and f'"{field}"' in stripped:
                         offences.append(f"{path.name}::{fn.name}: {stripped[:90]}")
     assert not offences, (
@@ -123,10 +154,14 @@ def test_no_test_asserts_a_served_field_is_absent_through_a_getattr_default():
 def test_the_scan_can_actually_fail():
     """THE GUARD ON THE GUARD, and this file would be self-proving without it —
     which would be the defect wearing the costume of its own fix."""
-    fake = 'def t():\n    assert getattr(out, "straddle", "") == ""\n'
-    tree = ast.parse(fake)
-    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
-    line = fake.splitlines()[1].strip()
-    assert line.startswith("assert") and ABSENT.search(line)
-    assert any(f'"{f}"' in line for f in ONLY_WHEN_SERVED)
-    assert fn.name == "t"
+    for field in ("straddle", *ON_BOTH):
+        fake = f'def t():\n    assert getattr(out, "{field}", None) is None\n'
+        tree = ast.parse(fake)
+        fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+        line = fake.splitlines()[1].strip()
+        assert line.startswith("assert") and ABSENT.search(line)
+        # THE BOTH-BRANCH FIELDS ARE RUN THROUGH IT TOO, because covering them
+        # was the whole decision above and an untested widening is a widening
+        # nobody can rely on.
+        assert any(f'"{f}"' in line for f in GUARDED), field
+        assert fn.name == "t"

@@ -63,6 +63,21 @@ Not supplying one is an answer, and there are two of them:
 The second is a hole in what the firm tracks. `python3 tools/holes.py` reads both
 out of the refusal queue, holes first — see `docs/WHERE-FACTS-LIVE.md`.
 
+**And a served answer can be handed in with its evidence.** Pass `ask.answer` a
+transport and it fetches the publisher's own page, compares it with the passage
+being served, and hands the answer over with the tie-out attached — the URL, the
+moment, the digest, how much matched. Where the publisher no longer carries the
+text the answer is withdrawn; where the publisher could not be reached the answer
+stands and says so, because a client's answer must not depend on a government
+website being up.
+
+**Every attempt is written down, whatever it did.** The firm, 8 September 2026:
+*"It should state what happened when trying to tie it out. I need info to make
+decisions down the line."* One unreachable source is a shrug; forty against the
+same host is a source to retire, and that decision cannot be made from the one
+answer in front of you. `python3 tools/tieouts.py` reads them out, counted by
+publisher, naming what it read them from.
+
 **Two skills, because there are two sides.** `skills/be-the-desk` is for the
 session that HOLDS the desks and answers from them; `skills/ask-desk` is for the
 agent doing the work, which holds none of the record and sends its question to
