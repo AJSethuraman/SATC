@@ -541,11 +541,42 @@ parent structure survives:
 **The control was run first-class, not as an afterthought**, because that is the
 only thing that distinguishes "spaces are fine" from "my copy happened to work".
 
-**This is Linux, and it does not settle Windows.** `C:\Users\Firstname Lastname`
-adds a drive letter, a backslash separator and a short-name alias to the same
-question. What it does establish is that nothing in this suite mishandles a
-space *as such* — so if a spaced path ever fails on Windows, the space is not
-the cause and the separator is where to look.
+**That was Linux, and this document said it did not settle Windows** — a drive
+letter, a backslash separator and a space are three things at once, and only one
+of them had been run.
+
+**Closed the same night, on Windows, and the sentence above is retired rather
+than carried.** The tester did not wait for a spaced home directory: it made one,
+copying the repository *structure* (17 MB of 637) into a scratchpad — which is
+the fix for its own earlier confound, applied.
+
+```
+925 passed, 1 skipped        <- CONTROL, no spaces        (run FIRST)
+925 passed, 1 skipped        <- ...\Firstname Lastname\SATC\desk
+```
+
+**And it verified the path was what it claimed**, rather than trusting that a
+bash string with forward slashes had become a Windows path:
+
+```
+cwd as Python sees it : C:\Users\...\Firstname Lastname\SATC\desk
+drive                 : 'C:'
+contains a space      : True
+backslash separator   : True
+record loaded         : 293 passages
+brief first line      : # cash-and-bank · desk 0.12.3
+```
+
+Drive letter, backslash separators, a space in a directory name, a real record
+loaded and the right version stamped. **The spaces axis is closed on both
+platforms**, in combination rather than one factor at a time.
+
+**What is still open, stated so this does not overclaim:** a non-UTF-8 **locale**.
+The `cp1252` failure was a locale artifact that happened to surface through a
+codec default, and that machine has only ever been run in its own locale.
+*"That is the next axis if you ever want one, and it is cheap — `PYTHONUTF8=0`
+with a non-UTF-8 `LANG`, or a machine set to a different system codepage. I have
+not run it and am not claiming anything about it."*
 
 ## The discipline, in the tester's own words
 
