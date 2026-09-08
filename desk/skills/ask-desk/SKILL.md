@@ -69,6 +69,16 @@ the desk that found it said why this is the right check: *"`claude plugin
 details` is a reliable oracle for what SHOULD be loaded, from inside the
 session, cheaply."*
 
+**And a version that is only on a branch can NEVER be installed.**
+`claude plugin update desk@satc` resolves through the marketplace listing on
+`main`, so while work sits on a feature branch the installed plugin is whatever
+`main` last carried — by construction, not by fault. On 8 September a session
+told the desk to *stop unless `plugin details` reports 0.10.2*, and the desk
+answered that the rule *"can only ever fire, never clear"*: 0.10.2 existed only
+on the branch. **Do not write a stop condition against an unmerged version.**
+Check that the CHECKOUT is current, and read the version off the brief's own
+header, which comes from the code doing the work.
+
 **If they disagree, work from the checkout** — `import` from the repository's
 own `desk/` — and do not follow the skill the tool serves you. A fresh session
 is the only known cure and you probably cannot start one.
