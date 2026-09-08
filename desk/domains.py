@@ -137,6 +137,62 @@ class Verdict:
             if self._question else self.also
 
     @property
+    def apart(self) -> tuple:
+        """`((domain, the words only IT fired on), ...)` for every losing body
+        the question did not actually rule out. Empty when the winner's own
+        words did the deciding.
+
+        THE FLAGSHIP CASE IS NOT A TIE, and the Forge desk found that after this
+        first shipped as one:
+
+            the 36-month lease question   shared ['lease']   own: tax [] gaap []
+            "the lease liability on the balance sheet - deductible?"
+                                          shared ['lease']   own: tax ['deductible']
+                                                                  gaap ['balance sheet']
+
+        *"THE FLAGSHIP HAS NO DISCRIMINATING WORD AT ALL. Both sides scored 1 on
+        the SAME token, 'lease', which is in both vocabularies. Nothing in that
+        question tells the two bodies apart. The other two are genuine ties: one
+        real signal each side, pulling opposite ways. […] They were not weighed;
+        there was nothing to weigh."*
+
+        Two states, and a note that called both a tie told the reader evidence
+        had been balanced when none existed. `only_shared_words` separates them,
+        because the fix differs: nothing-told-them-apart is fixed in the ASKER'S
+        WORDING, and a genuine split is not.
+
+        AND IT IS BROADER THAN A TIE, which is the other half of the same
+        finding. *"operating lease with a purchase option, capitalize or deduct
+        the rent?"* loses 4-2 — so the old tie rule was silent — while `us-gaap`
+        holds `operating lease`, the exact ASC 842 vocabulary, and the question
+        is squarely a book question. A losing body with a word of its own was
+        not ruled out; it was outvoted by count.
+
+        MEASURED BEFORE THE RULE WIDENED: on the 98 recorded problems this fires
+        on the SAME FIVE the tie rule fired on, so the wider rule costs nothing
+        on the record and catches a case the narrow one missed.
+        """
+        if self.domain is None or not self.also:
+            return ()
+        own = self._own
+        if not any(own.values()):
+            return tuple((d, ()) for d in self.also)      # nothing told them apart
+        return tuple((d, tuple(sorted(own[d.name]))) for d in self.also
+                     if own[d.name])
+
+    @property
+    def only_shared_words(self) -> bool:
+        """Every word that fired is in every body's vocabulary. Nothing to weigh."""
+        return bool(self.also) and not any(self._own.values())
+
+    @property
+    def _own(self) -> dict:
+        """`{domain name: the words only that body fired on}`."""
+        per = {d.name: frozenset(_hits(self._question, d)) for d in self.bodies}
+        shared = frozenset.intersection(*per.values()) if per else frozenset()
+        return {n: per[n] - shared for n in per}
+
+    @property
     def bodies(self) -> tuple:
         """Every domain that fired, best first. What a straddle has to answer."""
         return () if self.domain is None else (self.domain,) + tuple(self.also)

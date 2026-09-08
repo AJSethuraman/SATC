@@ -1332,33 +1332,91 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
     )
 
 
-def _straddle_note(verdict, desk) -> str:
-    """The sentence a reader sees when the domain gate was decided by the sort.
+def _mid_sentence(text: str) -> str:
+    """The firm's own sentence, set inside one of ours. First letter folded,
+    every other left alone -- "the United States" is not "the united states"."""
+    text = text.strip().rstrip(".")
+    return text[:1].lower() + text[1:]
 
-    IT NAMES WHETHER THE OTHER BODY IS REACHABLE, and that half is read off the
-    record rather than asserted: a straddle where some desk holds the other
-    body's authority is a question that can be asked again and answered; one
-    where nothing does is a question this system cannot answer at all, and the
-    reader is the only party who can know which half they wanted.
+
+def _straddle_note(verdict, desk) -> str:
+    """The sentence a reader sees when the words did not rule the other body out.
+
+    REWRITTEN 8 SEPTEMBER, BY THE READER IT IS FOR. The first version put the
+    machine's tie-break in the middle and the consequence last, conditional. The
+    Forge desk read it as the six-o'clock reader and took it apart:
+
+        "S2 IS THE ONE I SKIM. It is 38% of the note and it is the machine
+         explaining its own tie-break. At 6pm I do not care HOW the gate
+         decided; 'name sort' is a fact about your sort key, not about my
+         books."
+
+        "The operative clause is LAST and it is CONDITIONAL […] THE READER WHO
+         IS ABOUT TO MAKE THIS MISTAKE IS EXACTLY THE READER WHO DOES NOT KNOW
+         THEIR QUESTION HAS TWO HALVES. You are asking the one person who cannot
+         answer it to self-diagnose, at the end of the longest sentence."
+
+        "It never says DO NOT ACT ON THIS."
+
+    So: consequence first, no internals, and the other half named in the firm's
+    own plain words rather than by its body's thirteen-word legal name. That
+    phrase is `Domain.about`, already written in `DOMAINS.md` -- "what the books
+    say, and what goes on the balance sheet" -- so nothing here is invented.
+
+    LENGTH WAS NOT THE PROBLEM AND IS NOT CHANGED. Asked directly whether three
+    lines is too much at four correct answers per wrong one: *"THREE LINES IS
+    CHEAP AND I WOULD NOT SHORTEN IT. On the four correct tax answers the note
+    is not noise: it truthfully tells a tax-correct answer that a book half
+    exists and is not covered. That is a second finding, not a tax. The thing
+    that IS noise on all five is S2."*
     """
-    if verdict is None or not getattr(verdict, "tied", ()):
+    if verdict is None:
+        return ""
+    apart = getattr(verdict, "apart", ())
+    if not apart:
         return ""
     import domains as _domains
 
-    others = verdict.tied
-    names = ", ".join(d.name for d in others)
-    won = verdict.domain.name
+    won = verdict.domain
+    others = [d for d, _ in apart]
+    # `about` IS THE FIRM'S OWN SENTENCE. Only its first letter is folded so it
+    # reads inside ours: `.lower()` on the whole thing published "what a
+    # taxpayer owes the united states, and when".
+    theirs = ", ".join(_mid_sentence(d.about) for d in others)
     held = _domains.reachable(others, desk)
-    if held:
-        tail = (f"This desk does hold {', '.join(held)}, so ask it that question "
-                f"rather than reading the answer above as if it covered both.")
+
+    # THE WINNER IS NAMED AND NOT EXPLAINED; the OTHER half is explained. That
+    # is the desk's own draft and it is right: the reader can see the answer
+    # above, so what they need is what it is NOT about. Spending a clause on
+    # `federal-tax.about` here cost nine words and told them nothing new.
+    out = [f"THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION. It answers the "
+           f"{won.name} half only."]
+
+    if verdict.only_shared_words:
+        # NOTHING WAS WEIGHED, so the note must not imply anything was. The fix
+        # is in the asker's wording and only they can make it.
+        word = ", ".join(f"{w!r}" for w in verdict.matched) or "what you wrote"
+        out.append(f"The other half is {theirs} — and NOTHING YOU WROTE TELLS "
+                   f"THE TWO APART: {word} is in both vocabularies.")
     else:
-        tail = (f"{others[0].body} settles {names}, and NO DESK HERE HOLDS IT — "
-                f"so if that is the half you asked about, nothing above answers "
-                f"it.")
-    return (f"THE GATE DID NOT DECIDE THIS. The question fires on as many "
-            f"{names} words as {won} ones, and {won} won on a name sort rather "
-            f"than on the words. {tail}")
+        said = ", ".join(f"{w!r}" for _, words in apart for w in words)
+        out.append(f"You also wrote {said}, which belongs to the other half: "
+                   f"{theirs}.")
+
+    # THE BODY'S NAME GOES LAST, NOT FIRST. The desk's objection was to opening
+    # a sentence with thirteen words of proper noun before the verb -- "the
+    # Financial Accounting Standards Board, through the Accounting Standards
+    # Codification settles us-gaap" -- and it stands. But a reader who is about
+    # to escalate needs to know WHO settles it, and by this point they already
+    # know which half they are being warned about, so the name informs instead
+    # of blocking.
+    who = "; ".join(d.body for d in others)
+    out.append(f"This desk holds that half too — ask it that question rather "
+               f"than reading the answer above as if it covered both."
+               if held else
+               f"No desk here holds that half — {who} settles it. If it is the "
+               f"half you meant: stop, and escalate.")
+    return " ".join(out)
 
 
 def _same(given: str, known: str) -> bool:

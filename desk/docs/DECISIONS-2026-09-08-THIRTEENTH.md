@@ -157,3 +157,119 @@ whether the equipment is used in a trade or business at all. Correct.
    argument: four correct answers against one wrong one, today. The
    recommendation is to leave it warning until a US GAAP desk exists — at which
    point the reader has somewhere to go, and refusing costs them nothing.
+
+---
+
+# Postscript: the note was rewritten by the reader it is for — 8 September 2026
+
+The Forge desk read the straddle note **as the six-o'clock reader** it was
+written for, and took it apart in a way nobody on the building side could have.
+
+| | words | verdict |
+|---|---|---|
+| S1 *"THE GATE DID NOT DECIDE THIS."* | 6 | *"Caps, six words, top of the block. My eye stopped."* |
+| S2 *"…fires on as many us-gaap words as federal-tax ones, and federal-tax won on a name sort…"* | 23 | *"THE ONE I SKIM. 38% of the note and it is the machine explaining its own tie-break. At 6pm I do not care HOW the gate decided; 'name sort' is a fact about your sort key, not about my books."* |
+| S3 *"…the Financial Accounting Standards Board, through the Accounting Standards Codification settles us-gaap, and NO DESK HERE HOLDS IT…"* | 32 | thirteen words of proper noun before the verb; the warning buried mid-sentence; **the operative clause last and conditional** |
+
+The sentence that killed it:
+
+> *"THE READER WHO IS ABOUT TO MAKE THIS MISTAKE IS EXACTLY THE READER WHO DOES
+> NOT KNOW THEIR QUESTION HAS TWO HALVES. You are asking the one person who
+> cannot answer it to self-diagnose, at the end of the longest sentence."*
+
+And: *"It never says DO NOT ACT ON THIS"* — while the served conclusion sits at
+the top, where the eye starts, in the position the answer always occupies.
+
+**Length was never the problem, and that was asked directly**, because a note
+that fires on four correct answers for every wrong one is a candidate for
+cutting:
+
+> *"THREE LINES IS CHEAP AND I WOULD NOT SHORTEN IT. On the four correct tax
+> answers the note is not noise: it truthfully tells a tax-correct answer that a
+> book half exists and is not covered. That is a second finding, not a tax. The
+> thing that IS noise on all five is S2."*
+
+So the internals are gone, the consequence leads, the other half is named in the
+firm's **own plain words** — `Domain.about`, already in `DOMAINS.md`, nothing
+invented — and it ends in an instruction:
+
+```
+THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION. It answers the federal-tax half
+only. The other half is what the books say, and what goes on the balance sheet
+— and NOTHING YOU WROTE TELLS THE TWO APART: 'lease' is in both vocabularies.
+No desk here holds that half — the Financial Accounting Standards Board,
+through the Accounting Standards Codification settles it. If it is the half you
+meant: stop, and escalate.
+```
+
+The body's name survives, moved to the end: real information for somebody about
+to escalate, and it blocked the sentence when it came first.
+
+## The flagship was never a tie
+
+Measured, and it changes what the note may honestly say:
+
+| question | shared | only-tax | only-gaap |
+|---|---|---|---|
+| the 36-month lease question | `lease` | — | — |
+| *"the lease liability on the balance sheet — deductible?"* | `lease` | `deductible` | `balance sheet` |
+| *"right-of-use asset for the leased truck, deductible mileage?"* | `leased` | `deductible` | `right-of-use` |
+
+> *"THE FLAGSHIP HAS NO DISCRIMINATING WORD AT ALL. Both sides scored 1 on the
+> SAME token, 'lease', which is in both vocabularies. […] They were not weighed;
+> there was nothing to weigh."*
+
+Two states, and the first note gave them one sentence that claimed evidence had
+been balanced when none existed. They are separated now, **because the fix
+differs**: nothing-told-them-apart is fixed in the **asker's wording** and a
+genuine split is not.
+
+## And the rule got wider, which is the same finding
+
+> *"operating lease with a purchase option, capitalize or deduct the rent?"* —
+> `federal-tax` 4, `us-gaap` 2. Not a tie, so the first rule was **silent**. And
+> `us-gaap` holds `operating lease`, the exact ASC 842 vocabulary, on a question
+> that is squarely about the books.
+
+A losing body with a word of its own was not ruled out; it was outvoted by
+count. So the note fires on `Verdict.apart` rather than on `tied`.
+**Measured before widening: on the 98 recorded problems the wider rule fires on
+the same five** — it costs nothing on the record and catches a case the narrow
+one missed.
+
+## The general form of four self-proving tests
+
+The most useful paragraph of the night, and it is not about the note at all:
+
+> *"A CONTROL THAT IS REFUSED BEFORE IT REACHES THE CODE UNDER TEST CANNOT
+> DISTINGUISH 'absent because correct' FROM 'absent because unreachable.' […]
+> `engine.serve` is an ORDERED chain of refusals — domain gate, ratified
+> position, subject/source, judgment. EVERY NEGATIVE ASSERTION ABOUT A LATER
+> STAGE IS AT RISK IF THE FIXTURE TRIPS AN EARLIER ONE."*
+
+> *"Before asserting the note is absent, assert the answer was Served — i.e.
+> that the stage ran at all. A test that says 'not present' without saying 'and
+> we got far enough for it to be present' is the self-proving control, in
+> general form."*
+
+Swept, and the suite is clean but for the one instance that prompted it — and
+the sweep is now a test, `test_a_negative_assertion_needs_a_positive_precondition`.
+It bans the **narrow** form deliberately: `out.straddle == ""` on a `Refusal`
+raises `AttributeError`, so Python already fails most of the suite loudly
+without knowing it. The form that passes **silently** is `getattr(out, "field",
+<default>)`, where the default is exactly the value being asserted. That is what
+is banned, it is derived from the two dataclasses rather than a typed list, and
+a fourth test proves the scan can fail.
+
+## Two corrections the desk made against itself, unprompted
+
+Worth recording because they are why the rest is trustworthy:
+
+1. It counted hits with a space-delimited match, `"deductible?"` did not match,
+   and it briefly had a case where `us-gaap` outscored `federal-tax` and still
+   lost. *"I nearly sent you a fabricated headline."* Recounted with
+   `domains._hits`; the case does not exist.
+2. It called `reachable(sources, domain)` with the arguments reversed, got `()`
+   for every desk, and nearly reported the "this desk holds it" branch as dead
+   code. Called correctly it returns `('federal-tax',)` for all seven. **Finding
+   withdrawn by its author before it was acted on.**
