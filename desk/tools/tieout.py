@@ -91,7 +91,8 @@ def as_of() -> str:
     if _as_of_cache:
         return _as_of_cache[0]
     try:
-        titles = json.loads(_fetch("https://www.ecfr.gov/api/versioner/v1/titles.json"))
+        titles = json.loads(_fetch(
+            "https://www.ecfr.gov/api/versioner/v1/titles.json")[0])
         date = next(t["latest_issue_date"] for t in titles["titles"]
                     if t.get("number") == 26)
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
@@ -108,7 +109,26 @@ UA = "satc-desk-tieout (accounting record verification; contact via repository)"
 
 # -- reaching the publishers --------------------------------------------------
 
-def _get(url: str, *, timeout: int = 90) -> bytes:
+def _get(url: str, *, timeout: int = 90) -> tuple[bytes, str]:
+    """The bytes, AND THE URL THEY CAME FROM after redirects.
+
+    THE SECOND HALF EXISTED NOWHERE UNTIL 8 September 2026, and its absence is
+    what let a bounce look like a publisher rewriting the page. `ecfr.gov`
+    redirects any non-browser client -- including this one, whose `UA` is right
+    above -- to an interstitial on `unblock.federalregister.gov` that answers
+    **HTTP 200** with 10,596 bytes that are not the regulation. Measured on the
+    firm's own machine, same URL, same minute:
+
+        UA satc-desk-tieout  ->  10,596 b   an interstitial
+        UA Chrome/140        -> 584,798 b   THE REGULATION
+
+    `proving.prove` compares the landing host against the source's before it
+    compares any text, so a bounce is COULD_NOT rather than
+    `authority_has_moved` -- but only if the transport SAYS where it landed.
+    This one returned bare bytes, and `live_text` filled `Fetched.url` with the
+    URL it had ASKED for, so every proof looked like it had reached the
+    publisher. The guard could not fire on the one tool that needs it.
+    """
     req = urllib.request.Request(url, headers={
         "User-Agent": UA, "Accept-Encoding": "gzip",
     })
@@ -116,7 +136,7 @@ def _get(url: str, *, timeout: int = 90) -> bytes:
         body = r.read()
         if r.headers.get("Content-Encoding") == "gzip":
             body = gzip.decompress(body)
-        return body
+        return body, (r.geturl() or url)
 
 
 def _pdf_text(body: bytes) -> str:
@@ -218,13 +238,16 @@ def live_text(source: record.Source, citation: str = "") -> Fetched:
         url = _ecfr_url(url)
     elif "uscode.house.gov" in url:
         url = _statute_url(url, citation)
-    raw = _fetch(url)
+    raw, landed = _fetch(url)
     text = _pdf_text(raw) if url.lower().endswith(".pdf") else _markup_text(raw)
-    return Fetched(text, url, hashlib.sha256(raw).hexdigest(), len(raw),
+    # `landed`, NOT `url`. What we asked for says nothing about where we
+    # arrived, and this field is what `proving.prove` reads to decide whether
+    # it reached the publisher at all.
+    return Fetched(text, landed, hashlib.sha256(raw).hexdigest(), len(raw),
                    datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ"))
 
 
-def _fetch(url: str) -> bytes:
+def _fetch(url: str) -> tuple[bytes, str]:
     """One retry, and only for a transient failure.
 
     `fetch.py` sets the rule this follows: a timeout or a reset is retried with
