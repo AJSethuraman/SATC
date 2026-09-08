@@ -80,6 +80,11 @@ SAME_THROUGHOUT = sum(1 for b in PEERS["banks"]
                       if b.get("same_name_throughout"))
 RENAMED = [b for b in PEERS["banks"] if b.get("legal_name_at_window_start")
            and not b.get("same_name_throughout")]
+_VINT = {(b["cert"], b["report_date"]): b["days_after_quarter_end"]
+         for b in BANK if b.get("days_after_quarter_end")}
+VINTAGE_TOTAL = len(_VINT)
+VINTAGE_LATE = sum(1 for d in _VINT.values() if int(d) > 90)
+VINTAGE_VERY_LATE = sum(1 for d in _VINT.values() if int(d) > 365)
 #: Merger quarters whose total assets step by 10% or more, and the worst one.
 STEPS = [m for m in MERGERS if m.get("change_in_total_assets_pct")
          and abs(float(m["change_in_total_assets_pct"])) >= 10]
@@ -570,10 +575,23 @@ A('<div class="note warn"><p><b>Read this one before you chart a bank across '
 A('<ul>')
 A('<li><b>Not that the banks are right.</b> A value can match its filing '
   'exactly and the filing can still be wrong. This proves faithful copying.</li>')
-A('<li><b>There is no vintage.</b> These are the figures as published when '
-  'they were pulled. Banks amend Call Reports and agencies revise series, so a '
-  'value verified today may not match the same source in six months. Nothing '
-  'here records which revision a figure came from.</li>')
+A('<li><b>It is a snapshot, and banks amend.</b> Every bank row carries '
+  '<span class="mono">filing_last_updated</span>, the date printed on the '
+  'filing it was checked against, so you can see which version you have. '
+  'Amendments are the normal case here rather than the exception: %s of the '
+  '%s filings were last updated more than 90 days after the quarter they '
+  'report and %s more than a year after it &mdash; Bank of America amended '
+  'its third quarter of 2016 in December 2021. The macro side has no such '
+  'stamp.</li>' % (n(VINTAGE_LATE), n(VINTAGE_TOTAL), n(VINTAGE_VERY_LATE)))
+A('<li><b>The %s FDIC-computed ratios are half checked now.</b> Eight of '
+  'the 87 fields are not lines a bank files &mdash; the FDIC computes them, so '
+  'there is no row on any form to compare them with. Four of the eight are '
+  'plain ratios of two figures this feed already carries and has already tied '
+  'to the filings, and recomputing those from their own verified components '
+  'gives <b>2,964 of 2,964 agreeing, none differing</b>. The other four are '
+  'computed over average balances or income-statement items this feed does '
+  'not hold, so they remain unchecked. Run '
+  '<span class="mono">tools/tieout/check_fdic_ratios.py</span>.</li>' % n(RATIOS))
 A('<li><b>%s macro observations have no obtainable source.</b> They are '
   'whole series rather than a scatter of gaps, and most are Case-Shiller, '
   'whose history S&amp;P Dow Jones Indices sells. The most recent month of '

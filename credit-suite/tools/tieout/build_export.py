@@ -74,6 +74,13 @@ else:
 fred_meta = {r["series_id"]: r for r in json.loads((SB / "fred_series.json").read_text())}
 ours_fred = json.loads((SB / "fred_ours.json").read_text())
 
+#: `Last Updated on <date>` off each filing's own pages -- which version of
+#: the document the value was checked against. {"cert|iso": [days_after, date]}
+#: Written by tools/tieout/read_filing_vintage.py. Absent is handled: the
+#: column says so rather than being quietly blank.
+_VINT = SB / "filing_vintage.json"
+VINTAGE = json.loads(_VINT.read_text()) if _VINT.exists() else {}
+
 FACSIMILE = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
              "?ds=call&idType=fdiccert&id=%s&date=%s")
 
@@ -122,9 +129,11 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
     w.writerow(["cert", "bank", "report_date", "field", "value", "units",
                 "call_report_schedule", "cited_line", "verified",
                 "verified_meaning", "usable_for_trend", "note",
+                "filing_last_updated", "days_after_quarter_end",
                 "filing_url"])
     for r in bank_rows:
         merger = r["verdict"] in NOT_FOR_TREND
+        vint = VINTAGE.get("%s|%s" % (r["cert"], r["repdte"]))
         note = r.get("how", "")
         if r["verdict"] == "DIFFERS" and r.get("theirs") is not None:
             # A difference that does not say what the other number was is a
@@ -133,7 +142,11 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
             note = ("the filing reads %s and the FDIC publishes %s, a "
                     "difference of %s. The filing was read twice -- off the "
                     "printed page and off the machine-readable copy of the "
-                    "same filing -- and both say the same thing. %s"
+                    "same filing -- and both say the same thing. This filing "
+                    "was amended after the quarter (see filing_last_updated), "
+                    "and the FDIC's published figure has not moved with it, "
+                    "which is the likeliest explanation and is not proven: "
+                    "the pre-amendment filing is not obtainable. %s"
                     % (f"{float(r['theirs']):,.0f}", f"{float(r['ours']):,.0f}",
                        f"{float(r['ours']) - float(r['theirs']):,.0f}",
                        r.get("how", ""))).strip()
@@ -145,6 +158,8 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
             VERDICT_PLAIN.get(r["verdict"], r["verdict"]),
             "no" if merger else "yes",
             note,
+            vint[1] if vint else "not read",
+            vint[0] if vint else "",
             FACSIMILE % (r["cert"], r["repdte"][5:7] + r["repdte"][8:10] + r["repdte"][:4]),
         ])
 print("bank-values.csv        : %d rows%s"
@@ -204,8 +219,22 @@ if DEEP:
             "category": "state_unemployment"}
 
 SOURCE_URL = {
+    # 404 on 7 September 2026. FHFA reorganised its site; this is where the
+    # quarterly datasets live now, fetched and confirmed 200 the same day.
     "FHFA All-Transactions house price index":
-        "https://www.fhfa.gov/hpi/download/quarterly_datasets/",
+        "https://www.fhfa.gov/data/hpi/datasets",
+    "FHFA monthly purchase-only house price index":
+        "https://www.fhfa.gov/data/hpi/datasets",
+    # These five had no entry at all, so 42,177 rows shipped with an empty
+    # source_url while their own verified_against column named the publisher.
+    "BLS Local Area Unemployment Statistics":
+        "https://www.bls.gov/lau/",
+    "Bureau of Labor Statistics producer price index":
+        "https://www.bls.gov/ppi/",
+    "Federal Reserve Board H.8 data package":
+        "https://www.federalreserve.gov/releases/h8/",
+    "Federal Reserve Board G.19 terms of credit":
+        "https://www.federalreserve.gov/releases/g19/",
     "Federal Reserve Board charge-off / delinquency table":
         "https://www.federalreserve.gov/releases/chargeoff/",
     "Federal Reserve Board G.19 historical table":
@@ -218,6 +247,12 @@ SOURCE_URL = {
         "https://www.federalreserve.gov/releases/z1/",
     "no full-history source": "",
 }
+
+#: The Case-Shiller level tie names its source inline rather than through the
+#: map above, because the source is one press release rather than a standing
+#: page. This is where a reader goes for the index itself.
+CASE_SHILLER_URL = ("https://www.spglobal.com/spdji/en/index-family/indicators"
+                    "/sp-cotality-case-shiller/")
 #: Why a period could not be checked, said per series rather than per
 #: category -- because within a category some series tie in full and others
 #: cannot be reached at all, and one sentence covering both is a sentence
@@ -325,6 +360,18 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
             cs_against = ("S&P Dow Jones Indices press release, %s"
                           % cs_level.get("source_where", "published level"))
         MACRO_VERIFIED += bool(ok)
+        # A row that says where it was checked and does not say where to look
+        # is provenance that stops one step short of the person using it.
+        # 42,177 rows shipped that way because this map is kept by hand beside
+        # the source names and had fallen behind them.
+        link = (CASE_SHILLER_URL if cs_against
+                else SOURCE_URL.get(r["source"], ""))
+        if ok and not link:
+            raise SystemExit(
+                "REFUSING: %s is verified against %r and there is no URL for "
+                "that source. Add it to SOURCE_URL in this file. A reader who "
+                "follows the provenance to the end must land somewhere."
+                % (r["series"], r["source"]))
         w.writerow([
             r["series"], meta.get("title", block.get("title", "")), r["date"],
             r["ours"], meta.get("units", ""), meta.get("frequency", ""),
@@ -357,7 +404,7 @@ with (OUT / "macro-observations.csv").open("w", newline="", encoding="utf-8") as
                                else None)
                            or NO_SOURCE_WHY.get(cat)
                            or "no full-history source published"),
-            SOURCE_URL.get(r["source"], ""),
+            link,
         ])
 print("macro-observations.csv : %d rows" % len(fred_rows))
 

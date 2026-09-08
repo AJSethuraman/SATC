@@ -25,6 +25,14 @@ def _rows(name):
 BANK = _rows("bank-values.csv")
 MACRO = _rows("macro-observations.csv")
 MERGERS = _rows("not-comparable-periods.csv")
+#: How stale the filings behind this feed are, read off the delivered rows.
+#: LIMITS said "THERE IS NO VINTAGE" until 7 September 2026; there is one, on
+#: every filing, and it says most of this panel has been amended.
+_VINT = {(r["cert"], r["report_date"]): r["days_after_quarter_end"]
+         for r in BANK if r["days_after_quarter_end"]}
+VINTAGE_TOTAL = len(_VINT)
+VINTAGE_LATE = sum(1 for d in _VINT.values() if int(d) > 90)
+VINTAGE_VERY_LATE = sum(1 for d in _VINT.values() if int(d) > 365)
 #: How many merger quarters move total assets by 10% or more, and the worst.
 #: Read off the delivered file, because the sentence beside it is a claim about
 #: that file and the last one of those to be typed instead of counted said
@@ -208,11 +216,18 @@ START_HERE = [
 LIMITS = [
     ("h1", "Limits -- what this data cannot do"),
     ("", ""),
-    ("warn", "1. THERE IS NO VINTAGE. These are the figures as published when "
-             "they were pulled. Banks amend Call Reports and agencies revise "
-             "series, so a value verified today may not match the same source "
-             "in six months. Nothing here records which revision a figure is. "
-             "Treat the whole workbook as a snapshot dated 5 September 2026."),
+    ("warn", "1. THIS IS A SNAPSHOT, AND BANKS AMEND. These are the figures "
+             "as published when they were pulled, and a value verified today "
+             "may not match the same source in six months. Every bank row now "
+             "carries filing_last_updated -- the date printed on the filing it "
+             "was checked against -- so you can see which version you have. "
+             "Amendments are not rare here: %s of the %s filings were last "
+             "updated more than 90 days after the quarter they report, and %s "
+             "more than a YEAR after it. Bank of America amended its third "
+             "quarter of 2016 in December 2021. The macro side has no "
+             "equivalent stamp, so treat those as a snapshot dated "
+             "7 September 2026."
+     % (n(VINTAGE_LATE), n(VINTAGE_TOTAL), n(VINTAGE_VERY_LATE))),
     ("warn", ("2. %s MACRO OBSERVATIONS ARE NOT VERIFIED, and they split two "
               "ways. %s are NOT YET CHECKED -- the Bureau of Labor Statistics "
               "caps unregistered use at 25 requests a day and this run spent "
