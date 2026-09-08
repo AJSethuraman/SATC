@@ -231,3 +231,49 @@ def test_the_reply_snippet_is_a_fenced_block_a_desk_can_copy():
     block = lines[opened + 1:lines.index("```", opened + 1)]
     assert any(l.startswith("create_trigger(") for l in block)
     assert any(l.startswith("fire_trigger(") for l in block)
+
+
+# ------------------------------------------------------- where the desk lives
+
+def test_the_desk_address_comes_from_the_environment():
+    assert relay.desk_session({relay.DESK: ME}) == ME
+
+
+def test_unset_refuses_rather_than_guessing():
+    """THE ASKING SKILL COULD NOT BE FOLLOWED WITHOUT THIS. It said "send it to
+    the desk session" and left the doer to work out which one — which means
+    asking a person, and a step needing a person is the step V1 removes."""
+    with pytest.raises(relay.RelayError, match="no desk to ask"):
+        relay.desk_session({})
+
+
+def test_a_wrong_shape_is_caught_before_the_question_goes_nowhere():
+    with pytest.raises(relay.RelayError, match="not a session id"):
+        relay.desk_session({relay.DESK: "the forge one"})
+
+
+def test_whitespace_alone_is_unset_not_a_session():
+    with pytest.raises(relay.RelayError, match="no desk to ask"):
+        relay.desk_session({relay.DESK: "   "})
+
+
+def test_the_address_is_not_committed_anywhere_in_this_repository():
+    """A SESSION ID THAT SHIPPED WITH THE PLUGIN WOULD BE STALE FOR EVERYONE BUT
+    THE MACHINE IT WAS WRITTEN ON — the same class of defect as a stale SKILL.md
+    in a plugin cache, which has cost four releases. So the value lives in the
+    environment and the repository holds only the NAME of the variable.
+
+    The one exception is a decision log quoting a real id in a transcript of
+    something that happened; a log is a record and not a configuration."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    ids = re.compile(r"session_[A-Za-z0-9]{16,}")
+    offenders = []
+    for f in list(root.glob("*.py")) + list(root.glob("skills/*/SKILL.md")):
+        for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            if ids.search(line):
+                offenders.append(f"{f.relative_to(root)}:{n}")
+    assert not offenders, (
+        "a session id is committed in code or a skill: " + ", ".join(offenders)
+        + f". It is deployment state — read it from ${relay.DESK}")

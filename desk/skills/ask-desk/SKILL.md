@@ -25,23 +25,31 @@ working around a packaging problem; it is the design, and it buys two things:
 
 ## Sending a question
 
+**`SATC_DESK_SESSION` must be set** — it holds the session id of the session
+running `be-the-desk`. It is deployment state and is deliberately not committed:
+an id shipped with the plugin would be stale for everyone but the machine it was
+written on. If it is unset, `relay` says so rather than guessing, and the fix is
+to export it — not to hunt for a session id and paste one in.
+
 ```python
 import os, sys
 sys.path.insert(0, os.environ.get("CLAUDE_PLUGIN_ROOT", "."))
 import relay
 
+desk = relay.desk_session()                    # refuses if SATC_DESK_SESSION is unset
 a = relay.ask("the bank statement shows a $10 service charge and nothing for "
               "it is in the books — what do I do with it?",
               reply_to=<this session's own id>)   # get_session, omit session_id
 print(a.ref)                # note it — the answer opens with it
+print(desk)
 print(relay.as_prompt(a))   # the message to send
 ```
 
-Then send that text to the desk session, **poke-only**:
+Then send that text to the desk session it printed, **poke-only**:
 
 ```
 create_trigger(name=f"Desk request {a.ref}",
-               persistent_session_id=<the desk session>,
+               persistent_session_id=<what desk_session() returned>,
                initiation="human_schedule",
                prompt=relay.as_prompt(a))     # NO run_once_at, NO cron
 fire_trigger(<the id it returns>)

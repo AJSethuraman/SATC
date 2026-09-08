@@ -84,6 +84,12 @@ SESSION = re.compile(r"^session_[A-Za-z0-9]{16,}$")
 TIN = re.compile(r"\b(?:\d{3}-\d{2}-\d{4}|\d{2}-\d{7})\b")
 
 
+#: Where the desk lives, read from the environment. NOT a default and never a
+#: guess: a wrong session id fails SILENTLY -- the question is delivered
+#: somewhere, the asker waits, and nothing anywhere says the desk never saw it.
+DESK = "SATC_DESK_SESSION"
+
+
 class RelayError(Exception):
     """The envelope is malformed. Never repaired, never defaulted."""
 
@@ -186,3 +192,41 @@ def as_prompt(a: Ask) -> str:
 def reply_opens(body: str, ref: str) -> bool:
     """Is this the answer to that question? Used to spot a second copy."""
     return body.strip().startswith(f"DESK ANSWER {ref}")
+
+
+def desk_session(env=None) -> str:
+    """Which session holds the desks. REFUSES rather than guessing.
+
+    THE ASKING SKILL COULD NOT BE FOLLOWED WITHOUT THIS. It said "send it to the
+    desk session" and left the doer to find out which one that was -- which in
+    practice means asking a person, and a step that needs a person in the middle
+    is the step V1 exists to remove.
+
+    WHY AN ENVIRONMENT VARIABLE AND NOT A FILE IN THIS REPOSITORY. The desk
+    session id is deployment state, not record: it changes when a container is
+    replaced, it differs between the firm's machine and a test run, and it is
+    the one value that must NOT be the same for everybody who installs the
+    plugin. Committing it would make a stale id travel with the release, which
+    is the same class of defect as a stale SKILL.md in a plugin cache -- and
+    that one has cost four releases.
+
+    NO DEFAULT. There is no sensible fallback: an unset variable means nobody
+    has been told where the desk is, and inventing an answer to that produces a
+    question sent into a void. `DESIGN-PRINCIPLES.md`: refuse rather than
+    default.
+    """
+    import os
+    value = (env if env is not None else os.environ).get(DESK, "").strip()
+    if not value:
+        raise RelayError(
+            f"{DESK} is not set, so there is no desk to ask. It holds the "
+            f"session id of the session running `be-the-desk` — export it "
+            f"before consulting. It is deployment state and is deliberately "
+            f"not committed: an id that shipped with the plugin would be stale "
+            f"for everyone but the machine it was written on.")
+    if not SESSION.match(value):
+        raise RelayError(
+            f"{DESK} is {value!r}, which is not a session id. A wrong one fails "
+            f"silently — the question goes somewhere, the asker waits, and "
+            f"nothing says the desk never saw it.")
+    return value
