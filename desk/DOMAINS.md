@@ -66,6 +66,17 @@ Title 26
 **Explains itself at:** irs.gov
 
 
+
+**AND THE NOUNS OF THE INCOME SIDE WERE MISSING WHERE THE VERBS OF THE
+DEDUCTION SIDE WERE PRESENT.** Found on the fourth question of the first live
+close, 8 September 2026 — asked only because the firm challenged the doer with
+*"Did you ask the desk?"* about the largest figure in the books. `taxable` was
+in this list; `gross receipts` was not. One pair isolates it: *"is an
+unexplained bank deposit taxable income?"* reached `federal-tax`; *"are
+unidentified deposits gross receipts?"* reached **nothing**. The gate switched
+on for the word an examiner would use and stayed off for the word a bookkeeper
+would use — and the income side is exactly where book and tax diverge hardest.
+
 **THE PAST PARTICIPLE IS THE FORM A CLOSE IS WRITTEN IN, and it was missing.**
 Found in the first live close, 8 September 2026. `"do we deduct or capitalize
 them?"` reached `federal-tax`; `"are those deducted or capitalized?"` reached
@@ -76,7 +87,7 @@ domain the wrong-body-of-authority gate is not watching at all, and it did no
 harm that night only because every desk reached happened to be a tax desk. The
 gate was off and the room happened to be empty.
 
-**Fires on:** deduct, deducted, deducting, deductible, deduction, expense, expensed, expensing, depreciate, depreciated, depreciation, capitalize, capitalized, capitalise, capitalised, capitalizing, capitalising, capitalization, capitalisation, taxable, taxpayer, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortized, amortizing, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
+**Fires on:** deduct, deducted, deducting, deductible, deduction, expense, expensed, expensing, depreciate, depreciated, depreciation, capitalize, capitalized, capitalise, capitalised, capitalizing, capitalising, capitalization, capitalisation, taxable, taxpayer, gross receipts, receipt, gross income, income, revenue, revenues, sales, proceeds, rebate, rebates, refund, refunds, reimbursement, contribution, contributions, distribution, distributions, draw, draws, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortized, amortizing, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
 
 **Why these hosts:** each is the United States Government publishing its own
 text, so 17 U.S.C. § 105 puts it in the public domain and it is storable in full.
