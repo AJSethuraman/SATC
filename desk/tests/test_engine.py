@@ -500,6 +500,13 @@ NOT_ABOUT_AUTHORITY = {
     # fix because the accountant or firm never assigned it up front ... What if
     # this mattered only sometimes and we never even made a field for it."
     "no_field_for_this_fact": "decide, as a firm, whether this fact is recorded at all",
+    # AND THE SIXTH IS ABOUT THE SECOND READING, NOT ABOUT THE RECORD. A judge
+    # handed the paragraph and the conclusion quoted words the paragraph does
+    # not contain, so the judgment is void -- which says nothing at all about
+    # whether the authority is any good. Filing it as an authority problem would
+    # put a defect in the reading into the queue that reads out what the RECORD
+    # is missing, and that queue is how the firm decides what to go and find.
+    "judgment_not_in_the_passage": "re-judge, quoting the passage that is there",
 }
 
 

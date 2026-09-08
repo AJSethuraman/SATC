@@ -194,7 +194,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", ask: str = "", desks: Path = DESKS,
            keep: bool = True,
-           context: record.Context | None = None, prove=None):
+           context: record.Context | None = None, prove=None, judged=None):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
@@ -214,6 +214,23 @@ def answer(question: str, desk_name: str, *, position: str = "",
     remove one. Where the publisher no longer carries the passage the answer is
     withdrawn (`authority_has_moved`); where the publisher could not be reached
     the answer stands and says the proof could not be taken.
+
+    `judged` IS A SECOND READER'S VERDICT, and it is the same trade as `prove`:
+    an input, never something this function goes and obtains. Pass a
+    `judging.Judgment` -- who read the passage, whether it carries the
+    conclusion, and the words they rest that on -- and the engine checks the one
+    thing about it that is checkable without reading: that those words are in
+    the passage. Pass nothing and nothing is checked, which is what the whole
+    suite passes today.
+
+    IT RUNS LAST, AFTER THE PROOF, and for the same reason the proof runs after
+    the gate: each stage may add a refusal and none may remove one. Judging an
+    answer whose passage the publisher no longer carries would be a second
+    reader confirming text that has already been withdrawn.
+
+    NOTHING REQUIRES A JUDGMENT. Which desks may not serve unjudged is the
+    firm's decision and is on the docket; a gate that turned itself on across
+    seven desks overnight would be this session making it.
     """
     desk = record.load(desks / desk_name)
     # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
@@ -247,6 +264,36 @@ def answer(question: str, desk_name: str, *, position: str = "",
                     f"Until then this desk has no authority for the answer.")
         else:
             out = dataclasses.replace(out, proof=p)
+    if judged is not None and isinstance(out, engine.Served):
+        import dataclasses
+
+        import judging
+
+        seen = judging.read(judged, out.passage, answered_by=model)
+        if seen.verdict == judging.SAYS_NO:
+            out = engine.Refusal(
+                "citation_does_not_support",
+                f"{out.citation!r} resolves and this desk does hold it, and a "
+                f"second reader ({seen.by}) says the paragraph does not carry "
+                f"{out.position!r}: {seen.because}. Real authority in front of "
+                f"the wrong question is the one error every exact check in this "
+                f"engine passes",
+                ask=f"Cite the paragraph that answers what was asked, or "
+                    f"escalate that no authority here reaches it. Do not re-run "
+                    f"this with a softer conclusion until it serves.",
+                desk=desk.name)
+        elif seen.verdict == judging.NOT_IN_THE_PASSAGE:
+            out = engine.Refusal(
+                "judgment_not_in_the_passage",
+                f"{seen.by} judged {out.citation!r} to support {out.position!r} "
+                f"and quoted {seen.missing!r}, which is not in the passage. The "
+                f"answer is not refused on its merits — nobody has read it. A "
+                f"judgment that quotes what is not there is not a second reading",
+                ask=f"Judge it again against the passage as stored, quoting "
+                    f"what it says. `[...]` marks a gap you are skipping.",
+                desk=desk.name)
+        else:
+            out = dataclasses.replace(out, judged=seen)
     if isinstance(out, engine.Refusal) and keep:
         path = desks / desk_name / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))

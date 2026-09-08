@@ -70,6 +70,7 @@ REASONS = (
     "authority_has_moved",      # the publisher no longer carries what we stored
     "wrong_body_of_authority",  # real authority, real subject, wrong universe
     "model_gave_up",            # ran out of window or abandoned the task
+    "judgment_not_in_the_passage",  # the second reader quoted words that are not there
 )
 
 # THE LAST TWO ARE THE FIRM'S, ASKED FOR ON 6 SEPTEMBER 2026, and they are two
@@ -353,6 +354,11 @@ class Served:
     #: None means NOT ASKED FOR, never "asked for and fine". A proof that could
     #: not be taken is a `Proof` with verdict COULD NOT, and it says so.
     proof: object = None
+    #: The second reader's verdict, when one was given. `judging.Read`, or None.
+    #: Never a score and never a substitute for a check: the engine confirmed
+    #: the quoted words are in the passage; whether they carry the conclusion is
+    #: the judge's call, recorded here rather than recomputed.
+    judged: object = None
 
     def __str__(self) -> str:
         """The whole answer, laid out for a person. WHY THIS IS NOT IN THE SKILL.
