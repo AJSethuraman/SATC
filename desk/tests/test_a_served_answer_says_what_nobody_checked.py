@@ -272,14 +272,28 @@ def test_a_ratified_answer_shows_the_AUTHORITY_not_itself():
 def test_a_citation_only_source_still_falls_back_to_the_firms_words():
     """The fallback is not removed, only demoted. On a `human_only` source a
     position genuinely IS the desk's whole knowledge of the authority, and
-    there is nothing else to put in front of a reader."""
-    import inspect
-    src = inspect.getsource(engine.serve.__wrapped__
-                            if hasattr(engine.serve, "__wrapped__")
-                            else engine.serve)
-    assert 'getattr(passage, "position", "")' in src, (
-        "the citation-only fallback was removed; a human_only desk now serves "
-        "nothing to read")
+    there is nothing else to put in front of a reader.
+
+    REWRITTEN 8 SEPTEMBER 2026, AND THE REASON IS THE POINT. This used to
+    `inspect.getsource(engine.serve)` and grep it for the fallback expression.
+    That broke the moment `serve` became a thin wrapper around `_serve` — a
+    refactor that changed no behaviour whatever. A test that reads the source
+    fails on how the code is arranged rather than on what it does, and it
+    passes just as happily on a fallback that is present and unreachable.
+
+    So it exercises it instead: a desk stripped of its stored passages is
+    exactly the `human_only` shape, and what comes out has to be readable."""
+    import dataclasses
+    desk = record.load(HERE / "desks" / "cash-and-bank")
+    citation_only = dataclasses.replace(desk, passages=())
+    position = [q for q in citation_only.positions if not q.proposed][0]
+    out = engine.serve(engine.Answer(position=position.position,
+                                     citation=position.citation),
+                       citation_only, question="what do I do with it")
+    assert isinstance(out, engine.Served), getattr(out, "detail", out)
+    assert out.passage == position.position, (
+        "a human_only desk serves a disclaimer pointing at an empty string")
+    assert out.passage in str(out)
 
 
 def test_an_escalation_hands_back_the_askers_own_reasoning():

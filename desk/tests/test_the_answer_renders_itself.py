@@ -70,11 +70,22 @@ def test_the_passage_is_shown_in_full_not_truncated():
 
 # ------------------------------------------------------------ what refuses
 
-def test_an_escalation_leads_with_the_working():
-    """The one part written by something that read the question goes first."""
+def test_an_escalation_carries_the_working_that_read_the_question():
+    """REVERSED 8 SEPTEMBER 2026, AND THE OLD ASSERTION IS KEPT AS A NOTE.
+
+    This used to read `assert str(out).startswith(out.working)` — the working
+    LEADS. That was right for 0.7.5, where `working` had just stopped being
+    dropped and was the only part worth reading. It is wrong now, and the thing
+    that made it wrong is the fix succeeding: the skill pushes for long working,
+    got a 900-character paragraph, and a reader meeting that first has started
+    forming an answer before reaching "THE DESK DID NOT ANSWER".
+
+    What survives is the part that was always the point: the reasoning written
+    by something that read the question comes BACK. Where it sits is asserted
+    below, by the tests that reversed it."""
     out = _escalation()
     assert isinstance(out, engine.Refusal)
-    assert str(out).startswith(out.working)
+    assert out.working and out.working in str(out)
 
 
 def test_the_reason_and_detail_still_reach_the_reader():
@@ -107,3 +118,83 @@ def test_the_skill_tells_the_agent_to_print_the_object():
              / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     assert "print(out)" in skill
     assert "print(out.position)" not in skill
+
+
+# ------------------------------------- a refusal leads with its verdict
+
+def test_a_printed_refusal_opens_with_the_verdict_not_the_reasoning():
+    """THIS REVERSES 0.7.5, AND BOTH FINDINGS WERE RIGHT.
+
+    0.7.5 put `working` first, because a tester found the escalation "hands the
+    caller the least" — true then: `working` was not on the object at all. What
+    that fix did not anticipate is that the skill pushes for LONG working, and
+    it worked. The next run produced a 900-character paragraph opening *"The
+    rule is clear and it is conditional"*.
+
+    The desk session that wrote it, 8 September 2026: *"a reader skimming a
+    refusal meets a long paragraph whose opening words here are 'The rule is
+    clear and it is conditional' — which reads like the beginning of an answer —
+    and only reaches 'THE DESK DID NOT ANSWER' once they have already started
+    forming one. The verdict is the one line that must not be missed and it is
+    the last thing rendered."*
+
+    So: `working` must come back, and it must not come back FIRST. `Served`
+    puts its conclusion at the top; a refusal that inverts that teaches a reader
+    the shape means nothing."""
+    out = _escalation()
+    first = str(out).splitlines()[0]
+    assert first.startswith("THE DESK DID NOT ANSWER"), first
+    assert out.reason in first
+
+
+def test_but_the_working_still_comes_back_in_full():
+    """THE CONTROL for the reversal. Leading with the verdict must not become
+    dropping the reasoning — that was the 0.7.4 defect this replaced."""
+    out = _escalation()
+    assert out.working and out.working in str(out)
+
+
+def test_the_verdict_is_above_the_working_and_not_merely_present():
+    out = _escalation()
+    shown = str(out)
+    assert shown.index("THE DESK DID NOT ANSWER") < shown.index(out.working)
+
+
+# --------------------------------------------- and it says which desk
+
+def test_a_printed_refusal_names_the_desk_that_made_it():
+    """A QUESTION REACHES MORE THAN ONE DESK. The forklift question routed to
+    two on 8 September and came back as two refusals for two DIFFERENT reasons
+    — one a hole in our own file, one a fact about the transaction nobody had
+    stated. The desk session: *"Both refusals above are distinguishable only
+    because I typed the headings myself. Print two in a row without them and
+    you have two anonymous paragraphs."*
+
+    `Served` never had this problem: its citation identifies where it came from.
+    A refusal cites nothing — that is what makes it a refusal."""
+    out = _escalation()
+    assert out.desk == "fixed-assets"
+    assert "fixed-assets" in str(out).splitlines()[0]
+
+
+def test_two_refusals_to_one_question_are_told_apart():
+    """THE CASE IT EXISTS FOR, and it is the real one from the live run."""
+    seen = {}
+    for name, reason in (("fixed-assets", "facts_not_established"),
+                         ("capitalization-and-de-minimis", "context_not_on_file")):
+        out = ask.answer("we bought a forklift, deducted or capitalized", name,
+                         escalate=reason, working="the rule is conditional and "
+                         "the condition is not on file", keep=False)
+        seen[name] = str(out).splitlines()[0]
+    assert len(set(seen.values())) == 2, seen
+    for name, line in seen.items():
+        assert name in line
+
+
+def test_the_desk_is_stamped_at_one_place_not_at_each_refusal():
+    """`serve` refuses at three points today and a fourth will be added. The
+    stamp is a wrapper so a new `return Refusal(...)` inherits it rather than
+    quietly shipping an anonymous one."""
+    import inspect
+    assert "_serve" in inspect.getsource(engine.serve)
+    assert inspect.getsource(engine.serve).count("Refusal") <= 3

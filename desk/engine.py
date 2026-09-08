@@ -441,6 +441,20 @@ class Refusal:
     #: three that turn on a position's `Needs:` or `Unless:` set them.
     fact: str = ""
     by_position: str = ""
+    #: WHICH DESK REFUSED. Empty only where nothing routed.
+    #:
+    #: A QUESTION REACHES MORE THAN ONE DESK, and a printed refusal did not say
+    #: which one it came from. The forklift question routed to two on 8
+    #: September and came back as two refusals for two DIFFERENT reasons — one
+    #: a hole in our own file, one a fact about the transaction nobody had
+    #: stated. The desk session: *"Both refusals above are distinguishable only
+    #: because I typed the headings myself. Print two in a row without them and
+    #: you have two anonymous paragraphs."*
+    #:
+    #: `Served` never had this problem because its citation identifies where it
+    #: came from. A refusal cites nothing — that is what makes it a refusal —
+    #: so the desk has to be carried explicitly or it is not recoverable.
+    desk: str = ""
     #: HOW MUCH THE DESK PUT IN FRONT OF THE MODEL, on an `authority_absent`
     #: escalation and on nothing else.
     #:
@@ -505,8 +519,31 @@ class Refusal:
         it *"pure instrumentation next to a sentence meant for a person"*. They
         stay on the repr, which is what the log takes.
         """
-        out = [self.working] if self.working else []
-        out += [f"THE DESK DID NOT ANSWER — {self.reason}", f"    {self.detail}"]
+        # THE VERDICT LEADS, AND THIS REVERSES A CHANGE MADE TWO RELEASES AGO.
+        #
+        # 0.7.5 put `working` first, on a tester's finding that the escalation
+        # "hands the caller the least" — correct at the time, because `working`
+        # was not on the object at all and, once it was, it was the only part
+        # worth reading. What that fix did not anticipate is that the skill
+        # pushes for LONG working, and it succeeded: the next run produced a
+        # 900-character paragraph opening *"The rule is clear and it is
+        # conditional"*.
+        #
+        # The desk session that wrote it, 8 September 2026: *"a reader skimming
+        # a refusal meets a long paragraph whose opening words here are 'The
+        # rule is clear and it is conditional' — which reads like the beginning
+        # of an answer — and only reaches 'THE DESK DID NOT ANSWER' once they
+        # have already started forming one. The verdict is the one line that
+        # must not be missed and it is the last thing rendered."*
+        #
+        # Both findings are right and they are not in conflict: `working` must
+        # come back, and it must not come back FIRST. `Served` puts the
+        # conclusion at the top and the caveats under it; a refusal that
+        # inverts that teaches a reader the shape means nothing.
+        out = [f"THE DESK DID NOT ANSWER — {self.reason}"
+               + (f"  ·  {self.desk}" if self.desk else ""), f"    {self.detail}"]
+        if self.working:
+            out += ["", self.working]
         if self.ask:
             out += ["", f"It asks: {self.ask}"]
         if self.fact:
@@ -974,6 +1011,23 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
 
 def serve(answer: Answer, desk: Desk, *, question: str,
           context=None) -> Served | Refusal:
+    """Stamp every refusal with the desk that made it, then hand it back.
+
+    ONE PLACE, NOT FOUR. `_serve` refuses at three points today and a fourth
+    will be added: the comment inside it already says as much about `working`,
+    which is carried at one site "so no refusal can be added later that quietly
+    drops it". The same argument applies to the desk, and a wrapper is the only
+    shape that cannot be forgotten — a new `return Refusal(...)` inherits it.
+    """
+    out = _serve(answer, desk, question=question, context=context)
+    if isinstance(out, Refusal) and not out.desk:
+        import dataclasses as _dc
+        return _dc.replace(out, desk=desk.name)
+    return out
+
+
+def _serve(answer: Answer, desk: Desk, *, question: str,
+           context=None) -> Served | Refusal:
     """The production path: hand back an answer, or refuse and say why.
 
     **Nothing leaves here without authority behind it.** An uncited answer is
