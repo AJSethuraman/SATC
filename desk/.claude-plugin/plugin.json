@@ -1,6 +1,6 @@
 {
   "name": "desk",
-  "version": "0.12.3",
+  "version": "0.12.4",
   "description": "Expert desks. A desk is an expert an agent consults so a question does not reach the firm: it answers only from authority it can cite, states how binding that authority is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, so \"never invent a position\" is enforced by code rather than by a prompt. When a desk has no answer, the searcher goes and looks \u2014 anywhere \u2014 and nothing it finds enters the record until the words are still on the publisher's own page and the firm has admitted that publisher. A fact the desk needs and nothing anywhere records is a HOLE, and `tools/holes.py` reads them out. Holds no client data.",
   "author": {
     "name": "Sethuraman Accounting, Tax & Consulting"

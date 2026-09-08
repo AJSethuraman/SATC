@@ -87,8 +87,19 @@ class Proof:
         return self.verdict == TIED
 
 
-def prove(served, desk, transport) -> Proof:
-    """Fetch the cited source and compare it with what was served.
+def prove_passage(citation: str, passage: str, source, transport) -> Proof:
+    """Is THIS passage in the document THIS source publishes, right now?
+
+    The core, and it knows nothing about a record. It is handed the citation to
+    name, the words to look for, the source to fetch and the transport to fetch
+    with — which is the whole of what a comparison needs. `prove` resolves those
+    four out of a served answer; the candidate path (#343) has a citation no desk
+    holds and constructs them instead, and neither one is the privileged caller.
+
+    THE SPLIT IS A PREFACTOR AND CHANGES NOTHING. Every property the docstring
+    above claims is a property of this function: the transport is a callable so
+    no configuration reaches the network by accident, the three verdicts keep
+    their meanings, and COULD NOT is never upgraded to TIED.
 
     The comparison comes from `comparing`, which the corpus tie-out uses too.
     One folding table, one meaning for a marked omission, no second copy to
@@ -98,21 +109,6 @@ def prove(served, desk, transport) -> Proof:
     inside `ssl.py` because the suite replaces the socket layer. The guard was
     right.
     """
-    citation = served.citation
-    backing = desk.authority_for(citation)
-    if backing is None:                                     # pragma: no cover
-        return Proof(COULD_NOT, citation,
-                     note="this citation is no longer in the desk's record")
-    kind, obj, source = backing
-    if kind == "position":
-        # A POSITION IS THE FIRM'S OWN WORDS AND HAS NO PUBLISHER TO ASK. What
-        # could be proved is the paragraph underneath it, which is a different
-        # claim from the one being served, and reporting that as a proof of the
-        # answer would be the mirror wearing a hat.
-        return Proof(COULD_NOT, citation, url=source.url if source else "",
-                     note="served from the firm's own position; there is no "
-                          "publisher to check it against, and the paragraph "
-                          "beneath it is not what was served")
     if source is None or not source.readable:               # pragma: no cover
         return Proof(COULD_NOT, citation,
                      note="this source may not be fetched at all")
@@ -155,8 +151,8 @@ def prove(served, desk, transport) -> Proof:
                           f"the passage moved. Most likely the source refused "
                           f"this client rather than the text changing.")
 
-    ours, live = comparing.normalise(obj.text), comparing.normalise(text)
-    if comparing.ELLIPSIS in obj.text:
+    ours, live = comparing.normalise(passage), comparing.normalise(text)
+    if comparing.ELLIPSIS in passage:
         ok, failed = comparing.elided_match(ours, live)
         return Proof(TIED if ok else DIFFERS, matched_chars=len(ours) if ok else 0,
                      note="" if ok else f"not found from {failed[:60]!r}", **here)
@@ -165,3 +161,29 @@ def prove(served, desk, transport) -> Proof:
     return Proof(DIFFERS, matched_chars=0,
                  note="the stored passage is not in the document the publisher "
                       "serves today", **here)
+
+
+def prove(served, desk, transport) -> Proof:
+    """Prove a served answer: resolve its authority, then `prove_passage`.
+
+    THIS FUNCTION IS THE RECORD HALF and does nothing else. Two of its three
+    outcomes never reach a fetch, and both are about what the record holds
+    rather than about what a publisher serves -- which is exactly why they live
+    here and not in the core.
+    """
+    citation = served.citation
+    backing = desk.authority_for(citation)
+    if backing is None:                                     # pragma: no cover
+        return Proof(COULD_NOT, citation,
+                     note="this citation is no longer in the desk's record")
+    kind, obj, source = backing
+    if kind == "position":
+        # A POSITION IS THE FIRM'S OWN WORDS AND HAS NO PUBLISHER TO ASK. What
+        # could be proved is the paragraph underneath it, which is a different
+        # claim from the one being served, and reporting that as a proof of the
+        # answer would be the mirror wearing a hat.
+        return Proof(COULD_NOT, citation, url=source.url if source else "",
+                     note="served from the firm's own position; there is no "
+                          "publisher to check it against, and the paragraph "
+                          "beneath it is not what was served")
+    return prove_passage(citation, obj.text, source, transport)
