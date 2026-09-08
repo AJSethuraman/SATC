@@ -133,6 +133,32 @@ class OpenpyxlBackend:
                 ws.cell(row, rawlayout.field_col(fname, self.fields)).value = \
                     None if value is None else float(value)
 
+    def read_slot_block(self, block: SlotBlock, fields: Sequence[str]
+                        ) -> List[Tuple[str, Dict[str, Optional[float]]]]:
+        """Newest-first ``[(period, {field: value})]`` as the workbook HOLDS them.
+
+        The mirror of :meth:`write_slot_block`, and the only honest source for
+        the "ours" side of a tie-out: it reads the cells a person opens rather
+        than recomputing or re-fetching what those cells ought to contain.
+        Rows with no period, or with nothing landed, are skipped -- an empty
+        block yields an empty list, which the caller must report rather than
+        compare against.
+        """
+        ws = self._wb[self.spec.raw_tab]
+        out: List[Tuple[str, Dict[str, Optional[float]]]] = []
+        for offset in range(block.slots):
+            row = block.first_data_row + offset
+            period = ws.cell(row, 1).value
+            if not period:
+                continue
+            values: Dict[str, Optional[float]] = {}
+            for name in fields:
+                cell = ws.cell(row, rawlayout.field_col(name, self.fields)).value
+                values[name] = float(cell) if isinstance(cell, (int, float)) else None
+            if any(v is not None for v in values.values()):
+                out.append((str(period)[:10], values))
+        return out
+
     def write_status_lines(self, lines: Sequence[str],
                            tabs: Sequence[str],
                            column_by_tab: Dict[str, int],
@@ -149,6 +175,28 @@ class OpenpyxlBackend:
                 col = column_by_tab.get(tab, default_column)
                 for offset, line in enumerate(lines):
                     ws.cell(1 + offset, col, line)
+
+    def write_block(self, tab: str, first_row: int, rows: Sequence[Sequence],
+                    width: int, clear: int = 200) -> bool:
+        """Rewrite a fixed-position block: clear the old rows, write the new.
+
+        Clearing first matters -- a run that finds fewer rows than the last one
+        must not leave the difference on the sheet, where it reads as current.
+        Returns False when the tab is absent (an older workbook), so the caller
+        can say so rather than assume the block is empty.
+        """
+        if tab not in self._wb.sheetnames:
+            return False
+        ws = self._wb[tab]
+        # never clear fewer rows than were written, or a longer previous
+        # run leaves rows below the new block that read as current
+        for offset in range(max(clear, len(rows) + 20)):
+            for col in range(1, width + 1):
+                ws.cell(first_row + offset, col).value = None
+        for offset, row in enumerate(rows):
+            for col, value in enumerate(row, start=1):
+                ws.cell(first_row + offset, col).value = value
+        return True
 
     def finalize(self) -> None:
         self._wb.save(self.path)

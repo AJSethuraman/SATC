@@ -71,6 +71,9 @@ SPINE_BASELINES: dict[str, dict[str, str]] = {
         "workbook": "fdic-peer-monitor/Bank_Peer_Monitor.xlsm",
         "shipped_golden": "credit-suite/tests/goldens/fdic-shipped.json",
         "demo_golden": "credit-suite/tests/goldens/fdic-demo.json",
+        # The roster the golden was captured with. A baseline that pins engine
+        # behaviour must not move when the firm changes which banks it watches.
+        "demo_peers": "credit-suite/tests/goldens/fdic-demo-peers.json",
         "asof": "2026-03-31",
     },
     "fred": {

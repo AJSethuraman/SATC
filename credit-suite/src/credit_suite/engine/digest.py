@@ -26,7 +26,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from credit_suite.engine import staleness
 from credit_suite.engine.config import Config, EntityRow
 from credit_suite.engine.metrics import Registry, metric_value
-from credit_suite.engine.thresholds import ALERT, OK, STALE, WATCH, status_for
+from credit_suite.engine.metrics import balance_field
+from credit_suite.engine.thresholds import (ALERT, NOT_APPLICABLE, OK, STALE,
+                                            WATCH, status_for)
 
 
 @dataclass
@@ -45,6 +47,24 @@ class EntityContext:
 #: "this is null because the form is only filed by $1B+ reporters" is the
 #: difference between a gap and a mystery.
 Annotator = Callable[[EntityContext], List[str]]
+
+
+def metric_status(registry: Registry, metric_id: str, fields, threshold) -> str:
+    """OK / WATCH / ALERT for a value; for a blank, WHICH blank.
+
+    ``N/A`` when the book the metric stands on is zero or missing -- a bank
+    with no card book has nothing to check, and until 5 September 2026 that
+    read ``OK`` (#259). ``""`` when there is a book but no number (a field the
+    form does not carry for this bank). The Watchlist helper formulas draw
+    the same three-way split, so the digest and the workbook agree.
+    """
+    value = metric_value(registry, metric_id, fields)
+    if value is not None:
+        return status_for(value, threshold)
+    balance = balance_field(registry, metric_id)
+    if balance and not fields.get(balance):
+        return NOT_APPLICABLE
+    return ""
 
 
 def compute_digest(cfg: Config, registry: Registry,
@@ -74,11 +94,8 @@ def compute_digest(cfg: Config, registry: Registry,
         alert_n = watch_n = 0
         for series in cfg.series:
             value = metric_value(registry, series.id, latest_fields)
-            status = status_for(value, cfg.thresholds.get(series.id))
-            if value is None:
-                # A blank cell gets a blank status, so the digest and the
-                # workbook agree: Excel's IF(...="","",...) yields "" here too.
-                status = ""
+            status = metric_status(registry, series.id, latest_fields,
+                                   cfg.thresholds.get(series.id))
             metrics[series.id] = {"value": value, "status": status,
                                   "dimension": series.category}
             # These counts mirror the Watchlist COUNTIF columns exactly, so

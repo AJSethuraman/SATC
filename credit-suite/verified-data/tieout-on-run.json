@@ -1,0 +1,17 @@
+{
+ "seed": 1788833521,
+ "when": "2026-09-07 22:12",
+ "banks": 19,
+ "bank_quarters": 57,
+ "fields_touched": 69,
+ "macro_series": 202,
+ "verdicts": {
+  "TIES": 3921,
+  "not claimed as verified": 520,
+  "quarterly flow -- checked by the full run": 518
+ },
+ "differs": [],
+ "control_caught": 16,
+ "control_total": 16,
+ "seconds": 1
+}

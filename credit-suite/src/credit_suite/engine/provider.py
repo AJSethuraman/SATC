@@ -78,6 +78,10 @@ class Provider:
 
     def __init__(self) -> None:
         self.roster: Dict[str, dict] = {}
+        #: {entity key: [source-specific merger records]}. Empty means the
+        #: source was asked and reported none; a source that cannot answer
+        #: leaves it None, which is a different fact and is reported as one.
+        self.mergers: Optional[Dict[str, list]] = {}
 
     def prime(self, keys: Sequence[str], asof: date,
               names: Optional[Dict[str, str]] = None) -> None:  # pragma: no cover

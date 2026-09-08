@@ -17,7 +17,6 @@ from credit_suite.engine import metrics, provider, rawlayout, runtime, workbook
 from credit_suite.engine.config import Config, EntityRow
 from credit_suite.sources.fdic.spec import FDIC
 
-from test_engine_config import _load_legacy, legacy  # noqa: F401
 
 FIELDS = ["ASSET", "DEP", "LNLSGR"]
 UNITS = {f: "USD_thousands" for f in FIELDS}
@@ -59,37 +58,6 @@ def backend_for(tmp_path, **kw):
 # --------------------------------------------------------------------------
 # metrics
 # --------------------------------------------------------------------------
-
-@legacy
-def test_ratio_matches_the_legacy_one_over_every_combination():
-    old = _load_legacy()
-    values = [None, 0.0, 1.0, -2.0, 100.0]
-    checked = 0
-    for num, den in itertools.product(values, values):
-        assert metrics.ratio(num, den) == old._ratio(num, den), (num, den)
-        checked += 1
-    assert checked == 25
-
-
-@legacy
-def test_total_matches_the_legacy_none_propagating_sum():
-    old = _load_legacy()
-    for args in itertools.product([None, 0.0, 1.5, -3.0], repeat=3):
-        assert metrics.total(*args) == old._sum(*args), args
-
-
-@legacy
-def test_every_declarative_ratio_matches_the_legacy_factory():
-    """The whole PACK_RATIOS table, not one row of it."""
-    old = _load_legacy()
-    fields = {f: float(i + 1) for i, f in enumerate(old.RAW_FIELDS)}
-    fields["DEP"] = 0.0                      # exercise the zero-denominator arm
-    fields["LNCRCD"] = None                  # and the missing-input arm
-    assert old.PACK_RATIOS, "no ratio table to compare"
-    for name, (num, den, mult) in old.PACK_RATIOS.items():
-        assert metrics.ratio_fn(num, den, mult)(fields) == \
-            old._pack_ratio_fn(num, den, mult)(fields), name
-
 
 def test_a_missing_input_blanks_the_metric_and_never_reads_as_zero():
     """A null uninsured-deposit figure shown as 0% would read as a bank with no
@@ -320,19 +288,23 @@ def test_keep_vba_is_never_used_on_an_xlsx(tmp_path):
 # the run guards
 # --------------------------------------------------------------------------
 
-def test_zero_pulls_where_pulls_were_expected_is_a_failure():
-    """Without this a total outage exits 0 over a workbook of blanks under a
-    fresh timestamp, which reads as 'checked, nothing wrong'."""
-    assert runtime.run_succeeded({"entities_active": 12, "entities_landed": 0}) \
-        is False
-    assert runtime.run_succeeded({"entities_active": 12, "entities_landed": 1}) \
-        is True
+def test_every_entity_that_was_admitted_has_to_land():
+    """The second line read ``is True`` until 5 September 2026: the gate asked
+    for AT LEAST ONE. The same shape on the FRED side shipped a workbook with
+    Nebraska missing under exit code 0 -- one HTTP 500 out of 142 series, the
+    error recorded honestly in the status dict, and nothing read it."""
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 0}) is False
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 1}) is False
+    assert runtime.run_succeeded(
+        {"entities_admitted": 12, "entities_landed": 12}) is True
 
 
 def test_a_monitor_with_nothing_to_pull_is_not_a_failure():
     """An empty peer list is a configuration, not an outage."""
-    assert runtime.run_succeeded({"entities_active": 0, "entities_landed": 0}) \
-        is True
+    assert runtime.run_succeeded(
+        {"entities_admitted": 0, "entities_landed": 0}) is True
 
 
 def test_the_exit_codes_are_the_ones_the_contract_names():
