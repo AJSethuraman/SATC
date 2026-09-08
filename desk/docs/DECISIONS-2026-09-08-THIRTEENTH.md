@@ -489,10 +489,21 @@ proposed, found already anchored in three places, and withdrew before sending.
 924 passed, 1 skipped, 0 failed  in 15.52s
 ```
 
-Identical to the count here. **All six are gone.** The class is closed for now,
-with the caveat that was in the record before the run and stays in it: the grep
-catches the two shapes already seen, and **running it there is still the only
-thing that finds the next one.**
+Identical to the count here. **All six are gone.** Confirmed again at 0.12.2 —
+`925 passed, 1 skipped, 0 failed`, matching this checkout exactly.
+
+**The class is closed ON THE AXES ACTUALLY RUN**, and the tester supplied that
+qualifier unprompted rather than letting "closed" stand alone:
+
+> *"ONE LINE OF PRECISION, NOT A FINDING — so that 'closed for now' says only
+> what it earned. The number closes the platform class ON THE AXES ACTUALLY RUN:
+> this OS, this filesystem, this locale, this Python, a path with no spaces in
+> it. […] Just: **the run proves what it ran.**"*
+
+That is the whole discipline of this document in one sentence, applied by the
+party who would have benefited from the looser claim. The older caveat stands
+too: the grep catches the two shapes already seen, and **running it somewhere
+else is still the only thing that finds the next one.**
 
 ## The next one was looked for, and reported as inconclusive rather than as a find
 
