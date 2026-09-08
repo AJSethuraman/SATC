@@ -293,6 +293,45 @@ def _refreshed(text: str) -> str:
     return PREAMBLE + entries
 
 
+#: Overrides `default_queue`. A deployment or a test points the queue somewhere
+#: of its own without editing anything.
+QUEUE_ENV = "SATC_DESK_QUEUE"
+
+
+def default_queue() -> Path:
+    """Where a parked question lives, and it is OUTSIDE the plugin.
+
+    THE QUEUE WAS INSIDE A VERSIONED CACHE, which is a durable store that is not
+    durable. `be-the-desk` told the reader to write it to `ROOT/unfiled/`, and in
+    an installed layout `ROOT` resolves to
+    `~/.claude/plugins/cache/satc/desk/<version>` -- the skill computes it by
+    picking the highest version directory it can find. So the queue lived inside
+    one release. Update the plugin and the new root is a different directory: the
+    skill and `tools/holes.py` both look there, find nothing, and every question
+    the firm was waiting to answer is gone with no error anywhere. Cache cleanup
+    could take it outright.
+
+    Found by a review of the commit that built the notification path, which is
+    what made it matter: the whole point of parking a question is that somebody
+    comes back to it.
+
+    IT IS ALSO THE WRONG PLACE FOR A SECOND REASON. A parked question is written
+    by a doer mid-close and can name anything about a client. `CLAUDE.md` is
+    clear that a client's affairs in a checkout are one `git add` from being
+    published, and the engagement reader was moved out of the plugin tree for
+    exactly that reason. This store belongs out with it.
+
+    NOT VERSIONED, NOT INSIDE THE REPOSITORY, and stable across upgrades --
+    so the answer to "where is the queue" does not depend on which release
+    happens to be installed.
+    """
+    import os
+    override = os.environ.get(QUEUE_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".satc" / "desk" / "unfiled" / "CLOSE.md"
+
+
 def append(path: Path, entry: Unsupported) -> Path:
     """Add one entry. Creates the file with its preamble if absent.
 

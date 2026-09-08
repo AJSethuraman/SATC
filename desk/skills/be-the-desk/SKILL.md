@@ -85,11 +85,12 @@ if not os.path.isdir(os.path.join(ROOT, "desks")):
 sys.path.insert(0, ROOT)
 from pathlib import Path
 import ask
+import unsupported
 
 briefs, filed = ask.consult_or_file(
     "the bank statement shows a $10 service charge and nothing for it is in "
     "the books",
-    queue=Path(ROOT) / "unfiled" / "CLOSE.md")
+    queue=unsupported.default_queue())   # NOT Path(ROOT)/... — see below
 
 for desk, brief in briefs:
     ...  # read `brief`, then answer from it
@@ -327,3 +328,24 @@ question to get past the guard is the one thing you must never do.
 
 **Then tell the doer.** They asked a question and are entitled to know it is
 parked, which reference it has, and that they should keep going.
+
+## Never put the queue inside the plugin
+
+`unsupported.default_queue()` decides where a parked question lives. **Call it.
+Do not build a path from `ROOT`,** which is what this file used to say and what
+a review caught:
+
+`ROOT` resolves to `~/.claude/plugins/cache/satc/desk/<version>` — the highest
+version directory this skill can find. A queue written there lives inside **one
+release**. Update the plugin and `ROOT` moves; this skill and `tools/holes.py`
+both look at the new root, find nothing, and every question the firm was waiting
+to answer is gone with no error raised anywhere. Cache cleanup could take it.
+
+There is a second reason and it is the harder one. A parked question is written
+by a doer mid-close and can name anything about a client. `CLAUDE.md`: a
+client's affairs in a checkout are one `git add` from being published. The
+engagement reader was moved out of the plugin tree for that reason; this store
+belongs out with it.
+
+`SATC_DESK_QUEUE` overrides it if a deployment needs somewhere else. Set that
+rather than hard-coding a path.
