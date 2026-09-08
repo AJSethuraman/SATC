@@ -65,7 +65,18 @@ Title 26
 
 **Explains itself at:** irs.gov
 
-**Fires on:** deduct, deductible, deduction, depreciate, depreciation, capitalize, capitalise, capitalization, capitalisation, taxable, taxpayer, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
+
+**THE PAST PARTICIPLE IS THE FORM A CLOSE IS WRITTEN IN, and it was missing.**
+Found in the first live close, 8 September 2026. `"do we deduct or capitalize
+them?"` reached `federal-tax`; `"are those deducted or capitalized?"` reached
+**nothing**, and two of the three questions that night came back `domain: None`.
+Somebody classifying a transaction that has already happened writes the past
+tense — every line in a close is something that already happened. With no
+domain the wrong-body-of-authority gate is not watching at all, and it did no
+harm that night only because every desk reached happened to be a tax desk. The
+gate was off and the room happened to be empty.
+
+**Fires on:** deduct, deducted, deducting, deductible, deduction, expense, expensed, expensing, depreciate, depreciated, depreciation, capitalize, capitalized, capitalise, capitalised, capitalizing, capitalising, capitalization, capitalisation, taxable, taxpayer, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortized, amortizing, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
 
 **Why these hosts:** each is the United States Government publishing its own
 text, so 17 U.S.C. § 105 puts it in the public domain and it is storable in full.

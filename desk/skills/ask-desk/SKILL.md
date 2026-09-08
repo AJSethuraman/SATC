@@ -128,7 +128,21 @@ A doer had to invent the copy step and said so:
 > risk on a multi-hundred-word string with backticks and em-dashes in it."*
 
 Copy it **whole and unedited** — the envelope carries the protocol the desk
-needs, and a paraphrase drops it. Then, poke-only:
+needs, and a paraphrase drops it. Then, poke-only.
+
+**FIRST: THE TOOL NAMES DIFFER BY SURFACE, AND FOLLOWING THIS SECTION LITERALLY
+CAN LEAVE YOU UNABLE TO SEND ANYTHING.** Measured on the first live close,
+8 September 2026: Forge-Occam had **no `create_trigger` and no `fire_trigger`
+at all.** A doer following the sequence below as written got HTTP 400 —
+*"One of job_config or session_request must be set"* — and recovered only by
+listing existing triggers and reverse-engineering the body from one of them.
+Their words: *"A doer following ask-desk as written cannot send anything at
+all, and nothing in the skill hints at it."*
+
+**So look at what you actually have before you compose the call.** Two shapes
+are known to exist:
+
+**A · `create_trigger` / `fire_trigger`** — separate tools, flat arguments:
 
 ```
 create_trigger(name="Desk request <the ref you printed>",
@@ -137,6 +151,17 @@ create_trigger(name="Desk request <the ref you printed>",
                prompt="<paste the printed envelope here, entire>")
 fire_trigger("<the id create_trigger returned>")
 ```
+
+**B · `RemoteTrigger`** — one tool with an `action` of `create` then `run`, and
+the message is NESTED rather than a flat `prompt`. As reported from the Forge,
+the envelope goes in `session_request.events[].payload.message.content`, with
+`persist_session` and `persistent_session_id` alongside. **This shape is
+recorded from one doer's report, not from a schema this repository holds** — so
+read your own tool's description, and if it disagrees, the tool wins.
+
+**If neither is present, say so and stop.** Do not invent a transport. The
+question not being sent is a better outcome than a question sent somewhere
+nobody reads.
 
 **No `run_once_at`. No `cron_expression`.** A trigger carrying either, then
 poked, delivers twice.
