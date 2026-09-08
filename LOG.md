@@ -1116,3 +1116,53 @@ wrong tool: it is session-only and would not have survived the night.
 - **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
   Deferred deliberately; the disk holding the vault is unencrypted and the
   recovery key must go to Bitwarden before it is turned on.
+
+### D5 applied: the banned phrase is out, and the file it hid in is now checked
+
+The consent checkbox on the home page reads, with the firm's own wording:
+
+> I understand that sending this does not create a client engagement. **That
+> begins when we both sign a written agreement setting out the work and the
+> fee.**
+
+**Only the half they ruled on was changed.** The first sentence is untouched from
+what shipped. "engagement" on its own is not a banned word — only "engagement
+letter" is — and rewriting a sentence the firm did not rule on would be the same
+over-reach this session has been refusing all day. The remaining term of art
+goes back to them as a separate small question rather than being fixed quietly.
+
+**The structural half, which is the reason it was possible.** `copy.spec.py` now
+reads `intake.js`. #320 had added `intake-config.js` that morning and reported
+39/39 green while the banned phrase sat in the renderer beside it — half a blind
+spot still reads as green.
+
+`intake.js` could not simply join `COPY_IN_SCRIPTS`: that list is read by
+`key: "value"` pairs and a renderer has none, so the key reader finds nothing and
+the assert fires on an empty result. It gets `COPY_IN_RENDERERS` and its own
+extractor — every quoted literal, joined in source order, through the same
+tag-stripper the `.html` pages use. It over-collects class names on purpose:
+every check run against that text looks for a banned English phrase, and
+`wiz-step` matches nothing. Missing real copy is the dangerous error.
+
+39/39 -> **42/42**, and 2,081 characters of renderer copy are under the checker
+that previously read none of it.
+
+**Mutation table — five mutants, five killed, no survivors:**
+
+| Mutant | Result |
+|---|---|
+| put "engagement letter" back — the exact live bug | killed |
+| a self-claim, "peace of mind" | killed |
+| a promise, "guaranteed" | killed |
+| a contract-desk verb, "at our discretion" | killed |
+| the extractor silently returns nothing | killed by the assert |
+
+The last one is the one that mattered: an extractor that quietly finds nothing
+reports green forever, which is exactly how the original blind spot survived.
+
+**One of my own mutations did not apply and I nearly recorded it as a pass.** The
+first attempt at the extractor-returns-nothing mutant had a mis-escaped anchor,
+so the file was never modified and the run that "passed" was the unmutated one.
+Caught by checking the file changed rather than reading the result. A mutation
+that silently fails to apply looks exactly like a surviving mutant looks exactly
+like a passing test.
