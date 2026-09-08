@@ -90,6 +90,15 @@ TIN = re.compile(r"\b(?:\d{3}-\d{2}-\d{4}|\d{2}-\d{7})\b")
 DESK = "SATC_DESK_SESSION"
 
 
+def _version() -> str:
+    """The running code's version, for stamping onto an envelope."""
+    try:
+        import record
+        return record.VERSION or "(unknown)"
+    except Exception:
+        return "(unknown)"
+
+
 class RelayError(Exception):
     """The envelope is malformed. Never repaired, never defaulted."""
 
@@ -150,6 +159,9 @@ def as_prompt(a: Ask) -> str:
     """
     out = [f"DESK REQUEST {a.ref} — you are the desk. Somebody is doing the "
            f"work and has hit something they cannot settle.", "",
+           f"*Composed by desk {_version()}. If the skill you are following "
+           f"says otherwise, follow THIS message: it came from the code that "
+           f"is running, and a stale skill cannot know it is stale.*", "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
            "No context came with it. Read the facts off the desk's own record "
@@ -184,7 +196,18 @@ def as_prompt(a: Ask) -> str:
         "is not corroborated by the durable record. Do not chase your own "
         "message; say what you sent and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
-        "so and say what authority is missing — a refusal is a finding.",
+        "so and say what authority is missing — a refusal is a finding.", "",
+        "## Say which desks this reached", "",
+        "Name every desk `consult` routed to. **And if the question as phrased "
+        "reaches fewer desks than an obvious rephrasing of the same question "
+        "would, say that too, and name what it missed.**", "",
+        "THE ASKER CANNOT SEE THIS AND YOU CAN. On 8 September a doer asked "
+        "*\"what do I do with it\"* about a forklift and reached ONE desk; the "
+        "same transaction as *\"is the invoice price deducted or capitalized?\"* "
+        "reaches TWO, and the one dropped holds the most on-point paragraph. "
+        "Their words: *\"My phrasing was the natural working one and it got "
+        "strictly less authority. I did not know that when I wrote it, and a "
+        "doer has no way to tell.\"* You are the only party that can tell them.",
     ]
     return "\n".join(out)
 
@@ -230,3 +253,198 @@ def desk_session(env=None) -> str:
             f"silently — the question goes somewhere, the asker waits, and "
             f"nothing says the desk never saw it.")
     return value
+
+
+# ---------------------------------------------------------------------------
+# ANSWERING WHAT THE DESK ASKED, and why this is not the context field the firm
+# cut.
+#
+# THE LOOP STOPPED HALF WAY. A desk that cannot answer now asks — `MUST_ASK`,
+# 0.9.0 — and nothing carried the answer back. Ask, refuse-with-question, dead
+# end. The firm, 8 September 2026: *"this keeps stopping before it actually
+# fills the holes."*
+#
+# WHY THIS IS NOT `facts` RETURNING. The field the firm cut let the ASKER write
+# whatever context it liked, and an asker who writes the context writes the
+# answer. Here the DESK named the fields. It asked for `invoice_amount`; it gets
+# `invoice_amount`. The asker chooses nothing but the values, which is the same
+# authority a preparer has when they fill in a file — and every name is checked
+# against what the desk actually asked for, so a fact nobody wanted cannot ride
+# along.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class FollowUp:
+    """Answers to the questions ONE desk asked, against the ref it asked under.
+
+    AND IT NAMES THE DESK, because the ref alone does not identify a refusal.
+    `ref_for` is a digest of the question and the asker, so every desk a
+    question routes to shares one. The forklift routed to TWO on 8 September and
+    refused twice for DIFFERENT reasons — `context_not_on_file` from
+    capitalization-and-de-minimis, `facts_not_established` from fixed-assets —
+    wanting different facts. A follow-up carrying only the shared ref cannot say
+    which of those it answers, and applying it to the wrong branch can even
+    report a spurious `no_field_for_this_fact` against a desk that never asked.
+
+    Found by Codex on #339 before this ever ran twice.
+    """
+    ref: str
+    desk: str
+    facts: dict
+
+
+def follow_up(ref: str, desk: str, facts: dict, asked_for=()) -> FollowUp:
+    """Build a reply to ONE desk's follow-up, or REFUSE.
+
+    `asked_for` is what the desk said it needed. Empty means it named no fields
+    and nothing can be checked — which is allowed, because a desk may ask in
+    prose, but the caller is then on their honour and the envelope says so.
+    """
+    if not (ref or "").strip():
+        raise RelayError(
+            "no ref. A follow-up that does not say which question it answers "
+            "is a new question wearing an answer's clothes.")
+    if not (desk or "").strip():
+        raise RelayError(
+            f"no desk on the follow-up for {ref}. A question reaches more than "
+            f"one, and they refuse for different reasons wanting different "
+            f"facts — the ref is shared, so it cannot say which refusal this "
+            f"answers. `Refusal.desk` names it; pass that.")
+    facts = {str(k).strip().lower(): str(v).strip()
+             for k, v in (facts or {}).items() if str(v).strip()}
+    if not facts:
+        raise RelayError(
+            f"no facts for {ref}. If the answer is that nobody knows, say THAT "
+            f"to the desk in words — a silent empty reply reads as an answer.")
+    for name, value in facts.items():
+        if TIN.search(value):
+            raise RelayError(
+                f"the value for {name!r} looks like a TIN. The desks answer "
+                f"without identity and this envelope is stored on a trigger.")
+    if asked_for:
+        wanted = {a.strip().lower() for a in asked_for}
+        if extra := sorted(set(facts) - wanted):
+            raise RelayError(
+                f"the desk did not ask for {', '.join(extra)}. It asked for "
+                f"{', '.join(sorted(wanted))}. A fact riding along uninvited is "
+                f"the asker framing the question, which is what the desk being "
+                f"a separate session exists to stop.")
+    return FollowUp(ref=ref.strip(), desk=desk.strip(), facts=facts)
+
+
+def follow_up_prompt(f: FollowUp) -> str:
+    """The message that carries the answers back to the desk."""
+    out = [f"DESK FOLLOW-UP {f.ref} — for the **{f.desk}** desk. You asked for "
+           f"these and here they are.", "",
+           f"**This answers {f.desk}'s refusal and no other.** The same question "
+           f"may have reached other desks, which refuse for their own reasons "
+           f"and want their own facts; the ref is shared between them and the "
+           f"desk name is what tells them apart. Re-run it for {f.desk}.", "",
+           "## What was answered", ""]
+    out += [f"- **{name}:** {value}" for name, value in sorted(f.facts.items())]
+    out += ["", "## Now answer the original question", "",
+            f"Re-run it with these on file — `ask.answer(..., context="
+            f"record.Context(facts={{...}}))` — and reply exactly as before, "
+            f"opening with `DESK ANSWER {f.ref}`.", "",
+            "**Only these were answered.** Anything you asked for that is not "
+            "listed above is STILL not on file: refuse on it again rather than "
+            "treat this reply as permission to assume it. A follow-up that "
+            "fills three of four holes and is read as filling four is worse "
+            "than no reply at all.", "",
+            "If these change nothing — if they were not in fact what the "
+            "question turned on — say so plainly. That is a finding about the "
+            "question you asked, not a failure."]
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# WHEN NOBODY HOLDS THE RULE: sending the question on to be RESEARCHED.
+#
+# The firm, 8 September 2026: *"the skill also has to direct questions to this
+# container when they need research, obviously"*.
+#
+# `run-down-a-question` has existed since 5 September and is the right skill. It
+# was never CONNECTED: nothing said which session runs it, and nothing carried an
+# `authority_absent` refusal to that session. A doer got "nothing this desk holds
+# reaches the question", and the trail stopped — the gap went into
+# `unsupported/` for somebody to find later, if anybody ever looked.
+#
+# WHY THIS IS THE THIRD ENVELOPE AND NOT A FLAG ON THE FIRST. A question asks
+# "what does the record say"; this asks "go and find what nobody has". They have
+# different answers (a passage nobody has admitted yet, versus a served
+# conclusion), a different destination (the session that can reach a publisher),
+# and a different disposition — **nothing found this way enters the record**.
+# The searcher PROPOSES; the firm admits. Making it a flag would have let a
+# lookup return as though it were an answer.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class Research:
+    """A gap no desk could reach, sent to the session that can go and look."""
+    ref: str
+    question: str
+    refused_by: tuple
+
+
+def research(question: str, reply_to: str, refused_by=()) -> Research:
+    """Send an `authority_absent` gap to be run down, or REFUSE to send it.
+
+    `refused_by` is `((desk, reason), ...)` from the refusals that produced the
+    gap. It is REQUIRED and it is checked, because the one thing that must not
+    happen here is a question being researched that a desk could already answer:
+    a search that finds authority the record already holds costs the firm a
+    source-admission decision it does not need to make, and a search launched
+    because an agent did not like the answer it got is not research.
+    """
+    a = ask(question, reply_to)                    # same refusals, same TIN gate
+    rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
+    if not rows:
+        raise RelayError(
+            "nothing refused this. A gap is what a DESK could not reach, and "
+            "`refused_by` is the evidence — without it this is a search for "
+            "authority nobody has established is missing.")
+    if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
+        raise RelayError(
+            f"refused {', '.join(wrong)}, which is not a gap in the record. "
+            f"`authority_absent` is the only refusal this answers — the others "
+            f"are answered by a person, by the firm, or by asking a different "
+            f"desk, and searching for authority instead is how a refusal gets "
+            f"talked out of.")
+    return Research(ref=a.ref, question=a.question, refused_by=rows)
+
+
+def research_prompt(r: Research, reply_to: str) -> str:
+    """The message the researching session receives."""
+    out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
+           f"the session that can go and look.", "",
+           "## The question", "", r.question, "",
+           "## What already refused it, and why", ""]
+    out += [f"- **{desk}** — `{reason}`" for desk, reason in r.refused_by]
+    out += ["",
+            "Every one of these said `authority_absent`: not that the answer is "
+            "hard, but that **the record does not contain the rule**. That is "
+            "what you are looking for.", "",
+            "## How", "",
+            "Use `run-down-a-question`. Search anywhere. **Verify every find "
+            "against the publisher's own page** — a citation that only exists "
+            "in a search result is not a find.", "",
+            "## The two things that are not yours to decide", "",
+            "1. **Nothing you find enters the record.** Propose it. The firm "
+            "admits a source; a session never does. `keep=False`, no commit, no "
+            "write into any desk.",
+            "2. **A licence is a wall, not an obstacle.** Where a publisher "
+            "gates its text behind a CAPTCHA, a terms click or a sign-in, "
+            "NAME THE WALL EXACTLY and stop. Do not solve it, do not accept "
+            "terms on the firm's behalf, do not route around it. Whether the "
+            "firm holds a licence is their answer to give.", "",
+            "## What to send back", "",
+            f"Reply poke-only to `{reply_to}` — `create_trigger` with NO "
+            f"`run_once_at` and NO `cron_expression`, then one `fire_trigger` — "
+            f"opening with `FOUND {r.ref}` or `LOOKED {r.ref}`.", "",
+            "**`LOOKED` is a real answer and I want it.** *\"I searched, here is "
+            "where, and the authority is not reachable\"* is a finding: it turns "
+            "a gap nobody has examined into a gap somebody has, which is the "
+            "difference between a queue and a pile. Say where you looked either "
+            "way.", "",
+            "No client name, TIN or figure in the reply."]
+    return "\n".join(out)

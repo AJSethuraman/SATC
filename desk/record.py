@@ -27,6 +27,39 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _version() -> str:
+    """What this CODE is, read from the manifest beside it at import.
+
+    THE ONE PLACE A VERSION CAN HONESTLY COME FROM. A session's `ask-desk` was
+    served from a plugin cache FIVE releases stale on 8 September — 0.4.0 while
+    the code was 0.9.x — and the version warning added in 0.7.3 to catch exactly
+    that lives in the SKILL.md that does not load. A check cannot detect its own
+    staleness. The desk that found it:
+
+        "That check must live in ask.py/relay.py, which IS current, or in the
+         harness."
+
+    Right. This is read from `.claude-plugin/plugin.json` next to the module
+    actually imported, so it describes the code that is RUNNING rather than the
+    file somebody happens to be reading. A mismatch between this and what a
+    skill claims is the whole signal.
+
+    Returns "" rather than raising: a missing manifest is not a reason to stop a
+    desk answering, and an empty version says "unknown", which is honest.
+    """
+    import json
+    try:
+        return str(json.loads(
+            (Path(__file__).resolve().parent / ".claude-plugin" / "plugin.json")
+            .read_text(encoding="utf-8")).get("version", "")).strip()
+    except Exception:
+        return ""
+
+
+#: The running code's version. Empty when it cannot be determined.
+VERSION = _version()
+
+
 class RecordError(Exception):
     """The record could not be read as a record. Never silently tolerated."""
 
@@ -282,6 +315,40 @@ class Context:
 
     def known(self) -> tuple[str, ...]:
         return tuple(sorted(k for k, v in self.facts.items() if str(v).strip()))
+
+    def unrecorded(self, records) -> tuple[str, ...]:
+        """Facts we were TOLD that this desk has nowhere to put.
+
+        THE SILENT DROP, 8 September 2026, and it is the worst thing found in a
+        night of testing. A caller may pass any name; `brief` prints only the
+        ones the desk DECLARES. Everything else vanished — no line, no warning,
+        no error. A desk session confirmed it with a fact no desk could possibly
+        declare (`totally_made_up_field: banana`, dropped by both), and then
+        pointed at what it had just done:
+
+            "I went on to serve an answer built on three facts the desk had
+             already discarded."
+
+        That answer turned on the invoice amount. The amount was never on file;
+        it existed in the message and in the answering model's head. Had the
+        figure been wrong the answer would have been wrong, and nothing anywhere
+        in this system would have caught it.
+
+        THE VOCABULARY FOR THIS ALREADY EXISTED AND NEVER FIRED.
+        `no_field_for_this_fact` — *"nobody ever decided this should be written
+        down"* — is exactly this case, and the path that raises it is on the
+        ANSWERING side, where a POSITION names a fact the file lacks. Nothing
+        looked at the other direction: a fact the CALLER has and the record
+        cannot hold. That is a preparer discovering, by doing real work, that
+        the firm tracks nowhere to put something. It is the most valuable kind
+        of hole there is and it was being thrown away.
+
+        An error would have been fine. A refusal would have been better.
+        Silence is the one outcome that teaches a caller its facts landed.
+        """
+        declared = set(records or ())
+        return tuple(sorted(k for k, v in self.facts.items()
+                            if str(v).strip() and k not in declared))
 
     def missing(self, needs) -> tuple[str, ...]:
         """The declared needs this context cannot meet, in declared order."""

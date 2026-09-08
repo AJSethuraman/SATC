@@ -36,8 +36,13 @@ QUESTION = "Is streaming television ever a business subscription?"
 
 
 def _escalate(reason, working=""):
+    # THE FOLLOW-UP IS ALWAYS SUPPLIED HERE, and never because these tests are
+    # about it — they are about counting. From 0.9.0 the engine refuses an
+    # escalation on a reason a PERSON can resolve unless the desk says what to
+    # ask, so a helper that omits it cannot reach the code under test at all.
     return engine.Answer(position="", citation="", escalated=True,
-                         reason=reason, working=working)
+                         reason=reason, working=working,
+                         ask="What was bought, and for how much?")
 
 
 @pytest.fixture(scope="module")

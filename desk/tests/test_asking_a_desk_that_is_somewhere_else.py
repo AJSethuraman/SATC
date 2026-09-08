@@ -277,3 +277,200 @@ def test_the_address_is_not_committed_anywhere_in_this_repository():
     assert not offenders, (
         "a session id is committed in code or a skill: " + ", ".join(offenders)
         + f". It is deployment state — read it from ${relay.DESK}")
+
+
+def test_the_envelope_asks_the_desk_to_name_the_desks_it_reached():
+    """ROUTING IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
+
+    On 8 September a doer asked "what do I do with it" about a forklift and
+    reached ONE desk. The same transaction phrased as "is the invoice price
+    deducted or capitalized?" reaches TWO — and the one dropped, `fixed-assets`,
+    holds the most on-point paragraph. The doer: *"My phrasing was the natural
+    working one and it got strictly less authority. I did not know that when I
+    wrote it, and a doer has no way to tell."*
+
+    Nothing in the engine is wrong here — `routing.route` is a comparison and it
+    compared correctly. What was missing is that the only party who can see the
+    routing was not asked to report it."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "Name every desk" in body
+    assert "fewer desks than an obvious rephrasing" in body
+
+
+def test_and_says_why_the_asker_cannot_do_it_themselves():
+    """Without the reason a desk reads this as bookkeeping and skips it."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "THE ASKER CANNOT SEE THIS AND YOU CAN" in body
+
+
+# ------------------------------------- answering what the desk actually asked
+
+def test_a_follow_up_carries_the_facts_the_desk_named():
+    f = relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"},
+                        asked_for=("invoice_amount",))
+    assert f.ref == "abc123" and f.facts == {"invoice_amount": "18,400"}
+
+
+def test_a_fact_the_desk_did_not_ask_for_is_refused():
+    """THE DISTINCTION THAT MAKES THIS NOT THE CONTEXT FIELD THE FIRM CUT.
+
+    That field let the ASKER write whatever context it liked, and an asker who
+    writes the context writes the answer. Here the DESK named the fields; the
+    asker supplies only values. A fact riding along uninvited is the asker
+    framing the question again, through a narrower door."""
+    with pytest.raises(relay.RelayError, match="did not ask for"):
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400",
+                                   "trade": "plumber"},
+                        asked_for=("invoice_amount",))
+
+
+def test_a_follow_up_with_no_ref_is_a_new_question():
+    with pytest.raises(relay.RelayError, match="no ref"):
+        relay.follow_up("", "fixed-assets", {"invoice_amount": "1"}, asked_for=("invoice_amount",))
+
+
+def test_an_empty_reply_is_refused_rather_than_read_as_an_answer():
+    """"Nobody knows" has to be SAID. Silence reads as resolution."""
+    with pytest.raises(relay.RelayError, match="no facts"):
+        relay.follow_up("abc123", "fixed-assets", {}, asked_for=("invoice_amount",))
+
+
+def test_a_blank_value_does_not_count_as_answered():
+    with pytest.raises(relay.RelayError, match="no facts"):
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "   "},
+                        asked_for=("invoice_amount",))
+
+
+def test_no_tin_rides_in_on_a_value_either():
+    with pytest.raises(relay.RelayError, match="TIN"):
+        relay.follow_up("abc123", "fixed-assets", {"taxpayer": "123-45-6789"})
+
+
+def test_the_reply_tells_the_desk_the_unanswered_ones_are_still_open():
+    """A FOLLOW-UP THAT FILLS THREE OF FOUR HOLES MUST NOT READ AS FOUR. The
+    reply arrives as permission to answer, and a desk reading it as permission
+    to assume is the whole failure re-entering by the back door."""
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"}))
+    assert "STILL not on file" in body
+    assert "refuse on it again" in body
+
+
+def test_and_invites_the_desk_to_say_the_facts_changed_nothing():
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"}))
+    assert "say so plainly" in body
+    assert "not a failure" in body
+
+
+def test_a_follow_up_must_name_the_desk_it_answers():
+    """THE REF IS SHARED BETWEEN EVERY DESK A QUESTION REACHED.
+
+    `ref_for` digests the question and the asker, so a question routing to two
+    desks produces ONE ref. The forklift did exactly that on 8 September and
+    refused twice for different reasons wanting different facts —
+    `context_not_on_file` from capitalization-and-de-minimis,
+    `facts_not_established` from fixed-assets. A follow-up carrying only the ref
+    cannot say which it answers, and applied to the wrong branch it can report a
+    spurious `no_field_for_this_fact` against a desk that never asked for it.
+
+    Found by Codex on #339, before it ever ran on two desks at once."""
+    with pytest.raises(relay.RelayError, match="no desk on the follow-up"):
+        relay.follow_up("abc123", "", {"invoice_amount": "18,400"})
+
+
+def test_and_the_reply_says_which_desk_it_is_for():
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "1"}))
+    assert "for the **fixed-assets** desk" in body
+    assert "answers fixed-assets's refusal and no other" in body
+
+
+def test_two_desks_on_one_question_share_a_ref():
+    """THE PREMISE, pinned. If refs ever became per-desk this guard is dead
+    weight and someone should know why it was there."""
+    a = relay.ask(Q, reply_to=ME)
+    assert relay.ask(Q, reply_to=ME).ref == a.ref
+
+
+# --------------------------------- sending a gap to be researched
+
+GAP = (("capitalization-and-de-minimis", "authority_absent"),
+       ("vehicle-expense", "authority_absent"))
+LEASE = "how do I know if a lease should be booked as an asset?"
+
+
+def test_a_gap_can_be_sent_to_be_run_down():
+    """THE FIRM ASKED FOR THIS IN AS MANY WORDS, 8 September 2026: *"the skill
+    also has to direct questions to this container when they need research,
+    obviously"*.
+
+    `run-down-a-question` had existed since 5 September and was never CONNECTED:
+    nothing said which session runs it, and nothing carried an `authority_absent`
+    refusal there. A doer was told "nothing this desk holds reaches the question"
+    and the trail stopped."""
+    r = relay.research(LEASE, ME, refused_by=GAP)
+    assert r.question == LEASE
+    assert r.refused_by == GAP
+
+
+def test_a_gap_needs_the_refusals_that_prove_it_is_one():
+    """A search nobody's refusal asked for is a search for authority nobody has
+    established is missing."""
+    with pytest.raises(relay.RelayError, match="nothing refused this"):
+        relay.research(LEASE, ME, refused_by=())
+
+
+@pytest.mark.parametrize("reason", ["facts_not_established", "context_not_on_file",
+                                    "wrong_body_of_authority",
+                                    "contradicts_ratified_position"])
+def test_only_authority_absent_is_a_gap(reason):
+    """THE ONE THAT MATTERS. Every other refusal is answered by a person, by the
+    firm, or by asking a different desk. Sending those to a searcher is how a
+    refusal gets talked out of — the desk said no, so go and find something that
+    says yes."""
+    with pytest.raises(relay.RelayError, match="not a gap in the record"):
+        relay.research(LEASE, ME, refused_by=(("some-desk", reason),))
+
+
+def test_a_gap_carries_the_same_tin_refusal_as_a_question():
+    """It is the same envelope on the same wire and gets the same gate."""
+    with pytest.raises(relay.RelayError, match="TIN"):
+        relay.research("what about 123-45-6789's lease", ME, refused_by=GAP)
+
+
+def test_the_envelope_names_every_desk_that_refused():
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    for desk, _ in GAP:
+        assert desk in body
+
+
+def test_it_says_nothing_found_enters_the_record():
+    """PROPOSE, NEVER DISPOSE. A searcher that stored what it found would be
+    admitting sources on the firm's behalf."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "Nothing you find enters the record" in body
+    assert "The firm admits a source; a session never does" in body
+
+
+def test_it_forbids_crossing_a_licence_rather_than_leaving_it_to_judgement():
+    """FASB ASC is gated by a CAPTCHA, a terms click and a sign-in. On 8
+    September a desk hit exactly that, named it, and stopped — because it was
+    told to. This is the instruction that made it stop."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "NAME THE WALL EXACTLY and stop" in body
+    assert "do not accept terms on the firm's behalf" in body
+    assert "their answer to give" in body
+
+
+def test_looked_and_did_not_find_is_asked_for_as_a_result():
+    """A gap nobody has examined and a gap somebody has examined are different
+    things, and only one of them is a queue."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "LOOKED" in body
+    assert "is a real answer and I want it" in body
+
+
+def test_the_reply_is_poke_only_here_too():
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "NO `run_once_at`" in body and "NO `cron_expression`" in body
