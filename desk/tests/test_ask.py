@@ -203,7 +203,7 @@ def test_the_skill_reaches_the_module_from_the_installed_plugin():
     """
     import re
 
-    text = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+    text = (Path(__file__).resolve().parents[1] / "skills" / "be-the-desk"
             / "SKILL.md").read_text(encoding="utf-8")
     blocks = [b for b in re.findall(r"```python\n(.*?)```", text, re.S)
               if re.search(r"^import ask$", b, re.M)]
