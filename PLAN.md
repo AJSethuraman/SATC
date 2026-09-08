@@ -209,6 +209,19 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Recommended roadmap (synthesized 2026-07-04 — awaiting owner sign-off on the big items)
 
+- **Grow `DOMAINS.md` past two bodies of authority.** Under verification-as-gate
+  (8 September 2026) the subject ceiling is gone, but `domains.py` still decides
+  which publisher is competent to settle which question — and it names two:
+  federal tax and US GAAP. So payroll, state and information-return questions
+  refuse for the right reason and still refuse. Mostly research plus the firm's
+  yes; phased deliberately so it does not block the v1 gate change.
+
+- **Caching a proved passage.** Once a publisher is admitted with
+  `may_store: full_text`, a passage proved live can be kept so the next question
+  is faster. Explicitly a convenience and never a precondition for answering —
+  the firm: *"Store if possible sure but this isn't a limit."*
+
+
 - **The agent factory — a skill that builds an expert.** The firm's own thought, raised
   4 September 2026 while specifying expert desks: *"it might make sense for us to make a
   dedicated skill or some session or whatever that helps create an agent and perform the
@@ -433,6 +446,43 @@ it with them.
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-09-08 — Verification is the gate, not storage (desk).** The firm, after
+  explaining it more than once: *"we want the best to be able to answer anything
+  and not be limited to literally specific things … the entire point is to have a
+  headless machine and the agent to tie out things to make sure it's all
+  correct."* And, settling it: *"Yes verification is the gate. Who cares if we can
+  store it outside of it just being quicker the next time. Store if possible sure
+  but this isn't a limit."*
+
+  **What it overturns.** `engine._check` refuses any citation absent from a desk's
+  record, and the brief says so to every answerer. That made the seven desks a
+  ceiling: everything outside the stored corpus refused `authority_absent`, the
+  searcher found it, and the trail then stopped at the firm, because a source had
+  to be admitted before any desk could cite it. A four-minute lookup queued
+  behind the owner.
+
+  **What replaces it.** A desk answers anything it can prove: from the record
+  where the record holds it, and otherwise by fetching the publisher's own page
+  with a real browser and serving only if the words are there *right now*,
+  citing the live document with URL, timestamp, digest and matched length.
+  Storage becomes a cache — `record.MAY_STORE` already carries `citation_only`
+  for exactly this.
+
+  **What does not move.** `domains.governs`. Proving that irs.gov really says
+  something is not evidence that irs.gov gets to say it, and that check is what
+  caught a Treasury regulation being served as primary and binding for a
+  balance-sheet question the same day. Licence walls stay walls.
+
+  PRD: `desk/docs/prd-verification-is-the-gate.md`.
+
+  **Three docket answers alongside it.** *Keep warning* on a domain straddle
+  (measured: 5 of 98 recorded problems straddle, 4 of those 5 are answered
+  correctly today). *A real headless browser* for what the tie-out announces to a
+  publisher, rather than claiming to be one — which is also the unlock for the
+  above. And on FASB, *"probably admit it"* with a question attached, left open
+  in the PRD with a recommendation rather than decided here.
+
 
 - **2026-09-04 — Docket answers (desk build).** Four decisions put to the firm as a
   form and answered there; recorded here because an answer that lives only in a page
