@@ -478,3 +478,101 @@ pytest errors on Windows that were its own unwritable temp directory —
 proposed, found already anchored in three places, and withdrew before sending.
 
 > *"That one never reached you as a claim, which is the system working."*
+
+---
+
+# Postscript 4: the platform class closed, and the discipline that closed it
+
+**On the firm's Windows machine, at 0.12.1, unmodified:**
+
+```
+924 passed, 1 skipped, 0 failed  in 15.52s
+```
+
+Identical to the count here. **All six are gone.** The class is closed for now,
+with the caveat that was in the record before the run and stays in it: the grep
+catches the two shapes already seen, and **running it there is still the only
+thing that finds the next one.**
+
+## The next one was looked for, and reported as inconclusive rather than as a find
+
+Two cheap axes were still untested: a path containing a **space**, and a
+non-UTF-8 locale. So the tree was copied to `"a path with spaces"` and run:
+
+```
+126 failed, 782 passed, 1 skipped, 16 errors
+```
+
+> *"I ALMOST SENT YOU THAT AS A FINDING. Then I ran the control — same copy
+> method, same command, path with NO spaces: **126 failed, 782 passed, 1
+> skipped, 16 errors** — IDENTICAL. So the spaces are irrelevant and MY COPY is
+> the confound."*
+
+Root cause given rather than a bare "inconclusive": the suite walks **up** from
+`desk/` and expects a repository around it — `<repo>/.claude-plugin/marketplace.json`,
+`<repo>/desk/.claude-plugin/plugin.json`, and canon findable from the checkout.
+Copying the *contents* of `desk/` to a root removes the parent the suite reads.
+
+**And the question was left open rather than closed by the failed attempt**, with
+the reason it matters: `C:\Users\Firstname Lastname\…` is the default shape of a
+Windows home directory, and that machine happens not to have one.
+
+## Answered here, and it narrows rather than closes
+
+Run from `/tmp/a path with spaces/SATC copy`, whole repository copied so the
+parent structure survives:
+
+```
+925 passed, 1 skipped        <- spaced path
+925 passed, 1 skipped        <- control, same copy method, no spaces
+```
+
+**The control was run first-class, not as an afterthought**, because that is the
+only thing that distinguishes "spaces are fine" from "my copy happened to work".
+
+**This is Linux, and it does not settle Windows.** `C:\Users\Firstname Lastname`
+adds a drive letter, a backslash separator and a short-name alias to the same
+question. What it does establish is that nothing in this suite mishandles a
+space *as such* — so if a spaced path ever fails on Windows, the space is not
+the cause and the separator is where to look.
+
+## The discipline, in the tester's own words
+
+Four self-corrections in one night, and asked what they had in common:
+
+> *"EVERY ONE WAS CAUGHT BY RE-RUNNING THE CHECK WITH SOMETHING I HAD NOT
+> CHOSEN — your module instead of my matcher, your argument order instead of my
+> memory of it, a writable TMPDIR instead of the default, a control path instead
+> of the interesting one."*
+
+> *"That is the same rule as the judge's quote requirement, pointed at myself."*
+
+The fourth is the best of them: *"I had '126 tests fail on a path with spaces'
+in hand, which is a specific, alarming, entirely false finding, and the only
+thing between it and your inbox was running the control."*
+
+## And the cost of moving the note, named by the party who asked for it
+
+> *"AT LINE 6 THE NOTE WAS SKIMMABLE, so the four correct answers paid little.
+> At line 1 it is unavoidable — which is the entire point on the one, and the
+> entire cost on the four. If habituation ever forms, this is where it forms,
+> and I am the reason."*
+
+Two things say the trade is still right, and the first is new evidence:
+
+- A plain tax question — *"is the invoice price of the forklift deducted or
+  capitalized?"* — carries **no note at all**. It fires only where a body of
+  authority is genuinely in contest: 5 of 98 recorded problems. *"A reader meets
+  this about once in twenty answers, not four times a page. That is well under
+  the volume at which people learn to skip a banner."*
+- **And no mitigation exists even in principle.** On the four correct answers the
+  reader needs *"there is a book half we do not cover"*; on the wrong one, *"this
+  may not be your question"* — and telling them apart requires knowing which half
+  was meant, which is exactly what nobody knows. Same sentence, different
+  urgency, unknowable which.
+
+> *"So: keep it at line 1, and the thing to watch is not the wording but whether
+> anyone starts reporting that they skipped it."*
+
+That is the review question for the firm, and it is a question about the field
+rather than about the code.
