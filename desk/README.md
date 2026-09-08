@@ -80,6 +80,16 @@ a wall. The answer arrives saying it is not from the record — and **never
 binding**, because `binding` means the firm treats it as authority that binds
 their own work, and nobody has looked at the document. `candidates.py`.
 
+**Where a publisher holds a door open, use it.** eCFR refuses a real headless
+browser — an HTTP 200 "Request Access" page — and its own refusal names a
+developer API instead. Measured before building: **no key, no cost**, HTTP 200
+to a plain client, the section's full text. `ecfr.py` reads that API, and
+**19 of 19** of the eCFR sources these desks cite tie out live through it. It is
+a transport and not a shortcut past verification: everything it returns is
+proved against the stored passage exactly as a browser fetch is. The
+user-agent in `browser.py` stays the fallback for publishers offering nothing
+like this.
+
 **Withdrawing a citation takes evidence.** A tie-out that does not find our
 passage used to say the publisher had changed it — and on 8 September a live run
 found eCFR serving a real browser a *"Request Access"* page from the correct
