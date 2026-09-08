@@ -208,9 +208,15 @@ def as_prompt(a: Ask) -> str:
         "Poke-only delivers once, in about eight seconds.", "",
         f"**Open your reply with `DESK ANSWER {a.ref}`** so a duplicate can be "
         f"told from a second question.", "",
-        "`fire_trigger` returning success is NOT delivery — its `last_fired_at` "
-        "is not corroborated by the durable record. Do not chase your own "
-        "message; say what you sent and stop.", "",
+        "**NOTHING YOU CAN SEE TELLS YOU WHETHER IT LANDED.** A 200 from "
+        "`fire_trigger` is not delivery — measured. AND the durable record is "
+        "not the fallback: on a `persist_session` trigger a fire that DID "
+        "deliver left no `last_fired_at`, no run row and an untouched "
+        "`updated_at` — measured 8 September 2026, on the reply to this very "
+        "envelope. **An absent `last_fired_at` is not evidence of "
+        "non-delivery.** Only the recipient knows. So do not chase, do not "
+        "resend on the strength of the record, and do not report a delivery "
+        "failure you have not been told about: say what you sent, and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
         "so and say what authority is missing — a refusal is a finding.", "",
         "## Say which desks this reached", "",
