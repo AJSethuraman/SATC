@@ -447,6 +447,32 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-08 — Six docket answers, and the three that are a correction rather
+  than an instruction (desk, canon).** Applied: `dec-guard` *"Leave it demoted,
+  add the judgment requirement"* — an off-source answer now needs a second reader
+  on EVERY desk, not only the ones that opted in (it changes nothing today: all
+  seven already declare `Judged: required`, so it guards the next desk built
+  without it, and it does NOT close misjudgment). `dec-widen` *"Apply all three
+  widenings"*, which promptly made two of this session's own test fixtures
+  on-source — the widening working. `dec-b22` *"Adopt Behaviour 22 and build the
+  check"* — written into `canon/skills/how-we-work/SKILL.md` as **"A goal is a
+  quotation, or it is a proposal"**, canon 187 green.
+
+  **The other three are the firm saying the session has the shape wrong.**
+  `dec-facts`: *"No, you don't record anything. Why are you not getting this?"* —
+  the third time they have said not to prep the desk, and the session had put it
+  on a docket a fourth. Nothing is recorded; the ask is struck.
+  `dec-df`: *"I want to do this in real time stop trying to figure out everything
+  monthly close could need and just set it up so that we can run month-end close
+  and debug as we go."* So READY MEANS THE LOOP RUNS AND WE FIX WHAT IT HITS, not
+  every subject declared and every queue built in advance.
+  `dec-168`: *"Not only do we let it fetch but we might have to reason and figure
+  it why it stopped. Depreciation like other things are not necessarily a tax
+  only question."* — a refusal is a thing to reason about, and the desks being
+  scoped to federal tax is itself a limit where book and tax diverge.
+  `dec-widen` carried the same charge: *"I again feel the need to ask what we are
+  doing because I keep saying having multiple desks will make it very hard."*
+
 - **2026-09-08 — The pilot is still the goal, and its refusals ARE the pilot
   (desk).** Four docket answers. On whether the goal had moved after a day of
   building: *"The pilot is still the goal."* On being asked to supply one real

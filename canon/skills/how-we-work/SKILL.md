@@ -1,13 +1,13 @@
 ---
 name: how-we-work
-description: The twenty-one standing behaviours — name the goal and report the distance to it, a refused route is not a refused goal, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The twenty-two standing behaviours — a goal is a quotation, name the goal and report the distance to it, a refused route is not a refused goal, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Twenty-one behaviours. Twenty exist because something specific went wrong; one —
-behaviour 20 — because the firm named a standing condition instead, and that entry
-says so of itself. Each is written next to the thing that produced it. **A rule with a body
+Twenty-two behaviours. Twenty-one exist because something specific went wrong;
+one — behaviour 20 — because the firm named a standing condition instead, and
+that entry says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
 These are not the tenets. `TENETS.md` is case law about *code* — thirty-five
@@ -488,6 +488,47 @@ step to find once looking was the task. Asked why it had conceded: *"why did you
 claim to not be able to do it and switch course? it would have proven nothing.
 this is a behavior we should fix, it happens frequently. you could clearly do
 it."*
+
+## 22 · A goal is a quotation, or it is a proposal
+
+**Do:** any goal you work to, publish on a docket, or write into a scheduled
+task carries **the firm's words, verbatim, with a date**. Your own shaping of it
+is a separate line, labelled as yours, and it never inherits their attribution.
+
+A session cannot tell its own summary from the firm's instruction after one
+hop, and neither can the next session. The summary is written in good faith,
+reads as authoritative, and is the thing that gets picked up — so the paraphrase
+becomes the goal and the goal is never consulted again.
+
+- **Where the goal lives is one place, and it is a file the firm wrote in.** If
+  you cannot point at the sentence, you do not have the goal; you have your
+  reading of it.
+- **"Ends when" is the tell.** An end condition a session invents is the most
+  natural thing in the world to write and the most dangerous thing to inherit,
+  because it is precise, it is checkable, and it is not theirs. Write it if it
+  helps — **label it as yours**.
+- **Silence approves a NEXT STEP, never a DEFINITION.** A docket may propose what
+  to work on and proceed unless told otherwise (behaviour 19). It may not
+  propose what the goal *is* and take silence for a yes.
+- **Mechanise it the way `mine.Proposal` is mechanised.** `canon/mine.py` refuses
+  to exist unless its quote is literally present in the passage it claims to
+  quote: *"paraphrase is the failure that burns the whole mechanism, so it is
+  made impossible here rather than warned about."* A goal is the same class of
+  claim about somebody else's words, and deserves the same refusal.
+
+**Incident:** on 8 September 2026 a session spent a day building to a goal the
+firm never set. `DECISIONS-2026-09-07-SEVENTH.md` recorded the firm's line and
+added an **Ends when** clause of its own, labelling it honestly — *"the goal, set
+by the firm **and shaped here**"*. The next document dropped the caveat and
+called it *"the end condition the firm set"*. A docket then published it as
+*"the firm's goal, set on 7 September 2026"* under a heading saying silence
+approves it, and the firm answered *"The pilot is still the goal"* — confirming a
+definition they had never written. Their actual bar had been sitting verbatim in
+`desk/relay.py` the whole time. Count Bassy, asked to find the mechanism, found
+**eleven statements of the goal in the repository: five the firm's, six a
+session's, and nothing marking which governs.** The firm: *"investigate what in
+the world makes you keep shifting the goal because you have malformed opinions
+that I'm tired of fixing. This has costed a day."*
 
 ## The line that governs everything
 

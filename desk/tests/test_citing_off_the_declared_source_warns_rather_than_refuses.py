@@ -54,19 +54,23 @@ from engine import Answer
 
 DESKS = Path(__file__).resolve().parents[1] / "desks"
 
-#: The measured case. `tool`/`asset` are declared on S1 (§ 1.263(a)-1); the
-#: $200 materials-and-supplies line lives in S2 (§ 1.162-3), and the desk's own
-#: prose says it answers this "from § 1.263(a)-1(f) and § 1.162-3".
-QUESTION = "Where is the line between a tool and a fixed asset?"
-OFF_SOURCE = "26 CFR 1.162-3(c)(1)(iv)"
+#: The measured case.
+#: THE ORIGINAL FIXTURE WAS FIXED OUT FROM UNDER THIS TEST, 8 September 2026,
+#: and that is the right outcome. It used Q16 on `capitalization-and-de-minimis`
+#: citing 1.162-3(c)(1)(iv); the firm then approved widening `tool`/`asset` to
+#: also be answered from S2, so that citation is now ON-source and the case is
+#: gone. Repointed at `vehicle-expense` VE1, where "car" is answered from S4 and
+#: 1.280F-6 -- the listed-property rule, squarely on point for a car -- sits in
+#: S1. Six of that desk's problems are off-source on their own citation.
+QUESTION = "An inspector who uses her own car for a construction job"
+OFF_SOURCE = "26 CFR 1.280F-6(a)(2)(ii)"
+POSITION = "listed property, and the substantiation rules apply"
 
 
 def _serve():
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
-    return engine.serve(
-        Answer(position="a tool costing $200 or less is materials and supplies",
-               citation=OFF_SOURCE),
-        desk, question=QUESTION)
+    desk = record.load(DESKS / "vehicle-expense")
+    return engine.serve(Answer(position=POSITION, citation=OFF_SOURCE),
+                        desk, question=QUESTION)
 
 
 def test_it_is_served_rather_than_refused():
@@ -86,7 +90,7 @@ def test_the_warning_is_read_before_the_conclusion_not_after():
     """The firm's rule, from the straddle note: a warning below the answer is a
     retraction of something already bought. Above it, it is a frame."""
     text = str(_serve())
-    assert out_i(text, "not declare") < out_i(text, "materials and supplies"), (
+    assert out_i(text, "not declare") < out_i(text, "listed property"), (
         "the warning prints below the conclusion, which is the placement the "
         "firm already rejected once")
 

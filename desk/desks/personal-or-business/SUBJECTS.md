@@ -29,7 +29,7 @@ no desk to reach.
 
 **Answered from S1:** personal, personal expense, personal expenses, living expenses, family, household, housekeeping, domestic service, residential, residence, dwelling, commute, commuting, commuter, life insurance, clothing, clothes, workwear, uniform, uniforms, sword, armed services, education, groceries, grocery, supermarket, meals, lodging, rent, vendor, merchant, retailer, outfitter, store, subscription, streaming
 
-**Answered from S2:** business expense, business expenses, ordinary and necessary, trade or business, management expenses, commissions, supplies, incidental repairs, advertising, selling expenses, insurance premiums, rental
+**Answered from S2:** subscription, streaming, business expense, business expenses, ordinary and necessary, trade or business, management expenses, commissions, supplies, incidental repairs, advertising, selling expenses, insurance premiums, rental
 
 **Answered from S3:** home, home office, business use of the home, exclusive use, exclusively, regular use, regularly, principal place of business, separate structure, greenhouse, studio, workshop, barn, den, basement, storage, inventory, product samples, utilities, trash removal, cleaning service, cleaning services, daycare
 
