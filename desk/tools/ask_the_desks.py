@@ -98,13 +98,21 @@ def brief(number: int, title: str, why: str, desk: record.Desk) -> str:
         "",
         "```json",
         '{"escalated": true, "reason": "<one of: authority_absent, '
-        'authority_permits_choice, facts_not_established>", "working": "<what is missing>"}',
+        'authority_permits_choice, facts_not_established>", "working": "<what is '
+        'missing>", "ask": "<the question a person must answer>"}',
         "```",
         "",
         "**`facts_not_established`** is the right answer when the rule is clear and",
         "what you do not know is a fact about the client — what was bought, which",
         "entity, which period. It is not a failure; it is the answer that says who",
         "has to be asked.",
+        "",
+        "**On that reason you MUST fill in `ask`, and the engine refuses without",
+        "it.** Name the fact and say what would settle it, in words a preparer can",
+        "act on — *\"What was the invoice amount? Under $2,500 the safe harbour",
+        "may reach it.\"* — not *\"more information needed\"*. A refusal that names",
+        "a gap and not the question is a dead end wearing a reason code, and it",
+        "is the difference between a queue somebody can work and a count.",
         "",
         "**Never cite a paragraph that is not printed below.** The engine verifies",
         "the citation against this desk's record and refuses anything else,",
@@ -167,10 +175,37 @@ def serve_answers(path: Path) -> int:
         question = a["question"]
         if a.get("escalated"):
             ans = engine.Answer(position="", citation="", escalated=True,
-                                reason=a["reason"])
+                                reason=a["reason"], working=a.get("working", ""),
+                                ask=a.get("ask", ""))
         else:
             ans = engine.Answer(position=a["position"], citation=a["citation"])
-        out = engine.serve(ans, desk, question=question)
+        # AN ANSWER THE ENGINE WILL NOT EVEN CONSIDER IS A ROW, NOT A CRASH.
+        #
+        # `serve` raises `EngineError` when a caller breaks its contract — an
+        # unknown reason code, or (from 0.9.0) an escalation on a reason a
+        # PERSON can resolve with no follow-up question attached. That is the
+        # right behaviour for one answer and the wrong behaviour for a run:
+        # thirteen answers went in, one was written under an older contract, and
+        # the whole harness died without reporting the twelve that were fine.
+        #
+        # FOUND REPLAYING A REAL RUN. `runs/reasked-2026-09-07-evening` was
+        # recorded before `ask` existed, so its escalations carry none. That
+        # file is a RECORD of what the desks actually did and backfilling
+        # questions into it would be inventing evidence — so the harness has to
+        # be able to say "this answer predates the contract" and carry on.
+        try:
+            out = engine.serve(ans, desk, question=question)
+        except engine.EngineError as e:
+            refused += 1
+            rows.append({
+                "q": a["q"], "desk": a["desk"], "question": question,
+                "served": False, "position": a.get("position", ""),
+                "citation": a.get("citation", ""), "tier": "",
+                "checked_subject": None, "reason": "not_put_to_the_engine",
+                "detail": str(e), "fact": "", "by_position": "",
+                "working": a.get("working", ""),
+            })
+            continue
         ok = not isinstance(out, engine.Refusal)
         served, refused = served + ok, refused + (not ok)
         rows.append({

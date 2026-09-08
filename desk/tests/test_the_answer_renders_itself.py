@@ -184,7 +184,8 @@ def test_two_refusals_to_one_question_are_told_apart():
                          ("capitalization-and-de-minimis", "context_not_on_file")):
         out = ask.answer("we bought a forklift, deducted or capitalized", name,
                          escalate=reason, working="the rule is conditional and "
-                         "the condition is not on file", keep=False)
+                         "the condition is not on file",
+                         ask="What was the invoice amount?", keep=False)
         seen[name] = str(out).splitlines()[0]
     assert len(set(seen.values())) == 2, seen
     for name, line in seen.items():

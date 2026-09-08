@@ -143,7 +143,8 @@ def brief_for_grading(question: str, desk: record.Desk,
 
 def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
-           working: str = "", desks: Path = DESKS, keep: bool = True,
+           working: str = "", ask: str = "", desks: Path = DESKS,
+           keep: bool = True,
            context: record.Context | None = None, prove=None):
     """Put a proposed answer through the production path. Served, or refused.
 
@@ -175,7 +176,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
     # built not to be. Found by Codex on #272.
     if escalate:
         proposed = engine.Answer(position="", citation="", escalated=True,
-                                 reason=escalate, working=working)
+                                 reason=escalate, working=working, ask=ask)
     else:
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)
