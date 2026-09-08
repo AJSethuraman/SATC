@@ -196,7 +196,30 @@ own request on 8 September and wrote *"nothing arrived here"* **1.67 seconds
 after** the answer had landed. If you must check, read `list_triggers` — not
 your own tool result — and never sooner than a minute.
 
-**3 · Send no context, and no client identifier.** `relay.ask` refuses a TIN,
+**3 · A CHARACTERISATION IS CONTEXT. This is the one that got past a careful
+doer.** On the first live close, 8 September 2026, Forge-Occam asked *"a sole
+proprietor bought hand tools for the trade..."*. **The record says LLC.** It had
+written the entity from the shape of the books — one operator, no payroll —
+rather than from the file, and did not check before sending. Its own reading,
+and it is sharper than the rule it broke:
+
+> *"the rule 'send no context' is stated as being about CLIENT IDENTIFIERS and
+> privacy. The failure mode I hit is different and more dangerous — a
+> DESCRIPTIVE fact smuggled in as scene-setting, which reads as harmless and is
+> not. 'a sole proprietor bought' feels like framing; it is a legal
+> characterisation."*
+
+It changed nothing that night **by luck** — the tools question turned on a
+policy date, not the entity. On *"is this income to the taxpayer"* it would have
+steered the desk with an unverified characterisation and left no way to know.
+
+So: **sole proprietor, LLC, S-corp, employee, contractor, business, personal,
+rental, capital** — every one of these is a conclusion wearing the clothes of a
+description. Name the thing that happened and let the desk ask. If you genuinely
+know the entity because you READ IT IN THE FILE, it is a `Context` fact with a
+name, not an adjective in a sentence.
+
+**3b · Send no context, and no client identifier.** `relay.ask` refuses a TIN,
 and it has nowhere to put context on purpose. The firm, 8 September 2026:
 *"we don't add context to it, that defeats the purpose. it falls the same rules
 and gets the de-identified data so it can ensure it answers and asks things

@@ -368,6 +368,17 @@ class Served:
     #: on 8 September, when "how is the depreciation worked out?" refused the
     #: acquisition rule for a thing that had been bought.
     off_source: str = ""
+    #: Facts the CALLER supplied that this desk declares no field for. Not a
+    #: refusal and not a fault: the answer is unaffected. What it stops is the
+    #: SILENCE. Found by the desk on the first live close, 8 September 2026 --
+    #: a fact obtained by a round trip was "accepted, ignored, and nothing said
+    #: so", and its own reading is the reason this exists: *"the fact that
+    #: stopped a desk and cost a round trip is by that alone worth a field."*
+    #:
+    #: DISTINCT FROM `no_field_for_this_fact`, which covers a POSITION asking
+    #: for a fact with nowhere to live. This is a CALLER offering one nobody
+    #: asked for.
+    undeclared: tuple = ()
     #: A `proving.Proof` when the caller asked for one, and None when they did
     #: not. Typed loosely on purpose: `proving` imports the record and reaches
     #: the network, and this module must do neither. THE ENGINE NEVER SETS THIS.
@@ -512,6 +523,13 @@ class Served:
         if self.unchecked and not (seen is not None
                                    and self.unchecked.startswith("Nobody checked")):
             out += ["", self.unchecked]
+        if self.undeclared:
+            named = ", ".join(f"`{k}`" for k in self.undeclared)
+            out += ["", f"YOU SUPPLIED {named}, WHICH THIS DESK DOES NOT "
+                        f"DECLARE — it changed nothing here. Said out loud "
+                        f"because a fact somebody went and obtained is "
+                        f"evidence the record wants a field, and that evidence "
+                        f"is worth more than the answer it did not alter."]
         if self.passage:
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
@@ -1331,9 +1349,12 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
     from_position = backing is not None and backing[0] == "position"
     binding = bool(from_position or source.binding)
     astray, why = cited_off_source(answer, desk, question, source=source)
+    supplied = tuple((context.facts if context else {}) or {})
+    undeclared = tuple(k for k in supplied if k not in (desk.records or ()))
     return Served(
         binding=binding,
         straddle=_straddle_note(verdict, desk),
+        undeclared=undeclared,
         off_source=(
             f"THIS DESK DOES NOT DECLARE THAT SOURCE FOR THIS SUBJECT, and the "
             f"paragraph may still be the right one — the declaration is a "
