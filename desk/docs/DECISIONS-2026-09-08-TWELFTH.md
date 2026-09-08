@@ -110,6 +110,25 @@ is `__future__`, `dataclasses`, `comparing`.
 
 ---
 
+## The limit, measured the night it shipped
+
+Seven trials on the Forge. Both halves work as claimed — the 7 September forklift
+is refused when a judgment is present, and all three inventions are caught,
+including a quote using only real words **rearranged**, which the in-order match
+refuses: *"A judge cannot assemble support out of a word bag."*
+
+Then the one that matters:
+
+> *"The identical quotation supports both verdicts. […] the judge does not make a
+> wrong answer impossible — it makes a wrong answer ATTRIBUTABLE. Instead of
+> 'nobody checked', the record now says WHO checked, WHAT they quoted, and that
+> they said yes. A reviewer can disagree with a named reader holding a specific
+> quotation. Nobody can disagree with 'unchecked'."*
+
+Two tests pin that pair — the careless reader quoting genuine words serves, the
+careful reader quoting the same words refuses — so nobody later writes that this
+stops wrong answers. It does not. It is exactly as good as the second reader.
+
 ## For the firm — and this one is deliberately not decided here
 
 **Nothing requires a judgment.** Which desks may not serve an unjudged answer is
@@ -124,9 +143,21 @@ The question, for the docket:
 > served answer; no answer judged leaves the one error class every exact check
 > passes exactly where it was on 7 September.
 
-The recommendation: **turn it on for `cash-and-bank` first.** Checked rather
-than assumed — it is the only desk of the seven that holds two ratified
-positions on one passage, and it is the desk where the "right position, wrong
-facts" error has already happened. Leave the other six until a run gives a
-reason to move them; measuring the cost on one desk is what tells the firm what
-seven would cost.
+The recommendation was **`cash-and-bank` first** — the only desk holding two
+ratified positions on one passage. **The Forge desk overturned it the same
+night, on better evidence, and it is right:**
+
+> *"`fixed-assets` holds 293 passages and ZERO ratified positions; it is where
+> four of my five traps landed on 7 September and where tonight's misfire
+> landed. If judgments are made mandatory anywhere first, that is the desk."*
+
+Checked: `fixed-assets` 293 passages / 0 ratified; `cash-and-bank` 68 / 2. And
+the `cash-and-bank` argument was the weaker one on its own terms — a desk with
+two positions on one passage is a desk **`alongside` already warns on**.
+`fixed-assets` has no positions at all, so it has no such warning, 293 passages
+to choose a citation from, and it is where every observed error has landed.
+
+**So: `fixed-assets` first**, with the cost stated in the tester's words:
+*"every fixed-assets answer then needs a second reader who is genuinely second —
+if the same session plays both roles, [the careless-judge case] is what you get,
+and it will look like a check."*

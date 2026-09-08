@@ -224,3 +224,70 @@ def test_judging_cannot_reach_the_network_even_by_importing():
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
     assert imported == {"__future__", "dataclasses", "comparing"}, imported
+
+
+# ------------------------------ what a judge does NOT make impossible
+
+LEASE = ("we signed a 36-month lease on a piece of equipment. does the "
+         "equipment go on our books as an asset?")
+
+#: Words genuinely in § 1.263(a)-2(d)(1), in order. Nothing invented.
+GENUINE = ("a taxpayer must capitalize amounts paid to acquire or produce a "
+           "unit of real or personal property")
+
+
+def test_a_careless_judge_quoting_real_words_still_serves_a_wrong_answer():
+    """THE LIMIT, MEASURED ON THE FORGE AND PINNED HERE SO NOBODY OVERSELLS IT.
+
+    The desk ran seven trials against 0.11.0 and reported the one that matters:
+    the SAME quotation supports both verdicts. A careless second reader quotes
+    *"a taxpayer must capitalize amounts paid to acquire or produce a unit of
+    real or personal property"* — really there, really in order — says yes, and
+    the lease answer is served. A careful one quotes the identical words, says
+    no, and it is refused.
+
+        "the judge does not make a wrong answer impossible — it makes a wrong
+         answer ATTRIBUTABLE. Instead of 'nobody checked', the record now says
+         WHO checked, WHAT they quoted, and that they said yes. A reviewer can
+         disagree with a named reader holding a specific quotation. Nobody can
+         disagree with 'unchecked'."
+
+    That is the gain and it is a real one. It is NOT a gate in the sense the
+    domain check is a gate: the domain check can be right without a human; this
+    one is exactly as good as the second reader, and two models sharing a blind
+    spot will agree.
+
+    So this test exists to go red if anyone ever writes that the judge stops
+    wrong answers. It does not."""
+    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+                                           "unit of property",
+                     citation=CIT, keep=False, model="answerer",
+                     judged=judging.Judgment(by="careless-reader", supports=True,
+                                             because=GENUINE))
+    assert isinstance(out, engine.Served), "the judge became a gate; read the docstring"
+    assert out.judged.stands
+
+
+def test_and_the_identical_quotation_refuses_when_the_reader_is_careful():
+    """The other half of the same pair. The engine did not change; the reader did."""
+    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+                                           "unit of property",
+                     citation=CIT, keep=False, model="answerer",
+                     judged=judging.Judgment(
+                         by="careful-reader", supports=False,
+                         because="this governs amounts paid to ACQUIRE property, "
+                                 "and a lessee under a true lease has not "
+                                 "acquired it"))
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "citation_does_not_support"
+
+
+def test_the_record_says_who_read_it_which_is_the_whole_gain():
+    """`unchecked` says nobody looked. This says who looked and what they held."""
+    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+                                           "unit of property",
+                     citation=CIT, keep=False, model="answerer",
+                     judged=judging.Judgment(by="careless-reader", supports=True,
+                                             because=GENUINE))
+    assert out.judged.by == "careless-reader"
+    assert out.judged.because == GENUINE

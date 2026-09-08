@@ -34,6 +34,24 @@ whether the quoted words actually carry the conclusion. That is the judge's call
 and this module records it. `judging` is a check on the JUDGMENT, not a second
 opinion on the answer.
 
+AND THE CONSEQUENCE, measured on the Forge across seven trials on the night this
+shipped: THE SAME QUOTATION SUPPORTS BOTH VERDICTS. A careless reader quotes "a
+taxpayer must capitalize amounts paid to acquire or produce a unit of real or
+personal property" -- really there, really in order -- says yes, and the lease
+answer is served. A careful reader quotes the identical words, says no, and it is
+refused. The tester's framing, and it is the right one:
+
+    "the judge does not make a wrong answer impossible -- it makes a wrong
+     answer ATTRIBUTABLE. Instead of 'nobody checked', the record now says WHO
+     checked, WHAT they quoted, and that they said yes. A reviewer can disagree
+     with a named reader holding a specific quotation. Nobody can disagree with
+     'unchecked'."
+
+That gain is real. It is NOT a gate the way the domain check is a gate: that one
+can be right without a human; this one is exactly as good as the second reader,
+and two models sharing a blind spot will agree. Two tests pin the pair so nobody
+later writes that this stops wrong answers.
+
 NOTHING DEMANDS A JUDGMENT YET. `ask.answer(..., judged=...)` checks one when it
 is given and nothing anywhere requires one -- which desks must not serve
 unjudged is the firm's to decide, and is on the docket. A gate that turned
