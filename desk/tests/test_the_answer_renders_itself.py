@@ -20,6 +20,7 @@ same tester found them printed beside a sentence written for a preparer:
 *"pure instrumentation next to a sentence meant for a person."*
 """
 import ask
+import conftest
 import engine
 
 BOOKS = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
@@ -27,14 +28,14 @@ BOOKS = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
 
 
 def _served():
-    return ask.answer("the bank statement shows a $10 service charge and "
+    return conftest.answer_judged("the bank statement shows a $10 service charge and "
                       "nothing for it is in the books", "cash-and-bank",
                       position="an entry in the books", citation=BOOKS,
                       keep=False)
 
 
 def _escalation():
-    return ask.answer("how do I know if a lease should be booked as an asset",
+    return conftest.answer_judged("how do I know if a lease should be booked as an asset",
                       "fixed-assets", escalate="authority_absent",
                       working="Whether a lease puts a right-of-use asset on the "
                               "balance sheet is US GAAP under ASC 842. No desk "
@@ -182,7 +183,7 @@ def test_two_refusals_to_one_question_are_told_apart():
     seen = {}
     for name, reason in (("fixed-assets", "facts_not_established"),
                          ("capitalization-and-de-minimis", "context_not_on_file")):
-        out = ask.answer("we bought a forklift, deducted or capitalized", name,
+        out = conftest.answer_judged("we bought a forklift, deducted or capitalized", name,
                          escalate=reason, working="the rule is conditional and "
                          "the condition is not on file",
                          ask="What was the invoice amount?", keep=False)

@@ -280,6 +280,21 @@ def answer(question: str, desk_name: str, *, position: str = "",
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)
 
+    # WHAT THE PUBLISHER ACTUALLY SERVED, held for the judge and for nothing
+    # else. It is captured through a WRAPPER rather than added to `Proof`,
+    # deliberately: `Proof` is evidence a reader re-checks by hand, every field
+    # of it is short, and the log takes the repr -- a whole fetched document on
+    # that object would end up in a log line the first time anything printed
+    # one. This lives for the duration of the call and is written nowhere.
+    fetched = {}
+
+    def _watching(source, citation):
+        raw = prove(source, citation)
+        fetched["text"] = raw.text if hasattr(raw, "text") else str(raw)
+        return raw
+
+    transport = _watching if prove is not None else None
+
     out = engine.serve(proposed, desk, question=question, context=context)
     # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
     # has run and refused. It can therefore add a refusal and can never remove
@@ -295,7 +310,8 @@ def answer(question: str, desk_name: str, *, position: str = "",
         import candidates
         out = candidates.consider(
             question=question, position=position, citation=citation,
-            url=found_at, text=found_text, desk=desk, transport=prove)
+            url=found_at, text=found_text, desk=desk,
+            transport=transport)
         if keep and getattr(out, "proof", None) is not None:
             attempts.record(desks, desk_name, out.proof)
     # `out.proof is None` MEANS NOT YET PROVED, and it is what keeps the two
@@ -310,7 +326,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
 
         import attempts
         import proving
-        p = proving.prove(out, desk, prove)
+        p = proving.prove(out, desk, transport)
         if p.verdict == proving.DIFFERS:
             out = engine.Refusal(
                 proving.MOVED,
@@ -342,7 +358,17 @@ def answer(question: str, desk_name: str, *, position: str = "",
 
         import judging
 
-        seen = judging.read(judged, out.passage, answered_by=model)
+        # THE FETCHED DOCUMENT WHERE THERE IS ONE, our stored copy otherwise --
+        # the firm, 8 September 2026: *"it is handed in with the suggestion so
+        # the judge can actually assess it."* A judgment checked against our own
+        # copy establishes that the judge read what WE hold, which is a weaker
+        # claim than that they read what the PUBLISHER holds, and `Read.against`
+        # is what lets a reader tell the two apart afterwards.
+        live = fetched.get("text", "")
+        seen = judging.read(
+            judged, live or out.passage, answered_by=model,
+            against=("the document fetched from the publisher" if live
+                     else "this desk's stored passage"))
         if seen.verdict == judging.SAYS_NO:
             out = engine.Refusal(
                 "citation_does_not_support",
@@ -367,7 +393,37 @@ def answer(question: str, desk_name: str, *, position: str = "",
                 desk=desk.name)
         else:
             out = dataclasses.replace(out, judged=seen)
-    if isinstance(out, engine.Refusal) and keep:
+    # THE DESK'S OWN DECLARATION, and the firm's answer on the docket: *"The
+    # judge can look at it all I guess?"* -- all seven. It runs LAST, after the
+    # proof and after a supplied judgment has been checked, because every stage
+    # here may add a refusal and none may remove one.
+    #
+    # `out.judged is None` MEANS NOBODY READ IT, and it is the exact condition
+    # for the same reason `out.proof is None` is: the engine never sets the
+    # field, so it is set if and only if a judgment came in and passed the
+    # check above. Written as `judged is None` -- the argument rather than the
+    # result -- this fired on answers a second reader HAD read, because a
+    # judgment that says SAYS_NO or NOT_IN_THE_PASSAGE has already refused by
+    # then and one that HOLDS is on the object, not in the argument.
+    if desk.needs_a_judge and isinstance(out, engine.Served) and out.judged is None:
+        out = engine.Refusal(
+            "not_judged",
+            f"{desk.name} does not serve an answer no second reader has looked "
+            f"at, and none was supplied. Nothing is wrong with the answer or "
+            f"with the record — the engine checked what it can check and the "
+            f"one thing it cannot is whether {out.citation!r} carries "
+            f"{out.position!r}",
+            ask=f"Have a party OTHER than the one that answered read the "
+                f"passage and say whether it carries the conclusion, quoting "
+                f"the words they rest that on. Pass it as "
+                f"`judged=judging.Judgment(by=..., supports=..., because=...)`. "
+                f"One model wearing both hats raises rather than serves.",
+            desk=desk.name)
+    # AND THIS ONE IS NOT FILED. `unsupported/` is what says the RECORD is
+    # missing something; a missing judgment is a caller contract and the record
+    # is complete. Filing it would put a work item in a queue nobody can act on
+    # and would inflate the one count that is supposed to mean something.
+    if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
         path = desks / desk_name / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])

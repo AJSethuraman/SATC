@@ -70,7 +70,8 @@ REASONS = (
     "authority_has_moved",      # the publisher no longer carries what we stored
     "wrong_body_of_authority",  # real authority, real subject, wrong universe
     "model_gave_up",            # ran out of window or abandoned the task
-    "judgment_not_in_the_passage",  # the second reader quoted words that are not there
+    "judgment_not_in_the_passage",
+    "not_judged",               # this desk may not serve what nobody read  # the second reader quoted words that are not there
 )
 
 # THE LAST TWO ARE THE FIRM'S, ASKED FOR ON 6 SEPTEMBER 2026, and they are two

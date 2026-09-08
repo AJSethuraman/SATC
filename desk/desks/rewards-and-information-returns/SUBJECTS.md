@@ -79,3 +79,12 @@ genuinely on point and the desk should see them together.
 **Answered from S11:** Form 1099-NEC, Form 1099-MISC, Form 1099-K, 1099-NEC, 1099-MISC, 1099-K, box 1a, legal services, attorneys, corporation, corporations
 
 **Answered from S12:** credit card, credit cards, rebate, rebates, reward, rewards, points, cash back
+
+**Judged:** required
+
+*This desk does not serve an answer no second reader has looked at. The firm, on
+the docket, 8 September 2026, asked which desks may not serve unjudged:* "The
+judge can look at it all I guess?" *— all seven. It is declared here rather than
+in the code so lifting it is one line of this file. The engine checks only that
+the words the judge quotes are really in what they read; whether those words
+carry the conclusion is the judge's call and is recorded, not recomputed.*

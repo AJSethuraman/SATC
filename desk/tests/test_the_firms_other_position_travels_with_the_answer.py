@@ -28,6 +28,7 @@ import pytest
 import ask
 import engine
 import record
+import conftest                                             # noqa: E402
 
 CITE = 'IRS Pub. 583 (12/2024), "Reconciling the checking account"'
 BOOKS = f"{CITE} — what the books are updated for"
@@ -44,7 +45,7 @@ def cash():
 
 
 def _serve(question, position, citation):
-    return ask.answer(question, "cash-and-bank", position=position,
+    return conftest.answer_judged(question, "cash-and-bank", position=position,
                       citation=citation, keep=False)
 
 
@@ -181,7 +182,7 @@ def test_it_says_the_facts_decide_and_that_nothing_looked_at_them():
 
 def test_alongside_is_empty_on_an_ordinary_answer():
     """A control. Set on every answer, it would say nothing on any."""
-    out = ask.answer(
+    out = conftest.answer_judged(
         "we bought a forklift, is the invoice price deducted or capitalized",
         "fixed-assets",
         position="capitalized as a unit of property",

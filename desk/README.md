@@ -80,6 +80,17 @@ a wall. The answer arrives saying it is not from the record — and **never
 binding**, because `binding` means the firm treats it as authority that binds
 their own work, and nobody has looked at the document. `candidates.py`.
 
+**And no desk serves an answer nobody read.** The firm, asked which desks may
+not serve unjudged: *"The judge can look at it all I guess?"* — all seven. A
+second reader is handed the paragraph and the conclusion and says whether one
+carries the other; the engine checks only that the words they quote are really
+in what they read, and where a tie-out was taken they read **the fetched page**
+rather than our copy of it. It does not make a wrong answer impossible — it
+makes one attributable. The requirement is declared in each desk's own
+`SUBJECTS.md` (`**Judged:** required`), so lifting it from a desk is one line of
+that file. Cost, measured rather than estimated: **92 of the 98 recorded
+problems** serve today, and every one now takes a second model call.
+
 **Every attempt is written down, whatever it did.** The firm, 8 September 2026:
 *"It should state what happened when trying to tie it out. I need info to make
 decisions down the line."* One unreachable source is a shrug; forty against the

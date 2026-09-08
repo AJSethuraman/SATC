@@ -478,6 +478,23 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
     assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
 
 
+#: A FOURTH KIND, added 8 September 2026 with `not_judged` (#346), and it is a
+#: different question from every group below: those name what is MISSING and who
+#: has to go and get it — a client, a document, our own engagement file. This
+#: names something the CALLER did not do. Nothing is missing from the record,
+#: nothing is missing from the file, and the desk's answer is complete; a second
+#: reader was required by that desk's own declaration and none was supplied.
+#:
+#: It is separated rather than folded in because the groups exist to decide who
+#: has to move, and here it is neither the client, nor the preparer, nor the
+#: firm — it is whoever wired the caller. And it is the one refusal `ask.answer`
+#: does not file in `unsupported/`, for the same reason: that queue says the
+#: record is missing something, and the record is complete.
+CALLER_CONTRACT = {
+    "not_judged": "supply a second reader's judgment, from a party other than "
+                  "the one that answered",
+}
+
 #: The reasons that are about something OTHER than the authority, and what
 #: resolves each. The set is meant to stay legible in exactly these groups: a
 #: reason that fits none of them has been added without anyone deciding which
@@ -525,10 +542,15 @@ def test_every_reason_is_legibly_about_authority_facts_or_a_document():
     So the assertion is no longer "one exception". It is that every reason falls
     in a named group, and that adding one forces a decision about which.
     """
+    assert set(CALLER_CONTRACT) <= set(REASONS), (
+        "a named caller-contract reason has been dropped from the engine")
+    assert not (set(CALLER_CONTRACT) & set(NOT_ABOUT_AUTHORITY)), (
+        "a reason cannot be in two groups; the groups decide who has to move")
     assert set(NOT_ABOUT_AUTHORITY) <= set(REASONS), (
         "a named non-authority reason has been dropped from the engine; the "
         "desk in that position can only guess or blame the record")
-    about_authority = set(REASONS) - set(NOT_ABOUT_AUTHORITY) - {"model_gave_up"}
+    about_authority = (set(REASONS) - set(NOT_ABOUT_AUTHORITY)
+                       - set(CALLER_CONTRACT) - {"model_gave_up"})
     for r in about_authority:
         assert any(w in r for w in ("authority", "citation", "source", "position")), (
             f"{r!r} is about neither the authority nor anything named in "

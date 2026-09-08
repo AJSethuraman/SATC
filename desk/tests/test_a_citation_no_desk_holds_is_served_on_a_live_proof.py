@@ -88,10 +88,21 @@ def _copy(tmp_path):
 
 
 def _ask(desks, question, transport, *, citation=UNHELD, url=FOUND_AT,
-         text=WORDS, keep=False):
+         text=WORDS, keep=False, judged=...):
+    """A real second reader by default — every desk requires one (#346).
+
+    QUOTING THE WORDS THE ANSWERER HANDED IN, because on this path those words
+    are what the fetched page is checked against and what the judge is given.
+    A canned quotation would pass the containment check only because the check
+    was not running, and every test here would prove nothing.
+    """
+    from conftest import a_judgment
+    if judged is ...:
+        judged = a_judgment(text) if text.strip() else None
     return front.answer(question, DESK, position="It is capitalized.",
                         citation=citation, desks=desks, keep=keep,
-                        prove=transport, found_at=url, found_text=text)
+                        prove=transport, found_at=url, found_text=text,
+                        judged=judged)
 
 
 # ── the fixtures are real, so a green below is the code and not the setup ────

@@ -22,6 +22,7 @@ import pytest
 import ask
 import engine
 import judging
+from conftest import DESKS
 
 Q = "we bought a forklift. is the invoice price deducted or capitalized?"
 CIT = "26 CFR 1.263(a)-2(d)(1)"
@@ -41,12 +42,36 @@ def _answer(**kw):
 
 # ------------------------------------------- the run this was built for
 
-def test_the_seventh_september_answer_is_still_served_unjudged():
+def test_the_seventh_september_answer_still_passes_every_gate_but_the_judge():
     """THE CONTROL, and it must stay red-adjacent forever: nothing added here
-    made the engine able to tell that this paragraph refutes this conclusion."""
+    made the engine able to tell that this paragraph refutes this conclusion.
+
+    REWRITTEN 8 SEPTEMBER, AND THE FACT IT PINS IS UNCHANGED. It used to assert
+    the answer was SERVED unjudged; every desk now declares `Judged: required`
+    (#346), so unjudged refuses — for want of a reader, and for nothing else.
+    The point was never that it was served: it was that no gate in this engine
+    can see what is wrong with it, and the refusal below says so in as many
+    words. A judged run of the same call is the next test, and it refuses on the
+    merits.
+    """
     out = _answer(position="deducted, not capitalized")
-    assert isinstance(out, engine.Served)
-    assert out.position == "deducted, not capitalized"
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "not_judged", (
+        "something OTHER than the missing judge caught it, which would mean "
+        "this control has stopped being the control")
+    assert "Nothing is wrong with the answer or with the record" in out.detail
+
+    # AND IT REALLY WAS SERVED UNTIL THE JUDGE WAS REQUIRED. Read off a desk
+    # that does not require one, so the claim is measured rather than
+    # remembered — otherwise the paragraph above is a story about the past.
+    import dataclasses
+    import record
+    desk = dataclasses.replace(record.load(DESKS / DESK), judged=record.OPTIONAL)
+    served = engine.serve(
+        engine.Answer(position="deducted, not capitalized", citation=CIT),
+        desk, question=Q)
+    assert isinstance(served, engine.Served)
+    assert served.position == "deducted, not capitalized"
 
 
 def test_and_a_second_reader_stops_it():
@@ -190,13 +215,56 @@ def test_a_judgment_cannot_rescue_an_answer_the_gate_refused():
     assert out.reason == "authority_absent", "the judge changed the refusal"
 
 
-def test_nothing_requires_a_judgment_yet():
-    """Which desks may not serve unjudged is the firm's decision, on the docket.
-    A gate that turned itself on across seven desks overnight would be a session
-    making it — so the default path is unchanged, and this says so."""
+def test_every_desk_now_requires_one_and_says_so_in_its_own_file():
+    """The firm decided it on the docket, 8 September 2026, asked which desks
+    may not serve unjudged: *"The judge can look at it all I guess?"*
+
+    DECLARED IN THE RECORD RATHER THAN IN THE CODE, and the hedge in that answer
+    is why. Lifting it from any desk is one line of that desk's SUBJECTS.md; a
+    requirement in `ask.py` would need a session. This reads the seven files
+    rather than a constant, so a desk that quietly stops declaring it goes red.
+    """
+    import record
+    for d in sorted(p for p in DESKS.iterdir() if p.is_dir()):
+        desk = record.load(d)
+        assert desk.needs_a_judge, f"{desk.name} serves what nobody read"
+
+
+def test_an_unjudged_answer_refuses_and_says_how_to_supply_one():
+    """A CALLER CONTRACT, NOT A FINDING ABOUT THE RECORD. Nothing is missing
+    from the desk; whoever wired the caller has to arrange a second reader."""
     out = _answer(position="capitalized")
-    assert isinstance(out, engine.Served)
-    assert out.judged is None
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "not_judged"
+    assert "judging.Judgment" in out.ask, "it must say how to supply one"
+    assert "OTHER than the one that answered" in out.ask
+    assert out.desk == DESK
+
+
+def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
+    """`unsupported/` is what says the RECORD is missing something. A missing
+    judgment is the caller's half, so filing it would put a work item in a queue
+    nobody can act on and inflate the one count that is meant to mean something.
+    """
+    import shutil
+    desks = tmp_path / "desks"
+    desks.mkdir()
+    shutil.copytree(DESKS / DESK, desks / DESK)
+    queue = desks / DESK / "unsupported" / "asked.md"
+    before = queue.read_text(encoding="utf-8") if queue.exists() else ""
+
+    out = ask.answer(Q, DESK, position="capitalized", citation=CIT,
+                     desks=desks, keep=True)
+    assert isinstance(out, engine.Refusal) and out.reason == "not_judged"
+    after = queue.read_text(encoding="utf-8") if queue.exists() else ""
+    assert after == before, "an unjudged answer was filed as a record gap"
+
+    # POSITIVE PRECONDITION: `keep=True` really does file other refusals here,
+    # so the assertion above is the exclusion working rather than the queue
+    # being unreachable from this fixture.
+    ask.answer(Q, DESK, position="capitalized",
+               citation="26 CFR 1.9999-1(z)", desks=desks, keep=True)
+    assert queue.exists() and queue.read_text(encoding="utf-8") != before
 
 
 # ------------------------------------------------- the offline guard holds

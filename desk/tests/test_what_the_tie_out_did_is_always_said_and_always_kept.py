@@ -71,6 +71,13 @@ def _problem(desks):
     return desk, desk.problems[0]
 
 
+def _judged(text):
+    """A real second reader — every desk requires one (#346). Quotes the text
+    the judge is handed, so the engine's containment check really runs."""
+    from conftest import a_judgment
+    return a_judgment(text)
+
+
 def _url(desk, citation) -> str:
     """The source's own URL, READ FROM THE RECORD rather than typed here.
 
@@ -95,10 +102,10 @@ def test_a_tied_answer_says_so_where_the_authority_is(tmp_path):
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
     url = _url(desk, p.citation)
+    page = _Page(desk.passage(p.citation).text, url=url)
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
-                       prove=lambda s, c: _Page(desk.passage(p.citation).text,
-                                                url=url))
+                       desks=desks, keep=False, prove=lambda s, c: page,
+                       judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
     text = str(out)
@@ -118,7 +125,8 @@ def test_an_unreachable_publisher_is_said_out_loud_on_the_served_answer(tmp_path
         raise OSError("no route to host")
 
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=dead)
+                       desks=desks, keep=False, prove=dead,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "the answer must still stand"
     assert out.proof.verdict == proving.COULD_NOT
     text = str(out)
@@ -135,9 +143,10 @@ def test_no_line_at_all_when_nobody_asked(tmp_path):
     refusal proves nothing about the line.
     """
     desks = _copy(tmp_path)
-    _desk, p = _problem(desks)
+    desk, p = _problem(desks)
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False)
+                       desks=desks, keep=False,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None
     text = str(out)

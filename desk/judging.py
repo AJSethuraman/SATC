@@ -52,10 +52,16 @@ can be right without a human; this one is exactly as good as the second reader,
 and two models sharing a blind spot will agree. Two tests pin the pair so nobody
 later writes that this stops wrong answers.
 
-NOTHING DEMANDS A JUDGMENT YET. `ask.answer(..., judged=...)` checks one when it
-is given and nothing anywhere requires one -- which desks must not serve
-unjudged is the firm's to decide, and is on the docket. A gate that turned
-itself on across seven desks overnight would be this session deciding it.
+WHICH DESKS DEMAND ONE IS DECLARED IN THE RECORD, and the firm decided it on the
+docket, 8 September 2026: *"The judge can look at it all I guess?"* -- all seven,
+in answer to which desks may not serve unjudged. So each desk's SUBJECTS.md
+carries `**Judged:** required`, `ask.answer` refuses `not_judged` where it does,
+and lifting it from any desk is one line of that desk's own file rather than a
+session. The hedge in their answer is why it is shaped that way.
+
+THE REFUSAL IS A CALLER CONTRACT AND NOT A FINDING ABOUT THE RECORD, which is
+why it is the one refusal `ask.answer` does not file in `unsupported/`. That
+queue is what says the record is missing something; nothing here is missing.
 """
 from __future__ import annotations
 
@@ -114,14 +120,43 @@ class Read:
     because: str
     #: The first quoted segment that is not in the passage. Empty otherwise.
     missing: str = ""
+    #: WHAT THE WORDS WERE CHECKED AGAINST, in words, because the two are not
+    #: the same claim and a reader must be able to tell them apart:
+    #:
+    #:   the document fetched from the publisher   the authority itself, today
+    #:   this desk's stored passage                our copy of it
+    #:
+    #: A judgment checked against our own copy establishes that the judge read
+    #: what WE hold. A judgment checked against the fetched page establishes
+    #: that they read what the PUBLISHER holds. The firm asked for the second
+    #: where it exists -- *"it is handed in with the suggestion so the judge can
+    #: actually assess it"* -- and the first is what remains when nothing was
+    #: fetched. Recording which is not decoration: it is the difference between
+    #: a second reading of the authority and a second reading of the record.
+    against: str = ""
 
     @property
     def stands(self) -> bool:
         return self.verdict == HOLDS
 
 
-def read(judgment: Judgment, passage_text: str, *, answered_by: str = "") -> Read:
+def read(judgment: Judgment, passage_text: str, *, answered_by: str = "",
+         against: str = "") -> Read:
     """Check a judgment against the paragraph it claims to have read.
+
+    `against` NAMES WHAT `passage_text` IS, and is carried onto the `Read` so a
+    reader can tell a check against the fetched document from a check against
+    our own copy. It is a label and never a switch: this function does not
+    choose which text to read, the caller does, and a label that could disagree
+    with the text would be worse than none.
+
+    READING THE FETCHED DOCUMENT IS MORE PERMISSIVE THAN READING OUR PASSAGE,
+    and that is accepted rather than overlooked. A page carries far more than
+    the paragraph we store, so a judge could quote something else on it and
+    still pass containment. The check has never claimed to establish that the
+    quotation carries the conclusion -- only that the judge read something real
+    -- and the thing they should be reading is the authority as the publisher
+    serves it, not our excerpt of it.
 
     `answered_by` is who produced the answer. When it is the same party as the
     judge this raises rather than refusing: a caller that hands the engine one
@@ -135,12 +170,12 @@ def read(judgment: Judgment, passage_text: str, *, answered_by: str = "") -> Rea
             f"whole of what this checks, and one party cannot be it")
 
     if not judgment.supports:
-        return Read(SAYS_NO, judgment.by, judgment.because)
+        return Read(SAYS_NO, judgment.by, judgment.because, against=against)
 
     ours = comparing.normalise(judgment.because)
     live = comparing.normalise(passage_text)
     matched, missing = comparing.elided_match(ours, live)
     if not matched:
         return Read(NOT_IN_THE_PASSAGE, judgment.by, judgment.because,
-                    missing=missing)
-    return Read(HOLDS, judgment.by, judgment.because)
+                    missing=missing, against=against)
+    return Read(HOLDS, judgment.by, judgment.because, against=against)

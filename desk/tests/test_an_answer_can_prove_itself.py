@@ -153,6 +153,18 @@ def _copy(tmp_path):
     return desks
 
 
+def _judged(text):
+    """A real second reader, because every desk now requires one (#346).
+
+    Quoting the text the judge is HANDED — the fetched page where one was
+    fetched, our stored passage otherwise. The engine's containment check runs
+    for real on every call here; a canned sentence would pass only because the
+    check was not running.
+    """
+    from conftest import a_judgment
+    return a_judgment(text)
+
+
 def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     """`prove` is a transport and not a flag, so `off` is not a setting that
     could be true somewhere. With none passed, nothing is fetched — and this
@@ -161,7 +173,8 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     desk = record.load(desks / DESK)
     p = desk.problems[0]
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False)
+                       desks=desks, keep=False,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None, "None means NOT ASKED FOR, never asked-and-fine"
 
@@ -171,11 +184,14 @@ def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desk = record.load(desks / DESK)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
+    page = _Page(passage.text)
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
-                       prove=lambda s, c: _Page(passage.text))
+                       desks=desks, keep=False, prove=lambda s, c: page,
+                       judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
+    # AND THE JUDGE READ THE FETCHED DOCUMENT, not our copy of it (#346).
+    assert out.judged.against == "the document fetched from the publisher"
 
 
 def test_a_moved_source_withdraws_the_answer(tmp_path):
@@ -205,8 +221,13 @@ def test_an_unreachable_publisher_does_not_withdraw_the_answer(tmp_path):
     desk = record.load(desks / DESK)
     p = desk.problems[0]
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=refuses)
+                       desks=desks, keep=False, prove=refuses,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "an outage withdrew a good answer"
+    # AND THE JUDGE FELL BACK TO OUR COPY, because nothing was fetched. The
+    # weaker claim, and the `Read` says which one it is rather than leaving a
+    # reader to assume the stronger.
+    assert out.judged.against == "this desk's stored passage"
     assert out.proof.verdict == proving.COULD_NOT
     assert not out.proof.held
 

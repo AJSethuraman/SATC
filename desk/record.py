@@ -76,6 +76,11 @@ ACCESS = ("public_fetch", "headless_browser", "signed_in_browser", "human_only")
 #: What may be copied into this repository from a source. `license_check` is the
 #: default and it stores nothing -- a licence the firm holds may permit an
 #: internal copy, which is why this is a fact about each source rather than one
+#: What a `Judged:` line may say. CLOSED, and unknown REFUSES rather than
+#: defaulting -- a desk whose declaration was misspelt would otherwise serve
+#: unjudged while its own file says it does not.
+OPTIONAL, REQUIRED = "optional", "required"
+JUDGED = (OPTIONAL, REQUIRED)
 #: policy over all of them.
 MAY_STORE = ("full_text", "citation_only", "license_check")
 
@@ -429,6 +434,17 @@ class Registration:
     #: it are the desk's own, so a second desk in another trade brings its own
     #: without touching any shared file.
     records: tuple = ()
+    #: `optional` or `required`, from a `Judged:` line. Whether this desk may
+    #: serve an answer NO SECOND READER HAS LOOKED AT.
+    #:
+    #: IT IS DECLARED PER DESK RATHER THAN WIRED INTO THE CODE, and that is the
+    #: whole point of putting it here. The firm answered *"The judge can look at
+    #: it all I guess?"* on 8 September 2026 -- all seven desks, and a hedge in
+    #: it. A requirement in the record is one they can lift from any desk by
+    #: editing that desk's own file; a requirement in `ask.py` is one that needs
+    #: a session. An answer with a question mark in it deserves the reversible
+    #: shape.
+    judged: str = OPTIONAL
 
 
 def parse_subjects(text: str, desk_name: str) -> Registration:
@@ -505,6 +521,16 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
             )
     if len(set(records)) != len(records):
         raise RecordError(f"{desk_name}: Records names the same fact twice")
+
+    _jud = re.search(r"^\*\*Judged:\*\*[ ]?(.*?)$", block, re.M)
+    judged = (_jud.group(1).strip().lower() if _jud else OPTIONAL) or OPTIONAL
+    if judged not in JUDGED:
+        raise RecordError(
+            f"{desk_name}: Judged says {judged!r}; it may say {' or '.join(JUDGED)}. "
+            f"A misspelt requirement would leave this desk serving answers "
+            f"nobody read while its own file says it does not, which is the one "
+            f"way this declaration can do harm."
+        )
 
     answered_from, order = {}, []
     for source_id, listed in declared:
@@ -586,6 +612,7 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        judged=judged,
     )
 
 
@@ -630,6 +657,13 @@ class Desk:
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
     positions: tuple = field(default_factory=tuple)
+    #: `optional` or `required` — see `Registration.judged`. Whether this desk
+    #: may serve an answer no second reader has looked at.
+    judged: str = OPTIONAL
+
+    @property
+    def needs_a_judge(self) -> bool:
+        return self.judged == REQUIRED
 
     def source(self, source_id: str) -> Source | None:
         return next((s for s in self.sources if s.id == source_id), None)
@@ -993,10 +1027,12 @@ def load(desk_dir: Path) -> Desk:
 
     subjects = desk_dir / "SUBJECTS.md"
     fires_on, answered_from, answered_by, records = (), {}, {}, ()
+    judged = OPTIONAL
     if subjects.is_file():
         reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
         fires_on, answered_from = reg.fires_on, reg.answered_from
         answered_by, records = reg.answered_by, reg.records
+        judged = reg.judged
         # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
         # for those subjects and reads as a strict desk -- the same failure the
         # source-level check was given, for the same reason.
@@ -1052,6 +1088,7 @@ def load(desk_dir: Path) -> Desk:
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        judged=judged,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),
