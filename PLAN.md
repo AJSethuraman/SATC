@@ -447,6 +447,23 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-08 — The pilot is still the goal, and its refusals ARE the pilot
+  (desk).** Four docket answers. On whether the goal had moved after a day of
+  building: *"The pilot is still the goal."* On being asked to supply one real
+  engagement's three facts before the run, the firm rejected the framing
+  outright — *"the pilot needs to ensure we have these things. that is part of
+  the pilot. why would we use stand-ins? the entire point of this pilot is for
+  us to test whether the desk asks for the info and whether the principal gives
+  it back and if they can. if they cannot, then that would be the type of thing
+  that stands out as 'this is a missing field we need' or something and i can
+  also step in to provide the answer on a given client so that the principal can
+  record it."* This session had treated `context_not_on_file` as a defect to
+  clear BEFORE the run; it is the measurement. The run went ahead with an empty
+  engagement file, and two refusals naming `capitalization_rule` and `taxpayer`
+  are its output rather than its failure. Also: *"Merge it"* (#340, merged
+  `0e77be4`) and *"Leave it as it is"* (`--no-sandbox` when running as root).
+  Recorded in `desk/docs/PILOT-CLOSE-OUT-2026-09-08.md`.
+
 - **2026-09-08 — The tie-out may say it is a person, and eCFR will be read
   through its API instead (desk).** Asked on the docket what a tie-out should
   announce to a publisher, the firm answered *"Real headless browser"* — a real

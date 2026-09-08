@@ -124,7 +124,29 @@ def brief(number: int, title: str, why: str, desk: record.Desk) -> str:
     for s in desk.sources:
         out.append(f"- **{s.id}** · {s.title} · tier **{s.tier}**")
     if ratified:
+        # COPY THE POSITION, DO NOT RESTATE IT -- and the brief has to say so.
+        #
+        # `engine._same` compares a submitted position to the firm's word by
+        # EXACT string equality (case and surrounding space aside), on purpose:
+        # "a looser comparison here would quietly turn wrong answers into right
+        # ones, which is the one direction this code must never fail in."
+        #
+        # The brief never passed that on. On the 8 September pilot run four of
+        # the twelve answered attempts came back `contradicts_ratified_position`
+        # while AGREEING with the firm -- Q6, Q7, and Q31 on two desks -- because
+        # an answerer told a position is "binding" naturally paraphrases it.
+        # Re-serving the same run with the four positions copied verbatim and
+        # nothing else changed took it from 3 served to 7. A third of the run
+        # was measuring this instruction's absence rather than the desks.
         out += ["", "## Positions the firm has already taken (their words, and binding)", ""]
+        out += [
+            "**If you rely on one of these, copy its wording EXACTLY into "
+            "`position`.** The engine compares what you submit to the firm's "
+            "sentence character for character and refuses anything else as a "
+            "contradiction, however much you agree with it. Put your own words "
+            "in `working`, never in `position`.",
+            "",
+        ]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
     out += ["", "## The authority", ""]
