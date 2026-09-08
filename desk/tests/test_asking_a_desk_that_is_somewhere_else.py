@@ -306,7 +306,7 @@ def test_and_says_why_the_asker_cannot_do_it_themselves():
 # ------------------------------------- answering what the desk actually asked
 
 def test_a_follow_up_carries_the_facts_the_desk_named():
-    f = relay.follow_up("abc123", {"invoice_amount": "18,400"},
+    f = relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"},
                         asked_for=("invoice_amount",))
     assert f.ref == "abc123" and f.facts == {"invoice_amount": "18,400"}
 
@@ -319,31 +319,31 @@ def test_a_fact_the_desk_did_not_ask_for_is_refused():
     asker supplies only values. A fact riding along uninvited is the asker
     framing the question again, through a narrower door."""
     with pytest.raises(relay.RelayError, match="did not ask for"):
-        relay.follow_up("abc123", {"invoice_amount": "18,400",
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400",
                                    "trade": "plumber"},
                         asked_for=("invoice_amount",))
 
 
 def test_a_follow_up_with_no_ref_is_a_new_question():
     with pytest.raises(relay.RelayError, match="no ref"):
-        relay.follow_up("", {"invoice_amount": "1"}, asked_for=("invoice_amount",))
+        relay.follow_up("", "fixed-assets", {"invoice_amount": "1"}, asked_for=("invoice_amount",))
 
 
 def test_an_empty_reply_is_refused_rather_than_read_as_an_answer():
     """"Nobody knows" has to be SAID. Silence reads as resolution."""
     with pytest.raises(relay.RelayError, match="no facts"):
-        relay.follow_up("abc123", {}, asked_for=("invoice_amount",))
+        relay.follow_up("abc123", "fixed-assets", {}, asked_for=("invoice_amount",))
 
 
 def test_a_blank_value_does_not_count_as_answered():
     with pytest.raises(relay.RelayError, match="no facts"):
-        relay.follow_up("abc123", {"invoice_amount": "   "},
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "   "},
                         asked_for=("invoice_amount",))
 
 
 def test_no_tin_rides_in_on_a_value_either():
     with pytest.raises(relay.RelayError, match="TIN"):
-        relay.follow_up("abc123", {"taxpayer": "123-45-6789"})
+        relay.follow_up("abc123", "fixed-assets", {"taxpayer": "123-45-6789"})
 
 
 def test_the_reply_tells_the_desk_the_unanswered_ones_are_still_open():
@@ -351,13 +351,43 @@ def test_the_reply_tells_the_desk_the_unanswered_ones_are_still_open():
     reply arrives as permission to answer, and a desk reading it as permission
     to assume is the whole failure re-entering by the back door."""
     body = relay.follow_up_prompt(
-        relay.follow_up("abc123", {"invoice_amount": "18,400"}))
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"}))
     assert "STILL not on file" in body
     assert "refuse on it again" in body
 
 
 def test_and_invites_the_desk_to_say_the_facts_changed_nothing():
     body = relay.follow_up_prompt(
-        relay.follow_up("abc123", {"invoice_amount": "18,400"}))
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "18,400"}))
     assert "say so plainly" in body
     assert "not a failure" in body
+
+
+def test_a_follow_up_must_name_the_desk_it_answers():
+    """THE REF IS SHARED BETWEEN EVERY DESK A QUESTION REACHED.
+
+    `ref_for` digests the question and the asker, so a question routing to two
+    desks produces ONE ref. The forklift did exactly that on 8 September and
+    refused twice for different reasons wanting different facts —
+    `context_not_on_file` from capitalization-and-de-minimis,
+    `facts_not_established` from fixed-assets. A follow-up carrying only the ref
+    cannot say which it answers, and applied to the wrong branch it can report a
+    spurious `no_field_for_this_fact` against a desk that never asked for it.
+
+    Found by Codex on #339, before it ever ran on two desks at once."""
+    with pytest.raises(relay.RelayError, match="no desk on the follow-up"):
+        relay.follow_up("abc123", "", {"invoice_amount": "18,400"})
+
+
+def test_and_the_reply_says_which_desk_it_is_for():
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", "fixed-assets", {"invoice_amount": "1"}))
+    assert "for the **fixed-assets** desk" in body
+    assert "answers fixed-assets's refusal and no other" in body
+
+
+def test_two_desks_on_one_question_share_a_ref():
+    """THE PREMISE, pinned. If refs ever became per-desk this guard is dead
+    weight and someone should know why it was there."""
+    a = relay.ask(Q, reply_to=ME)
+    assert relay.ask(Q, reply_to=ME).ref == a.ref

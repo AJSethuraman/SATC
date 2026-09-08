@@ -149,3 +149,41 @@ def test_a_stale_answer_set_is_a_row_and_not_a_crash():
              if a.get("escalated") and a.get("reason") in engine.MUST_ASK
              and not a.get("ask")]
     assert stale, "the historical run no longer contains a pre-contract answer"
+
+
+def test_the_desk_skill_shows_a_working_escalation():
+    """THE DOCUMENTED CALL BROKE THE MOMENT THIS REQUIREMENT SHIPPED.
+
+    `be-the-desk` carried a runnable example — `ask.answer(..., escalate=
+    "facts_not_established", working=...)` with no `ask` — which is the exact
+    call 0.9.0 made raise. A desk following the production instructions would
+    have got an `EngineError` precisely when a follow-up was needed, which is
+    the one moment the whole feature exists for.
+
+    Found by Codex on #339. A requirement added to the engine and not to the
+    skill that teaches the call is a requirement that breaks its own users."""
+    import re
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "be-the-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    escalations = [b for b in re.findall(r"```python\n(.*?)```", skill, re.S)
+                   if "escalate=" in b]
+    assert escalations, "the skill no longer shows how to escalate at all"
+    for block in escalations:
+        reason = re.search(r'escalate="([^"]+)"', block)
+        if reason and reason.group(1) in engine.MUST_ASK:
+            assert "ask=" in block, (
+                f"the skill's runnable example escalates {reason.group(1)!r} "
+                f"with no `ask=` — it raises EngineError as written")
+
+
+def test_the_desk_skill_says_what_a_useless_question_looks_like():
+    """A model told to write a question writes "more information needed"
+    unless shown the counter-example."""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "be-the-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    assert "More information needed" in skill or "more information needed" in skill
+    assert "ORDER them" in skill, (
+        "four flat questions where one decided it cost the file-holder four "
+        "lookups; the skill should say to order them")

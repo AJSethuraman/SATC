@@ -263,13 +263,26 @@ def desk_session(env=None) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class FollowUp:
-    """Answers to the questions ONE desk asked, against the ref it asked under."""
+    """Answers to the questions ONE desk asked, against the ref it asked under.
+
+    AND IT NAMES THE DESK, because the ref alone does not identify a refusal.
+    `ref_for` is a digest of the question and the asker, so every desk a
+    question routes to shares one. The forklift routed to TWO on 8 September and
+    refused twice for DIFFERENT reasons — `context_not_on_file` from
+    capitalization-and-de-minimis, `facts_not_established` from fixed-assets —
+    wanting different facts. A follow-up carrying only the shared ref cannot say
+    which of those it answers, and applying it to the wrong branch can even
+    report a spurious `no_field_for_this_fact` against a desk that never asked.
+
+    Found by Codex on #339 before this ever ran twice.
+    """
     ref: str
+    desk: str
     facts: dict
 
 
-def follow_up(ref: str, facts: dict, asked_for=()) -> FollowUp:
-    """Build a reply to a desk's follow-up, or REFUSE.
+def follow_up(ref: str, desk: str, facts: dict, asked_for=()) -> FollowUp:
+    """Build a reply to ONE desk's follow-up, or REFUSE.
 
     `asked_for` is what the desk said it needed. Empty means it named no fields
     and nothing can be checked — which is allowed, because a desk may ask in
@@ -279,6 +292,12 @@ def follow_up(ref: str, facts: dict, asked_for=()) -> FollowUp:
         raise RelayError(
             "no ref. A follow-up that does not say which question it answers "
             "is a new question wearing an answer's clothes.")
+    if not (desk or "").strip():
+        raise RelayError(
+            f"no desk on the follow-up for {ref}. A question reaches more than "
+            f"one, and they refuse for different reasons wanting different "
+            f"facts — the ref is shared, so it cannot say which refusal this "
+            f"answers. `Refusal.desk` names it; pass that.")
     facts = {str(k).strip().lower(): str(v).strip()
              for k, v in (facts or {}).items() if str(v).strip()}
     if not facts:
@@ -298,13 +317,18 @@ def follow_up(ref: str, facts: dict, asked_for=()) -> FollowUp:
                 f"{', '.join(sorted(wanted))}. A fact riding along uninvited is "
                 f"the asker framing the question, which is what the desk being "
                 f"a separate session exists to stop.")
-    return FollowUp(ref=ref.strip(), facts=facts)
+    return FollowUp(ref=ref.strip(), desk=desk.strip(), facts=facts)
 
 
 def follow_up_prompt(f: FollowUp) -> str:
     """The message that carries the answers back to the desk."""
-    out = [f"DESK FOLLOW-UP {f.ref} — you asked for these and here they are.",
-           "", "## What was answered", ""]
+    out = [f"DESK FOLLOW-UP {f.ref} — for the **{f.desk}** desk. You asked for "
+           f"these and here they are.", "",
+           f"**This answers {f.desk}'s refusal and no other.** The same question "
+           f"may have reached other desks, which refuse for their own reasons "
+           f"and want their own facts; the ref is shared between them and the "
+           f"desk name is what tells them apart. Re-run it for {f.desk}.", "",
+           "## What was answered", ""]
     out += [f"- **{name}:** {value}" for name, value in sorted(f.facts.items())]
     out += ["", "## Now answer the original question", "",
             f"Re-run it with these on file — `ask.answer(..., context="
