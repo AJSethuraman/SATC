@@ -14,7 +14,24 @@ THREE RESOLUTIONS, NONE AUTOMATIC, ALL BY PULL REQUEST:
   real authority never loaded  -> promote to a SOURCE
   a defensible call the rules do not settle -> promote to a POSITION, in the
                                                firm's own words
+  nowhere to write the answer  -> build the FIELD, naming the position that
+                                  asked for it
   an invention                 -> leave it. its visibility IS the finding.
+
+THE SIXTH IS THE FIRM'S, 7 SEPTEMBER 2026, AND IT IS THE ONLY ONE THAT CHANGES
+THE SOFTWARE. They put it: *"it's similar to the desk saying hey you should have
+X info - and either way we probably should… that seems low stakes and required
+and i would approve it fairly easily, but maybe approvals based on desk feedback
+for coding updates?"* They then took the recommendation: **a field, and only a
+field.** Somewhere to record a fact is additive, reversible and invisible to a
+client -- the worst case is an empty column nobody fills. A step in the close
+changes what a person does every time, and that stays a decision.
+
+AND IT ARRIVES CARRYING ITS CHAIN. `needs_field` never appears without
+`asked_by`: a desk asks for a field because a POSITION it holds names a fact, so
+approving the field is approving that position's reach. `from_refusal` copies
+both off the refusal, where `engine` sets them as fields rather than leaving them
+to be read back out of a sentence.
 
 **Retained is not accepted.** An entry here is never returned to a caller and
 never counted as correct. That boundary is the whole reason keeping it is safe,
@@ -76,6 +93,34 @@ class Unsupported:
     #: empty when it reached outside the desk's authority altogether. See
     #: `from_refusal` for why the queue records it.
     falls_under: str = ""
+    #: THE FOLLOW-UP, when the refusal had one: a question a preparer can act on.
+    #:
+    #: The firm, 6 September 2026: *"it can ask a follow up and if the follow up
+    #: has no answer we know there's a legit hole to fix because the accountant
+    #: or firm never assigned it up front. This is also a way to check for bugs
+    #: or defects while agents perform real work."* That last sentence is why it
+    #: belongs HERE and not only in the reply: this queue is where the holes
+    #: accumulate, and a question that reached one caller and no file is a hole
+    #: found and then dropped.
+    #:
+    #: It names a field and never a value -- this file lives in the repository.
+    asked: str = ""
+    #: THE FACT THAT HAS NOWHERE TO LIVE, and THE POSITION THAT ASKED FOR IT.
+    #: Set together or not at all -- see the sixth resolution in this file's
+    #: preamble. A field request without the position behind it is an ask the
+    #: firm cannot check, and checking it is the whole condition they approved
+    #: it under.
+    needs_field: str = ""
+    asked_by: str = ""
+    #: WHAT THE DESK PUT IN FRONT OF THE MODEL that then said the desk held
+    #: nothing. `authority_absent` only — see `engine.Refusal.showed`.
+    #:
+    #: A REFUSAL THAT MAY BE FALSE LOOKS EXACTLY LIKE ONE THAT IS TRUE, and this
+    #: queue is where the difference has to be visible or the entry is worse than
+    #: nothing: it sends somebody searching for authority the desk already holds.
+    #: Rendered as prose rather than a number so a reader does not have to know
+    #: which source id is which regulation.
+    showed: str = ""
 
     @property
     def near_miss(self) -> bool:
@@ -118,6 +163,17 @@ class Unsupported:
         ]
         if self.falls_under:
             lines += ["", f"**Falls under:** {_oneline(self.falls_under)}"]
+        if self.asked:
+            lines += ["", f"**Asked:** {_oneline(self.asked)}"]
+        if self.needs_field:
+            # TWO STANDALONE FIELDS, not one line with a separator. `Failed
+            # because · Recorded` gets away with sharing a line because both are
+            # closed vocabularies the parser validates; a fact name and a
+            # position id are neither, and `_inline` has no optional form.
+            lines += ["", f"**Needs field:** {_oneline(self.needs_field)}",
+                      "", f"**Asked by:** {_oneline(self.asked_by)}"]
+        if self.showed:
+            lines += ["", f"**Desk showed:** {_oneline(self.showed)}"]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -141,6 +197,10 @@ def parse(text: str) -> list[Unsupported]:
             concluded=_quoted(block, "Concluded", where),
             believed_authority=_uncite(_quoted(block, "Believed authority", where)),
             falls_under=_field(block, "Falls under", where, required=False),
+            asked=_field(block, "Asked", where, required=False),
+            needs_field=_field(block, "Needs field", where, required=False),
+            showed=_field(block, "Desk showed", where, required=False),
+            asked_by=_field(block, "Asked by", where, required=False),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
@@ -193,7 +253,7 @@ carries what was concluded and what it cited. A **question nobody has answered**
 — an agent that stopped mid-close and wrote down what it needed — carries no
 conclusion at all, and `Concluded` says so rather than being left blank.
 
-Five resolutions, none automatic, all by pull request:
+Six resolutions, none automatic, all by pull request:
 
 | What the reasoning shows | Resolution |
 |---|---|
@@ -201,6 +261,7 @@ Five resolutions, none automatic, all by pull request:
 | A defensible call the rules do not settle | promote to a **position**, in the firm's words |
 | The rule is clear and a FACT is missing | **ask the client.** No amount of authority closes it |
 | A named DOCUMENT settles it and nobody asked | **request it** — raised to the preparer, never to the client |
+| The rule is clear and there is NOWHERE to write the answer | **build the field**, naming the position that asked |
 | An invention | leave it. Its visibility *is* the finding |
 
 A queue that only grows is a desk nobody is feeding.
@@ -208,6 +269,28 @@ A queue that only grows is a desk nobody is feeding.
 ---
 
 """
+
+
+#: Where the preamble stops and the entries start. The entries are `## ` blocks,
+#: so the first one is the boundary; a queue with none is all preamble.
+_FIRST_ENTRY = "\n## "
+
+
+def _refreshed(text: str) -> str:
+    """The queue's own preamble, brought up to date with the code.
+
+    IT WAS WRITTEN ONCE AND NEVER AGAIN, and that made the firm's own decision
+    invisible. `append` wrote `PREAMBLE` only when the file did not exist, so a
+    queue created on 5 September still said *five resolutions* after a sixth --
+    **build the field**, approved by the firm on 7 September -- was added to the
+    code. The table an agent reads to decide what to do about a refusal is the
+    one on disk, and it was a snapshot of the day the file happened to be made.
+
+    Only the preamble moves. Entries are never touched: they are the record.
+    """
+    cut = text.find(_FIRST_ENTRY)
+    entries = text[cut + 1:] if cut != -1 else ""
+    return PREAMBLE + entries
 
 
 def append(path: Path, entry: Unsupported) -> Path:
@@ -221,7 +304,7 @@ def append(path: Path, entry: Unsupported) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text(PREAMBLE, encoding="utf-8")
-    text = path.read_text(encoding="utf-8")
+    text = _refreshed(path.read_text(encoding="utf-8"))
     current = parse(text)
 
     # THE ID IS DECIDED HERE, AGAINST THE QUEUE ON DISK. `from_refusal` numbers
@@ -322,6 +405,25 @@ def from_question(question: str, *, why: str = "", model: str = "",
     )
 
 
+def _showed(result, desk) -> str:
+    """The measurement, put into words a reader does not need a key for.
+
+    `{'S2': 10}` means nothing to somebody reading the queue; *"S2 · Treasury
+    Regulation § 1.274-11 — 10"* is the sentence that makes the claim above it
+    false on sight. Empty for every reason but `authority_absent`, and empty when
+    the desk really did show nothing, because "0 passages" is a refusal agreeing
+    with itself and not a finding.
+    """
+    total = getattr(result, "showed", 0) or 0
+    if not total:
+        return ""
+    by = getattr(result, "showed_by_source", None) or {}
+    titles = {s.id: s.title for s in (desk.sources if desk is not None else ())}
+    parts = [f"{sid} {titles.get(sid, '')} — {n}".replace("  ", " ").strip()
+             for sid, n in sorted(by.items())]
+    return f"{total} passages: " + "; ".join(parts) if parts else f"{total} passages"
+
+
 def from_refusal(question: str, answer, result, *, model: str = "",
                  existing: list[Unsupported] | None = None,
                  today: str | None = None, desk=None) -> Unsupported:
@@ -353,6 +455,14 @@ def from_refusal(question: str, answer, result, *, model: str = "",
                      if record_under(answer.citation, c))
     return Unsupported(
         falls_under=max(held, key=len) if held else "",
+        asked=getattr(result, "ask", "") or "",
+        # BOTH OR NEITHER. `engine` sets them together on the refusals that name
+        # a fact; a half-filled pair would be a field request with no chain.
+        needs_field=(getattr(result, "fact", "") or ""
+                     if result.reason == "no_field_for_this_fact" else ""),
+        asked_by=(getattr(result, "by_position", "") or ""
+                  if result.reason == "no_field_for_this_fact" else ""),
+        showed=_showed(result, desk),
         id=next_id(existing),
         question=question,
         concluded=answer.position or "(no position offered)",

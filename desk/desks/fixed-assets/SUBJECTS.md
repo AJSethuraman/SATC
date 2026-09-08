@@ -16,7 +16,37 @@ false positive is what teaches somebody to stop reading the output.
 
 ## fixed-assets · When money spent on property is an improvement rather than a repair
 
-**Answered from S1:** capitalize, capitalise, capitalized, capitalised, capitalization, depreciate, depreciation, depreciable, improvement, improvements, betterment, restoration, repair, repairs, adaptation, basis, useful life, unit of property, placed in service, materials and supplies, routine maintenance, 263(a), 1.263(a)-3, building, buildings, building structure, building systems, hvac, escalator, escalators, elevator, elevators, roof, structural, leasehold, machinery
+**Answered from S1:** capitalize, capitalise, capitalized, capitalised, capitalization, depreciate, depreciation, depreciable, improvement, improvements, betterment, restoration, repair, repairs, adaptation, basis, useful life, unit of property, placed in service, routine maintenance, 263(a), 1.263(a)-3, building, buildings, building structure, building systems, hvac, escalator, escalators, elevator, elevators, roof, structural, leasehold, machinery
+
+**Answered from S3:** acquire, acquired, acquisition, purchase, purchased, tool, tools, equipment, furniture, fixtures, invoice price, transaction costs, produce tangible property, 1.263(a)-2
+
+**S3 IS THE OTHER HALF OF S1 AND THE SUBJECTS HAD TO SAY SO.** S1 answers what
+happens to property the taxpayer already owns; S3 answers what happens when they
+buy it. Sharing a subject word between them would make routing ambiguous on
+exactly the question that needed S3 — so `acquire` and the words a preparer
+writes about a purchase are S3's, and `improvement`, `repair` and `basis` stay
+S1's. `capitalize` stays on S1 as well: it is the verb both sections use, and the
+one question that needed S3 fired on it and reached a desk that then refused for
+want of the acquisition rule, which is the behaviour that found this gap.
+
+**Answered from S2:** materials and supplies, materials or supplies, material or supply, rotable, rotable spare parts, spare part, spare parts, consumable, consumables, 1.162-3
+
+**`materials and supplies` MOVED FROM S1 TO S2, and the move is the point.** It
+was registered to § 1.263(a)-3, which uses the phrase only to say what it is NOT
+— its examples cite § 1.162-3(c)(1)(i) by name for the definition. Leaving the
+subject on S1 would have declared a source the desk could never serve on the
+question it answers: `engine.serve` refuses a citation from a source the desk
+does not use for THIS subject, which is the defect the 7 September answering run
+found twice on other desks. Admitting a publisher and not routing to it is
+admitting nothing.
+
+**`materials or supplies` IS THERE BECAUSE THE AUTHORITY USES IT AND I DID NOT.**
+I declared the *and* form and the singular, tested the serve path with a question
+worded the way § 1.263(a)-3's own examples word it — *"are not materials or
+supplies under § 1.162-3(c)(1)(i)"* — and got `checked_subject=False`: served,
+but with the subject gate never run. The list under-fires on an inflection, which
+this file already says of itself. The form the regulation writes is the form a
+preparer will write.
 
 ---
 

@@ -14,25 +14,81 @@ for its source in `SOURCES.md`.
 
 ## 26 CFR 1.274-5T(a)
 
-**Source:** S5 · **Checked:** 2026-09-05
+**Source:** S5 · **Checked:** 2026-09-05 · **Kind:** rule
 
 > (a) In general. For taxable years beginning on or after January 1, 1986, no deduction or credit shall be allowed with respect to— (1) Traveling away from home (including meals and lodging), (2) Any activity which is of a type generally considered to constitute entertainment, amusement, or recreation, or with respect to a facility used in connection with such an activity, including the items specified in section 274(e), (3) Gifts defined in section 274(b), or (4) Any listed property (as defined in section 280F(d)(4) and § 1.280F-6T(b)), unless the taxpayer substantiates each element of the expenditure or use (as described in paragraph (b) of this section) in the manner provided in paragraph (c) of this section. This limitation supersedes the doctrine found in Cohan v. Commissioner, 39 F. 2d 540 (2d Cir. 1930). The decision held that, where the evidence indicated a taxpayer incurred deductible travel or entertainment expenses but the exact amount could not be determined, the court should make a close approximation and not disallow the deduction entirely. Section 274(d) contemplates that no deduction or credit shall be allowed a taxpayer on the basis of such approximations or unsupported testimony of the taxpayer. For purposes of this section, the term entertainment means entertainment, amusement, or recreation, and use of a facility therefor; and the term expenditure includes expenses and items (including items such as losses and depreciation).
 
 ## 26 CFR 1.274-5T(b)(1)
 
-**Source:** S5 · **Checked:** 2026-09-05
+**Source:** S5 · **Checked:** 2026-09-05 · **Kind:** rule
 
 > (b) Elements of an expenditure or use—(1) In general. Section 274(d) and this section contemplate that no deduction or credit shall be allowed for travel, entertainment, a gift, or with respect to listed property unless the taxpayer substantiates the requisite elements of each expenditure or use as set forth in this paragraph (b).
 
 ## 26 CFR 1.274-5T(b)(2)
 
-**Source:** S5 · **Checked:** 2026-09-05
+**Source:** S5 · **Checked:** 2026-09-05 · **Kind:** rule
 
 > (2) Travel away from home. The elements to be provided with respect to an expenditure for travel away from home are— (i) Amount. Amount of each separate expenditure for traveling away from home, such as cost of transportation or lodging, except that the daily cost of the traveler's own breakfast, lunch, and dinner and of expenditures incidental to such travel may be aggregated, if set forth in reasonable categories, such as for meals, for gasoline and oil, and for taxi fares; (ii) Time. Dates of departure and return for each trip away from home, and number of days away from home spent on business; (iii) Place. Destinations or locality of travel, described by name of city or town or other similar designation; and (iv) Business purpose. Business reason for travel or nature of the business benefit derived or expected to be derived as a result of travel.
 
 ## 26 CFR 1.274-5T(b)(3)
 
-**Source:** S5 · **Checked:** 2026-09-05
+**Source:** S5 · **Checked:** 2026-09-05 · **Kind:** rule
 
 > (3) Entertainment in general. The elements to be proved with respect to an expenditure for entertainment are— (i) Amount. Amount of each separate expenditure for entertainment, except that such incidental items as taxi fares or telephone calls may be aggregated on a daily basis; (ii) Time. Date of entertainment; (iii) Place. Name, if any, address or location, and destination of type of entertainment, such as dinner or theater, if such information is not apparent from the designation of the place; (iv) Business purpose. Business reason for the entertainment or nature of business benefit derived or expected to be derived as a result of the entertainment and, except in the case of business meals described in section 274(e)(1), the nature of any business discussion or activity; (v) Business relationship. Occupation or other information relating to the person or persons entertained, including name, title, or other designation, sufficient to establish business relationship to the taxpayer.
 
+---
+
+## 26 CFR 1.274-5T(c)(3)(ii)(C) Example 1
+
+**Source:** S5 · **Checked:** 2026-09-07 · **Kind:** example
+
+> A, a sole proprietor and calendar year taxpayer, operates an interior
+> decorating business out of her home. A uses an automobile for local business
+> travel to visit the homes or offices of clients, to meet with suppliers and
+> other subcontractors, and to pick up and deliver certain items to clients
+> when feasible. There is no other business use of the automobile but A and
+> other members of her family also use the automobile for personal purposes. A
+> maintains adequate records for the first three months of 1986 that indicate
+> that 75 percent of the use of the automobile was in A's business. Invoices
+> from subcontractors and paid bills indicate that A's business continued at
+> approximately the same rate for the remainder of 1986. If other
+> circumstances do not change (e.g., A does not obtain a second car for
+> exclusive use in her business), the determination that the
+> business/investment use of the automobile for the taxable year is 75 percent
+> is based on sufficient corroborative evidence.
+
+---
+
+## 26 CFR 1.274-5T(c)(3)(ii)(C) Example 2
+
+**Source:** S5 · **Checked:** 2026-09-07 · **Kind:** example
+
+> The facts are the same as in Example 1, except that A maintains adequate
+> records during the first week of every month, which indicate that 75 percent
+> of the use of the automobile is in A's business. The invoices from A's
+> business indicate that A's business continued at the same rate during the
+> subsequent weeks of each month so that A's weekly records are representative
+> of each month's business use of the automobile. Thus, the determination that
+> the business/investment use of the automobile for the taxable year is 75
+> percent is based on sufficient corroborative evidence.
+
+---
+
+## 26 CFR 1.274-5T(c)(3)(ii)(C) Example 3
+
+**Source:** S5 · **Checked:** 2026-09-07 · **Kind:** example
+
+> B, a sole proprietor and calendar year taxpayer, is a salesman in a large
+> metropolitan area for a company that manufactures household products. For
+> the first three weeks of each month, B uses his own automobile occasionally
+> to travel within the metropolitan area on business. During these three
+> weeks, B's use of the automobile for business purposes does not follow a
+> consistent pattern from day to day or week to week. During the fourth week
+> of each month, B delivers to his customers all the orders taken during the
+> previous month. B's use of his automobile for business purposes, as
+> substantiated by adequate records, is 70 percent of the total use during
+> that fourth week. In this example, a determination based on the records
+> maintained during that fourth week that the business/investment use of the
+> automobile for the taxable year is 70 percent is not based on sufficient
+> corroborative evidence because use during this week is not representative of
+> use during other periods.

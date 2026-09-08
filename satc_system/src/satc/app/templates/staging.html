@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+{% if refused %}
+<div class="panel">
+  <h2>Nothing was posted</h2>
+  <div class="body"><p class="note" style="color:var(--red,#a3402f)">{{ refused }}</p></div>
+</div>
+{% endif %}
 <div class="hero">
   {% if intake %}
   <h2>Read {{ intake.fields_staged }} fields from {{ intake.files_read }} documents in “{{ intake.folder }}”.</h2>

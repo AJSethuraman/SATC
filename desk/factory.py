@@ -293,11 +293,21 @@ class PassageDraft:
     source_id: str
     checked: str
     text: str
+    #: RULE or EXAMPLE. An interview that gathered a worked example says so, and
+    #: `emit` writes it into the record where `ask.brief_for_grading` reads it.
+    #: Defaulting to RULE here matches `record.Passage` and is safe for the same
+    #: reason: the value that must never be guessed is the one in the FILE, and
+    #: `parse_passages` refuses a passage that omits it.
+    kind: str = record.RULE
 
     def __post_init__(self) -> None:
         for name in ("citation", "source_id", "checked", "text"):
             if not getattr(self, name).strip():
                 raise FactoryError(f"passage {self.citation!r}: no {name}")
+        if self.kind not in record.KINDS:
+            raise FactoryError(
+                f"passage {self.citation!r}: kind is {self.kind!r}; must be one "
+                f"of {', '.join(record.KINDS)}")
 
 
 @dataclass(frozen=True)
@@ -437,7 +447,8 @@ def render(draft: DeskDraft) -> dict[str, str]:
     for source_id, group in sorted(by_source.items()):
         files[f"extracted/{source_id}.md"] = _EXTRACTED_PREAMBLE + "\n".join(
             f"## {q.citation}\n\n"
-            f"**Source:** {q.source_id} · **Checked:** {q.checked}\n\n"
+            f"**Source:** {q.source_id} · **Checked:** {q.checked} · "
+            f"**Kind:** {q.kind}\n\n"
             f"> {q.text}\n"
             for q in group
         )

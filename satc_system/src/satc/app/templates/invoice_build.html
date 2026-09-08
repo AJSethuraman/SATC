@@ -46,7 +46,20 @@
           {% endfor %}
         </select>
         {% if draft.client_id %}
-        {% if on_file.is_fallback %}
+        {# WHAT THIS INVOICE APPLIES comes first, because it is what the totals
+           below are computed from. The line after it is what the ENGAGEMENT has
+           agreed, which is a different fact -- and showing only that one, while
+           the totals applied something else, is how this screen came to say
+           "the practice default 'standard' applies" directly above a 60%
+           discount. #}
+        {% if plan_differs %}
+        <div class="flag" style="margin-top:6px">
+          <strong>This invoice applies {{ applied_plan.name if applied_plan else applied_key }}{%
+            if applied_plan and applied_plan.discount_pct %} — {{ '{:g}'.format(applied_plan.discount_pct) }}% off{% endif %}</strong>,
+          and the totals below use it. It is not what the {{ tax_year }} engagement records:
+          {{ on_file.why() }} Agree it on the engagement if this is the client's standing rate.
+        </div>
+        {% elif on_file.is_fallback %}
         <div class="flag" style="margin-top:6px">Nobody has priced this client yet —
           {{ on_file.why() }}</div>
         {% elif on_file.basis_missing or on_file.plan_missing %}

@@ -166,9 +166,13 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
         ("Standard deduction", "standard_deduction"),
         ("Ordinary brackets", "brackets_single"),
         ("Capital-gains thresholds", "ltcg_0_pct_max"),
-        ("Net investment income tax", "niit_rate"),
-        ("Self-employment tax", "se_social_security_rate"),
-        ("Additional Medicare tax", "addl_medicare_rate"),
+        # NOT "Self-employment tax" etc. -- those labels are already used above
+        # for the DOLLAR AMOUNTS, and a workpaper with one label on two rows
+        # meaning two different things is a workpaper somebody misreads. These
+        # cite the RATE, which is also what they actually are.
+        ("Net investment income tax rate", "niit_rate"),
+        ("Self-employment tax rate", "se_social_security_rate"),
+        ("Additional Medicare tax rate", "addl_medicare_rate"),
         ("Estimated-tax safe harbor", "est_tax_safe_harbor_pct_current"),
     ):
         citation = cw.param(param).citation

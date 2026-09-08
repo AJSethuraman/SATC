@@ -7,8 +7,22 @@ individuals create a Form 1099-NEC obligation?
 Everything quoted anywhere in this work is a literal slice of a document that was
 fetched on that date; `tools/build_rewards_desk.py` cuts each stored passage
 between two anchors and refuses when either is missing, so nothing was retyped.
-The desk built from it is `desks/rewards-and-information-returns/` — 12 sources,
-47 stored passages, 19 problems, of which **10 grade correct and 9 escalate**.
+The desk built from it is `desks/rewards-and-information-returns/` — **15 sources,
+45 stored passages, 19 problems, of which 18 grade and 1 escalates.**
+
+**Both figures moved on 6 September 2026 and neither moved for the same reason.**
+The sources went 12 → 15 because S2 covered four Code sections under one URL that
+serves only § 6041 — right text, wrong link, found by the tie-out. The passages
+went 47 → 45 because the two § 1.6041-1(a)(1)(v) Examples came out of the corpus:
+they ARE problems IR4 and IR5, and while they sat in `extracted/` all nineteen
+problems on this desk were unpromptable, each recorded as an escalation, which
+the scoreboard reports as a success.
+
+The 10/9 split became 18/1 the same day, when the firm answered *"Serve it,
+marked"*: where no rule reaches, guidance answers under a caveat rather than
+escalating. RW7 is the one that still escalates, and it is the instructive one —
+this desk holds § 1.61-1, declared for gross income, so a rule DOES reach it and
+the private letter ruling may not be served in the rule's place.
 
 **This file exists for the other half: what could NOT be reached.** A written
 COULD NOT is a result. What follows names every door that was closed, so a person

@@ -355,7 +355,17 @@ def main(argv: list[str] | None = None) -> int:
                   "  loads the demo data; `satc app` is where a real one starts.\n")
             return 0
         if not sweep.rows:
-            print(f"  Nothing outstanding — {sweep.requests} register row(s) read "
+            # SAME CORRECTION AS THE SCREEN, SMALLER -- because this door was
+            # already most of the way there. It prints the held-back count
+            # below, in both branches, so the terminal never went silent the
+            # way the screen did. What it did was print "Nothing outstanding"
+            # and then, one line later, "5 more asked for today" -- two
+            # sentences that cannot both be true. Only the first needs fixing;
+            # repeating the count here would replace a contradiction with a
+            # stutter.
+            headline = ("  Nothing to chase yet" if sweep.opened_today
+                        else "  Nothing outstanding")
+            print(f"{headline} — {sweep.requests} register row(s) read "
                   f"across {sweep.clients} client(s),\n"
                   f"  {sweep.jobs} job(s).")
         else:

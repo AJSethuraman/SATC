@@ -75,6 +75,18 @@ class TaxTables:
         return (self._by_status("ltcg_0_pct_max", status),
                 self._by_status("ltcg_15_pct_max", status))
 
+    def capital_gains_rates(self) -> tuple[Decimal, Decimal, Decimal]:
+        """The 0 / 15 / 20 percent preferential rates, in band order.
+
+        Read from the dated table like every other rate. They were literals in
+        `engine.py` until 7 September 2026 -- the only tax constants in the
+        estimator carrying no citation, in a file whose entire discipline is that
+        a reader can check each figure against the law.
+        """
+        return (_dec(self._v("ltcg_rate_0")),
+                _dec(self._v("ltcg_rate_15")),
+                _dec(self._v("ltcg_rate_20")))
+
     # -- payroll / SE / surtaxes ------------------------------------------
     @property
     def ss_wage_base(self) -> Decimal:
@@ -87,6 +99,11 @@ class TaxTables:
     @property
     def se_social_security_rate(self) -> Decimal:
         return _dec(self._v("se_social_security_rate"))
+
+    @property
+    def se_minimum_net_earnings(self) -> Decimal:
+        """Below this, Schedule SE stops and no SE tax is owed (line 4c)."""
+        return _dec(self._v("se_minimum_net_earnings"))
 
     @property
     def se_medicare_rate(self) -> Decimal:
@@ -162,4 +179,25 @@ def load_tax_tables(year: int | None) -> tuple[TaxTables, list[str]]:
         notes.append(
             f"Federal tax tables for {requested} are not fully published in the crosswalk; "
             f"using {used} tables for this estimate.")
-    return TaxTables(_LIBRARY.resolve(used, "US")), notes
+    crosswalk = _LIBRARY.resolve(used, "US")
+
+    # WHAT THE TABLE DOES NOT CARRY, SAID ON THE SCREEN.
+    #
+    # On 6 September 2026 a tie-out found that this file held the standard
+    # deduction as published in October 2024, superseded for TY2025 itself by
+    # P.L. 119-21 in July 2025 -- $165 of tax invented on the sample case. The
+    # firm's answer was "fix the three, flag the rest": reconcile the deduction,
+    # and DECLARE the OBBBA provisions still not modelled rather than leave a
+    # preparer to assume the figure is current in every respect.
+    #
+    # Read from the crosswalk rather than written here, so the list is a fact
+    # the dated table carries and cannot drift from the year it describes. A
+    # year that models everything simply has no such key and says nothing.
+    missing = crosswalk.value("obbba_not_modeled")
+    if missing:
+        notes.append(
+            f"These {used} figures are reconciled to enacted law for the standard "
+            f"deduction and the rate brackets. Still NOT modelled: "
+            + "; ".join(str(m) for m in missing)
+            + ". An estimate for somebody they apply to will be too high.")
+    return TaxTables(crosswalk), notes

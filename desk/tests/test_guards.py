@@ -20,7 +20,7 @@ GOOD_SOURCE = ("## S1 · A source\n\n"
                "Government in the public domain.\n")
 GOOD_PROBLEM = ("## P1 · x\n\n**Citation:** 26 CFR 1\n\n"
                 "**Answer:** must capitalize\n\n**Facts:** f\n")
-GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04\n\n"
+GOOD_PASSAGE = ("## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
                 "> must capitalize\n")
 
 
@@ -264,7 +264,7 @@ def test_a_corpus_that_is_exactly_the_answer_key_fails_the_build(tmp_path):
                       "**Answer:** must capitalize\n\n**Facts:** g\n")
     two_passages = (GOOD_PASSAGE
                     + "\n## 26 CFR 2\n\n**Source:** S1 · "
-                      "**Checked:** 2026-09-04\n\n> must capitalize\n")
+                      "**Checked:** 2026-09-04 · **Kind:** rule\n\n> must capitalize\n")
     d = build(tmp_path, problem=two_problems, passage=two_passages)
     with pytest.raises(guards.GuardFailure, match="authority corpus IS the answer key"):
         guards.check(d)
@@ -278,9 +278,9 @@ def test_one_rule_stored_beside_the_keyed_ones_is_enough(tmp_path):
                       "**Answer:** must capitalize\n\n**Facts:** g\n")
     three_passages = (GOOD_PASSAGE
                       + "\n## 26 CFR 2\n\n**Source:** S1 · "
-                        "**Checked:** 2026-09-04\n\n> must capitalize\n"
+                        "**Checked:** 2026-09-04 · **Kind:** rule\n\n> must capitalize\n"
                       + "\n## 26 CFR 3\n\n**Source:** S1 · "
-                        "**Checked:** 2026-09-04\n\n> some other rule\n")
+                        "**Checked:** 2026-09-04 · **Kind:** rule\n\n> some other rule\n")
     d = build(tmp_path, problem=two_problems, passage=three_passages)
     assert guards.check(d)
 
@@ -365,8 +365,18 @@ def test_a_desk_with_ratified_positions_is_not_beaten_by_escalating(fixed_assets
     scores zero, and the number starts separating good from lazy. Asserted so
     the collapse of that baseline is a fact rather than a claim in a docstring.
     """
+    import dataclasses
+
     import engine
 
+    declined = engine.Answer(position="", escalated=True,
+                             reason="authority_permits_choice")
+
+    def escalating_scores(desk, problems):
+        return sum(1 for p in problems
+                   if engine.grade(declined, p, desk).outcome is engine.Outcome.CORRECT)
+
+    exercised = 0
     for d in shipped_desks():
         desk = record.load(d)
         ratified = [q for q in desk.positions if not q.proposed]
@@ -374,12 +384,29 @@ def test_a_desk_with_ratified_positions_is_not_beaten_by_escalating(fixed_assets
             continue
         answerable = [p for p in desk.problems
                       if any(q.citation == p.citation for q in ratified)]
-        assert answerable, f"{d.name} ratified a position no problem rests on"
-        scored = sum(
-            1 for p in answerable
-            if engine.grade(engine.Answer(position="", escalated=True,
-                                          reason="authority_permits_choice"),
-                            p, desk).outcome is engine.Outcome.CORRECT)
+
+        if not answerable:
+            # NOT AN OVERSIGHT, AND THIS BRANCH IS THE MEASUREMENT. On 5 September
+            # 2026 the firm ratified thirteen positions and not one sits on a
+            # citation its own desk's problems turn on -- so ratifying them moves
+            # NO score, and what they change is what the desk says when it cannot
+            # answer. This asserted the opposite ("ratified a position no problem
+            # rests on") and failed the moment the firm answered. Rather than
+            # delete the claim, prove it: the desk's escalate-everything score is
+            # identical with those positions and without them.
+            bare = dataclasses.replace(desk, positions=())
+            assert escalating_scores(desk, desk.problems) == \
+                escalating_scores(bare, desk.problems), (
+                f"{d.name}: a position with no problem on its citation still "
+                f"moved the score, so the citations do overlap after all")
+            continue
+
+        exercised += 1
+        scored = escalating_scores(desk, answerable)
         assert scored == 0, (
             f"{d.name}: declining every question still scored {scored} of "
             f"{len(answerable)} on problems a ratified position answers")
+
+    assert exercised, (
+        "no desk has a ratified position any of its problems rest on, so "
+        "nothing here exercises the collapse this test exists to prove")

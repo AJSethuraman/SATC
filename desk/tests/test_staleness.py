@@ -26,7 +26,7 @@ def desk(tmp_path, *, access="public_fetch", checked="2026-09-04", passage=True)
         encoding="utf-8")
     if passage:
         (d / "extracted" / "a.md").write_text(
-            f"## X 1\n\n**Source:** S1 · **Checked:** {checked}\n\n> text\n",
+            f"## X 1\n\n**Source:** S1 · **Checked:** {checked} · **Kind:** rule\n\n> text\n",
             encoding="utf-8")
     return record.load(d)
 
@@ -116,24 +116,6 @@ def test_every_entry_lands_in_exactly_one_bucket(tmp_path):
     assert r.total == 1, "an entry was double-counted or vanished"
 
 
-def test_a_source_is_asked_once_however_many_passages_cite_it(fixed_assets):
-    """Called inside the passage loop, the shipped desk made one request per
-    passage -- 31 identical calls to one government site. Beyond the rate limit
-    it made the report non-deterministic: a call that failed where an earlier one
-    succeeded put two passages of the SAME source in different buckets."""
-    calls = []
-
-    def amended_on(src):
-        calls.append(src.id)
-        return "2020-01-01"
-
-    staleness.check(fixed_assets, amended_on, today="2026-09-04")
-    assert len(fixed_assets.passages) > 1, "fixture cannot show the difference"
-    assert calls == sorted(set(calls)), (
-        f"asked {len(calls)} times for {len(set(calls))} sources: {calls[:5]}..."
-    )
-
-
 def test_a_desk_answering_only_through_positions_is_still_reported(tmp_path):
     """A `human_only` source has no stored text, so a desk built on one has NO
     passages -- and the loop ran zero times, reporting "0 entries checked" while
@@ -178,9 +160,20 @@ def test_a_source_is_asked_once_however_many_passages_cite_it(fixed_assets):
 
     staleness.check(fixed_assets, amended_on, today="2026-09-04")
     assert len(fixed_assets.passages) > 1, "fixture cannot show the difference"
-    assert calls == sorted(set(calls)), (
+    assert len(fixed_assets.sources) > 1, "one source cannot show a repeat"
+    # ONCE EACH, IN WHATEVER ORDER. This read `calls == sorted(set(calls))`,
+    # which asserted alphabetical order as well -- true for free while the desk
+    # had one source, and false the moment it had two, on a property nobody
+    # meant to require. The claim is the name's: one request per source.
+    assert len(calls) == len(set(calls)), (
         f"asked {len(calls)} times for {len(set(calls))} sources: {calls[:5]}..."
     )
+    assert set(calls) == {s.id for s in fixed_assets.sources}
+
+    # AND THIS TEST WAS WRITTEN TWICE, IDENTICALLY, so the first copy was
+    # shadowed by the second and had never run. Removed 7 September 2026 when
+    # adding a second source to the desk failed one of them and not the other,
+    # which is how the duplicate surfaced at all.
 
 
 def test_a_desk_answering_only_through_positions_is_still_reported(tmp_path):

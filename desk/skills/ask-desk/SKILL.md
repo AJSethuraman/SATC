@@ -1,6 +1,6 @@
 ---
 name: ask-desk
-description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. The desk answers only from authority it can cite, or tells you who has to be asked.
+description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. Sends the question to the session that holds the desks and receives the answer back; the desk answers only from authority it can cite, or tells you who has to be asked.
 ---
 
 # Ask a desk
@@ -9,82 +9,112 @@ description: Consult an expert desk when a question is outside your authority �
 something.** It is not a second opinion on your judgement — it is the authority
 you do not have.
 
-## The two calls
+**You do not hold the desks and you cannot read them.** You send a question to
+the session that does, and it sends an answer back. That is not a limitation
+working around a packaging problem; it is the design, and it buys two things:
 
-**Reach the module from the installed plugin, not from wherever you are.** This
-skill runs inside whatever repository you are working in, and `desk` is installed
-elsewhere — so a bare `import ask` raises `ModuleNotFoundError` on the first line
-of the first use.
+- **The desk can go and look.** It runs on the Forge with a browser. Where its
+  record does not reach a question it can search, tie the find out against the
+  publisher's own page, and come back with the passage — or with *"looked, and
+  it is not there"*, which is a real answer and one a library cannot give.
+- **You cannot cite past what you were handed.** Holding the record means being
+  able to reach for authority the desk did not offer. Not holding it makes the
+  citation gate a boundary rather than a check.
+
+`docs/THE-DESK-IS-A-SESSION.md` is the argument in full.
+
+## Sending a question
+
+**`SATC_DESK_SESSION` must be set** — it holds the session id of the session
+running `be-the-desk`. It is deployment state and is deliberately not committed:
+an id shipped with the plugin would be stale for everyone but the machine it was
+written on. If it is unset, `relay` says so rather than guessing, and the fix is
+to export it — not to hunt for a session id and paste one in.
 
 ```python
 import os, sys
-sys.path.insert(0, os.environ["CLAUDE_PLUGIN_ROOT"])
-import ask
+sys.path.insert(0, os.environ.get("CLAUDE_PLUGIN_ROOT", "."))
+import relay
 
-for desk, brief in ask.consult("the bank statement shows a $10 service charge "
-                               "and nothing for it is in the books"):
-    ...  # read `brief`, then answer from it
+desk = relay.desk_session()                    # refuses if SATC_DESK_SESSION is unset
+a = relay.ask("the bank statement shows a $10 service charge and nothing for "
+              "it is in the books — what do I do with it?",
+              reply_to=<this session's own id>)   # get_session, omit session_id
+print(a.ref)                # note it — the answer opens with it
+print(desk)
+print(relay.as_prompt(a))   # the message to send
 ```
 
-`consult` routes the question and hands back **everything that desk will let you
-answer from** — its sources, the firm's own ratified positions, and its stored
-authority. Nothing else.
+Then send that text to the desk session it printed, **poke-only**:
 
-```python
-out = ask.answer(question, desk,
-                 position="an entry in the books",
-                 citation='IRS Pub. 583 (12/2024), "Reconciling the checking '
-                          'account" — what the books are updated for',
-                 model="whoever you are")
+```
+create_trigger(name=f"Desk request {a.ref}",
+               persistent_session_id=<what desk_session() returned>,
+               initiation="human_schedule",
+               prompt=relay.as_prompt(a))     # NO run_once_at, NO cron
+fire_trigger(<the id it returns>)
 ```
 
-Or, when nothing in the brief settles it:
+Then **end your turn**. The answer arrives as a message and wakes you. Do not
+poll, do not sleep, and do not chase — see below.
 
-```python
-out = ask.answer(question, desk, escalate="facts_not_established",
-                 working="the rule is clear; nobody has said what was bought")
-```
+## Four rules, each of them from something that went wrong
 
-## Four things that will surprise you
+**1 · Omit `run_once_at` and `cron_expression`, always.** A trigger that carries
+a schedule and is then poked **delivers twice** — once on the poke, once when
+the scheduler reaches the minute. Measured 8 September 2026 on three of this
+repository's own triggers. On a close that means every question answered twice.
+Poke-only delivers once, in about eight seconds.
 
-**1 · Silence is an answer.** `consult` returns an empty list when no desk
-answers on that subject. That is not a failure to route — it means no expert here
-holds the question, and inventing one is the thing this exists to stop.
+**2 · Do not chase.** `fire_trigger` returns a `last_fired_at` the durable
+record does not corroborate, so "sent" can precede arrival. A session chased its
+own request on 8 September and wrote *"nothing arrived here"* **1.67 seconds
+after** the answer had landed. If you must check, read `list_triggers` — not
+your own tool result — and never sooner than a minute.
 
-**2 · Escalating is a real answer, and often the right one.** Measured on eleven
-real questions from a close, thirteen of eighteen answers were escalations and
-that was correct. The reasons:
+**3 · Send no context, and no client identifier.** `relay.ask` refuses a TIN,
+and it has nowhere to put context on purpose. The firm, 8 September 2026:
+*"we don't add context to it, that defeats the purpose. it falls the same rules
+and gets the de-identified data so it can ensure it answers and asks things
+objectively."* An asker who writes the context writes the answer, and then the
+desk is your own reasoning coming back with a citation attached. The desk reads
+the facts off the record itself, where the ones nobody holds are named as
+missing.
 
-| reason | what it means | who resolves it |
-|---|---|---|
-| `facts_not_established` | the rule is clear; a fact about the client is missing | ask the client |
-| `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
-| `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
+**4 · One question per envelope.** Each carries a `ref`. If two answers arrive
+with the same one, the second is a duplicate delivery and not a second opinion —
+read one and discard the other.
 
-**Do not stretch.** A desk that reaches for the nearest paragraph and calls it an
-answer is the exact failure this system was built to prevent. The origin case: an
-agent knew a retailer sells clothing, concluded *personal expense*, and was
-wrong — the regulation it should have reached has no vendor in it at all.
+## What comes back, and what you must pass on
 
-**3 · Your citation is verified, and a wrong one is refused.** `answer()` does
-not take your word for it. The citation must resolve inside that desk's record,
-its source must be one the desk declares answers that subject, and where the
-firm has ratified a position on it **you must return the firm's words, not your
-own restatement of them.** A real citation from the wrong paragraph of the right
-publication is refused too.
+The desk returns a served answer or a refusal. **Print what it sent you, whole.**
+Every field is there because a reader needed it, and the ones that look like
+boilerplate are the ones that are not:
 
-**4 · A refusal is kept.** Every one lands in the desk's `unsupported/` queue
-with your reasoning intact. That queue is the only thing that tells the firm what
-authority is missing, so **write a real `working`** — "could not tell" helps
-nobody; "the rule turns on whether the item takes the place of ordinary civilian
-clothing, and nothing says what was bought" is a work item.
+| | |
+|---|---|
+| `unchecked` | nobody verified the conclusion against the paragraph. Always set |
+| `passage` | the cited text, so whoever reads your answer can do that check at a glance |
+| `alongside` | the firm's OTHER positions on this same passage, where they hold one — with their authority underneath |
 
-## What comes back if it is served
+**None of it is yours to trim.** On 7 September a session cited
+§ 1.263(a)-2(d)(1) — whose text opens *"a taxpayer must capitalize amounts paid
+to acquire or produce a unit of real or personal property"* — to conclude
+**"deducted, not capitalized"**. Primary, binding, no caveat. With its passage
+underneath, that answer refutes itself on sight. Without, it reads as settled
+law.
 
-The firm's own words where a position exists, the citation, the tier of the
-source, and whether the subject could be checked at all. **What it does not
-verify is that the conclusion follows** — only that the authority exists, that it
-binds or carries the firm's word, and that it shares a subject with the question.
+And where `alongside` is not empty, **read it before you act**: the firm has
+answered that passage more than once, the other answer is not this one, and
+which applies is a question about facts that nothing in the desk has looked at.
+
+## A refusal is an answer
+
+`authority_absent`, `context_not_on_file`, `wrong_body_of_authority` and the rest
+are findings, not failures. The refusal carries `working` — the desk's own
+reasoning — and that is usually the part you hand to a person. Do not retry a
+refusal with a softer question until it serves; that is how a guess acquires a
+citation.
 
 ## Two questions do not belong here
 

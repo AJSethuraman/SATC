@@ -111,8 +111,11 @@ def _build_server(allow_writes: bool = False):
                                             ein=ein, email=email, phone=phone, address=address)
 
     @mcp.tool()
-    def run_intake(folder: str, client_id: str, tax_year: int = 2024) -> dict:
+    def run_intake(folder: str, client_id: str, tax_year: int) -> dict:
         """Classify + stage every document in a LOCAL folder for a client. Returns a summary.
+
+        WHICH YEAR IS REQUIRED -- it is not the model's to assume, and it defaulted
+        to 2024 here until 5 September 2026.
 
         Values are *staged*, not trusted. Staging lives in THIS server's in-memory gate
         (a separate process from the desktop app), so confirm and post them within this
@@ -121,9 +124,11 @@ def _build_server(allow_writes: bool = False):
         return tools.run_intake(state, folder=folder, client_id=client_id, tax_year=tax_year)
 
     @mcp.tool()
-    def post_confirmed_intake(client_id: str, tax_year: int = 2024) -> dict:
+    def post_confirmed_intake(client_id: str, tax_year: int) -> dict:
         """Post THIS session's CONFIRMED staged values onto the client's return as line
-        items. Durable once posted (shows up in the app on its next reload)."""
+        items. Durable once posted (shows up in the app on its next reload).
+
+        WHICH YEAR IS REQUIRED, for the reason given on ``run_intake``."""
         return tools.post_confirmed_intake(state, client_id=client_id, tax_year=tax_year)
 
     @mcp.tool()

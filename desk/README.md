@@ -31,7 +31,43 @@ ask.answer(question, desk, position="an entry in the books",
            citation="...", working="why that paragraph settles it")
 ```
 
-`skills/ask-desk` is the same thing written for an agent to follow.
+**Tell it what your own file already says.** Some rules cannot be applied
+without a fact the engagement should have recorded — what the client does, whose
+return it is. It is passed in and never worked out: a desk that inferred the
+trade from the vendor would be running the exact reasoning its own position
+forbids.
+
+```python
+ask.consult("they bought clothing at that store — is it a personal expense?",
+            context=record.Context(facts={"trade": "general contractor"}))
+```
+
+A desk declares what it expects on a `Records:` line in its `SUBJECTS.md`, and a
+position declares what it cannot be applied without on a `Needs:` line. Unmet, it
+refuses `context_not_on_file` — a third kind of missing thing, resolved by
+reading our own file rather than by asking the client or chasing a document.
+
+### When a fact cannot be supplied
+
+There is no file to create. The caller passes what it already has, and the facts
+live wherever the firm keeps them — Occam's workbook, the engagement folder, the
+interview. A desk that went looking would be inferring.
+
+Not supplying one is an answer, and there are two of them:
+
+| | Meaning | Who fixes it |
+|---|---|---|
+| `context_not_on_file` | there IS somewhere to record this and it is not recorded | a preparer fills it in |
+| `no_field_for_this_fact` | there is **nowhere** to record it, anywhere | the firm decides the fact exists at all |
+
+The second is a hole in what the firm tracks. `python3 tools/holes.py` reads both
+out of the refusal queue, holes first — see `docs/WHERE-FACTS-LIVE.md`.
+
+**Two skills, because there are two sides.** `skills/be-the-desk` is for the
+session that HOLDS the desks and answers from them; `skills/ask-desk` is for the
+agent doing the work, which holds none of the record and sends its question to
+that session instead. The split is `docs/THE-DESK-IS-A-SESSION.md`, and `relay.py`
+is the wire between them.
 
 **The split is the mechanism.** A model does not choose the desk — routing is a
 comparison, not a judgement. A model does not decide whether its own citation

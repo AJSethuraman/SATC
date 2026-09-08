@@ -1,6 +1,6 @@
 ---
 name: docket
-description: The standing check-in, published as a form the firm fills in — what changed, what is open, and every decision waiting on them with both outcomes, a recommendation, and a box to answer in — written in plain English, with every technical term shown and then explained, tasks as numbered steps, and anything runnable copy-pastable. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Reads their answers back and writes them into the log.
+description: The standing check-in, published as a form the firm fills in — what changed, what is open, and every decision waiting on them with both outcomes, a recommendation, and a box to answer in, opening with the goal the session will proceed with unless told otherwise — written in plain English, with every technical term shown and then explained, tasks as numbered steps, and anything runnable copy-pastable. Reads the repository's own log and state rather than the conversation. Use when the firm asks where things are, what needs deciding, for a status or a hand-off, at the end of a working session, or before handing a repository to another agent. Reads their answers back and writes them into the log.
 ---
 
 # docket
@@ -27,11 +27,51 @@ skipped, and the skipped things are what the firm needs.
 
 If any of those cannot be read, say so in the docket. "Not checked" is a finding.
 
+## Next — the one item silence approves
+
+A docket hands back what is open. It must also hand back **what happens next**,
+or the goal lives only in the session and dies with it. The firm runs several
+agents; remembering which one is for what is the docket's job, not theirs.
+
+Above the decisions, one block:
+
+> **Next:** *one line — the goal, and what would end it.*
+> *Distance, if work is already in flight:* **3 of 7 done, 4 left.**
+> **Unless you say otherwise, this is what I proceed with.**
+
+**Every other item on a docket is blocked until the firm answers. This one is
+not, and the page has to say so in those words** — otherwise it reads as one more
+thing waiting on them, which is the pile the docket exists to shrink. Objecting
+is a line; agreeing is nothing.
+
+Behaviour 19 is the rule; this is where it is agreed and where it survives the
+session. The next goal goes into the log with the answers, so the next session
+reads its job instead of inventing one — continuity through the record, not
+through a session's memory, which is the same mechanism that makes the
+convictions work.
+
+**What silence does not approve.** Choosing what to work on next, and nothing
+else. Every gate that existed still stops the session dead: a conviction needs an
+explicit yes, C2 and C5 mean the publish path is the control, and C6 means the
+preparer does not become the verifier. A later session reading "autonomous" must
+not be able to walk a gate with it, so the docket says this alongside the block
+rather than leaving it to be inferred.
+
+**Incident:** on 7 September 2026 the firm named what a session had been doing to
+them: *"i feel like sometimes the feedback is endless for the sake of being
+endless, when a stated goal can be worked towards then moved naturally."* Asked
+where the fix belonged, they put it here — *"to keep both the agent and I in line
+… so we are both assuring each other of the goal that the agent will work towards
+next"* — and set the default: *"preferably, autonomously unless it really needs
+me."*
+
 ## The shape
 
 **Findings before green. Decisions before findings.** The order is not cosmetic:
 a page that opens with what went well is a page the firm skims.
 
+0. **Next** — the goal the session proceeds with, and its distance. The one
+   item silence approves; see above.
 1. **Waiting on you** — every open decision, each as *what is being asked, what
    happens either way, and what I would do.* Answerable in one line by somebody
    who was not there. If there are none, say so in those words.

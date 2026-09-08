@@ -43,6 +43,7 @@ import invoicing
 import packaging
 import payments
 import presend
+import pricing
 import previewing
 import sending
 import schedules as sched
@@ -695,8 +696,14 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
             return page("Package", package_body(ref, record, [], problem=str(exc)))
         if wants_json():
             return jsonify(ref=ref, documents=docs, with_invoice=invoice)
+        # Whether there IS a bill to fold in, so the screen can stop offering a
+        # box that cannot succeed. Ticking it on an engagement with no bill
+        # failed the WHOLE build -- atomic, so no letter, no estimate, no
+        # onboarding letter either -- on an optional extra.
+        has_bill = invoicing.find(st(), ref) is not None
         return page("Package", package_body(ref, record, docs,
-                                            with_invoice=invoice))
+                                            with_invoice=invoice,
+                                            has_bill=has_bill))
 
     @app.post("/engagement/<ref>/package")
     def build_package(ref):
@@ -1976,7 +1983,27 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
                        f"<b>{esc(claim)}</b> &mdash; not a valid answer here, "
                        f"so it needs a real one.</p>")
 
-    out.append(f"<form method=post action='/interview/{esc(sid)}'>")
+    # `novalidate` -- THE BROWSER MUST NOT ANSWER FOR THE ENGINE.
+    #
+    # Without it, `min=2023` on the year box below meant Chrome refused the
+    # submit itself: typing `1` and pressing Next made NO REQUEST AT ALL. The
+    # engine's sentence -- "Which tax year? needs a tax year between 2023 and
+    # 2027" -- was correct, was already written, and was never reached. What a
+    # preparer saw was a button that did nothing, twice, three times. Chrome
+    # does show a bubble, but it is transient, it sits by the field rather than
+    # in the page, and it is in the BROWSER's language, not the firm's.
+    #
+    # The comment on that input read "`min`/`max` are a convenience, never the
+    # control". In a browser they ARE the control -- they are the only check
+    # that runs, and they run INSTEAD of the real one. The attributes stay, so
+    # the spinner arrows stay bounded and the range is discoverable; what goes
+    # is their power to swallow the answer.
+    #
+    # This applies to `required` and `pattern` too, deliberately. Every refusal
+    # on this screen now comes from `Interview.answer`, which is the one the
+    # JSON door and `cli.py --set` also meet -- so all three doors refuse the
+    # same things, in the same words, and a message we fix is fixed everywhere.
+    out.append(f"<form method=post action='/interview/{esc(sid)}' novalidate>")
     # WHICH QUESTION THIS ANSWER IS FOR. Without it the server worked the
     # target out AFTER reading the draft, so a double-click, a browser resubmit
     # or a second tab applied the value to whatever question was current by the
@@ -2017,10 +2044,15 @@ def question_body(sid, section, q, claim, acceptable, session, error="", said=""
         # control -- `Interview.answer` is the control, and the JSON door has
         # no HTML to obey.
         now = date.today().year
+        lo, hi = now - deadlines.YEARS_BACK, now + deadlines.YEARS_FORWARD
         out.append(f"<input type=number name=answer autofocus "
-                   f"min={now - deadlines.YEARS_BACK} "
-                   f"max={now + deadlines.YEARS_FORWARD} "
-                   f"value='{esc(shown_value)}'>")
+                   f"min={lo} max={hi} value='{esc(shown_value)}'>")
+        # SAY THE RANGE BEFORE THEY TYPE, not after. The engine refuses an
+        # out-of-range year with the bounds in it, but a refusal a preparer
+        # reads mid-sitting is one they had to earn; the bounds are not a
+        # secret and cost one line to give away.
+        out.append(f"<p class=help>{lo} to {hi}. A year outside that is more "
+                   f"likely a typo than a return we are preparing.</p>")
     elif t == "number":
         out.append(f"<input type=number name=answer min=0 "
                    f"value='{esc(shown_value)}'>")
@@ -2096,6 +2128,13 @@ def review_body(sid, session, blockers) -> str:
     # preparer a wrong answer and gave them nothing to do about it but start
     # the sitting again.
     editable = set(session.asked())
+    # WHAT THE SCHEDULE WILL ACTUALLY BILL, where it differs from what was
+    # typed. D25: answering 100 to "How much for the sorting? ($175 minimum)"
+    # is accepted, stored as 100, shown here as 100 -- and billed at 175. The
+    # raise is the firm's own instruction and is right; the silence is not.
+    # This is the last page anybody looks at before the estimate goes out, so
+    # it is the page that has to say so.
+    overridden = {o["question"]: o for o in pricing.overridden_answers(session.answers)}
     out.append("<table class=plain>")
     for k, v in session.answers.items():
         seen = labels.get(k, {})
@@ -2112,6 +2151,12 @@ def review_body(sid, session, blockers) -> str:
                    f"<input type=hidden name=to value='{esc(k)}'>"
                    f"<button class=link>Change</button></form>")
         cell = "<span class=muted>left blank</span>" if blank else esc(shown)
+        if k in overridden:
+            o = overridden[k]
+            cell += (f"<div class=muted>billed at "
+                     f"<b>{o['billed']:,.2f}</b> — the firm's minimum for "
+                     f"{esc(str(o['line']))}. The estimate will say "
+                     f"{o['billed']:,.2f}, not {o['entered']:,.2f}.</div>")
         out.append(f"<tr><th>{esc(asked.get(k, k))}</th>"
                    f"<td>{cell}</td><td class=fix>{fix}</td></tr>")
     out.append("</table>")
@@ -2677,7 +2722,8 @@ def payments_body(rows) -> str:
     return "".join(out)
 
 
-def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
+def package_body(ref, record, docs, *, with_invoice=False, problem="",
+                 has_bill=True) -> str:
     """What is about to be built, before anything is."""
     out = [f"<h1>The signing pack</h1>",
            f"<p class=sec>{esc(ref)} &middot; "
@@ -2696,10 +2742,21 @@ def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
         out.append(f"<tr><th>{esc(cli.DOCUMENTS[doc][1])}</th>"
                    f"<td>{esc(packaging.PURPOSE.get(doc, ''))}</td></tr>")
     out.append("</table></div>")
+    # A CONTROL THAT CANNOT SUCCEED IS NOT AN OPTION, IT IS A TRAP. Offered
+    # unconditionally, this checkbox failed the entire atomic build on an
+    # engagement with no bill -- and the refusal, though clear, arrived after
+    # the click and with no way back to the screen.
+    invoice_box = (
+        f"<label><input type=checkbox name=invoice value=1"
+        + (" checked" if with_invoice else "") +
+        "> Put the invoice in too</label>"
+    ) if has_bill else (
+        "<label class=help><input type=checkbox disabled> Put the invoice in "
+        "too <span class=fname>&mdash; no bill has been raised on this "
+        "engagement yet, so there is nothing to put on one</span></label>"
+    )
     out.append(f"<form method=post action='/engagement/{esc(ref)}/package'>"
-               f"<label><input type=checkbox name=invoice value=1"
-               + (" checked" if with_invoice else "") +
-               "> Put the invoice in too</label>"
+               + invoice_box +
                "<label><input type=checkbox name=notes value=1> "
                "Also read the prose and tell me what it notices "
                "(nothing here can stop a pack)</label>"
@@ -2713,7 +2770,14 @@ def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
                "<script>document.currentScript.previousElementSibling"
                ".addEventListener('submit',function(e){var b="
                "e.target.querySelector('button');b.textContent="
-               "'Building \u2014 about a minute';});<\/script>")
+               # `<\/script>` -- an escaped slash -- is how you close a script
+               # tag from INSIDE a JavaScript string. This is not inside one: it is
+               # the tag itself, in HTML emitted directly. The browser never saw a
+               # closing tag, swallowed `</main></body></html>` as script source, and
+               # the script failed to parse -- so the "Building" label it exists to
+               # show has never once appeared. It also raised a SyntaxWarning on every
+               # start, because `\/` is not a Python escape either.
+               "'Building \u2014 about a minute';});</script>")
     return "".join(out)
 
 
@@ -2820,13 +2884,54 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
     out.append("</table>")
     out.append(_checks_block(check))
     if pack.readings:
-        out.append(f"<h1 style='margin-top:30px'>What the prose reads like</h1>"
-                   f"<p class=help>Judgement calls, not rules. None of these "
-                   f"can stop a pack.</p><ul>")
-        for f in pack.readings:
-            where = f" &mdash; {esc(f.document)}" if f.document else ""
-            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
-                       f"{esc(f.detail)}</li>")
+        # THIS BLOCK CRASHED THE WHOLE PACK BUILD WITH A 500.
+        #
+        # `pack.readings` is a list of `notes.Checked` -- key, findings,
+        # examined, unit, scope -- and this loop read `f.document`, `f.check`
+        # and `f.detail`, which are fields of `presend.Finding`. Two different
+        # types, and the wrong one had been assumed:
+        #
+        #     AttributeError: 'Checked' object has no attribute 'document'
+        #
+        # Walking it on 5 September 2026: ticking "Also read the prose and tell
+        # me what it notices" -- whose own label promises "nothing here can stop
+        # a pack" -- rendered every document, ran every check, and then threw the
+        # lot away in the code that DISPLAYS the result.
+        #
+        # And the fix is not simply to iterate the findings. A `Checked` carries
+        # what the advisory LOOKED AT, which is the entire reason the type
+        # exists (S2: a green from a check that examined nothing is worse than a
+        # red one). Rendering only the findings would produce a clean-looking
+        # list from a check that read zero sentences -- the exact sentence this
+        # project exists to stop printing. So the denominator is shown for every
+        # advisory, and one that examined nothing says so.
+        import notes as _notes
+
+        out.append("<h1 style='margin-top:30px'>What the prose reads like</h1>"
+                   "<p class=help>Judgement calls, not rules. None of these can "
+                   "stop a pack &mdash; and each one says what it read, so a "
+                   "check that looked at nothing cannot read as a pass.</p><ul>")
+        for c in pack.readings:
+            adv = _notes.BY_KEY.get(c.key)
+            what = esc(adv.what) if adv else esc(c.key)
+            tenet = f" <span class=help>({esc(adv.tenet)})</span>" if adv else ""
+            unit = c.unit + ("" if c.examined == 1 else "s")
+            where = f" in {esc(c.scope)}" if c.scope else ""
+            if not c.examined:
+                out.append(f"<li><b>{esc(c.key)}</b>{tenet} {what} &mdash; "
+                           f"<b>skipped</b>: 0 {unit}{where} to read, so nothing "
+                           f"is known.</li>")
+                continue
+            verdict = (f"{len(c.findings)} to look at" if c.findings else "nothing to flag")
+            out.append(f"<li><b>{esc(c.key)}</b>{tenet} {what} &mdash; {verdict}, "
+                       f"across {c.examined} {unit}{where}.")
+            if c.findings:
+                out.append("<ul>")
+                for f in c.findings:
+                    doc = f" &mdash; {esc(f.document)}" if f.document else ""
+                    out.append(f"<li>{esc(f.detail)}{doc}</li>")
+                out.append("</ul>")
+            out.append("</li>")
         out.append("</ul>")
     return "".join(out)
 

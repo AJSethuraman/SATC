@@ -33,8 +33,22 @@
 </div>
 <div class="panel"><h2>Which engagement?</h2><div class="body">
   {% if not client_id %}
+  {# The line below has always been here. The CONTROL has not: the screen asked
+     for a client, offered no way to name one, and generated an engagement for
+     nobody when you pressed on regardless. #}
   <p class="note">Pick a client first — a plan is for somebody, and the rate plan and the
     filing history are read off them.</p>
+  <form method="get" style="margin-bottom:12px">
+    <input type="hidden" name="workflow" value="{{ workflow.key if workflow else '' }}">
+    <input type="hidden" name="tax_year" value="{{ tax_year }}">
+    <select class="field-input" name="client">
+      <option value="">— choose a client —</option>
+      {% for cid, dname in clients %}
+      <option value="{{ cid }}">{{ dname }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn primary" type="submit">Plan for them →</button>
+  </form>
   {% endif %}
   {% if workflows %}
   <table>
@@ -75,6 +89,21 @@
 {# The engine's own words, never rewritten. They already name the next step. #}
 <div class="panel"><h2>SATC will not plan this engagement</h2><div class="body">
   <p class="note flag">{{ refusal }}</p>
+  {% if not client_id %}
+  {# A refusal a person cannot act on is only half a refusal, and "pick a client"
+     was exactly that: the instruction was on the screen and the control was not. #}
+  <form method="get" style="margin:10px 0">
+    <input type="hidden" name="workflow" value="{{ workflow.key if workflow else '' }}">
+    <input type="hidden" name="tax_year" value="{{ tax_year }}">
+    <select class="field-input" name="client">
+      <option value="">— choose a client —</option>
+      {% for cid, dname in clients %}
+      <option value="{{ cid }}">{{ dname }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn primary" type="submit">Plan for them →</button>
+  </form>
+  {% endif %}
   <p class="note">Nothing has been generated, and no date has been guessed at. A plausible
     deadline — against work the law has no opinion about, or computed from whichever of two
     disagreeing facts happened to win — is the confident wrong answer this system is built

@@ -143,6 +143,12 @@ def from_source(citation: str, prefix: str) -> bool:
     return not rest or not rest[0].isalnum()
 
 
+#: What a stored passage IS. Closed, because a third kind would be a judgement
+#: about authority and this module records rather than judges.
+RULE, EXAMPLE = "rule", "example"
+KINDS = (RULE, EXAMPLE)
+
+
 @dataclass(frozen=True)
 class Passage:
     """One piece of authority text, stored because its source permits it."""
@@ -150,6 +156,35 @@ class Passage:
     source_id: str
     checked: str
     text: str
+    #: RULE or EXAMPLE, and it is RECORDED rather than guessed from the text.
+    #:
+    #: WHY THE DISTINCTION HAS TO EXIST IN THE RECORD. A regulation's worked
+    #: examples are its most useful authority for classifying a real entry --
+    #: the government applying its own rule to a fact pattern and stating the
+    #: answer -- and they are also, for six of these desks, where the PROBLEMS
+    #: come from. Storing them and grading on them at once is how the first
+    #: corpus leaked its own answer key: 21 examples, 21 problems, and a
+    #: frontier model that solved the set as a matching puzzle rather than by
+    #: reasoning (`extract_ecfr.py`, and `runs/2026-09-04/SCOREBOARD.md`).
+    #:
+    #: The answer was to drop the examples, which fixed grading and quietly cost
+    #: the answering side the best thing in the document. Marking them instead
+    #: lets one store serve both: `ask.brief` prints everything, and
+    #: `ask.brief_for_grading` prints no example at all.
+    #:
+    #: THE REFUSAL LIVES IN THE PARSER, NOT HERE, and the split is deliberate.
+    #: `parse_passages` requires `Kind` and raises without it, because THE
+    #: RECORD is the thing that must not default -- an example silently read as
+    #: a rule is precisely the leak this field closes, and a falling-back parser
+    #: would reopen it without failing anything ("refuse rather than default").
+    #:
+    #: The dataclass keeps `rule` for construction in Python, where the only
+    #: caller is a test building a fixture. Checked rather than assumed: the
+    #: sole production construction of a Passage is `parse_passages` itself, and
+    #: `test_a_worked_example_is_marked_as_one.py` asserts that stays true. Were
+    #: a second one to appear, this default would become the unsafe direction
+    #: again and that test is what says so.
+    kind: str = RULE
 
 
 @dataclass(frozen=True)
@@ -165,6 +200,136 @@ class Problem:
     citation: str
     answer: str
     facts: str
+    #: What the file already held when this fact pattern arose, from an optional
+    #: `On file:` line of `name: value` pairs. Empty on almost every problem.
+    #:
+    #: IT EXISTS SO THE SCOREBOARD DOES NOT CLIFF. A position may declare facts
+    #: it cannot be applied without; the moment the firm ratifies one, every
+    #: problem resting on that citation refuses unless the worked example states
+    #: those facts too. Written without this, ratifying a position would silently
+    #: convert a desk's measured score into a column of refusals, and the drop
+    #: would look like a regression in the desk rather than a gap in the problem.
+    #:
+    #: It is DECLARED, never read out of `facts`. Parsing "a general contractor"
+    #: out of the prose is the inference the whole position forbids.
+    context: "Context" = None
+
+
+def shown(desk) -> tuple:
+    """The passages a brief puts in front of an answerer. ONE DEFINITION.
+
+    `ask.brief` prints these and `engine.serve` counts them, and they must be the
+    same set or the count the engine reports about a refusal is a number from a
+    brief nobody saw. Two implementations of "what the model was shown" is the
+    same shape of bug `comparing.py` exists to prevent one layer down.
+    """
+    return tuple(desk.passages)
+
+
+def shown_by_source(desk) -> dict:
+    """`{source id: how many passages}` — the shape of what was shown.
+
+    A total alone does not check the claim that was actually made. The meals desk
+    escalated saying *"§ 1.274-11's own text is not in this desk's record"* while
+    the desk held ten passages of it: a total of 76 would have looked large and
+    proved nothing, and the per-source line is what makes that sentence false on
+    its face.
+    """
+    out = {}
+    for p in shown(desk):
+        for src in desk.sources:
+            if p.citation.startswith(src.citation_prefix):
+                out[src.id] = out.get(src.id, 0) + 1
+                break
+    return out
+
+
+@dataclass(frozen=True)
+class Context:
+    """What the CALLER already recorded about the matter. Never inferred here.
+
+    The firm, 5 September 2026, holding `personal-or-business/POS1` rather than
+    ratifying it: *"there should be some inference in the sense that the
+    Accountant should've already recorded and known what sort of business we're
+    dealing with ... it makes it a lot easier for me to look at a Home Depot
+    charge from a general contractor and think that it's a business expense
+    versus looking at a Home Depot charge from a hairstylist."*
+
+    They are right and the desk could not hear it: `ask.consult` took a question
+    and nothing else, so the same charge reached the same desk with no way to
+    tell those two clients apart. This is the missing input, and it is passed IN
+    rather than worked out. "Facts are recorded, not inferred" is the principle
+    it rests on; a desk that guessed the trade from the vendor would be the exact
+    reasoning the position exists to forbid.
+
+    THE NAMES OF THE FACTS ARE NOT IN THIS FILE, AND THE FIRST DRAFT PUT THEM
+    HERE. Written as `trade`, `taxpayer` and `engagement` fields, this failed
+    `test_no_closed_vocabulary_speaks_one_trade` -- correctly. Every desk shares
+    this layer, so a fact vocabulary here makes them all speak accounting, and
+    the second desk's cost is the whole measurement of the split. The names are
+    declared by each desk in its own SUBJECTS.md (`Records:`), which is data, and
+    validated against it at load.
+
+    NO IDENTITY GOES IN, and there is nowhere to put one by accident: a name, a
+    TIN or an address belongs in the encrypted vault. `unsupported` records only
+    which facts were MISSING, never the values, because that queue is a file in
+    this repository.
+    """
+    #: `{name: value}` -- names the desk declares it records, values the caller
+    #: supplies. A name the desk does not declare is refused at load, not here,
+    #: so a typo cannot become a fact nothing ever meets.
+    facts: dict = field(default_factory=dict)
+
+    def known(self) -> tuple[str, ...]:
+        return tuple(sorted(k for k, v in self.facts.items() if str(v).strip()))
+
+    def missing(self, needs) -> tuple[str, ...]:
+        """The declared needs this context cannot meet, in declared order."""
+        return tuple(n for n in needs if not str(self.facts.get(n, "")).strip())
+
+    def standing_rule(self, fact: str) -> str:
+        """`ABSENT`, `NONE` or `RECORDED` — what the file says about a client
+        rule on `fact`. Three answers and never two.
+
+        THE FIRM ASKED FOR THE THIRD ONE. Holding the safe-harbour positions on
+        6 September 2026: *"This needs to ensure that there is no already
+        standing rule for that client in particular. The desk should ask that
+        follow up if it is not clear, right?"* — and *"we shouldn't ignore
+        client level rules set with judgment with the desk answering broadly."*
+
+        A two-valued answer cannot express that. "Nothing recorded" and
+        "recorded, and there is no client rule" look identical from a `dict.get`
+        and mean opposite things: the first is a question nobody has asked, the
+        second is a question somebody answered. Collapsing them is how a desk
+        ends up answering broadly over a client the firm treats differently —
+        which is the thing being guarded against.
+
+        SO THE CALLER MUST SAY IT, and `NO_STANDING_RULE` is the word for it.
+        The engine never supplies it: a fact absent from the file stays ABSENT
+        and the desk asks. "Never invent a value" is the principle, and the
+        value being invented here would be the most expensive kind — the one
+        that says somebody checked.
+        """
+        raw = str(self.facts.get(fact, "")).strip()
+        if not raw:
+            return ABSENT
+        return NONE if raw.casefold() == NO_STANDING_RULE else RECORDED
+
+
+#: What a caller passes when nothing was recorded. Not a default value -- an
+#: explicitly empty one, so every declared need goes unmet against it rather
+#: than quietly passing.
+NOTHING_ON_FILE = Context()
+
+#: The three things a file can say about a client-level rule. Nobody may collapse
+#: them to two: see `Context.standing_rule`.
+ABSENT, NONE, RECORDED = "absent", "none_recorded", "recorded"
+
+#: The word a caller writes to say THEY LOOKED AND THERE IS NO CLIENT RULE. It
+#: is deliberately a value the caller has to supply rather than a state the
+#: engine can reach on its own, because the difference between "nobody asked"
+#: and "somebody asked and the answer was no" is the whole point of the field.
+NO_STANDING_RULE = "none"
 
 
 @dataclass(frozen=True)
@@ -191,6 +356,12 @@ class Registration:
     #: only ever be paid by a desk that opted into it. The shape it replaces was
     #: chosen on a measurement and this one has to earn its place the same way.
     answered_by: dict = field(default_factory=dict)
+    #: The names of the facts this desk expects the caller to have on file, from
+    #: a `Records:` line. Optional. It is the desk's vocabulary and not this
+    #: layer's, which is the point: `Context` carries a mapping and the words in
+    #: it are the desk's own, so a second desk in another trade brings its own
+    #: without touching any shared file.
+    records: tuple = ()
 
 
 def parse_subjects(text: str, desk_name: str) -> Registration:
@@ -230,6 +401,43 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
     by_citation = re.findall(
         r"^\*\*Answered by `([^`]+)`:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
         block, re.M | re.S)
+
+    # WHAT THE DESK EXPECTS TO BE TOLD, as opposed to what it can look up.
+    # Optional: a desk that declares nothing here can declare no `Needs` either,
+    # so it behaves exactly as it did.
+    # STOPS AT THE BLANK LINE, like `Answered from` and unlike `_field`. Written
+    # with `_field` this swallowed the italic paragraph explaining the fact and
+    # parsed FOUR facts out of one, named things like 'in the firm's words'.
+    # A list ends where the list ends; only a wrapping prose field runs on.
+    _rec = re.search(r"^\*\*Records:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+                     block, re.M | re.S)
+    records = tuple(
+        t.strip().lower()
+        for t in " ".join((_rec.group(1) if _rec else "").split()).split(",")
+        if t.strip())
+    for name in records:
+        if len(name) < 3 or name.isdigit():
+            raise RecordError(
+                f"{desk_name}: Records names {name!r}. A fact's name is what a "
+                f"position points at and what a refusal prints; two characters "
+                f"or a bare number is an accident, not a name."
+            )
+        # AND IT HAS TO LOOK LIKE A NAME. Removing the last fact from a desk on
+        # 7 September, the line was left in place reading `**Records:**
+        # *(nothing)*` -- and the parser read the placeholder AS A FACT. The desk
+        # declared it recorded something called `*(nothing)*`, `serve` would have
+        # treated it as a fact an engagement could be missing, and the brief
+        # would have printed it to an answerer. A list with nothing in it is
+        # written by leaving the list out, and this is what says so.
+        if not _FACT_NAME.match(name):
+            raise RecordError(
+                f"{desk_name}: Records names {name!r}, which is not a fact name "
+                f"-- letters, digits and underscores. A desk that records "
+                f"nothing has no `Records:` line at all; a placeholder in one is "
+                f"read as a fact and reaches an answerer as a real question."
+            )
+    if len(set(records)) != len(records):
+        raise RecordError(f"{desk_name}: Records names the same fact twice")
 
     answered_from, order = {}, []
     for source_id, listed in declared:
@@ -310,8 +518,20 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
         fires_on=tuple(order),
         answered_from=answered_from,
         answered_by=answered_by,
+        records=records,
     )
 
+
+
+#: Where a citation stops being a place in the authority and starts being a note
+#: about WHICH rule there is meant. The firm writes the second half by hand when
+#: one passage carries two answers; see `Desk.alongside`.
+_QUALIFIER = " \u2014 "
+
+
+def _stem(citation: str) -> str:
+    """A citation with the firm's hand-written ` \u2014 which rule` note removed."""
+    return citation.split(_QUALIFIER, 1)[0].strip()
 
 
 @dataclass(frozen=True)
@@ -337,6 +557,8 @@ class Desk:
     answered_by: dict = field(default_factory=dict)
     #: `{source_id: subjects}` from SUBJECTS.md — see `Registration`.
     answered_from: dict = field(default_factory=dict)
+    #: The facts this desk expects on file — see `Registration.records`.
+    records: tuple = field(default_factory=tuple)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
@@ -364,6 +586,67 @@ class Desk:
         return next((p for p in self.positions
                      if p.citation == citation and not p.proposed), None)
 
+    def alongside(self, citation: str) -> tuple:
+        """The firm's OTHER ratified positions on this same passage of authority.
+
+        THE INCIDENT, 7 September 2026, and it is the sharpest thing the Forge
+        found. `cash-and-bank` holds two positions on one section of Pub. 583,
+        with OPPOSITE answers — "a reconciling item, no entry in the books" for
+        what the statement did not yet include, and "an entry in the books" for
+        what the books are updated for. Asked about a deposit in transit, an
+        agent cited the second. The engine served it: `binding`, in the firm's
+        own words, and wrong.
+
+        NOTHING IN THE PIPELINE RESISTED IT, and the reason is worth stating
+        exactly. `_check` refuses a conclusion that CONTRADICTS a ratified
+        position — the agent disagreeing with the firm. It has nothing to say
+        about a position quoted faithfully and applied to the wrong facts, which
+        is the likelier error in a real close: the agent is not arguing, it is
+        picking the nearer of two adjacent rules. The tester: *"the counterpart
+        passage is not shown [...] The reader is shown one of two adjacent rules
+        and not told the other exists."*
+
+        THE STEM IS THE RECORD'S OWN CONVENTION, NOT A HEURISTIC. `POSITIONS.md`
+        on that desk explains why those two entries exist: *"A position carries
+        one answer, and one citation admits one position. The publication states
+        what the statement did not yet include and, separately, what the books
+        are updated for; those have opposite answers, so they are cited and
+        answered apart."* The split is written INTO the citation as a trailing
+        ` — <which rule>`. So two positions sharing a stem is precisely the
+        firm's own mark for "this passage carries more than one answer" — and
+        that is the only case this returns. Across all seven desks it fires on
+        exactly one pair; different paragraphs of the same regulation
+        (`1.263(a)-1(f)(5)` beside `1.263(a)-1(f)(1)(ii)(B)`) are different
+        rules and are not siblings.
+
+        PROPOSED POSITIONS ARE EXCLUDED, for the same reason `position()`
+        excludes them: a suggestion nobody has said yes to is not the firm's
+        word, and showing it beside their word would let a guess read as one.
+        """
+        stem = _stem(citation)
+        return tuple(p for p in self.positions
+                     if not p.proposed and p.citation != citation
+                     and _stem(p.citation) == stem)
+
+    def rules_only(self) -> "Desk":
+        """This desk with its worked examples withheld. FOR GRADING ONLY.
+
+        ONE DEFINITION, BECAUSE TWO WOULD DRIFT. Both readers of the record need
+        it -- `ask.brief_for_grading` for the answering side's own scoring, and
+        `scoreboard_run.corpus_lines` for the prompt a graded brain sees -- and
+        this repository has already paid for a comparison kept in two copies
+        (`comparing.py` exists because `tieout` and `proving` each had one).
+
+        WHAT IT DOES NOT TOUCH: `engine._check`. Whether a citation resolves to
+        real authority is a different question from whether a graded model was
+        shown it, and a worked example IS real authority. So an example stays
+        servable and stays unshowable, which is the split the whole `kind` field
+        exists to express.
+        """
+        import dataclasses
+        return dataclasses.replace(
+            self, passages=tuple(p for p in self.passages if p.kind != EXAMPLE))
+
     def authority_for(self, citation: str):
         """Whatever backs this citation: stored text, or the firm's own words.
 
@@ -389,6 +672,10 @@ class Desk:
 
 
 # ── parsing ───────────────────────────────────────────────────────────────────
+
+#: What a fact may be called: the thing a position points at and a refusal
+#: prints. Letters, digits, underscores -- nothing that reads as prose.
+_FACT_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 _SUBJ_HEAD = _HEAD
@@ -488,6 +775,27 @@ def parse_sources(text: str) -> list[Source]:
     return out
 
 
+def _on_file(listed: str, where: str) -> "Context":
+    """`name: value; name: value` -> Context. Semicolons, because a value wraps.
+
+    Comma-separated would split "Smith, Jones & Co" into two facts -- the same
+    defect that turned `$2,500` into `$2` and `500` one file over.
+    """
+    facts = {}
+    for pair in listed.split(";"):
+        if not pair.strip():
+            continue
+        name, sep, value = pair.partition(":")
+        if not sep or not name.strip() or not value.strip():
+            raise RecordError(
+                f"{where}: 'On file' entry {pair.strip()!r} is not 'name: value'. "
+                f"A fact with no name cannot meet a need, and a name with no "
+                f"value is not a fact."
+            )
+        facts[name.strip().lower()] = value.strip()
+    return Context(facts=facts)
+
+
 def parse_problems(text: str) -> list[Problem]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -499,6 +807,7 @@ def parse_problems(text: str) -> list[Problem]:
             citation=_field(block, "Citation", where),
             answer=_field(block, "Answer", where),
             facts=_field(block, "Facts", where),
+            context=_on_file(_field(block, "On file", where, required=False), where),
         ))
     if not out:
         raise RecordError("no problems found; a desk that cannot be scored is a claim")
@@ -521,6 +830,7 @@ def parse_passages(text: str) -> list[Passage]:
             source_id=_inline(block, "Source", where),
             checked=_date(_inline(block, "Checked", where), "checked", where),
             text=text_,
+            kind=_one_of(_inline(block, "Kind", where), KINDS, "Kind", where),
         ))
     return out
 
@@ -615,11 +925,11 @@ def load(desk_dir: Path) -> Desk:
             )
 
     subjects = desk_dir / "SUBJECTS.md"
-    fires_on, answered_from, answered_by = (), {}, {}
+    fires_on, answered_from, answered_by, records = (), {}, {}, ()
     if subjects.is_file():
         reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
         fires_on, answered_from = reg.fires_on, reg.answered_from
-        answered_by = reg.answered_by
+        answered_by, records = reg.answered_by, reg.records
         # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
         # for those subjects and reads as a strict desk -- the same failure the
         # source-level check was given, for the same reason.
@@ -644,11 +954,37 @@ def load(desk_dir: Path) -> Desk:
                 f"which SOURCES.md does not define. A mapping to a source that "
                 f"does not exist refuses every citation for those subjects")
 
+    # A NEED THE DESK NEVER RECORDS CAN NEVER BE MET, so the position it is
+    # written on can never be served -- and it would fail at answer time as a
+    # refusal blaming the caller for a typo in the record. Checked here, where
+    # the desk's own declaration is in hand; `positions.py` only splits the list,
+    # because naming the legal facts there would put one trade's vocabulary in a
+    # file every desk shares.
+    # AND `Unless:` IS DELIBERATELY NOT CHECKED THE SAME WAY. It may name a fact
+    # this desk does not record, and that case is the point of the field rather
+    # than a mistake in it: the desk asks the follow-up anyway and the engine
+    # refuses with `no_field_for_this_fact`, which says the gap is in what the
+    # firm decided to write down, not in what this client was asked. Validating
+    # it against `records` would make the one finding it exists to surface
+    # unsayable -- a position could only ever ask about a field somebody had
+    # already thought to create.
+    for q in pos:
+        unmeetable = [n for n in q.needs if n not in records]
+        if unmeetable:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} needs "
+                f"{', '.join(repr(u) for u in unmeetable)}, which this desk does "
+                f"not record. SUBJECTS.md must declare it on a 'Records:' line, "
+                f"or the position can never be served: nothing a caller passes "
+                f"could ever meet it."
+            )
+
     return Desk(
         name=desk_dir.name,
         fires_on=fires_on,
         answered_from=answered_from,
         answered_by=answered_by,
+        records=records,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

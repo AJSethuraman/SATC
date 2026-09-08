@@ -17,6 +17,615 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 7 September 2026, later still — main was red for two hours and it was mine
+
+> *"it is messing everything else up - main is red i need it cleared up"*
+> — the firm
+
+**What I did.** Moved the hourly rate in the schedule, left
+`website/pricing-config.js` publishing the old one, called that *"stale on
+purpose"*, and handed the regeneration to the satcllp.com session. Two commits
+of mine went onto `main` behind it, both red, and every branch cut afterwards
+inherited the failure.
+
+**The handoff was not the mistake.** The site is that session's, the firm said
+so, and they regenerated it correctly and fast. They put it in a **draft** pull
+request — deliberately, because they had found something else in the same file
+they would not change without the firm's word. **A draft does not merge.** So the
+correct thing they did and the correct thing I did added up to two hours of red.
+
+**The rule already existed and I walked past it.** `test.yml` carries it in the
+sidelining note: *a permanently-red check is worse than no check, because after
+the third day nobody reads it and the next genuine failure hides behind it.* I
+had read that file the same day.
+
+**What it should have been.** A change that reddens `main` and its fix are **one
+merge**, or the change waits. Handing off the half that makes it green again is
+the same failure as leaving it broken, wearing a helpful face — which is what
+behaviour 19 says about a wait that clears by itself, and this one did not even
+clear by itself: it needed a person to un-draft.
+
+Cleared in `#328`. `main` at `1d5d9413`, Tests green, Deploy green.
+
+### And the corrections that came back with it
+
+The satcllp.com session sent two, both right, and one found a real defect.
+
+**Four hourly situations reach the page, not five.** I read `hourly.situations`
+and reported its length; the page builds from the `assumed` gates.
+
+**The fifth is the defect.** `notice` is still billable hourly after the
+26 August ruling that *"notices and correspondence belong in a different letter
+engagement"* — **and that engagement was never built.** Grep the schedule for
+`notice`: one hit. Deleting the entry would leave a preparer unable to price a
+notice at all, so it stays marked and registered, with the two questions only the
+firm can settle. A test now compares the two lists; the drift lasted twelve days
+because each read a different source and neither could contradict the other.
+
+**And my blind-spot fix from `#320` closed half the hole.** `"engagement letter"`
+is live on the home page right now in `website/intake.js:236`, and `copy.spec.py`
+reports 39/39 with it there, because `COPY_IN_SCRIPTS` names one file. My own
+commit message said a tenet has to read everything a visitor reads, and then
+listed one file.
+
+**They also refused to apply the wording the firm approved to me**, on the
+grounds that a peer session cannot carry the firm's approval. That is correct and
+I should not have relayed it as settling anything.
+
+---
+
+## Monday 7 September 2026, late — the hourly rate moves, and two more answers
+
+### The rate: $150 → $175
+
+> *"let's adjust hourly but keep our core pricing in place - you are the owner of
+> tax pricing so ensure it gets updating and we need to give that to the
+> satcllp.com agent to update on the site and make sure it's up to date"*
+> — the firm, 7 September 2026
+
+**A correction that changed the advice.** The recommendation had been to defer
+this until before January, *"don't touch it mid-season"*. The firm: **"we are
+currently not mid-season"** — and they were right. It is September. This is
+precisely the window a rate gets reviewed in, months before it reaches anyone in
+a January engagement. The deferral was wrong and the work was done the same day.
+
+**The number.** $175, against a regional par of $182.57 — the NSA survey's
+East North Central figure of $148.15 for 2020–21, adjusted by 23.23% CPI-U. It
+closes 77% of the gap in one step rather than landing a 21.7% rise on existing
+clients at once, and leaves room to reach par without a second jump.
+
+**Core pricing held, and it was checked rather than claimed:** 24 priced amounts
+before, 24 after, **none changed**. The sample estimate's total is still $645.00.
+What moved with the rate is the published rate itself, the five `hourly:`
+situations, and the *"beyond that the time is billed at {rate} an hour"* phrasing
+where a cap is exceeded — which is the rate applying, and is the point.
+
+### What moving it found
+
+**Seven tests had hard-coded what the rate produces.** $225.00 for an hour and a
+half, $37.50 for a quarter, *"billed at $150 an hour"* — and **not one of them
+was about the rate.** They were about rounding to the quarter hour, about a soft
+cap saying what happens past it, about an hour reaching an engagement record. The
+rate is the firm's number and it will move again; a test that writes down what it
+produces makes changing it a seven-file edit, and the seventh is the one somebody
+misses. They now compute from the schedule, and with the rate set to `999` all
+seven still pass.
+
+The one test that **correctly** went red was the sample-drift guard, because a
+stored sample must match the schedule — which is how the demo record's frozen
+*"$150 an hour"* assumption sentence was caught and regenerated. That guard
+earned its place today.
+
+### The site is stale on purpose
+
+`website/pricing-config.js` still publishes $150, and `pricing.spec.py` says so
+in terms: *"The site and the fee schedule disagree. The schedule wins."* Updating
+it belongs to the **satcllp.com agent**, at the firm's instruction, and has been
+handed to it with the three commands and the two failing checks named.
+
+### Two more answers
+
+**The "engagement letter" wording — approved.** Asked whether *"that begins when
+we both sign a written agreement setting out the work and the fee"* would do, the
+firm said **"sure"**. That clears the tenet blocking `#138`. The wording went to
+the satcllp.com agent rather than being written here, since `website/` is theirs.
+
+**The privacy page — "no update".**
+
+> *"crazy to think we wouldn't record the answers ourselves. we are implicitly
+> saying nobody else nor the site saves it for someone else to see it"*
+
+**And the reasoning is the useful half.** A privacy notice is for the copies a
+client would **not** assume — a third party holding it, or the site retaining it
+for someone else to read. Formspree is exactly that, which is why it is named and
+its 30 days stated. The firm's own working file is not. So the finding had
+measured the workbook against the wrong standard: *every place a submission
+lands*, rather than *every place a client would not expect it to land*. The
+register entry is closed as declined, with what would reopen it written down —
+the workbook being read outside the firm, synced to a third party, or used for
+something other than answering the enquiry.
+
+---
+
+## Monday 7 September 2026, night — three answers, and the goal restated
+
+### The goal changed, twice, and the second one is the real one
+
+Mid-session the firm named the overarching goal:
+
+> *"YOUR overarching goal is to manage and ensure the SATC tax practice software
+> and pipeline while ensuring we test and such appropriately before
+> implementation. we have developed much together, we will continue to do so.
+> shorter term goals, such as what you are doing now, can be established as we
+> go."*
+
+A message immediately before it named the **website** as the goal and was
+**not meant for this session** — it was for another agent, and this session had
+already restated its goal around it before being told. Recorded because a goal
+taken from a misrouted message is exactly the failure the restating habit is
+meant to catch, and it did not catch it: the correction came from the firm, not
+from here.
+
+### The three answers, and what each caused
+
+**1 · The withholding review fee — "Not yet", with:** *"market research is
+preferable"*.
+
+So the research was done rather than the fee invented, and **it found something
+bigger than the question.** The National Society of Accountants Income and Fees
+Survey puts East North Central — Ohio's census district — at **$148.15 an hour**
+for federal and state tax return work in 2020–21. Adjusted by cumulative CPI-U
+inflation of **23.23%**, that is **$182.57** in 2026 dollars.
+
+**`fee-schedule.yaml` sets `basis.rate` to $150.00** — almost exactly the
+*unadjusted* 2021 average. The rate looks like it was set against a correct
+benchmark and never moved since, and nothing in the repository records that as a
+decision. Not an argument that it is wrong; an argument that it is undocumented,
+and that pricing a new service against it bakes the gap in.
+
+On the question actually asked: **there is no market price for a "withholding
+review"**. The IRS calls it a Paycheck Checkup and publishes it free. The nearest
+thing anybody sells is a single planning session at **$200–$500**. The
+recommendation moved from $175 to **$225 flat** — bottom of that band, 1.5 hours
+at the current rate, correctly above records sorting at $175, and it survives the
+rate correction rather than needing a rethink the moment the hourly moves.
+Written up in `docs/pricing-the-withholding-review.md`, with its own *what this
+does not prove*.
+
+**2 · "Within one business day" — No, keep "as soon as we can".**
+
+Which turned out to collide with the firm's own copy tenets, and the collision
+was worth more than the answer. **Tenet 6 had "as soon as we can" on its banned
+list**, swept in while the one-business-day promise was being removed — though it
+is the *opposite* of what that tenet bans, a deliberate refusal to promise a time
+rather than a promise of one. The entry came off, with the quote kept above it.
+"business day" stays, which is the thing actually being refused.
+
+And underneath that: **`copy.spec.py` read `.html` files only.** `intake-config.js`
+carries the questions, help text and option labels the intake form renders onto
+the home page — **83 strings a visitor reads, never examined**, while the spec
+reported 36/36 and *"every page reads the way the firm asked for"*. The banned
+phrase had been sitting in that file, live, the whole time. The checker now reads
+it: 36 → 39 checks, and two mutations die.
+
+**#138 did not merge**, and the reason is the firm's own recorded position. Its
+disclosure says a client relationship *"begins when we both sign an engagement
+letter"* — and `website/TENETS.md` says in terms that putting that phrase back
+**fails the build**, because *"i would never expect a client to understand what an
+engagement letter is inherently."* The wording has to change and that sentence is
+the firm's to write.
+
+**A second thing came out of #138** and is now an open defect:
+`website/privacy.html` discloses Formspree and its 30-day copy but **not** that a
+Power Automate flow files every submission into a workbook indefinitely. The page
+discloses the temporary copy and not the permanent one. Recorded rather than
+written — privacy wording is not an agent's sentence.
+
+**3 · The two credit-line pull requests — Close both.** Done, each with a comment
+saying what it was and that the branch keeps the work.
+
+---
+
+## Monday 7 September 2026, evening — the last hop, and ten checks that were never running
+
+**No answer arrived today.** Three matters from the morning docket are still
+open; this is what got done around them, and two of it found things.
+
+### Ten tests had never opened a screen on this box
+
+The suite reported **2,076 passed, 13 skipped** and looked healthy. Ten of those
+skips were `test_every_screen_in_a_browser` and `test_documents_in_a_browser`,
+which skip when Playwright is absent — and it had never been installed here.
+Their skip messages were honest (*"NO SCREEN IS BEING OPENED, and nothing below
+is being asserted"*); nothing had read them.
+
+Installed Playwright 1.62.0 and Chromium 151.0.7922.34 into the project venv.
+All ten now run and pass. Injecting `SATC <<InvoiceNumber>>` into `base.html`
+turns them red, so they assert something real. **Skips 13 → 3**, and the box
+now carries the browser — recorded in MANIFEST with why.
+
+### The tie-out proved the wrong pair, and I wrote it yesterday
+
+Nine parts of the withholding engine are tied to IRS documents. **Every one read
+the `ours` side out of `estimate()`** — which is not what anybody is handed. The
+preparer downloads an Excel workpaper, and between the engine and that file sits
+`build_audit_tape`, which nothing had checked figure by figure.
+
+    IRS document  =  engine          proved, nine parts
+    engine        =  the workpaper   never executed
+
+That is canon's tie-out skill describing its own named failure, and it applies to
+my own work from yesterday. The thirteen figures **do** tie, on three client
+shapes. Reading the file found two defects that are about a document being *read*
+rather than computed:
+
+* **Three labels named two different rows.** `Self-employment tax`, `Additional
+  Medicare tax` and `Net investment income tax` each headed a dollar amount in
+  the projection walk **and** a citation in the basis block. Found because it
+  broke the first draft of the test — a checker keyed by label kept the second of
+  each pair and reported three mismatches that were not there. Both were wrong:
+  my reader **and** the sheet.
+* **The `Source` line named a superseded authority** — *"IRS Rev. Proc.
+  2024-40; SSA; …"* — while the Standard deduction row three cells below cited
+  P.L. 119-21, the law that replaced it in July 2025. A header disagreeing with
+  the row beneath it, with nothing comparing them.
+
+What existed before was one test asserting that one figure appeared *somewhere*
+among the sheet’s numeric cells. It would have passed with every figure in the
+wrong row.
+
+### One of the firm’s open questions answered from the repository
+
+`#138` carries two `[CONFIRM:]` markers. The second asks whether
+`website/privacy.html` discloses Formspree and its 30-day retention. **It does**
+— three mentions and the retention period, checked on `main`. That marker can be
+struck without asking anybody. The first one cannot: it asks whether the site
+should promise a reply *"within one business day"*, and that is a promise to
+clients, so it is on the docket.
+
+`#158` was closed unmerged today. The hole it was fixing — a sitemap listing one
+URL — **is closed**: `main` lists 6, and the site has exactly 6 pages. It was
+superseded by `#163`, so closing it was right.
+
+**Totals:** `satc_system` 2,076 → **2,097 passing, 3 skipped**;
+`client-documents` **1,507 passing, 2 skipped**.
+
+---
+
+## Monday 7 September 2026, later — the withholding engine is tied, 9 of 9
+
+**The goal named that morning is met**, and this is what it turned out to be
+worth. It was shaped, per behaviour 20, as an outcome rather than a category:
+
+> Every figure the withholding estimator puts on a preparer's screen can be
+> checked against an IRS document — or is marked, on the screen, as not
+> checkable.
+>
+> *First thing it refuses:* building state withholding. Not modelled at all, so
+> that is a build rather than a tie-out.
+
+**Distance ran 3 → 4 → 5 → 7 → 8 → 9 of 9**, and the refusal held: state
+withholding is still not modelled and was not built.
+
+### Three defects, all in the same direction
+
+Every one of them overstated a client's tax, and not one could have been found
+from inside the repository — the engine's own tests work out their expected
+answers from the same tables the engine reads.
+
+| Found | Cost | How |
+|---|---|---|
+| The 2025 standard deduction, superseded by OBBBA in July 2025 | **$165** on a single filer with $100,000 of wages | Following the source one step past the revenue procedure |
+| Schedule SE's own $400 floor, absent from the engine | **$56.52** on net earnings of $400 | Reading the form's lines rather than its rates |
+| The 15% and 20% capital-gains rates as uncited literals | none yet — the figures were right | Noticing they were the only tax constants with no citation |
+
+### And a mutant that survived was worth more than any of them
+
+Replacing `fifteen_start = max(ordinary_ti, zero_top)` with plain `ordinary_ti`
+left all twenty-three capital-gains tests passing. The difference only shows when
+ordinary income is **below** the 0% breakpoint **and** the gain is large enough to
+reach 20% — both at once. That is a client who sells a rental or a business in a
+low-wage year, and the answer moves by **$1,405.00**. The guard was right the
+whole time; the tests were too weak to say so.
+
+### The ninth part could not be tied, and that is a verdict
+
+**The IRS publishes nothing describing a paystub.** No federal form, no standard
+layout. Some states legislate the contents — California Labor Code 226, New York
+195.3 — and **Ohio does not**, which is where most SATC clients are. The
+obstacle was attacked before being recorded and it holds.
+
+So the estimate now says so on the screen whenever a figure came off a stub, and
+names the action. The reader scores 126 of 126 on eighteen stub shapes, and that
+corpus was written here: it measures whether the reader handles the shapes
+somebody thought of. Closing it needs real client stubs scored on the Forge,
+which cannot enter this repository.
+
+### What this cost the firm: nothing
+
+No decision was asked for. Four matters from the 7 September docket are still
+open and still theirs — the withholding review's fee, the three website pull
+requests, and the two on the credit consulting line.
+
+### What is now true of the estimator
+
+`satc_system` 1,919 → 2,076 passing. Eight of its nine computations are held
+against an IRS document; the ninth is marked on screen as unprovable. Where a
+figure is incomplete — OBBBA's unmodelled deductions, net investment income's
+missing rents and royalties — the estimate prints what is missing and which way
+the error runs, rather than looking finished.
+
+---
+
+## Monday 7 September 2026 — the queue emptied, and the next goal named
+
+**Nothing was asked of the firm today.** The six answers of 6 September were the
+whole instruction set, and this is what they produced. Recorded here rather than
+in a docket's "what changed", because the queue is now empty and the next session
+needs to read what was done rather than infer it.
+
+| Answer | What it produced |
+|---|---|
+| *"Fix the three, flag the rest"* | #302 — the 2025 tables reconciled to enacted law |
+| *"Build it, safe-harbour tie-out first"* | #303 — safe harbour tied to IRS Pub 505 |
+| *"Ask once per folder"* + *"Warn on the screen"* | #304 — intake records arrivals |
+| *"Build it next"* | #307 — what a filed return implies, read never priced |
+| *"Read the eight and report back"* | eight read; #160 and #140 closed as superseded |
+
+**All 33 walk defects are now fixed or withdrawn.** The register reads 32 fixed,
+1 withdrawn, 0 open. It opened on 5 September at 0 of 33.
+
+### The $165 was real, and the file had predicted it
+
+`configs/crosswalk/federal/2025.yaml` carried the standard deduction as the IRS
+published it in **October 2024**. **P.L. 119-21 (OBBBA), signed 4 July 2025**,
+raised it for tax year 2025 itself. Every estimate the software produced was too
+high — $165 on a single filer with $100,000 of wages, more on a joint return.
+
+The file's own note said *"reconcile to enacted law before filing TY2025"*,
+written when the table was built, and nothing enforced it. **No test could have
+caught it**: the engine's tests work out their expected answers from the same
+table the engine reads, so the code and the tests agreed with each other while
+both were wrong about the law. `/canon:tie-out` caught it by going to the IRS.
+
+The fix was scoped by the firm's own answer — the three figures, not the whole
+Act. What OBBBA else changed (tips, overtime, car loan interest, seniors, the
+SALT cap, the child tax credit) is now **declared in the dated table** and
+printed with every estimate, because a half-reconciled table that looks current
+is more dangerous than one that is obviously stale.
+
+### Two things the work found on its own
+
+**The read of a filed return nearly missed state returns entirely.** A state
+return is its own `ReturnRecord` with a different jurisdiction, so it leaves no
+trace in the federal return's line items — and most SATC clients file an Ohio
+return. `unmatched_units()` reported it, which is what that function exists for.
+
+**`gh` cannot take a pull request out of draft on this machine.** GitHub's REST
+API works; the GraphQL API refuses with a rate limit for a user id that is not
+the one `rate_limit` reports quota for. Closing, commenting, creating and merging
+all went through REST. **#156 is merge-ready and blocked on one click** — see the
+docket.
+
+### The next goal, and where it came from
+
+Canon 1.13.0 landed today (#306) carrying behaviour 19 — *name the goal, report
+the distance, then stop* — written from the firm's own words on 7 September:
+*"i feel like sometimes the feedback is endless for the sake of being endless,
+when a stated goal can be worked towards then moved naturally."*
+
+The goal it produced, which the 7 September docket carries and which silence
+approves: **tie the rest of the withholding engine to the IRS.** Nine parts of
+that engine decide a client's number; three are now tied to a source outside our
+own code and six are not. The firm answered *"build it, safe-harbour tie-out
+first"* on the withholding service, and the remaining six are what stands between
+the estimator and something the practice can charge for.
+
+**Distance: 3 of 9 tied, 6 left** — capital-gains stacking, self-employment tax,
+Additional Medicare, Net Investment Income Tax, the per-paycheck W-4 line 4c
+arithmetic, and the paystub reader. State withholding is a tenth part and is not
+modelled at all, which is a build rather than a tie-out.
+
+---
+
+## Sunday 6 September 2026 — six for six, and one of them is a live defect
+
+Every matter answered, and every one took the recommendation. No overrules, and
+nothing written in the free-text boxes — so what follows is the recommendation
+each answer selected, quoted as it stood on the page.
+
+Four of the six were **carried unanswered from the 5 September docket**. That is
+recorded because it is the reason the tie-out happened at all: with the queue
+stalled, the day went into proving one number rather than into building the next
+thing.
+
+| | Asked | Answered |
+|---|---|---|
+| **1** | how far to reconcile the 2025 tax tables to OBBBA | *"Fix the three, flag the rest"* |
+| **2** | build the mid-year withholding review as a priced service | *"Build it, safe-harbour tie-out first"* |
+| **3** | what intake records about how a document arrived | *"Ask once per folder"* |
+| **4** | whether unknown provenance blocks filing | *"Warn on the screen"* |
+| **5** | the final invoice computed from the filed return | *"Build it next"* |
+| **6** | the eight old pull requests | *"Read the eight and report back"* |
+
+### Matter 1 is the one with a deadline on it
+
+The withholding estimator overstates 2025 federal tax, today, on every estimate
+it produces. `configs/crosswalk/federal/2025.yaml` holds the standard deduction
+as the IRS published it in **October 2024**; **P.L. 119-21 (OBBBA), signed
+4 July 2025**, raised it for tax year 2025 itself — single 15,000 → 15,750, MFJ
+30,000 → 31,500, HOH 22,500 → 23,625. On the sample case that is **$165** of tax
+the estimator invents.
+
+The answer scopes the fix deliberately: **the three figures, not the whole Act.**
+OBBBA also created deductions for tips, overtime, car loan interest and seniors,
+raised the SALT cap and changed the child tax credit, and none of those are
+modelled. Those carry eligibility rules and phase-outs that are real tax
+judgement, and a half-reconciled table that looks current is more dangerous than
+one that is obviously stale — so the screen says what is still missing.
+
+**This was found by `/canon:tie-out`, not by the test suite**, and could not have
+been found by it: the engine's tests work out their expected answers from the
+same tables the engine reads, so the code and the tests agree with each other and
+both are wrong. The file itself carried the instruction — *"reconcile to enacted
+law before filing TY2025"* — written when the table was built, and nothing
+enforced it.
+
+### Matter 2 rests on an answer given somewhere else
+
+The question was whether to sell the mid-year withholding review. The half that
+would have been hardest to ask — whether it should instead be a free calculator
+on the website — the firm had **already answered two days earlier**, on the free
+Schedule C tool:
+
+> *"It is not my concern to fill out a form for them. This is already helpful
+> when free and I would expect them to pay us if they wanted to take it to that
+> step themselves through our own work."*
+
+That answer lives in **PR #298**, which is still a draft, so it is not on `main`
+and this log did not have it. It was found by reading the repository rather than
+this session's memory of the week, which is the whole reason a docket is built
+that way — and it stopped a question being put to the firm twice.
+
+**That quotation is a candidate conviction and belongs to the session that
+recorded it.** Nothing has entered `CONVICTIONS.md` here.
+
+### What the six answers put in the queue
+
+1. The three OBBBA figures, with the test tied to the IRS page rather than to our
+   own table, and a note on screen naming what is not modelled.
+2. A tie-out of the **safe-harbour** figure — the number a client actually acts
+   on, and the only one in the recommendation still unproved.
+3. Intake asks once per folder how the documents arrived, defaulting to
+   `unknown`; a row with no provenance **warns and does not block**.
+4. The final invoice, starting by reading a filed return and reporting what it
+   implies, before anything writes an invoice from it.
+5. A read of the eight old pull requests, one line each.
+
+---
+
+## Saturday 5 September 2026 — the docket after the walk, five for five
+
+Every decision answered. Three took the recommendation, one overruled it, and
+one went somewhere better than either option I had offered.
+
+| | Asked | Answered |
+|---|---|---|
+| **A** | merge #262 / #263 / #267 | *"Merge all three, then a docs PR"* |
+| **B** | fix the three data-corrupting defects now | *"Fix all three now"* |
+| **C** | what an invoice does with no estimate — refuse, or fall back | **neither** — see below |
+| **D** | give the interview an "unknown" answer | *"Add it, start unanswered"* |
+| **E** | the three security preconditions | **overruled me** — *"Defer to the bookkeeping launch"* |
+
+**C is the one worth writing down, because I asked the wrong question.** I
+offered refuse-or-fall-back at the moment of billing. The firm:
+
+> *"the final invoice is what really should be made after we do the return and
+> can actually compute it so like I would expect us to be able to feed a final
+> return to our software and have it identify the schedules and stuff that we
+> filled out and price the engagement at the end and then you know it would
+> pretty much need to ask if there was hourly work and stuff"*
+
+So the estimate and the final invoice are **two different acts on two different
+days**, and the invoice is derived from what was actually filed rather than from
+what was predicted. That does not collide with *"one price, and it's the one on
+the client's estimate"* — that decision was about which price LIST governs, not
+about when the amount is fixed. The same fee schedule prices both; one prices a
+prediction, the other prices the work. `CLAUDE.md` already names the seam this
+needs — `cli.py close` records what was filed, in-house — and the engagement
+letter already promises the client a written estimate before any additional work
+begins, so a final invoice above the estimate is a promise to check rather than a
+surprise to allow. Not built; scoped only.
+
+**E is the second overrule onto the bookkeeping launch**, and the position is
+consistent: W5 and W8 went there on 4 September for the same reason. Worth
+recording what I checked rather than assumed, because the Autonomy screen reads
+*"never recorded"* for all three and the machine is further along than that:
+`SATC - Back up client data to OneDrive` last ran 4 Sep 12:30 and the Occam books
+backup at 03:00 today, **both result 0**. Tailnet Lock is genuinely off —
+`Tailnet Lock is NOT enabled`, read off the box. The real gaps are Tailnet Lock
+and a restore nobody has ever tested, not the absence of a backup.
+
+**What B produced:** three stacked pull requests, #276 → #277 → #278, and
+**1,779 → 1,797 passing, 0 failing.** Each guard sits on the engine rather than
+the view, so every caller meets it instead of the one door the walk happened to
+use.
+
+**The mutation runs earned their place three times over.** The headline test for
+#276 was decorative in two successive drafts — first it handed the client in
+explicitly, which the old code honoured too; then it asserted on the set of
+returns, which cannot change because the demo client already has that return and
+the post reuses it; then it counted line items, which cannot change either
+because the post is idempotent and REPLACES them. Only a value-by-value ledger
+comparison could see it. In #278 the control would have passed for the wrong
+reason, because `client_choices()[0]` is a partnership the personal workflow
+refuses anyway.
+
+**And one existing test was passing because of the defect.** `test_filing` read
+the global `STATE`, which the button-walker empties by pressing "Clear sample
+data" — and then refilled, because pressing `/intake/run` and `/staging/post`
+manufactured a `SATC-001000` / 2024 return out of the very defaults being
+removed. It builds its own state now.
+## Saturday 5 September 2026, small hours — the walk, and the two prices
+
+The firm: *"It's time for you to literally use the browser, use all of the
+buttons, go through every screen, make sure everything works, do an example for
+everything… It's okay if this takes a while."*
+
+Walked both applications in Chrome on `walk/2026-09-05` — `main` with #262, #263
+and #267 merged, on the firm's answer that the walk should cover *"the product
+you actually intend"* rather than what happens to be on main. Scratch stores
+throughout; this checkout holds no live client data, and the owner's own
+instances on ports 5050 and 5051 were left alone.
+
+**Denominator: 1,779 + 1,468 = 3,247 passing tests, 0 failing, and not one of
+them is red because of anything below.** Twenty-five defects on the desk and six
+in the engagement browser, in `docs/WALKTHROUGH-DEFECTS.md`.
+
+**The three that matter.** `state.py:363` reads
+`def run_intake(self, folder, *, client_id: str = "SATC-001000", tax_year: int = 2024)`
+— so every document scanned through `/intake` posts to a **hardcoded demo client
+id** and to **tax year 2024**, whatever the preparer meant and whatever year the
+form says. I proved it by scanning two invented W-2s and watching 92,400 + 58,150
+land on a third party's 1040 workpaper. Second: a correction typed into a money
+field that is not a number is silently discarded and the machine's original
+figure posted instead, while the row goes on reading `CONFIRMED · human:owner`.
+Third: `/intake/plan` says *"Pick a client first"*, offers no way to pick one,
+guards only the tax year — and **Generate this engagement** then creates a real
+engagement belonging to nobody, with document requests that survive a sample-data
+clear.
+
+**And the two apps disagree about the price.** Same client, same 2025 Form 1040,
+same ref `2026-0001`: the client's estimate says **$350.00** (Simple Filer $100 +
+extension $75 + sorting $175), the desk's invoice says **$450.00**. #267 retired
+the second price list on the quote path; the **Prices** screen and the invoice
+catalogue still read it, and the invoice screen also shows *"No rate plan
+agreed"* while applying a 60% discount.
+
+**What is good is very good**, and the walk should say so: the gate is real and
+counts honestly (*"11 checks, nothing flagged — 1 check had nothing to look
+at"*), stage→gate→place leaves nothing behind on a refusal, the withholding
+estimator's TY2025 arithmetic ties out to the cent when recomputed
+independently, the engagement-ref control refuses `banana` by name, N/A demands a
+reason, and the Autonomy screen refuses to let a model attest on the owner's
+behalf.
+
+**I was wrong three times and withdrew each** — most instructively about the
+overpayment, which I wrote up twice as a defect before opening `/today` and
+finding the product had already thought it through, down to naming the gap I
+believed I had found. Five of my seven mistakes were caught by opening the thing
+rather than reasoning about it, which is the lesson the walk exists to apply to
+the product.
+
+**The procedure is the other deliverable and the one that gets skipped.**
+`docs/walkthrough/satc-front-to-back-2026-09-05/` — 22 numbered steps, a
+screenshot each, what a correct screen looks like, and a **Careful** note only
+where a step would otherwise walk somebody into one of the faults above. One
+self-contained 19-page PDF with every picture embedded, so it can be handed to
+somebody who does not have the repository.
+
+---
+
 ## Saturday 5 September 2026 — one price, and the second list is retired
 
 The firm, after correcting me on what the student rate means:

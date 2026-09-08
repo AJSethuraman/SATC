@@ -1,24 +1,72 @@
 meta:
   tax_year: 2025
   jurisdiction: US
-  source_label: "IRS Rev. Proc. 2024-40; SSA; IRS Notices 2024-80 / 2025-05"
+  source_label: "P.L. 119-21 (OBBBA); IRS Rev. Proc. 2024-40; SSA; IRS Notices 2024-80 / 2025-05"
   retrieved: "2026-06-17"
   status: in_force
   notes: >
     Federal inflation-adjusted parameters for tax year 2025 (last TCJA year under
-    the scheduled sunset). Verified against IRS Rev. Proc. 2024-40 and related
-    guidance. NOTE: several TCJA provisions were later modified by P.L. 119-21
-    (OBBBA, July 2025); reconcile to enacted law before filing TY2025.
+    the scheduled sunset), from IRS Rev. Proc. 2024-40 -- EXCEPT where P.L. 119-21
+    (OBBBA, 4 July 2025) superseded them for TY2025 itself, which is marked per
+    parameter with a `supersedes:` block holding what it replaced.
+
+    PARTIALLY RECONCILED, 6 September 2026, and the remainder is declared rather
+    than assumed: `obbba_not_modeled` below names every OBBBA provision this file
+    does NOT carry. The withholding estimator prints that list on screen with its
+    result. The instruction this note used to carry -- "reconcile to enacted law
+    before filing TY2025" -- was written when the file was built and nothing
+    enforced it, so it sat unread until a tie-out found the $165 it was worth.
 
 parameters:
+  # WHAT THIS FILE STILL DOES NOT CARRY, named so the screen can say it.
+  #
+  # The 6 September 2026 reconciliation was scoped deliberately to the standard
+  # deduction, on the firm's answer: "Fix the three, flag the rest." Every item
+  # below carries eligibility rules, phase-outs or occupation lists that are real
+  # tax judgement rather than a number to copy, and a half-reconciled table that
+  # LOOKS current is more dangerous than one that is obviously stale.
+  #
+  # This is a list of strings on purpose -- prose the preparer reads, not codes.
+  obbba_not_modeled:
+    value:
+      - "the deduction for qualified tips"
+      - "the deduction for qualified overtime"
+      - "the deduction for car loan interest"
+      - "the enhanced deduction for seniors (65+)"
+      - "the higher SALT cap ($40,000, up from $10,000)"
+      - "the higher child tax credit ($2,200, up from $2,000)"
+    citation: "P.L. 119-21 (OBBBA); IRS, 'How to update withholding to account for tax law changes for 2025'"
+
   filing_statuses:
     value: [single, mfj, mfs, hoh, qss]
     citation: "IRC sec. 1; Form 1040"
 
   standard_deduction:
-    value: {single: 15000, mfj: 30000, mfs: 15000, hoh: 22500, qss: 30000}
+    # RECONCILED TO ENACTED LAW, 6 September 2026. These are NOT the Rev. Proc.
+    # 2024-40 figures. P.L. 119-21 (OBBBA), signed 4 July 2025, raised the
+    # standard deduction FOR TAX YEAR 2025 ITSELF -- not for 2026 onwards -- so
+    # the inflation-adjusted amounts published in October 2024 were superseded
+    # nine months later and this file still held them.
+    #
+    # Found by tying one figure to the IRS on 6 September 2026: the estimator
+    # overstated federal tax by $165 on a single filer with $100,000 of wages.
+    # `docs/tie-out/withholding-2026-09-06/` carries the exhibit.
+    #
+    # No test could catch it. The engine's tests work out their expected answers
+    # from THIS FILE, so the code and the tests agreed with each other and both
+    # were wrong. `test_the_2025_tables_are_enacted_law.py` holds the enacted
+    # figures as literals with their citation, so it disagrees with this file
+    # rather than deriving from it.
+    value: {single: 15750, mfj: 31500, mfs: 15750, hoh: 23625, qss: 31500}
     unit: usd
-    citation: "Rev. Proc. 2024-40, sec. 2.15"
+    citation: "P.L. 119-21 (OBBBA) sec. 70102; IRC sec. 63(c)(7)"
+    supersedes:
+      value: {single: 15000, mfj: 30000, mfs: 15000, hoh: 22500, qss: 30000}
+      citation: "Rev. Proc. 2024-40, sec. 2.15"
+      note: >
+        Kept rather than deleted. These are the amounts SATC billed and estimated
+        against before 6 September 2026, and an estimate produced earlier is
+        explained by them.
 
   additional_std_deduction_age_or_blind:
     value: {unmarried: 2000, married_per_spouse: 1600}
@@ -79,6 +127,29 @@ parameters:
     value: {single: 533400, mfj: 600050, mfs: 300000, hoh: 566700}
     unit: usd
     citation: "Rev. Proc. 2024-40, sec. 2.03"
+
+  # THE RATES THEMSELVES, which lived as bare literals in `engine.py` until
+  # 7 September 2026 -- `Decimal("0.15")` and `Decimal("0.20")`, the only tax
+  # constants in the estimator with no citation and no date on them. Every other
+  # figure the engine uses comes from this file precisely so a reader can check
+  # it against the law; two rates had quietly opted out.
+  #
+  # Found while tying the capital-gains stacking to Rev. Proc. 2024-40 sec. 2.03,
+  # which names the "maximum zero rate amounts and maximum 15 percent rate
+  # amounts" -- and therefore names the rates, while the thresholds beside them
+  # were cited and the rates were not.
+  ltcg_rate_0:
+    value: 0.00
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(B); Rev. Proc. 2024-40 sec. 2.03 ('maximum zero rate amounts')"
+  ltcg_rate_15:
+    value: 0.15
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(C); Rev. Proc. 2024-40 sec. 2.03 ('maximum 15 percent rate amounts')"
+  ltcg_rate_20:
+    value: 0.20
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(D) — the residual rate above the 15% breakpoint"
 
   qbi_threshold:
     value: {single: 197300, mfj: 394600, mfs: 197300, hoh: 197300, qss: 394600}
@@ -237,6 +308,20 @@ parameters:
     value: 0.124
     unit: ratio
     citation: "IRC sec. 1401(a) — OASDI portion of SE tax"
+  se_minimum_net_earnings:
+    # THE FLOOR SCHEDULE SE PUTS ON ITSELF, and the engine did not have it.
+    # Line 4c: "Combine lines 4a and 4b. If less than $400, stop; you don't owe
+    # self-employment tax." The test is on the amount AFTER the 92.35%
+    # adjustment, which is what line 4a produces.
+    #
+    # Found on 7 September 2026 by tying the SE computation to the form: the
+    # engine charged $56.52 on net earnings of $400, where the form charges
+    # nothing. Small money, common case -- a side gig, a little 1099 income --
+    # and it overstated the client's tax, the same direction as the $165.
+    value: 400
+    unit: usd
+    citation: "Schedule SE (Form 1040) Part I, line 4c; IRC sec. 1402(b)(2)"
+
   se_medicare_rate:
     value: 0.029
     unit: ratio

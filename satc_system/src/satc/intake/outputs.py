@@ -250,12 +250,48 @@ def _render_task_list(
     return "".join(parts)
 
 
-def _render_risk_flags(engagement: Job) -> str:
+def _render_risk_flags(engagement: Job, workflow: Any = None) -> str:
+    """Flags raised, and -- the part that used to be missing -- what was not asked.
+
+    A flag is raised by a risk question answered YES. Until 5 September 2026 every
+    question was pre-selected NO, so "No risk flags generated." was true by
+    construction on any interview where nobody deliberately ticked one: a green
+    produced by the absence of an answer rather than the presence of a safe one.
+    Name the input that makes it red -- somebody choosing Yes -- and nothing else
+    could. So the unanswered ones are counted and said out loud here.
+    """
     flags = getattr(engagement, "risk_flags", None) or []
-    if not flags:
-        return "<p>No risk flags generated.</p>"
-    items = "".join(f"<li>{escape_html(flag)}</li>" for flag in flags)
-    return f"<ul>{items}</ul>"
+    unanswered = _unanswered_risk_questions(engagement, workflow)
+
+    parts = []
+    if flags:
+        items = "".join(f"<li>{escape_html(flag)}</li>" for flag in flags)
+        parts.append(f"<ul>{items}</ul>")
+    elif not unanswered:
+        parts.append("<p>No risk flags generated, and every risk question was answered.</p>")
+    else:
+        parts.append("<p>No risk flags generated.</p>")
+
+    if unanswered:
+        asked = "".join(f"<li>{escape_html(label)}</li>" for label in unanswered)
+        parts.append(
+            f"<p><strong>{len(unanswered)} risk question(s) were not answered</strong>, "
+            f"so this is not a clean bill of health &mdash; nothing was asked to raise "
+            f"a flag from:</p><ul>{asked}</ul>")
+    return "".join(parts)
+
+
+def _unanswered_risk_questions(engagement: Job, workflow: Any) -> list[str]:
+    """Labels of the workflow's risk questions carrying no answer on this engagement."""
+    answers = getattr(engagement, "intake_answers", None) or {}
+    out = []
+    for q in (getattr(workflow, "questions", None) or [] if workflow else []):
+        if not getattr(q, "risk_flag", ""):
+            continue
+        value = answers.get(getattr(q, "id", ""))
+        if value in (None, ""):
+            out.append(getattr(q, "label", "") or getattr(q, "id", ""))
+    return out
 
 
 def _render_intake_answers(engagement: Job, workflow: Any) -> str:
@@ -506,7 +542,7 @@ def generate_internal_checklist_print_html(
     body = f"""
     <section>
       <h2>Risk flags</h2>
-      {_render_risk_flags(engagement)}
+      {_render_risk_flags(engagement, workflow)}
     </section>
     <section>
       <h2>Intake answers</h2>

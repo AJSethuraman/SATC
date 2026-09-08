@@ -19,6 +19,19 @@
       there is nothing here to chase yet. That is a different report from
       "nothing outstanding", and only one of them is good news.
     </p>
+    {% elif not chase.rows and chase.opened_today %}
+    {# THE HEADLINE HAS TO MATCH THE REGISTER UNDERNEATH IT. This said
+       "Nothing outstanding." while the register below read "Asked for · 5
+       open", every row badged `outstanding`. The behaviour is right -- a
+       same-day ask is held back, because chasing on the morning you asked is
+       noise -- but five things ARE outstanding and none is DUE TO BE CHASED,
+       and those are different sentences. `waiting()` already counts what it
+       held back; nothing was reading the count. #}
+    <p class="note tie">
+      Nothing to chase yet &mdash; {{ chase.opened_today }} asked for today, and
+      chasing on the morning you asked is noise rather than a chase. They appear
+      here tomorrow. Nothing else is outstanding.
+    </p>
     {% elif not chase.rows %}
     <p class="note tie">Nothing outstanding.</p>
     {% else %}
@@ -81,7 +94,12 @@
         </td>
         <td class="right">
           {% if i.is_open %}
+          {# HOW IT ARRIVED, asked here because the register below cites a
+             regulation that requires it. Optional on purpose: an unrecorded
+             channel flags itself as incomplete on the arrival, which is more
+             use than a mandatory box people learn to fill with a full stop. #}
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
+            <input class="field-input" type="text" name="channel" placeholder="how it arrived — email, portal, paper…" style="width:190px">
             <button class="btn sm" type="submit" name="how" value="received">Received</button>
           </form>
           <form class="inline" method="post" action="{{ url_for('close_request', request_id=i.request_id) }}">
@@ -125,6 +143,27 @@
       </tr>
       {% endfor %}
     </table>
+    {# THE COUNT, SAID ONCE, ABOVE THE CITATION IT RELATES TO. D26's second half,
+       and the firm's answer was "warn on the screen" -- not block.
+       Per-row flags already existed; a preparer reading twenty rows should not
+       have to total them up to find out whether this file is in good order. And
+       it says WHAT TO DO, because a warning that names no remedy is a warning
+       people learn to scroll past. #}
+    {% set gaps = state.provenance_gaps() %}
+    {% if gaps %}
+    <p class="note flag">
+      <b>{{ gaps | length }} of {{ received | length }}</b> arrival(s) have an
+      incomplete record — most often because nobody said how they arrived.
+      <b>Nothing is blocked by this</b>: the return can still be prepared and
+      filed. Close the gap by re-running intake with <em>How did these arrive?</em>
+      answered, or by marking the document Received above with a channel.
+    </p>
+    {% elif received %}
+    <p class="note tie">
+      All {{ received | length }} arrival(s) carry a complete
+      26 CFR §1.6695-2 record — how, when, from whom, and by what means.
+    </p>
+    {% endif %}
     <p class="note">
       How and when a document was obtained, and from whom, is required by
       26 CFR §1.6695-2(b)(4)(i)(C) — not a nicety.

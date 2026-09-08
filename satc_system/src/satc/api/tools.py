@@ -115,13 +115,23 @@ def create_business_client(state, *, legal_name: str, entity_type: str = "", ein
     return {"client_id": cid, "name": state.name(cid)}
 
 
-def run_intake(state, *, folder: str, client_id: str, tax_year: int = 2024) -> dict:
-    """Classify + stage every document in a LOCAL folder for a client; returns a summary."""
+def run_intake(state, *, folder: str, client_id: str, tax_year: int) -> dict:
+    """Classify + stage every document in a LOCAL folder for a client; returns a summary.
+
+    ``tax_year`` IS REQUIRED. It defaulted to 2024 here until 5 September 2026 --
+    the same default that was removed from ``AppState.run_intake`` the same day,
+    left behind on the layer a MODEL calls. A caller with no year filed the
+    documents into the prior year in silence, and this door is the one an
+    ``ai_staff`` principal reaches.
+    """
     return _to_json(state.run_intake(folder, client_id=client_id, tax_year=tax_year))
 
 
-def post_confirmed_intake(state, *, client_id: str, tax_year: int = 2024) -> dict:
-    """Post the gate's CONFIRMED staged values onto the client's return as line items."""
+def post_confirmed_intake(state, *, client_id: str, tax_year: int) -> dict:
+    """Post the gate's CONFIRMED staged values onto the client's return as line items.
+
+    ``tax_year`` is required, for the reason given on :func:`run_intake` above.
+    """
     return _to_json(state.post_confirmed(client_id=client_id, tax_year=tax_year))
 
 

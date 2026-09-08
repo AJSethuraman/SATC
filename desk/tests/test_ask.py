@@ -11,8 +11,11 @@ from pathlib import Path
 
 import pytest
 
+import dataclasses
+
 import ask
 import engine
+import positions
 import record
 from conftest import DESKS
 
@@ -53,14 +56,36 @@ def test_the_brief_never_carries_the_answer_key():
 def test_the_brief_never_carries_a_proposal():
     """A PROPOSED position is one agent's suggestion nobody has said yes to.
     Showing it would let a guess become the next agent's premise, which is the
-    whole failure the two-store split exists to prevent."""
-    for name in ("capitalization-and-de-minimis", "vehicle-expense"):
-        desk = record.load(DESKS / name)
-        proposals = [q for q in desk.positions if q.proposed]
-        assert proposals, f"{name} no longer proves it"
+    whole failure the two-store split exists to prevent.
+
+    NAMED DESKS USED TO BE THE FIXTURE, AND RATIFICATION BROKE IT. This asserted
+    over `capitalization-and-de-minimis` and `vehicle-expense`; on 5 September
+    2026 the firm ratified every vehicle proposal and the test failed for saying
+    a desk "no longer proves it" -- the record moving as designed, reported as a
+    defect. So the fixture is now built here, and the record is checked as well
+    as rather than instead of.
+    """
+    built = dataclasses.replace(
+        record.load(DESKS / "cash-and-bank"),
+        positions=(positions.Position(
+            id="POSX", title="a proposal nobody has said yes to",
+            citation="IRS Pub. 583 (12/2024), \"Reconciling the checking account\""
+                     " -- what the statement did not yet include",
+            recorded="2026-09-05",
+            position="THIS SENTENCE MUST NEVER REACH AN ANSWERER"),))
+    assert all(q.proposed for q in built.positions), "the fixture is not a proposal"
+    assert "THIS SENTENCE MUST NEVER REACH AN ANSWERER" not in ask.brief("cheque", built)
+
+    # And the same over whatever the record actually holds today, which may be
+    # nothing -- ratification is the point, so an empty sweep is not a failure.
+    for d in sorted(DESKS.iterdir()):
+        if not (d / "SOURCES.md").is_file():
+            continue
+        desk = record.load(d)
         text = ask.brief("what is our capitalisation threshold?", desk)
-        for q in proposals:
-            assert q.position not in text, f"{name}/{q.id} reached the answerer"
+        for q in desk.positions:
+            if q.proposed:
+                assert q.position not in text, f"{d.name}/{q.id} reached the answerer"
 
 
 def test_the_firms_own_positions_do_reach_the_answerer():
@@ -178,7 +203,7 @@ def test_the_skill_reaches_the_module_from_the_installed_plugin():
     """
     import re
 
-    text = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+    text = (Path(__file__).resolve().parents[1] / "skills" / "be-the-desk"
             / "SKILL.md").read_text(encoding="utf-8")
     blocks = [b for b in re.findall(r"```python\n(.*?)```", text, re.S)
               if re.search(r"^import ask$", b, re.M)]
@@ -207,7 +232,7 @@ def test_a_narrowing_may_not_rest_on_a_position_nobody_ratified(tmp_path):
         "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** a\n\n**Facts:** f\n",
         encoding="utf-8")
     (d / "extracted" / "a.md").write_text(
-        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05\n\n> a rule\n",
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-05 · **Kind:** rule\n\n> a rule\n",
         encoding="utf-8")
     (d / "positions" / "POSITIONS.md").write_text(
         "## POS1 · A proposal\n\n**Citation:** 26 CFR 2 · "

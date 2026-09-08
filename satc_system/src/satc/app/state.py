@@ -239,6 +239,29 @@ class AppState:
         """Open requests that stop prep — the ones that are not just noise."""
         return [i for i in self.outstanding() if i.blocks_prep]
 
+    def provenance_gaps(self, client_id: str = "", tax_year: int | None = None) -> list:
+        """Arrivals whose §1.6695-2 record is incomplete. WARNS; NEVER BLOCKS.
+
+        The firm's answer to D26's second half, 6 September 2026: **"Warn on the
+        screen."** Not block — and the reasoning is the software's own. IRS Pub
+        1345 genuinely forbids transmitting before the W-2s are in hand, so a
+        MISSING DOCUMENT stops a return and should. A document that is here, and
+        whose provenance nobody wrote down, is a record-keeping gap: it is about
+        what the practice can show afterwards, not about whether the return is
+        right. Stopping an April filing over a dropdown somebody skipped in
+        February teaches people to route around the refusal, and a refusal people
+        route around is worse than a warning they read.
+
+        So this returns the rows and says nothing about whether work may
+        continue. Nothing calls `blocks_transmission` with it, deliberately.
+        """
+        rows = [d for d in self.received_documents() if not d.has_known_provenance]
+        if client_id:
+            rows = [d for d in rows if d.client_id == client_id]
+        if tax_year is not None:
+            rows = [d for d in rows if d.tax_year == tax_year]
+        return rows
+
     def returns(self):
         return self.mart.returns
 
@@ -271,7 +294,7 @@ class AppState:
 
     # -- mutations (write through to the store) ---------------------------
     def close_request(self, request_id: str, *, reason: str = "",
-                      how: str = "") -> None:
+                      how: str = "", channel: str = "") -> None:
         """Close an open request — satisfied, or not applicable WITH A REASON.
 
         Replaces set_document_status(). The old call took any of five statuses
@@ -306,8 +329,63 @@ class AppState:
                 mark_not_applicable(item, reason)      # raises on a blank reason
             else:
                 item.status = "satisfied"
+                # THE ARRIVAL IS WRITTEN BEFORE THE REQUEST IS CLOSED, and the
+                # order is deliberate: if the arrival write fails, the request
+                # stays open, which is the safe direction to fail in. The other
+                # way round leaves a closed ask with nothing recorded against
+                # it -- the very defect this exists to end.
+                #
+                # And the reload belongs AFTER the save, not inside the record.
+                # The first version reloaded the mart from the store while
+                # `item` was still unsaved, so the freshly-closed request came
+                # back OPEN in memory and the tracker never counted down.
+                # `test_closing_a_request_drops_it_off_the_tracker` caught it.
+                self._record_arrival(item, channel=channel)
             self.store.save_requested_items([item])
+            self.reload()
             return
+
+    def _record_arrival(self, item, *, channel: str = "") -> None:
+        """Write the ARRIVAL, not just the closed request.
+
+        THE SCREEN KEEPS TWO REGISTERS AND SAYS WHY -- "what we asked for, and
+        what has arrived" -- and the second one carries its own justification:
+        "How and when a document was obtained, and from whom, is required by
+        26 CFR 1.6695-2(b)(4)(i)(C) -- not a nicety."
+
+        Pressing **Received** closed the first register and wrote nothing to the
+        second. The ask went to `satisfied`, the nav badge counted down, and
+        `Arrived` still read "Nothing has arrived yet." So the one button on the
+        screen meaning "it came in" left no record of the three things the
+        citation names. Found by walking it, 5 September 2026.
+
+        WHAT IS DERIVED AND WHAT IS NOT. `furnished_by_client` and the client are
+        derived, not guessed: this request was made TO that client, and closing
+        it as received is the statement that they answered it. The DATE is now,
+        which is when the preparer recorded it. The CHANNEL -- email, portal,
+        paper -- is genuinely unknown unless somebody says, so it is left empty
+        and the row flags itself `provenance incomplete` rather than inventing
+        one. An arrival that is honest about its gap is worth more than a
+        complete-looking record nobody can rely on.
+
+        Idempotent: the id is derived from the request, so pressing Received
+        twice records one arrival rather than two.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        self.store.save_received_documents([ReceivedDocument(
+            document_id=f"received-{item.request_id}",
+            client_id=item.client_id,
+            tax_year=item.tax_year,
+            doc_type=item.doc_type,
+            obtained_how="furnished_by_client",
+            obtained_at=datetime.now(),
+            furnished_by=self.name(item.client_id),
+            channel=(channel or "").strip(),
+            satisfies_request_id=item.request_id,
+        )])
 
     def confirm_field(self, field_id: str) -> None:
         self.gate.confirm(field_id, acting_actor())
@@ -321,12 +399,26 @@ class AppState:
     def delete_field(self, field_id: str) -> None:
         self.gate.delete_field(field_id)
 
-    def edit_field(self, field_id: str, raw_value: str) -> None:
-        """Hand-correct a staged value (parses money the same conservative way reads do)."""
+    def edit_field(self, field_id: str, raw_value: str) -> str:
+        """Hand-correct a staged value (parses money the same conservative way reads do).
+
+        Returns ``""`` when the correction was taken, or a sentence saying why it
+        was not. The gate refuses a non-numeric correction to a field that holds an
+        amount; before it did, the correction was displayed as confirmed and the
+        machine's original figure was posted instead. See ``StagingGate.edit``.
+        """
         from satc.ingest.extractors.base import parse_money
         amount, _conf, _note = parse_money(raw_value)   # None if it isn't a clean number
-        self.gate.edit(field_id, acting_actor(),
-                       value_text=raw_value.strip(), value_amount=amount)
+        if self.gate.edit(field_id, acting_actor(),
+                          value_text=raw_value.strip(), value_amount=amount):
+            return ""
+        field = next((f for f in self.gate.all_fields() if f.field_id == field_id), None)
+        if field is None:
+            return "That row is no longer on this screen."
+        return (f"“{raw_value.strip()}” is not an amount, and {field.label} holds one. "
+                f"Nothing was changed: the figure read off the document "
+                f"({field.value_amount}) is still what would post. Type a number, or "
+                f"use Delete if the row does not belong here at all.")
 
     def auto_confirm(self) -> int:
         return self.gate.auto_confirm_high(INTAKE)
@@ -360,19 +452,54 @@ class AppState:
         self.reload()
 
     # -- intake: actually read the files in a folder ----------------------
-    def run_intake(self, folder: str, *, client_id: str = "SATC-001000",
-                   tax_year: int = 2024) -> dict:
+    def run_intake(self, folder: str, *, client_id: str, tax_year: int,
+                   arrival: str = "") -> dict:
         """Read every file in ``folder`` and stage the values. Returns a summary.
 
         Each file is classified by *content* — not its name — so a W-2 named
         ``scan001.pdf`` is still recognized. A combined multi-form PDF is split into
         its parts first, and each document is read by the cheapest sufficient
         backend: fillable form fields, then the free text layer, then vision.
+
+        ``client_id`` AND ``tax_year`` ARE REQUIRED, AND THAT IS THE FIX.
+        This signature read ``client_id: str = "SATC-001000", tax_year: int = 2024``
+        until 5 September 2026. Nothing on the ``/intake`` screen ever supplied
+        either, so **every document any preparer scanned was posted to a hardcoded
+        demo client, in the prior tax year.** A walk found it by scanning two
+        invented W-2s and watching 92,400 + 58,150 land as ``Wages 150,550.00`` on a
+        third party's 1040 workpaper — 2025 forms, filed into 2024. 3,247 passing
+        tests did not catch it, because several of them *passed the default in*.
+
+        Defaulting is the wrong shape for both. A client is not a preference with a
+        sensible fallback; there is no such thing as a document that belongs to
+        whoever the system happened to think of first. `DESIGN-PRINCIPLES.md` already
+        says it — refuse rather than default — and this is the case it was written
+        for.
+
+        ``arrival`` IS HOW THE BATCH GOT HERE, asked once on the screen — the
+        firm's answer to D26 on 6 September 2026, "ask once per folder". Until
+        then this method wrote nothing at all to the arrivals register, so the
+        register 26 CFR §1.6695-2(b)(4)(i)(C) requires had never held a real row.
+
+        It is the one thing a folder scan genuinely cannot work out: a client
+        emailed it, the preparer pulled it off a portal, it is last year's
+        carry-forward — the file on disk is identical either way. Blank resolves
+        to `not_recorded`, which writes `unknown` and lets the row flag itself
+        rather than inventing a plausible answer. See `satc.intake.arrival`.
         """
         import os
         import tempfile
 
         from satc.intake import reconcile_received
+
+        if not client_id:
+            raise ValueError(
+                "run_intake needs a client: reading documents without one used to "
+                "post them to SATC-001000, whoever that turned out to be.")
+        if not tax_year:
+            raise ValueError(
+                "run_intake needs a tax year: it decides which return the figures "
+                "land on, and it is never safe to assume last year's.")
 
         # L8: if an intake root is configured, refuse folders outside it so an
         # agent-supplied path can't reach arbitrary directories. No-op when unset.
@@ -382,12 +509,17 @@ class AppState:
             if root_p != folder_p and root_p not in folder_p.parents:
                 raise ValueError(f"intake folder {folder} is outside SATC_INTAKE_ROOT ({root})")
 
-        self.intake_context = {"client_id": client_id, "tax_year": tax_year}
+        from satc.intake import arrival as arrivals
+
+        how_it_arrived = arrivals.resolve(arrival)
+        self.intake_context = {"client_id": client_id, "tax_year": tax_year,
+                               "arrival": how_it_arrived.key}
         self.gate = StagingGate()          # fresh working area for this intake
         self.intake_sources = set()        # allow-list of source files for /source
         files_read = 0
         fields_staged = 0
         reconciled = 0
+        arrivals_written: list = []
         notes: list[str] = []
         allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
         classifier = load_classifier(has_key=allow_cloud)
@@ -422,6 +554,22 @@ class AppState:
 
                 for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
+                    # THE ARRIVAL, WRITTEN FOR EVERY DOCUMENT THAT CAME IN --
+                    # not only the ones that happen to close a request.
+                    #
+                    # D26: nothing in `src/` had ever written to this register.
+                    # It is done here, in the per-document loop and before the
+                    # reconciliation below, because the two registers answer
+                    # different questions: `Arrived` is what turned up, and it is
+                    # true whether or not anybody asked for it. A document nobody
+                    # requested is exactly the kind of thing a preparer needs to
+                    # see, and hanging the write off the request-matching branch
+                    # would have recorded only the expected ones.
+                    arrivals_written.append(self._arrival_from_intake(
+                        doc_id=doc_id, client_id=client_id, tax_year=tax_year,
+                        doc_type=(c.label if c.classified else "unidentified"),
+                        display_name=display, source_path=str(fpath),
+                        how_it_arrived=how_it_arrived))
                     # A multi-form page closes nothing on its own -- see
                     # matching.is_multi. It is filed and flagged; which requests
                     # it actually satisfies is the preparer's call.
@@ -482,12 +630,76 @@ class AppState:
                                  f"{len(staged.fields)} fields via {via}.")
 
         self.gate.auto_confirm_high(INTAKE)
-        if reconciled:
+        # ONE WRITE FOR THE WHOLE RUN, and it happens before the reload so the
+        # Arrived table is populated by the time the screen redraws.
+        if arrivals_written:
+            self.store.save_received_documents(arrivals_written)
+        if reconciled or arrivals_written:
             self.reload()              # refresh documents view with the new Received statuses
+
+        # SAY WHAT THE RUN RECORDED ABOUT PROVENANCE, on the page it happened on.
+        # An `unknown` batch is a legitimate answer and must not read as a
+        # failure -- but it must not pass silently either, or the register fills
+        # with gaps nobody chose.
+        if arrivals_written:
+            incomplete = [d for d in arrivals_written if not d.has_known_provenance]
+            if not incomplete:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s): "
+                    f"{how_it_arrived.label.lower()} — a complete "
+                    f"26 CFR §1.6695-2 record for each.")
+            else:
+                notes.append(
+                    f"Recorded {len(arrivals_written)} arrival(s), "
+                    f"{len(incomplete)} without complete provenance. Nothing is "
+                    f"blocked; the Documents screen flags them, and you can say "
+                    f"how each arrived there.")
+
         self.intake_summary = {"folder": folder, "files_read": files_read,
                                "fields_staged": fields_staged, "reconciled": reconciled,
+                               "arrivals": len(arrivals_written),
+                               "arrival_label": how_it_arrived.label,
                                "notes": notes}
         return self.intake_summary
+
+    def _arrival_from_intake(self, *, doc_id: str, client_id: str, tax_year: int,
+                             doc_type: str, display_name: str, source_path: str,
+                             how_it_arrived):
+        """One `ReceivedDocument` for a document a folder scan turned up.
+
+        WHAT IS DERIVED AND WHAT IS ASKED, which is the whole shape of D26:
+
+          when          NOW. When the preparer ran the intake.
+          whose         the client the run was pointed at -- `run_intake`
+                        refuses without one, so this is never a guess.
+          what          the classifier's label, or "unidentified".
+          how / channel ASKED, once, for the batch. The one thing a file on
+                        disk cannot answer.
+          from whom     the client's name where the answer says the CLIENT
+                        furnished it, and blank otherwise -- a third party
+                        sending something says who it was not, not who it was.
+
+        The id is derived from the document rather than generated, so re-running
+        an intake over the same folder updates the same rows instead of filling
+        the register with duplicates of one document.
+        """
+        from datetime import datetime
+
+        from satc.models.evidence import ReceivedDocument
+
+        return ReceivedDocument(
+            document_id=f"intake-{doc_id}",
+            client_id=client_id,
+            tax_year=tax_year,
+            doc_type=doc_type,
+            obtained_how=how_it_arrived.obtained_how,
+            obtained_at=datetime.now(),
+            furnished_by=(self.name(client_id) if how_it_arrived.furnished_by_client
+                          else ""),
+            channel=how_it_arrived.channel,
+            display_name=display_name,
+            source_path=source_path,
+        )
 
     @staticmethod
     def _read_document(fpath: Path, cfg: dict, allow_cloud: bool):
@@ -583,8 +795,17 @@ class AppState:
         1040 line ids with aggregation (every W-2 box 1 summed into wages, etc.).
         The return is created if it doesn't exist; re-posting is idempotent.
         """
-        client_id = client_id or self.intake_context.get("client_id") or "SATC-001000"
-        tax_year = tax_year or self.intake_context.get("tax_year") or 2024
+        # The same defect as `run_intake`, one step further downstream: this used to
+        # end `or "SATC-001000"` / `or 2024`, so a post with no context of its own
+        # wrote the figures onto a demo client's return in the prior year. The
+        # context is set by `run_intake`, which now cannot run without both.
+        client_id = client_id or self.intake_context.get("client_id")
+        tax_year = tax_year or self.intake_context.get("tax_year")
+        if not client_id or not tax_year:
+            raise ValueError(
+                "post_confirmed needs a client and a tax year. Nothing was staged "
+                "by an intake run that recorded them, and guessing is how staged "
+                "figures used to land on somebody else's return.")
         rk = return_key(client_id, tax_year, return_type, jurisdiction)
         ret = next((r for r in self.mart.returns if r.return_key == rk), None)
         if ret is None:
@@ -607,7 +828,15 @@ class AppState:
         self.store.delete_intake_line_items(rk)
         self.store.save_mart(self.mart)
         self.reload()
+        # WHAT BECAME OF EVERY CONFIRMED VALUE, not just how many lines came
+        # out. D8: the button said "Post 10 confirmed" and the result said
+        # "posted 6", with nothing on the page explaining the four. Nothing was
+        # lost -- two W-2s aggregate onto shared 1040 lines -- but a count that
+        # shrinks without an explanation cannot be told apart from one that did
+        # lose something, and the reviewer's question had no answer anywhere.
+        account = self.gate.posting_account(MAPPING_1040)
         self.posted_summary = {"return_key": rk, "client_id": client_id, "posted": len(items),
+                               "account": account,
                                "lines": [(li.label, float(li.amount) if li.amount is not None
                                           else li.text_value) for li in items]}
         return self.posted_summary

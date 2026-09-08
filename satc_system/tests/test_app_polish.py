@@ -61,7 +61,8 @@ def test_intake_retains_source_and_route_is_allowlisted(tmp_path, client):
     from satc.fixtures import create_sample_folder
 
     fresh = AppState()
-    fresh.run_intake(str(create_sample_folder(tmp_path / "2024")))
+    fresh.run_intake(str(create_sample_folder(tmp_path / "2024")),
+                     client_id="SATC-001000", tax_year=2024)
     sourced = [d for d in fresh.gate.documents if d.source_path]
     assert sourced, "each read document should retain its source file path"
 
