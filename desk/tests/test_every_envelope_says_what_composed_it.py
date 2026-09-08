@@ -16,6 +16,8 @@ would have passed silently on the fourth, which is the same defect one release
 later.
 """
 import inspect
+import pathlib
+import re
 
 import record
 import relay
@@ -115,3 +117,59 @@ def test_the_stamp_sits_near_the_top_of_each_envelope():
         lines = compose().splitlines()
         where = next(i for i, ln in enumerate(lines) if "Composed by desk" in ln)
         assert where <= 3, f"{name} buries the stamp {where} lines down"
+
+
+# ------------------------------------- and every skill it names has to exist
+
+SKILLS = pathlib.Path(relay.__file__).resolve().parent / "skills"
+
+#: A skill named in an envelope, written the way the envelopes write them.
+NAMED = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
+
+
+def test_every_skill_an_envelope_names_is_a_skill_that_exists():
+    """IT SHIPPED WRONG ONCE, in the same commit that renamed the skill. The
+    envelope told the desk to use `ask-desk`; `ask-desk` had just become the
+    DOER's skill and the desk's was now `be-the-desk`. Twenty-five tests passed
+    on that envelope, every one a substring check on some other sentence.
+
+    A name in a message is a name nobody re-reads. So it is checked against the
+    directory rather than against a list here — a list would be the same
+    hand-maintained copy that went wrong."""
+    on_disk = {p.name for p in SKILLS.iterdir() if (p / "SKILL.md").exists()}
+    assert on_disk, "no skills found; this test is checking nothing"
+
+    for name, compose in sorted(SPECIMENS.items()):
+        for maybe in NAMED.findall(compose()):
+            if maybe in on_disk or not _looks_like_a_skill(on_disk, maybe):
+                continue
+            raise AssertionError(
+                f"{name} names `{maybe}`, which is not a skill in {SKILLS}. "
+                f"On disk: {sorted(on_disk)}")
+
+
+def _looks_like_a_skill(on_disk, maybe):
+    """Only judge names that LOOK like one of ours — a hyphenated token sharing
+    a word with a real skill. Otherwise every hyphenated phrase in the prose
+    ("poke-only", "last_fired_at") would have to be a skill directory.
+
+    THE FIRST VERSION OF THIS WAS SELF-PROVING and green with the defect in
+    place: it asked `maybe not in _plausible(...)`, and `_plausible` returned a
+    subset of what is ON DISK, so a name that was not on disk was never in it
+    and every iteration hit `continue`. The mutation below is why that is known
+    rather than believed. Third self-proving test caught by mutation in three
+    days; reading did not catch any of them."""
+    words = set(maybe.split("-"))
+    return any(words & set(s.split("-")) for s in on_disk)
+
+
+def test_the_desk_envelope_names_the_desk_s_skill_and_says_which_is_not():
+    """The doer's skill and the desk's have similar names and opposite jobs."""
+    body = _ask()
+    assert "`be-the-desk` skill" in body
+    assert "NOT `ask-desk`" in body
+
+
+def test_the_research_envelope_names_the_searcher_s_skill():
+    assert "`run-down-a-question`" in _research()
+    assert (SKILLS / "run-down-a-question" / "SKILL.md").exists()
