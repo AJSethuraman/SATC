@@ -28,13 +28,6 @@ import sys
 import time
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-#: The 16-level greyscale strips, which are 36% of the colour ones and
-#: indistinguishable at reading size -- a Call Report page is black text
-#: on white, so the colour channels were carrying nothing. The colour
-#: originals stay on disk and `--colour` still uses them.
-STRIPS = SB / ("deepstrips" if "--colour" in sys.argv else "deepstrips-grey")
-if not STRIPS.exists():
-    STRIPS = SB / "deepstrips"
 #: The exhibits live on the Forge, not in the repository. The firm, having
 #: first said to store all of it: "But we can save them locally on the
 #: forge instead of taking space on git." Outside the working tree rather
@@ -55,6 +48,18 @@ sys.path.insert(0, str(CS / "src"))
 from credit_suite.workdir import workdir        # noqa: E402
 
 SB = workdir()
+# Moved below `SB = workdir()`. This sat ABOVE it from the move to the Forge
+# on 7 September 2026, so this tool raised NameError on import and could not
+# be run at all. Nine tools carried the same break and nothing caught it: the
+# standing run starts downstream of every one of them.
+#
+#: The 16-level greyscale strips, which are 36% of the colour ones and
+#: indistinguishable at reading size -- a Call Report page is black text on
+#: white, so the colour channels were carrying nothing. The colour originals
+#: stay on disk and `--colour` still uses them.
+STRIPS = SB / ("deepstrips" if "--colour" in sys.argv else "deepstrips-grey")
+if not STRIPS.exists():
+    STRIPS = SB / "deepstrips"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import plain as FPLAIN             # noqa: E402

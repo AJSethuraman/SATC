@@ -141,6 +141,14 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
             # A difference that does not say what the other number was is a
             # flag the reader cannot act on. Give them both figures and the
             # gap, in the row itself.
+            #
+            # A ratio needs its decimals. Printed to none, the second
+            # difference in this feed -- Huntington's total capital ratio,
+            # 14.092446 against 14.087700 -- reads "the filing reads 14 and the
+            # FDIC publishes 14, a difference of 0": a row that flags itself
+            # and then denies it.
+            _spec = ",.6f" if units_of(r["field"]) == "percent" else ",.0f"
+            _fmt = lambda v: format(v, _spec)          # noqa: E731
             note = ("the filing reads %s and the FDIC publishes %s, a "
                     "difference of %s. The filing was read twice -- off the "
                     "printed page and off the machine-readable copy of the "
@@ -149,8 +157,8 @@ with (OUT / "bank-values.csv").open("w", newline="", encoding="utf-8") as fh:
                     "and the FDIC's published figure has not moved with it, "
                     "which is the likeliest explanation and is not proven: "
                     "the pre-amendment filing is not obtainable. %s"
-                    % (f"{float(r['theirs']):,.0f}", f"{float(r['ours']):,.0f}",
-                       f"{float(r['ours']) - float(r['theirs']):,.0f}",
+                    % (_fmt(float(r['theirs'])), _fmt(float(r['ours'])),
+                       _fmt(float(r['ours']) - float(r['theirs'])),
                        r.get("how", ""))).strip()
         w.writerow([
             r["cert"], r["bank"], r["repdte"], r["field"], r["ours"],

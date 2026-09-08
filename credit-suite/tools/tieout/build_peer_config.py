@@ -79,12 +79,38 @@ def legal_name(cert, newest=True):
 
 
 def matches(ours, theirs):
-    """Same bank, allowing for `NA` against `NATIONAL ASSOCIATION` and commas."""
+    """Same bank, allowing for `NA` against `NATIONAL ASSOCIATION` and commas.
+
+    Deliberately loose: it answers "is this certificate the bank whose name we
+    print beside it", where what we print is a short label and the filing
+    carries the full legal name. It is the WRONG test for whether a name
+    changed -- see `same_name`.
+    """
     if not theirs:
         return False
     a = re.sub(r"[^a-z]", "", ours.lower())
     b = re.sub(r"[^a-z]", "", theirs.lower())
     return a[:9] in b or b[:9] in a
+
+
+def same_name(oldest, newest):
+    """Is the legal name on the oldest filing the same as on the newest?
+
+    Exact, on purpose. This used to call `matches`, whose nine-character prefix
+    test is right for "is this our bank" and wrong here: it read FIFTH THIRD
+    BANK and FIFTH THIRD BANK, NATIONAL ASSOCIATION as the same name, so a
+    charter conversion inside the window went unrecorded and the covering
+    document published "17 of 19" where the record itself held 16.
+
+    A comparison that normalises is not the check that was described. The claim
+    is that the same legal name is printed on the oldest filing and the newest,
+    so the two printed strings are compared, with nothing set aside but
+    surrounding whitespace and letter case.
+    """
+    if not oldest or not newest:
+        return False
+    tidy = lambda s: re.sub(r"\s+", " ", s).strip().upper()      # noqa: E731
+    return tidy(oldest) == tidy(newest)
 
 
 entries, unverified, renamed = [], [], []
@@ -95,7 +121,7 @@ for slot, cert, name, group, active in SEED.PEERS:
     # Same certificate, different name at the start of the window. Cosmetic
     # for a charter conversion; not cosmetic when the institution absorbed
     # another one and kept the certificate, which is the Truist case.
-    same_throughout = bool(oldest) and matches(legal or "", oldest)
+    same_throughout = same_name(oldest, legal)
     entries.append({"slot": slot, "cert": str(cert), "name": name,
                     "group": group, "active": active == "TRUE",
                     "legal_name_on_filing": legal,

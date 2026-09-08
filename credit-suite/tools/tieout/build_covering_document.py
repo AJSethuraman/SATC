@@ -39,7 +39,7 @@ OUT = CS / "docs" / "tie-out"
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
-STAMP = "2026-09-07"
+STAMP = "2026-09-08"
 PDF = OUT / ("SATC-VERIFIED-CREDIT-DATA-how-it-was-proved-%s.pdf" % STAMP)
 
 
@@ -89,9 +89,31 @@ _VINT = {(b["cert"], b["report_date"]): b["days_after_quarter_end"]
 VINTAGE_TOTAL = len(_VINT)
 VINTAGE_LATE = sum(1 for d in _VINT.values() if int(d) > 90)
 VINTAGE_VERY_LATE = sum(1 for d in _VINT.values() if int(d) > 365)
+#: How far the three steps under "Check any number yourself" actually get a
+#: reader, counted rather than claimed. A single prefixed code is the only
+#: shape those steps describe.
+_ONE_LINE = __import__("re").compile(r"^(RC[A-Z]{2}|RIAD)[A-Z]?\d{3,4}$")
+RECIPE = {"one line": 0, "arithmetic": 0, "two filings": 0, "no line": 0}
+for _r in BANK:
+    _c, _note = _r["cited_line"], _r["note"]
+    if "year-to-date less the previous" in _note:
+        RECIPE["two filings"] += 1
+    elif "/" in _c:
+        RECIPE["no line"] += 1
+    elif _ONE_LINE.match(_c):
+        RECIPE["one line"] += 1
+    else:
+        RECIPE["arithmetic"] += 1
+
 #: Merger quarters whose total assets step by 10% or more, and the worst one.
-STEPS = [m for m in MERGERS if m.get("change_in_total_assets_pct")
-         and abs(float(m["change_in_total_assets_pct"])) >= 10]
+#: MEASURABLE is the denominator, not len(MERGERS): two merger quarters sit at
+#: the very start of the window, where the quarter before them is outside it,
+#: so no step can be computed for them. Reported as 15 of 33 until 8 September
+#: 2026; the finding that produced the sentence said 31 and the sentence lost
+#: the word on its way into the document.
+MEASURABLE = [m for m in MERGERS if m.get("change_in_total_assets_pct")]
+STEPS = [m for m in MEASURABLE
+         if abs(float(m["change_in_total_assets_pct"])) >= 10]
 WORST_STEP = (max(STEPS, key=lambda m: abs(
     float(m["change_in_total_assets_pct"]))) if STEPS else None)
 
@@ -128,7 +150,11 @@ def find(cert, iso, field):
 # the two and is why it is here rather than buried in a row.
 # ---------------------------------------------------------------------------
 TIES_ROW = find("12368", "2026-06-30", "ASSET")
-DIFF_ROW = DIFFERS[0] if DIFFERS else None
+# The dollar figure, not the ratio: the trace below is written about total
+# risk-based capital, and DIFFERS[0] follows whatever order the rows were
+# assembled in. Naming what the narrative is about beats taking the first one.
+DIFF_ROW = next((r for r in DIFFERS if r["field"] == "RBC"),
+                DIFFERS[0] if DIFFERS else None)
 
 CSS = """
 @page{size:A4;margin:16mm 14mm}
@@ -404,10 +430,12 @@ for k, v in (("values delivered", n(TOTAL)),
       % (k, v))
 A('</div>')
 
-A('<p class="lead"><b>Nothing in this feed is calculated by our software.</b> '
+A('<p class="lead"><b>No value in this feed is calculated by our software.</b> '
   'No ratios, no quarter-on-quarter changes, no scores. If a number is here, a '
   'bank or a government agency published it in that form, and this document '
-  'shows you how to put your finger on where.</p>')
+  'shows you how to put your finger on where. The one figure we do work out is '
+  'the size of each merger step in NOT COMPARABLE, which is a warning about '
+  'the data rather than part of it.</p>')
 
 A('<h2>How a number gets here, and how it gets checked</h2>')
 A(DIAGRAM)
@@ -415,16 +443,17 @@ A(DIAGRAM)
 A('<h2>One number, traced all the way</h2>')
 A('<p>Two, in fact. The first is on a bank this system had never seen until '
   'this week, so it shows the machinery working on something it was not tuned '
-  'for. The second is the one number in %s that does not agree, which is the '
-  'more useful of the two.</p>' % n(len(BANK)))
+  'for. The second is one of the %s numbers in %s that does not agree, which '
+  'is the more useful of the two.</p>' % (n(len(DIFFERS)), n(len(BANK))))
 A(trace(TIES_ROW, "Regions Bank, total assets, 30 June 2026",
         "A bank added to the set this week. Nothing about the chain was "
         "changed to accommodate it.", True))
 if DIFF_ROW:
     A(trace(DIFF_ROW, "Huntington National Bank, total risk-based capital, "
                       "31 March 2026",
-            "The one difference in the whole feed. It is here on purpose: a "
-            "tie-out that hides its own findings is worth nothing.", False))
+            "One of the two differences in the whole feed, and they are the "
+            "same event twice. It is here on purpose: a tie-out that hides "
+            "its own findings is worth nothing.", False))
     A('<div class="note warn"><p>The filing was read twice &mdash; off the '
       'printed page above and off the machine-readable copy the regulator '
       'publishes beside it &mdash; and both say <b>29,148,027</b>. The '
@@ -435,6 +464,36 @@ if DIFF_ROW:
       'come from. <b>We have no explanation for the $945 thousand, and we are '
       'not going to invent one.</b> It is 0.003% of the figure and it sits in '
       'the quarter Huntington closed an acquisition.</p></div>')
+    A('<h3>The same quarter disagrees a second time, and it says more</h3>')
+    A('<p>This bank&rsquo;s <b>total capital ratio</b> for the same quarter '
+      'disagrees too: the FDIC publishes <b>14.092446%</b> and the filing '
+      'reports <b>14.087700%</b>. Until 8 September 2026 it was reported as '
+      'agreeing, because capital ratios were compared to within 0.005 of a '
+      'percentage point and this gap is 0.00475 &mdash; just inside. Every '
+      'other one of the 1,520 capital-ratio rows is within 0.00005, which is '
+      'the rounding you get from a form that prints six decimals and a '
+      'publisher that prints four. So the room was a hundred times what '
+      'rounding needed, and exactly one value used it. The comparison is now '
+      '0.0001 and this row is reported for what it is.</p>')
+    A('<p>Working the risk-weighted assets back out of each side is what makes '
+      'it worth reading:</p>')
+    A('<pre>                  total capital        risk-weighted assets\n'
+      'FDIC              29,147,082                 206,827,694\n'
+      'the filing        29,148,027                 206,904,227\n'
+      'difference             -945                     -76,533\n'
+      '                                        (thousands of dollars)\n\n'
+      'leverage ratio    FDIC 10.235659%   filing 10.235700%   unmoved</pre>')
+    A('<p><b>Two capital figures moved together and two did not.</b> Total '
+      'capital and risk-weighted assets differ; Tier 1 capital and average '
+      'assets, which the leverage ratio is built from, agree to the rounding. '
+      'That is the shape of an amendment to the risk-weighting pages rather '
+      'than a mistyped line, and it is the best evidence we have for the '
+      'explanation we could not prove: this filing was amended 143 days after '
+      'the quarter and the FDIC&rsquo;s published figures have not moved with '
+      'it. <b>Still not proven</b> &mdash; the pre-amendment filing cannot be '
+      'obtained. The feed carries no risk-weighted-assets field of its own, so '
+      'the second half of that table is worked out here and is not part of '
+      'the data.</p>')
 
 A('<h2 class="brk">The roster, with its denominator</h2>')
 A('<p>What did not check out comes first, because the things that agree are '
@@ -451,7 +510,11 @@ for label, count, meaning in (
          "running total it counts from is the FDIC's own adjusted figure, "
          "which no filing carries"),
         ("not on that filing", NOLINE,
-         "the bank did not report that line in that quarter; forms change"),
+         "the FORM did not carry that line in that quarter, so no bank filed "
+         "it. Every one of these is the second half of 2016, before Schedule "
+         "RC-N gained a total line, across all nineteen banks. This row read "
+         "&ldquo;the bank did not report that line&rdquo; until 8 September "
+         "2026, which says one bank left something out"),
         ("computed by the FDIC", RATIOS,
          "a ratio the FDIC calculates rather than a line a bank files. The "
          "lines it is calculated FROM are checked"),
@@ -484,10 +547,11 @@ A('<p>A certificate is stable; the institution behind it is not. Checked at '
      ("The exceptions are " + "; ".join(
          "<b>%s</b>, filed in %s as %s" % (b["name"], QUARTERS[0][:4],
                                            b["legal_name_at_window_start"])
-         for b in RENAMED) + ". One is a rename and nothing else. The other "
-      "is not: everything before December 2019 under the label "
-      "&ldquo;Truist Bank&rdquo; is Branch Banking and Trust, which is half "
-      "the bank that carries the name afterwards.")))
+         for b in RENAMED) + ". All but one are a new name over the same "
+      "institution &mdash; Zions dropping the initials it traded under, Fifth "
+      "Third converting its charter. <b>Truist is not:</b> everything before "
+      "December 2019 under that label is Branch Banking and Trust, which is "
+      "half the bank that carries the name afterwards.")))
 
 A('<h3>And the hop between the check and this file</h3>')
 A('<p>Each verifier compares against the filed document a value it holds in '
@@ -513,6 +577,29 @@ A('<p>That code is an <b>MDRM code</b>: the Federal Reserve\'s permanent '
   'identifier for one line on one schedule of the form. It does not change '
   'when the form is re-laid-out, and quoting one to a bank\'s finance team '
   'tells them exactly which number you mean.</p>')
+# Those three steps are the whole story for a row citing ONE line, and that is
+# 37 per cent of them. Saying so is the difference between a reader who finds
+# the number and a reader who finds a DIFFERENT number and concludes the feed
+# is wrong. Counted off the delivered rows rather than asserted.
+A('<h3>When the row cites more than one line</h3>')
+A('<p><b>%s of the %s bank rows</b> cite a single line, and the three steps '
+  'above are all of it. The rest need one more thing, and the row says which '
+  'in its <span class="mono">note</span>.</p>'
+  % (n(RECIPE["one line"]), n(len(BANK))))
+A('<ul>')
+A('<li><b>%s rows add or subtract two or more lines.</b> The '
+  '<span class="mono">cited_line</span> is that arithmetic &mdash; find each '
+  'code on the page and do what the signs say. No one number printed on the '
+  'filing is the number in the workbook.</li>' % n(RECIPE["arithmetic"]))
+A('<li><b>%s rows are one quarter of a running yearly total</b>, which no '
+  'filing carries on its own: it is this filing&rsquo;s year-to-date less the '
+  'previous one&rsquo;s. So you need the quarter before as well, and it is at '
+  'a different address &mdash; change the <span class="mono">date</span> in '
+  'the link to the previous quarter end.</li>' % n(RECIPE["two filings"]))
+A('<li><b>%s rows are ratios the FDIC works out</b> rather than lines a bank '
+  'files. There is nothing on the form to find; the lines they are worked out '
+  'FROM are in this feed and are checked.</li>' % n(RECIPE["no line"]))
+A('</ul>')
 A('<p>To change bank or quarter, edit the <span class="mono">id</span> (the '
   'FDIC certificate) and the <span class="mono">date</span> '
   '(<span class="mono">MMDDYYYY</span>, a quarter end) in that address.</p>')
@@ -566,12 +653,15 @@ A('<h2>What this does not prove</h2>')
 A('<div class="note warn"><p><b>Read this one before you chart a bank across '
   'a merger.</b> Every value here is correct for the institution as it stood '
   'that day &mdash; and on either side of a merger that institution is a '
-  'different size, under the same name. <b>%d of the %d merger quarters move '
-  'total assets by 10%% or more%s.</b> No single value is wrong, so no '
-  'value-level check can catch it: it is a property of the SERIES, not of any '
-  'number in it. NOT COMPARABLE in the workbook carries the size of every '
-  'step, per bank, per quarter.</p></div>'
-  % (len(STEPS), len(MERGERS),
+  'different size, under the same name. <b>%d of the %d merger quarters whose '
+  'step can be measured move total assets by 10%% or more%s.</b> No single '
+  'value is wrong, so no value-level check can catch it: it is a property of '
+  'the SERIES, not of any number in it. NOT COMPARABLE in the workbook carries '
+  'the size of every merger step, per bank, per quarter &mdash; and only those. '
+  'A balance sheet can move that far without a merger and nothing here flags '
+  'it: the largest single-quarter step in this feed is Morgan Stanley Bank NA '
+  'at 2026-03-31, +54.5%% of total assets, with nothing acquired.</p></div>'
+  % (len(STEPS), len(MEASURABLE),
      ("" if not WORST_STEP else
       ", the largest being %s at %s, %+.0f%%"
       % (WORST_STEP["bank"], WORST_STEP["report_date"],

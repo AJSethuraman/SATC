@@ -209,7 +209,14 @@ for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
 
 
             if theirs is None:
-                rec.update(theirs=None, verdict="NOT ON THIS FILING")
+                # The note has to stop saying the line was read straight off a
+                # filing the verdict says does not carry it. A row that
+                # contradicts itself leaves the reader believing whichever
+                # half they saw first.
+                rec.update(theirs=None, verdict="NOT ON THIS FILING",
+                           how=("the line this field cites is not on the form "
+                                "this bank filed for this quarter, so there is "
+                                "nothing on it to compare against"))
             else:
                 rec.update(theirs=theirs,
                            verdict=("TIES" if abs(float(ours) - theirs) < 0.51
