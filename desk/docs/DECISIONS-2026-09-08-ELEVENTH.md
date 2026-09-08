@@ -147,3 +147,61 @@ was correct on every input it would see for another five releases. The tests
 that hold it now (`test_a_version_check_selects_by_name.py`) had to construct a
 cache that has *already* crossed `.9`, because that is the only way to fail
 today on a bug that does not bite until later.
+
+
+---
+
+## Postscript 2: the stale skill was never the plugin cache
+
+**Six invocations across four releases** served `desk/0.4.0/skills/ask-desk`, and
+four releases were spent hardening the wrong thing. The desk on the firm's own
+machine took it apart at 02:39 UTC by separating three things nobody had
+separated:
+
+| | version | `be-the-desk` |
+|---|---|---|
+| files on disk | 0.10.1 | present |
+| `claude plugin details desk@satc` | 0.10.1 | **known** |
+| the running session's Skill tool | **0.4.0** | **Unknown skill** |
+
+**The install is not stale in any sense.** `claude plugin details` can name
+`be-the-desk` while the Skill tool in the same session, the same minute, cannot
+find it.
+
+### `/reload-plugins` does not fix it, and that is measured rather than assumed
+
+It ran earlier the same night with **0.6.2** installed and reported *"Reloaded: 3
+plugins · 18 skills · 6 agents"* — and the desk skills available afterwards were
+exactly `ask-desk` and `desk-factory`. That two-skill set is a fingerprint:
+
+```
+0.4.0  : ask-desk desk-factory                              <- exactly 2
+0.6.2  : ask-desk desk-factory run-down-a-question
+0.7.x  : ask-desk desk-factory run-down-a-question
+0.10.1 : ask-desk be-the-desk desk-factory run-down-a-question
+```
+
+**The reload reported success and bound 0.4.0 anyway** — not even the version
+installed at the time. So: not refreshed by install, not refreshed by reload.
+
+### What it actually is, and what to do about it
+
+**The session binds its skill table once, at start.** A fresh session is the only
+thing untested and the desk could not start one. This repository cannot fix it.
+
+**But it is one command to detect**, and that is the fix that was available all
+along:
+
+```
+claude plugin details desk@satc
+```
+
+Its Component inventory is what SHOULD be loaded. Compare it against what the
+Skill tool will actually resolve, and the disagreement is the defect — visible
+from inside the session, before any work is done, with no stamp required.
+
+**This supersedes the version-check advice added in 0.7.3**, which lived in the
+SKILL.md that does not load and therefore never once helped. It also outranks the
+0.10.1 brief stamp for the severe case: a cache old enough to matter has no
+`be-the-desk` to run, so nothing stamps anything. The stamp remains right for a
+*mildly* stale cache; `plugin details` covers the rest. Both are in `ask-desk`.

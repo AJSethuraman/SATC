@@ -35,6 +35,44 @@ session that holds them, and it sends an answer back. Two things that buys:
 
 `docs/THE-DESK-IS-A-SESSION.md` is the argument in full.
 
+## First: is the skill you are reading the one that is installed?
+
+**Ask the CLI, not the file you are holding.** One command, and the disagreement
+is the whole defect:
+
+```
+claude plugin details desk@satc
+```
+
+It prints the version and a **Component inventory** listing the skills that
+plugin has. **If a skill it names cannot be resolved by the Skill tool, or the
+version it reports is not the version you think you are following, the session's
+skill table is stale and you are reading old instructions.**
+
+Measured on the firm's machine, 8 September 2026, minutes after a clean install:
+
+| | version | `be-the-desk` |
+|---|---|---|
+| the files on disk | 0.10.1 | present |
+| `claude plugin details` | 0.10.1 | **known** |
+| the running session's Skill tool | **0.4.0** | **Unknown skill** |
+
+Five releases apart, in one session, at the same moment. **Neither installing
+nor `/reload-plugins` fixed it** — a reload ran earlier that night with 0.6.2
+installed and bound 0.4.0 anyway, which the desk proved by fingerprint: a
+two-skill set (`ask-desk`, `desk-factory`) exists only in 0.4.0.
+
+So the stale thing is not the plugin cache. **It is the session's skill table,
+bound once when the session started**, and nothing observed rebinds it. That is
+a harness fact this repository cannot fix — but it is cheaply *detectable*, and
+the desk that found it said why this is the right check: *"`claude plugin
+details` is a reliable oracle for what SHOULD be loaded, from inside the
+session, cheaply."*
+
+**If they disagree, work from the checkout** — `import` from the repository's
+own `desk/` — and do not follow the skill the tool serves you. A fresh session
+is the only known cure and you probably cannot start one.
+
 ## Sending a question
 
 **`SATC_DESK_SESSION` must be set** — it holds the session id of the session
