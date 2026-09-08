@@ -86,6 +86,76 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  # The Schedule C profit and loss tool. Its own job rather than a matrix entry,
+  # for the same reason the pricing check is: the suite is Node, not pytest.
+  #
+  # It had no CI entry when it was first pushed, which is the mistake the
+  # credit-suite note above already records once — a verification bar only the
+  # machine that built it can run is a claim, not a check. The tool computes
+  # figures that go onto a real return, so this is the check that matters most.
+  #
+  # Four steps, and each one catches something the others cannot:
+  #   * the suite proves the arithmetic, the line labels against the IRS PDFs,
+  #     and that the PDF and spreadsheet hold what the screen held;
+  #   * `build.mjs --check` fails if the page committed under website/ is not
+  #     what the source builds today, so the two cannot drift;
+  #   * copy.spec.py checks what a client reads, against the house rules;
+  #   * the walk drives the built page in a real browser with the network cut
+  #     off, which is the only check that can prove the privacy claim.
+  schedule-c:
+    name: schedule-c-pl (tool, page and browser walk)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: schedule-c-pl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        # openpyxl is how the spreadsheet is read back. A workbook checked by
+        # the writer that produced it proves nothing, so the reader is a library
+        # that has never heard of this project.
+        run: |
+          npm ci
+          python -m pip install --upgrade pip openpyxl
+
+      - name: Tests
+        run: node --test tests/*.test.mjs
+
+      - name: The committed page is what the source builds
+        run: node build.mjs --check
+
+      - name: The committed guide is what the source builds
+        # The guide's line numbers come from years/*.mjs, not from its prose —
+        # the IRS swapped 27a and 27b for 2025. This is what catches a page
+        # left behind after a year file changes.
+        run: node guide/build-guide.mjs --check
+
+      - name: The hand-over document still says what the procedure says
+        # Words, not bytes: the pictures are encoded by whichever Chromium the
+        # runner has, so a byte comparison would go red for the wrong reason.
+        run: node procedure.mjs --check
+
+      - name: What a client reads
+        run: python3 copy.spec.py
+
+      - name: Install Chromium for the walk
+        run: npx playwright install --with-deps chromium
+
+      - name: Walk the built page in a browser, offline
+        run: node tests/walk.mjs
+
   # The website publishes prices. A number on satcllp.com is a commitment, and
   # the estimate a client gets later has to agree with it — so the page is
   # checked against client-documents/registry/fee-schedule.yaml on every push,

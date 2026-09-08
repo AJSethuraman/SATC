@@ -1,0 +1,51 @@
+:root{--ink:#132437;--mid:#3b4a5a;--soft:#5a6b7c;--rule:#c9d2dc;--paper:#fff;--tint:#f6f8fa;--gold:#C0A265;--flag:#a8410f}
+*{box-sizing:border-box}
+body{margin:0;background:#e9edf1;color:var(--ink);font:15px/1.6 Georgia,"Times New Roman",serif}
+.page{max-width:900px;margin:0 auto;background:var(--paper);padding:44px 56px 64px}
+h1{font-size:26px;line-height:1.25;margin:34px 0 10px;padding-top:16px;border-top:3px solid var(--ink)}
+h1:first-child{border-top:none;padding-top:0;margin-top:0;font-size:30px}
+h2{font-size:19px;margin:30px 0 8px;color:var(--ink)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:9px 0}
+hr{border:none;border-top:1px solid var(--rule);margin:26px 0}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--tint);padding:1px 4px;border-radius:3px}
+strong{color:#0d1a28}
+em{color:var(--mid)}
+ul{margin:8px 0 8px 22px;padding:0}
+li{margin:4px 0}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+th,td{border:1px solid var(--rule);padding:5px 9px;text-align:left;vertical-align:top}
+th{background:var(--tint);font-weight:600}
+figure.shot{margin:14px 0 26px;page-break-inside:avoid;break-inside:avoid}
+figure.shot img{width:100%;display:block;border:1px solid var(--rule)}
+/* the route */
+.route{background:var(--tint);border:1px solid var(--rule);border-top:4px solid var(--ink);padding:16px 18px 18px;margin:22px 0 8px;page-break-inside:avoid;break-inside:avoid}
+.route-h{margin:0 0 2px;font-size:19px}
+.route-lede{margin:0 0 11px;color:var(--mid);font-size:13px}
+.route-sub{margin:14px 0 6px;font-size:14px}
+.stage-row{display:flex;align-items:stretch;gap:6px}
+.spacer{flex:1 1 0}
+.turn{text-align:center;color:var(--gold);font-size:18px;line-height:1;margin:5px 0}
+.stage{margin:0;flex:1 1 0;min-width:0;background:#fff;border:1px solid var(--rule);border-radius:5px;padding:8px;display:flex;flex-direction:column}
+.stage-head{display:flex;align-items:baseline;gap:6px;margin-bottom:6px;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+.letter{background:var(--ink);color:#fff;font-size:10px;font-weight:700;width:16px;height:16px;line-height:16px;text-align:center;border-radius:3px;flex:none}
+.stage-title{font-size:12.5px;font-weight:700;line-height:1.2}
+.stage-steps{font-size:10px;color:var(--soft);margin-left:auto;white-space:nowrap}
+.stage img{width:100%;display:block;border:1px solid var(--rule);border-radius:3px}
+.stage figcaption{font:10.5px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--mid);margin-top:5px}
+.arrow{align-self:center;color:var(--gold);font-size:20px;line-height:1;flex:none;padding:0 1px}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.note{background:#fff;border-left:3px solid var(--gold);padding:6px 9px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:11px;line-height:1.35}
+.note b{display:block;color:var(--ink)}
+.note span{color:var(--mid)}
+@media print{
+  body{background:#fff}
+  .page{max-width:none;padding:0 8mm}
+  h1{page-break-before:always;break-before:page}
+  h1:first-child{page-break-before:avoid;break-before:avoid}
+  h2{page-break-after:avoid;break-after:avoid}
+  figure.shot{margin-bottom:16px}
+  .step{page-break-inside:avoid;break-inside:avoid}
+  figure.shot img{max-height:178mm;width:auto;max-width:100%;margin:0 auto}
+}
+@page{size:A4;margin:14mm 10mm}

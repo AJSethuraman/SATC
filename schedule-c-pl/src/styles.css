@@ -1,0 +1,188 @@
+/* System fonts only, on purpose. A web font means a request to somebody else's
+   server the moment the page opens, and the promise on this page is that it
+   makes no requests at all. A typeface is not worth breaking that for. */
+
+:root {
+  --navy: #132437;
+  --navy-soft: #29405b;
+  --gold: #c0a265;
+  --ink: #17202b;
+  --muted: #5c6b7c;
+  --line: #dfe3e8;
+  --page: #fbfaf7;
+  --card: #ffffff;
+  --bad: #9b2226;
+  --warn: #8a5a00;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.55 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: var(--navy-soft); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.2; }
+
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--navy); color: #fff; padding: .6rem 1rem; z-index: 10; }
+
+/* ── header ─────────────────────────────────────────────────────────── */
+.top {
+  background: var(--navy);
+  color: #f4f1ea;
+  padding: 2.4rem 1.5rem 2.6rem;
+  border-bottom: 4px solid var(--gold);
+}
+.top > * { max-width: 62rem; margin-inline: auto; }
+.firm { margin: 0 0 1.4rem; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.firm a { color: inherit; text-decoration: none; }
+.firm a:hover { text-decoration: underline; }
+.top h1 { margin: 0 0 .6rem; font-size: clamp(1.9rem, 4.5vw, 2.7rem); color: #fff; }
+.lede { margin: 0 0 1.5rem; font-size: 1.08rem; max-width: 44rem; color: #dfe6ef; }
+.promises { margin: 0; padding: 0; list-style: none; display: grid; gap: .7rem; max-width: 52rem; }
+.promises li { font-size: .93rem; color: #cdd7e2; padding-left: 1.1rem; border-left: 2px solid var(--navy-soft); }
+.promises strong { color: #fff; font-weight: 600; }
+
+.noscript { max-width: 62rem; margin: 1.5rem auto; padding: 1rem 1.2rem; background: #fff6e5; border: 1px solid #e8d3a0; }
+
+/* ── layout ─────────────────────────────────────────────────────────── */
+.layout {
+  max-width: 62rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+@media (min-width: 62rem) {
+  .layout { grid-template-columns: minmax(0, 1fr) 20rem; }
+  .summary { position: sticky; top: 1.5rem; }
+}
+
+.block {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1.3rem 1.4rem 1.5rem;
+  margin: 0 0 1.4rem;
+}
+.block h2 { margin: 0 0 .3rem; font-size: 1.18rem; }
+.blurb { margin: 0 0 1.1rem; color: var(--muted); font-size: .9rem; }
+
+/* ── fields ─────────────────────────────────────────────────────────── */
+.field { padding: .55rem 0; border-top: 1px solid #f0f2f4; display: grid; gap: .35rem; }
+.field:first-of-type { border-top: 0; }
+.field > label { display: flex; align-items: baseline; gap: .55rem; font-size: .93rem; }
+.line-no {
+  font: 600 .72rem/1.6 var(--mono);
+  color: var(--muted);
+  background: #f1f3f5;
+  border-radius: 2px;
+  padding: 0 .35rem;
+  min-width: 2.1rem;
+  text-align: center;
+  flex: none;
+}
+.line-label { flex: 1; }
+
+.entry { display: flex; align-items: stretch; max-width: 15rem; }
+.currency { display: flex; align-items: center; padding: 0 .5rem; background: #f1f3f5; border: 1px solid var(--line); border-right: 0; color: var(--muted); font-size: .9rem; }
+input[type="text"], input[type="date"], select {
+  font: 400 .95rem var(--sans);
+  padding: .42rem .55rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+  min-width: 0;
+}
+.entry input { font-family: var(--mono); text-align: right; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.hint { margin: 0; font-size: .82rem; color: var(--muted); }
+.error { margin: 0; font-size: .82rem; color: var(--bad); min-height: 0; }
+.error:empty { display: none; }
+
+.choice { border: 0; padding: .6rem 0 .2rem; margin: 0; display: grid; gap: .3rem; }
+.choice legend { padding: 0; font-size: .9rem; color: var(--ink); }
+.radio { display: flex; align-items: center; gap: .45rem; font-size: .9rem; color: var(--muted); }
+.toggle { display: flex; align-items: flex-start; gap: .5rem; font-size: .92rem; margin-bottom: .6rem; }
+
+.helper { margin-top: .3rem; font-size: .88rem; }
+.helper > summary { cursor: pointer; color: var(--navy-soft); width: fit-content; }
+.helper-row .unit { align-self: center; font-size: .82rem; color: var(--muted); }
+.helper-row { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .3rem; }
+.helper-row input { max-width: 9rem; font-family: var(--mono); text-align: right; }
+.helper-out { margin: .2rem 0 0; font-size: .85rem; color: var(--navy-soft); }
+.helper-out:empty { display: none; }
+
+.rows { display: grid; gap: .5rem; margin-bottom: .8rem; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 10rem auto; gap: .4rem; align-items: stretch; }
+@media (max-width: 34rem) { .row { grid-template-columns: minmax(0, 1fr); } }
+
+button { font: 500 .88rem var(--sans); cursor: pointer; border-radius: 2px; }
+.ghost { background: #fff; border: 1px solid var(--line); color: var(--navy-soft); padding: .42rem .7rem; }
+.ghost:hover { border-color: var(--navy-soft); }
+.primary { background: var(--navy); border: 1px solid var(--navy); color: #fff; padding: .62rem .9rem; width: 100%; }
+.primary:hover:not(:disabled) { background: var(--navy-soft); }
+.primary:disabled { background: #e9ecef; border-color: var(--line); color: #9aa5b1; cursor: not-allowed; }
+
+.refusals { margin: 0; padding-left: 1.1rem; display: grid; gap: .6rem; font-size: .88rem; color: var(--muted); }
+.refusals strong { color: var(--ink); }
+
+/* ── running total ──────────────────────────────────────────────────── */
+.summary {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--gold);
+  border-radius: 3px;
+  padding: 1.2rem 1.3rem 1.4rem;
+}
+.summary h2 { margin: 0 0 .8rem; font-size: 1.05rem; }
+.summary h3 { margin: 1.2rem 0 .5rem; font-size: .95rem; }
+.figures { margin: 0 0 1rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .8rem; }
+.figures dt { font-size: .88rem; color: var(--muted); }
+.figures dd { margin: 0; font-family: var(--mono); font-size: .9rem; text-align: right; }
+.figures .big { font-size: 1.02rem; color: var(--ink); font-weight: 600; padding-top: .5rem; border-top: 1px solid var(--line); }
+.downloads { display: grid; gap: .5rem; margin: 1rem 0; }
+
+.notices { margin: 0; padding: 0; list-style: none; display: grid; gap: .6rem; font-size: .84rem; }
+.notices li { display: flex; gap: .5rem; align-items: flex-start; color: var(--muted); }
+.notices li.warn, .notices li.blocker { color: var(--warn); }
+.notices li.blocker { color: var(--bad); }
+
+.keep { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.handoff { margin: 1rem 0 0; font-size: .85rem; color: var(--muted); }
+
+/* ── after the download, and the footer ─────────────────────────────── */
+.after {
+  max-width: 62rem;
+  margin: 0 auto 2rem;
+  padding: 1.6rem 1.5rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+}
+.after h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+.after p { margin: 0 0 .8rem; max-width: 42rem; }
+.cta { display: inline-block; background: var(--navy); color: #fff; padding: .6rem 1.1rem; text-decoration: none; border-radius: 2px; }
+.cta:hover { background: var(--navy-soft); }
+
+.foot { background: #f2f0ec; border-top: 1px solid var(--line); padding: 2rem 1.5rem 2.6rem; }
+.foot > * { max-width: 62rem; margin-inline: auto; }
+.foot h2 { margin: 0 0 .8rem; font-size: 1.05rem; }
+.foot p { margin: 0 0 .7rem; font-size: .89rem; color: var(--muted); max-width: 46rem; }
+.meta { font-size: .82rem !important; }
+
+@media print {
+  .top, .summary, .foot, .after, .skip { display: none; }
+}
