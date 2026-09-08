@@ -82,6 +82,70 @@ FLAGS = (
     "--dump-dom",
 )
 
+#: ADDED ONLY WHEN RUNNING AS ROOT, AND IT IS A REAL WEAKENING. Chromium
+#: refuses to start as root at all without it -- found on the first live run,
+#: 8 September 2026, and it is exactly the class #344 exists for: decided by the
+#: MACHINE rather than by the code, so no fixture test in this suite could have
+#: seen it.
+#:
+#:     ERROR zygote_host_impl_linux.cc: Running as root without --no-sandbox
+#:     is not supported.
+#:
+#: WHAT IS GIVEN UP. The sandbox is what contains a compromised renderer, and
+#: this transport fetches URLs A SEARCHER FOUND -- not a fixed allow-list. As
+#: root with no sandbox, a renderer exploit is root on that machine. That is a
+#: real exposure and not a theoretical one.
+#:
+#: WHY IT IS CONDITIONAL RATHER THAN ALWAYS. On any machine that is not root --
+#: the firm's Windows box included -- the sandbox stays on and nothing is given
+#: up. Adding the flag unconditionally would spend the protection everywhere to
+#: buy it in one container, which is the shape of every "just make it work"
+#: change this record exists to refuse.
+#:
+#: THE BETTER FIX IS NOT TO RUN AS ROOT, and this comment is not a substitute
+#: for it. It is written here rather than in a commit message because the next
+#: session to read this file is the one that needs to know.
+ROOT_ONLY = ("--no-sandbox",)
+
+#: THE PROXY, WHERE THE MACHINE HAS ONE. Chromium does not read `HTTPS_PROXY`,
+#: so on a machine whose egress goes through one it reaches nothing -- and it
+#: reports that as a RENDERED ERROR PAGE, which is the trap below. Read from the
+#: environment so a machine without one is unaffected.
+PROXY_VARS = ("SATC_DESK_PROXY", "HTTPS_PROXY", "https_proxy")
+
+#: CHROMIUM'S OWN ERROR PAGES, WHICH ARRIVE AS A SUCCESSFUL DOM.
+#:
+#: FOUND ON THE FIRST LIVE RUN, 8 September 2026, and it is a defect in this
+#: module rather than a surprise about the world. `--dump-dom` prints whatever
+#: was rendered, the browser EXITS 0 having rendered its own error page, and
+#: 186,234 bytes of "This site can't be reached ... ERR_CONNECTION_RESET" came
+#: back looking exactly like a document.
+#:
+#: THAT IS THE DANGEROUS SHAPE THIS MODULE'S HEADER IS ABOUT, arriving through
+#: the door nothing was watching: `proving` compares our passage against it,
+#: does not find it, and returns DIFFERS -- which `ask.answer` reads as
+#: `authority_has_moved` and uses to WITHDRAW the answer. A failure that was
+#: OURS becomes a published claim about the PUBLISHER.
+#:
+#: MATCHED ON THE BODY'S CLASS, WHICH IS STRUCTURE AND NOT PROSE. Chromium
+#: stamps `<body class="neterror">` and its siblings on every interstitial. A
+#: search for `ERR_` in the text would fire on any document that happens to
+#: contain those characters, and this repository has twice shipped a guard that
+#: read English and went red on documentation.
+ERROR_PAGE_CLASSES = (
+    "neterror", "ssl", "captive-portal", "main-frame-blocked",
+    "safe-browsing-billing", "enterprise-block", "enterprise-warn",
+    "bad-clock", "https-only", "insecure-form", "lookalike-url",
+    "managed-profile-required",
+)
+
+#: Error codes that mean OUR egress refused, not the origin. `fetch.classify`
+#: turns the first into `source_blocked_by_us`, whose fix is the allow-list, and
+#: everything else into `source_refuses_us`, whose fix is emphatically not.
+EGRESS_CODES = ("ERR_TUNNEL_CONNECTION_FAILED", "ERR_PROXY_CONNECTION_FAILED",
+                "ERR_BLOCKED_BY_CLIENT", "ERR_BLOCKED_BY_ADMINISTRATOR",
+                "ERR_PROXY_AUTH_REQUESTED", "ERR_MANDATORY_PROXY_CONFIGURATION_FAILED")
+
 #: How long one page gets. A publisher that has not answered in this is a
 #: `transient` failure and `fetch.fetch` retries the SAME method once.
 TIMEOUT = 45
@@ -124,11 +188,19 @@ def find(env=None, candidates=None) -> str:
         "proved, and it refuses rather than being served on our own word.")
 
 
-def command(url: str, binary: str, *, user_data_dir: str = "") -> list[str]:
+def command(url: str, binary: str, *, user_data_dir: str = "",
+            proxy: str = "") -> list[str]:
     """The exact argv. Built here so a test can read it without launching one."""
     if not str(url).strip():
         raise ValueError("no url to fetch")
     out = [binary, *FLAGS]
+    # `geteuid` IS ABSENT ON WINDOWS, which is where the firm's machine is. A
+    # bare `os.geteuid()` here would be an AttributeError on the one platform
+    # that never needs the flag.
+    if getattr(os, "geteuid", lambda: 1)() == 0:
+        out += list(ROOT_ONLY)
+    if proxy:
+        out.append(f"--proxy-server={proxy}")
     if user_data_dir:
         out.append(f"--user-data-dir={user_data_dir}")
     out.append(url)
@@ -167,8 +239,9 @@ def transport(source, access="", *, binary: str = "", run=None) -> Response:
     url = getattr(source, "url", "") or str(source)
     binary = binary or find()
     runner = run or _run
+    proxy = next((v for v in (os.environ.get(n) for n in PROXY_VARS) if v), "")
     with tempfile.TemporaryDirectory(prefix="satc-desk-") as profile:
-        argv = command(url, binary, user_data_dir=profile)
+        argv = command(url, binary, user_data_dir=profile, proxy=proxy)
         return runner(argv, url)
 
 
@@ -236,8 +309,39 @@ def _read(done, url) -> Response:
             "the browser returned an empty document; there is no heavier "
             "client than this one, so nothing further can be tried")
 
+    if (code := error_page(dom)) is not None:
+        # THE BROWSER EXITED 0 AND RENDERED ITS OWN FAILURE. Everything below
+        # this line would otherwise treat it as the publisher's document.
+        if any(c in code for c in EGRESS_CODES):
+            return Response(status=0, body="", egress_blocked=True, url=url)
+        raise ConnectionError(
+            f"the browser rendered its own error page for {url}"
+            + (f" ({code})" if code else "")
+            + ". Nothing here is a finding about the publisher — it is a "
+              "finding about this fetch, and serving it as a document would "
+              "withdraw the answer as though the rule had moved.")
+
     return Response(status=200, body=dom, url=_landed(dom, url),
                     headers=(("x-satc-transport", "headless-browser"),))
+
+
+def error_page(dom: str):
+    """The error code when this DOM is one of Chromium's own pages, else None.
+
+    RETURNS A STRING THAT MAY BE EMPTY, so "an error page with no code found"
+    and "not an error page" stay different answers. A bare boolean collapsed
+    them, and the empty case is the one where a reader most needs telling that
+    the page was ours rather than the publisher's.
+    """
+    import re
+    m = re.search(r"<body[^>]*\bclass=[\"']([^\"']*)[\"']", dom, re.I)
+    if not m:
+        return None
+    classes = set(m.group(1).lower().split())
+    if not classes & set(ERROR_PAGE_CLASSES):
+        return None
+    found = re.search(r"\bERR_[A-Z0-9_]+", dom)
+    return found.group(0) if found else ""
 
 
 def as_text(resp: Response):

@@ -277,3 +277,103 @@ def test_the_two_transport_shapes_are_bridged_rather_than_merged():
     reply = go(_source(), "26 CFR 1.263(a)-2")
     assert "capitalize" in reply.text
     assert reply.url == REAL and reply.nbytes == len(dom.encode("utf-8"))
+
+
+# ── what the FIRST LIVE RUN found, 8 September 2026 ─────────────────────────
+#
+# Both of these are defects in `browser.py` rather than surprises about the
+# world, and NEITHER could have been found by anything in this file before the
+# code was actually run. That is the class the desk named: a control whose
+# outcome is decided by the environment rather than by the code. The tests below
+# are what stops each from coming back — they are decided by the code now.
+
+
+def test_a_rendered_error_page_is_not_a_document():
+    """THE SERIOUS ONE. `--dump-dom` prints whatever was rendered and the
+    browser EXITS 0 having rendered its own failure, so 186,234 bytes of "This
+    site can't be reached ... ERR_CONNECTION_RESET" came back looking exactly
+    like a document.
+
+    That is the dangerous shape this module's header is about, arriving through
+    the door nothing was watching: `proving` does not find our passage in it,
+    returns DIFFERS, and `ask.answer` WITHDRAWS the answer as
+    `authority_has_moved` — a failure that was ours published as a claim about
+    the publisher.
+    """
+    dom = ('<html><head><title>www.ecfr.gov</title></head>'
+           '<body class="neterror" style="font-family: sans">'
+           "This site can't be reached. ERR_CONNECTION_RESET</body></html>")
+    with pytest.raises(ConnectionError) as e:
+        _reply(dom)
+    assert "ERR_CONNECTION_RESET" in str(e.value)
+    assert "finding about this fetch" in str(e.value)
+
+
+def test_the_error_page_check_reads_structure_and_not_prose():
+    """A DOCUMENT MAY CONTAIN THE WORD. A regulation quoting an error code, or
+    a page about network errors, is still that publisher's document — and this
+    repository has twice shipped a guard that read English and fired on
+    documentation."""
+    honest = ('<html><body class="regulation">The agency shall record '
+              'ERR_CONNECTION_RESET events under this paragraph.</body></html>')
+    resp = _reply(honest)
+    assert resp.status == 200 and "ERR_CONNECTION_RESET" in resp.body
+    assert browser.error_page(honest) is None
+
+
+def test_an_error_page_with_no_code_is_still_an_error_page():
+    """`error_page` returns a string that may be EMPTY, so "an error page whose
+    code we could not read" and "not an error page" stay different answers. A
+    bare boolean collapsed them."""
+    dom = '<html><body class="ssl">Your connection is not private</body></html>'
+    assert browser.error_page(dom) == ""
+    with pytest.raises(ConnectionError):
+        _reply(dom)
+
+
+def test_a_proxy_failure_is_our_egress_and_not_the_publisher():
+    """`fetch.classify` turns this into `source_blocked_by_us`, whose fix is
+    the allow-list. Everything else is `source_refuses_us`, whose fix is
+    emphatically not — collapsing them sent a person to grant a domain that
+    was already granted."""
+    dom = ('<html><body class="neterror">'
+           'ERR_TUNNEL_CONNECTION_FAILED</body></html>')
+    resp = _reply(dom)
+    assert resp.egress_blocked and resp.body == ""
+    assert fetch.classify(_source(), resp) == "source_blocked_by_us"
+
+
+def test_the_sandbox_is_only_dropped_where_the_browser_refuses_to_start(
+        monkeypatch):
+    """FOUND ON THE FIRST LIVE RUN: Chromium will not start as root at all
+    without `--no-sandbox`.
+
+    IT IS A REAL WEAKENING AND IT IS CONDITIONAL. The sandbox contains a
+    compromised renderer, and this transport fetches URLs a SEARCHER found
+    rather than a fixed allow-list — as root with no sandbox, a renderer
+    exploit is root on that machine. On any machine that is not root, including
+    the firm's, nothing is given up. Adding it unconditionally would spend the
+    protection everywhere to buy it in one container.
+    """
+    monkeypatch.setattr(browser.os, "geteuid", lambda: 1000, raising=False)
+    assert "--no-sandbox" not in browser.command(REAL, "/x")
+    monkeypatch.setattr(browser.os, "geteuid", lambda: 0, raising=False)
+    assert "--no-sandbox" in browser.command(REAL, "/x")
+
+
+def test_windows_has_no_geteuid_and_that_is_not_an_error(monkeypatch):
+    """The firm's machine is the one that never needs the flag, and a bare
+    `os.geteuid()` would be an AttributeError there."""
+    monkeypatch.delattr(browser.os, "geteuid", raising=False)
+    argv = browser.command(REAL, "/x")
+    assert "--no-sandbox" not in argv
+
+
+def test_a_proxy_is_passed_to_the_browser_when_the_machine_has_one():
+    """Chromium does not read `HTTPS_PROXY`. On a machine whose egress goes
+    through one it reaches nothing — and reports that as a rendered error page,
+    which is the trap above."""
+    assert "--proxy-server=http://p:1" in browser.command(
+        REAL, "/x", proxy="http://p:1")
+    assert not any(a.startswith("--proxy-server")
+                   for a in browser.command(REAL, "/x"))
