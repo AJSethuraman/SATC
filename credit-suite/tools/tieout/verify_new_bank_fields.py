@@ -149,6 +149,17 @@ for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
                 rows.append(rec)
                 continue
 
+            if field in FF.FEED_COMPUTED:
+                # An average the FDIC constructs. There is no line on any form
+                # to compare it with, and saying "the bank did not report it"
+                # would be false -- no bank is asked to.
+                rec.update(theirs=None, verdict="COMPUTED BY THE FDIC (NO FILED COMPONENTS)",
+                           how="an average the FDIC computes; no line on any "
+                               "form carries it, and every subset of Schedule "
+                               "RC-K was tried")
+                rows.append(rec)
+                continue
+
             if field in FF.FEED_FLOW_FIELDS:
                 base = expr.split(" (")[0]
                 if (cert, iso) in MERGER_Q:

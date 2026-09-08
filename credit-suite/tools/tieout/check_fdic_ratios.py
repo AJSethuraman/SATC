@@ -49,14 +49,37 @@ RECOMPUTABLE = {
     "LNRESNCR": ("LNATRES", "NCLNLS"),
 }
 #: ratio -> why its components are not in this feed.
+#: The other four, and exactly how far each one now gets. The firm's
+#: instruction on 8 September 2026 was "just add them": the figures these are
+#: built out of are in the feed now -- sixteen new fields, each tied to a filed
+#: line across all 760 bank-quarters. That closes the part that was closeable
+#: and leaves a smaller, sharper obstacle, which is the point of naming it.
+#:
+#: What was tried, on all 760: net income annualised over average assets; net
+#: interest income annualised over average earning assets; noninterest expense
+#: over the sum of net interest income and noninterest income; quarterly net
+#: charge-offs annualised over average loans. Both annualisation conventions --
+#: four quarters, and 365 over the days in the period. None reproduces the
+#: published figure across the panel. The FDIC's definitions carry adjustments
+#: that are not in what it publishes, and guessing one that fits is how a wrong
+#: citation gets written.
 NOT_RECOMPUTABLE = {
-    "ROAQ": "net income for the quarter over AVERAGE assets; the average is "
-            "not a filed line and this feed carries period-end balances",
-    "NIMY": "net interest income over AVERAGE earning assets; same reason",
-    "NTLNLSQR": "quarterly net charge-offs, annualised, over AVERAGE loans; "
-                "same reason, and the numerator is itself a flow",
-    "EEFFR": "noninterest expense over revenue; the income-statement items it "
-             "needs are not among the 87 fields this feed carries",
+    "ROAQ": "net income for the quarter over average assets. BOTH are in the "
+            "feed now and both tie to the filing -- NETINCQ to RIAD4340 "
+            "differenced, AVASSET to RC-K 9 -- but no annualisation we tried "
+            "reproduces the published ratio across the panel",
+    "NIMY": "net interest income over average EARNING assets. The numerator "
+            "(NIMQ, RIAD4074 differenced) ties in all 760; the denominator "
+            "(ERNAST) is an average the FDIC constructs and no line on any "
+            "form carries -- every subset of Schedule RC-K was tried",
+    "NTLNLSQR": "quarterly net charge-offs over average loans. The numerator "
+                "(NTLNLSQ, RIAD4635-RIAD4605 differenced) ties in all 760; the "
+                "denominator (LNLSGR5) is the FDIC's own average, and it is "
+                "not the filed average-loans line, which misses in all 760",
+    "EEFFR": "noninterest expense over revenue. All three figures are in the "
+             "feed now and tie in all 760 -- NONIX, NIM and NONII -- and the "
+             "plain ratio of them still does not reproduce the published "
+             "number, so its definition carries something we cannot see",
 }
 #: The FDIC publishes these to four decimal places. A recomputation from two
 #: figures each rounded to a thousand dollars cannot land closer than the
@@ -124,4 +147,13 @@ for ratio, why in sorted(NOT_RECOMPUTABLE.items()):
 print("\nWhat this does NOT prove: that the FDIC's definition is the one you")
 print("want. It proves its arithmetic joins the lines we verified, on the")
 print("four where those lines are here to join.")
+print()
+print("What changed on 8 September 2026: those four were checked against")
+print("NOTHING. Their figures are in the feed now -- sixteen fields, each tied")
+print("to a filed line in all 760 bank-quarters -- so a return on assets, a net")
+print("interest margin or an efficiency ratio can be built from numbers that")
+print("were checked. What is still open is narrower, and named above: two of")
+print("the four denominators are averages the FDIC constructs and no bank")
+print("files, and on the other two every formula tried failed to reproduce the")
+print("published figure. Neither is guessed at here.")
 raise SystemExit(1 if totals["differ"] else 0)

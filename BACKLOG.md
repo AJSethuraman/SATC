@@ -775,6 +775,115 @@ flow fields were proven on both versions of the form, so it is a duplicate
 rather than a defect, and it was left alone rather than refactored under a
 mandate that did not cover it.
 
+### The four ratios that were checked against nothing — 8 September 2026
+
+The firm: *"Their ratios are fine. I mean we are not shipping calculations we
+derive. Them deriving is basically source data and you would expect it to be
+right."* Then, on whether to carry the figures behind the four unchecked ones:
+**"Just add them then."**
+
+That settled a confusion worth writing down. **Who derived a number and whether
+we can show it are separate axes**, and the second pass had run them together.
+The FDIC publishing `ROAQ` is no different in kind from Huntington publishing
+`RCFD2170`: somebody else's number, copied without touching. All 6,080 satisfy
+the no-derived-calculations rule. What did not hold was a *sentence*.
+
+### The sentence
+
+Every one of the 6,080 rows said:
+
+> not a filed line — the FDIC calculates this from filed lines **that are
+> verified here**
+
+True for 2,964. False for 3,040. `ROAQ` is net income over *average* assets;
+neither was among the 87 fields, so there were no verified lines behind it. The
+clause was written about the four ratios where it holds and then applied to all
+eight — the same failure as every other finding in this pass.
+
+### Eighteen fields, and how each citation was established
+
+The method this module already requires: take the FDIC's published number, look
+for it in the bank's own XBRL as a single line or as a sum, and keep the
+candidate only if it holds in **every** bank-quarter. Not a plausible-looking
+code, and not a crosswalk.
+
+| field | what it is | citation | held in |
+|---|---|---|---|
+| `NETINC` / `NETINCQ` | net income, year to date / this quarter | `4340` | 760 of 760 / 752 of 752 comparable |
+| `NIM` / `NIMQ` | net interest income | `4074` | 760 / 752 |
+| `NONII` / `NONIIQ` | noninterest income | `4079` | 760 / 752 |
+| `NONIX` / `NONIXQ` | noninterest expense | `4093` | 760 / 752 |
+| `NTLNLS` / `NTLNLSQ` | net charge-offs | `4635-4605` | 760 / 753 |
+| `INTINC` | total interest income | `4107` | 760 of 760 |
+| `EINTEXP` | total interest expense | `4073` | 760 of 760 |
+| `ITAX` | income taxes | `4302` | 760 of 760 |
+| `ELNATR` / `ELNATQ` | provision for credit losses | `JJ33`, and `4230` before 2019Q1 | 570 / 563 comparable |
+| `AVASSET` | average total assets | `3368` (RC-K 9) | 760 of 760 |
+| `ERNAST` | average earning assets | **no filed line** | — |
+| `LNLSGR5` | average loans and leases | **no filed line** | — |
+
+`ELNATR` is a **dated recoding**, found rather than assumed: `RIAD4230`
+"provision for loan and lease losses" became `RIADJJ33` "provisions for credit
+losses" under CECL. Both codes sit on the form from 2019Q1 and the FDIC's figure
+follows `JJ33` from that quarter — 570 of 570 — while `4230` is what it matches
+before. A row naming only `JJ33` would be right about today and wrong about the
+first ten quarters in the window. Checked across all nineteen banks: the
+boundary is a date, not a per-bank adoption.
+
+`ERNAST` and `LNLSGR5` are the FDIC's own averages. **Every subset of Schedule
+RC-K was tested against both across the panel and none reproduces either** —
+including RC-K 3360, the filed average-loans line, which misses `LNLSGR5` in all
+760. They are carried because without them two of the four ratios cannot be
+reconstructed at all, and they carry a verdict that says what they are.
+
+### What it moved
+
+| | before | after |
+|---|---|---|
+| bank fields | 87 | **105** |
+| bank values | 66,120 | **79,800** |
+| verified against a filing | 59,606 | **71,580** |
+| values delivered | 143,201 | **156,881** |
+| checked against an outside document | 125,450 | **137,424** |
+| FDIC-computed with no filed components | (unlabelled) | **1,520, and now labelled** |
+
+26,279 of the 28,120 new values tie. The rest are the merger quarters every
+`*Q` field has, the 2016 form-change rows, and the 1,520 FDIC averages. **No new
+disagreement.** The two verdicts are now split, so half of the FDIC-computed
+rows no longer promise a verification the feed cannot perform.
+
+### What is still not proved, said plainly
+
+The four ratios still do not reproduce. Tried on all 760: net income annualised
+over average assets; net interest income annualised over average earning assets;
+noninterest expense over net interest income plus noninterest income; quarterly
+net charge-offs annualised over average loans — under both annualisation
+conventions, four quarters and 365-over-days. **None holds across the panel.**
+The FDIC's definitions carry adjustments that are not in what it publishes, and
+fitting a formula until it matches is how a wrong citation gets written.
+
+So the obstacle moved rather than vanished, which is the honest outcome:
+
+- **`ROAQ` and `EEFFR`** — every figure they are built from is now in the feed
+  and ties to a filing. Only the FDIC's exact arithmetic is unresolved.
+- **`NIMY` and `NTLNLSQR`** — the numerator ties in all 760; the denominator is
+  an average no bank files.
+
+The practical effect is the one that matters for the workbook: a return on
+assets, a net interest margin or an efficiency ratio can now be built downstream
+from numbers that were each checked against a filed page, instead of taken from
+a ratio nobody could check.
+
+### Proof
+
+- `run_and_tie_out.py` — **5 of 5 stages**, controls 16 of 16 caught.
+- **695 tests pass.** Two failed first and were right to: both pin a count that
+  moves when the field list does. The zero count went 8,621 → 8,655, and the 34
+  new zeros were checked one at a time rather than waved through — every one is
+  a filed nil with a TIES verdict.
+- The covering document was rebuilt and **opened**: 105 fields, 156,881 values,
+  137,424 checked, 2 disagreements.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

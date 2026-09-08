@@ -266,6 +266,51 @@ FIELD = {
             "bank may sell, at what it paid.",
     "SCAF": "Available-for-sale securities at fair value -- the same bonds "
             "at today's market price.",
+    # ---- the income statement, added 8 September 2026 --------------------
+    # Carried so the four FDIC-computed ratios that were checked against
+    # nothing -- return on assets, net interest margin, the efficiency ratio
+    # and net charge-offs to loans -- have their own figures in the feed.
+    "NETINC": "Net income -- what the bank earned after everything, including "
+              "tax, for the year so far.",
+    "NETINCQ": "Net income for this quarter alone -- the year-so-far figure "
+               "less what had already been reported. Across a merger it mixes "
+               "two banks and the row says so.",
+    "NIM": "Net interest income -- interest earned on loans and securities "
+           "less interest paid on deposits and borrowings, for the year so far. "
+           "It is the core of what a lender makes.",
+    "NIMQ": "Net interest income for this quarter alone.",
+    "INTINC": "Total interest income -- everything earned on loans, leases and "
+              "securities, for the year so far, before paying for the money.",
+    "EINTEXP": "Total interest expense -- what the bank paid depositors and "
+               "lenders for its funding, for the year so far.",
+    "NONII": "Noninterest income -- fees, service charges, card income, trading "
+             "and everything else that is not interest, for the year so far.",
+    "NONIIQ": "Noninterest income for this quarter alone.",
+    "NONIX": "Noninterest expense -- salaries, premises, technology and the "
+             "rest of running the bank, for the year so far.",
+    "NONIXQ": "Noninterest expense for this quarter alone.",
+    "ITAX": "Income taxes for the year so far.",
+    "ELNATR": "Provision for credit losses -- what the bank charged against "
+              "earnings this year to cover loans it expects to lose. It is a "
+              "forecast the bank makes about its own book, so it moves before "
+              "the losses do.",
+    "ELNATQ": "Provision for credit losses for this quarter alone.",
+    "NTLNLS": "Net charge-offs -- loans written off as uncollectable, less "
+              "amounts later recovered, for the year so far.",
+    "NTLNLSQ": "Net charge-offs for this quarter alone.",
+    "AVASSET": "Average total assets over the quarter, as the bank reports "
+               "them on Schedule RC-K. Not the quarter-end balance -- an "
+               "average of the whole period, which is the right denominator "
+               "for anything earned across it.",
+    "ERNAST": "Average earning assets over the quarter -- the part of the "
+              "balance sheet that actually earns interest. THE FDIC WORKS THIS "
+              "OUT; no line on any form carries it, and we could not rebuild "
+              "it from the filed averages, so it is here as their figure and "
+              "not as a checked one.",
+    "LNLSGR5": "Average loans and leases over the quarter. THE FDIC WORKS THIS "
+               "OUT; it is not the filed average-loans line, which misses it in "
+               "every quarter we tested, so it is here as their figure and not "
+               "as a checked one.",
 }
 
 #: The two denominators, said in words. Which one a rate uses is the whole

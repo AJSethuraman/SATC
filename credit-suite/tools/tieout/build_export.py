@@ -104,16 +104,26 @@ def units_of(field):
 
 VERDICT_PLAIN = {
     "TIES": "verified against the bank's own filed Call Report",
+    # Two different claims, and one sentence used to make both. The FDIC
+    # calculates all of these; only for SOME are the figures behind them lines
+    # a bank files and this feed carries. Saying "verified here" over the rest
+    # was a promise the feed could not keep.
     "COMPUTED BY THE FDIC": ("not a filed line -- the FDIC calculates this from "
                              "filed lines that are verified here"),
+    "COMPUTED BY THE FDIC (NO FILED COMPONENTS)":
+        ("not a filed line -- the FDIC calculates this, and the figures behind "
+         "it are not lines any bank files"),
     "NOT COMPARABLE (SPANS A MERGER)":
         "this quarter spans a merger, so this flow mixes two banks",
     "NOT COMPARABLE (BASE ADJUSTED FOR A MERGER)":
         "a merger earlier this year moved the running total this quarter "
         "counts from, so it cannot be checked against the filings",
+    # Not "the bank did not report it". All 114 of these are the two quarters
+    # of 2016 before Schedule RC-N carried a total line, across every bank in
+    # the set -- the form did not ask, so no bank answered.
     "NOT ON THIS FILING":
-        "the bank did not report this line in this quarter, so there is "
-        "nothing on the filing to check it against",
+        "the form this bank filed for this quarter does not carry the line "
+        "this field cites, so there is nothing on it to check against",
     "DIFFERS": "DOES NOT MATCH the filing -- do not use without reading the note",
 }
 

@@ -104,6 +104,64 @@ FEED_ROWS = [
     ("NARSNRES", "RC-N Mem",
      "Restructured CRE already on nonaccrual",
      "K116+K119", "760 of 760 bank-quarters"),
+
+    # ---- 13 · the income statement, added 8 September 2026 ----------------
+    # The firm's instruction was "just add them": the four FDIC-computed
+    # ratios -- ROAQ, NIMY, EEFFR, NTLNLSQR -- were checked against nothing,
+    # and the fix is to carry the figures they are built out of. Every
+    # citation below was established the way this module requires: the FDIC's
+    # published number searched for in the bank's own XBRL across all 760
+    # bank-quarters, and kept only where it held in every one.
+    ("NETINC", "RI 14", "Net income, year to date",
+     "4340", "760 of 760 bank-quarters"),
+    ("NETINCQ", "RI 14", "Net income, this quarter",
+     "4340 (year-to-date, differenced)",
+     "752 of 752 comparable bank-quarters; the other 8 span a merger"),
+    ("NIM", "RI 3", "Net interest income, year to date",
+     "4074", "760 of 760 bank-quarters"),
+    ("NIMQ", "RI 3", "Net interest income, this quarter",
+     "4074 (year-to-date, differenced)",
+     "752 of 752 comparable bank-quarters; the other 8 span a merger"),
+    ("INTINC", "RI 1.h", "Total interest income, year to date",
+     "4107", "760 of 760 bank-quarters"),
+    ("EINTEXP", "RI 2.f", "Total interest expense, year to date",
+     "4073", "760 of 760 bank-quarters"),
+    ("NONII", "RI 5.m", "Total noninterest income, year to date",
+     "4079", "760 of 760 bank-quarters"),
+    ("NONIIQ", "RI 5.m", "Total noninterest income, this quarter",
+     "4079 (year-to-date, differenced)",
+     "752 of 752 comparable bank-quarters; the other 8 span a merger"),
+    ("NONIX", "RI 7.e", "Total noninterest expense, year to date",
+     "4093", "760 of 760 bank-quarters"),
+    ("NONIXQ", "RI 7.e", "Total noninterest expense, this quarter",
+     "4093 (year-to-date, differenced)",
+     "752 of 752 comparable bank-quarters; the other 8 span a merger"),
+    ("ITAX", "RI 9", "Income taxes, year to date",
+     "4302", "760 of 760 bank-quarters"),
+    ("ELNATR", "RI 4", "Provision for credit losses, year to date",
+     "JJ33", "570 of 570 bank-quarters from 2019Q1; 4230 before it -- see RECODINGS"),
+    ("ELNATQ", "RI 4", "Provision for credit losses, this quarter",
+     "JJ33 (year-to-date, differenced)",
+     "563 of 563 comparable bank-quarters from 2019Q1; the other 7 span a merger"),
+    ("NTLNLS", "RI-B Pt I 9 cols A-B", "Net charge-offs, year to date",
+     "4635-4605", "760 of 760 bank-quarters"),
+    ("NTLNLSQ", "RI-B Pt I 9 cols A-B", "Net charge-offs, this quarter",
+     "4635-4605 (year-to-date, differenced)",
+     "753 of 753 comparable bank-quarters; the other 7 span a merger"),
+    ("AVASSET", "RC-K 9", "Average total assets for the quarter",
+     "3368", "760 of 760 bank-quarters"),
+
+    # The two denominators no bank files. They are the FDIC's own averages,
+    # and they are here because without them NIMY and NTLNLSQR cannot be
+    # reconstructed at all -- but neither is a line on any form. Every subset
+    # of Schedule RC-K was tested against them across the panel and none
+    # reproduces either. Carried as the FDIC's figure, said so in the row.
+    ("ERNAST", "FDIC-computed average", "Average earning assets for the quarter",
+     "the FDIC's own average; no filed line carries it",
+     "no citation found -- every subset of RC-K was tried across 760 bank-quarters"),
+    ("LNLSGR5", "FDIC-computed average", "Average loans and leases for the quarter",
+     "the FDIC's own average; no filed line carries it",
+     "no citation found -- RC-K 3360, the filed average loans line, misses in all 760"),
 ]
 
 FEED_FIELDS = [r[0] for r in FEED_ROWS]
@@ -117,7 +175,9 @@ FEED_UNITS = {f: "USD_thousands" for f in FEED_FIELDS}
 #: year-to-date filed line. They inherit the merger hazard every existing `*Q`
 #: field has: across a merger the difference of two year-to-date totals mixes
 #: two banks and is not a quarter of anything.
-FEED_FLOW_FIELDS = ("DRRENRSQ", "CRRENRSQ", "NTRELOCQ")
+FEED_FLOW_FIELDS = ("DRRENRSQ", "CRRENRSQ", "NTRELOCQ",
+                    "NETINCQ", "NIMQ", "NONIIQ", "NONIXQ", "ELNATQ",
+                    "NTLNLSQ")
 
 #: Citations whose code changed inside the ten-year window, with the quarter it
 #: changed in. Written down because a row naming only the current code is right
@@ -127,7 +187,23 @@ RECODINGS = {
               ("2018-06-30", None, "2143")],
     "UCOTHER": [("2016-09-30", "2024-09-30", "J457+J458+J459"),
                 ("2024-12-31", None, "J457+PV11+J459+PV10")],
+    # The provision line was renamed and recoded when CECL arrived: RIAD4230
+    # "provision for loan and lease losses" became RIADJJ33 "provisions for
+    # credit losses". Both codes sit on the form from 2019Q1, and the FDIC
+    # follows JJ33 from that quarter -- 570 of 570 -- while 4230 is what its
+    # figure matches before it. A row naming only JJ33 would be right about
+    # today and wrong about the first ten quarters in this window.
+    "ELNATR": [("2016-09-30", "2018-12-31", "4230"),
+               ("2019-03-31", None, "JJ33")],
+    "ELNATQ": [("2016-09-30", "2018-12-31", "4230 (year-to-date, differenced)"),
+               ("2019-03-31", None, "JJ33 (year-to-date, differenced)")],
 }
+
+#: The fields the FDIC constructs rather than reads off a form. They are here
+#: because NIMY and NTLNLSQR cannot be reconstructed without them, and they are
+#: marked because the honest verdict for a figure with no filed line behind it
+#: is not "the bank did not report it".
+FEED_COMPUTED = ("ERNAST", "LNLSGR5")
 
 
 #: Fields the bank files in TWO columns, where the FDIC republishes whichever
