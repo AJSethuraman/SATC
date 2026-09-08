@@ -2,6 +2,9 @@
 
 A business return starts from books that match the bank statements.
 
+Every deadline below moves to the next working day when it lands on a
+Saturday, Sunday or federal holiday.
+
 ---
 
 ## 01 · One account for the business, one for you
@@ -77,8 +80,7 @@ rather than after.
 ## 06 · If it is a partnership or a corporation
 
 - The return is due March 15 for a calendar year, and the owners' K-1s are due
-  on that date too. If March 15 is a weekend or a holiday it moves to the next
-  working day.
+  on that date too.
 - So the company's books decide when its owners can file, not just when the
   company can.
 - Past a certain size the return carries a balance sheet, which means year-end

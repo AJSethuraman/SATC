@@ -1075,3 +1075,24 @@ needs a readable screenshot per step and that viewport cannot produce one, so it
 is unwritten rather than written badly. It needs the Chrome window restored —
 one action on the machine. **Desktop-width layout is therefore unproven**, and
 every finding above was made at narrow width.
+
+### The site docket came back — five answered, one deferred
+
+**D5 = A.** The firm's own approval, given to me directly rather than relayed:
+the consent checkbox becomes *"...that begins when we both sign a written
+agreement setting out the work and the fee."* It lands in three places at once
+because the phrase is live, not just pending in #138.
+
+**D6 = C.** One sentence at the top of the business guide covering every date on
+it, and the March 15 clause comes out. Option A — their first answer — could not
+ship: it duplicated the March 15 construction and `copy.spec.py` fails a phrase
+repeating on one page. The linter was right; the page would have said the same
+thing twice.
+
+**D7 = R.** Do not merge #317. The firm reads the branch preview first.
+
+**D8 deferred**, in their words: *"we do this when i'm comfortable adding them,
+it will be A"* — the Guides nav item on the home page. Not built. It is a
+decision made and postponed, not an open question.
+
+**D9 = A.** Allow assistants to read the site, keep training blocked.
