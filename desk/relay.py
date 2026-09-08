@@ -99,6 +99,24 @@ def _version() -> str:
         return "(unknown)"
 
 
+def _stamp() -> str:
+    """One line, on EVERY envelope, saying which code composed it.
+
+    It went onto `as_prompt` alone in 0.10.1, and that was half a fix. The
+    argument for it -- a stale SKILL.md cannot know it is stale, so the message
+    has to out-rank it -- says nothing about which of the three envelopes is
+    being read. A desk following a four-release-old skill is just as stale when
+    it is handed a follow-up or sent to go and look something up, and those two
+    said nothing about where they came from.
+
+    Shared rather than repeated, and `test_every_envelope_says_what_composed_it`
+    enumerates the module: a fourth envelope added later cannot quietly skip it.
+    """
+    return (f"*Composed by desk {_version()}. If the skill you are following "
+            f"says otherwise, follow THIS message: it came from the code that "
+            f"is running, and a stale skill cannot know it is stale.*")
+
+
 class RelayError(Exception):
     """The envelope is malformed. Never repaired, never defaulted."""
 
@@ -159,9 +177,7 @@ def as_prompt(a: Ask) -> str:
     """
     out = [f"DESK REQUEST {a.ref} — you are the desk. Somebody is doing the "
            f"work and has hit something they cannot settle.", "",
-           f"*Composed by desk {_version()}. If the skill you are following "
-           f"says otherwise, follow THIS message: it came from the code that "
-           f"is running, and a stale skill cannot know it is stale.*", "",
+           _stamp(), "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
            "No context came with it. Read the facts off the desk's own record "
@@ -336,6 +352,7 @@ def follow_up_prompt(f: FollowUp) -> str:
     """The message that carries the answers back to the desk."""
     out = [f"DESK FOLLOW-UP {f.ref} — for the **{f.desk}** desk. You asked for "
            f"these and here they are.", "",
+           _stamp(), "",
            f"**This answers {f.desk}'s refusal and no other.** The same question "
            f"may have reached other desks, which refuse for their own reasons "
            f"and want their own facts; the ref is shared between them and the "
@@ -417,6 +434,7 @@ def research_prompt(r: Research, reply_to: str) -> str:
     """The message the researching session receives."""
     out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
            f"the session that can go and look.", "",
+           _stamp(), "",
            "## The question", "", r.question, "",
            "## What already refused it, and why", ""]
     out += [f"- **{desk}** — `{reason}`" for desk, reason in r.refused_by]
