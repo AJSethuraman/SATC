@@ -51,7 +51,10 @@ In a Claude Code session, say:
 > Ask a desk: the bank statement shows a $10 service charge and nothing for it
 > is in the books. What do I do with it?
 
-The agent loads the `ask-desk` skill and consults. **What to look for:** it comes
+The agent loads the `be-the-desk` skill and consults. (That is the local
+shape — one session holding the desks and answering from them, which is what
+this page walks. The session-to-session shape, where a doer sends the question
+somewhere else, is `ask-desk` and `docs/THE-DESK-IS-A-SESSION.md`.) **What to look for:** it comes
 back with a conclusion, one citation, and how binding that authority is — or it
 tells you who has to be asked. It should never come back with a conclusion and
 no citation, because the engine refuses that before it leaves the desk.

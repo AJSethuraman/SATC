@@ -18,9 +18,14 @@ around:
 
 ## What changes
 
-Today `ask-desk` is a skill that does `sys.path.insert(ROOT); import ask`. The
-desks are files on the calling agent's disk, and consulting one is a function
-call. Every problem this repository has fought for three days follows from that:
+**Built in 0.8.0.** `ask-desk` used to be a skill that did
+`sys.path.insert(ROOT); import ask` — the desks were files on the calling
+agent's disk and consulting one was a function call. That file is now
+`be-the-desk`, for the session that holds the record; `ask-desk` is the doer's
+skill and holds none of it; `relay.py` composes the envelope between them and
+refuses a malformed one.
+
+Every problem this repository fought for three days follows from the old shape:
 the plugin has to be installed, the install has to be current, the SKILL.md the
 harness serves has to match the code, and a doer holding the record can read past
 whatever it was handed.
