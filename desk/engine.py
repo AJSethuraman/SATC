@@ -477,7 +477,40 @@ class Served:
                         "here has looked at the facts:"]
             for citation, position, _ in self.alongside:
                 out += [f"  · {position}", f"      {citation}"]
-        if self.unchecked:
+        # WHAT NOBODY CHECKED IS DECIDED AT PRINT TIME, NOT AT SERVE TIME.
+        #
+        # `unchecked` is composed inside `serve()`, and `serve()` has no
+        # `judged` parameter -- the judgment is attached one layer up by
+        # `ask.answer`, after the sentence is already baked. So the text could
+        # never know a second reader had looked, and said "Nobody checked that
+        # this paragraph says this" on answers carrying an affirmative
+        # judgment. Found by the desk on 8 September 2026, on the worst possible
+        # answer to be wrong about: *"the most dangerous served answer in this
+        # whole set -- wrong citation, affirmative judgment, off-source warning
+        # -- tells its reader that nobody checked, which is the one claim in it
+        # that is not true."*
+        #
+        # IT STILL SENDS THE READER TO THE PASSAGE. A judgment is one reader's
+        # yes, not a verification: `engine` checks the quoted words are present
+        # and in order, never that they support the conclusion. Replacing the
+        # warning with a reassurance would be worse than the bug it fixes.
+        # AND ONLY THE CLAIM THAT BECAME FALSE IS REPLACED. The first cut of
+        # this suppressed `unchecked` entirely whenever a judgment stood, and
+        # two render tests went red for the right reason: an answer from a
+        # RATIFIED POSITION carries a different sentence there -- that the firm
+        # ratified this conclusion and it is served in their words -- which a
+        # second reader does not make untrue. Only "Nobody checked" is the claim
+        # a judgment contradicts.
+        seen = self.judged if getattr(self.judged, "stands", False) else None
+        if seen is not None:
+            out += ["", f"A second reader ({seen.by}) read this paragraph and "
+                        f"says it carries this conclusion — checked against "
+                        f"{seen.against or 'the record'}. That is one reader's "
+                        f"yes, not a verification: the engine checks their "
+                        f"quotation is really in the passage, never that it "
+                        f"settles the question. Read the passage below."]
+        if self.unchecked and not (seen is not None
+                                   and self.unchecked.startswith("Nobody checked")):
             out += ["", self.unchecked]
         if self.passage:
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
