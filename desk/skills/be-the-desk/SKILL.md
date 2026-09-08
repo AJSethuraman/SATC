@@ -83,12 +83,27 @@ if not os.path.isdir(os.path.join(ROOT, "desks")):
         f"update satc && claude plugin update desk@satc` — or set "
         f"CLAUDE_PLUGIN_ROOT to where it lives. There is no desk to ask.")
 sys.path.insert(0, ROOT)
+from pathlib import Path
 import ask
 
-for desk, brief in ask.consult("the bank statement shows a $10 service charge "
-                               "and nothing for it is in the books"):
+briefs, filed = ask.consult_or_file(
+    "the bank statement shows a $10 service charge and nothing for it is in "
+    "the books",
+    queue=Path(ROOT) / "unfiled" / "CLOSE.md")
+
+for desk, brief in briefs:
     ...  # read `brief`, then answer from it
+
+if filed:                      # no desk held it; it is now in the queue
+    ...  # tell the asker so, and say the entry id
 ```
+
+**Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
+pure query and it returns silence; `consult_or_file` returns the same briefs
+AND writes the question into the queue when nothing holds it. A desk that
+refuses leaves a refusal `tools/holes.py` reads out — a question nobody built a
+desk for used to leave nothing at all, which on a close is the worst of the
+three: the doer gets nothing back and the firm never learns it was asked.
 
 **Pass what your own file already says.** Some rules cannot be applied without a
 fact the engagement should already have recorded — what the client does, whose
@@ -156,9 +171,20 @@ the others moot.
 
 ## Four things that will surprise you
 
-**1 · Silence is an answer.** `consult` returns an empty list when no desk
-answers on that subject. That is not a failure to route — it means no expert here
-holds the question, and inventing one is the thing this exists to stop.
+**1 · Silence is an answer — and it is FILED, not just returned.** `consult`
+returns an empty list when no desk answers on that subject. That is not a
+failure to route: it means no expert here holds the question, and inventing one
+is the thing this exists to stop.
+
+**But say it back, and let it be recorded.** `consult_or_file` writes the
+question into the unfiled queue where `tools/holes.py` reads it out, so the
+missing subject becomes visible instead of vanishing. The firm, 8 September
+2026: *"You do not prep it with information and if it can't get the information
+that means there's an actual hole."* Measured the same day on twenty month-end
+questions in a bookkeeper's own words, **five reached nothing** — and two of the
+five were subjects a desk already holds, missed on an inflection ("invoiced"
+does not fire where "invoice" does). Silence that is filed is a finding;
+silence that is returned is a dead end.
 
 **2 · Escalating is a real answer, and often the right one.** Measured on eleven
 real questions from a close, thirteen of eighteen answers were escalations and

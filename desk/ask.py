@@ -62,6 +62,53 @@ def consult(question: str, desks: Path = DESKS,
     return out
 
 
+def consult_or_file(question: str, *, queue: Path, desks: Path = DESKS,
+                    context: record.Context | None = None,
+                    model: str = "") -> tuple[list[tuple[str, str]], object]:
+    """`consult`, and FILE the question when no desk holds it.
+
+    SILENCE WAS THE ONE OUTCOME THAT LEFT NO RECORD. `consult` returning empty
+    is a real result -- no expert here holds the question, and inventing one is
+    what the routing exists to stop -- and `be-the-desk` says so. But a desk
+    that refuses leaves a refusal `tools/holes.py` reads out, while a question
+    that reached NO desk left nothing at all. On a close that is the worst of
+    the three: the doer gets nothing back, and the firm never learns the
+    question was asked.
+
+    The firm, 8 September 2026, setting exactly this expectation:
+
+        "You do not prep it with information and if it can't get the
+         information that means there's an actual hole."
+
+    MEASURED the same day, on twenty month-end questions in a bookkeeper's own
+    words: fifteen reached a desk and FIVE reached nothing. Two of the five were
+    subjects a desk already holds and the routing missed.
+
+    IN CODE RATHER THAN IN THE SKILL, for the reason the README already gives
+    about the citation rule: the same policy written as skill prose was obeyed
+    "100%, 4%, 0% of runs". `unsupported.from_question` existed and was reachable
+    only from a batch tool somebody runs by hand.
+
+    Returns `(briefs, filed)`. `filed` is None whenever a desk answered -- a
+    queue that grew a row per question would be a traffic log, and the count
+    would stop meaning anything.
+    """
+    briefs = consult(question, desks, context)
+    if briefs:
+        return briefs, None
+    queue = Path(queue)
+    existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
+                if queue.exists() else [])
+    entry = unsupported.from_question(
+        question,
+        why="no desk holds this subject — routing reached nothing",
+        model=model,
+        existing=existing,
+    )
+    unsupported.append(queue, entry)
+    return [], entry
+
+
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None) -> str:
     """Everything the desk will let an answerer see, and nothing else."""

@@ -2,10 +2,29 @@
 
 **8 September 2026 · desk 0.17.0 · `runs/asked-2026-09-08/`**
 
-This is the end condition the firm set for the goal *"get this piloted
-through the close out"*: one close's questions put to the desks, with a
-written record of every answer served, every refusal and what it asked for,
-and the questions the desks never saw.
+**This is NOT the firm's end condition, and an earlier version of this line said
+it was.** The firm's words are *"get this piloted through the close out"*; the
+clause below — *one close's questions put to the desks, with a written record of
+every answer served, every refusal and what it asked for, and the questions the
+desks never saw* — was **written by a session** in
+`DECISIONS-2026-09-07-SEVENTH.md:67`, which labelled it honestly as *"the goal,
+set by the firm **and shaped here**"*. This document dropped the caveat and
+re-attributed the shaping to the firm; a docket then published it as *"the
+firm's goal, set on 7 September 2026"* under a heading saying silence approves
+it. When the firm later answered *"The pilot is still the goal"*, they were
+confirming a definition they never wrote.
+
+**The firm's actual V1 bar**, verbatim, `desk/relay.py:5-9`:
+
+> *"the final check for this for V1 will be to have Forge - Occam install the
+> new plugin we are designing and run a close from start to finish on Sarcia
+> Services [...] this implies that the skill is able to call for questions and
+> receive back answers from Forge - Desk"*
+
+**By that bar this run does not count and the goal is not met.** What follows is
+a paper exercise run in a cloud container on 43 archived questions. Its findings
+are real; its status is not a pilot. Corrected 8 September 2026 after Count Bassy
+traced the substitution through three files.
 
 **No engagement facts were loaded before the run, on purpose.** The firm, on
 the docket the same morning:
