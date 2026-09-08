@@ -198,3 +198,36 @@ def test_the_envelope_names_the_desk_side_skill_and_not_the_asking_one():
     assert "`be-the-desk` skill" in body
     assert "NOT `ask-desk`" in body, (
         "a desk that reaches for `ask-desk` finds the asking side and improvises")
+
+
+def test_the_envelope_is_readable_text_and_not_one_long_line():
+    """SHIPPED BROKEN AND FOUND BY PRINTING IT, which is the whole of behaviour
+    9. `as_prompt` ended `return "\\\\n".join(out)` — an escaped backslash that
+    reached the source verbatim — so every envelope was a single line with the
+    two characters `\\n` where its newlines should have been.
+
+    TWENTY-FIVE TESTS PASSED ON IT. Every one asked whether a substring was
+    present, and a substring is present either way. Nothing asked whether the
+    thing a desk actually reads was legible. A protocol test that never looks at
+    the message is testing a dictionary, not a wire."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "\\n" not in body, (
+        "literal backslash-n in the envelope: the desk receives one long line")
+    assert len(body.splitlines()) > 15
+    assert body.splitlines()[0].startswith("DESK REQUEST ")
+
+
+def test_the_headings_survive_as_headings():
+    """Markdown that is not on its own line is not markdown."""
+    lines = relay.as_prompt(relay.ask(Q, reply_to=ME)).splitlines()
+    for heading in ("## The question", "## How to answer"):
+        assert heading in lines, f"{heading!r} is not on a line of its own"
+
+
+def test_the_reply_snippet_is_a_fenced_block_a_desk_can_copy():
+    lines = relay.as_prompt(relay.ask(Q, reply_to=ME)).splitlines()
+    assert lines.count("```") == 2, "the create_trigger snippet is not fenced"
+    opened = lines.index("```")
+    block = lines[opened + 1:lines.index("```", opened + 1)]
+    assert any(l.startswith("create_trigger(") for l in block)
+    assert any(l.startswith("fire_trigger(") for l in block)

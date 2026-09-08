@@ -110,7 +110,7 @@ def ref_for(question: str, reply_to: str) -> str:
     not a thing that happens, short enough to read in a log.
     """
     return hashlib.sha256(
-        f"{reply_to}\\n{question.strip()}".encode()).hexdigest()[:12]
+        f"{reply_to}\n{question.strip()}".encode()).hexdigest()[:12]
 
 
 def ask(question: str, reply_to: str) -> Ask:
@@ -180,7 +180,7 @@ def as_prompt(a: Ask) -> str:
         "No client name, TIN or figure in the reply. If you cannot answer, say "
         "so and say what authority is missing — a refusal is a finding.",
     ]
-    return "\\n".join(out)
+    return "\n".join(out)
 
 
 def reply_opens(body: str, ref: str) -> bool:
