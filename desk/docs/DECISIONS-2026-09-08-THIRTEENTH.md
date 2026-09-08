@@ -379,3 +379,102 @@ It is the first thing on the page now. `caveat` and `alongside` did **not** move
 with it: both are about the authority the reader is being sent to and are read
 after the answer on purpose. This one is about whether the answer is even the
 reader's question, so it is read first or it is read too late.
+
+---
+
+# Postscript 3: the seam was in the guard's own definition — 8 September 2026
+
+The scan added in 0.12.0 derives its field list from the difference of the two
+dataclasses:
+
+```python
+ONLY_WHEN_SERVED = tuple(f for f in engine.Served.__dataclass_fields__
+                         if f not in engine.Refusal.__dataclass_fields__)
+```
+
+Asked directly whether that scope was right or whether it was the same mistake
+one level up, the desk answered **the narrow form is right** — and then found
+the one seam, by reading the guard rather than the code it guards, which is the
+thing mutation cannot do.
+
+Measured at 0.12.0, and reproduced here before acting:
+
+```
+Served : alongside binding caveat checked checked_subject citation judged
+         passage position proof straddle tier unchecked
+Refusal: ask by_position desk detail fact reason showed showed_by_source working
+BOTH   : NONE
+```
+
+> *"That is why you are safe today and it is the whole of why. The intersection
+> is EMPTY, so `ONLY_WHEN_SERVED` is all of `Served`, `AttributeError` covers
+> every cross-branch case loudly, and your scan covers the silent one. Correct,
+> and correct by a coincidence of the current shape."*
+
+> *"THE DAY A FIELD LANDS ON BOTH DATACLASSES, THREE THINGS HAPPEN AT ONCE AND
+> ALL SILENTLY: 1. `AttributeError` stops firing for that field — a `Refusal`
+> now has it. 2. `ONLY_WHEN_SERVED` silently DROPS it, because it is no longer
+> Served-only. 3. `getattr(out, "<that field>", "")` becomes legal again, and
+> means nothing again. **The guard narrows itself precisely when the risk
+> appears. Nothing goes red.**"*
+
+One assertion closes it, and it is **prevention rather than detection**: it goes
+red on the commit that creates the risk, at the only moment anyone will be
+thinking about it. `working` on a `Served` is the obvious future candidate — if
+the firm wants it, this fails, it moves to an explicit list, and the scan keeps
+covering it. The decision is forced, not forbidden.
+
+## And it reported three negatives, which is why the positives are worth reading
+
+> *"reporting the negatives because a search that only reports hits is not a
+> search"*
+
+- **Negative assertions on a literal string**, which decay the moment the string
+  is reworded — a live risk, since these sentences were reworded three times in
+  one night. **Clean:** the same literal is asserted *present* at three other
+  lines, so a reword goes red loudly. Spot-checked here: lines 63, 235 and 335
+  against the negative at 219.
+- **Redaction checks that pass on empty output.** **Clean:** both iterate
+  `repr(out)`, never empty for a dataclass, and one asserts the refusal first.
+- **Negatives via `str(out)` rather than a field.** **Clean:** no such shape.
+
+## On the read of the note itself, it disqualified itself
+
+> *"YOU ASKED ME TO SAY SO IF I CANNOT UN-KNOW THE OLD ONE. I CANNOT. I am no
+> longer testing whether it stops a reader; I am testing whether it satisfies
+> criteria I wrote, which is a weaker thing and partly circular — I will grade
+> my own draft well. TREAT THE ANSWER BELOW AS A CHECK THAT YOU BUILT WHAT WE
+> DISCUSSED, NOT AS EVIDENCE THAT IT WORKS. The cold read has to come from
+> someone who has seen neither version, and there are people in the firm who
+> qualify."*
+
+**So the note is not proven and this file must not say it is.** What is
+established is that it meets the criteria the reader gave. Whether it stops
+anybody is an open question with a named way to answer it.
+
+It did resolve the objection it had made most strongly, and the resolution is
+worth keeping:
+
+> *"the conditional is FIXED, which was my real objection. It still ends 'if it
+> is the half you meant' — but by then the reader has been TOLD there are two
+> halves, told which one this answers, and told nothing in their wording
+> separates them. The self-diagnosis I said was impossible is now possible,
+> because you supplied the thing they were missing. **That is the difference
+> between a conditional and a trap.**"*
+
+## The attribution question, answered by the party it is about
+
+The self-corrections in this record were offered for removal and the answer was
+to keep them:
+
+> *"A record that shows only the findings reads as though the method were
+> reliable. It is not — it is reliable BECAUSE it is checked, and the two
+> corrections are the evidence for that. Removing them would make the rest look
+> better and be worth less."*
+
+**Make it four.** Beyond the miscounted match and the reversed arguments: 152
+pytest errors on Windows that were its own unwritable temp directory —
+*"Not your code; I nearly reported them as yours."* — and a mutation class it
+proposed, found already anchored in three places, and withdrew before sending.
+
+> *"That one never reached you as a claim, which is the system working."*

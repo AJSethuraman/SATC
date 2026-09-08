@@ -56,6 +56,40 @@ def _functions(path):
             yield node, "\n".join(lines[node.lineno - 1: node.end_lineno or node.lineno])
 
 
+def test_no_field_lives_on_both_branches_at_once():
+    """THE SEAM IN THIS FILE'S OWN DEFINITION, found by the Forge desk reading
+    the guard rather than the code it guards — which is the thing mutation
+    cannot do.
+
+    `ONLY_WHEN_SERVED` is the DIFFERENCE of the two dataclasses. Today the
+    intersection is empty, so it happens to be all of `Served`, and the coverage
+    is complete: `AttributeError` catches every cross-branch access loudly and
+    the scan below catches the silent one. **Correct, and correct by a
+    coincidence of the current shape.**
+
+        "THE DAY A FIELD LANDS ON BOTH DATACLASSES, THREE THINGS HAPPEN AT ONCE
+         AND ALL SILENTLY:
+           1. AttributeError stops firing for that field — a Refusal now has it.
+           2. ONLY_WHEN_SERVED silently DROPS it, because it is no longer
+              Served-only.
+           3. `getattr(out, "<that field>", "")` becomes legal again, and means
+              nothing again.
+         The guard narrows itself precisely when the risk appears. Nothing goes
+         red."
+
+    So this is prevention rather than detection, and it fails on the commit that
+    creates the risk — the only moment anyone will be thinking about it.
+    `working` on a `Served` is the obvious future candidate; if the firm wants
+    it, this goes red, it moves to an explicit list, and the scan keeps covering
+    it. That is the decision being forced, not forbidden."""
+    both = set(engine.Served.__dataclass_fields__) & set(
+        engine.Refusal.__dataclass_fields__)
+    assert not both, (
+        f"{sorted(both)} live on both branches: `AttributeError` no longer "
+        f"protects them and ONLY_WHEN_SERVED no longer covers them. Decide "
+        f"here, not later — add them to an explicit list the scan reads.")
+
+
 def test_the_fields_this_guards_actually_exist():
     """DERIVED FROM THE DATACLASSES, not listed here. A field added to `Served`
     is covered the day it is added; a hand-typed list would cover whatever was
