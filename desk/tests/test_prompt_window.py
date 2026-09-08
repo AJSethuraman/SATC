@@ -324,14 +324,29 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: the file that does not load. A check cannot detect its own staleness, so the
 #: stamp had to come from the code doing the work — and the brief is the one
 #: artifact an answerer always reads.
+#: AND AGAIN on 8 September 2026, at 0.13.1 — **+113 tokens on every desk and
+#: both sides**, which is the largest FLAT move this roster has recorded and the
+#: one with the most behind it. The brief said, and had always said, *"A citation
+#: to anything not printed here is refused by the engine, however real it is."*
+#: That sentence was the ceiling: everything outside the stored corpus refused,
+#: the searcher found the rule, and the trail stopped at the firm because a
+#: source had to be admitted before any desk could cite it. Verification is the
+#: gate now (#343), so the brief has to say what an answerer may do instead —
+#: hand in the URL and the exact words, and let the engine fetch the page.
+#:
+#: THE OLD SENTENCE IS STILL THERE, UNWEAKENED, and the six lines added are
+#: spent almost entirely on why: the gate is a FETCH and not the answerer's
+#: word, so "you may cite something not printed here" must never read as "you
+#: may quote it from memory". Identical on every desk because it is one fixed
+#: paragraph, and identical on both sides because it is not authority.
 ANSWERING_BRIEF = {
-    "capitalization-and-de-minimis":     (8_553, 19_420),
-    "cash-and-bank":                     (15_147, 20_690),
-    "fixed-assets":                      (22_971, 75_803),
-    "meals-and-entertainment":           (11_754, 20_738),
-    "personal-or-business":              (3_612, 4_116),
-    "rewards-and-information-returns":   (9_436, 20_127),
-    "vehicle-expense":                   (20_893, 26_387),
+    "capitalization-and-de-minimis":     (8_666, 19_534),
+    "cash-and-bank":                     (15_260, 20_803),
+    "fixed-assets":                      (23_085, 75_916),
+    "meals-and-entertainment":           (11_867, 20_851),
+    "personal-or-business":              (3_725, 4_229),
+    "rewards-and-information-returns":   (9_550, 20_240),
+    "vehicle-expense":                   (21_006, 26_500),
 }
 
 

@@ -71,6 +71,15 @@ text the answer is withdrawn; where the publisher could not be reached the answe
 stands and says so, because a client's answer must not depend on a government
 website being up.
 
+**And a citation no desk holds is not the end of the road.** Hand `ask.answer`
+the URL you found the rule at and the exact words you are resting on, alongside
+a transport, and it fetches that page and serves only if those words are on it
+right now. Two checks run *before* anything is fetched: the publisher must be
+competent to settle the question, and a licence the firm has not accepted stays
+a wall. The answer arrives saying it is not from the record — and **never
+binding**, because `binding` means the firm treats it as authority that binds
+their own work, and nobody has looked at the document. `candidates.py`.
+
 **Every attempt is written down, whatever it did.** The firm, 8 September 2026:
 *"It should state what happened when trying to tie it out. I need info to make
 decisions down the line."* One unreachable source is a shrug; forty against the

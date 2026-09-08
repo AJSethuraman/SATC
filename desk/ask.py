@@ -73,9 +73,23 @@ def brief(question: str, desk: record.Desk,
     # lives in the file that did not load. This line comes from the code doing
     # the work, so a skill claiming something else is visibly wrong.
     stamp = f" · desk {record.VERSION}" if record.VERSION else ""
+    # THE SECOND PARAGRAPH IS NEW AND THE FIRST IS NOT WEAKENED. Until 0.13.1
+    # this said only the first thing, and it was the whole ceiling: everything
+    # outside the stored corpus refused, the searcher found the rule, and the
+    # trail stopped at the firm because a source had to be admitted before any
+    # desk could cite it. Verification is the gate now (#343) -- but the gate is
+    # a FETCH, not the answerer's word, so the instruction has to be exact about
+    # what is being asked for. Quoting from memory is the failure this engine
+    # exists to stop and it must not read as newly permitted.
     out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
            "Answer ONLY from what follows. A citation to anything not printed",
-           "here is refused by the engine, however real it is.", ""]
+           "here is refused by the engine, however real it is.", "",
+           "If the rule you need is NOT printed here, do not cite it from",
+           "memory — escalate `authority_absent`. If you have been given a way",
+           "to fetch, you may instead hand in the URL you found it at and the",
+           "exact words you are resting on: the engine will fetch that page and",
+           "serve only if those words are on it right now. It will not take",
+           "your word for what the page says.", ""]
     if desk.records:
         # WHAT WE WERE TOLD, AND -- THE HALF THAT MATTERS -- WHAT WE WERE NOT.
         # Printing only the facts on file leaves an answerer to assume the rest
@@ -194,7 +208,8 @@ def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", ask: str = "", desks: Path = DESKS,
            keep: bool = True,
-           context: record.Context | None = None, prove=None, judged=None):
+           context: record.Context | None = None, prove=None, judged=None,
+           found_at: str = "", found_text: str = ""):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
@@ -214,6 +229,16 @@ def answer(question: str, desk_name: str, *, position: str = "",
     remove one. Where the publisher no longer carries the passage the answer is
     withdrawn (`authority_has_moved`); where the publisher could not be reached
     the answer stands and says the proof could not be taken.
+
+    `found_at` AND `found_text` ARE THE CANDIDATE PATH. Where the gate refuses
+    `authority_absent` -- the record does not hold this citation -- and the
+    caller has both a transport and a URL it found the rule at, the answer is
+    served if and only if `found_text` is on that page right now. `candidates.py`
+    is the whole of it, including the two checks that run before any fetch.
+
+    BOTH ARE REQUIRED, and passing neither leaves behaviour byte-identical to
+    before. A URL with no words is nothing to compare; words with no URL is the
+    model's own recollection, which is the thing this engine exists not to serve.
 
     EVERY ATTEMPT IS RECORDED, WHATEVER IT DID, into the desk's `tie-outs/`
     store, under `keep` like a refusal is. The firm asked for it in as many
@@ -256,7 +281,31 @@ def answer(question: str, desk_name: str, *, position: str = "",
                                  working=working)
 
     out = engine.serve(proposed, desk, question=question, context=context)
-    if prove is not None and isinstance(out, engine.Served):
+    # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
+    # has run and refused. It can therefore add a refusal and can never remove
+    # one, which is the property every stage in this function has.
+    #
+    # `authority_absent` ONLY. It is the one refusal that says "the record does
+    # not hold this", and the record not holding something is the whole of what
+    # a live proof answers. Every other refusal is a finding about the question,
+    # the client or the authority, and a fetch says nothing about any of them.
+    if (isinstance(out, engine.Refusal) and out.reason == "authority_absent"
+            and prove is not None and found_at and found_text):
+        import attempts
+        import candidates
+        out = candidates.consider(
+            question=question, position=position, citation=citation,
+            url=found_at, text=found_text, desk=desk, transport=prove)
+        if keep and getattr(out, "proof", None) is not None:
+            attempts.record(desks, desk_name, out.proof)
+    # `out.proof is None` MEANS NOT YET PROVED, and it is what keeps the two
+    # paths from proving the same answer twice. A candidate arrives here already
+    # carrying its proof; running the stored path over it would resolve its
+    # citation in a record that does not hold it, get COULD NOT, and OVERWRITE
+    # a TIED proof with a failure — the served answer looked right and its
+    # evidence was replaced by the evidence of a lookup that could not have
+    # worked. `engine.serve` never sets this field, so the condition is exact.
+    if prove is not None and isinstance(out, engine.Served) and out.proof is None:
         import dataclasses
 
         import attempts
