@@ -476,6 +476,23 @@ it with them.
 
   PRD: `desk/docs/prd-verification-is-the-gate.md`.
 
+  **Both PRD questions answered the same day, on the docket.** *"Admit the free
+  ASU."* And on the judge, *"The judge can look at it all I guess?"* — all seven
+  desks, not one first.
+
+  **And the FASB question turned into a design constraint rather than a caveat.**
+  Asked why FASB publishes two things: the Codification is a LIVING text, always
+  the rule as currently amended; an ASU is a POINT-IN-TIME INSTRUMENT, frozen at
+  the date it was issued. So `ASU 2016-02` carries ASC 842-20-25-1 as issued in
+  2016 and will carry those words forever — which means **a tie-out against an
+  archival document always passes and proves nothing about whether the rule still
+  reads that way.** The proof is honest and the conclusion can still be stale.
+  It generalises past FASB: a superseded revenue ruling, a withdrawn notice, an
+  old edition of a publication all tie out cleanly and forever. So currency is a
+  property of the SOURCE, declared rather than inferred, and an answer resting on
+  a frozen document says so. This is the sharpest limit of verification-as-gate
+  and it came out of the firm's own question.
+
   **Three docket answers alongside it.** *Keep warning* on a domain straddle
   (measured: 5 of 98 recorded problems straddle, 4 of those 5 are answered
   correctly today). *A real headless browser* for what the tie-out announces to a

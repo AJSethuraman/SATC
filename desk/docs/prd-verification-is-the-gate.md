@@ -202,6 +202,32 @@ without touching the engine.
   `authority_has_moved` if the text is absent from the page, and
   `authority_absent` if there was no proof to offer.
 
+### A tie-out proves containment, not currency
+
+**This is the sharpest limit of verification-as-gate and it came out of the
+firm's own question about FASB.** The Codification is a *living* text — always
+the rule as currently amended. An ASU is a *point-in-time instrument* — the
+amendment that changed it, frozen at the date it was issued. `ASU 2016-02`
+carries ASC 842-20-25-1 as issued in February 2016 and will carry those words
+forever.
+
+So a tie-out against an archival document **always passes and proves nothing
+about whether the rule still reads that way.** The proof is honest — the words
+really are on that page — and the conclusion drawn from it can still be stale.
+This generalises well past FASB: a superseded revenue ruling, a withdrawn
+notice, a 2019 edition of an IRS publication all tie out cleanly and forever.
+
+**So currency is a property of the SOURCE, not of the proof**, and it has to be
+declared rather than inferred. A source — stored or candidate — says whether it
+is a living text or a point-in-time instrument, and an answer resting on the
+latter says so above the citation, alongside the live-fetch line: *these words
+are on that page, and that page is a snapshot of a date, not the current rule.*
+
+An unknown candidate is a point-in-time instrument by default, because assuming
+a document is maintained is exactly the assumption that would go wrong quietly.
+The firm admitting a publisher is what promotes it to living, which is the same
+shape as every other admission in this record.
+
 ### Client data
 
 Unchanged and absolute. The doer describes the transaction in words; no client
@@ -272,19 +298,19 @@ Each must turn a test red.
 
 ## 9. Open Questions
 
-*(Only decisions genuinely owed to the firm. Researchable and codebase-answerable
-items were closed during grilling and are pinned above.)*
+**None.** Both questions this PRD opened were answered on the docket and are
+recorded below rather than left hanging.
 
-1. **FASB's free ASU — as issued, or as amended?** The firm answered *"probably
-   admit it"* and asked why FASB publishes two things. The Codification is the
-   living, authoritative text; an ASU is the amendment instrument that changed
-   it, published free. So `ASU 2016-02` carries ASC 842-20-25-1 **as issued in
-   2016**, and the Codification carries it **as amended today**. Under
-   verification-as-gate the PDF ties out cleanly and the remaining question is
-   only whether that paragraph is still current — which the desk can run down.
-   **Recommendation:** admit it, and have the desk establish whether any later
-   leases update touched that paragraph before anything rests on it.
-2. **The judge across all seven desks?** Answered *"the judge can look at it all
-   I guess?"* with no pick. It costs a second model call on every served answer
-   and is worth nothing unless the second reader is genuinely second.
-   **Recommendation:** `fixed-assets` first, measure, then widen.
+- **FASB's free ASU is admitted.** *"Admit the free ASU."* The firm also asked
+  why FASB publishes two things, and the answer became a design constraint
+  rather than a caveat handed back: the Codification is living, an ASU is frozen
+  at issue, and a tie-out against a frozen document proves containment and not
+  currency. See *A tie-out proves containment, not currency* above. Nothing here
+  waits on the firm.
+- **The judge looks at everything.** *"The judge can look at it all I guess?"* —
+  all seven desks, not `fixed-assets` first. The cost stands and is stated so
+  nobody rediscovers it: a second model call on every served answer, and the
+  check is worth nothing unless the second reader is genuinely second — one
+  session playing both parts produces something that looks like a check and is
+  not. `judging.read` already raises when the answerer judges itself, which is
+  the load-bearing part.
