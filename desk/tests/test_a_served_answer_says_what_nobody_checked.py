@@ -142,16 +142,28 @@ def test_a_non_binding_answer_says_so_in_the_same_sentence():
         "a non-binding source served with binding language")
 
 
-def test_the_skill_tells_the_agent_to_pass_both_on():
+def test_the_skill_tells_the_agent_to_pass_them_all_on():
     """The object carrying it is half. An agent that renders `position` and
     `citation` and drops the rest has undone the whole thing, so the skill has
-    to say so where the agent reads what to do with an answer."""
+    to say so where the agent reads what to do with an answer.
+
+    UPDATED 8 September 2026, and the change is the point. This used to require
+    the skill to show `print(out.unchecked)` and `print(out.passage)` — a field
+    list, which is exactly the shape that goes stale in a plugin cache while the
+    code moves. The skill now says `print(out)` and the layout lives on
+    `Served.__str__`. So what is required here is that the fields are still
+    DOCUMENTED by name, and that the instruction is to print the whole object;
+    a skill that went back to enumerating fields would pass the first half and
+    fail the second."""
     skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(skill.split())
-    assert "out.unchecked" in flat and "out.passage" in flat, (
-        "the skill never shows the agent printing them")
-    assert "MUST pass both on" in flat
+    assert "`unchecked`" in flat and "`passage`" in flat, (
+        "the skill no longer documents the two fields by name")
+    assert "MUST pass them all on" in flat
     assert "not boilerplate to trim" in flat
+    assert "print(out)" in flat, "the skill must tell the agent to print it all"
+    assert "print(out.unchecked)" not in flat, (
+        "back to a field list — the shape that went stale four releases running")
 
 
 def test_a_position_backed_answer_has_something_to_read():

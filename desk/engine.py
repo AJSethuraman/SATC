@@ -279,6 +279,29 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
+    #: THE FIRM'S OTHER POSITIONS ON THIS SAME PASSAGE — `((citation, position),
+    #: ...)`, and empty on the ordinary answer where there are none.
+    #:
+    #: THE INCIDENT, 7 September 2026. `cash-and-bank` holds two positions on one
+    #: section of Pub. 583 with OPPOSITE answers. Asked about a deposit in
+    #: transit, an agent cited the one for what the books are updated for and the
+    #: engine served *"an entry in the books"* — `binding`, in the firm's own
+    #: words, and the desk's own answer key (CB1) says the opposite.
+    #:
+    #: WHY NO EXISTING CHECK CAUGHT IT. `_check` refuses a conclusion that
+    #: CONTRADICTS a ratified position. Here the agent did not contradict the
+    #: firm; it quoted them exactly and applied them to facts they were not
+    #: about. Nothing in the pipeline is a statement about which of two adjacent
+    #: rules is in play, and nothing can be — that judgement needs the facts.
+    #:
+    #: SO IT IS SHOWN RATHER THAN DECIDED, which is the same trade `passage`
+    #: made: the engine cannot tell right from wrong here, but it can stop the
+    #: alternative from being invisible. The tester on the version without this:
+    #: *"The reader is shown one of two adjacent rules and not told the other
+    #: exists."* A reader handed both opposite answers side by side is a reader
+    #: who can catch this in a second; one handed a single confident answer is
+    #: not, however carefully they read the passage.
+    alongside: tuple = ()
     #: Whether the authority behind this answer SETTLES the question or merely
     #: reads it. False means the desk answered from guidance because no rule and
     #: no position reached, which the firm allowed on 6 September 2026 -- and
@@ -303,6 +326,51 @@ class Served:
     #: None means NOT ASKED FOR, never "asked for and fine". A proof that could
     #: not be taken is a `Proof` with verdict COULD NOT, and it says so.
     proof: object = None
+
+    def __str__(self) -> str:
+        """The whole answer, laid out for a person. WHY THIS IS NOT IN THE SKILL.
+
+        THE INCIDENT, 7 September 2026, and it is the one defect that has bitten
+        every Forge run. The Skill tool served `desk:ask-desk` from a plugin
+        cache FOUR releases stale — a SKILL.md with no mention of `unchecked`,
+        no mention of `passage`, and a first snippet that raises. The tester
+        produced correct output only by reading the current file off disk, which
+        is not what the skill tells anyone to do, and named the shape of it:
+        *"the warning you added lives in the file that does not load [...]
+        Anything that depends on the loaded SKILL.md being current cannot fix a
+        stale SKILL.md. If it can be checked from ask.consult/ask.answer
+        themselves — the code that is current — that is the only channel that
+        reaches an agent in this state."*
+
+        So the instruction moves out of the prose and into the object. An agent
+        following a two-release-old skill that says "print the answer" now
+        prints all of it, because printing it IS this. The skill can go stale;
+        the rendering cannot.
+
+        `__repr__` is untouched and still carries every field. That split is
+        deliberate: the tester also found `showed` and `showed_by_source`
+        — instrumentation counting what the desk put in front of the model —
+        reaching a human reader beside a sentence written for them. Diagnostics
+        belong in the log, and the log takes the repr.
+        """
+        out = [self.position, "",
+               f"    {self.citation}",
+               f"    {self.tier} · {'binds' if self.binding else 'does not bind'}"
+               f" · confirmed {self.checked}"]
+        if self.caveat:
+            out += ["", self.caveat]
+        if self.alongside:
+            out += ["", "THE FIRM HOLDS ANOTHER POSITION ON THIS SAME PASSAGE, "
+                        "and it does not say this. Which one is in play is a "
+                        "question about the facts, and nothing here has looked "
+                        "at the facts:"]
+            for citation, position in self.alongside:
+                out += [f"  · {position}", f"      {citation}"]
+        if self.unchecked:
+            out += ["", self.unchecked]
+        if self.passage:
+            out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
+        return "\n".join(out)
 
 
 @dataclass(frozen=True)
@@ -385,6 +453,34 @@ class Refusal:
 
     def __bool__(self) -> bool:            # so `if served:` reads correctly
         return False
+
+    def __str__(self) -> str:
+        """The refusal as something to hand a person. See `Served.__str__`.
+
+        `working` LEADS, because it is the only part of an escalation written by
+        something that read the question. The tester, on the release before it
+        was carried back at all: *"the one answer where the agent has the most
+        to say hands the caller the least"* — and, once it was: *"I wrote the
+        accountant's paragraph straight off the returned object rather than from
+        memory, which I could not do last run."*
+
+        `showed` and `showed_by_source` are NOT here, and their absence is the
+        point. They count what the desk put in front of the model, to falsify a
+        model's claim that the desk held nothing — a question for the queue and
+        for whoever audits an escalation, not for the preparer reading this. The
+        tester found them printed beside a sentence meant for a person and named
+        it *"pure instrumentation next to a sentence meant for a person"*. They
+        stay on the repr, which is what the log takes.
+        """
+        out = [self.working] if self.working else []
+        out += [f"THE DESK DID NOT ANSWER — {self.reason}", f"    {self.detail}"]
+        if self.ask:
+            out += ["", f"It asks: {self.ask}"]
+        if self.fact:
+            out += ["", f"The fact it turns on: {self.fact}"
+                        + (f", wanted by {self.by_position}" if self.by_position
+                           else "")]
+        return "\n".join(out)
 
 
 def _text_of(backing) -> str:
@@ -952,6 +1048,13 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         passage=(getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
+        # COMPUTED, NEVER PASSED, for the same reason `unchecked` is: an answer
+        # that can be constructed without it is one that will be. Read off the
+        # record on EVERY served answer and not only the position-backed ones —
+        # an agent citing the bare section, with no qualifier, has a stem that
+        # matches both halves and most needs telling that the firm split it.
+        alongside=tuple((p.citation, p.position)
+                        for p in desk.alongside(answer.citation)),
         # TWO DIFFERENT SENTENCES, BECAUSE TWO DIFFERENT THINGS ARE TRUE.
         #
         # A POSITION-BACKED ANSWER HAS BEEN CHECKED, by the firm, and saying

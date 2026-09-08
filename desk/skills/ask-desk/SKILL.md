@@ -23,7 +23,7 @@ fields the current release exists to deliver. Everything below would have been
 followed correctly and produced the old output:
 
 ```
-python3 -c "import json,os;p=os.path.expanduser('~/.claude/plugins/cache/satc/desk');print(sorted(os.listdir(p))[-1])"
+python3 -c "import os;p=os.path.expanduser('~/.claude/plugins/cache/satc/desk');print(max(os.listdir(p), key=lambda v:[int(n) for n in v.split('.')]))"
 ```
 
 If that is not the version in `claude plugin list`, **`/reload-plugins` before
@@ -39,7 +39,18 @@ import os, sys
 ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
     "~/.claude/plugins/cache/satc/desk")
 if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
-    versions = sorted(os.listdir(ROOT))                     # a versioned cache
+    # NEWEST BY NUMBER, NEVER BY STRING. This read `sorted(...)[-1]` for one
+    # release. It is correct today and through 0.9.x, and on the first bump past
+    # .9 it silently picks 0.7.3 over 0.10.0 — an agent loading a stale plugin
+    # while believing it is current, which is the exact failure the version
+    # check above exists to catch, shipped inside the fix for it. Found by the
+    # Forge, 7 September 2026, reading the fix rather than running it.
+    def _release(name):                    # ("0.10.0") sorts above ("0.7.3")
+        try:
+            return (1, tuple(int(n) for n in name.split(".")))
+        except ValueError:
+            return (0, ())                 # not a version dir; never the newest
+    versions = sorted(os.listdir(ROOT), key=_release)        # a versioned cache
     ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
 if not os.path.isdir(os.path.join(ROOT, "desks")):
     raise SystemExit(
@@ -156,19 +167,29 @@ declared that source as authority that binds — not that your answer binds.
 passage against its publisher. Together they read as *"this was checked"*, and
 the thing a reader thinks was checked is the one thing that was not.
 
-**So a served answer carries two more fields, and you MUST pass both on:**
+**So a served answer carries three more fields, and you MUST pass them all on:**
 
 | | |
 |---|---|
 | `unchecked` | one sentence saying nobody verified the conclusion against the paragraph. Always set. Never drop it |
 | `passage` | the cited text itself, so whoever reads your answer can do that check in one glance instead of going to look it up |
+| `alongside` | the firm's OTHER positions on this same passage, where they hold one. Empty on most answers. See below |
 
 ```python
-print(out.position)
-print(f"{out.citation} · {out.tier}" + (" · binds" if out.binding else ""))
-print(out.unchecked)
-print(f"> {out.passage}")
+print(out)          # every field below, laid out. Not `repr`, not field by field
 ```
+
+**`print(out)` is the whole instruction, and that is deliberate.** This file
+went stale in a plugin cache four releases running while the code moved
+underneath it, so a session was reading a list of fields that no longer matched
+what it had. The rendering lives on the object now — `Served.__str__` — which is
+current whenever the code is. A skill can go stale; what it tells you to print
+cannot. Do not reassemble it field by field: anything added after the version of
+this file you are reading will be in the object and not in the list.
+
+`repr(out)` is a different thing and is for the log — it carries the counters
+(`showed`, `showed_by_source`) that exist to falsify a model's claim about its
+own record, and those are not for a preparer.
 
 **This is not boilerplate to trim.** On 7 September 2026 a session aimed five
 traps at the largest desk and four served — one citing § 1.263(a)-2(d)(1), whose
@@ -180,6 +201,23 @@ refutes itself on sight. Printed without, it reads as settled law.
 **Until a judge exists, the person reading your answer is the only check on it**
 — and they cannot perform it if you hand them a conclusion without the words it
 rests on.
+
+### The firm can hold two opposite positions on one passage
+
+Where they do, `alongside` carries the other one and `print(out)` shows it under
+the answer. **Read it before passing the answer on.** It is not a footnote: it
+means the firm split that passage because it carries two answers, and which of
+them applies is a question about the facts in front of you — which nothing in
+the desk has looked at.
+
+The reason it exists: on 7 September 2026 a session asked about a deposit made on
+the last day of the month and not yet on the statement, and cited the nearer of
+`cash-and-bank`'s two Pub. 583 positions. It served **"an entry in the books"** —
+binding, in the firm's own words — where the desk's own answer key says *"a
+reconciling item, no entry in the books"*. The engine cannot catch that: the
+agent was not disagreeing with the firm, it was quoting them about something
+else. Nothing checks a position against facts, so the other answer is put where
+you cannot miss it instead.
 
 ## Two questions do not belong here
 
