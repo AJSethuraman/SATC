@@ -9,9 +9,21 @@ description: Consult an expert desk when a question is outside your authority �
 something.** It is not a second opinion on your judgement — it is the authority
 you do not have.
 
-**You do not hold the desks and you cannot read them.** You send a question to
-the session that does, and it sends an answer back. That is not a limitation
-working around a packaging problem; it is the design, and it buys two things:
+**You may well be able to read the desks. Do not.** `desk/desks/` is very
+likely sitting in the checkout you are working in, and nothing stops you opening
+it. This file used to say *"you do not hold the desks and you cannot read them"*,
+and a doer on 8 September read five files out of it before sending anything —
+correctly noting that a skill asserting you are unable, where you are plainly
+able, gives you no rule to follow:
+
+> *"a check that runs on the honour system, because the skill does not ask the
+> doer to refrain, it asserts they are unable. A doer who reads that sentence,
+> notices the files, and infers the skill is describing some other deployment
+> has been given no rule to follow. I would rather it said: you may be able to
+> read them, do not, and here is why."*
+
+So: **the rule is do not read them, and here is why.** You send a question to the
+session that holds them, and it sends an answer back. Two things that buys:
 
 - **The desk can go and look.** It runs on the Forge with a browser. Where its
   record does not reach a question it can search, tie the find out against the
@@ -45,15 +57,29 @@ print(desk)
 print(relay.as_prompt(a))   # the message to send
 ```
 
-Then send that text to the desk session it printed, **poke-only**:
+**Then COPY what it printed into the tool call.** `relay.as_prompt(a)` is a
+Python expression and `create_trigger` is a harness tool in a different
+execution context — there is no way to pass one to the other, and the earlier
+version of this section wrote `prompt=relay.as_prompt(a)` as though there were.
+A doer had to invent the copy step and said so:
+
+> *"I printed the prompt in the Python block and hand-copied the printed text
+> into the tool call, which works but is an invented step and a transcription
+> risk on a multi-hundred-word string with backticks and em-dashes in it."*
+
+Copy it **whole and unedited** — the envelope carries the protocol the desk
+needs, and a paraphrase drops it. Then, poke-only:
 
 ```
-create_trigger(name=f"Desk request {a.ref}",
-               persistent_session_id=<what desk_session() returned>,
+create_trigger(name="Desk request <the ref you printed>",
+               persistent_session_id="<the id desk_session() printed>",
                initiation="human_schedule",
-               prompt=relay.as_prompt(a))     # NO run_once_at, NO cron
-fire_trigger(<the id it returns>)
+               prompt="<paste the printed envelope here, entire>")
+fire_trigger("<the id create_trigger returned>")
 ```
+
+**No `run_once_at`. No `cron_expression`.** A trigger carrying either, then
+poked, delivers twice.
 
 Then **end your turn**. The answer arrives as a message and wakes you. Do not
 poll, do not sleep, and do not chase — see below.
@@ -66,7 +92,20 @@ the scheduler reaches the minute. Measured 8 September 2026 on three of this
 repository's own triggers. On a close that means every question answered twice.
 Poke-only delivers once, in about eight seconds.
 
-**2 · Do not chase.** `fire_trigger` returns a `last_fired_at` the durable
+**2 · Do not chase — but do not die silently either.** Before you end your turn,
+set ONE fallback reminder to yourself, 20–30 minutes out, and cancel it when the
+answer lands. The skill said only "do not chase", and a doer had to invent this:
+
+> *"It never says what to do at the point where the answer is genuinely not
+> coming. I invented a 25-minute fallback reminder to myself so the work would
+> not stall silently [...] The failure mode it guards against — doer ends turn,
+> nothing ever wakes it, task dies without a word — is worse than the chasing
+> the skill correctly prohibits."*
+
+Right. A dead task nobody is told about is the worse failure. One reminder is
+not chasing; a loop is.
+
+**2b · And when you do check, check the durable record.** `fire_trigger` returns a `last_fired_at` the durable
 record does not corroborate, so "sent" can precede arrival. A session chased its
 own request on 8 September and wrote *"nothing arrived here"* **1.67 seconds
 after** the answer had landed. If you must check, read `list_triggers` — not
@@ -87,15 +126,31 @@ read one and discard the other.
 
 ## What comes back, and what you must pass on
 
-The desk returns a served answer or a refusal. **Print what it sent you, whole.**
-Every field is there because a reader needed it, and the ones that look like
-boilerplate are the ones that are not:
+The desk returns **one of two things**, and they carry different fields. Print
+what it sent you, whole, either way.
+
+**If it ANSWERED**, and none of this is yours to trim:
 
 | | |
 |---|---|
 | `unchecked` | nobody verified the conclusion against the paragraph. Always set |
 | `passage` | the cited text, so whoever reads your answer can do that check at a glance |
 | `alongside` | the firm's OTHER positions on this same passage, where they hold one — with their authority underneath |
+
+**If it REFUSED**, you get none of those and that is correct — a refusal cites
+nothing, which is what makes it a refusal:
+
+| | |
+|---|---|
+| `reason` | one of a closed set. `facts_not_established`, `authority_absent`, … |
+| `desk` | which desk refused. A question reaches more than one |
+| `working` | the desk's own reasoning. Usually the part you hand to a person |
+| `ask` | **the follow-up question.** Set wherever a person can resolve it |
+
+This split is here because the single table that used to sit above read as
+universal. A doer on 8 September went looking for `passage` on a refusal:
+*"A doer looking for `passage` in a refusal will not find it and has been given
+no signal that is expected."*
 
 **None of it is yours to trim.** On 7 September a session cited
 § 1.263(a)-2(d)(1) — whose text opens *"a taxpayer must capitalize amounts paid

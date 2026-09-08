@@ -199,3 +199,78 @@ def test_the_desk_is_stamped_at_one_place_not_at_each_refusal():
     import inspect
     assert "_serve" in inspect.getsource(engine.serve)
     assert inspect.getsource(engine.serve).count("Refusal") <= 3
+
+
+def test_the_asking_skill_tells_the_doer_not_to_read_the_desks():
+    """IT USED TO ASSERT THEY COULD NOT, AND THEY COULD.
+
+    `ask-desk` opened with *"You do not hold the desks and you cannot read
+    them."* A doer on 8 September read five files out of `desk/desks/` before
+    sending anything — it is in the same checkout — and named the defect
+    exactly: *"a check that runs on the honour system, because the skill does
+    not ask the doer to refrain, it asserts they are unable. A doer who reads
+    that sentence, notices the files, and infers the skill is describing some
+    other deployment has been given no rule to follow."*
+
+    A rule can be followed. A false statement about capability cannot."""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    assert "the rule is do not read them" in skill, "no rule, only a claim"
+    # NARROWED, AND FOR THE REASON THIS FILE KEEPS RE-LEARNING: a guard that
+    # forbids the STRING forbids the skill from quoting the defect it records,
+    # which makes the record unwritable. What must not come back is the ASSERTION
+    # — the sentence stated as fact rather than quoted as the thing that was
+    # wrong. So the old wording is allowed only on a line that says it is old.
+    live = [ln for ln in skill.splitlines()
+            if "cannot read them" in ln and "used to say" not in ln]
+    assert not live, (
+        f"the skill asserts an inability the doer does not have: {live}")
+
+
+def test_the_asking_skill_does_not_pass_python_into_a_tool_call():
+    """`prompt=relay.as_prompt(a)` cannot be done: one is a Python expression,
+    the other a harness tool in a different execution context. A doer had to
+    invent the copy step — *"an invented step and a transcription risk on a
+    multi-hundred-word string"* — so the skill says print, then copy."""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    assert "paste the printed envelope here" in skill
+    # IN A FENCED BLOCK ONLY. The prose quotes the broken form while explaining
+    # it; what must not survive is a block a doer would copy.
+    import re
+    fenced = "\n".join(re.findall(r"```[a-z]*\n(.*?)```", skill, re.S))
+    assert "relay.as_prompt(a)" not in fenced.split("print(relay.as_prompt(a))")[-1], (
+        "a copyable block still passes a Python expression into a tool call")
+
+
+def test_the_asking_skill_describes_a_refusal_as_well_as_an_answer():
+    """The single "what comes back" table listed `unchecked`, `passage` and
+    `alongside` and read as universal. A refusal carries none of them."""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    assert "If it REFUSED" in skill
+    assert "| `working` |" in skill and "| `ask` |" in skill
+
+
+def test_the_asking_skill_says_what_to_do_if_no_answer_comes():
+    """It forbade chasing and never said what to do when the answer genuinely
+    is not coming. A doer invented a fallback: *"doer ends turn, nothing ever
+    wakes it, task dies without a word — is worse than the chasing the skill
+    correctly prohibits."*"""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    # ASSERTED ON THE INSTRUCTION, NOT ON A PHRASE THE QUOTATION ALSO CONTAINS.
+    # The first version checked for "fallback reminder", which survives in the
+    # doer's quoted words below — so deleting the actual instruction left this
+    # green. Caught by mutation M31, 8 September.
+    instruction = [ln for ln in skill.splitlines()
+                   if ln.startswith("**2 · Do not chase")]
+    assert instruction, "the rule is no longer a rule"
+    assert "set ONE fallback reminder" in "".join(
+        skill.split("**2 · Do not chase")[1].split(">")[0]), (
+        "the section warns about dying silently and no longer says what to do")
+    assert "One reminder is" in skill and "a loop is" in skill

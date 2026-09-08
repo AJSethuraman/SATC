@@ -277,3 +277,27 @@ def test_the_address_is_not_committed_anywhere_in_this_repository():
     assert not offenders, (
         "a session id is committed in code or a skill: " + ", ".join(offenders)
         + f". It is deployment state — read it from ${relay.DESK}")
+
+
+def test_the_envelope_asks_the_desk_to_name_the_desks_it_reached():
+    """ROUTING IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
+
+    On 8 September a doer asked "what do I do with it" about a forklift and
+    reached ONE desk. The same transaction phrased as "is the invoice price
+    deducted or capitalized?" reaches TWO — and the one dropped, `fixed-assets`,
+    holds the most on-point paragraph. The doer: *"My phrasing was the natural
+    working one and it got strictly less authority. I did not know that when I
+    wrote it, and a doer has no way to tell."*
+
+    Nothing in the engine is wrong here — `routing.route` is a comparison and it
+    compared correctly. What was missing is that the only party who can see the
+    routing was not asked to report it."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "Name every desk" in body
+    assert "fewer desks than an obvious rephrasing" in body
+
+
+def test_and_says_why_the_asker_cannot_do_it_themselves():
+    """Without the reason a desk reads this as bookkeeping and skips it."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "THE ASKER CANNOT SEE THIS AND YOU CAN" in body

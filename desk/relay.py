@@ -184,7 +184,18 @@ def as_prompt(a: Ask) -> str:
         "is not corroborated by the durable record. Do not chase your own "
         "message; say what you sent and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
-        "so and say what authority is missing — a refusal is a finding.",
+        "so and say what authority is missing — a refusal is a finding.", "",
+        "## Say which desks this reached", "",
+        "Name every desk `consult` routed to. **And if the question as phrased "
+        "reaches fewer desks than an obvious rephrasing of the same question "
+        "would, say that too, and name what it missed.**", "",
+        "THE ASKER CANNOT SEE THIS AND YOU CAN. On 8 September a doer asked "
+        "*\"what do I do with it\"* about a forklift and reached ONE desk; the "
+        "same transaction as *\"is the invoice price deducted or capitalized?\"* "
+        "reaches TWO, and the one dropped holds the most on-point paragraph. "
+        "Their words: *\"My phrasing was the natural working one and it got "
+        "strictly less authority. I did not know that when I wrote it, and a "
+        "doer has no way to tell.\"* You are the only party that can tell them.",
     ]
     return "\n".join(out)
 
