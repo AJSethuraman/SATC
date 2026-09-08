@@ -85,8 +85,61 @@ receive. A trigger may bind to any session on the same account.
 
 **Every answer before 8 September came back through a person.** Questions were
 fired into a Forge session by trigger and the reports were copied out of a window
-by the firm and pasted back. That is the leg V1 removes, and until it is
-demonstrated nothing else in this document is reachable.
+by the firm and pasted back. **At 00:41 UTC on 8 September a Desk session
+answered a question and woke the asking session with it, and no person carried
+anything.** That is the leg V1 needed.
+
+### Send it POKE-ONLY, and never with a schedule attached
+
+Measured on this repository's own traffic, 8 September 2026. **A trigger created
+with a `run_once_at` and then poked with `fire_trigger` DELIVERS TWICE** — once
+on the poke, and again when the scheduler reaches the scheduled minute:
+
+| trigger | `run_once_at` | poked at | durable `last_fired_at` |
+|---|---|---|---|
+| the desk's answer | 00:42:19 | 00:41:21 | **00:43:19** |
+| the 0.7.3 round | 23:55:00 | 23:32:11 | **23:55:07** |
+| the 0.7.2 round | 23:20:00 | 23:05:46 | **23:20:44** |
+
+A trigger created with **neither** `cron_expression` **nor** `run_once_at` — the
+poke-only routine — delivered **once**, in **eight seconds**, and its record
+carries `next_run_at: 0001-01-01` with no `run_once_at` field, so a second copy
+is not merely unlikely but impossible.
+
+**This is not a tidiness point. On a close it duplicates the work**: every
+question the doer asks would be answered twice, and every answer delivered twice.
+It is also the explanation for something already reported and wrongly dismissed —
+the Forge session, 7 September: *"Six firings, three distinct prompts, and each
+has fired exactly twice [...] That is a consistent duplicate, not drift."* It was
+read as a scheduling misconfiguration and never diagnosed. It was this.
+
+### `fire_trigger`'s success is not delivery
+
+The second half, found by the Desk session pulling `list_triggers` after being
+wrongly accused of having stopped:
+
+> *"`fire_trigger`'s response says the message fired when it has not. An agent
+> that trusts its own tool result — the only thing it has — will report the
+> return leg complete up to two minutes before it is, every time. The asking side
+> then cannot distinguish 'not sent' from 'sent, not yet polled', so it chases,
+> and the chase is indistinguishable from a real failure."*
+
+Which is exactly what happened: the chase routine was created at 00:43:20.920 and
+the answer had landed at 00:43:19.253. **1.67 seconds.** A session read a stale
+`post_turn_summary`, concluded the return leg had failed, and published that to
+the firm while the answer was already in the queue.
+
+Poke-only delivery removes the two-minute window that made this possible. The
+rule that outlives it: **a tool result saying a message was sent is not evidence
+that it arrived**, and a summary of another session is not that session.
+
+### Compute the timestamp last
+
+One more, from the same run, worth a line because it will happen to anyone
+composing a long report: a resend was rejected with *"run_once_at must be in the
+future (run_once_at in past)"* because the timestamp was computed at the START of
+composing a long prompt and the composition outlived it. Poke-only avoids this
+too — there is no timestamp to outlive.
 
 ---
 
