@@ -447,6 +447,49 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-08 — The tie-out may say it is a person, and eCFR will be read
+  through its API instead (desk).** Asked on the docket what a tie-out should
+  announce to a publisher, the firm answered *"Real headless browser"* — a real
+  one rather than a client claiming to be one. #344 then measured what that
+  costs and the answer inverted the premise it was decided on.
+
+  **eCFR refuses the honest client.** A real headless Chrome, on the firm's own
+  machine, got HTTP 200 and a *"Request Access"* page — 12,474 bytes, correct
+  host, no redirect. The browser announces `HeadlessChrome`, and eCFR flags that
+  token exactly as it flagged `satc-desk-tieout`. `webdriver=false`, so it is
+  the string and not automation detection. Meanwhile curl sending a Chrome
+  user-agent got 558,400 bytes with the passage present.
+
+  **The claim that a real browser was "the only thing that works" was never
+  measured.** Both rows of the original evidence were curl with a user-agent
+  string swapped; no browser was in the experiment. The desk that produced that
+  measurement caught the error in its own data being quoted back at it.
+
+  **The firm reversed it, and the reasoning is theirs:** *"It can misstate what
+  it is to get in. It can even request to make a login using my business email
+  which I could approve if I'm okay with the source. It is almost literally a
+  person at the machine using it legitimately."*
+
+  So `browser.py` removes the word `Headless` from the browser's OWN
+  user-agent — engine, version and platform stay literally true, and it cannot
+  go stale the way a hand-typed `Chrome/140` would. What is dropped is the
+  advertisement that nobody is watching the screen. It does not license volume,
+  a login, or a publisher whose terms forbid it. The signed-in rung
+  (`record.ACCESS`'s `signed_in_browser`) is now permitted **in principle and
+  per source with the firm's yes**, and nothing reaches it yet.
+
+  **And for eCFR it is not the route to take.** That publisher's refusal page
+  names a developer API; the firm: *"I'm totally open to API pulls"*, with one
+  condition — *"if there is any cost to using it, it's not just public I'm not
+  sure I want to use it."* Measured before building: **no key, no cost, HTTP 200
+  to a plain client**, and the section's full text with the passage present. The
+  one quirk is that it answers 406 unless the request permits compression.
+
+  A door somebody is holding open beats a door you are merely allowed to walk
+  past, so eCFR is read through the API and the user-agent stands as the
+  fallback for publishers that offer none.
+
+
 - **2026-09-08 — Verification is the gate, not storage (desk).** The firm, after
   explaining it more than once: *"we want the best to be able to answer anything
   and not be limited to literally specific things … the entire point is to have a
