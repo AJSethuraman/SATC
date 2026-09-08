@@ -139,7 +139,7 @@ def test_the_listing_and_the_plugin_manifest_agree():
 # does not bite until then.
 # ---------------------------------------------------------------------------
 
-SKILL = HERE / "skills" / "ask-desk" / "SKILL.md"
+SKILL = HERE / "skills" / "be-the-desk" / "SKILL.md"
 
 
 def _resolver():

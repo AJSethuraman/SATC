@@ -155,7 +155,7 @@ def test_the_skill_tells_the_agent_to_pass_them_all_on():
     DOCUMENTED by name, and that the instruction is to print the whole object;
     a skill that went back to enumerating fields would pass the first half and
     fail the second."""
-    skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
+    skill = (HERE / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(skill.split())
     assert "`unchecked`" in flat and "`passage`" in flat, (
         "the skill no longer documents the two fields by name")
@@ -342,7 +342,7 @@ def test_the_skills_first_line_does_not_need_an_environment_variable():
     import sys as _sys
     import tempfile
 
-    skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
+    skill = (HERE / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     block = re.search(r"```python\n(import os, sys\n.*?)```", skill, re.S).group(1)
     snippet = block.split("import ask")[0] + "print(sys.path[0])"
     base = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
@@ -372,7 +372,7 @@ def test_the_skill_warns_that_the_tool_may_serve_a_stale_copy():
     three releases old — a file with no mention of the fields the release exists
     to deliver. It would have been followed correctly and produced the old
     output, and nothing said so at the point it bit."""
-    flat = " ".join((HERE / "skills" / "ask-desk" / "SKILL.md")
+    flat = " ".join((HERE / "skills" / "be-the-desk" / "SKILL.md")
                     .read_text(encoding="utf-8").split())
     assert "three releases stale" in flat or "releases stale" in flat
     assert "/reload-plugins" in flat

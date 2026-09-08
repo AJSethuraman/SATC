@@ -104,6 +104,6 @@ def test_the_skill_tells_the_agent_to_print_the_object():
     """If this ever goes back to a field list, the stale-file defect returns."""
     from pathlib import Path
     skill = (Path(__file__).resolve().parent.parent
-             / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
+             / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     assert "print(out)" in skill
     assert "print(out.position)" not in skill
