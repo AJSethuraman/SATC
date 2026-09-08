@@ -209,6 +209,19 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Recommended roadmap (synthesized 2026-07-04 — awaiting owner sign-off on the big items)
 
+- **Grow `DOMAINS.md` past two bodies of authority.** Under verification-as-gate
+  (8 September 2026) the subject ceiling is gone, but `domains.py` still decides
+  which publisher is competent to settle which question — and it names two:
+  federal tax and US GAAP. So payroll, state and information-return questions
+  refuse for the right reason and still refuse. Mostly research plus the firm's
+  yes; phased deliberately so it does not block the v1 gate change.
+
+- **Caching a proved passage.** Once a publisher is admitted with
+  `may_store: full_text`, a passage proved live can be kept so the next question
+  is faster. Explicitly a convenience and never a precondition for answering —
+  the firm: *"Store if possible sure but this isn't a limit."*
+
+
 - **The agent factory — a skill that builds an expert.** The firm's own thought, raised
   4 September 2026 while specifying expert desks: *"it might make sense for us to make a
   dedicated skill or some session or whatever that helps create an agent and perform the
@@ -433,6 +446,117 @@ it with them.
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-09-08 — The tie-out may say it is a person, and eCFR will be read
+  through its API instead (desk).** Asked on the docket what a tie-out should
+  announce to a publisher, the firm answered *"Real headless browser"* — a real
+  one rather than a client claiming to be one. #344 then measured what that
+  costs and the answer inverted the premise it was decided on.
+
+  **eCFR refuses the honest client.** A real headless Chrome, on the firm's own
+  machine, got HTTP 200 and a *"Request Access"* page — 12,474 bytes, correct
+  host, no redirect. The browser announces `HeadlessChrome`, and eCFR flags that
+  token exactly as it flagged `satc-desk-tieout`. `webdriver=false`, so it is
+  the string and not automation detection. Meanwhile curl sending a Chrome
+  user-agent got 558,400 bytes with the passage present.
+
+  **The claim that a real browser was "the only thing that works" was never
+  measured.** Both rows of the original evidence were curl with a user-agent
+  string swapped; no browser was in the experiment. The desk that produced that
+  measurement caught the error in its own data being quoted back at it.
+
+  **The firm reversed it, and the reasoning is theirs:** *"It can misstate what
+  it is to get in. It can even request to make a login using my business email
+  which I could approve if I'm okay with the source. It is almost literally a
+  person at the machine using it legitimately."*
+
+  So `browser.py` removes the word `Headless` from the browser's OWN
+  user-agent — engine, version and platform stay literally true, and it cannot
+  go stale the way a hand-typed `Chrome/140` would. What is dropped is the
+  advertisement that nobody is watching the screen. It does not license volume,
+  a login, or a publisher whose terms forbid it. The signed-in rung
+  (`record.ACCESS`'s `signed_in_browser`) is now permitted **in principle and
+  per source with the firm's yes**, and nothing reaches it yet.
+
+  **And for eCFR it is not the route to take.** That publisher's refusal page
+  names a developer API; the firm: *"I'm totally open to API pulls"*, with one
+  condition — *"if there is any cost to using it, it's not just public I'm not
+  sure I want to use it."* Measured before building: **no key, no cost, HTTP 200
+  to a plain client**, and the section's full text with the passage present. The
+  one quirk is that it answers 406 unless the request permits compression.
+
+  A door somebody is holding open beats a door you are merely allowed to walk
+  past, so eCFR is read through the API and the user-agent stands as the
+  fallback for publishers that offer none.
+
+
+- **2026-09-08 — Verification is the gate, not storage (desk).** The firm, after
+  explaining it more than once: *"we want the best to be able to answer anything
+  and not be limited to literally specific things … the entire point is to have a
+  headless machine and the agent to tie out things to make sure it's all
+  correct."* And, settling it: *"Yes verification is the gate. Who cares if we can
+  store it outside of it just being quicker the next time. Store if possible sure
+  but this isn't a limit."*
+
+  **What it overturns.** `engine._check` refuses any citation absent from a desk's
+  record, and the brief says so to every answerer. That made the seven desks a
+  ceiling: everything outside the stored corpus refused `authority_absent`, the
+  searcher found it, and the trail then stopped at the firm, because a source had
+  to be admitted before any desk could cite it. A four-minute lookup queued
+  behind the owner.
+
+  **What replaces it.** A desk answers anything it can prove: from the record
+  where the record holds it, and otherwise by fetching the publisher's own page
+  with a real browser and serving only if the words are there *right now*,
+  citing the live document with URL, timestamp, digest and matched length.
+  Storage becomes a cache — `record.MAY_STORE` already carries `citation_only`
+  for exactly this.
+
+  **What does not move.** `domains.governs`. Proving that irs.gov really says
+  something is not evidence that irs.gov gets to say it, and that check is what
+  caught a Treasury regulation being served as primary and binding for a
+  balance-sheet question the same day. Licence walls stay walls.
+
+  PRD: `desk/docs/prd-verification-is-the-gate.md`.
+
+  **Both PRD questions answered the same day, on the docket.** *"Admit the free
+  ASU."* And on the judge, *"The judge can look at it all I guess?"* — all seven
+  desks, not one first.
+
+  **And the FASB question was answered, then the answer was corrected.** Asked
+  why FASB publishes two things: the Codification is a LIVING text, always the
+  rule as currently amended; an ASU is a POINT-IN-TIME INSTRUMENT, frozen at the
+  date it was issued. So `ASU 2016-02` carries ASC 842-20-25-1 as issued in 2016
+  and will carry those words forever. I turned that into an engine feature — a
+  source would declare itself living or frozen, and an answer resting on a frozen
+  document would carry a currency warning — and wrote issue #345 around it.
+
+  **The firm overturned the premise, not the detail:** *"Tie out isn't meant to
+  pass old rules specifically. It's meant to be used to prove how a suggestion is
+  correct prior to using it. Like it is handed in with the suggestion so the judge
+  can actually assess it."* The tie-out is EVIDENCE SUBMITTED WITH A PROPOSAL, not
+  a check the engine runs on a finished answer, and it never claimed to establish
+  currency. Staleness is a reading a named reader makes with their name against
+  it — *"this is the text as issued in 2016 and I cannot tell you it is still the
+  rule"* — which is the judge's work, not a declared field. The engine checks what
+  is exactly checkable; a reader assesses what needs reading.
+
+  **And the attempt is always reported, whatever it produced:** *"It should state
+  what happened when trying to tie it out. I need info to make decisions down the
+  line."* `TIED`, `DIFFERS` and `COULD NOT` are all findings. What blocks does not
+  change — `DIFFERS` withdraws, `COULD NOT` still serves a stored answer and says
+  so — but every attempt is stated and accumulates somewhere readable, because a
+  publisher that keeps failing to tie out is a decision waiting to be made and it
+  can only be made if the failures do not vanish into one answer nobody kept.
+  Issue #345 was rewritten to this; #343 and #346 amended to match.
+
+  **Three docket answers alongside it.** *Keep warning* on a domain straddle
+  (measured: 5 of 98 recorded problems straddle, 4 of those 5 are answered
+  correctly today). *A real headless browser* for what the tie-out announces to a
+  publisher, rather than claiming to be one — which is also the unlock for the
+  above. And on FASB, *"probably admit it"* with a question attached, left open
+  in the PRD with a recommendation rather than decided here.
+
 
 - **2026-09-04 — Docket answers (desk build).** Four decisions put to the firm as a
   form and answered there; recorded here because an answer that lives only in a page

@@ -32,3 +32,12 @@ no desk to reach.
 **Answered from S2:** business expense, business expenses, ordinary and necessary, trade or business, management expenses, commissions, supplies, incidental repairs, advertising, selling expenses, insurance premiums, rental
 
 **Answered from S3:** home, home office, business use of the home, exclusive use, exclusively, regular use, regularly, principal place of business, separate structure, greenhouse, studio, workshop, barn, den, basement, storage, inventory, product samples, utilities, trash removal, cleaning service, cleaning services, daycare
+
+**Judged:** required
+
+*This desk does not serve an answer no second reader has looked at. The firm, on
+the docket, 8 September 2026, asked which desks may not serve unjudged:* "The
+judge can look at it all I guess?" *— all seven. It is declared here rather than
+in the code so lifting it is one line of this file. The engine checks only that
+the words the judge quotes are really in what they read; whether those words
+carry the conclusion is the judge's call and is recorded, not recomputed.*

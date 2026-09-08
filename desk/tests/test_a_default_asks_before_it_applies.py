@@ -293,10 +293,14 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # Ratified IN THE COPY ONLY. The real position is a proposal and stays one;
     # the roster test is what stops this becoming a habit.
     f = desks / src.name / "positions" / "POSITIONS.md"
-    t = f.read_text()
+    t = f.read_text(encoding="utf-8")
     i = t.index("## POS2 ·")
+    # ENCODING NAMED ON BOTH SIDES. The read above lacked it until 8 September
+    # and this line broke on the firm's Windows machine: cp1252 mangled the
+    # file, `t.index("## POS2 ·")` raised `ValueError: substring not found`, and
+    # the failure named a missing substring rather than a missing codec.
     f.write_text(t[:i] + "**Ratified:** simulated, in a temporary copy\n\n---\n\n"
-                 + t[i:])
+                 + t[i:], encoding="utf-8")
     q = record.load(desks / src.name).position("26 CFR 1.263(a)-1(f)(5)")
 
     out = front.answer("do we capitalise a $900 laptop?", src.name,
@@ -308,7 +312,7 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # it. The queue is what carries it either way.
     assert out.reason == "context_not_on_file"
 
-    filed = (desks / src.name / "unsupported" / "asked.md").read_text()
+    filed = (desks / src.name / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "**Asked:**" in filed, "the follow-up never reached the queue"
     assert "capitalization_rule" in filed
     assert out.ask.split("?")[0] in filed

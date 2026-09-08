@@ -33,3 +33,12 @@ source here that can make a question escalate.
 **Answered from S5:** substantiation, substantiate, substantiated, adequate records, account book, diary, log, business purpose, business relationship, elements
 
 **Answered from S6:** take turns, takes turns, taking turns, picking up, hours of service, standard meal allowance, lavish, extravagant
+
+**Judged:** required
+
+*This desk does not serve an answer no second reader has looked at. The firm, on
+the docket, 8 September 2026, asked which desks may not serve unjudged:* "The
+judge can look at it all I guess?" *— all seven. It is declared here rather than
+in the code so lifting it is one line of this file. The engine checks only that
+the words the judge quotes are really in what they read; whether those words
+carry the conclusion is the judge's call and is recorded, not recomputed.*

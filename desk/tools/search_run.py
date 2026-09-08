@@ -179,4 +179,4 @@ if __name__ == "__main__":                                  # pragma: no cover
                  "  found.json: {desk, question, reason, queries[], hits[], "
                  "proposals[]}\n"
                  "  a proposal: {citation, quoted, found_at, kind}")
-    print(report(run(json.loads(pathlib.Path(sys.argv[1]).read_text()))))
+    print(report(run(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")))))

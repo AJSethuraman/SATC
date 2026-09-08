@@ -17,6 +17,7 @@ import ask
 import engine
 import positions
 import record
+import conftest                                             # noqa: E402
 from conftest import DESKS
 
 
@@ -102,12 +103,12 @@ def test_an_answer_goes_through_the_production_path():
     desk = record.load(DESKS / "cash-and-bank")
     cb4 = next(p for p in desk.problems if p.id == "CB4")
 
-    good = ask.answer(cb4.facts, "cash-and-bank", position=cb4.answer,
+    good = conftest.answer_judged(cb4.facts, "cash-and-bank", position=cb4.answer,
                       citation=cb4.citation, desks=DESKS, keep=False)
     assert not isinstance(good, engine.Refusal)
 
     timing = next(c for c in desk.answered_by if "did not yet include" in c)
-    bad = ask.answer(cb4.facts, "cash-and-bank",
+    bad = conftest.answer_judged(cb4.facts, "cash-and-bank",
                      position="a reconciling item, no entry in the books",
                      citation=timing, desks=DESKS, keep=False)
     assert isinstance(bad, engine.Refusal)
@@ -115,7 +116,7 @@ def test_an_answer_goes_through_the_production_path():
 
 
 def test_an_escalation_is_a_first_class_answer():
-    out = ask.answer("what did the client buy at the hardware store?",
+    out = conftest.answer_judged("what did the client buy at the hardware store?",
                      "cash-and-bank", escalate="facts_not_established",
                      ask="What was the charge for? The statement line alone "
                          "does not say whether it is a bank fee or a payment.",
@@ -131,7 +132,7 @@ def test_a_refusal_is_kept_with_its_reasoning(tmp_path):
     desks = tmp_path / "desks"
     shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
 
-    out = ask.answer("is a brewery tab a business meal?", "cash-and-bank",
+    out = conftest.answer_judged("is a brewery tab a business meal?", "cash-and-bank",
                      position="fully deductible", citation="26 CFR 9.9-9",
                      model="a test", desks=desks)
     assert isinstance(out, engine.Refusal)
@@ -165,7 +166,7 @@ def test_the_callers_reasoning_survives_into_the_queue(tmp_path):
 
     desks = tmp_path / "desks"
     shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
-    ask.answer("what did the client buy at the hardware store?", "cash-and-bank",
+    conftest.answer_judged("what did the client buy at the hardware store?", "cash-and-bank",
                position="x", citation="26 CFR 9.9-9",
                working="the rule turns on what was bought and nobody has said",
                model="a test", desks=desks)
@@ -182,7 +183,7 @@ def test_an_escalations_reasoning_survives_too(tmp_path):
 
     desks = tmp_path / "desks"
     shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
-    ask.answer("whose vehicle is it?", "cash-and-bank",
+    conftest.answer_judged("whose vehicle is it?", "cash-and-bank",
                escalate="facts_not_established",
                ask="What was the charge for?",
                working="nothing on this desk reaches vehicle ownership",

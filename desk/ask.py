@@ -73,9 +73,23 @@ def brief(question: str, desk: record.Desk,
     # lives in the file that did not load. This line comes from the code doing
     # the work, so a skill claiming something else is visibly wrong.
     stamp = f" · desk {record.VERSION}" if record.VERSION else ""
+    # THE SECOND PARAGRAPH IS NEW AND THE FIRST IS NOT WEAKENED. Until 0.13.1
+    # this said only the first thing, and it was the whole ceiling: everything
+    # outside the stored corpus refused, the searcher found the rule, and the
+    # trail stopped at the firm because a source had to be admitted before any
+    # desk could cite it. Verification is the gate now (#343) -- but the gate is
+    # a FETCH, not the answerer's word, so the instruction has to be exact about
+    # what is being asked for. Quoting from memory is the failure this engine
+    # exists to stop and it must not read as newly permitted.
     out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
            "Answer ONLY from what follows. A citation to anything not printed",
-           "here is refused by the engine, however real it is.", ""]
+           "here is refused by the engine, however real it is.", "",
+           "If the rule you need is NOT printed here, do not cite it from",
+           "memory — escalate `authority_absent`. If you have been given a way",
+           "to fetch, you may instead hand in the URL you found it at and the",
+           "exact words you are resting on: the engine will fetch that page and",
+           "serve only if those words are on it right now. It will not take",
+           "your word for what the page says.", ""]
     if desk.records:
         # WHAT WE WERE TOLD, AND -- THE HALF THAT MATTERS -- WHAT WE WERE NOT.
         # Printing only the facts on file leaves an answerer to assume the rest
@@ -194,7 +208,8 @@ def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", ask: str = "", desks: Path = DESKS,
            keep: bool = True,
-           context: record.Context | None = None, prove=None):
+           context: record.Context | None = None, prove=None, judged=None,
+           found_at: str = "", found_text: str = ""):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
@@ -214,6 +229,41 @@ def answer(question: str, desk_name: str, *, position: str = "",
     remove one. Where the publisher no longer carries the passage the answer is
     withdrawn (`authority_has_moved`); where the publisher could not be reached
     the answer stands and says the proof could not be taken.
+
+    `found_at` AND `found_text` ARE THE CANDIDATE PATH. Where the gate refuses
+    `authority_absent` -- the record does not hold this citation -- and the
+    caller has both a transport and a URL it found the rule at, the answer is
+    served if and only if `found_text` is on that page right now. `candidates.py`
+    is the whole of it, including the two checks that run before any fetch.
+
+    BOTH ARE REQUIRED, and passing neither leaves behaviour byte-identical to
+    before. A URL with no words is nothing to compare; words with no URL is the
+    model's own recollection, which is the thing this engine exists not to serve.
+
+    EVERY ATTEMPT IS RECORDED, WHATEVER IT DID, into the desk's `tie-outs/`
+    store, under `keep` like a refusal is. The firm asked for it in as many
+    words -- *"It should state what happened when trying to tie it out. I need
+    info to make decisions down the line."* -- and the decisions it is for are
+    about PUBLISHERS rather than about any one answer: one unreachable source is
+    a shrug, forty against the same host is a source to retire. `attempts.py`
+    says what is written and what is deliberately not.
+
+    `judged` IS A SECOND READER'S VERDICT, and it is the same trade as `prove`:
+    an input, never something this function goes and obtains. Pass a
+    `judging.Judgment` -- who read the passage, whether it carries the
+    conclusion, and the words they rest that on -- and the engine checks the one
+    thing about it that is checkable without reading: that those words are in
+    the passage. Pass nothing and nothing is checked, which is what the whole
+    suite passes today.
+
+    IT RUNS LAST, AFTER THE PROOF, and for the same reason the proof runs after
+    the gate: each stage may add a refusal and none may remove one. Judging an
+    answer whose passage the publisher no longer carries would be a second
+    reader confirming text that has already been withdrawn.
+
+    NOTHING REQUIRES A JUDGMENT. Which desks may not serve unjudged is the
+    firm's decision and is on the docket; a gate that turned itself on across
+    seven desks overnight would be this session making it.
     """
     desk = record.load(desks / desk_name)
     # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
@@ -230,12 +280,53 @@ def answer(question: str, desk_name: str, *, position: str = "",
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)
 
+    # WHAT THE PUBLISHER ACTUALLY SERVED, held for the judge and for nothing
+    # else. It is captured through a WRAPPER rather than added to `Proof`,
+    # deliberately: `Proof` is evidence a reader re-checks by hand, every field
+    # of it is short, and the log takes the repr -- a whole fetched document on
+    # that object would end up in a log line the first time anything printed
+    # one. This lives for the duration of the call and is written nowhere.
+    fetched = {}
+
+    def _watching(source, citation):
+        raw = prove(source, citation)
+        fetched["text"] = raw.text if hasattr(raw, "text") else str(raw)
+        return raw
+
+    transport = _watching if prove is not None else None
+
     out = engine.serve(proposed, desk, question=question, context=context)
-    if prove is not None and isinstance(out, engine.Served):
+    # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
+    # has run and refused. It can therefore add a refusal and can never remove
+    # one, which is the property every stage in this function has.
+    #
+    # `authority_absent` ONLY. It is the one refusal that says "the record does
+    # not hold this", and the record not holding something is the whole of what
+    # a live proof answers. Every other refusal is a finding about the question,
+    # the client or the authority, and a fetch says nothing about any of them.
+    if (isinstance(out, engine.Refusal) and out.reason == "authority_absent"
+            and prove is not None and found_at and found_text):
+        import attempts
+        import candidates
+        out = candidates.consider(
+            question=question, position=position, citation=citation,
+            url=found_at, text=found_text, desk=desk,
+            transport=transport)
+        if keep and getattr(out, "proof", None) is not None:
+            attempts.record(desks, desk_name, out.proof)
+    # `out.proof is None` MEANS NOT YET PROVED, and it is what keeps the two
+    # paths from proving the same answer twice. A candidate arrives here already
+    # carrying its proof; running the stored path over it would resolve its
+    # citation in a record that does not hold it, get COULD NOT, and OVERWRITE
+    # a TIED proof with a failure — the served answer looked right and its
+    # evidence was replaced by the evidence of a lookup that could not have
+    # worked. `engine.serve` never sets this field, so the condition is exact.
+    if prove is not None and isinstance(out, engine.Served) and out.proof is None:
         import dataclasses
 
+        import attempts
         import proving
-        p = proving.prove(out, desk, prove)
+        p = proving.prove(out, desk, transport)
         if p.verdict == proving.DIFFERS:
             out = engine.Refusal(
                 proving.MOVED,
@@ -244,10 +335,95 @@ def answer(question: str, desk_name: str, *, position: str = "",
                 f"only witness to that text, which is not enough to serve it on",
                 ask=f"Re-read {p.url or out.citation} and bring the stored "
                     f"passage back into line with it, or retire the citation. "
-                    f"Until then this desk has no authority for the answer.")
+                    f"Until then this desk has no authority for the answer.",
+                # THE WITHDRAWAL CARRIES ITS OWN EVIDENCE. This refusal exists
+                # BECAUSE something was fetched, and before the field existed it
+                # was the one refusal in the engine nobody could re-run by hand:
+                # the note survived inside a sentence and the host, the moment
+                # and the digest did not.
+                proof=p, desk=desk.name)
         else:
             out = dataclasses.replace(out, proof=p)
-    if isinstance(out, engine.Refusal) and keep:
+        # RECORDED WHATEVER IT DID, and gated by `keep` for the same reason
+        # refusals are: `keep=False` means measuring. The firm asked for this in
+        # as many words -- *"It should state what happened when trying to tie it
+        # out. I need info to make decisions down the line."* -- and a decision
+        # about a PUBLISHER cannot be made from the one attempt in front of you.
+        # A TIED is kept too: a source that ties out for months and then stops is
+        # only visible if the months were written down.
+        if keep:
+            attempts.record(desks, desk_name, p)
+    if judged is not None and isinstance(out, engine.Served):
+        import dataclasses
+
+        import judging
+
+        # THE FETCHED DOCUMENT WHERE THERE IS ONE, our stored copy otherwise --
+        # the firm, 8 September 2026: *"it is handed in with the suggestion so
+        # the judge can actually assess it."* A judgment checked against our own
+        # copy establishes that the judge read what WE hold, which is a weaker
+        # claim than that they read what the PUBLISHER holds, and `Read.against`
+        # is what lets a reader tell the two apart afterwards.
+        live = fetched.get("text", "")
+        seen = judging.read(
+            judged, live or out.passage, answered_by=model,
+            against=("the document fetched from the publisher" if live
+                     else "this desk's stored passage"))
+        if seen.verdict == judging.SAYS_NO:
+            out = engine.Refusal(
+                "citation_does_not_support",
+                f"{out.citation!r} resolves and this desk does hold it, and a "
+                f"second reader ({seen.by}) says the paragraph does not carry "
+                f"{out.position!r}: {seen.because}. Real authority in front of "
+                f"the wrong question is the one error every exact check in this "
+                f"engine passes",
+                ask=f"Cite the paragraph that answers what was asked, or "
+                    f"escalate that no authority here reaches it. Do not re-run "
+                    f"this with a softer conclusion until it serves.",
+                desk=desk.name)
+        elif seen.verdict == judging.NOT_IN_THE_PASSAGE:
+            out = engine.Refusal(
+                "judgment_not_in_the_passage",
+                f"{seen.by} judged {out.citation!r} to support {out.position!r} "
+                f"and quoted {seen.missing!r}, which is not in the passage. The "
+                f"answer is not refused on its merits — nobody has read it. A "
+                f"judgment that quotes what is not there is not a second reading",
+                ask=f"Judge it again against the passage as stored, quoting "
+                    f"what it says. `[...]` marks a gap you are skipping.",
+                desk=desk.name)
+        else:
+            out = dataclasses.replace(out, judged=seen)
+    # THE DESK'S OWN DECLARATION, and the firm's answer on the docket: *"The
+    # judge can look at it all I guess?"* -- all seven. It runs LAST, after the
+    # proof and after a supplied judgment has been checked, because every stage
+    # here may add a refusal and none may remove one.
+    #
+    # `out.judged is None` MEANS NOBODY READ IT, and it is the exact condition
+    # for the same reason `out.proof is None` is: the engine never sets the
+    # field, so it is set if and only if a judgment came in and passed the
+    # check above. Written as `judged is None` -- the argument rather than the
+    # result -- this fired on answers a second reader HAD read, because a
+    # judgment that says SAYS_NO or NOT_IN_THE_PASSAGE has already refused by
+    # then and one that HOLDS is on the object, not in the argument.
+    if desk.needs_a_judge and isinstance(out, engine.Served) and out.judged is None:
+        out = engine.Refusal(
+            "not_judged",
+            f"{desk.name} does not serve an answer no second reader has looked "
+            f"at, and none was supplied. Nothing is wrong with the answer or "
+            f"with the record — the engine checked what it can check and the "
+            f"one thing it cannot is whether {out.citation!r} carries "
+            f"{out.position!r}",
+            ask=f"Have a party OTHER than the one that answered read the "
+                f"passage and say whether it carries the conclusion, quoting "
+                f"the words they rest that on. Pass it as "
+                f"`judged=judging.Judgment(by=..., supports=..., because=...)`. "
+                f"One model wearing both hats raises rather than serves.",
+            desk=desk.name)
+    # AND THIS ONE IS NOT FILED. `unsupported/` is what says the RECORD is
+    # missing something; a missing judgment is a caller contract and the record
+    # is complete. Filing it would put a work item in a queue nobody can act on
+    # and would inflate the one count that is supposed to mean something.
+    if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
         path = desks / desk_name / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])

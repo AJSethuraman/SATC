@@ -63,6 +63,61 @@ Not supplying one is an answer, and there are two of them:
 The second is a hole in what the firm tracks. `python3 tools/holes.py` reads both
 out of the refusal queue, holes first — see `docs/WHERE-FACTS-LIVE.md`.
 
+**And a served answer can be handed in with its evidence.** Pass `ask.answer` a
+transport and it fetches the publisher's own page, compares it with the passage
+being served, and hands the answer over with the tie-out attached — the URL, the
+moment, the digest, how much matched. Where the publisher no longer carries the
+text the answer is withdrawn; where the publisher could not be reached the answer
+stands and says so, because a client's answer must not depend on a government
+website being up.
+
+**And a citation no desk holds is not the end of the road.** Hand `ask.answer`
+the URL you found the rule at and the exact words you are resting on, alongside
+a transport, and it fetches that page and serves only if those words are on it
+right now. Two checks run *before* anything is fetched: the publisher must be
+competent to settle the question, and a licence the firm has not accepted stays
+a wall. The answer arrives saying it is not from the record — and **never
+binding**, because `binding` means the firm treats it as authority that binds
+their own work, and nobody has looked at the document. `candidates.py`.
+
+**Where a publisher holds a door open, use it.** eCFR refuses a real headless
+browser — an HTTP 200 "Request Access" page — and its own refusal names a
+developer API instead. Measured before building: **no key, no cost**, HTTP 200
+to a plain client, the section's full text. `ecfr.py` reads that API, and
+**19 of 19** of the eCFR sources these desks cite tie out live through it. It is
+a transport and not a shortcut past verification: everything it returns is
+proved against the stored passage exactly as a browser fetch is. The
+user-agent in `browser.py` stays the fallback for publishers offering nothing
+like this.
+
+**Withdrawing a citation takes evidence.** A tie-out that does not find our
+passage used to say the publisher had changed it — and on 8 September a live run
+found eCFR serving a real browser a *"Request Access"* page from the correct
+host, HTTP 200, no redirect, which the engine read as "the rule moved" and used
+to tell a person to retire a rule the publisher carries perfectly well. From our
+own side a changed text and a refused fetch are the same observation, so
+`DIFFERS` now requires that the fetched document at least **mention the section
+asked for**; absent that it is `COULD NOT`, which asks a human to look.
+`desk/docs/DESK-ANSWER-344-2026-09-08.md`.
+
+**And no desk serves an answer nobody read.** The firm, asked which desks may
+not serve unjudged: *"The judge can look at it all I guess?"* — all seven. A
+second reader is handed the paragraph and the conclusion and says whether one
+carries the other; the engine checks only that the words they quote are really
+in what they read, and where a tie-out was taken they read **the fetched page**
+rather than our copy of it. It does not make a wrong answer impossible — it
+makes one attributable. The requirement is declared in each desk's own
+`SUBJECTS.md` (`**Judged:** required`), so lifting it from a desk is one line of
+that file. Cost, measured rather than estimated: **92 of the 98 recorded
+problems** serve today, and every one now takes a second model call.
+
+**Every attempt is written down, whatever it did.** The firm, 8 September 2026:
+*"It should state what happened when trying to tie it out. I need info to make
+decisions down the line."* One unreachable source is a shrug; forty against the
+same host is a source to retire, and that decision cannot be made from the one
+answer in front of you. `python3 tools/tieouts.py` reads them out, counted by
+publisher, naming what it read them from.
+
 **Two skills, because there are two sides.** `skills/be-the-desk` is for the
 session that HOLDS the desks and answers from them; `skills/ask-desk` is for the
 agent doing the work, which holds none of the record and sends its question to

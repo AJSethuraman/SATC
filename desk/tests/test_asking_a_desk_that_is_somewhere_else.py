@@ -136,11 +136,28 @@ def test_the_envelope_tells_the_desk_to_reply_poke_only():
 
 
 def test_it_warns_that_a_send_is_not_a_delivery():
-    """The other half of the same defect: `fire_trigger`'s `last_fired_at` is
-    not corroborated by the durable record, so a desk that trusts it reports
-    success early, and an asker that chases cannot tell early from failed."""
+    """The other half of the same defect: a 200 from `fire_trigger` is not
+    delivery, so a desk that trusts it reports success early, and an asker that
+    chases cannot tell early from failed."""
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "is NOT delivery" in body
+    assert "is not delivery" in body
+
+
+def test_and_that_the_durable_record_is_not_the_fallback_either():
+    """MEASURED BOTH WAYS ON 8 SEPTEMBER, on the reply to this very envelope.
+
+    The desk fired, went to the durable record to check itself — the right
+    instinct — and found no `last_fired_at`, no run row, and `updated_at` equal
+    to `created_at`. It reported a delivery failure. The message had arrived
+    five seconds after the fire and was sitting undelivered in the asker's
+    notification queue.
+
+    So the rule is not "trust the record instead of the return value". Neither
+    one knows. An envelope that warned about the 200 and stopped there sends a
+    careful desk to the second wrong oracle, which is what happened."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "not evidence of non-delivery" in body.replace("\n", " ")
+    assert "Only the recipient knows" in body
 
 
 def test_it_tells_the_desk_to_open_with_the_ref():

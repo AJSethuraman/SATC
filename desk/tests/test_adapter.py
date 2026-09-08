@@ -454,7 +454,22 @@ UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
                 # self-diagnose the thing it just failed at -- the preparer
                 # doing the verifying act, which C6 and C7 put on the other
                 # side of the line.
-                "wrong_body_of_authority"}
+                "wrong_body_of_authority",
+                # NOR CAN A BRAIN ESCALATE THE FAILURE OF ITS OWN JUDGE. Only
+                # `judging.read` raises this, and only with a second reader's
+                # verdict in hand -- the answering brain is never shown one, and
+                # a brain that could claim its judge misquoted would be marking
+                # the marking of its own work.
+                "judgment_not_in_the_passage",
+                # AND THE ABSENCE OF A JUDGE IS A FACT ABOUT THE CALLER. Every
+                # other reason here is the engine comparing something against
+                # the record; this one is the engine noticing the caller did not
+                # do its half. A brain cannot observe it at all -- it does not
+                # know whether whoever invoked it also arranged a second reader
+                # -- and a brain that could CHOOSE to raise "nobody judged me"
+                # could choose not to, which is the whole reason the requirement
+                # is declared in the desk's record instead.
+                "not_judged"}
 
 
 def test_a_brain_is_offered_every_reason_it_could_observe():

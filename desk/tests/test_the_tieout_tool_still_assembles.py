@@ -79,7 +79,7 @@ def test_comparing_reaches_nothing_that_reaches_the_network():
     fetches, so importing it pulls in `ssl`, and this suite replaces the socket
     layer — every test of `proving` failed inside `ssl.py` until the comparison
     moved somewhere that imports neither."""
-    src = (HERE / "comparing.py").read_text()
+    src = (HERE / "comparing.py").read_text(encoding="utf-8")
     for forbidden in ("import urllib", "import ssl", "import socket",
                       "import http", "import requests", "subprocess"):
         assert forbidden not in src, (

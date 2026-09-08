@@ -84,8 +84,11 @@ every primary-authority source these desks hold. See the correction above. `sear
 as a separate manual step.
 
 The refusal vocabulary in `engine.REASONS` does not change. What changes is that
-`authority_absent` acquires a next step that happens automatically, at the desk,
-where the browser is.
+`authority_absent` acquires a next step that happens automatically, at the desk —
+**which has the firm's files, its logins and anything licensed on that disk, not
+a browser the cloud lacks.** The correction above measured that; this sentence
+said "where the browser is" until 8 September and was the same false claim in a
+smaller place.
 
 ### 2 · The doer cannot cite past what it was handed
 

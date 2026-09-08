@@ -54,7 +54,7 @@ def test_a_hit_from_a_host_no_desk_has_declared_still_comes_back():
 
 def test_look_holds_no_list_of_hosts_at_all():
     """Not "the list is empty" — there is no list, so none can be filled in."""
-    src = (HERE / "searching.py").read_text()
+    src = (HERE / "searching.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next(n for n in ast.walk(tree)
               if isinstance(n, ast.FunctionDef) and n.name == "look")
@@ -119,7 +119,7 @@ def test_the_reason_the_searcher_watches_for_is_one_the_engine_counts():
 # ── it cannot answer, and the import graph is why ─────────────────────────────
 
 def test_searching_imports_neither_the_engine_nor_the_front_door():
-    tree = ast.parse((HERE / "searching.py").read_text())
+    tree = ast.parse((HERE / "searching.py").read_text(encoding="utf-8"))
     named = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     named |= {a.name for n in ast.walk(tree) if isinstance(n, ast.Import)
               for a in n.names}
@@ -148,7 +148,7 @@ def test_the_only_thing_this_module_ever_builds_out_of_the_record_is_a_passage()
     two-store split — `extracted/` an agent may write, `positions/` it may only
     propose — would have a hole in it the guards do not watch.
     """
-    tree = ast.parse((HERE / "searching.py").read_text())
+    tree = ast.parse((HERE / "searching.py").read_text(encoding="utf-8"))
     built = {n.func.attr for n in ast.walk(tree)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and isinstance(n.func.value, ast.Name) and n.func.value.id == "record"

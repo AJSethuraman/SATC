@@ -70,6 +70,8 @@ REASONS = (
     "authority_has_moved",      # the publisher no longer carries what we stored
     "wrong_body_of_authority",  # real authority, real subject, wrong universe
     "model_gave_up",            # ran out of window or abandoned the task
+    "judgment_not_in_the_passage",
+    "not_judged",               # this desk may not serve what nobody read  # the second reader quoted words that are not there
 )
 
 # THE LAST TWO ARE THE FIRM'S, ASKED FOR ON 6 SEPTEMBER 2026, and they are two
@@ -353,6 +355,30 @@ class Served:
     #: None means NOT ASKED FOR, never "asked for and fine". A proof that could
     #: not be taken is a `Proof` with verdict COULD NOT, and it says so.
     proof: object = None
+    #: THE GATE FIRED ON A COIN TOSS, and this is the reader being told so.
+    #: Empty wherever the domain was decided on evidence -- which is every
+    #: answer but the straddles.
+    #:
+    #: `domains.Verdict.tied` carries the argument in full. The short version:
+    #: a question firing on the same number of words in two bodies of authority
+    #: is ordered BY NAME, so `federal-tax` beats `us-gaap` because of the
+    #: alphabet, and `wrong_body_of_authority` then does not fire because the
+    #: source governs the domain the sort happened to pick. On 8 September a
+    #: Treasury regulation about amounts paid to ACQUIRE property was served,
+    #: primary and binding, for *"does the equipment go on our books as an
+    #: asset?"* about a 36-month lease -- and the passage LOOKS supportive,
+    #: which is what makes it worse than the forklift case it resembles.
+    #:
+    #: SAID RATHER THAN REFUSED, and the ratio is why: of 98 recorded problems,
+    #: 5 straddle and all 5 are exact ties, every one `federal-tax` against
+    #: `us-gaap` on lease vocabulary. Four of those five are tax questions with
+    #: correct tax answers. A refusal would spend them to catch this.
+    straddle: str = ""
+    #: The second reader's verdict, when one was given. `judging.Read`, or None.
+    #: Never a score and never a substitute for a check: the engine confirmed
+    #: the quoted words are in the passage; whether they carry the conclusion is
+    #: the judge's call, recorded here rather than recomputed.
+    judged: object = None
 
     def __str__(self) -> str:
         """The whole answer, laid out for a person. WHY THIS IS NOT IN THE SKILL.
@@ -389,11 +415,29 @@ class Served:
         # carry 'Pub. 583 binds' to an accountant on the strength of it."*
         # `binding` has only ever meant the FIRM treats this as authority that
         # binds their own work. The field said so; the rendering did not.
-        out = [self.position, "",
+        # THE STRADDLE NOTE GOES ABOVE THE CONCLUSION, NOT BELOW IT, and that
+        # is the single highest-value edit the reader asked for:
+        #
+        #   "By the time I reach line 6 I have read the answer AND a badge
+        #    saying primary and binding, which reads as two independent things
+        #    vouching for it. The warning then has to un-sell something I have
+        #    already bought. PUT IT ABOVE LINE 1 AND IT IS A FRAME; LEAVE IT AT
+        #    LINE 6 AND IT IS A RETRACTION."
+        #
+        # It sat above the AUTHORITY and below the ANSWER, and a test pinned it
+        # there -- pinning exactly the wrong half. `caveat` and `alongside` stay
+        # where they are: both are about the authority the reader is being sent
+        # to, and are read after the answer on purpose. This one is about
+        # whether the answer is even the reader's question, so it is read first
+        # or it is read too late.
+        out = ([self.straddle, ""] if self.straddle else []) + [
+               self.position, "",
                f"    {self.citation}",
                f"    {self.tier} · "
                f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
                f" · confirmed {self.checked}"]
+        if (tied := _tieout_line(self.proof)):
+            out += [tied]
         if self.caveat:
             out += ["", self.caveat]
         if self.alongside:
@@ -425,6 +469,40 @@ class Served:
                 out += ["", f"AND THE AUTHORITY UNDER THE FIRM'S OTHER ANSWER "
                             f"({position}), in full:", "", f"> {text}"]
         return "\n".join(out)
+
+
+def _tieout_line(proof) -> str:
+    """What the tie-out attempt DID, in one line, whatever it did.
+
+    THE FIRM, 8 September 2026: *"It should state what happened when trying to
+    tie it out. I need info to make decisions down the line."* All three
+    verdicts are findings, so all three are said. A rendering that spoke only
+    on failure would teach a reader that silence means checked -- and silence
+    here means NOT ASKED FOR, which is a different thing entirely.
+
+    TYPED LOOSELY, LIKE THE FIELD. `proving` imports the record and reaches the
+    network; this module must do neither, so nothing here is imported and every
+    field is read off the object.
+    """
+    if proof is None:
+        return ""
+    verdict = getattr(proof, "verdict", "")
+    at = getattr(proof, "fetched_at", "") or "an unrecorded moment"
+    host = _host_of(getattr(proof, "url", ""))
+    if verdict == "TIED":
+        return (f"    tied out against {host or 'the publisher'} at {at} — the "
+                f"passage below is in the document served there right now")
+    note = getattr(proof, "note", "") or "no reason was recorded"
+    return (f"    NOT TIED OUT ({verdict or 'unknown'}) — {note} "
+            f"This rests on this desk's record alone; nothing has been checked "
+            f"against the publisher.")
+
+
+def _host_of(url: str) -> str:
+    """The registered host of a URL. A reader needs WHO, not which path."""
+    import urllib.parse
+    host = urllib.parse.urlsplit(url or "").hostname or ""
+    return host.lower().removeprefix("www.")
 
 
 @dataclass(frozen=True)
@@ -462,6 +540,19 @@ class Refusal:
     #: three that turn on a position's `Needs:` or `Unless:` set them.
     fact: str = ""
     by_position: str = ""
+    #: A `proving.Proof` when a tie-out was attempted, and None when none was.
+    #: Typed loosely for the same reason as `Served.proof`, and set by
+    #: `ask.answer` rather than here.
+    #:
+    #: A REFUSAL CAUSED BY A TIE-OUT MUST SAY WHAT THE TIE-OUT DID, and before
+    #: this field it could not: `authority_has_moved` carried the proof's note
+    #: inside a sentence and dropped the host, the moment and the digest, so the
+    #: one refusal that exists BECAUSE something was fetched was the one nobody
+    #: could re-run by hand. #343's candidate path needs the same field for the
+    #: opposite case -- a citation no desk holds, refused because the fetch
+    #: failed -- where the whole content of the refusal is what happened when
+    #: trying.
+    proof: object = None
     #: WHICH DESK REFUSED. Empty only where nothing routed.
     #:
     #: A QUESTION REACHES MORE THAN ONE DESK, and a printed refusal did not say
@@ -563,6 +654,11 @@ class Refusal:
         # inverts that teaches a reader the shape means nothing.
         out = [f"THE DESK DID NOT ANSWER — {self.reason}"
                + (f"  ·  {self.desk}" if self.desk else ""), f"    {self.detail}"]
+        # WHAT THE TIE-OUT DID, WHERE ONE WAS TRIED. Directly under the detail,
+        # because on the refusals that exist because of a fetch it IS the
+        # detail -- the host asked, the moment, and what came back.
+        if (tied := _tieout_line(self.proof)):
+            out += [tied]
         if self.working:
             out += ["", self.working]
         if self.ask:
@@ -791,14 +887,18 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     the shape of nearly every real bug in this operation: a claim in one place,
     the behaviour in another, and nothing comparing them.
 
-    Returns `(refusal, passage, source)`. A refusal of None means it passed.
+    Returns `(refusal, passage, source, verdict)`. A refusal of None means it
+    passed. The verdict is handed back rather than recomputed by the caller for
+    the same reason `cited_off_source` is handed the resolved source: one
+    resolution, one answer, and no second copy to drift.
     """
+    verdict = None
     if not answer.citation.strip():
         return Refusal(
             "no_citation",
             "answered with no citation; cite this desk's recorded authority, "
             "or escalate with a reason",
-        ), None, None
+        ), None, None, verdict
 
     backing = desk.authority_for(answer.citation)
     if backing is None:
@@ -806,7 +906,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
             "authority_absent",
             f"{answer.citation!r} is not in this desk's record; add it cited, "
             f"or escalate with reason 'authority_absent'",
-        ), None, None
+        ), None, None, verdict
 
     kind, passage, source = backing
     if source is None:                                  # pragma: no cover
@@ -835,7 +935,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"That is the engagement's to record, not the client's to be asked",
                 ask=_follow_up(absent, ruling),
                 fact=", ".join(absent), by_position=ruling.id,
-            ), passage, source
+            ), passage, source, verdict
 
     # A DEFAULT IS NOT AN ANSWER UNTIL SOMEBODY HAS LOOKED FOR THE EXCEPTION.
     #
@@ -875,7 +975,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                         f"rather than the firm's general position — and if it no "
                         f"longer reflects what the firm does, say so.",
                     fact=fact, by_position=ruling.id,
-                ), passage, source
+                ), passage, source, verdict
             if fact not in desk.records:
                 return Refusal(
                     "no_field_for_this_fact",
@@ -888,7 +988,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                         f"Nothing on file can answer that, because no such field "
                         f"exists. Deciding whether it should is the firm's.",
                     fact=fact, by_position=ruling.id,
-                ), passage, source
+                ), passage, source, verdict
             return Refusal(
                 "context_not_on_file",
                 f"{answer.citation!r} is the firm's default position "
@@ -897,14 +997,14 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"a default applied without looking is not a default",
                 ask=_follow_up((fact,), ruling),
                 fact=fact, by_position=ruling.id,
-            ), passage, source
+            ), passage, source, verdict
 
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
     # the source the line above resolved, rather than working it out again from
     # the citation: one resolution, one answer.
     astray, why = cited_off_source(answer, desk, question, source=source)
     if astray:
-        return Refusal("citation_does_not_support", why), None, None
+        return Refusal("citation_does_not_support", why), None, None, verdict
 
     # `off_subject` IS NOT WIRED IN HERE, AND THE MEASUREMENT IS WHY (#266).
     # It refuses 4 of the 16 fixed-assets problems answered with their own
@@ -934,8 +1034,8 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 f"cited {answer.citation!r}, where the firm's position is "
                 f"{passage.position!r}; answered {answer.position!r}. A position "
                 f"is the firm's word and a desk does not revise it",
-            ), passage, source
-        return None, passage, source
+            ), passage, source, verdict
+        return None, passage, source, verdict
 
     # THE BODY OF AUTHORITY, checked before tier and after positions.
     #
@@ -991,7 +1091,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                      + (f" that also reaches {also}" if also else "")
                      + f". Cite {verdict.domain.body}, or escalate that no "
                        f"desk holds the authority that governs it."),
-            ), passage, source
+            ), passage, source, verdict
 
     if not source.binding:
         # SERVED, AND MARKED AS GUIDANCE -- but only where no rule reaches.
@@ -1024,10 +1124,10 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
                 ask=f"Is {answer.citation!r} being cited because the rule does "
                     f"not reach this, or because it was easier to read? This "
                     f"desk holds a binding source for what was asked.",
-            ), passage, source
-        return None, passage, source
+            ), passage, source, verdict
+        return None, passage, source, verdict
 
-    return None, passage, source
+    return None, passage, source, verdict
 
 
 def serve(answer: Answer, desk: Desk, *, question: str,
@@ -1099,7 +1199,7 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
             answer.reason, "escalated by the desk", working=answer.working,
             ask=answer.ask, showed=total, showed_by_source=by_source)
 
-    refusal, passage, source = _check(answer, desk, question, context)
+    refusal, passage, source, verdict = _check(answer, desk, question, context)
     if refusal is not None:
         # CARRIED HERE RATHER THAN AT FIFTEEN CONSTRUCTION SITES, so no refusal
         # can be added later that quietly drops it.
@@ -1115,6 +1215,7 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
     binding = bool(from_position or source.binding)
     return Served(
         binding=binding,
+        straddle=_straddle_note(verdict, desk),
         caveat="" if binding else (
             f"This rests on {source.title}, which is {source.tier} authority: "
             f"the IRS's own guidance, not the rule. No binding authority on this "
@@ -1259,7 +1360,7 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
     # THE PROBLEM'S OWN CONTEXT, not the caller's. A worked example carries the
     # facts it was written with, and grading it against anything else would
     # measure the harness rather than the desk.
-    refusal, passage, source = _check(answer, desk, problem.facts, problem.context)
+    refusal, passage, source, _ = _check(answer, desk, problem.facts, problem.context)
 
     if refusal is not None:
         # An interpretive source is not an error, it is the case where authority
@@ -1295,6 +1396,93 @@ def grade(answer: Answer, problem: Problem, desk: Desk) -> Result:
         detail=f"answered {answer.position!r} with authority that held; the "
                f"example concludes {problem.answer!r}",
     )
+
+
+def _mid_sentence(text: str) -> str:
+    """The firm's own sentence, set inside one of ours. First letter folded,
+    every other left alone -- "the United States" is not "the united states"."""
+    text = text.strip().rstrip(".")
+    return text[:1].lower() + text[1:]
+
+
+def _straddle_note(verdict, desk) -> str:
+    """The sentence a reader sees when the words did not rule the other body out.
+
+    REWRITTEN 8 SEPTEMBER, BY THE READER IT IS FOR. The first version put the
+    machine's tie-break in the middle and the consequence last, conditional. The
+    Forge desk read it as the six-o'clock reader and took it apart:
+
+        "S2 IS THE ONE I SKIM. It is 38% of the note and it is the machine
+         explaining its own tie-break. At 6pm I do not care HOW the gate
+         decided; 'name sort' is a fact about your sort key, not about my
+         books."
+
+        "The operative clause is LAST and it is CONDITIONAL […] THE READER WHO
+         IS ABOUT TO MAKE THIS MISTAKE IS EXACTLY THE READER WHO DOES NOT KNOW
+         THEIR QUESTION HAS TWO HALVES. You are asking the one person who cannot
+         answer it to self-diagnose, at the end of the longest sentence."
+
+        "It never says DO NOT ACT ON THIS."
+
+    So: consequence first, no internals, and the other half named in the firm's
+    own plain words rather than by its body's thirteen-word legal name. That
+    phrase is `Domain.about`, already written in `DOMAINS.md` -- "what the books
+    say, and what goes on the balance sheet" -- so nothing here is invented.
+
+    LENGTH WAS NOT THE PROBLEM AND IS NOT CHANGED. Asked directly whether three
+    lines is too much at four correct answers per wrong one: *"THREE LINES IS
+    CHEAP AND I WOULD NOT SHORTEN IT. On the four correct tax answers the note
+    is not noise: it truthfully tells a tax-correct answer that a book half
+    exists and is not covered. That is a second finding, not a tax. The thing
+    that IS noise on all five is S2."*
+    """
+    if verdict is None:
+        return ""
+    apart = getattr(verdict, "apart", ())
+    if not apart:
+        return ""
+    import domains as _domains
+
+    won = verdict.domain
+    others = [d for d, _ in apart]
+    # `about` IS THE FIRM'S OWN SENTENCE. Only its first letter is folded so it
+    # reads inside ours: `.lower()` on the whole thing published "what a
+    # taxpayer owes the united states, and when".
+    theirs = ", ".join(_mid_sentence(d.about) for d in others)
+    held = _domains.reachable(others, desk)
+
+    # THE WINNER IS NAMED AND NOT EXPLAINED; the OTHER half is explained. That
+    # is the desk's own draft and it is right: the reader can see the answer
+    # above, so what they need is what it is NOT about. Spending a clause on
+    # `federal-tax.about` here cost nine words and told them nothing new.
+    out = [f"THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION. It answers the "
+           f"{won.name} half only."]
+
+    if verdict.only_shared_words:
+        # NOTHING WAS WEIGHED, so the note must not imply anything was. The fix
+        # is in the asker's wording and only they can make it.
+        word = ", ".join(f"{w!r}" for w in verdict.matched) or "what you wrote"
+        out.append(f"The other half is {theirs} — and NOTHING YOU WROTE TELLS "
+                   f"THE TWO APART: {word} is in both vocabularies.")
+    else:
+        said = ", ".join(f"{w!r}" for _, words in apart for w in words)
+        out.append(f"You also wrote {said}, which belongs to the other half: "
+                   f"{theirs}.")
+
+    # THE BODY'S NAME GOES LAST, NOT FIRST. The desk's objection was to opening
+    # a sentence with thirteen words of proper noun before the verb -- "the
+    # Financial Accounting Standards Board, through the Accounting Standards
+    # Codification settles us-gaap" -- and it stands. But a reader who is about
+    # to escalate needs to know WHO settles it, and by this point they already
+    # know which half they are being warned about, so the name informs instead
+    # of blocking.
+    who = "; ".join(d.body for d in others)
+    out.append(f"This desk holds that half too — ask it that question rather "
+               f"than reading the answer above as if it covered both."
+               if held else
+               f"No desk here holds that half — {who} settles it. If it is the "
+               f"half you meant: stop, and escalate.")
+    return " ".join(out)
 
 
 def _same(given: str, known: str) -> bool:
