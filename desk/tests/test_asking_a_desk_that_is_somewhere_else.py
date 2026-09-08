@@ -301,3 +301,63 @@ def test_and_says_why_the_asker_cannot_do_it_themselves():
     """Without the reason a desk reads this as bookkeeping and skips it."""
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
     assert "THE ASKER CANNOT SEE THIS AND YOU CAN" in body
+
+
+# ------------------------------------- answering what the desk actually asked
+
+def test_a_follow_up_carries_the_facts_the_desk_named():
+    f = relay.follow_up("abc123", {"invoice_amount": "18,400"},
+                        asked_for=("invoice_amount",))
+    assert f.ref == "abc123" and f.facts == {"invoice_amount": "18,400"}
+
+
+def test_a_fact_the_desk_did_not_ask_for_is_refused():
+    """THE DISTINCTION THAT MAKES THIS NOT THE CONTEXT FIELD THE FIRM CUT.
+
+    That field let the ASKER write whatever context it liked, and an asker who
+    writes the context writes the answer. Here the DESK named the fields; the
+    asker supplies only values. A fact riding along uninvited is the asker
+    framing the question again, through a narrower door."""
+    with pytest.raises(relay.RelayError, match="did not ask for"):
+        relay.follow_up("abc123", {"invoice_amount": "18,400",
+                                   "trade": "plumber"},
+                        asked_for=("invoice_amount",))
+
+
+def test_a_follow_up_with_no_ref_is_a_new_question():
+    with pytest.raises(relay.RelayError, match="no ref"):
+        relay.follow_up("", {"invoice_amount": "1"}, asked_for=("invoice_amount",))
+
+
+def test_an_empty_reply_is_refused_rather_than_read_as_an_answer():
+    """"Nobody knows" has to be SAID. Silence reads as resolution."""
+    with pytest.raises(relay.RelayError, match="no facts"):
+        relay.follow_up("abc123", {}, asked_for=("invoice_amount",))
+
+
+def test_a_blank_value_does_not_count_as_answered():
+    with pytest.raises(relay.RelayError, match="no facts"):
+        relay.follow_up("abc123", {"invoice_amount": "   "},
+                        asked_for=("invoice_amount",))
+
+
+def test_no_tin_rides_in_on_a_value_either():
+    with pytest.raises(relay.RelayError, match="TIN"):
+        relay.follow_up("abc123", {"taxpayer": "123-45-6789"})
+
+
+def test_the_reply_tells_the_desk_the_unanswered_ones_are_still_open():
+    """A FOLLOW-UP THAT FILLS THREE OF FOUR HOLES MUST NOT READ AS FOUR. The
+    reply arrives as permission to answer, and a desk reading it as permission
+    to assume is the whole failure re-entering by the back door."""
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", {"invoice_amount": "18,400"}))
+    assert "STILL not on file" in body
+    assert "refuse on it again" in body
+
+
+def test_and_invites_the_desk_to_say_the_facts_changed_nothing():
+    body = relay.follow_up_prompt(
+        relay.follow_up("abc123", {"invoice_amount": "18,400"}))
+    assert "say so plainly" in body
+    assert "not a failure" in body

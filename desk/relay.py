@@ -241,3 +241,81 @@ def desk_session(env=None) -> str:
             f"silently — the question goes somewhere, the asker waits, and "
             f"nothing says the desk never saw it.")
     return value
+
+
+# ---------------------------------------------------------------------------
+# ANSWERING WHAT THE DESK ASKED, and why this is not the context field the firm
+# cut.
+#
+# THE LOOP STOPPED HALF WAY. A desk that cannot answer now asks — `MUST_ASK`,
+# 0.9.0 — and nothing carried the answer back. Ask, refuse-with-question, dead
+# end. The firm, 8 September 2026: *"this keeps stopping before it actually
+# fills the holes."*
+#
+# WHY THIS IS NOT `facts` RETURNING. The field the firm cut let the ASKER write
+# whatever context it liked, and an asker who writes the context writes the
+# answer. Here the DESK named the fields. It asked for `invoice_amount`; it gets
+# `invoice_amount`. The asker chooses nothing but the values, which is the same
+# authority a preparer has when they fill in a file — and every name is checked
+# against what the desk actually asked for, so a fact nobody wanted cannot ride
+# along.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class FollowUp:
+    """Answers to the questions ONE desk asked, against the ref it asked under."""
+    ref: str
+    facts: dict
+
+
+def follow_up(ref: str, facts: dict, asked_for=()) -> FollowUp:
+    """Build a reply to a desk's follow-up, or REFUSE.
+
+    `asked_for` is what the desk said it needed. Empty means it named no fields
+    and nothing can be checked — which is allowed, because a desk may ask in
+    prose, but the caller is then on their honour and the envelope says so.
+    """
+    if not (ref or "").strip():
+        raise RelayError(
+            "no ref. A follow-up that does not say which question it answers "
+            "is a new question wearing an answer's clothes.")
+    facts = {str(k).strip().lower(): str(v).strip()
+             for k, v in (facts or {}).items() if str(v).strip()}
+    if not facts:
+        raise RelayError(
+            f"no facts for {ref}. If the answer is that nobody knows, say THAT "
+            f"to the desk in words — a silent empty reply reads as an answer.")
+    for name, value in facts.items():
+        if TIN.search(value):
+            raise RelayError(
+                f"the value for {name!r} looks like a TIN. The desks answer "
+                f"without identity and this envelope is stored on a trigger.")
+    if asked_for:
+        wanted = {a.strip().lower() for a in asked_for}
+        if extra := sorted(set(facts) - wanted):
+            raise RelayError(
+                f"the desk did not ask for {', '.join(extra)}. It asked for "
+                f"{', '.join(sorted(wanted))}. A fact riding along uninvited is "
+                f"the asker framing the question, which is what the desk being "
+                f"a separate session exists to stop.")
+    return FollowUp(ref=ref.strip(), facts=facts)
+
+
+def follow_up_prompt(f: FollowUp) -> str:
+    """The message that carries the answers back to the desk."""
+    out = [f"DESK FOLLOW-UP {f.ref} — you asked for these and here they are.",
+           "", "## What was answered", ""]
+    out += [f"- **{name}:** {value}" for name, value in sorted(f.facts.items())]
+    out += ["", "## Now answer the original question", "",
+            f"Re-run it with these on file — `ask.answer(..., context="
+            f"record.Context(facts={{...}}))` — and reply exactly as before, "
+            f"opening with `DESK ANSWER {f.ref}`.", "",
+            "**Only these were answered.** Anything you asked for that is not "
+            "listed above is STILL not on file: refuse on it again rather than "
+            "treat this reply as permission to assume it. A follow-up that "
+            "fills three of four holes and is read as filling four is worse "
+            "than no reply at all.", "",
+            "If these change nothing — if they were not in fact what the "
+            "question turned on — say so plainly. That is a finding about the "
+            "question you asked, not a failure."]
+    return "\n".join(out)
