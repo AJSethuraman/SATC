@@ -154,7 +154,8 @@ def as_prompt(a: Ask) -> str:
     ]
     out += [
         "## How to answer", "",
-        "Use the `ask-desk` skill: `ask.consult` for what a desk will let you "
+        "Use the `be-the-desk` skill — NOT `ask-desk`, which is the skill for "
+        "whoever sent you this: `ask.consult` for what a desk will let you "
         "answer from, then `ask.answer(...)` with your conclusion and citation. "
         "`keep=False` unless you are told otherwise. Do not write to a desk, do "
         "not commit, do not push.", "",

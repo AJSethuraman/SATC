@@ -178,3 +178,23 @@ def test_the_desk_skill_is_where_the_record_is_read():
     skill = (Path(__file__).resolve().parents[1] / "skills" / "be-the-desk"
              / "SKILL.md").read_text(encoding="utf-8")
     assert "import ask" in skill
+
+
+def test_the_envelope_names_the_desk_side_skill_and_not_the_asking_one():
+    """SHIPPED WRONG IN 0.8.0 AND CAUGHT WRITING THE END-TO-END RUN.
+
+    `as_prompt` was written while the desk-side skill was still called
+    `ask-desk`. The rename split it into two — `ask-desk` for the doer,
+    `be-the-desk` for the desk — and the envelope kept telling the desk to use
+    the ASKER's skill, which holds no record and would have sent it looking for
+    `relay` when it needed `ask`.
+
+    Nothing would have said so: a session told to use a skill that exists reads
+    it, finds it is about sending questions, and improvises. The rename was in
+    the same commit as this string and neither the tests nor the suite noticed,
+    because every assertion about the envelope was about the protocol rather
+    than about the instruction."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "`be-the-desk` skill" in body
+    assert "NOT `ask-desk`" in body, (
+        "a desk that reaches for `ask-desk` finds the asking side and improvises")
