@@ -362,6 +362,12 @@ class Served:
     #: real regulation arriving caveated). This is the other direction, and it
     #: is the one the reader cannot detect.
     classified: bool = True
+    #: Set when the citation came from a source this desk does not DECLARE for
+    #: this question's subject. Advice, not a verdict: the paragraph may be
+    #: exactly right and the declaration merely narrow -- which is what it was
+    #: on 8 September, when "how is the depreciation worked out?" refused the
+    #: acquisition rule for a thing that had been bought.
+    off_source: str = ""
     #: A `proving.Proof` when the caller asked for one, and None when they did
     #: not. Typed loosely on purpose: `proving` imports the record and reaches
     #: the network, and this module must do neither. THE ENGINE NEVER SETS THIS.
@@ -446,7 +452,11 @@ class Served:
         # to, and are read after the answer on purpose. This one is about
         # whether the answer is even the reader's question, so it is read first
         # or it is read too late.
-        out = ([self.straddle, ""] if self.straddle else []) + [
+        # BOTH WARNINGS GO ABOVE THE CONCLUSION, for the reason the firm gave
+        # about the straddle note: "PUT IT ABOVE LINE 1 AND IT IS A FRAME;
+        # LEAVE IT AT LINE 6 AND IT IS A RETRACTION."
+        out = ([self.straddle, ""] if self.straddle else []) + \
+              ([self.off_source, ""] if self.off_source else []) + [
                self.position, "",
                f"    {self.citation}",
                f"    {self.tier if self.classified else 'tier not established'} · "
@@ -744,6 +754,51 @@ def off_subject(answer: Answer, desk: Desk, question: str) -> tuple[bool, str]:
     )
 
 
+def cited_off_declared_citation(answer: Answer, desk: Desk,
+                                asked: list[str]) -> tuple[bool, str]:
+    """The FINER declaration, and the half that still BLOCKS.
+
+    A source-level mapping cannot separate two rules living in one source, and
+    the cash desk holds exactly that pair: the timing rule and the correction
+    rule, both Publication 583, OPPOSITE ANSWERS. Measured 5 September 2026 --
+    handed CB4's facts and the TIMING citation, `serve()` returned "a
+    reconciling item, no entry in the books" with `checked_subject=True`. The
+    right source. The wrong paragraph. The opposite treatment.
+
+    WHY THIS ONE KEPT ITS TEETH WHEN THE SOURCE-LEVEL CHECK LOST THEM,
+    8 September 2026. Both were measured over all 98 recorded problems, asking
+    whether each would refuse the desk's OWN recorded citation:
+
+        phrased as the full fact pattern    source-level 0    per-citation 0
+        phrased as the short title          source-level 10   per-citation 0
+
+    Every one of the ten is the source-level check. This one costs nothing in
+    either phrasing, because it fires only on subjects a desk has DECLARED per
+    citation -- opt-in, so its cost can only be paid by a desk that asked for
+    it -- and because it separates paragraphs a reader genuinely cannot tell
+    apart from the source name. A wrong answer here is not a narrow one; it is
+    the opposite treatment of the same money.
+
+    It narrows and never widens: a desk declaring nothing per citation is
+    unaffected.
+    """
+    covered = [t for t in asked
+               if any(t in terms for terms in desk.answered_by.values())]
+    if not covered:
+        return False, ""
+    narrowed = {c for c, terms in desk.answered_by.items()
+                if any(t in covered for t in terms)}
+    if answer.citation in narrowed:
+        return False, ""
+    named = ", ".join(sorted(narrowed))
+    return True, (
+        f"the question is about {', '.join(covered)}, which this desk "
+        f"answers at {named}; {answer.citation!r} is a different rule in "
+        f"the same source. Two paragraphs of one publication can carry "
+        f"opposite answers, and the source alone cannot tell them apart"
+    )
+
+
 def cited_off_source(answer: Answer, desk: Desk, question: str,
                      *, source: Source | None = None) -> tuple[bool, str]:
     """`(refuse, detail)` — the citation comes from a source that does not
@@ -810,19 +865,9 @@ def cited_off_source(answer: Answer, desk: Desk, question: str,
     # It narrows and never widens: only the asked subjects a desk has actually
     # declared per citation are gated, so a desk declaring none is unaffected and
     # the cost of this gate can only be paid by a desk that opted in.
-    covered = [t for t in asked
-               if any(t in terms for terms in desk.answered_by.values())]
-    if covered:
-        narrowed = {c for c, terms in desk.answered_by.items()
-                    if any(t in covered for t in terms)}
-        if answer.citation not in narrowed:
-            named = ", ".join(sorted(narrowed))
-            return True, (
-                f"the question is about {', '.join(covered)}, which this desk "
-                f"answers at {named}; {answer.citation!r} is a different rule in "
-                f"the same source. Two paragraphs of one publication can carry "
-                f"opposite answers, and the source alone cannot tell them apart"
-            )
+    astray, why = cited_off_declared_citation(answer, desk, asked)
+    if astray:
+        return True, why
 
     if source is None or source.id in allowed:
         return False, ""
@@ -1018,9 +1063,32 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     # THE DECLARED MAPPING, WHICH IS EXACT AND SO MAY BLOCK (#266). It is handed
     # the source the line above resolved, rather than working it out again from
     # the citation: one resolution, one answer.
-    astray, why = cited_off_source(answer, desk, question, source=source)
+    # THE FINER HALF STILL GATES. Two paragraphs of one publication carrying
+    # opposite answers is not a narrow refusal, it is the opposite treatment of
+    # the same money -- and it costs 0 of 98 in either phrasing.
+    _touches = _canon_touches()
+    _asked = [t for t in desk.fires_on if _touches(question, t)]
+    astray, why = cited_off_declared_citation(answer, desk, _asked)
     if astray:
         return Refusal("citation_does_not_support", why), None, None, verdict
+
+    # THE SOURCE-LEVEL HALF ADVISES; IT DOES NOT GATE. It used to return
+    # `Refusal("citation_does_not_support", ...)` here. `serve()` computes the
+    # same note after the checks pass and carries it ON the answer.
+    #
+    # WHY IT WAS ALLOWED TO BLOCK, AND WHY THAT IS GONE. Its own docstring: on
+    # 5 September `serve()` "had no key and no equivalent of `grade()`'s
+    # citation check", so a real-but-irrelevant paragraph could not be caught
+    # downstream. #346 built the judge -- a second reader on the paragraph and
+    # the conclusion, on every answer -- which reads meaning where this reads a
+    # keyword table. And every measurement behind the block is `qwen3:8b`; the
+    # firm, 8 September: "We currently do not need to test against ollama."
+    #
+    # WHAT IT COST, over all 98 recorded problems, asked whether it would refuse
+    # each desk's OWN recorded citation: 0 of 98 when the question is the full
+    # fact pattern, 10 of 98 when it is the short title. It measures how many
+    # declared keywords the asker typed. `PROBLEMS.md` is written verbosely,
+    # which is the style that scores zero, so the suite could not see it.
 
     # `off_subject` IS NOT WIRED IN HERE, AND THE MEASUREMENT IS WHY (#266).
     # It refuses 4 of the 16 fixed-assets problems answered with their own
@@ -1229,9 +1297,16 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
     backing = desk.authority_for(answer.citation)
     from_position = backing is not None and backing[0] == "position"
     binding = bool(from_position or source.binding)
+    astray, why = cited_off_source(answer, desk, question, source=source)
     return Served(
         binding=binding,
         straddle=_straddle_note(verdict, desk),
+        off_source=(
+            f"THIS DESK DOES NOT DECLARE THAT SOURCE FOR THIS SUBJECT, and the "
+            f"paragraph may still be the right one — the declaration is a "
+            f"keyword table, not a reading. {why} Check the passage below "
+            f"answers what was asked before relying on it."
+        ) if astray else "",
         caveat="" if binding else (
             f"This rests on {source.title}, which is {source.tier} authority: "
             f"the IRS's own guidance, not the rule. No binding authority on this "
