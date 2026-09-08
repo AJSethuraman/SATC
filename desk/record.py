@@ -27,6 +27,39 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _version() -> str:
+    """What this CODE is, read from the manifest beside it at import.
+
+    THE ONE PLACE A VERSION CAN HONESTLY COME FROM. A session's `ask-desk` was
+    served from a plugin cache FIVE releases stale on 8 September — 0.4.0 while
+    the code was 0.9.x — and the version warning added in 0.7.3 to catch exactly
+    that lives in the SKILL.md that does not load. A check cannot detect its own
+    staleness. The desk that found it:
+
+        "That check must live in ask.py/relay.py, which IS current, or in the
+         harness."
+
+    Right. This is read from `.claude-plugin/plugin.json` next to the module
+    actually imported, so it describes the code that is RUNNING rather than the
+    file somebody happens to be reading. A mismatch between this and what a
+    skill claims is the whole signal.
+
+    Returns "" rather than raising: a missing manifest is not a reason to stop a
+    desk answering, and an empty version says "unknown", which is honest.
+    """
+    import json
+    try:
+        return str(json.loads(
+            (Path(__file__).resolve().parent / ".claude-plugin" / "plugin.json")
+            .read_text(encoding="utf-8")).get("version", "")).strip()
+    except Exception:
+        return ""
+
+
+#: The running code's version. Empty when it cannot be determined.
+VERSION = _version()
+
+
 class RecordError(Exception):
     """The record could not be read as a record. Never silently tolerated."""
 

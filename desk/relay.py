@@ -90,6 +90,15 @@ TIN = re.compile(r"\b(?:\d{3}-\d{2}-\d{4}|\d{2}-\d{7})\b")
 DESK = "SATC_DESK_SESSION"
 
 
+def _version() -> str:
+    """The running code's version, for stamping onto an envelope."""
+    try:
+        import record
+        return record.VERSION or "(unknown)"
+    except Exception:
+        return "(unknown)"
+
+
 class RelayError(Exception):
     """The envelope is malformed. Never repaired, never defaulted."""
 
@@ -150,6 +159,9 @@ def as_prompt(a: Ask) -> str:
     """
     out = [f"DESK REQUEST {a.ref} — you are the desk. Somebody is doing the "
            f"work and has hit something they cannot settle.", "",
+           f"*Composed by desk {_version()}. If the skill you are following "
+           f"says otherwise, follow THIS message: it came from the code that "
+           f"is running, and a stale skill cannot know it is stale.*", "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
            "No context came with it. Read the facts off the desk's own record "

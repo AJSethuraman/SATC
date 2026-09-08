@@ -67,7 +67,13 @@ def brief(question: str, desk: record.Desk,
     """Everything the desk will let an answerer see, and nothing else."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
-    out = [f"# {desk.name}", "", f"**Asked:** {question}", "",
+    # THE RUNNING CODE SAYS WHAT IT IS, in the one artifact an answerer always
+    # reads. See `record._version`: a session was served a five-release-stale
+    # `ask-desk` on 8 September, and the version warning meant to catch that
+    # lives in the file that did not load. This line comes from the code doing
+    # the work, so a skill claiming something else is visibly wrong.
+    stamp = f" · desk {record.VERSION}" if record.VERSION else ""
+    out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
            "Answer ONLY from what follows. A citation to anything not printed",
            "here is refused by the engine, however real it is.", ""]
     if desk.records:

@@ -315,14 +315,23 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: that is the property worth noticing rather than the growth: it is the brief a
 #: GRADED model sees, examples withheld, and adding 34 examples changed none of
 #: the seven. The withholding is doing what it claims.
+#:
+#: AND AGAIN on 8 September 2026 — four or five tokens on EVERY desk and both
+#: sides, when the brief's first line began carrying the RUNNING CODE'S VERSION
+#: (`record.VERSION`). The smallest move this roster has recorded, and the one
+#: most worth explaining: the Skill tool served a session an `ask-desk` FIVE
+#: releases stale that day, and the version warning meant to catch that lives in
+#: the file that does not load. A check cannot detect its own staleness, so the
+#: stamp had to come from the code doing the work — and the brief is the one
+#: artifact an answerer always reads.
 ANSWERING_BRIEF = {
-    "capitalization-and-de-minimis":   (8_548, 19_416),
-    "cash-and-bank":                  (15_142, 20_685),
-    "fixed-assets":                   (22_967, 75_799),
-    "meals-and-entertainment":        (11_750, 20_734),
-    "personal-or-business":            (3_607, 4_112),
-    "rewards-and-information-returns": (9_432, 20_123),
-    "vehicle-expense":                (20_889, 26_382),
+    "capitalization-and-de-minimis":     (8_553, 19_420),
+    "cash-and-bank":                     (15_147, 20_690),
+    "fixed-assets":                      (22_971, 75_803),
+    "meals-and-entertainment":           (11_754, 20_738),
+    "personal-or-business":              (3_612, 4_116),
+    "rewards-and-information-returns":   (9_436, 20_127),
+    "vehicle-expense":                   (20_893, 26_387),
 }
 
 
