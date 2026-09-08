@@ -346,6 +346,22 @@ class Served:
     #: an empty caveat and an absent one must not look alike, so the flag is what
     #: is tested and this is what is shown.
     caveat: str = ""
+    #: Whether a PERSON has classified this document's tier. False on the
+    #: candidate path, where `domains.tier_for` has classified the HOST and
+    #: nobody has read the document.
+    #:
+    #: FOUND LIVE, 8 September 2026, first round trip on 0.17.0. A passage
+    #: fetched from irs.gov printed `primary · not binding — read the note
+    #: below` above a note saying nobody had classified it. The desk that served
+    #: it: *"Both cannot be informative ... a tired reader keeps the word
+    #: 'primary' and drops the paragraph."* Pub. 946 is the Service explaining
+    #: itself, which `DOMAINS.md` makes SECONDARY; the host is primary because
+    #: it also publishes the rules. The host's answer is not the document's.
+    #:
+    #: NOT the cost `candidates.py` accepted -- that one errs toward caution (a
+    #: real regulation arriving caveated). This is the other direction, and it
+    #: is the one the reader cannot detect.
+    classified: bool = True
     #: A `proving.Proof` when the caller asked for one, and None when they did
     #: not. Typed loosely on purpose: `proving` imports the record and reaches
     #: the network, and this module must do neither. THE ENGINE NEVER SETS THIS.
@@ -433,7 +449,7 @@ class Served:
         out = ([self.straddle, ""] if self.straddle else []) + [
                self.position, "",
                f"    {self.citation}",
-               f"    {self.tier} · "
+               f"    {self.tier if self.classified else 'tier not established'} · "
                f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
                f" · confirmed {self.checked}"]
         if (tied := _tieout_line(self.proof)):
@@ -1229,6 +1245,12 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         position=getattr(passage, "position", None) or answer.position,
         citation=passage.citation,
         tier=source.tier,
+        # THE HOST'S TIER IS NOT THE DOCUMENT'S. `candidates.source` builds its
+        # tier from `domains.tier_for`, which classifies a publisher; the record
+        # classifies a document by hand, and a candidate is one document nobody
+        # has read. Printing the host's answer in the document's slot is a badge
+        # the caveat underneath then has to retract.
+        classified=getattr(source, "id", "") != "candidate",
         # A passage records when someone last confirmed it against the source;
         # a position records when the firm took it. Both answer "how old is
         # this?", which is what a caller needs, and neither is allowed to be
