@@ -187,8 +187,8 @@ def test_a_candidate_is_never_binding_however_good_its_host(tmp_path):
 
 def test_a_page_without_the_words_refuses(tmp_path):
     desks = _copy(tmp_path)
-    out = _ask(desks, TAX, lambda s, c: _Page("this page says something else",
-                                              url=FOUND_AT))
+    out = _ask(desks, TAX, lambda s, c: _Page(
+        f"{UNHELD} says something else now", url=FOUND_AT))
     assert isinstance(out, engine.Refusal)
     assert out.reason == proving.MOVED
     assert out.proof is not None and out.proof.verdict == proving.DIFFERS

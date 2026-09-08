@@ -78,13 +78,30 @@ def test_a_passage_ties_out_with_no_desk_and_no_served_answer():
 
 
 def test_the_core_says_DIFFERS_when_the_words_are_not_there():
+    """THE PAGE MUST NAME THE CITATION, or this is not a rewrite — it is a
+    document we cannot show is the right one, and that is COULD NOT (#344)."""
     desk = _desk()
     p = _passage(desk)
     proof = proving.prove_passage(
         p.citation, p.text, _source(desk, p),
-        lambda s, c: _Page("this document says something else entirely"))
+        lambda s, c: _Page(f"{p.citation} says something else entirely now"))
     assert proof.verdict == proving.DIFFERS
     assert proof.matched_chars == 0
+
+
+def test_a_document_that_does_not_name_the_citation_is_COULD_NOT():
+    """FOUND ON THE FORGE, 8 September 2026. eCFR served a real headless
+    browser an HTTP 200 "Request Access" page from the CORRECT host with no
+    redirect — and `prove` called it DIFFERS, which withdrew the answer and
+    told a human to retire a citation that had not moved."""
+    desk = _desk()
+    p = _passage(desk)
+    proof = proving.prove_passage(
+        p.citation, p.text, _source(desk, p),
+        lambda s, c: _Page("Request Access. Due to aggressive automated "
+                           "scraping, programmatic access is limited."))
+    assert proof.verdict == proving.COULD_NOT
+    assert "does not mention" in proof.note
 
 
 def test_the_core_says_COULD_NOT_when_the_transport_raises():
@@ -180,3 +197,66 @@ def test_the_two_record_outcomes_never_reach_the_core(monkeypatch):
     proof = proving.prove(served, desk, lambda s, c: _Page("anything"))
     assert proof.verdict == proving.COULD_NOT
     assert "no publisher" in proof.note
+
+
+# ── the identifier rules, pinned because the fixtures do not exercise them ──
+#
+# TWO MUTATIONS SURVIVED THE FIRST VERSION OF THIS FILE and both were the same
+# fault: every fixture above puts the citation in the page EXACTLY AS CITED, so
+# the two rules that make the check work on a real document were never run. A
+# guard whose helper can be broken without a test going red is a guard nobody
+# can rely on.
+
+
+def test_a_page_naming_the_SECTION_matches_a_citation_to_a_subparagraph():
+    """THE CASE THAT ACTUALLY HAPPENS, and no fixture above reaches it.
+
+    A desk cites the subparagraph it relies on — `1.263(a)-2(d)(1)`. The page
+    that carries it is headed with the SECTION, `1.263(a)-2`, and contains the
+    full path nowhere. Without trimming trailing groups, the genuine document
+    matches nothing, every real page looks like an interstitial, and DIFFERS
+    becomes unreachable — the guard swallowing the thing it exists to protect.
+    """
+    marks = proving.identifiers("26 CFR 1.263(a)-2(d)(1)")
+    assert "1.263(a)-2" in marks, marks
+    assert "1.263(a)-2(d)(1)" in marks, "the citation as written must survive too"
+    page = "Sec. 1.263(a)-2 Amounts paid to acquire or produce tangible property."
+    assert proving.about_this_citation("26 CFR 1.263(a)-2(d)(1)", page)
+
+
+def test_only_TRAILING_groups_come_off():
+    """Removing `(a)` from the middle would leave `1.263-2`, a different rule."""
+    assert "1.263-2" not in proving.identifiers("26 CFR 1.263(a)-2(d)(1)")
+
+
+def test_nothing_shorter_than_three_characters_is_an_identifier():
+    """A bare `2` is in every document ever written. A one-character token
+    would make `about_this_citation` true of anything and the guard would never
+    fire — which is mutation M3, and it survived until this test existed."""
+    for mark in proving.identifiers("26 CFR 1.263(a)-2(d)(1)"):
+        assert len(mark) >= 3, mark
+    assert proving.identifiers("A 1") == (), "a bare digit is not an identifier"
+    # AND THE INTERSTITIAL STAYS UNMATCHED, which is the consequence that
+    # matters: a loose rule makes the refusal page look like the regulation.
+    assert not proving.about_this_citation(
+        "26 CFR 1.263(a)-2(d)(1)",
+        "Request Access. Due to aggressive automated scraping of "
+        "FederalRegister.gov and eCFR.gov, programmatic access is limited.")
+
+
+def test_a_bare_year_is_not_an_identifier():
+    """`IRS Pub. 583 (12/2024)` yields `2024`, which appears in a great many
+    documents that are not that publication — including, plausibly, the
+    publisher's own refusal page. `583` is the identifier and it survives."""
+    marks = proving.identifiers('IRS Pub. 583 (12/2024), "Reconciling"')
+    assert "583" in marks and "2024" not in marks, marks
+
+
+def test_a_publishers_name_is_not_evidence_and_the_measurement_says_so():
+    """THE MEASUREMENT FROM THE FORGE, kept as a test. A check on the
+    publisher's own name would have passed the interstitial: `eCFR` is in it."""
+    interstitial = ("Request Access. Due to aggressive automated scraping of "
+                    "FederalRegister.gov and eCFR.gov, programmatic access to "
+                    "these sites is limited to our developer APIs.")
+    assert "eCFR" in interstitial, "the fixture is not the one that was measured"
+    assert not proving.about_this_citation("26 CFR 1.263(a)-2(d)(1)", interstitial)

@@ -80,6 +80,16 @@ a wall. The answer arrives saying it is not from the record — and **never
 binding**, because `binding` means the firm treats it as authority that binds
 their own work, and nobody has looked at the document. `candidates.py`.
 
+**Withdrawing a citation takes evidence.** A tie-out that does not find our
+passage used to say the publisher had changed it — and on 8 September a live run
+found eCFR serving a real browser a *"Request Access"* page from the correct
+host, HTTP 200, no redirect, which the engine read as "the rule moved" and used
+to tell a person to retire a rule the publisher carries perfectly well. From our
+own side a changed text and a refused fetch are the same observation, so
+`DIFFERS` now requires that the fetched document at least **mention the section
+asked for**; absent that it is `COULD NOT`, which asks a human to look.
+`desk/docs/DESK-ANSWER-344-2026-09-08.md`.
+
 **And no desk serves an answer nobody read.** The firm, asked which desks may
 not serve unjudged: *"The judge can look at it all I guess?"* — all seven. A
 second reader is handed the paragraph and the conclusion and says whether one

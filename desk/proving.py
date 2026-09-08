@@ -42,6 +42,7 @@ so rather than implying otherwise.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -60,6 +61,99 @@ def _host(url: str) -> str:
 #: The reason a refusal carries when the source has moved under us. Named in
 #: `engine.REASONS` so it can be counted like every other refusal.
 MOVED = "authority_has_moved"
+
+
+#: THE SHAPE OF A CITATION'S OWN IDENTIFIER. Anything beginning with a digit and
+#: carrying the punctuation citations use -- `1.263(a)-2`, `842-20-25-1`, `583`.
+#: Every citation has one and it needs no per-publisher knowledge, which is what
+#: makes this a general check rather than another blocklist.
+_MARK = __import__("re").compile(r"\d[\dA-Za-z().\-]*")
+
+
+def identifiers(citation: str) -> tuple:
+    """The distinctive tokens of a citation, longest first.
+
+    TRAILING GROUPS ARE TRIMMED OFF AS WELL AS KEPT, and that is not tidiness --
+    it is the difference between working and not. A desk cites the subparagraph
+    it relies on, `1.263(a)-2(d)(1)`; the page that carries it is headed with the
+    SECTION, `1.263(a)-2`, and contains the full path nowhere. Matching only the
+    citation as written finds nothing on the genuine document, so every
+    citation would look like an interstitial and DIFFERS would be unreachable.
+    Found by this returning False on a real page in the first version.
+
+    Only TRAILING groups come off. Removing `(a)` from the middle would leave
+    `1.263-2`, which is a different rule.
+
+    TWO CHARACTERS IS NOT AN IDENTIFIER -- a bare `2` is in every document ever
+    written -- so anything shorter than three is dropped.
+    """
+    import re
+    out = []
+    for m in _MARK.finditer(citation or ""):
+        seen = _balanced(m.group(0).strip(".-"))
+        while seen:
+            if len(seen) >= 3 and not _bare_year(seen) and seen not in out:
+                out.append(seen)
+            trimmed = _balanced(re.sub(r"\([^()]*\)$", "", seen).rstrip(".-"))
+            if trimmed == seen:
+                break
+            seen = trimmed
+    return tuple(sorted(set(out), key=len, reverse=True))
+
+
+def _balanced(token: str) -> str:
+    """Drop trailing `)` that closes nothing.
+
+    `1.263(a)-2(d)(1)` ends inside its own parentheses and a blanket `rstrip`
+    left `1.263(a)-2(d)(1` — after which the group-trimming regex, which needs a
+    closing paren, matched nothing and the section-level `1.263(a)-2` was never
+    produced. So the check returned False on the GENUINE page, which would have
+    made every real document look like an interstitial.
+    """
+    while token.endswith(")") and token.count(")") > token.count("("):
+        token = token[:-1]
+    return token
+
+
+def _bare_year(token: str) -> bool:
+    """A four-digit year is not a citation identifier.
+
+    `IRS Pub. 583 (12/2024)` yields `2024`, which appears in a great many
+    documents that are not that publication — including, plausibly, the
+    publisher's own refusal page. Dropping it costs nothing: `583` is the
+    identifier and it survives.
+    """
+    return bool(re.fullmatch(r"(19|20)\d\d", token))
+
+
+def about_this_citation(citation: str, text: str) -> bool:
+    """Does this document even mention the thing we asked for?
+
+    THE THIRD REFUSAL SHAPE, found on the Forge on 8 September 2026 and the
+    reason this function exists. eCFR served a real headless browser an HTTP 200
+    "Request Access" page -- 12,474 bytes, THE CORRECT HOST, no redirect, no
+    error token, no body class. Every guard in `browser.py` passed it, our
+    passage was not in it, and `prove` therefore said DIFFERS, which
+    `ask.answer` turns into `authority_has_moved`.
+
+        The product told a human to RETIRE A GOOD CITATION, on the strength of
+        our own client being refused.
+
+    The desk that found it named the general fix rather than another blocklist:
+
+        "DOES THE FETCHED DOCUMENT EVEN MENTION THE SECTION WE ASKED FOR? Every
+         citation carries its own identifier, so this needs no per-publisher
+         knowledge."
+
+    Measured against that interstitial: `1.263(a)-2` absent, `263(a)-2` absent,
+    `eCFR` PRESENT -- which is why a check on the publisher's name would have
+    missed it.
+    """
+    marks = identifiers(citation)
+    if not marks:
+        return False
+    live = comparing.normalise(text or "").lower()
+    return any(comparing.normalise(m).lower() in live for m in marks)
 
 
 @dataclass(frozen=True)
@@ -154,13 +248,40 @@ def prove_passage(citation: str, passage: str, source, transport) -> Proof:
     ours, live = comparing.normalise(passage), comparing.normalise(text)
     if comparing.ELLIPSIS in passage:
         ok, failed = comparing.elided_match(ours, live)
-        return Proof(TIED if ok else DIFFERS, matched_chars=len(ours) if ok else 0,
-                     note="" if ok else f"not found from {failed[:60]!r}", **here)
+        if ok:
+            return Proof(TIED, matched_chars=len(ours), **here)
+        return _absent(citation, text, f"not found from {failed[:60]!r}", here)
     if ours and ours in live:
         return Proof(TIED, matched_chars=len(ours), **here)
-    return Proof(DIFFERS, matched_chars=0,
-                 note="the stored passage is not in the document the publisher "
-                      "serves today", **here)
+    return _absent(citation, text,
+                   "the stored passage is not in the document the publisher "
+                   "serves today", here)
+
+
+def _absent(citation, text, why, here) -> Proof:
+    """Our passage is not in what came back. DIFFERS only with evidence.
+
+    DIFFERS IS A CLAIM ABOUT THE PUBLISHER AND IT WITHDRAWS A CITATION. Saying
+    it requires positive evidence that this IS the publisher's document for this
+    citation -- because from our own side "the text changed" and "we were
+    refused" are the same observation, and one of them is not the publisher's
+    fault.
+
+    ONE DIRECTION ONLY, WHICH IS WHY THIS IS SAFE TO ADD. It can turn a DIFFERS
+    into a COULD NOT and never the reverse, so the engine can only become more
+    cautious. The cost is real and is the right way round: a rule that genuinely
+    moved, on a page that does not name itself, is now reported as unchecked
+    rather than withdrawn -- and `staleness.py` reports drift separately. The
+    other error told a person to retire a rule that had not moved at all.
+    """
+    if about_this_citation(citation, text):
+        return Proof(DIFFERS, matched_chars=0, note=why, **here)
+    return Proof(COULD_NOT, matched_chars=0, **here,
+                 note=f"{why} — AND the document does not mention {citation!r} "
+                      f"at all, so nothing here says it is that document. From "
+                      f"this side a publisher that changed its text and a "
+                      f"publisher that refused us look the same, and only one "
+                      f"of those is a finding about the publisher.")
 
 
 def prove(served, desk, transport) -> Proof:

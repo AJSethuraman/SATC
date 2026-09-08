@@ -6,19 +6,44 @@ sends a browser's user-agent string. The distinction is not fussiness — the te
 those publishers serve is cited as authority in client work, and a request that
 misrepresents who is asking is a false statement made in the course of it.
 
-IT ALSO HAPPENS TO BE THE ONLY THING THAT WORKS. Measured on the firm's own
-machine, same URL, same minute:
+AND IT COSTS US ACCESS. THIS PARAGRAPH USED TO SAY THE OPPOSITE and the claim
+was never measured. It read *"it also happens to be the only thing that works"*
+and cited two rows:
 
     UA satc-desk-tieout   ->   10,596 b   an interstitial on another host
     UA Chrome/140         ->  584,798 b   THE REGULATION
 
-ecfr.gov does not block by egress, it blocks by user-agent, and it does so with
-an HTTP 200 carrying a full page of unrelated text. That is the dangerous shape:
-a network error becomes COULD NOT, correctly, but a clean 200 with the wrong
-document becomes DIFFERS -- which `ask.answer` reads as `authority_has_moved`
-and uses to WITHDRAW the answer. A tie-out over these desks through a plain
-client withdraws every primary citation we hold, as "the publisher no longer
-carries this", when nothing moved.
+BOTH ROWS WERE CURL WITH A USER-AGENT STRING SWAPPED. No browser was in that
+experiment, so it establishes that SENDING A CHROME UA STRING works and says
+nothing whatever about a real browser. The desk that produced the original
+measurement caught the error in its own data being quoted back at it, on the
+Forge, 8 September 2026 -- and then measured the thing itself:
+
+    a real headless Chrome  ->   12,474 b   "Request Access", correct host,
+                                            no redirect, HTTP 200
+
+    "THE HONEST CLIENT IS REFUSED. THE MISREPRESENTING ONE IS SERVED."
+
+The mechanism, established with no network and no misrepresentation, by asking
+the browser what it announces: `HeadlessChrome/…`, `webdriver=false`. FLAGS
+below sets no `--user-agent`, so eCFR flags the token `HeadlessChrome` exactly
+as it flagged `satc-desk-tieout`. It is the string, not automation detection.
+
+SO THE ARGUMENT FOR A REAL BROWSER IS THE ETHICAL ONE AND ONLY THAT ONE, and it
+stands on its own -- which is just as well, because the empirical one is
+inverted. `--user-agent=Chrome/140` would very likely work and is exactly the
+false statement the firm ruled out. That is theirs to reconsider, and it is a
+sharper decision than when they made it: honesty here costs access, and the
+sentence this paragraph replaced was what hid the cost.
+
+WHAT THE PUBLISHER DOES IS STILL THE DANGEROUS SHAPE, whichever client is used:
+it refuses with an HTTP 200 carrying a full page of unrelated text. A network
+error becomes COULD NOT, correctly, but a clean 200 with the wrong document used
+to become DIFFERS -- which `ask.answer` reads as `authority_has_moved` and uses
+to WITHDRAW the answer. That happened, end to end, on the Forge: the product
+told a human to retire a citation the publisher carries perfectly well.
+`proving._absent` is the fix -- DIFFERS now requires positive evidence that the
+document IS the one asked for.
 
 SO `url` IS THE LOAD-BEARING FIELD and this transport's first duty is to report
 WHERE IT LANDED. The browser should stop the bounce happening at all;

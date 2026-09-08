@@ -91,8 +91,9 @@ def test_a_passage_still_in_the_document_ties_out():
 def test_a_passage_the_publisher_no_longer_carries_differs():
     desk = _desk()
     p = _passage(desk)
-    proof = proving.prove(_serve(desk, p), desk,
-                          lambda s, c: _Page("the page says something else now"))
+    proof = proving.prove(
+        _serve(desk, p), desk,
+        lambda s, c: _Page(f"{p.citation} says something else now"))
     assert proof.verdict == proving.DIFFERS and not proof.held
     assert proof.note
 
@@ -140,7 +141,7 @@ def test_a_marked_omission_is_proved_segment_by_segment():
                          lambda s, c: _Page(whole)).verdict == proving.TIED
     # AND THE MARK IS NOT AN EXEMPTION.
     assert proving.prove(_serve(desk, p), desk,
-                         lambda s, c: _Page("unrelated text")
+                         lambda s, c: _Page(f"{p.citation} unrelated text")
                          ).verdict == proving.DIFFERS
 
 
@@ -203,7 +204,8 @@ def test_a_moved_source_withdraws_the_answer(tmp_path):
     p = desk.problems[0]
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                        desks=desks, keep=False,
-                       prove=lambda s, c: _Page("this page was rewritten"))
+                       prove=lambda s, c: _Page(
+                           f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_has_moved"
     assert out.ask and "?" not in out.ask[:0] or True
@@ -250,7 +252,8 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     desk = record.load(desks / DESK)
     p = desk.problems[0]
     front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, prove=lambda s, c: _Page("rewritten"))
+                 desks=desks,
+                 prove=lambda s, c: _Page(f"{p.citation} rewritten"))
     filed = (desks / DESK / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed

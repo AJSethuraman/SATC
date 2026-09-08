@@ -160,7 +160,8 @@ def test_a_withdrawal_states_what_the_fetch_did_and_where(tmp_path):
     _desk, p = _problem(desks)
     out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                        desks=desks, keep=False,
-                       prove=lambda s, c: _Page("this page was rewritten"))
+                       prove=lambda s, c: _Page(
+                           f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_has_moved"
     # THE FIELD, so the refusal can be re-run by hand rather than only read.
@@ -220,13 +221,16 @@ def test_a_line_that_will_not_parse_is_counted_rather_than_dropped():
 
 @pytest.mark.parametrize("page,verdict", [
     (None, proving.TIED),
-    ("this page was rewritten", proving.DIFFERS),
+    ("{citation} — this page was rewritten", proving.DIFFERS),
 ])
 def test_every_verdict_is_recorded_including_the_one_that_changed_nothing(
         tmp_path, page, verdict):
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    body = desk.passage(p.citation).text if page is None else page
+    # THE PAGE MUST NAME THE CITATION TO BE A REWRITE. A document that does
+    # not is one we cannot show is the right one, which is COULD NOT (#344).
+    body = (desk.passage(p.citation).text if page is None
+            else page.format(citation=p.citation))
     front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                  desks=desks, keep=True, prove=lambda s, c: _Page(body))
     rows = attempts.parse(
@@ -255,7 +259,8 @@ def test_attempts_accumulate_rather_than_replace(tmp_path):
     A store that overwrote itself would answer the wrong question forever."""
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    for body in (desk.passage(p.citation).text, "rewritten", "rewritten again"):
+    for body in (desk.passage(p.citation).text,
+                 f"{p.citation} rewritten", f"{p.citation} rewritten again"):
         front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                      desks=desks, keep=True, prove=lambda s, c: _Page(body))
     rows = attempts.parse(
@@ -291,7 +296,7 @@ def test_the_report_counts_by_publisher_and_shows_only_the_failures(tmp_path):
     desk, p = _problem(desks)
     passage = desk.passage(p.citation).text
     url = _url(desk, p.citation)
-    for body in (passage, passage, "rewritten"):
+    for body in (passage, passage, f"{p.citation} rewritten"):
         front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
                      desks=desks, keep=True,
                      prove=lambda s, c: _Page(body, url=url))

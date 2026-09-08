@@ -90,8 +90,13 @@ def test_a_real_rewrite_on_the_right_host_still_differs(served):
     """THE CONTROL, and it is the one that matters. A guard that turned every
     DIFFERS into COULD NOT would make the tie-out say nothing at all."""
     out, desk = served
+    # THE PAGE NAMES THE CITATION, which is what makes this a REWRITE rather
+    # than a document we cannot show is the right one (#344). Without that the
+    # honest verdict is COULD NOT, and this control would pass for the wrong
+    # reason — proving that the guard fires, not that DIFFERS survives it.
     proof = proving.prove(out, desk, lambda s, c: _Reply(
-        REAL, "the publisher has rewritten this section entirely"))
+        REAL, f"{out.citation} — the publisher has rewritten this section "
+              f"entirely"))
     assert proof.verdict == proving.DIFFERS
 
 
