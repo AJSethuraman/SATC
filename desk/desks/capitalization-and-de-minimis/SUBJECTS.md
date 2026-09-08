@@ -41,7 +41,7 @@ accounting policy, book policy, anti-abuse, componentize, 1.263(a)-1, 263(a)-1,
 tool, tools, asset, assets, fixed asset, fixed assets, equipment
 
 **Answered from S2:** materials and supplies, material or supply, materials or
-supplies, supply, supplies, incidental, non-incidental, rotable, spare part,
+supplies, supply, supplies, tool, tools, asset, assets, incidental, non-incidental, rotable, spare part,
 spare parts, standby emergency spare part, consumable, consumables, consumed,
 economic useful life, fuel, lubricants, toner, cartridge, cartridges, 1.162-3,
 162-3

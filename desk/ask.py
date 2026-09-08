@@ -62,6 +62,53 @@ def consult(question: str, desks: Path = DESKS,
     return out
 
 
+def consult_or_file(question: str, *, queue: Path, desks: Path = DESKS,
+                    context: record.Context | None = None,
+                    model: str = "") -> tuple[list[tuple[str, str]], object]:
+    """`consult`, and FILE the question when no desk holds it.
+
+    SILENCE WAS THE ONE OUTCOME THAT LEFT NO RECORD. `consult` returning empty
+    is a real result -- no expert here holds the question, and inventing one is
+    what the routing exists to stop -- and `be-the-desk` says so. But a desk
+    that refuses leaves a refusal `tools/holes.py` reads out, while a question
+    that reached NO desk left nothing at all. On a close that is the worst of
+    the three: the doer gets nothing back, and the firm never learns the
+    question was asked.
+
+    The firm, 8 September 2026, setting exactly this expectation:
+
+        "You do not prep it with information and if it can't get the
+         information that means there's an actual hole."
+
+    MEASURED the same day, on twenty month-end questions in a bookkeeper's own
+    words: fifteen reached a desk and FIVE reached nothing. Two of the five were
+    subjects a desk already holds and the routing missed.
+
+    IN CODE RATHER THAN IN THE SKILL, for the reason the README already gives
+    about the citation rule: the same policy written as skill prose was obeyed
+    "100%, 4%, 0% of runs". `unsupported.from_question` existed and was reachable
+    only from a batch tool somebody runs by hand.
+
+    Returns `(briefs, filed)`. `filed` is None whenever a desk answered -- a
+    queue that grew a row per question would be a traffic log, and the count
+    would stop meaning anything.
+    """
+    briefs = consult(question, desks, context)
+    if briefs:
+        return briefs, None
+    queue = Path(queue)
+    existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
+                if queue.exists() else [])
+    entry = unsupported.from_question(
+        question,
+        why="no desk holds this subject — routing reached nothing",
+        model=model,
+        existing=existing,
+    )
+    unsupported.append(queue, entry)
+    return [], entry
+
+
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None) -> str:
     """Everything the desk will let an answerer see, and nothing else."""
@@ -405,14 +452,32 @@ def answer(question: str, desk_name: str, *, position: str = "",
     # result -- this fired on answers a second reader HAD read, because a
     # judgment that says SAYS_NO or NOT_IN_THE_PASSAGE has already refused by
     # then and one that HOLDS is on the object, not in the argument.
-    if desk.needs_a_judge and isinstance(out, engine.Served) and out.judged is None:
+    # AND AN OFF-SOURCE ANSWER NEEDS ONE WHATEVER THE DESK DECLARED.
+    #
+    # The firm, 8 September 2026, choosing "leave it demoted, add the judgment
+    # requirement" after Forge-Desk measured that the judge does NOT by itself
+    # catch what the source map used to block. `Served.off_source` marks an
+    # answer whose citation came from a source this desk does not declare for
+    # this subject -- exactly the class that used to be refused outright. It is
+    # served now, so the one thing that must not also be optional is that
+    # somebody read the paragraph.
+    #
+    # THIS DOES NOT CLOSE MISJUDGMENT and nothing here pretends it does: a
+    # careless yes still serves. It closes OMISSION on the class where omission
+    # is least affordable, on every desk rather than only the ones that opted in.
+    needs = desk.needs_a_judge or bool(getattr(out, "off_source", ""))
+    if needs and isinstance(out, engine.Served) and out.judged is None:
         out = engine.Refusal(
             "not_judged",
-            f"{desk.name} does not serve an answer no second reader has looked "
-            f"at, and none was supplied. Nothing is wrong with the answer or "
-            f"with the record — the engine checked what it can check and the "
-            f"one thing it cannot is whether {out.citation!r} carries "
-            f"{out.position!r}",
+            (f"this answer cites a source {desk.name} does not declare for "
+             f"this subject, so it is not served until a second reader has "
+             f"looked at the paragraph, and none was supplied. "
+             if getattr(out, "off_source", "") and not desk.needs_a_judge else
+             f"{desk.name} does not serve an answer no second reader has "
+             f"looked at, and none was supplied. ")
+            + f"Nothing is wrong with the answer or with the record — the "
+              f"engine checked what it can check and the one thing it cannot "
+              f"is whether {out.citation!r} carries {out.position!r}",
             ask=f"Have a party OTHER than the one that answered read the "
                 f"passage and say whether it carries the conclusion, quoting "
                 f"the words they rest that on. Pass it as "

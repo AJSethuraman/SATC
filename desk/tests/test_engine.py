@@ -712,15 +712,48 @@ def test_off_subject_is_measured_and_the_cost_is_pinned_here():
 
 # ── #266: the declared mapping, which is exact and therefore blocks ──────────
 
-def test_the_forge_answer_is_refused_by_serve_and_not_only_by_grade():
-    """THE POINT OF #266, and the path with a client on the end of it.
+def test_the_forge_answer_is_now_served_with_the_warning_and_the_judge_is_the_gate():
+    """#266 REVERSED ON THE SOURCE-LEVEL HALF, 8 September 2026. Read this.
 
-    qwen3:8b answered four bank-reconciliation questions by citing
-    § 1.446-1(a)(4) — accounting records — by explicit "extension". `grade()`
-    caught all four on `passage.citation != problem.citation`, a check it can
-    only make because it holds an answer key. `serve()` holds none and returned
-    the accounting conclusion stamped `tier='primary'`, so the scoreboard
-    reported `wrongly_absorbed = 0` while the shipping path let four through.
+    WHAT IT USED TO ASSERT. qwen3:8b answered four bank-reconciliation questions
+    by citing § 1.446-1(a)(4) — accounting records — by explicit "extension".
+    `grade()` caught all four on the answer key; `serve()` holds none and let
+    them out stamped `tier='primary'`. So the declared source map was allowed to
+    BLOCK, and this test pinned that.
+
+    WHY IT NO LONGER DOES, and the firm decided it:
+
+        "it is difficult to have multiple desks that are so silo'd when we can
+         have an agent tie things out and provide suggestions"
+        "We currently do not need to test against ollama. Stop trying to. This
+         can be a Claude code only thing ... Ollama is end game"
+
+    Two supports were removed at once. The block's own justification was that
+    `serve()` "had no key and no equivalent of `grade()`'s citation check" —
+    #346 built the judge, a second reader on the paragraph and the conclusion,
+    on every answer. And every measurement behind it is `qwen3:8b`, which is not
+    a model this repository targets any more.
+
+    WHAT IT COST, over all 98 recorded problems, asked whether it would refuse
+    each desk's OWN recorded citation:
+
+        phrased as the full fact pattern (~50 words)    0 of 98
+        phrased as its title (~8 words)                10 of 98
+
+    All ten are this source-level check; the per-citation narrowing costs zero
+    in both. It measures how many declared keywords the asker typed. And
+    `PROBLEMS.md` is written in the verbose style, which is the style that
+    scores zero — so the suite could never see it. Confirmed live the same day:
+    "How is the depreciation worked out?" refused § 1.263(a)-2(d)(1), the
+    acquisition rule, on a thing that had been bought.
+
+    WHAT STANDS BEHIND THE ANSWER NOW, AND WHAT IS NOT PROVEN HERE. The judge.
+    This suite CANNOT run it — it needs a model call, and that is the point of
+    Forge-Desk. **So this test asserts the warning is carried, and it does NOT
+    assert that anything catches the qwen3 answer.** If the judge turns out not
+    to refuse it, that is a real regression and this docstring is where to
+    start. The per-citation half still blocks, and
+    `test_the_wrong_paragraph_of_the_right_source_is_refused` proves it.
     """
     desk = record.load(DESKS / "cash-and-bank")
     p = next(q for q in desk.problems if q.id == "CB2")
@@ -729,15 +762,20 @@ def test_the_forge_answer_is_refused_by_serve_and_not_only_by_grade():
 
     out = serve(Answer(position=p.answer, citation=cited), desk,
                 question=p.facts)
-    assert isinstance(out, Refusal)
-    assert out.reason == "citation_does_not_support"
-    assert "S2" in out.detail and "S1" in out.detail, (
-        "the refusal must name what the desk declared and what was cited, so "
-        "the record says how to fix itself")
+    assert not isinstance(out, Refusal), (
+        "the source-level map advises now; only the per-citation narrowing "
+        "still refuses")
+    assert out.off_source, "served with the doubt dropped entirely"
+    assert "S2" in out.off_source and "S1" in out.off_source, (
+        "the warning must name what the desk declared and what was cited, so "
+        "the record still says how to fix itself")
+    assert str(out).index(out.off_source) < str(out).index(out.position), (
+        "the warning must be read before the conclusion, not after it")
 
     right = serve(Answer(position=p.answer, citation=p.citation), desk,
                   question=p.facts)
     assert not isinstance(right, Refusal), "the correct citation must survive"
+    assert not right.off_source, "a declared citation carries no warning"
     assert right.checked_subject
 
 

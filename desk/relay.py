@@ -266,9 +266,14 @@ def desk_session(env=None) -> str:
         raise RelayError(
             f"{DESK} is not set, so there is no desk to ask. It holds the "
             f"session id of the session running `be-the-desk` — export it "
-            f"before consulting. It is deployment state and is deliberately "
-            f"not committed: an id that shipped with the plugin would be stale "
-            f"for everyone but the machine it was written on.")
+            f"before consulting. "
+            f"WHICH ONE IS WRITTEN DOWN: see docs/WHERE-THE-DESK-IS.md, which "
+            f"carries the id, the date it was last confirmed, and what to do "
+            f"if it looks wrong. That page is a record to READ, never a "
+            f"default this function will apply: a stale id fails silently — "
+            f"the question goes somewhere, the asker waits, and nothing says "
+            f"the desk never saw it — so a person or a session exports it, and "
+            f"that step is the check that it is still right.")
     if not SESSION.match(value):
         raise RelayError(
             f"{DESK} is {value!r}, which is not a session id. A wrong one fails "

@@ -36,7 +36,7 @@ subject, not its shape, so an inflected form is missed: `defer` does not fire on
 
 **Answered from S1:** gross income, accession to wealth, income from whatever source derived
 
-**Answered from S2:** information return, information returns, section 6041, written statement, payee statement, reporting threshold, calendar year, nonemployee compensation
+**Answered from S2:** 1099-NEC, 1099-nec, information return, information returns, section 6041, written statement, payee statement, reporting threshold, calendar year, nonemployee compensation
 
 **Answered from S13:** information return, information returns, section 6041A, nonemployee compensation, remuneration, direct sales, calendar year
 

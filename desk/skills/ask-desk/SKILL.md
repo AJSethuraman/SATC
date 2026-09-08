@@ -86,10 +86,22 @@ is the only known cure and you probably cannot start one.
 ## Sending a question
 
 **`SATC_DESK_SESSION` must be set** — it holds the session id of the session
-running `be-the-desk`. It is deployment state and is deliberately not committed:
-an id shipped with the plugin would be stale for everyone but the machine it was
-written on. If it is unset, `relay` says so rather than guessing, and the fix is
-to export it — not to hunt for a session id and paste one in.
+running `be-the-desk`. If it is unset, `relay` says so rather than guessing.
+
+**Which one it is IS written down: `docs/WHERE-THE-DESK-IS.md`.** That page
+carries the id, the date it was last confirmed, and what to do if it looks
+wrong. Read it and export the value.
+
+**It is a record to read, never a default the code applies**, and both halves
+were paid for. On 8 September 2026 a session with the variable unset told the
+firm the round trip *"cannot be done from this container"* — then found the id
+in ninety seconds in `list_triggers`, where every past round trip had left one.
+Nothing in the repository said where the desk was, and a step that needs
+archaeology is a step that gets skipped. But `relay.desk_session()` still
+REFUSES rather than reading that page, because a session id changes when a
+container is replaced and **a stale id fails silently**: the question goes
+somewhere, the asker waits, and nothing says the desk never saw it. A human or a
+session exporting the value is the check that it is still the right one.
 
 ```python
 import os, sys
@@ -116,7 +128,21 @@ A doer had to invent the copy step and said so:
 > risk on a multi-hundred-word string with backticks and em-dashes in it."*
 
 Copy it **whole and unedited** — the envelope carries the protocol the desk
-needs, and a paraphrase drops it. Then, poke-only:
+needs, and a paraphrase drops it. Then, poke-only.
+
+**FIRST: THE TOOL NAMES DIFFER BY SURFACE, AND FOLLOWING THIS SECTION LITERALLY
+CAN LEAVE YOU UNABLE TO SEND ANYTHING.** Measured on the first live close,
+8 September 2026: Forge-Occam had **no `create_trigger` and no `fire_trigger`
+at all.** A doer following the sequence below as written got HTTP 400 —
+*"One of job_config or session_request must be set"* — and recovered only by
+listing existing triggers and reverse-engineering the body from one of them.
+Their words: *"A doer following ask-desk as written cannot send anything at
+all, and nothing in the skill hints at it."*
+
+**So look at what you actually have before you compose the call.** Two shapes
+are known to exist:
+
+**A · `create_trigger` / `fire_trigger`** — separate tools, flat arguments:
 
 ```
 create_trigger(name="Desk request <the ref you printed>",
@@ -125,6 +151,17 @@ create_trigger(name="Desk request <the ref you printed>",
                prompt="<paste the printed envelope here, entire>")
 fire_trigger("<the id create_trigger returned>")
 ```
+
+**B · `RemoteTrigger`** — one tool with an `action` of `create` then `run`, and
+the message is NESTED rather than a flat `prompt`. As reported from the Forge,
+the envelope goes in `session_request.events[].payload.message.content`, with
+`persist_session` and `persistent_session_id` alongside. **This shape is
+recorded from one doer's report, not from a schema this repository holds** — so
+read your own tool's description, and if it disagrees, the tool wins.
+
+**If neither is present, say so and stop.** Do not invent a transport. The
+question not being sent is a better outcome than a question sent somewhere
+nobody reads.
 
 **No `run_once_at`. No `cron_expression`.** A trigger carrying either, then
 poked, delivers twice.
@@ -159,7 +196,30 @@ own request on 8 September and wrote *"nothing arrived here"* **1.67 seconds
 after** the answer had landed. If you must check, read `list_triggers` — not
 your own tool result — and never sooner than a minute.
 
-**3 · Send no context, and no client identifier.** `relay.ask` refuses a TIN,
+**3 · A CHARACTERISATION IS CONTEXT. This is the one that got past a careful
+doer.** On the first live close, 8 September 2026, Forge-Occam asked *"a sole
+proprietor bought hand tools for the trade..."*. **The record says LLC.** It had
+written the entity from the shape of the books — one operator, no payroll —
+rather than from the file, and did not check before sending. Its own reading,
+and it is sharper than the rule it broke:
+
+> *"the rule 'send no context' is stated as being about CLIENT IDENTIFIERS and
+> privacy. The failure mode I hit is different and more dangerous — a
+> DESCRIPTIVE fact smuggled in as scene-setting, which reads as harmless and is
+> not. 'a sole proprietor bought' feels like framing; it is a legal
+> characterisation."*
+
+It changed nothing that night **by luck** — the tools question turned on a
+policy date, not the entity. On *"is this income to the taxpayer"* it would have
+steered the desk with an unverified characterisation and left no way to know.
+
+So: **sole proprietor, LLC, S-corp, employee, contractor, business, personal,
+rental, capital** — every one of these is a conclusion wearing the clothes of a
+description. Name the thing that happened and let the desk ask. If you genuinely
+know the entity because you READ IT IN THE FILE, it is a `Context` fact with a
+name, not an adjective in a sentence.
+
+**3b · Send no context, and no client identifier.** `relay.ask` refuses a TIN,
 and it has nowhere to put context on purpose. The firm, 8 September 2026:
 *"we don't add context to it, that defeats the purpose. it falls the same rules
 and gets the de-identified data so it can ensure it answers and asks things

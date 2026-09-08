@@ -287,18 +287,40 @@ def load(path=None) -> tuple:
     return parse(path.read_text(encoding="utf-8"))
 
 
-_WORD = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*")
+# THE SECOND MATCHER USED TO LIVE HERE — a `_WORD` regex this module
+# tokenised with itself. It is gone rather than kept-and-unused: an unused
+# copy of a rule is the same hazard one call away, and the next session to
+# need a tokeniser would have reached for the one already in the file.
+
+
+def _matcher():
+    """Canon's `touches`, and it is the ONLY matcher this module may use."""
+    from _canon import load_record
+    return load_record().touches
 
 
 def _hits(question: str, domain: Domain) -> tuple:
-    """WHOLE WORDS AND WHOLE PHRASES, the same rule `SUBJECTS.md` matches on and
-    for the same recorded reason: substring matching once made *"extension"*
-    fire on *"extensive"*. A multi-word entry is matched as a phrase on the same
-    normalised text, so `balance sheet` fires and `balance` alone does not."""
-    words = _WORD.findall(question.lower())
-    padded = " " + " ".join(words) + " "
-    return tuple(t for t in domain.fires_on
-                 if (t in words if " " not in t else f" {t} " in padded))
+    """WHOLE WORDS AND WHOLE PHRASES, matched by CANON'S `touches` rather than
+    by a copy of its rule.
+
+    IT USED TO RE-IMPLEMENT IT, and the docstring asserted the equivalence:
+    *"the same rule `SUBJECTS.md` matches on and for the same recorded reason:
+    substring matching once made 'extension' fire on 'extensive'."* Same rule,
+    second implementation, nothing holding them together.
+
+    THE PATTERN THAT CONDEMNED IT, 8 September 2026. The desk reported its FIFTH
+    self-correction of the week and named the cause: *"the fifth time this week
+    that approximating your matching code instead of calling it would have
+    handed you a confident falsehood ... I am reporting it because the pattern
+    is now the finding."* Its recommendation was to make the real matcher the
+    only reachable one, and the first place to look was here.
+
+    MEASURED BEFORE CHANGING IT: the two agreed, ten probes across both domains,
+    zero divergences. This was never a live bug. It was the state every one of
+    those five near-misses started from.
+    """
+    touches = _matcher()
+    return tuple(t for t in domain.fires_on if touches(question, t))
 
 
 def classify(question: str, domains=None) -> Verdict:
