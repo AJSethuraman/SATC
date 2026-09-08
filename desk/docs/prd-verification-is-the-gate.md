@@ -202,31 +202,53 @@ without touching the engine.
   `authority_has_moved` if the text is absent from the page, and
   `authority_absent` if there was no proof to offer.
 
-### A tie-out proves containment, not currency
+### The tie-out is the exhibit, and it is always reported
 
-**This is the sharpest limit of verification-as-gate and it came out of the
-firm's own question about FASB.** The Codification is a *living* text — always
-the rule as currently amended. An ASU is a *point-in-time instrument* — the
-amendment that changed it, frozen at the date it was issued. `ASU 2016-02`
-carries ASC 842-20-25-1 as issued in February 2016 and will carry those words
-forever.
+**Corrected 8 September, by the firm, after I had it backwards.** I treated the
+tie-out as a check the engine runs *after* deciding to serve, and then declared
+it broken for not establishing whether a rule was current. It never claimed to.
 
-So a tie-out against an archival document **always passes and proves nothing
-about whether the rule still reads that way.** The proof is honest — the words
-really are on that page — and the conclusion drawn from it can still be stale.
-This generalises well past FASB: a superseded revenue ruling, a withdrawn
-notice, a 2019 edition of an IRS publication all tie out cleanly and forever.
+> *"Tie out isn't meant to pass old rules specifically. It's meant to be used to
+> prove how a suggestion is correct prior to using it. Like it is handed in with
+> the suggestion so the judge can actually assess it."*
 
-**So currency is a property of the SOURCE, not of the proof**, and it has to be
-declared rather than inferred. A source — stored or candidate — says whether it
-is a living text or a point-in-time instrument, and an answer resting on the
-latter says so above the citation, alongside the live-fetch line: *these words
-are on that page, and that page is a snapshot of a date, not the current rule.*
+> *"It should state what happened when trying to tie it out. I need info to make
+> decisions down the line."*
 
-An unknown candidate is a point-in-time instrument by default, because assuming
-a document is maintained is exactly the assumption that would go wrong quietly.
-The firm admitting a publisher is what promotes it to living, which is the same
-shape as every other admission in this record.
+So the tie-out is **evidence submitted with a proposal**, not a gate the engine
+applies to a finished answer. Three consequences, and they reshape the pipeline:
+
+**1. The proposer produces it.** Proposing a conclusion means handing in what
+backs it: the document fetched, the URL, the moment, the digest, the span that
+matched. An answer and its exhibit arrive together.
+
+**2. The judge assesses the pair, reading the fetched document.** `judging.read`
+today checks the judge's quoted words against OUR STORED PASSAGE. With an exhibit
+in hand it should read the authority that was actually fetched — the thing the
+suggestion rests on — not our copy of it.
+
+**3. The attempt is always stated, whatever it produced.** Not only when it
+succeeds, and not only when it blocks. `TIED`, `DIFFERS` and `COULD NOT` are all
+findings, and the reason is explicit: *"I need info to make decisions down the
+line."* A publisher that keeps failing to tie out is a decision waiting to be
+made, and it can only be made if the failures accumulate somewhere readable
+rather than vanishing into one answer nobody kept.
+
+**What this does NOT change:** whether a verdict blocks. `DIFFERS` still
+withdraws — serving text the publisher has changed, with our own record as the
+only witness, is the thing the proof exists to stop. `COULD NOT` still serves a
+STORED answer and says so, because refusing there would make a client's answer
+depend on a government website being up. On the CANDIDATE path `COULD NOT`
+refuses, because there is nothing else holding the answer up — and **the refusal
+states what happened when trying**, which is the point.
+
+**And staleness moves to where judgment belongs.** A reader holding
+`ASU 2016-02` can say "this is the text as issued in 2016 and I cannot tell you
+it is still the rule" — with their name against it. That is reading, not a
+mechanical check, and this engine's line has always been that it checks what is
+exactly checkable and a reader assesses what needs reading. An earlier draft of
+this PRD put currency in the engine as a declared field on a source; that was the
+wrong side of the line.
 
 ### Client data
 
@@ -302,11 +324,12 @@ Each must turn a test red.
 recorded below rather than left hanging.
 
 - **FASB's free ASU is admitted.** *"Admit the free ASU."* The firm also asked
-  why FASB publishes two things, and the answer became a design constraint
-  rather than a caveat handed back: the Codification is living, an ASU is frozen
-  at issue, and a tie-out against a frozen document proves containment and not
-  currency. See *A tie-out proves containment, not currency* above. Nothing here
-  waits on the firm.
+  why FASB publishes two things — the Codification is living, an ASU is frozen at
+  issue — and my first answer turned that into a currency check inside the
+  engine. The firm corrected it: the tie-out is the exhibit handed in with a
+  suggestion, and whether a frozen document is still the rule is a judgment a
+  reader makes with their name against it. See *The tie-out is the exhibit, and
+  it is always reported* above. Nothing here waits on the firm.
 - **The judge looks at everything.** *"The judge can look at it all I guess?"* —
   all seven desks, not `fixed-assets` first. The cost stands and is stated so
   nobody rediscovers it: a second model call on every served answer, and the

@@ -480,18 +480,32 @@ it with them.
   ASU."* And on the judge, *"The judge can look at it all I guess?"* — all seven
   desks, not one first.
 
-  **And the FASB question turned into a design constraint rather than a caveat.**
-  Asked why FASB publishes two things: the Codification is a LIVING text, always
-  the rule as currently amended; an ASU is a POINT-IN-TIME INSTRUMENT, frozen at
-  the date it was issued. So `ASU 2016-02` carries ASC 842-20-25-1 as issued in
-  2016 and will carry those words forever — which means **a tie-out against an
-  archival document always passes and proves nothing about whether the rule still
-  reads that way.** The proof is honest and the conclusion can still be stale.
-  It generalises past FASB: a superseded revenue ruling, a withdrawn notice, an
-  old edition of a publication all tie out cleanly and forever. So currency is a
-  property of the SOURCE, declared rather than inferred, and an answer resting on
-  a frozen document says so. This is the sharpest limit of verification-as-gate
-  and it came out of the firm's own question.
+  **And the FASB question was answered, then the answer was corrected.** Asked
+  why FASB publishes two things: the Codification is a LIVING text, always the
+  rule as currently amended; an ASU is a POINT-IN-TIME INSTRUMENT, frozen at the
+  date it was issued. So `ASU 2016-02` carries ASC 842-20-25-1 as issued in 2016
+  and will carry those words forever. I turned that into an engine feature — a
+  source would declare itself living or frozen, and an answer resting on a frozen
+  document would carry a currency warning — and wrote issue #345 around it.
+
+  **The firm overturned the premise, not the detail:** *"Tie out isn't meant to
+  pass old rules specifically. It's meant to be used to prove how a suggestion is
+  correct prior to using it. Like it is handed in with the suggestion so the judge
+  can actually assess it."* The tie-out is EVIDENCE SUBMITTED WITH A PROPOSAL, not
+  a check the engine runs on a finished answer, and it never claimed to establish
+  currency. Staleness is a reading a named reader makes with their name against
+  it — *"this is the text as issued in 2016 and I cannot tell you it is still the
+  rule"* — which is the judge's work, not a declared field. The engine checks what
+  is exactly checkable; a reader assesses what needs reading.
+
+  **And the attempt is always reported, whatever it produced:** *"It should state
+  what happened when trying to tie it out. I need info to make decisions down the
+  line."* `TIED`, `DIFFERS` and `COULD NOT` are all findings. What blocks does not
+  change — `DIFFERS` withdraws, `COULD NOT` still serves a stored answer and says
+  so — but every attempt is stated and accumulates somewhere readable, because a
+  publisher that keeps failing to tie out is a decision waiting to be made and it
+  can only be made if the failures do not vanish into one answer nobody kept.
+  Issue #345 was rewritten to this; #343 and #346 amended to match.
 
   **Three docket answers alongside it.** *Keep warning* on a domain straddle
   (measured: 5 of 98 recorded problems straddle, 4 of those 5 are answered
