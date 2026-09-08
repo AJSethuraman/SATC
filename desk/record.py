@@ -523,6 +523,17 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
 
 
 
+#: Where a citation stops being a place in the authority and starts being a note
+#: about WHICH rule there is meant. The firm writes the second half by hand when
+#: one passage carries two answers; see `Desk.alongside`.
+_QUALIFIER = " \u2014 "
+
+
+def _stem(citation: str) -> str:
+    """A citation with the firm's hand-written ` \u2014 which rule` note removed."""
+    return citation.split(_QUALIFIER, 1)[0].strip()
+
+
 @dataclass(frozen=True)
 class Desk:
     """One expert: what it answers on, what it may rely on, how it is scored.
@@ -574,6 +585,48 @@ class Desk:
         """
         return next((p for p in self.positions
                      if p.citation == citation and not p.proposed), None)
+
+    def alongside(self, citation: str) -> tuple:
+        """The firm's OTHER ratified positions on this same passage of authority.
+
+        THE INCIDENT, 7 September 2026, and it is the sharpest thing the Forge
+        found. `cash-and-bank` holds two positions on one section of Pub. 583,
+        with OPPOSITE answers — "a reconciling item, no entry in the books" for
+        what the statement did not yet include, and "an entry in the books" for
+        what the books are updated for. Asked about a deposit in transit, an
+        agent cited the second. The engine served it: `binding`, in the firm's
+        own words, and wrong.
+
+        NOTHING IN THE PIPELINE RESISTED IT, and the reason is worth stating
+        exactly. `_check` refuses a conclusion that CONTRADICTS a ratified
+        position — the agent disagreeing with the firm. It has nothing to say
+        about a position quoted faithfully and applied to the wrong facts, which
+        is the likelier error in a real close: the agent is not arguing, it is
+        picking the nearer of two adjacent rules. The tester: *"the counterpart
+        passage is not shown [...] The reader is shown one of two adjacent rules
+        and not told the other exists."*
+
+        THE STEM IS THE RECORD'S OWN CONVENTION, NOT A HEURISTIC. `POSITIONS.md`
+        on that desk explains why those two entries exist: *"A position carries
+        one answer, and one citation admits one position. The publication states
+        what the statement did not yet include and, separately, what the books
+        are updated for; those have opposite answers, so they are cited and
+        answered apart."* The split is written INTO the citation as a trailing
+        ` — <which rule>`. So two positions sharing a stem is precisely the
+        firm's own mark for "this passage carries more than one answer" — and
+        that is the only case this returns. Across all seven desks it fires on
+        exactly one pair; different paragraphs of the same regulation
+        (`1.263(a)-1(f)(5)` beside `1.263(a)-1(f)(1)(ii)(B)`) are different
+        rules and are not siblings.
+
+        PROPOSED POSITIONS ARE EXCLUDED, for the same reason `position()`
+        excludes them: a suggestion nobody has said yes to is not the firm's
+        word, and showing it beside their word would let a guess read as one.
+        """
+        stem = _stem(citation)
+        return tuple(p for p in self.positions
+                     if not p.proposed and p.citation != citation
+                     and _stem(p.citation) == stem)
 
     def rules_only(self) -> "Desk":
         """This desk with its worked examples withheld. FOR GRADING ONLY.

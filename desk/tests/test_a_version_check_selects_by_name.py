@@ -115,3 +115,109 @@ def test_the_listing_and_the_plugin_manifest_agree():
     assert manifest["version"] == said, (
         f"the listing offers {said} and the plugin calls itself "
         f"{manifest['version']}; `plugin update` reads the listing")
+
+
+# ---------------------------------------------------------------------------
+# THE SAME DEFECT AGAIN, IN THE FIX FOR ANOTHER ONE.
+#
+# 0.7.3 replaced the KeyError-raising first line of `ask-desk` with a snippet
+# that resolves the newest installed release out of the versioned plugin cache.
+# It read `sorted(os.listdir(ROOT))[-1]` — a STRING sort over version directory
+# names. Correct today, correct through 0.9.x, and wrong forever after:
+#
+#     sorted(["0.7.3", "0.10.0"])[-1]  ->  "0.7.3"
+#
+# The Forge, reading the fix rather than running it, 7 September 2026: *"an
+# agent following the documented snippet loads a stale plugin while believing it
+# is current — which is the same failure class as [the stale SKILL.md], shipped
+# inside the fix for it. Nothing will announce it."*
+#
+# So the rule above generalises: a version selected by anything other than what
+# makes it a version — its NAME in a listing, its NUMBERS in a directory — is
+# right by accident. These run the published snippet against a cache that has
+# already crossed .9, because that is the only way to fail today on a bug that
+# does not bite until then.
+# ---------------------------------------------------------------------------
+
+SKILL = HERE / "skills" / "be-the-desk" / "SKILL.md"
+
+
+def _resolver():
+    """The published snippet, up to the point it starts importing the desk."""
+    body = SKILL.read_text(encoding="utf-8")
+    blocks = re.findall(r"```python\n(.*?)```", body, re.S)
+    found = [b for b in blocks if "listdir" in b]
+    assert len(found) == 1, f"{len(found)} snippets resolve a version; expected 1"
+    return found[0].split("sys.path.insert")[0]
+
+
+def _resolve_in(tmp_path, names):
+    """Run it against a plugin cache holding exactly `names`."""
+    for n in names:
+        (tmp_path / n / "desks").mkdir(parents=True)
+    env = {"os": __import__("os"), "sys": __import__("sys"),
+           "SystemExit": SystemExit}
+    import os
+    os.environ["CLAUDE_PLUGIN_ROOT"] = str(tmp_path)
+    try:
+        exec(_resolver(), env)                                     # noqa: S102
+    finally:
+        del os.environ["CLAUDE_PLUGIN_ROOT"]
+    return pathlib.Path(env["ROOT"]).name
+
+
+def test_the_snippet_picks_the_newest_release_today(tmp_path):
+    assert _resolve_in(tmp_path, ["0.4.0", "0.7.3", "0.6.2"]) == "0.7.3"
+
+
+def test_the_snippet_still_picks_the_newest_after_the_minor_passes_nine(tmp_path):
+    """THE ONE THAT WOULD HAVE CAUGHT IT. A string sort answers 0.7.3 here."""
+    assert _resolve_in(tmp_path, ["0.7.3", "0.9.9", "0.10.0"]) == "0.10.0"
+
+
+def test_and_after_the_major_does(tmp_path):
+    assert _resolve_in(tmp_path, ["0.10.0", "1.0.0", "2.0.0", "10.0.0"]) == "10.0.0"
+
+
+def test_a_directory_that_is_not_a_version_is_never_chosen(tmp_path):
+    """`listdir` returns whatever is there. A crash here would be a dead skill."""
+    assert _resolve_in(tmp_path, ["0.7.3", "backup", ".tmp"]) == "0.7.3"
+
+
+#: A line of the defect as PUBLISHED CODE, after inline-code spans are removed.
+#:
+#: THE NARROWING IS THE SAME ONE THE TEST ABOVE ALREADY PAID FOR, and I walked
+#: into it again the same evening: the first version of this went red on
+#: `DECISIONS-2026-09-08-TENTH.md`, the log written to record this very defect,
+#: which quotes the broken sort inline while explaining it. A guard that forbids
+#: the record from quoting what it records makes the record unwritable.
+#:
+#: So: a document QUOTING it inline, in backticks, is recording it. A bare line
+#: is publishing it, and a bare line is what somebody runs.
+_STRING_SORT = re.compile(r"sorted\(os\.listdir\([^)]*\)\)")
+_INLINE = re.compile(r"`[^`]*`")
+
+
+def test_no_document_orders_releases_as_strings():
+    """Mechanised, because this shipped once inside the fix for something else."""
+    bad = []
+    for p in _docs() + [SKILL]:
+        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if _STRING_SORT.search(_INLINE.sub("", line)):
+                bad.append(f"{p.relative_to(HERE)}:{n}")
+    assert not bad, (
+        "a release is chosen by string order: " + ", ".join(bad)
+        + ". '0.10.0' sorts BELOW '0.7.3'. Order by the numbers — "
+        "key=lambda v: [int(n) for n in v.split('.')]")
+
+
+def test_the_record_may_still_quote_the_string_sort_it_records():
+    """Pinned, for the same reason its sibling above is: the narrowing is the
+    kind a later session tightens back after reading the pattern and not the
+    reason. Twice in one evening is enough to hold it open with a test."""
+    log = HERE / "docs" / "DECISIONS-2026-09-08-TENTH.md"
+    body = log.read_text(encoding="utf-8")
+    quoted = [ln for ln in body.splitlines() if _STRING_SORT.search(ln)]
+    assert quoted, "the log no longer quotes the sort it was written about"
+    assert not any(_STRING_SORT.search(_INLINE.sub("", ln)) for ln in quoted), (
+        "the log publishes it as a bare line; quote it inline, in backticks")

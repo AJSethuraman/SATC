@@ -142,16 +142,28 @@ def test_a_non_binding_answer_says_so_in_the_same_sentence():
         "a non-binding source served with binding language")
 
 
-def test_the_skill_tells_the_agent_to_pass_both_on():
+def test_the_skill_tells_the_agent_to_pass_them_all_on():
     """The object carrying it is half. An agent that renders `position` and
     `citation` and drops the rest has undone the whole thing, so the skill has
-    to say so where the agent reads what to do with an answer."""
-    skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
+    to say so where the agent reads what to do with an answer.
+
+    UPDATED 8 September 2026, and the change is the point. This used to require
+    the skill to show `print(out.unchecked)` and `print(out.passage)` — a field
+    list, which is exactly the shape that goes stale in a plugin cache while the
+    code moves. The skill now says `print(out)` and the layout lives on
+    `Served.__str__`. So what is required here is that the fields are still
+    DOCUMENTED by name, and that the instruction is to print the whole object;
+    a skill that went back to enumerating fields would pass the first half and
+    fail the second."""
+    skill = (HERE / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(skill.split())
-    assert "out.unchecked" in flat and "out.passage" in flat, (
-        "the skill never shows the agent printing them")
-    assert "MUST pass both on" in flat
+    assert "`unchecked`" in flat and "`passage`" in flat, (
+        "the skill no longer documents the two fields by name")
+    assert "MUST pass them all on" in flat
     assert "not boilerplate to trim" in flat
+    assert "print(out)" in flat, "the skill must tell the agent to print it all"
+    assert "print(out.unchecked)" not in flat, (
+        "back to a field list — the shape that went stale four releases running")
 
 
 def test_a_position_backed_answer_has_something_to_read():
@@ -206,8 +218,15 @@ def test_a_ratified_answer_does_not_claim_nobody_checked_it():
                      model="m", keep=False)
     assert "Nobody checked that this paragraph says this" not in out.unchecked
     assert "THE FIRM RATIFIED THIS CONCLUSION" in out.unchecked
-    assert "fits these particular facts" in out.unchecked, (
-        "claims the answer is checked without naming what still is not")
+    # CHECKED ON WHAT THE READER SEES, not on one field. From 0.7.5 the warning
+    # is carried by `alongside` when the firm has answered this passage twice —
+    # so `unchecked` drops its copy rather than say the same thing twice, two
+    # lines apart. The property is unchanged and is the one that matters: a
+    # ratified answer never reaches a reader without naming what still was not
+    # checked. It may come from either block; it may never come from neither.
+    assert "nothing here has looked at the facts" in str(out) \
+        or "fits these particular facts" in str(out), (
+            "claims the answer is checked without naming what still is not")
 
 
 def test_an_unratified_answer_still_gets_the_hard_sentence(trap):
@@ -253,14 +272,28 @@ def test_a_ratified_answer_shows_the_AUTHORITY_not_itself():
 def test_a_citation_only_source_still_falls_back_to_the_firms_words():
     """The fallback is not removed, only demoted. On a `human_only` source a
     position genuinely IS the desk's whole knowledge of the authority, and
-    there is nothing else to put in front of a reader."""
-    import inspect
-    src = inspect.getsource(engine.serve.__wrapped__
-                            if hasattr(engine.serve, "__wrapped__")
-                            else engine.serve)
-    assert 'getattr(passage, "position", "")' in src, (
-        "the citation-only fallback was removed; a human_only desk now serves "
-        "nothing to read")
+    there is nothing else to put in front of a reader.
+
+    REWRITTEN 8 SEPTEMBER 2026, AND THE REASON IS THE POINT. This used to
+    `inspect.getsource(engine.serve)` and grep it for the fallback expression.
+    That broke the moment `serve` became a thin wrapper around `_serve` — a
+    refactor that changed no behaviour whatever. A test that reads the source
+    fails on how the code is arranged rather than on what it does, and it
+    passes just as happily on a fallback that is present and unreachable.
+
+    So it exercises it instead: a desk stripped of its stored passages is
+    exactly the `human_only` shape, and what comes out has to be readable."""
+    import dataclasses
+    desk = record.load(HERE / "desks" / "cash-and-bank")
+    citation_only = dataclasses.replace(desk, passages=())
+    position = [q for q in citation_only.positions if not q.proposed][0]
+    out = engine.serve(engine.Answer(position=position.position,
+                                     citation=position.citation),
+                       citation_only, question="what do I do with it")
+    assert isinstance(out, engine.Served), getattr(out, "detail", out)
+    assert out.passage == position.position, (
+        "a human_only desk serves a disclaimer pointing at an empty string")
+    assert out.passage in str(out)
 
 
 def test_an_escalation_hands_back_the_askers_own_reasoning():
@@ -323,7 +356,7 @@ def test_the_skills_first_line_does_not_need_an_environment_variable():
     import sys as _sys
     import tempfile
 
-    skill = (HERE / "skills" / "ask-desk" / "SKILL.md").read_text(encoding="utf-8")
+    skill = (HERE / "skills" / "be-the-desk" / "SKILL.md").read_text(encoding="utf-8")
     block = re.search(r"```python\n(import os, sys\n.*?)```", skill, re.S).group(1)
     snippet = block.split("import ask")[0] + "print(sys.path[0])"
     base = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
@@ -353,7 +386,62 @@ def test_the_skill_warns_that_the_tool_may_serve_a_stale_copy():
     three releases old — a file with no mention of the fields the release exists
     to deliver. It would have been followed correctly and produced the old
     output, and nothing said so at the point it bit."""
-    flat = " ".join((HERE / "skills" / "ask-desk" / "SKILL.md")
+    flat = " ".join((HERE / "skills" / "be-the-desk" / "SKILL.md")
                     .read_text(encoding="utf-8").split())
     assert "three releases stale" in flat or "releases stale" in flat
     assert "/reload-plugins" in flat
+
+
+def test_a_ratified_answer_with_no_sibling_still_names_it_in_unchecked():
+    """THE CONTROL for the sentence `alongside` is allowed to take over.
+
+    Without this, dropping it unconditionally passes — the assertion above reads
+    the whole rendered answer, and on a desk WITH siblings the other block
+    satisfies it. This is the case where there is no other block.
+
+    THE FIRST VERSION OF THIS TEST PROVED ITSELF, which is why the assertions
+    below are unguarded. It proposed "the standard mileage rate" against a
+    citation the firm has taken a different position on, so the desk refused
+    `contradicts_ratified_position` and an `if isinstance(out, Served)` wrapper
+    made every assertion vacuous — green with the change mutated out. Caught by
+    mutation, not by reading. The position below is the firm's own words for
+    this citation, so it serves."""
+    out = ask.answer(
+        "how should the vehicle costs be booked", "vehicle-expense",
+        position="book the components the actual-expense method itemises, and "
+                 "answer with the reasoning rather than with a number of accounts",
+        citation='IRS Pub. 463 (2025), "Actual Car Expenses"',
+        model="m", keep=False)
+    assert isinstance(out, engine.Served), getattr(out, "detail", out)
+    assert out.alongside == (), "premise: this citation has no sibling"
+    assert "fits these particular facts" in out.unchecked, (
+        "the only block carrying the warning dropped it")
+
+
+def test_the_header_never_says_a_source_binds_on_its_own_authority():
+    """`binds` ALONE WAS CONFIDENTLY WRONG, and a reader caught it in one run.
+
+    The Desk session, 8 September 2026: *"an IRS publication is not binding
+    authority in the tax sense — Pub. 583 is guidance, it is not law, it does
+    not bind the Service and it cannot be relied on as substantial authority.
+    The line as printed reads, to anyone who has not memorised the field
+    semantics, as 'this secondary source is binding', and a preparer could carry
+    'Pub. 583 binds' to an accountant on the strength of it."*
+
+    `binding` has only ever meant the FIRM treats this as authority that binds
+    their own work — the docstring on the field says so. The rendering did not,
+    and the skill's own warning is that every field here reads as "this was
+    checked" when none of them means that. A rendering that reproduces the
+    misread its own documentation warns about is the defect, not the field.
+    """
+    out = ask.answer("what do I do with a $10 service charge nobody entered?",
+                     "cash-and-bank", position="an entry in the books",
+                     citation='IRS Pub. 583 (12/2024), "Reconciling the '
+                              'checking account" — what the books are updated for',
+                     model="m", keep=False)
+    assert isinstance(out, engine.Served) and out.binding
+    header = [ln for ln in str(out).splitlines() if out.tier in ln][0]
+    assert "the firm treats as binding" in header, header
+    assert "· binds" not in header, (
+        "reads as 'this secondary source is binding', which is not what the "
+        "field means and is not true of an IRS publication")

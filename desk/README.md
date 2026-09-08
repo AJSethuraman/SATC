@@ -63,7 +63,11 @@ Not supplying one is an answer, and there are two of them:
 The second is a hole in what the firm tracks. `python3 tools/holes.py` reads both
 out of the refusal queue, holes first — see `docs/WHERE-FACTS-LIVE.md`.
 
-`skills/ask-desk` is the same thing written for an agent to follow.
+**Two skills, because there are two sides.** `skills/be-the-desk` is for the
+session that HOLDS the desks and answers from them; `skills/ask-desk` is for the
+agent doing the work, which holds none of the record and sends its question to
+that session instead. The split is `docs/THE-DESK-IS-A-SESSION.md`, and `relay.py`
+is the wire between them.
 
 **The split is the mechanism.** A model does not choose the desk — routing is a
 comparison, not a judgement. A model does not decide whether its own citation
