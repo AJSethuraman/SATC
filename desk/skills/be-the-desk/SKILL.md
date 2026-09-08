@@ -293,3 +293,37 @@ you cannot miss it instead.
   a desk that answered would be inventing.
 - **A defect in the software.** If two legs of a payment do not agree because the
   matcher failed, that is a bug, not a question.
+
+## When nothing holds the question: park it, tell the firm, and let the close go on
+
+**The firm, 8 September 2026:** *"Nothing stops if it isn't a blocker. I'm
+addition, I want a good way for me to be directly notified so I can answer as
+quickly as I can"*.
+
+So a question no authority settles is **parked, not held**. `consult_or_file`
+files it and hands the entry back; the doer is told it is parked and carries on.
+Nothing waits on the firm unless there is genuinely nothing to serve and the
+close cannot proceed without it.
+
+```python
+briefs, filed = ask.consult_or_file(question, queue=QUEUE)
+if filed:
+    print(notifying.for_entry(filed))   # the exact characters to send
+```
+
+**Send what `for_entry` returns, verbatim, with `PushNotification`. Compose
+nothing.** Not a summary of it, not a tidied version, not the same thing in your
+own words. The line is built in the engine and held by tests for a reason this
+repository has already paid for: the same policy written as skill prose was
+obeyed *"100%, 4%, 0% of runs"*. A sentence you may not rewrite is a sentence a
+test can hold.
+
+**If `for_entry` raises, DO NOT send anything and do not work around it.** It
+refuses when the text carries something shaped like an SSN, an EIN or an account
+number, because a push leaves the machine and lands on a lock screen anyone
+nearby can read. The refusal names the queue id — the question is filed and
+safe. Say that it could not be notified and why, and move on. Re-wording the
+question to get past the guard is the one thing you must never do.
+
+**Then tell the doer.** They asked a question and are entitled to know it is
+parked, which reference it has, and that they should keep going.
