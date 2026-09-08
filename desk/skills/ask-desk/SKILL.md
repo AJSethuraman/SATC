@@ -86,10 +86,22 @@ is the only known cure and you probably cannot start one.
 ## Sending a question
 
 **`SATC_DESK_SESSION` must be set** — it holds the session id of the session
-running `be-the-desk`. It is deployment state and is deliberately not committed:
-an id shipped with the plugin would be stale for everyone but the machine it was
-written on. If it is unset, `relay` says so rather than guessing, and the fix is
-to export it — not to hunt for a session id and paste one in.
+running `be-the-desk`. If it is unset, `relay` says so rather than guessing.
+
+**Which one it is IS written down: `docs/WHERE-THE-DESK-IS.md`.** That page
+carries the id, the date it was last confirmed, and what to do if it looks
+wrong. Read it and export the value.
+
+**It is a record to read, never a default the code applies**, and both halves
+were paid for. On 8 September 2026 a session with the variable unset told the
+firm the round trip *"cannot be done from this container"* — then found the id
+in ninety seconds in `list_triggers`, where every past round trip had left one.
+Nothing in the repository said where the desk was, and a step that needs
+archaeology is a step that gets skipped. But `relay.desk_session()` still
+REFUSES rather than reading that page, because a session id changes when a
+container is replaced and **a stale id fails silently**: the question goes
+somewhere, the asker waits, and nothing says the desk never saw it. A human or a
+session exporting the value is the check that it is still the right one.
 
 ```python
 import os, sys
