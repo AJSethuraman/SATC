@@ -53,8 +53,14 @@ def test_printing_a_served_answer_shows_every_field_a_reader_needs():
 
 
 def test_the_unchecked_sentence_cannot_be_left_off_by_printing():
-    """The field existed in 0.7.2 and a stale skill still never printed it."""
-    assert "Nobody checked" in str(_served()) or "NOBODY checked" in str(_served())
+    """The field existed in 0.7.2 and a stale skill still never printed it.
+
+    Asserted on the FIELD, not on a form of words. The two branches say
+    different things by design, and from 0.7.5 the ratified branch is shorter
+    again where `alongside` carries the rest — so a test pinned to one phrase
+    goes red on a wording change that broke nothing."""
+    out = _served()
+    assert out.unchecked and out.unchecked in str(out)
 
 
 def test_the_passage_is_shown_in_full_not_truncated():

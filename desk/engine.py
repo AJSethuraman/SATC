@@ -279,8 +279,14 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
-    #: THE FIRM'S OTHER POSITIONS ON THIS SAME PASSAGE — `((citation, position),
-    #: ...)`, and empty on the ordinary answer where there are none.
+    #: THE FIRM'S OTHER POSITIONS ON THIS SAME PASSAGE — `((citation, position,
+    #: passage text), ...)`, and empty on the ordinary answer where there are
+    #: none. The TEXT is carried because a reader warned that the firm answers
+    #: this passage differently elsewhere needs the words that answer rests on,
+    #: for exactly the reason `passage` exists: *"The whole argument for
+    #: `passage` — do not hand someone a conclusion without the words it rests
+    #: on — applies with equal force to the conclusion you are warning them
+    #: about."* (the Desk session, 8 September 2026.)
     #:
     #: THE INCIDENT, 7 September 2026. `cash-and-bank` holds two positions on one
     #: section of Pub. 583 with OPPOSITE answers. Asked about a deposit in
@@ -353,23 +359,50 @@ class Served:
         reaching a human reader beside a sentence written for them. Diagnostics
         belong in the log, and the log takes the repr.
         """
+        # `binds` ALONE WAS CONFIDENTLY WRONG, and the Desk session caught it on
+        # the first run this rendering was read by anyone but its author:
+        # *"an IRS publication is not binding authority in the tax sense — Pub.
+        # 583 is guidance, it is not law, it does not bind the Service [...] The
+        # line as printed reads, to anyone who has not memorised the field
+        # semantics, as 'this secondary source is binding', and a preparer could
+        # carry 'Pub. 583 binds' to an accountant on the strength of it."*
+        # `binding` has only ever meant the FIRM treats this as authority that
+        # binds their own work. The field said so; the rendering did not.
         out = [self.position, "",
                f"    {self.citation}",
-               f"    {self.tier} · {'binds' if self.binding else 'does not bind'}"
+               f"    {self.tier} · "
+               f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
                f" · confirmed {self.checked}"]
         if self.caveat:
             out += ["", self.caveat]
         if self.alongside:
-            out += ["", "THE FIRM HOLDS ANOTHER POSITION ON THIS SAME PASSAGE, "
-                        "and it does not say this. Which one is in play is a "
-                        "question about the facts, and nothing here has looked "
-                        "at the facts:"]
-            for citation, position in self.alongside:
+            # THREE LINES, AND IT STAYS THREE LINES. The other position's TEXT
+            # goes below the answer's own passage rather than here: this block
+            # has to be short enough that skipping it takes as long as reading
+            # it, and it sits above the authority so it cannot be reached past.
+            out += ["", "THE FIRM HAS ANSWERED THIS SAME PASSAGE MORE THAN "
+                        "ONCE, and the other answer is not this one. Which is "
+                        "in play is a question about the facts, and nothing "
+                        "here has looked at the facts:"]
+            for citation, position, _ in self.alongside:
                 out += [f"  · {position}", f"      {citation}"]
         if self.unchecked:
             out += ["", self.unchecked]
         if self.passage:
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
+        # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
+        # each entry above. It fails on the one case this exists for: in the
+        # Pub. 583 passage behind the firm's other cash position, the clause
+        # that actually decides between the two — *"Update your checkbook and
+        # journals for items shown on the reconciliation as not recorded (such
+        # as service charges)"* — begins 88% of the way through 2,683
+        # characters of reconciliation procedure. A head-excerpt would show the
+        # reader generic boilerplate and hide the discriminator, which is the
+        # same defect wearing a different hat.
+        for citation, position, text in self.alongside:
+            if text:
+                out += ["", f"AND THE AUTHORITY UNDER THE FIRM'S OTHER ANSWER "
+                            f"({position}), in full:", "", f"> {text}"]
         return "\n".join(out)
 
 
@@ -1053,8 +1086,10 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         # record on EVERY served answer and not only the position-backed ones —
         # an agent citing the bare section, with no qualifier, has a stem that
         # matches both halves and most needs telling that the firm split it.
-        alongside=tuple((p.citation, p.position)
-                        for p in desk.alongside(answer.citation)),
+        alongside=tuple(
+            (p.citation, p.position,
+             getattr(desk.passage(p.citation), "text", "") or "")
+            for p in desk.alongside(answer.citation)),
         # TWO DIFFERENT SENTENCES, BECAUSE TWO DIFFERENT THINGS ARE TRUE.
         #
         # A POSITION-BACKED ANSWER HAS BEEN CHECKED, by the firm, and saying
@@ -1070,11 +1105,22 @@ def serve(answer: Answer, desk: Desk, *, question: str,
         # version showed the firm's position as the thing to check the answer
         # against, when the engine forces them to be identical -- so it read as
         # "check this against itself".
+        # THE LAST TWO SENTENCES ARE DROPPED WHENEVER `alongside` CARRIES THEM.
+        # The Desk session, reading the two blocks two lines apart: *"'Which one
+        # is in play is a question about the facts, and nothing here has looked
+        # at the facts' and 'What NOBODY checked is whether their position fits
+        # these particular facts' are the same sentence [...] Repetition is how
+        # a warning becomes wallpaper, and this is a warning you want read on
+        # the run where it matters, possibly months from now."* Their call on
+        # which to keep, and it is the right one: the `alongside` copy is bound
+        # to the specific fork, this one is general.
         unchecked=(
             ("THE FIRM RATIFIED THIS CONCLUSION for this citation, and it is "
              "served in their words rather than a restatement — the engine "
-             "refuses one that disagrees. What NOBODY checked is whether their "
-             "position fits these particular facts. That judgement is yours.")
+             "refuses one that disagrees."
+             + ("" if desk.alongside(answer.citation) else
+                " What NOBODY checked is whether their position fits these "
+                "particular facts. That judgement is yours."))
             if from_position else
             # SHORTER THAN IT WAS, because it has to survive repetition. The
             # Forge, after handing three of these to an accountant: *"at one

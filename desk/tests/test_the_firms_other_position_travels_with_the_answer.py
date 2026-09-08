@@ -126,7 +126,44 @@ def test_the_wrong_answer_still_serves():
 
 def test_the_served_answer_carries_the_position_that_contradicts_it():
     out = _serve(DEPOSIT_IN_TRANSIT, "an entry in the books", BOOKS)
-    assert out.alongside == ((STATEMENT, "a reconciling item, no entry in the books"),)
+    assert len(out.alongside) == 1
+    citation, position, text = out.alongside[0]
+    assert (citation, position) == (STATEMENT,
+                                    "a reconciling item, no entry in the books")
+    assert text, "the other answer arrives without the words it rests on"
+
+
+def test_it_carries_the_other_answer_s_own_authority():
+    """THE DISCRIMINATOR, and the reason the block is not enough on its own.
+
+    The Desk session, 8 September 2026, reading the first version: *"The block
+    names the other position and its heading and stops. A reader who cited the
+    wrong one is now looking at 'the firm also says the opposite' with nothing
+    to decide on [...] On a passage split under two vaguer labels the same block
+    would say 'the firm disagrees with itself, good luck'."* What separates
+    these two is a clause in the OTHER passage, so that passage travels too.
+    """
+    out = _serve(DEPOSIT_IN_TRANSIT, "an entry in the books", BOOKS)
+    shown = str(out)
+    assert "Does not include deposits made after the statement date" in shown, (
+        "the clause that decides this question is not in front of the reader")
+
+
+def test_the_other_authority_is_never_excerpted():
+    """AND NEVER A SNIPPET, which was the obvious fix and is wrong here.
+
+    In the Pub. 583 passage behind the OTHER cash position, the clause that
+    decides between the two — "Update your checkbook and journals for items
+    shown on the reconciliation as not recorded (such as service charges)" —
+    begins 88% of the way through 2,683 characters of procedure. Any head
+    excerpt shows the reader boilerplate and hides the discriminator, which is
+    the same defect this whole field exists to close.
+    """
+    out = _serve(DEPOSIT_IN_TRANSIT,
+                 "a reconciling item, no entry in the books", STATEMENT)
+    _, _, text = out.alongside[0]
+    assert "Update your checkbook and journals" in text
+    assert text in str(out), "the other authority reached the reader truncated"
 
 
 def test_printing_it_shows_both_answers():
@@ -159,3 +196,30 @@ def test_the_caller_cannot_supply_it():
     import inspect
     assert "alongside" not in inspect.signature(ask.answer).parameters
     assert "alongside" not in inspect.signature(engine.serve).parameters
+
+
+def test_the_warning_about_the_facts_is_made_once():
+    """TWO BLOCKS, TWO LINES APART, SAYING THE SAME SENTENCE.
+
+    The Desk session, 8 September 2026: *"'Which one is in play is a question
+    about the facts, and nothing here has looked at the facts' and 'What NOBODY
+    checked is whether their position fits these particular facts. That
+    judgement is yours.' are the same sentence. They sit two lines apart.
+    Repetition is how a warning becomes wallpaper, and this is a warning you
+    want read on the run where it matters, possibly months from now."*
+
+    Their call on which survives, and it is the right one: `alongside`'s copy is
+    bound to the specific fork, `unchecked`'s is general. So where `alongside`
+    fires, `unchecked` gives its half up.
+
+    WITHOUT THIS TEST the fix reverts silently — restoring the sentence
+    unconditionally leaves every other assertion in this file green, which is
+    exactly what mutation M10 showed on 8 September before it was written.
+    """
+    out = _serve(DEPOSIT_IN_TRANSIT, "an entry in the books", BOOKS)
+    assert out.alongside, "premise: this answer carries a sibling"
+    shown = str(out)
+    assert "nothing here has looked at the facts" in shown
+    assert "fits these particular facts" not in shown, (
+        "both blocks warn about the facts; the reader reads neither by the "
+        "fortieth answer of a close")

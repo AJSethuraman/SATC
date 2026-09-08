@@ -172,3 +172,111 @@ specific thing — *"whether their position fits these particular facts"* — wh
   this, and is not built.
 - **`capitalization_rule`**, a field the firm approved and nobody built, still
   blocks two refusals.
+
+---
+
+# The return leg closed — 8 September 2026, 00:41 UTC
+
+**The firm set the V1 bar and gave the reason:**
+
+> *"the final check for this for V1 will be to have Forge - Occam install the
+> new plugin we are designing and run a close from start to finish on Sarcia
+> Services [...] this implies that the skill is able to call for questions and
+> receive back answers from Forge - Desk"*
+
+> *"this is my solution to getting as much info as possible because the ask-desk
+> session (in this case Forge - Desk) is on the Forge itself so it can use its
+> browser and such."*
+
+A Desk session was created on the branch, handed one invented question, and told
+to **wake the asking session with its answer** rather than print it. It did. No
+person carried anything between windows. `docs/THE-DESK-IS-A-SESSION.md` holds
+what that architecture is; this records what the run found.
+
+**A correction first, because it is the kind that matters.** This session read
+the Desk session's `post_turn_summary` — *"hand the findings back (copy findings
+1–3 to it)"* — and reported to the firm that the return leg had failed. It had
+fired seventeen seconds earlier. A status summary was read as evidence and
+published as a finding. **Behaviour 9: open the artifact.** A summary is not the
+artifact.
+
+## What the run found
+
+It answered **correctly** — "a reconciling item, no entry in the books", the
+position that served *wrong* twelve hours earlier — and was honest about how
+little that proves:
+
+> *"I had already chosen between the two positions deliberately, having seen both
+> in the consult brief, so the block was telling me something I had just decided
+> rather than something I had missed [...] I cannot self-administer that test,
+> because I now know both positions exist."*
+
+Worth recording separately: `consult()` already prints **both** ratified
+positions in the brief, before any authority. The 7 September failure happened
+with both on screen.
+
+### 1 · `alongside` did not hand over the discriminator
+
+> *"The block names the other position and its heading and stops. A reader who
+> cited the wrong one is now looking at 'the firm also says the opposite' with
+> nothing to decide on [...] On a passage split under two vaguer labels the same
+> block would say 'the firm disagrees with itself, good luck'."*
+
+Right, and the fix they proposed — a snippet of the other passage under each
+entry — **is wrong, provably, on the one case this exists for.** In the Pub. 583
+passage behind the firm's other cash position, the clause that decides between
+them begins **88% of the way through 2,683 characters** of reconciliation
+procedure. A head excerpt shows boilerplate and hides the discriminator: the same
+defect in a new place.
+
+So the other answer's authority travels **in full**, placed *below* the answer's
+own passage. The warning block stays three lines — their point 3, that placement
+and length were already right, is preserved — and the words that decide the
+question are in front of the reader. On the wrong answer, the block now ends with
+*"Does not include deposits made after the statement date."*
+
+### 2 · Two blocks said the same sentence, two lines apart
+
+> *"Repetition is how a warning becomes wallpaper, and this is a warning you want
+> read on the run where it matters, possibly months from now."*
+
+`unchecked` now gives up its last two sentences wherever `alongside` fires.
+Their call on which survives, and it is the right one: `alongside`'s copy is
+bound to the specific fork.
+
+### 3 · `secondary · binds` was confidently wrong
+
+> *"an IRS publication is not binding authority in the tax sense — Pub. 583 is
+> guidance, it is not law [...] a preparer could carry 'Pub. 583 binds' to an
+> accountant on the strength of it."*
+
+`binding` has only ever meant **the firm** treats this as authority that binds
+their own work. The field's docstring said so; the rendering did not. Now
+`the firm treats as binding`.
+
+The skill spends a paragraph warning that every field here reads as *"this was
+checked"* when none of them means that. **A rendering that reproduces the misread
+its own documentation warns about is the defect, not the field.**
+
+## What the mutations caught that reading did not
+
+Six applied. **M8 and M9 survived the first pass** — the header wording and the
+`unchecked` trim had no test at all — and **the control test for M9 proved
+itself**: it proposed a position the firm disagrees with, so the desk refused,
+and an `if isinstance(out, Served)` wrapper made every assertion vacuous. Green
+with the change mutated out. That is the second self-proving test in two days,
+and both were caught by mutation rather than by reading.
+
+**M10 then survived**: nothing noticed the duplicate *coming back*. Written, and
+red now.
+
+## Still not fixed
+
+- The wrong answer still serves. Pinned by a test.
+- `alongside` fires on the citation, not on the risk — so it appears identically
+  on correct answers. *"Most sightings will be on answers that were already
+  right, which is exactly the exposure pattern that turns a warning into
+  boilerplate."* Not suppressed; it is the argument for keeping it short.
+- **The SKILL.md bootstrap is untested by this run** and the tester said so
+  unprompted: they set `ROOT` to the checkout directly and never exercised the
+  version-picking code. *"Do not read my 'the skill worked' as covering it."*
