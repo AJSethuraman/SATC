@@ -131,12 +131,28 @@ out = ask.answer(question, desk,
                  model="whoever you are")
 ```
 
-Or, when nothing in the brief settles it:
+Or, when nothing in the brief settles it — **and then you MUST say what to ask**:
 
 ```python
 out = ask.answer(question, desk, escalate="facts_not_established",
-                 working="the rule is clear; nobody has said what was bought")
+                 working="§ 1.263(a)-2(d)(1) opens 'Except as provided in "
+                         "§ 1.162-3 ... and in § 1.263(a)-1(f)', and this desk "
+                         "holds neither exception's facts",
+                 ask="What was the invoice amount? Over the threshold that "
+                     "applies, the safe harbour cannot reach it and the rest "
+                     "stops mattering.")
 ```
+
+**`ask=` is required on `facts_not_established`, `context_not_on_file` and
+`document_not_requested`, and the engine raises without it.** Those are the three
+reasons a PERSON can resolve; the rest — `authority_absent` is a search task with
+nobody to ask — do not require one.
+
+Write a question somebody can act on. **"More information needed" is not a
+question.** Name the fact, and where you can, ORDER them: a desk that asked for
+four facts flatly, when one of them decided the answer, cost the file-holder four
+lookups for a question that needed one. Say which to answer first and what makes
+the others moot.
 
 ## Four things that will surprise you
 

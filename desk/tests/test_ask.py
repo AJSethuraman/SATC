@@ -117,6 +117,8 @@ def test_an_answer_goes_through_the_production_path():
 def test_an_escalation_is_a_first_class_answer():
     out = ask.answer("what did the client buy at the hardware store?",
                      "cash-and-bank", escalate="facts_not_established",
+                     ask="What was the charge for? The statement line alone "
+                         "does not say whether it is a bank fee or a payment.",
                      desks=DESKS, keep=False)
     assert isinstance(out, engine.Refusal)
     assert out.reason == "facts_not_established"
@@ -182,6 +184,7 @@ def test_an_escalations_reasoning_survives_too(tmp_path):
     shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
     ask.answer("whose vehicle is it?", "cash-and-bank",
                escalate="facts_not_established",
+               ask="What was the charge for?",
                working="nothing on this desk reaches vehicle ownership",
                desks=desks)
     kept = unsupported.parse(

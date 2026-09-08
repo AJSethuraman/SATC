@@ -1,0 +1,1728 @@
+[
+ {
+  "field": "ASSET",
+  "filed": "188,555,486",
+  "landed": "188,555,486",
+  "how": "RCFD2170",
+  "verdict": "TIED",
+  "schedule": "RC 12",
+  "caption": "Total assets",
+  "plain": "Total assets -- everything the bank owns, at book value.",
+  "components": [
+   {
+    "code": "RCFD2170",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "188,555,486",
+    "png": "ASSET-Q2-RCFD2170.png",
+    "row": "12. 188,555,486 RCFD2170 12. Total assets (sum of items 1 through 11)..................................................................................................................."
+   }
+  ],
+  "cell": "B164",
+  "xlpng": "ASSET.png"
+ },
+ {
+  "field": "DEP",
+  "filed": "158,480,379",
+  "landed": "158,480,379",
+  "how": "RCON2200+RCFN2200",
+  "verdict": "TIED",
+  "schedule": "RC 13.a (+13.b 031)",
+  "caption": "Deposits in domestic (+foreign) offices",
+  "plain": "Total deposits -- the money customers have placed with the bank (domestic and, for a bank with foreign offices, foreign).",
+  "components": [
+   {
+    "code": "RCON2200",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "158,480,379",
+    "png": "DEP-Q2-RCON2200.png",
+    "row": "13.a. 158,480,379 RCON2200 a. In domestic offices (sum of totals of columns A and C from Schedule RC-E, part I)..........................................."
+   },
+   {
+    "code": "RCFN2200",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "0",
+    "png": "DEP-Q2-RCFN2200.png",
+    "row": "13.b. 0 RCFN2200 b. In foreign offices, Edge and Agreement subsidiaries, and IBFs (from Schedule RC-E, part II)..........................."
+   }
+  ],
+  "cell": "C164",
+  "xlpng": "DEP.png"
+ },
+ {
+  "field": "LNLSGR",
+  "filed": "111,809,579",
+  "landed": "111,809,579",
+  "how": "RCFD2122",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 12",
+  "caption": "Total loans & leases HFI+HFS, net of unearned",
+  "plain": "Gross loans and leases -- all lending before subtracting the money set aside for losses.",
+  "components": [
+   {
+    "code": "RCFD2122",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "111,809,579",
+    "png": "LNLSGR-Q2-RCFD2122.png",
+    "row": "12. 111,809,579 RCON2122 111,809,579 RCFD2122 12.Total loans and leases held for investment and held for sale (item 12, column A must equal Schedule RC, sum of items 4.a and 4.b).........................................."
+   }
+  ],
+  "cell": "D164",
+  "xlpng": "LNLSGR.png"
+ },
+ {
+  "field": "LNLSNET",
+  "filed": "110,354,992",
+  "landed": "110,354,992",
+  "how": "RCFD5369+RCFDB528-RCFD3123",
+  "verdict": "TIED",
+  "schedule": "RC 4.a+4.b-4.c",
+  "caption": "HFS (5369) + HFI (B528) - allowance (3123)",
+  "plain": "Net loans and leases -- gross loans less the allowance for losses; what the balance sheet carries.",
+  "components": [
+   {
+    "code": "RCFD5369",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "1,198,243",
+    "png": "LNLSNET-Q2-RCFD5369.png",
+    "row": "4.a. 1,198,243 RCFD5369 a. Loans and leases held for sale............................................................................................................................."
+   },
+   {
+    "code": "RCFDB528",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "110,611,336",
+    "png": "LNLSNET-Q2-RCFDB528.png",
+    "row": "4.b. 110,611,336 RCFDB528 b. Loans and leases held for investment.................................................................................................................."
+   },
+   {
+    "code": "RCFD3123",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "1,454,587",
+    "png": "LNLSNET-Q2-RCFD3123.png",
+    "row": "4.c. 1,454,587 RCFD3123 c. LESS: Allowance for credit losses on loans and leases......................................................................................."
+   }
+  ],
+  "cell": "E164",
+  "xlpng": "LNLSNET.png"
+ },
+ {
+  "field": "BRO",
+  "filed": "4,645,209",
+  "landed": "4,645,209",
+  "how": "RCON2365",
+  "verdict": "TIED",
+  "schedule": "RC-E Mem 1.b",
+  "caption": "Total brokered deposits",
+  "plain": "Brokered deposits -- deposits bought through intermediaries rather than gathered from the bank's own customers.",
+  "components": [
+   {
+    "code": "RCON2365",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 33,
+    "value": "4,645,209",
+    "png": "BRO-Q2-RCON2365.png",
+    "row": "M.1.b. 4,645,209 RCON2365 b. Total brokered deposits........................................................................................................................................."
+   }
+  ],
+  "cell": "F164",
+  "xlpng": "BRO.png"
+ },
+ {
+  "field": "EQ",
+  "filed": "18,727,875",
+  "landed": "18,727,875",
+  "how": "RCFD3210",
+  "verdict": "TIED",
+  "schedule": "RC 27.a",
+  "caption": "Total bank equity capital",
+  "plain": "Total equity capital -- the owners' stake; assets minus liabilities.",
+  "components": [
+   {
+    "code": "RCFD3210",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 20,
+    "value": "18,727,875",
+    "png": "EQ-Q2-RCFD3210.png",
+    "row": "27.a. 18,727,875 RCFD3210 a. Total bank equity capital (sum of items 23 through 26.c)....................................................................................."
+   }
+  ],
+  "cell": "G164",
+  "xlpng": "EQ.png"
+ },
+ {
+  "field": "NCLNLS",
+  "filed": "957,721",
+  "landed": "957,721",
+  "how": "RCFD1407+RCFD1403",
+  "verdict": "TIED",
+  "schedule": "RC-N 9 cols B+C",
+  "caption": "Total loans 90+ still accruing + nonaccrual",
+  "plain": "Noncurrent loans -- loans 90 or more days late plus loans on nonaccrual (interest no longer being booked).",
+  "components": [
+   {
+    "code": "RCFD1407",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "147,305",
+    "png": "NCLNLS-Q2-RCFD1407.png",
+    "row": "9. 810,416 RCFD1403 147,305 RCFD1407 142,786 RCFD1406 9. Total loans and leases (sum of items 1 through 8.b)...................................."
+   },
+   {
+    "code": "RCFD1403",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "810,416",
+    "png": "NCLNLS-Q2-RCFD1403.png",
+    "row": "9. 810,416 RCFD1403 147,305 RCFD1407 142,786 RCFD1406 9. Total loans and leases (sum of items 1 through 8.b)...................................."
+   }
+  ],
+  "cell": "H164",
+  "xlpng": "NCLNLS.png"
+ },
+ {
+  "field": "LNATRES",
+  "filed": "1,454,587",
+  "landed": "1,454,587",
+  "how": "RCFD3123",
+  "verdict": "TIED",
+  "schedule": "RC 4.c",
+  "caption": "Allowance for credit losses on loans & leases",
+  "plain": "Allowance for loan and lease losses -- the money set aside for loans expected to go bad.",
+  "components": [
+   {
+    "code": "RCFD3123",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "1,454,587",
+    "png": "LNATRES-Q2-RCFD3123.png",
+    "row": "4.c. 1,454,587 RCFD3123 c. LESS: Allowance for credit losses on loans and leases......................................................................................."
+   }
+  ],
+  "cell": "I164",
+  "xlpng": "LNATRES.png"
+ },
+ {
+  "field": "P3LNLS",
+  "filed": "142,786",
+  "landed": "142,786",
+  "how": "RCFD1406",
+  "verdict": "TIED",
+  "schedule": "RC-N 9 col A",
+  "caption": "Total loans 30-89 days, still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFD1406",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "142,786",
+    "png": "P3LNLS-Q2-RCFD1406.png",
+    "row": "9. 810,416 RCFD1403 147,305 RCFD1407 142,786 RCFD1406 9. Total loans and leases (sum of items 1 through 8.b)...................................."
+   }
+  ],
+  "cell": "J164",
+  "xlpng": "P3LNLS.png"
+ },
+ {
+  "field": "LNRECONS",
+  "filed": "2,895,663",
+  "landed": "2,895,663",
+  "how": "RCFDF158+RCFDF159",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 1.a.(1)+(2)",
+  "caption": "1-4 fam construction + other construction/land",
+  "plain": "Construction and land development loans.",
+  "components": [
+   {
+    "code": "RCFDF158",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "597",
+    "png": "LNRECONS-Q2-RCFDF158.png",
+    "row": "1.a.1. 597 RCONF158 597 RCFDF158 1. 1-4 family residential construction loans................................................................."
+   },
+   {
+    "code": "RCFDF159",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "2,895,066",
+    "png": "LNRECONS-Q2-RCFDF159.png",
+    "row": "1.a.2. 2,895,066 RCONF159 2,895,066 RCFDF159 2. Other construction loans and all land development and other land loans..............."
+   }
+  ],
+  "cell": "K164",
+  "xlpng": "LNRECONS.png"
+ },
+ {
+  "field": "LNRENRES",
+  "filed": "8,812,575",
+  "landed": "8,812,575",
+  "how": "RCFDF160+RCFDF161",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 1.e.(1)+(2)",
+  "caption": "Owner-occupied + other nonfarm nonresidential",
+  "plain": "Loans on commercial property (offices, shops, warehouses) -- 'nonfarm nonresidential' on the form.",
+  "components": [
+   {
+    "code": "RCFDF160",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "3,009,614",
+    "png": "LNRENRES-Q2-RCFDF160.png",
+    "row": "1.e.1. 3,009,614 RCONF160 3,009,614 RCFDF160 1. Loans secured by owner-occupied nonfarm nonresidential properties..................."
+   },
+   {
+    "code": "RCFDF161",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "5,802,961",
+    "png": "LNRENRES-Q2-RCFDF161.png",
+    "row": "1.e.2. 5,802,961 RCONF161 5,802,961 RCFDF161 2. Loans secured by other nonfarm nonresidential properties...................................."
+   }
+  ],
+  "cell": "L164",
+  "xlpng": "LNRENRES.png"
+ },
+ {
+  "field": "LNREMULT",
+  "filed": "5,444,590",
+  "landed": "5,444,590",
+  "how": "RCFD1460",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 1.d",
+  "caption": "Multifamily (5+)",
+  "plain": "Loans on apartment buildings of five or more units ('multifamily').",
+  "components": [
+   {
+    "code": "RCFD1460",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "5,444,590",
+    "png": "LNREMULT-Q2-RCFD1460.png",
+    "row": "1.d. 5,444,590 RCON1460 5,444,590 RCFD1460 d. Secured by multifamily (5 or more) residential properties.............................................."
+   }
+  ],
+  "cell": "M164",
+  "xlpng": "LNREMULT.png"
+ },
+ {
+  "field": "RBC1AAJ",
+  "filed": "9.9169%",
+  "landed": "9.91691020708172",
+  "how": "RCFA7204, Schedule RC-R Part I item 31",
+  "verdict": "TIED",
+  "schedule": "FILED: RC-R Pt I 31",
+  "caption": "Leverage ratio",
+  "plain": "Tier 1 leverage ratio -- core capital as a share of assets, with no adjustment for how risky those assets are. A regulatory minimum.",
+  "components": [
+   {
+    "code": "RCFA7204",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 58,
+    "value": "9.9169%",
+    "png": "RBC1AAJ-Q2-RCFA7204.png",
+    "row": "31. 9.9169% RCFA7204 31. Leverage ratio (item 26 divided by 30)......................................................................................................................."
+   }
+  ],
+  "chased": true,
+  "note": "The filing prints this ratio itself, rounded to four decimal places. The tie-out skipped it because it refuses to compare a percentage with a dollar line -- correct, but it never looked for the filed percentage. It is there.",
+  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead",
+  "cell": "R164",
+  "xlpng": "RBC1AAJ.png"
+ },
+ {
+  "field": "RBCRWAJ",
+  "filed": "14.0482%",
+  "landed": "14.048229230202255",
+  "how": "RCFA7205, Schedule RC-R Part I item 51",
+  "verdict": "TIED",
+  "schedule": "FILED: RC-R Pt I ~51",
+  "caption": "Total capital ratio",
+  "plain": "Total capital as a share of assets weighted by how risky each one is. Blank for banks that elected the simplified regime.",
+  "components": [
+   {
+    "code": "RCFA7205",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 60,
+    "value": "14.0482%",
+    "png": "RBCRWAJ-Q2-RCFA7205.png",
+    "row": "51. NR RCFW7205 14.0482% RCFA7205 51. Total capital ratio (Column A: item 47.a divided by item 48.a) (Advanced approaches institutions that exit parallel run only: Column B: item 47.b divided by item 48.b)..............."
+   }
+  ],
+  "chased": true,
+  "note": "Same shape: printed on the filing at four decimal places, and matching to every one of them.",
+  "was": "SKIPPED: a ratio (pct), not a dollar line; recomputed in the arithmetic leg instead",
+  "cell": "S164",
+  "xlpng": "RBCRWAJ.png"
+ },
+ {
+  "field": "P3CRCD",
+  "filed": "8,528",
+  "landed": "8,528",
+  "how": "RCFDB575",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.a col A",
+  "caption": "Cards 30-89 still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDB575",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "8,528",
+    "png": "P3CRCD-Q2-RCFDB575.png",
+    "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
+   }
+  ],
+  "cell": "X164",
+  "xlpng": "P3CRCD.png"
+ },
+ {
+  "field": "P9CRCD",
+  "filed": "9,346",
+  "landed": "9,346",
+  "how": "RCFDB576",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.a col B",
+  "caption": "Cards 90+ still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDB576",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "9,346",
+    "png": "P9CRCD-Q2-RCFDB576.png",
+    "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
+   }
+  ],
+  "cell": "Y164",
+  "xlpng": "P9CRCD.png"
+ },
+ {
+  "field": "NACRCD",
+  "filed": "6,401",
+  "landed": "6,401",
+  "how": "RCFDB577",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.a col C",
+  "caption": "Cards nonaccrual",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDB577",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "6,401",
+    "png": "NACRCD-Q2-RCFDB577.png",
+    "row": "5.a. 6,401 RCFDB577 9,346 RCFDB576 8,528 RCFDB575 a. Credit cards..........................................................................................."
+   }
+  ],
+  "cell": "Z164",
+  "xlpng": "NACRCD.png"
+ },
+ {
+  "field": "P3AUTO",
+  "filed": "302",
+  "landed": "302",
+  "how": "RCFDK213",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.b col A",
+  "caption": "Auto 30-89 still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDK213",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "302",
+    "png": "P3AUTO-Q2-RCFDK213.png",
+    "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
+   }
+  ],
+  "cell": "AA164",
+  "xlpng": "P3AUTO.png"
+ },
+ {
+  "field": "P9AUTO",
+  "filed": "23",
+  "landed": "23",
+  "how": "RCFDK214",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.b col B",
+  "caption": "Auto 90+ still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDK214",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "23",
+    "png": "P9AUTO-Q2-RCFDK214.png",
+    "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
+   }
+  ],
+  "cell": "AB164",
+  "xlpng": "P9AUTO.png"
+ },
+ {
+  "field": "NAAUTO",
+  "filed": "371",
+  "landed": "371",
+  "how": "RCFDK215",
+  "verdict": "TIED",
+  "schedule": "RC-N 5.b col C",
+  "caption": "Auto nonaccrual",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFDK215",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "371",
+    "png": "NAAUTO-Q2-RCFDK215.png",
+    "row": "5.b. 371 RCFDK215 23 RCFDK214 302 RCFDK213 b. Automobile loans..................................................................................."
+   }
+  ],
+  "cell": "AC164",
+  "xlpng": "NAAUTO.png"
+ },
+ {
+  "field": "P3RERES",
+  "filed": "40,402",
+  "landed": "40,402",
+  "how": "RCON5398+RCONC236+RCONC238",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c (3 rows) col A",
+  "caption": "Resi 30-89 still accruing (HELOC + 1st + junior)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5398",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "15,639",
+    "png": "P3RERES-Q2-RCON5398.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   },
+   {
+    "code": "RCONC236",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "23,309",
+    "png": "P3RERES-Q2-RCONC236.png",
+    "row": "1.c.2.a. 120,395 RCONC229 15,000 RCONC237 23,309 RCONC236 a. Secured by first liens..............................................................."
+   },
+   {
+    "code": "RCONC238",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "1,454",
+    "png": "P3RERES-Q2-RCONC238.png",
+    "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
+   }
+  ],
+  "cell": "AD164",
+  "xlpng": "P3RERES.png"
+ },
+ {
+  "field": "P9RERES",
+  "filed": "17,380",
+  "landed": "17,380",
+  "how": "RCON5399+RCONC237+RCONC239",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c (3 rows) col B",
+  "caption": "Resi 90+ still accruing (3 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5399",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "2,072",
+    "png": "P9RERES-Q2-RCON5399.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   },
+   {
+    "code": "RCONC237",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "15,000",
+    "png": "P9RERES-Q2-RCONC237.png",
+    "row": "1.c.2.a. 120,395 RCONC229 15,000 RCONC237 23,309 RCONC236 a. Secured by first liens..............................................................."
+   },
+   {
+    "code": "RCONC239",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "308",
+    "png": "P9RERES-Q2-RCONC239.png",
+    "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
+   }
+  ],
+  "cell": "AE164",
+  "xlpng": "P9RERES.png"
+ },
+ {
+  "field": "NARERES",
+  "filed": "179,543",
+  "landed": "179,543",
+  "how": "RCON5400+RCONC229+RCONC230",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c (3 rows) col C",
+  "caption": "Resi nonaccrual (3 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5400",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "54,307",
+    "png": "NARERES-Q2-RCON5400.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   },
+   {
+    "code": "RCONC229",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "120,395",
+    "png": "NARERES-Q2-RCONC229.png",
+    "row": "1.c.2.a. 120,395 RCONC229 15,000 RCONC237 23,309 RCONC236 a. Secured by first liens..............................................................."
+   },
+   {
+    "code": "RCONC230",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "4,841",
+    "png": "NARERES-Q2-RCONC230.png",
+    "row": "1.c.2.b. 4,841 RCONC230 308 RCONC239 1,454 RCONC238 b. Secured by junior liens............................................................"
+   }
+  ],
+  "cell": "AF164",
+  "xlpng": "NARERES.png"
+ },
+ {
+  "field": "P3RELOC",
+  "filed": "15,639",
+  "landed": "15,639",
+  "how": "RCON5398",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c.(1) col A",
+  "caption": "HELOC 30-89 still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5398",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "15,639",
+    "png": "P3RELOC-Q2-RCON5398.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   }
+  ],
+  "cell": "AG164",
+  "xlpng": "P3RELOC.png"
+ },
+ {
+  "field": "P9RELOC",
+  "filed": "2,072",
+  "landed": "2,072",
+  "how": "RCON5399",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c.(1) col B",
+  "caption": "HELOC 90+ still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5399",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "2,072",
+    "png": "P9RELOC-Q2-RCON5399.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   }
+  ],
+  "cell": "AH164",
+  "xlpng": "P9RELOC.png"
+ },
+ {
+  "field": "NARELOC",
+  "filed": "54,307",
+  "landed": "54,307",
+  "how": "RCON5400",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.c.(1) col C",
+  "caption": "HELOC nonaccrual",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON5400",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "54,307",
+    "png": "NARELOC-Q2-RCON5400.png",
+    "row": "1.c.1. 54,307 RCON5400 2,072 RCON5399 15,639 RCON5398 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit...................................."
+   }
+  ],
+  "cell": "AI164",
+  "xlpng": "NARELOC.png"
+ },
+ {
+  "field": "LNCRCD",
+  "filed": "926,589",
+  "landed": "926,589",
+  "how": "RCFDB538",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 6.a",
+  "caption": "Credit cards",
+  "plain": "Credit card balances outstanding.",
+  "components": [
+   {
+    "code": "RCFDB538",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "926,589",
+    "png": "LNCRCD-Q2-RCFDB538.png",
+    "row": "6.a. 926,589 RCONB538 926,589 RCFDB538 a. Credit cards...................................................................................................................."
+   }
+  ],
+  "cell": "AM164",
+  "xlpng": "LNCRCD.png"
+ },
+ {
+  "field": "LNAUTO",
+  "filed": "62,212",
+  "landed": "62,212",
+  "how": "RCFDK137",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 6.c",
+  "caption": "Automobile loans",
+  "plain": "Auto loans to individuals.",
+  "components": [
+   {
+    "code": "RCFDK137",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "62,212",
+    "png": "LNAUTO-Q2-RCFDK137.png",
+    "row": "6.c. 62,212 RCONK137 62,212 RCFDK137 c. Automobile loans............................................................................................................"
+   }
+  ],
+  "cell": "AN164",
+  "xlpng": "LNAUTO.png"
+ },
+ {
+  "field": "LNCONOTH",
+  "filed": "4,200,208",
+  "landed": "4,200,208",
+  "how": "RCFDK207",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 6.d",
+  "caption": "Other consumer",
+  "plain": "Other consumer loans -- personal loans and instalment credit that are not cards or autos.",
+  "components": [
+   {
+    "code": "RCFDK207",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "4,200,208",
+    "png": "LNCONOTH-Q2-RCFDK207.png",
+    "row": "6.d. 4,200,208 RCONK207 4,200,208 RCFDK207 d. Other consumer loans (includes single payment and installment loans other than automobile loans, and all student loans)......................................................."
+   }
+  ],
+  "cell": "AO164",
+  "xlpng": "LNCONOTH.png"
+ },
+ {
+  "field": "LNRERES",
+  "filed": "23,789,703",
+  "landed": "23,789,703",
+  "how": "RCFD1797+RCFD5367+RCFD5368",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)",
+  "caption": "HELOC + 1st lien + junior lien",
+  "plain": "Loans on one-to-four family homes -- mortgages and home equity lines.",
+  "components": [
+   {
+    "code": "RCFD1797",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "2,929,570",
+    "png": "LNRERES-Q2-RCFD1797.png",
+    "row": "1.c.1. 2,929,570 RCON1797 2,929,570 RCFD1797 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit..................................................................."
+   },
+   {
+    "code": "RCFD5367",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "20,584,113",
+    "png": "LNRERES-Q2-RCFD5367.png",
+    "row": "1.c.2.a. 20,584,113 RCON5367 20,584,113 RCFD5367 a. Secured by first liens........................................................................................"
+   },
+   {
+    "code": "RCFD5368",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "276,020",
+    "png": "LNRERES-Q2-RCFD5368.png",
+    "row": "1.c.2.b. 276,020 RCON5368 276,020 RCFD5368 b. Secured by junior liens....................................................................................."
+   }
+  ],
+  "cell": "AP164",
+  "xlpng": "LNRERES.png"
+ },
+ {
+  "field": "LNRELOC",
+  "filed": "2,929,570",
+  "landed": "2,929,570",
+  "how": "RCFD1797",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 1.c.(1)",
+  "caption": "Home equity lines (the HELOC component of resi)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFD1797",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "2,929,570",
+    "png": "LNRELOC-Q2-RCFD1797.png",
+    "row": "1.c.1. 2,929,570 RCON1797 2,929,570 RCFD1797 1. Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit..................................................................."
+   }
+  ],
+  "cell": "AQ164",
+  "xlpng": "LNRELOC.png"
+ },
+ {
+  "field": "NTCRCDQ",
+  "filed": "9,020",
+  "landed": "9,020",
+  "how": "(RIADB514 - RIADB515) this filing, less the same from the March filing",
+  "verdict": "TIED",
+  "schedule": "RI-B Pt I 5.a cols A-B",
+  "caption": "Credit card NCO (qtr differenced)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RIADB514",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "21,119",
+    "png": "NTCRCDQ-Q2-RIADB514.png",
+    "row": "5.a. 3,647 RIADB515 21,119 RIADB514 a. Credit cards...................................................................................................................."
+   },
+   {
+    "code": "RIADB515",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "3,647",
+    "png": "NTCRCDQ-Q2-RIADB515.png",
+    "row": "5.a. 3,647 RIADB515 21,119 RIADB514 a. Credit cards...................................................................................................................."
+   },
+   {
+    "code": "RIADB514",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "10,201",
+    "png": "NTCRCDQ-Q1-RIADB514.png",
+    "row": "5.a. 1,749 RIADB515 10,201 RIADB514 a. Credit cards...................................................................................................................."
+   },
+   {
+    "code": "RIADB515",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "1,749",
+    "png": "NTCRCDQ-Q1-RIADB515.png",
+    "row": "5.a. 1,749 RIADB515 10,201 RIADB514 a. Credit cards...................................................................................................................."
+   }
+  ],
+  "chased": true,
+  "note": "Charge-offs are reported from 1 January, running. A quarter is the difference between two filings, which is why one filing cannot carry it -- and why two can.",
+  "was": "SKIPPED: a quarterly flow; the filing carries year-to-date",
+  "arithmetic": {
+   "Q2": {
+    "charge_offs": 21119,
+    "recoveries": 3647,
+    "net": 17472
+   },
+   "Q1": {
+    "charge_offs": 10201,
+    "recoveries": 1749,
+    "net": 8452
+   },
+   "quarter": 9020
+  },
+  "cell": "AR164",
+  "xlpng": "NTCRCDQ.png"
+ },
+ {
+  "field": "NTAUTOQ",
+  "filed": "-104",
+  "landed": "-104",
+  "how": "(RIADK129 - RIADK133) this filing, less the same from the March filing",
+  "verdict": "TIED",
+  "schedule": "RI-B Pt I 5.b cols A-B",
+  "caption": "Automobile NCO (qtr differenced)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RIADK129",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "207",
+    "png": "NTAUTOQ-Q2-RIADK129.png",
+    "row": "5.b. 215 RIADK133 207 RIADK129 b. Automobile loans............................................................................................................"
+   },
+   {
+    "code": "RIADK133",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "215",
+    "png": "NTAUTOQ-Q2-RIADK133.png",
+    "row": "5.b. 215 RIADK133 207 RIADK129 b. Automobile loans............................................................................................................"
+   },
+   {
+    "code": "RIADK129",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "152",
+    "png": "NTAUTOQ-Q1-RIADK129.png",
+    "row": "5.b. 56 RIADK133 152 RIADK129 b. Automobile loans............................................................................................................"
+   },
+   {
+    "code": "RIADK133",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "56",
+    "png": "NTAUTOQ-Q1-RIADK133.png",
+    "row": "5.b. 56 RIADK133 152 RIADK129 b. Automobile loans............................................................................................................"
+   }
+  ],
+  "chased": true,
+  "note": "Negative because recoveries exceeded charge-offs in the quarter. The subtraction reproduces that sign exactly.",
+  "was": "SKIPPED: a quarterly flow; the filing carries year-to-date",
+  "arithmetic": {
+   "Q2": {
+    "charge_offs": 207,
+    "recoveries": 215,
+    "net": -8
+   },
+   "Q1": {
+    "charge_offs": 152,
+    "recoveries": 56,
+    "net": 96
+   },
+   "quarter": -104
+  },
+  "cell": "AS164",
+  "xlpng": "NTAUTOQ.png"
+ },
+ {
+  "field": "P3CI",
+  "filed": "32,260",
+  "landed": "32,260",
+  "how": "RCFD1251+RCFD1254",
+  "verdict": "TIED",
+  "schedule": "RC-N 4 col A",
+  "caption": "C&I 30-89 still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFD1251",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "32,260",
+    "png": "P3CI-Q2-RCFD1251.png",
+    "row": "4.a. 295,171 RCFD1253 32,424 RCFD1252 32,260 RCFD1251 a. To U.S. addressees (domicile)..............................................................."
+   },
+   {
+    "code": "RCFD1254",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "P3CI-Q2-RCFD1254.png",
+    "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
+   }
+  ],
+  "cell": "AV164",
+  "xlpng": "P3CI.png"
+ },
+ {
+  "field": "P9CI",
+  "filed": "32,424",
+  "landed": "32,424",
+  "how": "RCFD1252+RCFD1255",
+  "verdict": "TIED",
+  "schedule": "RC-N 4 col B",
+  "caption": "C&I 90+ still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFD1252",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "32,424",
+    "png": "P9CI-Q2-RCFD1252.png",
+    "row": "4.a. 295,171 RCFD1253 32,424 RCFD1252 32,260 RCFD1251 a. To U.S. addressees (domicile)..............................................................."
+   },
+   {
+    "code": "RCFD1255",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "P9CI-Q2-RCFD1255.png",
+    "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
+   }
+  ],
+  "cell": "AW164",
+  "xlpng": "P9CI.png"
+ },
+ {
+  "field": "NACI",
+  "filed": "295,171",
+  "landed": "295,171",
+  "how": "RCFD1253+RCFD1256",
+  "verdict": "TIED",
+  "schedule": "RC-N 4 col C",
+  "caption": "C&I nonaccrual",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCFD1253",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "295,171",
+    "png": "NACI-Q2-RCFD1253.png",
+    "row": "4.a. 295,171 RCFD1253 32,424 RCFD1252 32,260 RCFD1251 a. To U.S. addressees (domicile)..............................................................."
+   },
+   {
+    "code": "RCFD1256",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "NACI-Q2-RCFD1256.png",
+    "row": "4.b. 0 RCFD1256 0 RCFD1255 0 RCFD1254 b. To non-U.S. addressees (domicile)........................................................"
+   }
+  ],
+  "cell": "AX164",
+  "xlpng": "NACI.png"
+ },
+ {
+  "field": "P3RECONS",
+  "filed": "0",
+  "landed": "0",
+  "how": "RCONF172+RCONF173",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.a.(1)+(2) col A",
+  "caption": "Construction 30-89 still accruing (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF172",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "P3RECONS-Q2-RCONF172.png",
+    "row": "1.a.1. 0 RCONF176 0 RCONF174 0 RCONF172 1. 1-4 family residential construction loans........................................"
+   },
+   {
+    "code": "RCONF173",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "P3RECONS-Q2-RCONF173.png",
+    "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
+   }
+  ],
+  "cell": "AY164",
+  "xlpng": "P3RECONS.png"
+ },
+ {
+  "field": "P9RECONS",
+  "filed": "797",
+  "landed": "797",
+  "how": "RCONF174+RCONF175",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.a.(1)+(2) col B",
+  "caption": "Construction 90+ still accruing (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF174",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "P9RECONS-Q2-RCONF174.png",
+    "row": "1.a.1. 0 RCONF176 0 RCONF174 0 RCONF172 1. 1-4 family residential construction loans........................................"
+   },
+   {
+    "code": "RCONF175",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "797",
+    "png": "P9RECONS-Q2-RCONF175.png",
+    "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
+   }
+  ],
+  "cell": "AZ164",
+  "xlpng": "P9RECONS.png"
+ },
+ {
+  "field": "NARECONS",
+  "filed": "0",
+  "landed": "0",
+  "how": "RCONF176+RCONF177",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.a.(1)+(2) col C",
+  "caption": "Construction nonaccrual (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF176",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "NARECONS-Q2-RCONF176.png",
+    "row": "1.a.1. 0 RCONF176 0 RCONF174 0 RCONF172 1. 1-4 family residential construction loans........................................"
+   },
+   {
+    "code": "RCONF177",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "0",
+    "png": "NARECONS-Q2-RCONF177.png",
+    "row": "1.a.2. 0 RCONF177 797 RCONF175 0 RCONF173 2. Other construction loans and all land development and other land loans.................................................................................................."
+   }
+  ],
+  "cell": "BA164",
+  "xlpng": "NARECONS.png"
+ },
+ {
+  "field": "P3RENRES",
+  "filed": "17,063",
+  "landed": "17,063",
+  "how": "RCONF178+RCONF179",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.e.(1)+(2) col A",
+  "caption": "Nonfarm nonres 30-89 still accruing (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF178",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "7,601",
+    "png": "P3RENRES-Q2-RCONF178.png",
+    "row": "1.e.1. 26,518 RCONF182 4,018 RCONF180 7,601 RCONF178 1. Loans secured by owner-occupied nonfarm nonresidential properties..........................................................................................."
+   },
+   {
+    "code": "RCONF179",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "9,462",
+    "png": "P3RENRES-Q2-RCONF179.png",
+    "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
+   }
+  ],
+  "cell": "BB164",
+  "xlpng": "P3RENRES.png"
+ },
+ {
+  "field": "P9RENRES",
+  "filed": "6,465",
+  "landed": "6,465",
+  "how": "RCONF180+RCONF181",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.e.(1)+(2) col B",
+  "caption": "Nonfarm nonres 90+ still accruing (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF180",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "4,018",
+    "png": "P9RENRES-Q2-RCONF180.png",
+    "row": "1.e.1. 26,518 RCONF182 4,018 RCONF180 7,601 RCONF178 1. Loans secured by owner-occupied nonfarm nonresidential properties..........................................................................................."
+   },
+   {
+    "code": "RCONF181",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "2,447",
+    "png": "P9RENRES-Q2-RCONF181.png",
+    "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
+   }
+  ],
+  "cell": "BC164",
+  "xlpng": "P9RENRES.png"
+ },
+ {
+  "field": "NARENRES",
+  "filed": "41,347",
+  "landed": "41,347",
+  "how": "RCONF182+RCONF183",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.e.(1)+(2) col C",
+  "caption": "Nonfarm nonres nonaccrual (2 rows)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCONF182",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "26,518",
+    "png": "NARENRES-Q2-RCONF182.png",
+    "row": "1.e.1. 26,518 RCONF182 4,018 RCONF180 7,601 RCONF178 1. Loans secured by owner-occupied nonfarm nonresidential properties..........................................................................................."
+   },
+   {
+    "code": "RCONF183",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "14,829",
+    "png": "NARENRES-Q2-RCONF183.png",
+    "row": "1.e.2. 14,829 RCONF183 2,447 RCONF181 9,462 RCONF179 2. Loans secured by other nonfarm nonresidential properties..........."
+   }
+  ],
+  "cell": "BD164",
+  "xlpng": "NARENRES.png"
+ },
+ {
+  "field": "P3REMULT",
+  "filed": "11,300",
+  "landed": "11,300",
+  "how": "RCON3499",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.d col A",
+  "caption": "Multifamily 30-89 still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON3499",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "11,300",
+    "png": "P3REMULT-Q2-RCON3499.png",
+    "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
+   }
+  ],
+  "cell": "BE164",
+  "xlpng": "P3REMULT.png"
+ },
+ {
+  "field": "P9REMULT",
+  "filed": "55,565",
+  "landed": "55,565",
+  "how": "RCON3500",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.d col B",
+  "caption": "Multifamily 90+ still accruing",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON3500",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "55,565",
+    "png": "P9REMULT-Q2-RCON3500.png",
+    "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
+   }
+  ],
+  "cell": "BF164",
+  "xlpng": "P9REMULT.png"
+ },
+ {
+  "field": "NAREMULT",
+  "filed": "214,334",
+  "landed": "214,334",
+  "how": "RCON3501",
+  "verdict": "TIED",
+  "schedule": "RC-N 1.d col C",
+  "caption": "Multifamily nonaccrual",
+  "plain": "",
+  "components": [
+   {
+    "code": "RCON3501",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 46,
+    "value": "214,334",
+    "png": "NAREMULT-Q2-RCON3501.png",
+    "row": "1.d. 214,334 RCON3501 55,565 RCON3500 11,300 RCON3499 d. Secured by multifamily (5 or more) residential properties in domestic offices......................................................................................"
+   }
+  ],
+  "cell": "BG164",
+  "xlpng": "NAREMULT.png"
+ },
+ {
+  "field": "LNCI",
+  "filed": "37,374,689",
+  "landed": "37,374,689",
+  "how": "RCFD1763+RCFD1764",
+  "verdict": "TIED",
+  "schedule": "RC-C Pt I 4",
+  "caption": "Commercial & industrial",
+  "plain": "Commercial and industrial loans -- lending to businesses not secured by property.",
+  "components": [
+   {
+    "code": "RCFD1763",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "36,979,972",
+    "png": "LNCI-Q2-RCFD1763.png",
+    "row": "4.a. 36,979,972 RCON1763 36,979,972 RCFD1763 a. To U.S. addressees (domicile)........................................................................................"
+   },
+   {
+    "code": "RCFD1764",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 24,
+    "value": "394,717",
+    "png": "LNCI-Q2-RCFD1764.png",
+    "row": "4.b. 394,717 RCON1764 394,717 RCFD1764 b. To non-U.S. addressees (domicile)................................................................................."
+   }
+  ],
+  "cell": "BH164",
+  "xlpng": "LNCI.png"
+ },
+ {
+  "field": "NTCIQ",
+  "filed": "52,386",
+  "landed": "52,386",
+  "how": "(RIAD4645+RIAD4646 - RIAD4617-RIAD4618) this filing, less the same from March",
+  "verdict": "TIED",
+  "schedule": "RI-B Pt I 4 cols A-B",
+  "caption": "C&I NCO (qtr differenced)",
+  "plain": "",
+  "components": [
+   {
+    "code": "RIAD4645",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "126,668",
+    "png": "NTCIQ-Q2-RIAD4645.png",
+    "row": "4.a. 5,011 RIAD4617 126,668 RIAD4645 a. To U.S. addressees (domicile)........................................................................................"
+   },
+   {
+    "code": "RIAD4646",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "0",
+    "png": "NTCIQ-Q2-RIAD4646.png",
+    "row": "4.b. 21 RIAD4618 0 RIAD4646 b. To non-U.S. addressees (domicile)................................................................................."
+   },
+   {
+    "code": "RIAD4617",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "5,011",
+    "png": "NTCIQ-Q2-RIAD4617.png",
+    "row": "4.a. 5,011 RIAD4617 126,668 RIAD4645 a. To U.S. addressees (domicile)........................................................................................"
+   },
+   {
+    "code": "RIAD4618",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 13,
+    "value": "21",
+    "png": "NTCIQ-Q2-RIAD4618.png",
+    "row": "4.b. 21 RIAD4618 0 RIAD4646 b. To non-U.S. addressees (domicile)................................................................................."
+   },
+   {
+    "code": "RIAD4645",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "71,230",
+    "png": "NTCIQ-Q1-RIAD4645.png",
+    "row": "4.a. 1,980 RIAD4617 71,230 RIAD4645 a. To U.S. addressees (domicile)........................................................................................"
+   },
+   {
+    "code": "RIAD4646",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "0",
+    "png": "NTCIQ-Q1-RIAD4646.png",
+    "row": "4.b. 0 RIAD4618 0 RIAD4646 b. To non-U.S. addressees (domicile)................................................................................."
+   },
+   {
+    "code": "RIAD4617",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "1,980",
+    "png": "NTCIQ-Q1-RIAD4617.png",
+    "row": "4.a. 1,980 RIAD4617 71,230 RIAD4645 a. To U.S. addressees (domicile)........................................................................................"
+   },
+   {
+    "code": "RIAD4618",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q1",
+    "page": 13,
+    "value": "0",
+    "png": "NTCIQ-Q1-RIAD4618.png",
+    "row": "4.b. 0 RIAD4618 0 RIAD4646 b. To non-U.S. addressees (domicile)................................................................................."
+   }
+  ],
+  "chased": true,
+  "note": "Form 031 splits commercial loans into US and non-US addressees, so each leg is two codes -- the same split that had three past-due citations pointing at the wrong form.",
+  "was": "SKIPPED: a quarterly flow; the filing carries year-to-date",
+  "arithmetic": {
+   "Q2": {
+    "charge_offs": 126668,
+    "recoveries": 5032,
+    "net": 121636
+   },
+   "Q1": {
+    "charge_offs": 71230,
+    "recoveries": 1980,
+    "net": 69250
+   },
+   "quarter": 52386
+  },
+  "cell": "BL164",
+  "xlpng": "NTCIQ.png"
+ },
+ {
+  "field": "DEPUNINS",
+  "filed": "82,138,192",
+  "landed": "82,138,192",
+  "how": "RCON5597",
+  "verdict": "TIED",
+  "schedule": "RC-O Mem 2",
+  "caption": "Estimated uninsured deposits",
+  "plain": "Estimated uninsured deposits -- the part of deposits above the FDIC insurance limit.",
+  "components": [
+   {
+    "code": "RCON5597",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 49,
+    "value": "82,138,192",
+    "png": "DEPUNINS-Q2-RCON5597.png",
+    "row": "M.2. 82,138,192 RCON5597 2. Estimated amount of uninsured deposits in domestic offices of the bank and in insured branches in Puerto Rico and instructions)3.............................."
+   }
+  ],
+  "cell": "BM164",
+  "xlpng": "DEPUNINS.png"
+ },
+ {
+  "field": "SCHA",
+  "filed": "9,514,990",
+  "landed": "9,514,990",
+  "how": "RCFD1754",
+  "verdict": "TIED",
+  "schedule": "RC-B 8 col A",
+  "caption": "HTM securities, amortized cost",
+  "plain": "Held-to-maturity securities at amortised cost -- bonds the bank intends to keep, carried at what it paid.",
+  "components": [
+   {
+    "code": "RCFD1754",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 21,
+    "value": "9,514,990",
+    "png": "SCHA-Q2-RCFD1754.png",
+    "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
+   }
+  ],
+  "cell": "BN164",
+  "xlpng": "SCHA.png"
+ },
+ {
+  "field": "SCHF",
+  "filed": "9,124,191",
+  "landed": "9,124,191",
+  "how": "RCFD1771",
+  "verdict": "TIED",
+  "schedule": "RC-B 8 col B",
+  "caption": "HTM securities, fair value",
+  "plain": "Held-to-maturity securities at fair value -- the same bonds at today's market price.",
+  "components": [
+   {
+    "code": "RCFD1771",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 21,
+    "value": "9,124,191",
+    "png": "SCHF-Q2-RCFD1771.png",
+    "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
+   }
+  ],
+  "cell": "BO164",
+  "xlpng": "SCHF.png"
+ },
+ {
+  "field": "SCAA",
+  "filed": "40,978,212",
+  "landed": "40,978,212",
+  "how": "RCFD1772",
+  "verdict": "TIED",
+  "schedule": "RC-B 8 col C",
+  "caption": "AFS securities, amortized cost",
+  "plain": "Available-for-sale securities at amortised cost -- bonds the bank may sell, at what it paid.",
+  "components": [
+   {
+    "code": "RCFD1772",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 21,
+    "value": "40,978,212",
+    "png": "SCAA-Q2-RCFD1772.png",
+    "row": "8. 38,458,612 RCFD1773 40,978,212 RCFD1772 9,124,191 RCFD1771 9,514,990 RCFD1754 8. Total (sum of items 1 through 7)2................................................"
+   }
+  ],
+  "cell": "BP164",
+  "xlpng": "SCAA.png"
+ },
+ {
+  "field": "SCAF",
+  "filed": "38,458,612",
+  "landed": "38,458,612",
+  "how": "RCFD1773",
+  "verdict": "TIED",
+  "schedule": "RC-B 8 col D",
+  "caption": "AFS securities, fair value",
+  "plain": "Available-for-sale securities at fair value -- the same bonds at today's market price.",
+  "components": [
+   {
+    "code": "RCFD1773",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 19,
+    "value": "38,458,612",
+    "png": "SCAF-Q2-RCFD1773.png",
+    "row": "2.b. 38,458,612 RCFD1773 b. Available-for-sale debt securities (from Schedule RC-B, column D)...................................................................."
+   }
+  ],
+  "cell": "BQ164",
+  "xlpng": "SCAF.png"
+ },
+ {
+  "field": "OTHBFHLB",
+  "filed": "4,306,453",
+  "landed": "4,306,453",
+  "how": "RCFDF055+RCFDF056+RCFDF057+RCFDF058",
+  "verdict": "TIED",
+  "schedule": "RC-M 5.a.(1)(a)-(d)",
+  "caption": "FHLB advances by maturity",
+  "plain": "Federal Home Loan Bank advances -- borrowings from the FHLB, a wholesale funding source.",
+  "components": [
+   {
+    "code": "RCFDF055",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 43,
+    "value": "4,258,920",
+    "png": "OTHBFHLB-Q2-RCFDF055.png",
+    "row": "5.a.1.a. 4,258,920 RCFDF055 a. One year or less...................................................................................................................................."
+   },
+   {
+    "code": "RCFDF056",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 43,
+    "value": "12,663",
+    "png": "OTHBFHLB-Q2-RCFDF056.png",
+    "row": "5.a.1.b. 12,663 RCFDF056 b. Over one year through three years........................................................................................................"
+   },
+   {
+    "code": "RCFDF057",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 43,
+    "value": "16,502",
+    "png": "OTHBFHLB-Q2-RCFDF057.png",
+    "row": "5.a.1.c. 16,502 RCFDF057 c. Over three years through five years......................................................................................................."
+   },
+   {
+    "code": "RCFDF058",
+    "found": true,
+    "unverified": false,
+    "quarter": "Q2",
+    "page": 43,
+    "value": "18,368",
+    "png": "OTHBFHLB-Q2-RCFDF058.png",
+    "row": "5.a.1.d. 18,368 RCFDF058 d. Over five years......................................................................................................................................."
+   }
+  ],
+  "cell": "BR164",
+  "xlpng": "OTHBFHLB.png"
+ }
+]

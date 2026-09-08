@@ -34,6 +34,30 @@ whatever it was handed.
 that holds the desks, and receives an answer. Two consequences, in the order they
 matter.
 
+> **CORRECTED 8 September 2026, 02:15 UTC.** Everything below was written from
+> the firm's reason — *"the ask-desk session is on the Forge itself so it can use
+> its browser and such"* — and this session then repeated "because that's where
+> the browser is" as though it had checked. It had not. **Measured on both:**
+>
+> | | cloud container | the firm's desktop |
+> |---|---|---|
+> | irs.gov | 200, reachable | 200, reachable |
+> | ecfr.gov, desk user agent | bounced | **bounced** |
+> | ecfr.gov, browser user agent | *(untested)* | the regulation |
+>
+> **A browser is not what the desktop has and the cloud lacks.** Both reach the
+> public publishers; both are refused by ecfr.gov for the same reason, which is
+> the user agent and not the location. The session that measured it: *"it is not
+> a proxy finding either. HTTP_PROXY unset, HTTPS_PROXY unset [...] The ONLY
+> variable is what the client calls itself."*
+>
+> **What the desktop actually has** is the firm's own machine: their files, their
+> logins, anything licensed sitting on that disk, and a real browser rather than
+> one this repository would have to drive. Those are the things a container
+> cannot borrow. The argument in section 1 survives — a desk that can go and look
+> beats one that can only read what was stored — but it does not rest on where
+> the session runs, and this document said it did.
+
 ### 1 · `authority_absent` stops being terminal
 
 This is the change the firm is actually buying, and it is larger than the
@@ -45,10 +69,17 @@ yet"* — files it in `unsupported/`, and somebody runs `run-down-a-question` by
 hand, later, if at all. **A refusal that nobody has looked for is
 indistinguishable from a refusal after a competent search.**
 
-A desk that is a session on the Forge has a browser. It can answer that refusal
-in the same breath: search, verify against the publisher's own page, and come
-back either with the passage or with *"looked, and it is not there"* — which is a
-real finding and one this system currently cannot produce. `searching.py` and the
+A desk that is a SESSION can answer that refusal in the same breath: search,
+verify against the publisher's own page, and come back either with the passage or
+with *"looked, and it is not there"* — a real finding this system could not
+previously produce. **Demonstrated 8 September 2026**, on the lease question
+every desk had refused since 5 September: the desk hit the FASB licence wall,
+named it exactly and did not cross it, and found ASC 842-20-25-1 in full in
+FASB's own free ASU 2016-02. Whether that is admissible authority is the firm's
+call and is open.
+
+**What it takes is reach, not a location** — and reach is currently broken for
+every primary-authority source these desks hold. See the correction above. `searching.py` and the
 `run-down-a-question` skill already exist for exactly this and have only ever run
 as a separate manual step.
 

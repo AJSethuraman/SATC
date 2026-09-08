@@ -172,6 +172,27 @@ class Answer:
     escalated: bool = False
     reason: str = ""
     working: str = ""
+    #: THE DESK'S OWN FOLLOW-UP, in plain words, addressed to a person.
+    #:
+    #: `Refusal.ask` has existed since 5 September and was populated at SIX
+    #: sites — every one of them a refusal the ENGINE detects. On an ESCALATION,
+    #: where the DESK is the thing that noticed, there was nowhere to put a
+    #: question and `ask` came back empty every time.
+    #:
+    #: The firm, 8 September 2026, reading a refusal with no question in it:
+    #: *"why does it need client context though - i thought we are making it ask
+    #: follow up questions for appropriate context?"* They are right, and the
+    #: reason list has said so since it was written: `facts_not_established` is
+    #: annotated *"the rule is clear; what was bought is not. ASK."*
+    #:
+    #: WHAT IT COST. Asked about a forklift, the desk worked out precisely what
+    #: it needed — the invoice amount, whether the client elects the safe
+    #: harbour, whether it has an applicable financial statement — and had to
+    #: write all three into the PROSE of `working`, because no field would carry
+    #: them. A caller cannot act on a paragraph. That looked like "the desk
+    #: needs a client-context store", and it was not: the desk needs to be able
+    #: to ask.
+    ask: str = ""
 
 
 #: The two things that can escalate, named once so a typo is not a third value.
@@ -1055,9 +1076,18 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
     """
     if answer.escalated:
         _reason(answer.reason)
+        if answer.reason in MUST_ASK and not answer.ask.strip():
+            raise EngineError(
+                f"escalating {answer.reason!r} without a follow-up question. "
+                f"This reason means a PERSON can resolve it, so the desk has to "
+                f"say what to ask them — `ask=` on the answer. A refusal that "
+                f"names a gap and not the question is one nobody can act on, "
+                f"and the reason list has said so since it was written: "
+                f"{answer.reason!r} is the case where the rule is clear and the "
+                f"facts are not.")
         if answer.reason != "authority_absent":
             return Refusal(answer.reason, "escalated by the desk",
-                           working=answer.working)
+                           working=answer.working, ask=answer.ask)
         # ONLY `authority_absent`, because it is the only escalation that is a
         # claim about the RECORD. `facts_not_established` is a claim about the
         # client and `authority_permits_choice` is a reading of authority the
@@ -1067,7 +1097,7 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         total = len(record_mod.shown(desk))
         return Refusal(
             answer.reason, "escalated by the desk", working=answer.working,
-            showed=total, showed_by_source=by_source)
+            ask=answer.ask, showed=total, showed_by_source=by_source)
 
     refusal, passage, source = _check(answer, desk, question, context)
     if refusal is not None:
@@ -1188,6 +1218,21 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
              "citation resolves and the source is one this desk uses here. "
              "Read the passage below.")),
     )
+
+
+#: The escalations whose fix is A PERSON ANSWERING A QUESTION. Each of these
+#: refuses without an `ask`, because a refusal a caller cannot act on is a
+#: dead end wearing a reason code.
+#:
+#: NOT EVERY REASON. `authority_absent` is a search task and there is nobody to
+#: ask; `model_gave_up` and the two source failures are not questions at all.
+#: Requiring one everywhere would produce a question invented to satisfy a
+#: check, which is worse than none — the firm would answer it and learn nothing.
+MUST_ASK = (
+    "facts_not_established",    # the rule is clear; what was bought is not
+    "context_not_on_file",      # the FILE should hold it; a preparer fills it in
+    "document_not_requested",   # a named document settles it and nobody asked
+)
 
 
 def _reason(reason: str) -> str:

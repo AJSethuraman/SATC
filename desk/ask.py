@@ -67,7 +67,13 @@ def brief(question: str, desk: record.Desk,
     """Everything the desk will let an answerer see, and nothing else."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
-    out = [f"# {desk.name}", "", f"**Asked:** {question}", "",
+    # THE RUNNING CODE SAYS WHAT IT IS, in the one artifact an answerer always
+    # reads. See `record._version`: a session was served a five-release-stale
+    # `ask-desk` on 8 September, and the version warning meant to catch that
+    # lives in the file that did not load. This line comes from the code doing
+    # the work, so a skill claiming something else is visibly wrong.
+    stamp = f" · desk {record.VERSION}" if record.VERSION else ""
+    out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
            "Answer ONLY from what follows. A citation to anything not printed",
            "here is refused by the engine, however real it is.", ""]
     if desk.records:
@@ -83,6 +89,26 @@ def brief(question: str, desk: record.Desk,
                        else f"- **{name}:** NOT ON FILE — do not infer it, and do "
                             f"not answer from a rule that needs it")
         out.append("")
+    # WHAT WE WERE TOLD AND CANNOT HOLD. See `record.Context.unrecorded`: these
+    # were passed by the caller and match no field this desk declares, so before
+    # 0.9.3 they were dropped in silence -- and a desk went on to serve an answer
+    # resting on one of them. They are printed here NOT as facts on file but as
+    # the opposite: a fact with nowhere to live is `no_field_for_this_fact`, a
+    # hole the firm has to decide about, and the answering side is the only
+    # place that can notice it.
+    if unrecorded := context.unrecorded(desk.records):
+        out += ["## Told to us, and this desk has NOWHERE to record it", ""]
+        for name in unrecorded:
+            out.append(f"- **{name}** — NOT ON FILE and cannot be put on file. "
+                       f"No desk field exists for it.")
+        out += ["",
+                "**These are not facts you may answer from.** Nobody decided "
+                "this should be written down, so nothing verified it, nothing "
+                "will retain it, and the next agent asked the same question "
+                "will not have it. If your answer turns on one of them, "
+                "escalate `no_field_for_this_fact` and name it — that is a "
+                "hole the firm has to decide about, and a preparer who had to "
+                "hand it over has just found it by doing the work.", ""]
     out += ["## Sources this desk may rely on", ""]
     out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**" for s in desk.sources]
     if ratified:
@@ -99,10 +125,33 @@ def brief(question: str, desk: record.Desk,
             # escalates has reasoned correctly; one that does not is stopped
             # anyway, which is the difference between a prompt and a choke point.
             if q.unless:
-                out += [f"This is the firm's DEFAULT. It does not apply to a "
-                        f"client the firm treats differently on "
-                        f"{', '.join(q.unless)}, and nothing here says whether "
-                        f"this one is. The desk will ask rather than assume.", ""]
+                # AND IT SAYS SOMETHING DIFFERENT ONCE THE FACT IS ON FILE.
+                #
+                # This was one static string: *"nothing here says whether this
+                # one is. The desk will ask rather than assume."* True and
+                # load-bearing while the field is empty — and FALSE the moment
+                # the follow-up loop 0.9.2 exists to close actually succeeds,
+                # because then the brief does say, twelve lines above.
+                #
+                # Found by the desk session on the first run where the loop
+                # worked, 8 September 2026: *"'Nothing here says whether this
+                # one is' is false in that exact brief. The brief says. It is a
+                # static string that is not conditioned on whether the fact it
+                # names is present [...] Since 0.9.2 exists to make that loop
+                # work, this is the sentence it breaks."*
+                told = [f for f in q.unless if str(context.facts.get(f, "")).strip()]
+                if silent := [f for f in q.unless if f not in told]:
+                    out += [f"This is the firm's DEFAULT. It does not apply to "
+                            f"a client the firm treats differently on "
+                            f"{', '.join(silent)}, and nothing here says "
+                            f"whether this one is. The desk will ask rather "
+                            f"than assume.", ""]
+                if told:
+                    out += [f"The file says this client is on the firm's "
+                            f"default for {', '.join(told)} — printed above, "
+                            f"in the caller's words. So this position applies "
+                            f"unless what is recorded there says otherwise; "
+                            f"read it before relying on this.", ""]
     out += ["", "## The authority", ""]
     # `record.shown` and not `desk.passages`: the engine counts the same call
     # when it reports how much a desk put in front of a model that then said the
@@ -143,7 +192,8 @@ def brief_for_grading(question: str, desk: record.Desk,
 
 def answer(question: str, desk_name: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
-           working: str = "", desks: Path = DESKS, keep: bool = True,
+           working: str = "", ask: str = "", desks: Path = DESKS,
+           keep: bool = True,
            context: record.Context | None = None, prove=None):
     """Put a proposed answer through the production path. Served, or refused.
 
@@ -175,7 +225,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
     # built not to be. Found by Codex on #272.
     if escalate:
         proposed = engine.Answer(position="", citation="", escalated=True,
-                                 reason=escalate, working=working)
+                                 reason=escalate, working=working, ask=ask)
     else:
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)

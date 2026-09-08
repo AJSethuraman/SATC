@@ -41,7 +41,15 @@ DESK = "fixed-assets"
 class _Page:
     """What a transport hands back: the bytes it got and where it got them."""
 
-    def __init__(self, text, url="https://example.invalid/p"):
+    # `url` DEFAULTS TO EMPTY, meaning "the transport did not say where it
+    # landed". It used to default to `https://example.invalid/p` — a host with
+    # no relation to the source being proved, which was harmless while nothing
+    # read it and became wrong the moment `prove` started checking that we
+    # reached the publisher at all (0.9.5). A fixture that claims to have
+    # fetched a regulation from `example.invalid` is asserting something no real
+    # transport does. Tests that want a BOUNCE pass a real other host; the rest
+    # say nothing, which is what a transport with no redirect reporting does.
+    def __init__(self, text, url=""):
         self.text = text
         self.body = text.encode("utf-8")
         self.url = url

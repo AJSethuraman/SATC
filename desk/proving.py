@@ -50,6 +50,13 @@ import record
 
 TIED, DIFFERS, COULD_NOT = "TIED", "DIFFERS", "COULD NOT"
 
+
+def _host(url: str) -> str:
+    """The registered host of a URL, lowercased. Empty when there is none."""
+    import urllib.parse
+    host = urllib.parse.urlsplit(url or "").hostname or ""
+    return host.lower().removeprefix("www.")
+
 #: The reason a refusal carries when the source has moved under us. Named in
 #: `engine.REASONS` so it can be counted like every other refusal.
 MOVED = "authority_has_moved"
@@ -128,6 +135,25 @@ def prove(served, desk, transport) -> Proof:
         sha256=getattr(raw, "sha256", None) or hashlib.sha256(body).hexdigest(),
         doc_bytes=getattr(raw, "nbytes", None) or len(body),
     )
+
+    # WE NEVER REACHED THE PUBLISHER, WHICH IS NOT THE SAME AS THE TEXT MOVING.
+    #
+    # See `fetch.Response.url`. A bot filter that answers 200 with an
+    # interstitial on ANOTHER HOST is indistinguishable, byte for byte, from a
+    # publisher who rewrote the page — unless you look at where you landed.
+    # `authority_has_moved` is a claim ABOUT THE PUBLISHER and this is not one:
+    # it is a claim about us, and the honest verdict is COULD NOT.
+    #
+    # Host, not exact URL, because a publisher redirecting within its own site
+    # (http to https, a canonical path, a trailing slash) has served us its page
+    # and the comparison is valid.
+    landed, asked = _host(here["url"]), _host(source.url)
+    if landed and asked and landed != asked:
+        return Proof(COULD_NOT, citation, url=source.url,
+                     note=f"asked {asked} and landed on {landed} — this is not "
+                          f"the publisher's page, so nothing here says whether "
+                          f"the passage moved. Most likely the source refused "
+                          f"this client rather than the text changing.")
 
     ours, live = comparing.normalise(obj.text), comparing.normalise(text)
     if comparing.ELLIPSIS in obj.text:

@@ -32,8 +32,15 @@ import pandas as pd
 from credit_suite.engine.config import Config, norm_key
 from credit_suite.engine.provider import (FieldSpec, NormalizedRow, Provider,
                                           resolve_secret)
+from credit_suite.sources.fdic import mergers as _mergers
 from credit_suite.sources.fdic.fields import (FIELD_UNITS, MAX_REQUEST_FIELDS,
                                               PCT_FIELDS, RAW_FIELDS)
+
+def _iso_day(yyyymmdd: str) -> str:
+    """'20220901' -> '2022-09-01' (the history endpoint dates are ISO)."""
+    s = str(yyyymmdd)
+    return "%s-%s-%s" % (s[0:4], s[4:6], s[6:8])
+
 
 FDIC_FIN_URL = "https://api.fdic.gov/banks/financials"
 FDIC_INST_URL = "https://api.fdic.gov/banks/institutions"
@@ -45,7 +52,14 @@ class FdicDemoProvider(Provider):
     ranges per metric; the seed profile puts one illustrative bank in a
     Texas-ALERT tier and one in a Texas-WATCH tier; one bank's BRO is null
     for the whole series (trap F3); every series carries one interior None.
-    NO network, NO key; never stale at its own asof."""
+    NO network, NO key; never stale at its own asof.
+
+    Asked for a merger record it answers "I did not ask anyone" (`mergers`
+    stays None), never "there are none" -- two different facts, printed
+    differently on the `_mergers` tab. The runner's merger block is exercised
+    offline by injecting a provider that carries a real record
+    (tests/test_mergers.py)."""
+    mergers = None
 
     source_class = "A"
 
@@ -159,6 +173,7 @@ class FdicDemoProvider(Provider):
         oc_sh = 0.02 + (s % 4) * 0.01                # other consumer 2-5%
         rr_sh = 0.18 + (s % 8) * 0.02                # 1-4 family 18-32%
         ci_sh = 0.18 + (s % 9) * 0.02                # C&I 18-34%
+        reloc_sh = 0.20 + (s % 5) * 0.02             # HELOC 20-28% of resi
         htm_sh = 0.10 + (s % 6) * 0.02               # HTM securities / assets
         afs_sh = 0.12 + (s % 7) * 0.02               # AFS securities / assets
         # F-trap vintages/coverage: one bank reports NO auto book (fields null
@@ -208,22 +223,23 @@ class FdicDemoProvider(Provider):
                    "ci": round(ci_sh * loans),
                    "recons": f["LNRECONS"], "renres": f["LNRENRES"],
                    "remult": f["LNREMULT"]}
+            # HELOC is a component of the 1-4 family book (RC-C 1.c.(1) of the
+            # 1.c composite), landed for #268 so the HELOC rates have a book
+            bal["reloc"] = round(reloc_sh * bal["reres"])
             f["LNCRCD"], f["LNAUTO"] = bal["crcd"], bal["auto"]
             f["LNCONOTH"], f["LNRERES"] = bal["conoth"], bal["reres"]
-            f["LNCI"] = bal["ci"]
+            f["LNCI"], f["LNRELOC"] = bal["ci"], bal["reloc"]
 
             def rw(cls, k):                          # ramped+wobbled class rate
                 return rate[cls][k] * ramp * wob
-            # verified R-twin rate fields land as percents directly
-            for cls, pre in (("crcd", "CRCD"), ("auto", "AUTO"),
+            # EVERY class lands its dollar triple off the same seeded rate, and
+            # the engine divides by the same balance -- so the demo's metric
+            # values are unchanged by #268, only the landed fields are.
+            for cls, suf in (("crcd", "CRCD"), ("auto", "AUTO"),
                              ("reres", "RERES"), ("reloc", "RELOC"),
-                             ("ci", "CI")):
-                f["P3" + pre + "R"] = round(rw(cls, 0), 4)
-                f["P9" + pre + "R"] = round(rw(cls, 1), 4)
-                f["NA" + pre + "R"] = round(rw(cls, 2), 4)
-            # computed classes land the dollar triple off the same rates
-            for cls, suf in (("conoth", "CONOTH"), ("recons", "RECONS"),
-                             ("renres", "RENRES"), ("remult", "REMULT")):
+                             ("ci", "CI"), ("conoth", "CONOTH"),
+                             ("recons", "RECONS"), ("renres", "RENRES"),
+                             ("remult", "REMULT")):
                 f["P3" + suf] = round(rw(cls, 0) / 100.0 * bal[cls])
                 f["P9" + suf] = round(rw(cls, 1) / 100.0 * bal[cls])
                 f["NA" + suf] = round(rw(cls, 2) / 100.0 * bal[cls])
@@ -234,7 +250,7 @@ class FdicDemoProvider(Provider):
                              ("remult", "NTREMULQ"), ("ci", "NTCIQ")):
                 f[fld] = round(rw(cls, 3) / 400.0 * bal[cls])
             if auto_none:                            # not an auto lender
-                for fld in ("LNAUTO", "P3AUTOR", "P9AUTOR", "NAAUTOR",
+                for fld in ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO",
                             "NTAUTOQ"):
                     f[fld] = None
             # SVB pack: uninsured share, HTM/AFS unrealized (60/40 split so
@@ -413,6 +429,32 @@ class FdicProvider(Provider):
             # roster is advisory (merger notes); the financials landing and
             # the staleness guard still protect the run without it
             self.roster = self.roster or {}
+
+        # The merger record: which quarters' FLOWS span two banks. One more
+        # request for the whole peer set. A failure here leaves `mergers` at
+        # None -- UNKNOWN, which the tab and the tools report as its own
+        # answer, because an empty record read as "no mergers" is precisely
+        # the 670% chart this exists to prevent (sources/fdic/mergers.py).
+        try:
+            found, unclassified = _mergers.fetch(
+                certs, self._download,
+                # only the charted window can contaminate a charted quarter,
+                # and the endpoint otherwise returns a bank's whole life
+                # (Wells Fargo back to 1972)
+                since=_mergers.quarter_start(
+                    _iso_day(self._oldest_repdte(asof, self._raw_slots))))
+            self.mergers = _mergers.by_cert(found)
+            self.merger_note = ""
+            if unclassified:
+                codes = sorted({str(r.get("CHANGECODE")) for r in unclassified})
+                self.merger_note = (
+                    "%d FDIC history rows carry change codes this template "
+                    "does not classify (%s); they are reported rather than "
+                    "assumed harmless."
+                    % (len(unclassified), ", ".join(codes)))
+        except Exception as exc:                      # network, or a refusal
+            self.mergers = None
+            self.merger_note = "merger record unavailable: %s" % exc
 
     def fetch_series(self, spec: FieldSpec, secret=None) -> List[NormalizedRow]:
         if self._bulk is None:

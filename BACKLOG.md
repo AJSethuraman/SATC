@@ -167,6 +167,482 @@ Phased (one effort, sequenced):
 - [ ] **M4 bench:** NCUA, HMDA, SBA, FHFA NMDB adapters; cross-monitor peer sync
       (one entity list across FDIC CERT + EDGAR CIK via a name crosswalk).
 
+## 6b · credit-suite — the ten-year tie-out (5 September 2026)
+
+Everything the feed holds, checked against a document this firm does not
+control. **67,970 values. 52,759 tied. Nothing disagreed.**
+
+| | values | tied to an outside source | differed |
+|---|---|---|---|
+| Banks — 12 × 40 quarters × 68 fields | 32,640 | 28,667 | 0 |
+| Macro — 142 series, 1943 to 2026 | 35,330 | 24,092 | 0 |
+
+The 3,973 bank values not tied: 3,840 ratios the FDIC computes rather than banks
+filing them, 77 flows in a quarter spanning a merger, 56 lines the form did not
+carry that quarter. The 11,238 macro observations not tied are **24 whole
+series**, not scattered gaps — Case-Shiller's paywalled history (10,091), a
+percent change the Board never tabulates (1,001), and the loan officer survey's
+large-bank split (146). Each row says which.
+
+**Evidence.** 480 facsimile PDFs fetched, 0 failures. **49,066 rows
+photographed** — every bank, every quarter, the filing's own page header in the
+shot so *same entity, same period* is read off the picture rather than trusted.
+**132 exhibits**, one per bank-year, 664 MB, in
+`credit-suite/docs/tie-out/banks-10y-2026-09-05/`. The PDFs are gitignored with
+one specimen kept and `manifest.csv` as the record; the builder regenerates all
+of them in six minutes.
+
+### What running it found
+
+1. **`LNLSGR` cited a line the FDIC does not use.** Nine of 480 bank-quarters
+   came back as differences, always exactly $1,000, on a $200bn balance, across
+   three unrelated banks in six unrelated quarters. The bank files that total
+   twice: RC-C Part I line 12 as one rounded figure, and RC 4.a + 4.b as two
+   separately rounded halves. The FDIC publishes the sum of the halves in all
+   480; line 12 agrees in 471. Right value, wrong citation — invisible until
+   somebody follows it. Fixed, two guard tests, guard mutated and confirmed red.
+2. **Five merger quarters** would have been reported as the FDIC disagreeing
+   with the filings. Ten years hold **eleven** acquisitions; the sixteen-quarter
+   window had seen six. Now gathered through the shipped `mergers` module rather
+   than a hand-rolled history query on the wrong date field.
+3. **The Fed charge-off parser could not read an `n.a.` cell.** It matched runs
+   of digits, so a 1985 row gave one value instead of eleven and 304 real
+   observations were reported as "no source for this period".
+4. **Two obstacles fell when tested rather than described** — +1,306
+   observations. The G.19 unadjusted total has no single Board table but is the
+   sum of two the Board does publish, tying to the cent for all 1,002 months.
+5. **One requested field does not exist.** `NTRENREQ` has been asked of the FDIC
+   in every run this software has made and returned never; the FDIC omits a name
+   it does not have rather than rejecting the request.
+
+### What I got wrong, in the same session
+
+- Wrote that the FDIC "publishes no quarterly version" of the CRE charge-off,
+  committed it as a test comment, and it was wrong four hours later. The FIELD
+  does not exist; the QUANTITY does, as `DRRENRSQ` − `CRRENRSQ`, an identity
+  that held 200 of 200 on the categories where the FDIC publishes the net. Same
+  finding as #1 above, which is a reason to have looked harder the first time.
+- The deep macro pull reported **"50 of 50 series"** when the seed defines 142.
+  A denominator that counts what it found rather than what there was.
+- The export built its unit and title table from three attribute names, two of
+  which exist; 92 generated geography series fell through to a stale snapshot.
+  Third artifact in one session bitten by reading a copy of the source of truth.
+  The explanation tabs now contain **no typed number at all** — every count in
+  the prose is computed from the delivered CSVs at build time.
+
+### Docket answers (form `0b2cae0b`, answered 5 Sep 2026)
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| D1 | Resolve the merge conflict on `canon/LOG.md`? | Yes, resolve it | |
+| D2 | Rebuild the shipped monitors now or at next release? | Rebuild now | |
+| D3 | Keep the unverifiable Case-Shiller history, shaded? | Keep, shaded | |
+| D4 | Keep the eight FDIC-computed ratios in a raw feed? | Keep them | *"keep them especially if they can be tied to. like we have done."* |
+| D5 | How deep should the first scheduled run go? | Widen it | *"yeah why not, this is going to also help me with another project so that adds value / also... datapoints... things like home owner insurance premiums can be important. maybe you should poke around at things that don't sound important and throw suggestions out"* |
+| D6 | Build the consistency flags? | Build the top five | |
+| D7 | Swap the twelve banks for a real peer group? | Keep these twelve | *"I can get them but honestly i won't use the data until i have you swap stuff out and there is no reason to throw away data we've already verified"* |
+
+D5 produced the ten years above **and** the opportunity scan D5's second half
+asked for. D6 landed as five checks and 66 tests, merged here; its verdict type
+refuses to hold "PASS over nothing", and its `Comparability` record has no field
+a repaired number could go in.
+
+### The opportunity scan (D5, second half)
+
+23 candidates, ranked, each fetched live rather than assumed. 83 FDIC field
+names requested, 82 returned; 115 FRED ids requested, 102 returned. **Seven of
+the twelve bank candidates were tied to a bank's own filed XBRL**, not merely to
+the FDIC. Report: `scratchpad/opportunities.md` (session-local).
+
+- **Utilization exists and is not in the feed.** `UCCRCD` and `UCLOC`, 480 of
+  480 bank-quarters, tied to the filed report to the dollar. Card utilization
+  19.99% (2016Q4) → 16.79% (2020Q4) → 20.35% (2025Q4), now above
+  pre-pandemic; Capital One 26.3% against JPMorgan 16.2%.
+- **Homeowners insurance** is `PCU9241269241262`, the BLS producer price series,
+  +9.1% in 2024 after two flat decades. **The CPI has no homeowners insurance
+  item at all** — `SEHD` is tenants' and contents cover, and
+  `PCU5241265241262` is the insurer's price net of expected losses. Both look
+  right and are not.
+
+### Docket `47179bd6` — answered 5 Sep 2026
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| D8 | Add `UCCRCD` + `UCLOC` (utilization)? | **Add both** | |
+| D9 | Close the `NTRENREQ` blank with `DRRENRSQ` + `CRRENRSQ`? | **Add both halves** | |
+| D10 | Add the BLS homeowners-insurance series? | *not yet* | *"I need more info on this. Your explanation isn't good enough"* |
+| D11 | How far down the ranked 23? | *not yet* | *"Give me the list and why we'd want them and which you recommend"* |
+| D12 | Feed only, or rebuild the dashboard too? | **Feed only** | |
+| D13 | What should the recurring schedule run? | **Manual, when I ask** | |
+| D14 | Which evidence layers to store? | **Layers 1, 3 and 4** | *"But we can save them locally on the forge instead of taking space on git"* |
+| D15 | Greyscale or colour evidence? | **Greyscale** | |
+
+**D14 reversed a storage decision made an hour earlier.** The exhibits had been
+committed and pushed (451 MB); they now live on the Forge at `C:\\Users\\ajish\\SATC-evidence\\banks-10y-2026-09-05\\`, outside any
+git working tree. Outside rather than merely gitignored inside: an ignored file
+is one `git clean -xfd` away from gone. `manifest.csv` and `README.md` stay
+versioned, and the builder writes the manifest in the same run that writes the
+PDFs, MERGING rather than overwriting — the first version truncated a 132-row
+record to one row the moment a single bank-year was rebuilt, which is exactly
+how the tool is meant to be used.
+
+**D13 means there is no schedule.** Nothing runs on a timer; a re-verification
+happens when the firm asks. The quarterly and annual shapes stay written down
+for whenever that is.
+
+**What the storage question turned up on the way.** Being told to store all of
+it prompted the question nobody had asked: did the pictures have to be that big?
+A Call Report page is black text and hairline rules on white, so the colour
+channels were carrying nothing. Measured over a random 60 strips — colour
+11.6 KB mean, greyscale 6.2 KB (54%), **16-level greyscale 4.2 KB (36%)**, 1-bit
+1.9 KB (17%) — then rendered side by side and LOOKED AT rather than chosen on
+the ratio. Greyscale is indistinguishable at reading size; 1-bit is legible but
+the table rules go ragged. **664 MB → 451 MB**, nothing cropped, nothing
+scaled down.
+
+Also: *"facsimile"* had been used forty times across this work and never once
+defined. It is an exact copy, the same word as a fax machine, and what
+cdr.ffiec.gov serves is the filled-in form itself — schedule headings, printed
+line numbers, codes in their boxes, the bank's own figures in the columns. Not a
+summary and not a database made to look like a form. That distinction is the
+whole reason a photograph of it counts as evidence, and it sat inside a word the
+reader was expected to already know. Now explained in the exhibits README and on
+the workbook's sources tab.
+
+### Still open after the docket
+
+Two answers were "not enough information", which is a finding about the docket
+and not about the firm:
+
+- **D10 homeowners insurance.** *"Your explanation isn't good enough."* Owed: a
+  proper account of what the series measures, why an insurance premium bears on
+  credit at all, and what the two look-alikes actually are.
+- **D11 the ranked 23.** *"Give me the list and why we'd want them and which you
+  recommend."* Owed: the list itself, not a summary of it. The scan produced it;
+  the docket described it and never showed it.
+
+Landed from the answers: `UCCRCD`, `UCLOC`, `DRRENRSQ` and `CRRENRSQ` go into
+the FEED only (D12), which means the deep pull's field list rather than
+`RAW_FIELDS` — changing `RAW_FIELDS` re-cuts `raw_slots`, which the layout
+says is built into every dashboard formula.
+
+Suite **611 passed, 0 failed** (545 + 66 merged).
+
+### Docket `0adcad79` — answered 7 September 2026
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| N1 | Competitors: add to the twelve, or replace? | **Add them** | |
+| N2 | The bank list lives in a temp folder — move it into the repo? | **Move it** | |
+| N3 | Rotate the FRED and BLS keys? | **Leave them** | |
+| N4 | PR #257 — merge or keep draft? | **Keep it draft until I look** | *"send me the excel sheet"* |
+
+The workbook was sent. Two of the four should not have been on that page: moving
+a file into the repository was an engineering call to make rather than ask, and
+it re-opened a question the record already answered on 5 September when the
+exhibits moved to the Forge for exactly the same reason. Behaviour 19 — *do not
+manufacture the next decision* — was in force and was not followed.
+
+### Goal named, and met
+
+**Swapping the peer group is a one-step change.** Ends when all six pipeline
+stages run clean against a peer list that has changed.
+
+Distance ran **0 of 6 → 6 of 6**. The first published distance was wrong and is
+worth recording as such: it read "3 of 6 done", and the three were facts about
+the code's existing shape rather than work completed — a fraction that started
+part-way for free and could not shrink. The firm asked whether the goal had been
+assessed as the behaviour requires. It had not.
+
+Proven on **cert 6672, Fifth Third Bank**, a bank the project had never touched,
+with no script edited:
+
+| | Stage | Result |
+|---|---|---|
+| 1 | filings | 40 of 40 quarters |
+| 2 | facsimiles | 40 of 40 |
+| 3 | fields | 3,480 values over 40 quarters |
+| 4 | verify | **638 tie, 0 differ** |
+| 5 | photograph | 24 cited rows locatable, 0 missing |
+| 6 | export | 3,480 rows would join the deliverable |
+
+### What landed
+
+- **`config/peers.json`** — the peer group in the repository, generated from
+  `series_seed.PEERS`, with each certificate checked against the legal name on
+  that bank's own filed front page. **12 of 12 verified.** That check existed
+  nowhere before: everything else proves the FDIC agrees with a filing FOR A
+  GIVEN CERTIFICATE and proves nothing about whether the certificate is the bank
+  whose name we print. The seed's own comment had said nine of the twelve were
+  "illustrative from public sources and must be re-verified before a live run".
+- **`tools/tieout/resolve_banks.py`** — names to certificates, showing the
+  match and stopping. It caught two of the FDIC's own quiet behaviours: the query
+  must be `search=NAME:<terms>` (a bare search returns an empty list, which reads
+  as "no such bank" rather than "wrong query" — the first version reported that
+  Fifth Third Bank does not exist), and a name outlives an institution, so
+  "Fifth Third Bank" matches a live cert 6672 and a dead cert 993.
+- **`tools/tieout/prove_peer_swap.py`** — the six-stage proof above.
+
+### Next
+
+Waiting on the competitor names. Everything after that is mechanical: resolve,
+confirm the matches, add to free slots (28 of 40 are free), run the chain.
+
+### Peer expansion — 7 September 2026
+
+The firm sent ten names. **Three were already in the set**: US Bancorp, PNC
+Financial and Truist Financial are the holding companies of U.S. Bank NA (6548),
+PNC Bank NA (6384) and Truist Bank (9846), all already verified over ten years.
+Seven are new, now in slots 13-19 of `series_seed.PEERS`.
+
+| Asked for | Bank that files the Call Report | Cert | Holding company on the FDIC record |
+|---|---|---|---|
+| Fifth Third Bancorp | Fifth Third Bank, National Association | 6672 | FIFTH THIRD BCORP |
+| Huntington Banc | The Huntington National Bank | 6560 | HUNTINGTON BANCSHARES INC |
+| First Citizens Banc | First-Citizens Bank & Trust Company | 11063 | FIRST CITIZENS BANCSHARES INC |
+| Citizens Financial | Citizens Bank, National Association | 57957 | CITIZENS FINANCIAL GROUP INC |
+| M&T Bank Corp | Manufacturers and Traders Trust Company | 588 | M&T BANK CORP |
+| Regions Financial | Regions Bank | 12368 | REGIONS FINANCIAL CORP |
+| Zions Bancorp | Zions Bancorporation, N.A. | 2270 | *(none — the bank IS the top-tier entity)* |
+
+**A holding company files an FR Y-9C with the Federal Reserve. It has no FDIC
+certificate and files no Call Report**, so the bank is what can enter the feed.
+Searching the FDIC for a holding-company name does not fail cleanly — it
+word-matches and returns a real, live, unrelated bank:
+
+    "PNC Financial"     -> PlainsCapital Bank, University Park TX, $12.7bn
+    "Truist Financial"  -> Parkside Financial Bank & Trust, Clayton MO, $1.1bn
+
+Both matched on the word "Financial", and either would have tied perfectly under
+the wrong label. Every certificate above was instead confirmed against the FDIC's
+own `NAMEHCR` field on that bank's record. `tools/tieout/resolve_holdcos.py`
+does this; `resolve_banks.py` does the simpler bank-name case.
+
+### Goals in flight
+
+**Next: all seven pulled and verified.** Ends when each has 40 quarters of all 87
+fields tied to its own filed Call Reports with zero differences, photographed to
+the same standard as the twelve. **Distance: 0 of 7.**
+
+**Final: one output the firm can forward to their work email.** The workbook plus
+a covering document that stands on its own to a reader who was not here.
+
+The chain is proven to run on a bank it has never seen — 6 of 6 stages on cert
+6672, no script edited — so this is volume, not new ground.
+
+### The seven peers, verified — 7 September 2026
+
+All seven are in and verified, to the same standard as the twelve: forty
+quarters each, eighty-seven fields, every value checked against that bank's own
+filed Call Report and every cited row photographed off the filed page.
+
+| | |
+|---|---|
+| bank values | **66,120** (was 32,640 over twelve banks) |
+| verified against a filed Call Report | **59,544** |
+| macro observations verified | **65,843** |
+| **total values / verified** | **143,201 / 125,387** |
+| differences | **1** |
+| certificates checked against the filing's own front page | **19 of 19** |
+| merger quarters found | **33** (eleven, over the twelve banks) |
+| suite | **613 passed, 0 failed, 0 skipped** |
+
+**Distance: 7 of 7.**
+
+### What adding them found
+
+Seven banks the code had never seen found six defects. Not one was found by a
+test, and every one was in our software rather than in anybody's data.
+
+1. **Change code 216 was not on the merger allowlist.** First-Citizens absorbed
+   Silicon Valley Bridge Bank on 26 March 2023 — the largest acquisition in
+   the whole peer set — and the FDIC files it as *Bridge Bank Resolution*.
+   The allowlist refused to guess and reported it unclassified, which is what
+   an allowlist is for; a denylist would have swallowed it. Added with a test,
+   plus a second test proving an unknown code is still refused. Mutation:
+   removing 216 turns the first test red.
+
+2. **The quarter after a first-quarter merger cannot be formed from the
+   filings.** A quarterly flow is the year's running total less what was
+   already reported, and *the first quarter's published figure IS that base* —
+   there is no earlier quarter for it to be a difference of. Huntington's first
+   quarter of 2026 was the filed year-to-date less 88, and their second was the
+   year-to-date less THAT. Five values reported as differences were arithmetic
+   that could not be done.
+
+   The first version of that check asked whether the FDIC's quarters still
+   summed to the year-to-date, and took twenty-one rows that tie perfectly and
+   called them uncomparable. **Suppressing a row that ties is the same error as
+   plugging one that does not, pointed the other way.**
+
+3. **`write_config` rebuilt the rows the gates had already checked.** `build`
+   computed the config, validated it, and then `write_config` called
+   `config_rows` again from the seed — so a roster handed to `build` was
+   honoured by every gate and by nothing that reached the workbook.
+
+4. **Nineteen fields shipped with an empty units column.** `FIELD_UNITS` is
+   built from `RAW_FIELDS` and knows nothing about the nineteen fields added on
+   6 September; `.get(field, "")` answered `""` rather than refusing, so 14,440
+   numbers in the delivered CSV had no unit beside them. One helper serves both
+   sites now, and it refuses.
+
+5. **The exhibits for all seven had no pictures in them.** Every one reported
+   *0 images* and rendered perfectly. The builder reads the shrunk strips,
+   `deepstrips-grey`; the seven had only been photographed into `deepstrips`.
+   Seventy-seven documents would have shipped as prose about numbers the reader
+   cannot see. **That is tenet one, in the project the tenet is written into.**
+   The builder now refuses, loads every strip shard, and asserts no bank in the
+   set is unphotographed.
+
+6. **A four-digit certificate was read as a year.** `2270 2026` filtered for
+   the year 2270, built nothing, and reported *0 of 0* as though there were
+   nothing to do. Five of the nineteen banks have four-digit certs and none of
+   them could be selected.
+
+### The claim that was false
+
+The record said **swapping the peer group is a one-step change, no script
+edited**. Adding seven banks turned eleven tests red. What had been proved was
+that the tie-out chain runs on a new bank — not that the product's own tests
+survive a roster change, which is what the sentence says.
+
+Fixed rather than reworded. Counts come from the seed, the free slot is
+wherever the seed stops, and the parity golden builds on the roster it was
+captured with (`tests/goldens/fdic-demo-peers.json`) so it goes on pinning the ENGINE rather than the firm's
+peer list.
+
+### The one difference, and it stays one
+
+Huntington's total risk-based capital at 31 March 2026:
+
+    the filing        29,148,027   (printed page and machine-readable copy agree)
+    the FDIC          29,147,082
+    difference              -945
+
+The filing's own total capital ratio times its risk-weighted assets reproduces
+29,148,047, so the filing is internally consistent. The second column on that
+line, `RCFW3792`, reads `NR` — there is no other column it could have come
+from. **No explanation found.** It is not adjusted, rounded away or hidden: the
+row carries both figures, the gap, and the link to the filing.
+
+### Provenance review and the standing tie-out — 7 September 2026
+
+The firm asked Bassy to go through the provenance and name the real issues.
+Five were found; four were claims the data contradicted, and the data itself
+held up.
+
+| | Finding | Where it stands |
+|---|---|---|
+| 1 | Every merger row said *"Balances are point-in-time and are unaffected."* True of each measurement, false of the series. **15 of the 31 measurable merger quarters move total assets by 10% or more**; Truist doubles. | Rows now carry the assets either side and the size of the step. Test locks it; putting the old sentence back turns it red. |
+| 2 | Twenty-two Case-Shiller series reported as unverified **had been verified** — `fred_caseshiller.py` tied 22 of 22 against S&P's own release and its verdict never reached the file. | Carried through. The national index ties to a published LEVEL and is marked verified; the other 21 tie to a published CHANGE, which pins the move and not the level, so they stay unverified with a note saying exactly that. |
+| 3 | The last hop had never been executed. Every verifier reads what the delivered file was built FROM; two of the four read the raw API response. | Written and run: **143,201 of 143,201 identical, 0 moved.** |
+| 4 | Identity was checked at one end of the window, and the wrong end — `filing-<cert>-MMDDYYYY.pdf` sorted as a string, so "the latest filing" was whichever December sorted last. | Sorted by date, and read at both ends. **17 of 19 carry the same legal name in 2016 as today.** The two: ZB NA became Zions Bancorporation NA (a rename); everything before December 2019 labelled "Truist Bank" is Branch Banking and Trust. |
+| 5 | Every derived citation's evidence read "480 of 480" — the twelve-bank panel. | Restated at 760 from the verifier's own output. |
+
+### The three "not checked" items, measured rather than explained
+
+- **"There is no vintage" was wrong.** Every one of the 760 filings prints
+  `Last Updated on <date>` on its schedule pages — it is in the header of
+  every photograph in every exhibit — and nothing captured it. **442 of 760
+  filings were amended more than 90 days after the quarter they report, and
+  289 more than a year after it.** Bank of America amended its third
+  quarter of 2016 in December 2021. Every bank row now carries
+  `filing_last_updated` and `days_after_quarter_end`.
+
+  It also very likely explains the one difference in the feed. Huntington
+  amended its first quarter of 2026 on 21 August, 143 days after the quarter;
+  the FFIEC serves the amended filing at 29,148,027 and the FDIC's published
+  figure was 29,147,082 when pulled and still is, re-fetched. A lag, not a
+  disagreement — and not proven, because the pre-amendment filing is not
+  obtainable.
+
+- **The FDIC-computed ratios are half checked.** Four of the eight are plain
+  ratios of two figures already tied to the filings. Recomputed from their own
+  verified components: **2,964 of 2,964 agree, none differ.** The other four
+  need average balances or income-statement items this feed does not hold.
+
+- **The macro links were worse than the line suggested.** **53,415 of 77,081
+  rows shipped with no link at all** and the FHFA link 404'd on 13,734 more.
+  Fixed, every URL fetched; three refuse scripted requests and were opened in a
+  browser instead. All verified rows now carry a link and the build refuses to
+  write one without.
+
+### A tie-out that runs with the build — 7 September 2026
+
+The firm: *"when it's ran, it should be tied out."* `run_and_tie_out.py` builds,
+checks, and only then writes the workbook. A failed stage stops the run, so
+there is never a workbook standing on a feed that failed. Five stages, about a
+minute.
+
+**Sized by coverage, not by a count of observations.** What breaks is a
+citation, a form version or a source, so the sample touches each: every bank x
+every field on the newest quarter, plus two random older quarters per bank,
+plus every macro series. About 4,500 comparisons — 3% of the feed, and 100% of
+the banks, 100% of the series, and **69 of 87 fields**; the rest
+are quarterly flows, which need two filings, and ratios the FDIC computes,
+which have no filed line. A planted control fails the run if the checker
+shrugs: **16 of 16 caught**.
+
+**It was wrong first, and that is the useful half.** Written with its own copy
+of the comparison, it reported 157 differences against a feed the full run
+calls clean — every one the copy. It stripped the parenthetical off
+`RCON2200 (+RCFN2200 031)`, which is not a note but the citation. Tenet S3.
+There is now one comparison, `sources/fdic/tieout.py`, validated by running it
+over the whole panel: it reproduces the full run's verdict on **143,201 of
+143,201 values**, including the single difference.
+
+### Descriptions — 87 of 87
+
+Nineteen fields shipped as bare codes because `plain.FIELD` knew the
+sixty-eight the monitor was built for and nothing about the ones added later.
+Written from the caption on the filed page, read off the photographed row.
+LNRELOC, an original field, was blank too. The build refuses to write a field
+with no description.
+
+### Docket `0b2cae0b` — answered 7 September 2026
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| 1 | The 5.4 GB the tie-out stands on lives in a Windows temp folder | **Move it to the Forge** | *"move to the forge - we will purge at some point"* |
+| 2 | PR #257 has been a draft since 4 September | **Retitle and merge** | |
+| 3 | What the fresh session gets before it ties this out | **Form its own view first** | |
+
+All three matched the recommendation.
+
+### What they caused
+
+**1 — the working folder is a setting now, and the data is on the Forge.**
+`src/credit_suite/workdir.py` resolves it: `$CREDIT_SUITE_WORKDIR` first, then
+the Forge, then the old temp folder so a checkout mid-move still runs, then a
+refusal that names all three. Fifty-two tools had the path typed into them,
+session id and all; none does now, and a test asserts it.
+
+Copied what the tools actually REFERENCE — 2.7 GB, found by reading the
+tools — rather than the 5.4 GB the scratch folder happens to hold, most of
+which is unrelated test runs from other sessions. The old location is
+untouched: `workdir()` prefers the Forge the moment it exists, so the switch
+happened when the copy finished rather than when anything was deleted.
+
+Because they said they will purge, the Forge folder carries a README saying
+**which half cannot be rebuilt**: `banks/` and `filings/`, the 760 filed Call
+Reports as the regulator served them. 442 of the 760 have been amended since
+the quarter they report, so fetching them again returns a different document —
+delete those and a tie-out already done cannot be reproduced, only replaced.
+Everything else regenerates in under half an hour.
+
+Proven rather than assumed: the whole chain re-run from the new location,
+**5 of 5 stages, 0 differences**.
+
+**2 — PR #257.** Checked before merging rather than assumed: credit-suite's
+`main` publishes nothing. The only publishing workflow is `pages.yml` and that
+is the website, so under C5 this is ordinary work rather than a publication.
+
+**3 — the fresh session.** It gets the repository and the two delivered files,
+picks its own targets and writes them down, and only then reads the provenance
+section above. Re-finding something is cheap; missing what this session missed
+is what the second pass is for. Of the five faults found on 7 September, three
+were claims this session had written itself.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -177,6 +653,58 @@ research pass before a spec, no exceptions.
 ---
 
 ## Done log
+
+- 2026-09-05 -- **Tie-out of every data point in both credit monitors:
+  862 of 862 tie.** Each figure on the ours side read out of the shipped
+  workbook -- the cell a person opens, never re-fetched -- and each on the
+  other side taken off a document published by somebody else: a bank's own
+  filed Call Report, or the agency that computes a macro series (FHFA, the
+  Federal Reserve Board, S&P Dow Jones Indices), never FRED, which only
+  redistributes. Twelve bank exhibits (53 lines each, 685 pages, 1,116 strips
+  cut from the filings), one macro exhibit (142 series, six publishers), and a
+  master roster: `credit-suite/docs/tie-out/`. Scripts in
+  `credit-suite/tools/tieout/`.
+  **Found six defects, every one of which left the numbers correct** and so was
+  invisible to 414 passing tests: a shipped workbook with Nebraska blank after
+  one unretried 5xx (fixed, `1b03896`); two series wearing each other's
+  description; a mortgage-tightening indicator filed as a demand series and so
+  wired to never alert; two more labels naming a different series (fixed,
+  `a9411a1`); four series declaring "billions" beside a figure in millions
+  (fixed, `94d431f`); and the FDIC's own quarterly and annual charge-off
+  figures for PNC failing to reconcile by 515 and 652 thousand dollars -- our
+  side is faithful to what the FDIC published, so nothing was adjusted.
+  **Three more defects were in the checking, not the data**, each announcing
+  itself as an implausibly uniform failure across every entity: C&I charge-offs
+  cited to U.S. addressees only; the wrong column of the total capital ratio
+  for the one bank filing two; and six blank source photographs that reported
+  "ok". New guard `tests/test_fred_labels.py` checks a label against its
+  publisher's own definition -- 414 tests, 4 mutations killed. PR #257.
+  **Second edition, same day.** The first said 776 of 778 and did not say
+  what 778 was: only 53 of each bank's 69 raw fields were being compared.
+  Seven fields carried the literal text "(not in tie-out map)" where their
+  MDRM code belongs, and the tie-out only checks fields the map cites -- a
+  check that examines what the map documents cannot discover what the map
+  omits. Behind that: bracketed expressions parse as nothing, bare
+  income-statement codes resolve against the balance-sheet prefixes and find
+  nothing, the capital ratios cited the form-041 prefix on twelve 031
+  filers, and `parse_facts` discarded every ratio in every filing by keeping
+  whole numbers only. All fixed; new guard `test_provenance_citations.py`
+  requires every citation to parse AND to find its line on a real filed Call
+  Report. Suite 414 -> 541. PNC's disagreement grew from two lines to five
+  once the unchecked fields were checked.
+  Still owed: the eight FDIC-computed ratios per bank (now named, not
+  omitted), the alert logic built on these figures, and every period except
+  the latest.
+  **Third edition: the PNC finding was withdrawn.** Two editions reported
+  five PNC lines as differences and said the FDIC disagreed with itself.
+  PNC absorbed FirstBank of Lakewood CO (cert 18714) on 18 June 2026, and a
+  quarterly flow across a merger must also subtract the acquired bank's
+  prior year-to-date. Every gap equalled FirstBank's figure to the dollar,
+  and the two fields that tied are the two where it was zero. The
+  workbook's own `_mergers` tab recorded the merger and explained the
+  arithmetic; the tie-out queried an API, filtered on the wrong date field,
+  and believed the empty answer. All 862 data points tie. The flow
+  derivation now consults the merger record.
 
 - 2026-09-03 -- FRED template (#1) hardening + contract-alignment pass (part of
   the §2 debt): adversarial re-verification (4 agents: test+mutation, hazard
