@@ -343,3 +343,96 @@ def follow_up_prompt(f: FollowUp) -> str:
             "question turned on — say so plainly. That is a finding about the "
             "question you asked, not a failure."]
     return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# WHEN NOBODY HOLDS THE RULE: sending the question on to be RESEARCHED.
+#
+# The firm, 8 September 2026: *"the skill also has to direct questions to this
+# container when they need research, obviously"*.
+#
+# `run-down-a-question` has existed since 5 September and is the right skill. It
+# was never CONNECTED: nothing said which session runs it, and nothing carried an
+# `authority_absent` refusal to that session. A doer got "nothing this desk holds
+# reaches the question", and the trail stopped — the gap went into
+# `unsupported/` for somebody to find later, if anybody ever looked.
+#
+# WHY THIS IS THE THIRD ENVELOPE AND NOT A FLAG ON THE FIRST. A question asks
+# "what does the record say"; this asks "go and find what nobody has". They have
+# different answers (a passage nobody has admitted yet, versus a served
+# conclusion), a different destination (the session that can reach a publisher),
+# and a different disposition — **nothing found this way enters the record**.
+# The searcher PROPOSES; the firm admits. Making it a flag would have let a
+# lookup return as though it were an answer.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class Research:
+    """A gap no desk could reach, sent to the session that can go and look."""
+    ref: str
+    question: str
+    refused_by: tuple
+
+
+def research(question: str, reply_to: str, refused_by=()) -> Research:
+    """Send an `authority_absent` gap to be run down, or REFUSE to send it.
+
+    `refused_by` is `((desk, reason), ...)` from the refusals that produced the
+    gap. It is REQUIRED and it is checked, because the one thing that must not
+    happen here is a question being researched that a desk could already answer:
+    a search that finds authority the record already holds costs the firm a
+    source-admission decision it does not need to make, and a search launched
+    because an agent did not like the answer it got is not research.
+    """
+    a = ask(question, reply_to)                    # same refusals, same TIN gate
+    rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
+    if not rows:
+        raise RelayError(
+            "nothing refused this. A gap is what a DESK could not reach, and "
+            "`refused_by` is the evidence — without it this is a search for "
+            "authority nobody has established is missing.")
+    if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
+        raise RelayError(
+            f"refused {', '.join(wrong)}, which is not a gap in the record. "
+            f"`authority_absent` is the only refusal this answers — the others "
+            f"are answered by a person, by the firm, or by asking a different "
+            f"desk, and searching for authority instead is how a refusal gets "
+            f"talked out of.")
+    return Research(ref=a.ref, question=a.question, refused_by=rows)
+
+
+def research_prompt(r: Research, reply_to: str) -> str:
+    """The message the researching session receives."""
+    out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
+           f"the session that can go and look.", "",
+           "## The question", "", r.question, "",
+           "## What already refused it, and why", ""]
+    out += [f"- **{desk}** — `{reason}`" for desk, reason in r.refused_by]
+    out += ["",
+            "Every one of these said `authority_absent`: not that the answer is "
+            "hard, but that **the record does not contain the rule**. That is "
+            "what you are looking for.", "",
+            "## How", "",
+            "Use `run-down-a-question`. Search anywhere. **Verify every find "
+            "against the publisher's own page** — a citation that only exists "
+            "in a search result is not a find.", "",
+            "## The two things that are not yours to decide", "",
+            "1. **Nothing you find enters the record.** Propose it. The firm "
+            "admits a source; a session never does. `keep=False`, no commit, no "
+            "write into any desk.",
+            "2. **A licence is a wall, not an obstacle.** Where a publisher "
+            "gates its text behind a CAPTCHA, a terms click or a sign-in, "
+            "NAME THE WALL EXACTLY and stop. Do not solve it, do not accept "
+            "terms on the firm's behalf, do not route around it. Whether the "
+            "firm holds a licence is their answer to give.", "",
+            "## What to send back", "",
+            f"Reply poke-only to `{reply_to}` — `create_trigger` with NO "
+            f"`run_once_at` and NO `cron_expression`, then one `fire_trigger` — "
+            f"opening with `FOUND {r.ref}` or `LOOKED {r.ref}`.", "",
+            "**`LOOKED` is a real answer and I want it.** *\"I searched, here is "
+            "where, and the authority is not reachable\"* is a finding: it turns "
+            "a gap nobody has examined into a gap somebody has, which is the "
+            "difference between a queue and a pile. Say where you looked either "
+            "way.", "",
+            "No client name, TIN or figure in the reply."]
+    return "\n".join(out)

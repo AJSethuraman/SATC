@@ -163,6 +163,37 @@ And where `alongside` is not empty, **read it before you act**: the firm has
 answered that passage more than once, the other answer is not this one, and
 which applies is a question about facts that nothing in the desk has looked at.
 
+## `authority_absent` is not a dead end — send it on
+
+**When every desk says `authority_absent`, nobody holds the rule.** That is not
+the end of the question; it is a job for the session that can go and look. The
+firm, 8 September 2026: *"the skill also has to direct questions to this
+container when they need research, obviously."*
+
+```python
+gap = relay.research(question, reply_to=<your session id>,
+                     refused_by=(("capitalization-and-de-minimis", "authority_absent"),
+                                 ("vehicle-expense", "authority_absent")))
+print(gap.ref)
+print(relay.research_prompt(gap, reply_to=<your session id>))
+```
+
+Send that to the same desk session, **poke-only**, exactly as you sent the
+question. It comes back opening `FOUND <ref>` or `LOOKED <ref>`.
+
+**`refused_by` is required and only `authority_absent` is accepted.** Every other
+refusal is answered by a person, by the firm, or by asking a different desk —
+and sending one to a searcher is how a refusal gets talked out of: the desk said
+no, so go and find something that says yes. `relay.research` refuses them.
+
+**`LOOKED <ref>` — searched, and the authority is not reachable — is a real
+result.** It turns a gap nobody has examined into a gap somebody has, which is
+the difference between a queue and a pile. Do not treat it as a failed lookup.
+
+**Nothing found this way is authority yet.** The searcher proposes; the firm
+admits a source. An answer that cites something no desk holds is refused by the
+engine exactly as before, and correctly.
+
 ## A refusal is an answer
 
 `authority_absent`, `context_not_on_file`, `wrong_body_of_authority` and the rest

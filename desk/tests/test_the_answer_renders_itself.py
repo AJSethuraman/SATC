@@ -274,3 +274,37 @@ def test_the_asking_skill_says_what_to_do_if_no_answer_comes():
         skill.split("**2 · Do not chase")[1].split(">")[0]), (
         "the section warns about dying silently and no longer says what to do")
     assert "One reminder is" in skill and "a loop is" in skill
+
+
+def test_the_asking_skill_routes_a_gap_to_the_research_session():
+    """THE FIRM ASKED FOR THIS EXPLICITLY, 8 September 2026: *"the skill also has
+    to direct questions to this container when they need research, obviously."*
+
+    `run-down-a-question` had existed since 5 September and nothing connected it:
+    a doer got `authority_absent` and the trail stopped there."""
+    from pathlib import Path
+    skill = (Path(__file__).resolve().parents[1] / "skills" / "ask-desk"
+             / "SKILL.md").read_text(encoding="utf-8")
+    assert "authority_absent` is not a dead end" in skill
+    assert "relay.research(" in skill
+    assert "research_prompt(" in skill
+
+
+def _flat(name):
+    """A skill as one line. ASSERTING ON RAW MARKDOWN ASSERTS ON ITS LINE WRAPS:
+    two of these tests failed on 8 September because the phrase they looked for
+    was split across a newline in prose that said exactly the right thing."""
+    from pathlib import Path
+    text = (Path(__file__).resolve().parents[1] / "skills" / name
+            / "SKILL.md").read_text(encoding="utf-8")
+    return " ".join(text.split())
+
+
+def test_and_says_a_fruitless_search_is_still_a_result():
+    flat = _flat("ask-desk")
+    assert "is a real result" in flat
+    assert "the difference between a queue and a pile" in flat
+
+
+def test_and_says_a_find_is_not_authority_until_the_firm_admits_it():
+    assert "the firm admits a source" in _flat("ask-desk").lower()

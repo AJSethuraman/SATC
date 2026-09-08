@@ -391,3 +391,86 @@ def test_two_desks_on_one_question_share_a_ref():
     weight and someone should know why it was there."""
     a = relay.ask(Q, reply_to=ME)
     assert relay.ask(Q, reply_to=ME).ref == a.ref
+
+
+# --------------------------------- sending a gap to be researched
+
+GAP = (("capitalization-and-de-minimis", "authority_absent"),
+       ("vehicle-expense", "authority_absent"))
+LEASE = "how do I know if a lease should be booked as an asset?"
+
+
+def test_a_gap_can_be_sent_to_be_run_down():
+    """THE FIRM ASKED FOR THIS IN AS MANY WORDS, 8 September 2026: *"the skill
+    also has to direct questions to this container when they need research,
+    obviously"*.
+
+    `run-down-a-question` had existed since 5 September and was never CONNECTED:
+    nothing said which session runs it, and nothing carried an `authority_absent`
+    refusal there. A doer was told "nothing this desk holds reaches the question"
+    and the trail stopped."""
+    r = relay.research(LEASE, ME, refused_by=GAP)
+    assert r.question == LEASE
+    assert r.refused_by == GAP
+
+
+def test_a_gap_needs_the_refusals_that_prove_it_is_one():
+    """A search nobody's refusal asked for is a search for authority nobody has
+    established is missing."""
+    with pytest.raises(relay.RelayError, match="nothing refused this"):
+        relay.research(LEASE, ME, refused_by=())
+
+
+@pytest.mark.parametrize("reason", ["facts_not_established", "context_not_on_file",
+                                    "wrong_body_of_authority",
+                                    "contradicts_ratified_position"])
+def test_only_authority_absent_is_a_gap(reason):
+    """THE ONE THAT MATTERS. Every other refusal is answered by a person, by the
+    firm, or by asking a different desk. Sending those to a searcher is how a
+    refusal gets talked out of — the desk said no, so go and find something that
+    says yes."""
+    with pytest.raises(relay.RelayError, match="not a gap in the record"):
+        relay.research(LEASE, ME, refused_by=(("some-desk", reason),))
+
+
+def test_a_gap_carries_the_same_tin_refusal_as_a_question():
+    """It is the same envelope on the same wire and gets the same gate."""
+    with pytest.raises(relay.RelayError, match="TIN"):
+        relay.research("what about 123-45-6789's lease", ME, refused_by=GAP)
+
+
+def test_the_envelope_names_every_desk_that_refused():
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    for desk, _ in GAP:
+        assert desk in body
+
+
+def test_it_says_nothing_found_enters_the_record():
+    """PROPOSE, NEVER DISPOSE. A searcher that stored what it found would be
+    admitting sources on the firm's behalf."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "Nothing you find enters the record" in body
+    assert "The firm admits a source; a session never does" in body
+
+
+def test_it_forbids_crossing_a_licence_rather_than_leaving_it_to_judgement():
+    """FASB ASC is gated by a CAPTCHA, a terms click and a sign-in. On 8
+    September a desk hit exactly that, named it, and stopped — because it was
+    told to. This is the instruction that made it stop."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "NAME THE WALL EXACTLY and stop" in body
+    assert "do not accept terms on the firm's behalf" in body
+    assert "their answer to give" in body
+
+
+def test_looked_and_did_not_find_is_asked_for_as_a_result():
+    """A gap nobody has examined and a gap somebody has examined are different
+    things, and only one of them is a queue."""
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "LOOKED" in body
+    assert "is a real answer and I want it" in body
+
+
+def test_the_reply_is_poke_only_here_too():
+    body = relay.research_prompt(relay.research(LEASE, ME, refused_by=GAP), ME)
+    assert "NO `run_once_at`" in body and "NO `cron_expression`" in body
