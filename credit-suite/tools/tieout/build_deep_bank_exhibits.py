@@ -28,8 +28,6 @@ import sys
 import time
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
-                  r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
 #: The 16-level greyscale strips, which are 36% of the colour ones and
 #: indistinguishable at reading size -- a Call Report page is black text
 #: on white, so the colour channels were carrying nothing. The colour
@@ -53,6 +51,10 @@ RECORD.mkdir(parents=True, exist_ok=True)
 OUT.mkdir(parents=True, exist_ok=True)
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 sys.path.insert(0, str(CS / "src"))
+
+from credit_suite.workdir import workdir        # noqa: E402
+
+SB = workdir()
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import plain as FPLAIN             # noqa: E402

@@ -33,8 +33,12 @@ import json
 import pathlib
 import sys
 
-SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
-                  r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
+CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
+sys.path.insert(0, str(CS / "src"))
+
+from credit_suite.workdir import workdir        # noqa: E402
+
+SB = workdir()
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 RELEASE = ("S&P Dow Jones Indices, 'S&P Cotality Case-Shiller Index Reports "

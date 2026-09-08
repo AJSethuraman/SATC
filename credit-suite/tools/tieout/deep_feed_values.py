@@ -19,10 +19,12 @@ import pathlib
 import sys
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
-                  r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
 DEEP = SB / "deep"
 sys.path.insert(0, str(CS / "src"))
+
+from credit_suite.workdir import workdir        # noqa: E402
+
+SB = workdir()
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import fields as FF               # noqa: E402

@@ -16,14 +16,16 @@ import sys
 import threading
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-SB = pathlib.Path(r"C:\Users\ajish\AppData\Local\Temp\claude"
-                  r"\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad")
 WB = CS / "example-output" / "Bank_Peer_Monitor.xlsm"
 OUT = SB / "bankshots"
 PDFS = SB / "bankpdf"
 OUT.mkdir(exist_ok=True)
 PDFS.mkdir(exist_ok=True)
 sys.path.insert(0, str(CS / "src"))
+
+from credit_suite.workdir import workdir        # noqa: E402
+
+SB = workdir()
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 import openpyxl                                                  # noqa: E402

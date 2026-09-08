@@ -525,6 +525,124 @@ line, `RCFW3792`, reads `NR` — there is no other column it could have come
 from. **No explanation found.** It is not adjusted, rounded away or hidden: the
 row carries both figures, the gap, and the link to the filing.
 
+### Provenance review and the standing tie-out — 7 September 2026
+
+The firm asked Bassy to go through the provenance and name the real issues.
+Five were found; four were claims the data contradicted, and the data itself
+held up.
+
+| | Finding | Where it stands |
+|---|---|---|
+| 1 | Every merger row said *"Balances are point-in-time and are unaffected."* True of each measurement, false of the series. **15 of the 31 measurable merger quarters move total assets by 10% or more**; Truist doubles. | Rows now carry the assets either side and the size of the step. Test locks it; putting the old sentence back turns it red. |
+| 2 | Twenty-two Case-Shiller series reported as unverified **had been verified** — `fred_caseshiller.py` tied 22 of 22 against S&P's own release and its verdict never reached the file. | Carried through. The national index ties to a published LEVEL and is marked verified; the other 21 tie to a published CHANGE, which pins the move and not the level, so they stay unverified with a note saying exactly that. |
+| 3 | The last hop had never been executed. Every verifier reads what the delivered file was built FROM; two of the four read the raw API response. | Written and run: **143,201 of 143,201 identical, 0 moved.** |
+| 4 | Identity was checked at one end of the window, and the wrong end — `filing-<cert>-MMDDYYYY.pdf` sorted as a string, so "the latest filing" was whichever December sorted last. | Sorted by date, and read at both ends. **17 of 19 carry the same legal name in 2016 as today.** The two: ZB NA became Zions Bancorporation NA (a rename); everything before December 2019 labelled "Truist Bank" is Branch Banking and Trust. |
+| 5 | Every derived citation's evidence read "480 of 480" — the twelve-bank panel. | Restated at 760 from the verifier's own output. |
+
+### The three "not checked" items, measured rather than explained
+
+- **"There is no vintage" was wrong.** Every one of the 760 filings prints
+  `Last Updated on <date>` on its schedule pages — it is in the header of
+  every photograph in every exhibit — and nothing captured it. **442 of 760
+  filings were amended more than 90 days after the quarter they report, and
+  289 more than a year after it.** Bank of America amended its third
+  quarter of 2016 in December 2021. Every bank row now carries
+  `filing_last_updated` and `days_after_quarter_end`.
+
+  It also very likely explains the one difference in the feed. Huntington
+  amended its first quarter of 2026 on 21 August, 143 days after the quarter;
+  the FFIEC serves the amended filing at 29,148,027 and the FDIC's published
+  figure was 29,147,082 when pulled and still is, re-fetched. A lag, not a
+  disagreement — and not proven, because the pre-amendment filing is not
+  obtainable.
+
+- **The FDIC-computed ratios are half checked.** Four of the eight are plain
+  ratios of two figures already tied to the filings. Recomputed from their own
+  verified components: **2,964 of 2,964 agree, none differ.** The other four
+  need average balances or income-statement items this feed does not hold.
+
+- **The macro links were worse than the line suggested.** **53,415 of 77,081
+  rows shipped with no link at all** and the FHFA link 404'd on 13,734 more.
+  Fixed, every URL fetched; three refuse scripted requests and were opened in a
+  browser instead. All verified rows now carry a link and the build refuses to
+  write one without.
+
+### A tie-out that runs with the build — 7 September 2026
+
+The firm: *"when it's ran, it should be tied out."* `run_and_tie_out.py` builds,
+checks, and only then writes the workbook. A failed stage stops the run, so
+there is never a workbook standing on a feed that failed. Five stages, about a
+minute.
+
+**Sized by coverage, not by a count of observations.** What breaks is a
+citation, a form version or a source, so the sample touches each: every bank x
+every field on the newest quarter, plus two random older quarters per bank,
+plus every macro series. About 4,500 comparisons — 3% of the feed, and 100% of
+the banks, 100% of the series, and **69 of 87 fields**; the rest
+are quarterly flows, which need two filings, and ratios the FDIC computes,
+which have no filed line. A planted control fails the run if the checker
+shrugs: **16 of 16 caught**.
+
+**It was wrong first, and that is the useful half.** Written with its own copy
+of the comparison, it reported 157 differences against a feed the full run
+calls clean — every one the copy. It stripped the parenthetical off
+`RCON2200 (+RCFN2200 031)`, which is not a note but the citation. Tenet S3.
+There is now one comparison, `sources/fdic/tieout.py`, validated by running it
+over the whole panel: it reproduces the full run's verdict on **143,201 of
+143,201 values**, including the single difference.
+
+### Descriptions — 87 of 87
+
+Nineteen fields shipped as bare codes because `plain.FIELD` knew the
+sixty-eight the monitor was built for and nothing about the ones added later.
+Written from the caption on the filed page, read off the photographed row.
+LNRELOC, an original field, was blank too. The build refuses to write a field
+with no description.
+
+### Docket `0b2cae0b` — answered 7 September 2026
+
+| | Question | Answer | Their words |
+|---|---|---|---|
+| 1 | The 5.4 GB the tie-out stands on lives in a Windows temp folder | **Move it to the Forge** | *"move to the forge - we will purge at some point"* |
+| 2 | PR #257 has been a draft since 4 September | **Retitle and merge** | |
+| 3 | What the fresh session gets before it ties this out | **Form its own view first** | |
+
+All three matched the recommendation.
+
+### What they caused
+
+**1 — the working folder is a setting now, and the data is on the Forge.**
+`src/credit_suite/workdir.py` resolves it: `$CREDIT_SUITE_WORKDIR` first, then
+the Forge, then the old temp folder so a checkout mid-move still runs, then a
+refusal that names all three. Fifty-two tools had the path typed into them,
+session id and all; none does now, and a test asserts it.
+
+Copied what the tools actually REFERENCE — 2.7 GB, found by reading the
+tools — rather than the 5.4 GB the scratch folder happens to hold, most of
+which is unrelated test runs from other sessions. The old location is
+untouched: `workdir()` prefers the Forge the moment it exists, so the switch
+happened when the copy finished rather than when anything was deleted.
+
+Because they said they will purge, the Forge folder carries a README saying
+**which half cannot be rebuilt**: `banks/` and `filings/`, the 760 filed Call
+Reports as the regulator served them. 442 of the 760 have been amended since
+the quarter they report, so fetching them again returns a different document —
+delete those and a tie-out already done cannot be reproduced, only replaced.
+Everything else regenerates in under half an hour.
+
+Proven rather than assumed: the whole chain re-run from the new location,
+**5 of 5 stages, 0 differences**.
+
+**2 — PR #257.** Checked before merging rather than assumed: credit-suite's
+`main` publishes nothing. The only publishing workflow is `pages.yml` and that
+is the website, so under C5 this is ordinary work rather than a publication.
+
+**3 — the fresh session.** It gets the repository and the two delivered files,
+picks its own targets and writes them down, and only then reads the provenance
+section above. Re-finding something is cheap; missing what this session missed
+is what the second pass is for. Of the five faults found on 7 September, three
+were claims this session had written itself.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
