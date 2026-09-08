@@ -188,3 +188,22 @@ jobs:
       - name: Check the copy against the tenets
         working-directory: website
         run: python3 copy.spec.py
+
+      # sitemap.xml and robots.txt were the only two published files with no
+      # test of any kind. On 7 September 2026 the three guide rows were added to
+      # the sitemap in the same commit that created those pages, stamped twelve
+      # days before the files existed -- and nothing could notice, because
+      # nothing read the file. A lastmod EARLIER than the truth tells a crawler
+      # the newest wording is old, which makes the change the firm just approved
+      # the one least likely to be fetched again.
+      #
+      # Needs full history: it dates each page from `git log` on its own source,
+      # and a shallow checkout would leave it reporting UNKNOWN instead.
+      - name: Checkout full history for the sitemap dates
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the sitemap against the pages that exist
+        working-directory: website
+        run: python3 sitemap.spec.py

@@ -52,6 +52,19 @@ PAGES = ["index.html", "pricing.html", "privacy.html",
 #: visitor reads has to read everything a visitor reads, whatever produced it.
 COPY_IN_SCRIPTS = ["intake-config.js"]
 
+#: THE OTHER HALF OF THE SAME BLIND SPOT, found the same day by walking the form
+#: in a browser. `intake-config.js` above holds the QUESTIONS; `intake.js` is the
+#: RENDERER, and it carries copy of its own -- the consent checkbox, the buttons,
+#: the validation messages. The banned phrase "engagement letter" sat in it,
+#: live on the home page, while this spec reported 39/39 green with
+#: intake-config.js already covered. Half a blind spot still reads as green.
+#:
+#: It needs its own extractor rather than a third entry in COPY_IN_SCRIPTS: that
+#: list is read by `key: "value"` pairs, and a renderer has none -- it builds
+#: HTML by concatenating fragments, so the key-based reader finds nothing and
+#: the assert below would fire on an empty result.
+COPY_IN_RENDERERS = ["intake.js"]
+
 #: The keys in those scripts whose values are shown to a person. Deliberately a
 #: list and not "every string": a URL, an id or a field name is not copy, and
 #: sweeping them in would make this noisy enough to be ignored.
@@ -198,7 +211,30 @@ def script_copy(path: Path) -> str:
     return " ".join(a or b for a, b in re.findall(pattern, src, re.S))
 
 
-for page in PAGES + COPY_IN_SCRIPTS:
+def renderer_copy(path: Path) -> str:
+    """The prose a renderer script emits, out of the HTML it concatenates.
+
+    A renderer has no `key: "value"` pairs to read, so script_copy() finds
+    nothing in it. What it does have is quoted fragments that are glued into
+    HTML, and the visitor reads whatever ends up between the tags.
+
+    So: take every quoted literal, join them in source order, and put the result
+    through the same tag-stripper the .html pages go through. A fragment that
+    ends mid-tag simply leaves a tag the stripper removes.
+
+    Deliberately NOT a JavaScript parser. It over-collects -- class names and
+    attribute fragments come along too -- and that is the safe direction here,
+    because every check run against this text looks for a banned English phrase.
+    "wiz-step" matches nothing on any list. Missing real copy would be the
+    dangerous error; carrying a few class names is not.
+    """
+    src = path.read_text(encoding="utf-8")
+    parts = re.findall(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"", src)
+    glued = "".join(a or b for a, b in parts)
+    return visible_text(glued)
+
+
+for page in PAGES + COPY_IN_SCRIPTS + COPY_IN_RENDERERS:
     path = HERE / page
     # A config script holds DISCRETE LABELS, not prose. The vocabulary tenets
     # apply to both -- a banned phrase is banned wherever a visitor reads it --
@@ -206,11 +242,14 @@ for page in PAGES + COPY_IN_SCRIPTS:
     # option, and 83 of them are not one 300-word sentence. Two of them repeat
     # on purpose ("None of these", "I am not sure"), which is how a form is
     # meant to work, not copy said twice.
-    is_page = page not in COPY_IN_SCRIPTS
+    is_page = page not in COPY_IN_SCRIPTS and page not in COPY_IN_RENDERERS
     if is_page:
         text = visible_text(path.read_text(encoding="utf-8"))
-    else:
+    elif page in COPY_IN_SCRIPTS:
         text = script_copy(path)
+        assert text.strip(), f"{page}: no visitor-facing strings found -- has it changed shape?"
+    else:
+        text = renderer_copy(path)
         assert text.strip(), f"{page}: no visitor-facing strings found -- has it changed shape?"
     low = text.lower()
     sents = sentences(text)
