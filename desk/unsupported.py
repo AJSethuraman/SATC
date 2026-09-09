@@ -273,8 +273,32 @@ def _oneline(value: str) -> str:
 
 
 def _quote(value: str) -> list[str]:
-    """Escape arbitrary text into lines that cannot be read as structure."""
-    return [f"> {ln}" if ln else ">" for ln in value.split("\n")]
+    """Escape arbitrary text into lines that cannot be read as structure.
+
+    EVERY LINE SEPARATOR, NOT ONLY `\n`. This split on `"\n"` alone, so a bare
+    carriage return sailed through unquoted -- and Python opens files with
+    universal newlines, which turns that `\r` into a line break on the way back
+    in. The text after it therefore arrived WITHOUT its `> ` prefix and was read
+    as structure.
+
+    A reply of `"U1 yes\r## X · injected\r\r**Failed because:** nonsense"`
+    inserted an entry called X into the queue and then made the whole file
+    unparsable -- the same total loss as the `_inline` shadowing fixed beside
+    it, reached by a different door. It is not exotic: a phone keyboard, a paste
+    out of a document and anything Windows-authored all produce lone `\r`.
+
+    LINES ARE PRESERVED; THE BYTES BETWEEN THEM ARE NOT, and they cannot be. The
+    file has no way to hold a bare `\r` -- the reader would convert it anyway --
+    so the honest thing is to write one `> ` line per line the READER will see.
+    `splitlines()` is deliberately a superset of the three separators universal
+    newlines recognises: splitting somewhere the reader would not merely yields
+    an extra quoted line, which is safe, while failing to split where it WOULD
+    is what put an entry in this file that nobody wrote.
+
+    Found by a review, on the day the firm began replying to the desk from a
+    phone.
+    """
+    return [f"> {ln}" if ln else ">" for ln in value.splitlines() or [""]]
 
 
 def _quoted(block: str, label: str, where: str = "") -> str:
