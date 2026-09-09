@@ -447,6 +447,39 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-09 — Three answers, all three as recommended, and one of them takes a
+  wrong answer off `main` (desk).**
+
+  `dec-merge350` — **"Merge it."** Squash-merged as `810e5dc`. What it removes
+  matters more than what it adds: `main` had been answering plain bookkeeping
+  questions out of tax law since the previous night's merge. Six of six —
+  *"how do we record sales in the books?"*, *"does that go on the income
+  statement?"* — classified `federal-tax` with no straddle flagged. What it adds
+  is the notification a parked question sends the firm, `classified` set where
+  candidates are actually built rather than only where they are rendered, the
+  parked queue moved out of the versioned plugin cache, and desk **0.18.0** —
+  because installable is not installed at the same version number.
+
+  `dec-order` — **"Build the pool beside the desks; switch on evidence."** So
+  `dec-kill` is a decided destination and not an immediate demolition. The
+  word-matching stays alive until the pool answers the same questions at least
+  as well, because deleting it first would leave the next close with nothing to
+  ask, and the standing instruction is to keep running closes and fix what they
+  hit.
+
+  `dec-expense` — **"Leave it — the matching is being deleted anyway."** One
+  route survived the income-side narrowing: *"is the owner draw recorded as an
+  expense?"* still reaches `federal-tax` on `expense`, a word that predates the
+  widening and holds up the whole deduction side. It stays, asserted as-is in
+  `test_the_income_side_reaches_a_domain.py` so the residue is visible rather
+  than forgotten, and it dies with the routing under `dec-order`.
+
+  **What the three have in common is worth naming.** Each recommendation rested
+  on a measurement taken before the docket was written — six book questions
+  classified, the version numbers compared, the surviving route isolated to one
+  word — rather than on an argument. The one place tonight where a change went
+  out on an argument instead (the nineteen-word widening) is the one an outside
+  review had to catch.
 - **2026-09-08 — The desks are killed, the branch is merged, and M2 is a
   correction rather than a choice (desk).** Three answers on the post-close
   docket.
