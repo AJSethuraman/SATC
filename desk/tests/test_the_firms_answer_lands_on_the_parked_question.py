@@ -16,6 +16,8 @@ from a chat message.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 import unsupported
@@ -222,3 +224,44 @@ def test_a_reply_reaches_settle_end_to_end(tmp_path):
     assert unsupported.open_questions(q) == []
     assert "income unless it traces to a loan" in \
         unsupported.parse(q.read_text(encoding="utf-8"))[0].answer
+
+
+def test_the_answer_keeps_markdown_the_firm_typed():
+    """VERBATIM MEANT VERBATIM, and it did not. `reply_in` returned
+    `_flatten(text)` — a helper written to decide what a NOTIFICATION may carry,
+    which strips `*`, backticks, `#` and `>` because a notification renders no
+    markdown. An answer is not a notification, so
+    "U1 use **income** and `loan`" was stored as "U1 use income and loan".
+    A quieter version of the mangling this function was already rewritten once
+    to stop, and it contradicted the word "verbatim" in its own docstring."""
+    said = "U1 use **income** and `loan`"
+    assert notifying.reply_in(said) == ("U1", said)
+
+
+def test_a_multi_line_answer_keeps_its_lines():
+    said = "U1 income.\nUnless it traces to a loan."
+    uid, answer = notifying.reply_in(said)
+    assert uid == "U1" and answer == said
+
+
+def _holes():
+    import sys
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root / "tools"))
+    import holes
+    return holes
+
+
+def test_the_report_stops_naming_an_answered_question(tmp_path, monkeypatch):
+    """`settle` closes an entry and the entry STAYS in the file, so the reader
+    has to filter what the store deliberately does not. Without this the report
+    went on naming a hole the firm had already answered — the whole thing
+    settling was built to stop. Caught by a review."""
+    monkeypatch.setenv(unsupported.QUEUE_ENV, str(tmp_path / "CLOSE.md"))
+    q = _queue(tmp_path, "first question", "second question")
+    holes = _holes()
+    before = holes.read([q])
+    unsupported.settle(q, "U1", "an answer")
+    after = holes.read([q])
+    assert len(before) - len(after) == 1, (
+        "settling an entry did not remove it from the report")

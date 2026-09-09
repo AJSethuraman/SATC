@@ -819,11 +819,38 @@ def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
 
 
 def _inline(block: str, label: str, where: str) -> str:
-    """A field sharing a line with others, separated by ' · '."""
-    m = re.search(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)", block)
-    if not m or not m.group(1).strip():
-        raise RecordError(f"{where}: no '{label}' field")
-    return m.group(1).strip()
+    """A field sharing a line with others, separated by ' · '.
+
+    A QUOTED BODY CANNOT SHADOW A FIELD, and until 9 September 2026 it could.
+    This searched the whole block, so the same characters appearing INSIDE a
+    value were indistinguishable from the field itself. A parked question
+    reading *"Should the report say **Answered:** here?"* was read as the
+    `Answered` field, `here?` was handed to the date parser, and the RecordError
+    that raised made EVERY entry in the file unreadable -- not one bad row, the
+    whole store, with nothing saying which sentence did it.
+
+    Every value in these files is arbitrary text from outside: a question is the
+    caller's, an answer is the firm's, a conclusion is a model's. So this is not
+    about one field. `Failed because`, `Recorded` and the rest were shadowable
+    the same way and nobody had tried.
+
+    THE LINE START IS NOT THE TEST, because `render` writes
+    `**Failed because:** x · **Recorded:** y` and the second field is genuinely
+    mid-line. What separates a field from a look-alike is that every free-form
+    value is written by `_quote`, which prefixes `> `. So a candidate on a
+    quoted line is not a field, and that is the whole rule.
+
+    Found by a review of the commit that added `Answered`, on the morning the
+    firm was about to run a live close against it.
+    """
+    pattern = re.compile(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)")
+    for line in block.split("\n"):
+        if line.lstrip().startswith(">"):
+            continue
+        m = pattern.search(line)
+        if m and m.group(1).strip():
+            return m.group(1).strip()
+    raise RecordError(f"{where}: no '{label}' field")
 
 
 def _one_of(value: str, allowed: tuple[str, ...], label: str, where: str) -> str:

@@ -214,7 +214,15 @@ def _read_one(path, where: str) -> list[Entry]:
         rows = json.loads(path.read_text(encoding="utf-8"))
         return [_from_run(r, where) for r in rows if not r.get("served")]
     return [_from_queue(u, where)
-            for u in unsupported.parse(path.read_text(encoding="utf-8"))]
+            for u in unsupported.parse(path.read_text(encoding="utf-8"))
+            # ANSWERED IS NOT OUTSTANDING. `settle` closes an entry and the
+            # entry STAYS in the file -- the queue records what was asked, not
+            # only what is left -- so the reader has to do the filtering the
+            # store deliberately does not. Without this the report went on
+            # naming a hole the firm had already answered, which is the whole
+            # thing settling was built to stop. Caught by a review of the
+            # commit that added it.
+            if not u.settled]
 
 
 def _entries(items) -> list[Entry]:

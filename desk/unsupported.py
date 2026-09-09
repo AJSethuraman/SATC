@@ -236,12 +236,30 @@ def parse(text: str) -> list[Unsupported]:
             showed=_field(block, "Desk showed", where, required=False),
             asked_by=_field(block, "Asked by", where, required=False),
             answered=(_date(_inline(block, "Answered", where), "answered", where)
-                      if "**Answered:**" in block else ""),
+                      if _ANSWERED_FIELD.search(block) else ""),
             answer=_quoted(block, "Answer"),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
     return out
+
+
+#: THE `Answered` FIELD, ANCHORED TO THE START OF A LINE.
+#:
+#: A SUBSTRING SEARCH LOST THE WHOLE QUEUE. `parse` asked `"**Answered:**" in
+#: block`, and every field in this file can contain arbitrary text -- the
+#: question is the caller's, the answer is the firm's. A parked question reading
+#: *"Should the report say **Answered:** here?"* matched, `_inline` then found no
+#: real field and read the prose after it as a date, and the RecordError that
+#: raised made EVERY entry in the file unreadable: not one bad row, the whole
+#: store. `holes.py` could not read it, `settle` could not read it, and nothing
+#: said which sentence did it.
+#:
+#: Found by a review of the commit that added the field, on the morning the firm
+#: was about to run a live close against it. Quoted bodies begin with "> ", so
+#: anchoring to the line start is exactly the difference between the FIELD and
+#: the same characters appearing inside a value.
+_ANSWERED_FIELD = re.compile(r"^\*\*Answered:\*\*", re.M)
 
 
 def _uncite(value: str) -> str:
