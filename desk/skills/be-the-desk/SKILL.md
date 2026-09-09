@@ -85,11 +85,12 @@ if not os.path.isdir(os.path.join(ROOT, "desks")):
 sys.path.insert(0, ROOT)
 from pathlib import Path
 import ask
+import unsupported
 
 briefs, filed = ask.consult_or_file(
     "the bank statement shows a $10 service charge and nothing for it is in "
     "the books",
-    queue=Path(ROOT) / "unfiled" / "CLOSE.md")
+    queue=unsupported.default_queue())   # NOT Path(ROOT)/... — see below
 
 for desk, brief in briefs:
     ...  # read `brief`, then answer from it
@@ -293,3 +294,58 @@ you cannot miss it instead.
   a desk that answered would be inventing.
 - **A defect in the software.** If two legs of a payment do not agree because the
   matcher failed, that is a bug, not a question.
+
+## When nothing holds the question: park it, tell the firm, and let the close go on
+
+**The firm, 8 September 2026:** *"Nothing stops if it isn't a blocker. I'm
+addition, I want a good way for me to be directly notified so I can answer as
+quickly as I can"*.
+
+So a question no authority settles is **parked, not held**. `consult_or_file`
+files it and hands the entry back; the doer is told it is parked and carries on.
+Nothing waits on the firm unless there is genuinely nothing to serve and the
+close cannot proceed without it.
+
+```python
+briefs, filed = ask.consult_or_file(question, queue=QUEUE)
+if filed:
+    print(notifying.for_entry(filed))   # the exact characters to send
+```
+
+**Send what `for_entry` returns, verbatim, with `PushNotification`. Compose
+nothing.** Not a summary of it, not a tidied version, not the same thing in your
+own words. The line is built in the engine and held by tests for a reason this
+repository has already paid for: the same policy written as skill prose was
+obeyed *"100%, 4%, 0% of runs"*. A sentence you may not rewrite is a sentence a
+test can hold.
+
+**If `for_entry` raises, DO NOT send anything and do not work around it.** It
+refuses when the text carries something shaped like an SSN, an EIN or an account
+number, because a push leaves the machine and lands on a lock screen anyone
+nearby can read. The refusal names the queue id — the question is filed and
+safe. Say that it could not be notified and why, and move on. Re-wording the
+question to get past the guard is the one thing you must never do.
+
+**Then tell the doer.** They asked a question and are entitled to know it is
+parked, which reference it has, and that they should keep going.
+
+## Never put the queue inside the plugin
+
+`unsupported.default_queue()` decides where a parked question lives. **Call it.
+Do not build a path from `ROOT`,** which is what this file used to say and what
+a review caught:
+
+`ROOT` resolves to `~/.claude/plugins/cache/satc/desk/<version>` — the highest
+version directory this skill can find. A queue written there lives inside **one
+release**. Update the plugin and `ROOT` moves; this skill and `tools/holes.py`
+both look at the new root, find nothing, and every question the firm was waiting
+to answer is gone with no error raised anywhere. Cache cleanup could take it.
+
+There is a second reason and it is the harder one. A parked question is written
+by a doer mid-close and can name anything about a client. `CLAUDE.md`: a
+client's affairs in a checkout are one `git add` from being published. The
+engagement reader was moved out of the plugin tree for that reason; this store
+belongs out with it.
+
+`SATC_DESK_QUEUE` overrides it if a deployment needs somewhere else. Set that
+rather than hard-coding a path.

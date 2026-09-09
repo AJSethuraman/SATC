@@ -447,6 +447,50 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-08 — The desks are killed, the branch is merged, and M2 is a
+  correction rather than a choice (desk).** Three answers on the post-close
+  docket.
+
+  `dec-kill` — **"Kill the desks; one pool."** Decided on a measurement, not an
+  argument: the deposits question written six ways reached no desk three times
+  and the WRONG desk twice — once meals-and-entertainment, which fired on
+  `receipts` meaning the paper you keep while the question meant revenue. Occam's
+  line was *"The word that saved me was 'bank'."* What dies is the word-matching
+  that decides which desk a question reaches. What survives is stored against the
+  citation rather than the desk: the ratified positions, the per-citation
+  narrowing, the second reader, and fetching live from the publisher.
+
+  `dec-merge349` — **"Merge it."** Squash-merged as `e074497`; PR #349 carried
+  the round trip on 0.17.0, the 43-question pilot, the split-measured guard, and
+  the `ask-desk` transport fix without which a doer following the skill as
+  written cannot send anything at all.
+
+  `dec-books` — **NEITHER OPTION. The framing was wrong.** The firm, in full:
+  *"I keep telling you that the point of this is to have it look for sources and
+  convey and if it is not directly authoritative it would run the opinion by
+  me."* Both outcomes offered — build the book side, or refuse book questions as
+  out of scope — assumed a desk answers from a stocked shelf and is silent off
+  it. **That is not the design.** The desk GOES AND LOOKS, says what it found and
+  how binding it is, and where what it found is not directly authoritative it
+  brings the opinion to the firm instead of either serving it or refusing. So the
+  question "does any desk hold a GAAP source" was the wrong question: holding is
+  not the mechanism. *"I keep telling you"* is the operative phrase — `dec-168`
+  said the same thing on the previous docket (*"Not only do we let it fetch but
+  we might have to reason and figure it why it stopped"*) and it was read as a
+  point about depreciation rather than about the shape of the whole thing.
+
+  **`dec-kill` and `dec-books` are one instruction, not two.** A pool that
+  searches, grades what it finds, and escalates the non-binding is the same
+  design read from two directions.
+
+  **Also standing, from the same exchange:** *"if the other agent sends feedback
+  on the desk ensure we discuss it first and you break down what it means and
+  such"* — feedback from a doer about how the desk behaved STOPS and comes to the
+  firm as a breakdown before anything is changed. Its incident: the deposits
+  report arrived with three findings and this session fixed two and pinned the
+  third before saying what any of them meant. A question sent TO a desk is
+  unaffected and is still answered on the spot.
+
 - **2026-09-08 — Six docket answers, and the three that are a correction rather
   than an instruction (desk, canon).** Applied: `dec-guard` *"Leave it demoted,
   add the judgment requirement"* — an off-source answer now needs a second reader

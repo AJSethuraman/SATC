@@ -123,6 +123,20 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
     """
     root = root or HERE
     found: list[tuple[str, str, object]] = []
+    # THE STABLE QUEUE FIRST, and it is outside `root` on purpose. A parked
+    # question used to be written to `root/unfiled/`, where `root` is the
+    # INSTALLED PLUGIN -- so the store died with the release that wrote it and
+    # this report went quietly blank after an upgrade. `unsupported`
+    # decides where it lives now; this reads from there rather than
+    # re-deriving a path, because two opinions about one location is the
+    # duplicate-matcher fault in a different file.
+    stable = _stable_queue()
+    if stable is not None and stable.is_file():
+        found.append((DURABLE, _outside(stable), stable))
+    # AND THE IN-TREE PATH IS STILL READ, because a queue written before the
+    # move is exactly the queue somebody is still waiting on an answer for.
+    # Aggregating beats migrating: nothing is moved, nothing is lost, and the
+    # report says which file each entry came from.
     for p in sorted((root / "unfiled").glob("*.md")):
         found.append((DURABLE, _where(p, root), p))
     for d in sorted((root / "desks").iterdir()) if (root / "desks").is_dir() else []:
@@ -134,6 +148,41 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
         p = runs[-1] / "served.json"
         found.append((LIVE, _where(p, root), p))
     return found
+
+
+def _stable_queue():
+    """The queue location `unsupported` owns, or None if it cannot be asked.
+
+    IMPORTED LATE AND FORGIVINGLY. This tool is run from a checkout, from an
+    installed plugin, and from a session that has only added `tools/` to the
+    path; a hard import at module scope would turn "the report cannot find the
+    package" into "the report will not start".
+    """
+    try:
+        import unsupported
+    except Exception:
+        try:
+            import sys
+            sys.path.insert(0, str(HERE))
+            import unsupported
+        except Exception:
+            return None
+    try:
+        return unsupported.default_queue()
+    except Exception:
+        return None
+
+
+def _outside(path) -> str:
+    """A path that is NOT under `root`, written so a person can find it.
+
+    `_where` calls `relative_to(root)` and raises for anything outside the
+    tree, which is now the normal case for the durable queue.
+    """
+    try:
+        return "~/" + pathlib.Path(path).relative_to(pathlib.Path.home()).as_posix()
+    except ValueError:
+        return pathlib.Path(path).as_posix()
 
 
 def _where(path, root) -> str:

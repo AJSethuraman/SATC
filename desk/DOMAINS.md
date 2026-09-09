@@ -67,15 +67,54 @@ Title 26
 
 
 
-**AND THE NOUNS OF THE INCOME SIDE WERE MISSING WHERE THE VERBS OF THE
-DEDUCTION SIDE WERE PRESENT.** Found on the fourth question of the first live
-close, 8 September 2026 — asked only because the firm challenged the doer with
-*"Did you ask the desk?"* about the largest figure in the books. `taxable` was
-in this list; `gross receipts` was not. One pair isolates it: *"is an
-unexplained bank deposit taxable income?"* reached `federal-tax`; *"are
-unidentified deposits gross receipts?"* reached **nothing**. The gate switched
-on for the word an examiner would use and stayed off for the word a bookkeeper
-would use — and the income side is exactly where book and tax diverge hardest.
+**ONE INCOME-SIDE PHRASE WAS MISSING, AND THE FIRST FIX ADDED NINETEEN WORDS.**
+Found on the fourth question of the first live close, 8 September 2026 — asked
+only because the firm challenged the doer with *"Did you ask the desk?"* about
+the largest figure in the books. One pair isolated it: *"is an unexplained bank
+deposit taxable income?"* reached `federal-tax` on `taxable`, already in this
+list; *"are unidentified deposits gross receipts?"* reached **nothing**.
+
+**So `gross receipts` is added, and that is the whole of it.** The first attempt
+added eighteen more — `revenue`, `income`, `sales`, `proceeds`, `draw`,
+`refund`, `contribution`, `distribution` and the rest of the ordinary nouns of
+the income side — and a review of that commit caught what they cost. Measured
+on six plain bookkeeping questions, every one classified `federal-tax` **with no
+straddle flagged**:
+
+| Question | Fired on |
+|---|---|
+| Should loan proceeds be recorded as revenue? | `revenue`, `proceeds` |
+| How do we record sales in the books? | `sales` |
+| Is the owner draw recorded as an expense? | `draw` |
+| Which account does the customer refund go to? | `refund` |
+| Do we recognise revenue when the invoice is raised? | `revenue` |
+| Does that go on the **income statement**? | `income` |
+
+A desk would have answered a balance-sheet question from IRS authority and said
+nothing about it. **That is the failure this whole file exists to stop**, and the
+`us-gaap` section below already warns about it from the other side: it excludes
+`book`, `books` and `accrual` because *"a domain that claims the ordinary words
+of accounting swallows every bookkeeping question in the practice."* Six hours
+after the firm said *"the point of this is to have it look for sources and
+convey and if it is not directly authoritative it would run the opinion by me"*,
+the fix pointed the other way.
+
+**THE CAUSE WAS THE TEST, NOT THE LIST.** The desk reported ONE pair. The test
+written from it invented five more sentences — *"is this deposit revenue?"*,
+*"is a customer refund income to us?"*, *"are loan proceeds receipts?"* — and
+then the vocabulary was widened until the inventions passed. A test built from
+imagined phrasings is a specification nobody agreed to, and the code obliged it.
+
+**AND THOSE INVENTED SENTENCES REACHING NOTHING IS THE RIGHT ANSWER.** *"Is this
+deposit revenue?"* genuinely straddles book and tax; no vocabulary can place it,
+and guessing is the original defect. A question that reaches no domain is now
+filed by `ask.consult_or_file` and the firm is notified — so narrowing is safe
+in a way it was not before the escalation path existed.
+
+**A term of art is added when a real question needs it. Not before.**
+`gross income` and `taxable income` are perfectly good tax terms and are
+deliberately absent: no measured question required them, and adding vocabulary
+nothing asked for is how the list got to nineteen.
 
 **THE PAST PARTICIPLE IS THE FORM A CLOSE IS WRITTEN IN, and it was missing.**
 Found in the first live close, 8 September 2026. `"do we deduct or capitalize
@@ -87,7 +126,7 @@ domain the wrong-body-of-authority gate is not watching at all, and it did no
 harm that night only because every desk reached happened to be a tax desk. The
 gate was off and the room happened to be empty.
 
-**Fires on:** deduct, deducted, deducting, deductible, deduction, expense, expensed, expensing, depreciate, depreciated, depreciation, capitalize, capitalized, capitalise, capitalised, capitalizing, capitalising, capitalization, capitalisation, taxable, taxpayer, gross receipts, receipt, gross income, income, revenue, revenues, sales, proceeds, rebate, rebates, refund, refunds, reimbursement, contribution, contributions, distribution, distributions, draw, draws, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortized, amortizing, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
+**Fires on:** **Fires on:** deduct, deducted, deducting, deductible, deduction, expense, expensed, expensing, depreciate, depreciated, depreciation, capitalize, capitalized, capitalise, capitalised, capitalizing, capitalising, capitalization, capitalisation, taxable, taxpayer, gross receipts, return, filing, 1099, w-2, schedule c, section 179, safe harbour, safe harbor, de minimis, basis, amortize, amortized, amortizing, amortization, withholding, estimated tax, irs, treasury, revenue ruling, lease, leases, leased, rent, rental
 
 **Why these hosts:** each is the United States Government publishing its own
 text, so 17 U.S.C. § 105 puts it in the public domain and it is storable in full.

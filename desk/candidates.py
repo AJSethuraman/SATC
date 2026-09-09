@@ -210,6 +210,22 @@ def consider(*, question: str, position: str, citation: str, url: str,
         # acted on, because `tier_for` classifies a host and the record
         # classifies a document. See this module's opening.
         tier=source.tier,
+        # AND NOT PRINTED AS THIS DOCUMENT'S TIER, which is a separate flag
+        # because this line and the one above disagree on purpose.
+        #
+        # THE FIX THAT PASSED ITS TESTS AND MISSED PRODUCTION. `classified` was
+        # added to `Served` after the first live round trip printed
+        # `primary - not binding` above a note saying nobody had classified the
+        # document, and the desk that served it said what that costs: "Both
+        # cannot be informative ... a tired reader keeps the word 'primary' and
+        # drops the paragraph." The flag was then set in `engine._serve`, where
+        # `source.id == "candidate"` is checked -- and THIS function builds its
+        # own `Served` and never goes through there, so the live candidate path,
+        # the only path that has candidates, kept the misleading badge.
+        #
+        # Found by a review of that commit, not by its tests. The tests
+        # exercised the renderer; nothing exercised the caller.
+        classified=False,
         checked=source.checked,
         binding=False,
         caveat=(
