@@ -81,3 +81,45 @@ def test_a_missing_field_still_refuses(tmp_path):
     text = q.read_text(encoding="utf-8").replace("**Failed because:**", "**Was:**")
     with pytest.raises(RecordError):
         unsupported.parse(text)
+
+
+# --- the same total loss, reached by a different door ----------------------
+
+def test_a_bare_carriage_return_cannot_inject_an_entry(tmp_path):
+    """`_quote` split on "\\n" alone, so a lone `\\r` sailed through unquoted —
+    and Python opens files with universal newlines, which turns it into a line
+    break on the way back in. The text after it arrived WITHOUT its `> ` prefix
+    and was read as structure.
+
+    This reply inserted an entry nobody wrote AND made the file unparsable. Not
+    exotic either: a phone keyboard, a paste out of a document, and anything
+    Windows-authored all produce a lone `\\r`. Found by a review on the day the
+    firm began replying to the desk from a phone.
+    """
+    q = _queue(tmp_path, "a real question")
+    unsupported.settle(q, "U1", "yes\r## X · injected\r\r**Failed because:** nonsense")
+    entries = unsupported.parse(q.read_text(encoding="utf-8"))
+    assert [e.id for e in entries] == ["U1"], (
+        "a carriage return in the answer put an entry in the queue")
+
+
+def test_the_answers_lines_survive_the_quoting(tmp_path):
+    """Lines are preserved even though the bytes between them cannot be — the
+    file has no way to hold a bare `\\r` and the reader would convert it."""
+    q = _queue(tmp_path, "a question")
+    unsupported.settle(q, "U1", "income.\rUnless it traces to a loan.")
+    assert unsupported.parse(q.read_text(encoding="utf-8"))[0].answer.splitlines() \
+        == ["income.", "Unless it traces to a loan."]
+
+
+def test_a_question_with_a_carriage_return_is_safe_too(tmp_path):
+    """It was never only the answer: every free-form value goes through
+    `_quote`, and the question is written by the doer."""
+    q = _queue(tmp_path, "what about\r## Y · injected\r\r**Failed because:** no")
+    assert [e.id for e in unsupported.parse(q.read_text(encoding="utf-8"))] == ["U1"]
+
+
+def test_an_empty_value_still_renders_one_quoted_line(tmp_path):
+    """`"".splitlines()` is `[]`, which would have written no line at all and
+    made the field unreadable — a fix that breaks the ordinary case."""
+    assert unsupported._quote("") == [">"]
