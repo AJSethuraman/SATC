@@ -884,6 +884,67 @@ a ratio nobody could check.
 - The covering document was rebuilt and **opened**: 105 fields, 156,881 values,
   137,424 checked, 2 disagreements.
 
+### Two independent verifiers — 9 September 2026
+
+The firm: *"go through here to verify what was actually truly tied out so we can
+tell the original agent."* Two agents, one per half, each forbidden to import,
+call or copy `filing.py`, `tieout.py` or anything in `tools/tieout/`; each wrote
+its own citation parser, resolver and evaluator, and the macro one downloaded
+every publisher's file and built its own crosswalks. Full report:
+`credit-suite/docs/tie-out/WHAT-IS-ACTUALLY-TIED-OUT-2026-09-09.md`.
+
+**The claim holds and nothing is overstated.** Of the 137,424 values claimed as
+checked against an outside document: **135,580 exactly equal**, **1,775 agree to
+the publisher's own printed precision**, **69 no longer match** (G.19, inside the
+Fed's revision window — a vintage effect, and the macro side carries no `as_of`).
+Bank 71,580 of 71,580; macro 65,844 of 65,844 located in the publisher's own file
+and compared observation by observation, no sampling. Not circular: 400 of 400
+delivered values match the live FDIC API, and 1,171 of 1,171 cited codes agree
+between the printed facsimile and the machine-readable copy.
+
+**The feed understates itself by 5,028 rows.** Of 8,220 published as
+unverifiable: the 114 form-change rows all check out (composition derived from
+2017 where the total IS printed, control-tested 2,644 of 2,644); `EEFFR`
+reproduces 760 of 760 — its published citation omits `RIADC216`, goodwill
+impairment, which is why 15 quarters failed; `LNLSGR5` is a 2-to-5 point average
+of quarter-end balances, not RC-K, and 704 of 760 reproduce; 410 of 496 merger
+rows reproduce arithmetically.
+
+**Both DIFFERS confirmed, and they are one event.** The FDIC also publishes
+`RWAJ` 206,827,694 against the filing's 206,904,227, and 29,147,082 / 206,827,694
+= 14.092446439982066 exactly. One coherent restatement of three figures, which
+strengthens the amendment hypothesis. `RWAJ` is not among the 105 fields.
+
+**Seven defects were introduced or left open by the 8 September pass** — the pass
+whose whole subject was this failure mode. The worst is on `main`: the covering
+document's roster prints **0** where **114** belongs and sums to 156,767 against
+its own headline of 156,881, because the delivered wording changed and
+`build_covering_document.py:76` still counts the old string. Also: "eight of the
+87 fields" where the denominator is 105; a verdict split that made 1,520 rows
+claim their denominators are verified while the same file says they are not; a
+page-6 classifier that describes 1,520 citation-less rows as arithmetic; a note
+recording a search of the wrong space; `EEFFR` reported as not reproducing when
+it does; and the 114 reported as COULD NOT when they were closeable.
+
+**Inherited:** 56 first-quarter rows whose note prescribes a subtraction in a
+quarter where the year-to-date IS the quarter — 46 reproduce with no subtraction,
+and following the note gives negative nonsense.
+
+**The macro half's own:** the workbook's THE SOURCES tab ships an unfilled
+template for FHFA (*"0 observations here were checked against those files, back
+to -"* — 14,160 were); BLS, the largest publisher at 31,244 rows, is never
+mentioned there at all; a macro tolerance of 0.005 exists and no delivered
+document discloses it, while the production diagram says "difference 0"; 2,825
+rows carry TIED with a non-zero difference and one sits at 99.2% of the
+tolerance; the H.8 crosswalk picks the series that agrees most and then reports
+the agreement, so it cannot fail by construction; Case-Shiller's national index
+IS obtainable free one release at a time, so "S&P sells the history" and "behind
+a paywall" are overstated; and the single S&P row has no retained copy of its
+source document, the one link in the chain that cannot be reopened.
+
+**Not fixed.** The firm has the report; nothing was changed on the strength of
+it. The roster defect is live on `main`.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
