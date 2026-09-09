@@ -27,12 +27,17 @@ import sys
 import time
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-FILINGS = SB / "filings"
 sys.path.insert(0, str(CS / "src"))
 
 from credit_suite.workdir import workdir        # noqa: E402
 
 SB = workdir()
+# `FILINGS = SB / "filings"` sat two lines ABOVE `SB = workdir()` from the move
+# to the Forge until 8 September 2026, so this tool -- the one that decides
+# every bank verdict in the delivered file -- raised NameError on import and
+# had done since. Nothing caught it: the standing run starts downstream, at
+# build_export, on the rows this tool wrote before the move.
+FILINGS = SB / "filings"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 import openpyxl                                                  # noqa: E402
@@ -62,19 +67,28 @@ mergers = json.loads((SB / ("merger_records_deep.json" if DEEP
                            else "merger_records.json")).read_text())
 index = json.loads((SB / "banks" / "index.json").read_text())
 
-#: quarterly flow field -> the year-to-date field the filing actually reports
-FLOW_EXPR = {
-    "NTCRCDQ": "RIADB514-RIADB515",
-    "NTAUTOQ": "RIADK129-RIADK133",
-    "NTCIQ": "RIAD4645+RIAD4646-RIAD4617-RIAD4618",
-    "NTCONOTQ": "RIADK205-RIADK206",
-    "NTRERESQ": "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218",
-    "NTRECONQ": "RIADC891+RIADC893-RIADC892-RIADC894",
-    "NTRENREQ": "RIADC895+RIADC897-RIADC896-RIADC898",
-    "NTREMULQ": "RIAD3588-RIAD3589",
-}
-CAPITAL = {"RBC1AAJ": ("7204", "RC-R Part I line 31, Tier 1 leverage ratio"),
-           "RBCRWAJ": ("7205", "RC-R Part I line 51, total capital ratio")}
+#: The fields the filing reports year-to-date, so that a quarter is this
+#: filing less the previous one. WHICH fields those are is a fact about the
+#: form and belongs here; WHAT LINE each one cites does not, and used to be
+#: copied into this file beside the list. The copy went stale in the one way
+#: that matters: `NTCIQ`'s citation named only the 031 form's split, the seed
+#: had carried both forms since 5 September, and 63 values on banks filing the
+#: 041 were published as lines their bank had not filed. The expressions are
+#: read from the seed below, where the file already says the seed is the source
+#: of truth.
+FLOW_FIELDS = ("NTCRCDQ", "NTAUTOQ", "NTCIQ", "NTCONOTQ", "NTRERESQ",
+               "NTRECONQ", "NTRENREQ", "NTREMULQ")
+CAPITAL = {"RBC1AAJ": ("7204", "RC-R Part I 31 from 2020Q1, 44 before it, "
+                               "Tier 1 leverage ratio"),
+           "RBCRWAJ": ("7205", "RC-R Part I 51 from 2020Q1, 43 before it, "
+                               "total capital ratio")}
+#: How close two capital ratios must be to be called the same figure. The
+#: filing reports a fraction to six places and the FDIC publishes a percent to
+#: four, so honest rounding never exceeds 0.00005 -- measured over all 1,520
+#: rows, not assumed. The tolerance was 0.005, a hundred times what rounding
+#: needs, and the one value that used the room was a real disagreement:
+#: Huntington's total capital ratio at 2026-03-31, off by 0.00475.
+CAPITAL_TOL = 0.0001
 
 
 def load(cert, iso):
@@ -97,39 +111,33 @@ def prev_quarter(iso):
     return "%04d-%02d-%02d" % (py, pm, {3: 31, 6: 30, 9: 30, 12: 31}[pm])
 
 
-def evaluate(expr, facts, lenient=False):
-    """Sum a provenance expression over one filing.
+_PARSED = {}
 
-    ``lenient`` treats an absent code as zero and reports which were absent.
-    A bank with no non-U.S. C&I lending does not file RIAD4646 at all, and its
-    absence means nothing was lent -- not that the figure is unknown. Strict
-    mode is right for the bank being checked; lenient is right for summing an
-    acquired bank's prior year-to-date, where one missing line silently made
-    the entire merger adjustment zero.
+
+def resolve(expr, facts, lenient=False):
+    """Resolve a provenance expression over one filing, in dollars.
+
+    `(dollars, the codes used, the codes absent)`, or None when a required term
+    is missing. It is a thin wrapper over `filing.filed_dollars`, deliberately:
+    this function used to be a SECOND resolver that took the expression
+    literally, so a citation carrying both versions of the form resolved
+    correctly on the balance path and not here. Two resolvers is the fault; one
+    is the fix.
     """
-    total, sign, buf, tokens = 0.0, 1, "", []
-    for ch in expr:
-        if ch in "+-":
-            tokens.append((sign, buf.strip()))
-            sign = 1 if ch == "+" else -1
-            buf = ""
-        else:
-            buf += ch
-    tokens.append((sign, buf.strip()))
-    absent = []
-    for sgn, code in tokens:
-        if not code:
-            continue
-        v = facts.get(code)
-        if v is None:
-            if not lenient:
-                return None
-            absent.append(code)
-            continue
-        total += sgn * float(v)
+    if expr not in _PARSED:
+        _PARSED[expr] = F.parse_mdrm(expr)
+    parsed = _PARSED[expr]
+    if parsed is None:
+        return None
+    return F.filed_dollars(facts, parsed, lenient=lenient)
+
+
+def evaluate(expr, facts, lenient=False):
+    """`resolve` in the shape the callers below want: dollars, or None."""
+    got = resolve(expr, facts, lenient=lenient)
     if lenient:
-        return total, absent
-    return total
+        return (0.0, []) if got is None else (got[0], got[2])
+    return None if got is None else got[0]
 
 
 def base_is_adjusted(landed, iso, field, expr, pfacts):
@@ -236,10 +244,19 @@ for entry in index:
                 cands = [v for k, v in facts.items()
                          if re.fullmatch(r"RC[A-Z][AW]" + tail, k)]
                 theirs = min(cands) * 100 if cands else None
+                # A bank may file the same ratio under more than one capital
+                # framework, and the one that binds is the LOWER. Saying so in
+                # the row matters: 293 of these had more than one column, so
+                # the minimum was a real choice and not a formality. The RBC
+                # dollar field has said this in its own note since 5 September.
                 rec.update(theirs=theirs, schedule=where,
-                           how="filed as a fraction; x100 to the published percent")
-            elif field in FLOW_EXPR:
-                fe = FLOW_EXPR[field]
+                           how=("filed as a fraction; x100 to the published "
+                                "percent. Filed under %d framework(s); this is "
+                                "the one that binds, the lower ratio"
+                                % len(cands)) if cands else
+                               "filed as a fraction; x100 to the published percent")
+            elif field in FLOW_FIELDS:
+                fe = expr
                 if acq:
                     # The workbook's own merger record says this quarter is not
                     # a quarter of anything. Two mergers in this set consolidate
@@ -258,7 +275,13 @@ for entry in index:
                                        ", ".join(m["effective"] for m in acq))))
                     rows.append(rec)
                     continue
-                cur = evaluate(fe, facts)
+                cur_got = resolve(fe, facts)
+                cur = None if cur_got is None else cur_got[0]
+                # What the row cites is the line that was actually read on
+                # THIS filing, not the map entry that covers both forms --
+                # otherwise a bank filing the 041 is handed the 031's codes
+                # and told to go and find them on its own form.
+                used_here = cur_got[1] if cur_got else ""
                 if iso[5:7] == "03":
                     theirs = None if cur is None else cur / 1000.0
                     rec["how"] = "first quarter: year-to-date IS the quarter"
@@ -304,7 +327,7 @@ for entry in index:
                                   "bank(s) merged in this quarter (%s)"
                                   % ", ".join(c for c, _ in acq_prior)
                                   if acq_prior else ""))
-                rec["cited"] = fe
+                rec["cited"] = used_here or fe
             elif "/" in (expr or ""):
                 rec.update(theirs=None, verdict="COMPUTED BY THE FDIC",
                            how="a ratio the FDIC computes from filed lines; "
@@ -325,9 +348,16 @@ for entry in index:
                 rec["how"] = "read straight off the filing"
                 rec["cited"] = used or expr
             if theirs is None:
-                rec.update(theirs=None, verdict="NOT ON THIS FILING")
+                # The note said "read straight off the filing" on all 177 rows
+                # whose verdict said there was nothing on the filing to read.
+                # A row that contradicts itself tells the reader to believe
+                # whichever half they saw first.
+                rec.update(theirs=None, verdict="NOT ON THIS FILING",
+                           how=("the line this field cites is not on the form "
+                                "this bank filed for this quarter, so there is "
+                                "nothing on it to compare against"))
             else:
-                tol = 0.005 if field in CAPITAL else 0.51
+                tol = CAPITAL_TOL if field in CAPITAL else 0.51
                 rec.update(theirs=theirs,
                            verdict=("TIES" if abs(float(ours) - theirs) < tol
                                     else "DIFFERS"))

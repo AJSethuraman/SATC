@@ -149,6 +149,17 @@ for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
                 rows.append(rec)
                 continue
 
+            if field in FF.FEED_COMPUTED:
+                # An average the FDIC constructs. There is no line on any form
+                # to compare it with, and saying "the bank did not report it"
+                # would be false -- no bank is asked to.
+                rec.update(theirs=None, verdict="COMPUTED BY THE FDIC (NO FILED COMPONENTS)",
+                           how="an average the FDIC computes; no line on any "
+                               "form carries it, and every subset of Schedule "
+                               "RC-K was tried")
+                rows.append(rec)
+                continue
+
             if field in FF.FEED_FLOW_FIELDS:
                 base = expr.split(" (")[0]
                 if (cert, iso) in MERGER_Q:
@@ -209,7 +220,14 @@ for cert, rs in sorted(new.items(), key=lambda kv: names[kv[0]]):
 
 
             if theirs is None:
-                rec.update(theirs=None, verdict="NOT ON THIS FILING")
+                # The note has to stop saying the line was read straight off a
+                # filing the verdict says does not carry it. A row that
+                # contradicts itself leaves the reader believing whichever
+                # half they saw first.
+                rec.update(theirs=None, verdict="NOT ON THIS FILING",
+                           how=("the line this field cites is not on the form "
+                                "this bank filed for this quarter, so there is "
+                                "nothing on it to compare against"))
             else:
                 rec.update(theirs=theirs,
                            verdict=("TIES" if abs(float(ours) - theirs) < 0.51

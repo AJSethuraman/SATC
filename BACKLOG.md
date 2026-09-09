@@ -643,6 +643,247 @@ section above. Re-finding something is cheap; missing what this session missed
 is what the second pass is for. Of the five faults found on 7 September, three
 were claims this session had written itself.
 
+### The second pass — 8 September 2026
+
+A fresh session read the delivered files cold, wrote down its targets before
+opening this file, and then went at them. Full write-up:
+`credit-suite/docs/tie-out/SECOND-PASS-2026-09-08.md`.
+
+**Nine findings. Eight are sentences; one is 63 numbers.**
+
+| | Finding | Where it stands |
+|---|---|---|
+| 1 | **63 values published as impossible to check are on the filing, and all 63 tie.** `NTCIQ` is cited with the FFIEC **031** split codes only; an **041** filer reports C&I charge-offs as one line (`RIAD4638`/`RIAD4608`). The check finds nothing and the row says *the bank did not report this line* — Zions in **38 of its 40 quarters**. The correct dual citation is already in `provenance_seed.py:232` and `filing.py` resolves it; the delivered file does not go through that resolver. `verify_bank_history.py:66` holds a **second citation table** (`FLOW_EXPR`) and a **second evaluator**, covering ten flow fields. *"There is now one comparison"* is true of balances, not of flows. | Open. The other nine flow fields have not been read. The standing tie-out cannot catch this: the rows sit in *not claimed as verified*. |
+| 2 | **A second disagreement with a filing, published as verified.** Huntington 2026-03-31 `RBCRWAJ` ties only through the 0.005 tolerance, at 0.00475 — 95x the next largest gap in 1,520 rows, same bank-quarter as the one admitted DIFFERS. Backing out RWA: the FDIC implies **206,827,694** against a filed **206,904,227**, a **−76,533** move alongside the known −945, while the leverage ratio is unmoved. Total capital and risk-weighted assets moved; Tier 1 and average assets did not. | Open, and it **narrows** the amendment hypothesis rather than contradicting it. The feed carries no RWA field, so a reader cannot see any of it. |
+| 3 | **0 of 1,520 capital-ratio rows are exactly equal to the filing.** All tie inside a half-basis-point tolerance no delivered page mentions; 1,519 are display rounding and one is finding 2. 3,080 macro rows are TIED with a non-zero difference (worst 0.087%, all publisher rounding). Balance checks are genuinely exact. | Open — the document says *"agree to the dollar"* and *"difference 0"*. |
+| 4 | **Fault 4's own fix is one bank short.** `same_name_throughout` is `True` for Fifth Third (cert 6672) whose filed name changes at 2019-12-31 from `FIFTH THIRD BANK` to `FIFTH THIRD BANK, NATIONAL ASSOCIATION`. It is **16 of 19**, with three exceptions — two renames and one Truist. A comparison that normalises is not the check that was described. | Open. Nothing downstream is wrong; the published count is. |
+| 5 | **"15 of the 33 merger quarters"** in the covering PDF. This file says 15 of the **31 measurable**, which is right — 2 of the 33 have no prior quarter in the window. The qualifier died on the way into the deliverable. | Open. |
+| 6 | **All 177 "not on that filing" rows carry a `note` that contradicts their own verdict** — *"nothing on the filing to check it against"* beside *"read straight off the filing"*. 114 of them are `NCLNLS`/`P3LNLS`/`RSLNLTOT` for **all 19 banks in exactly 2016Q3–Q4**: RC-N had no total line before 2017Q1. A form change, not a bank omission. | Open. Whether those 114 could be tied from the components (which ARE on the 2016 filing, and which this feed already sums for 3,933 other rows) was attacked from the facsimile and **did not close** — reported as COULD NOT. |
+| 7 | **The published "check any number yourself" recipe works as written on 24,568 of 66,120 rows (37%).** 26% are sums the page never tells you to add, 10% are subtractions, 9% are ratios with no filed line, and **5,679 need the previous quarter's filing — a different URL from the one in the row**. | Open. |
+| 8 | **The schedule label points at the wrong item on 532 filings.** RC-R Part I was renumbered at 2020Q1: `7204` was item 44 and `7205` item 43 before it; both are labelled 31 and 51 for all forty quarters. Item 31 on a 2016 filing is *"Unrealized gains on available-for-sale preferred stock"*. Of 32 single-code fields checked across 2016 and 2026, none other moved. Also undisclosed: the capital check takes `min()` across framework columns, and 293 rows had more than one. | Open. The MDRM code is right in every case. |
+| 9 | **"Nothing in this feed is calculated by our software"** — `not-comparable-periods.csv` ships `change_in_total_assets_pct`, and page 7 quotes a statistic from it. True of the 143,201 values, false as written. | Open. |
+
+### What it checked and could not break
+
+Reported because a check nobody ran is not a check that passed.
+
+- **No missing merger.** Ran the converse of finding 1 from 7 September: every
+  quarter-on-quarter step of 10% or more in `ASSET`, `DEP` and `LNLSGR` that is
+  NOT a flagged merger quarter — 18, 26 and 18 of them, every one explicable
+  (the 2020 deposit surge; the custody and dealer banks). The 33 are complete as
+  far as an outside scan can show. **But** the largest unflagged step in the feed
+  is Morgan Stanley Bank NA at **+54.5% total assets, 2026-03-31**, bigger than
+  18 of the 33 flagged ones — and LIMITS frames discontinuity as a merger
+  property.
+- **Seven cross-field identities, 760 of 760 each, no breaks.** `LNLSNET`,
+  `EQV`, `LNATRESR`, `NCLNLSR`, `LNRESNCR`, `NARERES ≥ NARELOC`,
+  `ASSET ≥ LNLSGR`. The 87 fields are mutually consistent, not merely
+  individually matched — the first horizontal check anyone has run here.
+- **The macro half is deeper than it looks, and the reviewer's main suspicion
+  was wrong.** The result files hold one comparison per series, which reads like
+  a series-level verdict stamped onto 65,844 rows. It is not: 90,922
+  per-observation records sit behind them, and **all 65,844 verified rows have
+  their own**. Page 1's 125,388 is honest.
+- **Delivered = checked, macro side, re-executed independently** of
+  `prove_delivered_is_what_was_checked.py`: 77,184 records, 0 differences.
+- **The build reproduces the delivery byte-for-byte** — all five CSVs and
+  `verification-summary.json` unchanged after a full `run_and_tie_out.py`.
+- **629 tests pass; 16 of 16 planted controls caught; the Huntington −945
+  reproduced from the filing store.**
+
+### What it did not do
+
+The macro source selection (still one session's judgement, unreviewed); the four
+unchecked ratios; the nine other fields in `FLOW_EXPR`; whether the 209 exhibits
+photograph the row their manifest names. And **nothing here has been checked by a
+second person** — a second model is not that.
+
+### Docket `51f34a75` — answered 8 September 2026
+
+| | Question | Answer |
+|---|---|---|
+| D1 | Huntington's capital ratio disagrees with its filing by 0.00475 and a 0.005 tolerance is hiding it | **Publish it as a second disagreement** |
+| D2 | Has the workbook gone anywhere beyond the firm? | **Only me — nobody else has it** |
+| D3 | `desk` is red on Windows and another session owns it | **File an issue and leave it** |
+| D4 | How far does the second pass go? | **Read the other nine flow fields** |
+
+All four matched the recommendation. No note was added to any of them, so the
+recommendation's own reasoning is the whole of the answer and is recorded above
+rather than restated.
+
+**Goal named, and what silence approved:** close the nine findings of the second
+pass and reissue the covering document so the workbook the firm holds matches
+what the code does. Distance at the time of the docket: **0 of 9**.
+
+### What the answers caused — 8 September 2026
+
+Distance ran **0 of 9 → 9 of 9**, and the work turned up a tenth thing nobody
+had asked about.
+
+| | Finding | What was done |
+|---|---|---|
+| 1 | 63 values published as impossible to check | `verify_bank_history.py` carried its own citation table (`FLOW_EXPR`) and its own evaluator. Both deleted. The flow path now reads the expression from `provenance_seed` — the file's own comment already said the seed is the source of truth — and resolves it through `filing.filed_dollars`, which is now **the one resolver**. `filed_value` is a wrapper over it. **`bank_verified` 59,544 → 59,606**; every one of the 63 ties, and each row now cites the line actually read on that filing (`RIAD4638-RIAD4608` for a 041 filer, the split for an 031). |
+| 2 | A second disagreement hidden by a tolerance | `CAPITAL_TOL` 0.005 → **0.0001**, named as a constant with the measurement behind it. Huntington 2026-03-31 `RBCRWAJ` is published as **DIFFERS**. The covering document gains the decomposition: FDIC implies RWA **206,827,694** against a filed **206,904,227**, −76,533 beside the known −945, with the leverage ratio unmoved — two capital figures moved and two did not, which is the shape of an amendment to the risk-weighting pages and the best evidence yet for an explanation still not proven. **DIFFERS 1 → 2.** |
+| 3 | Every capital ratio tied on an undisclosed tolerance | Disclosed in the document, with the measurement: the filing prints six decimals and the FDIC four, so rounding never exceeds 0.00005; the room was a hundred times that and exactly one value used it. |
+| 4 | `same_name_throughout` reported 17 of 19 | `matches()` — a nine-character prefix test, right for *is this our bank* — was being reused for *did the name change*. New `same_name()` compares the two printed strings. **16 of 19**, three exceptions: Zions and Fifth Third are renames (the latter a charter conversion at 2019-12-31), Truist is not. |
+| 5 | "15 of the 33 merger quarters" | Now 15 of the **31 measurable**, with the denominator computed rather than typed. Two merger quarters sit at the window's edge with no prior quarter to measure from. |
+| 6 | 177 rows whose note contradicted their verdict | Both verifiers now write a note that agrees with the verdict. The count is **114**, and the roster says what they are: the form did not carry the line, in the second half of 2016, across all nineteen banks — not one bank leaving something out. |
+| 7 | The self-check recipe works on 37% of rows | The document now counts the four shapes off the delivered rows and says what each needs: 24,568 single-line, 17,227 arithmetic, 5,679 needing the **previous quarter's filing at a different address**, 6,080 with no filed line at all. |
+| 8 | Schedule labels wrong on 532 rows | RC-R Part I was renumbered at 2020Q1. The labels now carry both: *"RC-R Part I 51 from 2020Q1, 43 before it"*. The capital check also records that it took the **lower** of the frameworks filed, which 293 rows needed and none said. |
+| 9 | "Nothing in this feed is calculated by our software" | *"No value in this feed is calculated by our software"*, and the one figure we do work out — the size of each merger step — is named as a warning about the data rather than part of it. |
+
+### The tenth, which nobody was looking for
+
+**Nine tools could not be imported.** The move to the Forge on 7 September left
+`NAME = SB / "..."` above `SB = workdir()` in nine of them, so each raised
+`NameError` before running a line — including `verify_bank_history.py`, the tool
+that decides every bank verdict in the delivered file. Found by trying to run
+it. Nothing caught it because the standing run starts *downstream* of all nine,
+on the rows they had written before the move: a green chain standing on output
+from tools that could no longer produce it.
+
+It had a second consequence. `deep_strips.json` was copied to the Forge but the
+shard holding the seven banks added on 7 September was not, so
+`build_covering_document.py` **refused to write a document with no photographs
+in it** — the guard added on 5 September, doing exactly its job. The index was
+rebuilt for those seven certs and the document carries its pictures again.
+
+### Proof
+
+- **695 tests pass**, up from 629. `tests/test_one_resolver_and_runnable_tools.py`
+  is new: 66 cases covering the dual-form citation, the refusal to sum a partial
+  expression, leniency staying on the form the bank filed, the absence of a
+  second citation table, the tolerance, and every tool in `tools/tieout`
+  parsing with nothing reading the working folder before it is resolved.
+- **The checker was checked.** Restoring the two pre-fix tools turns four of
+  those tests red and leaves 62 green; restoring the fix turns them back.
+- **`run_and_tie_out.py`: 5 of 5 stages.** Controls 16 of 16 caught.
+- **The covering document was opened, not assumed** — 8 pages, 4 images, and
+  every one of the ten claims above read back out of the rendered PDF.
+- `SATC-VERIFIED-CREDIT-DATA-how-it-was-proved-2026-09-07.pdf` is superseded by
+  the 8 September build and removed; the firm confirmed nobody outside holds a
+  copy, so this is a replacement rather than a recall.
+
+### Still open, deliberately
+
+The macro source selection, unreviewed by anybody. The four FDIC ratios checked
+against nothing. Whether the 209 exhibits photograph the row their manifest
+names. Whether the 114 could be tied from the components that ARE on the 2016
+filing — attacked from the facsimile and not closed. And
+`verify_new_bank_fields.py` still carries a third resolver of its own; its ten
+flow fields were proven on both versions of the form, so it is a duplicate
+rather than a defect, and it was left alone rather than refactored under a
+mandate that did not cover it.
+
+### The four ratios that were checked against nothing — 8 September 2026
+
+The firm: *"Their ratios are fine. I mean we are not shipping calculations we
+derive. Them deriving is basically source data and you would expect it to be
+right."* Then, on whether to carry the figures behind the four unchecked ones:
+**"Just add them then."**
+
+That settled a confusion worth writing down. **Who derived a number and whether
+we can show it are separate axes**, and the second pass had run them together.
+The FDIC publishing `ROAQ` is no different in kind from Huntington publishing
+`RCFD2170`: somebody else's number, copied without touching. All 6,080 satisfy
+the no-derived-calculations rule. What did not hold was a *sentence*.
+
+### The sentence
+
+Every one of the 6,080 rows said:
+
+> not a filed line — the FDIC calculates this from filed lines **that are
+> verified here**
+
+True for 2,964. False for 3,040. `ROAQ` is net income over *average* assets;
+neither was among the 87 fields, so there were no verified lines behind it. The
+clause was written about the four ratios where it holds and then applied to all
+eight — the same failure as every other finding in this pass.
+
+### Eighteen fields, and how each citation was established
+
+The method this module already requires: take the FDIC's published number, look
+for it in the bank's own XBRL as a single line or as a sum, and keep the
+candidate only if it holds in **every** bank-quarter. Not a plausible-looking
+code, and not a crosswalk.
+
+| field | what it is | citation | held in |
+|---|---|---|---|
+| `NETINC` / `NETINCQ` | net income, year to date / this quarter | `4340` | 760 of 760 / 752 of 752 comparable |
+| `NIM` / `NIMQ` | net interest income | `4074` | 760 / 752 |
+| `NONII` / `NONIIQ` | noninterest income | `4079` | 760 / 752 |
+| `NONIX` / `NONIXQ` | noninterest expense | `4093` | 760 / 752 |
+| `NTLNLS` / `NTLNLSQ` | net charge-offs | `4635-4605` | 760 / 753 |
+| `INTINC` | total interest income | `4107` | 760 of 760 |
+| `EINTEXP` | total interest expense | `4073` | 760 of 760 |
+| `ITAX` | income taxes | `4302` | 760 of 760 |
+| `ELNATR` / `ELNATQ` | provision for credit losses | `JJ33`, and `4230` before 2019Q1 | 570 / 563 comparable |
+| `AVASSET` | average total assets | `3368` (RC-K 9) | 760 of 760 |
+| `ERNAST` | average earning assets | **no filed line** | — |
+| `LNLSGR5` | average loans and leases | **no filed line** | — |
+
+`ELNATR` is a **dated recoding**, found rather than assumed: `RIAD4230`
+"provision for loan and lease losses" became `RIADJJ33` "provisions for credit
+losses" under CECL. Both codes sit on the form from 2019Q1 and the FDIC's figure
+follows `JJ33` from that quarter — 570 of 570 — while `4230` is what it matches
+before. A row naming only `JJ33` would be right about today and wrong about the
+first ten quarters in the window. Checked across all nineteen banks: the
+boundary is a date, not a per-bank adoption.
+
+`ERNAST` and `LNLSGR5` are the FDIC's own averages. **Every subset of Schedule
+RC-K was tested against both across the panel and none reproduces either** —
+including RC-K 3360, the filed average-loans line, which misses `LNLSGR5` in all
+760. They are carried because without them two of the four ratios cannot be
+reconstructed at all, and they carry a verdict that says what they are.
+
+### What it moved
+
+| | before | after |
+|---|---|---|
+| bank fields | 87 | **105** |
+| bank values | 66,120 | **79,800** |
+| verified against a filing | 59,606 | **71,580** |
+| values delivered | 143,201 | **156,881** |
+| checked against an outside document | 125,450 | **137,424** |
+| FDIC-computed with no filed components | (unlabelled) | **1,520, and now labelled** |
+
+26,279 of the 28,120 new values tie. The rest are the merger quarters every
+`*Q` field has, the 2016 form-change rows, and the 1,520 FDIC averages. **No new
+disagreement.** The two verdicts are now split, so half of the FDIC-computed
+rows no longer promise a verification the feed cannot perform.
+
+### What is still not proved, said plainly
+
+The four ratios still do not reproduce. Tried on all 760: net income annualised
+over average assets; net interest income annualised over average earning assets;
+noninterest expense over net interest income plus noninterest income; quarterly
+net charge-offs annualised over average loans — under both annualisation
+conventions, four quarters and 365-over-days. **None holds across the panel.**
+The FDIC's definitions carry adjustments that are not in what it publishes, and
+fitting a formula until it matches is how a wrong citation gets written.
+
+So the obstacle moved rather than vanished, which is the honest outcome:
+
+- **`ROAQ` and `EEFFR`** — every figure they are built from is now in the feed
+  and ties to a filing. Only the FDIC's exact arithmetic is unresolved.
+- **`NIMY` and `NTLNLSQR`** — the numerator ties in all 760; the denominator is
+  an average no bank files.
+
+The practical effect is the one that matters for the workbook: a return on
+assets, a net interest margin or an efficiency ratio can now be built downstream
+from numbers that were each checked against a filed page, instead of taken from
+a ratio nobody could check.
+
+### Proof
+
+- `run_and_tie_out.py` — **5 of 5 stages**, controls 16 of 16 caught.
+- **695 tests pass.** Two failed first and were right to: both pin a count that
+  moves when the field list does. The zero count went 8,621 → 8,655, and the 34
+  new zeros were checked one at a time rather than waved through — every one is
+  a filed nil with a TIES verdict.
+- The covering document was rebuilt and **opened**: 105 fields, 156,881 values,
+  137,424 checked, 2 disagreements.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

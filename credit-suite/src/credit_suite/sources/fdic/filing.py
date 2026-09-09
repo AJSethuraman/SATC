@@ -242,32 +242,62 @@ def _resolve(facts: Dict[str, int], term: Term,
     return None
 
 
-def filed_value(facts: Dict[str, int], expression: Expression
-                ) -> Tuple[Optional[int], str]:
-    """Evaluate the map's expression against the filing, in thousands.
+def filed_dollars(facts: Dict[str, int], expression: Expression,
+                  lenient: bool = False
+                  ) -> Optional[Tuple[float, str, List[str]]]:
+    """Resolve an expression against one filing, in the filing's own dollars.
+
+    ``(dollars, the codes actually used, the codes that were absent)``, or None
+    when a required term is missing. **This is the one resolver.** Balances,
+    quarterly flows and the merger adjustment all come through here, because
+    the last time a caller took an expression literally instead, `NTCIQ`'s
+    "(031: ...)" alternative never applied and 63 values on banks filing the
+    041 were published as lines their bank had not filed. They tie.
 
     Every required term must resolve or the result is None -- a partial sum is
     a wrong number that looks like a right one. The alternative form wins when
-    it resolves completely; optional terms are added when present.
+    it resolves completely, which is what lets one citation serve both versions
+    of the form.
+
+    ``lenient`` treats an absent term as zero and names it. A bank with no
+    non-U.S. C&I lending does not file RIAD4646 at all, and its absence means
+    nothing was lent rather than that the figure is unknown. It is right for
+    summing an acquired bank's prior year-to-date and wrong for the bank being
+    checked. Leniency reaches the alternative too, but only while the
+    alternative is the form the bank filed: a branch where NOTHING resolves is
+    the other form's citation rather than a bank with empty lines, so it is
+    passed over instead of being leniently summed to zero.
     """
-    for terms in ((expression.alternative, True), (expression.primary, False)):
-        candidates, is_alt = terms
+    for candidates, is_alt in ((expression.alternative, True),
+                               (expression.primary, False)):
         if not candidates:
             continue
         resolved = [_resolve(facts, t, expression.domestic) for t in candidates]
-        if any(r is None for r in resolved):
-            if is_alt:
+        absent = [t[1] for t, r in zip(candidates, resolved) if r is None]
+        if absent:
+            if is_alt and (not lenient or all(r is None for r in resolved)):
                 continue
-            return None, ""
-        total = sum(v for v, _ in resolved)
-        used = [c for _, c in resolved]
+            if not lenient:
+                return None
+        total = sum(r[0] for r in resolved if r is not None)
+        used = [r[1] for r in resolved if r is not None]
         for opt in expression.optional:
             got = _resolve(facts, opt, expression.domestic)
             if got:
                 total += got[0]
                 used.append(got[1])
-        return total // DOLLARS_PER_UNIT, "".join(used).lstrip("+")
-    return None, ""
+        return float(total), "".join(used).lstrip("+"), absent
+    return None
+
+
+def filed_value(facts: Dict[str, int], expression: Expression
+                ) -> Tuple[Optional[int], str]:
+    """Evaluate the map's expression against the filing, in thousands."""
+    got = filed_dollars(facts, expression)
+    if got is None:
+        return None, ""
+    total, used, _absent = got
+    return int(total) // DOLLARS_PER_UNIT, used
 
 
 # --------------------------------------------------------------------------

@@ -86,7 +86,9 @@ def panel():
 def test_the_audited_panel_is_the_size_the_deliverable_says_it_is(panel):
     """The denominator every number below is measured against."""
     assert len(panel) == BANKS * QUARTERS           # 12 banks x 40 quarters
-    assert {len(fields) for fields in panel.values()} == {87}
+    # 87 until 8 September 2026, when the income-statement fields the four
+    # FDIC-computed ratios are built from were added.
+    assert {len(fields) for fields in panel.values()} == {105}
 
 
 # --------------------------------------------------------------------------
@@ -188,13 +190,17 @@ def test_the_zeros_in_the_deliverable_are_filed_nils_not_blank_cells(panel):
     # at. Over twelve banks they were LN 474, P3 458, P9 354, NA 465.
     assert nonzero == {"LN": 754, "P3": 738, "P9": 611, "NA": 745}
 
-    # Re-measured 7 September 2026, after the field list went from 68 to 87
-    # and the panel from twelve banks to nineteen. 8,555 of the 8,621 were
-    # compared against an explicit zero on the bank's own filing. A zero here
-    # means the bank told its regulator zero.
+    # Re-measured 8 September 2026, after the field list went from 87 to 105.
+    # 8,595 of the 8,655 were compared against an explicit zero on the bank's
+    # own filing. A zero here means the bank told its regulator zero.
+    #
+    # The 34 zeros the new fields brought were checked rather than assumed:
+    # every one is a filed nil -- a bank with no net charge-offs that quarter,
+    # or no provision -- and all 34 carry a TIES verdict. Over nineteen banks
+    # and 87 fields the count was 8,621 with 8,555 tying.
     zeros = sum(1 for fields in panel.values()
                 for value in fields.values() if value == 0.0)
-    assert zeros == 8621, (
+    assert zeros == 8655, (
         "the count of exact zeros moved; re-run the tie-out and re-measure how "
         "many of them tie to a filed zero before trusting the number below")
     assert C.nesting_identity(panel).examined == CLASSES * PANEL
