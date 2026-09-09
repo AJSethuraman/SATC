@@ -447,6 +447,47 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-09 — The round trip closes, and four bugs on the way there were each
+  one keystroke from eating the queue (desk 0.19.0 → 0.19.2).**
+
+  `dec-notify` — **"All make sense."** Four dispositions, and the fourth is the
+  one that was missing: a **primary** source is served silently, a **secondary**
+  one is served but marked as the body explaining itself, a **tertiary** one is
+  parked and the firm is told — and a source in **no declared domain at all is a
+  real fourth state, not tertiary**. It parks, notifies, and the firm's answer is
+  what builds the map. The rule is not tax-specific and was not invented here:
+  `DOMAINS.md` already carried it in the firm's own words — *the body with
+  authority publishing its own text is primary; that same body explaining itself
+  is secondary; everyone else is tertiary* — and the first proposal walked past
+  it and wrote a tax-only classifier instead.
+
+  **The line out, and the answer back.** `notifying.py` renders a parked question
+  as one ≤200-character line with a reference (`Desk parked: … [U1]`) and
+  **refuses to render at all** if an SSN, EIN or account number would ride out on
+  it; `unsupported.reply_in` reads the firm's reply, matches exactly one
+  reference, and `settle` files their words verbatim against that entry. Asked
+  whether they could reply to a session from a phone notification, the firm:
+  *"Of course I can, that's how I'm talking to you now."* **The close never stops
+  for a parked question** — *"Nothing stops if it isn't a blocker."*
+
+  **The four bugs are the reason the version moved three times in a day**, and
+  every one of them was in the machinery that carries the firm's own words:
+  `settle` deleted the entry it was settling; `reply_in` mangled the reply twice
+  (once cutting the reference out of it, once stripping its emphasis); a question
+  containing `**Answered:**` in its text made the *entire* queue unreadable,
+  because `_inline` did not skip quoted lines; and a bare `\r` — which is what a
+  phone keyboard can send — injected a fabricated entry into the queue and then
+  made the file unparsable. Three of the four were found by review, not by me.
+  The one that matters most for the live test is the last: on `main`, until
+  `5ed5f23`, a reply typed on a phone could have written a question nobody asked.
+
+  **What is still open and not hidden:** a real quote plus a wrong yes still
+  serves (misjudgment is unguarded); `tier_for` grades every publication
+  `primary` on the live-fetch path; and the desk-to-doer notification leg has
+  never been proved end to end — the live close is what proves it.
+
+  Desk **0.19.2**, 1,126 passing, 1 skipped.
+
 - **2026-09-09 — Three answers, all three as recommended, and one of them takes a
   wrong answer off `main` (desk).**
 
