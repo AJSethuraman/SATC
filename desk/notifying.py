@@ -217,4 +217,13 @@ def reply_in(text: str, *, sent: str = "") -> tuple:
             rest = re.sub(rf"(?<!\w){re.escape(word)}(?!\w)", " ", rest, count=1)
     if not re.search(r"[A-Za-z0-9]", rest):
         return "", ""
-    return found.pop(), _flatten(text)
+    # THE ORIGINAL, NOT THE SANITISED COPY. `_flatten` strips `*`, backticks,
+    # `#` and `>` and collapses whitespace -- it exists to decide what a
+    # NOTIFICATION may carry, and a notification renders no markdown. An answer
+    # is not a notification. Returning the flattened text stored
+    # "U1 use **income** and `loan`" as "U1 use income and loan", which is a
+    # quieter version of the mangling this function was already rewritten once
+    # to stop, and it contradicted the word "verbatim" in this very docstring.
+    # Caught by a review; `rest` above is the sanitised copy and its only job is
+    # deciding whether anything was added.
+    return found.pop(), text.strip()
