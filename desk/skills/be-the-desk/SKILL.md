@@ -349,3 +349,37 @@ belongs out with it.
 
 `SATC_DESK_QUEUE` overrides it if a deployment needs somewhere else. Set that
 rather than hard-coding a path.
+
+## When the firm answers a parked question
+
+**They can reply to this session from the notification.** The firm, 9 September
+2026, asked exactly that: *"Of course I can, that's how I'm talking to you
+now."* So the push carries this session's name, they reply here, and the reply
+arrives as an ordinary message. There is no pipe to build and none to look for.
+
+**Do not work out which question they answered. Ask the engine.**
+
+```python
+uid, answer = notifying.reply_in(message, sent=the_line_you_sent)
+if uid:
+    unsupported.settle(unsupported.default_queue(), uid, answer)
+```
+
+`reply_in` returns `("", "")` for anything that is not an answer, and that is
+most of what you will be sent. It refuses two references in one message, a bare
+`[U1]`, and the notification quoted back with nothing added — **a question is
+not an answer to itself**, which is why `sent` matters. When it comes back
+empty, say so and ask; do not settle an entry on your own reading.
+
+**The answer stored is their message verbatim.** Do not summarise it, tidy it,
+or lift "the important part" out. It is the firm's ruling and the record's job
+is to show what they said.
+
+**`settle` closes a question. It does NOT ratify a position.** A position lives
+on a desk in `POSITIONS.md`, changes what the engine serves everybody, and
+enters the record only through a pull request the firm merges. If the answer
+looks like it should become a position, say so and stop — that is a separate
+piece of work with a separate yes.
+
+**Then tell the doer**, if one is waiting: the question is answered, and here is
+what the firm said.
