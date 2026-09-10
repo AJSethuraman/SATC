@@ -49,7 +49,7 @@ CIT = "26 CFR 1.263(a)-2(d)(1)"
 
 
 def _served(question):
-    return conftest.answer_judged(question, "fixed-assets",
+    return conftest.answer_judged(question, 
                       position="yes - capitalize the equipment as a unit of property",
                       citation=CIT, keep=False, model="answerer")
 
@@ -186,7 +186,7 @@ def test_and_a_question_that_did_name_the_other_half_is_told_which_word():
     they can see what they said and decide whether they meant it."""
     v = domains.classify(DECIDED_BY_A_WORD)
     assert not v.only_shared_words
-    out = conftest.answer_judged(DECIDED_BY_A_WORD, "fixed-assets", position="capitalized",
+    out = conftest.answer_judged(DECIDED_BY_A_WORD,  position="capitalized",
                      citation=CIT, keep=False, model="answerer")
     assert isinstance(out, engine.Served)
     assert "You also wrote 'operating lease'" in out.straddle
@@ -252,14 +252,14 @@ def test_a_served_straddle_the_winners_own_words_decided_carries_nothing():
     winner owns `de minimis` and `safe harbor`; the loser owns nothing."""
     v = domains.classify(DECIDED)
     assert v.straddles and not v.apart, "this control no longer discriminates"
-    out = conftest.answer_judged(DECIDED, "fixed-assets", position="capitalized",
+    out = conftest.answer_judged(DECIDED,  position="capitalized",
                      citation=CIT, keep=False, model="answerer")
     assert isinstance(out, engine.Served), out
     assert out.straddle == ""
 
 
 def test_an_answer_the_gate_decided_on_evidence_carries_nothing():
-    out = conftest.answer_judged(FORKLIFT, "fixed-assets", position="capitalized",
+    out = conftest.answer_judged(FORKLIFT,  position="capitalized",
                      citation=CIT, keep=False, model="answerer")
     assert isinstance(out, engine.Served)
     assert out.straddle == ""

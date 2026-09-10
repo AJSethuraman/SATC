@@ -34,11 +34,13 @@ from pathlib import Path
 
 import engine
 import record
-import routing
+import pool
 import unsupported
 
 HERE = Path(__file__).resolve().parent
 DESKS = HERE / "desks"
+#: One corpus. `dec-kill`, 8 September 2026 — "Kill the desks; one pool."
+CORPUS = HERE / "corpus"
 
 #: What an answerer may see, and the omission that matters. `PROBLEMS.md` is the
 #: answer key: a desk scored against problems its answerer could read measures
@@ -48,23 +50,62 @@ DESKS = HERE / "desks"
 SHOWN = ("sources", "ratified positions", "stored authority")
 
 
-def consult(question: str, desks: Path = DESKS,
-            context: record.Context | None = None) -> list[tuple[str, str]]:
-    """`[(desk name, everything it will let you answer from)]`. Possibly empty.
+#: The corpus is read once per process, not once per question. `pool.stats` is
+#: an O(corpus) pass and `record.load` parses every passage off disk; doing
+#: both per call turned a question into a full re-read of the record. Keyed by path so
+#: a test pointing at a fixture corpus is not served the production one.
+_LOADED: dict = {}
 
-    SILENCE IS A RESULT. A question touching no desk's subjects comes back empty
-    rather than routed to the nearest one — a router that always answers is one
-    whose answer means nothing.
+
+def _corpus(where: Path):
+    """`(record, pool, stats)` for a corpus directory, read once."""
+    key = str(Path(where).resolve())
+    if key not in _LOADED:
+        held = pool.assemble(where)
+        _LOADED[key] = (record.load(where), held, pool.stats(held))
+    return _LOADED[key]
+
+
+def consult(question: str, corpus: Path = CORPUS,
+            context: record.Context | None = None, *, limit: int = 8) -> str:
+    """Everything the corpus will let you answer this from. Possibly nothing.
+
+    ONE CORPUS, ONE BRIEF. This returned `[(desk name, brief)]` until
+    10 September 2026, because a question reached one desk or several and each
+    got its own. `dec-kill` — *"Kill the desks; one pool"* — ends that: there is
+    no desk to name, and a list of one is a shape that only makes sense to
+    somebody who remembers the thing it replaced.
+
+    WHAT NARROWS IT. `pool.look` scores every citation in the corpus on the
+    authority's OWN TEXT and this brief is built from the top `limit`. Handing
+    over the whole corpus instead is two orders of magnitude more text — an
+    answerer given everything is an answerer given nothing, and a model with
+    an 8,192-token window (LOCAL-LLM-PATTERN rule 1) is given less than nothing.
+
+    SILENCE IS STILL A RESULT and it is still the retriever's weakest claim.
+    Nothing shared with the corpus comes back empty. But a SCORE cannot tell you
+    that nothing on file answers a question — measured, and
+    `test_a_score_cannot_tell_you_nothing_answers_this.py` holds the numbers:
+    the two populations overlap almost completely, and a question no tax
+    authority anywhere addresses outscores most of the ones the corpus really
+    answers. So this returns what it found and the ENGINE decides whether any of
+    it binds. That is `dec-books` — *"it looks for sources and conveys and if it
+    is not directly authoritative it would run the opinion by me"* — and a
+    threshold here would be this function deciding on a word count what the
+    whole engine exists to decide properly.
     """
-    out = []
-    for r in routing.route(question, routing.registry(desks)):
-        out.append((r.desk, brief(question, record.load(desks / r.desk), context)))
-    return out
+    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
+    found = pool.look(question, held, limit=limit, known=stats)
+    if not found:
+        return ""
+    return brief(question,
+                 _corpus(corpus)[0].narrowed_to([f.held.citation for f in found]),
+                 context)
 
 
-def consult_or_file(question: str, *, queue: Path, desks: Path = DESKS,
+def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
                     context: record.Context | None = None,
-                    model: str = "") -> tuple[list[tuple[str, str]], object]:
+                    model: str = "") -> tuple[str, object]:
     """`consult`, and FILE the question when no desk holds it.
 
     SILENCE WAS THE ONE OUTCOME THAT LEFT NO RECORD. `consult` returning empty
@@ -93,20 +134,20 @@ def consult_or_file(question: str, *, queue: Path, desks: Path = DESKS,
     queue that grew a row per question would be a traffic log, and the count
     would stop meaning anything.
     """
-    briefs = consult(question, desks, context)
-    if briefs:
-        return briefs, None
+    the_brief = consult(question, corpus, context)
+    if the_brief:
+        return the_brief, None
     queue = Path(queue)
     existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
                 if queue.exists() else [])
     entry = unsupported.from_question(
         question,
-        why="no desk holds this subject — routing reached nothing",
+        why="nothing in the corpus shares a word with this question",
         model=model,
         existing=existing,
     )
     unsupported.append(queue, entry)
-    return [], entry
+    return "", entry
 
 
 def brief(question: str, desk: record.Desk,
@@ -251,9 +292,9 @@ def brief_for_grading(question: str, desk: record.Desk,
     return brief(question, desk.rules_only(), context)
 
 
-def answer(question: str, desk_name: str, *, position: str = "",
+def answer(question: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
-           working: str = "", ask: str = "", desks: Path = DESKS,
+           working: str = "", ask: str = "", corpus: Path = CORPUS,
            keep: bool = True,
            context: record.Context | None = None, prove=None, judged=None,
            found_at: str = "", found_text: str = ""):
@@ -312,7 +353,11 @@ def answer(question: str, desk_name: str, *, position: str = "",
     firm's decision and is on the docket; a gate that turned itself on across
     seven desks overnight would be this session making it.
     """
-    desk = record.load(desks / desk_name)
+    # ONE CORPUS. This took a `desk_name` until 10 September 2026 and loaded
+    # `desks/<name>/`; `dec-kill` deleted the desks, so there is nothing to name
+    # and nothing to choose between. The citation identifies the authority, which
+    # is what it always did — the desk was only ever the folder it sat in.
+    desk = _corpus(corpus)[0]
     # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
     # carries the field and `unsupported.from_refusal` persists it, so every
     # entry filed through here arrived with BLANK reasoning -- while the skill
@@ -360,7 +405,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
             url=found_at, text=found_text, desk=desk,
             transport=transport)
         if keep and getattr(out, "proof", None) is not None:
-            attempts.record(desks, desk_name, out.proof)
+            attempts.record(corpus, out.proof)
     # `out.proof is None` MEANS NOT YET PROVED, and it is what keeps the two
     # paths from proving the same answer twice. A candidate arrives here already
     # carrying its proof; running the stored path over it would resolve its
@@ -399,7 +444,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
         # A TIED is kept too: a source that ties out for months and then stops is
         # only visible if the months were written down.
         if keep:
-            attempts.record(desks, desk_name, p)
+            attempts.record(corpus, p)
     if judged is not None and isinstance(out, engine.Served):
         import dataclasses
 
@@ -489,7 +534,7 @@ def answer(question: str, desk_name: str, *, position: str = "",
     # is complete. Filing it would put a work item in a queue nobody can act on
     # and would inflate the one count that is supposed to mean something.
     if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
-        path = desks / desk_name / "unsupported" / "asked.md"
+        path = corpus / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])
         unsupported.append(path, unsupported.from_refusal(

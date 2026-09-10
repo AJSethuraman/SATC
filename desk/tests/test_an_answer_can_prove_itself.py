@@ -173,8 +173,8 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     desks = _copy(tmp_path)
     desk = record.load(desks / DESK)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None, "None means NOT ASKED FOR, never asked-and-fine"
@@ -186,8 +186,8 @@ def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     p = desk.problems[0]
     passage = desk.passage(p.citation)
     page = _Page(passage.text)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=lambda s, c: page,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
@@ -202,8 +202,8 @@ def test_a_moved_source_withdraws_the_answer(tmp_path):
     desks = _copy(tmp_path)
     desk = record.load(desks / DESK)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        prove=lambda s, c: _Page(
                            f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
@@ -222,8 +222,8 @@ def test_an_unreachable_publisher_does_not_withdraw_the_answer(tmp_path):
     desks = _copy(tmp_path)
     desk = record.load(desks / DESK)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=refuses,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=refuses,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "an outage withdrew a good answer"
     # AND THE JUDGE FELL BACK TO OUR COPY, because nothing was fetched. The
@@ -238,8 +238,8 @@ def test_proving_can_only_add_a_refusal_and_never_remove_one(tmp_path):
     """The gate is unchanged and runs first. A transport that returns the whole
     world cannot rescue an answer the engine already refused."""
     desks = _copy(tmp_path)
-    out = front.answer("what is the threshold?", DESK, position="anything",
-                       citation="26 CFR 9.999(z)", desks=desks, keep=False,
+    out = front.answer("what is the threshold?",  position="anything",
+                       citation="26 CFR 9.999(z)", corpus=desks, keep=False,
                        prove=lambda s, c: _Page("everything imaginable"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_absent"
@@ -251,8 +251,8 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     desks = _copy(tmp_path)
     desk = record.load(desks / DESK)
     p = desk.problems[0]
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks,
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks,
                  prove=lambda s, c: _Page(f"{p.citation} rewritten"))
     filed = (desks / DESK / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "authority_has_moved" in filed

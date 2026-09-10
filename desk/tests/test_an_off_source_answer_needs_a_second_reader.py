@@ -61,8 +61,8 @@ def _desk_not_requiring_a_judge(tmp_path):
 
 def test_off_source_is_refused_unjudged_even_where_the_desk_did_not_ask(tmp_path):
     desk = _desk_not_requiring_a_judge(tmp_path)
-    out = ask.answer(QUESTION, desk.name, position=POSITION,
-                     citation=OFF_SOURCE, desks=tmp_path, keep=False)
+    out = ask.answer(QUESTION,  position=POSITION,
+                     citation=OFF_SOURCE, corpus=tmp_path, keep=False)
     assert isinstance(out, engine.Refusal), (
         "an off-source answer was served with nobody having read the paragraph")
     assert out.reason == "not_judged"
@@ -77,8 +77,8 @@ def test_an_on_source_answer_on_that_desk_is_untouched(tmp_path):
     desk = _desk_not_requiring_a_judge(tmp_path)
     pr = next(p for p in desk.problems if p.id == "VE7") if any(
         p.id == "VE7" for p in desk.problems) else desk.problems[-1]
-    out = ask.answer(pr.title, desk.name, position=pr.answer,
-                     citation=pr.citation, desks=tmp_path, keep=False)
+    out = ask.answer(pr.title,  position=pr.answer,
+                     citation=pr.citation, corpus=tmp_path, keep=False)
     if isinstance(out, engine.Refusal):
         assert out.reason != "not_judged", (
             "this desk opted out of judgments and this answer is on-source; "

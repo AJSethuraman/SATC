@@ -37,7 +37,7 @@ REAL = ("a taxpayer must capitalize amounts paid to acquire or produce a unit "
 def _answer(**kw):
     kw.setdefault("model", "answerer")
     kw.setdefault("keep", False)
-    return ask.answer(Q, DESK, citation=CIT, **kw)
+    return ask.answer(Q,  citation=CIT, **kw)
 
 
 # ------------------------------------------- the run this was built for
@@ -207,7 +207,7 @@ def test_a_judgment_cannot_rescue_an_answer_the_gate_refused():
     """Every stage after the gate has this property and it is the reason they
     run in the order they do. A second reader saying 'this is fine' about an
     answer with no authority behind it is a second reader who was not asked."""
-    out = ask.answer(Q, DESK, position="capitalized",
+    out = ask.answer(Q,  position="capitalized",
                      citation="26 CFR 1.999-9(z)", keep=False, model="answerer",
                      judged=judging.Judgment(by="second-reader", supports=True,
                                              because="anything at all"))
@@ -253,8 +253,8 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     queue = desks / DESK / "unsupported" / "asked.md"
     before = queue.read_text(encoding="utf-8") if queue.exists() else ""
 
-    out = ask.answer(Q, DESK, position="capitalized", citation=CIT,
-                     desks=desks, keep=True)
+    out = ask.answer(Q,  position="capitalized", citation=CIT,
+                     corpus=desks, keep=True)
     assert isinstance(out, engine.Refusal) and out.reason == "not_judged"
     after = queue.read_text(encoding="utf-8") if queue.exists() else ""
     assert after == before, "an unjudged answer was filed as a record gap"
@@ -262,8 +262,8 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     # POSITIVE PRECONDITION: `keep=True` really does file other refusals here,
     # so the assertion above is the exclusion working rather than the queue
     # being unreachable from this fixture.
-    ask.answer(Q, DESK, position="capitalized",
-               citation="26 CFR 1.9999-1(z)", desks=desks, keep=True)
+    ask.answer(Q,  position="capitalized",
+               citation="26 CFR 1.9999-1(z)", corpus=desks, keep=True)
     assert queue.exists() and queue.read_text(encoding="utf-8") != before
 
 
@@ -327,7 +327,7 @@ def test_a_careless_judge_quoting_real_words_still_serves_a_wrong_answer():
 
     So this test exists to go red if anyone ever writes that the judge stops
     wrong answers. It does not."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(by="careless-reader", supports=True,
@@ -338,7 +338,7 @@ def test_a_careless_judge_quoting_real_words_still_serves_a_wrong_answer():
 
 def test_and_the_identical_quotation_refuses_when_the_reader_is_careful():
     """The other half of the same pair. The engine did not change; the reader did."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(
@@ -352,7 +352,7 @@ def test_and_the_identical_quotation_refuses_when_the_reader_is_careful():
 
 def test_the_record_says_who_read_it_which_is_the_whole_gain():
     """`unchecked` says nobody looked. This says who looked and what they held."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(by="careless-reader", supports=True,

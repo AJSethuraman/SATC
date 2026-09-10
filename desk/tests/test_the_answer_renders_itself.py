@@ -29,14 +29,14 @@ BOOKS = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
 
 def _served():
     return conftest.answer_judged("the bank statement shows a $10 service charge and "
-                      "nothing for it is in the books", "cash-and-bank",
+                      "nothing for it is in the books", 
                       position="an entry in the books", citation=BOOKS,
                       keep=False)
 
 
 def _escalation():
     return conftest.answer_judged("how do I know if a lease should be booked as an asset",
-                      "fixed-assets", escalate="authority_absent",
+                       escalate="authority_absent",
                       working="Whether a lease puts a right-of-use asset on the "
                               "balance sheet is US GAAP under ASC 842. No desk "
                               "here holds the Codification.",

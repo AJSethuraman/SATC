@@ -729,6 +729,48 @@ class Desk:
                      if not p.proposed and p.citation != citation
                      and _stem(p.citation) == stem)
 
+    def narrowed_to(self, citations) -> "Desk":
+        """This record holding only the citations named, and what they rest on.
+
+        WHY IT EXISTS. `ask.brief` prints EVERY passage the record holds, which
+        was reasonable when a question reached one desk of forty passages and is
+        useless over one corpus of 785: an answerer handed the whole corpus is
+        an answerer handed nothing, and a model with an 8,192-token window
+        (LOCAL-LLM-PATTERN rule 1) is handed less than nothing.
+
+        So the pool narrows and this applies the narrowing. `pool.look` says
+        which citations speak to the question; this returns the record as if it
+        held only those, and every existing reader -- the brief, the positions
+        block, `alongside`, the sources list -- goes on working unchanged. That
+        is the point: NOTHING about how a brief is rendered changes, only how
+        much of the record reaches it.
+
+        SOURCES AND POSITIONS FOLLOW THE PASSAGES, and both directions matter.
+        A source nothing cites is noise in the brief. A POSITION whose citation
+        was not selected is worse than noise -- it is the firm's answer to a
+        different question, printed as though it bore on this one.
+
+        `alongside` IS DELIBERATELY NOT NARROWED. Where the firm holds two
+        positions on one passage with opposite answers -- `cash-and-bank` did,
+        and serving one without the other is the 7 September incident -- both
+        must travel with the answer even though only one citation was retrieved.
+        `Desk.alongside` matches on the citation STEM, so keeping every position
+        whose stem is selected is what preserves it.
+        """
+        import dataclasses
+        wanted = {c for c in citations}
+        stems = {_stem(c) for c in wanted}
+        passages = tuple(p for p in self.passages if p.citation in wanted)
+        positions = tuple(q for q in self.positions
+                          if q.citation in wanted or _stem(q.citation) in stems)
+        used = {p.source_id for p in passages}
+        return dataclasses.replace(
+            self,
+            passages=passages,
+            positions=positions,
+            sources=tuple(s for s in self.sources if s.id in used),
+        )
+
     def rules_only(self) -> "Desk":
         """This desk with its worked examples withheld. FOR GRADING ONLY.
 

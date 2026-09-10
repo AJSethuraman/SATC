@@ -128,10 +128,20 @@ def unreadable(text: str) -> int:
     return len(lines) - len(parse(text))
 
 
-def store_for(desks: Path, desk_name: str) -> Path:
-    return Path(desks).joinpath(desk_name, *STORE)
+def store_for(corpus: Path) -> Path:
+    """Where the tie-out store lives. ONE, under the corpus.
+
+    It took `(desks, desk_name)` until 10 September 2026 and put a store under
+    each desk. `dec-kill` deleted the desks, and the decisions this store exists
+    for were never per-desk anyway: the firm asked for it as *"It should state
+    what happened when trying to tie it out. I need info to make decisions down
+    the line"* — and a decision about a PUBLISHER cannot be made from one desk's
+    attempts. Forty failures against one host is a source to retire; the same
+    forty split seven ways is seven shrugs.
+    """
+    return Path(corpus).joinpath(*STORE)
 
 
-def record(desks: Path, desk_name: str, proof) -> Path:
+def record(corpus: Path, proof) -> Path:
     """The one call `ask.answer` makes. Whatever the verdict was."""
-    return append(store_for(desks, desk_name), from_proof(proof, desk_name))
+    return append(store_for(corpus), from_proof(proof, Path(corpus).name))

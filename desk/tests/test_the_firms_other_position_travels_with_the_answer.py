@@ -45,7 +45,7 @@ def cash():
 
 
 def _serve(question, position, citation):
-    return conftest.answer_judged(question, "cash-and-bank", position=position,
+    return conftest.answer_judged(question,  position=position,
                       citation=citation, keep=False)
 
 

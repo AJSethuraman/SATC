@@ -39,7 +39,7 @@ FOLLOW_UP = ("What was the invoice amount, and does the client have an "
 
 
 def _escalate(reason, **kw):
-    return ask.answer(FORKLIFT, "fixed-assets", escalate=reason,
+    return ask.answer(FORKLIFT,  escalate=reason,
                       working=WORKING, keep=False, **kw)
 
 

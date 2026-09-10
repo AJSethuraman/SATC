@@ -304,7 +304,7 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     q = record.load(desks / src.name).position("26 CFR 1.263(a)-1(f)(5)")
 
     out = front.answer("do we capitalise a $900 laptop?", src.name,
-                       position=q.position, citation=q.citation, desks=desks)
+                       position=q.position, citation=q.citation, corpus=desks)
     # `context_not_on_file` since 7 September 2026, and the change is the point.
     # It was `no_field_for_this_fact` while the desk recorded nothing; the firm
     # answered "Add the field" on the fifth docket, so the question now has

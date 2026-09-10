@@ -99,8 +99,8 @@ def _ask(desks, question, transport, *, citation=UNHELD, url=FOUND_AT,
     from conftest import a_judgment
     if judged is ...:
         judged = a_judgment(text) if text.strip() else None
-    return front.answer(question, DESK, position="It is capitalized.",
-                        citation=citation, desks=desks, keep=keep,
+    return front.answer(question,  position="It is capitalized.",
+                        citation=citation, corpus=desks, keep=keep,
                         prove=transport, found_at=url, found_text=text,
                         judged=judged)
 
@@ -306,7 +306,7 @@ def test_only_authority_absent_opens_the_candidate_path(tmp_path):
     all here, which refuses `no_citation` before the record is consulted."""
     desks = _copy(tmp_path)
     transport = _Counted(page=_Page(WORDS, url=FOUND_AT))
-    out = front.answer(TAX, DESK, position="x", citation="", desks=desks,
+    out = front.answer(TAX,  position="x", citation="", corpus=desks,
                        keep=False, prove=transport, found_at=FOUND_AT,
                        found_text=WORDS)
     assert isinstance(out, engine.Refusal)
@@ -321,7 +321,7 @@ def test_the_attempt_is_recorded_on_this_path_too(tmp_path):
     _ask(desks, TAX, lambda s, c: _Page(WORDS, url=FOUND_AT), keep=True)
     _ask(desks, TAX, _Counted(raises=OSError("down")), keep=True)
     rows = attempts.parse(
-        attempts.store_for(desks, DESK).read_text(encoding="utf-8"))
+        attempts.store_for(desks).read_text(encoding="utf-8"))
     assert [r.verdict for r in rows] == [proving.TIED, proving.COULD_NOT]
     assert all(r.citation == UNHELD for r in rows)
 
@@ -336,9 +336,9 @@ def test_nothing_is_kept_from_the_page_itself(tmp_path):
     after = {p: p.read_bytes() for p in sorted((desks / DESK).rglob("*"))
              if p.is_file()}
     added = set(after) - set(before)
-    assert added == {attempts.store_for(desks, DESK)}, added
+    assert added == {attempts.store_for(desks)}, added
     assert all(before[p] == after[p] for p in before), "an existing file moved"
-    assert WORDS not in after[attempts.store_for(desks, DESK)].decode("utf-8")
+    assert WORDS not in after[attempts.store_for(desks)].decode("utf-8")
 
 
 def test_the_candidate_source_is_built_and_never_written():
