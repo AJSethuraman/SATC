@@ -1636,15 +1636,50 @@ def _straddle_note(verdict, desk) -> str:
     return " ".join(out)
 
 
+#: Characters that are the SAME CHARACTER as far as the firm's word goes, and
+#: differ only in which key or which editor produced them. Nothing here changes
+#: a word; each pair is visually identical or near enough that no reader could
+#: tell them apart on a screen.
+#:
+#: `dec-apostrophe`, 10 September 2026. Forge-Occam had a submission refused
+#: `contradicts_ratified_position` over a curly versus straight apostrophe
+#: inside the firm's own quoted position -- two characters that look identical,
+#: one of which Word, phones and most editors insert automatically. It cost a
+#: round and the cause was invisible to the person hitting it. Offered the
+#: choice between normalising and staying byte-exact, the firm: **"Normalise."**
+#:
+#: THIS LIST IS CLOSED AND STAYS SHORT. Every entry is a crack in "a desk does
+#: not revise the firm's word", and the principle is right: the reason this is
+#: defensible is that a curly apostrophe is not a different word, it is a
+#: different way of typing the same one. Anything that could change meaning --
+#: a word, a number, a negation -- must still fail.
+_TYPOGRAPHY = str.maketrans({
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",
+    "\u2032": "'", "\u00b4": "'", "\u0060": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',
+    "\u2033": '"',
+    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-",
+    "\u2014": "-", "\u2015": "-", "\u2212": "-",
+})
+
+#: KNOWN AND DELIBERATELY NOT HANDLED: a non-breaking space (U+00A0) inside a
+#: position still fails the comparison. It is the same class of invisible
+#: hazard, the firm approved quotes and dashes, and widening past what they
+#: approved is the failure this whole check exists to prevent. Recorded here so
+#: the next person hitting it finds a note rather than a mystery.
+
+
 def _same(given: str, known: str) -> bool:
     """Compare a conclusion to the known one.
 
-    Deliberately exact once normalised for case and surrounding space. A looser
+    Exact once normalised for case, surrounding space, and the typographic
+    variants in `_TYPOGRAPHY` -- and exact in every other respect. A looser
     comparison here would quietly turn wrong answers into right ones, which is
-    the one direction this code must never fail in -- and `wrongly_absorbed` is
-    precisely the count that a generous comparison would hide.
+    the one direction this code must never fail in, and `wrongly_absorbed` is
+    precisely the count a generous comparison would hide.
     """
-    return given.strip().casefold() == known.strip().casefold()
+    return (given.translate(_TYPOGRAPHY).strip().casefold()
+            == known.translate(_TYPOGRAPHY).strip().casefold())
 
 
 def tally(results: list[Result]) -> dict[str, int]:
