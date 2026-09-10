@@ -208,6 +208,22 @@ def as_prompt(a: Ask) -> str:
         "Poke-only delivers once, in about eight seconds.", "",
         f"**Open your reply with `DESK ANSWER {a.ref}`** so a duplicate can be "
         f"told from a second question.", "",
+        "**IF `create_trigger` AND `fire_trigger` ARE NOT IN YOUR TOOLSET, YOU "
+        "ARE NOT STUCK.** Return the whole reply as your final output to "
+        "whoever invoked you -- same opening line, same content -- and say in "
+        "one sentence that the relay tools were unavailable so the asker knows "
+        "why it arrived by hand. Do NOT stay silent, do NOT invent another "
+        "transport, and do NOT treat the missing tools as a reason to skip "
+        "answering.", "",
+        "WHY THIS PARAGRAPH EXISTS. On 9 September 2026 Forge-Occam ran a real "
+        "year-end close against the installed plugin and had neither tool. They "
+        "improvised correctly -- each desk run as a subagent, its answer handed "
+        "back as a report -- and then said what that meant: the reply protocol "
+        "is not self-sufficient, and *\"an answerer that follows it literally, "
+        "in an environment without those tools, is stuck with no path and no "
+        "diagnosis.\"* The firm, on the docket: **\"Name the fallback.\"** An "
+        "answer that reaches the asker by hand is worth more than a protocol "
+        "obeyed into silence.", "",
         "**NOTHING YOU CAN SEE TELLS YOU WHETHER IT LANDED.** A 200 from "
         "`fire_trigger` is not delivery — measured. AND the durable record is "
         "not the fallback: on a `persist_session` trigger a fire that DID "
@@ -470,6 +486,11 @@ def research_prompt(r: Research, reply_to: str) -> str:
             f"Reply poke-only to `{reply_to}` — `create_trigger` with NO "
             f"`run_once_at` and NO `cron_expression`, then one `fire_trigger` — "
             f"opening with `FOUND {r.ref}` or `LOOKED {r.ref}`.", "",
+            "**No `create_trigger` / `fire_trigger` in your toolset?** Return "
+            "the same reply as your final output to whoever invoked you, and "
+            "say the relay tools were unavailable. `dec-relay`, 10 September "
+            "2026 — a protocol with one transport and no named fallback strands "
+            "an answerer that follows it literally.", "",
             "**`LOOKED` is a real answer and I want it.** *\"I searched, here is "
             "where, and the authority is not reachable\"* is a finding: it turns "
             "a gap nobody has examined into a gap somebody has, which is the "
