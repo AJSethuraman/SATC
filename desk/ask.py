@@ -707,9 +707,25 @@ def answer(question: str, *, position: str = "",
         path = corpus / "unsupported" / "asked.md"
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])
+        # THE REFUSAL ITSELF, NOT A `Result` BUILT FROM THREE OF ITS FIELDS.
+        #
+        # `dec-fields`, 10 September 2026. `Unsupported` carries `needs_field`
+        # and `asked_by` — the fact that has nowhere to live and the position
+        # that asked for it — and `from_refusal` reads them off `result.fact`
+        # and `result.by_position`. `engine.Result` HAS NEITHER FIELD. So every
+        # `no_field_for_this_fact` ever filed on the live path landed with both
+        # empty: a field request with no field named and no chain back to the
+        # position behind it, which is exactly what the firm made the condition
+        # of approving field requests at all.
+        #
+        # The whole channel existed — the dataclass, the parser, the renderer,
+        # `tools/holes.py` reading it — and nothing had ever put anything in it.
+        # Verified before fixing, by filing one and reading the file back.
+        #
+        # `Refusal` already carries everything `from_refusal` reads: `reason`,
+        # `detail`, `ask`, `fact`, `by_position`. Handing it over directly is
+        # one fewer shape to keep in step, and the shape that was NOT kept in
+        # step is what this bug was.
         unsupported.append(path, unsupported.from_refusal(
-            question, proposed, engine.Result(
-                "asked", engine.Outcome.WRONG_CAUGHT, reason=out.reason,
-                detail=out.detail, ask=out.ask),
-            model=model, existing=existing, desk=desk))
+            question, proposed, out, model=model, existing=existing, desk=desk))
     return out
