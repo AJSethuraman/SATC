@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import ask
 import unsupported
-from conftest import CORPUS, DESKS
+from conftest import CORPUS
 
 #: A subject no desk in this repository is built for. Kept deliberately mundane:
 #: the point is that an ordinary close question can reach nothing.

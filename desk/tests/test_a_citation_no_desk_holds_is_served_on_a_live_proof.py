@@ -39,7 +39,7 @@ import domains                                              # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import CORPUS, DESKS                          # noqa: E402
+from conftest import CORPUS                          # noqa: E402
 
 #: A citation NO desk holds. Checked in a test rather than asserted here.
 UNHELD = "26 CFR 1.9999-1(z)(4)"

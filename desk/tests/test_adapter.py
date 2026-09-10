@@ -17,13 +17,13 @@ import pytest
 import engine
 import record
 import scoreboard
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 from engine import Answer
 
 sys.path.insert(0, str(ROOT / "tools"))
 import scoreboard_run as sr        # noqa: E402
 
-DESK = DESKS / "fixed-assets"
+DESK = CORPUS
 
 
 def _scratch(tmp_path, *, extra_passage: str = ""):
@@ -103,7 +103,9 @@ def test_the_script_records_what_was_shown_beside_the_baselines(tmp_path):
     """End to end through `_main` on a copy of the desk, with a replay file
     standing in for a brain: the record must say which shape of the authority
     the brain saw and what a constant citation would have matched."""
-    copy = tmp_path / "fixed-assets"
+    # NAMED `corpus`, because `record.load` checks the registration name against
+    # the directory basename. It was `fixed-assets`.
+    copy = tmp_path / "corpus"
     shutil.copytree(DESK, copy, ignore=shutil.ignore_patterns("runs", "unsupported"))
     desk = record.load(copy)
     replies = tmp_path / "replies.json"
@@ -121,7 +123,20 @@ def test_the_script_records_what_was_shown_beside_the_baselines(tmp_path):
     citation, n = Counter(p.citation for p in desk.problems).most_common(1)[0]
     assert f"citing {citation!r} every time matches {n} of {len(desk.problems)}" in board
     outcomes = json.loads((out / "outcomes.json").read_text(encoding="utf-8"))
-    assert outcomes["frontier"]["counts"]["correct"] == len(desk.problems)
+    # THE CEILING, MEASURED, NOT ASSUMED TO BE EVERYTHING. A perfect answerer
+    # scored 98 of 98 while the record was one desk; the corpus escalates
+    # fourteen of its own recorded answers — `authority_permits_choice`, because
+    # a corpus that holds seven desks' regulations holds a binding rule on
+    # nearly every subject and guidance may not answer past one. See
+    # `test_a_desk_can_answer_itself.py`, which is where that is explained and
+    # where it is the firm's decision to make. What this test is about is that
+    # the SCRIPT records what it showed, so it asks for the ceiling rather than
+    # asserting a number the record no longer produces.
+    ceiling = sum(1 for r in scoreboard.run(
+        desk, lambda p: Answer(position=p.answer, citation=p.citation),
+        model="probe").results if r.outcome is engine.Outcome.CORRECT)
+    assert ceiling, "no problem grades correct at all; the fixture is broken"
+    assert outcomes["frontier"]["counts"]["correct"] == ceiling
 
 
 # ── containment is measured, and never scored ────────────────────────────────
@@ -151,12 +166,31 @@ def test_a_finer_path_under_the_governing_rule_is_counted_apart():
 
     assert d["citation_within_governing_rule"] == 1, d
     assert d["citation_matched"] == len(desk.problems) - 1, d
-    assert d["citation_off_index"] == 0, "a real subparagraph is in the index"
+
+    # THE FINER PATH IS IN THE INDEX, AND THAT IS WHAT THIS LINE MEANS. It read
+    # `citation_off_index == 0` and passed on a desk where every problem cited a
+    # RULE. One corpus holds `personal-or-business` too, and four of its
+    # problems are keyed to worked EXAMPLES of Publication 587 — which
+    # `citation_index` withholds on purpose, so those four are off-index whatever
+    # anybody answers. A flat zero was measuring the old desk's shape, not the
+    # property. What must be true is that substituting the finer path adds
+    # nothing: it is a real subparagraph and the index has it.
+    base_run = scoreboard.run(
+        desk, lambda p: Answer(position=p.answer, citation=p.citation),
+        model="probe")
+    base = sr.diagnostic(
+        desk, base_run,
+        {p.id: Answer(position=p.answer, citation=p.citation)
+         for p in desk.problems})
+    assert d["citation_off_index"] == base["citation_off_index"], (
+        "the finer path is not in the index, so this test is measuring a "
+        "missing passage rather than containment")
 
     # And it stays out of every total the scoreboard reports.
     counts = run.counts
     assert sum(counts.values()) == len(desk.problems)
-    assert counts["correct"] == len(desk.problems) - 1, (
+    ceiling = base_run.counts["correct"]
+    assert counts["correct"] == ceiling - 1, (
         "a finer path was scored as correct; the engine must still refuse it")
 
 
@@ -345,12 +379,19 @@ def test_a_fresh_directory_is_returned_unchanged(tmp_path):
                       date(2026, 9, 4)) == tmp_path / "new"
 
 
-def test_the_default_is_todays_directory_under_the_desk():
-    """The default is what collided, so it is asserted rather than assumed."""
+def test_the_default_is_todays_directory_under_runs():
+    """The default is what collided, so it is asserted rather than assumed.
+
+    IT WAS `desks/<name>/runs/<date>`. `dec-kill` deleted `desks/`, so a run
+    directory can no longer sit under one — it is `runs/<name>-<date>` now, and
+    the committed 4 September run was MOVED there rather than deleted with the
+    folder it happened to live in. A measured record is not overwritten and it
+    is not thrown away either.
+    """
     from datetime import date
 
     d = sr.run_dir("", "fixed-assets", date(2027, 1, 1))
-    assert d.parts[-3:] == ("fixed-assets", "runs", "2027-01-01")
+    assert d.parts[-2:] == ("runs", "fixed-assets-2027-01-01")
 
 
 def test_the_shipped_first_run_is_what_the_default_would_have_replaced():

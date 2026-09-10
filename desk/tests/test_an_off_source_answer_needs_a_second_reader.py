@@ -31,7 +31,7 @@ import ask
 import engine
 import record
 
-DESKS = Path(__file__).resolve().parents[1] / "desks"
+CORPUS = Path(__file__).resolve().parents[1] / "corpus"
 CORPUS = Path(__file__).resolve().parents[1] / "corpus"
 
 #: The measured case.

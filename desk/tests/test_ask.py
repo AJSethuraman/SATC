@@ -7,6 +7,7 @@ complete and unreachable. These tests are about the door, not the record.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -18,16 +19,31 @@ import engine
 import positions
 import record
 import conftest                                             # noqa: E402
-from conftest import CORPUS, DESKS
+from conftest import CORPUS
+
+HERE = Path(__file__).resolve().parents[1]
 
 
-def test_the_tool_the_refusal_message_names_exists():
-    """The one that would have caught it. A refusal that instructs a caller to
-    use a tool nobody wrote is a dead end wearing a next step's clothes."""
-    import routing
-    msg = routing.refusal_naming_the_desk(
-        "is a brewery tab a business meal?", routing.registry(DESKS))
-    assert "ask_desk" in msg, "fixture no longer proves it"
+def test_the_front_door_the_skills_name_exists():
+    """The one that would have caught it. An instruction that tells a caller to
+    use a tool nobody wrote is a dead end wearing a next step's clothes.
+
+    IT USED TO CHECK A ROUTING MESSAGE. `routing.refusal_naming_the_desk` built
+    the string "Ask <desk> with ask_desk" and this asserted the string mentioned
+    the tool. `dec-kill` deleted routing, and with it the only thing that ever
+    named a desk — so the check moves to where the instruction actually lives
+    now, which is the skills an agent reads at runtime. A skill naming a
+    function that does not exist is the same defect one layer up.
+    """
+    named = set()
+    for f in sorted((HERE / "skills").rglob("SKILL.md")):
+        for m in re.finditer(r"\bask\.(\w+)\(", f.read_text(encoding="utf-8")):
+            named.add(m.group(1))
+    assert named, "no skill names a front-door call, so this proves nothing"
+    for name in sorted(named):
+        assert callable(getattr(ask, name, None)), (
+            f"a skill tells an agent to call ask.{name}(), and there is no such "
+            f"callable — that is `ask_desk` again")
     assert callable(ask.consult) and callable(ask.answer)
 
 

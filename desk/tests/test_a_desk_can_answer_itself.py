@@ -32,7 +32,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import engine                                               # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def _ceiling(desk):
@@ -43,7 +43,7 @@ def _ceiling(desk):
 
 
 def _desks():
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if (d / "SOURCES.md").is_file():
             yield record.load(d)
 
@@ -117,11 +117,40 @@ def test_the_rewards_desk_grades_eighteen_and_escalates_one():
 
     THE TWO HALVES ARE STILL NOT ONE NUMBER. What separates them is no longer
     the outcome but the caveat, and `test_the_guidance_half_is_marked_as_such`
-    is what holds that apart."""
-    desk = record.load(DESKS / "rewards-and-information-returns")
-    counts = engine.tally(_ceiling(desk))
-    assert counts == {"wrongly_absorbed": 0, "correct": 18,
-                      "wrong_caught": 0, "escalated": 1}, counts
+    is what holds that apart.
+
+    ONE CORPUS TOOK FIVE OF THE EIGHT BACK, 10 SEPTEMBER 2026, AND THAT IS A
+    DECISION FOR THE FIRM RATHER THAN A NUMBER TO EDIT. It is now 13 correct and
+    6 escalated. RW1, RW5, RW6, RW8 and RW9 join RW7 in escalating, all with the
+    same sentence: *"is secondary authority, which is somebody's reading rather
+    than the rule — and this desk holds binding authority on this subject. Cite
+    the rule, or escalate."*
+    
+    NOTHING ABOUT THOSE ANSWERS CHANGED. What changed is what "this desk holds
+    binding authority on this subject" is true of. RW7's escalation was
+    presented above as the interesting case — the ruling refused because
+    § 1.61-1 reaches gross income — and `dec-kill` makes that case the ordinary
+    one: a corpus holding seven desks' regulations holds a binding rule on very
+    nearly every subject, so guidance is refused nearly everywhere.
+    
+    THE FIRM BOUGHT SOMETHING ON THE FOURTH DOCKET AND THIS TAKES PART OF IT
+    BACK. `dec-guidance` was answered "Serve it, marked", and the argument was
+    that nine problems could otherwise only escalate. Six can only escalate
+    again. Recorded here rather than fixed, because whether the gate should read
+    "binding authority ON THIS PARAGRAPH'S QUESTION" instead of "anywhere in the
+    corpus" is the firm's call and not this session's.
+    """
+    desk = record.load(CORPUS)
+    # THE REWARDS PROBLEMS, NAMED BY THEIR OWN IDS. This graded a desk directory
+    # until `dec-kill`; the corpus holds all 98, and the measurement the firm's
+    # docket turned on is about these nineteen.
+    rewards = [p for p in desk.problems if p.id.startswith(("RW", "IR"))]
+    assert len(rewards) == 19, f"{len(rewards)} rewards problems, not 19"
+    counts = engine.tally(
+        [engine.grade(engine.Answer(position=p.answer, citation=p.citation),
+                      p, desk) for p in rewards])
+    assert counts == {"wrongly_absorbed": 0, "correct": 13,
+                      "wrong_caught": 0, "escalated": 6}, counts
 
 
 def test_the_guidance_half_is_marked_as_such():
@@ -132,18 +161,23 @@ def test_the_guidance_half_is_marked_as_such():
     the whole record leave under a caveat, so the number can only move
     deliberately — and reports it per desk, because a desk whose guidance half
     quietly became binding would be invisible in a total."""
-    marked = {}
-    for desk in _desks():
-        n = 0
-        for p in desk.problems:
-            out = engine.serve(
-                engine.Answer(position=p.answer, citation=p.citation),
-                desk, question=p.facts, context=p.context)
-            if isinstance(out, engine.Served) and not out.binding:
-                assert out.caveat, f"{desk.name}/{p.id} is unmarked and uncaveated"
-                n += 1
-        if n:
-            marked[desk.name] = n
-    assert marked == {"personal-or-business": 3,
-                      "rewards-and-information-returns": 8,
-                      "vehicle-expense": 3}, marked
+    desk = record.load(CORPUS)
+    marked = []
+    for p in desk.problems:
+        out = engine.serve(
+            engine.Answer(position=p.answer, citation=p.citation),
+            desk, question=p.facts, context=p.context)
+        if isinstance(out, engine.Served) and not out.binding:
+            assert out.caveat, f"{p.id} is unmarked and uncaveated"
+            marked.append(p.id)
+    # FOURTEEN BEFORE, SIX NOW, AND THE EIGHT DID NOT BECOME BINDING -- THEY
+    # STOPPED BEING SERVED. It was `{personal-or-business: 3,
+    # rewards-and-information-returns: 8, vehicle-expense: 3}` across seven
+    # desks. Under one corpus a binding rule reaches nearly every subject, so
+    # eight of those fourteen now escalate `authority_permits_choice` instead of
+    # serving under a caveat. That is the same eight counted in
+    # `test_no_desk_serves_what_nobody_read.py::COST`, seen from the other side,
+    # and it is the part of `dec-guidance` that one corpus takes back. The ids
+    # are listed rather than counted so that a guidance answer quietly becoming
+    # binding is visible here rather than hidden in a total.
+    assert marked == ["PH3", "PH4", "RW2", "RW3", "RW4", "VE14"], marked

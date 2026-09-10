@@ -16,10 +16,6 @@ import engine
 import factory
 import guards
 import record
-import routing
-
-
-# ── fixtures: the smallest desk that is honestly complete ────────────────────
 
 SOURCE = factory.SourceDraft(
     id="S1", title="A public rule", tier="primary", access="public_fetch",
@@ -175,7 +171,7 @@ def test_an_emitted_desk_loads_gates_and_grades_like_a_hand_built_one(checkout):
                           p, desk)
     assert graded.outcome is engine.Outcome.CORRECT
 
-    reg = routing.parse_subjects(
+    reg = record.parse_subjects(
         (desk_dir / "SUBJECTS.md").read_text(encoding="utf-8"), "widgets")
     assert reg.fires_on == ("widget", "widgets")
     assert reg.answered_from == {"S1": ("widget", "widgets")}

@@ -1,6 +1,6 @@
 ---
 name: ask-desk
-description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. Sends the question to the session that holds the desks and receives the answer back; the desk answers only from authority it can cite, or tells you who has to be asked.
+description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. Sends the question to the session that holds the corpus and receives the answer back; it answers only from authority it can cite, or tells you who has to be asked.
 ---
 
 # Ask a desk
@@ -9,7 +9,7 @@ description: Consult an expert desk when a question is outside your authority �
 something.** It is not a second opinion on your judgement — it is the authority
 you do not have.
 
-**You may well be able to read the desks. Do not.** `desk/desks/` is very
+**You may well be able to read the corpus. Do not.** `desk/corpus/` is very
 likely sitting in the checkout you are working in, and nothing stops you opening
 it. This file used to say *"you do not hold the desks and you cannot read them"*,
 and a doer on 8 September read five files out of it before sending anything —

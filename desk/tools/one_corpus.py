@@ -189,9 +189,28 @@ def merge(dry: bool) -> int:
     # ---- extracted passages, longest text wins ----------------------------
     best: dict = {}
     dropped = []
+    # THE PREFACES, KEPT. Each `extracted/*.md` opens with prose that is not a
+    # passage: what is stored and what is not, why the `Kind` mark is not
+    # decoration, and -- on § 1.263(a)-3 -- numbers the file states ABOUT
+    # ITSELF, which `test_rules.py` asserts against a rebuild both ways so the
+    # file cannot outlive the facts. The first merge dropped all seven and took
+    # that check's subject with them. They go into the merged file's own
+    # preamble under `###` sub-headings, which `parse_passages` does not read as
+    # blocks, so nothing about the passages changes.
+    prefaces = []
     for name in loaded:
         for f in sorted((DESKS / name / "extracted").glob("*.md")):
             raw = f.read_text(encoding="utf-8")
+            if head := blocks(raw)[0].strip():
+                # The file's own `# Title` becomes a `###` so one file has one
+                # top-level heading. DEDUPED: twenty-nine of the thirty-six
+                # extraction files open with the same boilerplate paragraph
+                # about verbatim text and where judgement does not live, and
+                # printing it twenty-nine times would bury the seven that say
+                # something specific.
+                head = re.sub(r"^# ", "### ", head, count=1, flags=re.M)
+                if head not in prefaces:
+                    prefaces.append(head)
             for b in blocks(raw)[1]:
                 citation = re.match(r"^## (.+)$", b, re.M).group(1).strip()
                 b = rewrite_source_ids(b, name, mapping).rstrip()
@@ -248,20 +267,52 @@ def merge(dry: bool) -> int:
         for b in blocks(raw)[1]:
             b = rewrite_source_ids(b, name, mapping)
             body = b.split("\n", 1)[1] if "\n" in b else ""
-            kept, prose = [], []
+            # A DECLARATION IS NOT A LINE. IT WRAPS, AND THIS READ IT LINE BY
+            # LINE -- so `capitalization-and-de-minimis`'s S1, thirty-eight
+            # subjects across eight physical lines, arrived in the corpus as
+            # THREE, and its continuation lines were filed as prose. `capitalize`,
+            # `tool`, `asset`, `invoice` and `expense` stopped being subjects of
+            # the regulation that defines them.
+            #
+            # WHAT IT COST, MEASURED BEFORE IT WAS FIXED: eleven of the 98
+            # recorded problems -- CD1 through CD7 and MS2 through MS5 --
+            # answered with their OWN recorded citation were marked off-source,
+            # against a pinned cost of zero. Two tests said "this costs nothing
+            # on any desk" and both went red. It also produced the subject
+            # `materials or`, half of "materials or supplies", which is a term
+            # nothing will ever match and which no guard in `record.py` refuses.
+            #
+            # NEITHER THE INVENTORY NOR THE LOAD CAUGHT IT. The migration's own
+            # report counts citations, positions, problems and sources, and all
+            # four were right; `record.load` validated the truncated line
+            # happily, because three subjects is a legal declaration. It was
+            # caught by a test that pins a COST, which is the argument for
+            # pinning costs rather than counts.
+            #
+            # So the declaration is read the way `record.py` reads it -- to the
+            # blank line or the next `**field**`, not to the newline -- and the
+            # matched span is removed from the body before what is left becomes
+            # prose.
+            declaration = re.compile(
+                r"^\*\*Answered (?:from \S+|by `[^`]+`):\*\*[ ]?.*?(?=\n\n|\n\*\*|\Z)",
+                re.M | re.S)
+            kept = [" ".join(m.group(0).split())
+                    for m in declaration.finditer(body)]
+            body = declaration.sub("", body)
+            # THE FACTS THE CORPUS EXPECTS ON FILE, unioned like the subject
+            # lists, and taken from the PARSED record rather than re-read off
+            # the line. `record.load` refuses a position that needs a field
+            # nothing declares -- "nothing a caller passes could ever meet it"
+            # -- so dropping these would make 20 ratified positions unservable,
+            # which is the loudest possible way to lose the firm's own answers.
+            # Every `Records:` line happens to be one physical line today; that
+            # is not a reason to parse it a second, different way.
+            records += [f for f in loaded[name].records if f not in records]
+            body = re.sub(r"^\*\*Records:\*\*[ ]?.*?(?=\n\n|\n\*\*|\Z)",
+                          "", body, flags=re.M | re.S)
+            prose = []
             for line in body.splitlines():
-                if re.match(r"^\*\*Answered (from|by) ", line.strip()):
-                    kept.append(line.rstrip())
-                elif re.match(r"^\*\*Records:\*\*", line.strip()):
-                    # THE FACTS THE CORPUS EXPECTS ON FILE, unioned like the
-                    # subject lists. `record.load` refuses a position that needs
-                    # a field nothing declares -- "nothing a caller passes could
-                    # ever meet it" -- so dropping these would make 20 ratified
-                    # positions unservable, which is the loudest possible way to
-                    # lose the firm's own answers.
-                    records += [x.strip() for x in
-                                line.split(":**", 1)[1].split(",") if x.strip()]
-                elif re.match(r"^\*\*Judged:\*\*", line.strip()):
+                if re.match(r"^\*\*Judged:\*\*", line.strip()):
                     continue          # one policy, written once below
                 else:
                     prose.append(line.rstrip())
@@ -344,7 +395,9 @@ def merge(dry: bool) -> int:
     _write(staged / "PROBLEMS.md", _preamble("PROBLEMS"), prob_out)
     _write(staged / "positions" / "POSITIONS.md", _preamble("POSITIONS"),
            pos_out)
-    _write(staged / "extracted" / "authority.md", _preamble("EXTRACTED"),
+    _write(staged / "extracted" / "authority.md",
+           _preamble("EXTRACTED").rstrip() + "\n\n"
+           + "\n\n".join(prefaces) + "\n",
            [b for b, _, _ in best.values()])
 
     try:
@@ -446,6 +499,42 @@ def _reconcile(loaded: dict, after, mapping: dict) -> dict:
     for c, terms in sorted(was_n.items()):
         if c not in now_n or not terms <= now_n[c]:
             fatal.append(f"per-citation narrowing lost for {c!r}")
+
+    # EVERY SUBJECT DECLARED BEFORE MUST BE DECLARED AFTER, AND THIS CHECK IS
+    # HERE BECAUSE IT WAS NOT. The first run of this tool read each `Answered
+    # from` declaration line by line, so a wrapped one was truncated to its
+    # first physical line: `capitalization-and-de-minimis`'s S1 went from
+    # thirty-eight subjects to three, and every count above was right. It
+    # surfaced two days later as eleven recorded problems being marked
+    # off-source against a pinned cost of zero.
+    #
+    # A COUNT OF THINGS IS NOT A CHECK ON THE THINGS. Citations, positions,
+    # problems and sources all reconciled exactly while the vocabulary that
+    # decides whether a citation ANSWERS anything was being silently thrown
+    # away. `record.load` could not see it either -- three subjects is a legal
+    # declaration.
+    was_t = {t for k in loaded.values() for terms in k.answered_from.values()
+             for t in terms}
+    now_t = {t for terms in after.answered_from.values() for t in terms}
+    report.append(f"subjects    {len(was_t):>4} before -> {len(now_t):>4} after")
+    if missing := sorted(was_t - now_t):
+        fatal.append(f"{len(missing)} subjects lost, first three: "
+                     f"{missing[:3]}")
+
+    # AND EVERY SUBJECT MUST STILL BE ANSWERED FROM THE SOURCE THAT ANSWERED
+    # IT. The union above would be satisfied by a term surviving on the wrong
+    # source, which is exactly the failure the truncation produced: `capitalize`
+    # stayed in the corpus -- on fixed-assets' § 1.263(a)-3 -- while leaving
+    # § 1.263(a)-1, the section that defines the election it belongs to.
+    was_pair = {(mapping[(name, sid)], t)
+                for name, k in loaded.items()
+                for sid, terms in k.answered_from.items() for t in terms
+                if (name, sid) in mapping}
+    now_pair = {(sid, t) for sid, terms in after.answered_from.items()
+                for t in terms}
+    if missing := sorted(was_pair - now_pair):
+        fatal.append(f"{len(missing)} subject/source pairs lost, first three: "
+                     f"{missing[:3]}")
 
     # EVERY PASSAGE MUST STILL NAME A SOURCE THE CORPUS HOLDS. This is the one
     # the renumbering could break silently: a missed `**Source:** Sn` rewrite

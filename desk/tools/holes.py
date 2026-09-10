@@ -29,7 +29,7 @@ when five `context_not_on_file` refusals stood in the latest run, and the
 document pointing the firm at it quoted that zero as a finding. The three:
 
     unfiled/*.md                  filed by hand at close. Durable
-    desks/*/unsupported/*.md      filed by `ask.answer` as it refuses. Durable
+    corpus/unsupported/*.md       filed by `ask.answer` as it refuses. Durable
     runs/<latest>/served.json     the last measured run. LIVE, and it moves
 
 THE DURABLE QUEUES AND THE LIVE RUN ARE NOT SUMMED, and the separation is the
@@ -139,9 +139,13 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
     # report says which file each entry came from.
     for p in sorted((root / "unfiled").glob("*.md")):
         found.append((DURABLE, _where(p, root), p))
-    for d in sorted((root / "desks").iterdir()) if (root / "desks").is_dir() else []:
-        for p in sorted((d / "unsupported").glob("*.md")):
-            found.append((DURABLE, _where(p, root), p))
+    # ONE QUEUE, NOT SEVEN. This walked `desks/*/unsupported/`; `dec-kill`
+    # deleted the desks and `ask.answer` files into `corpus/unsupported/`.
+    # The loop shape is kept rather than collapsed to one path because what
+    # this function promises is EVERY place a refusal can land, and a glob
+    # says that where a hardcoded filename asserts it.
+    for p in sorted((root / "corpus" / "unsupported").glob("*.md")):
+        found.append((DURABLE, _where(p, root), p))
     runs = sorted(p for p in (root / "runs").glob("*asked-*")
                   if (p / "served.json").is_file())
     if runs:

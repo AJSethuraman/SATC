@@ -38,8 +38,8 @@ import pool
 import unsupported
 
 HERE = Path(__file__).resolve().parent
-DESKS = HERE / "desks"
 #: One corpus. `dec-kill`, 8 September 2026 — "Kill the desks; one pool."
+#: `DESKS` sat here beside it for two days and is gone with the directory.
 CORPUS = HERE / "corpus"
 
 #: What an answerer may see, and the omission that matters. `PROBLEMS.md` is the
@@ -178,6 +178,38 @@ def brief(question: str, desk: record.Desk,
            "exact words you are resting on: the engine will fetch that page and",
            "serve only if those words are on it right now. It will not take",
            "your word for what the page says.", ""]
+    # THE ANSWERING CONTRACT, AND IT USED TO LIVE SOMEWHERE ELSE.
+    #
+    # `tools/ask_the_desks.py` carried a SECOND brief with these lines in it,
+    # kept in step with this one by nobody. The tool was the only thing that
+    # ever told an answerer the shape to return or what `ask` is for; the live
+    # path said "escalate `authority_absent`" and left the rest to be guessed.
+    # `dec-kill` deleted the duplicate, so the instructions move here rather
+    # than going with it — a brief that is wrong now is wrong in production,
+    # where somebody sees it.
+    out += ["## What you must return", "",
+            "```json",
+            '{"position": "<your conclusion, one short line>",',
+            ' "citation": "<one citation, copied EXACTLY from a heading below>",',
+            ' "working": "<why that paragraph settles it>"}',
+            "```", "",
+            "Or, if nothing below settles it:", "",
+            "```json",
+            '{"escalated": true, "reason": "<one of: authority_absent, '
+            'authority_permits_choice, facts_not_established>", "working": '
+            '"<what is missing>", "ask": "<the question a person must answer>"}',
+            "```", "",
+            "**`facts_not_established`** is the right answer when the rule is "
+            "clear and what you do not know is a fact about the client — what "
+            "was bought, which entity, which period. It is not a failure; it "
+            "is the answer that says who has to be asked.", "",
+            "**On that reason you MUST fill in `ask`, and the engine refuses "
+            "without it.** Name the fact and say what would settle it, in "
+            "words a preparer can act on — *\"What was the invoice amount? "
+            "Under $2,500 the safe harbour may reach it.\"* — not *\"more "
+            "information needed\"*. A refusal that names a gap and not the "
+            "question is a dead end wearing a reason code, and it is the "
+            "difference between a queue somebody can work and a count.", ""]
     # WHICH FACTS BEAR ON THIS QUESTION, and it is not all of them any more.
     #
     # ONE CORPUS MADE THIS NECESSARY. Each of the seven records declared the
@@ -236,6 +268,25 @@ def brief(question: str, desk: record.Desk,
     out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**" for s in desk.sources]
     if ratified:
         out += ["", "## The firm's own positions — binding, and quoted exactly", ""]
+        # COPY THE POSITION, DO NOT RESTATE IT -- and the brief has to say so.
+        #
+        # `engine._same` compares a submitted position to the firm's word by
+        # EXACT string equality (case and surrounding space aside), on purpose:
+        # "a looser comparison here would quietly turn wrong answers into right
+        # ones, which is the one direction this code must never fail in."
+        #
+        # The header alone never carried it. On the 8 September pilot four of
+        # twelve answered attempts came back `contradicts_ratified_position`
+        # while AGREEING with the firm -- Q6, Q7, and Q31 on two desks --
+        # because an answerer told a position is "binding" naturally
+        # paraphrases it. Re-serving the same run with the four positions
+        # copied verbatim and nothing else changed took it from 3 served to 7.
+        # A third of the run was measuring this paragraph's absence.
+        out += ["**If you rely on one of these, copy its wording EXACTLY into "
+                "`position`.** The engine compares what you submit to the "
+                "firm's sentence character for character and refuses anything "
+                "else as a contradiction, however much you agree with it. Put "
+                "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
             # A DEFAULT SAYS SO, so an answerer is not told the firm's general

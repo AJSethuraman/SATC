@@ -42,7 +42,7 @@ sys.path.insert(0, str(HERE))
 import engine                                               # noqa: E402
 import positions                                            # noqa: E402
 import record                                               # noqa: E402
-from conftest import CORPUS, DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 CITE = "26 CFR 1.263(a)-1(f)(5)"
 FACT = "capitalisation_rule"
@@ -188,7 +188,7 @@ def test_every_unless_on_every_desk_is_reachable_or_is_a_finding():
     absence: an `Unless:` on a declared fact asks the preparer, and one on an
     undeclared fact asks the firm. What it may not be is empty or a typo of a
     fact that differs from a declared one only in case."""
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

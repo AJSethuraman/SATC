@@ -41,7 +41,6 @@ sys.path.insert(0, str(HERE))
 
 import attempts as attempts_store                           # noqa: E402
 
-DESKS = HERE / "desks"
 CORPUS = HERE / "corpus"
 
 
@@ -74,7 +73,7 @@ def read(paths) -> tuple[list, int, int]:
     return rows, files, skipped
 
 
-def report(root: pathlib.Path = DESKS, paths=None) -> str:
+def report(root: pathlib.Path = CORPUS, paths=None) -> str:
     if paths:
         known = [(str(p), pathlib.Path(p), pathlib.Path(p).exists()) for p in paths]
     else:

@@ -21,9 +21,10 @@ ROOT = Path(__file__).parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-DESKS = ROOT / "desks"
-#: ONE CORPUS. `dec-kill`, 8 September 2026 — "Kill the desks; one pool." The
-#: record directory is the corpus itself; nothing sits beneath it.
+#: ONE CORPUS. `dec-kill`, 8 September 2026 — "Kill the desks; one pool."
+#: `DESKS = ROOT / "desks"` sat here beside it until 10 September, when the firm
+#: said for the third time to delete them and the directory went. The record
+#: directory is the corpus itself; nothing sits beneath it.
 CORPUS = ROOT / "corpus"
 
 
@@ -47,7 +48,7 @@ def no_network(monkeypatch):
 @pytest.fixture
 def fixed_assets():
     import record
-    return record.load(DESKS / "fixed-assets")
+    return record.load(CORPUS)
 
 
 @pytest.fixture

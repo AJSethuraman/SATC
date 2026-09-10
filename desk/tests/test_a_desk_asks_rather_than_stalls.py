@@ -115,16 +115,22 @@ def test_an_authority_absent_escalation_may_still_carry_one():
 
 # --------------------------------------------------- the answering contract
 
-def test_the_harness_prompt_demands_a_real_question():
-    """The tool's prompt is what an answering model actually reads. A field the
-    engine requires and the prompt never mentions is a gate that fires on every
-    honest attempt."""
-    from tools import ask_the_desks
-    prompt = "\n".join(ask_the_desks.brief_lines()) if hasattr(
-        ask_the_desks, "brief_lines") else ""
-    if not prompt:                       # the prompt is assembled inline
-        import inspect
-        prompt = inspect.getsource(ask_the_desks)
+def test_the_brief_demands_a_real_question():
+    """The brief is what an answering model actually reads. A field the engine
+    requires and the brief never mentions is a gate that fires on every honest
+    attempt.
+
+    IT USED TO READ `tools/ask_the_desks.py` AND THAT WAS THE DEFECT IT MISSED.
+    The tool carried a second brief, and these instructions were only ever in
+    that one — so this test was green while the LIVE path, `ask.consult`, said
+    nothing about the shape to return or what `ask` is for. `dec-kill` deleted
+    the duplicate and moved the lines into `ask.brief`; the check follows them,
+    and now fails if production loses them rather than if a harness does.
+    """
+    import ask
+
+    prompt = ask.consult("is a brewery tab a business meal?")
+    assert prompt, "the fixture question reaches nothing, so this proves nothing"
     assert '"ask"' in prompt
     assert "MUST fill in `ask`" in prompt
     assert "more information needed" in prompt, (

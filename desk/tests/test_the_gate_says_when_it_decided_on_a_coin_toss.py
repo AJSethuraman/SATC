@@ -151,7 +151,7 @@ def test_it_says_no_desk_here_holds_that_half():
 def test_that_last_part_is_read_off_the_record_and_not_asserted():
     """A sentence claiming the record holds nothing goes stale the day the firm
     admits a publisher. So it asks the desk's own sources."""
-    desk = record.load(ask.DESKS / "fixed-assets")
+    desk = record.load(ask.CORPUS)
     fasb = record.Source(id="SX", title="FASB ASC", tier="primary",
                          access="public_fetch", may_store=False,
                          checked="2026-09-08", citation_prefix="ASC",
@@ -286,30 +286,27 @@ def test_the_four_recorded_tax_problems_that_straddle_are_still_served():
     correctly today. This test is what a future session has to break on purpose
     if it decides refusal is right after all — and the firm is the one who
     decides that."""
-    straddling = []
-    for p in sorted(ask.DESKS.iterdir()):
-        if not p.is_dir():
-            continue
-        desk = record.load(p)
-        for problem in desk.problems:
-            v = domains.classify(f"{problem.title} {problem.facts}")
-            if v and v.tied:
-                straddling.append((desk.name, problem.id))
+    desk = record.load(ask.CORPUS)
+    straddling = [problem.id for problem in desk.problems
+                  if (v := domains.classify(f"{problem.title} {problem.facts}"))
+                  and v.tied]
+    # NAMED, NOT COUNTED BY DESK. This asserted four of the five came from
+    # `fixed-assets`; `dec-kill` left no desk to count. The four are P-series
+    # problems, which is the same four — the id prefix survived the merge where
+    # the folder did not.
     assert len(straddling) == 5, straddling
-    assert [d for d, _ in straddling].count("fixed-assets") == 4
+    assert sum(1 for i in straddling if i.startswith("P")
+               and not i.startswith(("PB", "PH"))) == 4, straddling
 
 
 def test_every_straddle_on_this_record_is_an_exact_tie():
     """Which is why `tied` and not a score. If an ordered straddle ever appears
     in the corpus this goes red and somebody decides what it means."""
-    for p in sorted(ask.DESKS.iterdir()):
-        if not p.is_dir():
-            continue
-        desk = record.load(p)
-        for problem in desk.problems:
-            v = domains.classify(f"{problem.title} {problem.facts}")
-            if v and v.straddles:
-                assert v.tied, f"{desk.name}/{problem.id} straddles without tying"
+    desk = record.load(ask.CORPUS)
+    for problem in desk.problems:
+        v = domains.classify(f"{problem.title} {problem.facts}")
+        if v and v.straddles:
+            assert v.tied, f"{problem.id} straddles without tying"
 
 
 # ------------------------------------------------------------ the plumbing
@@ -317,7 +314,7 @@ def test_every_straddle_on_this_record_is_an_exact_tie():
 def test_the_verdict_reaches_the_answer_rather_than_being_worked_out_twice():
     """`_check` hands it back for the same reason `cited_off_source` is handed
     the resolved source: one resolution, one answer, no second copy to drift."""
-    desk = record.load(ask.DESKS / "fixed-assets")
+    desk = record.load(ask.CORPUS)
     got = engine._check(engine.Answer(position="capitalized", citation=CIT),
                         desk, NATURAL)
     assert len(got) == 4, "a caller unpacking three will now fail loudly"

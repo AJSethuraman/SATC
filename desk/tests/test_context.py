@@ -24,7 +24,7 @@ import ask
 import engine
 import positions
 import record
-from conftest import CORPUS, DESKS, ROOT
+from conftest import CORPUS, ROOT
 
 #: A question whose SUBJECT this desk answers from S1, which is where POS1's
 #: citation lives. "Home Depot" will not do, and the reason is worth keeping:
@@ -122,7 +122,7 @@ def test_the_records_line_stops_at_the_blank_line(pob):
     # positions turned on; `dec-kill` merged them, so the record holds all three
     # and `brief` is what decides which of them bear on a question.
     assert pob.records == ("capitalization_rule", "trade", "taxpayer")
-    text = (DESKS / "personal-or-business" / "SUBJECTS.md").read_text(encoding="utf-8")
+    text = (CORPUS / "SUBJECTS.md").read_text(encoding="utf-8")
     assert "*What the client does" in text, "the prose that broke it is gone"
 
 
@@ -299,7 +299,7 @@ def test_the_context_holds_no_field_for_a_person():
     fact about the work."""
     fields = {f.name for f in dataclasses.fields(record.Context)}
     assert fields == {"facts"}
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SUBJECTS.md").is_file():
             continue
         for name in record.load(d).records:

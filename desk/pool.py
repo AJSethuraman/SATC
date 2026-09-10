@@ -130,31 +130,35 @@ def terms(text: str) -> tuple[str, ...]:
 
 
 def _records(where: Path) -> list[Path]:
-    """The record directories under `where` -- or `where` itself if it is one.
+    """The record directory. A one-entry list.
 
-    ONE CORPUS IS THE DESTINATION AND SEVEN DESKS IS THE PRESENT, and this
-    function is the whole of the difference to this module. `dec-kill` deletes
-    the desks; until `desks/` is gone, both shapes have to load or the migration
-    cannot be verified against what it replaced. It is a MIGRATION seam, not a
-    permanent option -- when `desks/` goes, the loop below has one entry and
-    this function collapses to a return.
+    IT WAS A MIGRATION SEAM AND THE MIGRATION IS DONE. `dec-kill` deleted the
+    desks on 10 September 2026, so this no longer accepts the parent of seven
+    record folders — it takes the corpus and returns it.
+
+    The list survives the collapse on purpose. `assemble` iterates it, so a
+    second record — should the firm ever hold one — is a change to what this
+    returns rather than a rewrite of what reads it. What must NOT come back is
+    the parent-directory shape: a folder holding several records is the desk
+    concept wearing a different name.
     """
     where = Path(where)
-    if (where / "SUBJECTS.md").is_file():
-        return [where]
-    return [d for d in sorted(where.iterdir())
-            if (d / "SUBJECTS.md").is_file()]
+    if not (where / "SUBJECTS.md").is_file():
+        raise record.RecordError(
+            f"no record at {where}. `pool.assemble` takes the corpus directory "
+            f"itself; it stopped accepting a parent of several when the desks "
+            f"were deleted.")
+    return [where]
 
 
-def assemble(desks_dir: Path) -> tuple[Held, ...]:
-    """Every citation on file, from every record, as one pool.
+def assemble(corpus: Path) -> tuple[Held, ...]:
+    """Every citation on file, as one pool.
 
-    Takes the corpus directory, or -- until `desks/` is deleted -- the parent of
-    the seven records. What it reads stops being how a question is answered
-    either way: this module holds citations, and `read_from` is provenance.
+    Takes the corpus directory. What it reads stops being how a question is
+    answered: this module holds citations, and `read_from` is provenance.
     """
     held: list[Held] = []
-    for folder in _records(desks_dir):
+    for folder in _records(corpus):
         desk = record.load(folder)
         by_citation: dict[str, list] = {}
         for position in desk.positions:

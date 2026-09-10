@@ -154,7 +154,7 @@ def _resolver():
 def _resolve_in(tmp_path, names):
     """Run it against a plugin cache holding exactly `names`."""
     for n in names:
-        (tmp_path / n / "desks").mkdir(parents=True)
+        (tmp_path / n / "corpus").mkdir(parents=True)
     env = {"os": __import__("os"), "sys": __import__("sys"),
            "SystemExit": SystemExit}
     import os

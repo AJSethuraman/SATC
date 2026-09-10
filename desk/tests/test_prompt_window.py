@@ -21,7 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 import record                                               # noqa: E402
 import scoreboard                                           # noqa: E402
 import scoreboard_run as sr                                 # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                 # noqa: E402
 
 
 # -- the window ---------------------------------------------------------------
@@ -62,82 +62,71 @@ def test_the_refusal_says_what_to_do_about_it():
     assert "--corpus index" in said and "--num-ctx" in said
 
 
-def test_the_index_shape_fits_every_desk_and_the_full_text_fits_one():
-    """The measurement, kept as a test so it cannot rot quietly.
+def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
+    """The measurement, kept as a test so it cannot rot quietly — AND IT WENT
+    THE WRONG WAY ON 10 SEPTEMBER 2026.
 
-    IT SAID "FITS NONE" FOR AN HOUR AND THAT WAS WRONG. It was measured while
-    four desks could not be prompted at all -- the leak check was refusing them
-    -- so their full-text size was never taken. With that fixed, one desk's full
-    text does fit: `personal-or-business`, at 4,388 against 7,616 of room. A
-    denominator taken over the rows that happened to be readable is the failure
-    this repository is named for, and it caught me on the same afternoon I wrote
-    the guard.
+    WHAT IT USED TO SAY. Seven desks, and the `index` shape fitted every one of
+    them: the largest was under 7,616 tokens of room. The `text` shape fitted
+    exactly one, `personal-or-business` at 4,388. That pair of facts is what
+    `docs/CONTEXT-ON-FILE.md` is built on and it is why the harness defaults to
+    `--corpus index`.
 
-    AND ON 6 SEPTEMBER 2026 THE DENOMINATOR BECAME WHOLE. The last blocked desk,
-    `rewards-and-information-returns`, was 0 of 19 promptable while two worked
-    examples sat in its corpus; it is 19 of 19, and every one of the seven desks
-    now contributes a real size in both shapes. Nothing is being measured over
-    the rows that happened to be readable any more, because every row is.
+    WHAT ONE CORPUS DID TO IT. `dec-kill` merged the seven, so the index a
+    graded prompt shows is every RULE the record holds — 525 citations, up from
+    176 on the largest desk — and the prompt is **25,622 tokens against 7,616 of
+    room**. Full text is 91,067. NEITHER SHAPE FITS ANY MORE, and the shape that
+    was chosen precisely because it fitted now overruns by three and a half
+    times.
 
-    THE FULL-TEXT ANSWER DID NOT CHANGE WHEN THE MISSING ROW ARRIVED, and that
-    is worth one line: rewards comes in at 9,953 against 7,616 of room, so it
-    joins the five that do not fit rather than the one that does. The earlier
-    correction stands on its own now instead of on an incomplete set.
+    THIS IS NOT THE ANSWERING PATH AND THE DIFFERENCE IS THE WHOLE POINT.
+    `ask.consult` narrows through the pool to the eight citations a question
+    actually reaches, and comes in at five to sixteen thousand CHARACTERS. The
+    grading path has no narrowing: `scoreboard_run.build_prompt` shows the
+    index, and the index is now the corpus. So `dec-kill` did not make the
+    answering brief bigger — it made the GRADED one unusable on a small model,
+    which is a real cost of the decision and is recorded here rather than
+    smoothed over.
+
+    IT IS NOT URGENT AND IT IS NOT NOTHING. The firm, 8 September 2026: *"We
+    currently do not need to test against ollama. Stop trying to."* So nothing
+    is scored against an 8k window today. The day something is, this is what it
+    will hit, and the fix is to narrow the graded prompt the way the answering
+    one is narrowed — which is a decision about how a score is taken, not a
+    thing to do quietly inside a test.
     """
     room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    index, text = {}, {}
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
-        desk = record.load(d)
-        for shape, into in (("index", index), ("text", text)):
-            sizes = []
-            for problem in desk.problems:
-                try:
-                    sizes.append(sr.estimate_tokens(
-                        sr.build_prompt(problem, desk, shape=shape)))
-                except sr.Leak:
-                    pass                 # that desk's own, separate defect
-            if sizes:
-                into[desk.name] = max(sizes)
+    desk = record.load(CORPUS)
+    biggest = {}
+    for shape in ("index", "text"):
+        sizes = []
+        for problem in desk.problems:
+            try:
+                sizes.append(sr.estimate_tokens(
+                    sr.build_prompt(problem, desk, shape=shape)))
+            except sr.Leak:
+                pass                     # a separate defect, checked below
+        assert len(sizes) == len(desk.problems), (
+            f"{len(desk.problems) - len(sizes)} problems could not be prompted "
+            f"in the {shape} shape, so this is measured over the rows that "
+            f"happened to be readable — the failure this file is named for")
+        biggest[shape] = max(sizes)
 
-    # SEVEN, AND IT WAS SIX UNTIL 6 SEPTEMBER 2026. This assertion is the reason
-    # anyone noticed: `rewards-and-information-returns` contributed no size at
-    # all while its corpus carried two worked examples, and the comment here
-    # predicted that fixing them would turn this line red. It did, on the commit
-    # that fixed them -- the two tests holding hands rather than a nuisance.
-    #
-    # NAMED, NOT COUNTED. `len(index) == 7` would pass while a desk silently
-    # swapped places with another, which is the same failure as measuring over
-    # the readable rows.
-    assert sorted(index) == [
-        "capitalization-and-de-minimis", "cash-and-bank", "fixed-assets",
-        "meals-and-entertainment", "personal-or-business",
-        "rewards-and-information-returns", "vehicle-expense",
-    ], f"the set of promptable desks moved: {sorted(index)}"
-    # AND EVERY DESK CONTRIBUTES TO BOTH SHAPES, which is the claim the docstring
-    # above actually rests on. A desk blocked in `text` but not `index` would
-    # leave the full-text finding measured over six again, silently.
-    assert sorted(text) == sorted(index), (
-        f"a desk is promptable in one shape and not the other: "
-        f"{sorted(set(index) ^ set(text))}")
-    assert not [d for d, n in index.items() if n > room], \
-        f"the index shape no longer fits: {[(d, n) for d, n in index.items() if n > room]}"
-
-    fits = sorted(d for d, n in text.items() if n <= room)
-    assert fits == ["personal-or-business"], (
-        f"the full-text shape now fits {fits}. It fitted exactly one desk when "
-        f"this was measured; if that changed, say so in the docs rather than "
-        f"here — the number is quoted in docs/CONTEXT-ON-FILE.md."
-    )
+    assert biggest == {"index": 25622, "text": 91067}, (
+        f"the graded prompt changed size: {biggest}, and this file says "
+        f"{{'index': 25622, 'text': 91067}}. That is allowed — it is what "
+        f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
+        f"and must move deliberately.")
+    assert biggest["index"] > room, (
+        "the index shape fits an 8k window again. That is good news and this "
+        "test is now wrong: rewrite it, and correct CONTEXT-ON-FILE.md, rather "
+        "than deleting the assertion.")
 
 
 # -- the leak that read as a careful desk -------------------------------------
 
 def _leaking_desk():
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         for p in desk.problems:
             try:
@@ -174,7 +163,7 @@ def test_a_desk_the_harness_cannot_prompt_does_not_publish_as_a_careful_one():
 def test_a_brain_giving_up_is_still_counted_as_a_denominator():
     """The other half, so the fix does not take rule 9 with it: a failure that
     really is the brain's still produces a row rather than stopping the run."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
 
     def ask(problem):
         raise RuntimeError("the model said something unparseable")
@@ -188,9 +177,7 @@ def test_a_brain_giving_up_is_still_counted_as_a_denominator():
 
 def _promptable():
     """A desk and problem the harness can currently build a prompt for."""
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         for problem in desk.problems:
             try:
@@ -249,9 +236,7 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
     """Four problems were refused for this and none of them leaked: `an
     allowable deduction` occurs inside `not an allowable deduction`, so the old
     at-most-one count saw two. The list is now cut out, not budgeted for."""
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         listed = sr.admissible(desk)
         nested = [a for a in listed if any(a != b and a in b for b in listed)]
@@ -339,66 +324,83 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: word, so "you may cite something not printed here" must never read as "you
 #: may quote it from memory". Identical on every desk because it is one fixed
 #: paragraph, and identical on both sides because it is not authority.
-ANSWERING_BRIEF = {
-    # MOVED 10 SEPTEMBER 2026, DELIBERATELY, and by 42 characters. `ask.brief`
-    # prints a fact field only where it bears on what is shown — already known,
-    # or needed by a position printed above. Before one corpus each record
-    # declared its own field and every one of them bore; the merged record holds
-    # all three, so the two that do not bear on a capitalization question are no
-    # longer announced as NOT ON FILE with a line telling the answerer to
-    # escalate rather than answer from a rule that needs them.
-    "capitalization-and-de-minimis":     (8_624, 19_492),
-    "cash-and-bank":                     (15_260, 20_803),
-    "fixed-assets":                      (23_085, 75_916),
-    "meals-and-entertainment":           (11_867, 20_851),
-    "personal-or-business":              (3_725, 4_229),
-    "rewards-and-information-returns":   (9_550, 20_240),
-    "vehicle-expense":                   (21_006, 26_500),
+#: WHAT A REAL QUESTION ACTUALLY SENDS, in tokens, at `limit=8`.
+#:
+#: THIS ROSTER USED TO BE PER DESK AND MEASURED THE WHOLE RECORD. Seven rows,
+#: `ask.brief(question, desk)` over everything the desk held — 3,725 tokens on
+#: `personal-or-business` up to 23,085 on `fixed-assets`, and six of the seven
+#: overran an 8B window. `dec-kill` makes the unnarrowed figure meaningless:
+#: the whole corpus is 91,497 tokens of rules and 185,571 with the worked
+#: examples, and nothing sends it. `ask.consult` scores every citation against
+#: the question and builds the brief from the top eight.
+#:
+#: SO THE MEASUREMENT MOVED TO THE PATH A QUESTION TAKES, and the answer is the
+#: best news in this file: every one of these fits the 7,616 tokens of room,
+#: where six of seven desks did not. Narrowing by what the question reaches
+#: beats narrowing by which folder it landed in, on the dimension a small model
+#: cares about.
+#:
+#: The four questions are real: two of Forge-Occam's from their field report,
+#: and two from the working vernacular of a close.
+NARROWED = {
+    "is a brewery tab a business meal?": 2_284,
+    "what supporting documents does the client have to keep?": 5_925,
+    "hand tools bought for the trade - deducted or capitalized?": 2_721,
+    "mileage or actual expenses for the van?": 2_294,
 }
+
+#: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
+#: NOTHING SENDS THIS. It is here as the denominator the narrowing works
+#: against, and so that a change in what the corpus holds is visible.
+WHOLE = (91_497, 185_571)
 
 
 def _answering_sizes():
     import ask
-    out = {}
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
-        desk = record.load(d)
-        out[desk.name] = (sr.estimate_tokens(ask.brief("a question", desk.rules_only())),
-                          sr.estimate_tokens(ask.brief("a question", desk)))
-    return out
+    return {q: sr.estimate_tokens(ask.consult(q)) for q in NARROWED}
 
 
 def test_the_answering_brief_is_the_size_the_roster_says():
     got = _answering_sizes()
-    assert got == ANSWERING_BRIEF, (
+    assert got == NARROWED, (
         "the answering brief changed size. That is allowed -- it is what "
         "storing authority does -- but the figure is published and must move "
         "deliberately:\n"
-        + "\n".join(f"  {k}: roster {ANSWERING_BRIEF.get(k)} measured {v}"
-                    for k, v in got.items() if ANSWERING_BRIEF.get(k) != v))
+        + "\n".join(f"  {k!r}: roster {NARROWED.get(k)} measured {v}"
+                     for k, v in got.items() if NARROWED.get(k) != v))
 
 
-def test_storing_the_examples_moved_no_desk_out_of_the_window():
-    """The claim that matters about today, asserted rather than argued.
+def test_the_whole_corpus_is_what_the_narrowing_works_against():
+    """The denominator, so the win above is not measured against nothing."""
+    import ask
 
-    Six desks already overflowed an 8B window this morning. If storing the
-    examples had pushed a SEVENTH over, that would be a cost of this change; it
-    did not, and the one desk that fits still fits.
+    desk = record.load(CORPUS)
+    got = (sr.estimate_tokens(ask.brief("a question", desk.rules_only())),
+           sr.estimate_tokens(ask.brief("a question", desk)))
+    assert got == WHOLE, f"the corpus changed size: {got}, roster says {WHOLE}"
+
+
+def test_every_narrowed_brief_fits_the_window():
+    """THE THING ONE CORPUS BOUGHT, and it is worth stating plainly.
+
+    Six of seven desks overran an 8,192-token window on their own record. Every
+    one of these questions fits, because the brief is now built from what the
+    question reaches rather than from what a folder holds. It is the same
+    mechanism that killed the word list, measured on the other axis.
+
+    NOT A GUARANTEE, and this does not pretend to be one. Four questions is
+    four questions; nothing here says the ninth citation of some other question
+    could not push it over, and nothing in `ask.brief` checks — see the test
+    below, which pins that absence.
     """
     room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    for name, (before, after) in _answering_sizes().items():
-        assert not (before <= room < after), (
-            f"{name} fitted the window before the worked examples were stored "
-            f"({before:,}) and does not now ({after:,}). That is a desk this "
-            f"change broke.")
-
-
-def test_at_least_one_desk_fits_so_the_measurement_is_not_vacuous():
-    """Narrowing. A room of zero would satisfy everything above."""
-    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    fits = [n for n, (_, a) in _answering_sizes().items() if a <= room]
-    assert fits == ["personal-or-business"], fits
+    over = {q: n for q, n in _answering_sizes().items() if n > room}
+    assert not over, (
+        f"a narrowed brief no longer fits {room} tokens of room: {over}. "
+        f"Either the corpus grew under a question or `limit` moved.")
+    assert max(_answering_sizes().values()) > room // 4, (
+        "every brief is now tiny, which usually means the narrowing found "
+        "almost nothing rather than that it worked")
 
 
 def test_nothing_checks_this_window_on_the_answering_path():

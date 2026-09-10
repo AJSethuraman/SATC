@@ -44,7 +44,7 @@ import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
 import tieouts                                              # noqa: E402
-from conftest import CORPUS, DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 #: The record a refusal names. There is one, and `dec-kill` is why:
 #: it took a desk name until 10 September 2026, when there were seven.

@@ -19,15 +19,20 @@ WHAT THE MERGE HAD TO RESOLVE, all of it measured rather than assumed:
   order").
 
   9 citations were held twice and 6 of those stored DIFFERENT TEXT -- every one
-  a truncation. `26 CFR 1.274-5T(a)` was 1,551 characters on one record and 210
-  on another, so a vehicle question answered from it was served a seventh of the
-  rule and nothing could see it, because a question only ever reached one desk.
+  a truncation. `26 CFR 1.274-5T(a)` was 1,466 characters on `meals-and-
+  entertainment` and 125 on `vehicle-expense`, so a vehicle question answered
+  from it was served a TWELFTH of the rule and nothing could see it, because a
+  question only ever reached one desk. (Those two figures read 1,551 and 210
+  here until 10 September 2026 and were the block lengths, heading and source
+  line included, rather than the rule's; the ones above are `len(passage.text)`
+  and come out of the frozen inventory.)
 
 THE LAST ONE IS THE ARGUMENT FOR THE MERGE and it is asserted below by name. A
 future edit that reintroduces a short copy of one of those passages puts the
 truncation back, and nothing else in the suite would notice.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -38,7 +43,17 @@ import record
 
 DESK = Path(__file__).resolve().parent.parent
 CORPUS = DESK / "corpus"
-DESKS = DESK / "desks"
+#: THE SEVEN, AS THEY STOOD THE DAY THEY WERE DELETED. This read `desks/` off
+#: disk until 10 September 2026; the firm said to delete that directory and it
+#: is gone, so the inventory this file compares against is FROZEN rather than
+#: re-derived. The file was written from the working tree by
+#: `tests/fixtures/build_seven.py` immediately before `git rm -r desks/`, and
+#: the git history holds the records themselves if anyone needs the text.
+#:
+#: A frozen INVENTORY is honest where a frozen ASSERTION would not be: this is a
+#: record of what existed, and the live corpus is checked against it. Nothing
+#: here re-runs the seven or claims to.
+SEVEN = Path(__file__).resolve().parent / "fixtures" / "seven-records-2026-09-10.json"
 
 
 @pytest.fixture(scope="module")
@@ -48,8 +63,9 @@ def corpus():
 
 @pytest.fixture(scope="module")
 def seven():
-    return [record.load(d) for d in sorted(DESKS.iterdir())
-            if (d / "SUBJECTS.md").is_file()]
+    got = json.loads(SEVEN.read_text(encoding="utf-8"))["records"]
+    assert len(got) == 7, f"{len(got)} records in the frozen inventory, not 7"
+    return got
 
 
 def test_the_corpus_loads_as_one_record(corpus):
@@ -61,17 +77,17 @@ def test_the_corpus_loads_as_one_record(corpus):
 
 def test_nothing_the_firm_wrote_was_lost(corpus, seven):
     """Every citation, position and problem that existed across the seven."""
-    was = {p.citation for k in seven for p in k.passages}
+    was = {p["citation"] for k in seven for p in k["passages"]}
     assert was <= {p.citation for p in corpus.passages}, (
         sorted(was - {p.citation for p in corpus.passages})[:3])
 
-    was_p = {(q.citation, q.position) for k in seven for q in k.positions}
+    was_p = {tuple(q) for k in seven for q in k["positions"]}
     assert was_p <= {(q.citation, q.position) for q in corpus.positions}
 
-    was_b = {b.id for k in seven for b in k.problems}
+    was_b = {b for k in seven for b in k["problems"]}
     assert was_b <= {b.id for b in corpus.problems}
 
-    was_s = {s.title.strip() for k in seven for s in k.sources}
+    was_s = {s for k in seven for s in k["sources"]}
     assert was_s <= {s.title.strip() for s in corpus.sources}
 
 
@@ -84,7 +100,7 @@ def test_the_per_citation_narrowing_survived(corpus, seven):
     """
     was = {}
     for k in seven:
-        for citation, terms in k.answered_by.items():
+        for citation, terms in k["answered_by"].items():
             was.setdefault(citation, set()).update(terms)
     assert was, "no record declared a narrowing; this test proves nothing"
     now = {c: set(t) for c, t in corpus.answered_by.items()}
@@ -113,30 +129,34 @@ def test_every_passage_names_a_source_the_corpus_holds(corpus):
     assert not orphan, f"{len(orphan)} passages name a missing source: {orphan[:3]}"
 
 
-#: The six citations two records stored with different text, and the length of
-#: the version that WON. Taken from the merge's own output, not from memory.
-LONGEST = {
-    "26 CFR 1.162-3(c)(1)(i)": 338,
-    "26 CFR 1.162-3(c)(2)": 677,
-    "26 CFR 1.274-5T(a)": 1551,
-    "26 CFR 1.274-5T(b)(1)": 420,
-    'IRS Pub. 463 (2025), "What Are Adequate Records?"': 1732,
-    'IRS Pub. 463 (2025), "Proving business purpose"': 920,
-}
+#: THE SIX CITATIONS TWO RECORDS STORED WITH DIFFERENT TEXT. A roster of WHICH,
+#: from the merge's own output. It carried a length beside each until
+#: 10 September 2026 and the lengths were wrong — they were block lengths, and
+#: the test below never used them. The comparison reads the frozen inventory, so
+#: there is nothing here to go stale.
+LONGEST = (
+    "26 CFR 1.162-3(c)(1)(i)",
+    "26 CFR 1.162-3(c)(2)",
+    "26 CFR 1.274-5T(a)",
+    "26 CFR 1.274-5T(b)(1)",
+    'IRS Pub. 463 (2025), "What Are Adequate Records?"',
+    'IRS Pub. 463 (2025), "Proving business purpose"',
+)
 
 
 @pytest.mark.parametrize("citation", sorted(LONGEST))
 def test_the_truncated_copy_did_not_win(citation, seven, corpus):
     """The finding the merge produced, pinned so it cannot come back.
 
-    Asserted against the SEVEN, not against a stored number: the corpus must
-    hold at least as much of the rule as the longest copy any record held. A
-    hard-coded length would go stale the first time a passage is legitimately
-    re-extracted; this stays true.
+    Asserted against the SEVEN, not against a number typed into this file: the
+    corpus must hold at least as much of the rule as the longest copy any record
+    held. `LONGEST` above is a roster of WHICH citations were doubled, not the
+    comparison — the lengths come out of the frozen inventory.
     """
-    held = [p.text for k in seven for p in k.passages if p.citation == citation]
+    held = [p["chars"] for k in seven for p in k["passages"]
+            if p["citation"] == citation]
     assert len(held) > 1, f"{citation!r} was not stored twice; test is stale"
-    longest = max(len(t) for t in held)
+    longest = max(held)
     now = next((p.text for p in corpus.passages if p.citation == citation), None)
     assert now is not None, f"{citation!r} is not in the corpus at all"
     assert len(now) >= longest, (
@@ -145,24 +165,52 @@ def test_the_truncated_copy_did_not_win(citation, seven, corpus):
     )
 
 
-def test_the_pool_reads_the_corpus_and_the_desks_alike(corpus):
-    """The migration seam, and the one question that proves it.
+def test_the_pool_holds_one_entry_per_citation(corpus):
+    """THE MIGRATION SEAM IS GONE AND SO IS THE TEST THAT STRADDLED IT.
 
-    Forge-Occam's substantiation question, which under the word list reached
-    NOTHING. Both shapes must return the same authority — and the corpus must
-    hold FEWER entries, because the duplicates are exactly what it resolved.
+    This read both shapes — `pool.assemble(CORPUS)` and `pool.assemble(DESKS)` —
+    and asserted the corpus held FEWER entries, the difference being the
+    duplicates it resolved. `desks/` no longer exists, so half of that
+    comparison cannot run. The numbers it produced are in the frozen inventory
+    (794 rows across the seven) and in `tools/one_corpus.py`'s own report.
+
+    What survives is the property the comparison was FOR: one entry per
+    citation, which is what having resolved the duplicates means.
     """
-    from_corpus = pool.assemble(CORPUS)
-    from_desks = pool.assemble(DESKS)
-    assert len(from_corpus) < len(from_desks), (
-        "the corpus should hold fewer entries than the seven records; the "
-        "difference is the duplicate citations it deduplicated")
+    entries = pool.assemble(CORPUS)
+    citations = [h.citation for h in entries]
+    assert len(citations) == len(set(citations)), (
+        "a citation is in the pool twice, so the duplicate resolution the merge "
+        "performed has been undone")
+    assert len(entries) == len(corpus.passages)
 
+    # And Forge-Occam's substantiation question, which under the word list
+    # reached NOTHING, still reaches the authority their desk said it wanted.
     question = "what supporting documents does the client have to keep?"
-    a = pool.look(question, from_corpus, limit=1, known=pool.stats(from_corpus))
-    b = pool.look(question, from_desks, limit=1, known=pool.stats(from_desks))
-    assert a and b, "the question reached nothing in one of the two shapes"
-    assert a[0].held.citation == b[0].held.citation
+    top = pool.look(question, entries, limit=1, known=pool.stats(entries))
+    assert top and top[0].held.citation.startswith("IRS Pub. 583")
+
+
+def test_the_seven_held_more_rows_than_the_corpus_holds_citations(seven):
+    """The dedupe, from the frozen inventory: 794 rows of stored authority
+    across the seven, 785 distinct citations, and the nine are the ones two
+    desks each held.
+
+    "794" is deliberately not written as a corpus SIZE here —
+    `test_the_corpus_figure_is_not_typed_anywhere.py` sweeps every file for a
+    three-digit number beside the word "passages" and reports it against what
+    the record actually holds, which is 785. It is right to: 794 is a fact about
+    seven records that no longer exist, and a reader meeting it in that phrasing
+    would take it for today's count.
+    """
+    rows = [p["citation"] for k in seven for p in k["passages"]]
+    assert len(rows) == 794
+    assert len(set(rows)) == 785
+    doubled = {c for c in rows if rows.count(c) > 1}
+    assert len(doubled) == 9
+    assert set(LONGEST) <= doubled, (
+        "the six citations stored with DIFFERENT text must be among the nine "
+        "stored twice")
 
 
 def test_provenance_says_corpus_and_nothing_matches_on_it(corpus):

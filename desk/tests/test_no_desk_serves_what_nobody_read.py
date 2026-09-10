@@ -46,7 +46,7 @@ import record                                               # noqa: E402
 # ALIASED: this module already has a `CORPUS = 98`, the recorded
 # problem count, and the bare name would shadow it — or be shadowed,
 # which is what happened: shutil.copytree was handed the integer.
-from conftest import CORPUS as RECORD, DESKS, a_judgment    # noqa: E402
+from conftest import CORPUS as RECORD, a_judgment    # noqa: E402
 
 
 def _desks():
@@ -163,20 +163,41 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
 #:     15 of 15   vehicle-expense
 #:     92 of 98   TOTAL
 #:
-#: RE-MEASURED 10 SEPTEMBER 2026 over ONE CORPUS: **85 of 98**, and the seven
-#: that moved are a GUARD WEAKENING rather than a saving. `off_source` marks an
-#: answer whose citation came from a source the record does not declare for that
-#: subject, and every such answer needs a second reader whatever the record
-#: asked for. Merging the seven registrations into one unions `answered_from`,
-#: so a citation that was off-source for a narrow desk — Pub. 463 reached from a
-#: meals question, say — is on-source for a corpus that declares both. Seven
-#: answers that required a second model call on 8 September do not require one
-#: today, and nothing about those answers changed.
+#: RE-MEASURED 10 SEPTEMBER 2026 over ONE CORPUS: **84 of 98**, and the eight
+#: that moved are a GUARD TIGHTENING that the seven desks could not have
+#: reached. Every one of them now refuses `authority_permits_choice`, with the
+#: same sentence: *"is secondary authority, which is somebody's reading rather
+#: than the rule — and this desk holds binding authority on this subject. Cite
+#: the rule, or escalate."*
+#:
+#:      PH2   IRS Pub. 587, "Exceptions to Exclusive Use" — the basement
+#:      RW1   Rev. Rul. 2005-28
+#:      RW5   RW6   RW8   RW9
+#:      VE13  VE15  IRS Pub. 463 (2025)
+#:
+#: WHAT THAT MEANS, AND IT IS THE ARGUMENT FOR ONE CORPUS RATHER THAN A COST OF
+#: IT. Eight recorded answers rested on a publication — somebody's reading —
+#: while the regulation that decides the same question sat on a different desk.
+#: A question only ever reached one desk, so nothing could see that the binding
+#: rule was one folder over, and the answer went out stamped as authority. It
+#: is the same shape as `26 CFR 1.274-5T(a)` being stored at 1,466 characters
+#: on meals and 125 on vehicle: not a merge problem, a thing the merge made
+#: visible.
+#:
+#: THE FIRST NUMBER WRITTEN HERE WAS 85 AND THE EXPLANATION UNDER IT WAS WRONG.
+#: It said merging unioned `answered_from`, so seven answers that were
+#: off-source became on-source and stopped needing a second reader — a SAVING.
+#: The arithmetic said otherwise the whole time: 85 is fewer served than 92, so
+#: more answers were being refused, not fewer. The 85 itself came from a
+#: migration bug (`tools/one_corpus.py` truncated every wrapped `Answered from`
+#: line, so `capitalization-and-de-minimis`'s thirty-eight subjects arrived as
+#: three). With that fixed the figure is 84, and none of the movement is about
+#: `answered_from` at all.
 #:
 #: NOT SILENTLY UPDATED. This test exists to make the figure move visibly, and
-#: it did its job: the number is what caught it. Whether the corpus should
-#: narrow `answered_from` back down is the firm's call and is not made here.
-COST = 85
+#: it did its job twice: the number is what caught the migration bug, and the
+#: number is what caught the wrong story told about the number.
+COST = 84
 CORPUS = 98
 
 

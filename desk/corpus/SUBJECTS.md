@@ -11,11 +11,11 @@ it answers the opposite way.
 
 
 
-**Answered from S1:** de minimis, de minimis safe harbor, de minimis safe harbour
+**Answered from S1:** de minimis, de minimis safe harbor, de minimis safe harbour safe harbor election, safe harbour election, capitalization threshold, capitalisation threshold, capitalize, capitalise, capitalized, capitalised, capitalization, capitalisation, capital expenditure, capital expenditures, expense, expensed, expensing, applicable financial statement, AFS, invoice, invoices, per invoice, per item, accounting procedures, accounting procedure, accounting policy, book policy, anti-abuse, componentize, 1.263(a)-1, 263(a)-1, tool, tools, asset, assets, fixed asset, fixed assets, equipment
 
-**Answered from S2:** materials and supplies, material or supply, materials or, materials or supplies, rotable, rotable spare parts, spare part, spare parts, consumable, consumables, 1.162-3
+**Answered from S2:** materials and supplies, material or supply, materials or supplies, supply, supplies, tool, tools, asset, assets, incidental, non-incidental, rotable, spare part, spare parts, standby emergency spare part, consumable, consumables, consumed, economic useful life, fuel, lubricants, toner, cartridge, cartridges, 1.162-3, 162-3, rotable spare parts
 
-**Answered from S3:** threshold, thresholds, ceiling, audit
+**Answered from S3:** threshold, thresholds, ceiling, audit protection, Notice 2015-82, final tangibles regulations, tangible property regulations, Form 3115
 
 **Answered from S4:** 1.446-1, method of accounting, clearly reflect income
 
@@ -100,23 +100,6 @@ it answers the opposite way.
 
 
 ### From the capitalization-and-de-minimis record
-safe harbor election, safe harbour election, capitalization threshold,
-capitalisation threshold, capitalize, capitalise, capitalized, capitalised,
-capitalization, capitalisation, capital expenditure, capital expenditures,
-expense, expensed, expensing, applicable financial statement, AFS, invoice,
-invoices, per invoice, per item, accounting procedures, accounting procedure,
-accounting policy, book policy, anti-abuse, componentize, 1.263(a)-1, 263(a)-1,
-tool, tools, asset, assets, fixed asset, fixed assets, equipment
-
-supplies, supply, supplies, tool, tools, asset, assets, incidental, non-incidental, rotable, spare part,
-spare parts, standby emergency spare part, consumable, consumables, consumed,
-economic useful life, fuel, lubricants, toner, cartridge, cartridges, 1.162-3,
-162-3
-
-protection, Notice 2015-82, final tangibles regulations, tangible property
-regulations, Form 3115
-
-
 *This desk does not serve an answer no second reader has looked at. The firm, on
 the docket, 8 September 2026, asked which desks may not serve unjudged:* "The
 judge can look at it all I guess?" *— all seven. It is declared here rather than
@@ -156,6 +139,7 @@ writes about a purchase are S7's, and `improvement`, `repair` and `basis` stay
 S6's. `capitalize` stays on S6 as well: it is the verb both sections use, and the
 one question that needed S7 fired on it and reached a desk that then refused for
 want of the acquisition rule, which is the behaviour that found this gap.
+
 
 
 **`materials and supplies` MOVED FROM S6 TO S2, and the move is the point.** It
@@ -231,6 +215,9 @@ carry the conclusion is the judge's call and is recorded, not recomputed.*
 
 
 
+
+
+
 *This desk does not serve an answer no second reader has looked at. The firm, on
 the docket, 8 September 2026, asked which desks may not serve unjudged:* "The
 judge can look at it all I guess?" *— all seven. It is declared here rather than
@@ -240,6 +227,15 @@ carry the conclusion is the judge's call and is recorded, not recomputed.*
 
 ### From the rewards-and-information-returns record
 *Whose return this is — an individual or a business. Anikeev is a personal return and nothing in this desk said so structurally, which is why the firm held POS1: "we should probably be specifying. Hey this is the individual desk. This is the business desk."*
+
+
+
+
+
+
+
+
+
 
 
 
@@ -266,6 +262,12 @@ that is the same sentence this repository already wrote about admitting a
 publisher and not routing to it. A peer-to-peer payment is precisely the case
 § 1.6050W-1(c)(3) decides; the word belongs on both sources, because both are
 genuinely on point and the desk should see them together.
+
+
+
+
+
+
 
 
 

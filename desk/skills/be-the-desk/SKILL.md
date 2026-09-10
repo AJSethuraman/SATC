@@ -1,13 +1,13 @@
 ---
 name: be-the-desk
-description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the desks, or when running the desks locally to test them. To ASK a desk rather than be one, use ask-desk.
+description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the corpus, or when running it locally to test it. To ASK a desk rather than be one, use ask-desk.
 ---
 
 # Be the desk
 
 **Somebody else is doing the work. You are the authority they do not have.**
 A request has reached you — usually as a message opening `DESK REQUEST <ref>` —
-and your job is to answer it from what the desks actually record, then send the
+and your job is to answer it from what the corpus actually records, then send the
 answer back to whoever asked.
 
 **To ask a desk rather than be one, that is `ask-desk`, and it is a different
@@ -73,7 +73,7 @@ import os, sys
 # 7 September 2026, closing a set of books. Fall back to the installed tree.
 ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
     "~/.claude/plugins/cache/satc/desk")
-if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
+if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "corpus")):
     # NEWEST BY NUMBER, NEVER BY STRING. This read `sorted(...)[-1]` for one
     # release. It is correct today and through 0.9.x, and on the first bump past
     # .9 it silently picks 0.7.3 over 0.10.0 — an agent loading a stale plugin
@@ -87,7 +87,7 @@ if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
             return (0, ())                 # not a version dir; never the newest
     versions = sorted(os.listdir(ROOT), key=_release)        # a versioned cache
     ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
-if not os.path.isdir(os.path.join(ROOT, "desks")):
+if not os.path.isdir(os.path.join(ROOT, "corpus")):
     raise SystemExit(
         f"no desk plugin at {ROOT}. Install it — `claude plugin marketplace "
         f"update satc && claude plugin update desk@satc` — or set "
@@ -97,20 +97,26 @@ from pathlib import Path
 import ask
 import unsupported
 
-briefs, filed = ask.consult_or_file(
+brief, filed = ask.consult_or_file(
     "the bank statement shows a $10 service charge and nothing for it is in "
     "the books",
     queue=unsupported.default_queue())   # NOT Path(ROOT)/... — see below
 
-for desk, brief in briefs:
-    ...  # read `brief`, then answer from it
+if brief:
+    ...  # read it, then answer from it
 
-if filed:                      # no desk held it; it is now in the queue
+if filed:                      # nothing on file held it; it is now in the queue
     ...  # tell the asker so, and say the entry id
 ```
 
+**ONE BRIEF, NOT A LIST.** `consult` returned `[(desk name, brief)]` until
+10 September 2026, because a question reached one desk or several. `dec-kill`
+— *"Kill the desks; one pool"* — ended that: there is one corpus, addressed by
+citation, and one brief narrowed to what the question actually reaches. Nothing
+names a desk any more, because there is nothing to name.
+
 **Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
-pure query and it returns silence; `consult_or_file` returns the same briefs
+pure query and it returns silence; `consult_or_file` returns the same brief
 AND writes the question into the queue when nothing holds it. A desk that
 refuses leaves a refusal `tools/holes.py` reads out — a question nobody built a
 desk for used to leave nothing at all, which on a close is the worst of the
@@ -123,10 +129,9 @@ return it is. Hand it over; the desk will not work it out, deliberately.
 ```python
 import record
 
-for desk, brief in ask.consult(
-        "they bought clothing at that store — is it a personal expense?",
-        context=record.Context(facts={"trade": "general contractor"})):
-    ...
+brief = ask.consult(
+    "they bought clothing at that store — is it a personal expense?",
+    context=record.Context(facts={"trade": "general contractor"}))
 ```
 
 **The caller passes what it already has.** There is no file to make and no place

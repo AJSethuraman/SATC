@@ -52,7 +52,7 @@ BLOCKED = {
 
 
 def proposals():
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -225,7 +225,7 @@ def render(by_desk: dict, total: int) -> str:
                 '"></textarea><div class="saved" role="status" aria-live="polite"></div>'
                 '</div></div>')
 
-    out.append('<footer><p>Generated from <code>desks/*/positions/</code> by '
+    out.append('<footer><p>Generated from <code>corpus/positions/</code> by '
                '<code>tools/ratification_page.py</code>. A position you ratify is '
                'written into the record with your words and the date; nothing is '
                'recorded from this page without one.</p></footer></div>')

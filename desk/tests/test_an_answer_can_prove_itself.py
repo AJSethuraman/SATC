@@ -33,7 +33,7 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import CORPUS, DESKS                          # noqa: E402
+from conftest import CORPUS                          # noqa: E402
 
 DESK = "corpus"
 
@@ -116,7 +116,7 @@ def test_a_position_has_no_publisher_and_says_so():
     """The firm's own words are not the publisher's, and the paragraph beneath
     them is a different claim from the one being served. Reporting that as a
     proof of the answer would be the mirror wearing a hat."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     q = next(p for p in desk.positions if not p.proposed)
     served = engine.Served(position=q.position, citation=q.citation,
                            tier="secondary", checked=q.recorded)
@@ -128,8 +128,15 @@ def test_a_position_has_no_publisher_and_says_so():
 def test_a_marked_omission_is_proved_segment_by_segment():
     """`prove` owns no second copy of the comparison. A passage carrying
     `[...]` is checked the way the corpus tie-out checks it, in order."""
-    desk = record.load(DESKS / "cash-and-bank")
-    p = next(x for x in desk.passages if "[...]" in x.text)
+    desk = record.load(CORPUS)
+    # NAMED, NOT "THE FIRST MARKED ONE". Seven records' marks live in one corpus
+    # now — `test_a_marked_omission_is_still_checked.py` pins that at seven — and
+    # `next(...)` picked whichever sorted first, which stopped being the passage
+    # `whole` below is the publisher's text for.
+    p = next(x for x in desk.passages
+             if "[...]" in x.text
+             and "Reconciling the checking account" in x.citation
+             and "Includes bank charges" in x.text)
     whole = ("When you receive your bank statement, make sure the statement, "
              "your checkbook, and your books agree. The statement balance may "
              "not agree with the balance in your checkbook and books if the "

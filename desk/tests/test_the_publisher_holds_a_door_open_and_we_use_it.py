@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 import ecfr                                                 # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def _source(url="https://www.ecfr.gov/current/title-26/section-1.263(a)-2"):
@@ -53,7 +53,7 @@ def test_every_ecfr_citation_the_desks_hold_parses():
     parsing is a source that silently loses its API route, and the desks carry
     the awkward ones: `1.274-5T`, `1.280F-6`, `1.6050W-1`, `1.263(a)-2`."""
     seen = 0
-    for d in sorted(p for p in DESKS.iterdir() if p.is_dir()):
+    for d in [CORPUS]:
         for s in record.load(d).sources:
             if not ecfr.serves(s):
                 continue

@@ -22,7 +22,7 @@ import pytest
 import ask
 import engine
 import judging
-from conftest import CORPUS, DESKS
+from conftest import CORPUS
 
 Q = "we bought a forklift. is the invoice price deducted or capitalized?"
 CIT = "26 CFR 1.263(a)-2(d)(1)"
@@ -225,7 +225,7 @@ def test_every_desk_now_requires_one_and_says_so_in_its_own_file():
     rather than a constant, so a desk that quietly stops declaring it goes red.
     """
     import record
-    for d in sorted(p for p in DESKS.iterdir() if p.is_dir()):
+    for d in [CORPUS]:
         desk = record.load(d)
         assert desk.needs_a_judge, f"{desk.name} serves what nobody read"
 

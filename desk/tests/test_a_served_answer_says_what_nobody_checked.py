@@ -104,7 +104,7 @@ def test_the_answer_therefore_refutes_itself_on_sight(trap):
 def test_it_cannot_be_left_off(trap):
     """Computed inside `serve`, never passed in — so no caller can omit it and
     no code path can produce a Served without it."""
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -192,7 +192,7 @@ def test_nothing_anywhere_serves_an_empty_thing_to_read():
     """The property, over every recorded answer on every desk — because the
     empty one was found by eye on three examples, and eye-checks do not scale."""
     empty = []
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -266,7 +266,7 @@ def test_a_ratified_answer_shows_the_AUTHORITY_not_itself():
     assert "reconcil" in out.passage.lower(), (
         "the passage is not the publication's own text")
     # And the desk really does hold it, so the fallback is never reached here.
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     assert desk.passage(cite).text in out.passage
 
 
@@ -285,9 +285,15 @@ def test_a_citation_only_source_still_falls_back_to_the_firms_words():
     So it exercises it instead: a desk stripped of its stored passages is
     exactly the `human_only` shape, and what comes out has to be readable."""
     import dataclasses
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     citation_only = dataclasses.replace(desk, passages=())
-    position = [q for q in citation_only.positions if not q.proposed][0]
+    # A POSITION THAT TURNS ON NO FACT. `positions[0]` was one until one corpus
+    # renumbered them and put a DEFAULT there — POS1, which holds unless the
+    # client is treated differently on `capitalization_rule`, so `serve` refuses
+    # `context_not_on_file` and this test was measuring the context gate rather
+    # than the fallback. Chosen by the property instead of by index.
+    position = next(q for q in citation_only.positions
+                    if not q.proposed and not q.unless and not q.needs)
     out = engine.serve(engine.Answer(position=position.position,
                                      citation=position.citation),
                        citation_only, question="what do I do with it")
