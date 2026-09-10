@@ -340,7 +340,14 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: may quote it from memory". Identical on every desk because it is one fixed
 #: paragraph, and identical on both sides because it is not authority.
 ANSWERING_BRIEF = {
-    "capitalization-and-de-minimis":     (8_666, 19_534),
+    # MOVED 10 SEPTEMBER 2026, DELIBERATELY, and by 42 characters. `ask.brief`
+    # prints a fact field only where it bears on what is shown — already known,
+    # or needed by a position printed above. Before one corpus each record
+    # declared its own field and every one of them bore; the merged record holds
+    # all three, so the two that do not bear on a capitalization question are no
+    # longer announced as NOT ON FILE with a line telling the answerer to
+    # escalate rather than answer from a rule that needs them.
+    "capitalization-and-de-minimis":     (8_624, 19_492),
     "cash-and-bank":                     (15_260, 20_803),
     "fixed-assets":                      (23_085, 75_916),
     "meals-and-entertainment":           (11_867, 20_851),

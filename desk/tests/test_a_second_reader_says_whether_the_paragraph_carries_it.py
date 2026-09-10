@@ -249,7 +249,7 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     import shutil
     desks = tmp_path / "corpus"
     shutil.copytree(CORPUS, desks)
-    queue = desks / DESK / "unsupported" / "asked.md"
+    queue = desks / "unsupported" / "asked.md"
     before = queue.read_text(encoding="utf-8") if queue.exists() else ""
 
     out = ask.answer(Q,  position="capitalized", citation=CIT,

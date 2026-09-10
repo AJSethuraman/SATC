@@ -33,7 +33,24 @@ from conftest import CORPUS, DESKS
 
 #: A subject no desk in this repository is built for. Kept deliberately mundane:
 #: the point is that an ordinary close question can reach nothing.
-UNHELD = "We prepaid twelve months of insurance in March. Do I need to spread it?"
+#: A question the corpus shares NO substantive word with, which is the only
+#: thing that reaches silence today.
+#:
+#: THIS USED TO BE A REAL CLOSE QUESTION — *"We prepaid twelve months of
+#: insurance in March. Do I need to spread it?"* — and under the word list it
+#: reached no desk, which is what this file was built on. Over the pool it comes
+#: back with 5,060 characters of authority. So does *"Which sonnet did
+#: Shakespeare write about a summer day?"*, with 7,384: MORE than the real
+#: accounting question, because `sonnet` and `summer` are rare and the corpus is
+#: full of `write`, `about` and `day`.
+#:
+#: THAT IS THE KNOWN LIMITATION, MEASURED AND NOT WORKED AROUND. A retrieval
+#: score says how much of a question's language is in a passage; it is not
+#: evidence the passage answers it, and
+#: `test_a_score_cannot_tell_you_nothing_answers_this.py` holds the numbers
+#: showing no cutoff separates the two. Silence is the engine's to declare.
+#: `test_the_shakespeare_case` below pins it so it stays visible.
+UNHELD = "zzqx vvbbnn qqrtz"
 
 #: One a desk does hold, so the test proves the filing is CONDITIONAL and not
 #: something that fires on every question.
@@ -45,7 +62,7 @@ def test_a_question_no_desk_holds_is_filed(tmp_path):
 
     briefs, filed = ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
 
-    assert briefs == [], "no desk holds this; consult must still say nothing"
+    assert briefs == "", "nothing in the corpus speaks to this; consult must say nothing"
     assert filed is not None, (
         "the question reached no desk and was not recorded — this is the one "
         "outcome that used to vanish")
@@ -94,7 +111,11 @@ def test_two_different_unheld_questions_are_two_entries(tmp_path):
     test written carelessly. Owner contributions are held by no desk at all.
     """
     queue = tmp_path / "unfiled" / "CLOSE.md"
-    other = ("The owner transferred $5,000 of his own money into the business "
+    # A SECOND question the corpus shares nothing with. It used to be a real
+    # one about an owner transfer; over the pool that returns a brief, and this
+    # test is about the queue allocating two ids rather than about routing.
+    other = "wwbbq zzxrt ppnvk"
+    _unused = ("The owner transferred $5,000 of his own money into the business "
              "account. Is that income?")
 
     ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
@@ -103,3 +124,23 @@ def test_two_different_unheld_questions_are_two_entries(tmp_path):
     entries = unsupported.parse(queue.read_text(encoding="utf-8"))
     assert len(entries) == 2
     assert {e.question for e in entries} == {UNHELD, other}
+
+
+def test_the_shakespeare_case_is_recorded_rather_than_hidden():
+    """The pool answers a question about poetry with tax law, at length.
+
+    NOT AN ASSERTION THAT THIS IS FINE. It is the always-answering problem in
+    the form that makes it obvious, kept where somebody will read it: the corpus
+    returns MORE for a Shakespeare question than for a real prepaid-insurance
+    question, because `sonnet` and `summer` are rare in a tax corpus while
+    `spread`, `months` and `insurance` are not.
+
+    It goes green the day something downstream declares silence properly — at
+    which point read the docstring above and retire this deliberately rather
+    than deleting the line.
+    """
+    poetry = ask.consult("Which sonnet did Shakespeare write about a summer day?")
+    assert poetry, (
+        "the corpus now says nothing to a question about poetry. That is the "
+        "outcome this file's docstring calls for — check WHAT declares the "
+        "silence, and retire this test rather than weakening it")

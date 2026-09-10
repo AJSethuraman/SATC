@@ -184,7 +184,6 @@ def test_alongside_is_empty_on_an_ordinary_answer():
     """A control. Set on every answer, it would say nothing on any."""
     out = conftest.answer_judged(
         "we bought a forklift, is the invoice price deducted or capitalized",
-        "fixed-assets",
         position="capitalized as a unit of property",
         citation="26 CFR 1.263(a)-2(d)(1)", keep=False)
     assert isinstance(out, engine.Served)

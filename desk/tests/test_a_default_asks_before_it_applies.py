@@ -238,8 +238,12 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
     desk = record.load(CORPUS)
     held = [q for q in desk.positions if q.unless]
     assert len(held) == 2, [q.id for q in desk.positions if q.unless]
-    assert desk.records == ("capitalization_rule",), (
-        f"this desk records {desk.records}; the firm answered 'Add the field' "
+    # THE UNION, over one corpus. Each of the seven declared the facts its own
+    # positions turned on; `dec-kill` merged them, so the record holds all three
+    # and what matters here is that the field the two held positions ask about
+    # is still declared. `brief` decides which of them bear on a question.
+    assert "capitalization_rule" in desk.records, (
+        f"the corpus records {desk.records}; the firm answered 'Add the field' "
         f"on the fifth docket and `capitalization_rule` is what both held "
         f"positions ask about")
 
@@ -286,12 +290,11 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     """
     import shutil
     import ask as front
-    src = DESKS / "capitalization-and-de-minimis"
     desks = tmp_path / "corpus"
     shutil.copytree(CORPUS, desks)
     # Ratified IN THE COPY ONLY. The real position is a proposal and stays one;
     # the roster test is what stops this becoming a habit.
-    f = desks / src.name / "positions" / "POSITIONS.md"
+    f = desks / "positions" / "POSITIONS.md"
     t = f.read_text(encoding="utf-8")
     i = t.index("## POS2 ·")
     # ENCODING NAMED ON BOTH SIDES. The read above lacked it until 8 September
@@ -300,9 +303,9 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # the failure named a missing substring rather than a missing codec.
     f.write_text(t[:i] + "**Ratified:** simulated, in a temporary copy\n\n---\n\n"
                  + t[i:], encoding="utf-8")
-    q = record.load(desks / src.name).position("26 CFR 1.263(a)-1(f)(5)")
+    q = record.load(desks).position("26 CFR 1.263(a)-1(f)(5)")
 
-    out = front.answer("do we capitalise a $900 laptop?", src.name,
+    out = front.answer("do we capitalise a $900 laptop?",
                        position=q.position, citation=q.citation, corpus=desks)
     # `context_not_on_file` since 7 September 2026, and the change is the point.
     # It was `no_field_for_this_fact` while the desk recorded nothing; the firm
@@ -311,7 +314,7 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # it. The queue is what carries it either way.
     assert out.reason == "context_not_on_file"
 
-    filed = (desks / src.name / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    filed = (desks / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "**Asked:**" in filed, "the follow-up never reached the queue"
     assert "capitalization_rule" in filed
     assert out.ask.split("?")[0] in filed
