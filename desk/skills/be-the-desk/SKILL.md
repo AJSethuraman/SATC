@@ -115,9 +115,25 @@ if filed:                      # nothing on file held it; it is now in the queue
 citation, and one brief narrowed to what the question actually reaches. Nothing
 names a desk any more, because there is nothing to name.
 
+**SILENCE IS NEVER AN EMPTY STRING.** `dec-coverage`, 10 September 2026 — the
+firm: *"Both."* An empty return is ambiguous between *nothing here settles this*
+and *nothing here objects*, and Forge-Occam reported reading the second:
+*"silence is indistinguishable from 'there is nothing to say here.' A doer reads
+it as permission. I nearly did."* So `consult` always comes back with something
+readable — either the authority, or a page saying what was searched and that it
+is not permission. **Do not treat a short answer as a quiet yes.**
+
+**And a brief is not proof that anything in it is on point.** The passages are
+chosen by word overlap with your question. The corpus returns its closest text
+for every question, including questions it holds no authority on at all — a
+question about Shakespeare comes back with tax law, at length. If none of what
+you are shown reaches what you were asked, say so and escalate
+`authority_absent`. That is a finding, not a failure.
+
 **Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
-pure query and it returns silence; `consult_or_file` returns the same brief
-AND writes the question into the queue when nothing holds it. A desk that
+pure query; `consult_or_file` returns the same page AND writes the question into
+the queue when nothing holds it. To ask whether the corpus holds anything at all
+without rendering a brief, call `ask.looked(question)`. A desk that
 refuses leaves a refusal `tools/holes.py` reads out — a question nobody built a
 desk for used to leave nothing at all, which on a close is the worst of the
 three: the doer gets nothing back and the firm never learns it was asked.

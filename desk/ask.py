@@ -66,9 +66,72 @@ def _corpus(where: Path):
     return _LOADED[key]
 
 
+def looked(question: str, corpus: Path = CORPUS, *,
+           limit: int = 8) -> tuple:
+    """What the pool returns for this question, before any of it is rendered.
+
+    SPLIT OUT OF `consult` BY `dec-coverage`. `consult` used to return "" when
+    nothing was found, and callers tested that emptiness to decide whether the
+    corpus held anything. It no longer returns "" — silence is a document now,
+    for the reason below — so the question "did anything come back" needs an
+    answer that is not the brief's length.
+    """
+    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
+    return pool.look(question, held, limit=limit, known=stats)
+
+
+def nothing_on_file(question: str, corpus: Path = CORPUS) -> str:
+    """What comes back when the corpus holds nothing that shares this question's
+    language. A DOCUMENT, never an empty string.
+
+    `dec-coverage`, 10 September 2026 — the firm: **"Both."** Say why the
+    silence is silence, and build the missing coverage. Forge-Occam, reporting
+    the failure this closes:
+
+        "silence is indistinguishable from 'there is nothing to say here.'
+         A doer reads it as permission. I nearly did."
+
+    THAT IS THE WHOLE ARGUMENT AND IT IS NOT ABOUT POLITENESS. An empty return
+    is ambiguous between two opposite findings — *nothing here settles this, go
+    and ask* and *nothing here objects, carry on* — and a doer under time
+    pressure reads the second. A firm's record cannot afford a silence that
+    reads as approval, so there is no silence: there is a short paper saying
+    what was searched, what it holds, and what to do next.
+
+    IT SAYS WHAT WAS SEARCHED, WITH NUMBERS. "Nothing found" from a corpus of
+    twelve citations and from one of 785 are different findings, and only one of
+    them means the question is unusual.
+    """
+    desk, held, _ = _corpus(corpus)
+    return "\n".join([
+        f"# {desk.name}{(' · desk ' + record.VERSION) if record.VERSION else ''}",
+        "",
+        f"**Asked:** {question}",
+        "",
+        "## Nothing on file addresses this",
+        "",
+        f"Searched every citation the firm has admitted — **{len(held)}** of "
+        f"them, across **{len(desk.sources)}** publications — and not one shares "
+        f"enough language with this question to be worth putting in front of "
+        f"you.",
+        "",
+        "**This is not permission.** It does not mean the answer is no, and it "
+        "does not mean nobody objects. It means the firm has never admitted "
+        "authority on this, so there is nothing here to be right or wrong "
+        "with — and an answer given anyway would be yours rather than the "
+        "record's.",
+        "",
+        "**What to do.** Park it: the question goes to the firm with your "
+        "working, and their answer is what builds the coverage that is missing. "
+        "`ask.consult_or_file` does that in one call. Do not answer from "
+        "memory, and do not read this page as a quiet yes.",
+        "",
+    ])
+
+
 def consult(question: str, corpus: Path = CORPUS,
             context: record.Context | None = None, *, limit: int = 8) -> str:
-    """Everything the corpus will let you answer this from. Possibly nothing.
+    """Everything the corpus will let you answer this from — or why it will not.
 
     ONE CORPUS, ONE BRIEF. This returned `[(desk name, brief)]` until
     10 September 2026, because a question reached one desk or several and each
@@ -82,22 +145,25 @@ def consult(question: str, corpus: Path = CORPUS,
     answerer given everything is an answerer given nothing, and a model with
     an 8,192-token window (LOCAL-LLM-PATTERN rule 1) is given less than nothing.
 
+    IT NO LONGER RETURNS "". `dec-coverage`: an empty return is ambiguous
+    between *nothing settles this* and *nothing objects*, and a doer reads the
+    second. `nothing_on_file` says which, in words, with the size of what was
+    searched. Callers deciding whether the corpus HOLDS anything ask `looked`.
+
     SILENCE IS STILL A RESULT and it is still the retriever's weakest claim.
-    Nothing shared with the corpus comes back empty. But a SCORE cannot tell you
-    that nothing on file answers a question — measured, and
-    `test_a_score_cannot_tell_you_nothing_answers_this.py` holds the numbers:
-    the two populations overlap almost completely, and a question no tax
-    authority anywhere addresses outscores most of the ones the corpus really
-    answers. So this returns what it found and the ENGINE decides whether any of
-    it binds. That is `dec-books` — *"it looks for sources and conveys and if it
-    is not directly authoritative it would run the opinion by me"* — and a
-    threshold here would be this function deciding on a word count what the
-    whole engine exists to decide properly.
+    A SCORE cannot tell you that nothing on file answers a question — measured,
+    and `test_a_score_cannot_tell_you_nothing_answers_this.py` holds the
+    numbers: the two populations overlap almost completely, and a question no
+    tax authority anywhere addresses outscores most of the ones the corpus
+    really answers. So this returns what it found and the ENGINE decides whether
+    any of it binds. That is `dec-books` — *"it looks for sources and conveys
+    and if it is not directly authoritative it would run the opinion by me"* —
+    and a threshold here would be this function deciding on a word count what
+    the whole engine exists to decide properly.
     """
-    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
-    found = pool.look(question, held, limit=limit, known=stats)
+    found = looked(question, corpus, limit=limit)
     if not found:
-        return ""
+        return nothing_on_file(question, corpus)
     return brief(question,
                  _corpus(corpus)[0].narrowed_to([f.held.citation for f in found]),
                  context)
@@ -134,9 +200,11 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     queue that grew a row per question would be a traffic log, and the count
     would stop meaning anything.
     """
-    the_brief = consult(question, corpus, context)
-    if the_brief:
-        return the_brief, None
+    # ASKED OF THE POOL, NOT OF THE BRIEF'S LENGTH. `consult` returns a
+    # document either way since `dec-coverage`, so testing it for emptiness
+    # would file every question ever asked.
+    if looked(question, corpus):
+        return consult(question, corpus, context), None
     queue = Path(queue)
     existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
                 if queue.exists() else [])
@@ -147,7 +215,11 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
         existing=existing,
     )
     unsupported.append(queue, entry)
-    return "", entry
+    # THE EXPLANATION, NOT "". `dec-coverage`: the caller that just had its
+    # question parked is exactly the caller who must not read the result as
+    # permission, and returning an empty string here would have left that one
+    # path silent while every other path spoke.
+    return nothing_on_file(question, corpus), entry
 
 
 def brief(question: str, desk: record.Desk,
@@ -187,6 +259,32 @@ def brief(question: str, desk: record.Desk,
     # `dec-kill` deleted the duplicate, so the instructions move here rather
     # than going with it — a brief that is wrong now is wrong in production,
     # where somebody sees it.
+    # HOW THESE WERE CHOSEN, SAID OUT LOUD. The other half of `dec-coverage`.
+    #
+    # The first half is `nothing_on_file`: an empty result must not read as
+    # permission. This is the case that is easier to miss and harder to fix —
+    # a result that is not empty and settles nothing. `pool.look` scores every
+    # citation on word overlap with the question, weighted by rarity, and it
+    # ALWAYS RETURNS SOMETHING when any word matches. Measured: *"Which sonnet
+    # did Shakespeare write about a summer day?"* comes back with 7,384
+    # characters of tax authority, more than the real prepaid-insurance
+    # question's 5,060, and
+    # `test_a_score_cannot_tell_you_nothing_answers_this.py` establishes that no
+    # score cutoff separates the two populations — five of six questions with no
+    # answer on file outscore the weakest question that has one.
+    #
+    # SO THE CUTOFF CANNOT BE HERE AND THE DISCLOSURE CAN. An answerer told
+    # nothing about how these arrived reads "here is the authority" as "here is
+    # the authority ON THIS", which is the same misreading as silence-as-
+    # permission, one step further in. The engine still decides what binds;
+    # this is what stops a model doing the engine's job badly first.
+    out += ["**These paragraphs were chosen by word overlap with your "
+            "question, not by anybody deciding they answer it.** Being shown a "
+            "passage is not evidence that it settles anything — the corpus "
+            "returns its closest text for every question, including questions "
+            "it holds no authority on at all. If none of it reaches what you "
+            "were asked, say so and escalate `authority_absent`; that is a "
+            "finding, not a failure.", ""]
     out += ["## What you must return", "",
             "```json",
             '{"position": "<your conclusion, one short line>",',

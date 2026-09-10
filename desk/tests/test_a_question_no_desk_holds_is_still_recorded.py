@@ -60,9 +60,18 @@ HELD = "He bought lunch for the crew on site. Is that fully deductible?"
 def test_a_question_no_desk_holds_is_filed(tmp_path):
     queue = tmp_path / "unfiled" / "CLOSE.md"
 
-    briefs, filed = ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
+    said, filed = ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
 
-    assert briefs == "", "nothing in the corpus speaks to this; consult must say nothing"
+    # IT ASSERTED `== ""` UNTIL `dec-coverage`, 10 September 2026 — the firm:
+    # "Both." Nothing in the corpus speaks to this, and saying nothing at all
+    # about that is the failure Forge-Occam reported: *"silence is
+    # indistinguishable from 'there is nothing to say here.' A doer reads it as
+    # permission. I nearly did."* So what comes back says which.
+    assert ask.looked(UNHELD, CORPUS) == (), (
+        "nothing in the corpus speaks to this; nothing may be retrieved")
+    assert "Nothing on file addresses this" in said
+    assert "not permission" in said
+    assert "## The authority" not in said, "it printed passages anyway"
     assert filed is not None, (
         "the question reached no desk and was not recorded — this is the one "
         "outcome that used to vanish")

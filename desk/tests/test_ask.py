@@ -54,10 +54,29 @@ def test_a_question_comes_back_with_what_it_may_be_answered_from():
     assert "## The authority" in text and "26 CFR 1.274" in text
 
 
-def test_silence_is_a_result():
-    """A question touching no desk comes back empty — not routed to the nearest
-    one. A router that always answers is one whose answer means nothing."""
-    assert ask.consult("zzqx vvbbnn") == ""
+def test_silence_says_why_it_is_silent():
+    """A question sharing no language with the corpus comes back with a PAPER
+    saying so — not with the nearest passage, and not with nothing.
+
+    IT ASSERTED `== ""` UNTIL 10 SEPTEMBER 2026 and the firm answered
+    `dec-coverage` "Both": say why the silence is silence, then build the
+    coverage. Forge-Occam reported the failure it closes — *"silence is
+    indistinguishable from 'there is nothing to say here.' A doer reads it as
+    permission. I nearly did."*
+
+    The old property survives inside the new one: nothing is retrieved, and the
+    document says nothing was. `ask.looked` is what a caller asks now.
+    """
+    out = ask.consult("zzqx vvbbnn")
+    assert ask.looked("zzqx vvbbnn") == (), "something was retrieved after all"
+    assert out, "silence is still an empty string, which reads as permission"
+    assert "Nothing on file addresses this" in out
+    assert "not permission" in out, (
+        "the one sentence this exists for: a doer must not read it as a yes")
+    assert "785" in out, (
+        "it must say how much was searched — 'nothing found' from twelve "
+        "citations and from 785 are different findings")
+    assert "## The authority" not in out, "it printed passages anyway"
 
 
 def test_the_brief_never_carries_the_answer_key():

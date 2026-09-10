@@ -343,16 +343,21 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: The four questions are real: two of Forge-Occam's from their field report,
 #: and two from the working vernacular of a close.
 NARROWED = {
-    "is a brewery tab a business meal?": 2_284,
-    "what supporting documents does the client have to keep?": 5_925,
-    "hand tools bought for the trade - deducted or capitalized?": 2_721,
-    "mileage or actual expenses for the van?": 2_294,
+    # Each up 125 tokens on 10 September 2026, and deliberately: `dec-coverage`
+    # added the paragraph telling an answerer that these passages were chosen by
+    # word overlap and that being shown one is not evidence it settles anything.
+    # A fixed cost on every brief, and the cheapest of the three places that
+    # warning could have gone.
+    "is a brewery tab a business meal?": 2_410,
+    "what supporting documents does the client have to keep?": 6_050,
+    "hand tools bought for the trade - deducted or capitalized?": 2_846,
+    "mileage or actual expenses for the van?": 2_420,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
 #: NOTHING SENDS THIS. It is here as the denominator the narrowing works
 #: against, and so that a change in what the corpus holds is visible.
-WHOLE = (91_497, 185_571)
+WHOLE = (91_622, 185_696)
 
 
 def _answering_sizes():
