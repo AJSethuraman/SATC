@@ -129,17 +129,32 @@ def terms(text: str) -> tuple[str, ...]:
                  if w.group(0).lower() not in STOPWORDS)
 
 
+def _records(where: Path) -> list[Path]:
+    """The record directories under `where` -- or `where` itself if it is one.
+
+    ONE CORPUS IS THE DESTINATION AND SEVEN DESKS IS THE PRESENT, and this
+    function is the whole of the difference to this module. `dec-kill` deletes
+    the desks; until `desks/` is gone, both shapes have to load or the migration
+    cannot be verified against what it replaced. It is a MIGRATION seam, not a
+    permanent option -- when `desks/` goes, the loop below has one entry and
+    this function collapses to a return.
+    """
+    where = Path(where)
+    if (where / "SUBJECTS.md").is_file():
+        return [where]
+    return [d for d in sorted(where.iterdir())
+            if (d / "SUBJECTS.md").is_file()]
+
+
 def assemble(desks_dir: Path) -> tuple[Held, ...]:
     """Every citation on file, from every record, as one pool.
 
-    Reads the same folders `routing.registry` reads and throws away the only
-    thing `routing` uses them for. The folders survive as where the records are
-    WRITTEN; they stop being how a question is answered.
+    Takes the corpus directory, or -- until `desks/` is deleted -- the parent of
+    the seven records. What it reads stops being how a question is answered
+    either way: this module holds citations, and `read_from` is provenance.
     """
     held: list[Held] = []
-    for folder in sorted(Path(desks_dir).iterdir()):
-        if not (folder / "SUBJECTS.md").is_file():
-            continue
+    for folder in _records(desks_dir):
         desk = record.load(folder)
         by_citation: dict[str, list] = {}
         for position in desk.positions:
