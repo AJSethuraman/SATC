@@ -111,7 +111,7 @@ def test_no_desk_serves_an_unjudged_answer():
     for desk in _desks():
         p, _passage = _answerable(desk)
         out = ask.answer(p.facts,  position=p.answer,
-                         citation=p.citation, corpus=DESKS, keep=False)
+                         citation=p.citation, corpus=CORPUS, keep=False)
         assert isinstance(out, engine.Refusal), f"{desk.name} served unjudged"
         assert out.reason == "not_judged"
         assert out.desk == desk.name
@@ -123,7 +123,7 @@ def test_a_judged_answer_still_serves_on_every_desk():
     for desk in _desks():
         p, passage = _answerable(desk)
         out = ask.answer(p.facts,  position=p.answer,
-                         citation=p.citation, corpus=DESKS, keep=False,
+                         citation=p.citation, corpus=CORPUS, keep=False,
                          judged=a_judgment(passage))
         assert isinstance(out, engine.Served), (
             f"{desk.name} refused a judged answer: {getattr(out, 'detail', '')}")
@@ -139,7 +139,7 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
         p, passage = _answerable(desk)
         with pytest.raises(judging.JudgingError) as e:
             ask.answer(p.facts,  position=p.answer,
-                       citation=p.citation, corpus=DESKS, keep=False,
+                       citation=p.citation, corpus=CORPUS, keep=False,
                        model="the-answerer",
                        judged=a_judgment(passage, by="the-answerer"))
         assert "both answered and judged" in str(e.value), desk.name

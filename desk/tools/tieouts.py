@@ -42,20 +42,22 @@ sys.path.insert(0, str(HERE))
 import attempts as attempts_store                           # noqa: E402
 
 DESKS = HERE / "desks"
+CORPUS = HERE / "corpus"
 
 
-def stores(root: pathlib.Path = DESKS) -> list[tuple[str, pathlib.Path, bool]]:
-    """Every desk and where its store would be. `(name, path, exists)`.
+def stores(root: pathlib.Path = CORPUS) -> list[tuple[str, pathlib.Path, bool]]:
+    """The record and where its store is. `(name, path, exists)`.
 
-    A DESK WITH NO STORE IS RETURNED, not omitted. "Six desks, none of which has
-    ever been tied out" and "six desks, five with clean records" are different
-    findings and must not render the same.
+    STILL A LIST, AND STILL RETURNED WHEN THE STORE IS ABSENT. It walked seven
+    desks until 10 September 2026 and `dec-kill` left one corpus, so the list
+    has one entry — but the shape is what carries the finding that matters:
+    "nothing has ever been tied out" and "everything tied out clean" are
+    different results and must not render the same, which is exactly what
+    omitting an absent store would do.
     """
-    out = []
-    for d in sorted(p for p in root.iterdir() if p.is_dir()):
-        path = attempts_store.store_for(root, d.name)
-        out.append((d.name, path, path.exists()))
-    return out
+    root = pathlib.Path(root)
+    path = attempts_store.store_for(root)
+    return [(root.name, path, path.exists())]
 
 
 def read(paths) -> tuple[list, int, int]:

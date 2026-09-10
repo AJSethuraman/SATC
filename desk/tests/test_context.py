@@ -24,7 +24,7 @@ import ask
 import engine
 import positions
 import record
-from conftest import DESKS, ROOT
+from conftest import CORPUS, DESKS, ROOT
 
 #: A question whose SUBJECT this desk answers from S1, which is where POS1's
 #: citation lives. "Home Depot" will not do, and the reason is worth keeping:
@@ -38,7 +38,7 @@ STYLIST = record.Context(facts={"trade": "hairstylist"})
 
 @pytest.fixture
 def pob():
-    return record.load(DESKS / "personal-or-business")
+    return record.load(CORPUS)
 
 
 def _needing(desk):
@@ -167,7 +167,7 @@ def test_the_value_does_not_decide_it_only_its_presence(pob):
 def test_a_desk_whose_positions_need_nothing_is_untouched():
     """Narrowing only. The cost of the new gate is paid by the two positions
     that opted into it and by nothing else."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     assert not any(q.needs for q in desk.positions)
     q = next(q for q in desk.positions if not q.proposed)
     out = engine.serve(engine.Answer(position=q.position, citation=q.citation),

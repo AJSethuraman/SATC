@@ -18,7 +18,7 @@ import engine
 import positions
 import record
 import conftest                                             # noqa: E402
-from conftest import DESKS
+from conftest import CORPUS, DESKS
 
 
 def test_the_tool_the_refusal_message_names_exists():
@@ -32,26 +32,55 @@ def test_the_tool_the_refusal_message_names_exists():
 
 
 def test_a_question_comes_back_with_what_it_may_be_answered_from():
-    hits = ask.consult("is a brewery tab a business meal?", DESKS)
-    assert [d for d, _ in hits] == ["meals-and-entertainment"]
-    text = hits[0][1]
+    """ONE CORPUS, ONE BRIEF. This asserted a list of desk names until
+    10 September 2026; `dec-kill` left nothing to name."""
+    text = ask.consult("is a brewery tab a business meal?")
     assert "## The authority" in text and "26 CFR 1.274" in text
 
 
 def test_silence_is_a_result():
     """A question touching no desk comes back empty — not routed to the nearest
     one. A router that always answers is one whose answer means nothing."""
-    assert ask.consult("what time is the train", DESKS) == []
+    assert ask.consult("zzqx vvbbnn") == ""
 
 
 def test_the_brief_never_carries_the_answer_key():
-    """`PROBLEMS.md` is the key. A desk scored against problems its answerer
-    could read measures transcription, not knowledge."""
-    desk = record.load(DESKS / "cash-and-bank")
-    text = ask.brief("does the client hold materials at year end?", desk)
+    """`PROBLEMS.md` is the key, and the GRADING brief is where that matters.
+
+    WHAT ONE CORPUS MADE VISIBLE, 10 September 2026. This asserted over
+    `cash-and-bank`, whose four problems happen not to be drawn from passages it
+    holds, and it passed. Over one corpus it fails immediately: CD1's facts ARE
+    the text of `26 CFR 1.263(a)-1(f)(7) Example 1`, which the corpus holds,
+    because six of the seven records draw their problems from the worked
+    examples of the regulation they store.
+
+    So the property was never true of a record holding both — it was true of the
+    one desk this test happened to pick. The answer key is IN the corpus by
+    construction, and `brief_for_grading` is the thing that exists to keep it
+    away from anything being scored (`runs/2026-09-04/SCOREBOARD.md`: the first
+    corpus stored the 21 examples it also graded on, and a frontier model solved
+    the set as a matching puzzle rather than by reasoning).
+
+    ASSERTED ON BOTH HALVES, because a one-sided version would pass if
+    `rules_only` started dropping everything: the grading brief must not carry a
+    problem's facts, AND the answering brief must still carry real authority.
+    """
+    desk = record.load(CORPUS)
+    graded = ask.brief_for_grading("does the client hold materials at year end?",
+                                   desk)
     for p in desk.problems:
-        assert p.facts not in text, f"{p.id}'s facts reached the answerer"
-        assert f"**Answer:** {p.answer}" not in text
+        assert p.facts not in graded, f"{p.id}'s facts reached a graded answerer"
+        assert f"**Answer:** {p.answer}" not in graded
+
+    # The answering brief is a different question and still holds authority.
+    answering = ask.brief("does the client hold materials at year end?", desk)
+    assert "## The authority" in answering and len(answering) > len(graded)
+
+    # AND THE PROBLEM'S OWN ANSWER LINE NEVER APPEARS ANYWHERE. A worked example
+    # states its conclusion in the regulation's words; `**Answer:**` is OURS,
+    # and it reaching an answerer would be the record handing over its key.
+    for p in desk.problems:
+        assert f"**Answer:** {p.answer}" not in answering
 
 
 def test_the_brief_never_carries_a_proposal():
@@ -67,7 +96,7 @@ def test_the_brief_never_carries_a_proposal():
     as rather than instead of.
     """
     built = dataclasses.replace(
-        record.load(DESKS / "cash-and-bank"),
+        record.load(CORPUS),
         positions=(positions.Position(
             id="POSX", title="a proposal nobody has said yes to",
             citation="IRS Pub. 583 (12/2024), \"Reconciling the checking account\""
@@ -79,20 +108,17 @@ def test_the_brief_never_carries_a_proposal():
 
     # And the same over whatever the record actually holds today, which may be
     # nothing -- ratification is the point, so an empty sweep is not a failure.
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
-        desk = record.load(d)
-        text = ask.brief("what is our capitalisation threshold?", desk)
-        for q in desk.positions:
-            if q.proposed:
-                assert q.position not in text, f"{d.name}/{q.id} reached the answerer"
+    desk = record.load(CORPUS)
+    text = ask.brief("what is our capitalisation threshold?", desk)
+    for q in desk.positions:
+        if q.proposed:
+            assert q.position not in text, f"{q.id} reached the answerer"
 
 
 def test_the_firms_own_positions_do_reach_the_answerer():
     """The other half. A ratified position is the firm's word and real
     authority — on a `human_only` source it is the desk's ENTIRE knowledge."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     ratified = [q for q in desk.positions if not q.proposed]
     assert ratified, "fixture no longer proves it"
     text = ask.brief("is an uncleared cheque a reconciling item?", desk)
@@ -100,17 +126,17 @@ def test_the_firms_own_positions_do_reach_the_answerer():
 
 
 def test_an_answer_goes_through_the_production_path():
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     cb4 = next(p for p in desk.problems if p.id == "CB4")
 
     good = conftest.answer_judged(cb4.facts,  position=cb4.answer,
-                      citation=cb4.citation, corpus=DESKS, keep=False)
+                      citation=cb4.citation, corpus=CORPUS, keep=False)
     assert not isinstance(good, engine.Refusal)
 
     timing = next(c for c in desk.answered_by if "did not yet include" in c)
     bad = conftest.answer_judged(cb4.facts, 
                      position="a reconciling item, no entry in the books",
-                     citation=timing, corpus=DESKS, keep=False)
+                     citation=timing, corpus=CORPUS, keep=False)
     assert isinstance(bad, engine.Refusal)
     assert bad.reason == "citation_does_not_support"
 
@@ -120,7 +146,7 @@ def test_an_escalation_is_a_first_class_answer():
                       escalate="facts_not_established",
                      ask="What was the charge for? The statement line alone "
                          "does not say whether it is a bank fee or a payment.",
-                     corpus=DESKS, keep=False)
+                     corpus=CORPUS, keep=False)
     assert isinstance(out, engine.Refusal)
     assert out.reason == "facts_not_established"
 
@@ -129,15 +155,16 @@ def test_a_refusal_is_kept_with_its_reasoning(tmp_path):
     """A refusal is a finding, and the queue is the only thing that says what
     the record is missing. Thrown away, the finding is destroyed."""
     import shutil
-    desks = tmp_path / "desks"
-    shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
+    desks = tmp_path / "corpus"
+
+    shutil.copytree(CORPUS, desks)
 
     out = conftest.answer_judged("is a brewery tab a business meal?", 
                      position="fully deductible", citation="26 CFR 9.9-9",
                      model="a test", corpus=desks)
     assert isinstance(out, engine.Refusal)
 
-    queue = desks / "cash-and-bank" / "unsupported" / "asked.md"
+    queue = desks / "unsupported" / "asked.md"
     assert queue.is_file(), "the refusal was dropped"
     import unsupported
     kept = unsupported.parse(queue.read_text(encoding="utf-8"))
@@ -164,14 +191,16 @@ def test_the_callers_reasoning_survives_into_the_queue(tmp_path):
     import shutil
     import unsupported
 
-    desks = tmp_path / "desks"
-    shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
+    desks = tmp_path / "corpus"
+
+
+    shutil.copytree(CORPUS, desks)
     conftest.answer_judged("what did the client buy at the hardware store?", 
                position="x", citation="26 CFR 9.9-9",
                working="the rule turns on what was bought and nobody has said",
                model="a test", corpus=desks)
     kept = unsupported.parse(
-        (desks / "cash-and-bank" / "unsupported" / "asked.md")
+        (desks / "unsupported" / "asked.md")
         .read_text(encoding="utf-8"))
     assert kept[0].working == "the rule turns on what was bought and nobody has said"
 
@@ -181,15 +210,17 @@ def test_an_escalations_reasoning_survives_too(tmp_path):
     import shutil
     import unsupported
 
-    desks = tmp_path / "desks"
-    shutil.copytree(DESKS / "cash-and-bank", desks / "cash-and-bank")
+    desks = tmp_path / "corpus"
+
+
+    shutil.copytree(CORPUS, desks)
     conftest.answer_judged("whose vehicle is it?", 
                escalate="facts_not_established",
                ask="What was the charge for?",
                working="nothing on this desk reaches vehicle ownership",
                corpus=desks)
     kept = unsupported.parse(
-        (desks / "cash-and-bank" / "unsupported" / "asked.md")
+        (desks / "unsupported" / "asked.md")
         .read_text(encoding="utf-8"))
     assert kept[0].working == "nothing on this desk reaches vehicle ownership"
 

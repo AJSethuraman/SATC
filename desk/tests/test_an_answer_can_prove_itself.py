@@ -33,9 +33,9 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS, DESKS                          # noqa: E402
 
-DESK = "fixed-assets"
+DESK = "corpus"
 
 
 class _Page:
@@ -58,7 +58,7 @@ class _Page:
 
 
 def _desk():
-    return record.load(DESKS / DESK)
+    return record.load(CORPUS)
 
 
 def _passage(desk):
@@ -148,9 +148,8 @@ def test_a_marked_omission_is_proved_segment_by_segment():
 # ── what the front door does with each ───────────────────────────────────────
 
 def _copy(tmp_path):
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
     return desks
 
 
@@ -171,7 +170,7 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     could be true somewhere. With none passed, nothing is fetched — and this
     whole suite passes none."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
                        corpus=desks, keep=False,
@@ -182,7 +181,7 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
 
 def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
     page = _Page(passage.text)
@@ -200,7 +199,7 @@ def test_a_moved_source_withdraws_the_answer(tmp_path):
     there any more, and OUR RECORD IS THE ONLY WITNESS to it — which is not
     enough to serve a client on."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
                        corpus=desks, keep=False,
@@ -220,7 +219,7 @@ def test_an_unreachable_publisher_does_not_withdraw_the_answer(tmp_path):
         raise TimeoutError("no route to host")
 
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
                        corpus=desks, keep=False, prove=refuses,
@@ -249,12 +248,12 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     """A source that moved is a finding about the record, and the queue is where
     findings about the record accumulate."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     front.answer(p.facts,  position=p.answer, citation=p.citation,
                  corpus=desks,
                  prove=lambda s, c: _Page(f"{p.citation} rewritten"))
-    filed = (desks / DESK / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    filed = (desks / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed
 

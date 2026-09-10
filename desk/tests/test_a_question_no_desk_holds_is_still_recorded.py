@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import ask
 import unsupported
-from conftest import DESKS
+from conftest import CORPUS, DESKS
 
 #: A subject no desk in this repository is built for. Kept deliberately mundane:
 #: the point is that an ordinary close question can reach nothing.
@@ -43,7 +43,7 @@ HELD = "He bought lunch for the crew on site. Is that fully deductible?"
 def test_a_question_no_desk_holds_is_filed(tmp_path):
     queue = tmp_path / "unfiled" / "CLOSE.md"
 
-    briefs, filed = ask.consult_or_file(UNHELD, queue=queue, corpus=DESKS)
+    briefs, filed = ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
 
     assert briefs == [], "no desk holds this; consult must still say nothing"
     assert filed is not None, (
@@ -59,7 +59,7 @@ def test_a_question_a_desk_holds_is_not_filed(tmp_path):
     """Filing on every question would turn the queue into a log of traffic."""
     queue = tmp_path / "unfiled" / "CLOSE.md"
 
-    briefs, filed = ask.consult_or_file(HELD, queue=queue, corpus=DESKS)
+    briefs, filed = ask.consult_or_file(HELD, queue=queue, corpus=CORPUS)
 
     assert briefs, "a desk holds this subject"
     assert filed is None, "a routed question is not an unsupported one"
@@ -76,8 +76,8 @@ def test_the_same_unheld_question_twice_is_one_entry(tmp_path):
     """
     queue = tmp_path / "unfiled" / "CLOSE.md"
 
-    ask.consult_or_file(UNHELD, queue=queue, corpus=DESKS)
-    ask.consult_or_file(UNHELD, queue=queue, corpus=DESKS)
+    ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
+    ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
 
     assert len(unsupported.parse(queue.read_text(encoding="utf-8"))) == 1
 
@@ -97,8 +97,8 @@ def test_two_different_unheld_questions_are_two_entries(tmp_path):
     other = ("The owner transferred $5,000 of his own money into the business "
              "account. Is that income?")
 
-    ask.consult_or_file(UNHELD, queue=queue, corpus=DESKS)
-    ask.consult_or_file(other, queue=queue, corpus=DESKS)
+    ask.consult_or_file(UNHELD, queue=queue, corpus=CORPUS)
+    ask.consult_or_file(other, queue=queue, corpus=CORPUS)
 
     entries = unsupported.parse(queue.read_text(encoding="utf-8"))
     assert len(entries) == 2

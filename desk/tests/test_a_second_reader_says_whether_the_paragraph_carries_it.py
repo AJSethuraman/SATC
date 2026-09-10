@@ -22,11 +22,11 @@ import pytest
 import ask
 import engine
 import judging
-from conftest import DESKS
+from conftest import CORPUS, DESKS
 
 Q = "we bought a forklift. is the invoice price deducted or capitalized?"
 CIT = "26 CFR 1.263(a)-2(d)(1)"
-DESK = "fixed-assets"
+DESK = "corpus"
 
 #: Words that really are in that paragraph, in that order, with the procedure
 #: between them marked rather than transcribed.
@@ -66,7 +66,7 @@ def test_the_seventh_september_answer_still_passes_every_gate_but_the_judge():
     # remembered — otherwise the paragraph above is a story about the past.
     import dataclasses
     import record
-    desk = dataclasses.replace(record.load(DESKS / DESK), judged=record.OPTIONAL)
+    desk = dataclasses.replace(record.load(CORPUS), judged=record.OPTIONAL)
     served = engine.serve(
         engine.Answer(position="deducted, not capitalized", citation=CIT),
         desk, question=Q)
@@ -247,9 +247,8 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     nobody can act on and inflate the one count that is meant to mean something.
     """
     import shutil
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
     queue = desks / DESK / "unsupported" / "asked.md"
     before = queue.read_text(encoding="utf-8") if queue.exists() else ""
 

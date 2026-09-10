@@ -42,7 +42,7 @@ sys.path.insert(0, str(HERE))
 import engine                                               # noqa: E402
 import positions                                            # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS, DESKS                                  # noqa: E402
 
 CITE = "26 CFR 1.263(a)-1(f)(5)"
 FACT = "capitalisation_rule"
@@ -235,7 +235,7 @@ def test_the_two_held_capitalization_positions_now_ask_the_firms_question():
     sends someone to the client rather than to the firm.
     """
     import dataclasses
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     held = [q for q in desk.positions if q.unless]
     assert len(held) == 2, [q.id for q in desk.positions if q.unless]
     assert desk.records == ("capitalization_rule",), (
@@ -260,7 +260,7 @@ def test_the_vendor_position_already_asked_and_now_says_what_it_is_asking():
     reasoning from the vendor. What it could not do was say the question out
     loud, and a reason code is not something a preparer can act on."""
     import dataclasses
-    desk = record.load(DESKS / "personal-or-business")
+    desk = record.load(CORPUS)
     q = next(p for p in desk.positions if p.needs)
     asif = dataclasses.replace(desk, positions=(
         dataclasses.replace(q, ratified="simulated, for this test only"),))
@@ -287,9 +287,8 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     import shutil
     import ask as front
     src = DESKS / "capitalization-and-de-minimis"
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(src, desks / src.name)
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
     # Ratified IN THE COPY ONLY. The real position is a proposal and stays one;
     # the roster test is what stops this becoming a habit.
     f = desks / src.name / "positions" / "POSITIONS.md"
@@ -340,7 +339,7 @@ def test_the_ratified_defaults_now_ask_on_the_REAL_record():
     positions refuse until somebody says what the client's rule is, and every
     simulation is gone from this path.
     """
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     held = [q for q in desk.positions if q.unless]
     assert held, "this desk holds no defaulting position; the test proves nothing"
 

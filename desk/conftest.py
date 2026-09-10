@@ -22,6 +22,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 DESKS = ROOT / "desks"
+#: ONE CORPUS. `dec-kill`, 8 September 2026 — "Kill the desks; one pool." The
+#: record directory is the corpus itself; nothing sits beneath it.
+CORPUS = ROOT / "corpus"
 
 
 class NetworkUsed(AssertionError):
