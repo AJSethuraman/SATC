@@ -69,8 +69,12 @@ def test_it_says_what_was_searched_with_numbers():
     different findings, and only one of them means the question is unusual."""
     desk = record.load(CORPUS)
     out = ask.consult(GIBBERISH)
-    assert str(len(desk.passages)) in out
+    # THE POOL'S SIZE, NOT THE PASSAGE COUNT, and `dec-pos2` made them differ:
+    # the firm's own standing policy is a citation with no stored text behind
+    # it. What was searched is what the pool holds, which is what the page says.
+    assert str(len(ask._corpus(CORPUS)[1])) in out
     assert str(len(desk.sources)) in out
+    assert len(ask._corpus(CORPUS)[1]) >= len(desk.passages)
 
 
 def test_it_says_in_words_that_it_is_not_permission():

@@ -408,3 +408,19 @@ proposed are stored, as with S2: admitting a section is not importing it.
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. THIS IS THE ACCOUNTABLE PLAN. Where a vehicle belongs to the owner personally and the business pays for its running, the arrangement is either an accountable plan under (c)(2) — the payments are not wages, not on the W-2, not subject to employment taxes — or a nonaccountable plan under (c)(3), and everything paid is wages. Three requirements decide it: business connection (d), substantiation (e), and returning the excess (f). It binds.
 
 ---
+
+## S34 · The firm's own standing policy — SATC
+
+**Tier:** tertiary · **Access:** human_only · **May store:** full_text · **Checked:** 2026-09-10
+
+**Citation prefix:** SATC policy —
+
+**Why:** NOT AUTHORITY, AND THAT IS THE ENTIRE POINT OF THE ROW. `dec-pos2`, 10 September 2026 — the firm: *"Firm policy, no citation — with two conditions."* POS11 was pinned to § 1.262-1(a) and two independent judges refused it: that paragraph is about costs which are PERSONAL and the position is about costs whose nature is UNKNOWN. The position is sound and the pin was wrong, and a wrong pin is worse than no pin — it tells a reader the regulation says something it does not, and it survives every check in this repository because the citation resolves.
+
+So a position may rest on the firm rather than on a paragraph. It still needs a REFERENCE, because every lookup in `record.py` is keyed on citation and none may take an empty string, and this source is what those references belong to. Nothing is ever fetched from here and nothing is ever stored under it: `access: human_only` because there is no publisher to reach — the words are the firm's and they are already in this repository, in `positions/POSITIONS.md`, in a pull request the firm merged.
+
+**`tier: tertiary` IS THE CLOSEST HONEST LABEL AND IT IS NOT WHAT DECIDES.** `TIERS` is a closed vocabulary of primary, secondary and tertiary — degrees of how far a document sits from the rule — and the firm's own policy is not on that scale at all. It is not somebody's reading of a regulation; it is what this practice does where the rules leave a choice. What makes it BIND is `engine.serve`'s `from_position`, which has always outranked the tier underneath: *"the firm is the last layer; where they have spoken, their words are the authority."* The tier here is a slot that had to be filled, and it is filled with the label that overstates least.
+
+**Every position under this row carries a caveat saying so**, and says whether anybody has read it against what is on file — the firm's two conditions, which are `Kind:` and `Reviewed:` on the position itself.
+
+---

@@ -310,9 +310,17 @@ was bought.
 
 ## POS11 · Where the rule is clear and what was bought is not, flag it and ask
 
-**Citation:** 26 CFR 1.262-1(a) — the general rule · **Recorded:** 2026-09-05
+**Citation:** SATC policy — unidentified purchases are flagged, not drawn · **Recorded:** 2026-09-05
+
+**Kind:** firm policy
+
+**Reviewed:** open
 
 **Position:** flag it for attention and ask the client what was bought; do not book it to owner draws on the seller's name
+
+**Unpinned from § 1.262-1(a) on 10 September 2026, on the firm's answer to `dec-pos2`: "Firm policy, no citation — with two conditions."** It was pinned to that paragraph and two independent judges refused it, correctly: § 1.262-1(a) is about costs which are PERSONAL, and this position is about costs whose nature is UNKNOWN. Those are different questions and the paragraph does not decide this one. The position is the firm's and it stands; what it never rested on was that rule.
+
+A wrong pin is worse than no pin. It tells a reader the regulation says something it does not, and it survives every check here because the citation resolves — which is why the firm's first condition is that this be **clearly marked**, and their second is that somebody read it against what is on file. `Reviewed: open` is that mark. It is not a defect and it is not a hold: this position serves, with a caveat saying it rests on the firm and that nobody has yet checked it against the record. `ask.review_brief` is what gets put in front of them.
 
 **Why:** The firm, 5 September 2026 (`docs/CLOSE-QUESTIONS-2026-09-05.md`, Q7):
 

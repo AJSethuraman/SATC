@@ -447,6 +447,69 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-10 — The four answered decisions are built (desk 0.22.0).**
+
+  `dec-gate`, `dec-coverage`, `dec-fields` and `dec-pos2`, in that order, on top
+  of the one-corpus merge. 1,202 passing, 1 skipped.
+
+  **`dec-gate` — "Fail closed."** `candidates.consider` read
+  `if verdict and url and not governs(...)`, and `Verdict` is falsy when no
+  domain fired — so a question the map does not recognise skipped the publisher
+  check entirely and went straight to a live fetch. The one class where nobody
+  had established the publisher gets to say anything was the one class never
+  asked. It parks and notifies now, on the new reason
+  `body_of_authority_unknown`. **Measured: twelve of the fifteen working
+  questions classify nothing. The docket said eight** — recorded rather than
+  reconciled; the docket's figure predates `810e5dc`'s income-side narrowing,
+  which does raise this count, but nobody has shown those four are the four.
+
+  **`dec-coverage` — "Both."** `consult` no longer returns `""` on any path.
+  Silence is a short paper saying what was searched (786 citations across 34
+  publications), that it is **not permission**, and how to park it — Occam's
+  *"a doer reads it as permission. I nearly did."* And the second silence, the
+  harder one: a result that is not empty and settles nothing. No cutoff closes
+  it (measured: five of six unanswerable questions outscore the weakest
+  answerable one), so the brief says its passages were chosen by word overlap
+  and that being shown one is not evidence it settles anything. 125 tokens on
+  every brief.
+
+  **`dec-fields` — the field proposal channel existed and nothing had ever put
+  anything in it.** `Unsupported` carries `needs_field` and `asked_by`;
+  `from_refusal` reads them off `result.fact` / `result.by_position`;
+  `engine.Result` has neither field, and `ask.answer` built one. So every
+  `no_field_for_this_fact` ever filed landed with both empty — a field request
+  naming no field, with no chain back to the position that wanted it, which is
+  the exact condition the firm approved these under. Found by filing one and
+  reading the file back. The notification now says *"Desk proposes: add a field
+  for capitalization_rule? — POS11 needs it and nothing records it [U1]"*
+  instead of *"Desk parked: …"*.
+
+  **`dec-pos2` — POS11 is unpinned, and the two conditions are mechanisms.**
+  It was pinned to § 1.262-1(a) and two independent judges refused it: that
+  paragraph is about costs which are *personal*, this position is about costs
+  whose nature is *unknown*. **Not one word of the position changed and the
+  ratification date is untouched** — what moved is the claim about what it rests
+  on. `Kind: firm policy`, a new source row S34 for the firm's own standing
+  policy, and a caveat on every answer and in every brief. It SERVES: *"I'm good
+  with this"*, the same disposition as `dec-guidance`. `Reviewed: open` is the
+  mark, and `ask.review_brief` is the inverse check — not *what proves this* but
+  *does anything on file contradict this*, scored on the position's own words so
+  the list is not written by whoever proposed the policy.
+
+  **The review for POS11 is generated and waiting on the firm:
+  `desk/docs/REVIEW-POS11-2026-09-10.md`.** And a finding to read with it: the
+  eight nearest passages are substantiation and recordkeeping rules — Pub. 463
+  on adequate records, § 1.274-5T on contemporaneous records, a de minimis
+  anti-abuse example — and **none of them is about a purchase whose nature is
+  unknown.** That is the always-answering problem inside the review itself: the
+  brief's "nothing found" branch cannot fire, because eight plausible-looking
+  things always come back. The brief says they were chosen by word overlap and
+  that nobody decided they bear on it, which is the honest disclosure and is not
+  the same as a clean bill. **Read as coverage rather than as review, the
+  answer looks like: the corpus holds nothing that speaks to this policy.** That
+  is the firm's to confirm, not mine.
+
+
 - **2026-09-10 — The desks are deleted. One corpus (desk 0.22.0).**
 
   `dec-kill`, 8 September: *"Kill the desks; one pool."* It had not been done.

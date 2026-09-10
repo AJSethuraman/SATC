@@ -1362,11 +1362,38 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
             f"keyword table, not a reading. {why} Check the passage below "
             f"answers what was asked before relying on it."
         ) if astray else "",
-        caveat="" if binding else (
-            f"This rests on {source.title}, which is {source.tier} authority: "
-            f"the IRS's own guidance, not the rule. No binding authority on this "
-            f"desk reaches the question. Read it as the Service's stated position "
-            f"and not as settled law."),
+        # A FIRM POLICY IS BINDING AND STILL CARRIES A CAVEAT, which is the one
+        # combination this field did not have before `dec-pos2`.
+        #
+        # The firm's first condition, verbatim: *"I'm good with this but can I
+        # want this to be clearly marked as they may need to be
+        # reviewed/changed at some point."* So it SERVES — "I'm good with this"
+        # — and it says what it is. That is the same disposition they chose for
+        # guidance on the fourth docket ("Serve it, marked"), for the same
+        # reason: refusing throws away a real answer, and serving silently
+        # throws away the one thing the reader needs to know about it.
+        #
+        # AND IT SAYS WHETHER ANYBODY HAS CHECKED IT. Their second condition is
+        # the inverse of a citation check — does anything on file contradict
+        # this — and until somebody has read `ask.review_brief` and written what
+        # they found into `Reviewed:`, the honest answer is nobody knows. An
+        # uncited position is exactly the kind that can sit against authority
+        # with nothing noticing, so "nobody has looked" is a fact about this
+        # answer and belongs on it.
+        caveat=(
+            (f"This is the firm's own standing policy. It rests on the firm "
+             f"and not on any paragraph — there is nothing to go and read "
+             f"behind it, which is why it says so. "
+             + ("Nobody has yet checked it against the authority on file; "
+                "`ask.review_brief` is what puts that question to the firm."
+                if getattr(passage, "unreviewed", False) else
+                f"Checked against the record: {getattr(passage, 'reviewed', '')}"))
+            if from_position and getattr(passage, "is_policy", False)
+            else "" if binding else (
+                f"This rests on {source.title}, which is {source.tier} "
+                f"authority: the IRS's own guidance, not the rule. No binding "
+                f"authority on this desk reaches the question. Read it as the "
+                f"Service's stated position and not as settled law.")),
         # A position is the firm's words, so those are the words that leave the
         # desk -- not a restatement, however close. `_check` has already refused
         # one that disagrees; this makes the agreeing case exact rather than

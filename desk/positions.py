@@ -48,6 +48,35 @@ _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 #: refuses to find any of these under `extracted/`.
 MARKERS = ("Position", "Ratified")
 
+#: WHAT A POSITION RESTS ON.
+#:
+#: `dec-pos2`, 10 September 2026 — the firm: **"Firm policy, no citation — with
+#: two conditions."** POS11 (*"flag it for attention and ask the client what was
+#: bought; do not book it to owner draws on the seller's name"*) is pinned to
+#: § 1.262-1(a), and two independent judges refused it: that paragraph is about
+#: costs which are PERSONAL, and the position is about costs whose nature is
+#: UNKNOWN. The position is sound and the pin is wrong.
+#:
+#: A pin that is wrong is worse than no pin. It tells a reader the regulation
+#: says something it does not, and it survives every check in this repository
+#: because the citation resolves. So a position may now say that it rests on the
+#: firm rather than on a paragraph — and saying so is the whole of what makes it
+#: different from a mis-pinned one.
+AUTHORITY = "authority"      #: rests on a paragraph, cited
+FIRM_POLICY = "firm policy"  #: rests on the firm, cited to nothing
+KINDS = (AUTHORITY, FIRM_POLICY)
+
+#: THE FIRST OF THE FIRM'S TWO CONDITIONS, in their words:
+#:
+#:     "I'm good with this but can I want this to be clearly marked as they may
+#:      need to be reviewed/changed at some point."
+#:
+#: `open` is the state every firm-policy position starts in and it is NOT a
+#: defect — it is the mark. What it must never do is default silently: a policy
+#: that has never been looked at and one that was looked at last week are
+#: different facts, and only one of them may be served without saying so.
+OPEN = "open"
+
 
 @dataclass(frozen=True)
 class Position:
@@ -59,6 +88,14 @@ class Position:
     position: str
     why: str = ""
     ratified: str = ""
+    #: `authority` or `firm policy` — see `KINDS`. Absent means `authority`,
+    #: which is what every position in the record was before `dec-pos2`, so
+    #: adding the field changed no existing position's behaviour.
+    kind: str = AUTHORITY
+    #: `open`, or what a reviewer found and when. The firm's first condition.
+    #: Only meaningful on a `firm policy` position; `record.load` refuses it
+    #: elsewhere rather than letting it read as a general review log.
+    reviewed: str = OPEN
     #: The facts about the ENGAGEMENT this position cannot be applied without,
     #: from `record.Context.FACTS`. Optional, and empty on almost every position.
     #:
@@ -96,6 +133,31 @@ class Position:
     def proposed(self) -> bool:
         """Not yet ratified. Real until a person merges it, and not before."""
         return not self.ratified
+
+    @property
+    def is_policy(self) -> bool:
+        """The firm's own rule, resting on no paragraph."""
+        return self.kind == FIRM_POLICY
+
+    @property
+    def unreviewed(self) -> bool:
+        """A firm policy nobody has checked against the authority on file.
+
+        THE FIRM'S SECOND CONDITION, and it is the risk that arrives with the
+        approval:
+
+            "I would also be remiss if something I said is my position blatantly
+             goes against a regulation or something. I would want the option to
+             review that too though"
+
+        An uncited position is exactly the kind that can sit against authority
+        with nothing noticing — there is no citation for anything to check it
+        with. So it needs the INVERSE of a citation check: not *what proves
+        this* but *does anything on file contradict this*, with the answer going
+        to the firm. `positions.against` assembles what a reviewer must read;
+        this says whether anybody has.
+        """
+        return self.is_policy and self.reviewed.strip().lower() == OPEN
 
 
 #: A fact name: lowercase words joined by underscores, and nothing else. Not a
@@ -137,6 +199,26 @@ def _needs(listed: str, where: str, field: str = "Needs") -> tuple:
     return tuple(out)
 
 
+def _kind(value: str, where: str) -> str:
+    """`authority` unless the block says otherwise, and never a guess.
+
+    A MISSPELT KIND MUST NOT FALL BACK TO `authority`, which is the one way this
+    field can do harm: a position meaning to say it rests on the firm would
+    silently claim to rest on the paragraph in its `Citation:` line — the exact
+    mis-pin `dec-pos2` exists to stop, reintroduced by a typo.
+    """
+    value = " ".join(value.split()).lower()
+    if not value:
+        return AUTHORITY
+    if value not in KINDS:
+        raise RecordError(
+            f"{where}: Kind says {value!r}; it may say "
+            f"{' or '.join(repr(k) for k in KINDS)}. A misspelt kind would "
+            f"leave a position claiming the authority of a paragraph it does "
+            f"not rest on, which is what this field exists to stop.")
+    return value
+
+
 def parse(text: str) -> list[Position]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -150,6 +232,9 @@ def parse(text: str) -> list[Position]:
             position=_field(block, "Position", where),
             why=_field(block, "Why", where, required=False),
             ratified=_field(block, "Ratified", where, required=False),
+            kind=_kind(_field(block, "Kind", where, required=False), where),
+            reviewed=(_field(block, "Reviewed", where, required=False).strip()
+                      or OPEN),
             needs=_needs(_field(block, "Needs", where, required=False), where),
             unless=_needs(_field(block, "Unless", where, required=False), where,
                           "Unless"),
@@ -171,3 +256,4 @@ and the citation is how a reader gets to the text themselves.
 ---
 
 """
+

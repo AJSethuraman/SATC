@@ -222,6 +222,103 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     return nothing_on_file(question, corpus), entry
 
 
+def against(position, corpus: Path = CORPUS, *, limit: int = 8) -> tuple:
+    """The authority nearest an uncited position, for somebody to read AGAINST it.
+
+    THE SECOND OF THE FIRM'S TWO CONDITIONS ON `dec-pos2`, and it is the risk
+    that arrives with the approval rather than an objection to it:
+
+        "I would also be remiss if something I said is my position blatantly
+         goes against a regulation or something. I would want the option to
+         review that too though"
+
+    THE INVERSE OF A CITATION CHECK. Every other gate here asks *what proves
+    this* — a citation resolves, a paragraph carries a conclusion, a second
+    reader quotes the words. An uncited position has nothing to run those on,
+    and the question that matters about it is the other one: **does anything on
+    file contradict it.** That is not answerable by lookup, so this does the
+    half that is — it finds what the corpus holds nearest the position's own
+    words and hands it over to be read.
+
+    THE POSITION'S OWN WORDS ARE THE QUERY. A hand-written list of what to check
+    a policy against is written by whoever is proposing the policy, which is the
+    preparer verifying their own work (C6). `pool.look` scores the corpus on the
+    position's title and text, so what comes back is what the RECORD says is
+    nearest, and a reviewer can disagree with it out loud.
+
+    IT DOES NOT DECIDE, AND NOTHING HERE PRETENDS OTHERWISE. Whether a paragraph
+    contradicts a policy is a reading, and readings in this operation are made
+    by a named party quoting words — `judging.read` for an answer, the firm for
+    a policy. A version of this that returned "contradicted: yes/no" would be
+    the thing `dec-books` says not to build.
+    """
+    return looked(f"{position.title} {position.position}", corpus, limit=limit)
+
+
+def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
+    """What goes in front of whoever answers *does anything here contradict it*.
+
+    THE FIRM IS THE READER, so this is prose and not a list of citation labels:
+    the question is not answerable from a label. It prints the position in their
+    own words, then the paragraphs the record puts nearest it, then the one
+    question it is asking — and it says what a `yes` and a `no` each mean, so
+    the answer that comes back can be written into `Reviewed:` without anybody
+    interpreting it.
+    """
+    desk = _corpus(corpus)[0]
+    found = against(position, corpus, limit=limit)
+    out = [f"# Does anything on file contradict {position.id}?", "",
+           f"**{position.title}**", "",
+           f"> {position.position}", ""]
+    if position.why:
+        out += ["*Why the firm holds it:*", "", f"> {position.why}", ""]
+    out += [
+        f"This is **firm policy**. It rests on the firm rather than on a "
+        f"paragraph, and it is cited to nothing — which is why it is being put "
+        f"in front of you: an uncited position is the kind that can sit against "
+        f"authority with nothing noticing.", "",
+        "## The nearest authority on file", "",
+    ]
+    if not found:
+        out += ["Nothing in the record shares enough language with it to be "
+                "worth reading against it. **That is not a clean bill.** It "
+                "means the corpus holds nothing near this policy, so nobody "
+                "here can say whether authority contradicts it — which is a "
+                "coverage answer, not a review one.", ""]
+    else:
+        out += [f"Searched every citation the firm has admitted — "
+                f"**{len(desk.passages)}** of them — and these are the "
+                f"**{len(found)}** nearest this policy's own words. They were "
+                f"chosen by word overlap, not by anybody deciding they bear on "
+                f"it.", ""]
+        for hit in found:
+            out += [f"### {hit.held.citation}", "",
+                    f"*{hit.held.tier} · {hit.held.source_id}*", "",
+                    f"> {hit.held.text}", ""]
+    out += [
+        "## What is being asked", "",
+        "**Does any of that contradict the position above?**", "",
+        "- **No** — the policy stands as written, and this review is recorded "
+        "against it with the date. It can be asked again whenever the record "
+        "grows.",
+        "- **Yes, and here is the paragraph** — the policy is wrong, or it is "
+        "narrower than it reads, and either way it stops being served until you "
+        "have said which.",
+        "- **It is nearby and does not settle it** — the commonest answer, and "
+        "it is a real one. Recorded the same way.", "",
+        "Nothing is decided here. This is the material; the reading is yours.",
+        "",
+        "---",
+        "",
+        f"*Assembled by `ask.review_brief` from the corpus at desk "
+        f"{record.VERSION or 'unversioned'}. Not written by hand and not edited "
+        f"afterwards — re-run it and it comes back the same, or comes back "
+        f"different because the record moved.*",
+        "",
+    ]
+    return "\n".join(out)
+
+
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None) -> str:
     """Everything the desk will let an answerer see, and nothing else."""
@@ -387,6 +484,21 @@ def brief(question: str, desk: record.Desk,
                 "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # A POLICY SAYS WHAT IT IS WHERE IT IS READ. `dec-pos2`, the firm's
+            # first condition: *"I want this to be clearly marked as they may
+            # need to be reviewed/changed at some point."* `engine.serve` puts
+            # the same thing on the answer that leaves; this puts it in front of
+            # the answerer BEFORE they rely on it, which is the difference
+            # between a disclosure and a footnote.
+            if getattr(q, "is_policy", False):
+                out += ["**This is the firm's own standing policy, not "
+                        "authority.** It rests on the firm and there is no "
+                        "paragraph behind it to go and read. It binds — where "
+                        "the firm has spoken, their words are the answer — and "
+                        "it may be reviewed or changed. "
+                        + ("Nobody has yet read it against what is on file."
+                           if getattr(q, "unreviewed", False) else
+                           f"Read against the record: {q.reviewed}"), ""]
             # A DEFAULT SAYS SO, so an answerer is not told the firm's general
             # rule as though it were this client's. The firm, holding two
             # positions on 6 September 2026: "we shouldn't ignore client level

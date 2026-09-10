@@ -81,7 +81,14 @@ RATIFIED = {
     # the form back — see `docs/DECISIONS-2026-09-07.md`.
     "26 CFR 1.262-1(b)(8) — the test for a serviceman's equipment":
         ("POS10", "7 September 2026", "personal-or-business/POS1"),
-    "26 CFR 1.262-1(a) — the general rule":
+    # UNPINNED 10 SEPTEMBER 2026 (`dec-pos2`, "Firm policy, no citation"). Its
+    # key here was `26 CFR 1.262-1(a) — the general rule` and that paragraph is
+    # about costs which are PERSONAL, while the position is about costs whose
+    # nature is UNKNOWN. Two independent judges refused it, correctly. THE
+    # RATIFICATION DID NOT MOVE and neither did a word of the position: the firm
+    # said this on 5 September and it stands. What moved is the claim about what
+    # it rests on.
+    "SATC policy — unidentified purchases are flagged, not drawn":
         ("POS11", "5 September 2026", "personal-or-business/POS2"),
     'IRS Pub. 587 (2025), "Actual Expenses" — utilities and services':
         ("POS12", "5 September 2026", "personal-or-business/POS3"),

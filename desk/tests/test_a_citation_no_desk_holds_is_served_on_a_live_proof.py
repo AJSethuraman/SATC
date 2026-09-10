@@ -233,14 +233,23 @@ def test_a_licence_wall_refuses_without_fetching(tmp_path):
     """A wall the firm put up is not routed around by arriving at the same
     publisher through a URL nobody admitted.
 
-    NO DESK HOLDS A `human_only` SOURCE TODAY, so one is constructed — and the
-    fact that none exists is asserted, so this test starts failing loudly the
-    day one does rather than silently testing a fixture instead of the record.
+    NO DESK HELD A `human_only` SOURCE, so one is constructed — and the absence
+    was asserted, so this would start failing loudly the day one appeared rather
+    than silently testing a fixture instead of the record.
+
+    ONE APPEARED, 10 SEPTEMBER 2026, AND IT IS NOT ONE OF THESE. `dec-pos2`
+    added S34, the firm's own standing policy: `human_only` because there is no
+    publisher to reach, and a wall is about a publisher whose content may not
+    reach a model. `walled()` matches on the registered HOST, and S34 has no
+    URL, so it can never be what this gate fires on. The premise that has to
+    hold is narrower than "everything is readable" and it is the one the gate
+    actually uses: nothing unreadable has a host to arrive at.
     """
     desks = _copy(tmp_path)
     desk = record.load(desks)
-    assert all(s.readable for s in desk.sources), (
-        "a desk now holds an unreadable source; test against the real one")
+    assert all(s.readable or not s.url.strip() for s in desk.sources), (
+        "a desk now holds an unreadable source WITH A URL, which is what this "
+        "gate fires on; test against the real one")
     walled = record.Source(
         id="ASC", title="FASB Accounting Standards Codification",
         tier="primary", access="human_only", may_store="license_check",

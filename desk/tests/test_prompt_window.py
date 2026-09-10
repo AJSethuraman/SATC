@@ -112,9 +112,12 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
             f"happened to be readable — the failure this file is named for")
         biggest[shape] = max(sizes)
 
-    assert biggest == {"index": 25622, "text": 91067}, (
+    # Up 30 on 10 September 2026: `dec-pos2` added the firm's own standing
+    # policy as a source row, and the index a graded prompt shows lists every
+    # source the record holds.
+    assert biggest == {"index": 25652, "text": 91096}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 25622, 'text': 91067}}. That is allowed — it is what "
+        f"{{'index': 25652, 'text': 91096}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -357,7 +360,11 @@ NARROWED = {
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
 #: NOTHING SENDS THIS. It is here as the denominator the narrowing works
 #: against, and so that a change in what the corpus holds is visible.
-WHOLE = (91_622, 185_696)
+#: Up 118 on 10 September 2026: `dec-pos2` added S34, the firm's own standing
+#: policy, and the paragraph that marks POS11 as resting on the firm rather than
+#: on a paragraph. The narrowed briefs above are unchanged, because none of
+#: those four questions reaches POS11.
+WHOLE = (91_740, 185_814)
 
 
 def _answering_sizes():

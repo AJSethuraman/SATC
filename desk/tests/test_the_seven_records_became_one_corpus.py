@@ -81,8 +81,21 @@ def test_nothing_the_firm_wrote_was_lost(corpus, seven):
     assert was <= {p.citation for p in corpus.passages}, (
         sorted(was - {p.citation for p in corpus.passages})[:3])
 
-    was_p = {tuple(q) for k in seven for q in k["positions"]}
-    assert was_p <= {(q.citation, q.position) for q in corpus.positions}
+    # THE FIRM'S WORDS, NOT THE PIN THEY WERE ON. This compared
+    # `(citation, position)` pairs, and `dec-pos2` unpinned POS11 from
+    # § 1.262-1(a) — two independent judges refused that pairing, and the firm
+    # answered "Firm policy, no citation". Not one word of any position changed.
+    # So what "nothing was lost" means for a position is checked on the words,
+    # and the ONE citation that moved is named rather than allowed for.
+    was_p = {q[1] for k in seven for q in k["positions"]}
+    assert was_p <= {q.position for q in corpus.positions}
+
+    moved = {q[0] for k in seven for q in k["positions"]} - {
+        q.citation for q in corpus.positions}
+    assert moved == {"26 CFR 1.262-1(a) — the general rule"}, (
+        f"a position's citation moved and it is not the one `dec-pos2` moved: "
+        f"{sorted(moved)}. Repinning a ratified position is the firm's, and it "
+        f"belongs in the commit that does it.")
 
     was_b = {b for k in seven for b in k["problems"]}
     assert was_b <= {b.id for b in corpus.problems}
@@ -182,7 +195,19 @@ def test_the_pool_holds_one_entry_per_citation(corpus):
     assert len(citations) == len(set(citations)), (
         "a citation is in the pool twice, so the duplicate resolution the merge "
         "performed has been undone")
-    assert len(entries) == len(corpus.passages)
+    # ONE MORE ENTRY THAN THERE ARE PASSAGES, SINCE `dec-pos2`. A firm-policy
+    # position is a citation the pool holds with no stored text behind it —
+    # there is no publisher to have stored any — and it is findable on the
+    # position's own words, which is how a reviewer reaches it. The relation
+    # that must hold is that every passage is in the pool and nothing is in the
+    # pool twice; an equality here was only ever true while every citation had
+    # a passage.
+    assert {p.citation for p in corpus.passages} <= set(citations)
+    policies = [q.citation for q in corpus.positions
+                if not q.proposed and getattr(q, "is_policy", False)]
+    assert len(entries) == len(corpus.passages) + len(policies), (
+        f"{len(entries)} pool entries for {len(corpus.passages)} passages and "
+        f"{len(policies)} firm policies")
 
     # And Forge-Occam's substantiation question, which under the word list
     # reached NOTHING, still reaches the authority their desk said it wanted.

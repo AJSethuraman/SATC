@@ -73,9 +73,14 @@ def test_silence_says_why_it_is_silent():
     assert "Nothing on file addresses this" in out
     assert "not permission" in out, (
         "the one sentence this exists for: a doer must not read it as a yes")
-    assert "785" in out, (
+    # DERIVED, NOT TYPED. It said "785" and `dec-pos2` made it 786 — the firm's
+    # own standing policy is a citation in the pool with no passage behind it.
+    # A number typed here would have to be edited every time the record grows,
+    # which is how a test stops meaning what it says.
+    held = ask._corpus(ask.CORPUS)[1]
+    assert str(len(held)) in out, (
         "it must say how much was searched — 'nothing found' from twelve "
-        "citations and from 785 are different findings")
+        "citations and from 786 are different findings")
     assert "## The authority" not in out, "it printed passages anyway"
 
 

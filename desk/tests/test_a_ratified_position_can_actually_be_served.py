@@ -63,8 +63,22 @@ def _reachable(desk, citation):
 
 def test_every_ratified_position_sits_on_a_source_the_corpus_answers_from():
     desk = record.load(CORPUS)
-    ratified = [q for q in desk.positions if not q.proposed]
-    assert ratified, "no ratified positions at all — the fixture moved"
+    # A FIRM POLICY IS NOT REACHED BY SUBJECT AND MUST NOT BE. `dec-pos2`:
+    # it rests on the firm rather than on a paragraph, so there is no source
+    # answering a subject that covers it — `answered_from` is a map from a
+    # question's words to the PUBLICATIONS that settle them, and the firm is not
+    # one. Including policies here would demand a subject registration that
+    # would then make a policy answerable by keyword, which is the opposite of
+    # what it is. They are excluded and counted, so a corpus that quietly became
+    # all policy would go red rather than pass with nothing checked.
+    ratified = [q for q in desk.positions
+                if not q.proposed and not getattr(q, "is_policy", False)]
+    policies = [q for q in desk.positions
+                if not q.proposed and getattr(q, "is_policy", False)]
+    assert ratified, "no ratified positions rest on authority — the fixture moved"
+    assert len(policies) <= 1, (
+        f"{len(policies)} firm policies now; each is a position nothing here "
+        f"checks the reachability of, so say so deliberately")
     for q in ratified:
         assert _reachable(desk, q.citation), (
             f"{q.id} is ratified on {q.citation!r}, and no subject this corpus "
