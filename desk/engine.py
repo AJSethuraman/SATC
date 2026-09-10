@@ -69,6 +69,7 @@ REASONS = (
     "client_rule_governs",      # the file records the firm's own call for THIS client
     "authority_has_moved",      # the publisher no longer carries what we stored
     "wrong_body_of_authority",  # real authority, real subject, wrong universe
+    "body_of_authority_unknown",  # nothing classified it, so nothing could check
     "model_gave_up",            # ran out of window or abandoned the task
     "judgment_not_in_the_passage",
     "not_judged",               # this desk may not serve what nobody read  # the second reader quoted words that are not there

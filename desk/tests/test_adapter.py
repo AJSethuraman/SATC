@@ -496,6 +496,16 @@ UNOBSERVABLE = {"source_blocked_by_us", "source_refuses_us",
                 # doing the verifying act, which C6 and C7 put on the other
                 # side of the line.
                 "wrong_body_of_authority",
+                # AND ITS SIBLING, FOR A SHARPER VERSION OF THE SAME REASON.
+                # `body_of_authority_unknown` fires where the map recognises
+                # NOTHING about the question (`dec-gate`, "Fail closed"). A
+                # brain cannot observe that: it is never shown the map, so it
+                # cannot know the map came back empty. Worse, this is precisely
+                # the class where a brain is most likely to feel certain — the
+                # vocabulary is unfamiliar to the RECORD, not to the model — so
+                # offering it would ask for a self-report from the one case
+                # where a self-report is worth least.
+                "body_of_authority_unknown",
                 # NOR CAN A BRAIN ESCALATE THE FAILURE OF ITS OWN JUDGE. Only
                 # `judging.read` raises this, and only with a second reader's
                 # verdict in hand -- the answering brain is never shown one, and
