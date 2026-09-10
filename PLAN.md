@@ -447,6 +447,124 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-10 — Seven docket answers, and the seventh is not an answer: it is the
+  firm asking why a decision from two days earlier had not been started (desk).**
+
+  Occam ran a real year-end close on the installed plugin on 9 September — three
+  questions, zero served answers, four escalations, and their own verdict that
+  *"the refusals were worth more than any answer would have been."* Seven matters
+  went to the firm. Five carried a choice; two carried a correction.
+
+  `dec-gate` — **"Fail closed."** The open-web publisher check in
+  `candidates.consider` is conditioned on a classification, and `Verdict.__bool__`
+  is False when nothing fires, so **a question the vocabulary does not recognise
+  skips the gate entirely**. Measured independently at 8 of 15 ordinary working
+  questions, against Occam's 9 of 18; the five that reach no desk agree exactly.
+  The `Verdict` docstring already says a blank verdict is *"a refusal and not an
+  absence of opinion"* — the caller two files away reads it as an absence of
+  opinion. Failing closed is not a new policy: it is the fourth disposition the
+  firm signed off in August (unknown parks, notifies, and their answer builds the
+  map) reaching the one file it was never wired into.
+
+  `dec-pos2` — **"Firm policy, no citation — with two conditions."** POS2 (*"flag
+  it for attention and ask the client what was bought; do not book it to owner
+  draws on the seller's name"*) is pinned to 26 CFR 1.262-1(a), and two
+  independent judges refused it: that paragraph is about costs which are
+  *personal*, and the position is about costs whose nature is *unknown*. The
+  position is sound and the pin is wrong. The firm's conditions, verbatim:
+
+  > *"I'm good with this but can I want this to be clearly marked as they may need
+  > to be reviewed/changed at some point. I would also be remiss if something I
+  > said is my position blatantly goes against a regulation or something. I would
+  > want the option to review that too though"*
+
+  The second condition is the risk that arrives with the approval: an uncited
+  position is exactly the kind that can sit against authority with nothing
+  noticing. It needs the inverse of a citation check — not *what proves this* but
+  *does anything on file contradict this* — and the answer goes to the firm.
+
+  `dec-fields` — **NEITHER OPTION, and the framing was the survey they keep
+  refusing.** Two desks asked for a fact, were given it, and had nowhere to put
+  it: `capitalization-and-de-minimis` holds positions that all turn on dollar
+  figures and cannot record a dollar amount; `rewards-and-information-returns`
+  cannot record what a credit was paid for, the hinge every one of its tests turns
+  on. `no_field_for_this_fact` fired correctly both times. Offered: audit all
+  seven desks and bring back a list, or add fields one refusal at a time. The
+  firm:
+
+  > *"Wait - I have said before I want the desk to propose fields that are clearly
+  > holes. I can sign off on them in the same way as a position. Like if something
+  > is missing and we have to have it then we would make that the plan. I don't
+  > want the list, I want this part of the process - it sends me the notification
+  > or whatever saying there's something for me to decide which in this case would
+  > be 'do we add this field' I think."*
+
+  **The instruction is not in this log verbatim, and searching for it is how that
+  was established** — so either it was said somewhere that never reached here,
+  which is the log failing, or it is `dec-books` for the third time: the desk goes
+  and looks, conveys what it found, and brings the non-authoritative to the firm
+  rather than serving or refusing it. A list is a survey; the parked-question
+  channel already exists and a missing field belongs in it, ratified the way a
+  position is.
+
+  `dec-apostrophe` — **"Normalise."** A curly versus straight apostrophe inside a
+  quoted position was rejected `contradicts_ratified_position`. Quotes and dashes
+  normalise; everything else stays byte-exact.
+
+  `dec-relay` — **"Name the fallback."** The envelope tells an answering session
+  to reply through two specific tools. Occam did not have them, ran each desk as a
+  subagent, and overrode that part of the envelope. It worked, which means the
+  protocol is not self-sufficient: an answerer that follows it literally without
+  those tools is stranded with no path and no diagnosis.
+
+  `dec-coverage` — **"Both."** Say why the silence is silence — an unreached
+  question returns nothing, and *"silence is indistinguishable from 'there is
+  nothing to say here.' A doer reads it as permission. I nearly did."* — then
+  build the missing coverage. Read in the world `dec-kill` decided, "build" means
+  acquire the sources into the pool, not stand up an eighth desk.
+
+  **`dec-reach` — WITHDRAWN. It was not a question, and putting it on the docket
+  was the failure.** It reported that a desk's name decides what reaches it and
+  that a general authority (Pub. 583 on records to keep) is reachable only behind
+  a bank-shaped trigger, with `receipts` pulling `meals-and-entertainment` because
+  the word means three things. The firm:
+
+  > *"I am starting to get legitimately upset. I thought we did away with separate
+  > desks."*
+
+  **They are right, and the evidence is inside `dec-kill` itself** — which killed
+  the desks on 8 September citing *"once meals-and-entertainment, which fired on
+  `receipts` meaning the paper you keep while the question meant revenue"* and
+  Occam's *"The word that saved me was 'bank'."* Those are the two examples
+  `dec-reach` presented as findings. One of its four options was *add the synonyms
+  now*, offered on a mechanism already sentenced to death; the recommendation
+  text said "you already ruled on this shape once" and the buttons were printed
+  anyway.
+
+  **The count that is the actual finding:** six commits touched `desk/` between
+  `dec-kill` and this docket. **None of them was toward the pool, and no
+  pool-shaped file exists.** `dec-order` on 9 September recorded the pool as a
+  destination rather than an immediate demolition, and then nothing set off
+  toward it while desk-shaped decisions kept being handed over. That is what
+  `dec-reach` was really evidence of, and there was no button for it.
+
+  **So the next goal is the pool**, specified by `dec-kill` and not re-opened
+  here: the word-matching that decides which desk a question reaches dies, and
+  what survives moves from the desk to the citation — the ratified positions, the
+  per-citation narrowing, the second reader, and fetching live from the
+  publisher. `dec-gate`, `dec-pos2` and `dec-fields` land inside that work rather
+  than beside it.
+
+  Also this round: desk **0.19.3**, 1,131 passing / 1 skipped. `DOMAINS.md` line
+  129 carried `**Fires on:**` twice, so the first vocabulary term was the literal
+  string `'**fires on:** deduct'` and the bare stem matched nothing —
+  *"can we deduct it?"* reached no domain while *"is it deductible?"* reached
+  `federal-tax`. It went in with `810e5dcb`, the commit that removed eighteen
+  wrongly-added income words: the line was retyped by hand and the label was
+  pasted with it. The test is over the shape of every term of every domain rather
+  than the membership of one word, because the defect is a parser handing a term
+  its own delimiter, not `deduct` going missing.
+
 - **2026-09-09 — The round trip closes, and four bugs on the way there were each
   one keystroke from eating the queue (desk 0.19.0 → 0.19.2).**
 
