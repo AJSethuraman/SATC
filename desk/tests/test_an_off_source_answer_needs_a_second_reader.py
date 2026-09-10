@@ -32,6 +32,7 @@ import engine
 import record
 
 DESKS = Path(__file__).resolve().parents[1] / "desks"
+CORPUS = Path(__file__).resolve().parents[1] / "corpus"
 
 #: The measured case.
 #: THE ORIGINAL FIXTURE WAS FIXED OUT FROM UNDER THIS TEST, 8 September 2026,
@@ -48,8 +49,8 @@ POSITION = "listed property, and the substantiation rules apply"
 
 def _desk_not_requiring_a_judge(tmp_path):
     """A real desk with its `Judged: required` declaration removed."""
-    dst = tmp_path / "vehicle-expense"
-    shutil.copytree(DESKS / "vehicle-expense", dst)
+    dst = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dst)
     p = dst / "SUBJECTS.md"
     text = p.read_text(encoding="utf-8")
     assert "**Judged:** required" in text, "the fixture's premise moved"
@@ -62,7 +63,7 @@ def _desk_not_requiring_a_judge(tmp_path):
 def test_off_source_is_refused_unjudged_even_where_the_desk_did_not_ask(tmp_path):
     desk = _desk_not_requiring_a_judge(tmp_path)
     out = ask.answer(QUESTION,  position=POSITION,
-                     citation=OFF_SOURCE, corpus=tmp_path, keep=False)
+                     citation=OFF_SOURCE, corpus=tmp_path / "corpus", keep=False)
     assert isinstance(out, engine.Refusal), (
         "an off-source answer was served with nobody having read the paragraph")
     assert out.reason == "not_judged"
@@ -75,10 +76,24 @@ def test_an_on_source_answer_on_that_desk_is_untouched(tmp_path):
     """The new condition must not become a desk-wide requirement by the back
     door — that would be reinstating the thing the firm just removed."""
     desk = _desk_not_requiring_a_judge(tmp_path)
-    pr = next(p for p in desk.problems if p.id == "VE7") if any(
-        p.id == "VE7" for p in desk.problems) else desk.problems[-1]
+    # CHOSEN BY THE PROPERTY, NOT BY NAME. This picked VE7, which was on-source
+    # for `vehicle-expense`. One corpus moves answers in BOTH directions — the
+    # union of `answered_from` puts some citations on-source that were not, and
+    # changes which subjects a source is declared for, so VE7 is now OFF-source
+    # and the test was asserting the opposite of its own subject. What it is
+    # about is an on-source answer, so that is what is searched for.
+    served = [p for p in desk.problems
+              if not isinstance(
+                  ask.answer(p.title, position=p.answer, citation=p.citation,
+                             corpus=tmp_path / "corpus", keep=False),
+                  engine.Refusal)]
+    assert served, (
+        "no answer in the corpus is on-source and servable without a judge, so "
+        "the demotion this test guards has nothing left to be true of — that is "
+        "a finding about the record, not a reason to weaken the assertion")
+    pr = served[0]
     out = ask.answer(pr.title,  position=pr.answer,
-                     citation=pr.citation, corpus=tmp_path, keep=False)
+                     citation=pr.citation, corpus=tmp_path / "corpus", keep=False)
     if isinstance(out, engine.Refusal):
         assert out.reason != "not_judged", (
             "this desk opted out of judgments and this answer is on-source; "

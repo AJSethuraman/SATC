@@ -178,14 +178,35 @@ def brief(question: str, desk: record.Desk,
            "exact words you are resting on: the engine will fetch that page and",
            "serve only if those words are on it right now. It will not take",
            "your word for what the page says.", ""]
-    if desk.records:
+    # WHICH FACTS BEAR ON THIS QUESTION, and it is not all of them any more.
+    #
+    # ONE CORPUS MADE THIS NECESSARY. Each of the seven records declared the
+    # facts ITS positions turned on -- `trade` on personal-or-business,
+    # `capitalization_rule` on capitalization-and-de-minimis, `taxpayer` on
+    # rewards -- and a question reaching one desk saw one field. `dec-kill`
+    # merged them, so `desk.records` is now the union and an unnarrowed brief
+    # announces all three on every question. That is not merely noisy: two of
+    # them come back "NOT ON FILE" on any given question, and the line beside
+    # them tells the answerer to escalate rather than answer from a rule that
+    # needs it. A hairstylist question would invite `context_not_on_file` about
+    # a capitalization threshold nothing shown turns on.
+    #
+    # SO A FIELD IS PRINTED WHEN IT BEARS ON WHAT IS SHOWN: we already know it
+    # (a fact on file is context whatever the question), or a position printed
+    # above needs it. Fields that are neither are silent -- not hidden, since
+    # `desk.records` is untouched and `unrecorded` still checks against the
+    # whole of it, so a fact with nowhere to live is still the hole it was.
+    needed = {f for q in ratified for f in getattr(q, "needs", ())}
+    bearing = [name for name in desk.records
+               if str(context.facts.get(name, "")).strip() or name in needed]
+    if bearing:
         # WHAT WE WERE TOLD, AND -- THE HALF THAT MATTERS -- WHAT WE WERE NOT.
         # Printing only the facts on file leaves an answerer to assume the rest
         # were not needed. Printing the gaps by name is what lets it escalate
         # `context_not_on_file` instead of reasoning from the vendor, which is
         # the failure this whole input exists to stop.
         out += ["## What the file already says", ""]
-        for name in desk.records:
+        for name in bearing:
             value = str(context.facts.get(name, "")).strip()
             out.append(f"- **{name}:** {value}" if value
                        else f"- **{name}:** NOT ON FILE — do not infer it, and do "
