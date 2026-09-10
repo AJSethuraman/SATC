@@ -33,6 +33,16 @@ message cannot. Three things they will always say, and all three matter:
 - **`fire_trigger` returning success is not delivery.** Its `last_fired_at` is
   not corroborated by the durable record. Say what you sent and stop; do not
   chase your own message.
+- **No `create_trigger` / `fire_trigger` in your toolset? YOU ARE NOT STUCK.**
+  Return the whole reply as your final output to whoever invoked you — same
+  opening line, same content — and say in one sentence that the relay tools were
+  unavailable, so the asker knows why it arrived by hand. Never stay silent,
+  never invent another transport, and never treat the missing tools as a reason
+  to skip answering. On 9 September 2026 Forge-Occam ran a real close with
+  neither tool and improvised exactly this; their finding was that the protocol
+  itself did not say so, and *"an answerer that follows it literally, in an
+  environment without those tools, is stuck with no path and no diagnosis."* The
+  firm: **"Name the fallback."**
 
 ## The two calls
 
