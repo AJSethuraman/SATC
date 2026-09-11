@@ -33,10 +33,14 @@ claude-agent-sdk 0.2.152) ran the smoke test and pushed
   that session, or run it in a plain terminal from
   `C:\Users\ajish\SATC-eva\docs\ember-vault-arena\code`.
 - Forge → cloud messaging: the forge cannot see `satc-6c`; git is the return
-  channel. Cloud → forge: **unproven after the forge's first turn.** A routine
-  bound to the forge session fired at 20:13Z while it was mid-run (its results
-  file does not mention receiving it); fires at 20:21Z, 20:27Z and 20:31Z, and
-  an interrupt in between, left it IDLE at `need_input` with no new push.
+  channel. Cloud → forge: **did not land after the forge's first turn.** A
+  routine bound to the forge session fired at 20:13Z while it was mid-run (its
+  results file does not mention receiving it); fires at 20:21Z, 20:27Z and
+  20:31Z, and an interrupt in between, left it IDLE at `need_input` with no
+  new push as of 20:42Z. Stopped firing at that point rather than keep
+  knocking. Recorded as a finding: a Routine bound to a Remote Control
+  session is not a reliable inbound channel while that session sits at its
+  prompt, whatever the July incident suggested about triggers.
   `ListAgents` from the cloud lists no Remote Control session. Open with the
   firm: the next instruction (pull, re-run the smoke test for real token
   counts, one full twelve-round match, push the ledgers) is written in this
