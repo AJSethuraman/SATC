@@ -204,9 +204,11 @@ the others moot.
 ## Four things that will surprise you
 
 **1 · Silence is an answer — and it is FILED, not just returned.** `consult`
-returns an empty list when no desk answers on that subject. That is not a
-failure to route: it means no expert here holds the question, and inventing one
-is the thing this exists to stop.
+returned an empty list per desk until `dec-kill`; it returns one brief now, and
+`ask.looked` is how you see whether the corpus reached anything at all. Nothing
+reached is not a failure to route — there is nothing left to route — it means
+the record does not hold the question, and inventing an answer is the thing this
+exists to stop.
 
 **But say it back, and let it be recorded.** `consult_or_file` writes the
 question into the unfiled queue where `tools/holes.py` reads it out, so the
@@ -214,8 +216,9 @@ missing subject becomes visible instead of vanishing. The firm, 8 September
 2026: *"You do not prep it with information and if it can't get the information
 that means there's an actual hole."* Measured the same day on twenty month-end
 questions in a bookkeeper's own words, **five reached nothing** — and two of the
-five were subjects a desk already holds, missed on an inflection ("invoiced"
-does not fire where "invoice" does). Silence that is filed is a finding;
+five were subjects the record already held, missed on an inflection ("invoiced"
+does not fire where "invoice" does). That measurement is why the word list is
+gone; retrieval is over the authority's own text now. Silence that is filed is a finding;
 silence that is returned is a dead end.
 
 **2 · Escalating is a real answer, and often the right one.** Measured on eleven
@@ -226,7 +229,7 @@ that was correct. The reasons:
 |---|---|---|
 | `facts_not_established` | the rule is clear; a fact about the client is missing | ask the client |
 | `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
-| `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
+| `authority_absent` | nothing in the corpus reaches the question | authority is missing — run it down |
 | `document_not_requested` | a document that already exists settles it and nobody asked for it | request it by name |
 | `context_not_on_file` | the rule needs a fact there IS somewhere to record and nobody has | record it — and fix the intake that skipped it |
 
@@ -242,13 +245,14 @@ agent knew a retailer sells clothing, concluded *personal expense*, and was
 wrong — the regulation it should have reached has no vendor in it at all.
 
 **3 · Your citation is verified, and a wrong one is refused.** `answer()` does
-not take your word for it. The citation must resolve inside that desk's record,
-its source must be one the desk declares answers that subject, and where the
+not take your word for it. The citation must resolve inside the corpus, its
+source must be one the record declares answers that subject, and where the
 firm has ratified a position on it **you must return the firm's words, not your
 own restatement of them.** A real citation from the wrong paragraph of the right
 publication is refused too.
 
-**4 · A refusal is kept.** Every one lands in the desk's `unsupported/` queue
+**4 · A refusal is kept.** Every one lands in `corpus/unsupported/`, the one
+queue,
 with your reasoning intact. That queue is the only thing that tells the firm what
 authority is missing, so **write a real `working`** — "could not tell" helps
 nobody; "the rule turns on whether the item takes the place of ordinary civilian

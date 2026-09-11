@@ -433,9 +433,10 @@ class Research:
 def research(question: str, reply_to: str, refused_by=()) -> Research:
     """Send an `authority_absent` gap to be run down, or REFUSE to send it.
 
-    `refused_by` is `((desk, reason), ...)` from the refusals that produced the
-    gap. It is REQUIRED and it is checked, because the one thing that must not
-    happen here is a question being researched that a desk could already answer:
+    `refused_by` is `((record, reason), ...)` from the refusals that produced the
+    gap -- one row since `dec-kill`, where it used to carry one per desk. It is
+    REQUIRED and it is checked, because the one thing that must not happen here
+    is a question being researched that the record could already answer:
     a search that finds authority the record already holds costs the firm a
     source-admission decision it does not need to make, and a search launched
     because an agent did not like the answer it got is not research.
@@ -444,23 +445,22 @@ def research(question: str, reply_to: str, refused_by=()) -> Research:
     rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
     if not rows:
         raise RelayError(
-            "nothing refused this. A gap is what a DESK could not reach, and "
-            "`refused_by` is the evidence — without it this is a search for "
+            "nothing refused this. A gap is what the RECORD could not reach, "
+            "and `refused_by` is the evidence — without it this is a search for "
             "authority nobody has established is missing.")
     if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
         raise RelayError(
             f"refused {', '.join(wrong)}, which is not a gap in the record. "
             f"`authority_absent` is the only refusal this answers — the others "
-            f"are answered by a person, by the firm, or by asking a different "
-            f"desk, and searching for authority instead is how a refusal gets "
-            f"talked out of.")
+            f"are answered by a person or by the firm, and searching for "
+            f"authority instead is how a refusal gets talked out of.")
     return Research(ref=a.ref, question=a.question, refused_by=rows)
 
 
 def research_prompt(r: Research, reply_to: str) -> str:
     """The message the researching session receives."""
-    out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
-           f"the session that can go and look.", "",
+    out = [f"RUN DOWN {r.ref} — the record does not hold the rule for this, "
+           f"and you are the session that can go and look.", "",
            _stamp(), "",
            "## The question", "", r.question, "",
            "## What already refused it, and why", ""]
