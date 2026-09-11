@@ -510,6 +510,68 @@ it with them.
   is the firm's to confirm, not mine.
 
 
+- **2026-09-11 — All four built (desk 0.27.0). What each one actually did, as
+  opposed to what it was expected to do.** Suite **1,245 passing, 1 skipped**;
+  canon 187. PR #357, draft.
+
+  **`guidance-narrow` went past what was asked for, and that is reported rather
+  than absorbed.** The gate fired on vocabulary coincidence — PH2's basement
+  matched a binding source on the word `tools`, VE13's car on `expense`, RW9's
+  cash discount on `invoices`. It now asks whether a binding source is declared
+  for the ground THIS GUIDE was cited for. The firm asked for eight answers
+  back; **thirteen** serve. TP1, TP2, TP3, M15 and PH1 were refused even across
+  seven desks, and each traces to the cited source's own `Why:` row — S3 is on
+  file because it *"states the CURRENT de minimis ceiling"*, S13 because it
+  states the taking-turns rule *"the regulations do not"*, Pub. 587 because
+  § 280A is not on this record at all. Every one is a guide admitted precisely
+  because no rule says the thing. COST **84 → 97 of 98**, higher than the 92 it
+  ever was. RW7 still refuses, and that is the test of the narrowing rather than
+  a leftover: § 1.61-1 is declared for gross income and RW7 is about gross
+  income. **Two instruments were measured and rejected** — the question's own
+  words, which is what broke, and "does the pool surface a binding passage",
+  which is TRUE for all 24 non-binding problems. Both are pinned so nobody
+  re-proposes them. **And the caveat was lying:** it said *"No binding authority
+  on this desk reaches the question"*, which the narrowing makes false on TP1,
+  where a regulation does reach a threshold question and simply does not declare
+  the word. The gate and the caveat now read one fact.
+
+  **`dec-fullstop`: the ordering was obeyed and the interaction measured, and
+  there was none.** 97 of 98 served either way. The precaution was right and the
+  answer was no, which is a result rather than a wasted step. Recovered 128 words
+  reachable by no question at all; paid Q18's commissioned pairing, so
+  `test_close_questions` is 14 of 16 and `UNREACHED` names 18 beside 31 with
+  why. Two answering briefs grew and two did not — retrieval reaching different
+  passages, not a fixed cost, and the two that did not move are what says so.
+
+  **`pos11-review` is two findings and the position carries both.** As a review:
+  nothing contradicts the policy. As coverage: the corpus holds nothing that
+  speaks to it at all. "No conflict" would have claimed more than the search
+  earned. POS11 was the only unreviewed policy on the record, so the test that
+  an OPEN one is still marked is now built rather than found.
+
+  **`look-join` — the join was the missing thing, not the searcher.**
+  `searching.py` has worked since 8 September and nothing on the answering path
+  imported it. `looking.py` is the join and owns none of the searching: it adds
+  the one thing `searching` is forbidden to have, a way back, and that way back
+  parks. **Nothing found by searching is ever served** — not the non-binding
+  find the firm ruled on, and not the binding one either, because `STORE` has
+  always meant *may be added by pull request*.
+
+  **Three defects came out of PRINTING THE PAGE rather than reading the code
+  that builds it.** A find that came back HELD rendered as *"Nothing tied out"* —
+  something tied out, and what it found is that the authority was on file all
+  along and the question could not reach it, which is a retrieval defect and the
+  most actionable thing a search returns. The firm would have been told "Desk
+  found" and gone looking for a source they admitted months ago. *"What to do:
+  park it"* printed three lines above the paragraph saying it had been parked.
+  And a doer told the record holds a paragraph, without being told they may not
+  reach for it, will reach for it.
+
+  A fourth came out of a test on the first run: `looked = looking.run(...)` made
+  the name local for the whole function, so the `if looked(question, corpus)`
+  twenty lines above — the test that decides whether to file at all — raised
+  `UnboundLocalError` on every call that got there.
+
 - **2026-09-11 — The firm answered all five. Their words, and what each caused.**
 
   Answered on the docket between 08:32 and 08:34 UTC, in one pass, with no notes
