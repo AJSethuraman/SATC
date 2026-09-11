@@ -372,7 +372,11 @@ NARROWED = {
 #: policy, and the paragraph that marks POS11 as resting on the firm rather than
 #: on a paragraph. The narrowed briefs above are unchanged, because none of
 #: those four questions reaches POS11.
-WHOLE = (91_740, 185_814)
+# +67 tokens on 11 September 2026: `dec-pos11-review` wrote the firm's answer
+# onto POS11 — "nearby, doesn't settle it", with what the search actually found
+# under it. A review that records only that somebody looked is the one a reader
+# learns the wrong thing from, so the words are the cost and they are cheap.
+WHOLE = (91_807, 185_881)
 
 
 def _answering_sizes():
