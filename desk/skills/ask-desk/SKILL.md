@@ -237,6 +237,40 @@ read one and discard the other.
 The desk returns **one of two things**, and they carry different fields. Print
 what it sent you, whole, either way.
 
+**DO NOT DECIDE WHICH ONE IT IS BY READING IT.** `relay.read` does that, off the
+reply exactly as it arrived:
+
+```python
+said = relay.read(<the whole reply body>)
+
+said.answered     # True or False. Not a judgement — read off the reply
+said.reason       # on a refusal: which of the closed set
+said.ask          # on a refusal: the follow-up, where there was one
+said.citation     # on an answer: what it rests on
+said.binding      # whether the FIRM treats it as authority binding their work
+said.usable       # answered AND binding. Anything else needs a person
+```
+
+**It raises rather than guessing.** An empty reply is not a refusal — it is a
+delivery that did not happen, and the two call for opposite next steps. Anything
+it cannot place raises too, instead of coming back `answered=False`: that would
+look cautious and would quietly throw away a mangled ANSWER, and a doer told
+"the desk refused" does not go back and check. A reply carrying both a refusal
+and an answer raises as well. **When it raises, a person reads it.**
+
+**Why this is here at all.** The reply is prose because the rendering is written
+for a human — it is the one channel that reaches an agent whose skill file is
+four releases stale, and that is deliberate. But *deciding whether the desk
+answered* is not a reading task, and the failure it invites is the one Occam
+named on the other leg: *"silence is indistinguishable from 'there is nothing to
+say here.' A doer reads it as permission. I nearly did."* A refusal read as an
+answer is that same mistake one step later, holding something that looks like a
+reply.
+
+**`usable` is the narrow one on purpose.** A guidance answer is a real answer and
+is not `usable`: `dec-guidance` decided those serve **marked**, and the mark
+means a person reads the caveat before anyone relies on it.
+
 **If it ANSWERED**, and none of this is yours to trim:
 
 | | |
