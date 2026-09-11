@@ -276,14 +276,14 @@ Six seams, confirmed by the firm on 11 September 2026. Four are July's and alrea
 - *Forty-eight rounds thin the note.* Mitigation: facts moved to code (deals, breaks, episodic memory); note size is a dial.
 - *Balance at forty-eight rounds is unknown.* Mitigation: the simulator on the mock is cheap; act boundaries and the schedule are constants.
 - *An hour is long for a viewer.* Mitigation: the dial; the follow-one toggle [P1]; the narrator.
-- *The support-page finding was read through summaries.* Mitigation: one browser read by the firm before relying on the subscription route for the pilot.
+- *The support-page finding was read through summaries.* **Settled empirically on 11 September 2026, 20:14Z:** the forge ran eight contestant calls through the Agent SDK with no API key set anywhere and every one answered (`runs/20260911T201514Z-agent-sdk.md`). The subscription route works. What is still unknown is the five-hour window's capacity over a full match, which the dry run measures.
 
 **Open questions (needs your decision — only things owed to the firm)**
 
 - Create the private repository `ember-vault-arena` by hand and say when; the session cannot (403, twice).
 - Who the eight players are and by when their brain files arrive.
 - Who the two blind readers are for each gate run.
-- Open the two support articles once in a browser and confirm the subscription finding before the pilot.
+- Approve `tools/gate.py` in the forge's Claude Code session, or run it there in a plain terminal: the session's auto-mode classifier refused it as "Create Unsafe Agents" on 11 September 2026 while allowing the same adapter through `run.py demo`.
 
 ## 11. Done Criteria
 
