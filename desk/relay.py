@@ -180,7 +180,7 @@ def as_prompt(a: Ask) -> str:
            _stamp(), "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
-           "No context came with it. Read the facts off the desk's own record "
+           "No context came with it. Read the facts off the record itself "
            "through `consult`, where the ones we do NOT hold are named as such "
            "— and escalate on a missing one rather than infer it. Nobody has "
            "framed this question for you, which is the point of your being "
@@ -189,9 +189,9 @@ def as_prompt(a: Ask) -> str:
     out += [
         "## How to answer", "",
         "Use the `be-the-desk` skill — NOT `ask-desk`, which is the skill for "
-        "whoever sent you this: `ask.consult` for what a desk will let you "
+        "whoever sent you this: `ask.consult` for what the corpus will let you "
         "answer from, then `ask.answer(...)` with your conclusion and citation. "
-        "`keep=False` unless you are told otherwise. Do not write to a desk, do "
+        "`keep=False` unless you are told otherwise. Do not write to the record, do "
         "not commit, do not push.", "",
         "## How to reply — THIS IS NOT OPTIONAL", "",
         f"Send `print(out)` in full, and your reasoning, back to "
@@ -235,17 +235,25 @@ def as_prompt(a: Ask) -> str:
         "failure you have not been told about: say what you sent, and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
         "so and say what authority is missing — a refusal is a finding.", "",
-        "## Say which desks this reached", "",
-        "Name every desk `consult` routed to. **And if the question as phrased "
-        "reaches fewer desks than an obvious rephrasing of the same question "
-        "would, say that too, and name what it missed.**", "",
-        "THE ASKER CANNOT SEE THIS AND YOU CAN. On 8 September a doer asked "
-        "*\"what do I do with it\"* about a forklift and reached ONE desk; the "
-        "same transaction as *\"is the invoice price deducted or capitalized?\"* "
-        "reaches TWO, and the one dropped holds the most on-point paragraph. "
-        "Their words: *\"My phrasing was the natural working one and it got "
-        "strictly less authority. I did not know that when I wrote it, and a "
-        "doer has no way to tell.\"* You are the only party that can tell them.",
+        "## Say what the phrasing reached", "",
+        "Name the citations it came back with — `ask.looked(question)` gives "
+        "you them without rendering a brief. **And if an obvious rephrasing of "
+        "the same question reaches authority this one did not, say so and name "
+        "what it missed.**", "",
+        "THE ASKER CANNOT SEE THIS AND YOU CAN, AND IT GOT WORSE, NOT BETTER. "
+        "On 8 September a doer asked *\"what do I do with it\"* about a forklift "
+        "and reached ONE desk; the same transaction as *\"is the invoice price "
+        "deducted or capitalized?\"* reached TWO, and the one dropped held the "
+        "most on-point paragraph. Their words: *\"My phrasing was the natural "
+        "working one and it got strictly less authority. I did not know that "
+        "when I wrote it, and a doer has no way to tell.\"* `dec-kill` deleted "
+        "the desks and did NOT settle this. Measured on one corpus, "
+        "11 September 2026: the same forklift, asked the natural way, now "
+        "reaches **NOTHING AT ALL** — 0 passages against 8 for the explicit "
+        "phrasing. Two other pairs both returned 8 and 8, sharing five "
+        "citations and none. So a working phrasing can still cost the asker "
+        "the whole record, and nothing they can see says so. You are the only "
+        "party that can tell them.",
     ]
     return "\n".join(out)
 
