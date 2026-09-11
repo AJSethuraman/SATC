@@ -351,8 +351,16 @@ NARROWED = {
     # word overlap and that being shown one is not evidence it settles anything.
     # A fixed cost on every brief, and the cheapest of the three places that
     # warning could have gone.
-    "is a brewery tab a business meal?": 2_410,
-    "what supporting documents does the client have to keep?": 6_050,
+    #
+    # TWO MOVED AGAIN ON 11 SEPTEMBER AND IT IS NOT A COST OF A LONGER BRIEF.
+    # `dec-fullstop` stopped a word at the end of a sentence being a different
+    # word, so both questions now reach DIFFERENT passages — Pub. 583's
+    # "Supporting Documents" among them — and a brief is as long as what it
+    # carries. Same count of passages, different passages, more words in them.
+    # The other two are unchanged, which is what says this is retrieval moving
+    # rather than a fixed cost added to every brief.
+    "is a brewery tab a business meal?": 2_582,
+    "what supporting documents does the client have to keep?": 7_044,
     "hand tools bought for the trade - deducted or capitalized?": 2_846,
     "mileage or actual expenses for the van?": 2_420,
 }
@@ -364,7 +372,11 @@ NARROWED = {
 #: policy, and the paragraph that marks POS11 as resting on the firm rather than
 #: on a paragraph. The narrowed briefs above are unchanged, because none of
 #: those four questions reaches POS11.
-WHOLE = (91_740, 185_814)
+# +67 tokens on 11 September 2026: `dec-pos11-review` wrote the firm's answer
+# onto POS11 — "nearby, doesn't settle it", with what the search actually found
+# under it. A review that records only that somebody looked is the one a reader
+# learns the wrong thing from, so the words are the cost and they are cheap.
+WHOLE = (91_807, 185_881)
 
 
 def _answering_sizes():

@@ -119,26 +119,23 @@ def test_the_rewards_desk_grades_eighteen_and_escalates_one():
     the outcome but the caveat, and `test_the_guidance_half_is_marked_as_such`
     is what holds that apart.
 
-    ONE CORPUS TOOK FIVE OF THE EIGHT BACK, 10 SEPTEMBER 2026, AND THAT IS A
-    DECISION FOR THE FIRM RATHER THAN A NUMBER TO EDIT. It is now 13 correct and
-    6 escalated. RW1, RW5, RW6, RW8 and RW9 join RW7 in escalating, all with the
-    same sentence: *"is secondary authority, which is somebody's reading rather
-    than the rule — and this desk holds binding authority on this subject. Cite
-    the rule, or escalate."*
-    
-    NOTHING ABOUT THOSE ANSWERS CHANGED. What changed is what "this desk holds
-    binding authority on this subject" is true of. RW7's escalation was
-    presented above as the interesting case — the ruling refused because
-    § 1.61-1 reaches gross income — and `dec-kill` makes that case the ordinary
-    one: a corpus holding seven desks' regulations holds a binding rule on very
-    nearly every subject, so guidance is refused nearly everywhere.
-    
-    THE FIRM BOUGHT SOMETHING ON THE FOURTH DOCKET AND THIS TAKES PART OF IT
-    BACK. `dec-guidance` was answered "Serve it, marked", and the argument was
-    that nine problems could otherwise only escalate. Six can only escalate
-    again. Recorded here rather than fixed, because whether the gate should read
-    "binding authority ON THIS PARAGRAPH'S QUESTION" instead of "anywhere in the
-    corpus" is the firm's call and not this session's.
+    ONE CORPUS TOOK FIVE OF THE EIGHT BACK ON 10 SEPTEMBER AND THE FIRM GAVE
+    THEM BACK ON THE 11th. For one day this read 13 correct and 6 escalated:
+    RW1, RW5, RW6, RW8 and RW9 joined RW7, all refused with *"this desk holds
+    binding authority on this subject."* Nothing about those answers had
+    changed — what changed is what that sentence was true of, because a corpus
+    holding seven desks' regulations holds a binding rule on very nearly every
+    subject.
+
+    `dec-guidance-narrow`, 11 September 2026 — the firm: **"Narrow it."** The
+    gate now asks whether a binding source is declared for the ground THIS
+    GUIDE was cited for, and the five come back. It is 18 and 1 again.
+
+    RW7 IS STILL THE ONE, AND THAT IS THE TEST OF THE NARROWING RATHER THAN A
+    LEFTOVER. Its ruling is refused because § 1.61-1 is declared for gross
+    income, which is what RW7 is about — a rule on the same ground, not a word
+    the question happened to contain. If a narrowing had released RW7 too it
+    would have deleted the guard rather than narrowed it.
     """
     desk = record.load(CORPUS)
     # THE REWARDS PROBLEMS, NAMED BY THEIR OWN IDS. This graded a desk directory
@@ -149,8 +146,8 @@ def test_the_rewards_desk_grades_eighteen_and_escalates_one():
     counts = engine.tally(
         [engine.grade(engine.Answer(position=p.answer, citation=p.citation),
                       p, desk) for p in rewards])
-    assert counts == {"wrongly_absorbed": 0, "correct": 13,
-                      "wrong_caught": 0, "escalated": 6}, counts
+    assert counts == {"wrongly_absorbed": 0, "correct": 18,
+                      "wrong_caught": 0, "escalated": 1}, counts
 
 
 def test_the_guidance_half_is_marked_as_such():
@@ -170,14 +167,31 @@ def test_the_guidance_half_is_marked_as_such():
         if isinstance(out, engine.Served) and not out.binding:
             assert out.caveat, f"{p.id} is unmarked and uncaveated"
             marked.append(p.id)
-    # FOURTEEN BEFORE, SIX NOW, AND THE EIGHT DID NOT BECOME BINDING -- THEY
-    # STOPPED BEING SERVED. It was `{personal-or-business: 3,
-    # rewards-and-information-returns: 8, vehicle-expense: 3}` across seven
-    # desks. Under one corpus a binding rule reaches nearly every subject, so
-    # eight of those fourteen now escalate `authority_permits_choice` instead of
-    # serving under a caveat. That is the same eight counted in
-    # `test_no_desk_serves_what_nobody_read.py::COST`, seen from the other side,
-    # and it is the part of `dec-guidance` that one corpus takes back. The ids
-    # are listed rather than counted so that a guidance answer quietly becoming
-    # binding is visible here rather than hidden in a total.
-    assert marked == ["PH3", "PH4", "RW2", "RW3", "RW4", "VE14"], marked
+    # FOURTEEN ACROSS SEVEN DESKS -> SIX ON ONE CORPUS -> NINETEEN NARROWED,
+    # and the last step goes PAST where it started, which is the part to read
+    # rather than the part to round off.
+    #
+    # The firm asked for eight back (`dec-guidance-narrow`, "Narrow it"). The
+    # narrowing returns thirteen, because five of them -- TP1, TP2, TP3, M15,
+    # PH1 -- were refused even on the seven-desk record, where a binding source
+    # inside their own desk declared a word their question happened to contain.
+    # Each of the five is traceable to the cited source's own `Why:` row, which
+    # is the firm's recorded reason for admitting it:
+    #
+    #   TP1-3  S3 is on file because it "states the CURRENT de minimis ceiling"
+    #          -- the number § 1.263(a)-1(f)'s own text does not carry.
+    #   M15    S13 is on file because it states "the rule that a group taking
+    #          turns picking up each other's checks" which the regulations do
+    #          not.
+    #   PH1    Pub. 587 on exclusive use; § 280A is not on this record at all.
+    #
+    # So each is a guide admitted precisely because no rule says the thing, and
+    # refusing them was the gate firing on vocabulary. NOT ARGUED AWAY: the
+    # five going past the eight is reported to the firm rather than absorbed,
+    # because "narrow it" asked for eight and this is thirteen.
+    #
+    # The ids are listed rather than counted so that a guidance answer quietly
+    # becoming binding is visible here rather than hidden in a total.
+    assert marked == ["TP1", "TP2", "TP3", "M15", "PH1", "PH2", "PH3", "PH4",
+                      "RW1", "RW2", "RW3", "RW4", "RW5", "RW6", "RW8", "RW9",
+                      "VE13", "VE14", "VE15"], marked

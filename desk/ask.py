@@ -80,7 +80,7 @@ def looked(question: str, corpus: Path = CORPUS, *,
     return pool.look(question, held, limit=limit, known=stats)
 
 
-def nothing_on_file(question: str, corpus: Path = CORPUS) -> str:
+def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str:
     """What comes back when the corpus holds nothing that shares this question's
     language. A DOCUMENT, never an empty string.
 
@@ -156,12 +156,88 @@ def nothing_on_file(question: str, corpus: Path = CORPUS) -> str:
         "question, so there is nothing here to be right or wrong with — and an "
         "answer given anyway would be yours rather than the record's.",
         "",
-        "**What to do.** Park it: the question goes to the firm with your "
-        "working, and their answer is what builds the coverage that is missing. "
-        "`ask.consult_or_file` does that in one call. Do not answer from "
-        "memory, and do not read this page as a quiet yes.",
+        # THE INSTRUCTION HAS TO KNOW WHETHER IT ALREADY HAPPENED. Printed
+        # unconditionally, this told a doer to park a question three lines
+        # above the paragraph saying it had been parked -- found by printing
+        # the page rather than by reading the code that builds it.
+        ("**What to do.** Park it: the question goes to the firm with your "
+         "working, and their answer is what builds the coverage that is "
+         "missing. `ask.consult_or_file` does that in one call. Do not answer "
+         "from memory, and do not read this page as a quiet yes."
+         if looked is None else
+         "**What to do.** Nothing, on this question. It is already with the "
+         "firm — see below — and their answer is what builds the coverage "
+         "that is missing. Do not answer from memory, and do not read this "
+         "page as a quiet yes."),
         "",
+        # `dec-lookjoin`. THE PAGE SAYS THE DESK WENT AND LOOKED, because the
+        # alternative is a doer reading "nothing on file" and concluding nobody
+        # tried. What it must NOT say is that anything found is usable: every
+        # disposition here is parked, including one that tied out against a
+        # source the firm already admits.
+        *_went_and_looked(looked),
     ])
+
+
+def _went_and_looked(looked) -> list:
+    """The paragraph that says a search happened, and what came of it.
+
+    EMPTY WHERE NO SEARCH RAN, and that is the honest shape: a caller with no
+    browser gets the page it got on 10 September rather than a sentence
+    implying somebody looked.
+    """
+    if looked is None:
+        return []
+    s = looked.search
+    out = [f"## The desk went and looked", "",
+           f"Searched the open web on this question: **{len(s.queries)}** "
+           f"quer{'y' if len(s.queries) == 1 else 'ies'}, **{len(s.hits)}** "
+           f"result{'' if len(s.hits) == 1 else 's'}, **{len(s.findings)}** "
+           f"read against the publisher's own page.", ""]
+    # THREE OUTCOMES, NOT TWO, AND THE THIRD IS THE MOST USEFUL ONE.
+    # `worth_the_firms_time` counts STORE and PROPOSE, so a find that came back
+    # HELD -- the record already carries this citation -- rendered as "nothing
+    # tied out". Something tied out. What it found is that the authority was
+    # here all along and the question could not reach it, which is a defect in
+    # retrieval rather than a gap in the record, and it is the single most
+    # actionable thing a search can come back with.
+    import searching as _searching
+    already = [f for f in s.findings if f.disposition == _searching.HELD]
+    if looked.worth_the_firms_time:
+        out += ["**Something did, and it is with the firm — not with you.**",
+                ""]
+        for f in s.findings:
+            if f.candidate is not None:
+                out.append(f"- `{f.candidate.citation}` — {f.why}")
+        out += ["",
+                "**This is not authority yet and may not be cited.** The firm "
+                "admits a publisher, and they do it by merging a pull request "
+                "after reading the passage. Until then the record holds "
+                "nothing on this and so do you.", ""]
+    elif already:
+        out += ["**The record already holds what the search found.** So the "
+                "authority is not missing — the way to it is. Your question "
+                "reached nothing here and the same question, searched, landed "
+                "on a paragraph already on file:", ""]
+        out += [f"- `{f.candidate.citation}`" for f in already if f.candidate]
+        out += ["",
+                "**That does not make it yours to cite.** It was not served to "
+                "you, and reaching for it now would be answering from a "
+                "citation the desk refused to put in front of you. It is filed "
+                "as a retrieval defect, which is what it is.", ""]
+    else:
+        out += ["**Nothing tied out.** That is a real result and it is filed: a "
+                "gap somebody has searched and a gap nobody has searched are "
+                "the same hole in the record and call for opposite next steps. "
+                "It does not become an answer.", ""]
+    out += [f"Filed as **{looked.entry.id}**"
+            + (f", and the firm has been told: *{looked.told}*"
+               if looked.told else
+               ", and the notification was withheld because the question looks "
+               "like it carries a name or a figure — it is in the queue either "
+               "way"),
+            ""]
+    return out
 
 
 def consult(question: str, corpus: Path = CORPUS,
@@ -206,7 +282,9 @@ def consult(question: str, corpus: Path = CORPUS,
 
 def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
                     context: record.Context | None = None,
-                    model: str = "") -> tuple[str, object]:
+                    model: str = "",
+                    search=None, transport=None,
+                    queries=(), proposals=()) -> tuple[str, object]:
     """`consult`, and FILE the question when no desk holds it.
 
     SILENCE WAS THE ONE OUTCOME THAT LEFT NO RECORD. `consult` returning empty
@@ -246,10 +324,47 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     # THE REASON CARRIES THE EVIDENCE OR IT IS A SHRUG. `tools/holes.py` reads
     # this out to the firm, and "nothing shares a word with this question" is
     # the same sentence on every row: it cannot be sorted, compared or acted on.
-    # The WORDS can. Two rows reading `bought, forklift` and `crypto, staking`
-    # are a vocabulary gap and a coverage gap, and the firm can see which is
-    # which at a glance without being told by us -- which is the point, because
-    # telling them would be a judgement nothing here has earned.
+    # The WORDS can: a row reading `bought, forklift` and one reading `crypto,
+    # staking` are a vocabulary gap and a coverage gap, and the firm can see
+    # which is which at a glance without being told by us -- which is the point,
+    # because telling them would be a judgement nothing here has earned.
+    #
+    # THE SECOND HALF OF THAT EXAMPLE STOPPED BEING FILED ON 11 SEPTEMBER.
+    # "how do we handle crypto staking rewards?" reached nothing until
+    # `dec-fullstop`, because Pub. 525's section opens "Rewards." and the pool
+    # held the full stop. It reaches that section now and is never filed. The
+    # example is kept because it is what the mechanism is FOR, and marked
+    # because an example that no longer happens should not read as one that
+    # does.
+    # `dec-lookjoin`, 11 September 2026 -- the firm: **"Run it by me -- build
+    # it."** THIS IS THE JOIN, and where it sits is the whole of it. `searching`
+    # has worked since 8 September and nothing on the answering path imported
+    # it; its only caller was a tool somebody runs by hand against a JSON file,
+    # so a question asked during a close reached this line and stopped. It now
+    # goes and looks from HERE, which is where the question is.
+    #
+    # ONLY WHERE A CALLER HANDED US ONE. A close run somewhere with no browser
+    # behaves exactly as it did rather than failing in a new way, and the two
+    # judgement steps -- what to search for, and which citation a page's words
+    # are -- come in as arguments because a model makes them and this file does
+    # not.
+    #
+    # NOTHING IT FINDS IS SERVED. `looking.run` returns a queue entry and the
+    # characters to send, and has no path to a `Served` at all. The firm admits
+    # a publisher by merging a pull request; that has not moved.
+    if search is not None:
+        import looking
+        # `went`, NOT `looked`. Assigning `looked` anywhere in this function
+        # makes the name local for the WHOLE of it, so the `if looked(question,
+        # corpus)` twenty lines above -- the test that decides whether to file
+        # at all -- raised `UnboundLocalError` on every call that got here. It
+        # was caught by a test on the first run rather than by reading.
+        went = looking.run(
+            question, corpus=corpus, queue=queue, queries=queries,
+            proposals=proposals, engine_=search, transport=transport,
+            model=model)
+        return nothing_on_file(question, corpus, looked=went), went.entry
+
     never = pool.unseen(question, _corpus(corpus)[2])
     why = "nothing in the corpus shares a word with this question"
     if never:

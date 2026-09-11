@@ -138,6 +138,55 @@ refuses leaves a refusal `tools/holes.py` reads out — a question nobody built 
 desk for used to leave nothing at all, which on a close is the worst of the
 three: the doer gets nothing back and the firm never learns it was asked.
 
+## When nothing is on file, GO AND LOOK — and hand what you find to the firm
+
+`dec-lookjoin`, 11 September 2026 — the firm: **"Run it by me — build it."**
+Their earlier words, which this is built to: *"if it is not directly
+authoritative it would run the opinion by me."*
+
+**Until now this was a tool somebody ran by hand.** `searching.py` has worked
+since 8 September and nothing on the answering path imported it, so a question
+asked during a close reached the parked hole and stopped. It does not now — but
+only if you pass a search engine, because two of the four steps are yours:
+
+```python
+brief, filed = ask.consult_or_file(
+    question,
+    queue=unsupported.default_queue(),
+    search=<a callable taking a query, returning [{"url", "title", "snippet"}]>,
+    transport=<a callable taking a url, returning the page text>,
+    queries=["the words you would actually search"],          # YOUR judgement
+    proposals=[{"citation": "...",     # which paragraph these words ARE
+                "quoted": "...",       # the words EXACTLY as printed
+                "found_at": "https://...",
+                "kind": "rule"}],      # or "example"
+)
+```
+
+**`queries` and `proposals` are judgement and cannot be anything else** —
+turning a refused question into search terms, and reading a page to say which
+citation its words belong to. Everything after that is mechanical and cannot be
+talked out of: the words are re-fetched from the publisher (from the source the
+firm ADMITTED, where one covers the citation, not from the page you found), and
+a quote that appears zero times or four times is refused rather than stored.
+
+**NOTHING YOU FIND IS YOURS TO CITE. Not even a perfect find.** A passage that
+ties out against a source the firm already admits still comes back parked: the
+firm admits authority by merging a pull request after reading it, and a find
+that skipped that would be a model writing the record it then reads. The page
+you get back says this in as many words. Believe it.
+
+**Three things can come back, and the third is the most useful:**
+
+| | what it means | what the firm is told |
+|---|---|---|
+| something tied out | new authority, not yet admitted | `Desk found` — they rule on it |
+| **the record already holds it** | the authority was here; your question could not reach it | `Desk could not reach` — a retrieval defect, not a gap |
+| nothing tied out | searched and empty | `Desk parked` — a gap somebody has now examined |
+
+**A gap searched and found empty is a different fact from a gap nobody has
+searched.** It is filed either way.
+
 **Pass what your own file already says.** Some rules cannot be applied without a
 fact the engagement should already have recorded — what the client does, whose
 return it is. Hand it over; the desk will not work it out, deliberately.

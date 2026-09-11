@@ -314,13 +314,19 @@ was bought.
 
 **Kind:** firm policy
 
-**Reviewed:** open
+**Reviewed:** 2026-09-11 — nearby, doesn't settle it. The firm's own answer to the inverse check, on the eight nearest passages in `desk/docs/REVIEW-POS11-2026-09-10.md`: nothing on file contradicts this policy, and nothing on file speaks to it either.
 
 **Position:** flag it for attention and ask the client what was bought; do not book it to owner draws on the seller's name
 
 **Unpinned from § 1.262-1(a) on 10 September 2026, on the firm's answer to `dec-pos2`: "Firm policy, no citation — with two conditions."** It was pinned to that paragraph and two independent judges refused it, correctly: § 1.262-1(a) is about costs which are PERSONAL, and this position is about costs whose nature is UNKNOWN. Those are different questions and the paragraph does not decide this one. The position is the firm's and it stands; what it never rested on was that rule.
 
-A wrong pin is worse than no pin. It tells a reader the regulation says something it does not, and it survives every check here because the citation resolves — which is why the firm's first condition is that this be **clearly marked**, and their second is that somebody read it against what is on file. `Reviewed: open` is that mark. It is not a defect and it is not a hold: this position serves, with a caveat saying it rests on the firm and that nobody has yet checked it against the record. `ask.review_brief` is what gets put in front of them.
+A wrong pin is worse than no pin. It tells a reader the regulation says something it does not, and it survives every check here because the citation resolves — which is why the firm's first condition is that this be **clearly marked**, and their second is that somebody read it against what is on file. `Reviewed:` is that mark, and `ask.review_brief` is what gets put in front of them.
+
+**The review was answered on 11 September 2026 and the answer was "nearby, doesn't settle it", not "no conflict".** Their second condition was the inverse of a citation check — *does anything on file contradict this* — and all 785 stored citations were scored against the position's own words. The eight nearest are every one of them about record-keeping: what receipts to keep, how soon to write things down, what counts as adequate evidence. **None is about a purchase whose nature is unknown**, which is what this policy is about.
+
+So it is two findings and the firm took both. As a REVIEW: nothing argues against the policy, and it stands as written with the date above. As COVERAGE: the corpus holds nothing that speaks to this question at all — which is why "no conflict" would have claimed more than the search earned. Eight passages about receipts are not evidence the record was consulted on the actual question; they are evidence the record has nothing to say. That is worth knowing on its own, and it is the reason this line records what was found rather than only that somebody looked.
+
+The review can be asked again whenever the record grows, and should be: the finding above is about a corpus that holds no authority on unidentified purchases, and the day it does, the answer may be different.
 
 **Why:** The firm, 5 September 2026 (`docs/CLOSE-QUESTIONS-2026-09-05.md`, Q7):
 

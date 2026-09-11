@@ -95,10 +95,35 @@ def test_it_declares_what_it_rests_on(policy):
     assert policy.is_policy
 
 
-def test_it_is_marked_as_reviewable(policy):
-    """The firm's first condition. `open` is the mark and not a defect."""
-    assert policy.reviewed == positions.OPEN
-    assert policy.unreviewed
+def test_the_review_was_answered_and_the_answer_is_on_the_position(policy):
+    """`dec-pos11-review`, 11 September 2026 — the firm: **"Nearby, doesn't
+    settle it."**
+
+    NOT "no conflict", AND THE DIFFERENCE IS THE WHOLE VALUE OF THE LINE.
+    Nothing on file contradicts the policy; nothing on file speaks to it
+    either. Eight passages about receipts are not evidence the record was
+    consulted on a purchase whose nature is unknown — they are evidence the
+    record has nothing to say about one. The position carries both findings,
+    because a reader who is told only "reviewed" learns the wrong thing.
+    """
+    assert not policy.unreviewed
+    assert policy.reviewed.startswith("2026-09-11")
+    assert "nearby, doesn't settle it" in policy.reviewed.lower()
+    assert "nothing on file speaks to it either" in policy.reviewed, (
+        "the coverage half of the answer is not on the position, so an answerer "
+        "reading it is told the record was consulted and not what it held")
+
+
+def test_a_policy_nobody_has_read_still_reads_as_unreviewed():
+    """THE MECHANISM OUTLIVES THE ANSWER. POS11 is reviewed now, so nothing on
+    the record proves an unreviewed policy is still marked — and the next one
+    the firm records starts exactly there. Built rather than found, because
+    there is nothing to find."""
+    fresh = positions.Position(
+        id="POSX", title="t", citation="SATC policy — something",
+        recorded="2026-09-11", position="p", why="w", ratified="the firm",
+        kind=positions.FIRM_POLICY, reviewed=positions.OPEN)
+    assert fresh.is_policy and fresh.unreviewed
 
 
 def test_its_reference_cannot_be_read_as_a_paragraph(policy):
@@ -197,9 +222,12 @@ def test_the_answer_that_leaves_says_it_rests_on_the_firm(desk, policy):
         desk, question="a charge at a store and nobody knows what was bought")
     assert "firm's own standing policy" in out.caveat
     assert "not on any paragraph" in out.caveat
-    assert "Nobody has yet checked it" in out.caveat, (
-        "an uncited position that nobody has read against the record must say "
-        "so — that is the firm's second condition, on the answer itself")
+    assert "Checked against the record" in out.caveat, (
+        "an uncited position must say whether anybody has read it against the "
+        "record — that is the firm's second condition, on the answer itself")
+    assert "nothing on file speaks to it either" in out.caveat, (
+        "it says somebody looked without saying what they found, which is the "
+        "half an answerer actually needs")
 
 
 def test_a_cited_answer_carries_no_such_caveat(desk):
@@ -217,7 +245,8 @@ def test_the_brief_marks_it_before_an_answerer_relies_on_it(desk, policy):
     reading happens."""
     text = ask.brief("what was bought", desk.narrowed_to([policy.citation]))
     assert "the firm's own standing policy, not authority" in text
-    assert "Nobody has yet read it against what is on file" in text
+    assert "Read against the record" in text
+    assert "nothing on file speaks to it either" in text
 
 
 # ── condition 2 · the inverse check ─────────────────────────────────────────

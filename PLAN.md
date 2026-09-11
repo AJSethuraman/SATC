@@ -510,6 +510,111 @@ it with them.
   is the firm's to confirm, not mine.
 
 
+- **2026-09-11 — All four built (desk 0.27.0). What each one actually did, as
+  opposed to what it was expected to do.** Suite **1,245 passing, 1 skipped**;
+  canon 187. PR #357, draft.
+
+  **`guidance-narrow` went past what was asked for, and that is reported rather
+  than absorbed.** The gate fired on vocabulary coincidence — PH2's basement
+  matched a binding source on the word `tools`, VE13's car on `expense`, RW9's
+  cash discount on `invoices`. It now asks whether a binding source is declared
+  for the ground THIS GUIDE was cited for. The firm asked for eight answers
+  back; **thirteen** serve. TP1, TP2, TP3, M15 and PH1 were refused even across
+  seven desks, and each traces to the cited source's own `Why:` row — S3 is on
+  file because it *"states the CURRENT de minimis ceiling"*, S13 because it
+  states the taking-turns rule *"the regulations do not"*, Pub. 587 because
+  § 280A is not on this record at all. Every one is a guide admitted precisely
+  because no rule says the thing. COST **84 → 97 of 98**, higher than the 92 it
+  ever was. RW7 still refuses, and that is the test of the narrowing rather than
+  a leftover: § 1.61-1 is declared for gross income and RW7 is about gross
+  income. **Two instruments were measured and rejected** — the question's own
+  words, which is what broke, and "does the pool surface a binding passage",
+  which is TRUE for all 24 non-binding problems. Both are pinned so nobody
+  re-proposes them. **And the caveat was lying:** it said *"No binding authority
+  on this desk reaches the question"*, which the narrowing makes false on TP1,
+  where a regulation does reach a threshold question and simply does not declare
+  the word. The gate and the caveat now read one fact.
+
+  **`dec-fullstop`: the ordering was obeyed and the interaction measured, and
+  there was none.** 97 of 98 served either way. The precaution was right and the
+  answer was no, which is a result rather than a wasted step. Recovered 128 words
+  reachable by no question at all; paid Q18's commissioned pairing, so
+  `test_close_questions` is 14 of 16 and `UNREACHED` names 18 beside 31 with
+  why. Two answering briefs grew and two did not — retrieval reaching different
+  passages, not a fixed cost, and the two that did not move are what says so.
+
+  **`pos11-review` is two findings and the position carries both.** As a review:
+  nothing contradicts the policy. As coverage: the corpus holds nothing that
+  speaks to it at all. "No conflict" would have claimed more than the search
+  earned. POS11 was the only unreviewed policy on the record, so the test that
+  an OPEN one is still marked is now built rather than found.
+
+  **`look-join` — the join was the missing thing, not the searcher.**
+  `searching.py` has worked since 8 September and nothing on the answering path
+  imported it. `looking.py` is the join and owns none of the searching: it adds
+  the one thing `searching` is forbidden to have, a way back, and that way back
+  parks. **Nothing found by searching is ever served** — not the non-binding
+  find the firm ruled on, and not the binding one either, because `STORE` has
+  always meant *may be added by pull request*.
+
+  **Three defects came out of PRINTING THE PAGE rather than reading the code
+  that builds it.** A find that came back HELD rendered as *"Nothing tied out"* —
+  something tied out, and what it found is that the authority was on file all
+  along and the question could not reach it, which is a retrieval defect and the
+  most actionable thing a search returns. The firm would have been told "Desk
+  found" and gone looking for a source they admitted months ago. *"What to do:
+  park it"* printed three lines above the paragraph saying it had been parked.
+  And a doer told the record holds a paragraph, without being told they may not
+  reach for it, will reach for it.
+
+  A fourth came out of a test on the first run: `looked = looking.run(...)` made
+  the name local for the whole function, so the `if looked(question, corpus)`
+  twenty lines above — the test that decides whether to file at all — raised
+  `UnboundLocalError` on every call that got there.
+
+- **2026-09-11 — The firm answered all five. Their words, and what each caused.**
+
+  Answered on the docket between 08:32 and 08:34 UTC, in one pass, with no notes
+  attached — so the picked words are the whole of what they said and nothing here
+  may be read as more than that.
+
+  **`merge-356` — "Merge it — you do it."** #356 squash-merged to `main` as
+  `d7b44a8c`. desk **0.23.0** ships: the desks deleted, one corpus, the four
+  earlier decisions built, and the three things found afterwards that were still
+  speaking in desks. `main` was `6014bba1` (0.21.0) before it.
+
+  **`guidance-narrow` — "Narrow it."** The gate that silences a guide reads
+  *binding authority anywhere in the corpus*; it becomes *binding authority on
+  THIS question*. Eight answers — PH2, RW1, RW5/6/8/9, VE13, VE15 — flipped from
+  serving-marked to escalating when seven records became one, and this is what
+  takes that back. It restores `dec-guidance` (*"Serve it, marked"*) to what it
+  meant when they decided it, and the guard still stops a guide standing in for
+  a rule that is actually on point.
+
+  **`pos11-review` — "Nearby, doesn't settle it."** The inverse check on POS11,
+  answered. Nothing on file contradicts the policy, and nothing on file speaks to
+  it either. Recorded as both: a review outcome and a coverage finding. **Not**
+  "no conflict" — the eight nearest passages are recordkeeping rules, and calling
+  that a clean bill would claim more than the search earned.
+
+  **`look-join` — "Run it by me — build it."** `searching.py` joins the answering
+  path. Where the record holds nothing the desk goes and looks, verifies what it
+  finds against the publisher's own page, and where the find does not BIND it
+  parks the finding and sends the firm what it found, where, and how binding it
+  is. Nothing is served on non-binding authority without them. This is
+  `dec-books` in their own earlier words: *"if it is not directly authoritative
+  it would run the opinion by me."*
+
+  **`tokeniser` (`dec-fullstop`) — "Fix it after Matter 2."** Not *fix it* and
+  not *leave it*: an ordering. `pool.terms` keeps `.`, `-` and `/` at the end of
+  a token, so a word closing a sentence is a different word — 128 words of the
+  corpus reachable by no question. The two-line fix reorders which authority is
+  served on 14 of 19 real questions, and narrowing the guidance gate moves the
+  same ground, so **every one of those numbers is re-measured after
+  `guidance-narrow` lands rather than carried across.** The order is the firm's
+  and is not a detail: measuring the second change against the first's corpus is
+  how a figure gets quoted that was never true of anything.
+
 - **2026-09-11 — Three things still speaking in desks, and one decision put to the
   firm (desk 0.23.0).** Suite **1,220 passing, 1 skipped**; canon 187.
 

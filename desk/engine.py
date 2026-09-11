@@ -956,26 +956,46 @@ def _follow_up(facts, ruling) -> str:
             f"ours to record rather than the client's to be asked.")
 
 
-def _rule_reaches(desk: Desk, question: str) -> bool:
-    """Whether this desk declares BINDING authority for anything the question
-    is about.
+def _rule_reaches(desk: Desk, question: str, guide: str = "") -> bool:
+    """Whether the record holds BINDING authority on the ground the guide was
+    cited for.
 
-    Three cases, and the middle one is the one worth the lines.
+    `guide` is the source id of the non-binding source being cited. It is what
+    makes this a question about THIS question rather than about the corpus.
 
-    NO BINDING SOURCE ON THE DESK AT ALL -> no rule can reach, unambiguously,
-    and guidance is the best authority there is. The rewards desk's whole
-    rewards half is this: the Code and the regulations define gross income and
-    stop, so every statement that a rebate is not income is a ruling, an
-    announcement or a publication.
+    `dec-guidance-narrow`, 11 September 2026 — the firm: **"Narrow it."**
 
-    BINDING SOURCES, BUT NO DECLARED MAPPING -> REFUSE. A rule might reach and
-    nothing here can tell. "I could not check" and "I checked and it is fine"
-    must never be the same answer -- the rule `off_subject` is written to, and
-    the direction to fail in is the one that asks the firm rather than the one
-    that answers on a publication while a regulation sits unread beside it.
+    WHAT IT USED TO ASK, AND WHY ONE CORPUS BROKE IT. It asked whether any
+    binding source answered ANY subject the question touched. Over seven
+    records that was near enough: a question only ever reached one shelf, so
+    "some binding source on this shelf covers some word of this question" was a
+    reasonable proxy for "a rule reaches this". Merged, it is not. Measured on
+    the eight answers that flipped from serving-marked to escalating:
 
-    BINDING SOURCES AND A MAPPING -> read it off `answered_from`, which the firm
-    wrote, rather than judged.
+        PH2   a basement used to store inventory   matched on `tools`
+        VE13  business and personal use of a car   matched on `expense`
+        RW9   a cash discount on an invoice        matched on `invoices`
+
+    `tools`, `expense`, `invoices` — three of the most generic words in the
+    corpus, declared by sources with nothing to say about any of those three
+    questions. The gate was firing on vocabulary coincidence, and with one
+    shelf the coincidences are everything.
+
+    WHAT IT ASKS NOW. The guide was cited for ground it declares: the subjects
+    the question touches that THIS source says it answers. A rule silences the
+    guide only where a binding source declares that same ground. Everything
+    else is unchanged -- no binding source at all still means guidance is the
+    best authority there is, and an undeclared mapping still refuses, because
+    "I could not check" and "I checked and it is fine" must never be the same
+    answer.
+
+    IT IS STILL READ OFF THE RECORD AND NEVER JUDGED. The narrowing is a second
+    lookup in `answered_from`, which the firm wrote. Nothing here scores, ranks
+    or decides what a passage is about -- two instruments that would have were
+    measured and rejected: matching on the question's words is what broke, and
+    asking whether the pool surfaces a binding passage returns TRUE for all 24
+    of the record's non-binding problems, which is the always-answering problem
+    wearing a gate's clothes.
     """
     binding = {s.id for s in desk.sources if s.binding}
     if not binding:
@@ -988,7 +1008,19 @@ def _rule_reaches(desk: Desk, question: str) -> bool:
         # The question touches nothing this desk declared, so the mapping cannot
         # answer either. Same reasoning as above: unable to tell is not clear.
         return True
-    return any(sid in binding and any(t in asked for t in terms)
+
+    # THE GROUND THE GUIDE WAS CITED FOR. Absent a named guide this falls back
+    # to the whole question, which is the old behaviour -- callers that do not
+    # know which source is being cited are no worse off than before, and no
+    # better.
+    ground = {t for t in desk.answered_from.get(guide, ()) if t in asked} if guide \
+        else set(asked)
+    if not ground:
+        # The guide answers nothing this question touches. That is not a licence
+        # to serve it: it is the case where nothing here can tell what the guide
+        # is being cited FOR, and unable to tell refuses.
+        return True
+    return any(sid in binding and ground & set(terms)
                for sid, terms in desk.answered_from.items())
 
 
@@ -1251,7 +1283,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
         # WHERE NO RULE REACHES, refusing was never protecting anyone. It sent
         # the same question back to the firm every time it was asked, which is
         # the thing they asked to stop.
-        if _rule_reaches(desk, question):
+        if _rule_reaches(desk, question, source.id):
             return Refusal(
                 "authority_permits_choice",
                 f"{source.title} is {source.tier} authority, which is somebody's "
@@ -1390,10 +1422,21 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
                 f"Checked against the record: {getattr(passage, 'reviewed', '')}"))
             if from_position and getattr(passage, "is_policy", False)
             else "" if binding else (
+                # THE CAVEAT AND THE GATE READ THE SAME FACT, and until
+                # `dec-guidance-narrow` they did not. This said "No binding
+                # authority on this desk reaches the question" — which was the
+                # gate's old test, and the narrowed gate makes it FALSE on the
+                # very answers it now lets through. TP1 is the case: a binding
+                # regulation does reach a question about the threshold; what it
+                # does not do is declare the word. An answer whose own caveat
+                # overstates what was checked is worse than one that refuses,
+                # because a reader has no way to tell.
                 f"This rests on {source.title}, which is {source.tier} "
-                f"authority: the IRS's own guidance, not the rule. No binding "
-                f"authority on this desk reaches the question. Read it as the "
-                f"Service's stated position and not as settled law.")),
+                f"authority: the IRS's own guidance, not the rule. Nothing "
+                f"binding on file is declared to answer what this source "
+                f"answers here — which is not the same as nothing binding "
+                f"existing. Read it as the Service's stated position and not "
+                f"as settled law.")),
         # A position is the firm's words, so those are the words that leave the
         # desk -- not a restatement, however close. `_check` has already refused
         # one that disagrees; this makes the agreeing case exact rather than
