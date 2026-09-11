@@ -43,12 +43,14 @@ import ask                                                  # noqa: E402
 import engine                                               # noqa: E402
 import judging                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS, a_judgment                      # noqa: E402
+# ALIASED: this module already has a `CORPUS = 98`, the recorded
+# problem count, and the bare name would shadow it — or be shadowed,
+# which is what happened: shutil.copytree was handed the integer.
+from conftest import CORPUS as RECORD, a_judgment    # noqa: E402
 
 
 def _desks():
-    return [record.load(d) for d in sorted(p for p in DESKS.iterdir()
-                                           if p.is_dir())]
+    return [record.load(RECORD)]
 
 
 def _answerable(desk):
@@ -81,8 +83,8 @@ def test_a_misspelt_declaration_refuses_rather_than_defaulting(tmp_path):
     """THE ONE WAY THIS DECLARATION CAN DO HARM. A desk whose line reads
     `Judged: requird` would serve unjudged while its own file says it does
     not — silently, and in the safe-looking direction."""
-    d = tmp_path / "cash-and-bank"
-    shutil.copytree(DESKS / "cash-and-bank", d)
+    d = tmp_path / "corpus"
+    shutil.copytree(RECORD, d)
     f = d / "SUBJECTS.md"
     f.write_text(f.read_text(encoding="utf-8")
                  .replace("**Judged:** required", "**Judged:** requird"),
@@ -95,8 +97,8 @@ def test_a_misspelt_declaration_refuses_rather_than_defaulting(tmp_path):
 def test_a_desk_with_no_line_at_all_is_optional(tmp_path):
     """The default is what every desk did before the firm decided, so adding
     the parser could not change an existing desk's behaviour on its own."""
-    d = tmp_path / "cash-and-bank"
-    shutil.copytree(DESKS / "cash-and-bank", d)
+    d = tmp_path / "corpus"
+    shutil.copytree(RECORD, d)
     f = d / "SUBJECTS.md"
     text = f.read_text(encoding="utf-8")
     assert "**Judged:** required" in text, "the fixture is not what it claims"
@@ -110,8 +112,8 @@ def test_a_desk_with_no_line_at_all_is_optional(tmp_path):
 def test_no_desk_serves_an_unjudged_answer():
     for desk in _desks():
         p, _passage = _answerable(desk)
-        out = ask.answer(p.facts, desk.name, position=p.answer,
-                         citation=p.citation, desks=DESKS, keep=False)
+        out = ask.answer(p.facts,  position=p.answer,
+                         citation=p.citation, corpus=RECORD, keep=False)
         assert isinstance(out, engine.Refusal), f"{desk.name} served unjudged"
         assert out.reason == "not_judged"
         assert out.desk == desk.name
@@ -122,8 +124,8 @@ def test_a_judged_answer_still_serves_on_every_desk():
     that refuses everything."""
     for desk in _desks():
         p, passage = _answerable(desk)
-        out = ask.answer(p.facts, desk.name, position=p.answer,
-                         citation=p.citation, desks=DESKS, keep=False,
+        out = ask.answer(p.facts,  position=p.answer,
+                         citation=p.citation, corpus=RECORD, keep=False,
                          judged=a_judgment(passage))
         assert isinstance(out, engine.Served), (
             f"{desk.name} refused a judged answer: {getattr(out, 'detail', '')}")
@@ -138,8 +140,8 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
     for desk in _desks():
         p, passage = _answerable(desk)
         with pytest.raises(judging.JudgingError) as e:
-            ask.answer(p.facts, desk.name, position=p.answer,
-                       citation=p.citation, desks=DESKS, keep=False,
+            ask.answer(p.facts,  position=p.answer,
+                       citation=p.citation, corpus=RECORD, keep=False,
                        model="the-answerer",
                        judged=a_judgment(passage, by="the-answerer"))
         assert "both answered and judged" in str(e.value), desk.name
@@ -147,10 +149,10 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
 
 # ── the cost, measured rather than estimated ───────────────────────────────
 
-#: SERVED ANSWERS ON THE RECORDED CORPUS THAT NOW NEED A SECOND MODEL CALL,
-#: measured 8 September 2026 at desk 0.14.0. The whole cost of the firm's
-#: decision, in one figure, and it is not small: nearly every answer this system
-#: can give now takes two models instead of one.
+#: SERVED ANSWERS ON THE RECORDED CORPUS THAT NOW NEED A SECOND MODEL CALL.
+#: The whole cost of the firm's decision, in one figure.
+#:
+#: MEASURED 8 SEPTEMBER 2026 at desk 0.14.0, over seven desks:
 #:
 #:     13 of 16   capitalization-and-de-minimis
 #:      4 of  4   cash-and-bank
@@ -160,7 +162,42 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
 #:     18 of 19   rewards-and-information-returns
 #:     15 of 15   vehicle-expense
 #:     92 of 98   TOTAL
-COST = 92
+#:
+#: RE-MEASURED 10 SEPTEMBER 2026 over ONE CORPUS: **84 of 98**, and the eight
+#: that moved are a GUARD TIGHTENING that the seven desks could not have
+#: reached. Every one of them now refuses `authority_permits_choice`, with the
+#: same sentence: *"is secondary authority, which is somebody's reading rather
+#: than the rule — and this desk holds binding authority on this subject. Cite
+#: the rule, or escalate."*
+#:
+#:      PH2   IRS Pub. 587, "Exceptions to Exclusive Use" — the basement
+#:      RW1   Rev. Rul. 2005-28
+#:      RW5   RW6   RW8   RW9
+#:      VE13  VE15  IRS Pub. 463 (2025)
+#:
+#: WHAT THAT MEANS, AND IT IS THE ARGUMENT FOR ONE CORPUS RATHER THAN A COST OF
+#: IT. Eight recorded answers rested on a publication — somebody's reading —
+#: while the regulation that decides the same question sat on a different desk.
+#: A question only ever reached one desk, so nothing could see that the binding
+#: rule was one folder over, and the answer went out stamped as authority. It
+#: is the same shape as `26 CFR 1.274-5T(a)` being stored at 1,466 characters
+#: on meals and 125 on vehicle: not a merge problem, a thing the merge made
+#: visible.
+#:
+#: THE FIRST NUMBER WRITTEN HERE WAS 85 AND THE EXPLANATION UNDER IT WAS WRONG.
+#: It said merging unioned `answered_from`, so seven answers that were
+#: off-source became on-source and stopped needing a second reader — a SAVING.
+#: The arithmetic said otherwise the whole time: 85 is fewer served than 92, so
+#: more answers were being refused, not fewer. The 85 itself came from a
+#: migration bug (`tools/one_corpus.py` truncated every wrapped `Answered from`
+#: line, so `capitalization-and-de-minimis`'s thirty-eight subjects arrived as
+#: three). With that fixed the figure is 84, and none of the movement is about
+#: `answered_from` at all.
+#:
+#: NOT SILENTLY UPDATED. This test exists to make the figure move visibly, and
+#: it did its job twice: the number is what caught the migration bug, and the
+#: number is what caught the wrong story told about the number.
+COST = 84
 CORPUS = 98
 
 

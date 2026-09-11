@@ -52,7 +52,7 @@ class _Reply:
 
 @pytest.fixture
 def served():
-    desk = record.load(HERE / "desks" / "fixed-assets")
+    desk = record.load(HERE / "corpus")
     out = engine.serve(engine.Answer(position="capitalized", citation=CITATION),
                        desk, question="we bought a forklift")
     assert isinstance(out, engine.Served)
@@ -102,7 +102,7 @@ def test_a_real_rewrite_on_the_right_host_still_differs(served):
 
 def test_the_real_passage_on_the_right_host_still_ties(served):
     out, desk = served
-    passage = record.load(HERE / "desks" / "fixed-assets").passage(CITATION)
+    passage = record.load(HERE / "corpus").passage(CITATION)
     proof = proving.prove(out, desk, lambda s, c: _Reply(REAL, passage.text))
     assert proof.verdict == proving.TIED
 
@@ -112,7 +112,7 @@ def test_a_redirect_within_the_publisher_is_not_a_bounce(served):
     http to https, a trailing slash, a rewritten path. Treating that as a bounce
     would break tie-outs on sources that are working perfectly."""
     out, desk = served
-    passage = record.load(HERE / "desks" / "fixed-assets").passage(CITATION)
+    passage = record.load(HERE / "corpus").passage(CITATION)
     proof = proving.prove(out, desk, lambda s, c: _Reply(
         "https://ecfr.gov/current/title-26/section-1.263(a)-2/", passage.text))
     assert proof.verdict == proving.TIED, proof.note
@@ -122,7 +122,7 @@ def test_a_transport_that_reports_no_url_is_trusted_as_before(served):
     """Not every transport says where it landed. Absence is not a bounce —
     inventing one would make every legacy transport fail."""
     out, desk = served
-    passage = record.load(HERE / "desks" / "fixed-assets").passage(CITATION)
+    passage = record.load(HERE / "corpus").passage(CITATION)
 
     class Silent:
         status, text = 200, passage.text
@@ -152,7 +152,7 @@ def test_an_empty_landing_url_is_unknown_and_not_a_bounce(served):
     source's own URL and both the guard and the mutation agree. A transport that
     HAS the field and leaves it blank is the one that separates them."""
     out, desk = served
-    passage = record.load(HERE / "desks" / "fixed-assets").passage(CITATION)
+    passage = record.load(HERE / "corpus").passage(CITATION)
 
     class Blank:
         status, url = 200, ""            # exactly `fetch.Response`'s default

@@ -124,22 +124,56 @@ class Found:
 
 
 def terms(text: str) -> tuple[str, ...]:
-    """The substantive words of a piece of text, in order, lowercased."""
+    """The substantive words of a piece of text, in order, lowercased.
+
+    TRAILING PUNCTUATION IS **NOT** STRIPPED, AND THAT IS A KNOWN DEFECT LEFT
+    IN DELIBERATELY. `_WORD` allows `.`, `-` and `/` inside a token so a
+    citation survives whole -- `1.263(a)-3`, `Pub. 583`, `1099-K`. It allows
+    them at the END too, so a word closing a sentence is a DIFFERENT WORD from
+    the same word mid-sentence: Pub. 525's own section opens *"Rewards. If you
+    receive a reward..."* and the pool holds `rewards.`, which no question can
+    type.
+
+    `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` measures
+    what it costs and what fixing it would move. It is not fixed here because
+    the fix reorders the authority served on most real questions while the firm
+    has an open decision about exactly that -- see the docket. The test pins the
+    defect on purpose, the way the routing tests did before `dec-kill`.
+    """
     return tuple(w.group(0).lower() for w in _WORD.finditer(text)
                  if w.group(0).lower() not in STOPWORDS)
 
 
-def assemble(desks_dir: Path) -> tuple[Held, ...]:
-    """Every citation on file, from every record, as one pool.
+def _records(where: Path) -> list[Path]:
+    """The record directory. A one-entry list.
 
-    Reads the same folders `routing.registry` reads and throws away the only
-    thing `routing` uses them for. The folders survive as where the records are
-    WRITTEN; they stop being how a question is answered.
+    IT WAS A MIGRATION SEAM AND THE MIGRATION IS DONE. `dec-kill` deleted the
+    desks on 10 September 2026, so this no longer accepts the parent of seven
+    record folders — it takes the corpus and returns it.
+
+    The list survives the collapse on purpose. `assemble` iterates it, so a
+    second record — should the firm ever hold one — is a change to what this
+    returns rather than a rewrite of what reads it. What must NOT come back is
+    the parent-directory shape: a folder holding several records is the desk
+    concept wearing a different name.
+    """
+    where = Path(where)
+    if not (where / "SUBJECTS.md").is_file():
+        raise record.RecordError(
+            f"no record at {where}. `pool.assemble` takes the corpus directory "
+            f"itself; it stopped accepting a parent of several when the desks "
+            f"were deleted.")
+    return [where]
+
+
+def assemble(corpus: Path) -> tuple[Held, ...]:
+    """Every citation on file, as one pool.
+
+    Takes the corpus directory. What it reads stops being how a question is
+    answered: this module holds citations, and `read_from` is provenance.
     """
     held: list[Held] = []
-    for folder in sorted(Path(desks_dir).iterdir()):
-        if not (folder / "SUBJECTS.md").is_file():
-            continue
+    for folder in _records(corpus):
         desk = record.load(folder)
         by_citation: dict[str, list] = {}
         for position in desk.positions:
@@ -213,6 +247,34 @@ def stats(pool: tuple[Held, ...]) -> _Stats:
             seen[word] = seen.get(word, 0) + 1
     idf = {w: math.log(1 + (n - df + 0.5) / (df + 0.5)) for w, df in seen.items()}
     return _Stats(idf=idf, avg_len=(sum(lengths) / n) or 1.0)
+
+
+def unseen(question: str, known: _Stats) -> tuple[str, ...]:
+    """The question's own words that appear NOWHERE in the pool, in order.
+
+    A FACT ABOUT THE RECORD, NOT A JUDGEMENT ABOUT THE QUESTION, which is the
+    only reason it may be reported to the asker: the corpus either contains the
+    word or it does not, and `stats` has already counted every word in it.
+    Nothing here guesses what the asker meant, proposes a synonym, or rewrites
+    anything -- that would be the model disposing.
+
+    WHAT IT IS FOR, MEASURED 11 SEPTEMBER 2026. "what do i do with it? we bought
+    a forklift" reaches NOTHING; the same transaction as "we bought a forklift
+    -- is the invoice price deducted or capitalized?" reaches eight passages,
+    the firm's own $2,500 threshold among them. The cause is exact and it is
+    this: the first phrasing's only substantive words are `bought` and
+    `forklift`, and NEITHER appears in any of 785 passages (`purchase` is in 85,
+    `buy` in 11, `acquire` in 55). Without this the doer is told the record
+    holds nothing and the firm is filed a hole in authority they do not have.
+    With it, both are told which two words the record has never seen, and that
+    is a specific thing to say differently.
+
+    It is not a synonym table and must never become one. `dec-kill` killed a
+    hand-written word list; a hand-written list of what a word means instead
+    would be the same mechanism under a kinder name.
+    """
+    return tuple(w for w in dict.fromkeys(terms(question))
+                 if w not in known.idf)
 
 
 def look(question: str, pool: tuple[Held, ...], *, limit: int = 8,

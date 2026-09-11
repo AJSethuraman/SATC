@@ -22,11 +22,11 @@ import pytest
 import ask
 import engine
 import judging
-from conftest import DESKS
+from conftest import CORPUS
 
 Q = "we bought a forklift. is the invoice price deducted or capitalized?"
 CIT = "26 CFR 1.263(a)-2(d)(1)"
-DESK = "fixed-assets"
+DESK = "corpus"
 
 #: Words that really are in that paragraph, in that order, with the procedure
 #: between them marked rather than transcribed.
@@ -37,7 +37,7 @@ REAL = ("a taxpayer must capitalize amounts paid to acquire or produce a unit "
 def _answer(**kw):
     kw.setdefault("model", "answerer")
     kw.setdefault("keep", False)
-    return ask.answer(Q, DESK, citation=CIT, **kw)
+    return ask.answer(Q,  citation=CIT, **kw)
 
 
 # ------------------------------------------- the run this was built for
@@ -66,7 +66,7 @@ def test_the_seventh_september_answer_still_passes_every_gate_but_the_judge():
     # remembered — otherwise the paragraph above is a story about the past.
     import dataclasses
     import record
-    desk = dataclasses.replace(record.load(DESKS / DESK), judged=record.OPTIONAL)
+    desk = dataclasses.replace(record.load(CORPUS), judged=record.OPTIONAL)
     served = engine.serve(
         engine.Answer(position="deducted, not capitalized", citation=CIT),
         desk, question=Q)
@@ -207,7 +207,7 @@ def test_a_judgment_cannot_rescue_an_answer_the_gate_refused():
     """Every stage after the gate has this property and it is the reason they
     run in the order they do. A second reader saying 'this is fine' about an
     answer with no authority behind it is a second reader who was not asked."""
-    out = ask.answer(Q, DESK, position="capitalized",
+    out = ask.answer(Q,  position="capitalized",
                      citation="26 CFR 1.999-9(z)", keep=False, model="answerer",
                      judged=judging.Judgment(by="second-reader", supports=True,
                                              because="anything at all"))
@@ -225,7 +225,7 @@ def test_every_desk_now_requires_one_and_says_so_in_its_own_file():
     rather than a constant, so a desk that quietly stops declaring it goes red.
     """
     import record
-    for d in sorted(p for p in DESKS.iterdir() if p.is_dir()):
+    for d in [CORPUS]:
         desk = record.load(d)
         assert desk.needs_a_judge, f"{desk.name} serves what nobody read"
 
@@ -247,14 +247,13 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     nobody can act on and inflate the one count that is meant to mean something.
     """
     import shutil
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
-    queue = desks / DESK / "unsupported" / "asked.md"
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
+    queue = desks / "unsupported" / "asked.md"
     before = queue.read_text(encoding="utf-8") if queue.exists() else ""
 
-    out = ask.answer(Q, DESK, position="capitalized", citation=CIT,
-                     desks=desks, keep=True)
+    out = ask.answer(Q,  position="capitalized", citation=CIT,
+                     corpus=desks, keep=True)
     assert isinstance(out, engine.Refusal) and out.reason == "not_judged"
     after = queue.read_text(encoding="utf-8") if queue.exists() else ""
     assert after == before, "an unjudged answer was filed as a record gap"
@@ -262,8 +261,8 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     # POSITIVE PRECONDITION: `keep=True` really does file other refusals here,
     # so the assertion above is the exclusion working rather than the queue
     # being unreachable from this fixture.
-    ask.answer(Q, DESK, position="capitalized",
-               citation="26 CFR 1.9999-1(z)", desks=desks, keep=True)
+    ask.answer(Q,  position="capitalized",
+               citation="26 CFR 1.9999-1(z)", corpus=desks, keep=True)
     assert queue.exists() and queue.read_text(encoding="utf-8") != before
 
 
@@ -327,7 +326,7 @@ def test_a_careless_judge_quoting_real_words_still_serves_a_wrong_answer():
 
     So this test exists to go red if anyone ever writes that the judge stops
     wrong answers. It does not."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(by="careless-reader", supports=True,
@@ -338,7 +337,7 @@ def test_a_careless_judge_quoting_real_words_still_serves_a_wrong_answer():
 
 def test_and_the_identical_quotation_refuses_when_the_reader_is_careful():
     """The other half of the same pair. The engine did not change; the reader did."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(
@@ -352,7 +351,7 @@ def test_and_the_identical_quotation_refuses_when_the_reader_is_careful():
 
 def test_the_record_says_who_read_it_which_is_the_whole_gain():
     """`unchecked` says nobody looked. This says who looked and what they held."""
-    out = ask.answer(LEASE, DESK, position="yes - capitalize the equipment as a "
+    out = ask.answer(LEASE,  position="yes - capitalize the equipment as a "
                                            "unit of property",
                      citation=CIT, keep=False, model="answerer",
                      judged=judging.Judgment(by="careless-reader", supports=True,

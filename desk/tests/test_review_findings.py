@@ -18,7 +18,7 @@ import pytest
 import _canon
 import record
 import staleness
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 from engine import Answer, Outcome, grade, serve
 
 sys.path.insert(0, str(ROOT / "tools"))
@@ -69,7 +69,7 @@ def test_reading_every_paragraph_recovers_problems_that_were_being_dropped():
     off the text. Every move is a REDUCTION for correctness, so the number this
     asserts is the honest one rather than the high-water mark.
     """
-    _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
+    _, kept, dropped, _, _ = ex.build(XML, CORPUS,
                                       checked="2026-09-04")
     assert len(kept) >= 16, (
         f"only {len(kept)} problems usable; reading every paragraph of each "
@@ -83,7 +83,7 @@ def test_the_problem_set_is_not_won_by_answering_the_same_thing_every_time():
     printed in `PROBLEMS.md` so the baseline is read beside the result, and this
     holds it somewhere a constant answer cannot pass for competence."""
     import record
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     counts = {}
     for p in desk.problems:
         counts[p.answer] = counts.get(p.answer, 0) + 1
@@ -93,7 +93,7 @@ def test_the_problem_set_is_not_won_by_answering_the_same_thing_every_time():
         f"answering {max(counts, key=counts.get)!r} every time scores "
         f"{top:.0%}; this set cannot distinguish a desk from a coin"
     )
-    text = (DESKS / "fixed-assets" / "PROBLEMS.md").read_text(encoding="utf-8")
+    text = (CORPUS / "PROBLEMS.md").read_text(encoding="utf-8")
     assert "Always answering the most common one scores" in text, (
         "the baseline is not stated where the denominator is read"
     )

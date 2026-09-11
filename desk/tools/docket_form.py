@@ -233,7 +233,7 @@ CHANGED = [
  ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
  ("794 of 794", "passages fetched back and compared", "0 differences, 0 unreachable"),
  ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("1,163", "desk tests passing", "514 when today\u2019s work started; canon 181"),
+ ("1,220", "desk tests passing", "1,180 before the desks were deleted; canon 187"),
  ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
 ]
 
@@ -439,9 +439,8 @@ def _counted():
     rules = [r for r in pos if r["shape"] == "rule"]
     turns = [r for r in pos if r["unlocks"] > 0]
     blind = len(pos) - len(turns)
-    ratified = sum(len([q for q in record.load(d).positions if not q.proposed])
-                   for d in sorted((HERE / "desks").iterdir())
-                   if (d / "SOURCES.md").is_file())
+    ratified = len([q for q in record.load(HERE / "corpus").positions
+                    if not q.proposed])
     # A POSITION THIS DOCKET ITSELF SAYS TO HOLD BACK, read off the note rather
     # than counted by hand -- the preface states how many are answerable now, and
     # a number typed there goes stale the moment one is ratified.
@@ -524,7 +523,7 @@ def _preface(c) -> str:
       + waiting +
       "<p><b>All three thin desks now hold every worked example their own "
       "regulations carry.</b> 63 added \u2014 19 to cash, 12 to vehicle, 32 to "
-      "meals \u2014 and all 794 stored passages were fetched back from their "
+      "meals \u2014 and all 785 stored passages were fetched back from their "
       "publishers and compared word for word: no differences, nothing "
       "unreachable. No proposal is open and all %s ratified positions stand.</p>"
       % _word(c["ratified"])

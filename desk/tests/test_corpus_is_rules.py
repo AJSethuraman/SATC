@@ -45,7 +45,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 
 import record                                               # noqa: E402
 import scoreboard_run as sr                                 # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 #: `(desk, problem, passage)` — every worked example currently stored as
 #: authority. Each is a real defect and each is here so that a FOURTH fails this
@@ -81,7 +81,7 @@ KNOWN: set = set()
 
 def _stored_examples():
     found = set()
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -128,7 +128,7 @@ def test_every_problem_on_every_desk_can_actually_be_prompted():
     sample. Measured 6 September 2026: 19 of 19 on the rewards desk, where it
     had been 0 of 19."""
     blocked = []
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

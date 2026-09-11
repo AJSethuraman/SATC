@@ -6,7 +6,11 @@
     'bank'."
 
     `dec-order`, 9 September -- "Build the pool beside the desks; switch on
-    evidence." A destination, not an immediate demolition.
+    evidence." THE SENTENCE THAT FOLLOWED IT IN THE LOG -- "so `dec-kill` is a
+    decided destination and not an immediate demolition" -- was this session's
+    and not the firm's, and it worked as a three-day reprieve for the word list.
+    Withdrawn 10 September: *"I said to delete them. I've said to multiple
+    times."* The desks are gone.
 
 EVERY QUESTION IN THIS FILE WAS ACTUALLY ASKED. They are Forge-Occam's, verbatim
 from their field report of 9 September, and `dec-kill`'s own. Not one is
@@ -18,9 +22,11 @@ answered out of tax law as a result.
 WHAT IS ASSERTED AND WHAT IS DELIBERATELY NOT. Asserted: the authority Occam's
 own desk said it needed is reachable without the word that saved them, and the
 matching never reads a desk name. NOT asserted: that the pool beats the word
-list by some number. That comparison belongs in `tools/pool_vs_routing.py`,
-where it is printed with its denominator and can be re-run, rather than frozen
-into a test that would then have to be edited every time a source is added.
+list by some number. That comparison was printed by `tools/pool_vs_routing.py`
+with its denominator; it went with the word list, because half of a comparison
+cannot be re-run. What is frozen instead is the finding it produced, in
+`docs/POOL-VS-ROUTING-2026-09-10.md`, and a frozen finding is honest where a
+frozen assertion would be a test nobody can fail.
 """
 
 from pathlib import Path
@@ -28,10 +34,8 @@ from pathlib import Path
 import pytest
 
 import pool
-import routing
 
-
-DESKS = Path(__file__).resolve().parent.parent / "desks"
+CORPUS = Path(__file__).resolve().parent.parent / "corpus"
 
 #: The authority `personal-or-business` reported it wanted, escalating
 #: `authority_absent` after two independent judges refused two different
@@ -42,7 +46,7 @@ PUB_583 = "IRS Pub. 583"
 
 @pytest.fixture(scope="module")
 def held():
-    return pool.assemble(DESKS)
+    return pool.assemble(CORPUS)
 
 
 @pytest.fixture(scope="module")
@@ -70,21 +74,14 @@ def test_the_authority_is_reachable_without_the_word_that_saved_them(
     )
 
 
-def test_the_word_list_could_not_reach_it(held, known):
-    """The measured contrast, pinned so it is not claimed from memory.
-
-    This asserts the OLD mechanism's failure rather than the new one's success,
-    because that failure is what `dec-kill` was decided on. It dies with
-    `routing` and is expected to -- at which point this test goes with it.
-    """
-    question = "what supporting documents does the client have to keep?"
-    registry = routing.registry(DESKS)
-    assert not routing.route(question, registry), (
-        "the word list now reaches a desk for this question; if that is a "
-        "deliberate widening, this test and dec-kill's evidence both need "
-        "revisiting rather than this line being deleted"
-    )
-    assert pool.look(question, held, limit=3, known=known)
+#: THE CONTRAST THIS FILE WAS NAMED FOR, AND IT IS NO LONGER A TEST.
+#: `test_the_word_list_could_not_reach_it` asserted the OLD mechanism's failure
+#: -- `routing.route("what supporting documents does the client have to keep?")`
+#: reached no desk at all -- because that failure is what `dec-kill` was decided
+#: on. Its own docstring said it "dies with `routing` and is expected to". It
+#: did, on 10 September 2026. The measurement is in
+#: `docs/POOL-VS-ROUTING-2026-09-10.md` with its denominator; nothing here
+#: pretends to re-run it.
 
 
 def test_the_pool_never_matches_on_a_desk_name(held, known):
@@ -116,8 +113,11 @@ def test_the_pool_never_matches_on_a_desk_name(held, known):
 
 def test_a_question_sharing_nothing_returns_nothing(held, known):
     """Silence is still a result. A retrieval that always answers is one whose
-    answer means nothing -- `routing`'s docstring is right about that and
-    killing the word list does not change it."""
+    answer means nothing -- `routing`'s docstring was right about that, and
+    killing the word list did not change it. IT IS ALSO NOT YET SOLVED: nothing
+    here claims the pool is silent on a question it merely cannot answer, only
+    on one it shares no words with. See
+    `test_a_score_cannot_tell_you_nothing_answers_this.py`."""
     assert pool.look("zzzqwx vvbbnn", held, limit=3, known=known) == ()
     assert pool.look("", held, limit=3, known=known) == ()
     assert pool.look("the of and to", held, limit=3, known=known) == ()

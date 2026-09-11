@@ -1,4 +1,4 @@
-"""Ask the desks the close's real questions — the ones with no answer key.
+"""Ask the corpus the close's real questions — the ones with no answer key.
 
 WHAT THIS IS NOT. `scoreboard.py` scores PROBLEMS: fact patterns whose answer is
 already known because it was read off the authority. That measures a brain
@@ -14,15 +14,17 @@ serve it at all — laid out so the firm can say whether they agree.
     a green scoreboard says nothing about whether a client would be
     correctly advised.
 
-WHAT AN ANSWERER MAY SEE, and why it is not everything in the directory:
+WHAT AN ANSWERER MAY SEE is no longer this tool's business, and that is the
+change `dec-kill` made here. It carried its own `brief()` — a second copy of the
+rules about what an answerer is shown, kept in step with `ask.brief` by nobody.
+The pilot of 8 September measured what that costs: four of twelve answers came
+back `contradicts_ratified_position` while AGREEING with the firm, because this
+copy had never been told to say "copy the position verbatim". A third of a run
+was measuring one instruction's absence from one duplicate.
 
-  SOURCES.md      yes — it must know what it is allowed to rely on
-  extracted/      yes — the authority itself
-  positions/      RATIFIED ONLY — the firm's word is real authority. A PROPOSED
-                  position is an agent's suggestion nobody has said yes to, and
-                  showing it would let one agent's guess become the next one's
-                  premise, which is the whole failure `positions/` exists to stop
-  PROBLEMS.md     NEVER — it is the answer key, and this exercise has no key
+So it calls `ask.consult`, which is what production calls. One brief, from one
+corpus, narrowed to what the question actually reaches — and when the brief is
+wrong here it is wrong in the live path too, where somebody will see it.
 
     python tools/ask_the_desks.py            # write one brief per question
     python tools/ask_the_desks.py --serve answers.json
@@ -37,9 +39,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import ask                                                 # noqa: E402
 import engine                                              # noqa: E402
 import record                                              # noqa: E402
-import routing                                             # noqa: E402
 
 HERE = Path(__file__).resolve().parents[1]
 CORPUS = HERE / "docs" / "CLOSE-QUESTIONS-2026-09-05.md"
@@ -76,107 +78,34 @@ def kind_a() -> list[tuple[int, str, str]]:
     return [(n, titles[n], why.get(n, "")) for n in sorted(a)]
 
 
-def brief(number: int, title: str, why: str, desk: record.Desk) -> str:
-    """Everything an answerer may see, and nothing else."""
-    ratified = [q for q in desk.positions if not q.proposed]
-    out = [
-        f"# Q{number} — {title}",
-        "",
-        f"**Why the close raised it:** {why}",
-        "",
-        f"You are the **{desk.name}** desk. Answer ONLY from the authority below.",
-        "",
-        "## What you must return",
-        "",
-        "```json",
-        '{"position": "<your conclusion, one short line>",',
-        ' "citation": "<one citation, copied EXACTLY from a heading below>",',
-        ' "working": "<why that paragraph settles it>"}',
-        "```",
-        "",
-        "Or, if nothing below settles it:",
-        "",
-        "```json",
-        '{"escalated": true, "reason": "<one of: authority_absent, '
-        'authority_permits_choice, facts_not_established>", "working": "<what is '
-        'missing>", "ask": "<the question a person must answer>"}',
-        "```",
-        "",
-        "**`facts_not_established`** is the right answer when the rule is clear and",
-        "what you do not know is a fact about the client — what was bought, which",
-        "entity, which period. It is not a failure; it is the answer that says who",
-        "has to be asked.",
-        "",
-        "**On that reason you MUST fill in `ask`, and the engine refuses without",
-        "it.** Name the fact and say what would settle it, in words a preparer can",
-        "act on — *\"What was the invoice amount? Under $2,500 the safe harbour",
-        "may reach it.\"* — not *\"more information needed\"*. A refusal that names",
-        "a gap and not the question is a dead end wearing a reason code, and it",
-        "is the difference between a queue somebody can work and a count.",
-        "",
-        "**Never cite a paragraph that is not printed below.** The engine verifies",
-        "the citation against this desk's record and refuses anything else,",
-        "however real it is.",
-        "",
-        "## Sources this desk may rely on",
-        "",
-    ]
-    for s in desk.sources:
-        out.append(f"- **{s.id}** · {s.title} · tier **{s.tier}**")
-    if ratified:
-        # COPY THE POSITION, DO NOT RESTATE IT -- and the brief has to say so.
-        #
-        # `engine._same` compares a submitted position to the firm's word by
-        # EXACT string equality (case and surrounding space aside), on purpose:
-        # "a looser comparison here would quietly turn wrong answers into right
-        # ones, which is the one direction this code must never fail in."
-        #
-        # The brief never passed that on. On the 8 September pilot run four of
-        # the twelve answered attempts came back `contradicts_ratified_position`
-        # while AGREEING with the firm -- Q6, Q7, and Q31 on two desks -- because
-        # an answerer told a position is "binding" naturally paraphrases it.
-        # Re-serving the same run with the four positions copied verbatim and
-        # nothing else changed took it from 3 served to 7. A third of the run
-        # was measuring this instruction's absence rather than the desks.
-        out += ["", "## Positions the firm has already taken (their words, and binding)", ""]
-        out += [
-            "**If you rely on one of these, copy its wording EXACTLY into "
-            "`position`.** The engine compares what you submit to the firm's "
-            "sentence character for character and refuses anything else as a "
-            "contradiction, however much you agree with it. Put your own words "
-            "in `working`, never in `position`.",
-            "",
-        ]
-        for q in ratified:
-            out += [f"### {q.citation}", "", f"> {q.position}", ""]
-    out += ["", "## The authority", ""]
-    for p in desk.passages:
-        out += [f"### {p.citation}", "", f"> {p.text}", ""]
-    return "\n".join(out)
-
-
 def main(argv: list[str]) -> int:
     if argv and argv[0] == "--serve":
         return serve_answers(Path(argv[1]))
 
-    regs = routing.registry(HERE / "desks")
     BRIEFS.mkdir(parents=True, exist_ok=True)
     index = []
     for number, title, why in kind_a():
-        hits = routing.route(f"{title}. {why}", regs)
-        if not hits:
-            print(f"Q{number:<3} NO DESK — not asked")
-            index.append({"q": number, "title": title, "desk": None})
+        question = f"{title}. {why}"
+        text = ask.consult(question)
+        if not text:
+            # SILENCE IS A RESULT AND IT IS WRITTEN DOWN. It used to print
+            # "NO DESK — not asked" and move on, which recorded the question as
+            # having no owner. It has no ANSWER, which is a different fact and
+            # the one `dec-coverage` is about.
+            print(f"Q{number:<3} NOTHING ON FILE — no brief written")
+            index.append({"q": number, "title": title, "brief": None})
             continue
-        for r in hits:
-            desk = record.load(HERE / "desks" / r.desk)
-            path = BRIEFS / f"Q{number}-{r.desk}.md"
-            path.write_text(brief(number, title, why, desk), encoding="utf-8")
-            index.append({"q": number, "title": title, "desk": r.desk,
-                          "brief": str(path.relative_to(HERE))})
-            print(f"Q{number:<3} -> {r.desk:<32} {len(desk.passages):>3} passages")
+        path = BRIEFS / f"Q{number}.md"
+        path.write_text(f"# Q{number} — {title}\n\n"
+                        f"**Why the close raised it:** {why}\n\n{text}",
+                        encoding="utf-8")
+        index.append({"q": number, "title": title,
+                      "brief": str(path.relative_to(HERE))})
+        print(f"Q{number:<3} -> {path.name:<12} {len(text):>7} characters")
     (BRIEFS / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
-    print(f"\n{len(index)} brief(s) -> {BRIEFS.relative_to(HERE)}")
+    written = sum(1 for e in index if e["brief"])
+    print(f"\n{written} brief(s) of {len(index)} question(s) "
+          f"-> {BRIEFS.relative_to(HERE)}")
     return 0
 
 
@@ -193,7 +122,12 @@ def serve_answers(path: Path) -> int:
     served = refused = 0
     rows = []
     for a in answers:
-        desk = record.load(HERE / "desks" / a["desk"])
+        # ONE CORPUS. This loaded `desks/<a["desk"]>`, so replaying a run
+        # required the folder the answer named to still exist. `dec-kill`
+        # deleted them; the `desk` key survives in the older run files as a
+        # RECORD of where the answer came from and is carried through to the
+        # output rather than acted on.
+        desk = record.load(ask.CORPUS)
         question = a["question"]
         if a.get("escalated"):
             ans = engine.Answer(position="", citation="", escalated=True,
@@ -220,7 +154,7 @@ def serve_answers(path: Path) -> int:
         except engine.EngineError as e:
             refused += 1
             rows.append({
-                "q": a["q"], "desk": a["desk"], "question": question,
+                "q": a["q"], "desk": a.get("desk", ""), "question": question,
                 "served": False, "position": a.get("position", ""),
                 "citation": a.get("citation", ""), "tier": "",
                 "checked_subject": None, "reason": "not_put_to_the_engine",
@@ -231,7 +165,7 @@ def serve_answers(path: Path) -> int:
         ok = not isinstance(out, engine.Refusal)
         served, refused = served + ok, refused + (not ok)
         rows.append({
-            "q": a["q"], "desk": a["desk"], "question": question,
+            "q": a["q"], "desk": a.get("desk", ""), "question": question,
             "served": ok,
             "position": out.position if ok else a.get("position", ""),
             "citation": out.citation if ok else a.get("citation", ""),
@@ -266,7 +200,7 @@ def serve_answers(path: Path) -> int:
           "say; this only reports what would have left the desk.\n")
     for r in rows:
         mark = "SERVED " if r["served"] else "REFUSED"
-        print(f"  {mark} Q{r['q']:<3} {r['desk']:<32} "
+        print(f"  {mark} Q{r['q']:<3} "
               f"{r['position'] or r['reason']}")
     # `relative_to` RAISES rather than falling back, and this ran from a path
     # outside the tree the first time it was pointed at one.

@@ -103,12 +103,20 @@ def _fit(question: str, tail: str) -> str:
     return cut.rstrip(" ,;:.") + "\u2026" + tail
 
 
-def line(question: str, *, ref: str, why: str = "") -> str:
+def line(question: str, *, ref: str, why: str = "",
+         verb: str = "Desk parked") -> str:
     """The exact characters the desk sends, or raise if it must not send them.
 
     `ref` is how the firm names this one back -- a queue id, not a client. `why`
     is the short reason it is parked, shown only when there is room for it,
     because the question is what gets answered and the reason is context.
+
+    `verb` is what the desk DID, and it is a parameter because `dec-fields`
+    added a second thing it can do: a field proposal is a decision waiting on
+    the firm, not a question waiting on an answer, and telling them apart in the
+    first three words is the difference between a notification they act on and
+    one they file. Kept as a fixed set here rather than free text -- see
+    `for_entry`, which is the only caller that changes it.
     """
     question, ref, why = _flatten(question), _flatten(ref), _flatten(why)
     if not question:
@@ -123,10 +131,10 @@ def line(question: str, *, ref: str, why: str = "") -> str:
                 f"the question is still in the queue as {ref}")
     tail = f" [{ref}]"
     if why:
-        candidate = _fit(f"Desk parked: {question} — {why}", tail)
+        candidate = _fit(f"{verb}: {question} — {why}", tail)
         if len(candidate) <= LIMIT:
             return candidate
-    return _fit(f"Desk parked: {question}", tail)
+    return _fit(f"{verb}: {question}", tail)
 
 
 def for_entry(entry) -> str:
@@ -136,7 +144,36 @@ def for_entry(entry) -> str:
     hands back the entry it filed; this turns it into characters. Nothing about
     the wording is left to the session, which is the point -- a model composing
     its own notification is a model deciding what the firm gets told.
+
+    A FIELD PROPOSAL IS NOT A PARKED QUESTION AND MUST NOT READ AS ONE.
+    `dec-fields`, 10 September 2026 -- the firm, refusing both options offered
+    and naming a third:
+
+        "I have said before I want the desk to propose fields that are clearly
+         holes. I can sign off on them in the same way as a position. [...] I
+         don't want the list, I want this part of the process -- it sends me the
+         notification or whatever saying there's something for me to decide
+         which in this case would be 'do we add this field' I think."
+
+    So where the entry names a field, the line says WHAT THERE IS TO DECIDE
+    rather than what somebody asked. "Desk parked: what is the threshold --
+    no_field_for_this_fact" tells the firm a question stalled; "Desk proposes a
+    field: capitalization_rule -- POS1 needs it and nothing records it" tells
+    them the decision that is theirs. Same queue, same id, same reply path.
+
+    IT IS COMPOSED HERE RATHER THAN BY THE SESSION for the reason the docstring
+    above already gives, and the field name is the DESK'S OWN vocabulary -- it
+    comes from a position's `Unless:` line, never from anything a client said,
+    so the PII check below has nothing to catch and still runs.
     """
+    field = getattr(entry, "needs_field", "")
+    by = getattr(entry, "asked_by", "")
+    if field:
+        return line(f"add a field for {field}?",
+                    ref=getattr(entry, "id", ""),
+                    why=(f"{by} needs it and nothing records it" if by
+                         else "a position needs it and nothing records it"),
+                    verb="Desk proposes")
     return line(getattr(entry, "question", ""),
                 ref=getattr(entry, "id", ""),
                 why=getattr(entry, "failed_because", ""))

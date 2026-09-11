@@ -180,7 +180,7 @@ def as_prompt(a: Ask) -> str:
            _stamp(), "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
-           "No context came with it. Read the facts off the desk's own record "
+           "No context came with it. Read the facts off the record itself "
            "through `consult`, where the ones we do NOT hold are named as such "
            "— and escalate on a missing one rather than infer it. Nobody has "
            "framed this question for you, which is the point of your being "
@@ -189,9 +189,9 @@ def as_prompt(a: Ask) -> str:
     out += [
         "## How to answer", "",
         "Use the `be-the-desk` skill — NOT `ask-desk`, which is the skill for "
-        "whoever sent you this: `ask.consult` for what a desk will let you "
+        "whoever sent you this: `ask.consult` for what the corpus will let you "
         "answer from, then `ask.answer(...)` with your conclusion and citation. "
-        "`keep=False` unless you are told otherwise. Do not write to a desk, do "
+        "`keep=False` unless you are told otherwise. Do not write to the record, do "
         "not commit, do not push.", "",
         "## How to reply — THIS IS NOT OPTIONAL", "",
         f"Send `print(out)` in full, and your reasoning, back to "
@@ -235,17 +235,25 @@ def as_prompt(a: Ask) -> str:
         "failure you have not been told about: say what you sent, and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
         "so and say what authority is missing — a refusal is a finding.", "",
-        "## Say which desks this reached", "",
-        "Name every desk `consult` routed to. **And if the question as phrased "
-        "reaches fewer desks than an obvious rephrasing of the same question "
-        "would, say that too, and name what it missed.**", "",
-        "THE ASKER CANNOT SEE THIS AND YOU CAN. On 8 September a doer asked "
-        "*\"what do I do with it\"* about a forklift and reached ONE desk; the "
-        "same transaction as *\"is the invoice price deducted or capitalized?\"* "
-        "reaches TWO, and the one dropped holds the most on-point paragraph. "
-        "Their words: *\"My phrasing was the natural working one and it got "
-        "strictly less authority. I did not know that when I wrote it, and a "
-        "doer has no way to tell.\"* You are the only party that can tell them.",
+        "## Say what the phrasing reached", "",
+        "Name the citations it came back with — `ask.looked(question)` gives "
+        "you them without rendering a brief. **And if an obvious rephrasing of "
+        "the same question reaches authority this one did not, say so and name "
+        "what it missed.**", "",
+        "THE ASKER CANNOT SEE THIS AND YOU CAN, AND IT GOT WORSE, NOT BETTER. "
+        "On 8 September a doer asked *\"what do I do with it\"* about a forklift "
+        "and reached ONE desk; the same transaction as *\"is the invoice price "
+        "deducted or capitalized?\"* reached TWO, and the one dropped held the "
+        "most on-point paragraph. Their words: *\"My phrasing was the natural "
+        "working one and it got strictly less authority. I did not know that "
+        "when I wrote it, and a doer has no way to tell.\"* `dec-kill` deleted "
+        "the desks and did NOT settle this. Measured on one corpus, "
+        "11 September 2026: the same forklift, asked the natural way, now "
+        "reaches **NOTHING AT ALL** — 0 passages against 8 for the explicit "
+        "phrasing. Two other pairs both returned 8 and 8, sharing five "
+        "citations and none. So a working phrasing can still cost the asker "
+        "the whole record, and nothing they can see says so. You are the only "
+        "party that can tell them.",
     ]
     return "\n".join(out)
 
@@ -433,9 +441,10 @@ class Research:
 def research(question: str, reply_to: str, refused_by=()) -> Research:
     """Send an `authority_absent` gap to be run down, or REFUSE to send it.
 
-    `refused_by` is `((desk, reason), ...)` from the refusals that produced the
-    gap. It is REQUIRED and it is checked, because the one thing that must not
-    happen here is a question being researched that a desk could already answer:
+    `refused_by` is `((record, reason), ...)` from the refusals that produced the
+    gap -- one row since `dec-kill`, where it used to carry one per desk. It is
+    REQUIRED and it is checked, because the one thing that must not happen here
+    is a question being researched that the record could already answer:
     a search that finds authority the record already holds costs the firm a
     source-admission decision it does not need to make, and a search launched
     because an agent did not like the answer it got is not research.
@@ -444,23 +453,22 @@ def research(question: str, reply_to: str, refused_by=()) -> Research:
     rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
     if not rows:
         raise RelayError(
-            "nothing refused this. A gap is what a DESK could not reach, and "
-            "`refused_by` is the evidence — without it this is a search for "
+            "nothing refused this. A gap is what the RECORD could not reach, "
+            "and `refused_by` is the evidence — without it this is a search for "
             "authority nobody has established is missing.")
     if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
         raise RelayError(
             f"refused {', '.join(wrong)}, which is not a gap in the record. "
             f"`authority_absent` is the only refusal this answers — the others "
-            f"are answered by a person, by the firm, or by asking a different "
-            f"desk, and searching for authority instead is how a refusal gets "
-            f"talked out of.")
+            f"are answered by a person or by the firm, and searching for "
+            f"authority instead is how a refusal gets talked out of.")
     return Research(ref=a.ref, question=a.question, refused_by=rows)
 
 
 def research_prompt(r: Research, reply_to: str) -> str:
     """The message the researching session receives."""
-    out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
-           f"the session that can go and look.", "",
+    out = [f"RUN DOWN {r.ref} — the record does not hold the rule for this, "
+           f"and you are the session that can go and look.", "",
            _stamp(), "",
            "## The question", "", r.question, "",
            "## What already refused it, and why", ""]

@@ -1,13 +1,13 @@
 ---
 name: be-the-desk
-description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the desks, or when running the desks locally to test them. To ASK a desk rather than be one, use ask-desk.
+description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the corpus, or when running it locally to test it. To ASK a desk rather than be one, use ask-desk.
 ---
 
 # Be the desk
 
 **Somebody else is doing the work. You are the authority they do not have.**
 A request has reached you — usually as a message opening `DESK REQUEST <ref>` —
-and your job is to answer it from what the desks actually record, then send the
+and your job is to answer it from what the corpus actually records, then send the
 answer back to whoever asked.
 
 **To ask a desk rather than be one, that is `ask-desk`, and it is a different
@@ -73,7 +73,7 @@ import os, sys
 # 7 September 2026, closing a set of books. Fall back to the installed tree.
 ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
     "~/.claude/plugins/cache/satc/desk")
-if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
+if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "corpus")):
     # NEWEST BY NUMBER, NEVER BY STRING. This read `sorted(...)[-1]` for one
     # release. It is correct today and through 0.9.x, and on the first bump past
     # .9 it silently picks 0.7.3 over 0.10.0 — an agent loading a stale plugin
@@ -87,7 +87,7 @@ if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
             return (0, ())                 # not a version dir; never the newest
     versions = sorted(os.listdir(ROOT), key=_release)        # a versioned cache
     ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
-if not os.path.isdir(os.path.join(ROOT, "desks")):
+if not os.path.isdir(os.path.join(ROOT, "corpus")):
     raise SystemExit(
         f"no desk plugin at {ROOT}. Install it — `claude plugin marketplace "
         f"update satc && claude plugin update desk@satc` — or set "
@@ -97,21 +97,43 @@ from pathlib import Path
 import ask
 import unsupported
 
-briefs, filed = ask.consult_or_file(
+brief, filed = ask.consult_or_file(
     "the bank statement shows a $10 service charge and nothing for it is in "
     "the books",
     queue=unsupported.default_queue())   # NOT Path(ROOT)/... — see below
 
-for desk, brief in briefs:
-    ...  # read `brief`, then answer from it
+if brief:
+    ...  # read it, then answer from it
 
-if filed:                      # no desk held it; it is now in the queue
+if filed:                      # nothing on file held it; it is now in the queue
     ...  # tell the asker so, and say the entry id
 ```
 
+**ONE BRIEF, NOT A LIST.** `consult` returned `[(desk name, brief)]` until
+10 September 2026, because a question reached one desk or several. `dec-kill`
+— *"Kill the desks; one pool"* — ended that: there is one corpus, addressed by
+citation, and one brief narrowed to what the question actually reaches. Nothing
+names a desk any more, because there is nothing to name.
+
+**SILENCE IS NEVER AN EMPTY STRING.** `dec-coverage`, 10 September 2026 — the
+firm: *"Both."* An empty return is ambiguous between *nothing here settles this*
+and *nothing here objects*, and Forge-Occam reported reading the second:
+*"silence is indistinguishable from 'there is nothing to say here.' A doer reads
+it as permission. I nearly did."* So `consult` always comes back with something
+readable — either the authority, or a page saying what was searched and that it
+is not permission. **Do not treat a short answer as a quiet yes.**
+
+**And a brief is not proof that anything in it is on point.** The passages are
+chosen by word overlap with your question. The corpus returns its closest text
+for every question, including questions it holds no authority on at all — a
+question about Shakespeare comes back with tax law, at length. If none of what
+you are shown reaches what you were asked, say so and escalate
+`authority_absent`. That is a finding, not a failure.
+
 **Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
-pure query and it returns silence; `consult_or_file` returns the same briefs
-AND writes the question into the queue when nothing holds it. A desk that
+pure query; `consult_or_file` returns the same page AND writes the question into
+the queue when nothing holds it. To ask whether the corpus holds anything at all
+without rendering a brief, call `ask.looked(question)`. A desk that
 refuses leaves a refusal `tools/holes.py` reads out — a question nobody built a
 desk for used to leave nothing at all, which on a close is the worst of the
 three: the doer gets nothing back and the firm never learns it was asked.
@@ -123,10 +145,9 @@ return it is. Hand it over; the desk will not work it out, deliberately.
 ```python
 import record
 
-for desk, brief in ask.consult(
-        "they bought clothing at that store — is it a personal expense?",
-        context=record.Context(facts={"trade": "general contractor"})):
-    ...
+brief = ask.consult(
+    "they bought clothing at that store — is it a personal expense?",
+    context=record.Context(facts={"trade": "general contractor"}))
 ```
 
 **The caller passes what it already has.** There is no file to make and no place
@@ -183,9 +204,11 @@ the others moot.
 ## Four things that will surprise you
 
 **1 · Silence is an answer — and it is FILED, not just returned.** `consult`
-returns an empty list when no desk answers on that subject. That is not a
-failure to route: it means no expert here holds the question, and inventing one
-is the thing this exists to stop.
+returned an empty list per desk until `dec-kill`; it returns one brief now, and
+`ask.looked` is how you see whether the corpus reached anything at all. Nothing
+reached is not a failure to route — there is nothing left to route — it means
+the record does not hold the question, and inventing an answer is the thing this
+exists to stop.
 
 **But say it back, and let it be recorded.** `consult_or_file` writes the
 question into the unfiled queue where `tools/holes.py` reads it out, so the
@@ -193,8 +216,9 @@ missing subject becomes visible instead of vanishing. The firm, 8 September
 2026: *"You do not prep it with information and if it can't get the information
 that means there's an actual hole."* Measured the same day on twenty month-end
 questions in a bookkeeper's own words, **five reached nothing** — and two of the
-five were subjects a desk already holds, missed on an inflection ("invoiced"
-does not fire where "invoice" does). Silence that is filed is a finding;
+five were subjects the record already held, missed on an inflection ("invoiced"
+does not fire where "invoice" does). That measurement is why the word list is
+gone; retrieval is over the authority's own text now. Silence that is filed is a finding;
 silence that is returned is a dead end.
 
 **2 · Escalating is a real answer, and often the right one.** Measured on eleven
@@ -205,7 +229,7 @@ that was correct. The reasons:
 |---|---|---|
 | `facts_not_established` | the rule is clear; a fact about the client is missing | ask the client |
 | `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
-| `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
+| `authority_absent` | nothing in the corpus reaches the question | authority is missing — run it down |
 | `document_not_requested` | a document that already exists settles it and nobody asked for it | request it by name |
 | `context_not_on_file` | the rule needs a fact there IS somewhere to record and nobody has | record it — and fix the intake that skipped it |
 
@@ -221,13 +245,14 @@ agent knew a retailer sells clothing, concluded *personal expense*, and was
 wrong — the regulation it should have reached has no vendor in it at all.
 
 **3 · Your citation is verified, and a wrong one is refused.** `answer()` does
-not take your word for it. The citation must resolve inside that desk's record,
-its source must be one the desk declares answers that subject, and where the
+not take your word for it. The citation must resolve inside the corpus, its
+source must be one the record declares answers that subject, and where the
 firm has ratified a position on it **you must return the firm's words, not your
 own restatement of them.** A real citation from the wrong paragraph of the right
 publication is refused too.
 
-**4 · A refusal is kept.** Every one lands in the desk's `unsupported/` queue
+**4 · A refusal is kept.** Every one lands in `corpus/unsupported/`, the one
+queue,
 with your reasoning intact. That queue is the only thing that tells the firm what
 authority is missing, so **write a real `working`** — "could not tell" helps
 nobody; "the rule turns on whether the item takes the place of ordinary civilian

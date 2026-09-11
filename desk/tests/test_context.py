@@ -24,7 +24,7 @@ import ask
 import engine
 import positions
 import record
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 
 #: A question whose SUBJECT this desk answers from S1, which is where POS1's
 #: citation lives. "Home Depot" will not do, and the reason is worth keeping:
@@ -38,7 +38,25 @@ STYLIST = record.Context(facts={"trade": "hairstylist"})
 
 @pytest.fixture
 def pob():
-    return record.load(DESKS / "personal-or-business")
+    """The corpus narrowed to the positions this file is actually about.
+
+    NARROWED, BECAUSE PRODUCTION NARROWS. `ask.brief` is never handed the whole
+    corpus: `consult` asks the pool which citations speak to the question and
+    passes only those. Handing over all twenty ratified positions announces
+    every fact field any of them needs, and two of the three come back NOT ON
+    FILE on any given question — which invites `context_not_on_file` about facts
+    nothing shown turns on.
+
+    SELECTED DETERMINISTICALLY RATHER THAN BY RETRIEVAL. Narrowing by what
+    `pool.look` returns for ASKED would make a unit test of the CONTEXT GATE
+    depend on BM25 scores, so it would go red when a source is added and the
+    ranking shifts. The subject here is the positions that declare `needs`, so
+    that is what is selected.
+    """
+    whole = record.load(CORPUS)
+    wanted = [q.citation for q in whole.positions if "trade" in getattr(q, "needs", ())]
+    assert wanted, "no position declares `trade`; this fixture is stale"
+    return whole.narrowed_to(wanted)
 
 
 def _needing(desk):
@@ -100,8 +118,11 @@ def test_the_records_line_stops_at_the_blank_line(pob):
     that explains the fact and parsed FOUR facts out of one -- named things like
     "in the firm's words". A silent over-read is the same defect as a silent
     truncation and this file is where it would land."""
-    assert pob.records == ("trade",)
-    text = (DESKS / "personal-or-business" / "SUBJECTS.md").read_text(encoding="utf-8")
+    # THE UNION, over one corpus. Each of the seven declared the facts its own
+    # positions turned on; `dec-kill` merged them, so the record holds all three
+    # and `brief` is what decides which of them bear on a question.
+    assert pob.records == ("capitalization_rule", "trade", "taxpayer")
+    text = (CORPUS / "SUBJECTS.md").read_text(encoding="utf-8")
     assert "*What the client does" in text, "the prose that broke it is gone"
 
 
@@ -164,15 +185,51 @@ def test_the_value_does_not_decide_it_only_its_presence(pob):
     assert not any(isinstance(o, engine.Refusal) for o in served)
 
 
-def test_a_desk_whose_positions_need_nothing_is_untouched():
-    """Narrowing only. The cost of the new gate is paid by the two positions
-    that opted into it and by nothing else."""
-    desk = record.load(DESKS / "cash-and-bank")
-    assert not any(q.needs for q in desk.positions)
-    q = next(q for q in desk.positions if not q.proposed)
+def test_a_position_that_needs_nothing_is_untouched():
+    """Narrowing only. The cost of the gate is paid by the positions that opted
+    into it and by nothing else.
+
+    THIS WAS `a_desk_whose_positions_need_nothing`, and one corpus retired the
+    premise. It loaded `cash-and-bank`, whose positions declare no `needs`, and
+    asserted that of the whole record. `dec-kill` merged the seven, so the
+    corpus holds both kinds and the isolation the old name relied on — a desk
+    where nothing opted in — no longer exists anywhere. The property was never
+    about the DESK; it was about the position, and that is what is asserted.
+    """
+    desk = record.load(CORPUS)
+    # NOT MERELY A POSITION THAT NEEDS NOTHING -- one whose CITATION carries no
+    # needing position either. The gate is keyed to the citation, so a position
+    # declaring no `needs` still refuses where the firm holds a second position
+    # on the same passage that does. That is `alongside` working, not a bug, and
+    # picking the first `needs`-free position walked straight into it.
+    # BY STEM, not by the exact citation. `alongside` matches on the citation
+    # with the firm's hand-written " — which rule" note removed, so a position
+    # on `X — the timing rule` and one on `X` are the same passage as far as the
+    # gate is concerned. Excluding only exact matches walked into it twice.
+    # BOTH GATES, AND BY STEM. `needs` is a position that cannot be served
+    # without a fact; `unless` is a DEFAULT that does not apply to a client the
+    # firm treats differently — and both refuse `context_not_on_file`. And both
+    # are keyed to the citation with the firm's " — which rule" note stripped,
+    # so a position on `X — the timing rule` and one on `X` are the same passage
+    # to the gate. Selecting on `needs` alone, and on the exact citation, walked
+    # into this twice: the position picked declared nothing and refused anyway,
+    # because POS1 on the same stem is a default.
+    def _gated(q):
+        return bool(getattr(q, "needs", ()) or getattr(q, "unless", ()))
+
+    gated = {record._stem(q.citation) for q in desk.positions if _gated(q)}
+    q = next(q for q in desk.positions
+             if not q.proposed and not _gated(q)
+             and record._stem(q.citation) not in gated)
     out = engine.serve(engine.Answer(position=q.position, citation=q.citation),
-                       desk, question="an uncleared cheque")
-    assert not isinstance(out, engine.Refusal)
+                       # THE POSITION'S OWN WORDS, not a hardcoded question.
+                       # "an uncleared cheque" suited the desk this test used to
+                       # load; over one corpus the position selected above is
+                       # about something else, and an off-subject question is
+                       # refused `citation_does_not_support` — a different gate,
+                       # which would make this pass or fail for the wrong reason.
+                       desk, question=q.position)
+    assert not isinstance(out, engine.Refusal), getattr(out, "reason", "")
 
 
 def test_the_scoreboard_sees_the_same_gate_as_the_caller(pob):
@@ -209,10 +266,12 @@ def test_the_brief_repeats_what_it_was_given(pob):
     assert "NOT ON FILE" not in text
 
 
-def test_consult_carries_the_context_into_every_brief():
-    out = ask.consult(ASKED, DESKS, CONTRACTOR)
-    assert out, "the question no longer reaches a desk"
-    assert any("general contractor" in brief for _, brief in out)
+def test_consult_carries_the_context_into_the_brief():
+    """ONE CORPUS, ONE BRIEF — this asserted over a list of desks until
+    10 September 2026, when `dec-kill` left nothing to enumerate."""
+    text = ask.consult(ASKED, context=CONTRACTOR)
+    assert text, "the question no longer reaches anything in the corpus"
+    assert "general contractor" in text
 
 
 # -- what must never leave --------------------------------------------------
@@ -240,7 +299,7 @@ def test_the_context_holds_no_field_for_a_person():
     fact about the work."""
     fields = {f.name for f in dataclasses.fields(record.Context)}
     assert fields == {"facts"}
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SUBJECTS.md").is_file():
             continue
         for name in record.load(d).records:
@@ -251,8 +310,8 @@ def test_the_context_holds_no_field_for_a_person():
 def _desk_with(tmp_path, desk, *, needs):
     """A copy of a real desk on disk with one position's Needs rewritten."""
     import shutil
-    dst = tmp_path / desk.name
-    shutil.copytree(DESKS / desk.name, dst)
+    dst = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dst)
     p = dst / "positions" / "POSITIONS.md"
     p.write_text(p.read_text(encoding="utf-8").replace(
         "**Needs:** trade", f"**Needs:** {needs}"), encoding="utf-8")

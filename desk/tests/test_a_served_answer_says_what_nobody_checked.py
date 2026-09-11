@@ -50,7 +50,7 @@ def trap():
     Nothing here claims to have made it refuse; the domain guard cannot reach
     it, because a tax question cited to a tax regulation is in the right body of
     authority and simply says the opposite of what was claimed."""
-    out = conftest.answer_judged(TRAP_Q, "fixed-assets",
+    out = conftest.answer_judged(TRAP_Q, 
                      position="deducted, not capitalized",
                      citation=TRAP_CITE, model="the trap", keep=False)
     assert isinstance(out, engine.Served), (
@@ -104,7 +104,7 @@ def test_the_answer_therefore_refutes_itself_on_sight(trap):
 def test_it_cannot_be_left_off(trap):
     """Computed inside `serve`, never passed in — so no caller can omit it and
     no code path can produce a Served without it."""
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -133,7 +133,7 @@ def test_a_non_binding_answer_says_so_in_the_same_sentence():
     """The other branch, so the wording cannot quietly assert "binding" on an
     answer that does not bind."""
     out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank",
+                     
                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
@@ -180,7 +180,7 @@ def test_a_position_backed_answer_has_something_to_read():
     there is.
     """
     out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)
@@ -192,7 +192,7 @@ def test_nothing_anywhere_serves_an_empty_thing_to_read():
     """The property, over every recorded answer on every desk — because the
     empty one was found by eye on three examples, and eye-checks do not scale."""
     empty = []
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -213,7 +213,7 @@ def test_a_ratified_answer_does_not_claim_nobody_checked_it():
     is a lie in the safe direction, and a disclaimer that cries wolf on the
     safest answers teaches a reader to skip it on the dangerous ones."""
     out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)
@@ -259,14 +259,14 @@ def test_a_ratified_answer_shows_the_AUTHORITY_not_itself():
     cite = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
             '— what the books are updated for')
     out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+                      position="an entry in the books",
                      citation=cite, model="m", keep=False)
     assert isinstance(out, engine.Served)
     assert out.passage != out.position, "the passage is the answer restated"
     assert "reconcil" in out.passage.lower(), (
         "the passage is not the publication's own text")
     # And the desk really does hold it, so the fallback is never reached here.
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     assert desk.passage(cite).text in out.passage
 
 
@@ -285,9 +285,15 @@ def test_a_citation_only_source_still_falls_back_to_the_firms_words():
     So it exercises it instead: a desk stripped of its stored passages is
     exactly the `human_only` shape, and what comes out has to be readable."""
     import dataclasses
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     citation_only = dataclasses.replace(desk, passages=())
-    position = [q for q in citation_only.positions if not q.proposed][0]
+    # A POSITION THAT TURNS ON NO FACT. `positions[0]` was one until one corpus
+    # renumbered them and put a DEFAULT there — POS1, which holds unless the
+    # client is treated differently on `capitalization_rule`, so `serve` refuses
+    # `context_not_on_file` and this test was measuring the context gate rather
+    # than the fallback. Chosen by the property instead of by index.
+    position = next(q for q in citation_only.positions
+                    if not q.proposed and not q.unless and not q.needs)
     out = engine.serve(engine.Answer(position=position.position,
                                      citation=position.citation),
                        citation_only, question="what do I do with it")
@@ -302,7 +308,7 @@ def test_an_escalation_hands_back_the_askers_own_reasoning():
     where the agent has the most to say hands the caller the least… Meanwhile
     `showed_by_source` — pure instrumentation — does come back. That is exactly
     backwards for a human reader."*"""
-    out = conftest.answer_judged("does a widget purchase become an asset?", "fixed-assets",
+    out = conftest.answer_judged("does a widget purchase become an asset?", 
                      escalate="authority_absent",
                      working="the desk holds the improvement rules and nothing "
                              "on what a widget is",
@@ -315,7 +321,7 @@ def test_an_escalation_hands_back_the_askers_own_reasoning():
 def test_every_kind_of_refusal_carries_it_not_just_escalations():
     """Set once where all refusals pass through, so a refusal added later
     cannot quietly drop it."""
-    out = conftest.answer_judged("what do I do with a $10 service charge?", "cash-and-bank",
+    out = conftest.answer_judged("what do I do with a $10 service charge?", 
                      position="something else entirely",
                      citation="26 CFR 1.999-9(z)",
                      working="my reasoning, which the caller needs",
@@ -329,7 +335,7 @@ def test_the_unchecked_sentence_is_short_enough_to_survive_repetition():
     the capitals."* The middle inventory of what WAS checked is cut — it is a
     property of the source and already printed beside the citation."""
     out = conftest.answer_judged("is the invoice price of a forklift deducted or capitalized?",
-                     "fixed-assets", position="deducted, not capitalized",
+                      position="deducted, not capitalized",
                      citation="26 CFR 1.263(a)-2(d)(1)", model="m", keep=False)
     assert len(out.unchecked.split()) <= 32, (
         f"{len(out.unchecked.split())} words; it will be skimmed by the fortieth")
@@ -429,7 +435,7 @@ def test_a_ratified_answer_with_no_sibling_still_names_it_in_unchecked():
     mutation, not by reading. The position below is the firm's own words for
     this citation, so it serves."""
     out = conftest.answer_judged(
-        "how should the vehicle costs be booked", "vehicle-expense",
+        "how should the vehicle costs be booked", 
         position="book the components the actual-expense method itemises, and "
                  "answer with the reasoning rather than with a number of accounts",
         citation='IRS Pub. 463 (2025), "Actual Car Expenses"',
@@ -457,7 +463,7 @@ def test_the_header_never_says_a_source_binds_on_its_own_authority():
     misread its own documentation warns about is the defect, not the field.
     """
     out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)

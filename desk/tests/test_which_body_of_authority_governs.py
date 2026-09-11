@@ -186,7 +186,7 @@ def _tied(url, citation="X 1", text="words"):
 
 def test_dispose_refuses_a_tied_passage_from_the_wrong_body(maps):
     import searching
-    desk = record.load(HERE / "desks" / "capitalization-and-de-minimis")
+    desk = record.load(HERE / "corpus")
     gaap = next(d for d in maps if d.name == "us-gaap")
 
     what, why = searching.dispose(
@@ -201,7 +201,7 @@ def test_the_same_passage_is_proposed_when_the_domain_is_right(maps):
     no. Identical candidate, identical desk — only the question's domain
     differs, and the disposal flips."""
     import searching
-    desk = record.load(HERE / "desks" / "capitalization-and-de-minimis")
+    desk = record.load(HERE / "corpus")
     tax = next(d for d in maps if d.name == "federal-tax")
 
     what, _ = searching.dispose(_tied("https://www.irs.gov/faqs/x"), desk, tax)
@@ -213,7 +213,7 @@ def test_no_domain_behaves_exactly_as_before(maps):
     must leave the old behaviour untouched, or the gate becomes a thing that
     quietly changes results depending on whether somebody remembered it."""
     import searching
-    desk = record.load(HERE / "desks" / "capitalization-and-de-minimis")
+    desk = record.load(HERE / "corpus")
     assert (searching.dispose(_tied("https://www.irs.gov/faqs/x"), desk, None)
             == searching.dispose(_tied("https://www.irs.gov/faqs/x"), desk))
 
@@ -223,7 +223,7 @@ def test_a_refusal_says_where_the_passage_would_have_been_competent(maps):
     half. Reporting a searched question as nothing-found is a second wrong
     answer, so the straddle rides along into the refusal."""
     import searching
-    desk = record.load(HERE / "desks" / "capitalization-and-de-minimis")
+    desk = record.load(HERE / "corpus")
     gaap = next(d for d in maps if d.name == "us-gaap")
     tax = next(d for d in maps if d.name == "federal-tax")
 
@@ -322,7 +322,7 @@ def test_the_trap_the_forge_found_is_refused():
     was a confident "no" it does not contain. Directionally the expensive
     error: expense the lease, omit the right-of-use asset and lease liability.
     """
-    desk = record.load(HERE / "desks" / "vehicle-expense")
+    desk = record.load(HERE / "corpus")
     out = engine.serve(engine.Answer(
         position="no — a leased car is not booked as an asset; deduct the "
                  "lease payments and add any inclusion amount",
@@ -338,7 +338,7 @@ def test_the_cited_paragraph_really_does_not_answer_the_question():
     """PINNED AGAINST THE RECORD, so this test cannot quietly become a test of
     something else. If that passage is ever replaced with text that DOES reach
     recognition, the trap above stops being a trap and this says so."""
-    desk = record.load(HERE / "desks" / "vehicle-expense")
+    desk = record.load(HERE / "corpus")
     text = desk.passage(TRAP_CITE).text.lower()
     assert "deductible expense" in text
     for recognition in ("balance sheet", "right-of-use", "recognition",
@@ -355,7 +355,7 @@ def test_the_same_desk_still_answers_its_own_questions():
     four desks, because `books` and `financial statements` were claimed as
     US GAAP vocabulary when they are the ordinary words of the work."""
     bad = []
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -377,7 +377,7 @@ def test_a_ratified_position_is_not_overruled_by_the_gate():
     be the engine overruling the firm on their own answer — the wrong side of
     every line `engine.py` draws, and the same reason tier does not gate a
     position either."""
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     q = "the cheque has not cleared — does the balance sheet show the cash?"
     assert domains.classify(q).domain.name == "us-gaap", (
         "this question no longer classifies as us-gaap; the test proves nothing")
@@ -395,7 +395,7 @@ def test_an_unclassified_question_leaves_serving_untouched():
     """Silent where the map is. Refusing on an absent classification would be
     guessing a domain in order to get a gate, which is the error the gate
     exists to stop."""
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     q = "a charge of $10 appears that nobody entered"
     assert not domains.classify(q), "this question now classifies; re-pick it"
     out = engine.serve(engine.Answer(

@@ -165,11 +165,19 @@ def test_every_filed_question_kept_its_reasoning():
     assert bare == [], f"{bare} were filed with no working"
 
 
-# ── does a real question reach the desk built for it ─────────────────────────
+# ── does a real question reach the authority built for it ────────────────────
 
-#: The desk each question was commissioned to answer. Written down because it is
-#: the only ground truth available: without it, "the question routed somewhere"
-#: is indistinguishable from "the question routed correctly".
+#: The desk each question was COMMISSIONED to answer, and the citation prefixes
+#: that desk held. Written down because it is the only ground truth available:
+#: without it, "the question found something" is indistinguishable from "the
+#: question found the right thing", and the pool finds something for everything.
+#:
+#: THE DESKS ARE GONE (`dec-kill`, 10 September 2026) AND THE PREFIXES ARE NOT.
+#: This mapping was `{question: desk name}` and the check was "did the word list
+#: route it to that desk". The word list is deleted. So the mapping was resolved
+#: ONCE, off the seven records while they still existed, into the authority each
+#: desk actually held — which is the thing the commission was ever about. A desk
+#: is a folder; a citation prefix is a rule.
 COMMISSIONED = {
     1: "vehicle-expense", 2: "vehicle-expense", 3: "vehicle-expense",
     17: "vehicle-expense",
@@ -182,11 +190,27 @@ COMMISSIONED = {
     35: "personal-or-business",
 }
 
+#: Read off `desks/<name>/SOURCES.md` on 10 September 2026, the last day those
+#: folders existed.
+HELD = {
+    "capitalization-and-de-minimis": (
+        "26 CFR 1.162-3", "26 CFR 1.263(a)-1",
+        "IRS Tangible Property Final Regulations"),
+    "meals-and-entertainment": (
+        "26 CFR 1.162-2", "26 CFR 1.274-11", "26 CFR 1.274-12",
+        "26 CFR 1.274-5", "26 CFR 1.274-5T", "IRS Pub. 463 (2025)"),
+    "personal-or-business": (
+        "26 CFR 1.162-1", "26 CFR 1.262-1", "IRS Pub. 587"),
+    "vehicle-expense": (
+        "26 CFR 1.274-5T", "26 CFR 1.280F-6", "26 CFR 1.62-2",
+        "IRS Pub. 463 (2025)"),
+}
+
 
 def _asked() -> dict[int, str]:
     """Each question as the close actually wrote it. NOT rephrased.
 
-    Rephrasing to help a match is how a router passes a test and fails a person.
+    Rephrasing to help a match is how a matcher passes a test and fails a person.
     Measured while building: "Where is the line between a tool and a fixed
     asset?" routed to NO desk, while "what is our capitalisation threshold"
     routed correctly -- same question, and only one of them was ever asked.
@@ -200,33 +224,49 @@ def _asked() -> dict[int, str]:
     return {n: f"{t}. {why.get(n, '')}" for n, t in titles.items()}
 
 
-def test_every_commissioned_question_reaches_its_own_desk():
-    """16 of 16, on the close's own words. A desk that answers the question
-    nobody asked in those words is a desk nobody reaches."""
-    import routing
+def _reaches() -> tuple[list[int], list[int]]:
+    """(reached, missed) — which commissioned questions the pool answers from
+    the authority they were commissioned against, at the shipped default depth.
 
-    regs = routing.registry(Path(__file__).resolve().parents[1] / "desks")
+    AT THE DEFAULT AND NOT AT A DEPTH CHOSEN TO PASS. `ask.consult` uses
+    `limit=8`; measured at 4 it is 12 of 16 and at 12 it is still 15, so the
+    number below is not sitting on a cliff.
+    """
+    import pool
+
+    held = pool.assemble(Path(__file__).resolve().parents[1] / "corpus")
+    known = pool.stats(held)
     asked = _asked()
-    missed = [n for n, desk in sorted(COMMISSIONED.items())
-              if desk not in {r.desk for r in routing.route(asked[n], regs)}]
-    assert missed == [], (
-        f"Q{missed} no longer reach the desk built for them; either a subject "
-        f"was removed or the question's own wording drifted from the corpus")
+    reached, missed = [], []
+    for n, desk in sorted(COMMISSIONED.items()):
+        found = pool.look(asked[n], held, limit=8, known=known)
+        hit = any(f.held.citation.startswith(p)
+                  for f in found for p in HELD[desk])
+        (reached if hit else missed).append(n)
+    return reached, missed
 
 
-def test_the_spurious_firing_is_recorded_rather_than_believed():
-    """A question reaching a desk with nothing to say costs a round trip, not a
-    wrong answer — but it is a real cost and it is the number a better router has
-    to beat. Pinned loosely: this fails when it roughly doubles, not when one
-    subject is added, because a hard equality here would be a test nobody could
-    change a desk without editing."""
-    import routing
+#: THE QUESTION THE POOL DOES NOT ANSWER FROM ITS COMMISSIONED AUTHORITY, and it
+#: is named rather than counted away. Q31 — *"Personal spending on a business
+#: card is not 'excluded' — it is a draw"* — was commissioned against
+#: `personal-or-business`, meaning § 1.262-1. The pool returns Pub. 583 on
+#: reconciling the checking account, which the cash desk held.
+#:
+#: THE POOL IS ARGUABLY RIGHT AND THE COMMISSION ARGUABLY WRONG. Read Q31's own
+#: words: the sentence that carries it is *"booking it nowhere makes the bank
+#: unreconcilable by exactly the amount of it"*. That is a bookkeeping question
+#: wearing a deductibility question's title, and the authority on it is the one
+#: the pool found. This is recorded as a MISS anyway, because deciding it is a
+#: hit would be this session marking its own paper.
+UNREACHED = [31]
 
-    regs = routing.registry(Path(__file__).resolve().parents[1] / "desks")
-    asked = _asked()
-    extra = sum(len({r.desk for r in routing.route(asked[n], regs)} - {desk})
-                for n, desk in COMMISSIONED.items())
-    assert extra <= 28, (
-        f"{extra} spurious desks fire across {len(COMMISSIONED)} questions; it "
-        f"was 14 when measured on 5 September 2026. Routing has got much noisier "
-        f"— see docs/ROUTING-MEASURED-2026-09-05.md before raising this")
+
+def test_every_commissioned_question_reaches_the_authority_built_for_it():
+    """15 of 16, on the close's own words. Authority nothing reaches is
+    authority nobody asks."""
+    reached, missed = _reaches()
+    assert missed == UNREACHED, (
+        f"Q{missed} no longer reach the authority commissioned for them; "
+        f"Q{UNREACHED} is the one known miss and it is explained above. Either "
+        f"a passage left the corpus or the question's own wording drifted.")
+    assert len(reached) == len(COMMISSIONED) - len(UNREACHED)

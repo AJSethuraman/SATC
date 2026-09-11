@@ -63,7 +63,7 @@ def independent():
     it and proved only that the page agreed with itself: two mutations survived
     that way, including the hard-coded preface count this file exists to stop."""
     proposed, ratified = 0, 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         for q in record.load(d).positions:
@@ -170,7 +170,7 @@ def test_no_card_shows_a_position_its_desk_does_not_hold(counted):
     for row in counted["rows"]:
         if row["kind"] != "position":
             continue
-        desk = record.load(HERE / "desks" / row["group"])
+        desk = record.load(HERE / "corpus")
         held = [q for q in desk.positions if q.proposed and q.id == row["tag"].split(" · ")[1]]
         assert held, "%s is on the page and not in the record" % row["key"]
         assert held[0].position == row["position"]

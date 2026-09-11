@@ -1,18 +1,23 @@
 ---
 name: desk-factory
-description: Build a new expert desk by interviewing the firm about a subject — what it answers on, where the authority is, which sources bind and which merely interpret, what may lawfully be stored, and the known-answer set that proves it works — then open a pull request containing the desk. Never writes to the record; the merge is the yes. Use when a desk is wanted for a new subject, accounting or otherwise.
+description: Add a new subject to the corpus by interviewing the firm about it — what it answers on, where the authority is, which sources bind and which merely interpret, what may lawfully be stored, and the known-answer set that proves it works — then open a pull request containing the merge. Never writes to the record; the merge is the yes. Use when the desk holds nothing on a subject, accounting or otherwise.
 ---
 
 # desk-factory
 
-**A desk is a definition, not code.** Subjects, sources with their tiers and
-storage rules, a problem set, and the two record stores. That is what makes the
-second desk cheap: this fills in a form, it compiles nothing, and the engine that
-grades the hand-built desk is the engine that grades this one.
+**A subject is a definition, not code.** Sources with their tiers and storage
+rules, a problem set, the passages, and which source answers what. That is what
+makes the second subject cheap: this fills in a form, it compiles nothing, and
+the engine that grades the hand-written corpus is the engine that grades this.
 
-Nothing here is accounting-specific. The one accounting desk that exists —
-`fixed-assets`, on Treas. Reg. § 1.263(a)-3 — is where the questions came from,
-not what they are limited to.
+**It lands in the one corpus.** `dec-kill`, 8 September 2026 — *"Kill the desks;
+one pool."* There are no per-desk folders to add one to: `factory.emit` merges
+into `desk/corpus/`, which is the record a question actually reaches. It wrote a
+`desk/desks/<name>/` directory until 11 September, a day after that directory
+was deleted — passing every gate and landing somewhere nothing loads.
+
+Nothing here is accounting-specific. Treas. Reg. § 1.263(a)-3 is where the
+questions came from, not what they are limited to.
 
 ## The line this skill does not cross
 
@@ -113,16 +118,26 @@ a description of a diff is not the diff.
 factory.emit(draft, "/path/to/checkout", branch="propose-<name>-desk")
 ```
 
-It writes the desk, then runs `guards.check` over what it wrote — every gate the
-shipped desk passes, by name, not a copy of them — and **deletes the directory
-and raises if any gate refuses**. A generated record held to a weaker bar would
-be a second definition of what a desk is, and the two would drift. So a desk
-this emits is one the record already accepts, or it does not exist.
+It assembles the merge in a temporary copy of the corpus and **touches the
+checkout only if that copy passes** — so a refusal leaves nothing to clean up.
+It grades **twice**, and the second does not subsume the first: the proposal on
+its own, where `authority_is_more_than_the_answer_key` can still fire (merged
+into 785 other passages, that guard compares two sets that can never be equal
+again), and then the whole merged corpus, where the guards about the record as a
+body mean something. Then it reads the subjects back out of the merged
+`SUBJECTS.md` through `parse_subjects` — a merge that tallies and a merge that
+landed are different claims.
+
+**It proposes; it does not overwrite.** A source id, a citation prefix, a
+problem id or a citation the corpus already holds is refused by name. The
+migration that built this corpus resolved six duplicate citations by keeping the
+longest text — correct for a migration nobody chose, wrong here: it means the
+interview covered recorded ground, and that is a diff somebody reads.
 
 Then commit, push, and open a **draft** pull request. Say in the body: the
 sources with their tiers, the storage permission and the term it was read from,
 the size of the problem set and where its answers come from, and — if every
-source is primary — that this desk cannot escalate.
+source is primary — that this subject cannot escalate.
 
 ## What it will refuse, and what to do about each
 
@@ -131,13 +146,16 @@ source is primary — that this desk cannot escalate.
 | `no problem set` | A desk that cannot be scored cannot be trusted; there is no number to read, so nothing distinguishes it from one that guesses well. Find worked problems whose answers are somebody else's, or stop. |
 | `no licence term recorded` | You set `may_store` from an assumption. Go and read the terms, or leave it at `license_check`. |
 | `not a checkout` | You aimed it at an installed plugin. The record is read from the plugin and written only in the repository. |
-| `did not pass the gates` | The definition is incomplete or the corpus is the answer key. The message names which gate; nothing was left on disk. |
+| `no corpus at ...` | The checkout has no `desk/corpus/`. It refuses rather than inventing a home — a new directory beside the corpus is a record nothing loads. |
+| `would land on top of what the corpus already holds` | A source, prefix, problem or citation is already recorded. Read what is there; the overlap is the finding. |
+| `did not pass the gates` | The definition is incomplete or the passages are exactly the answer key. The message names which gate and whether it failed alone or merged. Nothing was written. |
+| `merged and then did not read back` | The subjects went into `SUBJECTS.md` and did not come out of it. Nothing was written. |
 
 ## The step this skill cannot take for the firm
 
-A desk whose authority is entirely **ratified positions** — a `human_only`
+A subject whose authority is entirely **ratified positions** — a `human_only`
 source, whose licence forbids the content reaching a model at all — cannot be
-emitted here, because an agent never writes a ratified position. That desk is
+emitted here, because an agent never writes a ratified position. That subject is
 proposed in two steps and the firm's ratification is the **first** of them. This
 is a constraint of the design, not a gap in the tooling: a position the firm did
 not give is one they will disown the moment it is read back to them.

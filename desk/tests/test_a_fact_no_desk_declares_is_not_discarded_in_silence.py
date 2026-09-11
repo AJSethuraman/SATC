@@ -35,7 +35,7 @@ import engine
 import record
 from engine import Answer
 
-DESKS = Path(__file__).resolve().parents[1] / "desks"
+CORPUS = Path(__file__).resolve().parents[1] / "corpus"
 
 QUESTION = "a business credit card paid a cash-back reward into the account — is that income?"
 CITATION = "PLR 201027015, LAW AND ANALYSIS"
@@ -47,7 +47,7 @@ OBTAINED = "recurring earning on spend, not a one-off sign-up award"
 
 
 def _serve(facts):
-    desk = record.load(DESKS / "rewards-and-information-returns")
+    desk = record.load(CORPUS)
     return engine.serve(Answer(position=POSITION, citation=CITATION), desk,
                         question=QUESTION,
                         context=record.Context(facts=facts))

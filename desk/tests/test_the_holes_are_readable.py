@@ -140,12 +140,12 @@ def test_a_missing_queue_says_so_and_fails(capsys, tmp_path):
 def test_a_placeholder_in_a_records_line_is_not_a_fact():
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     broken = body.replace("**Records:** capitalization_rule",
                           "**Records:** *(nothing)*")
     with pytest.raises(rec.RecordError) as e:
-        rec.parse_subjects(broken, 'capitalization-and-de-minimis')
+        rec.parse_subjects(broken, 'corpus')
     assert "not a fact name" in str(e.value)
 
 
@@ -153,19 +153,19 @@ def test_a_placeholder_in_a_records_line_is_not_a_fact():
 def test_only_a_name_gets_through(name):
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     with pytest.raises(rec.RecordError):
         rec.parse_subjects(body.replace("**Records:** capitalization_rule",
                                         f"**Records:** {name}"),
-                           'capitalization-and-de-minimis')
+                           'corpus')
 
 
 def test_the_real_records_lines_all_still_load():
     """The guard must not eat the record it is guarding."""
     import record as rec
     n = 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if (d / "SOURCES.md").is_file():
             n += len(rec.load(d).records)
     assert n >= 3, f"only {n} declared facts across every desk; the guard bit"
@@ -178,13 +178,13 @@ def test_case_is_normalised_rather_than_refused():
     matter, which is how guards get loosened later."""
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     reg = rec.parse_subjects(
         body.replace("**Records:** capitalization_rule",
                      "**Records:** CAPITALIZATION_RULE"),
-        "capitalization-and-de-minimis")
-    assert reg.records == ("capitalization_rule",)
+        "corpus")
+    assert "capitalization_rule" in reg.records
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +195,14 @@ def test_every_store_a_refusal_lands_in_is_read():
     """The bug, stated as a property. `stores()` must find all three families,
     because the version that found one printed a zero over five live refusals."""
     kinds = {where.split("/")[0] for _, where, _ in holes.stores()}
-    assert kinds == {"unfiled", "desks", "runs"}, (
+    # TWO SINCE 10 SEPTEMBER 2026, AND IT WAS THREE. The families were
+    # `unfiled/`, `runs/` and `desks/<name>/unsupported/` — seven per-desk
+    # queues. `dec-kill` left one, `corpus/unsupported/`, and the reason it is
+    # one is in `attempts.py`: forty failures against one host is a source to
+    # retire; the same forty split seven ways is seven shrugs. So the property
+    # is unchanged and the denominator moved: every family a refusal can land
+    # in must be read, and if a third appears this goes red.
+    assert kinds == {"unfiled", "runs", "corpus"}, (
         f"only {sorted(kinds)} read; a refusal filed anywhere else is invisible")
 
 

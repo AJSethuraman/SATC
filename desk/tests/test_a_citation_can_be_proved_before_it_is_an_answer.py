@@ -31,9 +31,9 @@ sys.path.insert(0, str(HERE))
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
-DESK = "fixed-assets"
+DESK = "corpus"
 
 
 class _Page:
@@ -46,7 +46,7 @@ class _Page:
 
 
 def _desk():
-    return record.load(DESKS / DESK)
+    return record.load(CORPUS)
 
 
 def _passage(desk):
@@ -182,7 +182,7 @@ def test_the_two_record_outcomes_never_reach_the_core(monkeypatch):
     """
     # A DIFFERENT DESK, deliberately: `fixed-assets` holds no ratified position,
     # so a test written against it would assert nothing and pass.
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     positions = desk.positions
     assert positions, "this desk holds no ratified position to test with"
 

@@ -33,9 +33,9 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                          # noqa: E402
 
-DESK = "fixed-assets"
+DESK = "corpus"
 
 
 class _Page:
@@ -58,7 +58,7 @@ class _Page:
 
 
 def _desk():
-    return record.load(DESKS / DESK)
+    return record.load(CORPUS)
 
 
 def _passage(desk):
@@ -116,7 +116,7 @@ def test_a_position_has_no_publisher_and_says_so():
     """The firm's own words are not the publisher's, and the paragraph beneath
     them is a different claim from the one being served. Reporting that as a
     proof of the answer would be the mirror wearing a hat."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     q = next(p for p in desk.positions if not p.proposed)
     served = engine.Served(position=q.position, citation=q.citation,
                            tier="secondary", checked=q.recorded)
@@ -128,8 +128,15 @@ def test_a_position_has_no_publisher_and_says_so():
 def test_a_marked_omission_is_proved_segment_by_segment():
     """`prove` owns no second copy of the comparison. A passage carrying
     `[...]` is checked the way the corpus tie-out checks it, in order."""
-    desk = record.load(DESKS / "cash-and-bank")
-    p = next(x for x in desk.passages if "[...]" in x.text)
+    desk = record.load(CORPUS)
+    # NAMED, NOT "THE FIRST MARKED ONE". Seven records' marks live in one corpus
+    # now — `test_a_marked_omission_is_still_checked.py` pins that at seven — and
+    # `next(...)` picked whichever sorted first, which stopped being the passage
+    # `whole` below is the publisher's text for.
+    p = next(x for x in desk.passages
+             if "[...]" in x.text
+             and "Reconciling the checking account" in x.citation
+             and "Includes bank charges" in x.text)
     whole = ("When you receive your bank statement, make sure the statement, "
              "your checkbook, and your books agree. The statement balance may "
              "not agree with the balance in your checkbook and books if the "
@@ -148,9 +155,8 @@ def test_a_marked_omission_is_proved_segment_by_segment():
 # ── what the front door does with each ───────────────────────────────────────
 
 def _copy(tmp_path):
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
     return desks
 
 
@@ -171,10 +177,10 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     could be true somewhere. With none passed, nothing is fetched — and this
     whole suite passes none."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None, "None means NOT ASKED FOR, never asked-and-fine"
@@ -182,12 +188,12 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
 
 def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
     page = _Page(passage.text)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=lambda s, c: page,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
@@ -200,10 +206,10 @@ def test_a_moved_source_withdraws_the_answer(tmp_path):
     there any more, and OUR RECORD IS THE ONLY WITNESS to it — which is not
     enough to serve a client on."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        prove=lambda s, c: _Page(
                            f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
@@ -220,10 +226,10 @@ def test_an_unreachable_publisher_does_not_withdraw_the_answer(tmp_path):
         raise TimeoutError("no route to host")
 
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=refuses,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=refuses,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "an outage withdrew a good answer"
     # AND THE JUDGE FELL BACK TO OUR COPY, because nothing was fetched. The
@@ -238,8 +244,8 @@ def test_proving_can_only_add_a_refusal_and_never_remove_one(tmp_path):
     """The gate is unchanged and runs first. A transport that returns the whole
     world cannot rescue an answer the engine already refused."""
     desks = _copy(tmp_path)
-    out = front.answer("what is the threshold?", DESK, position="anything",
-                       citation="26 CFR 9.999(z)", desks=desks, keep=False,
+    out = front.answer("what is the threshold?",  position="anything",
+                       citation="26 CFR 9.999(z)", corpus=desks, keep=False,
                        prove=lambda s, c: _Page("everything imaginable"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_absent"
@@ -249,12 +255,12 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     """A source that moved is a finding about the record, and the queue is where
     findings about the record accumulate."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks,
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks,
                  prove=lambda s, c: _Page(f"{p.citation} rewritten"))
-    filed = (desks / DESK / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    filed = (desks / "unsupported" / "asked.md").read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed
 

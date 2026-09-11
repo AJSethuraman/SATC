@@ -41,11 +41,11 @@ DEPOSIT_IN_TRANSIT = ("a deposit was made on the last day of the month and has "
 @pytest.fixture
 def cash():
     return record.load(record.Path(__file__).resolve().parent.parent
-                       / "desks" / "cash-and-bank")
+                       / "corpus")
 
 
 def _serve(question, position, citation):
-    return conftest.answer_judged(question, "cash-and-bank", position=position,
+    return conftest.answer_judged(question,  position=position,
                       citation=citation, keep=False)
 
 
@@ -77,27 +77,38 @@ def test_the_bare_section_reaches_both_halves(cash):
     assert {p.citation for p in cash.alongside(CITE)} == {BOOKS, STATEMENT}
 
 
-def test_different_paragraphs_of_one_regulation_are_not_siblings():
+def test_different_paragraphs_of_one_regulation_are_not_siblings(cash):
     """The stem is the firm's hand-written note, not the regulation number.
 
-    `capitalization-and-de-minimis` holds positions on § 1.263(a)-1(f)(5) and on
+    The corpus holds positions on § 1.263(a)-1(f)(5) and on
     § 1.263(a)-1(f)(1)(ii)(B). Those are different rules and a reader shown one
     beside the other learns nothing. A looser rule -- same source, or same
-    regulation -- would fire here and teach the reader to skip the block.
+    regulation -- would fire on them and teach the reader to skip the block.
+
+    NAMED, RATHER THAN "EVERY POSITION". This asserted that no position on the
+    capitalization desk had a sibling, which was a true statement about a desk
+    and a weak one about the rule: the Pub. 583 pair lives in the same record
+    now, so "nothing has a sibling" is simply false. The pair that must NOT fire
+    is the pair the docstring is about, and it is checked by name.
     """
-    desk = record.load(record.Path(__file__).resolve().parent.parent
-                       / "desks" / "capitalization-and-de-minimis")
-    for p in desk.positions:
-        assert desk.alongside(p.citation) == (), p.citation
+    for citation in ("26 CFR 1.263(a)-1(f)(5)",
+                     "26 CFR 1.263(a)-1(f)(1)(ii)(B)"):
+        assert cash.position(citation) is not None, (
+            f"{citation} is no longer a ratified position; this test's premise "
+            f"moved")
+        assert cash.alongside(citation) == (), citation
 
 
-def test_it_fires_on_exactly_one_pair_in_the_whole_corpus():
-    """THE DENOMINATOR. A guard that fires everywhere is one nobody reads."""
-    root = record.Path(__file__).resolve().parent.parent / "desks"
-    fired = [(d.name, p.citation) for d in sorted(root.iterdir()) if d.is_dir()
-             for desk in [record.load(d)] for p in desk.positions
-             if not p.proposed and desk.alongside(p.citation)]
-    assert sorted(n for n, _ in fired) == ["cash-and-bank", "cash-and-bank"]
+def test_it_fires_on_exactly_one_pair_in_the_whole_corpus(cash):
+    """THE DENOMINATOR. A guard that fires everywhere is one nobody reads.
+
+    It walked `desks/*/` and expected `["cash-and-bank", "cash-and-bank"]`.
+    There is one record now, so what it counts is the CITATIONS rather than the
+    desks — and two of twenty is the number that makes this guard worth reading.
+    """
+    fired = sorted(p.citation for p in cash.positions
+                   if not p.proposed and cash.alongside(p.citation))
+    assert fired == sorted([BOOKS, STATEMENT]), fired
 
 
 def test_a_proposed_position_is_never_shown_as_a_sibling(cash):
@@ -184,7 +195,6 @@ def test_alongside_is_empty_on_an_ordinary_answer():
     """A control. Set on every answer, it would say nothing on any."""
     out = conftest.answer_judged(
         "we bought a forklift, is the invoice price deducted or capitalized",
-        "fixed-assets",
         position="capitalized as a unit of property",
         citation="26 CFR 1.263(a)-2(d)(1)", keep=False)
     assert isinstance(out, engine.Served)

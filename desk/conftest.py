@@ -21,7 +21,11 @@ ROOT = Path(__file__).parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-DESKS = ROOT / "desks"
+#: ONE CORPUS. `dec-kill`, 8 September 2026 — "Kill the desks; one pool."
+#: `DESKS = ROOT / "desks"` sat here beside it until 10 September, when the firm
+#: said for the third time to delete them and the directory went. The record
+#: directory is the corpus itself; nothing sits beneath it.
+CORPUS = ROOT / "corpus"
 
 
 class NetworkUsed(AssertionError):
@@ -44,7 +48,7 @@ def no_network(monkeypatch):
 @pytest.fixture
 def fixed_assets():
     import record
-    return record.load(DESKS / "fixed-assets")
+    return record.load(CORPUS)
 
 
 @pytest.fixture
@@ -89,7 +93,7 @@ def a_judgment(text, *, by="a-second-reader", supports=True):
     return judging.Judgment(by=by, supports=supports, because=words)
 
 
-def answer_judged(question, desk_name, *, citation="", desks=DESKS, **kw):
+def answer_judged(question, *, citation="", corpus=None, **kw):
     """`ask.answer` with a real second reader, for tests about something else.
 
     THE GATE IS REAL AND THIS DOES NOT SOFTEN IT. It looks the citation up in
@@ -105,14 +109,14 @@ def answer_judged(question, desk_name, *, citation="", desks=DESKS, **kw):
     a served answer and reaches this line will refuse `not_judged`, loudly.
     """
     import ask
-    import record as _record
     text = ""
+    corpus = Path(corpus) if corpus else ask.CORPUS
     if citation:
-        desk = _record.load(Path(desks) / desk_name)
+        desk = ask._corpus(corpus)[0]
         backing = desk.authority_for(citation)
         if backing is not None:
             text = (getattr(backing[1], "text", "")
                     or getattr(desk.passage(citation), "text", "")
                     or getattr(backing[1], "position", ""))
-    return ask.answer(question, desk_name, citation=citation, desks=desks,
+    return ask.answer(question, citation=citation, corpus=corpus,
                       judged=a_judgment(text) if text.strip() else None, **kw)

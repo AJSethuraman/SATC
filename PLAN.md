@@ -447,6 +447,190 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-10 — The four answered decisions are built (desk 0.22.0).**
+
+  `dec-gate`, `dec-coverage`, `dec-fields` and `dec-pos2`, in that order, on top
+  of the one-corpus merge. 1,202 passing, 1 skipped.
+
+  **`dec-gate` — "Fail closed."** `candidates.consider` read
+  `if verdict and url and not governs(...)`, and `Verdict` is falsy when no
+  domain fired — so a question the map does not recognise skipped the publisher
+  check entirely and went straight to a live fetch. The one class where nobody
+  had established the publisher gets to say anything was the one class never
+  asked. It parks and notifies now, on the new reason
+  `body_of_authority_unknown`. **Measured: twelve of the fifteen working
+  questions classify nothing. The docket said eight** — recorded rather than
+  reconciled; the docket's figure predates `810e5dc`'s income-side narrowing,
+  which does raise this count, but nobody has shown those four are the four.
+
+  **`dec-coverage` — "Both."** `consult` no longer returns `""` on any path.
+  Silence is a short paper saying what was searched (786 citations across 34
+  publications), that it is **not permission**, and how to park it — Occam's
+  *"a doer reads it as permission. I nearly did."* And the second silence, the
+  harder one: a result that is not empty and settles nothing. No cutoff closes
+  it (measured: five of six unanswerable questions outscore the weakest
+  answerable one), so the brief says its passages were chosen by word overlap
+  and that being shown one is not evidence it settles anything. 125 tokens on
+  every brief.
+
+  **`dec-fields` — the field proposal channel existed and nothing had ever put
+  anything in it.** `Unsupported` carries `needs_field` and `asked_by`;
+  `from_refusal` reads them off `result.fact` / `result.by_position`;
+  `engine.Result` has neither field, and `ask.answer` built one. So every
+  `no_field_for_this_fact` ever filed landed with both empty — a field request
+  naming no field, with no chain back to the position that wanted it, which is
+  the exact condition the firm approved these under. Found by filing one and
+  reading the file back. The notification now says *"Desk proposes: add a field
+  for capitalization_rule? — POS11 needs it and nothing records it [U1]"*
+  instead of *"Desk parked: …"*.
+
+  **`dec-pos2` — POS11 is unpinned, and the two conditions are mechanisms.**
+  It was pinned to § 1.262-1(a) and two independent judges refused it: that
+  paragraph is about costs which are *personal*, this position is about costs
+  whose nature is *unknown*. **Not one word of the position changed and the
+  ratification date is untouched** — what moved is the claim about what it rests
+  on. `Kind: firm policy`, a new source row S34 for the firm's own standing
+  policy, and a caveat on every answer and in every brief. It SERVES: *"I'm good
+  with this"*, the same disposition as `dec-guidance`. `Reviewed: open` is the
+  mark, and `ask.review_brief` is the inverse check — not *what proves this* but
+  *does anything on file contradict this*, scored on the position's own words so
+  the list is not written by whoever proposed the policy.
+
+  **The review for POS11 is generated and waiting on the firm:
+  `desk/docs/REVIEW-POS11-2026-09-10.md`.** And a finding to read with it: the
+  eight nearest passages are substantiation and recordkeeping rules — Pub. 463
+  on adequate records, § 1.274-5T on contemporaneous records, a de minimis
+  anti-abuse example — and **none of them is about a purchase whose nature is
+  unknown.** That is the always-answering problem inside the review itself: the
+  brief's "nothing found" branch cannot fire, because eight plausible-looking
+  things always come back. The brief says they were chosen by word overlap and
+  that nobody decided they bear on it, which is the honest disclosure and is not
+  the same as a clean bill. **Read as coverage rather than as review, the
+  answer looks like: the corpus holds nothing that speaks to this policy.** That
+  is the firm's to confirm, not mine.
+
+
+- **2026-09-11 — Three things still speaking in desks, and one decision put to the
+  firm (desk 0.23.0).** Suite **1,220 passing, 1 skipped**; canon 187.
+
+  **`factory.emit` was writing into `desk/desks/<name>/`** — the folder `dec-kill`
+  deleted the day before. It is the one documented route for the firm to add a
+  subject the desk does not cover: it interviews them, passes every gate, and
+  landed where nothing loads. It now merges into `corpus/`, refuses on any
+  collision rather than resolving one, grades the proposal ALONE (where
+  `authority_is_more_than_the_answer_key` can still fire — merged into 785 other
+  passages that guard compares two sets that can never be equal again, so
+  checking only the merge would have quietly retired a gate) and then the merge
+  WHOLE, and reads the subjects back out of `SUBJECTS.md` afterwards, because
+  `parse_subjects` reads `blocks[0]` and a second heading is silently unread.
+
+  **`relay.as_prompt` still ended "Say which desks this reached."** That is the
+  message on the wire to Forge-Occam — the V1 leg — and it carries the protocol
+  precisely so a stale SKILL.md does not matter. Rewritten around which
+  citations a phrasing surfaced.
+
+  **A filed hole now carries its evidence.** "nothing in the corpus shares a word
+  with this question" is the same sentence on every row; it now names the words —
+  *the corpus has never seen any word in this question: bought, forklift*. The
+  limit is stated rather than hidden: that list is ALWAYS exhaustive, because one
+  word on file means some passage scores and the page is never reached. So it
+  says which words missed and nothing about whether a rule exists. A first draft
+  said the gap "may be in the wording rather than the authority" on every row —
+  a guess with evidence stapled to it.
+
+  **THE FORKLIFT PROBLEM IS WORSE, NOT SOFTER, AND I FOUND THAT BY CHECKING THE
+  OPPOSITE.** I assumed one corpus had softened it and wrote that into the
+  envelope. Measured first: *"what do i do with it? we bought a forklift"* returns
+  **0** passages where *"is the invoice price deducted or capitalized?"* returns
+  **8**, the firm's own $2,500 threshold among them. `bought` and `forklift`
+  appear in none of 786 passages; `purchase` appears in 85.
+
+  **WAITING ON THE FIRM — `dec-fullstop`.** `pool._WORD` allows `.`, `-` and `/`
+  at the END of a token, so a word closing a sentence is a different word from
+  the same word mid-sentence. Pub. 525's own section opens *"Rewards. If you
+  receive a reward..."* and the pool holds `rewards.`; a question about rewards
+  reaches it never and is filed to the firm as a hole in authority they hold.
+  Counted: **814 of 4,495 vocabulary entries** end in one of these and **128
+  exist only in that form** — `brushes.`, `cabinets.`, `ceilings.` — reachable by
+  no question at all. **The fix is two lines and is deliberately not applied.**
+  It reorders which authority comes back on **14 of 19** real questions and costs
+  Q18 its commissioned pairing outright (15 of 16 becomes 14), and the firm has
+  `dec-guidance-narrow` open, which is a question about exactly which authority
+  gets served. Moving retrieval underneath that is not a fix. Pinned instead, the
+  way the routing defects were pinned before `dec-kill`:
+  `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` re-runs the
+  whole measurement every suite, and their answer is one line in `pool.terms`.
+
+  **Two corrections to what I had written down.** `domains.tier_for` was on the
+  docket as an open defect — *"a guide fetched live from irs.gov comes back
+  stamped as the rule"*. Run rather than read: it comes back `binding=False` with
+  a caveat saying nobody has classified the document, and a test asserts the
+  tier field reports the host's grade **deliberately**. And the 12-of-15
+  classification figure against the docket's 8 is now measured across the three
+  `DOMAINS.md` revisions — **9, then 13, then 12** — so the narrowing is what
+  moves it, and **no revision produces 8**. Recorded as unexplained rather than
+  rounded into the story that fits.
+
+- **2026-09-10 — The desks are deleted. One corpus (desk 0.22.0).**
+
+  `dec-kill`, 8 September: *"Kill the desks; one pool."* It had not been done.
+  Twice on 10 September the firm said so plainly — *"I said to delete them.
+  I've said to multiple times."*, *"I do not care. One corpus."* — and told me
+  to stop asking. `desk/desks/` is gone, and so are `routing.py`,
+  `tools/subject_gaps.py`, `tools/pool_vs_routing.py`, `tests/test_routing.py`
+  and the two tests that pinned routing defects on purpose. `desk_name` has left
+  the public API; `ask.consult` returns ONE brief, narrowed by what the question
+  reaches rather than by which folder it landed in. Suite: **1,155 passing, 1
+  skipped**; canon 187.
+
+  **The three end-to-end checks the plan asked for, run on the merged record:**
+  Forge-Occam's seven substantiation phrasings put Pub. 583 in the top three on
+  **6 of 7** (the word list reached the holding desk on 2 of 7); `dec-kill`'s own
+  question — *"are unidentified deposits gross receipts?"* — no longer reaches
+  the meals substantiation rule; and no brief names a desk, because there is
+  nothing to name.
+
+  **FOUR THINGS THE MERGE SURFACED, AND THREE OF THEM ARE THE FIRM'S TO DECIDE.**
+
+  1. **The migration truncated every wrapped subject declaration, and no count
+     caught it.** `tools/one_corpus.py` read `**Answered from S1:**` line by
+     line, so `capitalization-and-de-minimis`'s thirty-eight subjects arrived as
+     three. Citations, positions, problems and sources all reconciled exactly;
+     what went missing was the vocabulary that decides whether a citation
+     ANSWERS anything. It surfaced as eleven recorded problems being marked
+     off-source against a pinned cost of zero — **a test that pins a COST caught
+     what five tests pinning COUNTS could not.** Fixed, re-run, and the
+     reconciliation now checks every subject and every subject/source pair.
+
+  2. **Eight recorded answers rested on somebody's reading while the rule sat on
+     another desk.** PH2, RW1, RW5, RW6, RW8, RW9, VE13 and VE15 served under a
+     caveat as guidance; they now escalate *"is secondary authority [...] and
+     this desk holds binding authority on this subject. Cite the rule, or
+     escalate."* Nothing about those answers changed — what changed is that the
+     corpus can now SEE the binding rule, because a question only ever reached
+     one desk before. **This takes back part of `dec-guidance`** (*"Serve it,
+     marked"*, fourth docket), which was decided on the argument that nine
+     problems could otherwise only escalate. Six can only escalate again.
+     Whether the gate should read "binding authority on this paragraph's
+     question" rather than "anywhere in the corpus" is the firm's call and is
+     recorded, not taken.
+
+  3. **The GRADED prompt no longer fits an 8k window; the ANSWERING one now
+     does.** `scoreboard_run.build_prompt` shows the index, and the index is now
+     the corpus — 25,622 tokens against 7,616 of room, up from under 7,616 on
+     every desk. The path a real question takes went the other way: 2,284 to
+     5,925 tokens on four real questions, where six of seven desks used to
+     overrun. Not urgent — nothing is scored against a small model today
+     (*"We currently do not need to test against ollama"*) — and the fix is a
+     decision about how a score is taken, not a change to make quietly.
+
+  4. **A figure I wrote here two days ago was wrong and the arithmetic said so
+     the whole time.** The judge's cost note claimed merging turned seven
+     off-source answers on-source, *a saving*. 85 is fewer served than 92, so it
+     was the opposite; and the 85 itself came from the truncation bug. It is 84,
+     and the reason is (2) above, not `answered_from` at all.
+
+
 - **2026-09-10 — Seven docket answers, and the seventh is not an answer: it is the
   firm asking why a decision from two days earlier had not been started (desk).**
 
@@ -619,12 +803,23 @@ it with them.
   parked queue moved out of the versioned plugin cache, and desk **0.18.0** —
   because installable is not installed at the same version number.
 
-  `dec-order` — **"Build the pool beside the desks; switch on evidence."** So
-  `dec-kill` is a decided destination and not an immediate demolition. The
+  `dec-order` — **"Build the pool beside the desks; switch on evidence."**
+  ~~So `dec-kill` is a decided destination and not an immediate demolition. The
   word-matching stays alive until the pool answers the same questions at least
-  as well, because deleting it first would leave the next close with nothing to
-  ask, and the standing instruction is to keep running closes and fix what they
-  hit.
+  as well.~~ **WITHDRAWN 10 SEPTEMBER 2026, AND IT WAS NEVER THE FIRM'S
+  SENTENCE.** The strikethrough above is mine. `dec-order` says to build the
+  pool beside the desks and switch on evidence; it says nothing about how long
+  the desks live afterwards. I wrote the gloss into this log on 9 September and
+  then quoted it back at the firm for three days — in a docket item that
+  re-asked them to decide `dec-kill`, and in the four-hourly check-in. Their
+  reply, twice on 10 September: *"I said to delete them. I've said to multiple
+  times."* and *"I do not care. One corpus."*
+
+  The evidence `dec-order` asked for did arrive and it is frozen in
+  `desk/docs/POOL-VS-ROUTING-2026-09-10.md`: the word list reached the holding
+  desk on 2 of 7 real phrasings and the pool placed the authority in the top
+  three on 6 of 7. `routing.py`, `tools/subject_gaps.py`,
+  `tools/pool_vs_routing.py` and `desk/desks/` are deleted at desk **0.22.0**.
 
   `dec-expense` — **"Leave it — the matching is being deleted anyway."** One
   route survived the income-side narrowing: *"is the owner draw recorded as an

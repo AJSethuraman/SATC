@@ -403,6 +403,25 @@ ABSENT, NONE, RECORDED = "absent", "none_recorded", "recorded"
 #: and "somebody asked and the answer was no" is the whole point of the field.
 NO_STANDING_RULE = "none"
 
+#: WHAT A FIRM-POLICY POSITION'S REFERENCE BEGINS WITH.
+#:
+#: `dec-pos2`, 10 September 2026. A position may rest on the firm rather than on
+#: a paragraph, and the danger in that is not the missing citation — it is a
+#: reference a reader takes for one. Every lookup in this file is keyed on
+#: citation and none of them may be given an empty string, so a policy still
+#: carries a reference; it just has to be visibly the firm's.
+#:
+#: A LITERAL PREFIX RATHER THAN A FLAG, because the flag is on the position and
+#: the reference travels without it — into a refusal's sentence, into a brief,
+#: into a notification, into whatever a model quotes back. The words have to
+#: carry it.
+_POLICY_PREFIX = "SATC policy —"
+#: AN EM-DASH AND NOT A MIDDOT, and the reason is the parser. `Citation:` shares
+#: its line with `Recorded:` and `_inline` splits that line on ` · ` — so a
+#: reference containing a middot is read as two fields and the citation silently
+#: becomes `SATC policy`. It loaded, it matched no source, and `load` refused a
+#: record that was correct. Found on the first policy written.
+
 
 @dataclass(frozen=True)
 class Registration:
@@ -728,6 +747,48 @@ class Desk:
         return tuple(p for p in self.positions
                      if not p.proposed and p.citation != citation
                      and _stem(p.citation) == stem)
+
+    def narrowed_to(self, citations) -> "Desk":
+        """This record holding only the citations named, and what they rest on.
+
+        WHY IT EXISTS. `ask.brief` prints EVERY passage the record holds, which
+        was reasonable when a question reached one desk of forty passages and is
+        useless over one corpus of 785: an answerer handed the whole corpus is
+        an answerer handed nothing, and a model with an 8,192-token window
+        (LOCAL-LLM-PATTERN rule 1) is handed less than nothing.
+
+        So the pool narrows and this applies the narrowing. `pool.look` says
+        which citations speak to the question; this returns the record as if it
+        held only those, and every existing reader -- the brief, the positions
+        block, `alongside`, the sources list -- goes on working unchanged. That
+        is the point: NOTHING about how a brief is rendered changes, only how
+        much of the record reaches it.
+
+        SOURCES AND POSITIONS FOLLOW THE PASSAGES, and both directions matter.
+        A source nothing cites is noise in the brief. A POSITION whose citation
+        was not selected is worse than noise -- it is the firm's answer to a
+        different question, printed as though it bore on this one.
+
+        `alongside` IS DELIBERATELY NOT NARROWED. Where the firm holds two
+        positions on one passage with opposite answers -- `cash-and-bank` did,
+        and serving one without the other is the 7 September incident -- both
+        must travel with the answer even though only one citation was retrieved.
+        `Desk.alongside` matches on the citation STEM, so keeping every position
+        whose stem is selected is what preserves it.
+        """
+        import dataclasses
+        wanted = {c for c in citations}
+        stems = {_stem(c) for c in wanted}
+        passages = tuple(p for p in self.passages if p.citation in wanted)
+        positions = tuple(q for q in self.positions
+                          if q.citation in wanted or _stem(q.citation) in stems)
+        used = {p.source_id for p in passages}
+        return dataclasses.replace(
+            self,
+            passages=passages,
+            positions=positions,
+            sources=tuple(s for s in self.sources if s.id in used),
+        )
 
     def rules_only(self) -> "Desk":
         """This desk with its worked examples withheld. FOR GRADING ONLY.
@@ -1108,6 +1169,63 @@ def load(desk_dir: Path) -> Desk:
                 f"or the position can never be served: nothing a caller passes "
                 f"could ever meet it."
             )
+
+    # A FIRM POLICY MUST NOT LOOK LIKE AUTHORITY, AND IT MUST BE MARKED.
+    #
+    # `dec-pos2`, 10 September 2026 — the firm: "Firm policy, no citation — with
+    # two conditions." Three ways that could go wrong silently, refused here
+    # where the sources are in hand:
+    #
+    #   A policy citing a paragraph of a source the record holds. That is the
+    #   mis-pin the decision was made about, wearing the label that is supposed
+    #   to say it is not one — worse than the original, because the label reads
+    #   as a disclosure.
+    #
+    #   A policy with an empty citation. Every lookup in this file is keyed on
+    #   citation; an empty one collides with the next empty one and
+    #   `authority_for` returns whichever sorted first. The reference must be
+    #   real and must be the firm's, not a publisher's.
+    #
+    #   `Reviewed:` on an ordinary cited position. It would read as a general
+    #   review log, and the one thing it records — that somebody checked an
+    #   UNCITED position against the authority on file — is not a claim an
+    #   ordinary position can make.
+    for q in pos:
+        if q.is_policy:
+            if not q.citation.strip():
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and cites "
+                    f"nothing at all. It still needs a reference the firm can "
+                    f"name it by — every lookup here is keyed on it — and "
+                    f"{_POLICY_PREFIX!r} is what that reference begins with.")
+            if not q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and its "
+                    f"Citation is {q.citation!r}. A policy's reference must "
+                    f"begin {_POLICY_PREFIX!r}, so nothing can read it as a "
+                    f"paragraph somebody could go and check.")
+            # AND THERE IS NO THIRD CHECK HERE, DELIBERATELY. The first draft
+            # added one: "the citation must fall under the policy source and no
+            # other". It was dead code. A reference beginning `SATC policy —`
+            # cannot also resolve to a publisher unless some source registers a
+            # prefix under it, and the uniqueness check below already refuses a
+            # citation matching more than one source, by name and by count. A
+            # guard that can never fire reads like protection and is not, which
+            # is worse than the gap it pretends to close.
+        else:
+            if q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} and "
+                    f"does not declare `Kind: firm policy`. A reference "
+                    f"beginning {_POLICY_PREFIX!r} points at nothing anybody "
+                    f"can read.")
+            if q.reviewed.strip().lower() != _positions.OPEN:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} records a Reviewed line "
+                    f"and rests on authority. `Reviewed:` says an UNCITED "
+                    f"position was checked against what is on file; on a cited "
+                    f"one it would read as a general review log and claim "
+                    f"something this record does not check.")
 
     return Desk(
         name=desk_dir.name,

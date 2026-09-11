@@ -146,6 +146,46 @@ def consider(*, question: str, position: str, citation: str, url: str,
     """
     verdict = domains.classify(question) if question else None
 
+    # BEFORE ANY FETCH (0). NOTHING CLASSIFIED IT, SO NOTHING CAN CHECK IT.
+    #
+    # `dec-gate`, 10 September 2026 — the firm: **"Fail closed."**
+    #
+    # THE DEFECT. The publisher-competence check below is conditioned on
+    # `verdict`, and `Verdict.__bool__` is False when no domain fired. So a
+    # question whose vocabulary nothing recognises SKIPPED THE GATE ENTIRELY
+    # and went straight to a live fetch of an unrecorded publisher — the one
+    # class where nobody had established the publisher gets to say anything.
+    # Measured 8 of 15 ordinary working questions; Forge-Occam reported 9 of 18
+    # on their own close, and the five that reach nothing agree exactly.
+    #
+    # The `Verdict` docstring has always said a blank verdict is *"a refusal and
+    # not an absence of opinion"*. The caller two files away read it as an
+    # absence of opinion, which is what a falsy object invites.
+    #
+    # THIS IS NOT A NEW POLICY. It is the FOURTH DISPOSITION the firm signed off
+    # in August — primary serves silent, secondary serves marked and notifies,
+    # tertiary parks and notifies, and **unknown parks and notifies, because
+    # unknown is a real fourth state** — reaching the one file it was never
+    # wired into. Their answer builds the map: a parked question they settle is
+    # how a domain learns the word it was missing.
+    #
+    # A QUESTION IS REQUIRED FOR THE GATE TO FIRE AT ALL. `consider` is called
+    # with `question=""` by callers that have no question to classify, and
+    # refusing those would fail closed on a case where nothing was ever open.
+    if question and url and not verdict:
+        return engine.Refusal(
+            "body_of_authority_unknown",
+            f"{citation!r} is in no record, and nothing was fetched: nothing "
+            f"here recognises what body of authority this question belongs to, "
+            f"so there is no way to say whether {domains._registered(url)} gets "
+            f"to settle it. Fetching anyway would prove the publisher says it "
+            f"and prove nothing about whether that matters",
+            ask=("Say which body of authority settles this — federal tax, "
+                 "US GAAP, state law — or that none does. This question uses "
+                 "words the map does not hold, and your answer is what adds "
+                 "them."),
+            desk=desk.name)
+
     # BEFORE ANY FETCH (1). The publisher must be competent to settle this.
     if verdict and url and not domains.governs(url, verdict.domain):
         also = ", ".join(d.name for d in verdict.also)

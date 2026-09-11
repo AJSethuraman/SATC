@@ -8,6 +8,7 @@ that the hand-built shipped desk goes through.
 """
 from __future__ import annotations
 
+import shutil
 from dataclasses import MISSING, fields
 
 import pytest
@@ -16,23 +17,26 @@ import engine
 import factory
 import guards
 import record
-import routing
+from conftest import CORPUS
 
-
-# ── fixtures: the smallest desk that is honestly complete ────────────────────
-
+# NOT `S1` AND NOT `26 CFR`. The fixture merges into the SHIPPED corpus, which
+# already declares both -- so a draft using them would be refused for colliding
+# and every emit test would prove the collision check rather than the merge.
+# `test_a_source_the_corpus_already_declares_is_refused` is where that is proved
+# on purpose.
 SOURCE = factory.SourceDraft(
-    id="S1", title="A public rule", tier="primary", access="public_fetch",
-    citation_prefix="26 CFR", checked="2026-09-04", may_store="full_text",
+    id="SW1", title="A public rule", tier="primary", access="public_fetch",
+    citation_prefix="Widget Standard", checked="2026-09-04",
+    may_store="full_text",
     licence="17 U.S.C. § 105 places a work of the United States Government in "
             "the public domain.",
     url="https://example.invalid/rule",
 )
 
 PROBLEMS = (
-    factory.ProblemDraft(id="P1", title="x", citation="26 CFR 1",
+    factory.ProblemDraft(id="WP1", title="x", citation="Widget Standard 1",
                          answer="must capitalize", facts="a roof was replaced"),
-    factory.ProblemDraft(id="P2", title="y", citation="26 CFR 2",
+    factory.ProblemDraft(id="WP2", title="y", citation="Widget Standard 2",
                          answer="not required to capitalize",
                          facts="a window was refitted"),
 )
@@ -41,15 +45,15 @@ PROBLEMS = (
 # keyed citations is a bijection, and citing correctly under one is an assignment
 # puzzle rather than retrieval -- measured on fixed-assets, 4 Sep 2026 (#244).
 PASSAGES = tuple(
-    factory.PassageDraft(citation=c, source_id="S1", checked="2026-09-04",
+    factory.PassageDraft(citation=c, source_id="SW1", checked="2026-09-04",
                          text=f"the rule at {c}")
-    for c in ("26 CFR 1", "26 CFR 2", "26 CFR 3")
+    for c in ("Widget Standard 1", "Widget Standard 2", "Widget Standard 3")
 )
 
 
 def draft(**over) -> factory.DeskDraft:
     kw = dict(name="widgets", title="When a widget is a widget",
-              answered_from={"S1": ("widget", "widgets")}, sources=(SOURCE,),
+              answered_from={"SW1": ("widget", "widgets")}, sources=(SOURCE,),
               problems=PROBLEMS, passages=PASSAGES)
     kw.update(over)
     return factory.DeskDraft(**kw)
@@ -57,9 +61,30 @@ def draft(**over) -> factory.DeskDraft:
 
 @pytest.fixture
 def checkout(tmp_path):
-    """A repository, which is the only thing the factory will write into."""
+    """A repository holding THE SHIPPED CORPUS, which is what a proposal merges
+    into and the only thing the factory will write to.
+
+    A toy corpus here would make these tests pass over a record that does not
+    exist. Until 11 September 2026 there was no corpus in this fixture at all,
+    because `emit` wrote a fresh `desk/desks/<name>/` directory -- it passed,
+    and what it wrote was unreadable by the answering path. The fixture is the
+    real thing so that a merge which cannot land is a red test here.
+    """
     (tmp_path / ".git").mkdir()
+    (tmp_path / "desk").mkdir()
+    shutil.copytree(CORPUS, tmp_path / "desk" / "corpus")
     return tmp_path
+
+
+def _untouched(checkout) -> bool:
+    """Nothing was written. A refusal that leaves half a subject behind is one a
+    later session finds and trusts -- and with one shared corpus the half is not
+    in a directory somebody can delete, it is inside the record."""
+    live = record.load(checkout / "desk" / "corpus")
+    return (not any(s.id == "SW1" for s in live.sources)
+            and not any(p.id.startswith("WP") for p in live.problems)
+            and not any(q.citation.startswith("Widget Standard")
+                        for q in live.passages))
 
 
 # ── the interview asks for everything the record requires ────────────────────
@@ -155,39 +180,89 @@ def test_a_source_that_answers_nothing_is_refused():
         draft(answered_from={"S1": ()})
 
 
-# ── what it emits goes through the shipped desk's own three gates ────────────
+# ── what it emits goes into the ONE corpus, and is reachable from there ──────
 
-def test_an_emitted_desk_loads_gates_and_grades_like_a_hand_built_one(checkout):
-    """The claim of the whole module, asserted through the shipped code paths.
+def test_an_emitted_subject_lands_in_the_corpus_the_answering_path_reads(checkout):
+    """THE TEST THAT WOULD HAVE CAUGHT IT. Not "the emitted files are well
+    formed" -- they always were. The claim is that a proposal merged this way is
+    part of the record a question reaches, and the only way to say that is to
+    load the corpus afterwards and find the subject in it.
 
-    Not a parallel check that generated records are fine: `record.load`,
-    `guards.check` and `engine.grade` by name. A generated record held to a
-    weaker bar is a second definition of what a desk is, and the two would drift.
+    Until 11 September 2026 `emit` wrote `desk/desks/<name>/`, which `dec-kill`
+    had deleted the day before. Every gate passed. Nothing loaded it.
     """
-    desk_dir = factory.emit(draft(), checkout, branch="propose-widgets")
+    before = record.load(checkout / "desk" / "corpus")
+    corpus_dir = factory.emit(draft(), checkout, branch="propose-widgets")
+    assert corpus_dir == checkout / "desk" / "corpus", (
+        "it wrote somewhere other than the one corpus")
 
-    desk = guards.check(desk_dir)                     # every gate, unchanged
-    assert record.load(desk_dir).name == "widgets"    # and it parses
-    assert len(desk.problems) == 2 and len(desk.passages) == 3
+    desk = guards.check(corpus_dir)                   # every gate, unchanged
+    assert len(desk.problems) == len(before.problems) + 2
+    assert len(desk.passages) == len(before.passages) + 3
+    assert len(desk.sources) == len(before.sources) + 1
 
-    p = desk.problems[0]
+    # and the merge did not cost the corpus anything it already held
+    assert {s.id for s in before.sources} < {s.id for s in desk.sources}
+    assert {q.citation for q in before.passages} < {q.citation for q in desk.passages}
+
+    p = next(p for p in desk.problems if p.id == "WP1")
     graded = engine.grade(engine.Answer(position=p.answer, citation=p.citation),
                           p, desk)
     assert graded.outcome is engine.Outcome.CORRECT
 
-    reg = routing.parse_subjects(
-        (desk_dir / "SUBJECTS.md").read_text(encoding="utf-8"), "widgets")
-    assert reg.fires_on == ("widget", "widgets")
-    assert reg.answered_from == {"S1": ("widget", "widgets")}
+
+def test_the_declared_subjects_come_back_out_of_the_merged_file(checkout):
+    """`parse_subjects` reads `blocks[0]` AND NOTHING ELSE. A `## widgets`
+    heading appended to SUBJECTS.md parses, reviews and merges cleanly, and is
+    read by nobody -- the same silent nothing as the wrong directory, one file
+    down. So the merge puts the declarations INSIDE the corpus's own block, and
+    this is what says it arrived."""
+    corpus_dir = factory.emit(draft(), checkout, branch="propose-widgets")
+    reg = record.parse_subjects(
+        (corpus_dir / "SUBJECTS.md").read_text(encoding="utf-8"), "corpus")
+    assert reg.answered_from["SW1"] == ("widget", "widgets")
+    assert "widget" in reg.fires_on and "widgets" in reg.fires_on
+    # ONE heading, the corpus's own. A second one parses and is never read.
+    assert (corpus_dir / "SUBJECTS.md").read_text(
+        encoding="utf-8").count("\n## ") == 1, (
+        "a second heading was added; everything under it is unread")
 
 
 def test_the_emitted_record_carries_the_licence_term_into_the_diff(checkout):
     """The evidence lands in `SOURCES.md`, where a reviewer meets it in the pull
     request -- not in whatever session decided it."""
-    desk_dir = factory.emit(draft(), checkout, branch="propose-widgets")
-    text = (desk_dir / "SOURCES.md").read_text(encoding="utf-8")
+    corpus_dir = factory.emit(draft(), checkout, branch="propose-widgets")
+    text = (corpus_dir / "SOURCES.md").read_text(encoding="utf-8")
     assert "17 U.S.C. § 105" in text
-    assert record.load(desk_dir).sources[0].note.startswith("17 U.S.C.")
+    assert next(s for s in record.load(corpus_dir).sources
+                if s.id == "SW1").note.startswith("17 U.S.C.")
+
+
+# ── it proposes; it does not overwrite ───────────────────────────────────────
+
+def test_a_source_the_corpus_already_declares_is_refused(checkout):
+    """The interview covered ground already recorded. That is a diff somebody
+    reads, not a regeneration -- and picking silently between two texts for one
+    citation is exactly what `one_corpus.py` had to REPORT rather than perform."""
+    held = record.load(checkout / "desk" / "corpus").sources[0]
+    d = draft(sources=(factory.SourceDraft(
+        id=held.id, title="mine", tier="primary", access="public_fetch",
+        citation_prefix="Widget Standard", checked="2026-09-04",
+        may_store="full_text", licence="17 U.S.C. § 105"),),
+        answered_from={held.id: ("widget",)})
+    with pytest.raises(factory.FactoryError, match="already declared"):
+        factory.emit(d, checkout, branch="propose-widgets")
+
+
+def test_a_citation_the_corpus_already_stores_is_refused(checkout):
+    """Two texts under one citation is the six truncations `dec-kill` found, and
+    the reason the merge there reported every drop instead of performing it."""
+    held = record.load(checkout / "desk" / "corpus").passages[0]
+    d = draft(passages=PASSAGES + (factory.PassageDraft(
+        citation=held.citation, source_id="SW1", checked="2026-09-04",
+        text="a shorter extract of the same rule"),))
+    with pytest.raises(factory.FactoryError, match="already stored"):
+        factory.emit(d, checkout, branch="propose-widgets")
 
 
 # ── it writes into a checkout, on a branch, and nowhere else ─────────────────
@@ -201,57 +276,72 @@ def test_it_refuses_to_write_anywhere_but_a_checkout(tmp_path):
     assert not (tmp_path / "desk").exists()
 
 
+def test_it_refuses_a_checkout_with_no_corpus_rather_than_making_one(tmp_path):
+    """A new directory beside the corpus is a record nothing loads, which is the
+    defect this whole change is about. It refuses instead of inventing a home."""
+    (tmp_path / ".git").mkdir()
+    with pytest.raises(factory.FactoryError, match="no corpus at"):
+        factory.emit(draft(), tmp_path, branch="propose-widgets")
+    assert not (tmp_path / "desk").exists()
+
+
 @pytest.mark.parametrize("branch", ["main", "master", "  ", ""])
 def test_it_refuses_to_land_a_desk_without_a_pull_request(checkout, branch):
     """Writing onto the branch that ships is not a faster route to the same
     place. It is the firm's yes removed."""
     with pytest.raises(factory.FactoryError, match="pull request|branch"):
         factory.emit(draft(), checkout, branch=branch)
-    assert not (checkout / "desk" / "desks" / "widgets").exists()
+    assert _untouched(checkout)
 
 
-def test_it_refuses_to_regenerate_a_desk_that_already_exists(checkout):
+def test_it_refuses_to_propose_the_same_subject_twice(checkout):
     factory.emit(draft(), checkout, branch="propose-widgets")
-    with pytest.raises(factory.FactoryError, match="already exists"):
+    with pytest.raises(factory.FactoryError, match="already declared"):
         factory.emit(draft(), checkout, branch="propose-widgets")
 
 
 # ── a desk that fails a gate does not exist ──────────────────────────────────
 
-def test_a_desk_that_fails_a_gate_is_removed_rather_than_left_half_written(checkout):
-    """The bijection case, and the rollback in one test.
+def test_the_bijection_guard_still_fires_although_the_corpus_dilutes_it(checkout):
+    """THE GUARD THE MERGE WOULD HAVE RETIRED, and the reason `emit` grades
+    twice.
 
     Two problems keyed to exactly the two stored citations is the shape #244
-    measured: the corpus IS the answer key, so the citation score measures an
-    assignment puzzle. The guard refuses it -- and what matters as much is that
-    nothing is left behind, because a half-written desk on disk is one a later
-    session finds and trusts.
+    measured: the authority IS the answer key, so the citation score is an
+    assignment puzzle. `authority_is_more_than_the_answer_key` compares two SETS
+    -- and merged into 785 other passages that comparison can never be equal
+    again, so grading only the merge would have let this through while looking
+    like more checking rather than less. The proposal is graded alone as well,
+    and this is what proves it.
     """
     d = draft(passages=PASSAGES[:2])
-    with pytest.raises(factory.FactoryError, match="did not pass the gates"):
+    with pytest.raises(factory.FactoryError,
+                       match="gates a hand-built subject"):
         factory.emit(d, checkout, branch="propose-widgets")
-    assert not (checkout / "desk" / "desks" / "widgets").exists()
+    assert _untouched(checkout)
 
 
-def test_a_problem_citing_authority_the_desk_lacks_is_caught_at_emit(checkout):
+def test_a_problem_citing_authority_the_subject_lacks_is_caught_at_emit(checkout):
     """Every attempt at such a problem would grade `authority_absent`, so the
     denominator would count a row nothing could ever answer."""
     d = draft(problems=PROBLEMS + (
-        factory.ProblemDraft(id="P3", title="z", citation="26 CFR 99",
+        factory.ProblemDraft(id="WP3", title="z", citation="Widget Standard 99",
                              answer="must capitalize", facts="f"),))
     with pytest.raises(factory.FactoryError, match="did not pass the gates"):
         factory.emit(d, checkout, branch="propose-widgets")
-    assert not (checkout / "desk" / "desks" / "widgets").exists()
+    assert _untouched(checkout)
 
 
 def test_text_stored_from_a_source_that_forbids_it_is_caught_at_emit(checkout):
     """The factory cannot route around `stored_text_is_permitted` by emitting
     the passages and the permission in one pass."""
     d = draft(sources=(factory.SourceDraft(
-        id="S1", title="A licensed rule", tier="primary", access="public_fetch",
-        citation_prefix="26 CFR", checked="2026-09-04"),))   # license_check
+        id="SW1", title="A licensed rule", tier="primary",
+        access="public_fetch", citation_prefix="Widget Standard",
+        checked="2026-09-04"),))                              # license_check
     with pytest.raises(factory.FactoryError, match="did not pass the gates"):
         factory.emit(d, checkout, branch="propose-widgets")
+    assert _untouched(checkout)
 
 
 # ── render writes nothing ────────────────────────────────────────────────────
@@ -261,8 +351,8 @@ def test_render_touches_no_disk(checkout):
     anything is. `canon-mine`'s `Proposal.ask()` draws the same line."""
     files = factory.render(draft())
     assert set(files) == {"SUBJECTS.md", "SOURCES.md", "PROBLEMS.md",
-                          "extracted/S1.md"}
-    assert not (checkout / "desk").exists()
+                          "extracted/SW1.md"}
+    assert _untouched(checkout)
 
 
 # ── the skill has to reach other machines to be worth anything ───────────────

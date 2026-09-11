@@ -29,14 +29,14 @@ BOOKS = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
 
 def _served():
     return conftest.answer_judged("the bank statement shows a $10 service charge and "
-                      "nothing for it is in the books", "cash-and-bank",
+                      "nothing for it is in the books", 
                       position="an entry in the books", citation=BOOKS,
                       keep=False)
 
 
 def _escalation():
     return conftest.answer_judged("how do I know if a lease should be booked as an asset",
-                      "fixed-assets", escalate="authority_absent",
+                       escalate="authority_absent",
                       working="Whether a lease puts a right-of-use asset on the "
                               "balance sheet is US GAAP under ASC 842. No desk "
                               "here holds the Codification.",
@@ -174,20 +174,18 @@ def test_a_printed_refusal_names_the_desk_that_made_it():
     `Served` never had this problem: its citation identifies where it came from.
     A refusal cites nothing — that is what makes it a refusal."""
     out = _escalation()
-    assert out.desk == "fixed-assets"
-    assert "fixed-assets" in str(out).splitlines()[0]
+    assert out.desk == "corpus"   # one record; `dec-kill` left nothing else to name
+    assert "corpus" in str(out).splitlines()[0]
 
 
 def test_two_refusals_to_one_question_are_told_apart():
     """THE CASE IT EXISTS FOR, and it is the real one from the live run."""
     seen = {}
-    for name, reason in (("fixed-assets", "facts_not_established"),
-                         ("capitalization-and-de-minimis", "context_not_on_file")):
-        out = conftest.answer_judged("we bought a forklift, deducted or capitalized", name,
-                         escalate=reason, working="the rule is conditional and "
+    for reason in ("facts_not_established", "context_not_on_file"):
+        out = conftest.answer_judged("we bought a forklift, deducted or capitalized", escalate=reason, working="the rule is conditional and "
                          "the condition is not on file",
                          ask="What was the invoice amount?", keep=False)
-        seen[name] = str(out).splitlines()[0]
+        seen[reason] = str(out).splitlines()[0]
     assert len(set(seen.values())) == 2, seen
     for name, line in seen.items():
         assert name in line

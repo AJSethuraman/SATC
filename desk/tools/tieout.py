@@ -460,9 +460,15 @@ def brief_passages(desk: record.Desk) -> dict:
     return {m.group(1).strip(): m.group(2).strip() for m in _BLOCK.finditer(body)}
 
 
-def run(desks_dir: Path = HERE / "desks") -> list[Line]:
+def run(root: Path = HERE) -> list[Line]:
+    """Tie out every passage in the record. ONE CORPUS since 10 September 2026.
+
+    It walked `desks/*/`. The loop is kept over a one-entry list rather than
+    flattened, so a second record — should the firm ever want one — is a change
+    to what this iterates and not a rewrite of what it does.
+    """
     lines: list[Line] = []
-    for d in sorted(desks_dir.iterdir()):
+    for d in [root / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

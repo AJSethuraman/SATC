@@ -59,8 +59,8 @@ for r in d:
 ```
 
 The queue is still worth reading — it is where a hole found mid-close by
-somebody who was not running the desks gets written down. Just check each entry
-against the desks before searching for it.
+somebody who was not running the corpus gets written down. Just check each entry
+against the corpus before searching for it.
 
 **`authority_absent` is the only reason this skill acts on.** The other refusal
 reasons are different holes and searching cannot close any of them:
