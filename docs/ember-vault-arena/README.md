@@ -55,9 +55,14 @@ run on a model. Suite: **89 tests** (July's 62 plus 27 new), all green here.
    python3 -m pip install claude-agent-sdk
    python3 run.py demo --provider agent_sdk --brains brains/house --rounds 1 --seed 1
    ```
-   Eight calls, one round. The ledger line per decision says `validity`,
-   `error_kind`, `latency_ms`, `cost_usd`. If every decision is
-   `network_fallback`, read `fallback_reason` in the replay before anything else.
+   Eight calls, one round. The command ends with the call ledger: one line per
+   call with `validity`, `kind`, milliseconds, tokens, cost and the reason, and a
+   summary line `answered by the model: N of 8`. Eight of eight means the
+   subscription route works. Eight `network_fallback` lines mean it does not;
+   the `reason` column says why. `python run.py ledger <match_id>` prints it
+   again later. Run this in a plain terminal on the machine where `claude` is
+   logged in, with `ANTHROPIC_API_KEY` **unset**: a set key silently switches
+   the SDK to API billing.
 2. **Run the gate** on the house brains:
    ```bash
    python3 tools/gate.py --provider agent_sdk --brains brains/house --seeds 3 --rounds 6 --build scout
