@@ -123,25 +123,59 @@ class Found:
     matched: tuple[str, ...]
 
 
+#: Punctuation a word may legitimately carry INSIDE it and never at its close.
+#: `.`, `-` and `/` are in `_WORD` so `1.263(a)-3`, `Pub. 583` and `1099-K`
+#: survive tokenising whole. Nothing is a full stop at its end.
+_TRAILING = "./-"
+
+
 def terms(text: str) -> tuple[str, ...]:
     """The substantive words of a piece of text, in order, lowercased.
 
-    TRAILING PUNCTUATION IS **NOT** STRIPPED, AND THAT IS A KNOWN DEFECT LEFT
-    IN DELIBERATELY. `_WORD` allows `.`, `-` and `/` inside a token so a
-    citation survives whole -- `1.263(a)-3`, `Pub. 583`, `1099-K`. It allows
-    them at the END too, so a word closing a sentence is a DIFFERENT WORD from
-    the same word mid-sentence: Pub. 525's own section opens *"Rewards. If you
-    receive a reward..."* and the pool holds `rewards.`, which no question can
-    type.
+    `dec-fullstop`, 11 September 2026 — the firm: **"Fix it after Matter 2."**
+    Not *fix it* and not *leave it*: an ordering, because the guidance gate was
+    being narrowed at the same time and both move which authority is served.
+    Matter 2 landed first and the interaction was then MEASURED rather than
+    assumed: the served count is 97 of 98 either way, so there was none.
 
-    `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` measures
-    what it costs and what fixing it would move. It is not fixed here because
-    the fix reorders the authority served on most real questions while the firm
-    has an open decision about exactly that -- see the docket. The test pins the
-    defect on purpose, the way the routing tests did before `dec-kill`.
+    TRAILING PUNCTUATION IS STRIPPED, AND WAS NOT UNTIL NOW. A word closing a
+    sentence was a DIFFERENT WORD from the same word mid-sentence. IRS Pub.
+    525's own section opens *"Rewards. If you receive a reward..."*, so the pool
+    held `rewards.`; a question typed `rewards` and reached it never, and
+    `consult_or_file` filed the question to the firm as a hole in authority they
+    hold, in a section named after the word.
+
+    MEASURED BEFORE THE FIX: 814 of 4,495 vocabulary entries ended in one of
+    these and **128 existed ONLY in the punctuated form** — `brushes.`,
+    `cabinets.`, `ceilings.`, `abroad.`, `1.179-5.` — reachable by no question
+    at all. The other 686 were duplicates of a word already indexed, splitting
+    its document frequency and understating how common it is, which is the input
+    to every score.
+
+    WHAT IT COST, AND IT IS A REAL COST. Of nineteen real questions, fourteen
+    changed which passages came back. One commissioned pairing was lost
+    outright: Q18 reached § 1.162-3(h) Example 6 at rank six, and Pub. 583's
+    "Supporting Documents" now enters at the top and pushes it past the shipped
+    depth of eight. `test_close_questions` is 14 of 16 rather than 15.
+    `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` holds
+    the whole measurement and re-runs it every suite.
+
+    This is not a vocabulary and not a stemmer. `bought` still does not reach
+    `buy`: undoing a tokenising accident is not deciding that two different
+    words mean the same thing, and that second thing is the list `dec-kill`
+    deleted.
     """
-    return tuple(w.group(0).lower() for w in _WORD.finditer(text)
-                 if w.group(0).lower() not in STOPWORDS)
+    out = []
+    for match in _WORD.finditer(text):
+        word = match.group(0).lower()
+        if word in STOPWORDS:
+            continue
+        word = word.rstrip(_TRAILING)
+        # AFTER STRIPPING TOO. `no.` is only a stopword once its dot is gone,
+        # and a token that was nothing but punctuation is not a word.
+        if word and word not in STOPWORDS:
+            out.append(word)
+    return tuple(out)
 
 
 def _records(where: Path) -> list[Path]:

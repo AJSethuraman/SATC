@@ -258,12 +258,27 @@ def _reaches() -> tuple[list[int], list[int]]:
 #: wearing a deductibility question's title, and the authority on it is the one
 #: the pool found. This is recorded as a MISS anyway, because deciding it is a
 #: hit would be this session marking its own paper.
-UNREACHED = [31]
+#:
+#: Q18 JOINED IT ON 11 SEPTEMBER 2026 AND IT WAS PAID FOR, NOT LOST.
+#: `dec-fullstop` — the firm: *"Fix it after Matter 2."* — stopped a word at the
+#: end of a sentence being a different word, which gave back 128 words of the
+#: corpus that no question could reach at all. Q18 — *"Does a hardware-store
+#: purchase ever become an asset?"* — reached § 1.162-3(h) Example 6 at rank
+#: SIX, and Pub. 583's "Supporting Documents" now enters at the top and pushes
+#: it past the shipped depth of eight.
+#:
+#: SAME DISCIPLINE AS Q31: Pub. 583 is arguably a fair hit for a question whose
+#: own words end *"a bank feed has none"*, and deciding that would be this
+#: session marking its own paper. So it is 14 of 16, and the price is named in
+#: `test_a_word_keeps_its_meaning_at_the_end_of_a_sentence.py` beside what was
+#: bought with it rather than written off here.
+UNREACHED = [18, 31]
 
 
 def test_every_commissioned_question_reaches_the_authority_built_for_it():
-    """15 of 16, on the close's own words. Authority nothing reaches is
-    authority nobody asks."""
+    """14 of 16, on the close's own words. Authority nothing reaches is
+    authority nobody asks — and the two it does not reach are each named above
+    with why, rather than counted away."""
     reached, missed = _reaches()
     assert missed == UNREACHED, (
         f"Q{missed} no longer reach the authority commissioned for them; "

@@ -351,8 +351,16 @@ NARROWED = {
     # word overlap and that being shown one is not evidence it settles anything.
     # A fixed cost on every brief, and the cheapest of the three places that
     # warning could have gone.
-    "is a brewery tab a business meal?": 2_410,
-    "what supporting documents does the client have to keep?": 6_050,
+    #
+    # TWO MOVED AGAIN ON 11 SEPTEMBER AND IT IS NOT A COST OF A LONGER BRIEF.
+    # `dec-fullstop` stopped a word at the end of a sentence being a different
+    # word, so both questions now reach DIFFERENT passages — Pub. 583's
+    # "Supporting Documents" among them — and a brief is as long as what it
+    # carries. Same count of passages, different passages, more words in them.
+    # The other two are unchanged, which is what says this is retrieval moving
+    # rather than a fixed cost added to every brief.
+    "is a brewery tab a business meal?": 2_582,
+    "what supporting documents does the client have to keep?": 7_044,
     "hand tools bought for the trade - deducted or capitalized?": 2_846,
     "mileage or actual expenses for the van?": 2_420,
 }

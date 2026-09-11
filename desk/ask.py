@@ -246,10 +246,18 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     # THE REASON CARRIES THE EVIDENCE OR IT IS A SHRUG. `tools/holes.py` reads
     # this out to the firm, and "nothing shares a word with this question" is
     # the same sentence on every row: it cannot be sorted, compared or acted on.
-    # The WORDS can. Two rows reading `bought, forklift` and `crypto, staking`
-    # are a vocabulary gap and a coverage gap, and the firm can see which is
-    # which at a glance without being told by us -- which is the point, because
-    # telling them would be a judgement nothing here has earned.
+    # The WORDS can: a row reading `bought, forklift` and one reading `crypto,
+    # staking` are a vocabulary gap and a coverage gap, and the firm can see
+    # which is which at a glance without being told by us -- which is the point,
+    # because telling them would be a judgement nothing here has earned.
+    #
+    # THE SECOND HALF OF THAT EXAMPLE STOPPED BEING FILED ON 11 SEPTEMBER.
+    # "how do we handle crypto staking rewards?" reached nothing until
+    # `dec-fullstop`, because Pub. 525's section opens "Rewards." and the pool
+    # held the full stop. It reaches that section now and is never filed. The
+    # example is kept because it is what the mechanism is FOR, and marked
+    # because an example that no longer happens should not read as one that
+    # does.
     never = pool.unseen(question, _corpus(corpus)[2])
     why = "nothing in the corpus shares a word with this question"
     if never:
