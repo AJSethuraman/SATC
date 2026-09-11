@@ -965,11 +965,18 @@ class AgentSDKProvider:
         subtype = getattr(result, "subtype", "") or ""
         structured = getattr(result, "structured_output", None)
         text = getattr(result, "result", None) or ""
-        usage = getattr(result, "usage_metadata", None) or {}
+        # claude-agent-sdk 0.2.152: ResultMessage.usage is a dict with
+        # input_tokens / output_tokens / cache_read_input_tokens /
+        # cache_creation_input_tokens. The first forge run (11 Sep 2026) read
+        # a field that does not exist and logged 0 tokens against a real cost;
+        # `usage_metadata` stays as a fallback for older or fake results.
+        usage = getattr(result, "usage", None) or getattr(result, "usage_metadata", None) or {}
         get = usage.get if isinstance(usage, dict) else (lambda k, d=0: getattr(usage, k, d))
         input_tokens = int(get("input_tokens", 0) or 0)
         output_tokens = int(get("output_tokens", 0) or 0)
         cached = int(get("cache_read_input_tokens", 0) or 0)
+        errors = getattr(result, "errors", None) or []
+        reason = subtype + (": " + "; ".join(str(e) for e in errors)[:120] if errors else "")
         if schema is not None:
             if subtype == "success" and structured is not None:
                 raw, error_kind = canonical_json(structured), None
@@ -990,7 +997,7 @@ class AgentSDKProvider:
             cached_tokens=cached,
             cost_usd=getattr(result, "total_cost_usd", None),
             cost_source="sdk_estimate",
-            stop_reason=subtype,
+            stop_reason=reason,
             request_id=getattr(result, "session_id", None),
             error_kind=error_kind,
             request_digest=request_digest,

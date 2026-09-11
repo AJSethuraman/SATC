@@ -5,6 +5,36 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 11 September 2026, 20:15Z — the subscription route works: 8 of 8 on the forge
+
+The hands session on the forge (`ajish-5a`, Windows 11, Python 3.12,
+claude-agent-sdk 0.2.152) ran the smoke test and pushed
+`runs/20260911T201514Z-agent-sdk.md`:
+
+- **answered by the model: 8 of 8**, `agent_sdk/opus`, 7.9–10.5 s per call,
+  eight concurrent, 17.6 s wall clock, no API key anywhere. **The
+  subscription route is real.**
+- **Defect found by the run:** the ledger showed 0 tokens in and out against
+  a recorded cost of $0.58. The adapter read `usage_metadata`; the SDK's
+  result message carries `usage` (a dict). Inspected the installed SDK here
+  (`ResultMessage` fields: subtype, duration_ms, duration_api_ms, is_error,
+  num_turns, session_id, stop_reason, total_cost_usd, usage, result,
+  structured_output, model_usage, errors, api_error_status, …) and fixed the
+  read; the `errors` list now rides into the reason column. The fake in the
+  tests is reshaped to the real message.
+- **The cost figure is the SDK's own estimate at API rates.** On the
+  subscription nothing is charged per call; the number is what it *would*
+  cost on a key, and at ~$0.07 a call it is above the PRD's $0.02–0.03
+  estimate. The token counts the fix now records will say why.
+- **The gate did not run.** The forge session's auto-mode permission
+  classifier refused `tools/gate.py` with "[Create Unsafe Agents]" while
+  allowing the identical adapter through `run.py demo`. The session did not
+  route around it, correctly. Open with the firm: approve the command in
+  that session, or run it in a plain terminal from
+  `C:\Users\ajish\SATC-eva\docs\ember-vault-arena\code`.
+- Forge → cloud messaging: the forge cannot see `satc-6c`; git is the return
+  channel. Cloud → forge: the bound routine delivers.
+
 ## 11 September 2026, later — golden replay pinned, suite in CI, hands on the firm's machine
 
 - **Golden replay (PRD §5.40).** `tests/golden/seed52.json` pins the seed-52

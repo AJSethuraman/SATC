@@ -354,10 +354,16 @@ class AnthropicAdapterTests(unittest.TestCase):
 
 
 class _Result:
-    def __init__(self, subtype, structured=None, text="", cost=0.01):
+    """Shaped like claude-agent-sdk 0.2.152's ResultMessage, as inspected on
+    11 Sep 2026: usage is a dict, errors a list, plus subtype/result/
+    structured_output/total_cost_usd/session_id."""
+
+    def __init__(self, subtype, structured=None, text="", cost=0.01, errors=None):
         self.subtype, self.structured_output, self.result = subtype, structured, text
         self.total_cost_usd, self.session_id = cost, "sess_test"
-        self.usage_metadata = {"input_tokens": 900, "output_tokens": 80}
+        self.usage = {"input_tokens": 900, "output_tokens": 80, "cache_read_input_tokens": 300}
+        self.errors = errors or []
+        self.is_error = subtype != "success"
 
 
 def _fake_query(*results, delay=0.0):
@@ -386,11 +392,16 @@ class AgentSDKAdapterTests(unittest.TestCase):
         self.assertEqual(json.loads(result.raw_output), json.loads(GOOD_JSON))
         self.assertEqual(result.cost_source, "sdk_estimate")
         self.assertEqual(result.cost_usd, 0.01)
+        # the tokens come from ResultMessage.usage, the dict the real SDK sends
+        self.assertEqual((result.input_tokens, result.output_tokens, result.cached_tokens), (900, 80, 300))
 
     def test_success_without_structured_output_and_max_retries_are_panics(self):
         manifest, prompt, obs = _prompt()
         self.assertEqual(self._provider(_Result("success", None, "prose")).decide(manifest, prompt, obs).error_kind, "panic")
         self.assertEqual(self._provider(_Result("error_max_structured_output_retries")).decide(manifest, prompt, obs).error_kind, "panic")
+        failed = self._provider(_Result("error_during_execution", errors=["rate limited"])).decide(manifest, prompt, obs)
+        self.assertEqual(failed.error_kind, "network")
+        self.assertIn("rate limited", failed.stop_reason)
 
     def test_no_result_a_raise_and_a_timeout_are_network(self):
         manifest, prompt, obs = _prompt()
