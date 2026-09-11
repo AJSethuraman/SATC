@@ -510,6 +510,49 @@ it with them.
   is the firm's to confirm, not mine.
 
 
+- **2026-09-11 — The firm answered all five. Their words, and what each caused.**
+
+  Answered on the docket between 08:32 and 08:34 UTC, in one pass, with no notes
+  attached — so the picked words are the whole of what they said and nothing here
+  may be read as more than that.
+
+  **`merge-356` — "Merge it — you do it."** #356 squash-merged to `main` as
+  `d7b44a8c`. desk **0.23.0** ships: the desks deleted, one corpus, the four
+  earlier decisions built, and the three things found afterwards that were still
+  speaking in desks. `main` was `6014bba1` (0.21.0) before it.
+
+  **`guidance-narrow` — "Narrow it."** The gate that silences a guide reads
+  *binding authority anywhere in the corpus*; it becomes *binding authority on
+  THIS question*. Eight answers — PH2, RW1, RW5/6/8/9, VE13, VE15 — flipped from
+  serving-marked to escalating when seven records became one, and this is what
+  takes that back. It restores `dec-guidance` (*"Serve it, marked"*) to what it
+  meant when they decided it, and the guard still stops a guide standing in for
+  a rule that is actually on point.
+
+  **`pos11-review` — "Nearby, doesn't settle it."** The inverse check on POS11,
+  answered. Nothing on file contradicts the policy, and nothing on file speaks to
+  it either. Recorded as both: a review outcome and a coverage finding. **Not**
+  "no conflict" — the eight nearest passages are recordkeeping rules, and calling
+  that a clean bill would claim more than the search earned.
+
+  **`look-join` — "Run it by me — build it."** `searching.py` joins the answering
+  path. Where the record holds nothing the desk goes and looks, verifies what it
+  finds against the publisher's own page, and where the find does not BIND it
+  parks the finding and sends the firm what it found, where, and how binding it
+  is. Nothing is served on non-binding authority without them. This is
+  `dec-books` in their own earlier words: *"if it is not directly authoritative
+  it would run the opinion by me."*
+
+  **`tokeniser` (`dec-fullstop`) — "Fix it after Matter 2."** Not *fix it* and
+  not *leave it*: an ordering. `pool.terms` keeps `.`, `-` and `/` at the end of
+  a token, so a word closing a sentence is a different word — 128 words of the
+  corpus reachable by no question. The two-line fix reorders which authority is
+  served on 14 of 19 real questions, and narrowing the guidance gate moves the
+  same ground, so **every one of those numbers is re-measured after
+  `guidance-narrow` lands rather than carried across.** The order is the firm's
+  and is not a detail: measuring the second change against the first's corpus is
+  how a figure gets quoted that was never true of anything.
+
 - **2026-09-11 — Three things still speaking in desks, and one decision put to the
   firm (desk 0.23.0).** Suite **1,220 passing, 1 skipped**; canon 187.
 
