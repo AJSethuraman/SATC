@@ -101,8 +101,30 @@ def nothing_on_file(question: str, corpus: Path = CORPUS) -> str:
     IT SAYS WHAT WAS SEARCHED, WITH NUMBERS. "Nothing found" from a corpus of
     twelve citations and from one of 785 are different findings, and only one of
     them means the question is unusual.
+
+    AND IT NAMES THE ASKER'S OWN WORDS. Measured 11 September 2026: "what do i
+    do with it? we bought a forklift" reaches nothing, while the same
+    transaction as "is the invoice price deducted or capitalized?" reaches eight
+    passages including the firm's own $2,500 threshold. The cause is two words —
+    `bought` and `forklift` appear in none of the 785 stored passages, while
+    `purchase` appears in 85. Told only that nothing was found, a doer concludes
+    the firm holds no authority on forklifts. They hold it under other words.
+
+    THE LIST IS EXHAUSTIVE AND THAT IS NOT A COINCIDENCE — it is every
+    substantive word in the question, necessarily, because the moment ONE of
+    them is on file some passage scores above zero and this page is never
+    reached. So naming them says exactly what the asker can act on (these are
+    the words that missed) and NOTHING about whether a rule exists. The page
+    says both halves. A version that named the words and implied the rule was
+    probably there would be guessing with evidence attached.
+
+    IT PROPOSES NOTHING. `pool.unseen` is a lookup against the word counts the
+    corpus already has; it never returns a word the asker did not type. The day
+    it suggests `purchase` it is the word list `dec-kill` deleted wearing a
+    kinder name.
     """
-    desk, held, _ = _corpus(corpus)
+    desk, held, known = _corpus(corpus)
+    never = pool.unseen(question, known)
     return "\n".join([
         f"# {desk.name}{(' · desk ' + record.VERSION) if record.VERSION else ''}",
         "",
@@ -115,11 +137,24 @@ def nothing_on_file(question: str, corpus: Path = CORPUS) -> str:
         f"enough language with this question to be worth putting in front of "
         f"you.",
         "",
+        *(["**The words that missed: "
+           + ", ".join(f"`{w}`" for w in never)
+           + "** — every substantive word you used, and the record has never "
+             "seen any of them. That is always true when nothing comes back "
+             "here (one word on file and something would have), so it tells "
+             "you which words missed and it tells you nothing about whether a "
+             "rule exists. The authority writes in its own vocabulary and a "
+             "person writes in theirs, so saying the same thing the way a rule "
+             "would say it is worth one try before parking it — and if that "
+             "reaches nothing either, park it knowing the wording was not the "
+             "problem. Which words to try is yours; nothing here will suggest "
+             "one, because a list of what a word means instead is the list "
+             "`dec-kill` deleted.",
+           ""] if never else []),
         "**This is not permission.** It does not mean the answer is no, and it "
-        "does not mean nobody objects. It means the firm has never admitted "
-        "authority on this, so there is nothing here to be right or wrong "
-        "with — and an answer given anyway would be yours rather than the "
-        "record's.",
+        "does not mean nobody objects. It means nothing on file reached this "
+        "question, so there is nothing here to be right or wrong with — and an "
+        "answer given anyway would be yours rather than the record's.",
         "",
         "**What to do.** Park it: the question goes to the firm with your "
         "working, and their answer is what builds the coverage that is missing. "
@@ -208,9 +243,21 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     queue = Path(queue)
     existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
                 if queue.exists() else [])
+    # THE REASON CARRIES THE EVIDENCE OR IT IS A SHRUG. `tools/holes.py` reads
+    # this out to the firm, and "nothing shares a word with this question" is
+    # the same sentence on every row: it cannot be sorted, compared or acted on.
+    # The WORDS can. Two rows reading `bought, forklift` and `crypto, staking`
+    # are a vocabulary gap and a coverage gap, and the firm can see which is
+    # which at a glance without being told by us -- which is the point, because
+    # telling them would be a judgement nothing here has earned.
+    never = pool.unseen(question, _corpus(corpus)[2])
+    why = "nothing in the corpus shares a word with this question"
+    if never:
+        why = ("the corpus has never seen any word in this question: "
+               + ", ".join(never))
     entry = unsupported.from_question(
         question,
-        why="nothing in the corpus shares a word with this question",
+        why=why,
         model=model,
         existing=existing,
     )
