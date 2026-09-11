@@ -1,6 +1,6 @@
 {
   "name": "desk",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "The desk: what an agent consults so a question does not reach the firm. One corpus of admitted authority, addressed by citation \u2014 it answers only from what it can cite, states how binding that is, and escalates rather than guesses. The engine verifies every citation before an answer is allowed out, so \"never invent a position\" is enforced by code rather than by a prompt. Where the record holds no answer, the searcher goes and looks \u2014 anywhere \u2014 and nothing it finds enters the record until the words are still on the publisher's own page and the firm has admitted that publisher. A fact the desk needs and nothing anywhere records is a HOLE, and `tools/holes.py` reads them out. Holds no client data.",
   "author": {
     "name": "Sethuraman Accounting, Tax & Consulting"

@@ -194,10 +194,29 @@ def test_the_self_judgment_raise_is_exercised_on_every_desk():
 #: three). With that fixed the figure is 84, and none of the movement is about
 #: `answered_from` at all.
 #:
+#: NARROWED 11 SEPTEMBER 2026 ON THE FIRM'S ANSWER: **97 of 98**.
+#: `dec-guidance-narrow` — **"Narrow it."** The gate asks whether a binding
+#: source is declared for the ground THIS GUIDE was cited for, rather than for
+#: any subject the question touches. The eight come back, and five more with
+#: them — TP1, TP2, TP3, M15, PH1 — which were refused even across seven desks.
+#: `test_a_desk_can_answer_itself.py::test_the_guidance_half_is_marked_as_such`
+#: names all thirteen and traces each to the cited source's own `Why:` row.
+#:
+#: ONE STILL REFUSES AND IT IS THE POINT. RW7's private letter ruling is refused
+#: because § 1.61-1 is declared for gross income, which is what RW7 is about — a
+#: rule on the same ground rather than a word the question happened to contain.
+#: A narrowing that released RW7 too would have deleted the guard.
+#:
+#: 97 IS HIGHER THAN THE 92 THIS EVER WAS, and that is not the narrowing being
+#: too loose: the two instruments rejected on the way here are recorded in
+#: `engine._rule_reaches`, and the five past the eight are reported to the firm
+#: rather than absorbed.
+#:
 #: NOT SILENTLY UPDATED. This test exists to make the figure move visibly, and
-#: it did its job twice: the number is what caught the migration bug, and the
-#: number is what caught the wrong story told about the number.
-COST = 84
+#: it did its job three times: the number caught the migration bug, the number
+#: caught the wrong story told about the number, and the number is what says
+#: this change went further than what was asked for.
+COST = 97
 CORPUS = 98
 
 
