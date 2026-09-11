@@ -33,9 +33,9 @@ class GuardOnlyProvider(MockDecisionProvider):
                     "target": None,
                     "destination": None,
                     "item": None,
-                    "speech": "",
-                    "reasoning_summary": "camp",
-                    "memory_write": "camp",
+                    "speech": {"mode": "silent", "to": None, "text": ""},
+                    "note": {"objective": "camp", "reads": []},
+                    "deal": None,
                 }
             ),
             input_tokens=10,
@@ -874,7 +874,7 @@ class ObservationTests(RulesetTestCase):
     def test_observation_never_leaks_another_agents_private_data(self):
         engine = self.engine("privacy.db")
         state = engine.state
-        state["agents"]["nix"]["memory"] = ["NIX-PRIVATE-SCRATCH-4242"]
+        state["agents"]["nix"]["note"] = {"objective": "NIX-PRIVATE-SCRATCH-4242", "reads": []}
         state["agents"]["nix"]["tokens_remaining"] = 12_345
         observation = self.observation(engine, "bramble")
         blob = canonical_json(observation)
@@ -893,9 +893,9 @@ class ObservationTests(RulesetTestCase):
                 "secret_objective",
                 "score_breakdown",
                 "tokens_remaining",
-                "scratch_memory",
+                "your_note",
                 "episodic_memory",
-                "memory",
+                "note",
             ):
                 self.assertNotIn(forbidden, other)
         # own secret objective is present for the owning agent only

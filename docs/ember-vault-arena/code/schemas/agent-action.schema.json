@@ -1,29 +1,148 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-dungeon.local/schemas/agent-action.schema.json",
-  "title": "Agent Action",
-  "type": "object",
+  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.0.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
+  "description": "agent-action-1.0",
+  "properties": {
+    "action": {
+      "enum": [
+        "attack",
+        "give",
+        "guard",
+        "interact",
+        "move",
+        "rest",
+        "search",
+        "step",
+        "take",
+        "use"
+      ],
+      "type": "string"
+    },
+    "deal": {
+      "type": "null"
+    },
+    "destination": {
+      "maxLength": 32,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "item": {
+      "maxLength": 64,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "note": {
+      "additionalProperties": false,
+      "properties": {
+        "objective": {
+          "maxLength": 120,
+          "type": "string"
+        },
+        "reads": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "stance": {
+                "enum": [
+                  "distrust",
+                  "trust",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "who": {
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              "why": {
+                "maxLength": 60,
+                "type": "string"
+              }
+            },
+            "required": [
+              "who",
+              "stance",
+              "why"
+            ],
+            "type": "object"
+          },
+          "maxItems": 4,
+          "type": "array"
+        }
+      },
+      "required": [
+        "objective",
+        "reads"
+      ],
+      "type": "object"
+    },
+    "speech": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "say",
+            "silent",
+            "whisper"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 300,
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "to",
+        "text"
+      ],
+      "type": "object"
+    },
+    "target": {
+      "maxLength": 64,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tile": {
+      "items": {
+        "maximum": 31,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": [
+        "array",
+        "null"
+      ]
+    }
+  },
   "required": [
     "action",
     "target",
     "destination",
     "item",
+    "tile",
     "speech",
-    "reasoning_summary",
-    "memory_write"
+    "note",
+    "deal"
   ],
-  "properties": {
-    "action": {
-      "type": "string",
-      "enum": ["move", "attack", "guard", "search", "interact", "take", "use", "rest"]
-    },
-    "target": {"type": ["string", "null"], "maxLength": 64},
-    "destination": {"type": ["string", "null"], "maxLength": 32},
-    "item": {"type": ["string", "null"], "maxLength": 64},
-    "speech": {"type": "string", "maxLength": 120},
-    "reasoning_summary": {"type": "string", "maxLength": 240},
-    "memory_write": {"type": "string", "maxLength": 160}
-  }
+  "title": "Agent Action",
+  "type": "object"
 }
-

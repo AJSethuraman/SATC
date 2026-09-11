@@ -78,6 +78,7 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     # items
     "item_taken": "item",
     "item_used": "item",
+    "item_given": "item",
     "item_dropped": "item",
     "cache_found": "item",
     "search_success": "item",
@@ -85,12 +86,19 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "wild_swing_self_drop": "item",
     # speech
     "agent_speech": "speech",
+    "whisper_lost": "speech",
 }
 
 IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "dice_roll",
         "agent_resource_update",
+        # The note is the character's own thinking, already in its digest as
+        # your_note; a freeze is the referee's default, not something that
+        # happened TO the character.
+        "note_written",
+        "network_fallback",
+        "panic_fallback",
         "round_started",
         "round_narration",
         "initiative_order",
@@ -244,7 +252,11 @@ def classify_event(
         return "seal_change"
 
     if family == "item":
-        return "item_change" if actor_id == agent_id else None
+        if actor_id == agent_id:
+            return "item_change"
+        if event.get("event_type") == "item_given" and event.get("target_id") == agent_id:
+            return "item_change"
+        return None
 
     if family == "speech":
         if actor_id == agent_id:

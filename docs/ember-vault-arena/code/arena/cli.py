@@ -6,7 +6,8 @@ from pathlib import Path
 
 from .demo import DEFAULT_AGENT_DIR, load_manifests
 from .engine import ArenaEngine
-from .providers import provider_from_name
+from .brains import load_brains
+from .providers import PROVIDER_NAMES, provider_from_name
 from .server import serve
 from .storage import ArenaStore
 
@@ -21,8 +22,12 @@ def parser() -> argparse.ArgumentParser:
 
     demo = sub.add_parser("demo", help="run the four sample agents")
     demo.add_argument("--seed", type=int, default=20260724)
-    demo.add_argument("--provider", choices=["mock", "compatible"], default="mock")
-    demo.add_argument("--agents", default=str(DEFAULT_AGENT_DIR))
+    demo.add_argument("--provider", choices=PROVIDER_NAMES, default="mock")
+    demo.add_argument("--agents", default=str(DEFAULT_AGENT_DIR),
+                      help="folder of JSON manifests (July's examples)")
+    demo.add_argument("--brains", default=None,
+                      help="folder of brain .md files; overrides --agents")
+    demo.add_argument("--rounds", type=int, default=None)
 
     web = sub.add_parser("serve", help="start spectator UI and local API")
     web.add_argument("--host", default="127.0.0.1")
@@ -42,9 +47,10 @@ def main() -> None:
     store = ArenaStore(args.db)
     try:
         if args.command == "demo":
-            manifests = load_manifests(args.agents)
+            manifests = load_brains(args.brains) if args.brains else load_manifests(args.agents)
+            kwargs = {"max_rounds": args.rounds} if args.rounds else {}
             match_id = ArenaEngine(
-                store, provider_from_name(args.provider)
+                store, provider_from_name(args.provider), **kwargs
             ).run(manifests, args.seed)
             result = store.replay_bundle(match_id)
             print(f"Completed {match_id}")

@@ -5,6 +5,66 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 11 September 2026, night — M0 and M1 built, M2's harness built and run on the mock
+
+The firm went to bed with *"just kind of trust you can start getting this
+together without me"* and *"For anything that requires a sprite I want a stand
+in"* (July's inline SVG silhouettes are the stand-ins; nothing new was drawn).
+
+**Built, and proven at the seams the PRD names.** Suite 62 → **89, all green**.
+
+- `agent-action-1.0` and brain manifest v1 (`models.py`): speech as an object
+  with say/whisper/silent, the private note, `give`, and `deal` accepted but
+  **null only** until M3 opens it. Old `reasoning_summary`/`memory_write` gone.
+  Schemas generated from the constants and pinned; a test compares (S8).
+- Brain template and loader: five headed sections, 2,000-character cap with a
+  refusal naming the section and the overage, links and blobs refused.
+- Engine: the note round-trips (written round N is `your_note` in round N+1;
+  audience sees it via `note_written`; rivals never); whispers reach one and
+  the room sees only that it happened; `give` moves an item; one transport
+  retry then `guard`, logged as `network_fallback` or `panic_fallback`; a
+  call ledger on every decision (latency, retries, cached tokens, cost and its
+  source, stop reason, request id, error kind, effort, digests).
+- Adapters: `agent_sdk` (subscription, `tools=[]`, replacement system prompt,
+  JSON schema draft-07, one turn, empty cwd, `setting_sources=[]`) and
+  `anthropic` (Messages API, structured output, `max_retries=0` so the engine
+  owns retries, refusal → panic). Both lazily imported; both stub-tested.
+- Gate harness `tools/gate.py` + `tools/score_gate.py`; eight house brains
+  written to the template by a separate agent (each build twice).
+
+**Checked the checkers.** Three wires cut one at a time, each turned a test
+red: no transport retry (2 tests), whisper heard by the whole room (1), note
+in the mid-match projection (1). Restored; suite green.
+
+**Opened the artifacts.** `run.py demo --seed 52` on the new contract completes
+and audits; the July story viewer built from it renders in Chromium with no
+page or console errors (screenshot taken). The gate harness ran on the mock:
+142 calls, pack written, no real name or id in it. The first mock run leaked
+the key — the anonymiser wrote each character's letter into its own brain —
+caught by reading the pack, fixed, rerun.
+
+**Re-aimed one July test** (`test_replay_needs_no_model_call`): it asserted a
+dead provider reproduced the mock's hashes, because July fell back to the mock
+itself. The PRD's default is `guard`, so the test now asserts a dead provider
+yields the same match every time, completes, and says `network` on every
+decision, with exactly one retry.
+
+**Decided in the build, worth knowing:**
+- The July 18,000-token per-agent budget was a cost cap by another name and
+  would have flipped agents to autopilot mid-match on a real model; raised to
+  10,000,000 under the firm's no-cap ruling. The ledger measures instead.
+- The Crown cannot be handed over with `give`; it changes hands only by being
+  taken. A gift would be a transfer that resets attunement, which M3 decides.
+- The mock's note is deterministic and carries no judgement; the README says
+  a mock gate run proves the pipeline and nothing about brains.
+
+**Not done, and why:** the gate has not run on a model — it needs the firm's
+login (subscription) or key. Nothing from M3 on was touched, per the PRD.
+
+**Not checked:** `claude-agent-sdk` was never installed or exercised here;
+the adapter is proven only through fakes shaped to the documented result
+message. The morning checklist's first step is the real call.
+
 ## 11 September 2026 — ground-up rebuild grilled; PRD written
 
 **Goal, in the firm's words** (confirmed as the one line every decision is

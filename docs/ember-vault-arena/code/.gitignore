@@ -1,0 +1,11 @@
+# match databases and the outputs the demo builders regenerate from them
+data/
+demo/replay.json
+demo/summary.json
+demo/story.html
+demo/viewer.html
+demo/arena.html
+__pycache__/
+*.pyc
+# players' brains never enter source control; house brains under brains/house do
+brains/players/

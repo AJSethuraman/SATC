@@ -6,7 +6,7 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .models import AgentManifest
 
@@ -34,13 +34,13 @@ def state_hash(state: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 # Per-agent state a rival must not read while the match is live.
-PRIVATE_AGENT_STATE_KEYS = ("memory", "score_breakdown", "tokens_remaining")
+PRIVATE_AGENT_STATE_KEYS = ("note", "score_breakdown", "tokens_remaining")
 
 # Payload change-log keys that carry the same private state.
-PRIVATE_CHANGE_KEYS = ("memory", "tokens_remaining")
+PRIVATE_CHANGE_KEYS = ("note", "tokens_remaining")
 
-# The only parsed-action fields that describe a PUBLIC, observable act. Anything
-# else (reasoning_summary, memory_write) is the agent's private thinking.
+# The only parsed-action fields that describe a PUBLIC, observable act. The note
+# is the agent's private thinking; a whisper's words are private to two.
 PUBLIC_ACTION_KEYS = ("action", "target", "destination", "item", "speech")
 
 # Mid-match a die shows its face and nothing else: the seed/counter/digest are
@@ -52,6 +52,14 @@ def _public_snapshot_state(state: dict[str, Any], reveal: bool) -> dict[str, Any
     if reveal:
         return state
     public = {key: value for key, value in state.items() if key != "seed"}
+    # A whisper's words are private to two while the match runs; the fact of
+    # the whisper (who, to whom, which round) stays.
+    speech = public.get("recent_speech")
+    if isinstance(speech, list):
+        public["recent_speech"] = [
+            {**line, "text": None} if isinstance(line, dict) and line.get("mode") == "whisper" else line
+            for line in speech
+        ]
     agents = public.get("agents")
     if isinstance(agents, dict):
         public["agents"] = {
@@ -87,13 +95,21 @@ def _public_event_payload(payload: Any, reveal: bool) -> Any:
         public["proof"] = {
             key: value for key, value in proof.items() if key in PUBLIC_DICE_PROOF_KEYS
         }
+    if public.get("mode") == "whisper" and "speech" in public:
+        public["speech"] = None
+    if "note" in public:
+        public["note"] = None
     return public
 
 
 def _public_action(action: Any, reveal: bool) -> Any:
     if reveal or not isinstance(action, dict):
         return action
-    return {key: value for key, value in action.items() if key in PUBLIC_ACTION_KEYS}
+    public = {key: value for key, value in action.items() if key in PUBLIC_ACTION_KEYS}
+    speech = public.get("speech")
+    if isinstance(speech, dict) and speech.get("mode") == "whisper":
+        public["speech"] = {**speech, "text": None}
+    return public
 
 
 SCHEMA = """
@@ -158,7 +174,18 @@ CREATE TABLE IF NOT EXISTS decisions (
     output_tokens INTEGER NOT NULL,
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    latency_ms REAL NOT NULL DEFAULT 0,
+    retries INTEGER NOT NULL DEFAULT 0,
+    cached_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL,
+    cost_source TEXT NOT NULL DEFAULT 'none',
+    stop_reason TEXT,
+    request_id TEXT,
+    error_kind TEXT,
+    effort TEXT,
+    request_digest TEXT,
+    response_digest TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -359,7 +386,12 @@ class ArenaStore:
         output_tokens: int,
         provider: str,
         model: str,
+        call: Mapping[str, Any] | None = None,
     ) -> None:
+        """``call`` carries the rest of the ProviderResult (PRD §5.31): latency,
+        retries, cached tokens, cost and its source, stop reason, request id,
+        error kind, effort, digests. Absent for July's callers."""
+        call = dict(call or {})
         body = {
             "round_no": round_no,
             "agent_id": agent_id,
@@ -373,6 +405,7 @@ class ArenaStore:
                 "output_tokens": output_tokens,
                 "provider": provider,
                 "model": model,
+                **call,
             },
         }
         with self.lock:
@@ -381,8 +414,12 @@ class ArenaStore:
                 INSERT INTO decisions(
                   match_id, round_no, agent_id, prompt_json, raw_output,
                   parsed_action_json, validity, fallback_reason, input_tokens,
-                  output_tokens, provider, model, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  output_tokens, provider, model, created_at,
+                  latency_ms, retries, cached_tokens, cost_usd, cost_source,
+                  stop_reason, request_id, error_kind, effort,
+                  request_digest, response_digest
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     match_id,
@@ -398,6 +435,17 @@ class ArenaStore:
                     provider,
                     model,
                     utc_now(),
+                    float(call.get("latency_ms") or 0.0),
+                    int(call.get("retries") or 0),
+                    int(call.get("cached_tokens") or 0),
+                    call.get("cost_usd"),
+                    str(call.get("cost_source") or "none"),
+                    call.get("stop_reason"),
+                    call.get("request_id"),
+                    call.get("error_kind"),
+                    call.get("effort"),
+                    call.get("request_digest"),
+                    call.get("response_digest"),
                 ),
             )
             self.conn.commit()
@@ -696,7 +744,10 @@ class ArenaStore:
                 """
                 SELECT round_no, agent_id, parsed_action_json, validity,
                   fallback_reason, input_tokens, output_tokens, provider, model,
-                  prompt_json, raw_output
+                  prompt_json, raw_output,
+                  latency_ms, retries, cached_tokens, cost_usd, cost_source,
+                  stop_reason, request_id, error_kind, effort,
+                  request_digest, response_digest
                 FROM decisions WHERE match_id=? ORDER BY round_no, id
                 """,
                 (match_id,),
@@ -711,7 +762,7 @@ class ArenaStore:
             public_manifest = {
                 "id": manifest["id"],
                 "name": manifest["name"],
-                "personality": manifest["personality"],
+                "kind": manifest.get("kind", "character"),
                 "build": manifest["build"],
             }
             if reveal or row["final_status"] == "eliminated":

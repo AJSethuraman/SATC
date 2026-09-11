@@ -98,7 +98,7 @@ CONTRACTION_REFUGE = "vault"  # force-move destination, a constant not an adjace
 CROWN_ITEM_ID = items.CROWN_ID
 CROWN_ESCAPE_ATTUNEMENT = 2
 DEFAULT_MAX_ROUNDS = 12
-STARTING_TOKEN_BUDGET = 18_000
+STARTING_TOKEN_BUDGET = 10_000_000  # no cap in v1 (firm, 11 Sep 2026); the ledger measures
 
 # Acts. Total functions over any positive round, so a short or long match never
 # raises — later contraction entries simply never fire.
@@ -213,7 +213,7 @@ def new_match_state(
             "score": 0,
             "score_breakdown": {},
             "tokens_remaining": STARTING_TOKEN_BUDGET,
-            "memory": [],
+            "note": {"objective": "", "reads": []},
             "visited": [START_ROOM],  # append-ordered history
             "rest_used": False,
             "monster_damage": 0,
@@ -649,6 +649,7 @@ ACTION_ORDER: tuple[str, ...] = (
     "attack",
     "take",
     "use",
+    "give",
     "interact",
     "search",
     "rest",
@@ -668,6 +669,7 @@ SIGNIFICANT_SLOTS: Mapping[str, tuple[str, ...]] = {
     "use": ("item",),
     "interact": ("target",),
     "step": ("tile",),
+    "give": ("target", "item"),
 }
 
 
@@ -871,6 +873,24 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         entries.append(
             _entry("use", f"use {item_id} ({items.item_name(item_id)})", item=item_id)
         )
+    # give: any carried item except the Crown, to any living character in the
+    # room. The Crown changes hands by being taken, never handed over (it would
+    # otherwise be a transfer that resets attunement, which M3 decides).
+    for view in me.get("inventory", []):
+        item_id = view["id"]
+        if item_id == CROWN_ITEM_ID:
+            continue
+        for other in observation.get("visible_agents", []):
+            if other.get("status") != "active":
+                continue
+            entries.append(
+                _entry(
+                    "give",
+                    f"give {item_id} ({items.item_name(item_id)}) to {other['id']} ({other['name']})",
+                    target=other["id"],
+                    item=item_id,
+                )
+            )
 
     seal = room.get("seal")
     if seal and not seal["active"] and not monsters:
@@ -964,8 +984,10 @@ def visible_observation(
             event_log, agent_id, state.get("round", 0)
         ),
         "episodic_memory_policy": memory.memory_policy(),
-        "scratch_memory": list(agent["memory"]),
+        "your_note": {"objective": agent["note"].get("objective", ""),
+                      "reads": [dict(r) for r in agent["note"].get("reads", [])]},
         "recent_speech": _build_recent_speech(state, agent),
+        "whispers_seen": _build_whispers_seen(state, agent),
         "score_breakdown": scoring.score_breakdown_view(state, agent_id),
     }
     observation["legal_actions"] = enumerate_legal_actions(observation)
@@ -1221,23 +1243,54 @@ def _build_visible_monsters(
     ]
 
 
+def _heard_by(speech: Mapping[str, Any], agent: Mapping[str, Any]) -> bool:
+    """A say is heard by every body in the room it was said in; a whisper only
+    by the one it was addressed to. Nobody hears their own line back."""
+    if speech.get("agent_id") == agent["id"]:
+        return False
+    mode = speech.get("mode", "say")
+    if mode == "whisper":
+        return speech.get("to") == agent["id"]
+    return speech.get("room", agent["room"]) == agent["room"]
+
+
 def _build_recent_speech(
     state: Mapping[str, Any], agent: Mapping[str, Any]
 ) -> list[dict[str, Any]]:
+    """What this character HEARD, verbatim, from the last two rounds. Delivered
+    a round late by construction: this round's lines are emitted after every
+    decision is collected, so the freshest line here is last round's."""
     round_no = state.get("round", 0)
     entries = [
         speech
         for speech in state["recent_speech"]
-        if speech.get("round", 0) >= round_no - 2
-        and speech.get("room", agent["room"]) == agent["room"]
+        if speech.get("round", 0) >= round_no - 2 and _heard_by(speech, agent)
     ][-8:]
     return [
         {
             "round": speech.get("round", 0),
             "agent_id": speech.get("agent_id"),
             "name": speech.get("name"),
+            "mode": speech.get("mode", "say"),
             "text": speech.get("text", ""),
             "directed_at_you": agent["id"] in (speech.get("addressed_ids") or []),
         }
         for speech in entries
     ]
+
+
+def _build_whispers_seen(
+    state: Mapping[str, Any], agent: Mapping[str, Any]
+) -> list[dict[str, Any]]:
+    """Whispers that happened in this character's room and were NOT addressed
+    to it: who whispered to whom, never the words (PRD §5.15)."""
+    round_no = state.get("round", 0)
+    return [
+        {"round": s.get("round", 0), "from": s.get("agent_id"), "to": s.get("to")}
+        for s in state["recent_speech"]
+        if s.get("mode") == "whisper"
+        and s.get("round", 0) >= round_no - 2
+        and s.get("room") == agent["room"]
+        and s.get("agent_id") != agent["id"]
+        and s.get("to") != agent["id"]
+    ][-8:]

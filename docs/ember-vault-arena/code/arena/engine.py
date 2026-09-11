@@ -27,15 +27,17 @@ import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from . import combat, grid, items, rules, scoring
 from .models import (
     AgentAction,
     AgentManifest,
+    Note,
     ProviderResult,
     RULESET_VERSION,
+    Speech,
     ValidationError,
 )
 from .providers import (
@@ -101,6 +103,9 @@ class ArenaEngine:
         self.max_rounds = max_rounds
         self.parallel_agents = parallel_agents
         self.autopilot = MockDecisionProvider()
+        # PRD §5.18: one transport retry; §5.34: a pool as wide as the living.
+        self.transport_retries = 1
+        self.max_workers = 11
         self.match_id = ""
         self.state: dict[str, Any] = {}
         self.manifests: dict[str, AgentManifest] = {}
@@ -381,21 +386,41 @@ class ArenaEngine:
             if budget < estimated + prompt["max_output_tokens"]:
                 result = self.autopilot.decide(manifest, prompt, observation)
                 return agent_id, result, prompt, "autopilot", "token budget exhausted"
-            try:
-                result = self.provider.decide(manifest, prompt, observation)
-                return agent_id, result, prompt, "valid", None
-            except Exception as exc:  # noqa: BLE001 - provider isolation
-                result = self.autopilot.decide(manifest, prompt, observation)
-                return (
-                    agent_id,
-                    result,
-                    prompt,
-                    "provider_fallback",
-                    f"{type(exc).__name__}: {str(exc)[:160]}",
+            # ONE transport retry, and only for a transport failure. A refusal,
+            # a malformed output or an illegal action is never retried: it is
+            # the character's answer, and the referee records it as a panic.
+            attempts = 0
+            while True:
+                attempts += 1
+                try:
+                    result = self.provider.decide(manifest, prompt, observation)
+                except Exception as exc:  # noqa: BLE001 - provider isolation
+                    result = ProviderResult(
+                        "", 0, 0, getattr(self.provider, "name", "provider"),
+                        getattr(self.provider, "model", "unknown"),
+                        error_kind="network",
+                    )
+                    reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+                else:
+                    reason = result.stop_reason
+                if result.error_kind == "network" and attempts <= self.transport_retries:
+                    continue
+                break
+            retries = attempts - 1
+            if result.error_kind == "network":
+                return agent_id, result, prompt, "network_fallback", (
+                    f"transport failure after {attempts} attempt(s): {reason}"
                 )
+            if result.error_kind == "panic":
+                return agent_id, result, prompt, "panic_fallback", (
+                    f"provider declined: {reason}"
+                )
+            if retries:
+                result = replace(result, retries=retries)
+            return agent_id, result, prompt, "valid", None
 
         if self.parallel_agents and len(active) > 1:
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            with ThreadPoolExecutor(max_workers=max(1, min(len(active), self.max_workers))) as executor:
                 futures = [executor.submit(invoke, agent_id) for agent_id in active]
                 for future in as_completed(futures):
                     agent_id, result, prompt, validity, reason = future.result()
@@ -411,28 +436,44 @@ class ArenaEngine:
             agent = self.state["agents"][agent_id]
             spent = result.input_tokens + result.output_tokens
             before_tokens = agent["tokens_remaining"]
-            before_memory = list(agent["memory"])
+            before_note = deepcopy(agent["note"])
             agent["tokens_remaining"] = max(0, agent["tokens_remaining"] - spent)
-            try:
-                raw = json.loads(result.raw_output.strip())
-                action = AgentAction.from_dict(raw)
-            except (json.JSONDecodeError, ValidationError) as exc:
-                action = AgentAction(
-                    action="guard",
-                    reasoning_summary="Deterministic fallback after invalid output.",
-                )
-                validity = "invalid_output"
-                fallback_reason = str(exc)
+            carried = Note.from_raw(agent["note"])
+            if validity in ("network_fallback", "panic_fallback"):
+                # The defined default: guard, note carried forward unchanged.
+                # Visible to the audience as the character freezing; the log
+                # says whether it was the network or the character.
+                action = AgentAction(action="guard", note=carried)
                 agent["invalid_actions"] += 1
-                self._score(
+                self._event(
+                    round_no,
+                    "referee",
+                    validity,
                     agent_id,
-                    "invalid_output",
-                    scoring.SCORING["invalid_output"],
-                    "Malformed structured output",
+                    None,
+                    f"{agent['name']} freezes." if validity == "panic_fallback"
+                    else f"{agent['name']} hesitates (no answer reached the referee).",
+                    {"reason": fallback_reason, "error_kind": result.error_kind,
+                     "retries": max(0, result.retries)},
+                    include_in_narration=False,
                 )
-            if action.memory_write:
-                # scratch memory stays 3 x 160 chars
-                agent["memory"] = (agent["memory"] + [action.memory_write[:160]])[-3:]
+            else:
+                try:
+                    raw = json.loads(result.raw_output.strip())
+                    action = AgentAction.from_dict(raw)
+                except (json.JSONDecodeError, ValidationError) as exc:
+                    action = AgentAction(action="guard", note=carried)
+                    validity = "invalid_output"
+                    fallback_reason = str(exc)
+                    agent["invalid_actions"] += 1
+                    self._score(
+                        agent_id,
+                        "invalid_output",
+                        scoring.SCORING["invalid_output"],
+                        "Malformed structured output",
+                    )
+            if validity == "valid":
+                agent["note"] = action.note.as_dict()
             self._event(
                 round_no,
                 "resources",
@@ -443,12 +484,25 @@ class ArenaEngine:
                 {
                     "changes": {
                         "tokens_remaining": [before_tokens, agent["tokens_remaining"]],
-                        "memory": [before_memory, list(agent["memory"])],
+                        "note": [before_note, deepcopy(agent["note"])],
                     }
                 },
                 include_in_narration=False,
             )
-            if action.speech:
+            if validity == "valid":
+                # The note the audience sees the moment it is written. Private
+                # to the character otherwise; the mid-match projection drops it.
+                self._event(
+                    round_no,
+                    "private",
+                    "note_written",
+                    agent_id,
+                    None,
+                    f"{agent['name']} (privately): {action.note.objective or '…'}",
+                    {"note": action.note.as_dict()},
+                    include_in_narration=False,
+                )
+            if action.speech.mode != "silent":
                 self._emit_speech(round_no, agent_id, action.speech)
             self.store.log_decision(
                 self.match_id,
@@ -463,6 +517,14 @@ class ArenaEngine:
                 result.output_tokens,
                 result.provider,
                 result.model,
+                call={
+                    "latency_ms": result.latency_ms, "retries": result.retries,
+                    "cached_tokens": result.cached_tokens, "cost_usd": result.cost_usd,
+                    "cost_source": result.cost_source, "stop_reason": result.stop_reason,
+                    "request_id": result.request_id, "error_kind": result.error_kind,
+                    "effort": result.effort, "request_digest": result.request_digest,
+                    "response_digest": result.response_digest,
+                },
             )
             frozen[agent_id] = FrozenDecision(
                 action=action,
@@ -474,29 +536,57 @@ class ArenaEngine:
             )
         return frozen
 
-    def _emit_speech(self, round_no: int, speaker_id: str, text: str) -> None:
+    def _emit_speech(self, round_no: int, speaker_id: str, spoken: Speech) -> None:
         """``addressed_ids`` is computed at EMISSION time: immutable, auditable,
-        computed once, and not gameable by naming an agent ``a``."""
+        computed once, and not gameable by naming an agent ``a``.
+
+        A say is heard by the room next round. A whisper is heard by one
+        character next round if they are in the room now; otherwise it is lost,
+        and the loss is an event the audience sees. The words of a whisper
+        never appear in the event's text line, only in its payload, which the
+        mid-match projection withholds (PRD §5.15)."""
         agent = self.state["agents"][speaker_id]
-        addressed = self._addressed_ids(speaker_id, text)
+        text = spoken.text
+        if spoken.mode == "whisper":
+            target = self.state["agents"].get(spoken.to or "")
+            if not target or target["status"] != "active" or target["room"] != agent["room"]:
+                self._event(
+                    round_no, "dialogue", "whisper_lost", speaker_id, spoken.to,
+                    f"{agent['name']} whispers to nobody.",
+                    {"to": spoken.to, "room": agent["room"], "speech": text,
+                     "mode": "whisper"},
+                    include_in_narration=False,
+                )
+                return
+            addressed = [spoken.to]
+        else:
+            addressed = self._addressed_ids(speaker_id, text)
         speech = {
             "round": round_no,
             "agent_id": speaker_id,
             "name": agent["name"],
+            "mode": spoken.mode,
+            "to": spoken.to,
             "text": text,
             "room": agent["room"],
             "addressed_ids": addressed,
         }
-        self.state["recent_speech"] = (self.state["recent_speech"] + [speech])[-24:]
+        self.state["recent_speech"] = (self.state["recent_speech"] + [speech])[-32:]
+        if spoken.mode == "whisper":
+            line = f"{agent['name']} whispers to {self.state['agents'][spoken.to]['name']}."
+        else:
+            line = f'{agent["name"]}: “{text}”'
         self._event(
             round_no,
             "dialogue",
             "agent_speech",
             speaker_id,
-            None,
-            f'{agent["name"]}: “{text}”',
+            spoken.to,
+            line,
             {
                 "speech": text,
+                "mode": spoken.mode,
+                "to": spoken.to,
                 "room": agent["room"],
                 "addressed_ids": addressed,
             },
@@ -554,6 +644,7 @@ class ArenaEngine:
             "interact": lambda: self._interact(agent_id, action),
             "take": lambda: self._take(agent_id, action),
             "use": lambda: self._use(agent_id, action),
+            "give": lambda: self._give(agent_id, action),
             "rest": lambda: self._rest(agent_id),
         }
         run = handler.get(action.action)
@@ -878,6 +969,39 @@ class ArenaEngine:
                 "points": points,
                 "transfers": crown["transfers"],
                 "changes": changes,
+            },
+        )
+
+    def _give(self, agent_id: str, action: AgentAction) -> None:
+        """Hand one carried item to a living character in the same room.
+        Legality was proved at freeze time; anything that changed since (the
+        item dropped, the receiver moved or died) is STALE, never a penalty."""
+        agent = self.state["agents"][agent_id]
+        item_id = action.item or ""
+        receiver = self.state["agents"].get(action.target or "")
+        if item_id not in agent["inventory"] or item_id == CROWN_ITEM_ID:
+            self._stale(agent_id, action, "item no longer in hand")
+            return
+        if (
+            receiver is None
+            or receiver["status"] != "active"
+            or receiver["room"] != agent["room"]
+        ):
+            self._stale(agent_id, action, "the receiver is no longer here")
+            return
+        rules.inventory_remove(self.state, agent_id, item_id)
+        rules.inventory_add(self.state, receiver["id"], item_id)
+        self._event(
+            self.state["round"],
+            "agent",
+            "item_given",
+            agent_id,
+            receiver["id"],
+            f"{agent['name']} hands the {items.item_name(item_id)} to {receiver['name']}.",
+            {
+                "item": items.describe_item(item_id),
+                "to": receiver["id"],
+                "changes": {"inventory_removed": item_id, "inventory_added": item_id},
             },
         )
 

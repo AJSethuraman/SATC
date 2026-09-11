@@ -75,9 +75,9 @@ class ForgedLegalActionProvider(MockDecisionProvider):
                     "target": self.forged.get("target"),
                     "destination": self.forged.get("destination"),
                     "item": self.forged.get("item"),
-                    "speech": "",
-                    "reasoning_summary": "forged",
-                    "memory_write": "forged",
+                    "speech": {"mode": "silent", "to": None, "text": ""},
+                    "note": {"objective": "forged", "reads": []},
+                    "deal": None,
                 }
             ),
             input_tokens=10,
@@ -217,9 +217,10 @@ def _secret_manifests() -> list[AgentManifest]:
             AgentManifest(
                 id=base.id,
                 name=base.name,
-                system_prompt=f"SECRET-SYSPROMPT-{index} {base.system_prompt}",
-                personality=base.personality,
-                strategy=f"SECRET-STRATEGY-{index} {base.strategy}",
+                voice=base.voice,
+                wants=f"SECRET-STRATEGY-{index} {base.wants}",
+                treats=f"SECRET-SYSPROMPT-{index} {base.treats}",
+                never=base.never,
                 build=base.build,
                 secret_objective=base.secret_objective,
             )
@@ -263,7 +264,7 @@ class PublicSurfaceTests(unittest.TestCase):
         for row in rows:
             self.assertEqual(
                 sorted(row["manifest"].keys()),
-                ["build", "id", "name", "personality"],
+                ["build", "id", "kind", "name"],
             )
             # the picker still has what it needs
             self.assertTrue(row["id"] and row["name"] and row["manifest"]["build"])
@@ -277,8 +278,8 @@ class PublicSurfaceTests(unittest.TestCase):
         for marker in SECRET_MARKERS:
             self.assertNotIn(marker, blob)
         self.assertNotIn("secret_objective", blob)
-        self.assertNotIn("system_prompt", blob)
-        self.assertNotIn("strategy", blob)
+        for section in ("voice", "wants", "treats", "never"):
+            self.assertNotIn(f'"{section}"', blob)
 
     # -- [3] + [4] mid-match replay --------------------------------------
 
@@ -303,7 +304,7 @@ class PublicSurfaceTests(unittest.TestCase):
 
         for snapshot in bundle["snapshots"]:
             for agent in snapshot["state"]["agents"].values():
-                self.assertNotIn("memory", agent)
+                self.assertNotIn("note", agent)
                 self.assertNotIn("score_breakdown", agent)
                 self.assertNotIn("tokens_remaining", agent)
                 # public facts stay public
@@ -313,12 +314,11 @@ class PublicSurfaceTests(unittest.TestCase):
         for event in bundle["events"]:
             changes = (event.get("payload") or {}).get("changes") or {}
             if isinstance(changes, dict):
-                self.assertNotIn("memory", changes)
+                self.assertNotIn("note", changes)
                 self.assertNotIn("tokens_remaining", changes)
 
         for decision in bundle["decisions"]:
-            self.assertNotIn("reasoning_summary", decision["action"])
-            self.assertNotIn("memory_write", decision["action"])
+            self.assertNotIn("note", decision["action"])
             self.assertIn("action", decision["action"])
 
     def test_completed_replay_still_reveals_everything_for_audit(self):
@@ -331,7 +331,7 @@ class PublicSurfaceTests(unittest.TestCase):
         self.assertFalse(bundle["redacted"])
         self.assertEqual(bundle["match"]["seed"], 4321)
         self.assertTrue(
-            any("memory" in snap["state"]["agents"][next(iter(snap["state"]["agents"]))]
+            any("note" in snap["state"]["agents"][next(iter(snap["state"]["agents"]))]
                 for snap in bundle["snapshots"])
         )
         proofs = [

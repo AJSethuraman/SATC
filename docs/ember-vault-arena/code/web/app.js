@@ -276,7 +276,7 @@ function renderPrompts() {
     return `
       <details>
         <summary>${escapeHtml(m.name)} · ${escapeHtml(m.secret_objective.replaceAll("_", " "))}</summary>
-        <div class="prompt-content"><b>SYSTEM PROMPT</b>\n${escapeHtml(m.system_prompt)}\n\n<b>PERSONALITY</b>\n${escapeHtml(m.personality)}\n\n<b>STRATEGY</b>\n${escapeHtml(m.strategy)}\n\n<b>PROMPT HASH</b>\n${escapeHtml(participant.prompt_hash)}</div>
+        <div class="prompt-content"><b>VOICE</b>\n${escapeHtml(m.voice)}\n\n<b>WANTS</b>\n${escapeHtml(m.wants)}\n\n<b>TREATS</b>\n${escapeHtml(m.treats)}\n\n<b>NEVER</b>\n${escapeHtml(m.never)}\n\n<b>PROMPT HASH</b>\n${escapeHtml(participant.prompt_hash)}</div>
       </details>`;
   }).join("");
 }
