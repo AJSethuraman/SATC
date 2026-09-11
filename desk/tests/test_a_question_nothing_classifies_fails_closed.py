@@ -180,13 +180,19 @@ def test_a_caller_with_no_question_at_all_is_not_failed_closed(desk):
 #: 2026 at desk 0.22.0. Forge-Occam reported 9 of 18 on their own close, and the
 #: questions that reach nothing agree exactly.
 #:
-#: THE DOCKET SAID 8 AND THE MEASUREMENT SAYS 12. Recorded rather than quietly
-#: corrected, and NOT explained: the docket's figure was taken before
-#: `dec-merge350` narrowed the income-side vocabulary (`main` had been answering
-#: plain bookkeeping questions out of tax law — six of six), and a narrowing
-#: does raise this count, but nobody has shown that those four are the four.
-#: Whoever needs the reconciliation should do it against `810e5dc` rather than
-#: trust this sentence.
+#: THE DOCKET SAID 8 AND THE MEASUREMENT SAYS 12. The reconciliation was owed
+#: and has now been run, against the three revisions of `DOMAINS.md` that this
+#: window contains — the same fifteen questions, the map swapped underneath:
+#:
+#:     e074497b   before the income-side narrowing      9 of 15
+#:     810e5dcb   the narrowing itself                 13 of 15
+#:     HEAD       plus the `deduct` fix                12 of 15
+#:
+#: So the narrowing IS what moves this number, and sharply (9 -> 13), and the
+#: `deduct` fix gives one back. What is now established is the part that was
+#: guessed at before: **no revision in this window produces 8.** The docket's
+#: figure is not explained by the narrowing and is not explained at all —
+#: recorded as unaccounted for rather than rounded into the story that fits.
 #:
 #: THIS NUMBER SHOULD FALL, and the mechanism above is what makes it fall: every
 #: parked question the firm settles is a word `DOMAINS.md` did not have. If it
