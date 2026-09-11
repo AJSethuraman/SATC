@@ -31,7 +31,7 @@ harness serves has to match the code, and a doer holding the record can read pas
 whatever it was handed.
 
 **In the new shape the doer holds none of it.** It sends a question to a session
-that holds the desks, and receives an answer. Two consequences, in the order they
+that holds the record, and receives an answer. Two consequences, in the order they
 matter.
 
 > **CORRECTED 8 September 2026, 02:15 UTC.** Everything below was written from
@@ -79,7 +79,7 @@ FASB's own free ASU 2016-02. Whether that is admissible authority is the firm's
 call and is open.
 
 **What it takes is reach, not a location** — and reach is currently broken for
-every primary-authority source these desks hold. See the correction above. `searching.py` and the
+every primary-authority source the corpus holds. See the correction above. `searching.py` and the
 `run-down-a-question` skill already exist for exactly this and have only ever run
 as a separate manual step.
 
@@ -105,7 +105,7 @@ document was first written around, and it is the smaller of the two.
 
 The doer needs no plugin, so the install cannot be stale, so the SKILL.md the
 harness serves cannot be four releases behind the code. Three of the last five
-releases were spent hardening that path. One session installs the desks — the
+releases were spent hardening that path. One session installs the plugin — the
 Desk session — and it is the one that also runs the tests.
 
 ---
@@ -210,11 +210,11 @@ not this software's.** Nothing here should assume an answer.
 
 ## What is NOT decided
 
-- **Whether the Forge sees real client data.** The desks never need a name to
+- **Whether the Forge sees real client data.** The desk never needs a name to
   answer whether a deposit is a reconciling item, so a de-identified close is
   buildable and is the default assumption until the firm says otherwise. Real
   Sarcia figures crossing into a container is their call.
-- **What a close consists of, step by step.** The desks answer questions; they do
+- **What a close consists of, step by step.** The desk answers questions; it does
   not hold books, a trial balance, or a transaction list. `client-documents`
   holds the engagement lifecycle and `satc_system` holds the interview and the
   Drake seam, and nothing today wires a desk consultation into either. That
