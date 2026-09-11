@@ -5,6 +5,22 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 11 September 2026, later — golden replay pinned, suite in CI, hands on the firm's machine
+
+- **Golden replay (PRD §5.40).** `tests/golden/seed52.json` pins the seed-52
+  mock match: 26 snapshot hashes, placements, scores, winner, event count.
+  `tests/test_golden.py` re-runs it with no model and compares; regenerate
+  with `tools/write_golden.py` only when a rule change is meant to move the
+  match, and say so in the commit. Suite 89 → 91.
+- **CI.** `.github/workflows/test.yml` gains `docs/ember-vault-arena/code` as a
+  matrix project (`pip install pytest`, `pytest -q`); a one-line `conftest.py`
+  puts the folder on `sys.path` so plain pytest finds `arena`.
+- **The hands.** The firm started a Remote Control session on their machine
+  (`Ember Vault Arena smoke test`) with the checklist prompt. `SendMessage` by
+  name could not reach it from the cloud; a Routine bound to its session id
+  (`trig_01BMtQXYkyZ2FMQzSLr6UPNq`) delivered a message on the first fire. Its
+  results come back as pushes under `docs/ember-vault-arena/runs/`.
+
 ## 11 September 2026, night — M0 and M1 built, M2's harness built and run on the mock
 
 The firm went to bed with *"just kind of trust you can start getting this
