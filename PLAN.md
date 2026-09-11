@@ -510,6 +510,67 @@ it with them.
   is the firm's to confirm, not mine.
 
 
+- **2026-09-11 — Three things still speaking in desks, and one decision put to the
+  firm (desk 0.23.0).** Suite **1,220 passing, 1 skipped**; canon 187.
+
+  **`factory.emit` was writing into `desk/desks/<name>/`** — the folder `dec-kill`
+  deleted the day before. It is the one documented route for the firm to add a
+  subject the desk does not cover: it interviews them, passes every gate, and
+  landed where nothing loads. It now merges into `corpus/`, refuses on any
+  collision rather than resolving one, grades the proposal ALONE (where
+  `authority_is_more_than_the_answer_key` can still fire — merged into 785 other
+  passages that guard compares two sets that can never be equal again, so
+  checking only the merge would have quietly retired a gate) and then the merge
+  WHOLE, and reads the subjects back out of `SUBJECTS.md` afterwards, because
+  `parse_subjects` reads `blocks[0]` and a second heading is silently unread.
+
+  **`relay.as_prompt` still ended "Say which desks this reached."** That is the
+  message on the wire to Forge-Occam — the V1 leg — and it carries the protocol
+  precisely so a stale SKILL.md does not matter. Rewritten around which
+  citations a phrasing surfaced.
+
+  **A filed hole now carries its evidence.** "nothing in the corpus shares a word
+  with this question" is the same sentence on every row; it now names the words —
+  *the corpus has never seen any word in this question: bought, forklift*. The
+  limit is stated rather than hidden: that list is ALWAYS exhaustive, because one
+  word on file means some passage scores and the page is never reached. So it
+  says which words missed and nothing about whether a rule exists. A first draft
+  said the gap "may be in the wording rather than the authority" on every row —
+  a guess with evidence stapled to it.
+
+  **THE FORKLIFT PROBLEM IS WORSE, NOT SOFTER, AND I FOUND THAT BY CHECKING THE
+  OPPOSITE.** I assumed one corpus had softened it and wrote that into the
+  envelope. Measured first: *"what do i do with it? we bought a forklift"* returns
+  **0** passages where *"is the invoice price deducted or capitalized?"* returns
+  **8**, the firm's own $2,500 threshold among them. `bought` and `forklift`
+  appear in none of 786 passages; `purchase` appears in 85.
+
+  **WAITING ON THE FIRM — `dec-fullstop`.** `pool._WORD` allows `.`, `-` and `/`
+  at the END of a token, so a word closing a sentence is a different word from
+  the same word mid-sentence. Pub. 525's own section opens *"Rewards. If you
+  receive a reward..."* and the pool holds `rewards.`; a question about rewards
+  reaches it never and is filed to the firm as a hole in authority they hold.
+  Counted: **814 of 4,495 vocabulary entries** end in one of these and **128
+  exist only in that form** — `brushes.`, `cabinets.`, `ceilings.` — reachable by
+  no question at all. **The fix is two lines and is deliberately not applied.**
+  It reorders which authority comes back on **14 of 19** real questions and costs
+  Q18 its commissioned pairing outright (15 of 16 becomes 14), and the firm has
+  `dec-guidance-narrow` open, which is a question about exactly which authority
+  gets served. Moving retrieval underneath that is not a fix. Pinned instead, the
+  way the routing defects were pinned before `dec-kill`:
+  `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` re-runs the
+  whole measurement every suite, and their answer is one line in `pool.terms`.
+
+  **Two corrections to what I had written down.** `domains.tier_for` was on the
+  docket as an open defect — *"a guide fetched live from irs.gov comes back
+  stamped as the rule"*. Run rather than read: it comes back `binding=False` with
+  a caveat saying nobody has classified the document, and a test asserts the
+  tier field reports the host's grade **deliberately**. And the 12-of-15
+  classification figure against the docket's 8 is now measured across the three
+  `DOMAINS.md` revisions — **9, then 13, then 12** — so the narrowing is what
+  moves it, and **no revision produces 8**. Recorded as unexplained rather than
+  rounded into the story that fits.
+
 - **2026-09-10 — The desks are deleted. One corpus (desk 0.22.0).**
 
   `dec-kill`, 8 September: *"Kill the desks; one pool."* It had not been done.
