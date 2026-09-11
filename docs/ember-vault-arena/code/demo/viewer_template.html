@@ -1637,7 +1637,7 @@
     var brk = el("div", "cbreak");
     card.appendChild(brk);
 
-    card.title = meta.personality;
+    card.title = meta.voice || "";
     rosterBox.appendChild(card);
     cardEls[meta.id] = { card: card, score: score, bar: bar, fill: fill, hptext: hptext, status: status, inv: inv, brk: brk, last: -1 };
   });

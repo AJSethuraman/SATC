@@ -87,7 +87,7 @@ def _public_event_payload(payload: Any, reveal: bool) -> Any:
             if key not in PRIVATE_CHANGE_KEYS
         }
     # invalid_action_fallback / stale_action echo the whole submitted action,
-    # which carries the same private reasoning_summary + memory_write.
+    # which carries the same private note.
     if isinstance(public.get("submitted_action"), dict):
         public["submitted_action"] = _public_action(public["submitted_action"], reveal)
     proof = public.get("proof")
@@ -256,7 +256,7 @@ class ArenaStore:
     def register_agent(self, manifest: AgentManifest) -> None:
         manifest_json = canonical_json(manifest.as_dict())
         prompt_hash = hashlib.sha256(
-            manifest.system_prompt.encode("utf-8")
+            manifest.brain_text.encode("utf-8")
         ).hexdigest()
         with self.lock:
             self.conn.execute(
@@ -656,7 +656,7 @@ class ArenaStore:
     def list_agents(self) -> list[dict[str, Any]]:
         """PUBLIC ROSTER — projection only.
 
-        ``system_prompt``, ``strategy`` and ``secret_objective`` are the exact
+        the brain sections and ``secret_objective`` are the exact
         set ``replay_bundle`` withholds until a match completes, so they must
         never ride out on the unauthenticated roster either. The UI picker needs
         id / name / build; nothing here needs more.

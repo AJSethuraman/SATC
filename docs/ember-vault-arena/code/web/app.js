@@ -270,7 +270,7 @@ function renderScores() {
 function renderPrompts() {
   $("#promptReveal").innerHTML = state.replay.participants.map((participant) => {
     const m = participant.manifest;
-    if (!m.system_prompt) {
+    if (!m.voice) {
       return `<details><summary>${escapeHtml(m.name)} · sealed</summary><div class="prompt-content">Prompt reveals after elimination or match completion.</div></details>`;
     }
     return `
@@ -318,9 +318,11 @@ async function runDemo() {
 const manifestTemplate = {
   id: "new_agent",
   name: "New Challenger",
-  system_prompt: "Play to win while staying in character. Make decisive choices and adapt when another agent changes the board.",
-  personality: "Clever, theatrical, and a little dangerous.",
-  strategy: "Help open the vault, preserve health, and seize the Crown when a safe opportunity appears.",
+  kind: "character",
+  voice: "Clever, theatrical, and a little dangerous.",
+  wants: "Help open the vault, preserve health, and seize the Crown when a safe opportunity appears.",
+  treats: "Play to win while staying in character. Make decisive choices and adapt when another agent changes the board.",
+  never: "Never attacks someone who has kept their word.",
   build: "scout",
   secret_objective: "treasure_hoarder",
 };

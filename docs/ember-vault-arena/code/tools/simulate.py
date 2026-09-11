@@ -47,6 +47,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from arena.engine import ArenaEngine  # noqa: E402
+from arena.rules import STARTING_TOKEN_BUDGET
 from arena.models import AgentManifest  # noqa: E402
 from arena.providers import MockDecisionProvider  # noqa: E402
 from arena.storage import ArenaStore  # noqa: E402
@@ -97,9 +98,10 @@ def build_roster(seed: int, n_agents: int) -> list[AgentManifest]:
             {
                 "id": f"seat{index + 1}",
                 "name": f"Seat {index + 1}",
-                "system_prompt": NEUTRAL_SYSTEM_PROMPT,
-                "personality": NEUTRAL_PERSONALITY,
-                "strategy": NEUTRAL_STRATEGY,
+                "voice": NEUTRAL_PERSONALITY,
+                "wants": NEUTRAL_STRATEGY,
+                "treats": NEUTRAL_SYSTEM_PROMPT,
+                "never": "Never leaves the match early.",
                 "build": builds[index],
                 "secret_objective": objectives[index],
             }
@@ -142,9 +144,10 @@ class RogueDecisionProvider:
             "target": "not_a_real_body",
             "destination": None,
             "item": None,
-            "speech": "",
-            "reasoning_summary": "injected illegal action (simulator probe)",
-            "memory_write": "",
+            "tile": None,
+            "speech": {"mode": "silent", "to": None, "text": ""},
+            "note": {"objective": "injected illegal action (simulator probe)", "reads": []},
+            "deal": None,
         }
         raw = json.dumps(rogue, sort_keys=True)
         from arena.models import ProviderResult  # local import: worker-side only
@@ -805,7 +808,7 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
             )
         )
     add(
-        f"  mean tokens left at end   {summary['tokens_left_mean']:.0f} of 18000 "
+        f"  mean tokens left at end   {summary['tokens_left_mean']:.0f} of {STARTING_TOKEN_BUDGET} "
         f"({summary['tokens_exhausted_pct']:.1f}% of agents hit 0)"
     )
     add("  submitted action mix:")
