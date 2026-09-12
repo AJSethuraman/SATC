@@ -23,6 +23,40 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 12 September 2026, 10:10Z — after the merge: the billed counts, measured
+
+Your probe settled it: one model, list pricing, and the top-level `usage`
+under-reports a schema-constrained call. The adapter now reads the counts
+from `model_usage` first (then the sum of `usage.iterations`, then the
+top-level fields), so the ledger records what the cost is priced on. The
+probe can now replay a stored arena prompt with the schema attached.
+
+After the merge and your `git pull --rebase`, from `docs/ember-vault-arena/code`:
+
+**1. One real arena call, schema attached** (one call):
+
+```
+python tools/probe_sdk.py --match ember-7-830ff8da
+```
+
+Push the whole output as `runs/<UTC>-sdk-probe-arena.md`. It prints `usage`
+(with `iterations`), `model_usage`, `num_turns`, and three prices side by
+side: the repo's table on the recorded counts, the sum of `model_usage`
+`costUSD`, and `total_cost_usd`. One line from you: do the first two agree
+with the third now, and how many entries does `iterations` have?
+
+**2. A fresh one-round smoke on the fixed read** (eight calls):
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --rounds 1 --seed 1
+```
+
+Push the ledger as `runs/<UTC>-agent-sdk-smoke-billed.md`. Its `in`,
+`cached` and `wrote` columns should now reproduce each row's cost at the
+table's rates within a cent; say whether they do.
+
+D3 stays the firm's. Everything else as before.
+
 ## 12 September 2026, 08:50Z — after the smoke re-run
 
 Your two findings were right and are fixed on the branch (suite 91 → 96):

@@ -5,6 +5,47 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 10:05Z — the cost gap found: the SDK bills counts the ledger never saw
+
+The forge's probe (`runs/20260912T083032Z-sdk-probe.md`) and ledger reprint
+(`runs/20260912T082930Z-ledger-reprint.md`), read here:
+
+- **One model.** `model_usage` has one key, `claude-opus-5`; the alias
+  `opus` resolves to it and no helper model is billed.
+- **The SDK prices list rates on the counts it believes it sent, to the
+  cent:** 457 in × $5/M + 4 out × $25/M = $0.002385 = `total_cost_usd`.
+  So the 5.5× gap on arena calls is not a rate card. The top-level `usage`
+  on a schema-constrained arena call (2 uncached + 2,060 cached + 341 out,
+  $0.0096 at list) describes a fraction of what was billed ($0.0525): about
+  8,600 uncached input tokens a call go unrecorded, close to the first ~10k
+  guess and about three times the compiled prompt. The forge withdrew its
+  earlier "wrong in the useful direction" reading; both readings stand
+  together.
+- **Where the divergence lives**, from the SDK's own shape: `usage` carries
+  an `iterations` array (one entry on the trivial probe), and
+  `model_usage[model]` carries its own counts and `costUSD`. On the probe all
+  three agree; on an arena call they cannot, since `costUSD` is list price
+  on `model_usage`'s counts.
+- **Fixed on the branch:** `sdk_counts()` reads `model_usage` first, then the
+  sum of `iterations`, then the top-level fields; the ledger now records the
+  counts the cost is priced on. Test per rung; the `model_usage` read goes
+  red under mutation. `AgentSDKProvider.raw_result()` exposes the raw
+  message, and `tools/probe_sdk.py --match <id>` replays a stored arena
+  prompt with the schema attached and prints the three prices side by side.
+  FORGE.md asks the forge to run that once, then a fresh one-round smoke,
+  which together say whether the recorded counts now reproduce the cost.
+- **What it means for the estimate:** if ~8,600 uncached tokens a call is
+  real, the cost is what the prompt weighs at list, not a fault, and the
+  PRD's per-call estimate (~2,000 input) was three times too light. The
+  next question is why a ~3,000-token compiled prompt bills as ~8,600, and
+  whether it is cacheable; the arena probe's `iterations` answers the first.
+- Suite 99 → **100**. Two commits held locally until the forge has merged
+  PR #359, so CI stops restarting under it.
+- The `KEY.json` in the pushed gate pack stays tracked and in history; the
+  decision is recorded rather than rewritten: that pack's readers take it
+  from a checkout, the firm is not a reader for it, and every later key
+  stays off the branch.
+
 ## 12 September 2026, 09:40Z — a full match on the subscription: won at round 16
 
 The firm answered D4 in the forge's session (*"Do all 48 rounds."*; to the
