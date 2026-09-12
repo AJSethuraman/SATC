@@ -5,6 +5,36 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 10:05Z — round 2 never re-reads round 1; the cache lever is smaller than it looked
+
+The forge's two-round smoke (`runs/20260912T093832Z-agent-sdk-smoke-2rounds.md`,
+16 of 16, 35 s), read here:
+
+- **`cached` is exactly 2,060 on every call**, in round 2 as in round 1, and
+  across every match measured today; `wrote` rises in round 2 (dask 3,944 →
+  4,347) rather than falling. So the 2,060 is the CLI's own fixed prefix,
+  the same for all eight contestants, and the arena's whole ~3,800-token
+  prompt is written to a one-hour cache on every call and never read back.
+  This run wrote 63,640 tokens and read 32,960.
+- **Correction to the 09:20Z entry's framing.** The cache write is 75% of a
+  call's cost, but only part of it is avoidable. The stable part of our
+  prompt (the platform system prompt and the brain, roughly 1,200 tokens)
+  is under a third of what is written; the observation, which changes every
+  round, is the rest. A stable per-contestant prefix would save about 20% of
+  a call at API rates; disabling the CLI's caching for the subprocess
+  (`DISABLE_PROMPT_CACHING`, so the 3,900 tokens bill at 1× instead of 2×
+  and the CLI's 2,060 at 1× instead of 0.1×) about 25%; the two do not
+  combine. Neither is 75%. Both stay deferred until the API-key route is in
+  use; on the subscription nothing is charged per call.
+- **Both fixes hold on a real run:** `provider/model: agent_sdk/claude-opus-5`,
+  no compound string; `usage_json` carries the breakdown; rows reconcile to
+  the cent (dask round 1: Opus $0.048605 + Haiku $0.003488 = $0.052093).
+- **The forge's consequence, taken:** the table's columns are the primary
+  model's while `cost` covers both models, so a reader of the table alone
+  could not reproduce a row. The totals line now ends `other models billed:
+  $X (in usage_json)`, summed from each row's breakdown. Test added; suite
+  101 → **102**.
+
 ## 12 September 2026, 09:55Z — the forge's verification before merging, read back
 
 The forge merged only after checking more than the suite: 101 passed at

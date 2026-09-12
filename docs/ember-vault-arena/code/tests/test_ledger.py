@@ -88,6 +88,18 @@ class LedgerPrintTests(unittest.TestCase):
         fen = next(line for line in text.splitlines() if " fen " in line)
         self.assertIn("2060", fen)    # cache creation, previously unrecorded
 
+    def test_totals_line_names_the_helper_model_cost_hidden_in_usage_json(self):
+        import json
+        breakdown = json.dumps({
+            "claude-haiku-4-5-20251001": {"costUSD": 0.003488, "canonicalModel": "claude-haiku-4-5"},
+            "claude-opus-5": {"costUSD": 0.048605, "canonicalModel": "claude-opus-5"},
+        })
+        text = self._printed([_decision(usage_json=breakdown, cost_usd=0.052093),
+                              _decision(agent_id="fen", usage_json=breakdown, cost_usd=0.052093)])
+        self.assertIn("other models billed: $0.0070 (in usage_json)", text)
+        # without a breakdown the line stays as it was
+        self.assertNotIn("other models", self._printed([_decision()]))
+
     def test_totals_line_sums_every_count(self):
         text = self._printed([_decision(), _decision(agent_id="fen", output_tokens=484)])
         self.assertIn("tokens: in 4; cached 4120; cache written 0; out 825", text)
