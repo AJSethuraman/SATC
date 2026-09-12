@@ -5,6 +5,47 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 20:05Z — the docket answered: D8 ruled, D5 and D6 "later" with a question each, D7 tapped one way and written the other
+
+The firm, 19:46Z to 19:47Z on the page, read back by `read_db`, in their words:
+
+- **D8, the ending rule:** *"Different ending rule, bigger world too."* Ruled.
+  Taking the Crown out no longer ends the match; it runs its forty-eight
+  rounds and whoever holds the Crown when the final round resolves wins;
+  everyone else is placed by score. PRD §5 items 4 and 5 now say so, with
+  the July rule they replace kept beside them, since `engine.py` still
+  implements it (`_crown_extract`, `ended_reason: extraction`) and the
+  12 September match ended at round 16 under it. The code change belongs
+  to M3 with the rest of the world, on the mock, and M3 is shut until D7.
+  What the Egress and an extraction do now, if anything, is an open
+  question in PRD §10, not a default. **A correction to the page:** it said
+  the bigger world comes at M4; the PRD has it at M3 (§9, *the world
+  registry to sixteen locations*). M4 is the live stream.
+- **D5, the private repository:** *"Later"*, with *"Can you not set this up
+  for me???"* Tried a third time at 19:53Z, at that ask, from this session:
+  `POST /user/repos` → 403 *Resource not accessible by integration*. The
+  GitHub App this session runs as is not allowed to create repositories on
+  the firm's account, and nothing on this side changes that. It stays six
+  clicks of theirs; the steps are on the page. Recorded in PRD §10.
+- **D6, the players:** *"Later"*, with *"I haven't even seen the
+  template."* True, and my omission: three dockets named it and none showed
+  it. `code/brains/TEMPLATE.md` (1,192 characters, four sections under a
+  name) sent to the firm in the session and now printed on the page under
+  D6.
+- **D7, the readers and M3:** the tap is *"Readers later, M3 waits"*; the
+  note is *"I would prefer to get this hammered out first and then maybe
+  I'll do this or something similar."* Read plainly, the note says build
+  first and test later, in whatever form, which is the other outcome: M3
+  opens now and the gate stops being a door. The tap says the opposite.
+  Not resolved here; asked back as one question with the same two
+  outcomes, on the page and in the session. Nothing from M3 starts on
+  either reading until they say which.
+
+The Next goal is unchanged until D7 is settled. Recorded here rather than
+acted on: on the "build first" reading the first work is M3 on the mock
+with D8's rule in it, and the PRD's gate line becomes a check run before
+the pilot rather than a precondition for M3.
+
 ## 12 September 2026, 19:50Z — docket refreshed at the firm's ask: four open decisions first
 
 The firm, at 19:37Z: *"Docket so I can respond easier."* The page is
