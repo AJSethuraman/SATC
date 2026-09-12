@@ -116,3 +116,71 @@ $0.4296 today. The SDK's estimate is not stable run to run.
 - All eight scored 0 points in a single round, as before.
 - Match id `ember-1-b6b428e5`; `python run.py ledger ember-1-b6b428e5`
   reprints the table. `data/` stays out of source control.
+
+## Addendum — answering FORGE.md's questions on this run
+
+Added after reading `FORGE.md` (08:20Z orders). Three things were asked: the
+model string the SDK reported, whether the input tokens were cached or
+uncached, and — if the counts came back near 10k — one call's prompt length in
+characters.
+
+**The model string is `opus`.** Not a versioned id. `provider` is `agent_sdk`
+and `effort` is `low`, both as recorded in `decisions`. Worth knowing for any
+cross-check: `AnthropicProvider.RATES` (`providers.py:788`) is keyed
+`claude-opus-5`, so a rate lookup by the string these rows actually carry finds
+nothing and must map the alias first. It does not affect this run's figures —
+the `agent_sdk` path takes `total_cost_usd` from the SDK and never consults
+`RATES` — but it would silently skip a cost cross-check written against these rows.
+
+**Cached, almost entirely.** Per call: 2 uncached input tokens, 2,060 cache
+reads, 341–501 output. Identical 2,060 on all eight calls. The adapter does not
+read `cache_creation_input_tokens`, so whatever built that cache is unrecorded.
+
+**The counts did not come back near 10k — they came back below the prompt's own
+weight, which is the more interesting answer.** Prompt sizes for the eight
+calls of `ember-1-b6b428e5`, measured as the length of the stored `prompt_json`
+(no content reproduced):
+
+```
+agent    prompt_json   message text   system part   in   cached   out   output chars
+yarrow      11,752        10,538          2,867      2    2,060   446       661
+torvic      11,503        10,337          2,867      2    2,060   404       593
+perrin      11,730        10,516          2,867      2    2,060   501       680
+ossa        11,478        10,296          2,867      2    2,060   416       605
+ilse        11,795        10,581          2,867      2    2,060   433       675
+grael       11,743        10,525          2,867      2    2,060   441       573
+fen         12,053        10,803          2,867      2    2,060   484       769
+dask        12,044        10,798          2,867      2    2,060   341       407
+```
+
+At the usual ~4 characters per token, ~11.7k characters of compiled prompt is
+roughly **2,900–3,000 tokens**. The SDK reports **2,062** input tokens in total
+(2 + 2,060). So the reported input is *smaller* than the prompt the arena
+compiled, not three times larger.
+
+What that rules in and out, stated as far as the evidence goes and no further:
+
+- **The weight is not the CLI's wrapper.** The hypothesis behind the question
+  was that a $0.063 call implies ~10k input tokens and therefore something
+  outside the arena's prompt was being sent. Nothing of that size appears in
+  the counts.
+- **The cost is not explained by token volume at all.** 2,062 cached-in and
+  ~440 out, priced by this repo's own table and formula, is ~$0.0096. The SDK
+  says $0.0525. The gap is in the SDK's accounting, not in prompt weight.
+- **The counts and the prompt do not reconcile either**, being ~30% short of
+  the compiled prompt's estimated weight. Either the SDK reports only part of
+  what it sent, or the characters-per-token ratio is well off for this content
+  (JSON with many short keys runs denser than prose). Not resolved here; it
+  needs a token count from a tokenizer, which this session did not run.
+
+The prompt is the arena's own: a 2,867-character system part identical across
+all eight calls, plus ~7.5k characters that differ per contestant.
+
+## A rule I broke before I had read it
+
+`FORGE.md` says plain commits, no rebase. I rebased three times — `d539d35f`
+onto `07632a9a`, then onto `d8b5bb1b`, then `ec6b7a70` onto `e7cd42ce` — each
+time replaying only my own not-yet-pushed commit onto the cloud's tip, never
+rewriting anything already on the remote and never force-pushing. The last of
+those happened after `FORGE.md` was pushed and before I pulled it. From here:
+plain commits, and a merge rather than a rebase if the branch has moved.
