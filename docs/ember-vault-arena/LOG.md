@@ -5,6 +5,23 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:05Z — the gate key moves out of the readers' folder
+
+Done rather than left proposed: `tools/gate.py` now writes the key to
+`gate/<run>.key.json`, beside the pack and outside source control
+(`.gitignore`), and prints where it went; `tools/score_gate.py` reads the key
+beside the pack first and falls back to `KEY.json` inside, so the pack already
+on the branch (`20260912-034624-agent_sdk`) still scores. Consequence for the
+firm: the key of every future run lives only on the machine that ran the gate;
+lose it and the run is rerun, not recovered. `tests/test_gate.py` (new, 3)
+pins: no `KEY.json` inside a pack and a key beside it; no house name or id in
+any transcript or brain a reader receives (the check done by hand at 08:05Z);
+the scorer on both layouts. Suite 96 → **99**.
+
+The firm, 09:00Z, on the measurement match: *"Oh I'll do 48 then."* FORGE.md
+carries the 48-round command; the forge runs it on the firm's word in its own
+session.
+
 ## 12 September 2026, 08:50Z — tokens are real; three ledger defects fixed
 
 The forge's smoke re-run on the fixed adapter (`c248f882`,
