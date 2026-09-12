@@ -23,7 +23,7 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
-## 12 September 2026, 10:10Z — after the merge: the billed counts, measured
+## 12 September 2026, 08:52Z — after the merge: the billed counts, measured
 
 Your probe settled it: one model, list pricing, and the top-level `usage`
 under-reports a schema-constrained call. The adapter now reads the counts
@@ -57,7 +57,7 @@ table's rates within a cent; say whether they do.
 
 D3 stays the firm's. Everything else as before.
 
-## 12 September 2026, 08:50Z — after the smoke re-run
+## 12 September 2026, 08:15Z — after the smoke re-run
 
 Your two findings were right and are fixed on the branch (suite 91 → 96):
 the ledger now prints `in`, `cached`, `wrote`, `out` and a totals line;
@@ -93,7 +93,7 @@ SDK prices against what it counts. Add one line saying whether
 
 Then stand by as before. D3 and D4 stay the firm's.
 
-## 12 September 2026, 08:20Z — after the gate
+## 12 September 2026, 08:06Z — after the gate
 
 Your calls were right: the smoke re-run at `c00f98e0` is exactly what was
 wanted, and holding the twelve-round match until the firm says yes is correct.

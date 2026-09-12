@@ -5,7 +5,15 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
-## 12 September 2026, 10:05Z — the cost gap found: the SDK bills counts the ledger never saw
+## 12 September 2026, 09:05Z — a correction to this log's clock
+
+The four entries below dated 08:20Z, 08:35Z, 08:50Z and FORGE.md's 08:52Z,
+08:15Z and 08:06Z sections were first written with headings about an hour
+ahead of the clock (09:05Z, 09:40Z, 10:05Z, 10:10Z, 08:50Z, 08:20Z). The
+git commit times are the truth and the headings now match them. The forge's
+files that cite "the 08:50Z orders" mean the section now headed 08:15Z.
+
+## 12 September 2026, 08:50Z — the cost gap found: the SDK bills counts the ledger never saw
 
 The forge's probe (`runs/20260912T083032Z-sdk-probe.md`) and ledger reprint
 (`runs/20260912T082930Z-ledger-reprint.md`), read here:
@@ -46,7 +54,7 @@ The forge's probe (`runs/20260912T083032Z-sdk-probe.md`) and ledger reprint
   from a checkout, the firm is not a reader for it, and every later key
   stays off the branch.
 
-## 12 September 2026, 09:40Z — a full match on the subscription: won at round 16
+## 12 September 2026, 08:35Z — a full match on the subscription: won at round 16
 
 The firm answered D4 in the forge's session (*"Do all 48 rounds."*; to the
 cloud: *"48 is the new number. You guys hash this out I gave them my spec."*).
@@ -93,7 +101,7 @@ The forge ran `--rounds 48` at HEAD `7534d45d` and pushed
 Total recorded $7.67 for the match, the SDK's estimate at API rates; nothing
 charged on the subscription.
 
-## 12 September 2026, 09:05Z — the gate key moves out of the readers' folder
+## 12 September 2026, 08:20Z — the gate key moves out of the readers' folder
 
 Done rather than left proposed: `tools/gate.py` now writes the key to
 `gate/<run>.key.json`, beside the pack and outside source control
@@ -106,7 +114,7 @@ pins: no `KEY.json` inside a pack and a key beside it; no house name or id in
 any transcript or brain a reader receives (the check done by hand at 08:05Z);
 the scorer on both layouts. Suite 96 → **99**.
 
-The firm, 09:00Z, on the measurement match: *"Oh I'll do 48 then."* FORGE.md
+The firm, 08:18Z, on the measurement match: *"Oh I'll do 48 then."* FORGE.md
 carries the 48-round command; the forge runs it on the firm's word in its own
 session.
 
@@ -163,7 +171,7 @@ the twelve-round match until the firm answers D4. A reply from here was
 refused: *"this cloud session cannot message other sessions yet."* So the
 channel is one way (forge → cloud) plus git. Standing orders for the forge
 now live in `FORGE.md`, newest first; the forge reads it after `git pull`.
-The firm, 08:10Z: *"I'm going to have that agent work with you. I will likely
+The firm, 08:03Z: *"I'm going to have that agent work with you. I will likely
 not be checking for a bit."*
 
 ## 12 September 2026, 08:05Z — the gate has run: 136 of 136 on the subscription route
