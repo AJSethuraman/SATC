@@ -5,6 +5,53 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:40Z — a full match on the subscription: won at round 16
+
+The firm answered D4 in the forge's session (*"Do all 48 rounds."*; to the
+cloud: *"48 is the new number. You guys hash this out I gave them my spec."*).
+The forge ran `--rounds 48` at HEAD `7534d45d` and pushed
+`runs/20260912T082658Z-agent-sdk-full.md` (`cd5dcddf`, merged in at
+`4b11aadc`). Read here:
+
+- **106 of 106 answered**, no network fallback, no panic, no rate-limit or
+  overage message. **4 min 56 s** wall clock: about 18 s a round with eight
+  callers in parallel. The five-hour window carried it without complaint.
+- **The match ended at round 16 because it was won.** Grael extracted the
+  Ember Crown (`crown_extracted`, `ended_reason: extraction`); `--rounds` is a
+  ceiling, the Crown is the clock. Attrition: 8 alive for rounds 1–5, 7 for
+  6–9, 6 for 10–13, 5 for 14–15, 4 at 16. The builders report three acts,
+  because acts are a function of round number.
+- **First design input for M4, and a decision for the firm on the next
+  docket:** the show promises about an hour and 48 rounds; July's world lets a
+  match end at 16. Either the world grown at M4 makes 48 the norm (more
+  ground between the Crown and the exit, later act boundaries), or the rule
+  changes so an extraction does not end the match. The grill's decision was
+  "one winner, everyone else placed by score"; which of those two reaches it
+  is the firm's call. Also: 18 s a round is far faster than the ~1 min a
+  round the stream wants, so M4's pacing is a deliberate slow-down, not a
+  speed problem.
+- **Secret objectives:** eight characters drew three distinct objectives,
+  four of them `lorekeeper`. The manifest's default objective is derived from
+  the id over July's small pool. The gate is about brains, not objectives,
+  but half the field privately chasing one goal is worth widening at M3/M4.
+- **Cost per call climbs with the round** ($0.052 at round 1 to ~$0.10 by
+  round 13) while the ledger's `in` stays 2 on every row, and one call
+  (round 12, perrin, 649 tokens out) cost $0.0266, a third of its
+  neighbours. Hypothesis, to be settled by the probe and by the reprint with
+  the cached column: with `output_format` the CLI makes more than one API
+  step per query, `ResultMessage.usage` reports the last small step (2
+  uncached + a cached prefix) while `total_cost_usd` sums every step,
+  including the first, which reads the whole growing prompt and pays cache
+  *creation* on it; the cheap outlier would be a call whose first step hit the
+  cache. If that is right, the SDK's cost is the honest number and the
+  ledger's token counts are the wrong step's. The probe prints `model_usage`
+  and `num_turns`, which decides it.
+- The replay export and all three builders ran clean on a real-model match
+  (0.5 s), closing one "not checked" item from the docket.
+
+Total recorded $7.67 for the match, the SDK's estimate at API rates; nothing
+charged on the subscription.
+
 ## 12 September 2026, 09:05Z — the gate key moves out of the readers' folder
 
 Done rather than left proposed: `tools/gate.py` now writes the key to
