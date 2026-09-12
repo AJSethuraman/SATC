@@ -1,0 +1,22 @@
+{
+  "letter_to_brain_number": {
+    "A": 7,
+    "B": 8,
+    "C": 5,
+    "D": 3,
+    "E": 1,
+    "F": 6,
+    "G": 2,
+    "H": 4
+  },
+  "letter_to_id": {
+    "A": "fen",
+    "B": "dask",
+    "C": "torvic",
+    "D": "ilse",
+    "E": "perrin",
+    "F": "ossa",
+    "G": "grael",
+    "H": "yarrow"
+  }
+}

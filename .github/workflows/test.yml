@@ -66,6 +66,13 @@ jobs:
           # `live`, and never collected.
           - project: credit-suite
             install: pip install -e ".[test]"
+          # Ember Vault Arena is staged under docs/ for migration to its own
+          # repository and is not the practice's software; it runs here so the
+          # golden replay (PRD §5.40) is verified on every PR with no model call.
+          # Standard library only, by design: the two hosted adapters import
+          # their SDKs lazily and the suite drives them through fakes.
+          - project: docs/ember-vault-arena/code
+            install: pip install pytest
     defaults:
       run:
         working-directory: ${{ matrix.project }}

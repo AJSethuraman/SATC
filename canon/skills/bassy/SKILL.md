@@ -31,6 +31,15 @@ record from, a session in an unrelated repo answered with the path to a checkout
 on that machine rather than the plugin's own copy, and would simply have found
 nothing on any machine without it.
 
+**`CONVICTIONS.md` ends with *Rulings by project*.** Where a project is not the
+practice's software, the firm rules on each entry once — struck or upheld for
+that project — and the ruling is kept there. **Read it before challenging on
+such a project**: a struck entry does not fire there, and re-asking a ruled
+entry is the nag this record exists to prevent. The mechanism is the firm's own
+(11 September 2026): *"Case by case on a permanent basis. We strike it done or
+uphold it once then move on unless something held re-conflicts."* A ruling is
+recorded like anything else here — exact text shown, their yes, never without.
+
 **Never write there.** The plugin directory is versioned and replaced on update,
 so anything recorded into it is thrown away the next time canon updates. To add,
 retire, or decline a conviction, change `CONVICTIONS.md` in the **canon
