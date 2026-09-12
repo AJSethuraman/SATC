@@ -5,6 +5,41 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 20:35Z — "give me one so I can look myself": the gate pack becomes a page the firm reads
+
+Asked D7 back in the session with the two outcomes, the firm answered:
+*"Then give me one so I can look myself."* Neither outcome; a third. They
+want to read the pack before deciding what the gate is worth. So the house
+pack (`code/gate/20260912-034624-agent_sdk`) is now one page:
+<https://claude.ai/code/artifact/d2e7c964-2263-4a92-8afb-ed7a7df9ed9a>.
+The eight anonymised brains, then the eight lettered transcripts across
+the three seeds with the spoken line in colour and the private objective,
+reads and outcome beside it, and under each character eight numbered
+chips. Picks save to the page's store (`reads/firm`: `answers`,
+`seen_key`, `note`); the check-in reads them back, writes `reader_a.json`
+and runs `tools/score_gate.py` unchanged.
+
+Two things the page says out loud. **Whether the firm has seen the key**
+is asked before anything else, with yes, no and not sure, because the key
+was committed inside this pack and printed in a session; a "yes" makes
+the read informative and not the blind score the spec asks for (§5.44:
+two readers, six of eight each), and it is recorded either way rather
+than assumed. **The page carries no key:** the output was checked against
+`KEY.json` before publishing; the one hit for a real character id was the
+id `fen` inside the word *fence* in brain 1, a substring the anonymiser
+skips on purpose (tokens under four letters), not a leak.
+
+The generator is kept as `code/tools/blind_read_page.py` so the second
+run, on the players' brains, gets the same page; a test builds it for the
+house pack and proves no key value and no real id of four letters or more
+is in the output. Suite 102 → 103.
+
+The docket page now has no decision open; its one item is the reading.
+**Next, unless the firm says otherwise:** read the picks back when they
+land, score, log the score with the seen-key answer beside it, and put
+what the firm wants from it on the next docket. M3 stays shut meanwhile.
+The forge is not needed for any of this.
+
 ## 12 September 2026, 20:05Z — the docket answered: D8 ruled, D5 and D6 "later" with a question each, D7 tapped one way and written the other
 
 The firm, 19:46Z to 19:47Z on the page, read back by `read_db`, in their words:
