@@ -5,6 +5,24 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 10:40Z — canon 1.17.0 installed on the firm's machine; the forge stands down
+
+`runs/20260912T103336Z-plugin-update.md` (`efab7345`): the forge ran the two
+commands verbatim, both exit 0, no permission asked. `claude plugin update
+canon` reported *updated from 1.16.0 to 1.17.0 for scope user*, confirmed by
+`claude plugin list` and by the `1.17.0` directory on disk. **Not loaded
+yet:** the CLI says *Restart to apply changes*, so every Claude Code session
+already open on that machine still runs 1.16.0 until it is restarted; the
+rulings by project reach a session on its next start. The forge did not
+restart anything, correctly. `desk` 0.21.0 and `occam` 0.4.0 untouched.
+
+The Haiku helper call stays unexplained; nothing visible to the forge names
+it, and it was told not to chase it. The forge reports nothing running on
+the machine, a clean worktree, and every result under `runs/`. Its day:
+three smoke tests, the gate, a full match, three probes, a two-round
+measurement, the merge with its own verification first, the plugin update,
+two defects of mine caught and one correction of its own, disclosed.
+
 ## 12 September 2026, 10:05Z — round 2 never re-reads round 1; the cache lever is smaller than it looked
 
 The forge's two-round smoke (`runs/20260912T093832Z-agent-sdk-smoke-2rounds.md`,
