@@ -52,7 +52,6 @@ Also, one line if you can see it: what the Haiku helper call is. It reads
 or the SDK's debug output names it (a title, a classifier), say so. Do not
 chase it further.
 
-D3 stays the firm's.
 
 ## 12 September 2026, 08:52Z — after the merge: the billed counts, measured
 
@@ -86,7 +85,7 @@ Push the ledger as `runs/<UTC>-agent-sdk-smoke-billed.md`. Its `in`,
 `cached` and `wrote` columns should now reproduce each row's cost at the
 table's rates within a cent; say whether they do.
 
-D3 stays the firm's. Everything else as before.
+Everything else as before.
 
 ## 12 September 2026, 08:15Z — after the smoke re-run
 
@@ -177,8 +176,7 @@ python demo/build_arena.py
 Add to the file: the ledger's totals (calls, answered, network, panic, tokens
 in and out, cost), the placements and winner, and the audit line.
 
-**3. If the firm answers D3 (the two readers) in your session**, write the
-names into the same `runs/` file, not into `LOG.md`; the cloud logs it.
+**3.** The readers (D3) are deferred by the firm; do not raise them again.
 
 **To carry to the firm if they are with you**, one line each:
 D2, merging PR #359 is a tap now (green, mergeable) and the plugin update

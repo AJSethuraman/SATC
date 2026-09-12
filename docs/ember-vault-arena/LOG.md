@@ -5,6 +5,20 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:30Z — D3 deferred: the gate stays unscored and M3 stays shut
+
+Through the forge, the firm on the two blind readers: *skip the readers for
+now.* A deferral, the third, not a refusal. Consequences, recorded rather
+than argued: the house-brains pack (`code/gate/20260912-034624-agent_sdk`)
+stays unread; M2 does not close; by the PRD's own line, nothing from M3 on
+starts. D3 comes off FORGE.md and off the forge's questions to the firm. The
+one thing the firm has not been shown, that M3 waits on this, goes on the
+next docket as a single decision: name readers later and M3 waits, or
+strike the gate as M3's precondition (a change to the PRD the firm would be
+making), or something else they choose. Until then the useful work on the
+branch is measurement and the record, and the two design inputs for M4 (the
+match that ends at round 16; the objective pool) also wait on the docket.
+
 ## 12 September 2026, 09:20Z — the cost explained to the cent; the ledger prices it; the lever named and deferred
 
 The forge's arena probe (`runs/20260912T090748Z-sdk-probe-arena.md`) and
