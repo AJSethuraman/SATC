@@ -75,11 +75,21 @@ characters (the length of `compile_prompt`'s output, no content) so the cloud
 can tell whether the weight is ours or the CLI's.
 
 **2. If the firm says yes to D4 in your session**, run exactly, from
-`docs/ember-vault-arena/code`:
+`docs/ember-vault-arena/code`. The show is 48 rounds; the engine's default of
+12 is July's and is only the cheap measurement. If the firm says 48, use the
+first command (up to 384 calls, about an hour, the real test of the five-hour
+window); if they say 12, the second:
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --seed 7 --rounds 48
+```
 
 ```
 python run.py demo --provider agent_sdk --brains brains/house --seed 7
 ```
+
+Either way the match may end early if a character takes the Crown and holds
+it; record the round it ended on.
 
 then, with the match id it printed:
 
