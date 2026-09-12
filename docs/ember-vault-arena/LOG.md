@@ -5,6 +5,18 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 08:20Z — the forge reached the cloud; the cloud cannot reply
+
+At 08:04Z the forge's session messaged this one by title (*Ember Vault Arena
+rebuild*): the pack was pushed, it had read the 08:05Z entry, it was
+re-running the smoke test at `c00f98e0` for token counts, and it was holding
+the twelve-round match until the firm answers D4. A reply from here was
+refused: *"this cloud session cannot message other sessions yet."* So the
+channel is one way (forge → cloud) plus git. Standing orders for the forge
+now live in `FORGE.md`, newest first; the forge reads it after `git pull`.
+The firm, 08:10Z: *"I'm going to have that agent work with you. I will likely
+not be checking for a bit."*
+
 ## 12 September 2026, 08:05Z — the gate has run: 136 of 136 on the subscription route
 
 The firm approved `tools/gate.py` in the forge session (docket D1). The forge
