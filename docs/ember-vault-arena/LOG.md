@@ -5,6 +5,42 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 08:05Z — the gate has run: 136 of 136 on the subscription route
+
+The firm approved `tools/gate.py` in the forge session (docket D1). The forge
+ran it 07:46–07:52Z and pushed `62b190d7`: the pack
+`code/gate/20260912-034624-agent_sdk` and
+`runs/20260912T075242Z-agent-sdk-gate.md`. Read here, not trusted:
+
+- **136 of 136 answered**, 358 s wall clock, no network fallback, no panic,
+  no invalid line. **136, not 144:** C was eliminated in seed 102 round 2
+  (four rounds never owed), G in seed 103 round 3 (three), H in seed 103
+  round 5 (one). Dead is dead, per the PRD; the count is right.
+- **Leak check, done here on the pushed pack:** a grep for the eight house
+  names and ids over `transcripts/` and `brains/` finds nothing; the brain
+  files are headed `Brain N`, not a letter (the leak the mock run had);
+  characters refer to each other by letter, which is the anonymiser working.
+- **Cost recorded $8.55**, about $0.063 a call: the SDK's estimate at API
+  rates, consistent with the smoke test's $0.072, and still above the PRD's
+  $0.02–0.03. The forge ran at HEAD `d539d35f`, before the token-field fix,
+  so this ledger carries no token counts. Explained only by a run on the
+  fixed adapter (docket D4).
+- **The key is in plain text on the branch.** `KEY.json` is committed inside
+  the pack, as the mock pack's was, so anyone browsing PR #359 or this
+  session's output can see it. Consequence: the firm should not be a reader
+  for this run; the docket's D3 recommendation now says so. Proposed for the
+  next run and not done now, because the pack on the branch is the one the
+  readers will use: write the key outside the readers' folder.
+- The end-of-seed line reveals each character's secret objective and whether
+  it was met; that is the design (the audience sees the objective), and a
+  reader sees it too.
+- The forge session went to RUNNING at 07:56Z; its next result arrives as a
+  push. Its rate-limit status at that moment: allowed, not in overage.
+
+Docket republished with D1 marked done, the gate row updated, and D3's steps
+naming the real pack. PR #359 body updated: "the gate has not run on a
+model" is replaced by what ran and what is still unscored.
+
 ## 12 September 2026, 04:18Z — docket answer: D1
 
 Read back from the docket's store at the 05:11Z check-in (`decisions/d1`,
