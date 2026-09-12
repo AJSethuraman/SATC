@@ -5,6 +5,20 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:55Z — the forge's verification before merging, read back
+
+The forge merged only after checking more than the suite: 101 passed at
+`c7559f7a`; the spectator server serves; `/api/matches`,
+`/api/leaderboard` and `/api/matches/ember-7-830ff8da/audit` return 200 with
+the audit valid at 891 entries; and the viewer renders the 48-round match
+with Grael at 31 and ESCAPED, round FINAL 16, VERIFIED 891 RECORDS, the CLI,
+the API and the rendered page agreeing. Screenshot kept on the forge. That
+closes the "story viewer on a real-model match" item from the 03:10Z docket.
+It pinned the merge to the exact SHA and merged under its own conditions
+(ten quiet minutes, clean, green on that commit). It declined "the plugin
+commands" until they were spelled out, correctly; FORGE.md now carries the
+two commands verbatim.
+
 ## 12 September 2026, 09:50Z — docket refreshed; the next goal on record
 
 PR #360 opened (draft) on the restarted branch:
