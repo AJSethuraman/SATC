@@ -5,6 +5,36 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:50Z — docket refreshed; the next goal on record
+
+PR #360 opened (draft) on the restarted branch:
+<https://github.com/AJSethuraman/SATC/pull/360>. The docket page is
+republished with D1, D2 and D4 marked done, D3 deferred, and two new
+decisions: **D7**, the readers are deferred so M3 is shut, name readers
+later (recommended) or strike the rule and open M3 now; **D8**, a match can
+end at round 16, a bigger world (M4) or a different ending rule where an
+extraction no longer ends the match (recommended, with the bigger world
+anyway). D5 (the private repository) and D6 (the players) stay open.
+
+**Next, unless the firm says otherwise:** hold PR #360 green and watched;
+read the forge's two-round cache measurement when it lands and log it; keep
+the record current; start no new milestone. Ends when the firm answers D7.
+Silence approves only that.
+
+## 12 September 2026, 09:40Z — PR #359 merged; the branch restarts from main
+
+The forge, holding the firm's word, took PR #359 out of draft and merged it
+at 09:37Z (main `f44ae5f7`): the grill, the PRD, M1, the gate harness and its
+run, the ledger corrected by measurement, canon 1.17.0 with the rulings.
+The branch `claude/ember-vault-arena-rebuild-dn890n` is restarted from main
+under the same name for the continuing work, and a new draft PR carries it.
+On the firm's machine the plugin update (`claude plugin marketplace update
+satc && claude plugin update canon`) is the forge's to run and report.
+
+README brought to the merged state: what is built, what has run, what waits
+on the firm. Nothing from M3 on until the gate has been read or the firm
+rules otherwise; the useful work meanwhile is measurement and the record.
+
 ## 12 September 2026, 09:30Z — D3 deferred: the gate stays unscored and M3 stays shut
 
 Through the forge, the firm on the two blind readers: *skip the readers for
