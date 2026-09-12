@@ -5,6 +5,20 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:40Z — PR #359 merged; the branch restarts from main
+
+The forge, holding the firm's word, took PR #359 out of draft and merged it
+at 09:37Z (main `f44ae5f7`): the grill, the PRD, M1, the gate harness and its
+run, the ledger corrected by measurement, canon 1.17.0 with the rulings.
+The branch `claude/ember-vault-arena-rebuild-dn890n` is restarted from main
+under the same name for the continuing work, and a new draft PR carries it.
+On the firm's machine the plugin update (`claude plugin marketplace update
+satc && claude plugin update canon`) is the forge's to run and report.
+
+README brought to the merged state: what is built, what has run, what waits
+on the firm. Nothing from M3 on until the gate has been read or the firm
+rules otherwise; the useful work meanwhile is measurement and the record.
+
 ## 12 September 2026, 09:30Z — D3 deferred: the gate stays unscored and M3 stays shut
 
 Through the forge, the firm on the two blind readers: *skip the readers for
