@@ -5,6 +5,50 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 08:50Z — tokens are real; three ledger defects fixed
+
+The forge's smoke re-run on the fixed adapter (`c248f882`,
+`runs/20260912T080438Z-agent-sdk-smoke-tokens.md`, addendum `7534d45d`):
+8 of 8, 16.6 s; output 341–501 tokens a call; input **2 uncached + 2,060
+read from cache** on every call. Its findings, checked here against the
+code, and what they caused:
+
+- **The ledger printed the uncached count alone** (`in 2` for a 2,062-token
+  prompt). `cli.py` now prints `in`, `cached`, `wrote`, `out` and a totals
+  line. Test: the cached count appears on the row; totals sum every count.
+- **Cache creation was never read.** `cache_creation_input_tokens` is now
+  read by both adapters and stored in a new `cache_creation_tokens` column;
+  `ArenaStore` migrates a database that predates it on open (the forge's
+  does). Test: an old-schema database gains the column.
+- **The SDK route recorded the alias, not the model.** The ledger said
+  `opus`; `RATES` is keyed by id, so a cross-check found nothing. The adapter
+  now records the keys of `ResultMessage.model_usage` (the ids the CLI
+  billed, joined with `+` if more than one). Test: the fake's `model_usage`
+  key lands in `result.model`.
+- **A money bug of mine.** `cost_of` did `input_tokens - cached`, treating
+  the API's `input_tokens` as inclusive of cached tokens. It is not: the API
+  reports uncached, cache-read and cache-written as three counts that do not
+  overlap, so every cached call had its full-rate tokens zeroed. Fixed and
+  tested with the forge's own numbers: 2 in, 341 out, 2,060 cached →
+  $0.009565 at the table's rates. Mutation: dropping the cache-write term
+  turns the test red.
+- **The SDK's cost figure disagrees with its own counts** ($0.0525 reported
+  against $0.0096 by the table for the same call; $0.4296 against ~$0.08 for
+  the run; the identical run priced $0.5821 on the 11th). Not explained.
+  Candidates: the alias resolving to a model with another rate card; a
+  second model billed inside the CLI; cache creation priced but reported as
+  reads. `tools/probe_sdk.py` (new) makes one trivial call and prints the raw
+  `usage`, `model_usage` and `total_cost_usd`; FORGE.md asks the forge to run
+  it once. **On the subscription none of this is charged**; it matters for the
+  API-key fallback and for the PRD's estimate, which by token counts is now
+  *above* the real cost, not below it.
+- The forge measured the compiled prompt at ~11.5–12.1k characters (2,867
+  system, the rest per contestant) against 2,062 tokens reported: fewer
+  tokens than the characters suggest, so nothing CLI-sized rides along. The
+  ~30% shortfall wants a real tokenizer; not chased.
+
+Suite 91 → **96** here. Mock demo on a fresh database prints the new columns.
+
 ## 12 September 2026, 08:20Z — the forge reached the cloud; the cloud cannot reply
 
 At 08:04Z the forge's session messaged this one by title (*Ember Vault Arena

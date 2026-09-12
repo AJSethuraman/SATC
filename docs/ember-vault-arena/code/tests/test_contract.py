@@ -291,16 +291,17 @@ class _Block:
 
 
 class _Usage:
-    def __init__(self, i, o, cached=0):
+    def __init__(self, i, o, cached=0, created=0):
         self.input_tokens, self.output_tokens, self.cache_read_input_tokens = i, o, cached
+        self.cache_creation_input_tokens = created
 
 
 class _Response:
-    def __init__(self, text, stop_reason="end_turn", model="claude-opus-5", cached=0):
+    def __init__(self, text, stop_reason="end_turn", model="claude-opus-5", cached=0, created=0):
         self.content = [_Block(text)]
         self.stop_reason = stop_reason
         self.model = model
-        self.usage = _Usage(1000, 100, cached)
+        self.usage = _Usage(1000, 100, cached, created)
         self._request_id = "req_test"
 
 
@@ -330,13 +331,15 @@ GOOD_JSON = canonical_json({
 class AnthropicAdapterTests(unittest.TestCase):
     def test_a_turn_carries_cost_tokens_and_digests(self):
         manifest, prompt, obs = _prompt()
-        client = _FakeClient(_Response(GOOD_JSON, cached=400))
+        client = _FakeClient(_Response(GOOD_JSON, cached=400, created=50))
         result = AnthropicProvider(client=client, model="claude-opus-5").decide(manifest, prompt, obs)
         self.assertIsNone(result.error_kind)
         self.assertEqual(result.raw_output, GOOD_JSON)
         self.assertEqual((result.input_tokens, result.output_tokens, result.cached_tokens), (1000, 100, 400))
+        self.assertEqual(result.cache_creation_tokens, 50)
         self.assertEqual(result.cost_source, "provider_usage")
-        self.assertAlmostEqual(result.cost_usd, (600 * 5.0 + 400 * 0.5 + 100 * 25.0) / 1e6)
+        # the API's input_tokens excludes cached and written tokens: three separate counts
+        self.assertAlmostEqual(result.cost_usd, (1000 * 5.0 + 400 * 0.5 + 50 * 6.25 + 100 * 25.0) / 1e6)
         self.assertTrue(result.request_digest and result.response_digest)
         sent = client.messages.calls[0]
         self.assertEqual(sent["output_config"]["format"]["type"], "json_schema")
@@ -361,7 +364,10 @@ class _Result:
     def __init__(self, subtype, structured=None, text="", cost=0.01, errors=None):
         self.subtype, self.structured_output, self.result = subtype, structured, text
         self.total_cost_usd, self.session_id = cost, "sess_test"
-        self.usage = {"input_tokens": 900, "output_tokens": 80, "cache_read_input_tokens": 300}
+        self.usage = {"input_tokens": 900, "output_tokens": 80, "cache_read_input_tokens": 300,
+                      "cache_creation_input_tokens": 45}
+        # keyed by the resolved model id, not the alias the call asked for
+        self.model_usage = {"claude-opus-5": {"inputTokens": 900, "outputTokens": 80, "costUSD": cost}}
         self.errors = errors or []
         self.is_error = subtype != "success"
 
@@ -394,6 +400,9 @@ class AgentSDKAdapterTests(unittest.TestCase):
         self.assertEqual(result.cost_usd, 0.01)
         # the tokens come from ResultMessage.usage, the dict the real SDK sends
         self.assertEqual((result.input_tokens, result.output_tokens, result.cached_tokens), (900, 80, 300))
+        self.assertEqual(result.cache_creation_tokens, 45)
+        # the ledger carries the id the CLI billed, not the alias "opus" we asked for
+        self.assertEqual(result.model, "claude-opus-5")
 
     def test_success_without_structured_output_and_max_retries_are_panics(self):
         manifest, prompt, obs = _prompt()

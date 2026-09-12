@@ -813,13 +813,19 @@ class AnthropicProvider:
             self._client = anthropic.Anthropic(timeout=self.timeout_seconds, max_retries=0)
         return self._client
 
-    def cost_of(self, model: str, input_tokens: int, output_tokens: int, cached: int) -> float | None:
+    def cost_of(self, model: str, input_tokens: int, output_tokens: int, cached: int,
+                cache_creation: int = 0) -> float | None:
+        """The Messages API reports three input counts that do not overlap:
+        ``input_tokens`` (uncached, full rate), ``cache_read_input_tokens``
+        (a tenth) and ``cache_creation_input_tokens`` (1.25x). Until 12 Sep
+        2026 this subtracted the cached count from the uncached one, which
+        zeroed the uncached tokens on every cached call."""
         rates = self.RATES.get(model)
         if rates is None:
             return None
         rate_in, rate_out = rates
-        uncached = max(0, input_tokens - cached)
-        return (uncached * rate_in + cached * rate_in * 0.1 + output_tokens * rate_out) / 1_000_000
+        return (input_tokens * rate_in + cached * rate_in * 0.1
+                + cache_creation * rate_in * 1.25 + output_tokens * rate_out) / 1_000_000
 
     def _call(self, prompt: Mapping[str, Any], *, schema: Mapping[str, Any] | None,
               max_tokens: int) -> ProviderResult:
@@ -847,6 +853,7 @@ class AnthropicProvider:
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         cached = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+        cache_creation = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
         stop_reason = getattr(response, "stop_reason", None)
         model = getattr(response, "model", None) or self.model
         return ProviderResult(
@@ -857,8 +864,9 @@ class AnthropicProvider:
             model=model,
             latency_ms=latency_ms,
             cached_tokens=cached,
-            cost_usd=self.cost_of(model, input_tokens, output_tokens, cached),
+            cost_usd=self.cost_of(model, input_tokens, output_tokens, cached, cache_creation),
             cost_source="provider_usage",
+            cache_creation_tokens=cache_creation,
             stop_reason=stop_reason,
             request_id=getattr(response, "_request_id", None),
             error_kind="panic" if stop_reason == "refusal" else None,
@@ -975,6 +983,14 @@ class AgentSDKProvider:
         input_tokens = int(get("input_tokens", 0) or 0)
         output_tokens = int(get("output_tokens", 0) or 0)
         cached = int(get("cache_read_input_tokens", 0) or 0)
+        cache_creation = int(get("cache_creation_input_tokens", 0) or 0)
+        # ResultMessage.model_usage maps each model the CLI actually billed to
+        # its usage; its keys are the resolved ids behind the alias we asked
+        # for ("opus"). The ledger records those, so a rate lookup keyed on
+        # the model column finds a real id, and a helper model would show.
+        model_usage = getattr(result, "model_usage", None)
+        model = ("+".join(sorted(model_usage)) if isinstance(model_usage, dict) and model_usage
+                 else self.model)
         errors = getattr(result, "errors", None) or []
         reason = subtype + (": " + "; ".join(str(e) for e in errors)[:120] if errors else "")
         if schema is not None:
@@ -992,9 +1008,10 @@ class AgentSDKProvider:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             provider=self.name,
-            model=self.model,
+            model=model,
             latency_ms=latency_ms,
             cached_tokens=cached,
+            cache_creation_tokens=cache_creation,
             cost_usd=getattr(result, "total_cost_usd", None),
             cost_source="sdk_estimate",
             stop_reason=reason,

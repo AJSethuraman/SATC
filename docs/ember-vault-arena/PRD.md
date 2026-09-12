@@ -219,7 +219,7 @@ Priorities: [P0] must, [P1] should, [P2] nice.
 
 **Narrator.** `compile_narration_prompt` survives; a validator over the returned text against the round's event vocabulary substitutes a template on any unknown name. One call per round after `end_turn`.
 
-**Cost ledger.** `decisions` rows gain `cost_usd`, `cost_source` (`provider_usage`|`sdk_estimate`), `input_tokens`, `output_tokens`, `cached_tokens`. The operator console sums per round and per match.
+**Cost ledger.** `decisions` rows gain `cost_usd`, `cost_source` (`provider_usage`|`sdk_estimate`), `input_tokens` (uncached), `output_tokens`, `cached_tokens` (read), `cache_creation_tokens` (written, billed at 1.25x); the SDK route records the model id the CLI billed, not the alias asked for. The operator console sums per round and per match.
 
 **Brain files.** `brains/<id>.md` with the five headed sections; a loader that refuses with the section name and the overage; the folder is gitignored in the real repository and holds only house brains in this staging copy.
 

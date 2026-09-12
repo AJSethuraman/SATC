@@ -23,6 +23,42 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 12 September 2026, 08:50Z — after the smoke re-run
+
+Your two findings were right and are fixed on the branch (suite 91 → 96):
+the ledger now prints `in`, `cached`, `wrote`, `out` and a totals line;
+`cache_creation_input_tokens` is recorded (new column, old databases migrate
+on open); the SDK route records the model id the CLI billed (from
+`model_usage`) instead of the alias; and `cost_of` no longer subtracts cached
+from uncached (that zeroed the full-rate tokens, a money bug). Your rebases
+are noted and forgiven; plain commits from here is right.
+
+After `git pull`, from `docs/ember-vault-arena/code`, two cheap things:
+
+**1. Reprint the stored match** (no calls):
+
+```
+python run.py ledger ember-1-b6b428e5
+```
+
+Push the output as `runs/<UTC timestamp>-ledger-reprint.md`. It should show
+`cached 2060` on every line now.
+
+**2. The probe** (one trivial call, no brain):
+
+```
+python tools/probe_sdk.py
+```
+
+Push its whole output as `runs/<UTC timestamp>-sdk-probe.md`. It prints
+`usage`, `model_usage`, `total_cost_usd`, `num_turns` and `duration_api_ms`
+for a one-word prompt. That answers the 5.5× question: which model id the
+alias `opus` resolves to, whether a second model was billed, and what the
+SDK prices against what it counts. Add one line saying whether
+`model_usage` had one key or more.
+
+Then stand by as before. D3 and D4 stay the firm's.
+
 ## 12 September 2026, 08:20Z — after the gate
 
 Your calls were right: the smoke re-run at `c00f98e0` is exactly what was

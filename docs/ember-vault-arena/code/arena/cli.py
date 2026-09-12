@@ -52,13 +52,17 @@ def print_ledger(store: ArenaStore, match_id: str) -> None:
     if not decisions:
         print("no decisions recorded")
         return
-    print(f"{'round':>5} {'agent':<10} {'validity':<18} {'kind':<8} {'ms':>7} {'in':>6} {'out':>5} {'cost':>8}  reason")
+    # in = uncached input, cached = read from the cache, wrote = written to it.
+    # The 12 Sep 2026 forge run showed `in 2` for a 2,062-token prompt because
+    # only the uncached count was printed.
+    print(f"{'round':>5} {'agent':<10} {'validity':<18} {'kind':<8} {'ms':>7} {'in':>6} {'cached':>6} {'wrote':>6} {'out':>5} {'cost':>8}  reason")
     for d in decisions:
         cost = d.get("cost_usd")
         print(
             f"{d['round_no']:>5} {d['agent_id']:<10} {d['validity']:<18} "
             f"{(d.get('error_kind') or '-'):<8} {float(d.get('latency_ms') or 0):>7.0f} "
-            f"{d['input_tokens']:>6} {d['output_tokens']:>5} "
+            f"{d['input_tokens']:>6} {int(d.get('cached_tokens') or 0):>6} "
+            f"{int(d.get('cache_creation_tokens') or 0):>6} {d['output_tokens']:>5} "
             f"{('$%.4f' % cost) if cost is not None else '-':>8}  "
             f"{(d.get('fallback_reason') or '')[:70]}"
         )
@@ -71,6 +75,12 @@ def print_ledger(store: ArenaStore, match_id: str) -> None:
         f"answered by the model: {answered} of {len(decisions)}; network: {network}; "
         f"panic: {panic}; cost recorded: ${total_cost:.4f}; provider/model: "
         + ", ".join(f"{p}/{m}" for p, m in providers)
+    )
+    totals = {k: sum(int(d.get(k) or 0) for d in decisions)
+              for k in ("input_tokens", "cached_tokens", "cache_creation_tokens", "output_tokens")}
+    print(
+        f"tokens: in {totals['input_tokens']}; cached {totals['cached_tokens']}; "
+        f"cache written {totals['cache_creation_tokens']}; out {totals['output_tokens']}"
     )
 
 

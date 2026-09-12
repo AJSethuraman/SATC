@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS decisions (
     latency_ms REAL NOT NULL DEFAULT 0,
     retries INTEGER NOT NULL DEFAULT 0,
     cached_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
     cost_usd REAL,
     cost_source TEXT NOT NULL DEFAULT 'none',
     stop_reason TEXT,
@@ -247,7 +248,19 @@ class ArenaStore:
         self.lock = threading.RLock()
         with self.lock:
             self.conn.executescript(SCHEMA)
+            self._migrate()
             self.conn.commit()
+
+    # Columns added after a database may already exist. CREATE TABLE IF NOT
+    # EXISTS leaves an old table as it was, so each is added here when absent
+    # (the forge's data/arena.db predates cache_creation_tokens, 12 Sep 2026).
+    MIGRATIONS = (("decisions", "cache_creation_tokens", "INTEGER NOT NULL DEFAULT 0"),)
+
+    def _migrate(self) -> None:
+        for table, column, decl in self.MIGRATIONS:
+            present = {row[1] for row in self.conn.execute(f"PRAGMA table_info({table})")}
+            if column not in present:
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     def close(self) -> None:
         with self.lock:
@@ -417,9 +430,9 @@ class ArenaStore:
                   output_tokens, provider, model, created_at,
                   latency_ms, retries, cached_tokens, cost_usd, cost_source,
                   stop_reason, request_id, error_kind, effort,
-                  request_digest, response_digest
+                  request_digest, response_digest, cache_creation_tokens
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     match_id,
@@ -446,6 +459,7 @@ class ArenaStore:
                     call.get("effort"),
                     call.get("request_digest"),
                     call.get("response_digest"),
+                    int(call.get("cache_creation_tokens") or 0),
                 ),
             )
             self.conn.commit()
@@ -747,7 +761,7 @@ class ArenaStore:
                   prompt_json, raw_output,
                   latency_ms, retries, cached_tokens, cost_usd, cost_source,
                   stop_reason, request_id, error_kind, effort,
-                  request_digest, response_digest
+                  request_digest, response_digest, cache_creation_tokens
                 FROM decisions WHERE match_id=? ORDER BY round_no, id
                 """,
                 (match_id,),
