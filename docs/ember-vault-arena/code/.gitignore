@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 # players' brains never enter source control; house brains under brains/house do
 brains/players/
+# a gate run's answer key stays beside its pack on the machine that ran it, never on the branch
+gate/*.key.json

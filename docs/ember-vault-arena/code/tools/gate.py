@@ -8,7 +8,12 @@ wrote none of the brains:
     gate/<run>/transcripts/A.md ... one per character, lettered, names removed
     gate/<run>/brains/1.md ...      the brains, shuffled and numbered, names removed
     gate/<run>/ANSWER_SHEET.md      the form each reader fills in
-    gate/<run>/KEY.json             the mapping -- do not open until both sheets are in
+    gate/<run>.key.json             the mapping, BESIDE the pack and outside source
+                                    control -- do not open until both sheets are in
+
+The key sits outside the readers' folder because the first model run
+(12 Sep 2026) committed it inside the pack, where anyone browsing the pull
+request could read it. Keep the key file; without it the run cannot be scored.
 
 Score with tools/score_gate.py. A mock run proves this pipeline produces
 readable artifacts; it cannot answer the question, because the mock's speech
@@ -68,12 +73,12 @@ def run(args) -> Path:
     manifests = [replace(m, build=args.build) for m in manifests]
     provider = provider_from_name(args.provider)
     run_id = time.strftime("%Y%m%d-%H%M%S") + f"-{args.provider}"
-    out = ROOT / "gate" / run_id
+    out = Path(getattr(args, "out", None) or (ROOT / "gate")) / run_id
     (out / "transcripts").mkdir(parents=True)
     (out / "brains").mkdir()
 
-    # letters by a shuffle seeded from the run id, so KEY.json is the only place
-    # the mapping exists and nothing about seat order leaks it
+    # letters by a shuffle seeded from the run id, so the key file is the only
+    # place the mapping exists and nothing about seat order leaks it
     order = list(range(len(manifests)))
     random.Random(hashlib.sha256(run_id.encode()).hexdigest()).shuffle(order)
     letters = {manifests[i].id: LETTERS[k] for k, i in enumerate(order)}
@@ -136,7 +141,7 @@ def run(args) -> Path:
         body = "\n\n".join(f"## {s.title()}\n{strip_brain(getattr(m, s))}" for s in BRAIN_SECTIONS)
         (out / "brains" / f"{numbers[m.id]}.md").write_text(f"# Brain {numbers[m.id]}\n\n{body}\n", encoding="utf-8")
 
-    (out / "KEY.json").write_text(json.dumps(
+    key_path(out).write_text(json.dumps(
         {"letter_to_brain_number": {letters[m.id]: numbers[m.id] for m in manifests},
          "letter_to_id": {letters[m.id]: m.id for m in manifests}}, indent=2, sort_keys=True), encoding="utf-8")
     (out / "ANSWER_SHEET.md").write_text(
@@ -156,8 +161,14 @@ def run(args) -> Path:
         "Hand `transcripts/` and `brains/` to two readers who wrote none of the brains. "
         "Each fills in `ANSWER_SHEET.md` and saves a JSON answer file. Then:\n\n"
         f"```\npython3 tools/score_gate.py gate/{run_id} reader_a.json reader_b.json\n```\n\n"
-        "Do not open `KEY.json` until both sheets are in.\n", encoding="utf-8")
+        f"The key is `gate/{run_id}.key.json`, beside this folder and outside source control: "
+        "keep it, hand it to nobody, and do not open it until both sheets are in.\n", encoding="utf-8")
     return out
+
+
+def key_path(pack: Path) -> Path:
+    """The key lives beside the pack, never in it."""
+    return pack.parent / f"{pack.name}.key.json"
 
 
 def main() -> int:
@@ -168,9 +179,11 @@ def main() -> int:
     ap.add_argument("--first-seed", type=int, default=101)
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--build", choices=sorted(BUILDS), default="scout")
+    ap.add_argument("--out", default=None, help="folder to write packs under (default: gate/)")
     args = ap.parse_args()
     out = run(args)
-    print(f"gate pack written to {out.relative_to(ROOT)}")
+    print(f"gate pack written to {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
+    print(f"key written beside it: {key_path(out).name} (not in source control; keep it)")
     print((out / "README.md").read_text(encoding="utf-8"))
     return 0
 

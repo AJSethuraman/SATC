@@ -504,3 +504,4 @@ class ProviderResult:
     request_digest: str | None = None
     response_digest: str | None = None
     effort: str | None = None
+    cache_creation_tokens: int = 0   # input written to the cache on this call (billed at 1.25x)
