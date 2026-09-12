@@ -364,10 +364,13 @@ class _Result:
     def __init__(self, subtype, structured=None, text="", cost=0.01, errors=None):
         self.subtype, self.structured_output, self.result = subtype, structured, text
         self.total_cost_usd, self.session_id = cost, "sess_test"
-        self.usage = {"input_tokens": 900, "output_tokens": 80, "cache_read_input_tokens": 300,
-                      "cache_creation_input_tokens": 45}
-        # keyed by the resolved model id, not the alias the call asked for
-        self.model_usage = {"claude-opus-5": {"inputTokens": 900, "outputTokens": 80, "costUSD": cost}}
+        # the top-level usage under-reports a schema-constrained call (forge probe,
+        # 12 Sep 2026); model_usage carries the counts the cost is priced on
+        self.usage = {"input_tokens": 2, "output_tokens": 80, "cache_read_input_tokens": 300,
+                      "cache_creation_input_tokens": 0}
+        self.model_usage = {"claude-opus-5": {"inputTokens": 900, "outputTokens": 80,
+                                              "cacheReadInputTokens": 300, "cacheCreationInputTokens": 45,
+                                              "costUSD": cost, "canonicalModel": "claude-opus-5"}}
         self.errors = errors or []
         self.is_error = subtype != "success"
 
@@ -398,11 +401,27 @@ class AgentSDKAdapterTests(unittest.TestCase):
         self.assertEqual(json.loads(result.raw_output), json.loads(GOOD_JSON))
         self.assertEqual(result.cost_source, "sdk_estimate")
         self.assertEqual(result.cost_usd, 0.01)
-        # the tokens come from ResultMessage.usage, the dict the real SDK sends
+        # the tokens come from model_usage (what the cost is priced on), not the
+        # top-level usage, which said 2 uncached for this call
         self.assertEqual((result.input_tokens, result.output_tokens, result.cached_tokens), (900, 80, 300))
         self.assertEqual(result.cache_creation_tokens, 45)
         # the ledger carries the id the CLI billed, not the alias "opus" we asked for
         self.assertEqual(result.model, "claude-opus-5")
+
+    def test_counts_fall_back_to_iterations_then_top_level_usage(self):
+        from arena.providers import sdk_counts
+        r = _Result("success")
+        r.model_usage = None
+        r.usage = {"input_tokens": 2, "output_tokens": 5, "cache_read_input_tokens": 10,
+                   "cache_creation_input_tokens": 0,
+                   "iterations": [{"input_tokens": 4000, "output_tokens": 300, "cache_read_input_tokens": 0,
+                                   "cache_creation_input_tokens": 2000, "type": "message"},
+                                  {"input_tokens": 2, "output_tokens": 5, "cache_read_input_tokens": 10,
+                                   "cache_creation_input_tokens": 0, "type": "message"}]}
+        self.assertEqual(sdk_counts(r, "opus"), (4002, 305, 10, 2000, "opus"))
+        r.usage = {"input_tokens": 457, "output_tokens": 4, "cache_read_input_tokens": 0,
+                   "cache_creation_input_tokens": 0}
+        self.assertEqual(sdk_counts(r, "opus"), (457, 4, 0, 0, "opus"))
 
     def test_success_without_structured_output_and_max_retries_are_panics(self):
         manifest, prompt, obs = _prompt()

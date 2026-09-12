@@ -775,6 +775,38 @@ def _failed(provider: str, model: str, exc: BaseException, started: float,
     )
 
 
+def sdk_counts(result: Any, asked_for: str) -> tuple[int, int, int, int, str]:
+    """(uncached input, output, cache read, cache written, billed model) from a
+    claude-agent-sdk ResultMessage.
+
+    Order of trust, from the forge's 12 Sep 2026 probe: ``model_usage`` first,
+    because its per-model counts are what its ``costUSD`` is list-priced on
+    and they reconcile to ``total_cost_usd`` to the cent; then the sum of
+    ``usage.iterations``; then the top-level ``usage`` fields, which on a
+    schema-constrained arena call described a fraction of what was billed
+    (2 uncached + 2,060 cached recorded against ~8,600 tokens priced).
+    The model is the id (or ids, joined with +) the CLI billed, never the
+    alias asked for, so a rate lookup keyed on the ledger's model column
+    finds a real id and a helper model would show."""
+    model_usage = getattr(result, "model_usage", None)
+    if isinstance(model_usage, dict) and model_usage:
+        rows = [v for v in model_usage.values() if isinstance(v, dict)]
+        total = lambda key: sum(int(r.get(key, 0) or 0) for r in rows)  # noqa: E731
+        return (total("inputTokens"), total("outputTokens"), total("cacheReadInputTokens"),
+                total("cacheCreationInputTokens"), "+".join(sorted(model_usage)))
+    usage = getattr(result, "usage", None) or getattr(result, "usage_metadata", None) or {}
+    get = usage.get if isinstance(usage, dict) else (lambda k, d=None: getattr(usage, k, d))
+    iterations = get("iterations", None)
+    if isinstance(iterations, list) and iterations:
+        rows = [it for it in iterations if isinstance(it, dict)]
+        total = lambda key: sum(int(r.get(key, 0) or 0) for r in rows)  # noqa: E731
+        return (total("input_tokens"), total("output_tokens"), total("cache_read_input_tokens"),
+                total("cache_creation_input_tokens"), asked_for)
+    return (int(get("input_tokens", 0) or 0), int(get("output_tokens", 0) or 0),
+            int(get("cache_read_input_tokens", 0) or 0), int(get("cache_creation_input_tokens", 0) or 0),
+            asked_for)
+
+
 class AnthropicProvider:
     """The Messages API through the official SDK, with an API key. Kept ready
     beside the subscription route (firm, 11 Sep 2026)."""
@@ -948,18 +980,24 @@ class AgentSDKProvider:
                 result = message
         return result
 
-    def _call(self, prompt: Mapping[str, Any], *, schema: Mapping[str, Any] | None) -> ProviderResult:
+    def raw_result(self, prompt: Mapping[str, Any], *, schema: Mapping[str, Any] | None) -> Any:
+        """One query through the SDK, returning the raw ResultMessage (None if
+        the stream ended without one). Raises on transport failure or timeout;
+        `_call` classifies. tools/probe_sdk.py uses this to print the raw fields."""
         import asyncio
 
         query, factory = self._sdk()
         system, messages = _split_prompt(prompt)
         user_text = "\n\n".join(m["content"] for m in messages)
         options = self._options(factory, system, schema)
+        return asyncio.run(
+            asyncio.wait_for(self._collect(query, user_text, options), self.timeout_seconds)
+        )
+
+    def _call(self, prompt: Mapping[str, Any], *, schema: Mapping[str, Any] | None) -> ProviderResult:
         started = time.monotonic()
         try:
-            result = asyncio.run(
-                asyncio.wait_for(self._collect(query, user_text, options), self.timeout_seconds)
-            )
+            result = self.raw_result(prompt, schema=schema)
         except Exception as exc:  # noqa: BLE001 - classified below, never escapes
             return _failed(self.name, self.model, exc, started, prompt, self.effort)
         latency_ms = (time.monotonic() - started) * 1000.0
@@ -978,19 +1016,7 @@ class AgentSDKProvider:
         # cache_creation_input_tokens. The first forge run (11 Sep 2026) read
         # a field that does not exist and logged 0 tokens against a real cost;
         # `usage_metadata` stays as a fallback for older or fake results.
-        usage = getattr(result, "usage", None) or getattr(result, "usage_metadata", None) or {}
-        get = usage.get if isinstance(usage, dict) else (lambda k, d=0: getattr(usage, k, d))
-        input_tokens = int(get("input_tokens", 0) or 0)
-        output_tokens = int(get("output_tokens", 0) or 0)
-        cached = int(get("cache_read_input_tokens", 0) or 0)
-        cache_creation = int(get("cache_creation_input_tokens", 0) or 0)
-        # ResultMessage.model_usage maps each model the CLI actually billed to
-        # its usage; its keys are the resolved ids behind the alias we asked
-        # for ("opus"). The ledger records those, so a rate lookup keyed on
-        # the model column finds a real id, and a helper model would show.
-        model_usage = getattr(result, "model_usage", None)
-        model = ("+".join(sorted(model_usage)) if isinstance(model_usage, dict) and model_usage
-                 else self.model)
+        input_tokens, output_tokens, cached, cache_creation, model = sdk_counts(result, self.model)
         errors = getattr(result, "errors", None) or []
         reason = subtype + (": " + "; ".join(str(e) for e in errors)[:120] if errors else "")
         if schema is not None:
