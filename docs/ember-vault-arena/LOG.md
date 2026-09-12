@@ -5,6 +5,22 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:50Z — docket refreshed; the next goal on record
+
+PR #360 opened (draft) on the restarted branch:
+<https://github.com/AJSethuraman/SATC/pull/360>. The docket page is
+republished with D1, D2 and D4 marked done, D3 deferred, and two new
+decisions: **D7**, the readers are deferred so M3 is shut, name readers
+later (recommended) or strike the rule and open M3 now; **D8**, a match can
+end at round 16, a bigger world (M4) or a different ending rule where an
+extraction no longer ends the match (recommended, with the bigger world
+anyway). D5 (the private repository) and D6 (the players) stay open.
+
+**Next, unless the firm says otherwise:** hold PR #360 green and watched;
+read the forge's two-round cache measurement when it lands and log it; keep
+the record current; start no new milestone. Ends when the firm answers D7.
+Silence approves only that.
+
 ## 12 September 2026, 09:40Z — PR #359 merged; the branch restarts from main
 
 The forge, holding the firm's word, took PR #359 out of draft and merged it
