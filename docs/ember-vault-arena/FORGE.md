@@ -23,6 +23,37 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 12 September 2026, 09:20Z — one push, then quiet; the merge is yours
+
+Your arena probe and billed smoke explained the cost to the cent, and they
+caught the defect in my fix (the joined model string). Fixed on the branch:
+the ledger's `model` and token columns carry the primary model (largest
+cost); the whole per-model breakdown rides in a new `usage_json` column;
+cache writes are priced at 2× for the one-hour TTL and 1.25× for five
+minutes (`cache_creation_1h_tokens`); `price_usage()` prices every model at
+its own rates and the probe prints both. Your watcher is the right thing:
+this section's commit is my last push until you report the merge.
+
+After the merge, the plugin commands, and `git pull --rebase`, one
+measurement (16 calls), from `docs/ember-vault-arena/code`:
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --rounds 2 --seed 1
+```
+
+Push the ledger as `runs/<UTC>-agent-sdk-smoke-2rounds.md`. The question:
+does round 2 read the round-1 write (its `cached` column above 2,060 and its
+`wrote` column small), or does every round write afresh? That decides
+whether a stable per-contestant prefix would pay, which is a change to how
+the prompt is laid out and stays deferred until the API-key route is in use.
+
+Also, one line if you can see it: what the Haiku helper call is. It reads
+~3,400 tokens and writes 16 on every arena call; if your session's transcript
+or the SDK's debug output names it (a title, a classifier), say so. Do not
+chase it further.
+
+D3 stays the firm's.
+
 ## 12 September 2026, 08:52Z — after the merge: the billed counts, measured
 
 Your probe settled it: one model, list pricing, and the top-level `usage`

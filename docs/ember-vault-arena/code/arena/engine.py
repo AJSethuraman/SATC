@@ -525,6 +525,8 @@ class ArenaEngine:
                     "effort": result.effort, "request_digest": result.request_digest,
                     "response_digest": result.response_digest,
                     "cache_creation_tokens": result.cache_creation_tokens,
+                    "cache_creation_1h_tokens": result.cache_creation_1h_tokens,
+                    "usage_json": result.usage_json,
                 },
             )
             frozen[agent_id] = FrozenDecision(

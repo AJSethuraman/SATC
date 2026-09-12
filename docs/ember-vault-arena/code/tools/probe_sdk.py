@@ -80,13 +80,19 @@ def main(argv: list[str]) -> int:
     print("result characters:", len(text) if isinstance(text, str) else None,
           "| structured_output:", getattr(result, "structured_output", None) is not None)
 
-    inp, out, cached, wrote, model = sdk_counts(result, provider.model)
-    table = AnthropicProvider(client=object(), model=model).cost_of(model, inp, out, cached, wrote)
+    inp, out, cached, wrote, one_hour, model, usage_json = sdk_counts(result, provider.model)
+    pricer = AnthropicProvider(client=object(), model=model)
+    primary = pricer.cost_of(model, inp, out, cached, wrote, one_hour)
     model_usage = getattr(result, "model_usage", None) or {}
-    priced = sum(float((v or {}).get("costUSD") or 0) for v in model_usage.values() if isinstance(v, dict))
-    print(f"ledger would record: in {inp}, cached {cached}, wrote {wrote}, out {out}, model {model}")
-    print(f"at the repo's rate table: {'$%.6f' % table if table is not None else 'no rates for ' + model}"
-          f" | sum of model_usage costUSD: ${priced:.6f}"
+    every = pricer.price_usage(model_usage, one_hour) if isinstance(model_usage, dict) else None
+    reported = sum(float((v or {}).get("costUSD") or 0) for v in model_usage.values() if isinstance(v, dict))
+    others = sorted(k for k, v in model_usage.items()
+                    if str((v or {}).get("canonicalModel") or k) != model and k != model)
+    print(f"ledger would record: model {model}, in {inp}, cached {cached}, wrote {wrote} (of which 1h {one_hour}), out {out}")
+    print(f"other models billed: {others}")
+    print(f"table, primary model only: {'$%.6f' % primary if primary is not None else 'no rates for ' + model}"
+          f" | table, every model at its own rates: {'$%.6f' % every if every is not None else 'a model has no rates'}"
+          f" | sum of model_usage costUSD: ${reported:.6f}"
           f" | total_cost_usd: {getattr(result, 'total_cost_usd', None)}")
     return 0
 

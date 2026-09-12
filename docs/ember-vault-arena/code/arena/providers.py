@@ -775,36 +775,56 @@ def _failed(provider: str, model: str, exc: BaseException, started: float,
     )
 
 
-def sdk_counts(result: Any, asked_for: str) -> tuple[int, int, int, int, str]:
-    """(uncached input, output, cache read, cache written, billed model) from a
-    claude-agent-sdk ResultMessage.
+def _ttl_split(usage: Any) -> int:
+    """Tokens written to the cache at the one-hour rate, from the API's
+    ``usage.cache_creation.ephemeral_1h_input_tokens`` (dict or object);
+    0 when the field is absent."""
+    cc = usage.get("cache_creation") if isinstance(usage, dict) else getattr(usage, "cache_creation", None)
+    if cc is None:
+        return 0
+    get = cc.get if isinstance(cc, dict) else (lambda k, d=0: getattr(cc, k, d))
+    return int(get("ephemeral_1h_input_tokens", 0) or 0)
 
-    Order of trust, from the forge's 12 Sep 2026 probe: ``model_usage`` first,
-    because its per-model counts are what its ``costUSD`` is list-priced on
-    and they reconcile to ``total_cost_usd`` to the cent; then the sum of
-    ``usage.iterations``; then the top-level ``usage`` fields, which on a
-    schema-constrained arena call described a fraction of what was billed
-    (2 uncached + 2,060 cached recorded against ~8,600 tokens priced).
-    The model is the id (or ids, joined with +) the CLI billed, never the
-    alias asked for, so a rate lookup keyed on the ledger's model column
-    finds a real id and a helper model would show."""
+
+def sdk_counts(result: Any, asked_for: str) -> tuple[int, int, int, int, int, str, str | None]:
+    """(uncached input, output, cache read, cache written, of which at the 1h
+    rate, billed model, per-model usage as JSON) from a claude-agent-sdk
+    ResultMessage.
+
+    Order of trust, from the forge's 12 Sep 2026 probes: ``model_usage``
+    first, because its per-model counts are what its ``costUSD`` is
+    list-priced on and they reconcile to ``total_cost_usd`` to the cent;
+    then the sum of ``usage.iterations``; then the top-level ``usage``
+    fields. The CLI bills a second model on every arena call (a Haiku
+    helper, ~3,400 tokens, ~7% of the cost), so the ledger's columns carry
+    the PRIMARY model, the entry with the largest cost, and the whole
+    breakdown rides in ``usage_json`` for pricing and audit. The model is
+    that entry's id, never the alias asked for and never a joined string."""
+    usage = getattr(result, "usage", None) or getattr(result, "usage_metadata", None) or {}
+    one_hour = _ttl_split(usage)
     model_usage = getattr(result, "model_usage", None)
     if isinstance(model_usage, dict) and model_usage:
-        rows = [v for v in model_usage.values() if isinstance(v, dict)]
-        total = lambda key: sum(int(r.get(key, 0) or 0) for r in rows)  # noqa: E731
-        return (total("inputTokens"), total("outputTokens"), total("cacheReadInputTokens"),
-                total("cacheCreationInputTokens"), "+".join(sorted(model_usage)))
-    usage = getattr(result, "usage", None) or getattr(result, "usage_metadata", None) or {}
+        rows = {k: v for k, v in model_usage.items() if isinstance(v, dict)}
+        if rows:
+            primary = max(rows, key=lambda k: (float(rows[k].get("costUSD") or 0),
+                                               int(rows[k].get("outputTokens") or 0)))
+            r = rows[primary]
+            wrote = int(r.get("cacheCreationInputTokens", 0) or 0)
+            return (int(r.get("inputTokens", 0) or 0), int(r.get("outputTokens", 0) or 0),
+                    int(r.get("cacheReadInputTokens", 0) or 0), wrote, min(one_hour, wrote),
+                    str(r.get("canonicalModel") or primary), canonical_json(model_usage))
     get = usage.get if isinstance(usage, dict) else (lambda k, d=None: getattr(usage, k, d))
     iterations = get("iterations", None)
     if isinstance(iterations, list) and iterations:
-        rows = [it for it in iterations if isinstance(it, dict)]
-        total = lambda key: sum(int(r.get(key, 0) or 0) for r in rows)  # noqa: E731
+        rows_l = [it for it in iterations if isinstance(it, dict)]
+        total = lambda key: sum(int(r.get(key, 0) or 0) for r in rows_l)  # noqa: E731
+        wrote = total("cache_creation_input_tokens")
         return (total("input_tokens"), total("output_tokens"), total("cache_read_input_tokens"),
-                total("cache_creation_input_tokens"), asked_for)
+                wrote, min(one_hour, wrote), asked_for, canonical_json(usage) if isinstance(usage, dict) else None)
+    wrote = int(get("cache_creation_input_tokens", 0) or 0)
     return (int(get("input_tokens", 0) or 0), int(get("output_tokens", 0) or 0),
-            int(get("cache_read_input_tokens", 0) or 0), int(get("cache_creation_input_tokens", 0) or 0),
-            asked_for)
+            int(get("cache_read_input_tokens", 0) or 0), wrote, min(one_hour, wrote),
+            asked_for, canonical_json(usage) if isinstance(usage, dict) else None)
 
 
 class AnthropicProvider:
@@ -821,6 +841,7 @@ class AnthropicProvider:
         "claude-opus-5": (5.0, 25.0),
         "claude-sonnet-5": (2.0, 10.0),
         "claude-haiku-4-5": (1.0, 5.0),
+        "claude-haiku-4-5-20251001": (1.0, 5.0),
         "claude-fable-5-1": (10.0, 50.0),
     }
 
@@ -846,18 +867,42 @@ class AnthropicProvider:
         return self._client
 
     def cost_of(self, model: str, input_tokens: int, output_tokens: int, cached: int,
-                cache_creation: int = 0) -> float | None:
+                cache_creation: int = 0, cache_creation_1h: int = 0) -> float | None:
         """The Messages API reports three input counts that do not overlap:
         ``input_tokens`` (uncached, full rate), ``cache_read_input_tokens``
         (a tenth) and ``cache_creation_input_tokens`` (1.25x). Until 12 Sep
         2026 this subtracted the cached count from the uncached one, which
-        zeroed the uncached tokens on every cached call."""
+        zeroed the uncached tokens on every cached call. ``cache_creation`` is the
+        whole written count; ``cache_creation_1h`` the part written at the
+        one-hour rate (2x input, against 1.25x for five minutes), which the
+        forge's arena probe found to be 75% of a contestant call."""
         rates = self.RATES.get(model)
         if rates is None:
             return None
         rate_in, rate_out = rates
+        one_hour = min(max(0, cache_creation_1h), max(0, cache_creation))
+        five_min = max(0, cache_creation) - one_hour
         return (input_tokens * rate_in + cached * rate_in * 0.1
-                + cache_creation * rate_in * 1.25 + output_tokens * rate_out) / 1_000_000
+                + five_min * rate_in * 1.25 + one_hour * rate_in * 2.0
+                + output_tokens * rate_out) / 1_000_000
+
+    def price_usage(self, model_usage: Mapping[str, Any], one_hour_tokens: int = 0) -> float | None:
+        """Price a claude-agent-sdk ``model_usage`` breakdown, each model at its
+        own rates, summed. ``one_hour_tokens`` is the top-level
+        ``cache_creation.ephemeral_1h_input_tokens``, credited to the entry
+        that wrote the cache. None if any model has no rates."""
+        total = 0.0
+        for key, row in model_usage.items():
+            if not isinstance(row, dict):
+                continue
+            model = str(row.get("canonicalModel") or key)
+            wrote = int(row.get("cacheCreationInputTokens", 0) or 0)
+            cost = self.cost_of(model, int(row.get("inputTokens", 0) or 0), int(row.get("outputTokens", 0) or 0),
+                                int(row.get("cacheReadInputTokens", 0) or 0), wrote, min(one_hour_tokens, wrote))
+            if cost is None:
+                return None
+            total += cost
+        return total
 
     def _call(self, prompt: Mapping[str, Any], *, schema: Mapping[str, Any] | None,
               max_tokens: int) -> ProviderResult:
@@ -886,6 +931,7 @@ class AnthropicProvider:
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         cached = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
         cache_creation = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+        one_hour = min(_ttl_split(usage), cache_creation)
         stop_reason = getattr(response, "stop_reason", None)
         model = getattr(response, "model", None) or self.model
         return ProviderResult(
@@ -896,9 +942,14 @@ class AnthropicProvider:
             model=model,
             latency_ms=latency_ms,
             cached_tokens=cached,
-            cost_usd=self.cost_of(model, input_tokens, output_tokens, cached, cache_creation),
+            cost_usd=self.cost_of(model, input_tokens, output_tokens, cached, cache_creation, one_hour),
             cost_source="provider_usage",
             cache_creation_tokens=cache_creation,
+            cache_creation_1h_tokens=one_hour,
+            usage_json=canonical_json({
+                "input_tokens": input_tokens, "output_tokens": output_tokens,
+                "cache_read_input_tokens": cached, "cache_creation_input_tokens": cache_creation,
+                "cache_creation_1h_input_tokens": one_hour, "model": model}),
             stop_reason=stop_reason,
             request_id=getattr(response, "_request_id", None),
             error_kind="panic" if stop_reason == "refusal" else None,
@@ -1016,7 +1067,7 @@ class AgentSDKProvider:
         # cache_creation_input_tokens. The first forge run (11 Sep 2026) read
         # a field that does not exist and logged 0 tokens against a real cost;
         # `usage_metadata` stays as a fallback for older or fake results.
-        input_tokens, output_tokens, cached, cache_creation, model = sdk_counts(result, self.model)
+        input_tokens, output_tokens, cached, cache_creation, one_hour, model, usage_json = sdk_counts(result, self.model)
         errors = getattr(result, "errors", None) or []
         reason = subtype + (": " + "; ".join(str(e) for e in errors)[:120] if errors else "")
         if schema is not None:
@@ -1038,6 +1089,8 @@ class AgentSDKProvider:
             latency_ms=latency_ms,
             cached_tokens=cached,
             cache_creation_tokens=cache_creation,
+            cache_creation_1h_tokens=one_hour,
+            usage_json=usage_json,
             cost_usd=getattr(result, "total_cost_usd", None),
             cost_source="sdk_estimate",
             stop_reason=reason,

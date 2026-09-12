@@ -504,4 +504,6 @@ class ProviderResult:
     request_digest: str | None = None
     response_digest: str | None = None
     effort: str | None = None
-    cache_creation_tokens: int = 0   # input written to the cache on this call (billed at 1.25x)
+    cache_creation_tokens: int = 0   # input written to the cache on this call (1.25x for 5m, 2x for 1h)
+    cache_creation_1h_tokens: int = 0  # the part of cache_creation_tokens written at the 1-hour rate
+    usage_json: str | None = None    # the provider's per-model usage, verbatim, for pricing and audit

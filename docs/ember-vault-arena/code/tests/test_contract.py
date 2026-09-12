@@ -368,7 +368,13 @@ class _Result:
         # 12 Sep 2026); model_usage carries the counts the cost is priced on
         self.usage = {"input_tokens": 2, "output_tokens": 80, "cache_read_input_tokens": 300,
                       "cache_creation_input_tokens": 0}
-        self.model_usage = {"claude-opus-5": {"inputTokens": 900, "outputTokens": 80,
+        # two models billed, as the forge's arena probe found: a Haiku helper the
+        # CLI runs on its own, and the model that answered; the ledger carries
+        # the primary (largest cost) and the breakdown rides in usage_json
+        self.model_usage = {"claude-haiku-4-5-20251001": {"inputTokens": 3403, "outputTokens": 16,
+                                                           "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0,
+                                                           "costUSD": 0.003483, "canonicalModel": "claude-haiku-4-5"},
+                            "claude-opus-5": {"inputTokens": 900, "outputTokens": 80,
                                               "cacheReadInputTokens": 300, "cacheCreationInputTokens": 45,
                                               "costUSD": cost, "canonicalModel": "claude-opus-5"}}
         self.errors = errors or []
@@ -405,8 +411,10 @@ class AgentSDKAdapterTests(unittest.TestCase):
         # top-level usage, which said 2 uncached for this call
         self.assertEqual((result.input_tokens, result.output_tokens, result.cached_tokens), (900, 80, 300))
         self.assertEqual(result.cache_creation_tokens, 45)
-        # the ledger carries the id the CLI billed, not the alias "opus" we asked for
+        # the ledger carries the id the CLI billed, not the alias "opus" we asked
+        # for, and the primary model alone, never a joined string
         self.assertEqual(result.model, "claude-opus-5")
+        self.assertIn("claude-haiku-4-5-20251001", result.usage_json)
 
     def test_counts_fall_back_to_iterations_then_top_level_usage(self):
         from arena.providers import sdk_counts
@@ -418,10 +426,10 @@ class AgentSDKAdapterTests(unittest.TestCase):
                                    "cache_creation_input_tokens": 2000, "type": "message"},
                                   {"input_tokens": 2, "output_tokens": 5, "cache_read_input_tokens": 10,
                                    "cache_creation_input_tokens": 0, "type": "message"}]}
-        self.assertEqual(sdk_counts(r, "opus"), (4002, 305, 10, 2000, "opus"))
+        self.assertEqual(sdk_counts(r, "opus")[:6], (4002, 305, 10, 2000, 0, "opus"))
         r.usage = {"input_tokens": 457, "output_tokens": 4, "cache_read_input_tokens": 0,
                    "cache_creation_input_tokens": 0}
-        self.assertEqual(sdk_counts(r, "opus"), (457, 4, 0, 0, "opus"))
+        self.assertEqual(sdk_counts(r, "opus")[:6], (457, 4, 0, 0, 0, "opus"))
 
     def test_success_without_structured_output_and_max_retries_are_panics(self):
         manifest, prompt, obs = _prompt()

@@ -5,6 +5,55 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 09:20Z — the cost explained to the cent; the ledger prices it; the lever named and deferred
+
+The forge's arena probe (`runs/20260912T090748Z-sdk-probe-arena.md`) and
+billed smoke (`runs/20260912T090842Z-agent-sdk-smoke-billed.md`), both run
+at `dcafe74c` before the merge, read here:
+
+- **Two models are billed on every arena call.** Alongside Opus,
+  `claude-haiku-4-5-20251001` reads ~3,400 tokens and writes 16 ($0.0035,
+  exact at Haiku's list rates): the CLI's own work, not the prompt. About
+  7% of a call. What it is (a title, a classifier) is not known; the forge
+  is asked for one line if its transcript names it, and no more.
+- **75% of a call is a cache write at the one-hour rate.** `cache_creation`
+  is `ephemeral_1h_input_tokens: 3945` on every call, billed at 2× input:
+  the whole ~3,900-token prompt is written to a one-hour cache each call and
+  only the CLI's own 2,060-token prefix is read back. Opus side: 2 × $5/M +
+  3,945 × $10/M + 2,060 × $0.50/M + 342 × $25/M = $0.049040; plus Haiku =
+  $0.052523 = `total_cost_usd`. Nothing left over. `iterations` has one
+  entry; the multi-step hypothesis of 08:50Z is withdrawn.
+- **The defect my fix introduced, caught by the forge:** the ledger recorded
+  the model as `claude-haiku-4-5-20251001+claude-opus-5`, a string the rate
+  table can never match. Fixed: `sdk_counts()` picks the primary entry
+  (largest `costUSD`) for the `model` and token columns; the whole
+  `model_usage` breakdown is stored verbatim in a new `usage_json` column;
+  `cache_creation_1h_tokens` records the one-hour part; `cost_of` prices
+  writes at 2× (1h) or 1.25× (5m); `price_usage()` prices every model at
+  its own rates. The forge's probe numbers are a test and reconcile to
+  $0.052523; pricing the 1h write at 1.25× turns it red. Suite 100 → **101**.
+- **The lever, named and deferred.** Eight contestants each write their own
+  ~3,800-token entry every round and read back 2,060: $0.31 of the $0.43
+  billed smoke, roughly $5.50 of the $7.67 full match. A stable
+  per-contestant prefix (platform prompt and brain in a part the CLI would
+  cache and re-read across rounds) or a five-minute write would cut the
+  largest line in the ledger. Not done: the brain deliberately rides in the
+  user turn, wrapped and labelled untrusted, and moving it into the system
+  prompt is a trust decision, not a cost tweak; on the subscription nothing
+  is charged per call. Revisit when the API-key route is actually used. The
+  two-round smoke asked of the forge says whether round 2 re-reads round 1's
+  write as the prompt is laid out today.
+- **PRD estimate corrected** (§8 pricing): a contestant call is $0.05–0.10
+  at list; a full 48-round match $20–40 at API rates, not $4–12; a gate run
+  about $9.
+- **The merge:** the forge holds the firm's word and has a watcher that
+  merges PR #359 when the tip has been still for ten minutes and the checks
+  are clean. The commit carrying this entry is the cloud's last push until
+  the merge is reported. Messages fired into the forge's session while the
+  firm was away (08:52Z, 08:55Z) were not consumed until 09:10Z, when the
+  forge next acted; the channel is a queue that drains when the forge is at
+  its prompt and the firm's client is attached, not a wake-up.
+
 ## 12 September 2026, 09:05Z — a correction to this log's clock
 
 The four entries below dated 08:20Z, 08:35Z, 08:50Z and FORGE.md's 08:52Z,

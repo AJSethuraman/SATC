@@ -49,6 +49,22 @@ class CostArithmeticTests(unittest.TestCase):
         self.assertAlmostEqual(cold, (2 * 5.0 + 2060 * 6.25 + 341 * 25.0) / 1e6)
         self.assertGreater(cold, cost)
 
+    def test_the_forge_arena_probe_reconciles_to_the_cent(self):
+        # runs/20260912T090748Z-sdk-probe-arena.md: two models, a 1-hour cache write
+        provider = AnthropicProvider(client=object(), model="claude-opus-5")
+        opus = provider.cost_of("claude-opus-5", 2, 342, 2060, cache_creation=3945, cache_creation_1h=3945)
+        self.assertAlmostEqual(opus, 0.049040, places=6)
+        model_usage = {
+            "claude-haiku-4-5-20251001": {"inputTokens": 3403, "outputTokens": 16, "cacheReadInputTokens": 0,
+                                          "cacheCreationInputTokens": 0, "canonicalModel": "claude-haiku-4-5"},
+            "claude-opus-5": {"inputTokens": 2, "outputTokens": 342, "cacheReadInputTokens": 2060,
+                              "cacheCreationInputTokens": 3945, "canonicalModel": "claude-opus-5"},
+        }
+        self.assertAlmostEqual(provider.price_usage(model_usage, one_hour_tokens=3945), 0.052523, places=6)
+        # a five-minute write is the cheaper 1.25x
+        five = provider.cost_of("claude-opus-5", 2, 342, 2060, cache_creation=3945, cache_creation_1h=0)
+        self.assertLess(five, opus)
+
     def test_an_unknown_model_prices_nothing_rather_than_guessing(self):
         provider = AnthropicProvider(client=object(), model="claude-opus-5")
         # "opus" is the alias the SDK route asks for; the table is keyed by id
@@ -80,7 +96,9 @@ class LedgerPrintTests(unittest.TestCase):
 
 class MigrationTests(unittest.TestCase):
     def test_a_database_from_before_the_column_gains_it_on_open(self):
-        old_schema = SCHEMA.replace("    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,\n", "")
+        old_schema = (SCHEMA.replace("    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,\n", "")
+                      .replace("    cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0,\n", "")
+                      .replace("    usage_json TEXT,\n", ""))
         self.assertNotEqual(old_schema, SCHEMA)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "arena.db"
@@ -93,6 +111,8 @@ class MigrationTests(unittest.TestCase):
             store = ArenaStore(path)
             after = {row[1] for row in store.conn.execute("PRAGMA table_info(decisions)")}
             self.assertIn("cache_creation_tokens", after)
+            self.assertIn("cache_creation_1h_tokens", after)
+            self.assertIn("usage_json", after)
             store.close()
             # opening again is harmless
             ArenaStore(path).close()
