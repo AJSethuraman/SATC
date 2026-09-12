@@ -5,6 +5,202 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 20:35Z — "give me one so I can look myself": the gate pack becomes a page the firm reads
+
+Asked D7 back in the session with the two outcomes, the firm answered:
+*"Then give me one so I can look myself."* Neither outcome; a third. They
+want to read the pack before deciding what the gate is worth. So the house
+pack (`code/gate/20260912-034624-agent_sdk`) is now one page:
+<https://claude.ai/code/artifact/d2e7c964-2263-4a92-8afb-ed7a7df9ed9a>.
+The eight anonymised brains, then the eight lettered transcripts across
+the three seeds with the spoken line in colour and the private objective,
+reads and outcome beside it, and under each character eight numbered
+chips. Picks save to the page's store (`reads/firm`: `answers`,
+`seen_key`, `note`); the check-in reads them back, writes `reader_a.json`
+and runs `tools/score_gate.py` unchanged.
+
+Two things the page says out loud. **Whether the firm has seen the key**
+is asked before anything else, with yes, no and not sure, because the key
+was committed inside this pack and printed in a session; a "yes" makes
+the read informative and not the blind score the spec asks for (§5.44:
+two readers, six of eight each), and it is recorded either way rather
+than assumed. **The page carries no key:** the output was checked against
+`KEY.json` before publishing; the one hit for a real character id was the
+id `fen` inside the word *fence* in brain 1, a substring the anonymiser
+skips on purpose (tokens under four letters), not a leak.
+
+The generator is kept as `code/tools/blind_read_page.py` so the second
+run, on the players' brains, gets the same page; a test builds it for the
+house pack and proves no key value and no real id of four letters or more
+is in the output. Suite 102 → 103.
+
+The docket page now has no decision open; its one item is the reading.
+**Next, unless the firm says otherwise:** read the picks back when they
+land, score, log the score with the seen-key answer beside it, and put
+what the firm wants from it on the next docket. M3 stays shut meanwhile.
+The forge is not needed for any of this.
+
+## 12 September 2026, 20:05Z — the docket answered: D8 ruled, D5 and D6 "later" with a question each, D7 tapped one way and written the other
+
+The firm, 19:46Z to 19:47Z on the page, read back by `read_db`, in their words:
+
+- **D8, the ending rule:** *"Different ending rule, bigger world too."* Ruled.
+  Taking the Crown out no longer ends the match; it runs its forty-eight
+  rounds and whoever holds the Crown when the final round resolves wins;
+  everyone else is placed by score. PRD §5 items 4 and 5 now say so, with
+  the July rule they replace kept beside them, since `engine.py` still
+  implements it (`_crown_extract`, `ended_reason: extraction`) and the
+  12 September match ended at round 16 under it. The code change belongs
+  to M3 with the rest of the world, on the mock, and M3 is shut until D7.
+  What the Egress and an extraction do now, if anything, is an open
+  question in PRD §10, not a default. **A correction to the page:** it said
+  the bigger world comes at M4; the PRD has it at M3 (§9, *the world
+  registry to sixteen locations*). M4 is the live stream.
+- **D5, the private repository:** *"Later"*, with *"Can you not set this up
+  for me???"* Tried a third time at 19:53Z, at that ask, from this session:
+  `POST /user/repos` → 403 *Resource not accessible by integration*. The
+  GitHub App this session runs as is not allowed to create repositories on
+  the firm's account, and nothing on this side changes that. It stays six
+  clicks of theirs; the steps are on the page. Recorded in PRD §10.
+- **D6, the players:** *"Later"*, with *"I haven't even seen the
+  template."* True, and my omission: three dockets named it and none showed
+  it. `code/brains/TEMPLATE.md` (1,192 characters, four sections under a
+  name) sent to the firm in the session and now printed on the page under
+  D6.
+- **D7, the readers and M3:** the tap is *"Readers later, M3 waits"*; the
+  note is *"I would prefer to get this hammered out first and then maybe
+  I'll do this or something similar."* Read plainly, the note says build
+  first and test later, in whatever form, which is the other outcome: M3
+  opens now and the gate stops being a door. The tap says the opposite.
+  Not resolved here; asked back as one question with the same two
+  outcomes, on the page and in the session. Nothing from M3 starts on
+  either reading until they say which.
+
+The Next goal is unchanged until D7 is settled. Recorded here rather than
+acted on: on the "build first" reading the first work is M3 on the mock
+with D8's rule in it, and the PRD's gate line becomes a check run before
+the pilot rather than a precondition for M3.
+
+## 12 September 2026, 19:50Z — docket refreshed at the firm's ask: four open decisions first
+
+The firm, at 19:37Z: *"Docket so I can respond easier."* The page is
+republished at the same link, read from the repository and not from the
+session: PR #360 at `1ec7bed8`, 10 of 10 checks green, clean; arena suite
+**102 of 102** (15.7 s) and canon **190 of 190** (24.6 s), both run now;
+the forge stood down at 10:33Z; canon 1.17.0 installed and not yet loaded.
+
+What changed on the page: the four open decisions come first, in the order
+they matter, each a tap with a box under it: **D7** the readers and M3
+(recommended: readers later, M3 waits), **D8** the ending rule for M4
+(recommended: a different ending rule, and a bigger world anyway), **D5**
+the private repository (recommended: create it now, since PR #359 is
+merged and the move starts from main), **D6** the players (recommended:
+later, and send the template out now). D1 to D4 leave the form and become
+four lines under *Answered, for the record*; the store keeps their
+documents, the page no longer writes them. The Next block is unchanged in
+substance: hold PR #360 green and watched, keep the record current, no new
+milestone; it ends when D7 is answered. A single step for the firm sits in
+the status table rather than as a decision: restart any open Claude Code
+window so 1.17.0 loads.
+
+Nine hourly check-ins between 10:45Z and 18:55Z found no change: PR green
+each time, no forge push, no docket answers. The page was opened at 400 and
+760 pixels before publishing; no horizontal scroll at either, the chips and
+the save-state line render, and the offline message shows where the store
+cannot be reached.
+
+## 12 September 2026, 10:40Z — canon 1.17.0 installed on the firm's machine; the forge stands down
+
+`runs/20260912T103336Z-plugin-update.md` (`efab7345`): the forge ran the two
+commands verbatim, both exit 0, no permission asked. `claude plugin update
+canon` reported *updated from 1.16.0 to 1.17.0 for scope user*, confirmed by
+`claude plugin list` and by the `1.17.0` directory on disk. **Not loaded
+yet:** the CLI says *Restart to apply changes*, so every Claude Code session
+already open on that machine still runs 1.16.0 until it is restarted; the
+rulings by project reach a session on its next start. The forge did not
+restart anything, correctly. `desk` 0.21.0 and `occam` 0.4.0 untouched.
+
+The Haiku helper call stays unexplained; nothing visible to the forge names
+it, and it was told not to chase it. The forge reports nothing running on
+the machine, a clean worktree, and every result under `runs/`. Its day:
+three smoke tests, the gate, a full match, three probes, a two-round
+measurement, the merge with its own verification first, the plugin update,
+two defects of mine caught and one correction of its own, disclosed.
+
+## 12 September 2026, 10:05Z — round 2 never re-reads round 1; the cache lever is smaller than it looked
+
+The forge's two-round smoke (`runs/20260912T093832Z-agent-sdk-smoke-2rounds.md`,
+16 of 16, 35 s), read here:
+
+- **`cached` is exactly 2,060 on every call**, in round 2 as in round 1, and
+  across every match measured today; `wrote` rises in round 2 (dask 3,944 →
+  4,347) rather than falling. So the 2,060 is the CLI's own fixed prefix,
+  the same for all eight contestants, and the arena's whole ~3,800-token
+  prompt is written to a one-hour cache on every call and never read back.
+  This run wrote 63,640 tokens and read 32,960.
+- **Correction to the 09:20Z entry's framing.** The cache write is 75% of a
+  call's cost, but only part of it is avoidable. The stable part of our
+  prompt (the platform system prompt and the brain, roughly 1,200 tokens)
+  is under a third of what is written; the observation, which changes every
+  round, is the rest. A stable per-contestant prefix would save about 20% of
+  a call at API rates; disabling the CLI's caching for the subprocess
+  (`DISABLE_PROMPT_CACHING`, so the 3,900 tokens bill at 1× instead of 2×
+  and the CLI's 2,060 at 1× instead of 0.1×) about 25%; the two do not
+  combine. Neither is 75%. Both stay deferred until the API-key route is in
+  use; on the subscription nothing is charged per call.
+- **Both fixes hold on a real run:** `provider/model: agent_sdk/claude-opus-5`,
+  no compound string; `usage_json` carries the breakdown; rows reconcile to
+  the cent (dask round 1: Opus $0.048605 + Haiku $0.003488 = $0.052093).
+- **The forge's consequence, taken:** the table's columns are the primary
+  model's while `cost` covers both models, so a reader of the table alone
+  could not reproduce a row. The totals line now ends `other models billed:
+  $X (in usage_json)`, summed from each row's breakdown. Test added; suite
+  101 → **102**.
+
+## 12 September 2026, 09:55Z — the forge's verification before merging, read back
+
+The forge merged only after checking more than the suite: 101 passed at
+`c7559f7a`; the spectator server serves; `/api/matches`,
+`/api/leaderboard` and `/api/matches/ember-7-830ff8da/audit` return 200 with
+the audit valid at 891 entries; and the viewer renders the 48-round match
+with Grael at 31 and ESCAPED, round FINAL 16, VERIFIED 891 RECORDS, the CLI,
+the API and the rendered page agreeing. Screenshot kept on the forge. That
+closes the "story viewer on a real-model match" item from the 03:10Z docket.
+It pinned the merge to the exact SHA and merged under its own conditions
+(ten quiet minutes, clean, green on that commit). It declined "the plugin
+commands" until they were spelled out, correctly; FORGE.md now carries the
+two commands verbatim.
+
+## 12 September 2026, 09:50Z — docket refreshed; the next goal on record
+
+PR #360 opened (draft) on the restarted branch:
+<https://github.com/AJSethuraman/SATC/pull/360>. The docket page is
+republished with D1, D2 and D4 marked done, D3 deferred, and two new
+decisions: **D7**, the readers are deferred so M3 is shut, name readers
+later (recommended) or strike the rule and open M3 now; **D8**, a match can
+end at round 16, a bigger world (M4) or a different ending rule where an
+extraction no longer ends the match (recommended, with the bigger world
+anyway). D5 (the private repository) and D6 (the players) stay open.
+
+**Next, unless the firm says otherwise:** hold PR #360 green and watched;
+read the forge's two-round cache measurement when it lands and log it; keep
+the record current; start no new milestone. Ends when the firm answers D7.
+Silence approves only that.
+
+## 12 September 2026, 09:40Z — PR #359 merged; the branch restarts from main
+
+The forge, holding the firm's word, took PR #359 out of draft and merged it
+at 09:37Z (main `f44ae5f7`): the grill, the PRD, M1, the gate harness and its
+run, the ledger corrected by measurement, canon 1.17.0 with the rulings.
+The branch `claude/ember-vault-arena-rebuild-dn890n` is restarted from main
+under the same name for the continuing work, and a new draft PR carries it.
+On the firm's machine the plugin update (`claude plugin marketplace update
+satc && claude plugin update canon`) is the forge's to run and report.
+
+README brought to the merged state: what is built, what has run, what waits
+on the firm. Nothing from M3 on until the gate has been read or the firm
+rules otherwise; the useful work meanwhile is measurement and the record.
+
 ## 12 September 2026, 09:30Z — D3 deferred: the gate stays unscored and M3 stays shut
 
 Through the forge, the firm on the two blind readers: *skip the readers for

@@ -23,6 +23,30 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 12 September 2026, 09:55Z — after the merge: the two plugin commands, verbatim
+
+PR #359 is merged (f44ae5f7) and the branch is restarted from main; PR #360
+carries the continuing work. "The plugin commands" means exactly these two,
+from any folder on the firm's machine, in this order. The firm chose them on
+the docket (D2, step 4) and they were in the PR body; they refresh the
+listing and install canon 1.17.0, which carries the rulings the firm
+approved. They touch the firm's Claude Code plugin install and nothing else.
+
+```
+claude plugin marketplace update satc
+```
+
+```
+claude plugin update canon
+```
+
+Push the output of both, and the version the second prints (expect 1.17.0),
+as `runs/<UTC>-plugin-update.md`. If either asks for a permission you would
+rather not grant, stop and say so in the file.
+
+Then the two-round smoke from the 09:20Z section if it has not run, the
+Haiku line if you have it, and stand down.
+
 ## 12 September 2026, 09:20Z — one push, then quiet; the merge is yours
 
 Your arena probe and billed smoke explained the cost to the cent, and they

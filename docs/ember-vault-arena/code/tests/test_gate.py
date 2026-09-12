@@ -85,5 +85,28 @@ class GatePackTests(unittest.TestCase):
             self.assertEqual(score_gate.score(old, perfect)[0], 8)
 
 
+def test_blind_read_page_carries_no_key_and_no_real_id(tmp_path):
+    """The page a reader answers on is built from the pack alone. Nothing the
+    key holds may reach it: not a brain number beside a letter, not a real
+    character id (four letters or more; the anonymiser skips shorter tokens
+    on purpose, so `fen` inside `fence` is not a leak)."""
+    import json
+    from tools import blind_read_page
+
+    pack = gate.ROOT / "gate" / "20260912-034624-agent_sdk"
+    key = json.loads(score_gate.find_key(pack).read_text(encoding="utf-8"))
+    page = blind_read_page.build(pack, reader="test")
+    assert "letter_to_brain" not in page and "letter_to_id" not in page
+    for real_id in key["letter_to_id"].values():
+        if len(real_id) >= 4:
+            assert real_id.lower() not in page.lower(), real_id
+    assert page.count("<details") == page.count("</details>") == 8
+    assert len(re.findall(r'data-letter="[A-H]"', page)) == 64
+    assert 'db.doc("reads/test")' in page
+    out = tmp_path / "read.html"
+    assert blind_read_page.main([str(pack), str(out), "--reader", "test"]) == 0
+    assert out.read_text(encoding="utf-8") == page
+
+
 if __name__ == "__main__":
     unittest.main()
