@@ -5,6 +5,35 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 03:10Z — docket issued; the next goal on record
+
+Docket published as a form the firm fills in:
+<https://claude.ai/code/artifact/33468545-8341-4cf4-a4e3-d40f88271339>.
+Answers save to the artifact's store (`decisions/d1` … `d6`) and are read
+back from there into this log; nothing is decided by the session.
+
+**Next, unless the firm says otherwise:** hold PR #359 green and watched
+until it is merged; the moment a gate pack or a full-match ledger lands under
+`runs/`, read it, record what the token counts say about the cost, and score
+the gate once both reader sheets exist. Ends when the PR is merged and the
+house gate has a score. Distance: milestones 2 of 5; M2 built and waiting on
+one run and two readers. Silence approves only that. Merging stays the
+firm's (C2/C5); nothing enters canon without a yes; the readers score the
+gate, not the session (C6); nothing from M3 on until the gate has been read.
+
+**Asked (D1–D6):** run the gate in a plain terminal or approve it in the
+forge session (recommended: terminal); merge PR #359 now or hold
+(recommended: now); who the two blind readers are; run one twelve-round
+match on the subscription after the gate, or wait (recommended: after the
+gate, from the forge session); create the private repository after the
+merge (recommended: after); who the eight players are and by when.
+
+**State read at issue, from the repository:** PR #359 head `decfc9d3`,
+10 of 10 checks green, mergeable, no review threads; arena suite 91 of 91
+(15.8 s); canon 190 of 190 (25.9 s); forge session idle at `need_input`
+since 20:21Z, rate-limit status "allowed, not in overage"; gate not run on
+a model; no push under `runs/` since 20:15Z.
+
 ## 11 September 2026, 20:15Z — the subscription route works: 8 of 8 on the forge
 
 The hands session on the forge (`ajish-5a`, Windows 11, Python 3.12,
