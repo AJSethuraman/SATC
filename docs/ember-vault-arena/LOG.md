@@ -5,6 +5,34 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 19:50Z — docket refreshed at the firm's ask: four open decisions first
+
+The firm, at 19:37Z: *"Docket so I can respond easier."* The page is
+republished at the same link, read from the repository and not from the
+session: PR #360 at `1ec7bed8`, 10 of 10 checks green, clean; arena suite
+**102 of 102** (15.7 s) and canon **190 of 190** (24.6 s), both run now;
+the forge stood down at 10:33Z; canon 1.17.0 installed and not yet loaded.
+
+What changed on the page: the four open decisions come first, in the order
+they matter, each a tap with a box under it: **D7** the readers and M3
+(recommended: readers later, M3 waits), **D8** the ending rule for M4
+(recommended: a different ending rule, and a bigger world anyway), **D5**
+the private repository (recommended: create it now, since PR #359 is
+merged and the move starts from main), **D6** the players (recommended:
+later, and send the template out now). D1 to D4 leave the form and become
+four lines under *Answered, for the record*; the store keeps their
+documents, the page no longer writes them. The Next block is unchanged in
+substance: hold PR #360 green and watched, keep the record current, no new
+milestone; it ends when D7 is answered. A single step for the firm sits in
+the status table rather than as a decision: restart any open Claude Code
+window so 1.17.0 loads.
+
+Nine hourly check-ins between 10:45Z and 18:55Z found no change: PR green
+each time, no forge push, no docket answers. The page was opened at 400 and
+760 pixels before publishing; no horizontal scroll at either, the chips and
+the save-state line render, and the offline message shows where the store
+cannot be reached.
+
 ## 12 September 2026, 10:40Z — canon 1.17.0 installed on the firm's machine; the forge stands down
 
 `runs/20260912T103336Z-plugin-update.md` (`efab7345`): the forge ran the two
