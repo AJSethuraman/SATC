@@ -5,6 +5,22 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 12 September 2026, 04:18Z — docket answer: D1
+
+Read back from the docket's store at the 05:11Z check-in (`decisions/d1`,
+written 04:17:59Z, note empty):
+
+- **D1 · Run the gate — "Approve in the session."** Not the recommended
+  route; the firm's call. What it causes: the firm pastes the approval
+  sentence into the forge session (the one titled *Ember Vault Arena smoke
+  test*), allows the command when asked, and the session runs
+  `tools/gate.py`, commits the pack under `code/gate/` and pushes it to the
+  branch. Nothing for this session to run; the pack's arrival is the signal.
+  As of 05:11Z the forge session had not moved (last turn 20:21Z on the
+  11th) and no pack had been pushed.
+
+D2–D6 unanswered at 05:11Z.
+
 ## 12 September 2026, 03:10Z — docket issued; the next goal on record
 
 Docket published as a form the firm fills in:
