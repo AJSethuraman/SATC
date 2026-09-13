@@ -5,6 +5,29 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 13 September 2026, 16:05Z — "very unclear how to use this": the replay cut down to a feed; the forge asked for the real match
+
+The firm, 15:5xZ: *"It is very unclear how to use this. I just want a legit
+replay to watch and critique."* Two things heard. The page had play,
+pace, step, a table and a picker: controls to learn before anything could
+be watched. And three lettered six-round scouting matches are not the show;
+the show is the 48-round match with names.
+
+`tools/replay_page.py` now builds a feed and nothing else: a round header,
+then every character's line in turn as a spoken bubble with what they did
+and what happened to them under it, a character's leaving announced once.
+One row of tabs for the three matches, one button for the private thoughts.
+Same link, republished. Suite still 104.
+
+The real match is not here to give. `ember-7-830ff8da` lives only in
+`data/arena.db` on the firm's machine. The channel to the forge was fired
+at 15:58Z with the one export command (`python run.py replay
+ember-7-830ff8da --output ../runs/ember-7-830ff8da.replay.json`, commit,
+push); the forge session reads idle but connected. Whether it wakes is not
+known from here; the hourly check-in watches `runs/` for the bundle and
+builds the page from it the moment it lands. If it does not, the same
+command pasted into that session by the firm does it.
+
 ## 13 September 2026, 06:10Z — "I need a live replay": the three matches played back, all eight on screen
 
 The firm, 05:5xZ: *"I think I need a live replay to understand what I think
