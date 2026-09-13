@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3F2C7A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>pogo-forge</title>
+<style>
+:root{
+  --paper:#F6F4FB; --card:#fff; --ink:#231B33; --soft:#6E6584;
+  --violet:#6B4BC4; --deep:#3F2C7A; --wash:#EFE9FC; --line:#DFD8EE;
+  --berry:#A8305A; --keep:#1E7A5F; --keepwash:#E3F3ED; --amber:#8A6410; --amberwash:#FBF1D8;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink)}
+body{font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+.app{max-width:640px;margin:0 auto;padding:14px 14px calc(64px + env(safe-area-inset-bottom) + 24px)}
+h1{font-weight:800;font-size:27px;letter-spacing:-.03em;margin:4px 0 2px}
+h2{font-weight:700;font-size:18px;letter-spacing:-.02em;margin:22px 0 8px}
+.tagline{color:var(--soft);font-size:14px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+label>span{display:block;font-size:13px;font-weight:500;color:var(--soft);margin:12px 0 4px}
+input,select{font:inherit;width:100%;border:1px solid var(--line);border-radius:9px;padding:11px;background:var(--paper);color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--violet);outline-offset:1px;border-color:transparent}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 8px}
+button{font:inherit;font-weight:600;border:0;border-radius:9px;padding:12px 16px;cursor:pointer;background:var(--violet);color:#fff}
+button:active{transform:translateY(1px)}
+button.wide{width:100%;margin-top:16px}
+button.ghost{background:var(--wash);color:var(--deep)}
+button.quiet{background:transparent;color:var(--soft);font-weight:400;padding:6px 8px}
+.drop{display:block;border:2px dashed var(--line);border-radius:11px;padding:20px 14px;text-align:center;color:var(--soft);font-size:14px;cursor:pointer}
+.drop.over{border-color:var(--violet);background:var(--wash);color:var(--deep)}
+.drop b{display:block;color:var(--ink);font-weight:600;font-size:15px;margin-bottom:3px}
+.drop input{display:none}
+.head{background:var(--deep);color:#fff;border-radius:12px;padding:16px;margin-bottom:10px}
+.head .big{font-weight:800;font-size:28px;letter-spacing:-.02em;line-height:1.1}
+.head .sub{font-size:14px;color:rgba(255,255,255,.78);margin-top:5px}
+.totals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.totals div{background:rgba(255,255,255,.12);border-radius:9px;padding:9px;text-align:center}
+.totals b{display:block;font-weight:800;font-size:19px}
+.totals span{font-size:12px;color:rgba(255,255,255,.72)}
+.li{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.li:last-child{border-bottom:0}
+.li .lbl{flex:1}
+.li .amt{font-family:var(--mono);font-size:13px;color:var(--soft);text-align:right;white-space:nowrap}
+.note{background:var(--amberwash);color:var(--amber);border-radius:9px;padding:10px 12px;font-size:14px;margin-top:8px}
+.ok{background:var(--keepwash);color:var(--keep);border-radius:9px;padding:10px 12px;font-size:14px;margin-top:8px}
+.err{background:#FBE7EE;color:var(--berry);border-radius:10px;padding:14px;font-size:15px}
+.empty{color:var(--soft);text-align:center;padding:26px 12px;font-size:15px}
+.q{font-family:var(--mono);font-size:13px;word-break:break-all;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px;margin:8px 0}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.chips button{font-size:13px;font-weight:400;padding:7px 13px;border-radius:99px;background:var(--card);color:var(--deep);border:1px solid var(--line)}
+.verd{display:flex;gap:10px;align-items:flex-start;padding:0}
+.verd .what{flex:1;min-width:0}
+.verd .sub{font-size:13px;color:var(--soft)}
+.verd .tag{font-weight:800;font-size:13px;letter-spacing:.02em;flex:none}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:30}
+nav button{flex:1;background:transparent;color:var(--soft);font-weight:500;font-size:14px;border-radius:0;height:64px}
+nav button[aria-current=true]{color:var(--deep);box-shadow:inset 0 -3px 0 var(--violet)}
+section[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+
+<section id="tab-roster">
+  <h1>Roster</h1>
+  <p class="tagline">Your Max Battle bench and its Max Move progress. Saved on this device.</p>
+  <div id="rosterList"></div>
+  <details class="card">
+    <summary style="cursor:pointer;font-weight:600">Add a Pokémon</summary>
+    <label><span>Species</span><input id="m_sp" placeholder="Gardevoir" autocomplete="off" list="spList"></label>
+    <div class="two">
+      <label><span>Nickname</span><input id="m_nick" placeholder="optional"></label>
+      <label><span>Fast move type</span><input id="m_fast" placeholder="fairy"></label>
+    </div>
+    <div class="two">
+      <label><span>Role</span><select id="m_role">
+        <option value="attacker">Attacker</option><option value="defender">Defender / tank</option>
+        <option value="healer">Healer</option><option value="bench">Bench</option></select></label>
+      <label><span>Priority</span><select id="m_pri">
+        <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+    </div>
+    <div class="two">
+      <label><span>CP</span><input id="m_cp" inputmode="numeric"></label>
+      <label><span>Form</span><select id="m_form">
+        <option value="dynamax">Dynamax</option><option value="gigantamax">Gigantamax</option>
+        <option value="none">Neither</option></select></label>
+    </div>
+    <button class="wide" id="m_add">Add to roster</button>
+  </details>
+</section>
+
+<section id="tab-plan" hidden>
+  <h1>Plan</h1>
+  <div class="head">
+    <div class="big" id="balN">0</div>
+    <div class="sub">Max Particles on hand</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <input id="p_delta" inputmode="numeric" placeholder="+300 or -400" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff">
+      <button class="ghost" id="p_log" style="flex:none">Log</button>
+    </div>
+  </div>
+  <div class="note">Max Move upgrade costs vary by species and aren't published anywhere reliable. Record each one the first time you meet it; steps with no recorded cost show as unknown rather than a guess.</div>
+  <h2>Next steps</h2>
+  <div class="card" id="planList"></div>
+  <details class="card">
+    <summary style="cursor:pointer;font-weight:600">Record an upgrade cost</summary>
+    <label><span>Species</span><input id="mc_sp" placeholder="gardevoir" list="spList"></label>
+    <div class="two">
+      <label><span>Slot</span><select id="mc_slot">
+        <option value="attack">Max Attack</option><option value="guard">Max Guard</option>
+        <option value="spirit">Max Spirit</option></select></label>
+      <label><span>To level</span><select id="mc_lvl"><option>1</option><option>2</option><option>3</option></select></label>
+    </div>
+    <label><span>Particles</span><input id="mc_part" inputmode="numeric"></label>
+    <button class="wide" id="mc_save">Save cost</button>
+  </details>
+</section>
+
+<section id="tab-read" hidden>
+  <h1>Scan</h1>
+  <p class="tagline">Exact IVs from an Appraise screenshot. Everything runs in this page — nothing is uploaded anywhere.</p>
+  <div class="card">
+    <label class="drop" id="readDrop">
+      <b>Choose a screenshot</b>
+      Or drag one in, or paste from the clipboard
+      <input type="file" id="readFile" accept="image/*">
+    </label>
+    <label><span>Species</span><input id="r_sp" placeholder="Ralts" autocomplete="off" list="spList"></label>
+    <datalist id="spList"></datalist>
+    <div class="two">
+      <label><span>CP on screen</span><input id="r_cp" inputmode="numeric" placeholder="296"></label>
+      <label><span>HP on screen</span><input id="r_hp" inputmode="numeric" placeholder="66"></label>
+    </div>
+    <p class="tagline" style="margin:8px 0 0">Species, CP and HP are optional, but with them the reading gets proved against the game's own CP formula instead of just trusted.</p>
+  </div>
+  <div id="readOut"></div>
+
+  <h2>Batch triage</h2>
+  <p class="tagline">Several screenshots, or one recording of you swiping through the Appraise screen. One verdict each.</p>
+
+  
+  
+  <div class="card">
+    <label class="drop" id="triDrop">
+      <b>Choose screenshots or a recording</b>
+      Or drag them in, or paste from the clipboard
+      <input type="file" id="triFile" accept="image/*,video/*" multiple>
+    </label>
+    <div id="triPicked" style="font-size:14px;color:var(--deep);margin-top:8px;font-weight:500"></div>
+    <label><span>Species, in order (optional)</span><input id="t_sp" placeholder="azumarill, , medicham" autocomplete="off"></label>
+    <label><span>League cap</span><select id="t_cap">
+      <option value="1500">1500 — Great</option>
+      <option value="2500">2500 — Ultra</option>
+    </select></label>
+    <button class="wide" id="t_go">Read them all</button>
+  </div>
+  <div id="triOut"></div>
+</section>
+
+<section id="tab-cost" hidden>
+  <h1>Cost</h1>
+  <p class="tagline">What a goal costs in stardust, candy and XL candy.</p>
+  <div class="card">
+    <label><span>Species</span><input id="c_sp" placeholder="Gardevoir" autocomplete="off" list="spList"></label>
+    <div class="three">
+      <label><span>Atk IV</span><input id="c_ia" inputmode="numeric" value="15"></label>
+      <label><span>Def IV</span><input id="c_id" inputmode="numeric" value="15"></label>
+      <label><span>HP IV</span><input id="c_ih" inputmode="numeric" value="15"></label>
+    </div>
+    <div class="two">
+      <label><span>Current level</span><input id="c_from" inputmode="decimal" value="20"></label>
+      <label><span>Evolve to (optional)</span><input id="c_evo" placeholder="Gardevoir" autocomplete="off" list="spList"></label>
+    </div>
+    <label><span>Goal</span><select id="c_goal">
+      <option value="cp_cap">Highest level under a CP cap</option>
+      <option value="level">A specific level</option>
+      <option value="max">Maximum level</option>
+    </select></label>
+    <label id="w_cap"><span>CP cap</span><select id="c_cap">
+      <option value="1500">1500 — Great League</option>
+      <option value="2500">2500 — Ultra League</option>
+      <option value="500">500 — Little Cup</option>
+    </select></label>
+    <label id="w_lvl" hidden><span>Target level</span><input id="c_lvl" inputmode="decimal" value="40"></label>
+    <div class="three">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="c_move" style="width:18px;height:18px;accent-color:var(--violet)"><span style="margin:0;color:var(--ink);font-size:14px">2nd move</span></label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="c_shadow" style="width:18px;height:18px;accent-color:var(--berry)"><span style="margin:0;color:var(--ink);font-size:14px">Shadow</span></label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="c_pure" style="width:18px;height:18px;accent-color:var(--keep)"><span style="margin:0;color:var(--ink);font-size:14px">Purified</span></label>
+    </div>
+    <button class="wide" id="c_go">Work out the cost</button>
+  </div>
+  <div id="costOut"></div>
+
+  <h2>Best possible spreads</h2>
+  <div class="card">
+    <label><span>Species</span><input id="k_sp" placeholder="Azumarill" autocomplete="off" list="spList"></label>
+    <label><span>League cap</span><select id="k_cap">
+      <option value="1500">1500 — Great</option>
+      <option value="2500">2500 — Ultra</option>
+      <option value="500">500 — Little Cup</option>
+    </select></label>
+    <button class="wide ghost" id="k_go">Rank all 4,096 spreads</button>
+  </div>
+  <div id="rankOut"></div>
+</section>
+
+
+<div id="__rank_moved" hidden style="display:none"><div class="card">
+    <label><span>Species</span><input id="k_sp" placeholder="Azumarill" autocomplete="off" list="spList"></label>
+    <label><span>League cap</span><select id="k_cap">
+      <option value="1500">1500 — Great</option>
+      <option value="2500">2500 — Ultra</option>
+      <option value="500">500 — Little Cup</option>
+    </select></label>
+    <button class="wide" id="k_go">Show the top spreads</button>
+  </div>
+  <div id="rankOut"></div>
+</div>
+
+<section id="tab-more" hidden>
+  <h1>More</h1>
+  <h2>Search strings</h2>
+  <p class="tagline">Search strings for the in-game bar. Tap to copy.</p>
+  <div class="chips" id="fChips"></div>
+  <div id="fList"></div>
+  <div class="card">
+    <label><span>Save your own</span><input id="f_name" placeholder="Sunday cleanup" autocomplete="off"></label>
+    <label><span>String</span><input id="f_q" placeholder="!favorite&amp;!#" autocomplete="off" style="font-family:var(--mono);font-size:14px"></label>
+    <button class="wide ghost" id="f_save">Save string</button>
+  </div>
+
+  <h2>Backup</h2>
+  <div class="card">
+    <p class="tagline" style="margin:0 0 12px">Everything is stored in this browser only. Export before you clear site data, change phones, or want the same roster on a second device.</p>
+    <button class="wide" id="b_export">Export everything to a file</button>
+    <label class="drop" id="importDrop" style="margin-top:12px">
+      <b>Import a backup</b>
+      Replaces what's on this device
+      <input type="file" id="b_import" accept="application/json,.json">
+    </label>
+    <div id="backupOut"></div>
+  </div>
+</section>
+
+</div>
+
+<nav>
+  <button data-tab="roster" aria-current="true">Roster</button>
+  <button data-tab="plan">Plan</button>
+  <button data-tab="read">Scan</button>
+  <button data-tab="cost">Cost</button>
+  <button data-tab="more">More</button>
+</nav>
+
+<script>
+const GAMEDATA = {"cpm":{"1":0.094,"1.5":0.13513743215803847,"2":0.16639787,"2.5":0.19265091454861796,"3":0.21573247,"3.5":0.23657265541932715,"4":0.25572005,"4.5":0.27353037931097973,"5":0.29024988,"5.5":0.30605738000722543,"6":0.3210876,"6.5":0.3354450348019347,"7":0.34921268,"7.5":0.36245775711118555,"8":0.3752356,"8.5":0.3875924191428145,"9":0.39956728,"9.5":0.4111935439951595,"10":0.4225,"10.5":0.4329264087965774,"11":0.44310755,"11.5":0.4530599628689135,"12":0.4627984,"12.5":0.4723360827308573,"13":0.48168495,"13.5":0.49085580932476297,"14":0.49985844,"14.5":0.5087017591555174,"15":0.51739395,"15.5":0.5259424956328841,"16":0.5343543,"16.5":0.5426357508963908,"17":0.5507927,"17.5":0.5588305922386229,"18":0.5667545,"18.5":0.574569134506658,"19":0.5822789,"19.5":0.5898879034974399,"20":0.5974,"20.5":0.6048236602280411,"21":0.6121573,"21.5":0.6194041050661919,"22":0.6265671,"22.5":0.6336491667895227,"23":0.64065295,"23.5":0.6475809587060136,"24":0.65443563,"24.5":0.6612192609753201,"25":0.667934,"25.5":0.6745818887829742,"26":0.6811649,"26.5":0.6876848943474521,"27":0.69414365,"27.5":0.7005428891384746,"28":0.7068842,"28.5":0.713169102419072,"29":0.7193991,"29.5":0.7255756180718899,"30":0.7317,"30.5":0.7347410173422504,"31":0.7377695,"31.5":0.7407855800803546,"32":0.74378943,"32.5":0.7467812039953893,"33":0.74976104,"33.5":0.7527290986842915,"34":0.7556855,"34.5":0.7586303636507689,"35":0.76156384,"35.5":0.7644860688461087,"36":0.76739717,"36.5":0.7702972738840048,"37":0.7731865,"37.5":0.7760649434180147,"38":0.77893275,"38.5":0.7817900775756758,"39":0.784637,"39.5":0.7874735905949481,"40":0.7903,"40.5":0.7928039417157309,"41":0.7953,"41.5":0.7978039170121942,"42":0.8003,"42.5":0.8028038926163724,"43":0.8053,"43.5":0.8078038685225517,"44":0.8103,"44.5":0.8128038447251588,"45":0.8153,"45.5":0.8178038212187566,"46":0.8203,"46.5":0.8228037979980404,"47":0.8253,"47.5":0.8278037750578334,"48":0.8303,"48.5":0.8328037523930834,"49":0.8353,"49.5":0.8378037299988584,"50":0.8403,"50.5":0.842803707870344,"51":0.8453,"51.5":0.8478036860028387,"52":0.8503,"52.5":0.8528036643917519,"53":0.8553,"53.5":0.8578036430325998,"54":0.8603,"54.5":0.8628036219210024,"55":0.8653,"55.5":0.8653,"56":0.8653,"56.5":0.8653,"57":0.8653,"57.5":0.8653,"58":0.8653,"58.5":0.8653,"59":0.8653,"59.5":0.8653,"60":0.8653,"60.5":0.8653,"61":0.8653,"61.5":0.8653,"62":0.8653,"62.5":0.8653,"63":0.8653,"63.5":0.8653,"64":0.8653,"64.5":0.8653,"65":0.8653,"65.5":0.8653,"66":0.8653,"66.5":0.8653,"67":0.8653,"67.5":0.8653,"68":0.8653,"68.5":0.8653,"69":0.8653,"69.5":0.8653,"70":0.8653,"70.5":0.8653,"71":0.8653,"71.5":0.8653,"72":0.8653,"72.5":0.8653,"73":0.8653,"73.5":0.8653,"74":0.8653,"74.5":0.8653,"75":0.8653,"75.5":0.8653,"76":0.8653,"76.5":0.8653,"77":0.8653,"77.5":0.8653,"78":0.8653,"78.5":0.8653,"79":0.8653,"79.5":0.8653,"80":0.8653},"upgrade":{"dust":[200,200,400,400,600,600,800,800,1000,1000,1300,1300,1600,1600,1900,1900,2200,2200,2500,2500,3000,3000,3500,3500,4000,4000,4500,4500,5000,5000,6000,6000,7000,7000,8000,8000,9000,9000,10000,10000,11000,11000,12000,12000,13000,13000,14000,14000,15000],"candy":[1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4,6,6,8,8,10,10,12,12,15,0,0,0,0,0,0,0,0,0,0,0],"xl_candy":[10,10,12,12,15,15,17,17,20,20],"xl_from_level":40,"max_level":50,"best_buddy_bonus":1,"shadow_dust_mult":1.2,"shadow_candy_mult":1.2,"purified_dust_mult":0.9,"purified_candy_mult":0.9},"species":{"BULBASAUR":{"a":118,"d":111,"s":128,"tm":[10000,25],"e":[["IVYSAUR",25]]},"IVYSAUR":{"a":151,"d":143,"s":155,"tm":[10000,25],"e":[["VENUSAUR",100]]},"VENUSAUR":{"a":198,"d":189,"s":190,"tm":[10000,25],"e":null},"CHARMANDER":{"a":116,"d":93,"s":118,"tm":[10000,25],"e":[["CHARMELEON",25]]},"CHARMELEON":{"a":158,"d":126,"s":151,"tm":[10000,25],"e":[["CHARIZARD",100]]},"CHARIZARD":{"a":223,"d":173,"s":186,"tm":[10000,25],"e":null},"SQUIRTLE":{"a":94,"d":121,"s":127,"tm":[10000,25],"e":[["WARTORTLE",25]]},"WARTORTLE":{"a":126,"d":155,"s":153,"tm":[10000,25],"e":[["BLASTOISE",100]]},"BLASTOISE":{"a":171,"d":207,"s":188,"tm":[10000,25],"e":null},"CATERPIE":{"a":55,"d":55,"s":128,"tm":[10000,25],"e":[["METAPOD",12]]},"METAPOD":{"a":45,"d":80,"s":137,"tm":[10000,25],"e":[["BUTTERFREE",50]]},"BUTTERFREE":{"a":167,"d":137,"s":155,"tm":[10000,25],"e":null},"WEEDLE":{"a":63,"d":50,"s":120,"tm":[10000,25],"e":[["KAKUNA",12]]},"KAKUNA":{"a":46,"d":75,"s":128,"tm":[10000,25],"e":[["BEEDRILL",50]]},"BEEDRILL":{"a":169,"d":130,"s":163,"tm":[10000,25],"e":null},"PIDGEY":{"a":85,"d":73,"s":120,"tm":[10000,25],"e":[["PIDGEOTTO",12]]},"PIDGEOTTO":{"a":117,"d":105,"s":160,"tm":[10000,25],"e":[["PIDGEOT",50]]},"PIDGEOT":{"a":166,"d":154,"s":195,"tm":[10000,25],"e":null},"RATTATA":{"a":103,"d":70,"s":102,"tm":[10000,25],"e":[["RATICATE",25]]},"RATICATE":{"a":161,"d":139,"s":146,"tm":[10000,25],"e":null},"SPEAROW":{"a":112,"d":60,"s":120,"tm":[10000,25],"e":[["FEAROW",50]]},"FEAROW":{"a":182,"d":133,"s":163,"tm":[10000,25],"e":null},"EKANS":{"a":110,"d":97,"s":111,"tm":[50000,50],"e":[["ARBOK",50]]},"ARBOK":{"a":167,"d":153,"s":155,"tm":[50000,50],"e":null},"PIKACHU":{"a":112,"d":96,"s":111,"tm":[10000,25],"e":[["RAICHU",50]]},"RAICHU":{"a":193,"d":151,"s":155,"tm":[10000,25],"e":null},"SANDSHREW":{"a":126,"d":120,"s":137,"tm":[50000,50],"e":[["SANDSLASH",50]]},"SANDSLASH":{"a":182,"d":175,"s":181,"tm":[50000,50],"e":null},"NIDORAN_FEMALE":{"a":86,"d":89,"s":146,"tm":[50000,50],"e":[["NIDORINA",25]]},"NIDORINA":{"a":117,"d":120,"s":172,"tm":[50000,50],"e":[["NIDOQUEEN",100]]},"NIDOQUEEN":{"a":180,"d":173,"s":207,"tm":[50000,50],"e":null},"NIDORAN_MALE":{"a":105,"d":76,"s":130,"tm":[50000,50],"e":[["NIDORINO",25]]},"NIDORINO":{"a":137,"d":111,"s":156,"tm":[50000,50],"e":[["NIDOKING",100]]},"NIDOKING":{"a":204,"d":156,"s":191,"tm":[50000,50],"e":null},"CLEFAIRY":{"a":107,"d":108,"s":172,"tm":[10000,25],"e":[["CLEFABLE",50]]},"CLEFABLE":{"a":178,"d":162,"s":216,"tm":[10000,25],"e":null},"VULPIX":{"a":96,"d":109,"s":116,"tm":[50000,50],"e":[["NINETALES",50]]},"NINETALES":{"a":169,"d":190,"s":177,"tm":[50000,50],"e":null},"JIGGLYPUFF":{"a":80,"d":41,"s":251,"tm":[10000,25],"e":[["WIGGLYTUFF",50]]},"WIGGLYTUFF":{"a":156,"d":90,"s":295,"tm":[10000,25],"e":null},"ZUBAT":{"a":83,"d":73,"s":120,"tm":[10000,25],"e":[["GOLBAT",25]]},"GOLBAT":{"a":161,"d":150,"s":181,"tm":[10000,25],"e":[["CROBAT",100]]},"ODDISH":{"a":131,"d":112,"s":128,"tm":[50000,50],"e":[["GLOOM",25]]},"GLOOM":{"a":153,"d":136,"s":155,"tm":[50000,50],"e":[["VILEPLUME",100],["BELLOSSOM",100]]},"VILEPLUME":{"a":202,"d":167,"s":181,"tm":[50000,50],"e":null},"PARAS":{"a":121,"d":99,"s":111,"tm":[50000,50],"e":[["PARASECT",50]]},"PARASECT":{"a":165,"d":146,"s":155,"tm":[50000,50],"e":null},"VENONAT":{"a":100,"d":100,"s":155,"tm":[50000,50],"e":[["VENOMOTH",50]]},"VENOMOTH":{"a":179,"d":143,"s":172,"tm":[50000,50],"e":null},"DIGLETT":{"a":109,"d":78,"s":67,"tm":[50000,50],"e":[["DUGTRIO",50]]},"DUGTRIO":{"a":167,"d":134,"s":111,"tm":[50000,50],"e":null},"MEOWTH":{"a":92,"d":78,"s":120,"tm":[50000,50],"e":[["PERSIAN",50]]},"PERSIAN":{"a":150,"d":136,"s":163,"tm":[50000,50],"e":null},"PSYDUCK":{"a":122,"d":95,"s":137,"tm":[50000,50],"e":[["GOLDUCK",50]]},"GOLDUCK":{"a":191,"d":162,"s":190,"tm":[50000,50],"e":null},"MANKEY":{"a":148,"d":82,"s":120,"tm":[50000,50],"e":[["PRIMEAPE",50]]},"PRIMEAPE":{"a":207,"d":138,"s":163,"tm":[50000,50],"e":[["ANNIHILAPE",100]]},"GROWLITHE":{"a":136,"d":93,"s":146,"tm":[50000,50],"e":[["ARCANINE",50]]},"ARCANINE":{"a":227,"d":166,"s":207,"tm":[50000,50],"e":null},"POLIWAG":{"a":101,"d":82,"s":120,"tm":[50000,50],"e":[["POLIWHIRL",25]]},"POLIWHIRL":{"a":130,"d":123,"s":163,"tm":[50000,50],"e":[["POLIWRATH",100],["POLITOED",100]]},"POLIWRATH":{"a":182,"d":184,"s":207,"tm":[50000,50],"e":null},"ABRA":{"a":195,"d":82,"s":93,"tm":[50000,50],"e":[["KADABRA",25]]},"KADABRA":{"a":232,"d":117,"s":120,"tm":[50000,50],"e":[["ALAKAZAM",100]]},"ALAKAZAM":{"a":271,"d":167,"s":146,"tm":[50000,50],"e":null},"MACHOP":{"a":137,"d":82,"s":172,"tm":[50000,50],"e":[["MACHOKE",25]]},"MACHOKE":{"a":177,"d":125,"s":190,"tm":[50000,50],"e":[["MACHAMP",100]]},"MACHAMP":{"a":234,"d":159,"s":207,"tm":[50000,50],"e":null},"BELLSPROUT":{"a":139,"d":61,"s":137,"tm":[50000,50],"e":[["WEEPINBELL",25]]},"WEEPINBELL":{"a":172,"d":92,"s":163,"tm":[50000,50],"e":[["VICTREEBEL",100]]},"VICTREEBEL":{"a":207,"d":135,"s":190,"tm":[50000,50],"e":null},"TENTACOOL":{"a":97,"d":149,"s":120,"tm":[50000,50],"e":[["TENTACRUEL",50]]},"TENTACRUEL":{"a":166,"d":209,"s":190,"tm":[50000,50],"e":null},"GEODUDE":{"a":132,"d":132,"s":120,"tm":[10000,25],"e":[["GRAVELER",25]]},"GRAVELER":{"a":164,"d":164,"s":146,"tm":[10000,25],"e":[["GOLEM",100]]},"GOLEM":{"a":211,"d":198,"s":190,"tm":[10000,25],"e":null},"PONYTA":{"a":170,"d":127,"s":137,"tm":[50000,50],"e":[["RAPIDASH",50]]},"RAPIDASH":{"a":207,"d":162,"s":163,"tm":[50000,50],"e":null},"SLOWPOKE":{"a":109,"d":98,"s":207,"tm":[50000,50],"e":[["SLOWBRO",50],["SLOWKING",50]]},"SLOWBRO":{"a":177,"d":180,"s":216,"tm":[50000,50],"e":null},"MAGNEMITE":{"a":165,"d":121,"s":93,"tm":[50000,50],"e":[["MAGNETON",25]]},"MAGNETON":{"a":223,"d":169,"s":137,"tm":[50000,50],"e":[["MAGNEZONE",100]]},"FARFETCHD":{"a":124,"d":115,"s":141,"tm":[50000,50],"e":null},"DODUO":{"a":158,"d":83,"s":111,"tm":[50000,50],"e":[["DODRIO",50]]},"DODRIO":{"a":218,"d":140,"s":155,"tm":[50000,50],"e":null},"SEEL":{"a":85,"d":121,"s":163,"tm":[50000,50],"e":[["DEWGONG",50]]},"DEWGONG":{"a":139,"d":177,"s":207,"tm":[50000,50],"e":null},"GRIMER":{"a":135,"d":90,"s":190,"tm":[50000,50],"e":[["MUK",50]]},"MUK":{"a":190,"d":172,"s":233,"tm":[50000,50],"e":null},"SHELLDER":{"a":116,"d":134,"s":102,"tm":[50000,50],"e":[["CLOYSTER",50]]},"CLOYSTER":{"a":186,"d":256,"s":137,"tm":[50000,50],"e":null},"GASTLY":{"a":186,"d":67,"s":102,"tm":[50000,50],"e":[["HAUNTER",25]]},"HAUNTER":{"a":223,"d":107,"s":128,"tm":[50000,50],"e":[["GENGAR",100]]},"GENGAR":{"a":261,"d":149,"s":155,"tm":[50000,50],"e":null},"ONIX":{"a":85,"d":232,"s":111,"tm":[75000,75],"e":[["STEELIX",50]]},"DROWZEE":{"a":89,"d":136,"s":155,"tm":[50000,50],"e":[["HYPNO",50]]},"HYPNO":{"a":144,"d":193,"s":198,"tm":[50000,50],"e":null},"KRABBY":{"a":181,"d":124,"s":102,"tm":[50000,50],"e":[["KINGLER",50]]},"KINGLER":{"a":240,"d":181,"s":146,"tm":[50000,50],"e":null},"VOLTORB":{"a":109,"d":111,"s":120,"tm":[50000,50],"e":[["ELECTRODE",50]]},"ELECTRODE":{"a":173,"d":173,"s":155,"tm":[50000,50],"e":null},"EXEGGCUTE":{"a":107,"d":125,"s":155,"tm":[50000,50],"e":[["EXEGGUTOR",50]]},"EXEGGUTOR":{"a":233,"d":149,"s":216,"tm":[50000,50],"e":null},"CUBONE":{"a":90,"d":144,"s":137,"tm":[50000,50],"e":[["MAROWAK",50]]},"MAROWAK":{"a":144,"d":186,"s":155,"tm":[50000,50],"e":null},"HITMONLEE":{"a":224,"d":181,"s":137,"tm":[75000,75],"e":null},"HITMONCHAN":{"a":193,"d":197,"s":137,"tm":[75000,75],"e":null},"LICKITUNG":{"a":108,"d":137,"s":207,"tm":[50000,50],"e":[["LICKILICKY",100]]},"KOFFING":{"a":119,"d":141,"s":120,"tm":[50000,50],"e":[["WEEZING",50]]},"WEEZING":{"a":174,"d":197,"s":163,"tm":[50000,50],"e":null},"RHYHORN":{"a":140,"d":127,"s":190,"tm":[50000,50],"e":[["RHYDON",25]]},"RHYDON":{"a":222,"d":171,"s":233,"tm":[50000,50],"e":[["RHYPERIOR",100]]},"CHANSEY":{"a":60,"d":128,"s":487,"tm":[75000,75],"e":[["BLISSEY",50]]},"TANGELA":{"a":183,"d":169,"s":163,"tm":[50000,50],"e":[["TANGROWTH",100]]},"KANGASKHAN":{"a":181,"d":165,"s":233,"tm":[50000,50],"e":null},"HORSEA":{"a":129,"d":103,"s":102,"tm":[50000,50],"e":[["SEADRA",25]]},"SEADRA":{"a":187,"d":156,"s":146,"tm":[50000,50],"e":[["KINGDRA",100]]},"GOLDEEN":{"a":123,"d":110,"s":128,"tm":[50000,50],"e":[["SEAKING",50]]},"SEAKING":{"a":175,"d":147,"s":190,"tm":[50000,50],"e":null},"STARYU":{"a":137,"d":112,"s":102,"tm":[50000,50],"e":[["STARMIE",50]]},"STARMIE":{"a":210,"d":184,"s":155,"tm":[50000,50],"e":null},"MR_MIME":{"a":192,"d":205,"s":120,"tm":[75000,75],"e":null},"SCYTHER":{"a":218,"d":170,"s":172,"tm":[75000,75],"e":[["SCIZOR",50]]},"JYNX":{"a":223,"d":151,"s":163,"tm":[75000,75],"e":null},"ELECTABUZZ":{"a":198,"d":158,"s":163,"tm":[75000,75],"e":[["ELECTIVIRE",100]]},"MAGMAR":{"a":206,"d":154,"s":163,"tm":[75000,75],"e":[["MAGMORTAR",100]]},"PINSIR":{"a":238,"d":182,"s":163,"tm":[75000,75],"e":null},"TAUROS":{"a":198,"d":183,"s":181,"tm":[50000,50],"e":null},"MAGIKARP":{"a":29,"d":85,"s":85,"tm":[10000,25],"e":[["GYARADOS",400]]},"GYARADOS":{"a":237,"d":186,"s":216,"tm":[10000,25],"e":null},"LAPRAS":{"a":165,"d":174,"s":277,"tm":[75000,75],"e":null},"DITTO":{"a":91,"d":91,"s":134,"tm":[50000,50],"e":null},"EEVEE":{"a":104,"d":114,"s":146,"tm":[75000,75],"e":[["VAPOREON",25],["JOLTEON",25],["FLAREON",25],["ESPEON",25],["UMBREON",25],["LEAFEON",25],["GLACEON",25],["SYLVEON",25]]},"VAPOREON":{"a":205,"d":161,"s":277,"tm":[75000,75],"e":null},"JOLTEON":{"a":232,"d":182,"s":163,"tm":[75000,75],"e":null},"FLAREON":{"a":246,"d":179,"s":163,"tm":[75000,75],"e":null},"PORYGON":{"a":153,"d":136,"s":163,"tm":[50000,50],"e":[["PORYGON2",25]]},"OMANYTE":{"a":155,"d":153,"s":111,"tm":[75000,75],"e":[["OMASTAR",50]]},"OMASTAR":{"a":207,"d":201,"s":172,"tm":[75000,75],"e":null},"KABUTO":{"a":148,"d":140,"s":102,"tm":[75000,75],"e":[["KABUTOPS",50]]},"KABUTOPS":{"a":220,"d":186,"s":155,"tm":[75000,75],"e":null},"AERODACTYL":{"a":221,"d":159,"s":190,"tm":[75000,75],"e":null},"SNORLAX":{"a":190,"d":169,"s":330,"tm":[75000,75],"e":null},"ARTICUNO":{"a":192,"d":236,"s":207,"tm":[100000,100],"e":null},"ZAPDOS":{"a":253,"d":185,"s":207,"tm":[100000,100],"e":null},"MOLTRES":{"a":251,"d":181,"s":207,"tm":[100000,100],"e":null},"DRATINI":{"a":119,"d":91,"s":121,"tm":[75000,75],"e":[["DRAGONAIR",25]]},"DRAGONAIR":{"a":163,"d":135,"s":156,"tm":[75000,75],"e":[["DRAGONITE",100]]},"DRAGONITE":{"a":263,"d":198,"s":209,"tm":[75000,75],"e":null},"MEWTWO":{"a":300,"d":182,"s":214,"tm":[100000,100],"e":null},"MEW":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"CHIKORITA":{"a":92,"d":122,"s":128,"tm":[10000,25],"e":[["BAYLEEF",25]]},"BAYLEEF":{"a":122,"d":155,"s":155,"tm":[10000,25],"e":[["MEGANIUM",100]]},"MEGANIUM":{"a":168,"d":202,"s":190,"tm":[10000,25],"e":null},"CYNDAQUIL":{"a":116,"d":93,"s":118,"tm":[10000,25],"e":[["QUILAVA",25]]},"QUILAVA":{"a":158,"d":126,"s":151,"tm":[10000,25],"e":[["TYPHLOSION",100]]},"TYPHLOSION":{"a":223,"d":173,"s":186,"tm":[10000,25],"e":null},"TOTODILE":{"a":117,"d":109,"s":137,"tm":[10000,25],"e":[["CROCONAW",25]]},"CROCONAW":{"a":150,"d":142,"s":163,"tm":[10000,25],"e":[["FERALIGATR",100]]},"FERALIGATR":{"a":205,"d":188,"s":198,"tm":[10000,25],"e":null},"SENTRET":{"a":79,"d":73,"s":111,"tm":[10000,25],"e":[["FURRET",25]]},"FURRET":{"a":148,"d":125,"s":198,"tm":[10000,25],"e":null},"HOOTHOOT":{"a":67,"d":88,"s":155,"tm":[10000,25],"e":[["NOCTOWL",50]]},"NOCTOWL":{"a":145,"d":156,"s":225,"tm":[10000,25],"e":null},"LEDYBA":{"a":72,"d":118,"s":120,"tm":[10000,25],"e":[["LEDIAN",25]]},"LEDIAN":{"a":107,"d":179,"s":146,"tm":[10000,25],"e":null},"SPINARAK":{"a":105,"d":73,"s":120,"tm":[10000,25],"e":[["ARIADOS",50]]},"ARIADOS":{"a":161,"d":124,"s":172,"tm":[10000,25],"e":null},"CROBAT":{"a":194,"d":178,"s":198,"tm":[10000,25],"e":null},"CHINCHOU":{"a":106,"d":97,"s":181,"tm":[50000,50],"e":[["LANTURN",50]]},"LANTURN":{"a":146,"d":137,"s":268,"tm":[50000,50],"e":null},"PICHU":{"a":77,"d":53,"s":85,"tm":[10000,25],"e":[["PIKACHU",25]]},"CLEFFA":{"a":75,"d":79,"s":137,"tm":[10000,25],"e":[["CLEFAIRY",25]]},"IGGLYBUFF":{"a":69,"d":32,"s":207,"tm":[10000,25],"e":[["JIGGLYPUFF",25]]},"TOGEPI":{"a":67,"d":116,"s":111,"tm":[10000,25],"e":[["TOGETIC",25]]},"TOGETIC":{"a":139,"d":181,"s":146,"tm":[50000,50],"e":[["TOGEKISS",100]]},"NATU":{"a":134,"d":89,"s":120,"tm":[50000,50],"e":[["XATU",50]]},"XATU":{"a":192,"d":146,"s":163,"tm":[50000,50],"e":null},"MAREEP":{"a":114,"d":79,"s":146,"tm":[75000,75],"e":[["FLAAFFY",25]]},"FLAAFFY":{"a":145,"d":109,"s":172,"tm":[75000,75],"e":[["AMPHAROS",100]]},"AMPHAROS":{"a":211,"d":169,"s":207,"tm":[75000,75],"e":null},"BELLOSSOM":{"a":169,"d":186,"s":181,"tm":[50000,50],"e":null},"MARILL":{"a":37,"d":93,"s":172,"tm":[50000,50],"e":[["AZUMARILL",25]]},"AZUMARILL":{"a":112,"d":152,"s":225,"tm":[50000,50],"e":null},"SUDOWOODO":{"a":167,"d":176,"s":172,"tm":[75000,75],"e":null},"POLITOED":{"a":174,"d":179,"s":207,"tm":[50000,50],"e":null},"HOPPIP":{"a":67,"d":94,"s":111,"tm":[50000,50],"e":[["SKIPLOOM",25]]},"SKIPLOOM":{"a":91,"d":120,"s":146,"tm":[50000,50],"e":[["JUMPLUFF",100]]},"JUMPLUFF":{"a":118,"d":183,"s":181,"tm":[50000,50],"e":null},"AIPOM":{"a":136,"d":112,"s":146,"tm":[50000,50],"e":[["AMBIPOM",100]]},"SUNKERN":{"a":55,"d":55,"s":102,"tm":[50000,50],"e":[["SUNFLORA",50]]},"SUNFLORA":{"a":185,"d":135,"s":181,"tm":[50000,50],"e":null},"YANMA":{"a":154,"d":94,"s":163,"tm":[50000,50],"e":[["YANMEGA",100]]},"WOOPER":{"a":75,"d":66,"s":146,"tm":[50000,50],"e":[["QUAGSIRE",50]]},"QUAGSIRE":{"a":152,"d":143,"s":216,"tm":[50000,50],"e":null},"ESPEON":{"a":261,"d":175,"s":163,"tm":[75000,75],"e":null},"UMBREON":{"a":126,"d":240,"s":216,"tm":[75000,75],"e":null},"MURKROW":{"a":175,"d":87,"s":155,"tm":[50000,50],"e":[["HONCHKROW",100]]},"SLOWKING":{"a":177,"d":180,"s":216,"tm":[50000,50],"e":null},"MISDREAVUS":{"a":167,"d":154,"s":155,"tm":[50000,50],"e":[["MISMAGIUS",100]]},"UNOWN":{"a":136,"d":91,"s":134,"tm":[75000,75],"e":null},"WOBBUFFET":{"a":60,"d":106,"s":382,"tm":[50000,50],"e":null},"GIRAFARIG":{"a":182,"d":133,"s":172,"tm":[50000,50],"e":null},"PINECO":{"a":108,"d":122,"s":137,"tm":[75000,75],"e":[["FORRETRESS",50]]},"FORRETRESS":{"a":161,"d":205,"s":181,"tm":[75000,75],"e":null},"DUNSPARCE":{"a":131,"d":128,"s":225,"tm":[50000,50],"e":[["DUDUNSPARCE",50],["DUDUNSPARCE",50]]},"GLIGAR":{"a":143,"d":184,"s":163,"tm":[75000,75],"e":[["GLISCOR",100]]},"STEELIX":{"a":148,"d":272,"s":181,"tm":[75000,75],"e":null},"SNUBBULL":{"a":137,"d":85,"s":155,"tm":[50000,50],"e":[["GRANBULL",50]]},"GRANBULL":{"a":212,"d":131,"s":207,"tm":[50000,50],"e":null},"QWILFISH":{"a":184,"d":138,"s":163,"tm":[50000,50],"e":null},"SCIZOR":{"a":236,"d":181,"s":172,"tm":[75000,75],"e":null},"SHUCKLE":{"a":17,"d":396,"s":85,"tm":[50000,50],"e":null},"HERACROSS":{"a":234,"d":179,"s":190,"tm":[50000,50],"e":null},"SNEASEL":{"a":189,"d":146,"s":146,"tm":[50000,50],"e":[["WEAVILE",100]]},"TEDDIURSA":{"a":142,"d":93,"s":155,"tm":[50000,50],"e":[["URSARING",50]]},"URSARING":{"a":236,"d":144,"s":207,"tm":[50000,50],"e":[["URSALUNA",100]]},"SLUGMA":{"a":118,"d":71,"s":120,"tm":[10000,25],"e":[["MAGCARGO",50]]},"MAGCARGO":{"a":139,"d":191,"s":137,"tm":[10000,25],"e":null},"SWINUB":{"a":90,"d":69,"s":137,"tm":[50000,50],"e":[["PILOSWINE",25]]},"PILOSWINE":{"a":181,"d":138,"s":225,"tm":[50000,50],"e":[["MAMOSWINE",100]]},"CORSOLA":{"a":118,"d":156,"s":146,"tm":[50000,50],"e":null},"REMORAID":{"a":127,"d":69,"s":111,"tm":[10000,25],"e":[["OCTILLERY",50]]},"OCTILLERY":{"a":197,"d":141,"s":181,"tm":[10000,25],"e":null},"DELIBIRD":{"a":128,"d":90,"s":128,"tm":[75000,75],"e":null},"MANTINE":{"a":148,"d":226,"s":163,"tm":[75000,75],"e":null},"SKARMORY":{"a":148,"d":226,"s":163,"tm":[75000,75],"e":null},"HOUNDOUR":{"a":152,"d":83,"s":128,"tm":[50000,50],"e":[["HOUNDOOM",50]]},"HOUNDOOM":{"a":224,"d":144,"s":181,"tm":[50000,50],"e":null},"KINGDRA":{"a":194,"d":194,"s":181,"tm":[50000,50],"e":null},"PHANPY":{"a":107,"d":98,"s":207,"tm":[50000,50],"e":[["DONPHAN",50]]},"DONPHAN":{"a":214,"d":185,"s":207,"tm":[50000,50],"e":null},"PORYGON2":{"a":198,"d":180,"s":198,"tm":[50000,50],"e":[["PORYGON_Z",100]]},"STANTLER":{"a":192,"d":131,"s":177,"tm":[50000,50],"e":null},"SMEARGLE":{"a":40,"d":83,"s":146,"tm":null,"e":null},"TYROGUE":{"a":64,"d":64,"s":111,"tm":[10000,25],"e":[["HITMONLEE",25],["HITMONCHAN",25],["HITMONTOP",25]]},"HITMONTOP":{"a":173,"d":207,"s":137,"tm":[75000,75],"e":null},"SMOOCHUM":{"a":153,"d":91,"s":128,"tm":[10000,25],"e":[["JYNX",25]]},"ELEKID":{"a":135,"d":101,"s":128,"tm":[10000,25],"e":[["ELECTABUZZ",25]]},"MAGBY":{"a":151,"d":99,"s":128,"tm":[10000,25],"e":[["MAGMAR",25]]},"MILTANK":{"a":157,"d":193,"s":216,"tm":[75000,75],"e":null},"BLISSEY":{"a":129,"d":169,"s":496,"tm":[75000,75],"e":null},"RAIKOU":{"a":241,"d":195,"s":207,"tm":[100000,100],"e":null},"ENTEI":{"a":235,"d":171,"s":251,"tm":[100000,100],"e":null},"SUICUNE":{"a":180,"d":235,"s":225,"tm":[100000,100],"e":null},"LARVITAR":{"a":115,"d":93,"s":137,"tm":[75000,75],"e":[["PUPITAR",25]]},"PUPITAR":{"a":155,"d":133,"s":172,"tm":[75000,75],"e":[["TYRANITAR",100]]},"TYRANITAR":{"a":251,"d":207,"s":225,"tm":[75000,75],"e":null},"LUGIA":{"a":193,"d":310,"s":235,"tm":[100000,100],"e":null},"HO_OH":{"a":239,"d":244,"s":214,"tm":[100000,100],"e":null},"CELEBI":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"TREECKO":{"a":124,"d":94,"s":120,"tm":[10000,25],"e":[["GROVYLE",25]]},"GROVYLE":{"a":172,"d":120,"s":137,"tm":[10000,25],"e":[["SCEPTILE",100]]},"SCEPTILE":{"a":223,"d":169,"s":172,"tm":[10000,25],"e":null},"TORCHIC":{"a":130,"d":87,"s":128,"tm":[10000,25],"e":[["COMBUSKEN",25]]},"COMBUSKEN":{"a":163,"d":115,"s":155,"tm":[10000,25],"e":[["BLAZIKEN",100]]},"BLAZIKEN":{"a":240,"d":141,"s":190,"tm":[10000,25],"e":null},"MUDKIP":{"a":126,"d":93,"s":137,"tm":[10000,25],"e":[["MARSHTOMP",25]]},"MARSHTOMP":{"a":156,"d":133,"s":172,"tm":[10000,25],"e":[["SWAMPERT",100]]},"SWAMPERT":{"a":208,"d":175,"s":225,"tm":[10000,25],"e":null},"POOCHYENA":{"a":96,"d":61,"s":111,"tm":[10000,25],"e":[["MIGHTYENA",50]]},"MIGHTYENA":{"a":171,"d":132,"s":172,"tm":[10000,25],"e":null},"ZIGZAGOON":{"a":58,"d":80,"s":116,"tm":[10000,25],"e":[["LINOONE",50]]},"LINOONE":{"a":142,"d":128,"s":186,"tm":[10000,25],"e":null},"WURMPLE":{"a":75,"d":59,"s":128,"tm":[10000,25],"e":[["SILCOON",12],["CASCOON",12]]},"SILCOON":{"a":60,"d":77,"s":137,"tm":[10000,25],"e":[["BEAUTIFLY",50]]},"BEAUTIFLY":{"a":189,"d":98,"s":155,"tm":[10000,25],"e":null},"CASCOON":{"a":60,"d":77,"s":137,"tm":[10000,25],"e":[["DUSTOX",50]]},"DUSTOX":{"a":98,"d":162,"s":155,"tm":[10000,25],"e":null},"LOTAD":{"a":71,"d":77,"s":120,"tm":[50000,50],"e":[["LOMBRE",25]]},"LOMBRE":{"a":112,"d":119,"s":155,"tm":[50000,50],"e":[["LUDICOLO",100]]},"LUDICOLO":{"a":173,"d":176,"s":190,"tm":[50000,50],"e":null},"SEEDOT":{"a":71,"d":77,"s":120,"tm":[50000,50],"e":[["NUZLEAF",25]]},"NUZLEAF":{"a":134,"d":78,"s":172,"tm":[50000,50],"e":[["SHIFTRY",100]]},"SHIFTRY":{"a":200,"d":121,"s":207,"tm":[50000,50],"e":null},"TAILLOW":{"a":106,"d":61,"s":120,"tm":[10000,25],"e":[["SWELLOW",50]]},"SWELLOW":{"a":185,"d":124,"s":155,"tm":[10000,25],"e":null},"WINGULL":{"a":106,"d":61,"s":120,"tm":[50000,50],"e":[["PELIPPER",50]]},"PELIPPER":{"a":175,"d":174,"s":155,"tm":[50000,50],"e":null},"RALTS":{"a":79,"d":59,"s":99,"tm":[75000,75],"e":[["KIRLIA",25]]},"KIRLIA":{"a":117,"d":90,"s":116,"tm":[75000,75],"e":[["GALLADE",100],["GARDEVOIR",100]]},"GARDEVOIR":{"a":237,"d":195,"s":169,"tm":[75000,75],"e":null},"SURSKIT":{"a":93,"d":87,"s":120,"tm":[10000,25],"e":[["MASQUERAIN",50]]},"MASQUERAIN":{"a":192,"d":150,"s":172,"tm":[10000,25],"e":null},"SHROOMISH":{"a":74,"d":110,"s":155,"tm":[50000,50],"e":[["BRELOOM",50]]},"BRELOOM":{"a":241,"d":144,"s":155,"tm":[50000,50],"e":null},"SLAKOTH":{"a":104,"d":92,"s":155,"tm":[75000,75],"e":[["VIGOROTH",25]]},"VIGOROTH":{"a":159,"d":145,"s":190,"tm":[75000,75],"e":[["SLAKING",100]]},"SLAKING":{"a":290,"d":166,"s":284,"tm":[75000,75],"e":null},"NINCADA":{"a":80,"d":126,"s":104,"tm":[75000,75],"e":[["NINJASK",50]]},"NINJASK":{"a":199,"d":112,"s":156,"tm":[75000,75],"e":null},"SHEDINJA":{"a":153,"d":73,"s":1,"tm":[75000,75],"e":null},"WHISMUR":{"a":92,"d":42,"s":162,"tm":[10000,25],"e":[["LOUDRED",12]]},"LOUDRED":{"a":134,"d":81,"s":197,"tm":[10000,25],"e":[["EXPLOUD",50]]},"EXPLOUD":{"a":179,"d":137,"s":232,"tm":[10000,25],"e":null},"MAKUHITA":{"a":99,"d":54,"s":176,"tm":[50000,50],"e":[["HARIYAMA",50]]},"HARIYAMA":{"a":209,"d":114,"s":302,"tm":[50000,50],"e":null},"AZURILL":{"a":36,"d":71,"s":137,"tm":[10000,25],"e":[["MARILL",25]]},"NOSEPASS":{"a":82,"d":215,"s":102,"tm":[50000,50],"e":[["PROBOPASS",50]]},"SKITTY":{"a":84,"d":79,"s":137,"tm":[50000,50],"e":[["DELCATTY",50]]},"DELCATTY":{"a":132,"d":127,"s":172,"tm":[50000,50],"e":null},"SABLEYE":{"a":141,"d":136,"s":137,"tm":[75000,75],"e":null},"MAWILE":{"a":155,"d":141,"s":137,"tm":[75000,75],"e":null},"ARON":{"a":121,"d":141,"s":137,"tm":[10000,25],"e":[["LAIRON",25]]},"LAIRON":{"a":158,"d":198,"s":155,"tm":[10000,25],"e":[["AGGRON",100]]},"AGGRON":{"a":198,"d":257,"s":172,"tm":[10000,25],"e":null},"MEDITITE":{"a":78,"d":107,"s":102,"tm":[50000,50],"e":[["MEDICHAM",50]]},"MEDICHAM":{"a":121,"d":152,"s":155,"tm":[50000,50],"e":null},"ELECTRIKE":{"a":123,"d":78,"s":120,"tm":[50000,50],"e":[["MANECTRIC",50]]},"MANECTRIC":{"a":215,"d":127,"s":172,"tm":[50000,50],"e":null},"PLUSLE":{"a":167,"d":129,"s":155,"tm":[50000,50],"e":null},"MINUN":{"a":147,"d":150,"s":155,"tm":[50000,50],"e":null},"VOLBEAT":{"a":143,"d":166,"s":163,"tm":[50000,50],"e":null},"ILLUMISE":{"a":143,"d":166,"s":163,"tm":[50000,50],"e":null},"ROSELIA":{"a":186,"d":131,"s":137,"tm":[50000,50],"e":[["ROSERADE",100]]},"GULPIN":{"a":80,"d":99,"s":172,"tm":[10000,25],"e":[["SWALOT",50]]},"SWALOT":{"a":140,"d":159,"s":225,"tm":[10000,25],"e":null},"CARVANHA":{"a":171,"d":39,"s":128,"tm":[50000,50],"e":[["SHARPEDO",50]]},"SHARPEDO":{"a":243,"d":83,"s":172,"tm":[50000,50],"e":null},"WAILMER":{"a":136,"d":68,"s":277,"tm":[10000,25],"e":[["WAILORD",400]]},"WAILORD":{"a":175,"d":87,"s":347,"tm":[10000,25],"e":null},"NUMEL":{"a":119,"d":79,"s":155,"tm":[50000,50],"e":[["CAMERUPT",50]]},"CAMERUPT":{"a":194,"d":136,"s":172,"tm":[50000,50],"e":null},"TORKOAL":{"a":151,"d":203,"s":172,"tm":[50000,50],"e":null},"SPOINK":{"a":125,"d":122,"s":155,"tm":[10000,25],"e":[["GRUMPIG",50]]},"GRUMPIG":{"a":171,"d":188,"s":190,"tm":[10000,25],"e":null},"SPINDA":{"a":116,"d":116,"s":155,"tm":[50000,50],"e":null},"TRAPINCH":{"a":162,"d":78,"s":128,"tm":[75000,75],"e":[["VIBRAVA",25]]},"VIBRAVA":{"a":134,"d":99,"s":137,"tm":[75000,75],"e":[["FLYGON",100]]},"FLYGON":{"a":205,"d":168,"s":190,"tm":[75000,75],"e":null},"CACNEA":{"a":156,"d":74,"s":137,"tm":[50000,50],"e":[["CACTURNE",50]]},"CACTURNE":{"a":221,"d":115,"s":172,"tm":[50000,50],"e":null},"SWABLU":{"a":76,"d":132,"s":128,"tm":[10000,25],"e":[["ALTARIA",400]]},"ALTARIA":{"a":141,"d":201,"s":181,"tm":[10000,25],"e":null},"ZANGOOSE":{"a":222,"d":124,"s":177,"tm":[50000,50],"e":null},"SEVIPER":{"a":196,"d":118,"s":177,"tm":[50000,50],"e":null},"LUNATONE":{"a":178,"d":153,"s":207,"tm":[50000,50],"e":null},"SOLROCK":{"a":178,"d":153,"s":207,"tm":[50000,50],"e":null},"BARBOACH":{"a":93,"d":82,"s":137,"tm":[10000,25],"e":[["WHISCASH",50]]},"WHISCASH":{"a":151,"d":141,"s":242,"tm":[10000,25],"e":null},"CORPHISH":{"a":141,"d":99,"s":125,"tm":[50000,50],"e":[["CRAWDAUNT",50]]},"CRAWDAUNT":{"a":224,"d":142,"s":160,"tm":[50000,50],"e":null},"BALTOY":{"a":77,"d":124,"s":120,"tm":[50000,50],"e":[["CLAYDOL",50]]},"CLAYDOL":{"a":140,"d":229,"s":155,"tm":[50000,50],"e":null},"LILEEP":{"a":105,"d":150,"s":165,"tm":[50000,50],"e":[["CRADILY",50]]},"CRADILY":{"a":152,"d":194,"s":200,"tm":[50000,50],"e":null},"ANORITH":{"a":176,"d":100,"s":128,"tm":[50000,50],"e":[["ARMALDO",50]]},"ARMALDO":{"a":222,"d":174,"s":181,"tm":[50000,50],"e":null},"FEEBAS":{"a":29,"d":85,"s":85,"tm":[75000,75],"e":[["MILOTIC",100]]},"MILOTIC":{"a":192,"d":219,"s":216,"tm":[75000,75],"e":null},"CASTFORM":{"a":139,"d":139,"s":172,"tm":[75000,75],"e":null},"KECLEON":{"a":161,"d":189,"s":155,"tm":[75000,75],"e":null},"SHUPPET":{"a":138,"d":65,"s":127,"tm":[50000,50],"e":[["BANETTE",50]]},"BANETTE":{"a":218,"d":126,"s":162,"tm":[50000,50],"e":null},"DUSKULL":{"a":70,"d":162,"s":85,"tm":[50000,50],"e":[["DUSCLOPS",25]]},"DUSCLOPS":{"a":124,"d":234,"s":120,"tm":[50000,50],"e":[["DUSKNOIR",100]]},"TROPIUS":{"a":136,"d":163,"s":223,"tm":[75000,75],"e":null},"CHIMECHO":{"a":175,"d":170,"s":181,"tm":[75000,75],"e":null},"ABSOL":{"a":246,"d":120,"s":163,"tm":[75000,75],"e":null},"WYNAUT":{"a":41,"d":86,"s":216,"tm":[10000,25],"e":[["WOBBUFFET",25]]},"SNORUNT":{"a":95,"d":95,"s":137,"tm":[50000,50],"e":[["FROSLASS",100],["GLALIE",100]]},"GLALIE":{"a":162,"d":162,"s":190,"tm":[50000,50],"e":null},"SPHEAL":{"a":95,"d":90,"s":172,"tm":[50000,50],"e":[["SEALEO",25]]},"SEALEO":{"a":137,"d":132,"s":207,"tm":[50000,50],"e":[["WALREIN",100]]},"WALREIN":{"a":182,"d":176,"s":242,"tm":[50000,50],"e":null},"CLAMPERL":{"a":133,"d":135,"s":111,"tm":[50000,50],"e":[["HUNTAIL",50],["GOREBYSS",50]]},"HUNTAIL":{"a":197,"d":179,"s":146,"tm":[50000,50],"e":null},"GOREBYSS":{"a":211,"d":179,"s":146,"tm":[50000,50],"e":null},"RELICANTH":{"a":162,"d":203,"s":225,"tm":[75000,75],"e":null},"LUVDISC":{"a":81,"d":128,"s":125,"tm":[50000,50],"e":null},"BAGON":{"a":134,"d":93,"s":128,"tm":[75000,75],"e":[["SHELGON",25]]},"SHELGON":{"a":172,"d":155,"s":163,"tm":[75000,75],"e":[["SALAMENCE",100]]},"SALAMENCE":{"a":277,"d":168,"s":216,"tm":[75000,75],"e":null},"BELDUM":{"a":96,"d":132,"s":120,"tm":[75000,75],"e":[["METANG",25]]},"METANG":{"a":138,"d":176,"s":155,"tm":[75000,75],"e":[["METAGROSS",100]]},"METAGROSS":{"a":257,"d":228,"s":190,"tm":[75000,75],"e":null},"REGIROCK":{"a":179,"d":309,"s":190,"tm":[100000,100],"e":null},"REGICE":{"a":179,"d":309,"s":190,"tm":[100000,100],"e":null},"REGISTEEL":{"a":143,"d":285,"s":190,"tm":[100000,100],"e":null},"LATIAS":{"a":228,"d":246,"s":190,"tm":[100000,100],"e":null},"LATIOS":{"a":268,"d":212,"s":190,"tm":[100000,100],"e":null},"KYOGRE":{"a":270,"d":228,"s":205,"tm":[100000,100],"e":null},"GROUDON":{"a":270,"d":228,"s":205,"tm":[100000,100],"e":null},"RAYQUAZA":{"a":284,"d":170,"s":213,"tm":[100000,100],"e":null},"JIRACHI":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"DEOXYS":{"a":345,"d":115,"s":137,"tm":[100000,100],"e":null},"TURTWIG":{"a":119,"d":110,"s":146,"tm":[10000,25],"e":[["GROTLE",25]]},"GROTLE":{"a":157,"d":143,"s":181,"tm":[10000,25],"e":[["TORTERRA",100]]},"TORTERRA":{"a":202,"d":188,"s":216,"tm":[10000,25],"e":null},"CHIMCHAR":{"a":113,"d":86,"s":127,"tm":[10000,25],"e":[["MONFERNO",25]]},"MONFERNO":{"a":158,"d":105,"s":162,"tm":[10000,25],"e":[["INFERNAPE",100]]},"INFERNAPE":{"a":222,"d":151,"s":183,"tm":[10000,25],"e":null},"PIPLUP":{"a":112,"d":102,"s":142,"tm":[10000,25],"e":[["PRINPLUP",25]]},"PRINPLUP":{"a":150,"d":139,"s":162,"tm":[10000,25],"e":[["EMPOLEON",100]]},"EMPOLEON":{"a":210,"d":186,"s":197,"tm":[10000,25],"e":null},"STARLY":{"a":101,"d":58,"s":120,"tm":[10000,25],"e":[["STARAVIA",25]]},"STARAVIA":{"a":142,"d":94,"s":146,"tm":[10000,25],"e":[["STARAPTOR",100]]},"STARAPTOR":{"a":234,"d":140,"s":198,"tm":[10000,25],"e":null},"BIDOOF":{"a":80,"d":73,"s":153,"tm":[10000,25],"e":[["BIBAREL",50]]},"BIBAREL":{"a":162,"d":119,"s":188,"tm":[10000,25],"e":null},"KRICKETOT":{"a":45,"d":74,"s":114,"tm":[10000,25],"e":[["KRICKETUNE",50]]},"KRICKETUNE":{"a":160,"d":100,"s":184,"tm":[10000,25],"e":null},"SHINX":{"a":117,"d":64,"s":128,"tm":[75000,75],"e":[["LUXIO",25]]},"LUXIO":{"a":159,"d":95,"s":155,"tm":[75000,75],"e":[["LUXRAY",100]]},"LUXRAY":{"a":232,"d":156,"s":190,"tm":[75000,75],"e":null},"BUDEW":{"a":91,"d":109,"s":120,"tm":[10000,25],"e":[["ROSELIA",25]]},"ROSERADE":{"a":243,"d":185,"s":155,"tm":[50000,50],"e":null},"CRANIDOS":{"a":218,"d":71,"s":167,"tm":[75000,75],"e":[["RAMPARDOS",50]]},"RAMPARDOS":{"a":295,"d":109,"s":219,"tm":[75000,75],"e":null},"SHIELDON":{"a":76,"d":195,"s":102,"tm":[75000,75],"e":[["BASTIODON",50]]},"BASTIODON":{"a":94,"d":286,"s":155,"tm":[75000,75],"e":null},"BURMY":{"a":53,"d":83,"s":120,"tm":[10000,25],"e":[["WORMADAM",50],["MOTHIM",50]]},"WORMADAM":{"a":141,"d":180,"s":155,"tm":[10000,25],"e":null},"MOTHIM":{"a":185,"d":98,"s":172,"tm":[10000,25],"e":null},"COMBEE":{"a":59,"d":83,"s":102,"tm":[50000,50],"e":[["VESPIQUEN",50]]},"VESPIQUEN":{"a":149,"d":190,"s":172,"tm":[50000,50],"e":null},"PACHIRISU":{"a":94,"d":172,"s":155,"tm":[75000,75],"e":null},"BUIZEL":{"a":132,"d":67,"s":146,"tm":[50000,50],"e":[["FLOATZEL",50]]},"FLOATZEL":{"a":221,"d":114,"s":198,"tm":[50000,50],"e":null},"CHERUBI":{"a":108,"d":92,"s":128,"tm":[10000,25],"e":[["CHERRIM",50],["CHERRIM",50]]},"CHERRIM":{"a":170,"d":153,"s":172,"tm":[10000,25],"e":null},"SHELLOS":{"a":103,"d":105,"s":183,"tm":[50000,50],"e":[["GASTRODON",50]]},"GASTRODON":{"a":169,"d":143,"s":244,"tm":[50000,50],"e":null},"AMBIPOM":{"a":205,"d":143,"s":181,"tm":[50000,50],"e":null},"DRIFLOON":{"a":117,"d":80,"s":207,"tm":[75000,75],"e":[["DRIFBLIM",50]]},"DRIFBLIM":{"a":180,"d":102,"s":312,"tm":[75000,75],"e":null},"BUNEARY":{"a":130,"d":105,"s":146,"tm":[50000,50],"e":[["LOPUNNY",50]]},"LOPUNNY":{"a":156,"d":194,"s":163,"tm":[50000,50],"e":null},"MISMAGIUS":{"a":211,"d":187,"s":155,"tm":[50000,50],"e":null},"HONCHKROW":{"a":243,"d":103,"s":225,"tm":[50000,50],"e":null},"GLAMEOW":{"a":109,"d":82,"s":135,"tm":[50000,50],"e":[["PURUGLY",50]]},"PURUGLY":{"a":172,"d":133,"s":174,"tm":[50000,50],"e":null},"CHINGLING":{"a":114,"d":94,"s":128,"tm":[10000,25],"e":[["CHIMECHO",50]]},"STUNKY":{"a":121,"d":90,"s":160,"tm":[50000,50],"e":[["SKUNTANK",50]]},"SKUNTANK":{"a":184,"d":132,"s":230,"tm":[50000,50],"e":null},"BRONZOR":{"a":43,"d":154,"s":149,"tm":[50000,50],"e":[["BRONZONG",50]]},"BRONZONG":{"a":161,"d":213,"s":167,"tm":[50000,50],"e":null},"BONSLY":{"a":124,"d":133,"s":137,"tm":[10000,25],"e":[["SUDOWOODO",50]]},"MIME_JR":{"a":125,"d":142,"s":85,"tm":[10000,25],"e":[["MR_MIME",50]]},"HAPPINY":{"a":25,"d":77,"s":225,"tm":[10000,25],"e":[["CHANSEY",25]]},"CHATOT":{"a":183,"d":91,"s":183,"tm":[75000,75],"e":null},"SPIRITOMB":{"a":169,"d":199,"s":137,"tm":[75000,75],"e":null},"GIBLE":{"a":124,"d":84,"s":151,"tm":[75000,75],"e":[["GABITE",25]]},"GABITE":{"a":172,"d":125,"s":169,"tm":[75000,75],"e":[["GARCHOMP",100]]},"GARCHOMP":{"a":261,"d":193,"s":239,"tm":[75000,75],"e":null},"MUNCHLAX":{"a":137,"d":117,"s":286,"tm":[10000,25],"e":[["SNORLAX",50]]},"RIOLU":{"a":127,"d":78,"s":120,"tm":[10000,25],"e":[["LUCARIO",50]]},"LUCARIO":{"a":236,"d":144,"s":172,"tm":[75000,75],"e":null},"HIPPOPOTAS":{"a":124,"d":118,"s":169,"tm":[50000,50],"e":[["HIPPOWDON",50]]},"HIPPOWDON":{"a":201,"d":191,"s":239,"tm":[50000,50],"e":null},"SKORUPI":{"a":93,"d":151,"s":120,"tm":[75000,75],"e":[["DRAPION",50]]},"DRAPION":{"a":180,"d":202,"s":172,"tm":[75000,75],"e":null},"CROAGUNK":{"a":116,"d":76,"s":134,"tm":[50000,50],"e":[["TOXICROAK",50]]},"TOXICROAK":{"a":211,"d":133,"s":195,"tm":[50000,50],"e":null},"CARNIVINE":{"a":187,"d":136,"s":179,"tm":[75000,75],"e":null},"FINNEON":{"a":96,"d":116,"s":135,"tm":[50000,50],"e":[["LUMINEON",50]]},"LUMINEON":{"a":142,"d":170,"s":170,"tm":[50000,50],"e":null},"MANTYKE":{"a":105,"d":179,"s":128,"tm":[10000,25],"e":[["MANTINE",50]]},"SNOVER":{"a":115,"d":105,"s":155,"tm":[50000,50],"e":[["ABOMASNOW",50]]},"ABOMASNOW":{"a":178,"d":158,"s":207,"tm":[50000,50],"e":null},"WEAVILE":{"a":243,"d":171,"s":172,"tm":[50000,50],"e":null},"MAGNEZONE":{"a":238,"d":205,"s":172,"tm":[50000,50],"e":null},"LICKILICKY":{"a":161,"d":181,"s":242,"tm":[50000,50],"e":null},"RHYPERIOR":{"a":241,"d":190,"s":251,"tm":[50000,50],"e":null},"TANGROWTH":{"a":207,"d":184,"s":225,"tm":[50000,50],"e":null},"ELECTIVIRE":{"a":249,"d":163,"s":181,"tm":[75000,75],"e":null},"MAGMORTAR":{"a":247,"d":172,"s":181,"tm":[75000,75],"e":null},"TOGEKISS":{"a":225,"d":217,"s":198,"tm":[50000,50],"e":null},"YANMEGA":{"a":231,"d":156,"s":200,"tm":[50000,50],"e":null},"LEAFEON":{"a":216,"d":219,"s":163,"tm":[75000,50],"e":null},"GLACEON":{"a":238,"d":205,"s":163,"tm":[75000,50],"e":null},"GLISCOR":{"a":185,"d":222,"s":181,"tm":[75000,75],"e":null},"MAMOSWINE":{"a":247,"d":146,"s":242,"tm":[50000,50],"e":null},"PORYGON_Z":{"a":264,"d":150,"s":198,"tm":[50000,50],"e":null},"GALLADE":{"a":237,"d":195,"s":169,"tm":[75000,75],"e":null},"PROBOPASS":{"a":135,"d":275,"s":155,"tm":[50000,50],"e":null},"DUSKNOIR":{"a":180,"d":254,"s":128,"tm":[50000,50],"e":null},"FROSLASS":{"a":171,"d":150,"s":172,"tm":[50000,50],"e":null},"ROTOM":{"a":185,"d":159,"s":137,"tm":[75000,75],"e":null},"UXIE":{"a":156,"d":270,"s":181,"tm":[100000,100],"e":null},"MESPRIT":{"a":212,"d":212,"s":190,"tm":[100000,100],"e":null},"AZELF":{"a":270,"d":151,"s":181,"tm":[100000,100],"e":null},"DIALGA":{"a":275,"d":211,"s":205,"tm":[100000,100],"e":null},"PALKIA":{"a":280,"d":215,"s":189,"tm":[100000,100],"e":null},"HEATRAN":{"a":251,"d":213,"s":209,"tm":[100000,100],"e":null},"REGIGIGAS":{"a":287,"d":210,"s":221,"tm":[100000,100],"e":null},"GIRATINA":{"a":187,"d":225,"s":284,"tm":[100000,100],"e":null},"CRESSELIA":{"a":152,"d":258,"s":260,"tm":[100000,100],"e":null},"PHIONE":{"a":162,"d":162,"s":190,"tm":[100000,100],"e":null},"MANAPHY":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"DARKRAI":{"a":285,"d":198,"s":172,"tm":[100000,100],"e":null},"SHAYMIN":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"ARCEUS":{"a":238,"d":238,"s":237,"tm":[100000,100],"e":null},"VICTINI":{"a":210,"d":210,"s":225,"tm":[100000,100],"e":null},"SNIVY":{"a":88,"d":107,"s":128,"tm":[10000,25],"e":[["SERVINE",25]]},"SERVINE":{"a":122,"d":152,"s":155,"tm":[10000,25],"e":[["SERPERIOR",100]]},"SERPERIOR":{"a":161,"d":204,"s":181,"tm":[10000,25],"e":null},"TEPIG":{"a":115,"d":85,"s":163,"tm":[10000,25],"e":[["PIGNITE",25]]},"PIGNITE":{"a":173,"d":106,"s":207,"tm":[10000,25],"e":[["EMBOAR",100]]},"EMBOAR":{"a":235,"d":127,"s":242,"tm":[10000,25],"e":null},"OSHAWOTT":{"a":117,"d":85,"s":146,"tm":[10000,25],"e":[["DEWOTT",25]]},"DEWOTT":{"a":159,"d":116,"s":181,"tm":[10000,25],"e":[["SAMUROTT",100]]},"SAMUROTT":{"a":212,"d":157,"s":216,"tm":[10000,25],"e":null},"PATRAT":{"a":98,"d":73,"s":128,"tm":[10000,25],"e":[["WATCHOG",50]]},"WATCHOG":{"a":165,"d":139,"s":155,"tm":[10000,25],"e":null},"LILLIPUP":{"a":107,"d":86,"s":128,"tm":[10000,25],"e":[["HERDIER",25]]},"HERDIER":{"a":145,"d":126,"s":163,"tm":[10000,25],"e":[["STOUTLAND",100]]},"STOUTLAND":{"a":206,"d":182,"s":198,"tm":[10000,25],"e":null},"PURRLOIN":{"a":98,"d":73,"s":121,"tm":[10000,25],"e":[["LIEPARD",50]]},"LIEPARD":{"a":187,"d":106,"s":162,"tm":[10000,25],"e":null},"PANSAGE":{"a":104,"d":94,"s":137,"tm":[50000,50],"e":[["SIMISAGE",50]]},"SIMISAGE":{"a":206,"d":133,"s":181,"tm":[50000,50],"e":null},"PANSEAR":{"a":104,"d":94,"s":137,"tm":[50000,50],"e":[["SIMISEAR",50]]},"SIMISEAR":{"a":206,"d":133,"s":181,"tm":[50000,50],"e":null},"PANPOUR":{"a":104,"d":94,"s":137,"tm":[50000,50],"e":[["SIMIPOUR",50]]},"SIMIPOUR":{"a":206,"d":133,"s":181,"tm":[50000,50],"e":null},"MUNNA":{"a":111,"d":92,"s":183,"tm":[50000,50],"e":[["MUSHARNA",50]]},"MUSHARNA":{"a":183,"d":166,"s":253,"tm":[50000,50],"e":null},"PIDOVE":{"a":98,"d":80,"s":137,"tm":[10000,25],"e":[["TRANQUILL",12]]},"TRANQUILL":{"a":144,"d":107,"s":158,"tm":[10000,25],"e":[["UNFEZANT",50]]},"UNFEZANT":{"a":226,"d":146,"s":190,"tm":[10000,25],"e":null},"BLITZLE":{"a":118,"d":64,"s":128,"tm":[50000,50],"e":[["ZEBSTRIKA",50]]},"ZEBSTRIKA":{"a":211,"d":136,"s":181,"tm":[50000,50],"e":null},"ROGGENROLA":{"a":121,"d":110,"s":146,"tm":[50000,50],"e":[["BOLDORE",50]]},"BOLDORE":{"a":174,"d":143,"s":172,"tm":[50000,50],"e":[["GIGALITH",200]]},"GIGALITH":{"a":226,"d":201,"s":198,"tm":[50000,50],"e":null},"WOOBAT":{"a":107,"d":85,"s":163,"tm":[10000,25],"e":[["SWOOBAT",50]]},"SWOOBAT":{"a":161,"d":119,"s":167,"tm":[10000,25],"e":null},"DRILBUR":{"a":154,"d":85,"s":155,"tm":[50000,50],"e":[["EXCADRILL",50]]},"EXCADRILL":{"a":255,"d":129,"s":242,"tm":[50000,50],"e":null},"AUDINO":{"a":114,"d":163,"s":230,"tm":[50000,50],"e":null},"TIMBURR":{"a":134,"d":87,"s":181,"tm":[75000,75],"e":[["GURDURR",50]]},"GURDURR":{"a":180,"d":134,"s":198,"tm":[75000,75],"e":[["CONKELDURR",200]]},"CONKELDURR":{"a":243,"d":158,"s":233,"tm":[75000,75],"e":null},"TYMPOLE":{"a":98,"d":78,"s":137,"tm":[50000,50],"e":[["PALPITOAD",25]]},"PALPITOAD":{"a":128,"d":109,"s":181,"tm":[50000,50],"e":[["SEISMITOAD",100]]},"SEISMITOAD":{"a":188,"d":150,"s":233,"tm":[50000,50],"e":null},"THROH":{"a":172,"d":160,"s":260,"tm":[75000,75],"e":null},"SAWK":{"a":231,"d":153,"s":181,"tm":[75000,75],"e":null},"SEWADDLE":{"a":96,"d":124,"s":128,"tm":[10000,25],"e":[["SWADLOON",25]]},"SWADLOON":{"a":115,"d":162,"s":146,"tm":[10000,25],"e":[["LEAVANNY",100]]},"LEAVANNY":{"a":205,"d":165,"s":181,"tm":[10000,25],"e":null},"VENIPEDE":{"a":83,"d":99,"s":102,"tm":[10000,25],"e":[["WHIRLIPEDE",25]]},"WHIRLIPEDE":{"a":100,"d":173,"s":120,"tm":[10000,25],"e":[["SCOLIPEDE",100]]},"SCOLIPEDE":{"a":203,"d":175,"s":155,"tm":[10000,25],"e":null},"COTTONEE":{"a":71,"d":111,"s":120,"tm":[10000,25],"e":[["WHIMSICOTT",50]]},"WHIMSICOTT":{"a":164,"d":176,"s":155,"tm":[10000,25],"e":null},"PETILIL":{"a":119,"d":91,"s":128,"tm":[10000,25],"e":[["LILLIGANT",50]]},"LILLIGANT":{"a":214,"d":155,"s":172,"tm":[10000,25],"e":null},"BASCULIN":{"a":189,"d":129,"s":172,"tm":[10000,25],"e":null},"SANDILE":{"a":132,"d":69,"s":137,"tm":[75000,75],"e":[["KROKOROK",25]]},"KROKOROK":{"a":155,"d":90,"s":155,"tm":[75000,75],"e":[["KROOKODILE",100]]},"KROOKODILE":{"a":229,"d":158,"s":216,"tm":[75000,75],"e":null},"DARUMAKA":{"a":153,"d":86,"s":172,"tm":[50000,50],"e":[["DARMANITAN",50]]},"DARMANITAN":{"a":263,"d":114,"s":233,"tm":[50000,50],"e":null},"MARACTUS":{"a":201,"d":130,"s":181,"tm":[10000,25],"e":null},"DWEBBLE":{"a":118,"d":128,"s":137,"tm":[10000,25],"e":[["CRUSTLE",50]]},"CRUSTLE":{"a":188,"d":200,"s":172,"tm":[10000,25],"e":null},"SCRAGGY":{"a":132,"d":132,"s":137,"tm":[50000,50],"e":[["SCRAFTY",50]]},"SCRAFTY":{"a":163,"d":222,"s":163,"tm":[50000,50],"e":null},"SIGILYPH":{"a":204,"d":167,"s":176,"tm":[75000,75],"e":null},"YAMASK":{"a":95,"d":141,"s":116,"tm":[50000,50],"e":[["COFAGRIGUS",50]]},"COFAGRIGUS":{"a":163,"d":237,"s":151,"tm":[50000,50],"e":null},"TIRTOUGA":{"a":134,"d":146,"s":144,"tm":[75000,75],"e":[["CARRACOSTA",50]]},"CARRACOSTA":{"a":192,"d":197,"s":179,"tm":[75000,75],"e":null},"ARCHEN":{"a":213,"d":89,"s":146,"tm":[75000,75],"e":[["ARCHEOPS",50]]},"ARCHEOPS":{"a":292,"d":139,"s":181,"tm":[75000,75],"e":null},"TRUBBISH":{"a":96,"d":122,"s":137,"tm":[50000,50],"e":[["GARBODOR",50]]},"GARBODOR":{"a":181,"d":164,"s":190,"tm":[50000,50],"e":null},"ZORUA":{"a":153,"d":78,"s":120,"tm":[75000,75],"e":[["ZOROARK",50]]},"ZOROARK":{"a":250,"d":127,"s":155,"tm":[75000,75],"e":null},"MINCCINO":{"a":98,"d":80,"s":146,"tm":[50000,50],"e":[["CINCCINO",50]]},"CINCCINO":{"a":198,"d":130,"s":181,"tm":[50000,50],"e":null},"GOTHITA":{"a":98,"d":112,"s":128,"tm":[50000,50],"e":[["GOTHORITA",25]]},"GOTHORITA":{"a":137,"d":153,"s":155,"tm":[50000,50],"e":[["GOTHITELLE",100]]},"GOTHITELLE":{"a":176,"d":205,"s":172,"tm":[50000,50],"e":null},"SOLOSIS":{"a":170,"d":83,"s":128,"tm":[50000,50],"e":[["DUOSION",25]]},"DUOSION":{"a":208,"d":103,"s":163,"tm":[50000,50],"e":[["REUNICLUS",100]]},"REUNICLUS":{"a":214,"d":148,"s":242,"tm":[50000,50],"e":null},"DUCKLETT":{"a":84,"d":96,"s":158,"tm":[50000,50],"e":[["SWANNA",50]]},"SWANNA":{"a":182,"d":132,"s":181,"tm":[50000,50],"e":null},"VANILLITE":{"a":118,"d":106,"s":113,"tm":[50000,50],"e":[["VANILLISH",25]]},"VANILLISH":{"a":151,"d":138,"s":139,"tm":[50000,50],"e":[["VANILLUXE",100]]},"VANILLUXE":{"a":218,"d":184,"s":174,"tm":[50000,50],"e":null},"DEERLING":{"a":115,"d":100,"s":155,"tm":[50000,50],"e":null},"SAWSBUCK":{"a":198,"d":146,"s":190,"tm":[50000,50],"e":null},"EMOLGA":{"a":158,"d":127,"s":146,"tm":[10000,25],"e":null},"KARRABLAST":{"a":137,"d":87,"s":137,"tm":[50000,50],"e":[["ESCAVALIER",200]]},"ESCAVALIER":{"a":223,"d":187,"s":172,"tm":[50000,50],"e":null},"FOONGUS":{"a":97,"d":91,"s":170,"tm":[50000,50],"e":[["AMOONGUSS",50]]},"AMOONGUSS":{"a":155,"d":139,"s":249,"tm":[50000,50],"e":null},"FRILLISH":{"a":115,"d":134,"s":146,"tm":[50000,50],"e":[["JELLICENT",50]]},"JELLICENT":{"a":159,"d":178,"s":225,"tm":[50000,50],"e":null},"ALOMOMOLA":{"a":138,"d":131,"s":338,"tm":[75000,75],"e":null},"JOLTIK":{"a":110,"d":98,"s":137,"tm":[50000,50],"e":[["GALVANTULA",50]]},"GALVANTULA":{"a":201,"d":128,"s":172,"tm":[50000,50],"e":null},"FERROSEED":{"a":82,"d":155,"s":127,"tm":[75000,75],"e":[["FERROTHORN",50]]},"FERROTHORN":{"a":158,"d":223,"s":179,"tm":[75000,75],"e":null},"KLINK":{"a":98,"d":121,"s":120,"tm":[75000,75],"e":[["KLANG",25]]},"KLANG":{"a":150,"d":174,"s":155,"tm":[75000,75],"e":[["KLINKLANG",100]]},"KLINKLANG":{"a":199,"d":214,"s":155,"tm":[75000,75],"e":null},"TYNAMO":{"a":105,"d":78,"s":111,"tm":[10000,25],"e":[["EELEKTRIK",25]]},"EELEKTRIK":{"a":156,"d":130,"s":163,"tm":[10000,25],"e":[["EELEKTROSS",100]]},"EELEKTROSS":{"a":217,"d":152,"s":198,"tm":[10000,25],"e":null},"ELGYEM":{"a":148,"d":100,"s":146,"tm":[50000,50],"e":[["BEHEEYEM",50]]},"BEHEEYEM":{"a":221,"d":163,"s":181,"tm":[50000,50],"e":null},"LITWICK":{"a":108,"d":98,"s":137,"tm":[75000,75],"e":[["LAMPENT",25]]},"LAMPENT":{"a":169,"d":115,"s":155,"tm":[75000,75],"e":[["CHANDELURE",100]]},"CHANDELURE":{"a":271,"d":182,"s":155,"tm":[75000,75],"e":null},"AXEW":{"a":154,"d":101,"s":130,"tm":[75000,75],"e":[["FRAXURE",25]]},"FRAXURE":{"a":212,"d":123,"s":165,"tm":[75000,75],"e":[["HAXORUS",100]]},"HAXORUS":{"a":284,"d":172,"s":183,"tm":[75000,75],"e":null},"CUBCHOO":{"a":128,"d":74,"s":146,"tm":[50000,50],"e":[["BEARTIC",50]]},"BEARTIC":{"a":233,"d":152,"s":216,"tm":[50000,50],"e":null},"CRYOGONAL":{"a":190,"d":218,"s":190,"tm":[75000,75],"e":null},"SHELMET":{"a":72,"d":140,"s":137,"tm":[50000,50],"e":[["ACCELGOR",200]]},"ACCELGOR":{"a":220,"d":120,"s":190,"tm":[50000,50],"e":null},"STUNFISK":{"a":144,"d":171,"s":240,"tm":[75000,75],"e":null},"MIENFOO":{"a":160,"d":98,"s":128,"tm":[50000,50],"e":[["MIENSHAO",50]]},"MIENSHAO":{"a":258,"d":127,"s":163,"tm":[50000,50],"e":null},"DRUDDIGON":{"a":213,"d":170,"s":184,"tm":[75000,75],"e":null},"GOLETT":{"a":127,"d":92,"s":153,"tm":[75000,75],"e":[["GOLURK",50]]},"GOLURK":{"a":222,"d":154,"s":205,"tm":[75000,75],"e":null},"PAWNIARD":{"a":154,"d":114,"s":128,"tm":[75000,75],"e":[["BISHARP",50]]},"BISHARP":{"a":232,"d":176,"s":163,"tm":[75000,75],"e":[["KINGAMBIT",100]]},"BOUFFALANT":{"a":195,"d":182,"s":216,"tm":[50000,50],"e":null},"RUFFLET":{"a":150,"d":97,"s":172,"tm":[75000,75],"e":[["BRAVIARY",50]]},"BRAVIARY":{"a":232,"d":152,"s":225,"tm":[75000,75],"e":null},"VULLABY":{"a":105,"d":139,"s":172,"tm":[75000,75],"e":[["MANDIBUZZ",50]]},"MANDIBUZZ":{"a":129,"d":205,"s":242,"tm":[75000,75],"e":null},"HEATMOR":{"a":204,"d":129,"s":198,"tm":[50000,50],"e":null},"DURANT":{"a":217,"d":188,"s":151,"tm":[50000,50],"e":null},"DEINO":{"a":116,"d":93,"s":141,"tm":[75000,75],"e":[["ZWEILOUS",25]]},"ZWEILOUS":{"a":159,"d":135,"s":176,"tm":[75000,75],"e":[["HYDREIGON",100]]},"HYDREIGON":{"a":256,"d":188,"s":211,"tm":[75000,75],"e":null},"LARVESTA":{"a":156,"d":107,"s":146,"tm":[75000,75],"e":[["VOLCARONA",400]]},"VOLCARONA":{"a":264,"d":189,"s":198,"tm":[75000,75],"e":null},"COBALION":{"a":192,"d":229,"s":209,"tm":[100000,100],"e":null},"TERRAKION":{"a":260,"d":192,"s":209,"tm":[100000,100],"e":null},"VIRIZION":{"a":192,"d":229,"s":209,"tm":[100000,100],"e":null},"TORNADUS":{"a":266,"d":164,"s":188,"tm":[100000,100],"e":null},"THUNDURUS":{"a":266,"d":164,"s":188,"tm":[100000,100],"e":null},"RESHIRAM":{"a":275,"d":211,"s":205,"tm":[100000,100],"e":null},"ZEKROM":{"a":275,"d":211,"s":205,"tm":[100000,100],"e":null},"LANDORUS":{"a":261,"d":182,"s":205,"tm":[100000,100],"e":null},"KYUREM":{"a":246,"d":170,"s":245,"tm":[100000,100],"e":null},"KELDEO":{"a":260,"d":192,"s":209,"tm":[100000,100],"e":null},"MELOETTA":{"a":250,"d":225,"s":225,"tm":[100000,100],"e":null},"GENESECT":{"a":252,"d":199,"s":174,"tm":[100000,100],"e":null},"CHESPIN":{"a":110,"d":106,"s":148,"tm":[10000,25],"e":[["QUILLADIN",25]]},"QUILLADIN":{"a":146,"d":156,"s":156,"tm":[10000,25],"e":[["CHESNAUGHT",100]]},"CHESNAUGHT":{"a":201,"d":204,"s":204,"tm":[10000,25],"e":null},"FENNEKIN":{"a":116,"d":102,"s":120,"tm":[10000,25],"e":[["BRAIXEN",25]]},"BRAIXEN":{"a":171,"d":130,"s":153,"tm":[10000,25],"e":[["DELPHOX",100]]},"DELPHOX":{"a":230,"d":189,"s":181,"tm":[10000,25],"e":null},"FROAKIE":{"a":122,"d":84,"s":121,"tm":[10000,25],"e":[["FROGADIER",25]]},"FROGADIER":{"a":168,"d":114,"s":144,"tm":[10000,25],"e":[["GRENINJA",100]]},"GRENINJA":{"a":223,"d":152,"s":176,"tm":[10000,25],"e":null},"BUNNELBY":{"a":68,"d":72,"s":116,"tm":[10000,25],"e":[["DIGGERSBY",50]]},"DIGGERSBY":{"a":112,"d":155,"s":198,"tm":[10000,25],"e":null},"FLETCHLING":{"a":95,"d":80,"s":128,"tm":[10000,25],"e":[["FLETCHINDER",25]]},"FLETCHINDER":{"a":145,"d":110,"s":158,"tm":[10000,25],"e":[["TALONFLAME",100]]},"TALONFLAME":{"a":176,"d":155,"s":186,"tm":[10000,25],"e":null},"SCATTERBUG":{"a":63,"d":63,"s":116,"tm":[10000,25],"e":[["SPEWPA",25]]},"SPEWPA":{"a":48,"d":89,"s":128,"tm":[10000,25],"e":[["VIVILLON",100]]},"VIVILLON":{"a":176,"d":103,"s":190,"tm":[10000,25],"e":null},"LITLEO":{"a":139,"d":112,"s":158,"tm":[10000,25],"e":[["PYROAR",50],["PYROAR",50]]},"PYROAR":{"a":221,"d":149,"s":200,"tm":[10000,25],"e":null},"FLABEBE":{"a":108,"d":120,"s":127,"tm":[50000,50],"e":[["FLOETTE",25]]},"FLOETTE":{"a":136,"d":151,"s":144,"tm":[50000,50],"e":[["FLORGES",100]]},"FLORGES":{"a":212,"d":244,"s":186,"tm":[50000,50],"e":null},"SKIDDO":{"a":123,"d":102,"s":165,"tm":[50000,50],"e":[["GOGOAT",50]]},"GOGOAT":{"a":196,"d":146,"s":265,"tm":[50000,50],"e":null},"PANCHAM":{"a":145,"d":107,"s":167,"tm":[50000,50],"e":[["PANGORO",50]]},"PANGORO":{"a":226,"d":146,"s":216,"tm":[50000,50],"e":null},"FURFROU":{"a":164,"d":167,"s":181,"tm":[75000,75],"e":null},"ESPURR":{"a":120,"d":114,"s":158,"tm":[50000,50],"e":[["MEOWSTIC",50],["MEOWSTIC",50]]},"MEOWSTIC":{"a":166,"d":167,"s":179,"tm":[50000,50],"e":null},"HONEDGE":{"a":135,"d":139,"s":128,"tm":[75000,75],"e":[["DOUBLADE",25]]},"DOUBLADE":{"a":188,"d":206,"s":153,"tm":[75000,75],"e":[["AEGISLASH",100]]},"AEGISLASH":{"a":97,"d":272,"s":155,"tm":[75000,75],"e":null},"SPRITZEE":{"a":110,"d":113,"s":186,"tm":[50000,50],"e":[["AROMATISSE",50]]},"AROMATISSE":{"a":173,"d":150,"s":226,"tm":[50000,50],"e":null},"SWIRLIX":{"a":109,"d":119,"s":158,"tm":[50000,50],"e":[["SLURPUFF",50]]},"SLURPUFF":{"a":168,"d":163,"s":193,"tm":[50000,50],"e":null},"INKAY":{"a":98,"d":95,"s":142,"tm":[50000,50],"e":[["MALAMAR",50]]},"MALAMAR":{"a":177,"d":165,"s":200,"tm":[50000,50],"e":null},"BINACLE":{"a":96,"d":120,"s":123,"tm":[50000,50],"e":[["BARBARACLE",50]]},"BARBARACLE":{"a":194,"d":205,"s":176,"tm":[50000,50],"e":null},"SKRELP":{"a":109,"d":109,"s":137,"tm":[50000,50],"e":[["DRAGALGE",50]]},"DRAGALGE":{"a":177,"d":207,"s":163,"tm":[50000,50],"e":null},"CLAUNCHER":{"a":108,"d":117,"s":137,"tm":[50000,50],"e":[["CLAWITZER",50]]},"CLAWITZER":{"a":221,"d":171,"s":174,"tm":[50000,50],"e":null},"HELIOPTILE":{"a":115,"d":78,"s":127,"tm":[50000,50],"e":[["HELIOLISK",50]]},"HELIOLISK":{"a":219,"d":168,"s":158,"tm":[50000,50],"e":null},"TYRUNT":{"a":158,"d":123,"s":151,"tm":[75000,75],"e":[["TYRANTRUM",50]]},"TYRANTRUM":{"a":227,"d":191,"s":193,"tm":[75000,75],"e":null},"AMAURA":{"a":124,"d":109,"s":184,"tm":[75000,75],"e":[["AURORUS",50]]},"AURORUS":{"a":186,"d":163,"s":265,"tm":[75000,75],"e":null},"SYLVEON":{"a":203,"d":205,"s":216,"tm":[75000,50],"e":null},"HAWLUCHA":{"a":195,"d":153,"s":186,"tm":[75000,75],"e":null},"DEDENNE":{"a":164,"d":134,"s":167,"tm":[50000,50],"e":null},"CARBINK":{"a":95,"d":285,"s":137,"tm":[75000,75],"e":null},"GOOMY":{"a":101,"d":112,"s":128,"tm":[75000,75],"e":[["SLIGGOO",25]]},"SLIGGOO":{"a":159,"d":176,"s":169,"tm":[75000,75],"e":[["GOODRA",100]]},"GOODRA":{"a":220,"d":242,"s":207,"tm":[75000,75],"e":null},"KLEFKI":{"a":160,"d":179,"s":149,"tm":[50000,50],"e":null},"PHANTUMP":{"a":125,"d":103,"s":125,"tm":[75000,75],"e":[["TREVENANT",200]]},"TREVENANT":{"a":201,"d":154,"s":198,"tm":[75000,75],"e":null},"PUMPKABOO":{"a":122,"d":124,"s":127,"tm":[75000,75],"e":[["GOURGEIST",200]]},"GOURGEIST":{"a":171,"d":219,"s":146,"tm":[75000,75],"e":null},"BERGMITE":{"a":117,"d":120,"s":146,"tm":[50000,50],"e":[["AVALUGG",50]]},"AVALUGG":{"a":196,"d":240,"s":216,"tm":[50000,50],"e":null},"NOIBAT":{"a":83,"d":73,"s":120,"tm":[75000,75],"e":[["NOIVERN",400]]},"NOIVERN":{"a":205,"d":175,"s":198,"tm":[75000,75],"e":null},"XERNEAS":{"a":250,"d":185,"s":246,"tm":[100000,100],"e":null},"YVELTAL":{"a":250,"d":185,"s":246,"tm":[100000,100],"e":null},"ZYGARDE":{"a":203,"d":232,"s":239,"tm":[100000,100],"e":null},"DIANCIE":{"a":190,"d":285,"s":137,"tm":[100000,100],"e":null},"HOOPA":{"a":261,"d":187,"s":173,"tm":[100000,100],"e":null},"VOLCANION":{"a":252,"d":216,"s":190,"tm":[100000,100],"e":null},"ROWLET":{"a":102,"d":99,"s":169,"tm":[10000,25],"e":[["DARTRIX",25]]},"DARTRIX":{"a":142,"d":139,"s":186,"tm":[10000,25],"e":[["DECIDUEYE",100]]},"DECIDUEYE":{"a":210,"d":179,"s":186,"tm":[10000,25],"e":null},"LITTEN":{"a":128,"d":79,"s":128,"tm":[10000,25],"e":[["TORRACAT",25]]},"TORRACAT":{"a":174,"d":103,"s":163,"tm":[10000,25],"e":[["INCINEROAR",100]]},"INCINEROAR":{"a":214,"d":175,"s":216,"tm":[10000,25],"e":null},"POPPLIO":{"a":120,"d":103,"s":137,"tm":[10000,25],"e":[["BRIONNE",25]]},"BRIONNE":{"a":168,"d":145,"s":155,"tm":[10000,25],"e":[["PRIMARINA",100]]},"PRIMARINA":{"a":232,"d":195,"s":190,"tm":[10000,25],"e":null},"PIKIPEK":{"a":136,"d":59,"s":111,"tm":[10000,25],"e":[["TRUMBEAK",25]]},"TRUMBEAK":{"a":159,"d":100,"s":146,"tm":[10000,25],"e":[["TOUCANNON",100]]},"TOUCANNON":{"a":222,"d":146,"s":190,"tm":[10000,25],"e":null},"YUNGOOS":{"a":122,"d":56,"s":134,"tm":[10000,25],"e":[["GUMSHOOS",50]]},"GUMSHOOS":{"a":194,"d":113,"s":204,"tm":[10000,25],"e":null},"GRUBBIN":{"a":115,"d":85,"s":132,"tm":[10000,25],"e":[["CHARJABUG",25]]},"CHARJABUG":{"a":145,"d":161,"s":149,"tm":[10000,25],"e":[["VIKAVOLT",100]]},"VIKAVOLT":{"a":254,"d":158,"s":184,"tm":[10000,25],"e":null},"CRABRAWLER":{"a":150,"d":104,"s":132,"tm":[50000,50],"e":[["CRABOMINABLE",50]]},"CRABOMINABLE":{"a":231,"d":138,"s":219,"tm":[50000,50],"e":null},"ORICORIO":{"a":196,"d":145,"s":181,"tm":[75000,75],"e":null},"CUTIEFLY":{"a":110,"d":81,"s":120,"tm":[10000,25],"e":[["RIBOMBEE",50]]},"RIBOMBEE":{"a":198,"d":146,"s":155,"tm":[10000,25],"e":null},"ROCKRUFF":{"a":117,"d":78,"s":128,"tm":[50000,50],"e":[["LYCANROC",50],["LYCANROC",50]]},"LYCANROC":{"a":231,"d":140,"s":181,"tm":[50000,50],"e":null},"WISHIWASHI":{"a":46,"d":43,"s":128,"tm":[75000,75],"e":null},"MAREANIE":{"a":98,"d":110,"s":137,"tm":[50000,50],"e":[["TOXAPEX",50]]},"TOXAPEX":{"a":114,"d":273,"s":137,"tm":[50000,50],"e":null},"MUDBRAY":{"a":175,"d":121,"s":172,"tm":[50000,50],"e":[["MUDSDALE",50]]},"MUDSDALE":{"a":214,"d":174,"s":225,"tm":[50000,50],"e":null},"DEWPIDER":{"a":72,"d":117,"s":116,"tm":[50000,50],"e":[["ARAQUANID",50]]},"ARAQUANID":{"a":126,"d":219,"s":169,"tm":[50000,50],"e":null},"FOMANTIS":{"a":100,"d":64,"s":120,"tm":[50000,50],"e":[["LURANTIS",50]]},"LURANTIS":{"a":192,"d":169,"s":172,"tm":[50000,50],"e":null},"MORELULL":{"a":108,"d":119,"s":120,"tm":[50000,50],"e":[["SHIINOTIC",50]]},"SHIINOTIC":{"a":154,"d":168,"s":155,"tm":[50000,50],"e":null},"SALANDIT":{"a":136,"d":80,"s":134,"tm":[50000,50],"e":[["SALAZZLE",50]]},"SALAZZLE":{"a":228,"d":130,"s":169,"tm":[50000,50],"e":null},"STUFFUL":{"a":136,"d":95,"s":172,"tm":[10000,25],"e":[["BEWEAR",400]]},"BEWEAR":{"a":226,"d":141,"s":260,"tm":[10000,25],"e":null},"BOUNSWEET":{"a":55,"d":69,"s":123,"tm":[10000,25],"e":[["STEENEE",25]]},"STEENEE":{"a":78,"d":94,"s":141,"tm":[10000,25],"e":[["TSAREENA",100]]},"TSAREENA":{"a":222,"d":195,"s":176,"tm":[10000,25],"e":null},"COMFEY":{"a":165,"d":215,"s":139,"tm":[50000,50],"e":null},"ORANGURU":{"a":168,"d":192,"s":207,"tm":[75000,75],"e":null},"PASSIMIAN":{"a":222,"d":160,"s":225,"tm":[75000,75],"e":null},"WIMPOD":{"a":67,"d":74,"s":93,"tm":[10000,25],"e":[["GOLISOPOD",400]]},"GOLISOPOD":{"a":218,"d":226,"s":181,"tm":[10000,25],"e":null},"SANDYGAST":{"a":120,"d":118,"s":146,"tm":[50000,50],"e":[["PALOSSAND",50]]},"PALOSSAND":{"a":178,"d":178,"s":198,"tm":[50000,50],"e":null},"PYUKUMUKU":{"a":97,"d":224,"s":146,"tm":[75000,75],"e":null},"TYPE_NULL":{"a":184,"d":184,"s":216,"tm":[100000,100],"e":[["SILVALLY",200]]},"SILVALLY":{"a":198,"d":198,"s":216,"tm":[100000,100],"e":null},"MINIOR":{"a":116,"d":194,"s":155,"tm":[50000,50],"e":null},"KOMALA":{"a":216,"d":165,"s":163,"tm":[50000,50],"e":null},"TURTONATOR":{"a":165,"d":215,"s":155,"tm":[75000,75],"e":null},"TOGEDEMARU":{"a":190,"d":145,"s":163,"tm":[50000,50],"e":null},"MIMIKYU":{"a":177,"d":199,"s":146,"tm":[50000,50],"e":null},"BRUXISH":{"a":208,"d":145,"s":169,"tm":[50000,50],"e":null},"DRAMPA":{"a":231,"d":164,"s":186,"tm":[75000,75],"e":null},"DHELMISE":{"a":233,"d":179,"s":172,"tm":[50000,50],"e":null},"JANGMO_O":{"a":102,"d":108,"s":128,"tm":[75000,75],"e":[["HAKAMO_O",25]]},"HAKAMO_O":{"a":145,"d":162,"s":146,"tm":[75000,75],"e":[["KOMMO_O",100]]},"KOMMO_O":{"a":222,"d":240,"s":181,"tm":[75000,75],"e":null},"TAPU_KOKO":{"a":250,"d":181,"s":172,"tm":[100000,100],"e":null},"TAPU_LELE":{"a":259,"d":208,"s":172,"tm":[100000,100],"e":null},"TAPU_BULU":{"a":249,"d":215,"s":172,"tm":[100000,100],"e":null},"TAPU_FINI":{"a":189,"d":254,"s":172,"tm":[100000,100],"e":null},"COSMOG":{"a":54,"d":57,"s":125,"tm":[100000,100],"e":[["COSMOEM",25]]},"COSMOEM":{"a":54,"d":242,"s":125,"tm":[100000,100],"e":[["SOLGALEO",100],["LUNALA",100]]},"SOLGALEO":{"a":255,"d":191,"s":264,"tm":[100000,100],"e":null},"LUNALA":{"a":255,"d":191,"s":264,"tm":[100000,100],"e":null},"NIHILEGO":{"a":249,"d":210,"s":240,"tm":[100000,100],"e":null},"BUZZWOLE":{"a":236,"d":196,"s":216,"tm":[100000,100],"e":null},"PHEROMOSA":{"a":316,"d":85,"s":174,"tm":[100000,100],"e":null},"XURKITREE":{"a":330,"d":144,"s":195,"tm":[100000,100],"e":null},"CELESTEELA":{"a":207,"d":199,"s":219,"tm":[100000,100],"e":null},"KARTANA":{"a":323,"d":182,"s":139,"tm":[100000,100],"e":null},"GUZZLORD":{"a":188,"d":99,"s":440,"tm":[100000,100],"e":null},"NECROZMA":{"a":251,"d":195,"s":219,"tm":[100000,100],"e":null},"MAGEARNA":{"a":246,"d":225,"s":190,"tm":[100000,100],"e":null},"MARSHADOW":{"a":265,"d":190,"s":207,"tm":[100000,100],"e":null},"POIPOLE":{"a":145,"d":133,"s":167,"tm":[100000,100],"e":[["NAGANADEL",200]]},"NAGANADEL":{"a":263,"d":159,"s":177,"tm":[100000,100],"e":null},"STAKATAKA":{"a":213,"d":298,"s":156,"tm":[100000,100],"e":null},"BLACEPHALON":{"a":315,"d":148,"s":142,"tm":[100000,100],"e":null},"ZERAORA":{"a":252,"d":177,"s":204,"tm":[100000,100],"e":null},"MELTAN":{"a":118,"d":99,"s":130,"tm":[100000,100],"e":[["MELMETAL",400]]},"MELMETAL":{"a":226,"d":190,"s":264,"tm":[100000,100],"e":null},"GROOKEY":{"a":122,"d":91,"s":137,"tm":[10000,25],"e":[["THWACKEY",25]]},"THWACKEY":{"a":165,"d":134,"s":172,"tm":[10000,25],"e":[["RILLABOOM",100]]},"RILLABOOM":{"a":239,"d":168,"s":225,"tm":[10000,25],"e":null},"SCORBUNNY":{"a":132,"d":79,"s":137,"tm":[10000,25],"e":[["RABOOT",25]]},"RABOOT":{"a":170,"d":125,"s":163,"tm":[10000,25],"e":[["CINDERACE",100]]},"CINDERACE":{"a":238,"d":163,"s":190,"tm":[10000,25],"e":null},"SOBBLE":{"a":132,"d":79,"s":137,"tm":[10000,25],"e":[["DRIZZILE",25]]},"DRIZZILE":{"a":186,"d":113,"s":163,"tm":[10000,25],"e":[["INTELEON",100]]},"INTELEON":{"a":262,"d":142,"s":172,"tm":[10000,25],"e":null},"SKWOVET":{"a":95,"d":86,"s":172,"tm":[10000,25],"e":[["GREEDENT",50]]},"GREEDENT":{"a":160,"d":156,"s":260,"tm":[10000,25],"e":null},"ROOKIDEE":{"a":88,"d":67,"s":116,"tm":[10000,25],"e":[["CORVISQUIRE",25]]},"CORVISQUIRE":{"a":129,"d":110,"s":169,"tm":[10000,25],"e":[["CORVIKNIGHT",100]]},"CORVIKNIGHT":{"a":163,"d":192,"s":221,"tm":[10000,25],"e":null},"BLIPBUG":{"a":46,"d":67,"s":93,"tm":[10000,25],"e":[["DOTTLER",25]]},"DOTTLER":{"a":87,"d":157,"s":137,"tm":[10000,25],"e":[["ORBEETLE",100]]},"ORBEETLE":{"a":156,"d":240,"s":155,"tm":[10000,25],"e":null},"NICKIT":{"a":85,"d":82,"s":120,"tm":[10000,25],"e":[["THIEVUL",50]]},"THIEVUL":{"a":172,"d":164,"s":172,"tm":[10000,25],"e":null},"GOSSIFLEUR":{"a":70,"d":104,"s":120,"tm":[50000,50],"e":[["ELDEGOSS",50]]},"ELDEGOSS":{"a":148,"d":211,"s":155,"tm":[50000,50],"e":null},"WOOLOO":{"a":76,"d":97,"s":123,"tm":[10000,25],"e":[["DUBWOOL",50]]},"DUBWOOL":{"a":159,"d":198,"s":176,"tm":[10000,25],"e":null},"CHEWTLE":{"a":114,"d":85,"s":137,"tm":[50000,50],"e":[["DREDNAW",50]]},"DREDNAW":{"a":213,"d":164,"s":207,"tm":[50000,50],"e":null},"YAMPER":{"a":80,"d":90,"s":153,"tm":[50000,50],"e":[["BOLTUND",50]]},"BOLTUND":{"a":197,"d":131,"s":170,"tm":[50000,50],"e":null},"ROLYCOLY":{"a":73,"d":91,"s":102,"tm":[10000,25],"e":[["CARKOL",25]]},"CARKOL":{"a":114,"d":157,"s":190,"tm":[10000,25],"e":[["COALOSSAL",100]]},"COALOSSAL":{"a":146,"d":198,"s":242,"tm":[10000,25],"e":null},"APPLIN":{"a":71,"d":116,"s":120,"tm":[75000,75],"e":[["APPLETUN",200],["FLAPPLE",200],["DIPPLIN",200]]},"FLAPPLE":{"a":214,"d":144,"s":172,"tm":[75000,75],"e":null},"APPLETUN":{"a":178,"d":146,"s":242,"tm":[75000,75],"e":null},"SILICOBRA":{"a":103,"d":123,"s":141,"tm":[50000,50],"e":[["SANDACONDA",50]]},"SANDACONDA":{"a":202,"d":207,"s":176,"tm":[50000,50],"e":null},"CRAMORANT":{"a":173,"d":163,"s":172,"tm":[50000,50],"e":null},"ARROKUDA":{"a":118,"d":72,"s":121,"tm":[50000,50],"e":[["BARRASKEWDA",50]]},"BARRASKEWDA":{"a":258,"d":127,"s":156,"tm":[50000,50],"e":null},"TOXEL":{"a":97,"d":65,"s":120,"tm":[75000,75],"e":[["TOXTRICITY",400],["TOXTRICITY",400]]},"TOXTRICITY":{"a":224,"d":140,"s":181,"tm":[75000,75],"e":null},"SIZZLIPEDE":{"a":118,"d":90,"s":137,"tm":[75000,75],"e":[["CENTISKORCH",50]]},"CENTISKORCH":{"a":220,"d":158,"s":225,"tm":[75000,75],"e":null},"CLOBBOPUS":{"a":121,"d":103,"s":137,"tm":[50000,50],"e":[["GRAPPLOCT",50]]},"GRAPPLOCT":{"a":209,"d":162,"s":190,"tm":[50000,50],"e":null},"SINISTEA":{"a":134,"d":96,"s":120,"tm":[50000,50],"e":[["POLTEAGEIST",50]]},"POLTEAGEIST":{"a":248,"d":189,"s":155,"tm":[50000,50],"e":null},"HATENNA":{"a":98,"d":93,"s":123,"tm":[50000,50],"e":[["HATTREM",25]]},"HATTREM":{"a":153,"d":133,"s":149,"tm":[50000,50],"e":[["HATTERENE",100]]},"HATTERENE":{"a":237,"d":182,"s":149,"tm":[50000,50],"e":null},"IMPIDIMP":{"a":103,"d":69,"s":128,"tm":[50000,50],"e":[["MORGREM",25]]},"MORGREM":{"a":145,"d":102,"s":163,"tm":[50000,50],"e":[["GRIMMSNARL",100]]},"GRIMMSNARL":{"a":227,"d":139,"s":216,"tm":[50000,50],"e":null},"OBSTAGOON":{"a":180,"d":194,"s":212,"tm":[10000,25],"e":null},"PERRSERKER":{"a":195,"d":162,"s":172,"tm":[50000,50],"e":null},"CURSOLA":{"a":253,"d":182,"s":155,"tm":[50000,50],"e":null},"SIRFETCHD":{"a":248,"d":176,"s":158,"tm":[50000,50],"e":null},"MR_RIME":{"a":212,"d":179,"s":190,"tm":[75000,75],"e":null},"RUNERIGUS":{"a":163,"d":237,"s":151,"tm":[50000,50],"e":null},"MILCERY":{"a":90,"d":97,"s":128,"tm":[50000,50],"e":[["ALCREMIE",50]]},"ALCREMIE":{"a":203,"d":203,"s":163,"tm":[50000,50],"e":null},"FALINKS":{"a":193,"d":170,"s":163,"tm":[75000,75],"e":null},"PINCURCHIN":{"a":176,"d":161,"s":134,"tm":[75000,75],"e":null},"SNOM":{"a":76,"d":59,"s":102,"tm":[75000,75],"e":[["FROSMOTH",400]]},"FROSMOTH":{"a":230,"d":155,"s":172,"tm":[75000,75],"e":null},"STONJOURNER":{"a":222,"d":182,"s":225,"tm":[75000,75],"e":null},"EISCUE":{"a":148,"d":195,"s":181,"tm":[75000,75],"e":null},"INDEEDEE":{"a":208,"d":166,"s":155,"tm":[50000,50],"e":null},"MORPEKO":{"a":192,"d":121,"s":151,"tm":[50000,50],"e":null},"CUFANT":{"a":140,"d":91,"s":176,"tm":[75000,75],"e":[["COPPERAJAH",50]]},"COPPERAJAH":{"a":226,"d":126,"s":263,"tm":[75000,75],"e":null},"DRACOZOLT":{"a":195,"d":165,"s":207,"tm":[75000,75],"e":null},"ARCTOZOLT":{"a":190,"d":166,"s":207,"tm":[75000,75],"e":null},"DRACOVISH":{"a":175,"d":185,"s":207,"tm":[75000,75],"e":null},"ARCTOVISH":{"a":171,"d":185,"s":207,"tm":[75000,75],"e":null},"DURALUDON":{"a":239,"d":185,"s":172,"tm":[75000,75],"e":null},"DREEPY":{"a":117,"d":61,"s":99,"tm":[75000,75],"e":[["DRAKLOAK",25]]},"DRAKLOAK":{"a":163,"d":105,"s":169,"tm":[75000,75],"e":[["DRAGAPULT",100]]},"DRAGAPULT":{"a":266,"d":170,"s":204,"tm":[75000,75],"e":null},"ZACIAN":{"a":254,"d":236,"s":192,"tm":[100000,100],"e":null},"ZAMAZENTA":{"a":254,"d":236,"s":192,"tm":[100000,100],"e":null},"ETERNATUS":{"a":278,"d":192,"s":268,"tm":[100000,100],"e":null},"KUBFU":{"a":170,"d":112,"s":155,"tm":[100000,100],"e":[["URSHIFU",200],["URSHIFU",200]]},"URSHIFU":{"a":254,"d":177,"s":225,"tm":[100000,100],"e":null},"ZARUDE":{"a":242,"d":215,"s":233,"tm":[100000,100],"e":null},"REGIELEKI":{"a":250,"d":125,"s":190,"tm":[100000,100],"e":null},"REGIDRAGO":{"a":202,"d":101,"s":400,"tm":[100000,100],"e":null},"GLASTRIER":{"a":246,"d":223,"s":225,"tm":[100000,100],"e":null},"SPECTRIER":{"a":273,"d":146,"s":205,"tm":[100000,100],"e":null},"CALYREX":{"a":162,"d":162,"s":225,"tm":[100000,100],"e":null},"WYRDEER":{"a":206,"d":145,"s":230,"tm":[75000,75],"e":null},"KLEAVOR":{"a":253,"d":174,"s":172,"tm":[75000,75],"e":null},"URSALUNA":{"a":243,"d":181,"s":277,"tm":[50000,50],"e":null},"SNEASLER":{"a":259,"d":158,"s":190,"tm":[75000,75],"e":null},"OVERQWIL":{"a":222,"d":171,"s":198,"tm":[75000,75],"e":null},"ENAMORUS":{"a":281,"d":162,"s":179,"tm":[100000,100],"e":null},"SPRIGATITO":{"a":116,"d":99,"s":120,"tm":[10000,25],"e":[["FLORAGATO",25]]},"FLORAGATO":{"a":157,"d":128,"s":156,"tm":[10000,25],"e":[["MEOWSCARADA",100]]},"MEOWSCARADA":{"a":233,"d":153,"s":183,"tm":[10000,25],"e":null},"FUECOCO":{"a":112,"d":96,"s":167,"tm":[10000,25],"e":[["CROCALOR",25]]},"CROCALOR":{"a":162,"d":134,"s":191,"tm":[10000,25],"e":[["SKELEDIRGE",100]]},"SKELEDIRGE":{"a":207,"d":178,"s":232,"tm":[10000,25],"e":null},"QUAXLY":{"a":120,"d":86,"s":146,"tm":[10000,25],"e":[["QUAXWELL",25]]},"QUAXWELL":{"a":162,"d":123,"s":172,"tm":[10000,25],"e":[["QUAQUAVAL",100]]},"QUAQUAVAL":{"a":236,"d":159,"s":198,"tm":[10000,25],"e":null},"LECHONK":{"a":81,"d":79,"s":144,"tm":[10000,25],"e":[["OINKOLOGNE",50],["OINKOLOGNE",50]]},"OINKOLOGNE":{"a":186,"d":153,"s":242,"tm":[10000,25],"e":null},"TAROUNTULA":{"a":70,"d":77,"s":111,"tm":[50000,50],"e":[["SPIDOPS",50]]},"SPIDOPS":{"a":139,"d":166,"s":155,"tm":[50000,50],"e":null},"NYMBLE":{"a":81,"d":65,"s":107,"tm":[50000,50],"e":[["LOKIX",50]]},"LOKIX":{"a":199,"d":144,"s":174,"tm":[50000,50],"e":null},"PAWMI":{"a":95,"d":45,"s":128,"tm":[75000,75],"e":[["PAWMO",25]]},"PAWMO":{"a":147,"d":82,"s":155,"tm":[75000,75],"e":[["PAWMOT",100]]},"PAWMOT":{"a":232,"d":141,"s":172,"tm":[75000,75],"e":null},"TANDEMAUS":{"a":98,"d":90,"s":137,"tm":[10000,25],"e":[["MAUSHOLD",50],["MAUSHOLD",50]]},"MAUSHOLD":{"a":159,"d":157,"s":179,"tm":[10000,25],"e":null},"FIDOUGH":{"a":102,"d":126,"s":114,"tm":[50000,50],"e":[["DACHSBUN",50]]},"DACHSBUN":{"a":159,"d":212,"s":149,"tm":[50000,50],"e":null},"SMOLIV":{"a":100,"d":89,"s":121,"tm":[50000,50],"e":[["DOLLIV",25]]},"DOLLIV":{"a":137,"d":131,"s":141,"tm":[50000,50],"e":[["ARBOLIVA",100]]},"ARBOLIVA":{"a":219,"d":189,"s":186,"tm":[50000,50],"e":null},"SQUAWKABILLY":{"a":185,"d":105,"s":193,"tm":[75000,75],"e":null},"NACLI":{"a":95,"d":108,"s":146,"tm":[50000,50],"e":[["NACLSTACK",25]]},"NACLSTACK":{"a":105,"d":160,"s":155,"tm":[50000,50],"e":[["GARGANACL",100]]},"GARGANACL":{"a":171,"d":212,"s":225,"tm":[50000,50],"e":null},"CHARCADET":{"a":92,"d":74,"s":120,"tm":[50000,50],"e":[["ARMAROUGE",50],["CERULEDGE",50]]},"ARMAROUGE":{"a":234,"d":185,"s":198,"tm":[50000,50],"e":null},"CERULEDGE":{"a":239,"d":189,"s":181,"tm":[50000,50],"e":null},"TADBULB":{"a":104,"d":73,"s":156,"tm":[50000,50],"e":[["BELLIBOLT",50]]},"BELLIBOLT":{"a":184,"d":165,"s":240,"tm":[50000,50],"e":null},"WATTREL":{"a":105,"d":75,"s":120,"tm":[10000,25],"e":[["KILOWATTREL",50]]},"KILOWATTREL":{"a":221,"d":132,"s":172,"tm":[10000,25],"e":null},"MASCHIFF":{"a":140,"d":108,"s":155,"tm":[50000,50],"e":[["MABOSSTIFF",50]]},"MABOSSTIFF":{"a":230,"d":168,"s":190,"tm":[50000,50],"e":null},"SHROODLE":{"a":124,"d":70,"s":120,"tm":[50000,50],"e":[["GRAFAIAI",50]]},"GRAFAIAI":{"a":199,"d":149,"s":160,"tm":[50000,50],"e":null},"BRAMBLIN":{"a":121,"d":64,"s":120,"tm":[75000,75],"e":[["BRAMBLEGHAST",50]]},"BRAMBLEGHAST":{"a":228,"d":144,"s":146,"tm":[75000,75],"e":null},"TOEDSCOOL":{"a":97,"d":149,"s":120,"tm":[50000,50],"e":[["TOEDSCRUEL",50]]},"TOEDSCRUEL":{"a":166,"d":209,"s":190,"tm":[50000,50],"e":null},"KLAWF":{"a":184,"d":185,"s":172,"tm":[75000,75],"e":null},"CAPSAKID":{"a":118,"d":76,"s":137,"tm":[10000,25],"e":[["SCOVILLAIN",50]]},"SCOVILLAIN":{"a":216,"d":130,"s":163,"tm":[10000,25],"e":null},"RELLOR":{"a":86,"d":108,"s":121,"tm":[75000,75],"e":[["RABSCA",50]]},"RABSCA":{"a":201,"d":178,"s":181,"tm":[75000,75],"e":null},"FLITTLE":{"a":105,"d":60,"s":102,"tm":[50000,50],"e":[["ESPATHRA",50]]},"ESPATHRA":{"a":204,"d":127,"s":216,"tm":[50000,50],"e":null},"TINKATINK":{"a":85,"d":110,"s":137,"tm":[75000,75],"e":[["TINKATUFF",25]]},"TINKATUFF":{"a":109,"d":145,"s":163,"tm":[75000,75],"e":[["TINKATON",100]]},"TINKATON":{"a":155,"d":196,"s":198,"tm":[75000,75],"e":null},"WIGLETT":{"a":109,"d":52,"s":67,"tm":[50000,50],"e":[["WUGTRIO",50]]},"WUGTRIO":{"a":205,"d":136,"s":111,"tm":[50000,50],"e":null},"BOMBIRDIER":{"a":198,"d":172,"s":172,"tm":[75000,75],"e":null},"FINIZEN":{"a":90,"d":80,"s":172,"tm":[75000,75],"e":[["PALAFIN",50]]},"PALAFIN":{"a":143,"d":144,"s":225,"tm":[75000,75],"e":null},"VAROOM":{"a":123,"d":107,"s":128,"tm":[50000,50],"e":[["REVAVROOM",50]]},"REVAVROOM":{"a":229,"d":168,"s":190,"tm":[50000,50],"e":null},"CYCLIZAR":{"a":205,"d":142,"s":172,"tm":[75000,75],"e":null},"ORTHWORM":{"a":161,"d":219,"s":172,"tm":[75000,75],"e":null},"GLIMMET":{"a":187,"d":104,"s":134,"tm":[50000,50],"e":[["GLIMMORA",50]]},"GLIMMORA":{"a":246,"d":177,"s":195,"tm":[50000,50],"e":null},"GREAVARD":{"a":105,"d":106,"s":137,"tm":[50000,50],"e":[["HOUNDSTONE",50]]},"HOUNDSTONE":{"a":186,"d":195,"s":176,"tm":[50000,50],"e":null},"FLAMIGO":{"a":227,"d":145,"s":193,"tm":[75000,75],"e":null},"CETODDLE":{"a":119,"d":80,"s":239,"tm":[50000,50],"e":[["CETITAN",50]]},"CETITAN":{"a":208,"d":123,"s":347,"tm":[50000,50],"e":null},"VELUZA":{"a":196,"d":139,"s":207,"tm":[75000,75],"e":null},"DONDOZO":{"a":176,"d":178,"s":312,"tm":[75000,75],"e":null},"TATSUGIRI":{"a":226,"d":166,"s":169,"tm":[75000,75],"e":null},"ANNIHILAPE":{"a":220,"d":178,"s":242,"tm":[50000,50],"e":null},"CLODSIRE":{"a":127,"d":151,"s":277,"tm":[50000,50],"e":null},"FARIGIRAF":{"a":209,"d":136,"s":260,"tm":[50000,50],"e":null},"DUDUNSPARCE":{"a":188,"d":150,"s":268,"tm":[50000,50],"e":null},"KINGAMBIT":{"a":238,"d":203,"s":225,"tm":[75000,75],"e":null},"GREATTUSK":{"a":249,"d":209,"s":251,"tm":[100000,100],"e":null},"SCREAMTAIL":{"a":139,"d":234,"s":251,"tm":[100000,100],"e":null},"BRUTEBONNET":{"a":232,"d":190,"s":244,"tm":[100000,100],"e":null},"FLUTTERMANE":{"a":280,"d":235,"s":146,"tm":[100000,100],"e":null},"SLITHERWING":{"a":261,"d":193,"s":198,"tm":[100000,100],"e":null},"SANDYSHOCKS":{"a":244,"d":195,"s":198,"tm":[100000,100],"e":null},"IRONTREADS":{"a":227,"d":216,"s":207,"tm":[100000,100],"e":null},"IRONBUNDLE":{"a":266,"d":211,"s":148,"tm":[100000,100],"e":null},"IRONHANDS":{"a":245,"d":177,"s":319,"tm":[100000,100],"e":null},"IRONJUGULIS":{"a":249,"d":179,"s":214,"tm":[100000,100],"e":null},"IRONMOTH":{"a":281,"d":196,"s":190,"tm":[100000,100],"e":null},"IRONTHORNS":{"a":250,"d":200,"s":225,"tm":[100000,100],"e":null},"FRIGIBAX":{"a":134,"d":86,"s":163,"tm":[75000,75],"e":[["ARCTIBAX",25]]},"ARCTIBAX":{"a":173,"d":128,"s":207,"tm":[75000,75],"e":[["BAXCALIBUR",100]]},"BAXCALIBUR":{"a":254,"d":168,"s":229,"tm":[75000,75],"e":null},"GIMMIGHOUL":{"a":140,"d":76,"s":128,"tm":[10000,25],"e":null},"GHOLDENGO":{"a":252,"d":190,"s":202,"tm":[10000,25],"e":null},"WOCHIEN":{"a":186,"d":242,"s":198,"tm":[100000,100],"e":null},"CHIENPAO":{"a":261,"d":167,"s":190,"tm":[100000,100],"e":null},"TINGLU":{"a":194,"d":203,"s":321,"tm":[100000,100],"e":null},"CHIYU":{"a":269,"d":221,"s":146,"tm":[100000,100],"e":null},"ROARINGMOON":{"a":280,"d":196,"s":233,"tm":[100000,100],"e":null},"IRONVALIANT":{"a":279,"d":171,"s":179,"tm":[100000,100],"e":null},"KORAIDON":{"a":263,"d":223,"s":205,"tm":[100000,100],"e":null},"MIRAIDON":{"a":263,"d":223,"s":205,"tm":[100000,100],"e":null},"WALKINGWAKE":{"a":233,"d":171,"s":203,"tm":[100000,100],"e":null},"IRONLEAVES":{"a":236,"d":194,"s":189,"tm":[100000,100],"e":null},"DIPPLIN":{"a":173,"d":184,"s":190,"tm":[75000,75],"e":[["HYDRAPPLE",400]]},"POLTCHAGEIST":{"a":134,"d":96,"s":120,"tm":[50000,50],"e":[["SINISTCHA",50]]},"SINISTCHA":{"a":225,"d":191,"s":174,"tm":[50000,50],"e":null},"OKIDOGI":{"a":220,"d":191,"s":186,"tm":[100000,100],"e":null},"MUNKIDORI":{"a":238,"d":157,"s":186,"tm":[100000,100],"e":null},"FEZANDIPITI":{"a":169,"d":208,"s":186,"tm":[100000,100],"e":null},"OGERPON":{"a":219,"d":178,"s":173,"tm":[100000,100],"e":null},"ARCHALUDON":{"a":250,"d":215,"s":207,"tm":[75000,75],"e":null},"HYDRAPPLE":{"a":216,"d":186,"s":235,"tm":[75000,75],"e":null},"GOUGINGFIRE":{"a":205,"d":208,"s":213,"tm":[100000,100],"e":null},"RAGINGBOLT":{"a":235,"d":165,"s":245,"tm":[100000,100],"e":null},"IRONBOULDER":{"a":227,"d":195,"s":189,"tm":[100000,100],"e":null},"IRONCROWN":{"a":221,"d":200,"s":189,"tm":[100000,100],"e":null},"TERAPAGOS":{"a":126,"d":165,"s":207,"tm":[100000,100],"e":null},"PECHARUNT":{"a":164,"d":248,"s":186,"tm":[100000,100],"e":null}}};
+</script>
+<script>
+/* ============================================================ engine.js ===
+   Browser port of the pogo-forge engine. Same algorithms as the Python
+   version, same data, no server.
+
+   GAMEDATA is injected above this by the build step.
+   ======================================================================== */
+
+const CPM = GAMEDATA.cpm, UP = GAMEDATA.upgrade, SPECIES = GAMEDATA.species;
+const MAX_LEVEL = UP.max_level;
+const BEST_BUDDY_MAX = MAX_LEVEL + UP.best_buddy_bonus;
+
+const norm = n => String(n || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+function baseStats(name){
+  const s = SPECIES[norm(name)];
+  if(!s) throw new Error(`no base stats on file for "${name}"`);
+  return s;
+}
+function cpm(level){
+  const k = String(level).replace(/\.0$/, '');
+  if(!(k in CPM)) throw new Error(`no CP multiplier for level ${level}`);
+  return CPM[k];
+}
+function levels(lo, hi){
+  const out = [], n = Math.round((hi - lo) * 2);
+  for(let i = 0; i <= n; i++) out.push(lo + i * 0.5);
+  return out;
+}
+
+/* ------------------------------------------------------------- CP / HP --- */
+function cpAt(name, ivs, level){
+  const s = baseStats(name), m = cpm(level);
+  const raw = ((s.a + ivs[0]) * Math.sqrt(s.d + ivs[1]) * Math.sqrt(s.s + ivs[2]) * m * m) / 10;
+  return Math.max(10, Math.floor(raw));
+}
+function hpAt(name, ivHp, level){
+  const s = baseStats(name);
+  return Math.max(10, Math.floor((s.s + ivHp) * cpm(level)));
+}
+const ivPercent = ivs => Math.round((ivs[0] + ivs[1] + ivs[2]) / 45 * 1000) / 10;
+
+function maxLevelUnderCp(name, ivs, cap, ceiling = BEST_BUDDY_MAX){
+  let best = null;
+  for(const lv of levels(1, ceiling)){
+    let cp; try { cp = cpAt(name, ivs, lv); } catch(e){ break; }
+    if(cp <= cap) best = lv; else break;
+  }
+  return best;
+}
+
+/* --------------------------------------------------------------- costs --- */
+function stepCost(level, shadow, purified){
+  const idx = Math.floor(level) - 1;
+  if(idx < 0 || idx >= UP.dust.length) throw new Error(`no upgrade cost for level ${level}`);
+  let dust = UP.dust[idx], candy = UP.candy[idx], xl = 0;
+  if(level >= UP.xl_from_level){
+    const xi = Math.floor(level) - UP.xl_from_level;
+    if(xi < UP.xl_candy.length) xl = UP.xl_candy[xi];
+  }
+  if(shadow){
+    dust = Math.ceil(dust * UP.shadow_dust_mult);
+    candy = Math.ceil(candy * UP.shadow_candy_mult);
+    xl = Math.ceil(xl * UP.shadow_candy_mult);
+  } else if(purified){
+    dust = Math.ceil(dust * UP.purified_dust_mult);
+    candy = Math.ceil(candy * UP.purified_candy_mult);
+    xl = Math.ceil(xl * UP.purified_candy_mult);
+  }
+  return [dust, candy, xl];
+}
+
+function powerUpCost(from, to, opts = {}){
+  const c = {dust:0, candy:0, xl:0, steps:0, notes:[]};
+  if(to <= from){ c.notes.push('Already at or above the target level.'); return c; }
+  if(to > BEST_BUDDY_MAX) throw new Error(`level ${to} is above the cap of ${BEST_BUDDY_MAX}`);
+
+  // The best-buddy bonus grants +1 level at no cost.
+  const paidTo = Math.min(to, MAX_LEVEL);
+  if(paidTo > from){
+    for(const lv of levels(from, paidTo - 0.5)){
+      const [d, cy, xl] = stepCost(lv, opts.shadow, opts.purified);
+      c.dust += d; c.candy += cy; c.xl += xl; c.steps++;
+    }
+  }
+  if(to > MAX_LEVEL) c.notes.push(`The last ${to - MAX_LEVEL} level comes from the Best Buddy bonus, which costs nothing but requires Best Buddy status.`);
+  if(c.xl) c.notes.push('XL Candy is required from level 40 up.');
+  if(opts.shadow) c.notes.push('Shadow surcharge applied.');
+  if(opts.purified) c.notes.push('Purified discount applied.');
+  return c;
+}
+
+function evolutionPath(name, to){
+  const start = norm(name), target = norm(to);
+  if(start === target) return [];
+  const queue = [[start, []]], seen = new Set([start]);
+  while(queue.length){
+    const [cur, path] = queue.shift();
+    for(const [nxt, candy] of (SPECIES[cur]?.e || [])){
+      const hop = path.concat([[nxt, candy]]);
+      if(nxt === target) return hop;
+      if(!seen.has(nxt)){ seen.add(nxt); queue.push([nxt, hop]); }
+    }
+  }
+  throw new Error(`no evolution path from ${title(name)} to ${title(to)}`);
+}
+
+function secondMoveCost(name){
+  const tm = baseStats(name).tm;
+  if(!tm) throw new Error(`no second-charged-move cost on file for ${title(name)}`);
+  return {dust:tm[0], candy:tm[1], xl:0, steps:0, notes:['Unlocks the second charged move slot.']};
+}
+
+const title = s => String(s).toLowerCase().replace(/(^|_)([a-z])/g, (m,a,b) => (a?' ':'') + b.toUpperCase());
+
+function plan(species, o){
+  let finalSp = norm(species);
+  const total = {dust:0, candy:0, xl:0, steps:0, notes:[]};
+  const items = [];
+  const add = (label, c) => {
+    total.dust += c.dust; total.candy += c.candy; total.xl += c.xl; total.steps += c.steps;
+    total.notes.push(...c.notes);
+    items.push(Object.assign({label}, c));
+  };
+
+  if(o.evolveTo){
+    const hops = evolutionPath(species, o.evolveTo);
+    const c = {dust:0, candy:hops.reduce((a,h)=>a+h[1],0), xl:0, steps:0, notes:[]};
+    if(hops.length > 1) c.notes.push('Two evolutions: ' + hops.map(h=>title(h[0])).join(' \u2192 '));
+    finalSp = hops[hops.length-1][0];
+    add(`Evolve to ${title(finalSp)}`, c);
+  }
+
+  let target;
+  if(o.goal === 'level'){
+    if(o.targetLevel == null) throw new Error("goal 'level' needs a target level");
+    target = o.targetLevel;
+  } else if(o.goal === 'cp_cap'){
+    target = maxLevelUnderCp(finalSp, o.ivs, o.cpCap);
+    if(target === null) return {error:`Even at level 1 this exceeds ${o.cpCap} CP.`};
+    if(target < o.fromLevel) return {error:`Already above ${o.cpCap} CP at level ${o.fromLevel}. Powering up can't be undone.`};
+  } else {
+    target = BEST_BUDDY_MAX;
+  }
+
+  const c = powerUpCost(o.fromLevel, target, o);
+  if(c.steps) add(`Power up ${o.fromLevel} \u2192 ${target} (${c.steps} steps)`, c);
+  else total.notes.push(...c.notes);
+
+  if(o.secondMove) add('Unlock second charged move', secondMoveCost(finalSp));
+
+  return {
+    species: title(finalSp), ivs: o.ivs, ivPercent: ivPercent(o.ivs),
+    fromLevel: o.fromLevel, targetLevel: target,
+    cpBefore: cpAt(finalSp, o.ivs, o.fromLevel),
+    cpAfter: cpAt(finalSp, o.ivs, target),
+    hpAfter: hpAt(finalSp, o.ivs[2], target),
+    lineItems: items, total
+  };
+}
+
+/* ----------------------------------------------------------- PvP ranks --- */
+const _rankCache = new Map();
+function rankTable(species, cap){
+  const key = norm(species) + '|' + cap;
+  if(_rankCache.has(key)) return _rankCache.get(key);
+  const s = baseStats(species);
+  const n = 4096;
+  const iv = new Int8Array(n * 3);
+  let k = 0;
+  for(let a = 0; a < 16; a++) for(let d = 0; d < 16; d++) for(let h = 0; h < 16; h++){
+    iv[k*3] = a; iv[k*3+1] = d; iv[k*3+2] = h; k++;
+  }
+  const bestLv = new Float32Array(n), bestCp = new Int32Array(n);
+  for(const lv of levels(1, MAX_LEVEL)){
+    const m = cpm(lv), mm = m * m;
+    for(let i = 0; i < n; i++){
+      const cp = Math.max(10, Math.floor((s.a+iv[i*3]) * Math.sqrt(s.d+iv[i*3+1]) * Math.sqrt(s.s+iv[i*3+2]) * mm / 10));
+      if(cp <= cap){ bestLv[i] = lv; bestCp[i] = cp; }
+    }
+  }
+  const rows = [];
+  for(let i = 0; i < n; i++){
+    const lv = bestLv[i];
+    let prod = 0;
+    if(lv > 0){
+      const m = cpm(lv);
+      prod = (s.a+iv[i*3])*m * (s.d+iv[i*3+1])*m * Math.floor((s.s+iv[i*3+2])*m);
+    }
+    rows.push({ivs:[iv[i*3], iv[i*3+1], iv[i*3+2]], level:lv, cp:bestCp[i], prod});
+  }
+  rows.sort((x, y) => y.prod - x.prod);
+  _rankCache.set(key, rows);
+  return rows;
+}
+
+function pvpRank(species, ivs, cap){
+  const t = rankTable(species, cap), best = t[0].prod;
+  for(let i = 0; i < t.length; i++){
+    const r = t[i];
+    if(r.ivs[0] === ivs[0] && r.ivs[1] === ivs[1] && r.ivs[2] === ivs[2]){
+      return {rank:i+1, of:t.length,
+              percent: best ? Math.round(r.prod / best * 10000) / 100 : 0,
+              level:r.level, cp:r.cp,
+              bestSpread:t[0].ivs, bestCp:t[0].cp, bestLevel:t[0].level};
+    }
+  }
+  throw new Error('spread not found');
+}
+
+/* ================================================= appraisal bar reader ===
+   Identical approach to the Python version: the bar encodes the IV directly,
+   segments are found rather than assumed, boundary pixels count
+   proportionally, and three bars are identified by shared geometry and even
+   spacing rather than by segment count.
+   ======================================================================== */
+const MIN_SATURATION = 60, MAX_TRACK_SPREAD = 18;
+const MIN_BAR_WIDTH_FRAC = 0.15, MIN_BAR_HEIGHT = 4, CLUSTER_BRIDGE = 15;
+
+function rowMasks(data, y, w){
+  const weight = new Float32Array(w), member = new Uint8Array(w);
+  const hiArr = new Uint8Array(w), satArr = new Uint8Array(w), flat = new Uint8Array(w);
+  const base = y * w * 4;
+  for(let x = 0; x < w; x++){
+    const i = base + x*4;
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const hi = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    const lo = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    hiArr[x] = hi; satArr[x] = hi - lo;
+    flat[x] = (hi - lo) <= MAX_TRACK_SPREAD ? 1 : 0;
+  }
+  // Background = brightest flat grey with a real share of the row. Binned,
+  // because compression spreads a flat grey over adjacent levels. Taking the
+  // most common one lets a zero-IV bar vote itself the background.
+  const bins = new Int32Array(64);
+  let anyFlat = false;
+  for(let x = 0; x < w; x++) if(flat[x]){ bins[hiArr[x] >> 2]++; anyFlat = true; }
+  if(!anyFlat) return {weight, member};
+  const need = Math.max(4, Math.floor(0.03 * w));
+  let bg = -1, fallback = -1, fbCount = -1;
+  for(let b = 0; b < 64; b++){
+    if(bins[b] > fbCount){ fbCount = bins[b]; fallback = b << 2; }
+    if(bins[b] >= need) bg = b << 2;
+  }
+  if(bg < 0) bg = fallback;
+
+  for(let x = 0; x < w; x++){
+    const isTrack = flat[x] && hiArr[x] < bg - 5 && hiArr[x] > 90;
+    const isColour = satArr[x] > MAX_TRACK_SPREAD && hiArr[x] > 120;
+    if(isTrack || isColour){
+      member[x] = 1;
+      weight[x] = Math.min(1, satArr[x] / MIN_SATURATION);
+    }
+  }
+  return {weight, member};
+}
+
+function runsOf(member, w){
+  const out = []; let start = -1;
+  for(let x = 0; x < w; x++){
+    if(member[x] && start < 0) start = x;
+    else if(!member[x] && start >= 0){ out.push([start, x-1]); start = -1; }
+  }
+  if(start >= 0) out.push([start, w-1]);
+  return out;
+}
+
+function rowGroups(weight, member, w, minWidth, maxGap = 12){
+  const runs = runsOf(member, w);
+  if(!runs.length) return [];
+  const groups = [[runs[0]]];
+  for(let i = 1; i < runs.length; i++){
+    const g = groups[groups.length-1];
+    if(runs[i][0] - g[g.length-1][1] - 1 <= maxGap) g.push(runs[i]);
+    else groups.push([runs[i]]);
+  }
+  const out = [];
+  for(const g of groups){
+    const left = g[0][0], right = g[g.length-1][1];
+    if(right - left + 1 < minWidth) continue;
+    let fill = 0, width = 0;
+    for(const [a,b] of g) for(let x = a; x <= b; x++){ fill += weight[x]; width++; }
+    if(width) out.push({left, right, fill, width, runs:g.length});
+  }
+  return out;
+}
+
+function readBars(imageData){
+  const {data, width:w, height:h} = imageData;
+  const minWidth = Math.floor(w * MIN_BAR_WIDTH_FRAC);
+  const tol = Math.max(3, Math.floor(w * 0.02));
+  const clusters = [];
+
+  for(let y = 0; y < h; y++){
+    const {weight, member} = rowMasks(data, y, w);
+    for(const g of rowGroups(weight, member, w, minWidth)){
+      let placed = false;
+      for(const c of clusters){
+        if(y - c.lastY <= CLUSTER_BRIDGE && Math.abs(g.left - c.left) <= tol && Math.abs(g.right - c.right) <= tol){
+          c.rows.push(15 * g.fill / g.width); c.lastY = y;
+          c.fill.push(g.fill); c.width.push(g.width); c.runs.push(g.runs);
+          placed = true; break;
+        }
+      }
+      if(!placed) clusters.push({top:y, lastY:y, left:g.left, right:g.right,
+        rows:[15*g.fill/g.width], fill:[g.fill], width:[g.width], runs:[g.runs]});
+    }
+  }
+
+  const median = a => { const s = a.slice().sort((x,y)=>x-y); return s[Math.floor(s.length/2)]; };
+  let cands = clusters.filter(c => c.rows.length >= MIN_BAR_HEIGHT);
+  // A bar shows its dividers unless it is so full they blur into the fill.
+  cands = cands.filter(c => median(c.runs) >= 2 || median(c.fill) / Math.max(1, median(c.width)) >= 0.93);
+  if(cands.length < 3) throw new Error('No appraisal bars found. Use the Appraise screen, with all three bars fully visible and unobstructed.');
+
+  // Three bars share a left edge and a width, and are evenly spaced.
+  let best = null, bestScore = null;
+  for(let i = 0; i < cands.length; i++)
+  for(let j = i+1; j < cands.length; j++)
+  for(let k = j+1; k < cands.length; k++){
+    const t = [cands[i], cands[j], cands[k]];
+    const L = t.map(c=>c.left), R = t.map(c=>c.right), W = t.map(c=>median(c.width));
+    if(Math.max(...L)-Math.min(...L) > tol || Math.max(...R)-Math.min(...R) > tol) continue;
+    if(Math.max(...W)-Math.min(...W) > 0.03*Math.max(...W)) continue;
+    const tops = t.map(c=>c.top).sort((a,b)=>a-b);
+    const g1 = tops[1]-tops[0], g2 = tops[2]-tops[1];
+    if(g1 <= 0 || g2 <= 0) continue;
+    const even = Math.abs(g1-g2)/Math.max(g1,g2);
+    if(even > 0.25) continue;
+    const score = even - Math.max(...W)/(w*1000);
+    if(bestScore === null || score < bestScore){ best = t; bestScore = score; }
+  }
+  if(!best) throw new Error(`Found ${cands.length} bar-shaped region(s) but no three of them line up as appraisal bars. Use the Appraise screen with all three bars fully visible.`);
+
+  best.sort((a,b)=>a.top-b.top);
+  return best.map(c => {
+    // Drop the first and last scanline: a bar's top and bottom edge is
+    // vertically anti-aliased and never matches its body.
+    const rows = c.rows.length > 4 ? c.rows.slice(1,-1) : c.rows;
+    const v = rows.slice().sort((a,b)=>a-b), n = v.length;
+    if(v[Math.floor(3*n/4)] - v[Math.floor(n/4)] > 0.5)
+      throw new Error(`The bar at y=${c.top} measured inconsistently across its height. Something may be covering it.`);
+    const raw = v[Math.floor(n/2)];
+    return {iv: Math.round(raw), raw: Math.round(raw*100)/100,
+            fill: Math.round(median(c.fill)*10)/10, width: median(c.width),
+            snap: Math.abs(raw - Math.round(raw)), y: c.top};
+  });
+}
+
+function appraise(imageData, species, cp, hp){
+  const bars = readBars(imageData);
+  const ivs = bars.map(b => b.iv);
+  const names = ['attack','defense','hp'];
+  const out = {
+    ivs, ivPercent: ivPercent(ivs),
+    measurements: bars.map((b,i)=>({stat:names[i], iv:b.iv, raw:b.raw})),
+    verified:false, levels:[]
+  };
+  const shaky = bars.map((b,i)=>b.snap>0.25?names[i]:null).filter(Boolean);
+  if(shaky.length) out.warning = `These bars didn't land cleanly on a whole number: ${shaky.join(', ')}. The bar may be clipped or covered.`;
+
+  if(cp == null || hp == null || !species){
+    out.note = 'Unverified — give it the species, CP and HP from the same screen and it can prove the reading.';
+    return out;
+  }
+  const matches = [];
+  for(const lv of levels(1, BEST_BUDDY_MAX)){
+    if(cpAt(species, ivs, lv) === cp && hpAt(species, ivs[2], lv) === hp) matches.push(lv);
+  }
+  out.levels = matches;
+  out.verified = matches.length > 0;
+  out.note = matches.length
+    ? `Confirmed: ${ivs.join('/')} reproduces CP ${cp} and HP ${hp} at level ${matches[0]}.`
+    : `Read ${ivs.join('/')}, but no level reproduces both CP ${cp} and HP ${hp}. Either the species is wrong, the numbers were mistyped, or a bar was misread. Don't trust this reading.`;
+  return out;
+}
+
+/* --------------------------------------------------------------- triage --- */
+function judge(ivs, species, cap){
+  const [a, d, s] = ivs, total = a + d + s;
+  const reasons = []; let rank = null, keep = false;
+
+  if(total === 45) return {verdict:'KEEP', reasons:['Hundo.'], rank:null};
+
+  const pvpShape = a <= 3 && d >= 12 && s >= 12;
+  if(species){
+    try {
+      rank = pvpRank(species, ivs, cap);
+      if(rank.percent >= 98){
+        keep = true;
+        reasons.push(`PvP rank ${rank.rank} of ${rank.of} (${rank.percent}% of the best possible).`);
+      } else if(pvpShape){
+        reasons.push(`PvP shape but only rank ${rank.rank} (${rank.percent}%).`);
+      }
+    } catch(e){ rank = null; }
+  } else if(pvpShape){
+    keep = true;
+    reasons.push('Low attack with high bulk — the PvP shape. Worth a rank check.');
+  }
+
+  if(a >= 14 && total >= 37){
+    keep = true;
+    reasons.push(`Attack ${a} with ${total}/45 total — a raid attacker.`);
+  }
+  if(keep) return {verdict:'KEEP', reasons, rank};
+  if(total <= 22) return {verdict:'TRANSFER', reasons:[`${total}/45 total. Nothing to build here.`], rank};
+  if(!species && total >= 37) return {verdict:'CHECK', reasons:[`${total}/45 total but no standout shape. Add the species for a PvP rank before deciding.`], rank};
+  return {verdict:'TRANSFER', reasons:[`${total}/45 total, attack ${a}. Neither a raid nor a PvP build.`], rank};
+}
+
+</script>
+<script>
+/* ================================================================ ui.js ===
+   Wiring only. All computation lives in the engine above.
+   ======================================================================== */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+const money = n => n.toLocaleString();
+
+/* Persistence is best-effort: this file may be opened from disk, where some
+   browsers refuse storage. Losing saved filters is not worth an error. */
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('pf:' + k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem('pf:' + k, JSON.stringify(v)); return true; } catch(e){ return false; } }
+};
+
+/* ------------------------------------------------------------ species --- */
+$('#spList').innerHTML = Object.keys(SPECIES).sort()
+  .map(n => `<option value="${esc(title(n))}">`).join('');
+
+/* -------------------------------------------------------- image intake --- */
+function imageDataFrom(source){
+  const c = document.createElement('canvas');
+  c.width = source.naturalWidth || source.videoWidth || source.width;
+  c.height = source.naturalHeight || source.videoHeight || source.height;
+  const ctx = c.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(source, 0, 0, c.width, c.height);
+  return ctx.getImageData(0, 0, c.width, c.height);
+}
+
+function loadImage(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(img.src); res(img); };
+    img.onerror = () => rej(new Error(`Could not open ${file.name} as an image.`));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* Sample a recording and keep one frame per settled screen. Same idea as the
+   server version, except the browser decodes the video itself — seek, draw to
+   a canvas, compare consecutive frames, and treat a run of near-identical
+   ones as a single Pokemon. */
+const SAMPLE_FPS = 8, FRAME_CHANGE = 6.0;
+
+function framesFromVideo(file, onProgress){
+  return new Promise((res, rej) => {
+    const v = document.createElement('video');
+    v.preload = 'auto'; v.muted = true; v.playsInline = true;
+    v.onerror = () => rej(new Error(`Could not decode ${file.name}. Try exporting it as MP4.`));
+    v.onloadedmetadata = async () => {
+      const dur = v.duration;
+      if(!isFinite(dur) || dur <= 0){ rej(new Error('That video has no readable duration.')); return; }
+      const step = 1 / SAMPLE_FPS;
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 640 / v.videoWidth);   // compare cheaply
+      canvas.width = Math.round(v.videoWidth * scale);
+      canvas.height = Math.round(v.videoHeight * scale);
+      const ctx = canvas.getContext('2d', {willReadFrequently:true});
+
+      const seek = t => new Promise(done => { v.onseeked = () => done(); v.currentTime = t; });
+
+      const groups = [];
+      let prev = null;
+      const total = Math.floor(dur / step);
+      for(let i = 0, t = 0; t < dur; i++, t += step){
+        await seek(t);
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const small = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let diff = Infinity;
+        if(prev){
+          let sum = 0;
+          for(let p = 0; p < small.length; p += 4)
+            sum += Math.abs(small[p]-prev[p]) + Math.abs(small[p+1]-prev[p+1]) + Math.abs(small[p+2]-prev[p+2]);
+          diff = sum / (small.length / 4 * 3);
+        }
+        if(diff > FRAME_CHANGE) groups.push([t]); else groups[groups.length-1].push(t);
+        prev = small.slice();
+        if(onProgress && i % 4 === 0) onProgress(Math.round(i / Math.max(1,total) * 100));
+      }
+
+      // A group of one is a frame caught mid-swipe; a settled screen persists.
+      const out = [];
+      for(const g of groups){
+        if(g.length < 2) continue;
+        await seek(g[Math.floor(g.length/2)]);
+        out.push(imageDataFrom(v));
+      }
+      URL.revokeObjectURL(v.src);
+      res(out);
+    };
+    v.src = URL.createObjectURL(file);
+  });
+}
+
+async function toImageDataList(files, onProgress){
+  const out = [];
+  for(const f of files){
+    if(f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm)$/i.test(f.name)){
+      out.push(...await framesFromVideo(f, onProgress));
+    } else {
+      out.push(imageDataFrom(await loadImage(f)));
+    }
+  }
+  return out;
+}
+
+/* ----------------------------------------------------------- dropzones --- */
+function wireDrop(zoneId, inputId, onFiles){
+  const zone = $('#' + zoneId), input = $('#' + inputId);
+  const take = list => {
+    if(!list || !list.length) return;
+    const dt = new DataTransfer();
+    for(const f of list) dt.items.add(f);
+    input.files = dt.files;
+    onFiles(dt.files);
+  };
+  ['dragenter','dragover'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave','drop'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', ev => take(ev.dataTransfer.files));
+  zone.closest('section').addEventListener('paste', ev => {
+    const f = [...(ev.clipboardData?.files || [])].filter(x => /^(image|video)\//.test(x.type));
+    if(f.length){ ev.preventDefault(); take(f); }
+  });
+  input.addEventListener('change', () => onFiles(input.files));
+}
+
+/* ---------------------------------------------------------------- read --- */
+wireDrop('readDrop', 'readFile', async files => {
+  const out = $('#readOut');
+  out.innerHTML = '<div class="empty">Reading the bars\u2026</div>';
+  try {
+    const data = imageDataFrom(await loadImage(files[0]));
+    const sp = $('#r_sp').value.trim();
+    const r = appraise(data, sp || null, num($('#r_cp').value), num($('#r_hp').value));
+    const meas = r.measurements.map(m =>
+      `<div class="li"><div class="lbl">${m.stat}</div><div class="amt">IV ${m.iv} &nbsp;(measured ${m.raw})</div></div>`).join('');
+    out.innerHTML = `<div class="head">
+        <div class="big">${r.ivs.join(' / ')}</div>
+        <div class="sub">${r.ivPercent}% ${r.levels.length ? '\u00b7 level ' + r.levels[0] : ''}</div>
+      </div>
+      <div class="card">${meas}
+        <div class="${r.verified ? 'ok' : 'note'}">${esc(r.note)}</div>
+        ${r.warning ? `<div class="note">${esc(r.warning)}</div>` : ''}
+      </div>`;
+    if(sp){
+      $('#c_sp').value = sp;
+      $('#c_ia').value = r.ivs[0]; $('#c_id').value = r.ivs[1]; $('#c_ih').value = r.ivs[2];
+      if(r.levels.length) $('#c_from').value = r.levels[0];
+    }
+  } catch(e){ out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+});
+
+/* ---------------------------------------------------------------- cost --- */
+$('#c_goal').addEventListener('change', () => {
+  $('#w_cap').hidden = $('#c_goal').value !== 'cp_cap';
+  $('#w_lvl').hidden = $('#c_goal').value !== 'level';
+});
+
+$('#c_go').addEventListener('click', () => {
+  const out = $('#costOut');
+  const sp = $('#c_sp').value.trim();
+  if(!sp){ $('#c_sp').focus(); return; }
+  const goal = $('#c_goal').value;
+  try {
+    const r = plan(sp, {
+      ivs: [num($('#c_ia').value) ?? 15, num($('#c_id').value) ?? 15, num($('#c_ih').value) ?? 15],
+      fromLevel: parseFloat($('#c_from').value) || 1,
+      goal,
+      targetLevel: goal === 'level' ? parseFloat($('#c_lvl').value) : null,
+      cpCap: goal === 'cp_cap' ? num($('#c_cap').value) : null,
+      evolveTo: $('#c_evo').value.trim() || null,
+      secondMove: $('#c_move').checked,
+      shadow: $('#c_shadow').checked,
+      purified: $('#c_pure').checked
+    });
+    if(r.error){ out.innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
+    const items = r.lineItems.map(li => `<div class="li"><div class="lbl">${esc(li.label)}</div>
+      <div class="amt">${li.dust ? money(li.dust)+' dust' : ''}${li.candy ? '<br>'+li.candy+' candy' : ''}${li.xl ? '<br>'+li.xl+' XL' : ''}</div></div>`).join('');
+    const notes = [...new Set(r.total.notes)].map(n => `<div class="note">${esc(n)}</div>`).join('');
+    out.innerHTML = `<div class="head">
+        <div class="big">${esc(r.species)}</div>
+        <div class="sub">Level ${r.fromLevel} \u2192 ${r.targetLevel} \u00b7 CP ${r.cpBefore} \u2192 ${r.cpAfter} \u00b7 HP ${r.hpAfter} \u00b7 ${r.ivPercent}% IV</div>
+        <div class="totals">
+          <div><b>${money(r.total.dust)}</b><span>Stardust</span></div>
+          <div><b>${r.total.candy}</b><span>Candy</span></div>
+          <div><b>${r.total.xl}</b><span>XL Candy</span></div>
+        </div>
+      </div>
+      <div class="card">${items}</div>${notes}`;
+  } catch(e){ out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+});
+
+/* -------------------------------------------------------------- triage --- */
+let triFiles = [];
+wireDrop('triDrop', 'triFile', files => {
+  triFiles = [...files];
+  $('#triPicked').textContent = triFiles.length
+    ? `${triFiles.length} file${triFiles.length === 1 ? '' : 's'} ready` : '';
+});
+
+$('#t_go').addEventListener('click', async () => {
+  const out = $('#triOut');
+  if(!triFiles.length){ out.innerHTML = '<div class="note">Pick some screenshots or a recording first.</div>'; return; }
+  out.innerHTML = '<div class="empty">Reading\u2026</div>';
+  const names = $('#t_sp').value.split(',').map(s => s.trim());
+  const cap = num($('#t_cap').value);
+
+  let datas;
+  try {
+    datas = await toImageDataList(triFiles, p => {
+      out.innerHTML = `<div class="empty">Scanning the recording\u2026 ${p}%</div>`;
+    });
+  } catch(e){ out.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+
+  const entries = [], failures = [];
+  datas.forEach((d, i) => {
+    const sp = names[i] || null;
+    let bars;
+    try { bars = readBars(d); }
+    catch(e){ failures.push({index:i+1, reason:e.message}); return; }
+    const ivs = bars.map(b => b.iv);
+    const j = judge(ivs, sp, cap);
+    entries.push({index:i+1, ivs, ivPercent:ivPercent(ivs), species:sp, ...j});
+  });
+
+  const counts = {KEEP:0, TRANSFER:0, CHECK:0};
+  entries.forEach(e => counts[e.verdict]++);
+  const bits = [`${counts.TRANSFER} to transfer`, `${counts.KEEP} to keep`];
+  if(counts.CHECK) bits.push(`${counts.CHECK} needing a species`);
+  if(failures.length) bits.push(`${failures.length} unreadable`);
+
+  const colour = v => v === 'KEEP' ? 'var(--keep)' : v === 'TRANSFER' ? 'var(--berry)' : 'var(--amber)';
+  out.innerHTML = `<div class="head"><div class="big" style="font-size:22px">${bits.join(', ')}.</div></div>`
+    + entries.map(e => `<div class="card"><div class="verd">
+        <div class="what"><b>${e.ivs.join(' / ')}</b> <span style="color:var(--soft)">${e.ivPercent}%</span>
+          ${e.species ? `<span style="color:var(--soft)"> \u00b7 ${esc(e.species)}</span>` : ''}
+          <div class="sub">${esc(e.reasons.join(' '))}</div>
+          ${e.rank ? `<div class="sub">Best possible is ${e.rank.bestSpread.join('/')} at CP ${e.rank.bestCp}</div>` : ''}
+        </div>
+        <div class="tag" style="color:${colour(e.verdict)}">${e.verdict}</div>
+      </div></div>`).join('')
+    + (failures.length ? `<div class="note">Could not read ${failures.map(f => '#'+f.index).join(', ')}. Re-shoot those from the Appraise screen.</div>` : '');
+});
+
+/* ---------------------------------------------------------------- rank --- */
+$('#k_go').addEventListener('click', () => {
+  const out = $('#rankOut');
+  const sp = $('#k_sp').value.trim();
+  if(!sp){ $('#k_sp').focus(); return; }
+  out.innerHTML = '<div class="empty">Ranking 4,096 spreads\u2026</div>';
+  setTimeout(() => {
+    try {
+      const cap = num($('#k_cap').value);
+      const t = rankTable(sp, cap).slice(0, 15);
+      const best = rankTable(sp, cap)[0].prod;
+      const hundo = pvpRank(sp, [15,15,15], cap);
+      out.innerHTML = `<div class="head">
+          <div class="big" style="font-size:22px">${esc(title(sp))} at ${cap}</div>
+          <div class="sub">A hundo ranks ${hundo.rank} of ${hundo.of} here \u2014 ${hundo.percent}% of the best.</div>
+        </div><div class="card">`
+        + t.map((r, i) => `<div class="li"><div class="lbl">${i+1}. <b>${r.ivs.join(' / ')}</b>
+            <div class="sub">level ${r.level} \u00b7 CP ${r.cp}</div></div>
+          <div class="amt">${Math.round(r.prod / best * 10000) / 100}%</div></div>`).join('')
+        + '</div>';
+    } catch(e){ out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  }, 20);
+});
+
+/* ------------------------------------------------------------- filters --- */
+const PRESETS = [
+  ['Post-session cleanup', '!favorite&!#&!shiny&!shadow&!lucky&!legendary&!mythical&!costume&!4*&!3*&!dynamax&!defender&!buddy'],
+  ['Untagged review', '!#&!favorite'],
+  ['Great League candidates', 'cp-1500&0-1attack&3-4defense&3-4hp'],
+  ['Raid attackers', '4*,3*&4attack'],
+  ['Max Battle roster', 'dynamax&!#'],
+  ['Distance trade stock', 'distance100-&!favorite&!#&!shadow&!mythical&!lucky'],
+];
+
+function renderFilters(){
+  const saved = store.get('filters', PRESETS.map(([name, q]) => ({name, q})));
+  $('#fList').innerHTML = saved.length ? saved.map((f, i) => `<div class="card">
+      <div style="font-weight:600">${esc(f.name)}</div>
+      <div class="q">${esc(f.q)}</div>
+      <button class="ghost" data-copy="${i}">Copy</button>
+      <button class="quiet" data-del="${i}">Delete</button>
+    </div>`).join('') : '<div class="empty">No saved strings.</div>';
+  $('#fChips').innerHTML = PRESETS.filter(([n]) => !saved.some(s => s.name === n))
+    .map(([n], i) => `<button data-add="${n}">+ ${esc(n)}</button>`).join('');
+}
+
+$('#fChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-add]'); if(!b) return;
+  const p = PRESETS.find(([n]) => n === b.dataset.add);
+  const saved = store.get('filters', []);
+  saved.push({name:p[0], q:p[1]});
+  store.set('filters', saved); renderFilters();
+});
+
+$('#fList').addEventListener('click', async e => {
+  const saved = store.get('filters', PRESETS.map(([name, q]) => ({name, q})));
+  const c = e.target.closest('[data-copy]');
+  if(c){
+    try { await navigator.clipboard.writeText(saved[c.dataset.copy].q); c.textContent = 'Copied'; }
+    catch(err){ c.textContent = 'Copy failed'; }
+    setTimeout(() => { c.textContent = 'Copy'; }, 1400);
+    return;
+  }
+  const d = e.target.closest('[data-del]');
+  if(d){ saved.splice(d.dataset.del, 1); store.set('filters', saved); renderFilters(); }
+});
+
+$('#f_save').addEventListener('click', () => {
+  const name = $('#f_name').value.trim(), q = $('#f_q').value.trim();
+  if(!name || !q) return;
+  const saved = store.get('filters', []);
+  saved.push({name, q});
+  store.set('filters', saved);
+  $('#f_name').value = ''; $('#f_q').value = '';
+  renderFilters();
+});
+
+/* ---------------------------------------------------------------- tabs --- */
+document.querySelector('nav').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if(!b) return;
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-current', String(x === b)));
+  ['roster','plan','read','cost','more'].forEach(t => $('#tab-' + t).hidden = t !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+renderFilters();
+
+/* ================================================= roster, plan, backup ===
+   State lives in localStorage under one key per collection. Nothing here
+   talks to a network; the Backup section is how data moves between devices.
+   ======================================================================== */
+const SLOTS = ['attack','guard','spirit'];
+const SLOT_LABEL = {attack:'Attack', guard:'Guard', spirit:'Spirit'};
+
+const getRoster   = () => store.get('roster', []);
+const getLedger   = () => store.get('ledger', []);
+const getMoveCost = () => store.get('movecost', {});
+const balance     = () => getLedger().reduce((a, e) => a + e.d, 0);
+
+function saveWarn(ok){
+  if(!ok) alert('This browser refused to save. If you opened the file directly from disk, host it or add it to your Home Screen so storage works.');
+}
+
+/* --------------------------------------------------------------- roster --- */
+function renderRoster(){
+  const r = getRoster();
+  $('#rosterList').innerHTML = r.length ? r
+    .slice().sort((a,b) => a.pri - b.pri || a.sp.localeCompare(b.sp))
+    .map(m => {
+      const slots = SLOTS.map(sl => `<div style="border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center">
+          <div style="font-size:12px;color:var(--soft)">${SLOT_LABEL[sl]}</div>
+          <div style="font-weight:800;font-size:${m.mv[sl] ? '20px' : '13px'};margin:2px 0 5px;${m.mv[sl] ? '' : 'color:var(--soft)'}">${m.mv[sl] || 'Locked'}</div>
+          <div style="display:flex;gap:5px;justify-content:center">
+            <button data-mv="${m.id}" data-slot="${sl}" data-to="${m.mv[sl]-1}" ${m.mv[sl] <= 0 ? 'disabled' : ''} style="padding:3px 0;width:30px;background:var(--wash);color:var(--deep);border-radius:6px">&minus;</button>
+            <button data-mv="${m.id}" data-slot="${sl}" data-to="${m.mv[sl]+1}" ${m.mv[sl] >= 3 ? 'disabled' : ''} style="padding:3px 0;width:30px;background:var(--wash);color:var(--deep);border-radius:6px">+</button>
+          </div></div>`).join('');
+      return `<div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="font-weight:800;font-size:15px;width:26px;height:26px;flex:none;border-radius:7px;display:grid;place-items:center;background:var(--wash);color:var(--deep)">${m.pri}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600">${esc(m.nick || title(m.sp))}</div>
+            <div style="font-size:13px;color:var(--soft)">${esc(title(m.sp))} \u00b7 ${m.role}${m.cp ? ' \u00b7 CP ' + m.cp : ''}${m.fast ? ' \u00b7 ' + esc(m.fast) : ''}</div>
+          </div>
+          <button class="quiet" data-del-mon="${m.id}">Remove</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">${slots}</div>
+      </div>`;
+    }).join('')
+    : '<div class="empty">Nothing on the bench yet. Add the Pokémon you actually plan to build.</div>';
+}
+
+$('#m_add').addEventListener('click', () => {
+  const sp = $('#m_sp').value.trim();
+  if(!sp){ $('#m_sp').focus(); return; }
+  const form = $('#m_form').value;
+  const r = getRoster();
+  r.push({
+    id: Date.now(), sp: norm(sp), nick: $('#m_nick').value.trim() || null,
+    role: $('#m_role').value, form, fast: $('#m_fast').value.trim() || null,
+    cp: num($('#m_cp').value), pri: +$('#m_pri').value,
+    // Every Dynamax Pokemon starts with Max Attack at 1, the others locked.
+    mv: {attack: form === 'none' ? 0 : 1, guard: 0, spirit: 0}
+  });
+  saveWarn(store.set('roster', r));
+  ['m_sp','m_nick','m_fast','m_cp'].forEach(i => $('#' + i).value = '');
+  renderRoster(); renderPlan();
+});
+
+$('#rosterList').addEventListener('click', e => {
+  const mv = e.target.closest('[data-mv]');
+  if(mv){
+    const r = getRoster(), m = r.find(x => x.id == mv.dataset.mv);
+    m.mv[mv.dataset.slot] = Math.max(0, Math.min(3, +mv.dataset.to));
+    saveWarn(store.set('roster', r)); renderRoster(); renderPlan(); return;
+  }
+  const d = e.target.closest('[data-del-mon]');
+  if(d && confirm('Remove this one from the roster?')){
+    saveWarn(store.set('roster', getRoster().filter(x => x.id != d.dataset.delMon)));
+    renderRoster(); renderPlan();
+  }
+});
+
+/* ----------------------------------------------------------------- plan --- */
+function renderPlan(){
+  $('#balN').textContent = balance().toLocaleString();
+  const costs = getMoveCost();
+  const want = {attacker:'attack', defender:'guard', healer:'spirit'};
+  const steps = [];
+  for(const m of getRoster()){
+    if(m.form === 'none') continue;
+    for(const sl of SLOTS){
+      const lv = m.mv[sl];
+      if(lv >= 3) continue;
+      const key = `${m.sp}|${sl}|${lv+1}`;
+      const part = key in costs ? costs[key] : null;
+      steps.push({m, sl, lv, to: lv+1, part,
+                  onRole: want[m.role] === sl ? 0 : 1,
+                  afford: part !== null && part <= balance()});
+    }
+  }
+  steps.sort((a,b) => a.m.pri - b.m.pri || a.onRole - b.onRole
+                   || (a.part === null) - (b.part === null) || (a.part ?? 1e9) - (b.part ?? 1e9));
+
+  $('#planList').innerHTML = steps.length ? steps.slice(0, 12).map(s => {
+    const cls = s.part === null ? 'note' : (s.afford ? 'ok' : 'err');
+    const bg = s.part === null ? 'var(--amberwash);color:var(--amber)'
+             : s.afford ? 'var(--keepwash);color:var(--keep)' : '#FBE7EE;color:var(--berry)';
+    return `<div class="li"><div class="lbl">
+        <b>${esc(s.m.nick || title(s.m.sp))}</b> — Max ${SLOT_LABEL[s.sl]}
+        <div style="font-size:13px;color:var(--soft)">${s.lv === 0 ? 'Unlock' : `Level ${s.lv} \u2192 ${s.to}`} \u00b7 priority ${s.m.pri} \u00b7 ${s.m.role}</div>
+      </div>
+      <div class="amt" style="background:${bg};padding:5px 9px;border-radius:7px">${s.part === null ? 'cost?' : s.part.toLocaleString() + ' MP'}</div></div>`;
+  }).join('') : '<div class="empty">Nothing to build, or nothing on the roster yet.</div>';
+}
+
+$('#p_log').addEventListener('click', () => {
+  const d = num($('#p_delta').value);
+  if(!d) return;
+  const l = getLedger();
+  l.push({d, at: new Date().toISOString()});
+  saveWarn(store.set('ledger', l));
+  $('#p_delta').value = ''; renderPlan();
+});
+
+$('#mc_save').addEventListener('click', () => {
+  const sp = $('#mc_sp').value.trim(), part = num($('#mc_part').value);
+  if(!sp || part === null) return;
+  const c = getMoveCost();
+  c[`${norm(sp)}|${$('#mc_slot').value}|${$('#mc_lvl').value}`] = part;
+  saveWarn(store.set('movecost', c));
+  $('#mc_sp').value = ''; $('#mc_part').value = '';
+  renderPlan();
+});
+
+/* --------------------------------------------------------------- backup --- */
+$('#b_export').addEventListener('click', () => {
+  const dump = {
+    format: 'pogo-forge/1',
+    exported: new Date().toISOString(),
+    roster: getRoster(), ledger: getLedger(),
+    movecost: getMoveCost(), filters: store.get('filters', [])
+  };
+  const blob = new Blob([JSON.stringify(dump, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pogo-forge-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('#backupOut').innerHTML = '<div class="ok">Exported. Keep that file somewhere you\u2019ll find it.</div>';
+});
+
+wireDrop('importDrop', 'b_import', async files => {
+  const out = $('#backupOut');
+  try {
+    const d = JSON.parse(await files[0].text());
+    if(d.format !== 'pogo-forge/1') throw new Error('That file is not a pogo-forge backup.');
+    const n = (d.roster || []).length;
+    if(!confirm(`Replace this device's data with the backup? It has ${n} Pokémon on the roster.`)) return;
+    store.set('roster', d.roster || []);
+    store.set('ledger', d.ledger || []);
+    store.set('movecost', d.movecost || {});
+    store.set('filters', d.filters || []);
+    renderRoster(); renderPlan(); renderFilters();
+    out.innerHTML = `<div class="ok">Imported ${n} Pokémon and ${(d.ledger||[]).length} ledger entries.</div>`;
+  } catch(e){ out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+});
+
+/* Warn once if storage is unavailable — the usual cause is opening the file
+   straight off disk, where some browsers refuse to persist anything. */
+if(!store.set('probe', 1)){
+  document.querySelector('.app').insertAdjacentHTML('afterbegin',
+    '<div class="note">This browser will not save data here. Host the file, or add it to your Home Screen, and progress will stick.</div>');
+}
+
+renderRoster();
+renderPlan();
+
+</script>
+</body>
+</html>

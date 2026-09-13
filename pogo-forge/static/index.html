@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3F2C7A">
+<title>pogo-forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F4FB; --card:#fff; --ink:#231B33; --soft:#6E6584;
+  --violet:#6B4BC4; --deep:#3F2C7A; --wash:#EFE9FC; --line:#DFD8EE;
+  --berry:#A8305A; --keep:#1E7A5F; --keepwash:#E3F3ED; --amber:#8A6410; --amberwash:#FBF1D8;
+  --tab:64px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink)}
+body{font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.app{max-width:640px;margin:0 auto;padding:14px 14px calc(var(--tab) + env(safe-area-inset-bottom) + 24px)}
+
+h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:26px;letter-spacing:-.025em;margin:4px 0 2px}
+h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:19px;letter-spacing:-.015em;margin:22px 0 8px}
+.tagline{color:var(--soft);font-size:14px;margin:0 0 6px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+/* balance banner */
+.balance{background:var(--deep);color:#fff;border-radius:12px;padding:16px;margin-bottom:14px}
+.balance .n{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em}
+.balance .l{font-size:14px;color:rgba(255,255,255,.7);margin-top:2px}
+.balance .row{display:flex;gap:8px;margin-top:12px}
+.balance input{flex:1;min-width:0}
+.balance button{flex:none}
+
+/* forms */
+input,select,textarea{font:inherit;width:100%;border:1px solid var(--line);border-radius:9px;padding:11px;background:var(--paper);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--violet);outline-offset:1px;border-color:transparent}
+.balance input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
+.balance input::placeholder{color:rgba(255,255,255,.55)}
+label span{display:block;font-size:13px;font-weight:500;color:var(--soft);margin:10px 0 4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 8px}
+
+button{font:inherit;font-weight:600;border:0;border-radius:9px;padding:11px 16px;cursor:pointer;background:var(--violet);color:#fff}
+button:active{transform:translateY(1px)}
+button.ghost{background:var(--wash);color:var(--deep)}
+button.quiet{background:transparent;color:var(--soft);font-weight:400;padding:6px 8px}
+button.wide{width:100%;margin-top:14px}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* roster */
+.mon{display:flex;gap:12px;align-items:flex-start}
+.mon .pri{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:15px;width:26px;height:26px;flex:none;border-radius:7px;display:grid;place-items:center;background:var(--wash);color:var(--deep)}
+.mon .who{flex:1;min-width:0}
+.mon .nm{font-weight:600}
+.mon .meta{font-size:13px;color:var(--soft)}
+.slots{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.slot{border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center}
+.slot b{display:block;font-size:12px;font-weight:500;color:var(--soft)}
+.slot .lv{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:20px;margin:2px 0 5px}
+.slot .lv.locked{color:var(--soft);font-size:13px;font-weight:600;padding:4px 0}
+.slot .pm{display:flex;gap:5px;justify-content:center}
+.slot .pm button{padding:3px 0;width:30px;font-size:15px;background:var(--wash);color:var(--deep);border-radius:6px}
+
+/* plan */
+.step{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .what{flex:1;min-width:0}
+.step .what b{font-weight:600}
+.step .sub{font-size:13px;color:var(--soft)}
+.cost{font-family:"IBM Plex Mono",monospace;font-size:13px;flex:none;text-align:right;padding:5px 9px;border-radius:7px}
+.cost.yes{background:var(--keepwash);color:var(--keep)}
+.cost.no{background:#FBE7EE;color:var(--berry)}
+.cost.unk{background:var(--amberwash);color:var(--amber)}
+
+/* filters */
+.fil .q{font-family:"IBM Plex Mono",monospace;font-size:13px;word-break:break-all;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px;margin:8px 0}
+.fil .nm{font-weight:600;display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--berry);flex:none}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.chips button{font-size:13px;font-weight:400;padding:7px 13px;border-radius:99px;background:var(--card);color:var(--deep);border:1px solid var(--line)}
+.row{display:flex;gap:8px}
+.row button{flex:none}
+
+.empty{color:var(--soft);text-align:center;padding:26px 12px;font-size:15px}
+.warn{background:var(--amberwash);color:var(--amber);border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+
+/* cost readout */
+.res .head{background:var(--deep);color:#fff;border-radius:12px;padding:16px;margin-bottom:10px}
+.res .head .sp{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:24px;letter-spacing:-.02em}
+.res .head .arrow{font-size:15px;color:rgba(255,255,255,.75);margin-top:4px}
+.res .totals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.res .totals div{background:rgba(255,255,255,.12);border-radius:9px;padding:9px;text-align:center}
+.res .totals b{display:block;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:19px}
+.res .totals span{font-size:12px;color:rgba(255,255,255,.7)}
+.li{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.li:last-child{border-bottom:0}
+.li .lbl{flex:1}
+.li .amt{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--soft);text-align:right;white-space:nowrap}
+.note{background:var(--amberwash);color:var(--amber);border-radius:8px;padding:9px 11px;font-size:14px;margin-top:8px}
+.err{background:#FBE7EE;color:var(--berry);border-radius:10px;padding:14px;font-size:15px}
+
+/* drop zones */
+.drop{display:block;border:2px dashed var(--line);border-radius:11px;padding:18px 14px;text-align:center;color:var(--soft);font-size:14px;transition:border-color .15s,background .15s;cursor:pointer}
+.drop:hover{border-color:var(--violet)}
+.drop.over{border-color:var(--violet);background:var(--wash);color:var(--deep)}
+.drop b{display:block;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);font-weight:600;font-size:15px;margin-bottom:3px}
+.drop input{display:none}
+.picked{font-size:14px;color:var(--deep);margin-top:8px;font-weight:500}
+
+/* tabs */
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:30}
+nav button{flex:1;background:transparent;color:var(--soft);font-weight:500;font-size:14px;border-radius:0;height:var(--tab)}
+nav button[aria-current="true"]{color:var(--deep);box-shadow:inset 0 -3px 0 var(--violet)}
+section[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ================================================================ ROSTER -->
+<section id="tab-roster">
+  <h1>Roster</h1>
+  <p class="tagline">Your Max Battle bench. Nothing here syncs — it's what you tell it.</p>
+  <div id="rosterList"></div>
+  <details class="card" id="addBox">
+    <summary style="cursor:pointer;font-weight:600">Add a Pokémon</summary>
+    <label><span>Species</span><input id="f_species" placeholder="Gardevoir" autocomplete="off"></label>
+    <div class="two">
+      <label><span>Nickname</span><input id="f_nick" placeholder="optional" autocomplete="off"></label>
+      <label><span>Fast move type</span><input id="f_fast" placeholder="fairy" autocomplete="off"></label>
+    </div>
+    <div class="two">
+      <label><span>Role</span><select id="f_role">
+        <option value="attacker">Attacker</option>
+        <option value="defender">Defender / tank</option>
+        <option value="healer">Healer</option>
+        <option value="bench">Bench</option>
+      </select></label>
+      <label><span>Form</span><select id="f_form">
+        <option value="dynamax">Dynamax</option>
+        <option value="gigantamax">Gigantamax</option>
+        <option value="none">Neither</option>
+      </select></label>
+    </div>
+    <div class="two">
+      <label><span>CP</span><input id="f_cp" inputmode="numeric" placeholder="1842" autocomplete="off"></label>
+      <label><span>Priority (1 = build first)</span><select id="f_pri">
+        <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+      </select></label>
+    </div>
+    <div class="three">
+      <label><span>Atk IV</span><input id="f_ia" inputmode="numeric" placeholder="0–15" autocomplete="off"></label>
+      <label><span>Def IV</span><input id="f_id" inputmode="numeric" placeholder="0–15" autocomplete="off"></label>
+      <label><span>HP IV</span><input id="f_ih" inputmode="numeric" placeholder="0–15" autocomplete="off"></label>
+    </div>
+    <button class="wide" id="addBtn">Add to roster</button>
+  </details>
+</section>
+
+<!-- ================================================================== PLAN -->
+<section id="tab-plan" hidden>
+  <h1>Plan</h1>
+  <div class="balance">
+    <div class="n" id="balN">0</div>
+    <div class="l">Max Particles on hand</div>
+    <div class="row">
+      <input id="p_delta" inputmode="numeric" placeholder="+300 or -400">
+      <button class="ghost" id="p_log">Log</button>
+    </div>
+  </div>
+  <div class="warn">Upgrade costs vary by species and aren't published anywhere reliable. Enter each one the first time you see it in the app; steps with no recorded cost show as unknown rather than a guess.</div>
+  <h2>Next steps</h2>
+  <div class="card" id="planList"></div>
+  <details class="card">
+    <summary style="cursor:pointer;font-weight:600">Record an upgrade cost</summary>
+    <label><span>Species</span><input id="c_species" placeholder="gardevoir" autocomplete="off"></label>
+    <div class="two">
+      <label><span>Slot</span><select id="c_slot">
+        <option value="attack">Max Attack</option>
+        <option value="guard">Max Guard</option>
+        <option value="spirit">Max Spirit</option>
+      </select></label>
+      <label><span>To level</span><select id="c_lvl"><option>1</option><option>2</option><option>3</option></select></label>
+    </div>
+    <div class="three">
+      <label><span>Particles</span><input id="c_part" inputmode="numeric" autocomplete="off"></label>
+      <label><span>Candy</span><input id="c_candy" inputmode="numeric" autocomplete="off"></label>
+      <label><span>Candy XL</span><input id="c_xl" inputmode="numeric" autocomplete="off"></label>
+    </div>
+    <button class="wide" id="costBtn">Save cost</button>
+  </details>
+</section>
+
+<!-- ================================================================== COST -->
+<section id="tab-cost" hidden>
+  <h1>Cost</h1>
+  <p class="tagline">Where it is now, where you want it, what that costs. Numbers come from the game's own tables.</p>
+
+  <div class="card" id="scanCard">
+    <div style="font-weight:600;margin-bottom:6px">Read IVs from a screenshot</div>
+    <div style="font-size:14px;color:var(--soft);margin-bottom:10px">Use the Appraise screen with all three bars visible. Fill in species, CP and HP first and the reading gets checked against them.</div>
+    <label class="drop" id="scanDrop">
+      <b>Choose a screenshot</b>
+      Or drag one in, or paste from the clipboard
+      <input type="file" id="scanFile" accept="image/*">
+    </label>
+    <div id="scanOut"></div>
+  </div>
+
+  <div class="card">
+    <label><span>Species</span><input id="k_species" placeholder="Ralts" autocomplete="off" list="speciesList"></label>
+    <datalist id="speciesList"></datalist>
+    <div class="three">
+      <label><span>Atk IV</span><input id="k_ia" inputmode="numeric" value="15"></label>
+      <label><span>Def IV</span><input id="k_id" inputmode="numeric" value="15"></label>
+      <label><span>HP IV</span><input id="k_ih" inputmode="numeric" value="15"></label>
+    </div>
+    <div class="two">
+      <label><span>Current CP</span><input id="k_cp" inputmode="numeric" placeholder="296"></label>
+      <label><span>Current HP</span><input id="k_hp" inputmode="numeric" placeholder="66"></label>
+    </div>
+    <div class="two">
+      <label><span>Current level</span><input id="k_from" inputmode="decimal" value="20"></label>
+      <label><span>Evolve to (optional)</span><input id="k_evo" placeholder="Gardevoir" autocomplete="off"></label>
+    </div>
+    <label><span>Goal</span><select id="k_goal">
+      <option value="cp_cap">Highest level under a CP cap</option>
+      <option value="level">A specific level</option>
+      <option value="max">Maximum level</option>
+    </select></label>
+    <div id="goalExtra">
+      <label id="wrap_cap"><span>CP cap</span><select id="k_cap">
+        <option value="1500">1500 — Great League</option>
+        <option value="2500">2500 — Ultra League</option>
+        <option value="500">500 — Little Cup</option>
+      </select></label>
+      <label id="wrap_lvl" hidden><span>Target level</span><input id="k_lvl" inputmode="decimal" value="40"></label>
+    </div>
+    <label style="display:flex;gap:9px;align-items:center;margin-top:14px">
+      <input type="checkbox" id="k_move" style="width:18px;height:18px;accent-color:var(--violet)">
+      <span style="margin:0;color:var(--ink);font-size:15px">Also unlock the second charged move</span>
+    </label>
+    <div class="two" style="margin-top:4px">
+      <label style="display:flex;gap:9px;align-items:center;margin-top:10px">
+        <input type="checkbox" id="k_shadow" style="width:18px;height:18px;accent-color:var(--berry)">
+        <span style="margin:0;color:var(--ink);font-size:15px">Shadow</span>
+      </label>
+      <label style="display:flex;gap:9px;align-items:center;margin-top:10px">
+        <input type="checkbox" id="k_pure" style="width:18px;height:18px;accent-color:var(--keep)">
+        <span style="margin:0;color:var(--ink);font-size:15px">Purified</span>
+      </label>
+    </div>
+    <button class="wide" id="costGo">Work out the cost</button>
+  </div>
+
+  <div id="costOut"></div>
+</section>
+
+<!-- ================================================================ TRIAGE -->
+<section id="tab-triage" hidden>
+  <h1>Triage</h1>
+  <p class="tagline">Drop in screenshots, or one screen recording of you swiping through the Appraise screen. Get one verdict each.</p>
+
+  <div class="card">
+    <label class="drop" id="triDrop">
+      <b>Choose screenshots or a recording</b>
+      Or drag them in, or paste from the clipboard
+      <input type="file" id="triFiles" accept="image/*,video/*" multiple>
+    </label>
+    <div class="picked" id="triPicked"></div>
+    <label><span>Species, in order (optional)</span><input id="triSpecies" placeholder="azumarill, , medicham" autocomplete="off"></label>
+    <small style="color:var(--soft);font-size:13px;display:block;margin-top:4px">Leave any blank. Naming one upgrades it from a shape-based verdict to an exact PvP rank.</small>
+    <label><span>League cap</span><select id="triCap">
+      <option value="1500">1500 — Great</option>
+      <option value="2500">2500 — Ultra</option>
+    </select></label>
+    <button class="wide" id="triGo">Read them all</button>
+  </div>
+
+  <div id="triOut"></div>
+</section>
+
+<!-- =============================================================== FILTERS -->
+<section id="tab-filters" hidden>
+  <h1>Filters</h1>
+  <p class="tagline">Search strings for the in-game bar. A red dot means the string is used before a bulk transfer.</p>
+  <div class="chips" id="chips"></div>
+  <div id="filterList"></div>
+  <details class="card">
+    <summary style="cursor:pointer;font-weight:600">Save a new string</summary>
+    <label><span>Name</span><input id="s_name" placeholder="Sunday cleanup" autocomplete="off"></label>
+    <label><span>Search string</span><textarea id="s_query" rows="3" class="mono" placeholder="!favorite&amp;!#&amp;!shiny" autocomplete="off"></textarea></label>
+    <label><span>Note</span><input id="s_note" placeholder="what it's for" autocomplete="off"></label>
+    <label style="display:flex;gap:9px;align-items:center;margin-top:12px">
+      <input type="checkbox" id="s_dest" style="width:18px;height:18px;accent-color:var(--berry)">
+      <span style="margin:0;color:var(--ink);font-size:15px">I transfer from this result</span>
+    </label>
+    <button class="wide" id="saveFilterBtn">Save string</button>
+  </details>
+</section>
+
+</div>
+
+<nav>
+  <button data-tab="roster" aria-current="true">Roster</button>
+  <button data-tab="plan">Plan</button>
+  <button data-tab="cost">Cost</button>
+  <button data-tab="triage">Triage</button>
+  <button data-tab="filters">Filters</button>
+</nav>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (path, opts={}) => {
+  const r = await fetch('/api' + path, {
+    headers:{'Content-Type':'application/json'}, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+};
+const num = v => { const n = parseInt(v,10); return Number.isFinite(n) ? n : null; };
+const esc = s => (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SLOT_LABEL = {attack:'Attack', guard:'Guard', spirit:'Spirit'};
+
+/* ------------------------------------------------------------- roster --- */
+async function loadRoster(){
+  const mons = await api('/roster');
+  const el = $('#rosterList');
+  if(!mons.length){
+    el.innerHTML = '<div class="empty">Nothing on the bench yet. Add the Pokémon you actually plan to build.</div>';
+    return;
+  }
+  el.innerHTML = mons.map(m => {
+    const iv = m.iv_pct !== null ? `${m.iv_pct}%` : 'IVs not set';
+    const slots = ['attack','guard','spirit'].map(s => {
+      const lv = m.moves[s];
+      return `<div class="slot">
+        <b>${SLOT_LABEL[s]}</b>
+        ${lv === 0 ? '<div class="lv locked">Locked</div>' : `<div class="lv">${lv}</div>`}
+        <div class="pm">
+          <button data-mv="${m.id}" data-slot="${s}" data-lv="${lv-1}" ${lv<=0?'disabled':''}>−</button>
+          <button data-mv="${m.id}" data-slot="${s}" data-lv="${lv+1}" ${lv>=3?'disabled':''}>+</button>
+        </div></div>`;
+    }).join('');
+    return `<div class="card">
+      <div class="mon">
+        <div class="pri">${m.priority}</div>
+        <div class="who">
+          <div class="nm">${esc(m.nickname || m.species)}</div>
+          <div class="meta">${esc(m.species)} · ${m.role}${m.cp?' · CP '+m.cp:''} · ${iv}${m.fast_type?' · '+esc(m.fast_type):''}</div>
+        </div>
+        <button class="quiet" data-arch="${m.id}">Archive</button>
+      </div>
+      <div class="slots">${slots}</div>
+    </div>`;
+  }).join('');
+}
+
+$('#rosterList').addEventListener('click', async e => {
+  const mv = e.target.closest('[data-mv]');
+  if(mv){
+    await api(`/roster/${mv.dataset.mv}/move`, {method:'PUT',
+      body:{slot: mv.dataset.slot, level: +mv.dataset.lv}});
+    await loadRoster(); loadPlan(); return;
+  }
+  const ar = e.target.closest('[data-arch]');
+  if(ar && confirm('Archive this one? It leaves the plan but stays in the database.')){
+    await api('/roster/' + ar.dataset.arch, {method:'DELETE'});
+    await loadRoster(); loadPlan();
+  }
+});
+
+$('#addBtn').addEventListener('click', async () => {
+  const species = $('#f_species').value.trim();
+  if(!species){ $('#f_species').focus(); return; }
+  await api('/roster', {method:'POST', body:{
+    species, nickname:$('#f_nick').value.trim() || null,
+    role:$('#f_role').value, max_form:$('#f_form').value,
+    fast_type:$('#f_fast').value.trim() || null,
+    cp:num($('#f_cp').value), iv_atk:num($('#f_ia').value),
+    iv_def:num($('#f_id').value), iv_hp:num($('#f_ih').value),
+    priority:+$('#f_pri').value
+  }});
+  ['f_species','f_nick','f_fast','f_cp','f_ia','f_id','f_ih'].forEach(i=>$('#'+i).value='');
+  $('#addBox').open = false;
+  loadRoster(); loadPlan();
+});
+
+/* --------------------------------------------------------------- plan --- */
+async function loadPlan(){
+  const {balance, steps} = await api('/plan');
+  $('#balN').textContent = balance.toLocaleString();
+  const el = $('#planList');
+  if(!steps.length){
+    el.innerHTML = '<div class="empty">Nothing left to build, or nothing on the roster yet.</div>';
+    return;
+  }
+  el.innerHTML = steps.slice(0, 12).map(s => {
+    const cls = s.particles === null ? 'unk' : (s.affordable ? 'yes' : 'no');
+    const cost = s.particles === null ? 'cost?' : s.particles.toLocaleString() + ' MP';
+    const verb = s.action === 'unlock' ? 'Unlock' : `Level ${s.from_level} → ${s.to_level}`;
+    return `<div class="step">
+      <div class="what">
+        <b>${esc(s.nickname || s.species)}</b> — Max ${SLOT_LABEL[s.slot]}
+        <div class="sub">${verb} · priority ${s.priority} · ${s.role}</div>
+      </div>
+      <div class="cost ${cls}">${cost}</div>
+    </div>`;
+  }).join('');
+}
+
+$('#p_log').addEventListener('click', async () => {
+  const d = num($('#p_delta').value);
+  if(d === null || d === 0) return;
+  await api('/particles', {method:'POST',
+    body:{delta:d, reason: d > 0 ? 'collected' : 'spent'}});
+  $('#p_delta').value = '';
+  loadPlan();
+});
+
+$('#costBtn').addEventListener('click', async () => {
+  const sp = $('#c_species').value.trim();
+  const pt = num($('#c_part').value);
+  if(!sp || pt === null) return;
+  await api('/costs', {method:'POST', body:{
+    species:sp, slot:$('#c_slot').value, to_level:+$('#c_lvl').value,
+    particles:pt, candy:num($('#c_candy').value) || 0, candy_xl:num($('#c_xl').value) || 0
+  }});
+  ['c_species','c_part','c_candy','c_xl'].forEach(i=>$('#'+i).value='');
+  loadPlan();
+});
+
+/* ------------------------------------------------------------ filters --- */
+const PRESETS = [
+  {name:'Post-session cleanup', destructive:true,
+   query:'!favorite&!#&!shiny&!shadow&!lucky&!legendary&!mythical&!costume&!4*&!3*&!dynamax&!defender&!buddy',
+   note:'Everything protected. Safe to select-all after a scan.'},
+  {name:'Untagged review', destructive:false,
+   query:'!#&!favorite', note:'Tonight\u2019s catches that still need a verdict.'},
+  {name:'Great League candidates', destructive:false,
+   query:'cp-1500&0-1attack&3-4defense&3-4hp', note:'Low attack, high bulk, under the cap.'},
+  {name:'Raid attackers', destructive:false,
+   query:'4*,3*&4attack', note:'Three star or better with max attack.'},
+  {name:'Max Battle roster', destructive:false,
+   query:'dynamax&!#', note:'Dynamax-capable and not yet sorted.'},
+  {name:'Distance trade stock', destructive:false,
+   query:'distance100-&!favorite&!#&!shadow&!mythical&!lucky', note:'Great-Distance bonus eligible.'},
+];
+
+async function loadFilters(){
+  const fs = await api('/filters');
+  $('#chips').innerHTML = PRESETS
+    .filter(p => !fs.some(f => f.name === p.name))
+    .map((p,i) => `<button data-preset="${i}">+ ${esc(p.name)}</button>`).join('');
+  const el = $('#filterList');
+  if(!fs.length){
+    el.innerHTML = '<div class="empty">No saved strings. Tap one above to start from a preset.</div>';
+    return;
+  }
+  el.innerHTML = fs.map(f => `<div class="card fil">
+    <div class="nm">${f.destructive?'<span class="dot"></span>':''}${esc(f.name)}</div>
+    ${f.note ? `<div class="meta" style="font-size:13px;color:var(--soft)">${esc(f.note)}</div>` : ''}
+    <div class="q">${esc(f.query)}</div>
+    <div class="row">
+      <button class="ghost" data-copy="${esc(f.query)}" data-fid="${f.id}">Copy</button>
+      <button class="quiet" data-del="${f.id}">Delete</button>
+      ${f.last_run ? `<span class="quiet" style="align-self:center;font-size:13px;color:var(--soft)">ran ${f.last_run.slice(0,10)}</span>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+$('#chips').addEventListener('click', async e => {
+  const b = e.target.closest('[data-preset]'); if(!b) return;
+  await api('/filters', {method:'POST', body: PRESETS[+b.dataset.preset]});
+  loadFilters();
+});
+
+$('#filterList').addEventListener('click', async e => {
+  const c = e.target.closest('[data-copy]');
+  if(c){
+    try{ await navigator.clipboard.writeText(c.dataset.copy); c.textContent = 'Copied'; }
+    catch{ c.textContent = 'Copy failed'; }
+    api(`/filters/${c.dataset.fid}/ran`, {method:'POST'}).then(loadFilters);
+    setTimeout(()=>{ c.textContent = 'Copy'; }, 1400);
+    return;
+  }
+  const d = e.target.closest('[data-del]');
+  if(d && confirm('Delete this saved string?')){
+    await api('/filters/' + d.dataset.del, {method:'DELETE'});
+    loadFilters();
+  }
+});
+
+$('#saveFilterBtn').addEventListener('click', async () => {
+  const name = $('#s_name').value.trim(), query = $('#s_query').value.trim();
+  if(!name || !query) return;
+  await api('/filters', {method:'POST', body:{
+    name, query, note:$('#s_note').value.trim() || null, destructive:$('#s_dest').checked
+  }});
+  ['s_name','s_query','s_note'].forEach(i=>$('#'+i).value='');
+  $('#s_dest').checked = false;
+  loadFilters();
+});
+
+/* ---------------------------------------------------------------- cost --- */
+$('#k_goal').addEventListener('change', () => {
+  const g = $('#k_goal').value;
+  $('#wrap_cap').hidden = g !== 'cp_cap';
+  $('#wrap_lvl').hidden = g !== 'level';
+});
+
+let typeAhead;
+$('#k_species').addEventListener('input', () => {
+  clearTimeout(typeAhead);
+  typeAhead = setTimeout(async () => {
+    const q = $('#k_species').value.trim();
+    if(q.length < 2) return;
+    const hits = await api('/species?q=' + encodeURIComponent(q));
+    $('#speciesList').innerHTML = hits.map(h => `<option value="${esc(h.name)}">`).join('');
+  }, 180);
+});
+
+$('#costGo').addEventListener('click', async () => {
+  const out = $('#costOut');
+  const species = $('#k_species').value.trim();
+  if(!species){ $('#k_species').focus(); return; }
+  out.innerHTML = '<div class="empty">Working it out\u2026</div>';
+
+  const goal = $('#k_goal').value;
+  const r = await api('/cost', {method:'POST', body:{
+    species,
+    iv_atk:num($('#k_ia').value) ?? 15,
+    iv_def:num($('#k_id').value) ?? 15,
+    iv_hp:num($('#k_ih').value) ?? 15,
+    from_level:parseFloat($('#k_from').value) || 1,
+    goal,
+    target_level: goal === 'level' ? parseFloat($('#k_lvl').value) : null,
+    cp_cap: goal === 'cp_cap' ? num($('#k_cap').value) : null,
+    evolve_to: $('#k_evo').value.trim() || null,
+    second_move: $('#k_move').checked,
+    shadow: $('#k_shadow').checked,
+    purified: $('#k_pure').checked
+  }});
+
+  if(r.error){ out.innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
+
+  const t = r.total;
+  const money = n => n.toLocaleString();
+  const items = r.line_items.map(li => `<div class="li">
+      <div class="lbl">${esc(li.label)}</div>
+      <div class="amt">${li.dust ? money(li.dust)+' dust' : ''}${li.candy ? '<br>'+li.candy+' candy' : ''}${li.xl_candy ? '<br>'+li.xl_candy+' XL' : ''}</div>
+    </div>`).join('');
+  const notes = (t.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join('');
+
+  out.innerHTML = `<div class="res">
+    <div class="head">
+      <div class="sp">${esc(r.species)}</div>
+      <div class="arrow">Level ${r.from_level} \u2192 ${r.target_level} \u00b7 CP ${r.cp_before} \u2192 ${r.cp_after} \u00b7 HP ${r.hp_after} \u00b7 ${r.iv_percent}% IV</div>
+      <div class="totals">
+        <div><b>${money(t.dust)}</b><span>Stardust</span></div>
+        <div><b>${t.candy}</b><span>Candy</span></div>
+        <div><b>${t.xl_candy}</b><span>XL Candy</span></div>
+      </div>
+    </div>
+    <div class="card">${items}</div>
+    ${notes}
+  </div>`;
+});
+
+/* -------------------------------------------------------------- scanner --- */
+$('#scanFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  const out = $('#scanOut');
+  if(!file) return;
+  const species = $('#k_species').value.trim();
+  if(!species){ out.innerHTML = '<div class="note">Enter the species first \u2014 the reading is checked against it.</div>'; return; }
+
+  out.innerHTML = '<div class="empty">Reading the bars\u2026</div>';
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('species', species);
+  const cp = num($('#k_cp').value), hp = num($('#k_hp').value);
+  if(cp !== null) fd.append('cp', cp);
+  if(hp !== null) fd.append('hp', hp);
+
+  let r;
+  try{ r = await (await fetch('/api/appraise', {method:'POST', body:fd})).json(); }
+  catch(err){ out.innerHTML = '<div class="err">Upload failed.</div>'; return; }
+
+  if(r.error){ out.innerHTML = '<div class="err">' + esc(r.error) + '</div>'; return; }
+
+  $('#k_ia').value = r.ivs[0];
+  $('#k_id').value = r.ivs[1];
+  $('#k_ih').value = r.ivs[2];
+  if(r.levels && r.levels.length) $('#k_from').value = r.levels[0];
+
+  const meas = r.measurements.map(m =>
+    '<div class="li"><div class="lbl">' + m.stat + '</div><div class="amt">IV ' + m.iv + ' &nbsp;(measured ' + m.raw + ')</div></div>').join('');
+  const badge = r.verified
+    ? '<div class="verdict safe" style="margin:10px 0 0">' + esc(r.note) + '</div>'
+    : '<div class="note">' + esc(r.note || '') + '</div>';
+  out.innerHTML = '<div style="margin-top:12px">'
+    + '<div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em">'
+    + r.ivs.join(' / ') + ' <span style="font-size:16px;color:var(--soft);font-weight:400">' + r.iv_percent + '%</span></div>'
+    + meas + badge
+    + (r.warning ? '<div class="note">' + esc(r.warning) + '</div>' : '')
+    + '</div>';
+});
+
+/* --------------------------------------------------------------- triage --- */
+const VERDICT_STYLE = {KEEP:'keep', TRANSFER:'berry', CHECK:'amber'};
+
+$('#triGo').addEventListener('click', async () => {
+  const files = $('#triFiles').files;
+  const out = $('#triOut');
+  if(!files.length){ out.innerHTML = '<div class="note">Pick some screenshots or a recording first.</div>'; return; }
+
+  out.innerHTML = '<div class="empty">Reading\u2026 a recording takes a moment.</div>';
+  const fd = new FormData();
+  for(const f of files) fd.append('files', f);
+  fd.append('species', $('#triSpecies').value);
+  fd.append('cap', $('#triCap').value);
+
+  let r;
+  try{ r = await (await fetch('/api/triage', {method:'POST', body:fd})).json(); }
+  catch(err){ out.innerHTML = '<div class="err">Upload failed.</div>'; return; }
+  if(r.error){ out.innerHTML = '<div class="err">' + esc(r.error) + '</div>'; return; }
+
+  const head = '<div class="head" style="background:var(--deep);color:#fff;border-radius:12px;padding:16px;margin-bottom:10px">'
+    + '<div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.02em">'
+    + esc(r.summary) + '</div></div>';
+
+  const rows = r.entries.map(e => {
+    const colour = e.verdict === 'KEEP' ? 'var(--keep)'
+                 : e.verdict === 'TRANSFER' ? 'var(--berry)' : 'var(--amber)';
+    const rank = e.pvp_rank
+      ? '<div class="sub">PvP rank ' + e.pvp_rank.rank + ' of ' + e.pvp_rank.of
+        + ' \u00b7 ' + e.pvp_rank.percent + '% \u00b7 best is '
+        + e.pvp_rank.best_spread.join('/') + '</div>' : '';
+    return '<div class="card"><div class="step" style="border:0;padding:0">'
+      + '<div class="what"><b>' + e.ivs.join(' / ') + '</b> '
+      + '<span style="color:var(--soft)">' + e.iv_percent + '%</span>'
+      + (e.species ? ' <span style="color:var(--soft)">\u00b7 ' + esc(e.species) + '</span>' : '')
+      + '<div class="sub">' + esc(e.reasons.join(' ')) + '</div>' + rank
+      + (e.warning ? '<div class="note">' + esc(e.warning) + '</div>' : '')
+      + '</div>'
+      + '<div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:13px;color:' + colour + '">'
+      + e.verdict + '</div></div></div>';
+  }).join('');
+
+  const fails = (r.failures || []).length
+    ? '<div class="note">Could not read ' + r.failures.length + ': '
+      + r.failures.map(f => '#' + f.index).join(', ')
+      + '. Re-shoot those from the Appraise screen.</div>' : '';
+
+  out.innerHTML = head + rows + fails;
+});
+
+/* ------------------------------------------------------------- dropzones --- */
+function wireDrop(zoneId, inputId, onSet){
+  const zone = $('#' + zoneId), input = $('#' + inputId);
+  const accept = list => {
+    if(!list || !list.length) return;
+    const dt = new DataTransfer();
+    for(const f of list) dt.items.add(f);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', {bubbles:true}));
+    if(onSet) onSet(dt.files);
+  };
+  ['dragenter','dragover'].forEach(ev =>
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev =>
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', e => accept(e.dataTransfer.files));
+  // Paste works anywhere on the tab this zone belongs to.
+  zone.closest('section').addEventListener('paste', e => {
+    const imgs = [...(e.clipboardData?.files || [])].filter(f => /^(image|video)\//.test(f.type));
+    if(imgs.length){ e.preventDefault(); accept(imgs); }
+  });
+  input.addEventListener('change', () => onSet && onSet(input.files));
+}
+
+wireDrop('scanDrop', 'scanFile');
+wireDrop('triDrop', 'triFiles', files => {
+  $('#triPicked').textContent = files.length
+    ? files.length + (files.length === 1 ? ' file ready' : ' files ready') : '';
+});
+
+/* ---------------------------------------------------------------- tabs --- */
+document.querySelector('nav').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if(!b) return;
+  document.querySelectorAll('nav button').forEach(x =>
+    x.setAttribute('aria-current', String(x === b)));
+  ['roster','plan','cost','triage','filters'].forEach(t =>
+    $('#tab-' + t).hidden = (t !== b.dataset.tab));
+  window.scrollTo(0,0);
+});
+
+loadRoster(); loadPlan(); loadFilters();
+</script>
+</body>
+</html>
