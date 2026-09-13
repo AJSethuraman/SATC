@@ -192,6 +192,12 @@ def test_replay_page_from_a_bundle_shows_every_recorded_event_in_order(tmp_path)
     out = tmp_path / "full.html"
     assert replay_page.main([str(bundle_path), str(out)]) == 0
     assert out.read_text(encoding="utf-8") == page
+    # a note about the rules the match was played under goes into the lede and nowhere else
+    noted = replay_page.build_from_bundle(bundle, "Played under the July ending rule.")
+    assert noted.count("Played under the July ending rule.") == 1
+    assert noted.replace("Played under the July ending rule.", "").replace(" ", "") == page.replace(" ", "")
+    assert replay_page.main([str(bundle_path), str(out), "--note", "Played under the July ending rule."]) == 0
+    assert out.read_text(encoding="utf-8") == noted
 
 
 if __name__ == "__main__":

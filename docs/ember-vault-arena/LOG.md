@@ -5,6 +5,51 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 13 September 2026, 18:55Z — "I thought we said no extraction wins": D8 stands, the engine lags by D7, and the collision goes on the docket as D9
+
+The firm, 18:4xZ, watching the real match: *"I thought we said no
+extraction wins."*
+
+They did. D8, 12 September 19:47Z, *"Different ending rule, bigger world
+too"*: taking the Crown out no longer ends the match; it runs its
+forty-eight rounds and whoever holds the Crown when the last round
+resolves wins (PRD §5 item 4). The match on the page was played at 08:35Z
+that morning, about eleven hours before the ruling, on the engine as it
+stood and still stands: `engine.py:_crown_extract` ends a match on a legal
+extraction, which is why the record says `ended_reason: extraction` at
+round 16 and the page repeats it. The code has not caught up by the
+firm's own ordering, not by oversight: the 20:05Z entry put the engine
+change in M3 with the rest of the bigger world, on the mock first, and
+D7 (*"Readers later, M3 waits"*) keeps M3 shut until the gate is read.
+
+What follows for the watching: rounds 1 to 16 are real under either
+rule, since nothing before the extraction depends on how a match ends;
+and there is no footage of the new rule, because no match has been
+played under it. Under D8, Grael would have been holding the Crown at
+round 16 with Torvic, Ossa and Perrin standing and thirty-two rounds to
+go.
+
+My slip: the page's lede and my message said "ended by extraction"
+without saying that was the rule the firm has since replaced. Fixed on
+the page: `tools/replay_page.py` takes `--note`, one sentence for the
+lede about the rules a match was played under, which the record itself
+does not say; the published page now says the match was played under
+July's ending rule, that D8 replaced it, and that the engine still plays
+July's until the new rule reaches the code. Test extended; suite 106.
+
+Two of the firm's rulings collide here: D8 wants the new ending, D7
+keeps M3 shut. That is theirs to resolve, not mine, so it is on the
+docket as **D9**: keep the engine on July's rule until M3 opens (the
+current order), or open the ending rule now as the first piece of M3,
+designed on the mock before any brain sees it (PRD §10 holds the design
+question: what the Egress and an extraction do, if anything, and how a
+held Crown is taken over thirty-two more rounds). Recommendation on the
+page: keep the order, because the gate is the question M3 waits on and
+the ending rule cannot be judged from a match nobody has played.
+
+Check-in at 18:47Z: PR #360 green and mergeable at f4e0f182; blind read
+still one pick of eight; no new docket answers. Re-armed for 19:49Z.
+
 ## 13 September 2026, 18:40Z — the real match is on the page: 16 rounds, 698 events, every swing and every whisper
 
 The forge delivered. Commit d7de80e4 (18:01Z) put

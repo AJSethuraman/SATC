@@ -335,7 +335,10 @@ def render_bundle(bundle: dict) -> str:
     return "".join(out)
 
 
-def build_from_bundle(bundle: dict) -> str:
+def build_from_bundle(bundle: dict, note: str = "") -> str:
+    """The page for one full match record. ``note`` is one sentence the
+    caller adds to the lede: what the reader has to know about the rules the
+    match was played under, which the record itself does not say."""
     m = bundle.get("match", {})
     names = {p["manifest"]["id"]: p["manifest"]["name"] for p in bundle.get("participants", [])}
     builds = {p["manifest"]["id"]: p["manifest"].get("build", "") for p in bundle.get("participants", [])}
@@ -346,7 +349,8 @@ def build_from_bundle(bundle: dict) -> str:
     legend = " · ".join(f"<b>{E(n)}</b> ({E(builds.get(i, ''))})" for i, n in sorted(names.items(), key=lambda kv: kv[1]))
     lede = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}: {len(rounds)} rounds played of {E(str(m.get('max_rounds', '')))}, "
             f"winner {E(winner)}, ended by {E(str(ended).replace('_', ' '))}. Everything the referee recorded, in the order it happened: "
-            f"what was said, every move and swing, what the monsters did, the narration, and where everyone stood at the end of each round.")
+            f"what was said, every move and swing, what the monsters did, the narration, and where everyone stood at the end of each round."
+            + (f" {E(note)}" if note else ""))
     bar = ('    <button type="button" class="reveal" id="reveal" aria-pressed="false">Show what they were thinking</button>\n'
            '    <button type="button" class="reveal" id="dice" aria-pressed="false">Show the dice</button>')
     body = f'<p class="legend">{legend}</p>\n' + render_bundle(bundle)
@@ -359,9 +363,10 @@ def main(argv=None) -> int:
     ap.add_argument("source", type=Path, help="a gate pack folder, or a replay bundle .json")
     ap.add_argument("out", type=Path)
     ap.add_argument("--blind-read-url", default="", help="pack mode: link to the blind-read page for the same pack")
+    ap.add_argument("--note", default="", help="bundle mode: one sentence added to the lede, e.g. which ending rule the match was played under")
     a = ap.parse_args(argv)
     if a.source.is_file():
-        page = build_from_bundle(load_bundle(a.source))
+        page = build_from_bundle(load_bundle(a.source), a.note)
         what = f"bundle {a.source.name}"
     else:
         page = build(a.source, a.blind_read_url)
