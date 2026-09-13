@@ -5,6 +5,37 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 13 September 2026, 18:40Z — the real match is on the page: 16 rounds, 698 events, every swing and every whisper
+
+The forge delivered. Commit d7de80e4 (18:01Z) put
+`runs/ember-7-830ff8da.replay.json` on the branch: the full record of the
+48-round subscription match of 12 September (LOG 08:35Z), exported with
+`python run.py replay ember-7-830ff8da`. Seed 7, 16 rounds played of 48,
+698 events, 34 snapshots, 106 decisions; ended by extraction, Grael
+Thantos (mystic) escaped with the Crown. Four eliminated (Fen, Dask, Ilse,
+Yarrow), three still standing. No secrets in the file; it is the referee's
+stream, real names included, which is what the firm asked to see.
+
+`tools/replay_page.py` built the page from it unchanged and it is
+published on the replay artifact (version 4, "The real match"): the
+opening narration, "Act I — The Gates opens", every line spoken, every
+move, swing, miss, monster step and referee call in the order the referee
+recorded them, the dice behind a toggle, the private objectives and reads
+behind the thinking toggle, and at the end of each round where all eight
+stood, HP as a bar, room, out or not, who held the Crown. Looked at once
+at phone width before publishing: no errors, no horizontal scroll.
+
+What the record shows that the pack could not: 17 stale actions (an
+intent that no longer fit the board when its turn came), 11 wild swings
+that hit the room, 3 that hit the swinger, 2 that hit a bystander, 3
+rooms contracting and sealing, the vault gate opening once, the Crown
+taken twice and dropped once before it left. The firm reads that and says
+what a player sounds like; the log records what they say.
+
+The docket page's Read item now points at this match instead of the
+three gate matches. The blind read is unchanged and still waits on seven
+picks.
+
 ## 13 September 2026, 18:20Z — "why did only F get swung at": the pack shows one character's view; the full record shows everything
 
 The firm, 18:0xZ, reading match 1 of the replay: *"Curious why did only F
