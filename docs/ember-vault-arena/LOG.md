@@ -5,6 +5,37 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 13 September 2026, 06:10Z — "I need a live replay": the three matches played back, all eight on screen
+
+The firm, 05:5xZ: *"I think I need a live replay to understand what I think
+sounds like a player,"* then *"Or at least some more structured way than one
+at a time and looking at everything it said."* The blind-read page is eight
+transcripts, one character at a time; that is the shape the gate needs and
+not the shape a person judges a voice by.
+
+What the repository holds that a replay can be built from: the real
+48-round match `ember-7-830ff8da` lives only in `data/arena.db` on the
+firm's machine (git-ignored, by design); `demo/replay.json` is the mock's
+seed 52 with no real speech. The only real-model speech on the branch is
+the house gate pack. So `tools/replay_page.py` re-interleaves the pack's
+eight per-character transcripts by seed and round and builds
+<https://claude.ai/code/artifact/afa5b0a0-1d4a-4cc9-804c-cb7e09ec5a6b>:
+three matches, a round at a time with all eight characters on screen
+(play, pace, step; private objective and reads behind a toggle, since the
+audience sees them beside the speech); under it every voice side by side,
+rows as rounds and columns as characters, cells only what was said aloud;
+under that one voice on its own, every line that character spoke across
+the three matches in order. Names stay letters, so the read stays blind.
+A test proves the interleave carries all 136 decisions and no key value or
+real id. Suite 103 → **104**.
+
+**The full match is one command away, on the forge.** From
+`docs/ember-vault-arena/code` on the firm's machine:
+`python run.py replay ember-7-830ff8da --output ../runs/ember-7-830ff8da.replay.json`,
+commit and push. That bundle has the real names and all sixteen rounds, and
+the same page generator can read it next. Not run here: no session but the
+forge can reach that database.
+
 ## 12 September 2026, 20:35Z — "give me one so I can look myself": the gate pack becomes a page the firm reads
 
 Asked D7 back in the session with the two outcomes, the firm answered:

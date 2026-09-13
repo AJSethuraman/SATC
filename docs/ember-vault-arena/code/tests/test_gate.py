@@ -108,5 +108,33 @@ def test_blind_read_page_carries_no_key_and_no_real_id(tmp_path):
     assert out.read_text(encoding="utf-8") == page
 
 
+def test_replay_page_interleaves_the_pack_and_carries_no_key(tmp_path):
+    """The replay page re-joins the eight per-character transcripts by seed
+    and round so a reader sees all eight in one moment. Same leak rule as
+    the blind-read page: nothing the key holds may reach it."""
+    import json
+    from tools import replay_page
+
+    pack = gate.ROOT / "gate" / "20260912-034624-agent_sdk"
+    key = json.loads(score_gate.find_key(pack).read_text(encoding="utf-8"))
+    matches = replay_page.interleave(pack)
+    assert [m["seed"] for m in matches] == ["Seed 101", "Seed 102", "Seed 103"]
+    assert all(len(m["rounds"]) == 6 for m in matches)
+    # every round carries an entry for every letter: a dict while on the board, None once gone
+    for m in matches:
+        for r in m["rounds"]:
+            assert set(r["chars"]) == set("ABCDEFGH")
+    # 136 decisions across the pack: the gate's own count of answered calls
+    assert sum(1 for m in matches for r in m["rounds"] for c in r["chars"].values() if c) == 136
+    page = replay_page.build(pack, "https://example.invalid/read")
+    assert "letter_to_brain" not in page and "letter_to_id" not in page
+    for real_id in key["letter_to_id"].values():
+        if len(real_id) >= 4:
+            assert real_id.lower() not in page.lower(), real_id
+    out = tmp_path / "replay.html"
+    assert replay_page.main([str(pack), str(out), "--blind-read-url", "https://example.invalid/read"]) == 0
+    assert out.read_text(encoding="utf-8") == page
+
+
 if __name__ == "__main__":
     unittest.main()
