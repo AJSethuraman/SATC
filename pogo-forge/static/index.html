@@ -173,11 +173,20 @@ section[hidden]{display:none}
       <button class="ghost" id="p_log">Log</button>
     </div>
   </div>
-  <div class="warn">Upgrade costs vary by species and aren't published anywhere reliable. Enter each one the first time you see it in the app; steps with no recorded cost show as unknown rather than a guess.</div>
+  <div class="warn">Max Particle costs are the same for every Pokemon &mdash; 400, then 600, then 800 &mdash; so those are always shown. Only candy differs, and only by which of four groups a species is in. Tell it the group once and every slot is costed. Until then candy shows as unknown rather than a guess: the wrong group is off by up to 40%.</div>
   <h2>Next steps</h2>
   <div class="card" id="planList"></div>
+  <details class="card" id="groupCard">
+    <summary style="cursor:pointer;font-weight:600">Set a species&rsquo; candy group</summary>
+    <label><span>Species</span><input id="g_species" placeholder="gardevoir" autocomplete="off"></label>
+    <label><span>Group</span><select id="g_group"></select></label>
+    <button class="wide" id="groupBtn">Save group</button>
+    <div class="meta" id="g_known" style="margin-top:10px"></div>
+    <div class="meta" id="g_src" style="margin-top:6px;opacity:.75"></div>
+  </details>
   <details class="card">
-    <summary style="cursor:pointer;font-weight:600">Record an upgrade cost</summary>
+    <summary style="cursor:pointer;font-weight:600">Record a cost you actually saw</summary>
+    <div class="meta" style="margin-bottom:8px">The group tables above are community figures, not the game&rsquo;s own &mdash; Niantic publishes no Dynamax data. A number you watched the game charge you wins over them.</div>
     <label><span>Species</span><input id="c_species" placeholder="gardevoir" autocomplete="off"></label>
     <div class="two">
       <label><span>Slot</span><select id="c_slot">
@@ -402,17 +411,32 @@ async function loadPlan(){
     return;
   }
   el.innerHTML = steps.slice(0, 12).map(s => {
-    const cls = s.particles === null ? 'unk' : (s.affordable ? 'yes' : 'no');
-    const cost = s.particles === null ? 'cost?' : s.particles.toLocaleString() + ' MP';
+    // Particles are a constant per level, so they are never unknown. Only the
+    // candy half can be, and it says what it needs rather than "cost?".
+    const cls = s.affordable ? 'yes' : 'no';
+    const cost = s.particles.toLocaleString() + ' MP';
     const verb = s.action === 'unlock' ? 'Unlock' : `Level ${s.from_level} → ${s.to_level}`;
+    let candy;
+    if(s.cost_source === 'unknown'){
+      candy = `<span class="unk">candy: group unknown</span>`;
+    } else {
+      const bits = [];
+      if(s.candy)    bits.push(`${s.candy} candy`);
+      if(s.candy_xl) bits.push(`${s.candy_xl} XL`);
+      const tag = s.cost_source === 'observed' ? 'you recorded this'
+                                               : `group ${s.cost_group}`;
+      candy = `${bits.join(' + ') || 'no candy'} · ${tag}`;
+    }
     return `<div class="step">
       <div class="what">
         <b>${esc(s.nickname || s.species)}</b> — Max ${SLOT_LABEL[s.slot]}
         <div class="sub">${verb} · priority ${s.priority} · ${s.role}</div>
+        <div class="sub">${candy}</div>
       </div>
       <div class="cost ${cls}">${cost}</div>
     </div>`;
   }).join('');
+  loadGroups();
 }
 
 $('#p_log').addEventListener('click', async () => {
@@ -421,6 +445,44 @@ $('#p_log').addEventListener('click', async () => {
   await api('/particles', {method:'POST',
     body:{delta:d, reason: d > 0 ? 'collected' : 'spent'}});
   $('#p_delta').value = '';
+  loadPlan();
+});
+
+/* The four groups, and what is recorded so far. Fetched rather than hard
+   coded so the figures and their provenance line come from one place. */
+async function loadGroups(){
+  const g = await api('/cost-groups');
+  const sel = $('#g_group');
+  if(!sel.options.length){
+    // No pre-selected group. A select that already reads "Group 1" invites
+    // a careless Save, and a wrong group misstates candy by up to 40% — the
+    // one thing the handoff says explicitly not to guess.
+    sel.innerHTML = '<option value="">— pick the group —</option>' +
+      Object.entries(g.groups).map(([n, c]) =>
+        `<option value="${n}">Group ${n} — ${c.level_1} / ${c.level_2} candy, ${c.level_3_xl} XL</option>`
+      ).join('');
+  }
+  const known = Object.entries(g.recorded);
+  $('#g_known').innerHTML = known.length
+    ? 'Recorded: ' + known.map(([sp, n]) =>
+        `${esc(sp)} = group ${n} <a href="#" data-clear="${esc(sp)}">clear</a>`).join(' · ')
+    : 'Nothing recorded yet.';
+  $('#g_src').textContent = g.source;
+  $('#g_known').querySelectorAll('[data-clear]').forEach(a =>
+    a.addEventListener('click', async ev => {
+      ev.preventDefault();
+      await api('/cost-groups/' + encodeURIComponent(a.dataset.clear), {method:'DELETE'});
+      loadPlan();
+    }));
+}
+
+$('#groupBtn').addEventListener('click', async () => {
+  const sp = $('#g_species').value.trim();
+  const grp = $('#g_group').value;
+  if(!sp || !grp) return;              // no species, or no group chosen yet
+  await api('/cost-groups', {method:'POST',
+    body:{species:sp, cost_group:+grp}});
+  $('#g_species').value = '';
   loadPlan();
 });
 

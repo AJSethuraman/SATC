@@ -39,7 +39,7 @@ comments explaining why, so nobody "fixes" them back.
 ## Run it
 
     pip install -r requirements.txt
-    pytest -q                      # 97 tests, about 90 seconds
+    pytest -q                      # 106 tests, about 110 seconds
 
 The slow ones are the image reads (~8s each). Don't speed them up by shrinking
 the fixtures — resolution independence is one of the things under test.
@@ -97,10 +97,20 @@ read from the game master and asserted against known cases.
 
 ## Known gaps, in rough priority order
 
-0. **The species-to-cost-group mapping is missing.** `dynamax.py` has the four
-   groups' costs but not which species belongs to which. The wiki page listing
-   them is a stub. Until that exists, ask the user once per species and store
-   it. Do not guess a group — a wrong group misstates candy by up to 40%.
+0. ~~**The species-to-cost-group mapping is missing.**~~ **The mechanism is
+   built; the mapping is still user-supplied, by design.** `species_cost_group`
+   stores one group per species, `/api/cost-groups` reads and writes it, and
+   the Plan tab asks for it with the four groups' candy figures shown. Nothing
+   is pre-selected and nothing is guessed: no group means candy is reported as
+   unknown while particles stay exact, because particles do not vary by species.
+   A cost observed in-game overrides the group tables and is labelled as having
+   done so. There is still no published mapping to seed from, and there may
+   never be — that is the correct end state, not a gap.
+
+   The wiring was the real gap: `dynamax.py` was 187 lines with 14 passing
+   tests and **no caller**. Nothing in `app.py` imported it. Meanwhile the
+   planner asked the user to enter nine numbers per species, six of which were
+   the constants this module already held.
 
 1. **The standalone HTML has no coverage, moveset or Dynamax data yet.** The Python
    side gained `coverage.py`, the type chart, movesets, legacy flags, buddy
@@ -126,7 +136,10 @@ read from the game master and asserted against known cases.
 
 5. **Tier lists in `dynamax.py` carry a date and will go stale.** They are
    deliberately not fetched at runtime. Surface `SOURCE_DATE` in any UI that
-   displays them so nobody trusts a six-month-old ranking.
+   displays them so nobody trusts a six-month-old ranking. *Partly done:*
+   `/api/cost-groups` returns `SOURCE_DATE` in its provenance line and the Plan
+   tab shows it. `BEST_ATTACKERS`, `BEST_DEFENDERS` and `BEST_HEALERS` are
+   still displayed nowhere at all.
 
 6. **Regional and alternate forms are absent, not wrong.** Checked against
    the game master on 13 Sep 2026: of 1,024 `pokemonId`s carrying stats, only
@@ -137,7 +150,15 @@ read from the game master and asserted against known cases.
    there is no entry for the Galarian form at all. Fixing it means keeping the
    form templates as separate species, not correcting a corrupted base.
 
-7. **Mega energy is in the game master after all.** 129 `temporaryEvolution`
+7. **`coverage.py` is still unreachable from the product.** 89 lines, 6
+   passing tests, imported by nothing but the suite — the same shape of gap
+   `dynamax.py` had. There is no endpoint and no UI for team weaknesses or
+   partner suggestions, so `shared_weaknesses` and `suggest_partners` cannot
+   be used from the app at all. `pvp.py` is nearly as buried: it is reachable
+   only as a side effect of uploading a screenshot to `/api/triage`, so there
+   is no way to ask "where does this spread rank" directly.
+
+8. **Mega energy is in the game master after all.** 129 `temporaryEvolution`
    branches carry `temporaryEvolutionEnergyCost` and a subsequent-evolution
    cost. The README said it wasn't; that has been corrected. Nothing extracts
    it yet.

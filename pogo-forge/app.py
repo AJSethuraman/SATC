@@ -9,6 +9,7 @@ Then open http://<forge-tailscale-name>:8737 from your phone.
 import os
 import sqlite3
 import contextlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -18,12 +19,31 @@ from pydantic import BaseModel, ConfigDict, Field
 import uvicorn
 
 import costs
+import dynamax
 
 ROOT = Path(__file__).parent
 DB_PATH = Path(os.environ.get("POGO_FORGE_DB", ROOT / "pogo-forge.db"))
 SLOTS = ("attack", "guard", "spirit")
 
-app = FastAPI(title="pogo-forge", docs_url="/api/docs")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Create the schema when the app starts, however it was started.
+
+    This used to run only under `if __name__ == "__main__"`, so `python app.py`
+    worked and every other way of serving it did not. SETUP.md recommends
+    running this under NSSM or Task Scheduler, and a process manager pointed at
+    `uvicorn app:app` would have come up with no tables at all — the app would
+    serve, and then fail on the first request that touched the database.
+
+    schema.sql is CREATE TABLE IF NOT EXISTS throughout, so this is safe on
+    every start and is what applies new tables to an existing database.
+    """
+    init_db()
+    yield
+
+
+app = FastAPI(title="pogo-forge", docs_url="/api/docs", lifespan=lifespan)
 
 
 # --------------------------------------------------------------- database --
@@ -102,6 +122,11 @@ class CostIn(Body):
     particles: int = Field(ge=0)
     candy: int = 0
     candy_xl: int = 0
+
+
+class CostGroupIn(Body):
+    species: str
+    cost_group: int = Field(ge=1, le=4)
 
 
 class FilterIn(Body):
@@ -247,32 +272,106 @@ def upsert_cost(body: CostIn):
         return {"ok": True}
 
 
+# ------------------------------------------------------------ cost groups --
+@app.get("/api/cost-groups")
+def list_cost_groups():
+    """What is recorded, and what the four groups charge.
+
+    The table of charges ships with the app; the mapping does not, because no
+    published species-to-group list exists. Returning both lets the UI show
+    what a choice would cost before it is made.
+    """
+    with db() as conn:
+        recorded = {r["species"]: r["cost_group"] for r in conn.execute(
+            "SELECT * FROM species_cost_group ORDER BY species").fetchall()}
+    return {
+        "recorded": recorded,
+        "groups": {g: {"level_1": dynamax.CANDY_GROUPS[g][1],
+                       "level_2": dynamax.CANDY_GROUPS[g][2],
+                       "level_3_xl": dynamax.XL_GROUPS[g]}
+                   for g in sorted(dynamax.CANDY_GROUPS)},
+        "particles": dynamax.PARTICLES,
+        "source": ("Community-documented, not Niantic's — the game master "
+                   f"holds no Dynamax data at all (checked {dynamax.SOURCE_DATE}). "
+                   "A cost you record from the game itself overrides these."),
+    }
+
+
+@app.post("/api/cost-groups", status_code=201)
+def set_cost_group(body: CostGroupIn):
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO species_cost_group (species, cost_group) VALUES (?,?)
+               ON CONFLICT(species) DO UPDATE SET
+                 cost_group = excluded.cost_group,
+                 noted_at   = datetime('now')""",
+            (body.species.strip().lower(), body.cost_group))
+    return {"ok": True}
+
+
+@app.delete("/api/cost-groups/{species}", status_code=204)
+def clear_cost_group(species: str):
+    """Unrecord a group. Guessing wrong is worse than not knowing, so taking
+    a guess back has to be possible."""
+    with db() as conn:
+        conn.execute("DELETE FROM species_cost_group WHERE species = ?",
+                     (species.strip().lower(),))
+
+
 # -------------------------------------------------------------------- plan --
 @app.get("/api/plan")
 def plan():
     """Rank the next Max Move step for every active Pokemon.
 
-    Cost comes only from what you have entered in move_cost. A step with no
-    recorded cost is reported as unknown rather than estimated.
+    Three sources, in priority order, and every step says which one it used:
+
+      observed  a cost you watched the game charge, in move_cost. Wins, because
+                a number you saw beats a community-documented one.
+      group     dynamax.py's tables, once you have recorded which of the four
+                candy groups the species is in.
+      unknown   no group recorded, so candy is not reported. Particles still
+                are: they are fixed at 400/600/800 for every species, so a
+                missing group never makes them unknown.
+
+    The planner used to report a step with no move_cost row as entirely
+    unknown, particles included, which asked the user to type in a constant.
     """
     with db() as conn:
         balance = _balance(conn)
-        costs = {
+        observed = {
             (r["species"], r["slot"], r["to_level"]): dict(r)
             for r in conn.execute("SELECT * FROM move_cost").fetchall()
         }
+        groups = {r["species"]: r["cost_group"] for r in
+                  conn.execute("SELECT * FROM species_cost_group").fetchall()}
         steps = []
         for row in conn.execute(
             "SELECT * FROM pokemon WHERE archived = 0 AND max_form != 'none' "
             "ORDER BY id"   # explicit: SQLite row order is otherwise unspecified
         ).fetchall():
             p = _hydrate(conn, row)
+            key = p["species"].lower()
             for slot in SLOTS:
                 lvl = p["moves"][slot]
                 if lvl >= 3:
                     continue
                 target = lvl + 1
-                c = costs.get((p["species"].lower(), slot, target))
+                particles = dynamax.PARTICLES[target]
+                candy = candy_xl = None
+                source = "unknown"
+                group = groups.get(key)
+
+                if group is not None:
+                    c = dynamax.step_cost(group, target)
+                    particles, candy, candy_xl = c.particles, c.candy, c.xl_candy
+                    source = "group"
+
+                o = observed.get((key, slot, target))
+                if o:
+                    particles, candy, candy_xl = (
+                        o["particles"], o["candy"], o["candy_xl"])
+                    source = "observed"
+
                 steps.append({
                     "pokemon_id": p["id"],
                     "species": p["species"],
@@ -283,10 +382,16 @@ def plan():
                     "from_level": lvl,
                     "to_level": target,
                     "action": "unlock" if lvl == 0 else "upgrade",
-                    "particles": c["particles"] if c else None,
-                    "candy": c["candy"] if c else None,
-                    "candy_xl": c["candy_xl"] if c else None,
-                    "affordable": (c is not None and c["particles"] <= balance),
+                    "particles": particles,
+                    "candy": candy,
+                    "candy_xl": candy_xl,
+                    "cost_group": group,
+                    "cost_source": source,
+                    # Named so the UI can ask for exactly what is missing
+                    # instead of showing a bare "cost?".
+                    "needs": (None if source != "unknown" else
+                              f"Which candy group is {p['species']} in?"),
+                    "affordable": particles <= balance,
                 })
 
         # Role decides which slot matters: attackers want Attack, the tank
@@ -294,8 +399,11 @@ def plan():
         wanted = {"attacker": "attack", "defender": "guard", "healer": "spirit"}
         def rank(s):
             on_role = 0 if wanted.get(s["role"]) == s["slot"] else 1
-            return (s["priority"], on_role, s["particles"] is None,
-                    s["particles"] or 10**6)
+            # Particles are always known now, so they no longer decide order by
+            # their absence. A step whose candy is still unknown ranks after an
+            # equivalent one that is fully costed.
+            return (s["priority"], on_role, s["cost_source"] == "unknown",
+                    s["particles"])
 
         steps.sort(key=rank)
         return {"balance": balance, "steps": steps}
@@ -474,5 +582,4 @@ def index():
 
 
 if __name__ == "__main__":
-    init_db()
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8737)))

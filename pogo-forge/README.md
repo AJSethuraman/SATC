@@ -43,13 +43,27 @@ transfer from, so a destructive one is visually distinct from a lookup.
 
 ## About the costs
 
-Max Move upgrade costs vary by species and aren't published anywhere I'd trust
-enough to seed a table from. So the app ships with none. Enter a cost the first
-time you meet it in-game and it's there forever; until then the planner shows
-that step as `cost?` rather than estimating.
+**Max Particle costs do not vary by species.** They are 400, then 600, then 800,
+for every species and every slot — so the planner always shows them and never
+asks. Only candy differs, and only by which of four groups a species is in.
+
+So it asks for one thing per species: the group. That costs all three slots at
+every level. There is no published species-to-group list, so nothing seeds it;
+record a group the first time you meet a species in-game.
+
+Until you do, particles are still exact and **candy shows as unknown rather than
+estimated** — a wrong group misstates candy by up to 40%.
+
+If you watch the game charge you something that disagrees with the group
+tables, record it under "Record a cost you actually saw" and it wins. Those
+tables are community-documented; the game master holds no Dynamax data at all.
+A number you saw beats a number from a wiki, and the planner says which one
+each figure came from.
 
 This is deliberate. A planner that quietly guesses is worse than one that tells
-you it doesn't know.
+you it doesn't know — but a planner that asks you to type in a constant it
+already knows is worse than both. It used to ask for nine numbers per species,
+six of which were fixed.
 
 ## Phases
 

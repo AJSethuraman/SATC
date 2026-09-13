@@ -43,8 +43,29 @@ CREATE TABLE IF NOT EXISTS particle_entry (
   at          TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
--- Costs vary by species and are not published anywhere reliable.
--- Enter them as you meet them; the planner treats a missing cost as unknown.
+-- Which of the four candy cost groups a species belongs to.
+--
+-- This replaces asking for nine numbers per species with asking for one.
+-- Max Particle costs do NOT vary by species -- they are fixed at 400/600/800
+-- per level for every species and every slot -- so the planner already knows
+-- them and never has to ask. Only candy varies, and only by this group.
+--
+-- There is no published species-to-group mapping, so there is nothing to seed
+-- this from. It stays empty until you meet a species in-game and record what
+-- it charged. A wrong group misstates candy by up to 40%, which is why the
+-- planner reports candy as unknown rather than assuming group 1.
+CREATE TABLE IF NOT EXISTS species_cost_group (
+  species     TEXT    PRIMARY KEY,
+  cost_group  INTEGER NOT NULL CHECK (cost_group BETWEEN 1 AND 4),
+  noted_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- A cost actually observed in-game, for one species/slot/level.
+--
+-- Kept as an OVERRIDE rather than the primary source. The group tables in
+-- dynamax.py are community-documented, not Niantic's; a number you watched
+-- the game charge you beats a number somebody wrote on a wiki. When a row
+-- here exists the planner uses it and says where it came from.
 CREATE TABLE IF NOT EXISTS move_cost (
   species     TEXT    NOT NULL,
   slot        TEXT    NOT NULL CHECK (slot IN ('attack','guard','spirit')),

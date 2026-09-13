@@ -746,3 +746,147 @@ def test_a_refusal_comes_back_the_same_shape_as_an_answer():
     assert p["gamedata_version"] == C.DATA["version"][:12]
     # The Sinnoh Stone is still needed whether or not the level goal works out.
     assert any("Sinnoh Stone" in r for r in p["requires"]), p["requires"]
+
+
+# ============================================ dynamax is wired to the product ===
+# dynamax.py was 187 lines with 14 passing tests and no caller: nothing in
+# app.py imported it. Meanwhile the planner asked the user to type in nine
+# numbers per species, six of which (the particles) are constants this module
+# already knew. These tests hold the wiring in place.
+import contextlib as _contextlib
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("POGO_FORGE_DB", str(tmp_path / "t.db"))
+    import importlib
+    import app as A
+    importlib.reload(A)
+    from fastapi.testclient import TestClient
+    with TestClient(A.app) as c:
+        yield c
+
+
+def test_dynamax_module_is_reachable_from_the_app():
+    """The regression that matters: an engine module nobody calls."""
+    import app as A
+    assert A.dynamax.PARTICLES[1] == 400
+
+
+def _add(client, species="charizard", **kw):
+    body = {"species": species, "role": "attacker", "max_form": "dynamax"}
+    body.update(kw)
+    r = client.post("/api/roster", json=body)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_particles_are_known_without_asking_anyone(client):
+    """A species with no recorded group still gets exact particle costs.
+
+    This is the whole point: particles do not vary by species, so a missing
+    group must not make them unknown. The planner used to report the entire
+    step as unknown, which asked the user for a constant.
+    """
+    _add(client)
+    steps = client.get("/api/plan").json()["steps"]
+    by_slot = {s["slot"]: s for s in steps}
+    # Max Attack starts at 1, so its next step is level 2; the others unlock.
+    assert by_slot["attack"]["to_level"] == 2
+    assert by_slot["attack"]["particles"] == 600
+    assert by_slot["guard"]["to_level"] == 1
+    assert by_slot["guard"]["particles"] == 400
+    assert by_slot["spirit"]["particles"] == 400
+    for s in steps:
+        assert s["cost_source"] == "unknown"
+        assert s["candy"] is None
+        assert "charizard" in s["needs"].lower()
+
+
+def test_candy_is_refused_rather_than_assumed(client):
+    """A wrong group misstates candy by up to 40%, so no group means no candy
+    figure — not a default of group 1."""
+    _add(client)
+    for s in client.get("/api/plan").json()["steps"]:
+        assert s["candy"] is None and s["candy_xl"] is None
+        assert s["cost_group"] is None
+
+
+def test_one_recorded_group_costs_every_slot_and_level(client):
+    """Nine numbers replaced by one choice."""
+    _add(client)
+    assert client.post("/api/cost-groups",
+                       json={"species": "charizard", "cost_group": 2}
+                       ).status_code == 201
+    steps = {s["slot"]: s for s in client.get("/api/plan").json()["steps"]}
+    assert steps["guard"]["cost_source"] == "group"
+    assert steps["guard"]["cost_group"] == 2
+    # Group 2: 60 candy to level 1, 110 to level 2, 45 XL to level 3.
+    assert steps["guard"]["candy"] == 60          # unlock, level 1
+    assert steps["attack"]["candy"] == 110        # already at 1, so level 2
+    assert steps["guard"]["needs"] is None
+
+
+def test_an_observed_cost_beats_the_community_tables(client):
+    """dynamax.py's groups are community-documented, not Niantic's. A number
+    you watched the game charge you outranks them, and the step says so."""
+    _add(client)
+    client.post("/api/cost-groups", json={"species": "charizard", "cost_group": 1})
+    client.post("/api/costs", json={
+        "species": "charizard", "slot": "guard", "to_level": 1,
+        "particles": 400, "candy": 77, "candy_xl": 0})
+    steps = {s["slot"]: s for s in client.get("/api/plan").json()["steps"]}
+    assert steps["guard"]["cost_source"] == "observed"
+    assert steps["guard"]["candy"] == 77
+    # The other slots still come from the group, untouched.
+    assert steps["spirit"]["cost_source"] == "group"
+    assert steps["spirit"]["candy"] == 50
+
+
+def test_a_group_can_be_taken_back(client):
+    """Recording a guess must be reversible — guessing wrong is worse than
+    not knowing."""
+    _add(client)
+    client.post("/api/cost-groups", json={"species": "charizard", "cost_group": 4})
+    assert client.get("/api/plan").json()["steps"][0]["cost_source"] == "group"
+    assert client.delete("/api/cost-groups/charizard").status_code == 204
+    assert client.get("/api/plan").json()["steps"][0]["cost_source"] == "unknown"
+
+
+def test_the_group_table_says_it_is_not_niantic(client):
+    """The provenance rule, at the API boundary. These numbers are the one
+    part of the cost engine Niantic does not publish."""
+    body = client.get("/api/cost-groups").json()
+    assert body["particles"] == {"1": 400, "2": 600, "3": 800}
+    assert body["groups"]["1"]["level_1"] == 50
+    assert "not Niantic" in body["source"]
+    assert dm.SOURCE_DATE in body["source"]
+
+
+def test_a_group_outside_one_to_four_is_refused(client):
+    for bad in (0, 5, -1):
+        r = client.post("/api/cost-groups",
+                        json={"species": "charizard", "cost_group": bad})
+        assert r.status_code == 422, f"group {bad} was accepted"
+
+
+def test_the_schema_is_created_however_the_app_is_started(tmp_path, monkeypatch):
+    """init_db() used to run only under `if __name__ == "__main__"`.
+
+    So `python app.py` worked and `uvicorn app:app` — which is what SETUP.md's
+    NSSM and Task Scheduler advice leads to — came up with no tables. The app
+    would start fine and fail on the first request that touched the database.
+    """
+    monkeypatch.setenv("POGO_FORGE_DB", str(tmp_path / "fresh.db"))
+    import importlib
+    import sqlite3
+    import app as A
+    importlib.reload(A)
+
+    assert not A.DB_PATH.exists(), "nothing should exist before startup"
+    from fastapi.testclient import TestClient
+    with TestClient(A.app) as c:                 # entering runs startup
+        assert c.get("/api/plan").status_code == 200
+    tables = {r[0] for r in sqlite3.connect(A.DB_PATH).execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"pokemon", "max_move", "species_cost_group", "move_cost"} <= tables
