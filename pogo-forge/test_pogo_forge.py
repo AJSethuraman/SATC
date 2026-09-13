@@ -96,10 +96,13 @@ def test_power_up_totals():
     # 1 -> 40 is a long-published figure.
     assert C.power_up_cost(1.0, 40.0).dust == 270_000
     # 40 -> 50 likewise, and it is entirely XL candy.
+    # The XL figure is pinned exactly in
+    # test_forty_to_fifty_costs_296_xl_candy; `> 0` here would pass on any
+    # indexing bug that still charged something.
     c = C.power_up_cost(40.0, 50.0)
     assert c.dust == 250_000
     assert c.candy == 0
-    assert c.xl_candy > 0
+    assert c.xl_candy == 296
 
 
 def test_no_cost_when_already_there():
@@ -461,3 +464,285 @@ def test_dynamax_tier_lists_are_dated_and_populated():
 def test_dynamax_attacker_list_is_sorted_by_attack():
     stats = [a[1] for a in dm.BEST_ATTACKERS if not a[0].startswith("Zacian")]
     assert stats == sorted(stats, reverse=True)
+
+
+# ==================================================== provenance and stamp ===
+# This codebase's whole design rests on knowing which numbers are Niantic's
+# and which are not. These tests defend that claim rather than any figure.
+def test_gamedata_carries_a_version_stamp():
+    """Every answer is a pure function of gamedata.json plus the user's input.
+
+    Without a stamp, a refetch changes answers silently — which was gap 3 on
+    the handoff list. With one, a change is something you can point at.
+    """
+    assert len(C.DATA.get("version", "")) == 64      # sha256 of the game master
+    assert C.DATA.get("fetched")
+    assert C.DATA["source"].startswith("https://")
+
+
+def test_hand_typed_numbers_are_quarantined_and_labelled():
+    """The IV floors are NOT in the game master — searching it for a
+    minimum-IV template returns nothing. They used to sit at the top level of
+    gamedata.json under a header claiming everything there was Niantic's.
+
+    If a future extractor learns to read them from the file, move them out of
+    `community` and delete this test. Do not add anything else to that block
+    without a provenance line saying where it came from.
+    """
+    assert "iv_floors" not in C.DATA, "hand-typed data must not sit with Niantic's"
+    community = C.DATA["community"]
+    assert "NOT in the game master" in community["_provenance"]
+    assert community["iv_floors"]["lucky"] == 12
+
+
+def test_plan_reports_which_gamedata_it_used():
+    p = C.plan("gardevoir", ivs=(13, 14, 13), from_level=8.0, goal="cp_cap",
+               cp_cap=1500)
+    assert p["gamedata_version"] == C.DATA["version"][:12]
+
+
+# ================================================= power-up, exact figures ===
+def test_forty_to_fifty_costs_296_xl_candy():
+    """The published 40->50 bill is 250,000 dust and 296 XL Candy.
+
+    The dust half of that was already asserted; the XL half was only checked
+    for being greater than zero, which would have passed on any indexing bug
+    that still charged something. Both halves come out of the same table walk,
+    so pinning only one of them left the other free to drift.
+    """
+    c = C.power_up_cost(40.0, 50.0)
+    assert c.dust == 250_000
+    assert c.xl_candy == 296
+    assert c.candy == 0
+
+
+def test_a_level_is_two_power_ups_per_niantic():
+    """The cost engine charges each whole-level table entry twice.
+
+    That was an assumption inferred from the 1->40 and 40->50 totals coming
+    out right. Niantic states it directly as upgradesPerLevel, so it is read
+    from the file and checked against what the engine actually does.
+    """
+    assert C.UP["upgrades_per_level"] == 2
+    steps = C.power_up_cost(20.0, 21.0).steps
+    assert steps == C.UP["upgrades_per_level"]
+    assert C.power_up_cost(1.0, 40.0).steps == 39 * C.UP["upgrades_per_level"]
+
+
+def test_xl_candy_needs_trainer_level_31():
+    # dynamax.py states this in prose; the game master carries the number.
+    assert C.UP["xl_min_player_level"] == 31
+    assert C.UP["xl_from_level"] == 40
+
+
+# ============================================ evolutions cost more than candy ===
+# The game master records 84 item requirements, 28 gender requirements, 16
+# buddy-distance requirements and more. The extractor used to drop all of it,
+# so the planner quoted "Evolve to Bellossom: 100 candy" for an evolution that
+# also needs a Sun Stone. Each case below is a documented in-game requirement.
+@pytest.mark.parametrize("src,dst,needle", [
+    ("gloom", "bellossom", "Sun Stone"),
+    ("sunkern", "sunflora", "Sun Stone"),
+    ("onix", "steelix", "Metal Coat"),
+    ("seadra", "kingdra", "Dragon Scale"),
+    # "Up Grade", not the in-game "Up-Grade": _item_name turns underscores
+    # into spaces and is deliberately not a hand-maintained name table, so
+    # one hyphenated item comes out recognisable rather than exact.
+    ("porygon", "porygon2", "Up Grade"),
+    ("kirlia", "gallade", "Sinnoh Stone"),
+    ("magneton", "magnezone", "Magnetic Lure Module"),
+    ("eevee", "espeon", "km walked as your buddy"),
+])
+def test_evolution_states_what_it_needs_besides_candy(src, dst, needle):
+    c, final = C.evolution_cost(src, dst)
+    assert final == dst.upper()
+    assert c.candy > 0
+    blob = " ".join(c.requires)
+    assert needle in blob, f"{src}->{dst} requires {needle!r}; got {c.requires}"
+
+
+def test_gallade_needs_a_stone_and_a_gender():
+    """Two requirements on one hop. Reporting only the first is the same bug
+    in a smaller form."""
+    c, _ = C.evolution_cost("kirlia", "gallade")
+    blob = " ".join(c.requires).lower()
+    assert "sinnoh stone" in blob and "male only" in blob
+
+
+def test_requirements_are_collected_across_every_hop():
+    """Ralts to Gallade is two evolutions and the requirements sit on the
+    second. Walking only the last hop, or only the first, loses them."""
+    c, final = C.evolution_cost("ralts", "gallade")
+    assert final == "GALLADE"
+    assert c.candy == 125                      # 25 + 100, same as Gardevoir
+    blob = " ".join(c.requires).lower()
+    assert "sinnoh stone" in blob and "male only" in blob
+
+
+def test_an_evolution_with_no_requirements_claims_none():
+    # The counter-case: Ralts to Gardevoir needs nothing but candy. If this
+    # ever reports a requirement, the extractor is inventing them.
+    c, _ = C.evolution_cost("ralts", "gardevoir")
+    assert c.requires == []
+
+
+def test_trade_evolutions_say_the_candy_can_be_free():
+    c, _ = C.evolution_cost("kadabra", "alakazam")
+    assert any("trade" in n.lower() for n in c.notes)
+
+
+def test_uncosted_evolution_refuses_without_claiming_it_cannot_evolve():
+    """Gimmighoul evolves into Gholdengo for 999 Gimmighoul Coins, which is
+    not candy and is not in the game master's candyCost. The old message was
+    'has no evolution on file' — a different claim, and a false one."""
+    with pytest.raises(C.Unknown) as e:
+        C.evolution_cost("gimmighoul")
+    msg = str(e.value).lower()
+    assert "gholdengo" in msg and "not for candy" in msg
+
+
+def test_plan_hoists_requirements_where_a_caller_cannot_miss_them():
+    p = C.plan("gloom", ivs=(15, 15, 15), from_level=20.0, goal="level",
+               target_level=25.0, evolve_to="bellossom")
+    assert any("Sun Stone" in r for r in p["requires"])
+
+
+# ======================================== how strong is the CP/HP check, exactly ===
+def test_a_one_notch_misread_never_survives_verification():
+    """The reader's most valuable property is that it refuses rather than
+    guessing, and the CP/HP cross-check is what enforces it. The realistic
+    failure is one bar read one step off, not a random spread.
+
+    Measured on all four fixtures: of the six spreads one notch away from the
+    truth, zero reproduce the same CP and HP at any level. So a single misread
+    bar is always caught.
+    """
+    for species, cp, hp, truth in [
+        ("ralts", 296, 66, (13, 14, 13)),
+        ("quagsire", 1413, 157, (9, 12, 15)),
+        ("piplup", 571, 91, (10, 10, 12)),
+        ("altaria", 1497, 137, (5, 15, 14)),
+    ]:
+        for i in range(3):
+            for delta in (-1, 1):
+                n = list(truth)
+                n[i] += delta
+                if not 0 <= n[i] <= 15:
+                    continue
+                spread = tuple(n)
+                survives = any(
+                    C.cp_at(species, spread, lv) == cp
+                    and C.hp_at(species, spread[2], lv) == hp
+                    for lv in C.levels(1.0, C.BEST_BUDDY_MAX))
+                assert not survives, (
+                    f"{species}: misreading {truth} as {spread} would still "
+                    f"reproduce CP {cp} / HP {hp} — the check would pass a "
+                    "wrong answer")
+
+
+def test_verified_means_consistent_not_unique():
+    """Guards the wording as much as the code.
+
+    'Confirmed' does not mean the spread is the only one that fits: for Ralts
+    at CP 296 / HP 66, 69 of the 4,096 spreads reproduce both numbers. The
+    check is a strong filter, not a proof of uniqueness, and the reader's
+    own claim should not be read as more than that.
+
+    Asserted as a range because the exact count is a property of one species
+    at one CP, and pinning it exactly would break on a CPM refetch without
+    telling anyone anything useful.
+    """
+    consistent = [
+        (a, d, s)
+        for a in range(16) for d in range(16) for s in range(16)
+        if any(C.cp_at("ralts", (a, d, s), lv) == 296
+               and C.hp_at("ralts", s, lv) == 66
+               for lv in C.levels(1.0, C.BEST_BUDDY_MAX))
+    ]
+    assert (13, 14, 13) in consistent
+    assert 1 < len(consistent) < 200
+
+
+# ==================================================== the two level ceilings ===
+def test_the_two_ceilings_differ_exactly_where_the_cap_does_not_bind():
+    """costs.max_level_under_cp allows the Best Buddy level; pvp's table stops
+    at 50. So the two modules answer the same question differently, and it is
+    worth knowing precisely where.
+
+    The first draft of this test assumed a league cap always binds before
+    level 50 and so the two would agree at Great and Ultra League. That is
+    false: Azumarill's maximum CP is well under 2,500, so Ultra League never
+    binds for it and the two disagree by a level. The rule is not about the
+    league, it is about whether the cap bound at all.
+    """
+    seen_both = set()
+    for species in ("azumarill", "medicham", "altaria", "magikarp", "mewtwo"):
+        for cap in (1500, 2500, 10000):
+            pvp_level = pvp.rank(species, (0, 15, 15), cap)["level"]
+            costs_level = C.max_level_under_cp(species, (0, 15, 15), cap)
+            bound = costs_level < C.BEST_BUDDY_MAX
+            if bound:
+                assert pvp_level == costs_level, (
+                    f"{species} @ {cap}: cap bound at {costs_level} but pvp "
+                    f"said {pvp_level}")
+            else:
+                assert costs_level == C.BEST_BUDDY_MAX
+                assert pvp_level == C.MAX_LEVEL
+            seen_both.add(bound)
+    # Both branches must actually occur, or this test proves only one of them.
+    assert seen_both == {True, False}
+
+
+# =========================================== the API refuses what it can't read ===
+def test_a_mistyped_field_is_refused_not_defaulted():
+    """Pydantic ignores unknown keys by default, which turns a client-side
+    typo into a confident wrong answer.
+
+    This exact body — plausible field names, neither of them real — used to
+    return a fully itemised plan for a perfect 15/15/15 at level 1, with
+    nothing anywhere in the response saying the input had been discarded.
+    """
+    from fastapi.testclient import TestClient
+    import app as A
+
+    with TestClient(A.app) as client:
+        wrong = client.post("/api/cost", json={
+            "species": "gloom", "ivs": [9, 12, 15], "level": 20,
+            "goal": "level", "target_level": 25})
+        assert wrong.status_code == 422, wrong.text
+
+        right = client.post("/api/cost", json={
+            "species": "gloom", "iv_atk": 9, "iv_def": 12, "iv_hp": 15,
+            "from_level": 20, "goal": "level", "target_level": 25})
+        assert right.status_code == 200
+        assert right.json()["from_level"] == 20.0
+
+
+def test_the_cost_api_reports_requirements_beyond_candy():
+    """End to end, through the HTTP layer the phone actually talks to."""
+    from fastapi.testclient import TestClient
+    import app as A
+
+    with TestClient(A.app) as client:
+        r = client.post("/api/cost", json={
+            "species": "gloom", "from_level": 20, "goal": "level",
+            "target_level": 25, "evolve_to": "bellossom"})
+        assert r.status_code == 200
+        body = r.json()
+        assert any("Sun Stone" in x for x in body["requires"]), body
+
+
+def test_a_refusal_comes_back_the_same_shape_as_an_answer():
+    """Gallade at 13/14/13 is already over 1,500 CP at level 20, so the
+    planner refuses — correctly. It used to refuse with two keys and a raw
+    uppercase species name, so a caller rendering a plan either special-cased
+    it or showed nothing. The refusal is about the same Pokemon; it carries
+    the same fields.
+    """
+    p = C.plan("ralts", ivs=(13, 14, 13), from_level=20.0, goal="cp_cap",
+               cp_cap=1500, evolve_to="gallade")
+    assert "error" in p
+    assert p["species"] == "Gallade"
+    assert p["gamedata_version"] == C.DATA["version"][:12]
+    # The Sinnoh Stone is still needed whether or not the level goal works out.
+    assert any("Sinnoh Stone" in r for r in p["requires"]), p["requires"]

@@ -94,11 +94,21 @@ to nine decimal places.
 
 Re-run `python fetch_gamedata.py` after a major update to refresh it.
 
+It also tells you what an evolution needs that isn't candy. Gloom to
+Bellossom is 100 candy **and a Sun Stone**; Kirlia to Gallade wants a Sinnoh
+Stone and a male Kirlia; Eevee to Espeon wants 10 km as your buddy, in
+daylight. All of that is in the game master and all of it used to be dropped,
+so the app quoted the candy and went quiet about the rest.
+
 ### What it can't tell you
 
-Elite TM costs, Mega energy, and Max Move upgrade costs aren't in the game
-master in a form this reads, so they aren't here. The Plan tab handles Max Move
-costs by asking you to record them.
+Elite TM costs and Max Move upgrade costs aren't in the game master in a form
+this reads, so they aren't here. The Plan tab handles Max Move costs by asking
+you to record them.
+
+Mega energy **is** in the game master — 129 branches carry a first and a
+subsequent cost — and this README used to say it wasn't. Nothing extracts it
+yet; that's a gap, not an absence.
 
 ## Determinism
 
@@ -124,14 +134,25 @@ Two defects this audit found and fixed:
 - The plan ranking read rows with no `ORDER BY`, so tie order was whatever
   SQLite returned. Pinned to `id`.
 
-Two things that remain assumptions:
+One thing that remains an assumption:
 
 - The shadow and purified multipliers are in the game master, but the rounding
   rule isn't. `math.ceil` is used, which matches the costs I could check, but
   it isn't sourced.
-- `gamedata.json` is a snapshot with no version stamp. Results are
-  deterministic given that file; they change when you refetch and Niantic has
-  changed something. If that matters, hash it and record the hash.
+
+And one that no longer is: that a level costs two power-ups. The cost tables
+are indexed by whole level and charged twice, which was inferred from the
+published 1→40 and 40→50 totals coming out right. Niantic states it directly
+as `upgradesPerLevel`, so it's now read from the file and checked against what
+the engine does.
+- The shadow and purified rounding rule is still unsourced (above).
+
+`gamedata.json` now carries `version`, the sha256 of the game master it was
+built from, and `fetched`. Results are deterministic given that file, and the
+stamp is what makes a refetch visible instead of silent — `costs.plan()`
+returns it with every answer. The 13 Sep 2026 refetch was diffed against the
+previous snapshot before adoption and changed no existing number: same CPM,
+same type chart, same upgrade tables, same stats for all 1,024 species.
 
 ## Appraisal bar reader
 
@@ -160,6 +181,15 @@ a confident wrong answer:
 
 That is a genuine independent check — the bars and the CP/HP formula are
 unrelated paths to the same three numbers.
+
+How strong, measured rather than asserted: across all four fixtures, of the six
+spreads one notch away from the truth, **none** reproduce the same CP and HP at
+any level. So a single misread bar is always caught, which is the failure that
+actually happens.
+
+"Confirmed" does mean consistent rather than unique, though. For Ralts at CP
+296 / HP 66, 69 of the 4,096 spreads reproduce both numbers — a filter that
+rejects 98.3% of wrong answers, not a proof. Both properties have tests.
 
 ### Measured robustness
 

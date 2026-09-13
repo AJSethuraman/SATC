@@ -39,7 +39,7 @@ comments explaining why, so nobody "fixes" them back.
 ## Run it
 
     pip install -r requirements.txt
-    pytest -q                      # 59 tests, about 80 seconds
+    pytest -q                      # 97 tests, about 90 seconds
 
 The slow ones are the image reads (~8s each). Don't speed them up by shrinking
 the fixtures — resolution independence is one of the things under test.
@@ -62,11 +62,17 @@ the fixtures — resolution independence is one of the things under test.
 ## Things that are deliberate
 
 **Max Move costs are not in the game master — this was checked.** The mirror
-at PokeMiners is current (timestamp 2026-08-28) and contains no Dynamax data
-whatsoever. Niantic keeps it server-side. `dynamax.py` therefore encodes
-community-documented figures, and says so at the top. It is the only module in
-this codebase whose numbers do not come from Niantic's own file, and it should
-stay clearly separated for that reason.
+at PokeMiners is current and contains no Dynamax data whatsoever. Niantic keeps
+it server-side. `dynamax.py` therefore encodes community-documented figures, and
+says so at the top.
+
+It is *not*, however, the only hand-typed data here — that claim was in this
+file until 13 Sep 2026 and it was false. The IV floors in `gamedata.json` were
+also typed by hand; searching the game master for a minimum-IV template returns
+zero results. They now live under a `community` block with a provenance line,
+and `test_hand_typed_numbers_are_quarantined_and_labelled` fails if anything
+hand-typed drifts back in alongside Niantic's numbers. Nothing reads them yet:
+`pvp.rank()` takes a `floor_iv` but is not wired to the table.
 
 What is certain: Max Particle costs are fixed at 400 / 600 / 800 per level for
 every species and every slot. Only candy varies, by a cost group of 1-4. So
@@ -107,9 +113,13 @@ read from the game master and asserted against known cases.
    real footage. Do not tune `SAMPLE_FPS` or `FRAME_CHANGE` against it; that
    is fitting to an artifact. Get a real screen recording first.
 
-3. **`gamedata.json` has no version stamp.** Results are deterministic given
-   the file, but a refetch can silently change answers. Hash it, record the
-   hash, and surface it in the UI.
+3. ~~**`gamedata.json` has no version stamp.**~~ **Done.** It now carries
+   `version` (sha256 of the game master) and `fetched`. `costs.plan()` returns
+   `gamedata_version`; the UI still doesn't show it. The 13 Sep refetch was
+   diffed field-by-field against the previous snapshot before being adopted:
+   zero differences in CPM, the type chart, the upgrade tables or any of the
+   1,024 species' stats, moves, legacy flags, buddy distances or third-move
+   costs. Everything new is additive.
 
 4. **The PvP rank tables are slow to build** (~1s per species/cap, then
    cached). Fine interactively, noticeable in the suite.
@@ -118,10 +128,19 @@ read from the game master and asserted against known cases.
    deliberately not fetched at runtime. Surface `SOURCE_DATE` in any UI that
    displays them so nobody trusts a six-month-old ranking.
 
-6. **Galarian and other regional forms are not separated.** The extractor
-   keeps one entry per `pokemonId`, so Galarian Corsola resolves to Corsola's
-   stats. Anything form-specific is currently wrong. This needs the form
-   templates, not just the base ones.
+6. **Regional and alternate forms are absent, not wrong.** Checked against
+   the game master on 13 Sep 2026: of 1,024 `pokemonId`s carrying stats, only
+   two (Nidoran male and female) have no template whose suffix matches the id
+   exactly, and both of those have a single stat set — so no species is
+   silently holding a variant's numbers. The real gap is narrower than this
+   entry used to claim: ask for Galarian Corsola and you get Corsola, because
+   there is no entry for the Galarian form at all. Fixing it means keeping the
+   form templates as separate species, not correcting a corrupted base.
+
+7. **Mega energy is in the game master after all.** 129 `temporaryEvolution`
+   branches carry `temporaryEvolutionEnergyCost` and a subsequent-evolution
+   cost. The README said it wasn't; that has been corrected. Nothing extracts
+   it yet.
 
 ## What not to do
 

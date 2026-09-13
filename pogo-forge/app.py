@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import uvicorn
 
 import costs
@@ -51,7 +51,25 @@ def init_db() -> None:
 
 
 # ----------------------------------------------------------------- models --
-class PokemonIn(BaseModel):
+class Body(BaseModel):
+    """Request bodies reject fields they do not recognise.
+
+    Pydantic's default is to ignore an unknown key, which turns a client-side
+    typo into a confident wrong answer rather than an error. Posting
+    {"ivs": [9,12,15], "level": 20} to /api/cost — plausible names, neither of
+    them the real one — was answered with a plan for a perfect 15/15/15 at
+    level 1: every field defaulted, nothing said so, and the itemised dust
+    figure looked exactly as trustworthy as a correct one.
+
+    This is the same rule the rest of the codebase follows. The reader refuses
+    rather than guessing when it cannot read a bar; a request that names a
+    field we do not have is the same situation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class PokemonIn(Body):
     species: str
     nickname: str | None = None
     role: str = "attacker"
@@ -65,19 +83,19 @@ class PokemonIn(BaseModel):
     notes: str | None = None
 
 
-class MoveLevelIn(BaseModel):
+class MoveLevelIn(Body):
     slot: str
     level: int = Field(ge=0, le=3)
 
 
-class ParticleIn(BaseModel):
+class ParticleIn(Body):
     delta: int
     reason: str
     pokemon_id: int | None = None
     slot: str | None = None
 
 
-class CostIn(BaseModel):
+class CostIn(Body):
     species: str
     slot: str
     to_level: int = Field(ge=1, le=3)
@@ -86,7 +104,7 @@ class CostIn(BaseModel):
     candy_xl: int = 0
 
 
-class FilterIn(BaseModel):
+class FilterIn(Body):
     name: str
     query: str
     note: str | None = None
@@ -324,7 +342,7 @@ def delete_filter(fid: int):
 
 
 # -------------------------------------------------------------------- cost --
-class CostQuery(BaseModel):
+class CostQuery(Body):
     species: str
     iv_atk: int = Field(default=15, ge=0, le=15)
     iv_def: int = Field(default=15, ge=0, le=15)

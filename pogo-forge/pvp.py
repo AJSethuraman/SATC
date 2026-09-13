@@ -44,6 +44,15 @@ def _table(species: str, cap: int, floor_iv: int = 0) -> tuple:
     dfn = bd + ivs[:, 1]
     sta = bs + ivs[:, 2]
 
+    # Stops at MAX_LEVEL, not BEST_BUDDY_MAX. The extra level is real but it
+    # only applies while the Pokemon is your Best Buddy, and you have one at a
+    # time — ranking every spread as though it had it would overstate what
+    # almost all of them can reach.
+    #
+    # costs.max_level_under_cp does default to BEST_BUDDY_MAX, so the two
+    # modules answer the same question differently. That is deliberate and now
+    # asserted in the suite: below a league cap the two agree, because the cap
+    # binds long before level 50; they diverge only where nothing binds.
     for lv in costs.levels(1.0, costs.MAX_LEVEL):
         m = costs.cpm(lv)
         cp = np.floor(atk * np.sqrt(dfn) * np.sqrt(sta) * m * m / 10)
