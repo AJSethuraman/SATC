@@ -5,6 +5,50 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 13 September 2026, 18:20Z — "why did only F get swung at": the pack shows one character's view; the full record shows everything
+
+The firm, 18:0xZ, reading match 1 of the replay: *"Curious why did only F
+get swung at by the iron gate? I want to see the entirety of what is
+happening not just the dialogue."*
+
+**Why F.** `engine.py:_monster_phase`: each monster acts once a round. It
+looks at the characters in its room; if any stand within its reach (a
+guardian's reach is one tile) it swings at one of them, the lowest HP,
+ties broken by a seeded roll (`combat.choose_monster_target`). If none is
+in reach it steps one tile toward the nearest, then lowest HP, then id,
+and swings if that brings one into reach. Seed 101, round 1: C, E and F
+all moved to the Ironwood Gate and arrived at its doorway; the guardian
+lunged at F and missed. Round 2: E left for the Threshold, C hit the
+guardian for 4 (a scout's reach is 2, so from outside the guardian's 1),
+F stepped to [0,0]; nobody in reach, so it stalked toward F and hit for 6.
+One swing a round, at one character, and the pack writes each swing only
+on the line of the character it landed on. So it reads as "only F".
+
+**The entirety is not in the pack, by design and by omission.** The pack
+keeps, per character, what they said, did, thought, and what happened to
+them; the referee's full stream (every move, every swing and its dice,
+every monster step, positions and HP per round) was in a temporary
+database the gate created and discarded (`tempfile.mkdtemp` in
+`gate.py`). The three gate matches' full records are gone. That is the
+omission, fixed forward: `gate.py` now writes each seed's replay bundle to
+`gate/<run>.replays/<seed>.json`, beside the pack with the key (real names
+inside, so never in the pack and git-ignored), and the pack README says
+so. Test added.
+
+`tools/replay_page.py` now reads a replay bundle as well as a pack. From a
+bundle the page carries everything the referee recorded, in sequence:
+every line spoken, every move, swing, monster step, referee call and
+narration, a "show the dice" toggle for the rolls, the private notes
+behind the thinking toggle, and at the end of each round where everyone
+stood: HP as a bar, room, out or not, the Crown's holder. Proven on the
+mock's committed seed-52 bundle: every non-speech public line appears in
+seq order, 12 rounds, 12 state strips, 154 dice lines. Suite 104 → **106**.
+
+Not published: the mock's speech is not real, and "legit" was the ask. The
+real 48-round match still needs the forge's export; the check-in builds
+this page from it the moment it lands. A screenshot of the mock, marked as
+such, went to the firm so the shape can be judged now.
+
 ## 13 September 2026, 16:05Z — "very unclear how to use this": the replay cut down to a feed; the forge asked for the real match
 
 The firm, 15:5xZ: *"It is very unclear how to use this. I just want a legit

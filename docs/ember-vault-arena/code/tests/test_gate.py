@@ -43,6 +43,7 @@ class GatePackTests(unittest.TestCase):
         self.assertFalse((self.pack / "KEY.json").exists())
         key_file = gate.key_path(self.pack)
         self.assertTrue(key_file.exists())
+
         self.assertEqual(key_file.parent, self.pack.parent)
         key = json.loads(key_file.read_text(encoding="utf-8"))
         numbers = key["letter_to_brain_number"]
@@ -64,6 +65,21 @@ class GatePackTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             for token in tokens:
                 self.assertIsNone(re.search(rf"\b{re.escape(token)}\b", text, re.I), f"{token!r} in {path.name}")
+
+    def test_the_full_match_records_are_kept_beside_the_pack_and_not_in_it(self):
+        """Every event and every round's state, one JSON per seed, with real
+        names: beside the pack with the key, so a reader's pack stays blind
+        and the firm can still replay a gate match in full."""
+        replays = gate.replays_dir(self.pack)
+        self.assertTrue(replays.is_dir())
+        files = sorted(replays.glob("*.json"))
+        self.assertEqual([f.name for f in files], ["101.json"])
+        bundle = json.loads(files[0].read_text(encoding="utf-8"))
+        self.assertEqual(set(bundle) >= {"match", "events", "snapshots", "participants"}, True)
+        self.assertEqual(bundle["match"]["seed"], 101)
+        self.assertFalse(any(p.suffix == ".json" for p in self.pack.rglob("*") if "replay" in p.name.lower()))
+        # and the pack folder itself holds no bundle
+        self.assertFalse((self.pack / "replays").exists())
 
     def test_scorer_reads_the_key_beside_the_pack_and_inside_an_older_one(self):
         key = json.loads(gate.key_path(self.pack).read_text(encoding="utf-8"))["letter_to_brain_number"]
@@ -133,6 +149,34 @@ def test_replay_page_interleaves_the_pack_and_carries_no_key(tmp_path):
             assert real_id.lower() not in page.lower(), real_id
     out = tmp_path / "replay.html"
     assert replay_page.main([str(pack), str(out), "--blind-read-url", "https://example.invalid/read"]) == 0
+    assert out.read_text(encoding="utf-8") == page
+
+
+def test_replay_page_from_a_bundle_shows_every_recorded_event_in_order(tmp_path):
+    """From a full match record the page carries what the pack cannot: every
+    move, swing, monster step and narration, in sequence, with a state strip
+    at the end of each round. Checked on the mock's committed seed-52 bundle."""
+    from tools import replay_page
+
+    bundle = replay_page.load_bundle(gate.ROOT / "demo" / "replay.json")
+    page = replay_page.build_from_bundle(bundle)
+    rounds = sorted({e["round_no"] for e in bundle["events"] if e["round_no"] >= 1})
+    assert page.count('<h2 class="round">') == len(rounds) == 12
+    # public lines that are not speech, notes, dice or bookkeeping all appear, in order
+    shown = [e["public_text"] for e in sorted(bundle["events"], key=lambda e: e["seq"])
+             if e["event_type"] not in replay_page.SKIP | {"agent_speech", "note_written", "round_narration", "act_started"}]
+    pos = -1
+    for text in shown:
+        nxt = page.find(replay_page.E(text), pos + 1)
+        assert nxt > pos, text
+        pos = nxt
+    assert page.count('class="state"') == len(rounds)
+    assert "Ironwood Guardian falls." in page
+    assert page.count('class="ev dice"') == sum(1 for e in bundle["events"] if e["event_type"] == "dice_roll")
+    winner = next(p["manifest"]["name"] for p in bundle["participants"] if p["manifest"]["id"] == bundle["match"]["winner_agent_id"])
+    assert winner in page
+    out = tmp_path / "full.html"
+    assert replay_page.main([str(gate.ROOT / "demo" / "replay.json"), str(out)]) == 0
     assert out.read_text(encoding="utf-8") == page
 
 
