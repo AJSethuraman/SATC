@@ -155,28 +155,42 @@ def test_replay_page_interleaves_the_pack_and_carries_no_key(tmp_path):
 def test_replay_page_from_a_bundle_shows_every_recorded_event_in_order(tmp_path):
     """From a full match record the page carries what the pack cannot: every
     move, swing, monster step and narration, in sequence, with a state strip
-    at the end of each round. Checked on the mock's committed seed-52 bundle."""
+    at the end of each round. The bundle is produced here by a mock match on
+    the house brains, so the test carries its own fixture; the demo's bundle
+    is git-ignored and CI never has it (the 17aa60dd failure)."""
+    from arena.engine import ArenaEngine
+    from arena.providers import MockDecisionProvider
+    from arena.storage import ArenaStore
     from tools import replay_page
 
-    bundle = replay_page.load_bundle(gate.ROOT / "demo" / "replay.json")
+    store = ArenaStore(tmp_path / "mock.db")
+    try:
+        match_id = ArenaEngine(store, MockDecisionProvider(), parallel_agents=True).run(load_brains(str(HOUSE)), seed=52)
+        bundle = store.replay_bundle(match_id)
+    finally:
+        store.close()
     page = replay_page.build_from_bundle(bundle)
     rounds = sorted({e["round_no"] for e in bundle["events"] if e["round_no"] >= 1})
-    assert page.count('<h2 class="round">') == len(rounds) == 12
-    # public lines that are not speech, notes, dice or bookkeeping all appear, in order
+    assert rounds and page.count('<h2 class="round">') == len(rounds)
+    # every public line that is not speech, a note, dice or bookkeeping appears, and in seq order
     shown = [e["public_text"] for e in sorted(bundle["events"], key=lambda e: e["seq"])
              if e["event_type"] not in replay_page.SKIP | {"agent_speech", "note_written", "round_narration", "act_started"}]
+    assert shown
     pos = -1
     for text in shown:
         nxt = page.find(replay_page.E(text), pos + 1)
         assert nxt > pos, text
         pos = nxt
-    assert page.count('class="state"') == len(rounds)
-    assert "Ironwood Guardian falls." in page
+    ends = {s["round_no"] for s in bundle["snapshots"] if s.get("phase") == "end"}
+    assert page.count('class="state"') == len(ends) == len(rounds)
     assert page.count('class="ev dice"') == sum(1 for e in bundle["events"] if e["event_type"] == "dice_roll")
-    winner = next(p["manifest"]["name"] for p in bundle["participants"] if p["manifest"]["id"] == bundle["match"]["winner_agent_id"])
-    assert winner in page
+    names = {p["manifest"]["id"]: p["manifest"]["name"] for p in bundle["participants"]}
+    for name in names.values():
+        assert name in page
+    bundle_path = tmp_path / "match.replay.json"
+    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
     out = tmp_path / "full.html"
-    assert replay_page.main([str(gate.ROOT / "demo" / "replay.json"), str(out)]) == 0
+    assert replay_page.main([str(bundle_path), str(out)]) == 0
     assert out.read_text(encoding="utf-8") == page
 
 
