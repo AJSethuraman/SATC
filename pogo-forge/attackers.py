@@ -19,6 +19,14 @@ its own type.
 crude survivability weighting to sit beside DPS, not replace it — it is not the
 blended rating community tier lists use, and the ordering it gives should be
 read as directional.
+
+**A moveset you cannot teach is not a moveset you have.** Thirteen of the
+twenty-two best pairings in one real collection turned out to be Elite-TM-only —
+Psystrike, Precipice Blades, Origin Pulse, Draco Meteor, Blast Burn. Reporting
+those as owned turned a roster you would have to buy into a roster the trainer
+was told they already had. Every rating says which of its two moves is legacy,
+and `coverage` counts the party twice: what is strong now, and what is strong
+after spending. The engine does not get to quietly assume the spend.
 """
 
 from __future__ import annotations
@@ -55,10 +63,18 @@ class Rating:
     bulk: float
     fast: str
     charged: str
+    # Which of the two moves the species can no longer be taught normally. Empty
+    # means this moveset is reachable today with ordinary TMs.
+    legacy: tuple[str, ...] = ()
+
+    @property
+    def needs_tm(self) -> bool:
+        return bool(self.legacy)
 
     def dict(self) -> dict:
         return {"dps": round(self.dps, 2), "bulk": round(self.bulk, 1),
-                "fast": self.fast, "charged": self.charged}
+                "fast": self.fast, "charged": self.charged,
+                "legacy": list(self.legacy), "needs_tm": self.needs_tm}
 
 
 def _cycle_dps(atk: float, types: list[str], fast: str, charged: str,
@@ -83,34 +99,43 @@ def _cycle_dps(atk: float, types: list[str], fast: str, charged: str,
 
 
 def rate(species: str, attack_type: str, *, iv_atk: int = 15,
-         shadow: bool = False) -> Rating:
+         shadow: bool = False, elite_tm: bool = True) -> Rating:
     """Best same-type moveset for this species attacking with `attack_type`.
 
     Both moves must be the attack type. A Fighting fast move with a Dark
     charged move is not a Fighting attacker; it is two half-attackers, and
     counting it as either overstates what it does.
+
+    `elite_tm=False` restricts the search to moves the species can still be
+    taught, which is the honest answer to "what can I field this weekend".
     """
     s = costs.base_stats(species)
     atk = (s["atk"] + iv_atk) * (SHADOW_ATTACK if shadow else 1.0)
     dfn = (s["def"] + 15) * (SHADOW_DEFENCE if shadow else 1.0)
+    fasts = s["fast"] + (s["legacy_fast"] if elite_tm else [])
+    chargeds = s["charged"] + (s["legacy_charged"] if elite_tm else [])
     best: Rating | None = None
-    for fast in s["fast"] + s["legacy_fast"]:
+    for fast in fasts:
         if MOVES.get(fast, {}).get("type") != attack_type:
             continue
-        for charged in s["charged"] + s["legacy_charged"]:
+        for charged in chargeds:
             if MOVES.get(charged, {}).get("type") != attack_type:
                 continue
             d = _cycle_dps(atk, s["types"], fast, charged)
             if d is None:
                 continue
             ehp = (s["sta"] + 15) * costs.cpm(40.0) * (dfn * costs.cpm(40.0)) / 100
-            r = Rating(d, d * ehp / 10, fast, charged)
+            legacy = tuple(m for m, pool in ((fast, s["legacy_fast"]),
+                                             (charged, s["legacy_charged"]))
+                           if m in pool)
+            r = Rating(d, d * ehp / 10, fast, charged, legacy)
             if best is None or r.dps > best.dps:
                 best = r
     if best is None:
         raise NoMoveset(
             f"{species.title()} has no {attack_type.title()} fast and charged "
-            "move pair, so it cannot attack with that type.")
+            "move pair" + ("" if elite_tm else " it can still be taught") +
+            ", so it cannot attack with that type.")
     return best
 
 
@@ -169,16 +194,29 @@ def coverage(collection: list[dict]) -> list[dict]:
         bar = top.dps * GOOD_ENOUGH
         members = []
         for mon in collection:
+            kw = {"iv_atk": mon.get("iv_atk", 15), "shadow": bool(mon.get("shadow"))}
             try:
-                r = rate(mon["species"], t, iv_atk=mon.get("iv_atk", 15),
-                         shadow=bool(mon.get("shadow")))
+                r = rate(mon["species"], t, **kw)
             except (NoMoveset, costs.Unknown):
                 continue
-            members.append({**mon, **r.dict(),
-                            "share": round(r.dps / top.dps * 100, 1),
-                            "strong": r.dps >= bar})
+            # The same species again, barred from moves it can no longer learn.
+            # This is what it does this weekend; `r` is what it does after a spend.
+            try:
+                now = rate(mon["species"], t, elite_tm=False, **kw)
+            except NoMoveset:
+                now = None
+            members.append({
+                **mon, **r.dict(),
+                "share": round(r.dps / top.dps * 100, 1),
+                "strong": r.dps >= bar,
+                "now_dps": round(now.dps, 2) if now else None,
+                "now_moveset": f"{now.fast} + {now.charged}" if now else None,
+                "now_share": round(now.dps / top.dps * 100, 1) if now else None,
+                "strong_now": bool(now and now.dps >= bar),
+            })
         members.sort(key=lambda m: -m["dps"])
         strong = [m for m in members if m["strong"]]
+        strong_now = [m for m in members if m["strong_now"]]
         hits = offensive_value(t)
         out.append({
             "type": t,
@@ -186,13 +224,17 @@ def coverage(collection: list[dict]) -> list[dict]:
             "beats": hits,
             "ceiling": round(top.dps, 2),
             "ceiling_moveset": f"{top.fast} + {top.charged}",
+            "ceiling_needs_tm": top.needs_tm,
             "bar": round(bar, 2),
             "strong": len(strong),
+            "strong_now": len(strong_now),
             "usable": len(members),
-            "short": max(0, PARTY - len(strong)),
+            "short": max(0, PARTY - len(strong_now)),
+            "short_with_tm": max(0, PARTY - len(strong)),
             "members": members[:PARTY],
         })
-    # Worst hole in the most valuable type first. A type nothing is weak to
-    # sorts last however empty it is.
-    out.sort(key=lambda r: (-(r["hits"] * r["short"]), -r["hits"], r["strong"]))
+    # Worst hole in the most valuable type first, measured on what can be
+    # fielded today — an Elite TM is a cost, not a possession. A type nothing is
+    # weak to sorts last however empty it is.
+    out.sort(key=lambda r: (-(r["hits"] * r["short"]), -r["hits"], r["strong_now"]))
     return out

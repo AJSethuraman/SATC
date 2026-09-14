@@ -1120,3 +1120,57 @@ def test_coverage_reports_the_bar_it_used():
     assert row["ceiling"] > 0 and row["bar"] == pytest.approx(row["ceiling"] * 0.85, abs=0.01)
     assert row["members"][0]["share"] == pytest.approx(
         row["members"][0]["dps"] / row["ceiling"] * 100, abs=0.1)
+
+
+def test_a_rating_says_which_of_its_moves_you_can_no_longer_learn():
+    """The bug this exists for: a real collection was rated, and thirteen of
+    the twenty-two winning movesets turned out to be Elite-TM-only. Reported
+    without that, a roster you would have to buy reads as a roster you own."""
+    mewtwo = A.rate("mewtwo", "PSYCHIC")
+    assert mewtwo.charged == "PSYSTRIKE"
+    assert mewtwo.legacy == ("PSYSTRIKE",) and mewtwo.needs_tm
+
+    kingler = A.rate("kingler", "WATER")
+    assert kingler.legacy == () and not kingler.needs_tm
+
+
+def test_barring_elite_tm_moves_never_improves_a_rating():
+    """`elite_tm=False` searches a subset of the same moves, so it can only
+    match or lose. A restriction that raised a score would mean the unrestricted
+    search was not finding the best pair."""
+    for species in ("mewtwo", "groudon", "kyogre", "tyranitar", "dragonite",
+                    "blaziken", "gengar", "venusaur", "weavile", "kingler"):
+        for t in C.DATA["type_chart"]:
+            try:
+                full = A.rate(species, t)
+            except A.NoMoveset:
+                continue
+            try:
+                now = A.rate(species, t, elite_tm=False)
+            except A.NoMoveset:
+                assert full.needs_tm, f"{species}/{t} lost its only moveset but was not legacy"
+                continue
+            assert now.dps <= full.dps + 1e-9
+            assert not now.needs_tm
+
+
+def test_two_groudon_are_a_ground_party_only_after_you_spend():
+    """Precipice Blades is Elite-TM-only. Without it Groudon drops under the
+    bar, so the same roster is 2/6 strong after a spend and 0/6 before one —
+    and the module must not report the first as if it were the second."""
+    roster = [{"species": "Groudon"}, {"species": "Groudon"}]
+    row = next(r for r in A.coverage(roster) if r["type"] == "GROUND")
+    assert row["strong"] == 2, "with an Elite TM, both clear the bar"
+    assert row["strong_now"] == 0, "without one, neither does"
+    assert row["short"] == 6 and row["short_with_tm"] == 4
+    blades = row["members"][0]
+    assert blades["charged"] == "PRECIPICE_BLADES" and blades["needs_tm"]
+    assert blades["now_dps"] < blades["dps"]
+
+
+def test_the_hole_is_ranked_on_what_can_be_fielded_today():
+    """An Elite TM is a cost, not a possession, so the ordering is driven by
+    `short` (today) rather than `short_with_tm` (after spending)."""
+    rows = A.coverage([{"species": "Groudon"}, {"species": "Groudon"}])
+    assert rows == sorted(
+        rows, key=lambda r: (-(r["hits"] * r["short"]), -r["hits"], r["strong_now"]))
