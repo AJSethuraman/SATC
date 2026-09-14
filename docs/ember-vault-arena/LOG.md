@@ -5,6 +5,55 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 00:20Z — "I want to literally see the replay not read the text": the match on a drawn board
+
+The firm, 13 September, late, on the feed page: *"Okay the thinking and
+such is really confusing the way this is being done. I want to literally
+see the replay not read the text."*
+
+So: `tools/replay_board.py`. It reads a replay bundle and writes one page
+that plays the match on a map drawn to the engine's own grids
+(`arena.grid.ROOM_GRIDS`: the five rooms, their doors, the blocking
+tiles, cover and hazards by name). The eight characters and three
+monsters are tokens on their tiles with an HP bar under each. Every
+move and step slides the token; every swing draws a line from attacker
+to target with the damage or "miss" over the victim's head; every seal,
+cache, sealing room and Crown transfer shows where it happened, the
+Crown as a gold mark on its carrier with the attunement count. Every
+line spoken appears in a bubble beside the speaker and, in full, on a
+caption panel beside the board with who said it, their build and their
+room. Play, pause, step one, jump a round, scrub, four speeds; space and
+the arrow keys. No private notes anywhere on it, no dice, no token
+spend. Published: https://claude.ai/code/artifact/9150f95f-0c81-4671-befb-098303b61c51
+
+**The board is not a second referee.** The page carries a timeline of
+state changes read from the bundle's events. The one thing computed
+rather than read is the tile a body lands on after a room move, which
+the `move` event does not record; that uses the engine's own
+`grid.free_tile_near` on the same inputs the engine had. `verify` then
+folds the timeline and compares it with every round-end snapshot the
+referee wrote: room, tile, HP and status of every character, tile and
+HP of every monster, who holds the Crown. The build refuses on the first
+mismatch. On the real match: 16 round-ends checked, no mismatch, 313
+watched events. Tests (`tests/test_board.py`, on a mock match) prove the
+check passes, prove it can fail (a mutated delta is caught, a mutated
+snapshot makes the command exit 2 and write nothing), prove no objective
+text and no dice line reach the page, every body has a token, every
+line spoken is there in order, and every room is drawn to the grid with
+every prop named. Suite 106 → **112**.
+
+Looked at once before publishing, at desktop and phone width: the
+opening board with all eight on the Threshold; the first line spoken,
+in its bubble beside the speaker; the first hit, the Ossuary Guardian
+on Fen for 6, with the swing line and the number. One pass of edits from
+that look: the caption and controls moved beside the board on a wide
+screen so the whole match is watched without scrolling; a bubble near
+the top of the board opens downward; a bubble near an edge is kept on
+the board.
+
+The feed page stays where it was, one version behind this in usefulness
+and not withdrawn. The docket's Read item now points at the board.
+
 ## 13 September 2026, 18:55Z — "I thought we said no extraction wins": D8 stands, the engine lags by D7, and the collision goes on the docket as D9
 
 The firm, 18:4xZ, watching the real match: *"I thought we said no
