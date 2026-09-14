@@ -508,7 +508,7 @@ NEXT = {
 }
 
 CHANGED = [
- ("1,312", "desk tests passing", "1,254 yesterday; identical now from a checkout and from an install"),
+ ("1,324", "desk tests passing", "1,254 yesterday; identical now from a checkout and from an install"),
  ("0 \u2192 6", "checks that can run where they are meant to prove something", "three could not run installed; three had been deleted by accident"),
  ("97 / 98", "answers rendered and read back", "1 refused, 0 misread \u2014 the whole record, not a sample"),
  ("786", "citations in the pool", "526 rules, 260 worked examples"),
