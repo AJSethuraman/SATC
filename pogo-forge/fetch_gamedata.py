@@ -106,6 +106,8 @@ def build(gm: list, digest: str = "") -> dict:
     upgrades = level = None
     species: dict[str, dict] = {}
     type_chart: dict[str, list] = {}
+    templates: list = []
+    variants: list = []
 
     for entry in gm:
         d = entry.get("data", {})
@@ -127,11 +129,15 @@ def build(gm: list, digest: str = "") -> dict:
             stats = s.get("stats") or {}
             if not pid or "baseAttack" not in stats:
                 continue
+            # Collect every stats-bearing template. Which of them become their
+            # own species is decided in a second pass, once the base form is
+            # known to compare against.
+            templates.append((m, s))
+
+    for m, s in templates:
+            pid = s["pokemonId"]
+            stats = s["stats"]
             name = m.group(2)
-            # Prefer the entry whose suffix is exactly the pokemonId; that's
-            # the base form. Variants (ALOLA, MEGA...) carry a longer name.
-            if name != pid and pid in species:
-                continue
             third = s.get("thirdMove") or {}
             # A handful of entries carry an unresolved numeric move id where
             # the name should be. Those are dropped rather than guessed at;
@@ -161,7 +167,7 @@ def build(gm: list, digest: str = "") -> dict:
             # "no evolution on file", which is a different and false claim.
             uncosted = [b["evolution"] for b in (s.get("evolutionBranch") or [])
                         if b.get("evolution") and b.get("candyCost") is None]
-            species[pid] = {
+            record = {
                 "dex": int(m.group(1)),
                 "atk": stats["baseAttack"],
                 "def": stats["baseDefense"],
@@ -181,6 +187,81 @@ def build(gm: list, digest: str = "") -> dict:
                 "legacy_charged": clean(s.get("eliteCinematicMove")),
                 "buddy_km": s.get("kmBuddyDistance"),
             }
+
+            if name == pid:
+                # The base form. Its suffix is exactly the pokemonId.
+                species[pid] = record
+            else:
+                # A variant: Alolan, Galarian, Hisuian, Zen, Origin, and so on.
+                # Held aside and only kept if it actually differs -- decided
+                # below, once every base form is known.
+                variants.append((name, pid, record))
+
+    # ------------------------------------------------------------ variants --
+    # Regional and alternate forms used to be dropped entirely, so asking for
+    # Alolan Ninetales silently answered about the Kanto one -- Fire, when the
+    # real answer is Ice/Fairy. That was handoff gap 6.
+    #
+    # The filter is that a form earns its own entry only when its stats or its
+    # typing actually differ from the base. 1,288 of the variant templates are
+    # costumes and _NORMAL duplicates that match their base exactly and would
+    # only bloat the file; 158 are real.
+    # Two pokemonIds — Nidoran female and male — carry no template whose suffix
+    # equals the id, so neither got a base form above. Both have exactly one
+    # distinct stat set across their templates, so promoting one is safe rather
+    # than a choice between real alternatives. Promote deterministically by
+    # shortest suffix, and assert the safety rather than trusting it.
+    for pid in {p for _, p, _ in variants} - set(species):
+        mine = sorted((n, r) for n, p, r in variants if p == pid)
+        distinct = {(r["atk"], r["def"], r["sta"], tuple(r["types"]))
+                    for _, r in mine}
+        if len(distinct) > 1:
+            raise SystemExit(
+                f"{pid} has no base-form template and its variants disagree on "
+                f"stats: {distinct}. Promoting one would be a guess.")
+        species[pid] = min(mine, key=lambda nr: (len(nr[0]), nr[0]))[1]
+
+    forms: dict[str, dict] = {}
+    for name, pid, record in variants:
+        if species.get(pid) is record:
+            continue                      # promoted above; it IS the base now
+        base = species.get(pid)
+        if base and (base["atk"], base["def"], base["sta"], base["types"]) == (
+                record["atk"], record["def"], record["sta"], record["types"]):
+            continue
+        record["base_form"] = pid
+        forms[name] = record
+    species.update(forms)
+
+    # Aliases, because nobody types "NINETALES_ALOLA". Built from the data
+    # rather than hand-listed, so a new region needs no code change: the
+    # suffix is whatever the game master calls it, and the reversed spelling
+    # plus the -N/-AN endings people actually use are generated from it.
+    ENDINGS = {"ALOLA": "ALOLAN", "GALAR": "GALARIAN", "HISUI": "HISUIAN",
+               "PALDEA": "PALDEAN", "GALARIAN": "GALAR", "ALOLAN": "ALOLA",
+               "HISUIAN": "HISUI", "PALDEAN": "PALDEA"}
+    aliases: dict[str, str] = {}
+    for key, record in forms.items():
+        pid = record["base_form"]
+        if not key.startswith(pid + "_"):
+            continue
+        suffix = key[len(pid) + 1:]
+        spellings = {suffix} | {ENDINGS[p] + suffix[len(p):]
+                                for p in ENDINGS if suffix.startswith(p)}
+        # A compound suffix also answers to its region word alone: Galarian
+        # Darmanitan is GALARIAN_STANDARD in the file, and nobody types that.
+        # Where the short spelling is ambiguous (Galarian Darmanitan is both
+        # Standard and Zen) the sorted() below makes the winner deterministic
+        # and setdefault keeps the first — Standard, which is the one people
+        # mean. The full key still resolves the other exactly.
+        region = suffix.split("_")[0]
+        if region != suffix:
+            spellings |= {region} | {ENDINGS[region]} if region in ENDINGS else {region}
+        for sp in sorted(spellings):
+            for alias in (f"{sp}_{pid}", f"{pid}_{sp}"):
+                # Never shadow a real species key.
+                if alias not in species:
+                    aliases.setdefault(alias, key)
 
     if not (upgrades and level and species):
         raise SystemExit("game master did not contain the expected templates")
@@ -265,6 +346,8 @@ def build(gm: list, digest: str = "") -> dict:
             "purified_candy_mult": upgrades["purifiedCandyMultiplier"],
         },
         "species": species,
+        # alternative spellings -> the canonical species key
+        "aliases": aliases,
     }
 
 

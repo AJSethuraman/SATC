@@ -39,7 +39,7 @@ comments explaining why, so nobody "fixes" them back.
 ## Run it
 
     pip install -r requirements.txt
-    pytest -q                      # 106 tests, about 110 seconds
+    pytest -q                      # 120 tests, about 170 seconds
 
 The slow ones are the image reads (~8s each). Don't speed them up by shrinking
 the fixtures — resolution independence is one of the things under test.
@@ -141,14 +141,27 @@ read from the game master and asserted against known cases.
    tab shows it. `BEST_ATTACKERS`, `BEST_DEFENDERS` and `BEST_HEALERS` are
    still displayed nowhere at all.
 
-6. **Regional and alternate forms are absent, not wrong.** Checked against
-   the game master on 13 Sep 2026: of 1,024 `pokemonId`s carrying stats, only
-   two (Nidoran male and female) have no template whose suffix matches the id
-   exactly, and both of those have a single stat set — so no species is
-   silently holding a variant's numbers. The real gap is narrower than this
-   entry used to claim: ask for Galarian Corsola and you get Corsola, because
-   there is no entry for the Galarian form at all. Fixing it means keeping the
-   form templates as separate species, not correcting a corrupted base.
+6. ~~**Regional and alternate forms are absent.**~~ **Done.** The extractor now
+   keeps a variant as its own species wherever its stats or typing differ from
+   the base — 158 of them, out of 1,446 variant templates; the other 1,288 are
+   costumes and `_NORMAL` duplicates that match their base exactly and would
+   only bloat the file. `NINETALES_ALOLA` is Ice/Fairy with its own moveset,
+   where it used to answer as Kanto Ninetales, Fire.
+
+   Lookup takes an alias table generated from the data rather than hand-listed,
+   so `alolan ninetales`, `ninetales alola` and `galarian darmanitan` all
+   resolve and a new region needs no code change. A name that is already a
+   species key always wins, so nothing is shadowed.
+
+   Two things this turned up. Nidoran female and male have no template whose
+   suffix equals their id, so the first cut of this work dropped both — the
+   field-by-field no-regression check against the previous snapshot is what
+   caught it, and one is now promoted deliberately with an assertion that its
+   variants agree. And **Niantic's file disagrees with itself about Dugtrio**:
+   134 defence on `V0051_POKEMON_DUGTRIO`, 136 on `..._DUGTRIO_NORMAL`,
+   everything else identical. Community databases are split the same way
+   because they read one template or the other. Nothing in the file says which
+   is current, so both are stored and neither is chosen.
 
 7. **`coverage.py` is still unreachable from the product.** 89 lines, 6
    passing tests, imported by nothing but the suite — the same shape of gap

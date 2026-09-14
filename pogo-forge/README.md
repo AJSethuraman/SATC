@@ -108,6 +108,10 @@ to nine decimal places.
 
 Re-run `python fetch_gamedata.py` after a major update to refresh it.
 
+Regional forms are real species here: ask for Alolan Ninetales and you get
+Ice/Fairy with its own moveset, not Kanto's Fire. A form earns its own entry
+only where its stats or typing actually differ from the base.
+
 It also tells you what an evolution needs that isn't candy. Gloom to
 Bellossom is 100 candy **and a Sun Stone**; Kirlia to Gallade wants a Sinnoh
 Stone and a male Kirlia; Eevee to Espeon wants 10 km as your buddy, in

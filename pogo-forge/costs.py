@@ -30,15 +30,45 @@ class Unknown(Exception):
 
 
 # ------------------------------------------------------------------ lookups --
+ALIASES: dict[str, str] = DATA.get("aliases", {})
+
+
 def norm(name: str) -> str:
-    return name.strip().upper().replace(" ", "_").replace("-", "_")
+    """Normalise a typed name, resolving regional-form spellings.
+
+    Regional forms are stored under the game master's own key —
+    NINETALES_ALOLA — which is not what anyone types. The alias table maps the
+    spellings people actually use (ALOLAN_NINETALES, ALOLA_NINETALES,
+    NINETALES_ALOLAN) onto it, and is generated from the data rather than
+    hand-listed, so a new region needs no code change here.
+
+    A name that is already a species key always wins, so nothing can be
+    shadowed by an alias.
+    """
+    key = name.strip().upper().replace(" ", "_").replace("-", "_")
+    if key in SPECIES:
+        return key
+    return ALIASES.get(key, key)
 
 
 def base_stats(name: str) -> dict:
-    s = SPECIES.get(norm(name))
+    key = norm(name)
+    s = SPECIES.get(key)
     if not s:
         raise Unknown(f"no base stats on file for {name!r}")
     return s
+
+
+def forms_of(name: str) -> list[str]:
+    """Every stored form of a species, base first.
+
+    A form is stored separately only where its stats or typing differ from the
+    base — costumes and cosmetic variants are not species.
+    """
+    base = norm(name)
+    base = SPECIES.get(base, {}).get("base_form", base)
+    return [base] + sorted(k for k, v in SPECIES.items()
+                           if v.get("base_form") == base)
 
 
 def cpm(level: float) -> float:

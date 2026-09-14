@@ -890,3 +890,106 @@ def test_the_schema_is_created_however_the_app_is_started(tmp_path, monkeypatch)
     tables = {r[0] for r in sqlite3.connect(A.DB_PATH).execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"pokemon", "max_move", "species_cost_group", "move_cost"} <= tables
+
+
+# ================================================= regional and alternate forms ===
+# Handoff gap 6. The extractor kept one entry per pokemonId, so asking about
+# Alolan Ninetales silently answered about the Kanto one — Fire, when the real
+# answer is Ice/Fairy. Wrong typing is worse than a missing entry: it produces a
+# confident counter recommendation that is exactly backwards.
+@pytest.mark.parametrize("typed,key,types", [
+    ("alolan ninetales",  "NINETALES_ALOLA",   ["ICE", "FAIRY"]),
+    ("alolan sandslash",  "SANDSLASH_ALOLA",   ["ICE", "STEEL"]),
+    ("alolan marowak",    "MAROWAK_ALOLA",     ["FIRE", "GHOST"]),
+    ("galarian weezing",  "WEEZING_GALARIAN",  ["POISON", "FAIRY"]),
+    ("hisuian arcanine",  "ARCANINE_HISUIAN",  ["FIRE", "ROCK"]),
+    ("hisuian typhlosion", "TYPHLOSION_HISUIAN", ["FIRE", "GHOST"]),
+])
+def test_regional_forms_resolve_to_their_own_typing(typed, key, types):
+    assert C.norm(typed) == key
+    assert C.base_stats(typed)["types"] == types
+
+
+def test_the_base_form_is_not_shadowed_by_its_variants():
+    """Kanto Ninetales must still be Fire. A form that displaced its own base
+    would be the same bug pointing the other way."""
+    assert C.base_stats("ninetales")["types"] == ["FIRE"]
+    assert C.base_stats("sandslash")["types"] == ["GROUND"]
+    assert C.base_stats("marowak")["types"] == ["GROUND"]
+
+
+def test_a_form_is_stored_only_when_it_actually_differs():
+    """Alolan Vulpix is Ice where Kanto Vulpix is Fire, so it earns an entry.
+    Costume and _NORMAL templates match their base exactly and must not —
+    1,288 of them would only bloat the file.
+    """
+    assert "VULPIX_ALOLA" in C.SPECIES
+    assert C.base_stats("alolan vulpix")["types"] == ["ICE"]
+    for key, rec in C.SPECIES.items():
+        base = rec.get("base_form")
+        if not base:
+            continue
+        b = C.SPECIES[base]
+        assert (rec["atk"], rec["def"], rec["sta"], rec["types"]) != \
+               (b["atk"], b["def"], b["sta"], b["types"]), \
+               f"{key} is identical to {base} and should not be stored"
+
+
+def test_aliases_never_shadow_a_real_species():
+    for alias, target in C.ALIASES.items():
+        assert alias not in C.SPECIES, f"alias {alias} hides a real species"
+        assert target in C.SPECIES, f"alias {alias} points at nothing"
+
+
+def test_forms_of_lists_the_family():
+    assert C.forms_of("ninetales") == ["NINETALES", "NINETALES_ALOLA"]
+    # asking via the form gets you the same family, not just itself
+    assert C.forms_of("alolan ninetales") == C.forms_of("ninetales")
+    assert "DARMANITAN_GALARIAN_STANDARD" in C.forms_of("darmanitan")
+
+
+def test_a_region_word_alone_resolves_to_the_usual_form():
+    """The file calls it GALARIAN_STANDARD. Nobody types that."""
+    assert C.norm("galarian darmanitan") == "DARMANITAN_GALARIAN_STANDARD"
+    assert C.base_stats("galarian darmanitan")["types"] == ["ICE"]
+
+
+def test_forms_carry_their_own_moves_not_the_bases():
+    """The typing fix is worthless if the moveset still comes from Kanto."""
+    alolan = C.SPECIES["NINETALES_ALOLA"]
+    kanto = C.SPECIES["NINETALES"]
+    assert "POWDER_SNOW" in alolan["fast"]
+    assert "POWDER_SNOW" not in kanto["fast"]
+    assert "DAZZLING_GLEAM" in alolan["charged"]
+
+
+def test_nidoran_survived_having_no_base_template():
+    """Nidoran female and male are the only two pokemonIds with no template
+    whose suffix equals the id. The form work initially dropped both, and the
+    no-regression guard is what caught it."""
+    for n in ("nidoran_female", "nidoran_male"):
+        assert C.base_stats(n)["atk"] > 0
+
+
+def test_niantics_file_disagrees_with_itself_about_dugtrio():
+    """A real finding, recorded rather than resolved.
+
+    Kanto Dugtrio appears on two templates in the game master with two
+    different defence values: V0051_POKEMON_DUGTRIO says 134,
+    V0051_POKEMON_DUGTRIO_NORMAL says 136. Everything else matches.
+
+    Community databases are split the same way, because they are reading one
+    template or the other. Nothing in Niantic's file says which is current, so
+    the extractor stores both and picks neither — the same stance the rest of
+    this codebase takes when the data cannot settle a question.
+
+    This is the only species where a _NORMAL template differs from its base.
+    If a future game master resolves it, delete this test.
+    """
+    base = C.SPECIES["DUGTRIO"]
+    alt = C.SPECIES["DUGTRIO_NORMAL"]
+    assert (base["atk"], base["sta"]) == (alt["atk"], alt["sta"]) == (167, 111)
+    assert base["def"] == 134 and alt["def"] == 136
+    assert alt["base_form"] == "DUGTRIO"
+    others = [k for k in C.SPECIES if k.endswith("_NORMAL")]
+    assert others == ["DUGTRIO_NORMAL"], f"a new _NORMAL split appeared: {others}"
