@@ -128,6 +128,29 @@ class Position:
     #: it."* A position that may only ask about fields somebody already thought
     #: to create can never discover the one nobody thought to create.
     unless: tuple = ()
+    #: WHAT TO RECORD when the file says nothing about the `Unless:` fact.
+    #:
+    #: `dec-caprule`, 14 September 2026. POS1 and POS2 both carried
+    #: `Unless: capitalization_rule` with the field blank on every client, so
+    #: the engine refused `context_not_on_file` on all of them -- correctly:
+    #: *"a default applied without looking is not a default"*. Two of the firm's
+    #: twenty ratified positions were unreachable on every engagement since
+    #: 5 September, which is the most expensive thing on the eighth docket.
+    #:
+    #: The firm answered **"Record it at intake"**, and their note is the
+    #: decision: *"The firm's threshold for our clients if non specified will be
+    #: based on IRS rules for simplicity."*
+    #:
+    #: SO THIS DOES NOT MAKE THE ENGINE ASSUME ANYTHING, and that is the whole
+    #: design. The refusal stands; the fact still has to reach the file through
+    #: a person. What changes is that the refusal now names WHAT TO WRITE, so a
+    #: preparer holding it can act on it instead of going and asking. A refusal
+    #: that names a gap and not the remedy is a dead end wearing a reason code.
+    #:
+    #: THE ALTERNATIVE THE FIRM DECLINED was a silent default in the code. It
+    #: was on the card and they did not pick it: an engine supplying the value
+    #: itself would be inventing the one fact that says somebody checked.
+    default: str = ""
 
     @property
     def proposed(self) -> bool:
@@ -163,6 +186,25 @@ class Position:
 #: A fact name: lowercase words joined by underscores, and nothing else. Not a
 #: style rule -- the SHAPE is what makes a swallowed paragraph fail loudly.
 _FACT = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _a_default(block: str, where: str) -> str:
+    """The `Default:` line, or `""`. ONE LINE, read with `_inline`.
+
+    WRITTEN WITH `_field` FIRST AND IT OVER-READ IMMEDIATELY. `_field` runs to
+    the next `**`, so it swallowed the whole paragraph under the line -- the
+    firm's quoted words, the note that this does not make the desk assume
+    anything, and the POS3 consequence -- and handed all of it back as the
+    default VALUE. The refusal would then have printed four paragraphs where a
+    preparer needs a word.
+
+    The same defect `**Records:**` carries a test for, in a second place, found
+    by printing what the parser returned instead of trusting that it worked.
+    """
+    try:
+        return _inline(block, "Default", where)
+    except RecordError:
+        return ""
 
 
 def _needs(listed: str, where: str, field: str = "Needs") -> tuple:
@@ -238,6 +280,7 @@ def parse(text: str) -> list[Position]:
             needs=_needs(_field(block, "Needs", where, required=False), where),
             unless=_needs(_field(block, "Unless", where, required=False), where,
                           "Unless"),
+            default=_a_default(block, where),
         ))
     return out
 

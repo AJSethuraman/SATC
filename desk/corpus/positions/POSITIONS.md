@@ -13,6 +13,33 @@ the citation is, which is what `alongside` matches on and what the engine checks
 
 **Unless:** capitalization_rule
 
+**Default:** `none` — the word that says somebody looked and this client has no rule of its own. It is what makes this position apply, and the threshold it then carries is the IRS de minimis ceiling: $2,500 per invoice or per item, $5,000 with an applicable financial statement. Do NOT record the figure itself — a value here means this client is treated differently, and the desk will step back rather than answer broadly
+
+*The firm, on the eighth docket, 14 September 2026, answering* **"Record it at
+intake"** *and saying what to record:* "The firm's threshold for our clients if
+non specified will be based on IRS rules for simplicity."
+
+**This does not make the desk assume it.** The fact still has to reach the file
+through a person, and a question asked about a client whose file is silent still
+refuses. What this line changes is that the refusal now says what to write, so a
+preparer holding it can act on it rather than going and asking. The firm was
+offered a silent default in the code and declined it.
+
+**The word is `none` and the first draft of this line got that wrong** — it said
+to record the ceiling, and recording a figure is how you tell the desk this
+client is DIFFERENT. Run rather than reasoned about: blank refuses
+`context_not_on_file`, `none` serves this position, and any other value refuses
+`client_rule_governs`. Three states, and the middle one is the firm's answer.
+
+**And the ceiling is a claim about the client, not only about us** — which is
+POS3 and is why POS3 gets harder rather than easier here. § 1.263(a)-1(f)(1)(ii)(B)
+protects amounts under whichever is lower, the client's own book policy or the
+ceiling. Recording $2,500 for a client whose own policy is $500 would be wrong in
+the client's favour and indefensible on exam. So POS3's fact — the client's
+expensing policy and its effective date — is load-bearing, not optional, and
+recording this default does not discharge it.
+
+
 
 **Why:** The election is the choice the regulation leaves open. It is annual, it
 is made by attaching a statement, and it cannot be made on an amended return
@@ -60,6 +87,33 @@ what the firm decided to write down rather than in what this client was asked:
 **Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended.
 
 **Unless:** capitalization_rule
+
+**Default:** `none` — the word that says somebody looked and this client has no rule of its own. It is what makes this position apply, and the threshold it then carries is the IRS de minimis ceiling: $2,500 per invoice or per item, $5,000 with an applicable financial statement. Do NOT record the figure itself — a value here means this client is treated differently, and the desk will step back rather than answer broadly
+
+*The firm, on the eighth docket, 14 September 2026, answering* **"Record it at
+intake"** *and saying what to record:* "The firm's threshold for our clients if
+non specified will be based on IRS rules for simplicity."
+
+**This does not make the desk assume it.** The fact still has to reach the file
+through a person, and a question asked about a client whose file is silent still
+refuses. What this line changes is that the refusal now says what to write, so a
+preparer holding it can act on it rather than going and asking. The firm was
+offered a silent default in the code and declined it.
+
+**The word is `none` and the first draft of this line got that wrong** — it said
+to record the ceiling, and recording a figure is how you tell the desk this
+client is DIFFERENT. Run rather than reasoned about: blank refuses
+`context_not_on_file`, `none` serves this position, and any other value refuses
+`client_rule_governs`. Three states, and the middle one is the firm's answer.
+
+**And the ceiling is a claim about the client, not only about us** — which is
+POS3 and is why POS3 gets harder rather than easier here. § 1.263(a)-1(f)(1)(ii)(B)
+protects amounts under whichever is lower, the client's own book policy or the
+ceiling. Recording $2,500 for a client whose own policy is $500 would be wrong in
+the client's favour and indefensible on exam. So POS3's fact — the client's
+expensing policy and its effective date — is load-bearing, not optional, and
+recording this default does not discharge it.
+
 
 
 **Why:** Q4 asked what the firm's capitalisation threshold is, and on the close

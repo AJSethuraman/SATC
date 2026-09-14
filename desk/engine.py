@@ -979,9 +979,24 @@ def _follow_up(facts, ruling) -> str:
     sentence somebody does something about. It names the fact and never a value.
     """
     named = ", ".join(facts)
-    return (f"Does the file record {named} for this engagement? The firm's "
-            f"position {ruling.id} cannot be applied until it does, and it is "
-            f"ours to record rather than the client's to be asked.")
+    asked = (f"Does the file record {named} for this engagement? The firm's "
+             f"position {ruling.id} cannot be applied until it does, and it is "
+             f"ours to record rather than the client's to be asked.")
+    # AND WHAT TO WRITE, where the firm has said. `dec-caprule`, 14 September
+    # 2026 -- they answered "Record it at intake" and their note said what to
+    # record. A refusal that names a gap and not the remedy is a dead end
+    # wearing a reason code: the preparer holding this one had to go and ask
+    # what the firm's threshold was before they could close it.
+    #
+    # THE DEFAULT IS READ OFF THE POSITION AND NEVER APPLIED. The engine still
+    # refuses; this only says what a person should put on file. The firm was
+    # offered a silent default in the code and declined it, and an engine that
+    # supplied this value itself would be inventing the one fact that says
+    # somebody checked.
+    if getattr(ruling, "default", ""):
+        asked += (f" Where the client has no rule of its own, record "
+                  f"{ruling.default}.")
+    return asked
 
 
 def _rule_reaches(desk: Desk, question: str, guide: str = "") -> bool:

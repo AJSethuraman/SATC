@@ -1309,6 +1309,22 @@ def load(desk_dir: Path) -> Desk:
                     f"one it would read as a general review log and claim "
                     f"something this record does not check.")
 
+        # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
+        #
+        # `dec-caprule`, 14 September 2026. `Default:` says what a preparer
+        # should record when the file is silent on the fact that would displace
+        # this position. On a position with no `Unless:` there is no such fact,
+        # so the line would sit in the record looking like firm policy and be
+        # read by nobody -- the same shape as the `Reviewed:` line above, and
+        # refused for the same reason.
+        if q.default and not q.unless:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} records a Default line and "
+                f"declares no `Unless:`. A default is what to record when the "
+                f"displacing fact is missing; with no such fact the line "
+                f"answers a question nothing asks, and the engine will never "
+                f"print it.")
+
     return Desk(
         name=desk_dir.name,
         fires_on=fires_on,
