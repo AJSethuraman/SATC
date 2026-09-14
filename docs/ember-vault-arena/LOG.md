@@ -5,6 +5,54 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 04:05Z — the first two notes from the reading: the grudge is real, and the scene is now set
+
+The firm, a bit into the story: *"Do they realize when they're cleaved? I
+saw the coward take some cleave damage and it made me wonder if he'd
+hold that grudge. It would also be helpful if the narrator set the scene
+at the beginning otherwise what is even going on."*
+
+**The grudge.** They realise, and Fen held it to the kill. `memory.py`
+files a `wild_swing_bystander` under `damage_received` for the body it
+lands on, with the swinger named in the line, so the brain reads it the
+next round. The record, round by round:
+
+- R2: *"Ilse Corvane's wild swing catches Fen Marrowlane for 2."*
+- R3, Fen's private reads: *"ilse, distrust: already hit me for 2 with a
+  wild swing."* Aloud, the same round: *"Ilse. You strike, I'll hold the
+  Threshold door open … Ilse, Dask: I'm good for it, honestly, truly."*
+- R4, private: *"ilse, distrust: hit me for 2 already."* Aloud: *"exactly
+  as Ilse says."*
+- R5, private plan: *"Drop Ilse for the elimination point … hit me for
+  2; at 1 HP now."* Then *"Fen Marrowlane hits Ilse Corvane for 6. Ilse
+  Corvane is eliminated (attack)."*
+
+Three rounds of friendliness aloud over a grudge kept in the note, then
+the kill. That is the say-against-think gap the firm wanted to be able
+to see, in the record, on a character whose brain file says he *"will
+not stand and fight when there is any way at all to be somewhere else."*
+
+**The scene.** The narrator has no opening; the match starts on *"Rivals
+enter the Ember Vault. Only one Crown can leave."* and round 1. The
+firm's ask is recorded in PRD §5 item 26: the narrator also opens the
+match with the scene, same validator, M3 with the rest of the narrator.
+Until then the board's story opens on a scene card built from the record
+and nothing else (`build_scene`): the five rooms as the referee describes
+them and who holds each, the rules that will matter (48 rounds; think at
+once, dice, act in turn, monsters; the rooms that close at rounds 9, 10
+and 11 and the sweep into the Vault; both seals to open the Vault; the
+Warden, the Crown, attunement, the Egress), and the eight with build, HP,
+secret aim and the first sentence of what their brain file says they
+want. A test checks every room line against the snapshot, every closing
+round against the schedule, every "wants" line against the manifest.
+Suite 114 → **115**. 119 steps. Looked at once; published as version 6,
+same link.
+
+The "wants" line is brain text. Fine for the firm's own viewing of house
+brains; whether a player's brain text may appear on a public replay is a
+publication question for the broadcast rules (canon C5), not decided
+here.
+
 ## 14 September 2026, 03:20Z — "that is not how a story works": the play-by-play in match order, one character's moment at a time
 
 The firm: *"Dude that is not how a story works. I want to see it in

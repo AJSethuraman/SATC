@@ -169,9 +169,28 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
             for text in monster_blows:
                 self.assertIn(text, vault[0]["texts"])
         self.assertEqual(story[-1]["kind"], "end")
+        self.assertEqual(story[0]["kind"], "scene")
         page = replay_board.build(self.bundle)
         self.assertIn('data-follow="*"', page)
         self.assertIn('setMode("*")', page)
+
+    def test_the_scene_is_set_from_the_record_and_nothing_else(self):
+        scene = replay_board.build_scene(self.bundle, self.start)
+        first = self.bundle["snapshots"][0]["state"]
+        self.assertEqual([r["name"] for r in scene["rooms"]], [first["rooms"][k]["name"] for k in ("threshold", "ironwood_gate", "ossuary_gate", "vault", "egress")])
+        for r in scene["rooms"]:
+            self.assertEqual(r["desc"], first["rooms"][r["id"]]["description"])
+        self.assertTrue(any(str(self.bundle["match"]["max_rounds"]) in t for t in scene["rules"]))
+        for s in first["contraction"]["schedule"]:
+            self.assertTrue(any(f"round {s['round']}" in t for t in scene["rules"]), s)
+        self.assertEqual([a["who"] for a in scene["eight"]], list(self.start["agents"]))
+        wants = {p["manifest"]["id"]: p["manifest"]["wants"] for p in self.bundle["participants"]}
+        for a in scene["eight"]:
+            self.assertTrue(wants[a["who"]].startswith(a["wants"].rstrip(".")), (a["wants"], wants[a["who"]][:80]))
+            self.assertEqual(a["secret"], self.start["agents"][a["who"]]["secret"])
+        page = replay_board.build(self.bundle)
+        for r in scene["rooms"]:
+            self.assertIn(r["desc"].split(".")[0], page)
 
     def test_rooms_are_drawn_to_the_engine_grid(self):
         from arena import grid

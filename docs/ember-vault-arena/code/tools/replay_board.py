@@ -426,6 +426,42 @@ def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
 VAULT = {"monster_step", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved"}
 
 
+def build_scene(bundle: dict, start: dict) -> dict:
+    """The scene before round 1, from the record and nothing else: the rooms
+    as the referee describes them, the schedule of rooms that seal, the
+    monsters, and the eight with their build, HP, secret aim and the first
+    sentence of what their brain file says they want.
+
+    The firm, 14 Sep 2026: "It would also be helpful if the narrator set the
+    scene at the beginning otherwise what is even going on." The narrator
+    proper (a model call) has no prologue yet; that is recorded for M3. This
+    card is the record's own scene-setting until then."""
+    first = bundle["snapshots"][0]["state"]
+    m = bundle.get("match", {})
+    rooms = [{"id": rid, "name": r["name"], "desc": r.get("description") or "",
+              "guardian": (first["monsters"].get(r.get("guardian_id") or "") or {}).get("name")}
+             for rid, r in first["rooms"].items()]
+    order = ["threshold", "ironwood_gate", "ossuary_gate", "vault", "egress"]
+    rooms.sort(key=lambda r: order.index(r["id"]) if r["id"] in order else 99)
+    schedule = (first.get("contraction") or {}).get("schedule") or []
+    names = {rid: r["name"] for rid, r in first["rooms"].items()}
+    rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all eight decide at once; then the dice set the order and each acts in turn; then the monsters."]
+    if schedule:
+        rules.append("Rooms close on a clock: " + "; ".join(f"{names.get(s['room'], s['room'])} at the end of round {s['round']}" for s in schedule) + ". Whoever is inside is swept into the Vault.")
+    rules.append("Each gate holds a seal and a guardian. The Vault opens when both seals are lit.")   # rules.vault_open
+    rules.append("The Crown is locked inside its Warden. Kill the Warden and it drops; pick it up and it attunes over held rounds, and can be taken from a fallen carrier. The Egress says the rest.")
+    wants = {p["manifest"]["id"]: (p["manifest"].get("wants") or "") for p in bundle.get("participants", [])}
+    eight = []
+    for aid, a in start["agents"].items():
+        w = wants.get(aid, "").strip()
+        first_sentence = w.split(". ")[0].rstrip(".") + "." if w else ""
+        eight.append({"who": aid, "name": a["name"], "build": a["build"], "hp": a["max_hp"], "secret": a["secret"],
+                      "secret_text": a["secret_text"], "wants": first_sentence})
+    monsters = [{"name": mo["name"], "hp": mo["max_hp"], "room": names.get(mo["room"], mo["room"])} for mo in start["monsters"].values()]
+    text = " ".join(t for t in [f"{len(eight)} rivals enter the Ember Vault.", f"Seed {m.get('seed')}."] if t)
+    return {"rooms": rooms, "rules": rules, "eight": eight, "monsters": monsters, "text": text}
+
+
 def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -> list[dict]:
     """The match in order, one card per character per round in the order
     they acted, then the vault's beat, then the next round; the end last.
@@ -441,7 +477,7 @@ def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -
     for i, f in enumerate(frames):
         by_round.setdefault(f["round"], []).append((i, f))
     cards = {aid: {c["round"]: c for c in cs} for aid, cs in turns.items()}
-    story: list[dict] = []
+    story: list[dict] = [{"kind": "scene", "round": 0, "board": 0, "dwell": 20000}]
     for rnd in rounds:
         items = by_round[rnd]
         order = next((f["order"] for _, f in items if f["type"] == "initiative_order" and f.get("order")), None) or list(start["agents"])
@@ -719,6 +755,16 @@ CSS = """
   .hpline .down { color: #ff7b6b; } .hpline .up { color: var(--heal); }
   .turn.vaultcard .row:not(#t-vault-row), .turn.vaultcard .secret { display: none; }
   .turn:not(.vaultcard) #t-vault-row { display: none; }
+  .turn.scenecard #t-vault-row, .turn.scenecard .narr-fold { display: none; }
+  .turn:not(.scenecard) #t-scene { display: none; }
+  .scene { display: grid; gap: .6rem; font-size: .92rem; line-height: 1.45; }
+  .scene .lead { margin: 0; font-family: var(--serif); font-style: italic; font-size: 1.05rem; color: #e4d6c4; }
+  .scene .sc .lbl { display: block; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: .2rem; }
+  .scene ul { margin: 0; padding-left: 1.1rem; } .scene li { margin: .15rem 0; }
+  .scene ul.eight { list-style: none; padding: 0; }
+  .scene ul.eight li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem; }
+  .scene ul.eight .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #0e0b0a; flex: none; position: relative; top: 1px; }
+  .scene ul.eight i { color: var(--thought); flex-basis: 100%; padding-left: 1rem; }
   .stage.vault { border-left-color: var(--ember); }
   @media (max-width: 560px) { .turn .row { grid-template-columns: 1fr; gap: .1rem; } }
   .transport { margin-top: .7rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .7rem; }
@@ -1099,12 +1145,39 @@ SCRIPT = r"""
       whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The vault</b><span class="role">monsters, doors and rooms, after everyone has acted</span>';
       list($("#t-vault"), e.texts, "nothing");
       $("#meta").textContent = "";
+    } else if (e.kind === "scene") {
+      whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The scene</b><span class="role">before round 1, from the record</span>';
+      $("#round-no").textContent = "Before round 1";
+      renderScene(D.scene);
+      $("#meta").textContent = "Everything here is read from the match record and the rulebook; nothing is invented.";
     } else {
       whoEl.innerHTML = '<span class="dot" style="background:var(--gold)"></span><b>How it ended</b>';
       list($("#t-vault"), [e.text], "");
       $("#meta").textContent = "Placements below.";
     }
+    turn.classList.toggle("scenecard", e.kind === "scene");
     $("#t-narr-row").hidden = !narr; $("#t-narr").textContent = narr;
+  }
+  function renderScene(s) {
+    var el = $("#t-scene"); el.innerHTML = "";
+    function h(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
+    el.appendChild(h("p", "lead", s.text));
+    var block = h("div", "sc"); block.appendChild(h("span", "lbl", "The vault"));
+    var ul = h("ul");
+    s.rooms.forEach(function (r) { var li = h("li"); var b = h("b", null, r.name + ". "); li.appendChild(b); li.appendChild(document.createTextNode(r.desc + (r.guardian ? " Held by the " + r.guardian + "." : ""))); ul.appendChild(li); });
+    block.appendChild(ul); el.appendChild(block);
+    block = h("div", "sc"); block.appendChild(h("span", "lbl", "The rules"));
+    ul = h("ul"); s.rules.forEach(function (t) { ul.appendChild(h("li", null, t)); }); block.appendChild(ul); el.appendChild(block);
+    block = h("div", "sc"); block.appendChild(h("span", "lbl", "The eight"));
+    ul = h("ul", "eight");
+    s.eight.forEach(function (a) {
+      var li = h("li"); var dot = h("span", "dot"); dot.style.background = colours[a.who]; li.appendChild(dot);
+      var b = h("b", null, a.name); li.appendChild(b);
+      li.appendChild(document.createTextNode(" · " + a.build + ", " + a.hp + " HP · secret aim: " + a.secret + ". "));
+      if (a.wants) li.appendChild(h("i", null, a.wants));
+      ul.appendChild(li);
+    });
+    block.appendChild(ul); el.appendChild(block);
   }
   function setMode(m) {
     mode = (m === "*" || m === "" || turns[m]) ? m : "*";
@@ -1194,7 +1267,8 @@ def build(bundle: dict, note: str = "") -> str:
     colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
     turns = build_turns(start, frames)
     story = build_story(start, frames, turns)
-    data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns, "story": story}
+    scene = build_scene(bundle, start)
+    data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns, "story": story, "scene": scene}
     chips = ('<button type="button" class="chip" data-follow="*" aria-pressed="false">The story, in order</button>\n'
              '<button type="button" class="chip" data-follow="" aria-pressed="false">Every moment</button>\n') + "\n".join(
         f'<button type="button" class="chip" data-follow="{E(aid)}" aria-pressed="false"><span class="dot" style="background:{colours[aid]}"></span>{E(a["name"].split()[0])}</button>'
@@ -1250,6 +1324,7 @@ def build(bundle: dict, note: str = "") -> str:
       <div class="row"><span class="lbl">Did</span><div class="val" id="t-did"></div></div>
       <div class="row"><span class="lbl">Happened to them</span><div class="val" id="t-happened"></div></div>
       <div class="row" id="t-vault-row" hidden><span class="lbl">In the vault</span><div class="val" id="t-vault"></div></div>
+      <div class="scene" id="t-scene" hidden></div>
       <details class="narr-fold" id="t-narr-row"><summary>The narrator's account of the round</summary><div class="val narr" id="t-narr"></div></details>
       <span class="secret" id="t-secret"></span>
     </div>
