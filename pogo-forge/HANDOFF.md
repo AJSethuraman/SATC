@@ -39,7 +39,7 @@ comments explaining why, so nobody "fixes" them back.
 ## Run it
 
     pip install -r requirements.txt
-    pytest -q                      # 120 tests, about 170 seconds
+    pytest -q                      # 132 tests, about 170 seconds
 
 The slow ones are the image reads (~8s each). Don't speed them up by shrinking
 the fixtures — resolution independence is one of the things under test.

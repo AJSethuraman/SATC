@@ -106,6 +106,7 @@ def build(gm: list, digest: str = "") -> dict:
     upgrades = level = None
     species: dict[str, dict] = {}
     type_chart: dict[str, list] = {}
+    moves: dict[str, dict] = {}
     templates: list = []
     variants: list = []
 
@@ -116,6 +117,26 @@ def build(gm: list, digest: str = "") -> dict:
             upgrades = d["pokemonUpgrades"]
         elif tid == "PLAYER_LEVEL_SETTINGS":
             level = d["playerLevel"]
+        elif "moveSettings" in d:
+            # What a move actually does. Without power, duration and energy the
+            # species tables can name a moveset but cannot rate it — which is
+            # why "which of mine is the best Ground attacker" had to be worked
+            # out against the raw game master instead of from this file.
+            mv = d["moveSettings"]
+            mid = mv.get("movementId")
+            if not isinstance(mid, str):
+                continue          # unresolved numeric id: dropped, never guessed
+            moves[mid.replace("_FAST", "")] = {
+                "type": str(mv.get("pokemonType", "")).replace("POKEMON_TYPE_", ""),
+                "power": mv.get("power", 0) or 0,
+                # Seconds, because every formula that uses it wants seconds.
+                "duration": (mv.get("durationMs") or 0) / 1000,
+                # Niantic's sign convention: a fast move GAINS energy (positive),
+                # a charged move SPENDS it (negative). Kept as written rather
+                # than normalised, so it still reads like the source.
+                "energy": mv.get("energyDelta", 0) or 0,
+                "fast": mid.endswith("_FAST"),
+            }
         elif "typeEffective" in d:
             te = d["typeEffective"]
             name = te["attackType"].replace("POKEMON_TYPE_", "")
@@ -346,6 +367,9 @@ def build(gm: list, digest: str = "") -> dict:
             "purified_candy_mult": upgrades["purifiedCandyMultiplier"],
         },
         "species": species,
+        # move -> what it does. Keyed without the _FAST suffix, the same way
+        # the species move lists are.
+        "moves": moves,
         # alternative spellings -> the canonical species key
         "aliases": aliases,
     }

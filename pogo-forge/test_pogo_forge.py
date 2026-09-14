@@ -993,3 +993,130 @@ def test_niantics_file_disagrees_with_itself_about_dugtrio():
     assert alt["base_form"] == "DUGTRIO"
     others = [k for k in C.SPECIES if k.endswith("_NORMAL")]
     assert others == ["DUGTRIO_NORMAL"], f"a new _NORMAL split appeared: {others}"
+
+
+# ============================================ rating an attacker, and a roster ===
+import attackers as A
+
+
+def test_move_data_carries_what_a_rating_needs():
+    """gamedata.json held move NAMES but not what the moves do, so the app
+    could list a moveset and not rate it. Sign convention is Niantic's: a fast
+    move gains energy, a charged move spends it."""
+    mud = C.DATA["moves"]["MUD_SHOT"]
+    assert mud["type"] == "GROUND" and mud["fast"] is True
+    assert mud["energy"] > 0 and mud["duration"] == 0.5
+    quake = C.DATA["moves"]["EARTHQUAKE"]
+    assert quake["fast"] is False and quake["energy"] < 0 and quake["power"] == 140
+
+
+def test_normal_beats_nothing_so_it_is_worth_no_raid():
+    """Regigigas has the highest Normal DPS in the game and there is no raid
+    to bring it to. A ranking that doesn't carry this sends someone to build
+    the one type that cannot be super effective against anything."""
+    assert A.offensive_value("NORMAL") == []
+
+
+def test_fighting_and_ground_carry_the_most_coverage():
+    assert len(A.offensive_value("FIGHTING")) == 5
+    assert len(A.offensive_value("GROUND")) == 5
+    assert A.offensive_value("DRAGON") == ["DRAGON"]
+    assert set(A.offensive_value("FIGHTING")) == {"DARK", "ICE", "NORMAL", "ROCK", "STEEL"}
+
+
+def test_type_ceilings_are_not_comparable_and_that_is_the_point():
+    """The reason a flat DPS bar is wrong: the ceilings genuinely differ, so
+    one number judges different types by different standards.
+
+    This test first asserted Fighting beat Ice by 1.2x, which held while the
+    data had one entry per species. Adding regional forms raised Ice's ceiling
+    to Kyurem White and Galarian Darmanitan Zen, and the ratio collapsed to
+    1.04. The 1.2 was a fact about a snapshot, not about the design — what the
+    design needs is only that the spread across types is wide enough to matter.
+    """
+    tops = {t: A.ceiling(t).dps for t in A.TYPES}
+    assert max(tops.values()) / min(tops.values()) > 1.3, tops
+    # And the sharpest illustration of why a ranking must carry coverage as
+    # well as damage: Normal has the HIGHEST ceiling of any type and beats
+    # nothing at all, so every point of it is worth no raid.
+    assert tops["NORMAL"] == max(tops.values())
+    assert A.offensive_value("NORMAL") == []
+
+
+def test_both_moves_must_be_the_attack_type():
+    """A Fighting fast move with a Dark charged move is not a Fighting
+    attacker. Counting it as one overstates what it does."""
+    r = A.rate("machamp", "FIGHTING")
+    assert C.DATA["moves"][r.fast]["type"] == "FIGHTING"
+    assert C.DATA["moves"][r.charged]["type"] == "FIGHTING"
+    assert r.dps > 0
+
+
+def test_a_species_that_cannot_attack_with_a_type_refuses():
+    with pytest.raises(A.NoMoveset):
+        A.rate("magikarp", "DRAGON")
+
+
+def test_shadow_is_exactly_twenty_percent_more_attack():
+    """Niantic's own multiplier, from BATTLE_SETTINGS. Damage scales linearly
+    with attack, so the DPS gain is the same 20% before flooring."""
+    plain = A.rate("tyranitar", "DARK")
+    shadow = A.rate("tyranitar", "DARK", shadow=True)
+    assert shadow.dps > plain.dps
+    assert 1.15 < shadow.dps / plain.dps < 1.25
+    # and it costs bulk, which is why it is a raid choice not a PvP one
+    assert shadow.bulk < plain.bulk * shadow.dps / plain.dps
+
+
+def test_glass_cannons_rank_differently_on_dps_and_bulk():
+    """The flaw that made the first roster read wrong. Pheromosa tops raw
+    Fighting DPS with 85 defence; Terrakion is behind on DPS and far ahead
+    once survivability counts."""
+    phero = A.rate("pheromosa", "FIGHTING")
+    terra = A.rate("terrakion", "FIGHTING")
+    assert phero.dps > terra.dps
+    assert terra.bulk > phero.bulk * 1.5
+
+
+def test_coverage_counts_six_not_one():
+    """A raid party is six. One excellent Pokemon of a type is not coverage,
+    and the whole module exists to stop that being reported as if it were."""
+    roster = [{"species": "Tyranitar"}, {"species": "Tyranitar"},
+              {"species": "Tyranitar"}, {"species": "Metagross"}]
+    rows = {r["type"]: r for r in A.coverage(roster)}
+    assert rows["DARK"]["usable"] == 3
+    assert rows["DARK"]["short"] == 6 - rows["DARK"]["strong"]
+    assert rows["STEEL"]["usable"] == 1
+    assert rows["GROUND"]["usable"] == 0 and rows["GROUND"]["short"] == 6
+
+
+def test_coverage_ranks_the_biggest_hole_in_the_most_useful_type_first():
+    """Ordering is the product: an empty Ground (hits 5) outranks an empty
+    Dragon (hits 1), and Normal sorts last however empty it is."""
+    rows = A.coverage([{"species": "Metagross"}])
+    assert rows[0]["type"] in ("GROUND", "FIGHTING")
+    assert rows[-1]["type"] == "NORMAL"
+    assert rows[-1]["hits"] == 0
+
+
+def test_the_ceiling_can_be_a_form_you_cannot_actually_field():
+    """Known limitation, recorded rather than papered over.
+
+    Galarian Darmanitan Zen is a transient in-battle state, not something you
+    put in a party, but nothing in the game master marks it as such — so it
+    counts toward Ice's ceiling and makes every real Ice attacker look worse
+    than it is. Fixing this needs a fieldability flag the data does not carry.
+    """
+    ice = A.ceiling("ICE")
+    assert ice.dps > A.rate("baxcalibur", "ICE").dps
+    zen = C.SPECIES["DARMANITAN_GALARIAN_ZEN"]
+    assert zen["base_form"] == "DARMANITAN"
+
+
+def test_coverage_reports_the_bar_it_used():
+    """Report the denominator. A share of ceiling means nothing without the
+    ceiling beside it."""
+    row = next(r for r in A.coverage([{"species": "Weavile"}]) if r["type"] == "ICE")
+    assert row["ceiling"] > 0 and row["bar"] == pytest.approx(row["ceiling"] * 0.85, abs=0.01)
+    assert row["members"][0]["share"] == pytest.approx(
+        row["members"][0]["dps"] / row["ceiling"] * 100, abs=0.1)
