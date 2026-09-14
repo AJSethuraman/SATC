@@ -510,6 +510,39 @@ it with them.
   is the firm's to confirm, not mine.
 
 
+- **2026-09-11 — #357 merged, and the last V1 leg built (desk 0.28.0).** The
+  firm: **"Go."** #357 squash-merged as `3475933a`; `main` carries 0.27.0.
+
+  **The receiving side was a boolean.** `relay.reply_opens` said *this is the
+  answer to that question* and nothing said WHAT it was — so a doer decided
+  "answered or refused" by reading prose. That is `dec-coverage`'s failure on
+  the return leg: Occam's *"a doer reads it as permission. I nearly did."*, one
+  step later and under more pressure, because by then they are holding something
+  that looks like a reply. It had already happened in the small on 8 September,
+  with a doer hunting for `passage` on a refusal.
+
+  `relay.read(body)` hands back what the desk said — answered, reason, ask,
+  citation, tier, binding, and `usable` (answered AND binding, nothing else).
+  **No second wire protocol:** it parses the rendering the envelope already
+  instructs the answerer to send, so there is nothing to keep in step and an
+  answerer on a stale skill still produces something readable. The rendering
+  stays a person's — it is the one channel that reaches an agent four releases
+  behind — and the two anchors are asserted against real output so a change to
+  either breaks in the suite rather than in the field.
+
+  **It raises rather than guessing, and the direction is the point.** An empty
+  reply is a delivery that did not happen, not a no. Anything unplaceable raises
+  instead of returning `answered=False`, which would look cautious and quietly
+  throw away a mangled ANSWER — a doer told "the desk refused" does not go back
+  and check. A reply carrying both anchors raises too.
+
+  **Measured on the whole record rather than on fixtures:** all 98 recorded
+  problems served or refused, rendered, read back — 97 served, 1 refused, 0
+  misread. The hand-back fallback Occam actually used on 9 September reads too.
+
+  **What is left is not code.** Nobody has run a real close against this. That
+  is the pilot, and it needs Forge-Occam.
+
 - **2026-09-11 — All four built (desk 0.27.0). What each one actually did, as
   opposed to what it was expected to do.** Suite **1,245 passing, 1 skipped**;
   canon 187. PR #357, draft.

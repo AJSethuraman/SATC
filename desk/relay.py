@@ -72,6 +72,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import re
+from dataclasses import dataclass
 
 #: A session id as the harness writes it. Checked, because the failure of a
 #: wrong one is silent -- the answer is delivered somewhere, just not here.
@@ -261,6 +262,124 @@ def as_prompt(a: Ask) -> str:
 def reply_opens(body: str, ref: str) -> bool:
     """Is this the answer to that question? Used to spot a second copy."""
     return body.strip().startswith(f"DESK ANSWER {ref}")
+
+
+#: THE TWO ANCHORS, AND THEY ARE THE RENDERING'S AND NOT THIS FILE'S. A refusal
+#: opens with a banner naming itself; a served answer carries an indented
+#: citation and, under it, a line ending ` · confirmed <date>`. Both are
+#: `engine.Served.__str__` / `Refusal.__str__` -- read `Served.__str__`'s
+#: docstring before touching either. The rendering is written for a PERSON and
+#: is the one channel that reaches an agent whose SKILL.md is four releases
+#: stale; it does not get constrained to suit a parser. If it moves, this
+#: breaks loudly, which is the correct direction.
+_REFUSED = "THE DESK DID NOT ANSWER — "
+_GRADE = re.compile(
+    r"^ {4}(?P<citation>\S.*)\n {4}(?P<tier>.+?) · (?P<binding>.+?) · confirmed "
+    r"(?P<checked>.+?)$", re.M)
+_REASON = re.compile(rf"^{re.escape(_REFUSED)}(?P<reason>[^\n·]+?)(?:  ·  (?P<desk>.+?))?$",
+                     re.M)
+_ASKS = re.compile(r"^It asks: (?P<ask>.+)$", re.M)
+
+
+@dataclass(frozen=True)
+class Answered:
+    """What the desk actually said, read off the reply rather than by eye.
+
+    WHY THE ASKING SIDE NEEDED THIS AT ALL. The reply arrives as prose, because
+    the rendering is deliberately written for a person. `reply_opens` was the
+    whole of the receiving side: a boolean saying *this is the answer to that
+    question*, and nothing saying WHAT it was. So a doer decided "did the desk
+    answer or refuse" by reading, and on 8 September one went looking for a
+    `passage` on a refusal and did not find it: *"a doer looking for `passage`
+    in a refusal will not find it and has been given no signal that is
+    expected."*
+
+    THAT IS `dec-coverage`'S FAILURE ON THE RETURN LEG. Occam, on the consult
+    leg: *"silence is indistinguishable from 'there is nothing to say here.' A
+    doer reads it as permission. I nearly did."* A refusal read as an answer is
+    the same mistake one step later, and under more time pressure, because by
+    then the doer is holding something that looks like a reply.
+
+    IT NEVER GUESSES. `read` raises where it cannot find either anchor rather
+    than defaulting to `answered=False`, which would report a mangled ANSWER as
+    a refusal -- the safe-looking wrong way round, and the one that silently
+    throws away work. Unknown is a third answer and it is an exception here.
+    """
+    answered: bool
+    #: On a refusal: which of `engine.REASONS` it was. Empty on a served answer.
+    reason: str = ""
+    #: On a served answer: the citation it rests on. Empty on a refusal, and
+    #: that emptiness is the finding -- a refusal cites nothing, which is what
+    #: makes it a refusal.
+    citation: str = ""
+    tier: str = ""
+    #: Whether the FIRM treats it as authority that binds their own work. Never
+    #: "binding in the tax sense" -- the rendering was corrected for saying the
+    #: second when it meant the first, and this carries the same meaning.
+    binding: bool = False
+    checked: str = ""
+    #: The follow-up, where the desk had one. A refusal that names a gap and not
+    #: a question is a dead end wearing a reason code.
+    ask: str = ""
+
+    @property
+    def usable(self) -> bool:
+        """Whether this is something to act on WITHOUT going back to a person.
+
+        A served answer the firm treats as binding, and nothing else. A served
+        answer that does not bind is a real answer and still not this: it is the
+        case `dec-guidance` decided -- serve it, marked -- and the mark means a
+        person reads the caveat before it is relied on.
+        """
+        return self.answered and self.binding
+
+
+def read(body: str) -> Answered:
+    """What the desk said, off the reply the answerer sent back.
+
+    THE INPUT IS THE ENVELOPE'S OWN INSTRUCTION, which is `print(out)` in full.
+    So this parses the rendering rather than a format invented here: there is no
+    second wire protocol to keep in step, and an answerer running a stale skill
+    still produces something this reads, because printing the object IS the
+    rendering.
+
+    RAISES ON ANYTHING IT CANNOT PLACE. See `Answered`.
+    """
+    if not body or not body.strip():
+        raise RelayError("nothing came back. An empty reply is not a refusal — "
+                         "it is a delivery that did not happen, and the two "
+                         "call for opposite next steps.")
+    refusal, grade = _REASON.search(body), _GRADE.search(body)
+    # BOTH ANCHORS IS NOT A TIE TO BREAK. An answerer who quoted a refusal
+    # while serving, or pasted two replies into one message, has produced
+    # something whose meaning is not recoverable from the text -- and picking
+    # the first match would silently prefer whichever the author happened to
+    # type first. Checking `_REASON` before `_GRADE` would have made a served
+    # answer that mentions a refusal read as a refusal, which is the direction
+    # that throws work away while looking cautious.
+    if refusal and grade:
+        raise RelayError(
+            "this reply carries BOTH a refusal banner and a served citation, "
+            "so what the desk decided cannot be read off it. Two replies in "
+            "one message, or an answer quoting a refusal — either way a person "
+            "reads it, because guessing here picks whichever was typed first.")
+    if refusal:
+        m = refusal
+        return Answered(answered=False,
+                        reason=m.group("reason").strip(),
+                        ask=(a.group("ask").strip()
+                             if (a := _ASKS.search(body)) else ""))
+    if (m := grade):
+        return Answered(answered=True,
+                        citation=m.group("citation").strip(),
+                        tier=m.group("tier").strip(),
+                        binding="treats as binding" in m.group("binding"),
+                        checked=m.group("checked").strip())
+    raise RelayError(
+        "this does not read as a desk answer or a desk refusal. It carries "
+        f"neither {_REFUSED.strip()!r} nor an indented citation with a "
+        "`· confirmed` line under it. Hand it to a person rather than acting "
+        "on it: something that cannot be placed is not the same as a no.")
 
 
 def desk_session(env=None) -> str:
