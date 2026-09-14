@@ -73,6 +73,21 @@ jobs:
           # their SDKs lazily and the suite drives them through fakes.
           - project: docs/ember-vault-arena/code
             install: pip install pytest
+          # pogo-forge is the owner's personal tool, not the practice's
+          # software. It runs here for the reason credit-suite does above: it
+          # arrived with 97 tests and no CI entry, so they ran on exactly one
+          # machine, and a suite nobody else can run is a claim rather than a
+          # check.
+          #
+          # requirements.txt carries pytest and httpx as well as the runtime
+          # deps — the HTTP tests error rather than skip without httpx, and a
+          # test that only passes where somebody happened to install something
+          # is not a passing test. No browser and no network: the four
+          # appraisal fixtures are real screenshots committed to the repo, and
+          # every figure is a pure function of gamedata.json, which is checked
+          # in with the sha256 of the game master it came from.
+          - project: pogo-forge
+            install: pip install -r requirements.txt
     defaults:
       run:
         working-directory: ${{ matrix.project }}
