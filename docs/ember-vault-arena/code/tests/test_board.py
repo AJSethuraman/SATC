@@ -85,7 +85,8 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         for aid, a in self.start["agents"].items():
             self.assertTrue(a["secret"], aid)
             self.assertTrue(a["secret_text"].endswith("."), a["secret_text"])
-        self.assertNotIn("d20 =", page)
+        # the dice reach the page on the cards (the firm asked to see them rolled), never as steps of their own
+        self.assertFalse([f for f in self.frames if f["type"] == "dice_roll"])
         self.assertNotIn('id="think"', page)
         types = {f["type"] for f in self.frames}
         self.assertFalse(types & replay_board.SKIP, types & replay_board.SKIP)
@@ -173,6 +174,58 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         page = replay_board.build(self.bundle)
         self.assertIn('data-follow="*"', page)
         self.assertIn('setMode("*")', page)
+
+    def test_every_die_the_referee_rolled_for_a_character_is_on_their_card_with_what_it_decided(self):
+        turns = replay_board.build_turns(self.start, self.frames, self.bundle)
+        events = sorted(self.bundle["events"], key=lambda e: e["seq"])
+        rolled = {}
+        for e in events:
+            if e["event_type"] == "dice_roll":
+                rolled.setdefault((e["round_no"], e["actor_id"]), []).append(e["payload"]["proof"])
+        self.assertTrue(rolled, "the mock rolled nothing, so this proves nothing")
+        seen = 0
+        for aid, cards in turns.items():
+            for c in cards:
+                proofs = rolled.get((c["round"], aid), [])
+                self.assertEqual([(d["sides"], d["result"]) for d in c["dice"]], [(p["sides"], p["result"]) for p in proofs])
+                seen += len(c["dice"])
+                for d in c["dice"]:
+                    self.assertIn(f"d{d['sides']} = {d['result']}", d["text"])
+        self.assertGreater(seen, 0)
+        # a to-hit die says what it was against and whether it hit, from the attack it decided
+        hits = [e for e in events if e["event_type"] in ("attack_hit", "attack_miss") and e["actor_id"] in self.start["agents"]]
+        self.assertTrue(hits)
+        for e in hits[:10]:
+            th = e["payload"]["tohit"]
+            card = next(c for c in turns[e["actor_id"]] if c["round"] == e["round_no"])
+            die = next(d for d in card["dice"] if d["kind"] == "tohit" and d["result"] == th["roll"] and d["target"] == e["target_id"])
+            self.assertIn(f"against {th['dc']['value']}", die["text"])
+            self.assertIn("hit" if th["hit"] else "miss", die["text"].rsplit(":", 1)[-1])
+        # a monster's dice ride on the vault's beat
+        story = replay_board.build_story(self.start, self.frames, turns, self.bundle)
+        for e in [x for x in story if x["kind"] == "vault"]:
+            expected = [(p["sides"], p["result"]) for mid in self.start["monsters"] for p in rolled.get((e["round"], mid), [])]
+            self.assertEqual([(d["sides"], d["result"]) for d in e["dice"]], expected)
+        page = replay_board.build(self.bundle)
+        self.assertIn('id="t-dice"', page)
+
+    def test_the_opening_explains_the_rules_and_the_vaults_own(self):
+        scene = replay_board.build_scene(self.bundle, self.start)
+        first = self.bundle["snapshots"][0]["state"]
+        self.assertEqual([n["name"] for n in scene["npcs"]], [m["name"] for m in first["monsters"].values()])
+        for n in scene["npcs"]:
+            mo = next(m for m in first["monsters"].values() if m["name"] == n["name"])
+            self.assertEqual((n["hp"], n["power"], n["armor"], n["reach"]), (mo["max_hp"], mo["power"], mo["armor"], mo["reach"]))
+        rules = " ".join(scene["rules"])
+        from arena import combat, models, scoring
+        self.assertIn(f"against {combat.DC_BASE} +", rules)
+        self.assertIn(f"secret aim met {scoring.SCORING['secret_objective']}", rules)
+        self.assertIn(f"+{replay_board.GUARD_BONUS} against", rules)
+        for bname, bd in models.BUILDS.items():
+            self.assertEqual(scene["builds"][bname]["hp"], bd["max_hp"])
+            self.assertEqual(scene["builds"][bname]["moves"], 1 + bd["speed"])
+        for a in scene["eight"]:
+            self.assertIn(f"{scene['builds'][a['build']]['hp']} HP", a["stats"])
 
     def test_the_scene_is_set_from_the_record_and_nothing_else(self):
         scene = replay_board.build_scene(self.bundle, self.start)

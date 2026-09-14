@@ -5,6 +5,57 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 05:00Z — dice on the screen as rolled; the opening explains the rules and the vault's own; Dask is not mute
+
+The firm: *"For the actual broadcast and in the near future I want to see
+dice roll on the screen when they are being rolled for a character. Also
+the opening should explain rules and such and the characters (like our
+NPCs)."* And, mid-work: *"Is dask mute"*.
+
+**Dice.** Every die the referee rolls is a `dice_roll` event with its
+proof (label, sides, result, seed, counter). `dice_by_actor` in
+`tools/replay_board.py` gathers them by round and roller and pairs each
+with what it decided: a to-hit die carries the DC and the total from the
+attack it settled and whether it hit; a damage die the arithmetic to the
+amount applied (d6 + power − armour − guard, floor 1); a search die its
+total and dust or cache. On a character's card they show as dice, in the
+order rolled, and tumble for half a second when the card arrives, then
+land on the referee's number. A monster's dice ride on the vault's beat.
+Never re-rolled for show: the animation is decoration over a recorded
+result, and the record is what the test checks (every die on every card
+against the `dice_roll` events, every to-hit die's DC and outcome
+against the attack). Ossa, round 2: initiative d20 = 1; to hit d20 = 15,
+18 with power against 11, hit; damage d6 = 6 + power 3 − armour 1 = 8.
+Recorded for the live page in PRD §5 item 37 (M4).
+
+**The opening.** The scene card gains "The vault's own": the two
+guardians and the Warden with room, HP, power, armour and reach from the
+first snapshot, and how each behaves, from `engine._monster_phase` and
+`combat.choose_monster_target`: once a round after the eight, swings at
+whoever is within reach, lowest HP first, else steps one tile toward the
+nearest. The rules now say what one round's action can be, the to-hit
+and damage arithmetic (`combat.DC_BASE`, `WILD_SWING_DIE`,
+`MINIMUM_DAMAGE`), guard, search and rest (three literals read from
+`engine.py` and cited as constants in the builder), and every point in
+`scoring.SCORING`. Each of the eight shows its build's numbers from
+`models.BUILDS` and `grid.BUILD_REACH`. PRD item 26 now says the
+narrator's opening covers the NPCs too. Tests check the NPC numbers
+against the snapshot, the rule text against the constants, the build
+numbers against `BUILDS`. Suite 115 → **117**.
+
+**Dask.** Not mute; terse by design. Thirteen rounds alive, eight of them
+`speech.mode: silent` by the brain's own choice, five lines spoken, the
+longest *"Four hits left in it. I strike from two tiles out. Stay off my
+line."*, the shortest *"Noted."* and *"Mine now."* The brain file's voice
+section: *"Dask says a thing once. He answers questions with the fewest
+words that will do the job, points more than he speaks, and lets long
+silences sit unfilled."* The record shows the brain doing what it was
+written to do. Fen, for contrast, spoke in nine rounds of nine alive;
+Grael, Ossa, Perrin and Torvic in all sixteen.
+
+Looked at once, Ossa's round-2 card with its three dice and the opening's
+new section. Published as version 7, same link.
+
 ## 14 September 2026, 04:05Z — the first two notes from the reading: the grudge is real, and the scene is now set
 
 The firm, a bit into the story: *"Do they realize when they're cleaved? I

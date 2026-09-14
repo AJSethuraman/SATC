@@ -48,7 +48,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from arena import grid, scoring  # noqa: E402
+from arena import combat, grid, models, scoring  # noqa: E402
+
+# Three numbers the engine keeps as literals rather than constants; read from
+# the source, cited here so the opening can state them without inventing them.
+GUARD_BONUS = 2        # engine.py _guard: agent["guard"] = 2
+REST_HEAL = 2          # engine.py _rest: hp + 2, once a match
+SEARCH_FINDS_AT = 4    # engine.py _search: total < 4 is dust
 
 E = html.escape
 
@@ -361,7 +367,59 @@ HAPPENED = {"attack_hit", "attack_miss", "wild_swing_bystander", "hazard_burn", 
             "crown_dropped", "monster_step"}
 
 
-def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
+DICE_KINDS = {"initiative": "initiative", "tohit": "to hit", "damage": "damage", "wildswing": "wild swing",
+              "wildswing_bystander": "who the swing catches", "search": "search", "monster_target": "which target"}
+
+
+def dice_by_actor(bundle: dict | None) -> dict[tuple[int, str], list[dict]]:
+    """Every die the referee rolled, by (round, roller), in the order rolled,
+    with what it was against when the record says: a to-hit roll carries the
+    DC and the total from the attack it decided, a damage roll the amount
+    applied. Rolls are the referee's own (``dice_roll`` events with their
+    proof); nothing here is re-rolled or inferred.
+
+    The firm, 14 Sep 2026: "For the actual broadcast and in the near future I
+    want to see dice roll on the screen when they are being rolled for a
+    character."""
+    if not bundle:
+        return {}
+    events = sorted(bundle["events"], key=lambda e: e["seq"])
+    # what each labelled roll decided, from the attack and search events
+    decided: dict[str, dict] = {}
+    for e in events:
+        p = e.get("payload") or {}
+        th = p.get("tohit") or {}
+        if th.get("label"):
+            decided[th["label"]] = {"vs": (th.get("dc") or {}).get("value"), "total": th.get("total"), "hit": th.get("hit")}
+        dm = p.get("damage") or {}
+        if isinstance(dm, dict) and dm.get("label"):
+            decided[dm["label"]] = {"applied": p.get("applied"), "power": dm.get("effective_power"), "armor": dm.get("target_armor"), "guard": dm.get("target_guard")}
+        if e["event_type"] in ("search_failure", "cache_found") and "roll" in p:
+            decided[f"search:r{e['round_no']}:{e['actor_id']}"] = {"total": p.get("total"), "found": e["event_type"] == "cache_found"}
+    out: dict[tuple[int, str], list[dict]] = {}
+    for e in events:
+        if e["event_type"] != "dice_roll":
+            continue
+        proof = (e.get("payload") or {}).get("proof") or {}
+        label = proof.get("label") or ""
+        parts = label.split(":")
+        kind = parts[0] if parts else ""
+        who = e.get("actor_id") or (parts[2] if len(parts) > 2 else "")
+        target = parts[3] if len(parts) > 3 else ""
+        sides, result = int(proof.get("sides") or 0), int(proof.get("result") or 0)
+        info = decided.get(label) or decided.get(":".join(parts[:3])) or {}
+        text = f"{DICE_KINDS.get(kind, kind)}: d{sides} = {result}"
+        if kind == "tohit" and info.get("vs") is not None:
+            text += f", {info['total']} with power against {info['vs']} to hit: {'hit' if info.get('hit') else 'miss'}"
+        elif kind == "damage" and info.get("applied") is not None:
+            text += f" + power {info.get('power')} − armour {info.get('armor')}{(' and guard ' + str(info['guard'])) if info.get('guard') else ''} = {info['applied']} damage"
+        elif kind == "search" and info.get("total") is not None:
+            text += f" + search = {info['total']}: {'found the cache' if info.get('found') else 'only dust'}"
+        out.setdefault((e["round_no"], who), []).append({"kind": kind, "sides": sides, "result": result, "target": target, "text": text})
+    return out
+
+
+def build_turns(start: dict, frames: list[dict], bundle: dict | None = None) -> dict[str, list[dict]]:
     """One card per character per round: thought, said, did, happened to them,
     and the frame the board should stand at when the card shows (the round's
     last frame). Built by folding the same deltas the page folds, so the HP
@@ -375,6 +433,7 @@ def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
     by_round: dict[int, list[tuple[int, dict]]] = {}
     for i, f in enumerate(frames):
         by_round.setdefault(f["round"], []).append((i, f))
+    dice = dice_by_actor(bundle)
     turns: dict[str, list[dict]] = {aid: [] for aid in start["agents"]}
     hp_before = {aid: a["hp"] for aid, a in start["agents"].items()}
     status_before = {aid: a["status"] for aid, a in start["agents"].items()}
@@ -413,6 +472,7 @@ def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
             _fold(state, f["delta"])
         for aid, c in cards.items():
             a = state["agents"][aid]
+            c["dice"] = dice.get((rnd, aid), [])
             c["hp_after"], c["status_after"], c["room_after"] = a["hp"], a["status"], a["room"]
             hp_before[aid], status_before[aid] = a["hp"], a["status"]
             text = c["thought"] + (c["said"] or "") + " ".join(c["did"]) + " ".join(c["happened"])
@@ -445,24 +505,47 @@ def build_scene(bundle: dict, start: dict) -> dict:
     rooms.sort(key=lambda r: order.index(r["id"]) if r["id"] in order else 99)
     schedule = (first.get("contraction") or {}).get("schedule") or []
     names = {rid: r["name"] for rid, r in first["rooms"].items()}
-    rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all eight decide at once; then the dice set the order and each acts in turn; then the monsters."]
+    rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all eight decide at once; then a d20 each sets the order and each acts in turn; then the monsters."]
     if schedule:
         rules.append("Rooms close on a clock: " + "; ".join(f"{names.get(s['room'], s['room'])} at the end of round {s['round']}" for s in schedule) + ". Whoever is inside is swept into the Vault.")
     rules.append("Each gate holds a seal and a guardian. The Vault opens when both seals are lit.")   # rules.vault_open
     rules.append("The Crown is locked inside its Warden. Kill the Warden and it drops; pick it up and it attunes over held rounds, and can be taken from a fallen carrier. The Egress says the rest.")
+    rules.append("One thing a round: move to the next room through its door; step up to 1 + Speed tiles inside the room; attack anything within reach; "
+                 f"guard (+{GUARD_BONUS} against being hit and against damage until the round ends); search the room for its cache (d6 + Search, {SEARCH_FINDS_AT} or more finds it); "
+                 f"rest, once a match (+{REST_HEAL} HP); take, use or give an item.")
+    rules.append(f"To hit: d20 + Power against {combat.DC_BASE} + the target's Armour, + Guard if they braced. Damage: d6 + Power − Armour − Guard, at least {combat.MINIMUM_DAMAGE}. "
+                 f"A miss by a character is a wild swing: a d{combat.WILD_SWING_DIE} says where it lands, on themselves, on a bystander, or on the room."
+                 + (" Monsters do not wild swing." if not combat.MONSTERS_ROLL_WILD_SWING else ""))
+    S = scoring.SCORING
+    rules.append(f"Points: a seal lit {S['seal_activated']}; first to a cache {S['cache_first_find']}; each hit on a monster {S['monster_hit']}, at most {scoring.MONSTER_HIT_POINT_CAP_PER_ROUND} a round; "
+                 f"finishing a guardian {S['guardian_finishing_blow']}, the Warden {S['warden_finishing_blow']}; taking the Crown {S['crown_taken']}; each round attuned {S['attunement_round']}; "
+                 f"surviving Act II {S['survived_act_ii']}; eliminating a rival {S['direct_elimination']}, once per victim; the secret aim met {S['secret_objective']}; an invalid action {S['invalid_action']}. "
+                 "Everyone but the winner is placed by score.")
+    builds = {}
+    for bname, bd in models.BUILDS.items():
+        builds[bname] = {"hp": bd["max_hp"], "power": bd["power"], "armor": bd["armor"], "moves": grid.move_range(bd["speed"]),
+                         "reach": grid.reach_for_build(bname), "search": bd["search"]}
+    npcs = []
+    for mo in first["monsters"].values():
+        npcs.append({"name": mo["name"], "room": names.get(mo["room"], mo["room"]), "hp": mo["max_hp"], "power": mo["power"],
+                     "armor": mo["armor"], "reach": mo["reach"], "kind": mo.get("kind", "")})
+    npc_rules = [f"Each acts once a round, after the eight. It swings at whoever stands within its reach, the lowest HP first, ties by a die; "
+                 f"if nobody is in reach it steps {grid.MONSTER_STEP} tile toward the nearest and swings if that brings someone in.",   # engine._monster_phase, combat.choose_monster_target
+                 "The guardians hold the gates. The Warden holds the Crown: it drops when the Warden falls."]
     wants = {p["manifest"]["id"]: (p["manifest"].get("wants") or "") for p in bundle.get("participants", [])}
     eight = []
     for aid, a in start["agents"].items():
         w = wants.get(aid, "").strip()
         first_sentence = w.split(". ")[0].rstrip(".") + "." if w else ""
+        bs = builds.get(a["build"], {})
+        stats = (f"{bs['hp']} HP, power {bs['power']}, armour {bs['armor']}, moves {bs['moves']}, reach {bs['reach']}, search +{bs['search']}" if bs else "")
         eight.append({"who": aid, "name": a["name"], "build": a["build"], "hp": a["max_hp"], "secret": a["secret"],
-                      "secret_text": a["secret_text"], "wants": first_sentence})
-    monsters = [{"name": mo["name"], "hp": mo["max_hp"], "room": names.get(mo["room"], mo["room"])} for mo in start["monsters"].values()]
+                      "secret_text": a["secret_text"], "wants": first_sentence, "stats": stats})
     text = " ".join(t for t in [f"{len(eight)} rivals enter the Ember Vault.", f"Seed {m.get('seed')}."] if t)
-    return {"rooms": rooms, "rules": rules, "eight": eight, "monsters": monsters, "text": text}
+    return {"rooms": rooms, "rules": rules, "eight": eight, "npcs": npcs, "npc_rules": npc_rules, "builds": builds, "text": text}
 
 
-def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -> list[dict]:
+def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]], bundle: dict | None = None) -> list[dict]:
     """The match in order, one card per character per round in the order
     they acted, then the vault's beat, then the next round; the end last.
 
@@ -477,6 +560,7 @@ def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -
     for i, f in enumerate(frames):
         by_round.setdefault(f["round"], []).append((i, f))
     cards = {aid: {c["round"]: c for c in cs} for aid, cs in turns.items()}
+    dice = dice_by_actor(bundle)
     story: list[dict] = [{"kind": "scene", "round": 0, "board": 0, "dwell": 20000}]
     for rnd in rounds:
         items = by_round[rnd]
@@ -493,7 +577,8 @@ def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -
                  if f["type"] in VAULT or (f.get("actor") in start["monsters"] and f["type"] in ("attack_hit", "attack_miss"))]
         if vault:
             texts = [f["text"] for _, f in vault]
-            story.append({"kind": "vault", "round": rnd, "board": vault[-1][0], "texts": texts,
+            mdice = [d for mid in start["monsters"] for d in dice.get((rnd, mid), [])]
+            story.append({"kind": "vault", "round": rnd, "board": vault[-1][0], "texts": texts, "dice": mdice,
                           "dwell": min(12000, 2500 + 30 * sum(len(t) for t in texts))})
     fin = next((i for i, f in enumerate(frames) if f["type"] == "final_scores"), None)
     if fin is not None:
@@ -753,8 +838,20 @@ CSS = """
   .hpline { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; margin-left: auto; }
   .hpline b { color: var(--ink); font-weight: 600; }
   .hpline .down { color: #ff7b6b; } .hpline .up { color: var(--heal); }
-  .turn.vaultcard .row:not(#t-vault-row), .turn.vaultcard .secret { display: none; }
+  .turn.vaultcard .row:not(#t-vault-row):not(#t-dice-row), .turn.vaultcard .secret { display: none; }
   .turn:not(.vaultcard) #t-vault-row { display: none; }
+  /* the referee's dice, as rolled */
+  .dice { display: flex; flex-wrap: wrap; gap: .45rem; align-items: flex-start; }
+  .die { display: inline-grid; grid-template-columns: auto 1fr; gap: .1rem .5rem; align-items: center; max-width: 100%; }
+  .die i { display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; font: 700 1.05rem var(--sans); font-style: normal; color: #14100d; background: #f4ece0; border: 2px solid #6b5a4c; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .die.d20 i { border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; background: #efe4d6; }
+  .die.d6 i { border-radius: 5px; }
+  .die.d2 i { border-radius: 50%; }
+  .die small { font-size: .74rem; color: var(--muted); line-height: 1.25; max-width: 26ch; }
+  .die.rolling i { animation: tumble .11s linear infinite; }
+  .die.landed i { animation: land .35s ease-out; }
+  @keyframes tumble { 0% { transform: rotate(-8deg) translateY(-1px); } 50% { transform: rotate(8deg) translateY(1px); } 100% { transform: rotate(-8deg) translateY(-1px); } }
+  @keyframes land { 0% { transform: scale(1.35); box-shadow: 0 0 0 4px rgba(233,180,76,.6); } 100% { transform: scale(1); box-shadow: none; } }
   .turn.scenecard #t-vault-row, .turn.scenecard .narr-fold { display: none; }
   .turn:not(.scenecard) #t-scene { display: none; }
   .scene { display: grid; gap: .6rem; font-size: .92rem; line-height: 1.45; }
@@ -799,7 +896,7 @@ CSS = """
   }
   @media (prefers-reduced-motion: reduce) {
     .token, .crown, .token .hp, .card .bar i { transition: none; }
-    .fx text, .fx circle.ring, .fx line.swing, .room-floor.contracting { animation: none; }
+    .fx text, .fx circle.ring, .fx line.swing, .room-floor.contracting, .die.rolling i, .die.landed i { animation: none; }
   }
 """
 
@@ -1131,6 +1228,7 @@ SCRIPT = r"""
         }
       } else { var none = document.createElement("span"); none.className = "none"; none.textContent = "said nothing"; said.appendChild(none); }
       list($("#t-did"), c.did, "nothing");
+      renderDice($("#t-dice"), c.dice, animate !== false);
       list($("#t-happened"), c.happened, "nothing");
       var sec = $("#t-secret");
       sec.innerHTML = 'Secret aim: <b></b> <span class="d"></span>';
@@ -1144,6 +1242,7 @@ SCRIPT = r"""
       Object.keys(state.monsters).forEach(function (m) { if (state.monsters[m].hp > 0) document.getElementById("tok-" + m).classList.add("acting"); });
       whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The vault</b><span class="role">monsters, doors and rooms, after everyone has acted</span>';
       list($("#t-vault"), e.texts, "nothing");
+      renderDice($("#t-dice"), e.dice, animate !== false);
       $("#meta").textContent = "";
     } else if (e.kind === "scene") {
       whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The scene</b><span class="role">before round 1, from the record</span>';
@@ -1166,6 +1265,11 @@ SCRIPT = r"""
     var ul = h("ul");
     s.rooms.forEach(function (r) { var li = h("li"); var b = h("b", null, r.name + ". "); li.appendChild(b); li.appendChild(document.createTextNode(r.desc + (r.guardian ? " Held by the " + r.guardian + "." : ""))); ul.appendChild(li); });
     block.appendChild(ul); el.appendChild(block);
+    block = h("div", "sc"); block.appendChild(h("span", "lbl", "The vault's own"));
+    ul = h("ul");
+    (s.npcs || []).forEach(function (n) { var li = h("li"); li.appendChild(h("b", null, n.name + ". ")); li.appendChild(document.createTextNode(n.room + ". " + n.hp + " HP, power " + n.power + ", armour " + n.armor + ", reach " + n.reach + ".")); ul.appendChild(li); });
+    (s.npc_rules || []).forEach(function (t) { ul.appendChild(h("li", null, t)); });
+    block.appendChild(ul); el.appendChild(block);
     block = h("div", "sc"); block.appendChild(h("span", "lbl", "The rules"));
     ul = h("ul"); s.rules.forEach(function (t) { ul.appendChild(h("li", null, t)); }); block.appendChild(ul); el.appendChild(block);
     block = h("div", "sc"); block.appendChild(h("span", "lbl", "The eight"));
@@ -1173,11 +1277,32 @@ SCRIPT = r"""
     s.eight.forEach(function (a) {
       var li = h("li"); var dot = h("span", "dot"); dot.style.background = colours[a.who]; li.appendChild(dot);
       var b = h("b", null, a.name); li.appendChild(b);
-      li.appendChild(document.createTextNode(" · " + a.build + ", " + a.hp + " HP · secret aim: " + a.secret + ". "));
+      li.appendChild(document.createTextNode(" · " + a.build + (a.stats ? " (" + a.stats + ")" : ", " + a.hp + " HP") + " · secret aim: " + a.secret + ". "));
       if (a.wants) li.appendChild(h("i", null, a.wants));
       ul.appendChild(li);
     });
     block.appendChild(ul); el.appendChild(block);
+  }
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function renderDice(el, dice, animate) {
+    el.innerHTML = "";
+    if (!dice || !dice.length) { var s = document.createElement("span"); s.className = "none"; s.textContent = "none rolled"; el.appendChild(s); return; }
+    dice.forEach(function (d, n) {
+      var chip = document.createElement("span"); chip.className = "die d" + d.sides; chip.title = d.text;
+      var face = document.createElement("i"); face.textContent = d.result; chip.appendChild(face);
+      var lab = document.createElement("small"); lab.textContent = d.text; chip.appendChild(lab);
+      el.appendChild(chip);
+      if (animate && !reduced) {
+        var t0 = Date.now(), delay = 120 * n;
+        chip.classList.add("rolling");
+        (function spin() {
+          var el2 = face, elapsed = Date.now() - t0;
+          if (elapsed < delay) { setTimeout(spin, 40); return; }
+          if (elapsed < delay + 520) { el2.textContent = 1 + Math.floor(Math.random() * d.sides); setTimeout(spin, 55); }
+          else { el2.textContent = d.result; chip.classList.remove("rolling"); chip.classList.add("landed"); }
+        })();
+      }
+    });
   }
   function setMode(m) {
     mode = (m === "*" || m === "" || turns[m]) ? m : "*";
@@ -1265,8 +1390,8 @@ def build(bundle: dict, note: str = "") -> str:
     rounds = sorted({f["round"] for f in frames if f["round"] >= 1})
     winner = start["agents"].get(m.get("winner_agent_id"), {}).get("name") or "nobody"
     colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
-    turns = build_turns(start, frames)
-    story = build_story(start, frames, turns)
+    turns = build_turns(start, frames, bundle)
+    story = build_story(start, frames, turns, bundle)
     scene = build_scene(bundle, start)
     data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns, "story": story, "scene": scene}
     chips = ('<button type="button" class="chip" data-follow="*" aria-pressed="false">The story, in order</button>\n'
@@ -1322,6 +1447,7 @@ def build(bundle: dict, note: str = "") -> str:
       <div class="row"><span class="lbl">Thought</span><div class="val"><span class="thought" id="t-thought"></span><span class="reads" id="t-reads"></span></div></div>
       <div class="row"><span class="lbl">Said</span><div class="val said" id="t-said"></div></div>
       <div class="row"><span class="lbl">Did</span><div class="val" id="t-did"></div></div>
+      <div class="row" id="t-dice-row"><span class="lbl">Dice</span><div class="val dice" id="t-dice"></div></div>
       <div class="row"><span class="lbl">Happened to them</span><div class="val" id="t-happened"></div></div>
       <div class="row" id="t-vault-row" hidden><span class="lbl">In the vault</span><div class="val" id="t-vault"></div></div>
       <div class="scene" id="t-scene" hidden></div>
