@@ -5,6 +5,45 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 01:05Z — "now I do not see what they're thinking": the thinking back, behind a switch, beside what they say
+
+The firm, on the board: *"Okay this is easier to follow but now I do not
+see what they're thinking. Like that helps my figure out the guys who say
+no claim to the crown yet. I assume the crown is the objective."*
+
+The Crown is the objective: PRD §5 item 4, the one objective everyone
+converges on. Each character also carries a secret aim from its brain
+file (`secret_objective`, one of four: monster hunter, lorekeeper,
+oathbreaker, treasure hoarder), worth six points at the end if met, and
+revealed only then. Placement for everyone but the winner is by score.
+
+The board now has a switch, "Show what they're thinking", off when the
+page opens. On, three things appear:
+
+- **Each character's private plan for the round**, the note the brain
+  writes before it acts (`note_written`), as a dashed thought bubble
+  beside the token and on the caption panel, marked "thinks, privately
+  · never said aloud", with who they trust, distrust or are unsure of.
+  Play and step pass through these frames only when the switch is on;
+  off, they are skipped, so the count reads 419 with and 313 without.
+- **Under each card**, the current plan and reads, so the roster shows
+  what all eight are privately after at any moment, next to their HP.
+- **The secret aim** each carries into the match, named from the manifest
+  with the engine's own wording of what completes it
+  (`scoring.OBJECTIVE_DEFS`), and "done" or "not done" once revealed.
+
+So the firm can put a character's line beside its plan: at round 3 Dask
+says nothing of the cache and privately plans *"Take [4,1], then claim
+cache at [4,0] before Fen opens it; seal after"*, distrusting Fen. That
+is the comparison the ask was for.
+
+Verification unchanged (notes move nothing on the board); the test that
+proved no note reached the page now proves the opposite the right way:
+every note is a private frame in order, every plan reaches its card
+through the delta, the switch opens off. Suite 112. Looked at once with
+the switch on at a round-3 thought before publishing (version 2, same
+link). The earlier feed page stays as it was.
+
 ## 14 September 2026, 00:20Z — "I want to literally see the replay not read the text": the match on a drawn board
 
 The firm, 13 September, late, on the feed page: *"Okay the thinking and

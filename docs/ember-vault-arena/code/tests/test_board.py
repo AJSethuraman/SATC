@@ -58,13 +58,26 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         problems = replay_board.verify(self.bundle, self.start, frames)
         self.assertTrue(any(aid in p for p in problems), problems)
 
-    def test_no_private_note_and_no_dice_reach_the_page(self):
+    def test_the_thinking_is_carried_but_off_until_switched_on_and_no_dice_reach_the_page(self):
         page = replay_board.build(self.bundle)
-        objectives = [d["action"]["note"]["objective"] for d in self.bundle["decisions"]
-                      if (d.get("action") or {}).get("note", {}).get("objective")]
-        self.assertTrue(objectives, "the mock wrote no objectives, so this proves nothing")
-        for text in objectives[:20]:
-            self.assertNotIn(text, page)
+        notes = [e for e in sorted(self.bundle["events"], key=lambda e: e["seq"]) if e["event_type"] == "note_written"]
+        self.assertTrue(notes, "the mock wrote no notes, so this proves nothing")
+        private = [f for f in self.frames if f.get("private")]
+        self.assertEqual([f["seq"] for f in private], [e["seq"] for e in notes])
+        self.assertEqual([f["objective"] for f in private], [e["payload"]["note"]["objective"] for e in notes])
+        # every plan is in the page data, behind a switch that opens off
+        for f in private[:20]:
+            if f["objective"]:
+                self.assertIn(f["objective"], page)
+        self.assertIn('id="think" class="toggle" aria-pressed="false"', page)
+        self.assertIn("body.think-on .card .think { display: block; }", page)
+        # the plan reaches each character's card through the delta, so the roster follows the round
+        for f in private[:20]:
+            self.assertEqual(f["delta"]["agents"][f["actor"]]["note"]["objective"], f["objective"])
+        # and the secret aim each carries is named from the manifest, with the engine's own wording
+        for aid, a in self.start["agents"].items():
+            self.assertTrue(a["secret"], aid)
+            self.assertTrue(a["secret_text"].endswith("."), a["secret_text"])
         self.assertNotIn("d20 =", page)
         types = {f["type"] for f in self.frames}
         self.assertFalse(types & replay_board.SKIP, types & replay_board.SKIP)

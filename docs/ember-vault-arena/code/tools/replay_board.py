@@ -32,18 +32,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from arena import grid  # noqa: E402
+from arena import grid, scoring  # noqa: E402
 
 E = html.escape
 
-# Events that carry nothing a viewer watches: dice, token spend, and the
-# private notes, which are deliberately absent from this page.
-SKIP = {"dice_roll", "agent_resource_update", "note_written"}
+# Events that carry nothing a viewer watches: dice and token spend. The
+# private notes ARE carried, flagged ``private``, and shown only behind the
+# "Show what they're thinking" switch, off by default: the firm, 14 Sep
+# 2026, "now I do not see what they're thinking. Like that helps my figure
+# out the guys who say no claim to the crown yet."
+SKIP = {"dice_roll", "agent_resource_update"}
 
 # How long the player dwells on an event at 1x, in milliseconds. Speech and
 # narration scale with length so a long line can be read.
 DWELL = {
-    "agent_speech": (2600, 42, 9500), "round_narration": (3200, 38, 12000),
+    "agent_speech": (2600, 42, 9500), "round_narration": (3200, 38, 12000), "note_written": (2200, 40, 9000),
     "move": (950, 0, 0), "step": (900, 0, 0), "monster_step": (1000, 0, 0), "agent_force_moved": (1400, 0, 0),
     "attack_hit": (1500, 0, 0), "attack_miss": (1300, 0, 0), "wild_swing_self_damage": (1500, 0, 0),
     "wild_swing_bystander": (1600, 0, 0), "wild_swing_room_reaction": (1600, 0, 0), "hazard_burn": (1300, 0, 0),
@@ -77,7 +80,8 @@ MONSTER_LABELS = {"ironwood_guardian": "IG", "ossuary_guardian": "OG", "crown_wa
 def dwell_ms(event: dict) -> int:
     base, per_char, cap = DWELL.get(event["event_type"], DEFAULT_DWELL)
     if per_char:
-        text = (event.get("payload") or {}).get("speech") or event.get("public_text") or ""
+        p = event.get("payload") or {}
+        text = p.get("speech") or (p.get("note") or {}).get("objective") or event.get("public_text") or ""
         return min(cap, base + per_char * len(text))
     return base
 
@@ -89,10 +93,16 @@ def dwell_ms(event: dict) -> int:
 def initial_state(bundle: dict) -> dict:
     """The board before round 1, from the referee's first snapshot."""
     first = bundle["snapshots"][0]["state"]
+    secrets = {p["manifest"]["id"]: p["manifest"].get("secret_objective") or "" for p in bundle.get("participants", [])}
     agents = {}
     for aid, a in first["agents"].items():
+        secret = secrets.get(aid, "")
         agents[aid] = {"id": aid, "name": a["name"], "build": a.get("build", ""), "room": a["room"],
-                       "tile": list(a["tile"]), "hp": a["hp"], "max_hp": a["max_hp"], "status": a["status"], "guard": 0}
+                       "tile": list(a["tile"]), "hp": a["hp"], "max_hp": a["max_hp"], "status": a["status"], "guard": 0,
+                       "note": {"objective": "", "reads": []},
+                       "secret": secret.replace("_", " "),
+                       "secret_text": scoring.OBJECTIVE_DEFS[secret]["description"] if secret in scoring.OBJECTIVE_DEFS else "",
+                       "secret_done": None}
     monsters = {}
     for mid, m in first["monsters"].items():
         monsters[mid] = {"id": mid, "name": m["name"], "room": m["room"], "tile": list(m["tile"]),
@@ -172,6 +182,15 @@ def apply_event(state: dict, ev: dict) -> dict:
             monster_delta(mid, hp=0)
     elif t == "guard":
         agent_delta(ev["actor_id"], guard=int((ch.get("guard") or [0, 0])[1]))
+    elif t == "note_written":
+        note = p.get("note") or {}
+        names = {a["id"]: a["name"] for a in agents.values()}
+        agent_delta(ev["actor_id"], note={
+            "objective": note.get("objective") or "",
+            "reads": [{"who": names.get(r.get("who"), r.get("who") or ""), "stance": r.get("stance") or "unknown", "why": r.get("why") or ""}
+                      for r in (note.get("reads") or [])]})
+    elif t == "objective_reveal":
+        agent_delta(ev["actor_id"], secret_done=bool(p.get("completed")))
     elif t == "round_started":
         for aid, a in agents.items():
             if a.get("guard"):
@@ -260,6 +279,12 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
             frame["mode"] = p.get("mode") or "say"
             to = p.get("addressed_ids") or ([p["to"]] if p.get("to") else [])
             frame["to"] = [names.get(x, x) for x in to]
+        if t == "note_written":
+            note = p.get("note") or {}
+            frame["private"] = True
+            frame["objective"] = note.get("objective") or ""
+            frame["reads"] = [{"who": names.get(r.get("who"), r.get("who") or ""), "stance": r.get("stance") or "unknown", "why": r.get("why") or ""}
+                              for r in (note.get("reads") or [])]
         if t in ("attack_hit", "wild_swing_bystander", "wild_swing_self_damage", "hazard_burn", "wild_swing_room_reaction"):
             frame["amount"] = int(p.get("applied") or p.get("amount") or 0)
         if t in ("rest", "item_used") and "hp" in (p.get("changes") or {}):
@@ -436,6 +461,8 @@ CSS = """
   .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-top-color: #f4ece0; border-bottom: 0; }
   .bubble.whisper { background: #d9d3e6; font-style: italic; }
   .bubble.whisper::after { border-top-color: #d9d3e6; }
+  .bubble.thought { background: #cfc9c0; color: #2a221d; font-style: italic; border: 2px dashed #8a7f75; }
+  .bubble.thought::after { border-top-color: #cfc9c0; }
   .bubble.below { transform: translate(-50%, 22px); }
   .bubble.below::after { top: -8px; bottom: auto; border: 8px solid transparent; border-bottom-color: #f4ece0; border-top: 0; }
   .bubble.below.whisper::after { border-bottom-color: #d9d3e6; }
@@ -445,6 +472,19 @@ CSS = """
   .stage.narration { border-left-color: var(--ember); }
   .stage.blow { border-left-color: var(--blood); }
   .stage.crown { border-left-color: var(--gold); }
+  .stage.thought { border-left: 4px dashed var(--muted); background: #1b1613; }
+  .stage.thought .what { font-style: italic; color: #d9cbb9; }
+  .stage .reads { font-size: .86rem; color: var(--muted); margin: 0; }
+  .stage .reads b { color: var(--ink); font-weight: 500; }
+  .transport button.toggle { min-width: 0; }
+  .transport button.toggle[aria-pressed="true"] { background: var(--ink); color: #1a0e08; border-color: var(--ink); }
+  .card .think { grid-column: 1 / 4; display: none; font-size: .8rem; color: var(--muted); line-height: 1.35; margin-top: .2rem; border-top: 1px dashed var(--line); padding-top: .35rem; }
+  .card .think i { display: block; font-style: normal; }
+  .card .think i.aim { color: #d9cbb9; font-style: italic; }
+  .card .think i.aim:empty::before { content: "no plan written yet"; color: var(--faint); }
+  .card .think i.secret b { color: var(--gold); font-weight: 500; }
+  .card .think i.secret .done { color: var(--heal); } .card .think i.secret .failed { color: var(--muted); }
+  body.think-on .card .think { display: block; }
   .who { display: inline-flex; align-items: center; gap: .5rem; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .who .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--faint); border: 1px solid #0e0b0a; }
   .who .dot.monster { background: var(--blood); border-color: #4a0f0c; }
@@ -609,6 +649,12 @@ SCRIPT = r"""
       var card = document.getElementById("card-" + k);
       card.className = "card" + (a.status === "eliminated" ? " out" : "") + (a.status === "escaped" ? " escaped" : "") + (state.crown.carrier === k ? " crown" : "");
       card.querySelector(".num").textContent = a.hp + " / " + a.max_hp;
+      card.querySelector(".aim").textContent = a.note && a.note.objective ? "Plan: " + a.note.objective : "";
+      card.querySelector(".rd").textContent = readsLine(a.note && a.note.reads);
+      var sec = card.querySelector(".secret");
+      sec.innerHTML = a.secret ? 'Secret aim: <b></b> <span class="d"></span>' : "";
+      if (a.secret) { sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
+        var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : ""; dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : ""; }
       card.querySelector(".bar i").style.width = Math.max(0, 100 * a.hp / a.max_hp) + "%";
       card.querySelector(".bar i").className = hpClass(a.hp, a.max_hp);
     }
@@ -657,9 +703,19 @@ SCRIPT = r"""
 
   function caption(f) {
     var st = $("#stage"), w = who(f.actor);
-    var kind = f.type === "agent_speech" ? "speech" : f.narration ? "narration" : BLOWS[f.type] ? "blow" : CROWN[f.type] ? "crown" : "";
+    var kind = f.private ? "thought" : f.type === "agent_speech" ? "speech" : f.narration ? "narration" : BLOWS[f.type] ? "blow" : CROWN[f.type] ? "crown" : "";
     st.className = "stage " + kind;
-    var whoEl = $("#who"), what = $("#what"), meta = $("#meta");
+    var whoEl = $("#who"), what = $("#what"), meta = $("#meta"), reads = $("#reads");
+    reads.textContent = "";
+    if (f.private) {
+      whoEl.innerHTML = '<span class="dot" style="background:' + (w ? w.colour : "") + '"></span><b></b><span class="role">thinks, privately · </span><span class="rm"></span>';
+      whoEl.querySelector("b").textContent = w ? w.name : "";
+      whoEl.querySelector(".rm").textContent = w ? roomName(state.agents[f.actor].room) : "";
+      what.textContent = f.objective || "(no plan written)";
+      var rl = readsLine(f.reads); if (rl) { reads.innerHTML = "<b>Reads:</b> "; reads.appendChild(document.createTextNode(rl)); }
+      meta.textContent = "Round " + f.round + " · " + (idx + 1) + " of " + frames.length + " · private, never said aloud";
+      return;
+    }
     if (w) {
       whoEl.innerHTML = '<span class="dot' + (w.kind === "monster" ? " monster" : "") + '" style="' + (w.colour ? "background:" + w.colour : "") + '"></span><b></b><span class="role"></span>';
       whoEl.querySelector("b").textContent = w.name;
@@ -672,14 +728,27 @@ SCRIPT = r"""
     meta.textContent = "Round " + f.round + " · " + (idx + 1) + " of " + frames.length;
   }
   function roomName(r) { var n = document.getElementById("name-" + r); return n ? n.textContent : r; }
+  function readsLine(reads) {
+    if (!reads || !reads.length) return "";
+    var by = { trust: [], distrust: [], unknown: [] };
+    reads.forEach(function (r) { (by[r.stance] || by.unknown).push(r.who); });
+    var parts = [];
+    if (by.trust.length) parts.push("trusts " + by.trust.join(", "));
+    if (by.distrust.length) parts.push("distrusts " + by.distrust.join(", "));
+    if (by.unknown.length) parts.push("unsure of " + by.unknown.join(", "));
+    return parts.join(" · ");
+  }
+  var thinkOn = false;
+  function visible(i) { return thinkOn || !frames[i].private; }
+  function nextVisible(from, dir) { var i = from + dir; while (i >= 0 && i < frames.length && !visible(i)) i += dir; return i; }
 
   function effects(f) {
     var tgt = f.target && (state.agents[f.target] || state.monsters[f.target]) ? f.target : (f.actor && (state.agents[f.actor] || state.monsters[f.actor]) ? f.actor : null);
-    if (f.type === "agent_speech" && f.actor && state.agents[f.actor]) {
-      var a = state.agents[f.actor], p = px(a.room, a.tile);
+    if ((f.type === "agent_speech" || f.private) && f.actor && state.agents[f.actor]) {
+      var a = state.agents[f.actor], p = px(a.room, a.tile), line = f.private ? (f.objective || "") : f.speech;
       var below = p[1] < geo.height * .22;
-      bubble.className = "bubble" + (f.mode === "whisper" ? " whisper" : "") + (below ? " below" : "");
-      bubble.textContent = f.speech.length > 110 ? f.speech.slice(0, 107) + "…" : f.speech;
+      bubble.className = "bubble" + (f.private ? " thought" : f.mode === "whisper" ? " whisper" : "") + (below ? " below" : "");
+      bubble.textContent = line.length > 110 ? line.slice(0, 107) + "…" : line;
       var bx = Math.max(geo.width * .18, Math.min(geo.width * .82, p[0]));
       bubble.style.left = (100 * bx / geo.width) + "%"; bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
       bubble.hidden = false;
@@ -730,7 +799,7 @@ SCRIPT = r"""
       tb.appendChild(tr);
     });
   }
-  function step(dir) { pause(); goto(idx + dir, dir > 0); }
+  function step(dir) { pause(); var n = nextVisible(idx, dir); if (n >= 0 && n < frames.length) goto(n, dir > 0); }
   function jumpRound(dir) {
     pause();
     var r = frames[idx].round, target = null;
@@ -740,8 +809,9 @@ SCRIPT = r"""
   }
   function tick() {
     if (!playing) return;
-    if (idx >= frames.length - 1) { pause(); return; }
-    goto(idx + 1, true);
+    var n = nextVisible(idx, 1);
+    if (n >= frames.length) { pause(); return; }
+    goto(n, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
   function play() { if (idx >= frames.length - 1) goto(0, true); playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true"); timer = setTimeout(tick, frames[idx].dwell / speed); }
@@ -753,7 +823,15 @@ SCRIPT = r"""
   $("#nextr").addEventListener("click", function () { jumpRound(1); });
   $("#prevr").addEventListener("click", function () { jumpRound(-1); });
   $("#speed").addEventListener("change", function (e) { speed = parseFloat(e.target.value) || 1; });
-  $("#scrub").addEventListener("input", function (e) { pause(); goto(parseInt(e.target.value, 10), false); });
+  $("#scrub").addEventListener("input", function (e) { pause(); var n = parseInt(e.target.value, 10); if (!visible(n)) n = Math.min(frames.length - 1, nextVisible(n, 1)); goto(n, false); });
+  $("#think").addEventListener("click", function () {
+    thinkOn = !thinkOn;
+    document.body.classList.toggle("think-on", thinkOn);
+    this.setAttribute("aria-pressed", String(thinkOn));
+    this.textContent = thinkOn ? "Hide what they're thinking" : "Show what they're thinking";
+    if (!thinkOn && frames[idx].private) { var n = nextVisible(idx, 1); goto(n < frames.length ? n : nextVisible(idx, -1), false); }
+    else render(frames[idx]);
+  });
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
@@ -778,7 +856,8 @@ def build(bundle: dict, note: str = "") -> str:
     roster = "\n".join(
         f'<div class="card" id="card-{E(aid)}"><span class="dot" style="background:{colours[aid]}"></span>'
         f'<span class="name">{E(a["name"])}</span><span class="num">{a["hp"]} / {a["max_hp"]}</span>'
-        f'<span class="build" style="grid-column:2/4">{E(a["build"])}</span><span class="bar"><i style="width:100%"></i></span></div>'
+        f'<span class="build" style="grid-column:2/4">{E(a["build"])}</span><span class="bar"><i style="width:100%"></i></span>'
+        f'<span class="think"><i class="aim"></i><i class="rd"></i><i class="secret"></i></span></div>'
         for aid, a in start["agents"].items())
     sub = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}. {len(rounds)} rounds of {E(str(m.get('max_rounds', '')))} played; "
            f"winner {E(winner)}. {len(frames)} things happen. Press Play, or step with the arrows." + (f" {E(note)}" if note else ""))
@@ -805,6 +884,7 @@ def build(bundle: dict, note: str = "") -> str:
   <section class="stage" id="stage" aria-live="polite">
     <div class="who" id="who"></div>
     <p class="what" id="what"></p>
+    <p class="reads" id="reads"></p>
     <div class="meta" id="meta"></div>
   </section>
   <div class="transport">
@@ -814,6 +894,7 @@ def build(bundle: dict, note: str = "") -> str:
     <button type="button" id="next" title="Forward one">&#8250;</button>
     <button type="button" id="nextr" title="Next round">round &#187;</button>
     <label for="speed">Speed <select id="speed"><option value="0.6">slow</option><option value="1" selected>normal</option><option value="2">fast</option><option value="4">very fast</option></select></label>
+    <button type="button" id="think" class="toggle" aria-pressed="false">Show what they're thinking</button>
   </div>
   <div class="scrub">
     <span class="lbl">Start</span>
@@ -827,7 +908,7 @@ def build(bundle: dict, note: str = "") -> str:
     <h2>How it ended</h2>
     <table><thead><tr><th>Place</th><th>Character</th><th>Fate</th><th>Score</th></tr></thead><tbody></tbody></table>
   </section>
-  <p class="foot">Drawn to the referee's own grids: rooms, doors, cover, hazards and the tile each body stood on, checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step.</p>
+  <p class="foot">Drawn to the referee's own grids: rooms, doors, cover, hazards and the tile each body stood on, checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. "Show what they're thinking" adds each character's private plan for the round and who they trust, written before they act and never said aloud, plus the secret aim each carries into the match, under their card.</p>
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>
