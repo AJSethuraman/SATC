@@ -50,10 +50,16 @@ from __future__ import annotations
 
 import math
 import re
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import record
+
+#: The firm's own mark for "this passage carries more than one answer",
+#: imported rather than respelled: two spellings of one convention drift, and
+#: `Desk.alongside` and this must fire on exactly the same pairs.
+_QUALIFIER = record._QUALIFIER
 
 
 #: Words that carry no subject. Deliberately SHORT and closed: every word here
@@ -126,6 +132,11 @@ class Found:
     held: Held
     score: float
     matched: tuple[str, ...]
+    #: The citation this hit was brought back BESIDE, or `""` when it earned its
+    #: own place. `dec-pair`: a sibling placed by adjacency alone is a sibling a
+    #: caller reads as having scored, and its score is right there next to it
+    #: looking like the reason it is in the list. This says it is not.
+    paired_with: str = ""
 
 
 #: Punctuation a word may legitimately carry INSIDE it and never at its close.
@@ -396,4 +407,71 @@ def look(question: str, pool: tuple[Held, ...], *, limit: int = 8,
         out.append(Found(held=entry, score=score,
                          matched=tuple(sorted(present))))
     out.sort(key=lambda f: (-f.score, f.held.citation))
-    return tuple(out[:limit])
+    return _paired(out)[:limit]
+
+
+def _paired(found: list) -> tuple[Found, ...]:
+    """Where the firm answered one passage twice, both come back, together.
+
+    `dec-pair`, 14 September 2026 -- the firm, on the eighth docket: **"Pair
+    them."**
+
+    THE INCIDENT IS 7 SEPTEMBER AND THE RANKING STILL REPRODUCES IT. Asked *a
+    deposit was made on the last day of the month and is not on the bank
+    statement yet -- do we make an entry in the books?*, this pool returns the
+    firm's WRONG answer at rank 1 (33.6, *an entry in the books*) and the RIGHT
+    one at rank 2 (22.0, *a reconciling item, no entry in the books*). A reader
+    who takes the top hit gets the documented wrong answer in the firm's own
+    words, marked binding -- which is exactly what the session on 7 September
+    did.
+
+    WHAT WAS ALREADY TRUE, and Forge-Desk reported the opposite. `alongside` is
+    not dead: an answer SERVED through the engine carries both positions and
+    both passages in full. The exposure is narrower than reported and real -- a
+    caller that reads `look` directly and takes rank 1 never reaches the engine,
+    and gets one of two opposite answers with nothing saying the other exists.
+
+    THE STEM IS THE FIRM'S OWN MARK, not a heuristic, and this reads it the same
+    way `Desk.alongside` does. `POSITIONS.md` explains the convention: *"A
+    position carries one answer, and one citation admits one position. The
+    publication states what the statement did not yet include and, separately,
+    what the books are updated for; those have opposite answers, so they are
+    cited and answered apart."* The split is written INTO the citation as a
+    trailing ` -- <which rule>`. Two ratified positions sharing a stem is
+    therefore the firm saying *this passage carries more than one answer*, and
+    that is the only case this fires on -- exactly one pair in the corpus today.
+
+    IT PAIRS AND IT DOES NOT RANK. The sibling takes the place immediately after
+    its partner whatever it scored, and every other hit keeps its order. Nothing
+    is rescored, nothing is promoted past anything it did not already outrank,
+    and a sibling that did not match the question at all is NOT invented -- it
+    has to be in the pool's own results to be moved. `test_pairing_reorders_only
+    _the_sibling` is what holds that.
+    """
+    ranked = list(found)
+    at = {f.held.citation: i for i, f in enumerate(ranked)}
+    out, taken = [], set()
+    for entry in ranked:
+        if entry.held.citation in taken:
+            continue
+        out.append(entry)
+        taken.add(entry.held.citation)
+        if not entry.held.positions:
+            continue
+        stem = entry.held.citation.split(_QUALIFIER, 1)[0].strip()
+        if stem == entry.held.citation:
+            continue
+        for other in ranked:
+            cite = other.held.citation
+            if cite in taken or not other.held.positions:
+                continue
+            if cite.split(_QUALIFIER, 1)[0].strip() == stem:
+                # MARKED, NOT MERELY MOVED. Its score is printed beside it and
+                # is not why it is here; without this a caller reads a 5.7
+                # sitting above a 7.8 as a ranking defect rather than as the
+                # firm having answered this passage twice.
+                out.append(dataclasses.replace(other,
+                                               paired_with=entry.held.citation))
+                taken.add(cite)
+    assert len(out) == len(ranked), "pairing dropped or duplicated a hit"
+    return tuple(out)
