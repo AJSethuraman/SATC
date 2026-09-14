@@ -5,6 +5,49 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 14:40Z — "waste their turn if someone else gets to something first": 17 of 106 in the match; four ways out, none built
+
+The firm: *"Okay so I do think it makes sense to have them play one at a
+time for fairness but it really doesn't seem to make sense for someone
+to waste their turn if someone else gets to something first. does it?"*
+
+It does not, and the record shows how often it happens. Today every
+character commits blind at the same time from one frozen view of the
+board (PRD §5 item 13), a d20 + Speed orders resolution, and an action
+the board no longer allows when its turn comes is `stale_action`: no
+effect, no penalty, turn gone. In the 12 September match, 17 of 106
+decisions ended that way:
+
+- 8 × *item already taken*: in round 12, five of eight tried to take the
+  Crown the round it dropped; Dask got it and four lost the turn. Three
+  more in round 14 when it dropped again.
+- 4 × *the seal is already resolved*: three went for the Ironwood seal in
+  round 4; Yarrow lit it, the other two lost the turn; one more at the
+  Ossuary seal in round 6.
+- 3 × *target defeated before resolution*: swings at a guardian or the
+  Warden that had already fallen earlier in the order.
+- 1 tile taken first, 1 cache already emptied.
+
+The convergent objective makes this worse, not better: everyone races
+for the same thing on purpose, so the round the Crown drops will always
+have several hands on it.
+
+Four ways out, written into PRD §10 as D11 with their costs: (A) decide
+one at a time in initiative order, seeing the board as it is; no waste,
+but eight model calls in series a round, about 15 seconds each on the
+subscription route as measured 12 September, against a 48-minute stream
+target, and later actors see more than earlier ones. (B) keep blind at
+once and let the brain give a second choice in the same action, applied
+only when the first is stale; no latency, the model still proposes.
+(C) keep blind at once and have the referee substitute a sensible
+default; no latency, but the referee is then choosing the character's
+intent, against the firm's own *refuse rather than default*. (D) keep
+blind at once and re-ask only the stale actor, in series, seeing the
+resolved board; extra calls only on collisions. Recommendation: B,
+measured by stale turns per match before and after, then D if B leaves
+too many. It is an engine and output-contract change, so M3, and M3
+waits on the gate (D7, D9). On the docket as D11.
+
 ## 14 September 2026, 14:05Z — D9 and D10 answered: the order holds; voicing is in, after the pilot
 
 The firm, on the docket page at 13:51Z and 13:52Z, read back by
