@@ -50,7 +50,7 @@ Nothing structural is built until the gate has run: eight brains, three short ma
 
 - Rankings, ratings, seasons, leagues, accounts, public sign-ups, or any cross-match reputation fed to a character. *(Firm, 11 Sep 2026: each setup is new; a champions round is a later format.)*
 - A public broadcast. The destination is Twitch or YouTube; v1 streams to a private page and a Discord call. The content rules for a public stream are written before the first public stream, not now.
-- Voice, text-to-speech, sprites drawn as art, video cuts, highlight reels, or any content engine.
+- Voice, text-to-speech, sprites drawn as art, video cuts, highlight reels, or any content engine. **Reopened in part, 14 September 2026.** The firm, watching the first full match on the board page: *"this is meant to be viewed live with things moving (understandably it wouldn't be super animated but this is a board like game with an aesthetic) and I want to figure out voicing for the characters. All AI of course."* The moving board is already the goal (§5 items 36–37, and the firm's own line above: *"the final product is a live stream"*). Voicing is not: this line excluded it. Whether voicing enters the goal, and when, is docket D10; until ruled, it stays here. The open design questions are in §10.
 - Cross-model matches. Same model and settings for everyone; a mixed-model match is a separate, labelled format later.
 - A haunting or takeover mechanic for dead characters. Dead is dead in v1; haunting is the first experiment after the gate.
 - A cost cap. Cost is measured per call and reported; nothing stops a match on money in v1.
@@ -281,6 +281,7 @@ Six seams, confirmed by the firm on 11 September 2026. Four are July's and alrea
 **Open questions (needs your decision — only things owed to the firm)**
 
 - Create the private repository `ember-vault-arena` by hand and say when; the session cannot (403 "Resource not accessible by integration", three times, the third on 12 September 2026 at the firm's ask).
+- **Voicing the characters (D10, reopened 14 September 2026):** all AI. What is voiced (the `say` lines; whispers, which the room does not hear; the narrator; the monsters' table lines); who chooses a character's voice (the operator from the brain's `voice` paragraph, the player from a menu, or a model from the paragraph) and whether a player may hear it before the match; where it sits in the one-round-behind stream (a spoken line takes seconds the presenter's dial must allow for); what it costs per match at the chosen service's published rates, looked up, not recalled; and whether it is in the private pilot or after it. Not built until ruled.
 - **D8's mechanics (M3):** with extraction no longer ending the match, what the Egress and an extraction do, if anything; how a held Crown is taken (the existing take-on-elimination and the deal path, or more); whether attunement still matters. Design at M3, on the mock, before any brain sees it.
 - Who the eight players are and by when their brain files arrive.
 - Who the two blind readers are for each gate run.

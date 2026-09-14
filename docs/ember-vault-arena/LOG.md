@@ -5,6 +5,44 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 05:30Z — "viewed live with things moving … and voicing for the characters": one already the goal, one a recorded non-goal reopened
+
+The firm: *"Something I want to ensure we understand - this is meant to
+be viewed live with things moving (understandably it wouldn't be super
+animated but this is a board like game with an aesthetic) and I want to
+figure out voicing for the characters. All AI of course."*
+
+**Moving, live: already the goal, in their own words.** PRD §1 quotes
+them from 11 September: *"the final product is a live stream or
+something. We can't rely on the replay to show things differently."*
+§5 items 36 and 37 are the live endpoint and the live page: one beat at
+a time, auto-playing, camera grammar by event type, sprites and rooms,
+one round behind the engine. The board page of the last day is a viewer
+of a finished record, built so the firm could judge the voices before
+the gate is read; it is not the live page, and nothing in it changes
+what M4 builds. The non-goal *"sprites drawn as art"* stands as written:
+inline SVG sprites are in the plan (§6), commissioned art is not.
+
+**Voicing: a non-goal on the record, reopened.** PRD §3 excluded
+*"Voice, text-to-speech, sprites drawn as art, video cuts, highlight
+reels, or any content engine"* on 11 September, from the grilling. The
+firm's line today reopens voicing. Not built, not planned into a
+milestone, not costed: it goes to the docket as **D10** with both
+outcomes, and the design questions it carries go to PRD §10: what is
+voiced (say lines; whispers the room does not hear; the narrator; the
+monsters' table lines), who chooses a character's voice (the operator
+from the brain's `voice` paragraph, the player, or a model), where the
+seconds a spoken line takes sit in the one-round-behind stream, what it
+costs at a service's published rates (to be looked up, not recalled),
+and whether it is in the private pilot or after. Recommendation on the
+docket: rule it in as the first thing after the private pilot, so the
+pilot proves the engine and the show before a voice is layered on, and
+so the brain's `voice` paragraph, which every brain already carries, is
+what a voice is chosen from.
+
+M3 and M4 stay shut until the gate is read; this entry changes nothing
+about that.
+
 ## 14 September 2026, 05:00Z — dice on the screen as rolled; the opening explains the rules and the vault's own; Dask is not mute
 
 The firm: *"For the actual broadcast and in the near future I want to see
