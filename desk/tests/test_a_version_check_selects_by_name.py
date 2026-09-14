@@ -28,9 +28,14 @@ import json
 import pathlib
 import re
 
-HERE = pathlib.Path(__file__).resolve().parents[1]
-ROOT = HERE.parent
-LISTING = ROOT / ".claude-plugin" / "marketplace.json"
+import _layout                                              # noqa: E402
+
+HERE = _layout.PLUGIN
+#: RESOLVED FOR BOTH LAYOUTS. This was `HERE.parent / ".claude-plugin" / ...`,
+#: which is the repository shape only — so the two checks below, both of which
+#: assert a fact about the INSTALLED plugin, were the only two in the suite that
+#: could not run installed. `_layout` says what that cost. 14 September 2026.
+LISTING = _layout.listing()
 
 #: `['plugins'][0]` / `["plugins"][2]` — a subscript into the plugin list by
 #: position. Selecting by name reads `p['name']=='desk'` instead.
@@ -110,8 +115,7 @@ def test_the_listing_and_the_plugin_manifest_agree():
     the installed copy says it is. They are two files and they have disagreed."""
     listing = json.loads(LISTING.read_text(encoding="utf-8"))
     said = next(p["version"] for p in listing["plugins"] if p["name"] == "desk")
-    manifest = json.loads(
-        (HERE / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    manifest = json.loads(_layout.MANIFEST.read_text(encoding="utf-8"))
     assert manifest["version"] == said, (
         f"the listing offers {said} and the plugin calls itself "
         f"{manifest['version']}; `plugin update` reads the listing")

@@ -50,10 +50,16 @@ from __future__ import annotations
 
 import math
 import re
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import record
+
+#: The firm's own mark for "this passage carries more than one answer",
+#: imported rather than respelled: two spellings of one convention drift, and
+#: `Desk.alongside` and this must fire on exactly the same pairs.
+_QUALIFIER = record._QUALIFIER
 
 
 #: Words that carry no subject. Deliberately SHORT and closed: every word here
@@ -107,6 +113,11 @@ class Held:
     #: section of Pub. 583 with OPPOSITE answers, and serving one without the
     #: other is the 7 September incident.
     positions: tuple = field(default_factory=tuple)
+    #: The clause this passage uses to say it applies somewhere else, read off
+    #: its own opening words by `scope_of`, or `""`. PROVENANCE FOR THE READER,
+    #: never an input to matching -- see `scope_of` for why the firm chose
+    #: marking over demoting.
+    scoped: str = ""
 
 
 @dataclass(frozen=True)
@@ -121,12 +132,61 @@ class Found:
     held: Held
     score: float
     matched: tuple[str, ...]
+    #: The citation this hit was brought back BESIDE, or `""` when it earned its
+    #: own place. `dec-pair`: a sibling placed by adjacency alone is a sibling a
+    #: caller reads as having scored, and its score is right there next to it
+    #: looking like the reason it is in the list. This says it is not.
+    paired_with: str = ""
 
 
 #: Punctuation a word may legitimately carry INSIDE it and never at its close.
 #: `.`, `-` and `/` are in `_WORD` so `1.263(a)-3`, `Pub. 583` and `1099-K`
 #: survive tokenising whole. Nothing is a full stop at its end.
 _TRAILING = "./-"
+
+
+#: A passage that SCOPES ITSELF in its own opening words: "For purposes of this
+#: section", "For purposes of applying paragraph (h)(3)(i) of this section".
+#:
+#: WHY THE CLAUSE AND NOT A JUDGEMENT. `dec-scoped`, 14 September 2026 -- the
+#: firm: **"Mark them."** The alternative on the card was demoting them, and
+#: they did not pick it: demoting is tuning a ranking by taste, which is what
+#: this module was built not to do. Reading a clause the drafter wrote is a
+#: comparison, same as everything else here (C8); it is deterministic, it is
+#: re-runnable, and a wrong mark is a defect somebody can point at.
+_SCOPES = re.compile(
+    r"^\s*(?:\([a-z0-9]+\)\s*)*"          # (c), (1), (iv) -- the numbering
+    r"(?:[A-Z][^.]{0,80}?\.\s*)?"          # an optional heading sentence
+    # ENDS ON `:` TOO. `1.280F-6(d)(2)(ii)(C)` opens *"Definitions. For
+    # purposes of this paragraph:"* and a `.`-or-`,` terminator missed it --
+    # a self-scoping definition, which is the exact class this is for.
+    r"(For purposes of [^.:]{0,200}?)[.,:]",
+    re.I)
+
+
+def scope_of(text: str) -> str:
+    """The clause a passage uses to say it applies somewhere else, or `""`.
+
+    THE INSTANCE, and it is the one the firm was shown. 26 CFR
+    1.263(a)-3(h)(3)(iv) is headed *"Definition of gross receipts"* and really
+    does define the term -- and its first words are *"For purposes of applying
+    paragraph (h)(3)(i) of this section"*, the small-taxpayer safe harbour for
+    BUILDING IMPROVEMENTS. It is a turnover threshold borrowed for one narrow
+    purpose. Asked *are unidentified deposits gross receipts?* it ranks 1; Pub.
+    583, the authority that actually reaches the question, ranks 5.
+
+    A CLASS, NOT AN INSTANCE, measured before it was put to the firm: 36
+    passages in this corpus open with a clause scoping themselves and 13 of
+    those are definitions, and six probed all come back in the top 7 for the
+    very term they scope.
+
+    THIS CHANGES NO SCORE AND NO ORDER. It is read at assembly and carried on
+    the entry; `look` never sees it. `test_marking_a_passage_moves_nothing`
+    holds that shut, because the obvious next step -- "and demote them a bit" --
+    is the one the firm declined.
+    """
+    found = _SCOPES.search(text or "")
+    return " ".join(found.group(1).split()) if found else ""
 
 
 def terms(text: str) -> tuple[str, ...]:
@@ -225,6 +285,7 @@ def assemble(corpus: Path) -> tuple[Held, ...]:
                 url=getattr(source, "url", "") if source else "",
                 read_from=folder.name,
                 positions=tuple(by_citation.get(passage.citation, ())),
+                scoped=scope_of(passage.text),
             ))
             seen.add(passage.citation)
         # A citation the firm took a position on but whose text is not stored --
@@ -346,4 +407,71 @@ def look(question: str, pool: tuple[Held, ...], *, limit: int = 8,
         out.append(Found(held=entry, score=score,
                          matched=tuple(sorted(present))))
     out.sort(key=lambda f: (-f.score, f.held.citation))
-    return tuple(out[:limit])
+    return _paired(out)[:limit]
+
+
+def _paired(found: list) -> tuple[Found, ...]:
+    """Where the firm answered one passage twice, both come back, together.
+
+    `dec-pair`, 14 September 2026 -- the firm, on the eighth docket: **"Pair
+    them."**
+
+    THE INCIDENT IS 7 SEPTEMBER AND THE RANKING STILL REPRODUCES IT. Asked *a
+    deposit was made on the last day of the month and is not on the bank
+    statement yet -- do we make an entry in the books?*, this pool returns the
+    firm's WRONG answer at rank 1 (33.6, *an entry in the books*) and the RIGHT
+    one at rank 2 (22.0, *a reconciling item, no entry in the books*). A reader
+    who takes the top hit gets the documented wrong answer in the firm's own
+    words, marked binding -- which is exactly what the session on 7 September
+    did.
+
+    WHAT WAS ALREADY TRUE, and Forge-Desk reported the opposite. `alongside` is
+    not dead: an answer SERVED through the engine carries both positions and
+    both passages in full. The exposure is narrower than reported and real -- a
+    caller that reads `look` directly and takes rank 1 never reaches the engine,
+    and gets one of two opposite answers with nothing saying the other exists.
+
+    THE STEM IS THE FIRM'S OWN MARK, not a heuristic, and this reads it the same
+    way `Desk.alongside` does. `POSITIONS.md` explains the convention: *"A
+    position carries one answer, and one citation admits one position. The
+    publication states what the statement did not yet include and, separately,
+    what the books are updated for; those have opposite answers, so they are
+    cited and answered apart."* The split is written INTO the citation as a
+    trailing ` -- <which rule>`. Two ratified positions sharing a stem is
+    therefore the firm saying *this passage carries more than one answer*, and
+    that is the only case this fires on -- exactly one pair in the corpus today.
+
+    IT PAIRS AND IT DOES NOT RANK. The sibling takes the place immediately after
+    its partner whatever it scored, and every other hit keeps its order. Nothing
+    is rescored, nothing is promoted past anything it did not already outrank,
+    and a sibling that did not match the question at all is NOT invented -- it
+    has to be in the pool's own results to be moved. `test_pairing_reorders_only
+    _the_sibling` is what holds that.
+    """
+    ranked = list(found)
+    at = {f.held.citation: i for i, f in enumerate(ranked)}
+    out, taken = [], set()
+    for entry in ranked:
+        if entry.held.citation in taken:
+            continue
+        out.append(entry)
+        taken.add(entry.held.citation)
+        if not entry.held.positions:
+            continue
+        stem = entry.held.citation.split(_QUALIFIER, 1)[0].strip()
+        if stem == entry.held.citation:
+            continue
+        for other in ranked:
+            cite = other.held.citation
+            if cite in taken or not other.held.positions:
+                continue
+            if cite.split(_QUALIFIER, 1)[0].strip() == stem:
+                # MARKED, NOT MERELY MOVED. Its score is printed beside it and
+                # is not why it is here; without this a caller reads a 5.7
+                # sitting above a 7.8 as a ranking defect rather than as the
+                # firm having answered this passage twice.
+                out.append(dataclasses.replace(other,
+                                               paired_with=entry.held.citation))
+                taken.add(cite)
+    assert len(out) == len(ranked), "pairing dropped or duplicated a hit"
+    return tuple(out)

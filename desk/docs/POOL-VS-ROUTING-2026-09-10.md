@@ -68,6 +68,18 @@ pool: 794 citations from 7 records (794 with stored text)
    NOTE: returning something is not the same as returning the right thing.
          Only section 1 has a known right answer.
 
+   AND ONE OF THE LINES ABOVE IS KNOWN TO BE WRONG. Added 14 September 2026,
+   after Forge-Desk read this table and pointed at it. The `hand tools bought
+   for the trade` row returns `26 CFR 1.6041-1(b)(1)` -- the definition of
+   "all persons engaged in a trade or business" from the 1099 INFORMATION-RETURN
+   rules, matched on `trade`. A bookkeeper's "for the trade" means *for the
+   craft*. The reg the question is actually about, § 1.162-3 on materials and
+   supplies, is rank 8. This is the `receipts` collision relocated, and no
+   retrieval fixes it -- `pool.py`'s own docstring says why: it is a fact about
+   English rather than a defect. The generic note above was not enough, because
+   a reader scanning this table for evidence reads a citation and assumes it is
+   the right one. It is named here so nobody has to find it twice.
+
 3 · The question that killed the word list (dec-kill)
 =====================================================
    'are unidentified deposits gross receipts?'

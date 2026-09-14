@@ -359,9 +359,25 @@ NARROWED = {
     # carries. Same count of passages, different passages, more words in them.
     # The other two are unchanged, which is what says this is retrieval moving
     # rather than a fixed cost added to every brief.
-    "is a brewery tab a business meal?": 2_582,
-    "what supporting documents does the client have to keep?": 7_044,
-    "hand tools bought for the trade - deducted or capitalized?": 2_846,
+    #
+    # AND THREE OF THE FOUR MOVED ON 14 SEPTEMBER 2026: `dec-examples` -- the
+    # firm, **"Label and never examples-only."** Every worked example printed in
+    # the answering brief now carries a line saying it is another taxpayer's
+    # facts, so the cost is per EXAMPLE rather than per brief, and it is exactly
+    # visible in which rows moved:
+    #
+    #     brewery tab          2,582 -> 2,737   (+155, four examples)
+    #     supporting documents 7,044 -> 7,122   (+78,  two examples)
+    #     hand tools           2,846 -> 3,002   (+156, four examples)
+    #     mileage / van        2,420 -> 2,420   (unchanged -- NO examples)
+    #
+    # THE FOURTH ROW IS THE ONE WORTH READING. It did not move, which is what
+    # says this is a label on examples and not a paragraph added to every brief.
+    # The graded figures below are likewise untouched: `brief_for_grading`
+    # prints no example, so there is nothing there to label.
+    "is a brewery tab a business meal?": 2_737,
+    "what supporting documents does the client have to keep?": 7_122,
+    "hand tools bought for the trade - deducted or capitalized?": 3_002,
     "mileage or actual expenses for the van?": 2_420,
 }
 
@@ -376,7 +392,11 @@ NARROWED = {
 # onto POS11 — "nearby, doesn't settle it", with what the search actually found
 # under it. A review that records only that somebody looked is the one a reader
 # learns the wrong thing from, so the words are the cost and they are cheap.
-WHOLE = (91_807, 185_881)
+# +20,232 tokens on the EXAMPLES side on 14 September 2026, and none at all on
+# the rules side: `dec-examples` labels every worked example, and this figure
+# prints all 260 of them. The rules-only figure is unchanged to the token, which
+# is the check that the label went on examples and nowhere else.
+WHOLE = (91_807, 206_113)
 
 
 def _answering_sizes():

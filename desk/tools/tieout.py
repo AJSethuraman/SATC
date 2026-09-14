@@ -445,7 +445,26 @@ def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]
     return out
 
 
-_BLOCK = re.compile(r"^### (.+?)\n\n> (.+?)\n", re.M | re.S)
+#: A passage as the brief renders it: a heading LINE, then anything the brief
+#: chooses to put in front of the quotation, then the quotation.
+#:
+#: THE CITATION IS ONE LINE AND THIS USED TO SAY `(.+?)` UNDER `re.S`, which
+#: makes `.` match newlines -- so the citation group swallowed whatever sat
+#: between the heading and the `>`. Nothing sat there until 14 September 2026,
+#: when `dec-examples` put a label on every worked example, and every example in
+#: the corpus came back with the label glued onto its citation and therefore
+#: "not in the record".
+#:
+#: PARSING THE RENDERED BRIEF IS DELIBERATE -- reading `desk.passages` here would
+#: put the intermediate on the `ours` side, which is the failure this exercise is
+#: written against. The cost of that choice is exactly this: the parser tracks
+#: the rendering. So it is written to survive the brief gaining prose, and it
+#: refuses to cross a following heading rather than matching greedily past one.
+_BLOCK = re.compile(
+    r"^### ([^\n]+)\n"          # the citation, and only the heading line
+    r"(?:(?!^### )[\s\S])*?"     # anything the brief prints before the quote
+    r"^> ([\s\S]+?)\n",         # the passage itself
+    re.M)
 
 
 def brief_passages(desk: record.Desk) -> dict:
