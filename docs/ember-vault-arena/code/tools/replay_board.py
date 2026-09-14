@@ -349,6 +349,76 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
     return start, frames
 
 
+# Frames that are the actor's own doing, for the followed character's card.
+DID = {"move", "step", "attack_hit", "attack_miss", "wild_swing_self_damage", "wild_swing_bystander", "wild_swing_room_reaction",
+       "guard", "rest", "search_failure", "cache_found", "seal_activated", "stale_action", "item_used", "item_taken", "give",
+       "crown_taken", "crown_extracted", "action_skipped", "invalid_action", "interact", "search_success"}
+# Frames that land on a character from outside: another body's swing, the
+# floor, the referee sweeping a room, the Crown leaving their hands.
+HAPPENED = {"attack_hit", "attack_miss", "wild_swing_bystander", "hazard_burn", "agent_eliminated", "agent_force_moved",
+            "crown_dropped", "monster_step"}
+
+
+def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
+    """One card per character per round: thought, said, did, happened to them,
+    and the frame the board should stand at when the card shows (the round's
+    last frame). Built by folding the same deltas the page folds, so the HP
+    on the card is the HP the referee recorded (verify() checks that).
+
+    The firm, 14 Sep 2026: "I want to see one character's words, thoughts,
+    and action. It is too much to take in at once when seeing all 8
+    thoughts. Additionally it's easier to detect when they're lying"."""
+    state = copy.deepcopy(start)
+    rounds = sorted({f["round"] for f in frames if f["round"] >= 1})
+    by_round: dict[int, list[tuple[int, dict]]] = {}
+    for i, f in enumerate(frames):
+        by_round.setdefault(f["round"], []).append((i, f))
+    turns: dict[str, list[dict]] = {aid: [] for aid in start["agents"]}
+    hp_before = {aid: a["hp"] for aid, a in start["agents"].items()}
+    status_before = {aid: a["status"] for aid, a in start["agents"].items()}
+    for i, f in by_round.get(0, []):
+        _fold(state, f["delta"])
+    for rnd in rounds:
+        items = by_round.get(rnd, [])
+        cards = {aid: {"round": rnd, "who": aid, "thought": "", "reads": [], "said": None, "mode": None, "to": [],
+                       "did": [], "happened": [], "narration": "", "end": items[-1][0] if items else 0,
+                       "hp_before": hp_before[aid], "out_before": status_before[aid] != "active"}
+                 for aid in start["agents"]}
+        for i, f in items:
+            t = f["type"]
+            if t == "everyone_thinks":
+                for th in f["thoughts"]:
+                    cards[th["who"]]["thought"] = th["objective"]
+                    cards[th["who"]]["reads"] = th["reads"]
+            elif t == "agent_speech" and f["actor"] in cards:
+                c = cards[f["actor"]]
+                c["said"], c["mode"], c["to"] = f["speech"], f["mode"], f.get("to") or []
+            elif t == "round_narration":
+                for c in cards.values():
+                    c["narration"] = f["text"]
+            else:
+                actor, target = f.get("actor"), f.get("target")
+                if actor in cards and t in DID:
+                    cards[actor]["did"].append(f["text"])
+                if t in HAPPENED:
+                    victim = target if target in cards else (actor if actor in cards and t in ("hazard_burn", "agent_force_moved") else None)
+                    if t == "crown_dropped" and actor in cards:
+                        victim = actor
+                    if t == "agent_eliminated" and target in cards:
+                        victim = target
+                    if victim and not (t == "attack_hit" and actor == victim) and not (victim == actor and t in ("attack_miss",)):
+                        cards[victim]["happened"].append(f["text"])
+            _fold(state, f["delta"])
+        for aid, c in cards.items():
+            a = state["agents"][aid]
+            c["hp_after"], c["status_after"], c["room_after"] = a["hp"], a["status"], a["room"]
+            hp_before[aid], status_before[aid] = a["hp"], a["status"]
+            text = c["thought"] + (c["said"] or "") + " ".join(c["did"]) + " ".join(c["happened"])
+            c["dwell"] = min(18000, 3000 + 30 * len(text))
+            turns[aid].append(c)
+    return turns
+
+
 def verify(bundle: dict, start: dict, frames: list[dict]) -> list[str]:
     """Replay the deltas and compare with every round-end snapshot the
     referee wrote. Returns the mismatches; empty means the board is the
@@ -568,6 +638,41 @@ CSS = """
   .thoughts .reads:empty { display: none; }
   .thoughts[hidden] { display: none; }
   .meta { font-size: .76rem; color: var(--faint); }
+  /* follow one character */
+  .follow { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .55rem; }
+  .follow .lbl { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-right: .2rem; }
+  .chip { display: inline-flex; align-items: center; gap: .35rem; font: 500 .8rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 999px; padding: .28rem .7rem; cursor: pointer; }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #0e0b0a; }
+  .chip:hover { border-color: var(--muted); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: #1a0e08; border-color: var(--ink); }
+  .chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .stage.turnview { border-left-color: var(--ink); }
+  .turn { display: grid; gap: .55rem; }
+  .turn[hidden] { display: none; }
+  .turn .row { display: grid; grid-template-columns: 7.2rem 1fr; gap: .6rem; align-items: baseline; }
+  .turn .row .lbl { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding-top: .2rem; }
+  .turn .val { font-size: .98rem; line-height: 1.45; min-width: 0; }
+  .turn .val.said { font-size: 1.12rem; }
+  .turn .thought { font-style: italic; color: var(--thought); display: block; }
+  .turn .thought:empty::before { content: "wrote no plan"; color: var(--faint); font-style: normal; }
+  .turn .reads { display: block; color: var(--muted); font-size: .8rem; }
+  .turn .reads:empty { display: none; }
+  .turn .val.said .none, .turn .val .none { color: var(--faint); font-style: italic; }
+  .turn .val.said .to { color: var(--muted); font-size: .8rem; font-style: italic; display: block; }
+  .turn .val.narr { font-family: var(--serif); font-style: italic; color: #cbbba8; font-size: .9rem; }
+  .turn .narr-fold { margin: 0; } .turn .narr-fold[hidden] { display: none; }
+  .turn .narr-fold summary { cursor: pointer; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .turn .narr-fold summary::marker { color: var(--ember); }
+  .turn .narr-fold .val { margin-top: .35rem; }
+  .turn .secret { color: var(--muted); font-size: .8rem; border-top: 1px dashed var(--line); padding-top: .45rem; }
+  .turn .secret b { color: var(--gold); font-weight: 500; }
+  .turn .secret .done { color: var(--heal); } .turn .secret .failed { color: var(--muted); }
+  .turn .val ul { margin: 0; padding-left: 1.1rem; } .turn .val li { margin: .1rem 0; }
+  .hpline { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; margin-left: auto; }
+  .hpline b { color: var(--ink); font-weight: 600; }
+  .hpline .down { color: #ff7b6b; } .hpline .up { color: var(--heal); }
+  body.following #prevr, body.following #nextr { display: none; }
+  @media (max-width: 560px) { .turn .row { grid-template-columns: 1fr; gap: .1rem; } }
   .transport { margin-top: .7rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .7rem; }
   .transport button { font: 600 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .45rem .75rem; cursor: pointer; min-width: 2.6rem; }
   .transport button:hover { border-color: var(--muted); }
@@ -671,6 +776,7 @@ SCRIPT = r"""
   var state, idx = -1, playing = false, timer = null, speed = 1;
   var $ = function (s) { return document.querySelector(s); };
   var fx = $("#fx"), bubble = $("#bubble");
+  var follow = "", turns = D.turns, ti = -1;   // follow: "" for everyone, else an agent id; ti: index into turns[follow]
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function fold(s, d) {
@@ -775,6 +881,7 @@ SCRIPT = r"""
     var st = $("#stage"), whoEl = $("#who"), what = $("#what"), meta = $("#meta"), th = $("#thoughts");
     var kind = f.type === "everyone_thinks" ? "thinks" : f.type === "agent_speech" ? "speech" : f.narration ? "narration" : BLOWS[f.type] ? "blow" : CROWN[f.type] ? "crown" : "";
     st.className = "stage " + kind;
+    $("#turn").hidden = true; what.hidden = false;
     $("#round-no").textContent = f.round >= 1 ? "Round " + f.round : "Before round 1";
     $("#round-n").textContent = (idx + 1) + " of " + frames.length;
     var phase = PHASE[f.type] ? '<span class="phase">' + PHASE[f.type] + "</span>" : "";
@@ -852,17 +959,100 @@ SCRIPT = r"""
     fx.appendChild(l); setTimeout(function () { l.remove(); }, 1100);
   }
 
-  function goto(n, animate) {
+  function goto(n, animate, quiet) {
     n = Math.max(0, Math.min(frames.length - 1, n));
     if (n < idx || idx < 0) { state = clone(D.start); for (var i = 0; i <= n; i++) fold(state, frames[i].delta); }
     else { for (var j = idx + 1; j <= n; j++) fold(state, frames[j].delta); }
     idx = n;
     var f = frames[idx];
-    render(f); caption(f);
-    if (animate !== false) effects(f); else bubble.hidden = true;
-    $("#scrub").value = idx;
+    render(quiet ? null : f);
+    if (!quiet) {
+      caption(f);
+      if (animate !== false) effects(f); else bubble.hidden = true;
+      $("#scrub").value = idx;
+    }
     $("#final").hidden = f.type !== "final_scores";
     if (f.type === "final_scores") showFinal(f);
+  }
+
+  // ---- following one character: one card per round ----
+  function list(el, items, none) {
+    el.innerHTML = "";
+    if (!items || !items.length) { var s = document.createElement("span"); s.className = "none"; s.textContent = none; el.appendChild(s); return; }
+    if (items.length === 1) { el.textContent = items[0]; return; }
+    var ul = document.createElement("ul");
+    items.forEach(function (t) { var li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+    el.appendChild(ul);
+  }
+  function showTurn(k, animate) {
+    var cards = turns[follow];
+    k = Math.max(0, Math.min(cards.length - 1, k));
+    var c = cards[k];
+    ti = k;
+    goto(c.end, false, true);                       // the board stands at the end of this round
+    var a = state.agents[follow];
+    document.querySelectorAll(".token").forEach(function (t) { t.classList.remove("speaking", "acting", "thinking"); });
+    var tok = document.getElementById("tok-" + follow); if (tok) tok.classList.add(c.said ? "speaking" : "acting");
+    var st = $("#stage"); st.className = "stage turnview";
+    $("#what").hidden = true; $("#thoughts").hidden = true; $("#goal").hidden = true; $("#turn").hidden = false;
+    $("#round-no").textContent = "Round " + c.round;
+    $("#round-n").textContent = (k + 1) + " of " + cards.length + " rounds";
+    var whoEl = $("#who");
+    whoEl.innerHTML = '<span class="dot"></span><b></b><span class="role"></span><span class="hpline"></span>';
+    whoEl.querySelector(".dot").style.background = colours[follow];
+    whoEl.querySelector("b").textContent = a.name;
+    whoEl.querySelector(".role").textContent = a.build + " · " + roomName(c.room_after);
+    var hp = whoEl.querySelector(".hpline");
+    if (c.out_before) hp.innerHTML = "out of the match";
+    else {
+      var cls = c.hp_after < c.hp_before ? "down" : c.hp_after > c.hp_before ? "up" : "";
+      hp.innerHTML = 'HP <b>' + c.hp_before + '</b> → <b class="' + cls + '">' + c.hp_after + '</b> / ' + a.max_hp + (c.status_after === "eliminated" ? " · <span class=\"down\">out</span>" : c.status_after === "escaped" ? " · escaped" : "");
+    }
+    $("#t-thought").textContent = c.thought || "";
+    $("#t-reads").textContent = readsLine(c.reads);
+    var said = $("#t-said"); said.innerHTML = "";
+    if (c.said) {
+      said.appendChild(document.createTextNode("“" + c.said + "”"));
+      if (c.mode === "whisper" || (c.to && c.to.length)) {
+        var to = document.createElement("span"); to.className = "to";
+        to.textContent = (c.mode === "whisper" ? "whispered" : "said") + (c.to && c.to.length ? " to " + c.to.join(", ") : "") + (c.mode === "whisper" ? ", heard by nobody else" : ", in front of the room");
+        said.appendChild(to);
+      }
+    } else { var none = document.createElement("span"); none.className = "none"; none.textContent = c.out_before ? "—" : "said nothing"; said.appendChild(none); }
+    list($("#t-did"), c.did, c.out_before ? "—" : "nothing");
+    list($("#t-happened"), c.happened, c.out_before ? "—" : "nothing");
+    $("#t-narr-row").hidden = !c.narration; $("#t-narr").textContent = c.narration || "";
+    var sec = $("#t-secret");
+    sec.innerHTML = 'Secret aim: <b></b> <span class="d"></span>';
+    sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
+    var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : "";
+    dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : "";
+    $("#meta").textContent = "Thought is private and written before the round. Said is what the others heard. The board shows the end of the round.";
+    $("#scrub").value = k;
+    if (animate !== false && c.said && a) {
+      var p = px(a.room, a.tile), below = p[1] < geo.height * .22, right = p[0] > geo.width / 2;
+      bubble.className = "bubble" + (c.mode === "whisper" ? " whisper" : "") + (below ? " below" : "") + (right ? " rt" : "");
+      bubble.textContent = c.said.length > 110 ? c.said.slice(0, 107) + "…" : c.said;
+      var pct = 100 * Math.max(geo.width * .16, Math.min(geo.width * .84, p[0])) / geo.width;
+      if (right) { bubble.style.left = "auto"; bubble.style.right = (100 - pct) + "%"; } else { bubble.style.right = "auto"; bubble.style.left = pct + "%"; }
+      bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
+      bubble.hidden = false;
+    } else bubble.hidden = true;
+  }
+  function setFollow(id) {
+    follow = turns[id] ? id : "";
+    document.body.classList.toggle("following", !!follow);
+    document.querySelectorAll(".chip").forEach(function (ch) { ch.setAttribute("aria-pressed", String(ch.getAttribute("data-follow") === follow)); });
+    pause();
+    if (follow) {
+      $("#scrub").max = turns[follow].length - 1;
+      var r = idx >= 0 ? frames[idx].round : 1, k = 0;
+      turns[follow].forEach(function (c, i) { if (c.round <= Math.max(1, r)) k = i; });
+      showTurn(k, true);
+    } else {
+      $("#scrub").max = frames.length - 1;
+      goto(idx >= 0 ? idx : 0, false);
+    }
   }
   function showFinal(f) {
     var rows = Object.keys(f.placements).sort(function (a, b) { return f.placements[a] - f.placements[b]; });
@@ -876,9 +1066,10 @@ SCRIPT = r"""
       tb.appendChild(tr);
     });
   }
-  function step(dir) { pause(); goto(idx + dir, dir > 0); }
+  function step(dir) { pause(); if (follow) showTurn(ti + dir, dir > 0); else goto(idx + dir, dir > 0); }
   function jumpRound(dir) {
     pause();
+    if (follow) { showTurn(ti + dir, dir > 0); return; }
     var r = frames[idx].round, target = null;
     for (var i = 0; i < frames.length; i++) if (frames[i].type === "round_started" && ((dir > 0 && frames[i].round > r) || (dir < 0 && frames[i].round < r))) { target = i; if (dir > 0) break; }
     if (target === null) target = dir > 0 ? frames.length - 1 : 0;
@@ -886,11 +1077,22 @@ SCRIPT = r"""
   }
   function tick() {
     if (!playing) return;
+    if (follow) {
+      if (ti >= turns[follow].length - 1) { pause(); return; }
+      showTurn(ti + 1, true);
+      timer = setTimeout(tick, turns[follow][ti].dwell / speed);
+      return;
+    }
     if (idx >= frames.length - 1) { pause(); return; }
     goto(idx + 1, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
-  function play() { if (idx >= frames.length - 1) goto(0, true); playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true"); timer = setTimeout(tick, frames[idx].dwell / speed); }
+  function play() {
+    playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true");
+    if (follow) { if (ti >= turns[follow].length - 1) showTurn(0, true); timer = setTimeout(tick, turns[follow][ti].dwell / speed); return; }
+    if (idx >= frames.length - 1) goto(0, true);
+    timer = setTimeout(tick, frames[idx].dwell / speed);
+  }
   function pause() { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; $("#play").setAttribute("aria-pressed", "false"); }
 
   $("#play").addEventListener("click", function () { playing ? pause() : play(); });
@@ -899,13 +1101,15 @@ SCRIPT = r"""
   $("#nextr").addEventListener("click", function () { jumpRound(1); });
   $("#prevr").addEventListener("click", function () { jumpRound(-1); });
   $("#speed").addEventListener("change", function (e) { speed = parseFloat(e.target.value) || 1; });
-  $("#scrub").addEventListener("input", function (e) { pause(); goto(parseInt(e.target.value, 10), false); });
+  $("#scrub").addEventListener("input", function (e) { pause(); var v = parseInt(e.target.value, 10); if (follow) showTurn(v, false); else goto(v, false); });
+  document.querySelectorAll(".chip").forEach(function (ch) { ch.addEventListener("click", function () { setFollow(ch.getAttribute("data-follow")); }); });
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
     else if (e.key === "ArrowRight") { step(1); } else if (e.key === "ArrowLeft") { step(-1); }
   });
   goto(0, false);
+  setFollow(Object.keys(D.start.agents)[0]);   // opens on one character; "Everyone" is a chip away
 })();
 """
 
@@ -920,7 +1124,11 @@ def build(bundle: dict, note: str = "") -> str:
     rounds = sorted({f["round"] for f in frames if f["round"] >= 1})
     winner = start["agents"].get(m.get("winner_agent_id"), {}).get("name") or "nobody"
     colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
-    data = {"geo": geo, "start": start, "frames": frames, "colours": colours}
+    turns = build_turns(start, frames)
+    data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns}
+    chips = '<button type="button" class="chip" data-follow="" aria-pressed="false">Everyone</button>\n' + "\n".join(
+        f'<button type="button" class="chip" data-follow="{E(aid)}" aria-pressed="false"><span class="dot" style="background:{colours[aid]}"></span>{E(a["name"].split()[0])}</button>'
+        for aid, a in start["agents"].items())
     roster = "\n".join(
         f'<div class="card" id="card-{E(aid)}"><span class="dot" style="background:{colours[aid]}"></span>'
         f'<span class="name" title="{E(a["name"])}, {E(a["build"])}">{E(a["name"].split()[0])}</span><span class="num">{a["hp"]}/{a["max_hp"]}</span>'
@@ -951,6 +1159,10 @@ def build(bundle: dict, note: str = "") -> str:
   </div>
   </div>
   <aside class="side">
+  <div class="follow" role="group" aria-label="Who to follow">
+    <span class="lbl">Follow</span>
+{chips}
+  </div>
   <div class="round-bar"><span id="round-no">Round 1</span><span class="n" id="round-n"></span></div>
   <section class="stage" id="stage" aria-live="polite">
     <div class="who" id="who"></div>
@@ -961,6 +1173,14 @@ def build(bundle: dict, note: str = "") -> str:
       <span class="plan" id="goal-plan"></span>
       <span class="reads" id="goal-reads"></span>
       <span class="secret" id="goal-secret"></span>
+    </div>
+    <div class="turn" id="turn" hidden>
+      <div class="row"><span class="lbl">Thought</span><div class="val"><span class="thought" id="t-thought"></span><span class="reads" id="t-reads"></span></div></div>
+      <div class="row"><span class="lbl">Said</span><div class="val said" id="t-said"></div></div>
+      <div class="row"><span class="lbl">Did</span><div class="val" id="t-did"></div></div>
+      <div class="row"><span class="lbl">Happened to them</span><div class="val" id="t-happened"></div></div>
+      <details class="narr-fold" id="t-narr-row"><summary>The narrator's account of the round</summary><div class="val narr" id="t-narr"></div></details>
+      <span class="secret" id="t-secret"></span>
     </div>
     <div class="meta" id="meta"></div>
   </section>
@@ -981,7 +1201,7 @@ def build(bundle: dict, note: str = "") -> str:
     <h2>How it ended</h2>
     <table><thead><tr><th>Place</th><th>Character</th><th>Fate</th><th>Score</th></tr></thead><tbody></tbody></table>
   </section>
-  <p class="foot">Drawn to the referee's own grids: rooms, doors, cover, hazards and the tile each body stood on, checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim under a character's plan is the side objective their brain file carries, worth points at the end.</p>
+  <p class="foot">Following one character, each step is one round: what they thought, said and did, and what happened to them, with the board standing at the end of that round. "Everyone" plays every moment in order. Drawn to the referee's own grids and checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim is the side objective their brain file carries, worth points at the end.</p>
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>

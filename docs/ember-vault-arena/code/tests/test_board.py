@@ -104,6 +104,43 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         self.assertIn("<title>", page)
         self.assertLess(len(page.encode()), 16 * 1024 * 1024)
 
+    def test_following_one_character_gives_one_card_per_round_with_thought_said_did_and_happened(self):
+        turns = replay_board.build_turns(self.start, self.frames)
+        rounds = sorted({f["round"] for f in self.frames if f["round"] >= 1})
+        events = sorted(self.bundle["events"], key=lambda e: e["seq"])
+        self.assertEqual(set(turns), set(self.start["agents"]))
+        for aid, cards in turns.items():
+            self.assertEqual([c["round"] for c in cards], rounds)
+            for c in cards:
+                rnd = c["round"]
+                notes = [e for e in events if e["event_type"] == "note_written" and e["round_no"] == rnd and e["actor_id"] == aid]
+                said = [e for e in events if e["event_type"] == "agent_speech" and e["round_no"] == rnd and e["actor_id"] == aid]
+                self.assertEqual(c["thought"], notes[0]["payload"]["note"]["objective"] if notes else "")
+                self.assertEqual(c["said"], said[0]["payload"]["speech"] if said else None)
+                # what they did is the round's action frames for them, in order, each carrying the referee's line
+                did_frames = [f for f in self.frames if f["round"] == rnd and f["actor"] == aid and f["type"] in replay_board.DID]
+                self.assertEqual(c["did"], [f["text"] for f in did_frames])
+                did_events = [e for e in events if e["round_no"] == rnd and e["actor_id"] == aid and e["event_type"] in replay_board.DID
+                              and not (e["event_type"] == "item_taken" and e["target_id"] == "ember_crown")]
+                self.assertEqual(len(did_frames), len(did_events))
+                for text, e in zip(c["did"], did_events):
+                    self.assertTrue(text.startswith(e["public_text"]), (text, e["public_text"]))
+                hits_on_me = [e["public_text"] for e in events if e["round_no"] == rnd and e["event_type"] == "attack_hit" and e["target_id"] == aid]
+                for text in hits_on_me:
+                    self.assertIn(text, c["happened"])
+                self.assertEqual(self.frames[c["end"]]["round"], rnd)
+                # the card's HP is the referee's HP at the end of the round
+                snap = next(s for s in self.bundle["snapshots"] if s["round_no"] == rnd and s["phase"] == "end")
+                self.assertEqual(c["hp_after"], snap["state"]["agents"][aid]["hp"])
+                self.assertEqual(c["status_after"], snap["state"]["agents"][aid]["status"])
+        # something was said and something was done, or the mock proved nothing
+        self.assertTrue(any(c["said"] for cards in turns.values() for c in cards))
+        self.assertTrue(any(c["did"] for cards in turns.values() for c in cards))
+        page = replay_board.build(self.bundle)
+        self.assertIn('data-follow=""', page)
+        for aid in self.start["agents"]:
+            self.assertIn(f'data-follow="{aid}"', page)
+
     def test_rooms_are_drawn_to_the_engine_grid(self):
         from arena import grid
         page = replay_board.build(self.bundle)

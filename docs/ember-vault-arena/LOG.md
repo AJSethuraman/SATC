@@ -5,6 +5,46 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 02:40Z — "I want to see one character's words, thoughts, and action": follow one, one card a round
+
+The firm, spelling it out: *"I want to see one character's words,
+thoughts, and action. It is too much to take in at once when seeing all
+8 thoughts. Additionally it's easier to detect when they're lying (which
+is fine I just can't tell if they're saying something they don't truly
+believe to benefit themselves like making others think they don't even
+care to win or how they'd do it)."*
+
+The board now opens following one character. A chip row picks who:
+Everyone, or any of the eight. Following one, each step is one round and
+the panel is one card:
+
+- **Thought.** Their private plan for the round, written before it, and
+  who they trust, distrust or are unsure of.
+- **Said.** Their line, and to whom, in front of the room or whispered.
+  "Said nothing" when silent.
+- **Did.** Their actions in order, in the referee's words.
+- **Happened to them.** What landed on them from outside: a monster's or
+  rival's swing, the floor, the referee's sweep, the Crown leaving their
+  hands.
+- HP before and after the round in the header; the secret aim under the
+  card; the narrator's account of the round behind a fold.
+
+The board stands at the end of that round with the followed token lit
+and their line in a bubble. Thought sits directly above Said, which is
+the comparison the ask was for: at round 3 Fen tells Ilse and Dask *"I'm
+good for it, honestly, truly, I'm your draft under the door"*, and the
+plan above it is *"retreat to threshold, heal, return later for cache
+loot"*, distrusting Ilse. "Everyone" keeps the full play-by-play.
+
+`build_turns` in `tools/replay_board.py` makes the cards by folding the
+same deltas the page folds, so the HP on a card is the HP the referee
+recorded; the test checks every card's HP and status against the
+round-end snapshot, every Thought against the note, every Said against
+the speech, every Did against the action frames in order, and every hit
+taken against Happened. Suite 112 → **113**. Looked at once, Fen at
+round 3; one trim from the look, the narrator's paragraph behind a fold
+so the Play button stays in view. Published as version 4, same link.
+
 ## 14 September 2026, 01:50Z — "Don't they think at the same time?": one round, one sequence, one panel
 
 The firm, on the board with the switch: *"Okay. This is hard to follow
