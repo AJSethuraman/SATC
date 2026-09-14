@@ -191,19 +191,42 @@ def test_case_is_normalised_rather_than_refused():
 # READING ALL THREE STORES, and keeping the live run out of the durable count.
 
 
-def test_every_store_a_refusal_lands_in_is_read():
-    """The bug, stated as a property. `stores()` must find all three families,
-    because the version that found one printed a zero over five live refusals."""
-    kinds = {where.split("/")[0] for _, where, _ in holes.stores()}
-    # TWO SINCE 10 SEPTEMBER 2026, AND IT WAS THREE. The families were
-    # `unfiled/`, `runs/` and `desks/<name>/unsupported/` — seven per-desk
-    # queues. `dec-kill` left one, `corpus/unsupported/`, and the reason it is
-    # one is in `attempts.py`: forty failures against one host is a source to
-    # retire; the same forty split seven ways is seven shrugs. So the property
-    # is unchanged and the denominator moved: every family a refusal can land
-    # in must be read, and if a third appears this goes red.
-    assert kinds == {"unfiled", "runs", "corpus"}, (
-        f"only {sorted(kinds)} read; a refusal filed anywhere else is invisible")
+def test_every_store_a_refusal_lands_in_is_read(tmp_path):
+    """The bug, stated as a property. `stores()` must find every family, because
+    the version that found one printed a zero over five live refusals.
+
+    IT USED TO PROVE THE WRONG THING, AND CLEARING THE QUEUE IS WHAT EXPOSED IT.
+    This read the kinds `stores()` returned and compared them to a fixed set. So
+    it passed whenever each family happened to have a file lying in it — which
+    conflates *this store is read* with *this store is not empty*. The firm
+    cleared the parked-question queue on 14 September 2026 to measure a fresh
+    pilot, `corpus/unsupported/` went empty, and this went red without anything
+    being broken: `holes.py` globs that path and would find the next refusal
+    filed there perfectly well.
+
+    A CLEARED QUEUE MUST NOT BE A BROKEN QUEUE, and the only way to say so is to
+    put a refusal in each store and watch it come back out. That is strictly
+    stronger than the old assertion — it survives an empty queue, and it would
+    catch a store that is listed and never actually read, which the old one
+    could not.
+    """
+    import unsupported
+
+    root = tmp_path / "desk"
+    for family in ("unfiled", "corpus/unsupported"):
+        (root / family).mkdir(parents=True)
+        # WRITTEN THROUGH `unsupported.append`, never typed as a fixture: a
+        # change to the queue's format then breaks this loudly instead of
+        # leaving a file nothing can parse and a test that still passes.
+        unsupported.append(
+            root / family / "asked.md",
+            unsupported.from_question("a question nobody has answered",
+                                      why="written by this test"))
+
+    seen = {where.split("/")[0] for _, where, _ in holes.stores(root)}
+    assert {"unfiled", "corpus"} <= seen, (
+        f"only {sorted(seen)} read; a refusal filed anywhere else is invisible. "
+        f"Each of these had a real entry written into it immediately above.")
 
 
 def test_only_the_latest_run_is_read():
