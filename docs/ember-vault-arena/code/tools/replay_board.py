@@ -338,6 +338,8 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
             frame["scores"] = p.get("scores") or {}
         if t == "round_narration":
             frame["narration"] = True
+        if t == "initiative_order":
+            frame["order"] = [o.get("agent_id") for o in (p.get("order") or []) if o.get("agent_id")]
         if t == "stale_action":
             frame["text"] = frame["text"] + " " + ((p.get("reason") or "").capitalize() + "." if p.get("reason") else "")
         frame["dwell"] = dwell_for(t, frame.get("speech") or frame["text"])
@@ -417,6 +419,50 @@ def build_turns(start: dict, frames: list[dict]) -> dict[str, list[dict]]:
             c["dwell"] = min(18000, 3000 + 30 * len(text))
             turns[aid].append(c)
     return turns
+
+
+# The vault's own beat in a round: the monsters moving and striking, rooms
+# closing, the gate opening, an act turning.
+VAULT = {"monster_step", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved"}
+
+
+def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]]) -> list[dict]:
+    """The match in order, one card per character per round in the order
+    they acted, then the vault's beat, then the next round; the end last.
+
+    The firm, 14 Sep 2026: "that is not how a story works. I want to see it
+    in order. Not one character I scroll through for round 1,2,3 I just want
+    a play by play with all the info I need to understand that instance in
+    time." Each entry names the card (from ``build_turns``) and the frame the
+    board stands at: the character's last action of the round, or the
+    thinking moment if they took none."""
+    rounds = sorted({f["round"] for f in frames if f["round"] >= 1})
+    by_round: dict[int, list[tuple[int, dict]]] = {}
+    for i, f in enumerate(frames):
+        by_round.setdefault(f["round"], []).append((i, f))
+    cards = {aid: {c["round"]: c for c in cs} for aid, cs in turns.items()}
+    story: list[dict] = []
+    for rnd in rounds:
+        items = by_round[rnd]
+        order = next((f["order"] for _, f in items if f["type"] == "initiative_order" and f.get("order")), None) or list(start["agents"])
+        for aid in list(order) + [a for a in start["agents"] if a not in order]:
+            c = cards.get(aid, {}).get(rnd)
+            if not c or c["out_before"]:
+                continue
+            did = [i for i, f in items if f.get("actor") == aid and f["type"] in DID]
+            think = [i for i, f in items if f["type"] == "everyone_thinks"]
+            board = did[-1] if did else (think[0] if think else items[0][0])
+            story.append({"kind": "turn", "who": aid, "round": rnd, "board": board, "dwell": c["dwell"]})
+        vault = [(i, f) for i, f in items
+                 if f["type"] in VAULT or (f.get("actor") in start["monsters"] and f["type"] in ("attack_hit", "attack_miss"))]
+        if vault:
+            texts = [f["text"] for _, f in vault]
+            story.append({"kind": "vault", "round": rnd, "board": vault[-1][0], "texts": texts,
+                          "dwell": min(12000, 2500 + 30 * sum(len(t) for t in texts))})
+    fin = next((i for i, f in enumerate(frames) if f["type"] == "final_scores"), None)
+    if fin is not None:
+        story.append({"kind": "end", "round": frames[fin]["round"], "board": fin, "text": frames[fin]["text"], "dwell": 6000})
+    return story
 
 
 def verify(bundle: dict, start: dict, frames: list[dict]) -> list[str]:
@@ -671,7 +717,9 @@ CSS = """
   .hpline { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; margin-left: auto; }
   .hpline b { color: var(--ink); font-weight: 600; }
   .hpline .down { color: #ff7b6b; } .hpline .up { color: var(--heal); }
-  body.following #prevr, body.following #nextr { display: none; }
+  .turn.vaultcard .row:not(#t-vault-row), .turn.vaultcard .secret { display: none; }
+  .turn:not(.vaultcard) #t-vault-row { display: none; }
+  .stage.vault { border-left-color: var(--ember); }
   @media (max-width: 560px) { .turn .row { grid-template-columns: 1fr; gap: .1rem; } }
   .transport { margin-top: .7rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .7rem; }
   .transport button { font: 600 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .45rem .75rem; cursor: pointer; min-width: 2.6rem; }
@@ -776,7 +824,7 @@ SCRIPT = r"""
   var state, idx = -1, playing = false, timer = null, speed = 1;
   var $ = function (s) { return document.querySelector(s); };
   var fx = $("#fx"), bubble = $("#bubble");
-  var follow = "", turns = D.turns, ti = -1;   // follow: "" for everyone, else an agent id; ti: index into turns[follow]
+  var mode = "*", turns = D.turns, ti = -1;   // mode: "*" the story, "" every moment, else one character's id; ti: index into seq
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function fold(s, d) {
@@ -975,7 +1023,15 @@ SCRIPT = r"""
     if (f.type === "final_scores") showFinal(f);
   }
 
-  // ---- following one character: one card per round ----
+  // ---- cards: the story in order (one character's moment at a time), or one character's moments ----
+  var seq = [];                 // the entries being watched: {kind, who, round, board, dwell, texts, text}
+  var cardOf = {};              // cardOf[who][round] -> that character's card for the round
+  Object.keys(turns).forEach(function (who) { cardOf[who] = {}; turns[who].forEach(function (c) { cardOf[who][c.round] = c; }); });
+  function entriesFor(m) {
+    if (m === "*") return D.story;
+    return turns[m].filter(function (c) { return !c.out_before; })
+                   .map(function (c) { return { kind: "turn", who: m, round: c.round, board: c.end, dwell: c.dwell }; });
+  }
   function list(el, items, none) {
     el.innerHTML = "";
     if (!items || !items.length) { var s = document.createElement("span"); s.className = "none"; s.textContent = none; el.appendChild(s); return; }
@@ -984,75 +1040,81 @@ SCRIPT = r"""
     items.forEach(function (t) { var li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
     el.appendChild(ul);
   }
-  function showTurn(k, animate) {
-    var cards = turns[follow];
-    k = Math.max(0, Math.min(cards.length - 1, k));
-    var c = cards[k];
-    ti = k;
-    goto(c.end, false, true);                       // the board stands at the end of this round
-    var a = state.agents[follow];
-    document.querySelectorAll(".token").forEach(function (t) { t.classList.remove("speaking", "acting", "thinking"); });
-    var tok = document.getElementById("tok-" + follow); if (tok) tok.classList.add(c.said ? "speaking" : "acting");
-    var st = $("#stage"); st.className = "stage turnview";
-    $("#what").hidden = true; $("#thoughts").hidden = true; $("#goal").hidden = true; $("#turn").hidden = false;
-    $("#round-no").textContent = "Round " + c.round;
-    $("#round-n").textContent = (k + 1) + " of " + cards.length + " rounds";
-    var whoEl = $("#who");
-    whoEl.innerHTML = '<span class="dot"></span><b></b><span class="role"></span><span class="hpline"></span>';
-    whoEl.querySelector(".dot").style.background = colours[follow];
-    whoEl.querySelector("b").textContent = a.name;
-    whoEl.querySelector(".role").textContent = a.build + " · " + roomName(c.room_after);
-    var hp = whoEl.querySelector(".hpline");
-    if (c.out_before) hp.innerHTML = "out of the match";
-    else {
-      var cls = c.hp_after < c.hp_before ? "down" : c.hp_after > c.hp_before ? "up" : "";
-      hp.innerHTML = 'HP <b>' + c.hp_before + '</b> → <b class="' + cls + '">' + c.hp_after + '</b> / ' + a.max_hp + (c.status_after === "eliminated" ? " · <span class=\"down\">out</span>" : c.status_after === "escaped" ? " · escaped" : "");
-    }
-    $("#t-thought").textContent = c.thought || "";
-    $("#t-reads").textContent = readsLine(c.reads);
-    var said = $("#t-said"); said.innerHTML = "";
-    if (c.said) {
-      said.appendChild(document.createTextNode("“" + c.said + "”"));
-      if (c.mode === "whisper" || (c.to && c.to.length)) {
-        var to = document.createElement("span"); to.className = "to";
-        to.textContent = (c.mode === "whisper" ? "whispered" : "said") + (c.to && c.to.length ? " to " + c.to.join(", ") : "") + (c.mode === "whisper" ? ", heard by nobody else" : ", in front of the room");
-        said.appendChild(to);
-      }
-    } else { var none = document.createElement("span"); none.className = "none"; none.textContent = c.out_before ? "—" : "said nothing"; said.appendChild(none); }
-    list($("#t-did"), c.did, c.out_before ? "—" : "nothing");
-    list($("#t-happened"), c.happened, c.out_before ? "—" : "nothing");
-    $("#t-narr-row").hidden = !c.narration; $("#t-narr").textContent = c.narration || "";
-    var sec = $("#t-secret");
-    sec.innerHTML = 'Secret aim: <b></b> <span class="d"></span>';
-    sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
-    var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : "";
-    dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : "";
-    $("#meta").textContent = "Thought is private and written before the round. Said is what the others heard. The board shows the end of the round.";
-    $("#scrub").value = k;
-    if (animate !== false && c.said && a) {
-      var p = px(a.room, a.tile), below = p[1] < geo.height * .22, right = p[0] > geo.width / 2;
-      bubble.className = "bubble" + (c.mode === "whisper" ? " whisper" : "") + (below ? " below" : "") + (right ? " rt" : "");
-      bubble.textContent = c.said.length > 110 ? c.said.slice(0, 107) + "…" : c.said;
-      var pct = 100 * Math.max(geo.width * .16, Math.min(geo.width * .84, p[0])) / geo.width;
-      if (right) { bubble.style.left = "auto"; bubble.style.right = (100 - pct) + "%"; } else { bubble.style.right = "auto"; bubble.style.left = pct + "%"; }
-      bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
-      bubble.hidden = false;
-    } else bubble.hidden = true;
+  function speechBubble(a, text, whisper) {
+    var p = px(a.room, a.tile), below = p[1] < geo.height * .22, right = p[0] > geo.width / 2;
+    bubble.className = "bubble" + (whisper ? " whisper" : "") + (below ? " below" : "") + (right ? " rt" : "");
+    bubble.textContent = text.length > 110 ? text.slice(0, 107) + "…" : text;
+    var pct = 100 * Math.max(geo.width * .16, Math.min(geo.width * .84, p[0])) / geo.width;
+    if (right) { bubble.style.left = "auto"; bubble.style.right = (100 - pct) + "%"; } else { bubble.style.right = "auto"; bubble.style.left = pct + "%"; }
+    bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
+    bubble.hidden = false;
   }
-  function setFollow(id) {
-    follow = turns[id] ? id : "";
-    document.body.classList.toggle("following", !!follow);
-    document.querySelectorAll(".chip").forEach(function (ch) { ch.setAttribute("aria-pressed", String(ch.getAttribute("data-follow") === follow)); });
-    pause();
-    if (follow) {
-      $("#scrub").max = turns[follow].length - 1;
-      var r = idx >= 0 ? frames[idx].round : 1, k = 0;
-      turns[follow].forEach(function (c, i) { if (c.round <= Math.max(1, r)) k = i; });
-      showTurn(k, true);
+  function showEntry(k, animate) {
+    k = Math.max(0, Math.min(seq.length - 1, k));
+    var e = seq[k]; ti = k;
+    goto(e.board, false, true);                       // the board stands where this moment left it
+    document.querySelectorAll(".token").forEach(function (t) { t.classList.remove("speaking", "acting", "thinking"); });
+    var st = $("#stage"), turn = $("#turn"), whoEl = $("#who");
+    st.className = "stage turnview" + (e.kind === "vault" ? " vault" : e.kind === "end" ? " crown" : "");
+    $("#what").hidden = true; $("#thoughts").hidden = true; $("#goal").hidden = true; turn.hidden = false;
+    turn.classList.toggle("vaultcard", e.kind !== "turn");
+    $("#round-no").textContent = "Round " + e.round;
+    $("#round-n").textContent = (k + 1) + " of " + seq.length;
+    $("#scrub").value = k;
+    bubble.hidden = true;
+    var narr = "";
+    if (e.kind === "turn") {
+      var c = cardOf[e.who][e.round], a = state.agents[e.who];
+      narr = c.narration || "";
+      var tok = document.getElementById("tok-" + e.who); if (tok) tok.classList.add(c.said ? "speaking" : "acting");
+      whoEl.innerHTML = '<span class="dot"></span><b></b><span class="role"></span><span class="hpline"></span>';
+      whoEl.querySelector(".dot").style.background = colours[e.who];
+      whoEl.querySelector("b").textContent = a.name;
+      whoEl.querySelector(".role").textContent = a.build + " · " + roomName(a.room);
+      var cls = c.hp_after < c.hp_before ? "down" : c.hp_after > c.hp_before ? "up" : "";
+      whoEl.querySelector(".hpline").innerHTML = 'HP <b>' + c.hp_before + '</b> → <b class="' + cls + '">' + c.hp_after + '</b> / ' + a.max_hp + (c.status_after === "eliminated" ? " · <span class=\"down\">out</span>" : c.status_after === "escaped" ? " · escaped" : "");
+      $("#t-thought").textContent = c.thought || "";
+      $("#t-reads").textContent = readsLine(c.reads);
+      var said = $("#t-said"); said.innerHTML = "";
+      if (c.said) {
+        said.appendChild(document.createTextNode("“" + c.said + "”"));
+        if (c.mode === "whisper" || (c.to && c.to.length)) {
+          var to = document.createElement("span"); to.className = "to";
+          to.textContent = (c.mode === "whisper" ? "whispered" : "said") + (c.to && c.to.length ? " to " + c.to.join(", ") : "") + (c.mode === "whisper" ? ", heard by nobody else" : ", in front of the room");
+          said.appendChild(to);
+        }
+      } else { var none = document.createElement("span"); none.className = "none"; none.textContent = "said nothing"; said.appendChild(none); }
+      list($("#t-did"), c.did, "nothing");
+      list($("#t-happened"), c.happened, "nothing");
+      var sec = $("#t-secret");
+      sec.innerHTML = 'Secret aim: <b></b> <span class="d"></span>';
+      sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
+      var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : "";
+      dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : "";
+      $("#meta").textContent = "Thought is private, written before the round. Said is what the others heard. HP is for the whole round.";
+      if (animate !== false && c.said) speechBubble(a, c.said, c.mode === "whisper");
+    } else if (e.kind === "vault") {
+      var any = Object.keys(cardOf)[0]; narr = (cardOf[any][e.round] || {}).narration || "";
+      Object.keys(state.monsters).forEach(function (m) { if (state.monsters[m].hp > 0) document.getElementById("tok-" + m).classList.add("acting"); });
+      whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The vault</b><span class="role">monsters, doors and rooms, after everyone has acted</span>';
+      list($("#t-vault"), e.texts, "nothing");
+      $("#meta").textContent = "";
     } else {
-      $("#scrub").max = frames.length - 1;
-      goto(idx >= 0 ? idx : 0, false);
+      whoEl.innerHTML = '<span class="dot" style="background:var(--gold)"></span><b>How it ended</b>';
+      list($("#t-vault"), [e.text], "");
+      $("#meta").textContent = "Placements below.";
     }
+    $("#t-narr-row").hidden = !narr; $("#t-narr").textContent = narr;
+  }
+  function setMode(m) {
+    mode = (m === "*" || m === "" || turns[m]) ? m : "*";
+    document.querySelectorAll(".chip").forEach(function (ch) { ch.setAttribute("aria-pressed", String(ch.getAttribute("data-follow") === mode)); });
+    pause();
+    if (mode === "") { $("#scrub").max = frames.length - 1; goto(idx >= 0 ? idx : 0, false); return; }
+    seq = entriesFor(mode);
+    $("#scrub").max = seq.length - 1;
+    var k = 0; seq.forEach(function (e, i) { if (e.board <= Math.max(0, idx)) k = i; });
+    showEntry(k, true);
   }
   function showFinal(f) {
     var rows = Object.keys(f.placements).sort(function (a, b) { return f.placements[a] - f.placements[b]; });
@@ -1066,10 +1128,16 @@ SCRIPT = r"""
       tb.appendChild(tr);
     });
   }
-  function step(dir) { pause(); if (follow) showTurn(ti + dir, dir > 0); else goto(idx + dir, dir > 0); }
+  function step(dir) { pause(); if (mode !== "") showEntry(ti + dir, dir > 0); else goto(idx + dir, dir > 0); }
   function jumpRound(dir) {
     pause();
-    if (follow) { showTurn(ti + dir, dir > 0); return; }
+    if (mode !== "") {
+      var cr = seq[ti].round, k = null;
+      if (dir > 0) { for (var i = ti + 1; i < seq.length; i++) if (seq[i].round > cr) { k = i; break; } if (k === null) k = seq.length - 1; }
+      else { var pr = null; for (var j = ti - 1; j >= 0; j--) if (seq[j].round < cr) { pr = seq[j].round; break; }
+             if (pr === null) k = 0; else for (var q = 0; q < seq.length; q++) if (seq[q].round === pr) { k = q; break; } }
+      showEntry(k, false); return;
+    }
     var r = frames[idx].round, target = null;
     for (var i = 0; i < frames.length; i++) if (frames[i].type === "round_started" && ((dir > 0 && frames[i].round > r) || (dir < 0 && frames[i].round < r))) { target = i; if (dir > 0) break; }
     if (target === null) target = dir > 0 ? frames.length - 1 : 0;
@@ -1077,10 +1145,10 @@ SCRIPT = r"""
   }
   function tick() {
     if (!playing) return;
-    if (follow) {
-      if (ti >= turns[follow].length - 1) { pause(); return; }
-      showTurn(ti + 1, true);
-      timer = setTimeout(tick, turns[follow][ti].dwell / speed);
+    if (mode !== "") {
+      if (ti >= seq.length - 1) { pause(); return; }
+      showEntry(ti + 1, true);
+      timer = setTimeout(tick, seq[ti].dwell / speed);
       return;
     }
     if (idx >= frames.length - 1) { pause(); return; }
@@ -1089,7 +1157,7 @@ SCRIPT = r"""
   }
   function play() {
     playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true");
-    if (follow) { if (ti >= turns[follow].length - 1) showTurn(0, true); timer = setTimeout(tick, turns[follow][ti].dwell / speed); return; }
+    if (mode !== "") { if (ti >= seq.length - 1) showEntry(0, true); timer = setTimeout(tick, seq[ti].dwell / speed); return; }
     if (idx >= frames.length - 1) goto(0, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
@@ -1101,15 +1169,15 @@ SCRIPT = r"""
   $("#nextr").addEventListener("click", function () { jumpRound(1); });
   $("#prevr").addEventListener("click", function () { jumpRound(-1); });
   $("#speed").addEventListener("change", function (e) { speed = parseFloat(e.target.value) || 1; });
-  $("#scrub").addEventListener("input", function (e) { pause(); var v = parseInt(e.target.value, 10); if (follow) showTurn(v, false); else goto(v, false); });
-  document.querySelectorAll(".chip").forEach(function (ch) { ch.addEventListener("click", function () { setFollow(ch.getAttribute("data-follow")); }); });
+  $("#scrub").addEventListener("input", function (e) { pause(); var v = parseInt(e.target.value, 10); if (mode !== "") showEntry(v, false); else goto(v, false); });
+  document.querySelectorAll(".chip").forEach(function (ch) { ch.addEventListener("click", function () { setMode(ch.getAttribute("data-follow")); }); });
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
     else if (e.key === "ArrowRight") { step(1); } else if (e.key === "ArrowLeft") { step(-1); }
   });
   goto(0, false);
-  setFollow(Object.keys(D.start.agents)[0]);   // opens on one character; "Everyone" is a chip away
+  setMode("*");   // opens on the story, in order
 })();
 """
 
@@ -1125,8 +1193,10 @@ def build(bundle: dict, note: str = "") -> str:
     winner = start["agents"].get(m.get("winner_agent_id"), {}).get("name") or "nobody"
     colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
     turns = build_turns(start, frames)
-    data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns}
-    chips = '<button type="button" class="chip" data-follow="" aria-pressed="false">Everyone</button>\n' + "\n".join(
+    story = build_story(start, frames, turns)
+    data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns, "story": story}
+    chips = ('<button type="button" class="chip" data-follow="*" aria-pressed="false">The story, in order</button>\n'
+             '<button type="button" class="chip" data-follow="" aria-pressed="false">Every moment</button>\n') + "\n".join(
         f'<button type="button" class="chip" data-follow="{E(aid)}" aria-pressed="false"><span class="dot" style="background:{colours[aid]}"></span>{E(a["name"].split()[0])}</button>'
         for aid, a in start["agents"].items())
     roster = "\n".join(
@@ -1159,8 +1229,8 @@ def build(bundle: dict, note: str = "") -> str:
   </div>
   </div>
   <aside class="side">
-  <div class="follow" role="group" aria-label="Who to follow">
-    <span class="lbl">Follow</span>
+  <div class="follow" role="group" aria-label="What to watch">
+    <span class="lbl">Watch</span>
 {chips}
   </div>
   <div class="round-bar"><span id="round-no">Round 1</span><span class="n" id="round-n"></span></div>
@@ -1179,6 +1249,7 @@ def build(bundle: dict, note: str = "") -> str:
       <div class="row"><span class="lbl">Said</span><div class="val said" id="t-said"></div></div>
       <div class="row"><span class="lbl">Did</span><div class="val" id="t-did"></div></div>
       <div class="row"><span class="lbl">Happened to them</span><div class="val" id="t-happened"></div></div>
+      <div class="row" id="t-vault-row" hidden><span class="lbl">In the vault</span><div class="val" id="t-vault"></div></div>
       <details class="narr-fold" id="t-narr-row"><summary>The narrator's account of the round</summary><div class="val narr" id="t-narr"></div></details>
       <span class="secret" id="t-secret"></span>
     </div>
@@ -1201,7 +1272,7 @@ def build(bundle: dict, note: str = "") -> str:
     <h2>How it ended</h2>
     <table><thead><tr><th>Place</th><th>Character</th><th>Fate</th><th>Score</th></tr></thead><tbody></tbody></table>
   </section>
-  <p class="foot">Following one character, each step is one round: what they thought, said and did, and what happened to them, with the board standing at the end of that round. "Everyone" plays every moment in order. Drawn to the referee's own grids and checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim is the side objective their brain file carries, worth points at the end.</p>
+  <p class="foot">The story: each step is one character's moment in the round, in the order they acted, with what they thought, said and did and what happened to them on one card, then the vault's own beat, then the next round. A name plays that character's moments only. "Every moment" plays each recorded event. Drawn to the referee's own grids and checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim is the side objective their brain file carries, worth points at the end.</p>
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>

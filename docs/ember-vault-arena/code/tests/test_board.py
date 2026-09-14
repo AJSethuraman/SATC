@@ -141,6 +141,38 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         for aid in self.start["agents"]:
             self.assertIn(f'data-follow="{aid}"', page)
 
+    def test_the_story_runs_in_match_order_one_character_at_a_time(self):
+        turns = replay_board.build_turns(self.start, self.frames)
+        story = replay_board.build_story(self.start, self.frames, turns)
+        rounds = sorted({f["round"] for f in self.frames if f["round"] >= 1})
+        # rounds never go backwards, and every round has its cards
+        self.assertEqual([e["round"] for e in story], sorted(e["round"] for e in story))
+        self.assertEqual(sorted({e["round"] for e in story if e["kind"] == "turn"}), rounds)
+        for rnd in rounds:
+            entries = [e for e in story if e["round"] == rnd and e["kind"] == "turn"]
+            order_frame = next((f for f in self.frames if f["round"] == rnd and f["type"] == "initiative_order"), None)
+            active = [aid for aid, cards in turns.items() if not next(c for c in cards if c["round"] == rnd)["out_before"]]
+            # one card per character still in the match, in the order the referee rolled
+            self.assertEqual(sorted(e["who"] for e in entries), sorted(active))
+            if order_frame and order_frame.get("order"):
+                expected = [a for a in order_frame["order"] if a in active] + [a for a in active if a not in order_frame["order"]]
+                self.assertEqual([e["who"] for e in entries], expected)
+            for e in entries:
+                # the board stands at that character's last action of the round, or at the thinking moment
+                bf = self.frames[e["board"]]
+                self.assertEqual(bf["round"], rnd)
+                did = [i for i, f in enumerate(self.frames) if f["round"] == rnd and f.get("actor") == e["who"] and f["type"] in replay_board.DID]
+                self.assertEqual(e["board"], did[-1] if did else next(i for i, f in enumerate(self.frames) if f["round"] == rnd and f["type"] == "everyone_thinks"))
+            # a monster that struck appears in the vault's beat for the round
+            monster_blows = [f["text"] for f in self.frames if f["round"] == rnd and f.get("actor") in self.start["monsters"] and f["type"] in ("attack_hit", "attack_miss")]
+            vault = [e for e in story if e["round"] == rnd and e["kind"] == "vault"]
+            for text in monster_blows:
+                self.assertIn(text, vault[0]["texts"])
+        self.assertEqual(story[-1]["kind"], "end")
+        page = replay_board.build(self.bundle)
+        self.assertIn('data-follow="*"', page)
+        self.assertIn('setMode("*")', page)
+
     def test_rooms_are_drawn_to_the_engine_grid(self):
         from arena import grid
         page = replay_board.build(self.bundle)

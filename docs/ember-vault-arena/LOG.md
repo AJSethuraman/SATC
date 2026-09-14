@@ -5,6 +5,36 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 03:20Z — "that is not how a story works": the play-by-play in match order, one character's moment at a time
+
+The firm: *"Dude that is not how a story works. I want to see it in
+order. Not one character I scroll through for round 1,2,3 I just want a
+play by play with all the info I need to understand that instance in
+time."*
+
+Right. Following one character across rounds answered the previous
+message and broke the one before it. The board now opens on **the
+story, in order**: each step is one character's moment in the round, in
+the order the referee rolled initiative, and the card for that moment is
+the same card as before, thought, said, did, happened to them, HP for
+the round, secret aim, so nothing has to be looked up elsewhere. Round
+1: Torvic's moment, then Yarrow's, then Grael's, and so on through the
+eight; then **the vault's beat**, the monsters' swings and steps, rooms
+closing, the gate opening, as one card; then round 2. The board stands
+where that moment left it: the character's last action of the round,
+or the thinking moment if they took none. On this match, 118 steps for
+16 rounds. A name in the chip row plays that character's moments only;
+"Every moment" plays each recorded event.
+
+`build_story` in `tools/replay_board.py` orders the cards from the
+`initiative_order` events and picks the board frame; the test checks
+that rounds never go backwards, every character still in the match has
+one card per round in the rolled order, the board frame is that
+character's last action, and every monster blow of the round is in the
+vault's beat. Suite 113 → **114**. Looked at once: Yarrow's moment in
+round 1, and the vault's beat in round 2. Published as version 5, same
+link.
+
 ## 14 September 2026, 02:40Z — "I want to see one character's words, thoughts, and action": follow one, one card a round
 
 The firm, spelling it out: *"I want to see one character's words,
