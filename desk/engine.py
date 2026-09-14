@@ -28,6 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+import pool
 import record as record_mod
 from record import Desk, Problem, Source
 
@@ -303,6 +304,22 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
+    #: The clause the passage uses to say it applies SOMEWHERE ELSE, read off
+    #: its own opening words, or `""`. `dec-scoped`, 14 September 2026 -- the
+    #: firm: **"Mark them."**
+    #:
+    #: WHAT IT IS FOR. `26 CFR 1.263(a)-3(h)(3)(iv)` is headed *"Definition of
+    #: gross receipts"* and really does define the term; its first words are
+    #: *"For purposes of applying paragraph (h)(3)(i) of this section"* -- the
+    #: small-taxpayer safe harbour for BUILDING IMPROVEMENTS. Asked *are
+    #: unidentified deposits gross receipts?* it is the top hit in the pool, and
+    #: an answer resting on it served `primary`, `binding` and wrong.
+    #:
+    #: SHOWN, NOT DECIDED -- the same trade `passage` and `alongside` make. The
+    #: engine cannot tell whether this reader's facts are inside the scope; it
+    #: can stop the scope from being something the reader has to notice on their
+    #: own, 200 words into a definition that reads like it is about them.
+    scoped: str = ""
     #: THE FIRM'S OTHER POSITIONS ON THIS SAME PASSAGE — `((citation, position,
     #: passage text), ...)`, and empty on the ordinary answer where there are
     #: none. The TEXT is carried because a reader warned that the firm answers
@@ -532,6 +549,17 @@ class Served:
                         f"evidence the record wants a field, and that evidence "
                         f"is worth more than the answer it did not alter."]
         if self.passage:
+            # THE SCOPE GOES ABOVE THE PASSAGE, not below it and not appended.
+            # A reader who reaches the end of a 2,000-character definition has
+            # already decided what it is about; the whole point is that they
+            # read the next paragraph knowing it announced a narrower reach than
+            # its heading suggests.
+            if self.scoped:
+                out += ["", f"THIS PASSAGE SAYS IT APPLIES {self.scoped.upper()} "
+                            f"— its own opening words. It may still be the right "
+                            f"rule here; nothing has checked whether these facts "
+                            f"are inside that scope, and its heading will not say "
+                            f"so."]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
@@ -1488,6 +1516,12 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         passage=(getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
+        # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules
+        # in one section scope themselves differently and the citation cannot
+        # tell them apart.
+        scoped=pool.scope_of(getattr(passage, "text", "")
+                             or getattr(desk.passage(answer.citation),
+                                        "text", "") or ""),
         # COMPUTED, NEVER PASSED, for the same reason `unchecked` is: an answer
         # that can be constructed without it is one that will be. Read off the
         # record on EVERY served answer and not only the position-backed ones —

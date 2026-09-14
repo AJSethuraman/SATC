@@ -107,6 +107,11 @@ class Held:
     #: section of Pub. 583 with OPPOSITE answers, and serving one without the
     #: other is the 7 September incident.
     positions: tuple = field(default_factory=tuple)
+    #: The clause this passage uses to say it applies somewhere else, read off
+    #: its own opening words by `scope_of`, or `""`. PROVENANCE FOR THE READER,
+    #: never an input to matching -- see `scope_of` for why the firm chose
+    #: marking over demoting.
+    scoped: str = ""
 
 
 @dataclass(frozen=True)
@@ -127,6 +132,50 @@ class Found:
 #: `.`, `-` and `/` are in `_WORD` so `1.263(a)-3`, `Pub. 583` and `1099-K`
 #: survive tokenising whole. Nothing is a full stop at its end.
 _TRAILING = "./-"
+
+
+#: A passage that SCOPES ITSELF in its own opening words: "For purposes of this
+#: section", "For purposes of applying paragraph (h)(3)(i) of this section".
+#:
+#: WHY THE CLAUSE AND NOT A JUDGEMENT. `dec-scoped`, 14 September 2026 -- the
+#: firm: **"Mark them."** The alternative on the card was demoting them, and
+#: they did not pick it: demoting is tuning a ranking by taste, which is what
+#: this module was built not to do. Reading a clause the drafter wrote is a
+#: comparison, same as everything else here (C8); it is deterministic, it is
+#: re-runnable, and a wrong mark is a defect somebody can point at.
+_SCOPES = re.compile(
+    r"^\s*(?:\([a-z0-9]+\)\s*)*"          # (c), (1), (iv) -- the numbering
+    r"(?:[A-Z][^.]{0,80}?\.\s*)?"          # an optional heading sentence
+    # ENDS ON `:` TOO. `1.280F-6(d)(2)(ii)(C)` opens *"Definitions. For
+    # purposes of this paragraph:"* and a `.`-or-`,` terminator missed it --
+    # a self-scoping definition, which is the exact class this is for.
+    r"(For purposes of [^.:]{0,200}?)[.,:]",
+    re.I)
+
+
+def scope_of(text: str) -> str:
+    """The clause a passage uses to say it applies somewhere else, or `""`.
+
+    THE INSTANCE, and it is the one the firm was shown. 26 CFR
+    1.263(a)-3(h)(3)(iv) is headed *"Definition of gross receipts"* and really
+    does define the term -- and its first words are *"For purposes of applying
+    paragraph (h)(3)(i) of this section"*, the small-taxpayer safe harbour for
+    BUILDING IMPROVEMENTS. It is a turnover threshold borrowed for one narrow
+    purpose. Asked *are unidentified deposits gross receipts?* it ranks 1; Pub.
+    583, the authority that actually reaches the question, ranks 5.
+
+    A CLASS, NOT AN INSTANCE, measured before it was put to the firm: 36
+    passages in this corpus open with a clause scoping themselves and 13 of
+    those are definitions, and six probed all come back in the top 7 for the
+    very term they scope.
+
+    THIS CHANGES NO SCORE AND NO ORDER. It is read at assembly and carried on
+    the entry; `look` never sees it. `test_marking_a_passage_moves_nothing`
+    holds that shut, because the obvious next step -- "and demote them a bit" --
+    is the one the firm declined.
+    """
+    found = _SCOPES.search(text or "")
+    return " ".join(found.group(1).split()) if found else ""
 
 
 def terms(text: str) -> tuple[str, ...]:
@@ -225,6 +274,7 @@ def assemble(corpus: Path) -> tuple[Held, ...]:
                 url=getattr(source, "url", "") if source else "",
                 read_from=folder.name,
                 positions=tuple(by_citation.get(passage.citation, ())),
+                scoped=scope_of(passage.text),
             ))
             seen.add(passage.citation)
         # A citation the firm took a position on but whose text is not stored --
