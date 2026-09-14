@@ -119,9 +119,18 @@ def test_the_records_line_stops_at_the_blank_line(pob):
     "in the firm's words". A silent over-read is the same defect as a silent
     truncation and this file is where it would land."""
     # THE UNION, over one corpus. Each of the seven declared the facts its own
-    # positions turned on; `dec-kill` merged them, so the record holds all three
-    # and `brief` is what decides which of them bear on a question.
-    assert pob.records == ("capitalization_rule", "trade", "taxpayer")
+    # positions turned on; `dec-kill` merged them, so the record holds those
+    # three and `brief` is what decides which of them bear on a question.
+    #
+    # `unit_cost` JOINED THEM ON 14 SEPTEMBER 2026, and it is the first fact
+    # added by an answer rather than inherited from a desk. `dec-unitcost` --
+    # the firm: "Add it, with a format check." It is pinned here as well as in
+    # `test_a_recorded_amount_is_an_amount.py` because THIS test is about the
+    # parser reading exactly what the line says: a fourth name appearing here
+    # that nobody put in `SUBJECTS.md` is the over-read this file exists to
+    # catch, and a list that grows without this going red would hide it.
+    assert pob.records == ("capitalization_rule", "trade", "taxpayer",
+                           "unit_cost")
     text = (CORPUS / "SUBJECTS.md").read_text(encoding="utf-8")
     assert "*What the client does" in text, "the prose that broke it is gone"
 
