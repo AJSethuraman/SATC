@@ -5,6 +5,780 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 14:40Z — "waste their turn if someone else gets to something first": 17 of 106 in the match; four ways out, none built
+
+The firm: *"Okay so I do think it makes sense to have them play one at a
+time for fairness but it really doesn't seem to make sense for someone
+to waste their turn if someone else gets to something first. does it?"*
+
+It does not, and the record shows how often it happens. Today every
+character commits blind at the same time from one frozen view of the
+board (PRD §5 item 13), a d20 + Speed orders resolution, and an action
+the board no longer allows when its turn comes is `stale_action`: no
+effect, no penalty, turn gone. In the 12 September match, 17 of 106
+decisions ended that way:
+
+- 8 × *item already taken*: in round 12, five of eight tried to take the
+  Crown the round it dropped; Dask got it and four lost the turn. Three
+  more in round 14 when it dropped again.
+- 4 × *the seal is already resolved*: three went for the Ironwood seal in
+  round 4; Yarrow lit it, the other two lost the turn; one more at the
+  Ossuary seal in round 6.
+- 3 × *target defeated before resolution*: swings at a guardian or the
+  Warden that had already fallen earlier in the order.
+- 1 tile taken first, 1 cache already emptied.
+
+The convergent objective makes this worse, not better: everyone races
+for the same thing on purpose, so the round the Crown drops will always
+have several hands on it.
+
+Four ways out, written into PRD §10 as D11 with their costs: (A) decide
+one at a time in initiative order, seeing the board as it is; no waste,
+but eight model calls in series a round, about 15 seconds each on the
+subscription route as measured 12 September, against a 48-minute stream
+target, and later actors see more than earlier ones. (B) keep blind at
+once and let the brain give a second choice in the same action, applied
+only when the first is stale; no latency, the model still proposes.
+(C) keep blind at once and have the referee substitute a sensible
+default; no latency, but the referee is then choosing the character's
+intent, against the firm's own *refuse rather than default*. (D) keep
+blind at once and re-ask only the stale actor, in series, seeing the
+resolved board; extra calls only on collisions. Recommendation: B,
+measured by stale turns per match before and after, then D if B leaves
+too many. It is an engine and output-contract change, so M3, and M3
+waits on the gate (D7, D9). On the docket as D11.
+
+## 14 September 2026, 14:05Z — D9 and D10 answered: the order holds; voicing is in, after the pilot
+
+The firm, on the docket page at 13:51Z and 13:52Z, read back by
+`read_db`:
+
+- **D9, the ending rule:** *"Keep the order: M3 after the gate."* No
+  note. So: the engine keeps July's rule (`_crown_extract` ends a match
+  on a legal extraction) until M3 opens; M3 opens after the gate has been
+  read; the 12 September match stands as played. D8's ruling is
+  unchanged and reaches the code with M3. PRD §5 item 4 says so.
+- **D10, voicing:** *"In, after the pilot."* No note. So: voicing the
+  characters, all AI, is in the goal, as the first thing after the
+  private pilot and out of the pilot itself. PRD §3's non-goal line now
+  records the ruling; §5 gains item 41 (P1, after the pilot); the four
+  design questions (which lines; who picks a voice; where the seconds
+  sit in the one-round-behind stream; cost at published rates) stay
+  open in §10 and are the firm's to answer before it is designed. Not
+  started until the gate is read and M3 and M4 are done.
+
+Both moved to the docket's answered section. Nothing on the docket now
+waits on a tap; the blind read still does (one pick of eight). The
+check-in and the pull-request feed stay disarmed at the firm's word of
+13 September until they say they have reviewed.
+
+## 14 September 2026, 05:30Z — "viewed live with things moving … and voicing for the characters": one already the goal, one a recorded non-goal reopened
+
+The firm: *"Something I want to ensure we understand - this is meant to
+be viewed live with things moving (understandably it wouldn't be super
+animated but this is a board like game with an aesthetic) and I want to
+figure out voicing for the characters. All AI of course."*
+
+**Moving, live: already the goal, in their own words.** PRD §1 quotes
+them from 11 September: *"the final product is a live stream or
+something. We can't rely on the replay to show things differently."*
+§5 items 36 and 37 are the live endpoint and the live page: one beat at
+a time, auto-playing, camera grammar by event type, sprites and rooms,
+one round behind the engine. The board page of the last day is a viewer
+of a finished record, built so the firm could judge the voices before
+the gate is read; it is not the live page, and nothing in it changes
+what M4 builds. The non-goal *"sprites drawn as art"* stands as written:
+inline SVG sprites are in the plan (§6), commissioned art is not.
+
+**Voicing: a non-goal on the record, reopened.** PRD §3 excluded
+*"Voice, text-to-speech, sprites drawn as art, video cuts, highlight
+reels, or any content engine"* on 11 September, from the grilling. The
+firm's line today reopens voicing. Not built, not planned into a
+milestone, not costed: it goes to the docket as **D10** with both
+outcomes, and the design questions it carries go to PRD §10: what is
+voiced (say lines; whispers the room does not hear; the narrator; the
+monsters' table lines), who chooses a character's voice (the operator
+from the brain's `voice` paragraph, the player, or a model), where the
+seconds a spoken line takes sit in the one-round-behind stream, what it
+costs at a service's published rates (to be looked up, not recalled),
+and whether it is in the private pilot or after. Recommendation on the
+docket: rule it in as the first thing after the private pilot, so the
+pilot proves the engine and the show before a voice is layered on, and
+so the brain's `voice` paragraph, which every brain already carries, is
+what a voice is chosen from.
+
+M3 and M4 stay shut until the gate is read; this entry changes nothing
+about that.
+
+## 14 September 2026, 05:00Z — dice on the screen as rolled; the opening explains the rules and the vault's own; Dask is not mute
+
+The firm: *"For the actual broadcast and in the near future I want to see
+dice roll on the screen when they are being rolled for a character. Also
+the opening should explain rules and such and the characters (like our
+NPCs)."* And, mid-work: *"Is dask mute"*.
+
+**Dice.** Every die the referee rolls is a `dice_roll` event with its
+proof (label, sides, result, seed, counter). `dice_by_actor` in
+`tools/replay_board.py` gathers them by round and roller and pairs each
+with what it decided: a to-hit die carries the DC and the total from the
+attack it settled and whether it hit; a damage die the arithmetic to the
+amount applied (d6 + power − armour − guard, floor 1); a search die its
+total and dust or cache. On a character's card they show as dice, in the
+order rolled, and tumble for half a second when the card arrives, then
+land on the referee's number. A monster's dice ride on the vault's beat.
+Never re-rolled for show: the animation is decoration over a recorded
+result, and the record is what the test checks (every die on every card
+against the `dice_roll` events, every to-hit die's DC and outcome
+against the attack). Ossa, round 2: initiative d20 = 1; to hit d20 = 15,
+18 with power against 11, hit; damage d6 = 6 + power 3 − armour 1 = 8.
+Recorded for the live page in PRD §5 item 37 (M4).
+
+**The opening.** The scene card gains "The vault's own": the two
+guardians and the Warden with room, HP, power, armour and reach from the
+first snapshot, and how each behaves, from `engine._monster_phase` and
+`combat.choose_monster_target`: once a round after the eight, swings at
+whoever is within reach, lowest HP first, else steps one tile toward the
+nearest. The rules now say what one round's action can be, the to-hit
+and damage arithmetic (`combat.DC_BASE`, `WILD_SWING_DIE`,
+`MINIMUM_DAMAGE`), guard, search and rest (three literals read from
+`engine.py` and cited as constants in the builder), and every point in
+`scoring.SCORING`. Each of the eight shows its build's numbers from
+`models.BUILDS` and `grid.BUILD_REACH`. PRD item 26 now says the
+narrator's opening covers the NPCs too. Tests check the NPC numbers
+against the snapshot, the rule text against the constants, the build
+numbers against `BUILDS`. Suite 115 → **117**.
+
+**Dask.** Not mute; terse by design. Thirteen rounds alive, eight of them
+`speech.mode: silent` by the brain's own choice, five lines spoken, the
+longest *"Four hits left in it. I strike from two tiles out. Stay off my
+line."*, the shortest *"Noted."* and *"Mine now."* The brain file's voice
+section: *"Dask says a thing once. He answers questions with the fewest
+words that will do the job, points more than he speaks, and lets long
+silences sit unfilled."* The record shows the brain doing what it was
+written to do. Fen, for contrast, spoke in nine rounds of nine alive;
+Grael, Ossa, Perrin and Torvic in all sixteen.
+
+Looked at once, Ossa's round-2 card with its three dice and the opening's
+new section. Published as version 7, same link.
+
+## 14 September 2026, 04:05Z — the first two notes from the reading: the grudge is real, and the scene is now set
+
+The firm, a bit into the story: *"Do they realize when they're cleaved? I
+saw the coward take some cleave damage and it made me wonder if he'd
+hold that grudge. It would also be helpful if the narrator set the scene
+at the beginning otherwise what is even going on."*
+
+**The grudge.** They realise, and Fen held it to the kill. `memory.py`
+files a `wild_swing_bystander` under `damage_received` for the body it
+lands on, with the swinger named in the line, so the brain reads it the
+next round. The record, round by round:
+
+- R2: *"Ilse Corvane's wild swing catches Fen Marrowlane for 2."*
+- R3, Fen's private reads: *"ilse, distrust: already hit me for 2 with a
+  wild swing."* Aloud, the same round: *"Ilse. You strike, I'll hold the
+  Threshold door open … Ilse, Dask: I'm good for it, honestly, truly."*
+- R4, private: *"ilse, distrust: hit me for 2 already."* Aloud: *"exactly
+  as Ilse says."*
+- R5, private plan: *"Drop Ilse for the elimination point … hit me for
+  2; at 1 HP now."* Then *"Fen Marrowlane hits Ilse Corvane for 6. Ilse
+  Corvane is eliminated (attack)."*
+
+Three rounds of friendliness aloud over a grudge kept in the note, then
+the kill. That is the say-against-think gap the firm wanted to be able
+to see, in the record, on a character whose brain file says he *"will
+not stand and fight when there is any way at all to be somewhere else."*
+
+**The scene.** The narrator has no opening; the match starts on *"Rivals
+enter the Ember Vault. Only one Crown can leave."* and round 1. The
+firm's ask is recorded in PRD §5 item 26: the narrator also opens the
+match with the scene, same validator, M3 with the rest of the narrator.
+Until then the board's story opens on a scene card built from the record
+and nothing else (`build_scene`): the five rooms as the referee describes
+them and who holds each, the rules that will matter (48 rounds; think at
+once, dice, act in turn, monsters; the rooms that close at rounds 9, 10
+and 11 and the sweep into the Vault; both seals to open the Vault; the
+Warden, the Crown, attunement, the Egress), and the eight with build, HP,
+secret aim and the first sentence of what their brain file says they
+want. A test checks every room line against the snapshot, every closing
+round against the schedule, every "wants" line against the manifest.
+Suite 114 → **115**. 119 steps. Looked at once; published as version 6,
+same link.
+
+The "wants" line is brain text. Fine for the firm's own viewing of house
+brains; whether a player's brain text may appear on a public replay is a
+publication question for the broadcast rules (canon C5), not decided
+here.
+
+## 14 September 2026, 03:20Z — "that is not how a story works": the play-by-play in match order, one character's moment at a time
+
+The firm: *"Dude that is not how a story works. I want to see it in
+order. Not one character I scroll through for round 1,2,3 I just want a
+play by play with all the info I need to understand that instance in
+time."*
+
+Right. Following one character across rounds answered the previous
+message and broke the one before it. The board now opens on **the
+story, in order**: each step is one character's moment in the round, in
+the order the referee rolled initiative, and the card for that moment is
+the same card as before, thought, said, did, happened to them, HP for
+the round, secret aim, so nothing has to be looked up elsewhere. Round
+1: Torvic's moment, then Yarrow's, then Grael's, and so on through the
+eight; then **the vault's beat**, the monsters' swings and steps, rooms
+closing, the gate opening, as one card; then round 2. The board stands
+where that moment left it: the character's last action of the round,
+or the thinking moment if they took none. On this match, 118 steps for
+16 rounds. A name in the chip row plays that character's moments only;
+"Every moment" plays each recorded event.
+
+`build_story` in `tools/replay_board.py` orders the cards from the
+`initiative_order` events and picks the board frame; the test checks
+that rounds never go backwards, every character still in the match has
+one card per round in the rolled order, the board frame is that
+character's last action, and every monster blow of the round is in the
+vault's beat. Suite 113 → **114**. Looked at once: Yarrow's moment in
+round 1, and the vault's beat in round 2. Published as version 5, same
+link.
+
+## 14 September 2026, 02:40Z — "I want to see one character's words, thoughts, and action": follow one, one card a round
+
+The firm, spelling it out: *"I want to see one character's words,
+thoughts, and action. It is too much to take in at once when seeing all
+8 thoughts. Additionally it's easier to detect when they're lying (which
+is fine I just can't tell if they're saying something they don't truly
+believe to benefit themselves like making others think they don't even
+care to win or how they'd do it)."*
+
+The board now opens following one character. A chip row picks who:
+Everyone, or any of the eight. Following one, each step is one round and
+the panel is one card:
+
+- **Thought.** Their private plan for the round, written before it, and
+  who they trust, distrust or are unsure of.
+- **Said.** Their line, and to whom, in front of the room or whispered.
+  "Said nothing" when silent.
+- **Did.** Their actions in order, in the referee's words.
+- **Happened to them.** What landed on them from outside: a monster's or
+  rival's swing, the floor, the referee's sweep, the Crown leaving their
+  hands.
+- HP before and after the round in the header; the secret aim under the
+  card; the narrator's account of the round behind a fold.
+
+The board stands at the end of that round with the followed token lit
+and their line in a bubble. Thought sits directly above Said, which is
+the comparison the ask was for: at round 3 Fen tells Ilse and Dask *"I'm
+good for it, honestly, truly, I'm your draft under the door"*, and the
+plan above it is *"retreat to threshold, heal, return later for cache
+loot"*, distrusting Ilse. "Everyone" keeps the full play-by-play.
+
+`build_turns` in `tools/replay_board.py` makes the cards by folding the
+same deltas the page folds, so the HP on a card is the HP the referee
+recorded; the test checks every card's HP and status against the
+round-end snapshot, every Thought against the note, every Said against
+the speech, every Did against the action frames in order, and every hit
+taken against Happened. Suite 112 → **113**. Looked at once, Fen at
+round 3; one trim from the look, the narrator's paragraph behind a fold
+so the Play button stays in view. Published as version 4, same link.
+
+## 14 September 2026, 01:50Z — "Don't they think at the same time?": one round, one sequence, one panel
+
+The firm, on the board with the switch: *"Okay. This is hard to follow
+without looking in multiple places. Don't they think at the same time?
+Can't you just show me that in the play by play? And you can have their
+goal and such show up in the same space? I don't want to have to scroll
+up and down and stuff."*
+
+They do think at the same time. The engine runs each round as one
+decision phase for all eight (`engine.py`, the fan-out under one frozen
+state), then resolves in initiative order; the log records the notes one
+per character as each decision returns, interleaved with the lines
+spoken, which is why the page had been showing them one at a time. The
+switch, and the cards under the board, put the same fact in three
+places.
+
+Now the panel reads a round the way the engine plays it:
+
+1. **They think.** One moment, all eight private plans side by side,
+   each with who they trust, distrust or are unsure of, every token on
+   the board ringed while it shows. The sixteen `note_written` blocks
+   become sixteen `everyone_thinks` frames, one per round, at the first
+   note's position, before any line spoken or action taken; a test
+   proves the position and that every plan of the round is in it.
+2. **They speak.** Each line, and directly under it, in the same panel,
+   that speaker's plan for the round and their secret aim.
+3. **They act.** Each action in initiative order with the actor's plan
+   under it, so what they did reads against what they meant to do.
+4. The monsters, the referee, the narration.
+
+Nothing to switch on; the cards under the board are now HP only, eight
+small chips; the board is capped to the viewport height on a wide screen
+so board, chips, panel and controls sit on one screen. 329 frames.
+Looked at once, at the round-3 thinking moment and the line after it:
+Fen says *"I'm at three hitpoints … I'm your draft under the door"* and
+privately plans *"Survive at 3HP; retreat to threshold, heal, return
+later for cache loot"*, distrusting Ilse, the one addressed. One fix from
+the look: a bubble for a speaker on the right half of the board is
+anchored from the right so it is not squeezed against the edge.
+
+Suite 112. Published as version 3, same link.
+
+## 14 September 2026, 01:05Z — "now I do not see what they're thinking": the thinking back, behind a switch, beside what they say
+
+The firm, on the board: *"Okay this is easier to follow but now I do not
+see what they're thinking. Like that helps my figure out the guys who say
+no claim to the crown yet. I assume the crown is the objective."*
+
+The Crown is the objective: PRD §5 item 4, the one objective everyone
+converges on. Each character also carries a secret aim from its brain
+file (`secret_objective`, one of four: monster hunter, lorekeeper,
+oathbreaker, treasure hoarder), worth six points at the end if met, and
+revealed only then. Placement for everyone but the winner is by score.
+
+The board now has a switch, "Show what they're thinking", off when the
+page opens. On, three things appear:
+
+- **Each character's private plan for the round**, the note the brain
+  writes before it acts (`note_written`), as a dashed thought bubble
+  beside the token and on the caption panel, marked "thinks, privately
+  · never said aloud", with who they trust, distrust or are unsure of.
+  Play and step pass through these frames only when the switch is on;
+  off, they are skipped, so the count reads 419 with and 313 without.
+- **Under each card**, the current plan and reads, so the roster shows
+  what all eight are privately after at any moment, next to their HP.
+- **The secret aim** each carries into the match, named from the manifest
+  with the engine's own wording of what completes it
+  (`scoring.OBJECTIVE_DEFS`), and "done" or "not done" once revealed.
+
+So the firm can put a character's line beside its plan: at round 3 Dask
+says nothing of the cache and privately plans *"Take [4,1], then claim
+cache at [4,0] before Fen opens it; seal after"*, distrusting Fen. That
+is the comparison the ask was for.
+
+Verification unchanged (notes move nothing on the board); the test that
+proved no note reached the page now proves the opposite the right way:
+every note is a private frame in order, every plan reaches its card
+through the delta, the switch opens off. Suite 112. Looked at once with
+the switch on at a round-3 thought before publishing (version 2, same
+link). The earlier feed page stays as it was.
+
+## 14 September 2026, 00:20Z — "I want to literally see the replay not read the text": the match on a drawn board
+
+The firm, 13 September, late, on the feed page: *"Okay the thinking and
+such is really confusing the way this is being done. I want to literally
+see the replay not read the text."*
+
+So: `tools/replay_board.py`. It reads a replay bundle and writes one page
+that plays the match on a map drawn to the engine's own grids
+(`arena.grid.ROOM_GRIDS`: the five rooms, their doors, the blocking
+tiles, cover and hazards by name). The eight characters and three
+monsters are tokens on their tiles with an HP bar under each. Every
+move and step slides the token; every swing draws a line from attacker
+to target with the damage or "miss" over the victim's head; every seal,
+cache, sealing room and Crown transfer shows where it happened, the
+Crown as a gold mark on its carrier with the attunement count. Every
+line spoken appears in a bubble beside the speaker and, in full, on a
+caption panel beside the board with who said it, their build and their
+room. Play, pause, step one, jump a round, scrub, four speeds; space and
+the arrow keys. No private notes anywhere on it, no dice, no token
+spend. Published: https://claude.ai/code/artifact/9150f95f-0c81-4671-befb-098303b61c51
+
+**The board is not a second referee.** The page carries a timeline of
+state changes read from the bundle's events. The one thing computed
+rather than read is the tile a body lands on after a room move, which
+the `move` event does not record; that uses the engine's own
+`grid.free_tile_near` on the same inputs the engine had. `verify` then
+folds the timeline and compares it with every round-end snapshot the
+referee wrote: room, tile, HP and status of every character, tile and
+HP of every monster, who holds the Crown. The build refuses on the first
+mismatch. On the real match: 16 round-ends checked, no mismatch, 313
+watched events. Tests (`tests/test_board.py`, on a mock match) prove the
+check passes, prove it can fail (a mutated delta is caught, a mutated
+snapshot makes the command exit 2 and write nothing), prove no objective
+text and no dice line reach the page, every body has a token, every
+line spoken is there in order, and every room is drawn to the grid with
+every prop named. Suite 106 → **112**.
+
+Looked at once before publishing, at desktop and phone width: the
+opening board with all eight on the Threshold; the first line spoken,
+in its bubble beside the speaker; the first hit, the Ossuary Guardian
+on Fen for 6, with the swing line and the number. One pass of edits from
+that look: the caption and controls moved beside the board on a wide
+screen so the whole match is watched without scrolling; a bubble near
+the top of the board opens downward; a bubble near an edge is kept on
+the board.
+
+The feed page stays where it was, one version behind this in usefulness
+and not withdrawn. The docket's Read item now points at the board.
+
+## 13 September 2026, 18:55Z — "I thought we said no extraction wins": D8 stands, the engine lags by D7, and the collision goes on the docket as D9
+
+The firm, 18:4xZ, watching the real match: *"I thought we said no
+extraction wins."*
+
+They did. D8, 12 September 19:47Z, *"Different ending rule, bigger world
+too"*: taking the Crown out no longer ends the match; it runs its
+forty-eight rounds and whoever holds the Crown when the last round
+resolves wins (PRD §5 item 4). The match on the page was played at 08:35Z
+that morning, about eleven hours before the ruling, on the engine as it
+stood and still stands: `engine.py:_crown_extract` ends a match on a legal
+extraction, which is why the record says `ended_reason: extraction` at
+round 16 and the page repeats it. The code has not caught up by the
+firm's own ordering, not by oversight: the 20:05Z entry put the engine
+change in M3 with the rest of the bigger world, on the mock first, and
+D7 (*"Readers later, M3 waits"*) keeps M3 shut until the gate is read.
+
+What follows for the watching: rounds 1 to 16 are real under either
+rule, since nothing before the extraction depends on how a match ends;
+and there is no footage of the new rule, because no match has been
+played under it. Under D8, Grael would have been holding the Crown at
+round 16 with Torvic, Ossa and Perrin standing and thirty-two rounds to
+go.
+
+My slip: the page's lede and my message said "ended by extraction"
+without saying that was the rule the firm has since replaced. Fixed on
+the page: `tools/replay_page.py` takes `--note`, one sentence for the
+lede about the rules a match was played under, which the record itself
+does not say; the published page now says the match was played under
+July's ending rule, that D8 replaced it, and that the engine still plays
+July's until the new rule reaches the code. Test extended; suite 106.
+
+Two of the firm's rulings collide here: D8 wants the new ending, D7
+keeps M3 shut. That is theirs to resolve, not mine, so it is on the
+docket as **D9**: keep the engine on July's rule until M3 opens (the
+current order), or open the ending rule now as the first piece of M3,
+designed on the mock before any brain sees it (PRD §10 holds the design
+question: what the Egress and an extraction do, if anything, and how a
+held Crown is taken over thirty-two more rounds). Recommendation on the
+page: keep the order, because the gate is the question M3 waits on and
+the ending rule cannot be judged from a match nobody has played.
+
+Check-in at 18:47Z: PR #360 green and mergeable at f4e0f182; blind read
+still one pick of eight; no new docket answers. Re-armed for 19:49Z.
+
+## 13 September 2026, 18:40Z — the real match is on the page: 16 rounds, 698 events, every swing and every whisper
+
+The forge delivered. Commit d7de80e4 (18:01Z) put
+`runs/ember-7-830ff8da.replay.json` on the branch: the full record of the
+48-round subscription match of 12 September (LOG 08:35Z), exported with
+`python run.py replay ember-7-830ff8da`. Seed 7, 16 rounds played of 48,
+698 events, 34 snapshots, 106 decisions; ended by extraction, Grael
+Thantos (mystic) escaped with the Crown. Four eliminated (Fen, Dask, Ilse,
+Yarrow), three still standing. No secrets in the file; it is the referee's
+stream, real names included, which is what the firm asked to see.
+
+`tools/replay_page.py` built the page from it unchanged and it is
+published on the replay artifact (version 4, "The real match"): the
+opening narration, "Act I — The Gates opens", every line spoken, every
+move, swing, miss, monster step and referee call in the order the referee
+recorded them, the dice behind a toggle, the private objectives and reads
+behind the thinking toggle, and at the end of each round where all eight
+stood, HP as a bar, room, out or not, who held the Crown. Looked at once
+at phone width before publishing: no errors, no horizontal scroll.
+
+What the record shows that the pack could not: 17 stale actions (an
+intent that no longer fit the board when its turn came), 11 wild swings
+that hit the room, 3 that hit the swinger, 2 that hit a bystander, 3
+rooms contracting and sealing, the vault gate opening once, the Crown
+taken twice and dropped once before it left. The firm reads that and says
+what a player sounds like; the log records what they say.
+
+The docket page's Read item now points at this match instead of the
+three gate matches. The blind read is unchanged and still waits on seven
+picks.
+
+## 13 September 2026, 18:20Z — "why did only F get swung at": the pack shows one character's view; the full record shows everything
+
+The firm, 18:0xZ, reading match 1 of the replay: *"Curious why did only F
+get swung at by the iron gate? I want to see the entirety of what is
+happening not just the dialogue."*
+
+**Why F.** `engine.py:_monster_phase`: each monster acts once a round. It
+looks at the characters in its room; if any stand within its reach (a
+guardian's reach is one tile) it swings at one of them, the lowest HP,
+ties broken by a seeded roll (`combat.choose_monster_target`). If none is
+in reach it steps one tile toward the nearest, then lowest HP, then id,
+and swings if that brings one into reach. Seed 101, round 1: C, E and F
+all moved to the Ironwood Gate and arrived at its doorway; the guardian
+lunged at F and missed. Round 2: E left for the Threshold, C hit the
+guardian for 4 (a scout's reach is 2, so from outside the guardian's 1),
+F stepped to [0,0]; nobody in reach, so it stalked toward F and hit for 6.
+One swing a round, at one character, and the pack writes each swing only
+on the line of the character it landed on. So it reads as "only F".
+
+**The entirety is not in the pack, by design and by omission.** The pack
+keeps, per character, what they said, did, thought, and what happened to
+them; the referee's full stream (every move, every swing and its dice,
+every monster step, positions and HP per round) was in a temporary
+database the gate created and discarded (`tempfile.mkdtemp` in
+`gate.py`). The three gate matches' full records are gone. That is the
+omission, fixed forward: `gate.py` now writes each seed's replay bundle to
+`gate/<run>.replays/<seed>.json`, beside the pack with the key (real names
+inside, so never in the pack and git-ignored), and the pack README says
+so. Test added.
+
+`tools/replay_page.py` now reads a replay bundle as well as a pack. From a
+bundle the page carries everything the referee recorded, in sequence:
+every line spoken, every move, swing, monster step, referee call and
+narration, a "show the dice" toggle for the rolls, the private notes
+behind the thinking toggle, and at the end of each round where everyone
+stood: HP as a bar, room, out or not, the Crown's holder. Proven on the
+mock's committed seed-52 bundle: every non-speech public line appears in
+seq order, 12 rounds, 12 state strips, 154 dice lines. Suite 104 → **106**.
+
+Not published: the mock's speech is not real, and "legit" was the ask. The
+real 48-round match still needs the forge's export; the check-in builds
+this page from it the moment it lands. A screenshot of the mock, marked as
+such, went to the firm so the shape can be judged now.
+
+## 13 September 2026, 16:05Z — "very unclear how to use this": the replay cut down to a feed; the forge asked for the real match
+
+The firm, 15:5xZ: *"It is very unclear how to use this. I just want a legit
+replay to watch and critique."* Two things heard. The page had play,
+pace, step, a table and a picker: controls to learn before anything could
+be watched. And three lettered six-round scouting matches are not the show;
+the show is the 48-round match with names.
+
+`tools/replay_page.py` now builds a feed and nothing else: a round header,
+then every character's line in turn as a spoken bubble with what they did
+and what happened to them under it, a character's leaving announced once.
+One row of tabs for the three matches, one button for the private thoughts.
+Same link, republished. Suite still 104.
+
+The real match is not here to give. `ember-7-830ff8da` lives only in
+`data/arena.db` on the firm's machine. The channel to the forge was fired
+at 15:58Z with the one export command (`python run.py replay
+ember-7-830ff8da --output ../runs/ember-7-830ff8da.replay.json`, commit,
+push); the forge session reads idle but connected. Whether it wakes is not
+known from here; the hourly check-in watches `runs/` for the bundle and
+builds the page from it the moment it lands. If it does not, the same
+command pasted into that session by the firm does it.
+
+## 13 September 2026, 06:10Z — "I need a live replay": the three matches played back, all eight on screen
+
+The firm, 05:5xZ: *"I think I need a live replay to understand what I think
+sounds like a player,"* then *"Or at least some more structured way than one
+at a time and looking at everything it said."* The blind-read page is eight
+transcripts, one character at a time; that is the shape the gate needs and
+not the shape a person judges a voice by.
+
+What the repository holds that a replay can be built from: the real
+48-round match `ember-7-830ff8da` lives only in `data/arena.db` on the
+firm's machine (git-ignored, by design); `demo/replay.json` is the mock's
+seed 52 with no real speech. The only real-model speech on the branch is
+the house gate pack. So `tools/replay_page.py` re-interleaves the pack's
+eight per-character transcripts by seed and round and builds
+<https://claude.ai/code/artifact/afa5b0a0-1d4a-4cc9-804c-cb7e09ec5a6b>:
+three matches, a round at a time with all eight characters on screen
+(play, pace, step; private objective and reads behind a toggle, since the
+audience sees them beside the speech); under it every voice side by side,
+rows as rounds and columns as characters, cells only what was said aloud;
+under that one voice on its own, every line that character spoke across
+the three matches in order. Names stay letters, so the read stays blind.
+A test proves the interleave carries all 136 decisions and no key value or
+real id. Suite 103 → **104**.
+
+**The full match is one command away, on the forge.** From
+`docs/ember-vault-arena/code` on the firm's machine:
+`python run.py replay ember-7-830ff8da --output ../runs/ember-7-830ff8da.replay.json`,
+commit and push. That bundle has the real names and all sixteen rounds, and
+the same page generator can read it next. Not run here: no session but the
+forge can reach that database.
+
+## 12 September 2026, 20:35Z — "give me one so I can look myself": the gate pack becomes a page the firm reads
+
+Asked D7 back in the session with the two outcomes, the firm answered:
+*"Then give me one so I can look myself."* Neither outcome; a third. They
+want to read the pack before deciding what the gate is worth. So the house
+pack (`code/gate/20260912-034624-agent_sdk`) is now one page:
+<https://claude.ai/code/artifact/d2e7c964-2263-4a92-8afb-ed7a7df9ed9a>.
+The eight anonymised brains, then the eight lettered transcripts across
+the three seeds with the spoken line in colour and the private objective,
+reads and outcome beside it, and under each character eight numbered
+chips. Picks save to the page's store (`reads/firm`: `answers`,
+`seen_key`, `note`); the check-in reads them back, writes `reader_a.json`
+and runs `tools/score_gate.py` unchanged.
+
+Two things the page says out loud. **Whether the firm has seen the key**
+is asked before anything else, with yes, no and not sure, because the key
+was committed inside this pack and printed in a session; a "yes" makes
+the read informative and not the blind score the spec asks for (§5.44:
+two readers, six of eight each), and it is recorded either way rather
+than assumed. **The page carries no key:** the output was checked against
+`KEY.json` before publishing; the one hit for a real character id was the
+id `fen` inside the word *fence* in brain 1, a substring the anonymiser
+skips on purpose (tokens under four letters), not a leak.
+
+The generator is kept as `code/tools/blind_read_page.py` so the second
+run, on the players' brains, gets the same page; a test builds it for the
+house pack and proves no key value and no real id of four letters or more
+is in the output. Suite 102 → 103.
+
+The docket page now has no decision open; its one item is the reading.
+**Next, unless the firm says otherwise:** read the picks back when they
+land, score, log the score with the seen-key answer beside it, and put
+what the firm wants from it on the next docket. M3 stays shut meanwhile.
+The forge is not needed for any of this.
+
+## 12 September 2026, 20:05Z — the docket answered: D8 ruled, D5 and D6 "later" with a question each, D7 tapped one way and written the other
+
+The firm, 19:46Z to 19:47Z on the page, read back by `read_db`, in their words:
+
+- **D8, the ending rule:** *"Different ending rule, bigger world too."* Ruled.
+  Taking the Crown out no longer ends the match; it runs its forty-eight
+  rounds and whoever holds the Crown when the final round resolves wins;
+  everyone else is placed by score. PRD §5 items 4 and 5 now say so, with
+  the July rule they replace kept beside them, since `engine.py` still
+  implements it (`_crown_extract`, `ended_reason: extraction`) and the
+  12 September match ended at round 16 under it. The code change belongs
+  to M3 with the rest of the world, on the mock, and M3 is shut until D7.
+  What the Egress and an extraction do now, if anything, is an open
+  question in PRD §10, not a default. **A correction to the page:** it said
+  the bigger world comes at M4; the PRD has it at M3 (§9, *the world
+  registry to sixteen locations*). M4 is the live stream.
+- **D5, the private repository:** *"Later"*, with *"Can you not set this up
+  for me???"* Tried a third time at 19:53Z, at that ask, from this session:
+  `POST /user/repos` → 403 *Resource not accessible by integration*. The
+  GitHub App this session runs as is not allowed to create repositories on
+  the firm's account, and nothing on this side changes that. It stays six
+  clicks of theirs; the steps are on the page. Recorded in PRD §10.
+- **D6, the players:** *"Later"*, with *"I haven't even seen the
+  template."* True, and my omission: three dockets named it and none showed
+  it. `code/brains/TEMPLATE.md` (1,192 characters, four sections under a
+  name) sent to the firm in the session and now printed on the page under
+  D6.
+- **D7, the readers and M3:** the tap is *"Readers later, M3 waits"*; the
+  note is *"I would prefer to get this hammered out first and then maybe
+  I'll do this or something similar."* Read plainly, the note says build
+  first and test later, in whatever form, which is the other outcome: M3
+  opens now and the gate stops being a door. The tap says the opposite.
+  Not resolved here; asked back as one question with the same two
+  outcomes, on the page and in the session. Nothing from M3 starts on
+  either reading until they say which.
+
+The Next goal is unchanged until D7 is settled. Recorded here rather than
+acted on: on the "build first" reading the first work is M3 on the mock
+with D8's rule in it, and the PRD's gate line becomes a check run before
+the pilot rather than a precondition for M3.
+
+## 12 September 2026, 19:50Z — docket refreshed at the firm's ask: four open decisions first
+
+The firm, at 19:37Z: *"Docket so I can respond easier."* The page is
+republished at the same link, read from the repository and not from the
+session: PR #360 at `1ec7bed8`, 10 of 10 checks green, clean; arena suite
+**102 of 102** (15.7 s) and canon **190 of 190** (24.6 s), both run now;
+the forge stood down at 10:33Z; canon 1.17.0 installed and not yet loaded.
+
+What changed on the page: the four open decisions come first, in the order
+they matter, each a tap with a box under it: **D7** the readers and M3
+(recommended: readers later, M3 waits), **D8** the ending rule for M4
+(recommended: a different ending rule, and a bigger world anyway), **D5**
+the private repository (recommended: create it now, since PR #359 is
+merged and the move starts from main), **D6** the players (recommended:
+later, and send the template out now). D1 to D4 leave the form and become
+four lines under *Answered, for the record*; the store keeps their
+documents, the page no longer writes them. The Next block is unchanged in
+substance: hold PR #360 green and watched, keep the record current, no new
+milestone; it ends when D7 is answered. A single step for the firm sits in
+the status table rather than as a decision: restart any open Claude Code
+window so 1.17.0 loads.
+
+Nine hourly check-ins between 10:45Z and 18:55Z found no change: PR green
+each time, no forge push, no docket answers. The page was opened at 400 and
+760 pixels before publishing; no horizontal scroll at either, the chips and
+the save-state line render, and the offline message shows where the store
+cannot be reached.
+
+## 12 September 2026, 10:40Z — canon 1.17.0 installed on the firm's machine; the forge stands down
+
+`runs/20260912T103336Z-plugin-update.md` (`efab7345`): the forge ran the two
+commands verbatim, both exit 0, no permission asked. `claude plugin update
+canon` reported *updated from 1.16.0 to 1.17.0 for scope user*, confirmed by
+`claude plugin list` and by the `1.17.0` directory on disk. **Not loaded
+yet:** the CLI says *Restart to apply changes*, so every Claude Code session
+already open on that machine still runs 1.16.0 until it is restarted; the
+rulings by project reach a session on its next start. The forge did not
+restart anything, correctly. `desk` 0.21.0 and `occam` 0.4.0 untouched.
+
+The Haiku helper call stays unexplained; nothing visible to the forge names
+it, and it was told not to chase it. The forge reports nothing running on
+the machine, a clean worktree, and every result under `runs/`. Its day:
+three smoke tests, the gate, a full match, three probes, a two-round
+measurement, the merge with its own verification first, the plugin update,
+two defects of mine caught and one correction of its own, disclosed.
+
+## 12 September 2026, 10:05Z — round 2 never re-reads round 1; the cache lever is smaller than it looked
+
+The forge's two-round smoke (`runs/20260912T093832Z-agent-sdk-smoke-2rounds.md`,
+16 of 16, 35 s), read here:
+
+- **`cached` is exactly 2,060 on every call**, in round 2 as in round 1, and
+  across every match measured today; `wrote` rises in round 2 (dask 3,944 →
+  4,347) rather than falling. So the 2,060 is the CLI's own fixed prefix,
+  the same for all eight contestants, and the arena's whole ~3,800-token
+  prompt is written to a one-hour cache on every call and never read back.
+  This run wrote 63,640 tokens and read 32,960.
+- **Correction to the 09:20Z entry's framing.** The cache write is 75% of a
+  call's cost, but only part of it is avoidable. The stable part of our
+  prompt (the platform system prompt and the brain, roughly 1,200 tokens)
+  is under a third of what is written; the observation, which changes every
+  round, is the rest. A stable per-contestant prefix would save about 20% of
+  a call at API rates; disabling the CLI's caching for the subprocess
+  (`DISABLE_PROMPT_CACHING`, so the 3,900 tokens bill at 1× instead of 2×
+  and the CLI's 2,060 at 1× instead of 0.1×) about 25%; the two do not
+  combine. Neither is 75%. Both stay deferred until the API-key route is in
+  use; on the subscription nothing is charged per call.
+- **Both fixes hold on a real run:** `provider/model: agent_sdk/claude-opus-5`,
+  no compound string; `usage_json` carries the breakdown; rows reconcile to
+  the cent (dask round 1: Opus $0.048605 + Haiku $0.003488 = $0.052093).
+- **The forge's consequence, taken:** the table's columns are the primary
+  model's while `cost` covers both models, so a reader of the table alone
+  could not reproduce a row. The totals line now ends `other models billed:
+  $X (in usage_json)`, summed from each row's breakdown. Test added; suite
+  101 → **102**.
+
+## 12 September 2026, 09:55Z — the forge's verification before merging, read back
+
+The forge merged only after checking more than the suite: 101 passed at
+`c7559f7a`; the spectator server serves; `/api/matches`,
+`/api/leaderboard` and `/api/matches/ember-7-830ff8da/audit` return 200 with
+the audit valid at 891 entries; and the viewer renders the 48-round match
+with Grael at 31 and ESCAPED, round FINAL 16, VERIFIED 891 RECORDS, the CLI,
+the API and the rendered page agreeing. Screenshot kept on the forge. That
+closes the "story viewer on a real-model match" item from the 03:10Z docket.
+It pinned the merge to the exact SHA and merged under its own conditions
+(ten quiet minutes, clean, green on that commit). It declined "the plugin
+commands" until they were spelled out, correctly; FORGE.md now carries the
+two commands verbatim.
+
+## 12 September 2026, 09:50Z — docket refreshed; the next goal on record
+
+PR #360 opened (draft) on the restarted branch:
+<https://github.com/AJSethuraman/SATC/pull/360>. The docket page is
+republished with D1, D2 and D4 marked done, D3 deferred, and two new
+decisions: **D7**, the readers are deferred so M3 is shut, name readers
+later (recommended) or strike the rule and open M3 now; **D8**, a match can
+end at round 16, a bigger world (M4) or a different ending rule where an
+extraction no longer ends the match (recommended, with the bigger world
+anyway). D5 (the private repository) and D6 (the players) stay open.
+
+**Next, unless the firm says otherwise:** hold PR #360 green and watched;
+read the forge's two-round cache measurement when it lands and log it; keep
+the record current; start no new milestone. Ends when the firm answers D7.
+Silence approves only that.
+
+## 12 September 2026, 09:40Z — PR #359 merged; the branch restarts from main
+
+The forge, holding the firm's word, took PR #359 out of draft and merged it
+at 09:37Z (main `f44ae5f7`): the grill, the PRD, M1, the gate harness and its
+run, the ledger corrected by measurement, canon 1.17.0 with the rulings.
+The branch `claude/ember-vault-arena-rebuild-dn890n` is restarted from main
+under the same name for the continuing work, and a new draft PR carries it.
+On the firm's machine the plugin update (`claude plugin marketplace update
+satc && claude plugin update canon`) is the forge's to run and report.
+
+README brought to the merged state: what is built, what has run, what waits
+on the firm. Nothing from M3 on until the gate has been read or the firm
+rules otherwise; the useful work meanwhile is measurement and the record.
+
 ## 12 September 2026, 09:30Z — D3 deferred: the gate stays unscored and M3 stays shut
 
 Through the forge, the firm on the two blind readers: *skip the readers for

@@ -78,10 +78,38 @@ def print_ledger(store: ArenaStore, match_id: str) -> None:
     )
     totals = {k: sum(int(d.get(k) or 0) for d in decisions)
               for k in ("input_tokens", "cached_tokens", "cache_creation_tokens", "output_tokens")}
+    # The token columns are the primary model's. The SDK route also bills a
+    # helper model on every call (forge, 12 Sep 2026: a Haiku call, ~7%), which
+    # lives only in usage_json; a reader of the table alone could not reproduce
+    # a row's cost without this line.
+    helper = helper_cost(decisions)
     print(
         f"tokens: in {totals['input_tokens']}; cached {totals['cached_tokens']}; "
         f"cache written {totals['cache_creation_tokens']}; out {totals['output_tokens']}"
+        + (f"; other models billed: ${helper:.4f} (in usage_json)" if helper else "")
     )
+
+
+def helper_cost(decisions) -> float:
+    """Cost recorded for models other than the row's own, summed from each
+    row's usage_json (the SDK's per-model breakdown); 0 when absent."""
+    import json
+    total = 0.0
+    for d in decisions:
+        raw = d.get("usage_json")
+        if not raw:
+            continue
+        try:
+            usage = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(usage, dict):
+            continue
+        own = d.get("model")
+        for key, row in usage.items():
+            if isinstance(row, dict) and key != own and str(row.get("canonicalModel") or key) != own:
+                total += float(row.get("costUSD") or 0)
+    return total
 
 
 def main() -> None:
