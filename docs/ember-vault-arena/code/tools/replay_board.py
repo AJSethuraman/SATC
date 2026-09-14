@@ -5,9 +5,25 @@ and writes one HTML page that plays the match back on a drawn map: the five
 rooms to the engine's own grids (``arena.grid.ROOM_GRIDS``, doors, props),
 the eight characters and three monsters as tokens on their tiles, every
 move, step, swing, hit, seal, sealing room and Crown transfer shown where it
-happened, and every line spoken shown beside the speaker. Play, pause, step,
-scrub by round. No private notes anywhere on it: the firm, 13 Sep 2026,
-"I want to literally see the replay not read the text".
+happened, every line spoken shown beside the speaker. Play, pause, step,
+scrub by round.
+
+One round reads as one sequence in one panel, the way the engine runs it
+(firm, 14 Sep 2026: "Don't they think at the same time? Can't you just show
+me that in the play by play? And you can have their goal and such show up
+in the same space?"):
+
+    1. everyone thinks     ONE moment: all eight private plans side by side,
+                           written before anyone moves (``note_written``)
+    2. they speak          each line, with the speaker's plan under it
+    3. they act            in initiative order, each action with the
+                           actor's plan under it, so what they did can be
+                           read against what they meant to do
+    4. monsters, referee, narration
+
+The panel always shows, for whoever is acting, their plan for this round,
+who they trust, and the secret aim they carry. Nothing to switch on and
+nothing to scroll to.
 
 The page is not a second referee. It carries a timeline of state changes
 derived from the bundle's events, and the only place a change is *computed*
@@ -15,8 +31,8 @@ rather than read is the tile a body lands on after a room move, which the
 event does not record; that uses the engine's own ``grid.free_tile_near`` on
 the same inputs. ``verify`` then checks the derived state against every
 round-end snapshot the referee wrote (room, tile, HP and status of every
-character; tile and HP of every monster) and the build refuses on the first
-mismatch. Tests prove it on a mock match.
+character; tile and HP of every monster; who holds the Crown) and the build
+refuses on the first mismatch. Tests prove it on a mock match.
 
     python3 tools/replay_board.py ../runs/ember-7-830ff8da.replay.json out.html
 """
@@ -36,17 +52,13 @@ from arena import grid, scoring  # noqa: E402
 
 E = html.escape
 
-# Events that carry nothing a viewer watches: dice and token spend. The
-# private notes ARE carried, flagged ``private``, and shown only behind the
-# "Show what they're thinking" switch, off by default: the firm, 14 Sep
-# 2026, "now I do not see what they're thinking. Like that helps my figure
-# out the guys who say no claim to the crown yet."
+# Events that carry nothing a viewer watches: dice and token spend.
 SKIP = {"dice_roll", "agent_resource_update"}
 
-# How long the player dwells on an event at 1x, in milliseconds. Speech and
-# narration scale with length so a long line can be read.
+# How long the player dwells on a frame at 1x, in milliseconds. Text frames
+# scale with length so a line can be read.
 DWELL = {
-    "agent_speech": (2600, 42, 9500), "round_narration": (3200, 38, 12000), "note_written": (2200, 40, 9000),
+    "agent_speech": (2600, 42, 9500), "round_narration": (3200, 38, 12000), "everyone_thinks": (3500, 22, 16000),
     "move": (950, 0, 0), "step": (900, 0, 0), "monster_step": (1000, 0, 0), "agent_force_moved": (1400, 0, 0),
     "attack_hit": (1500, 0, 0), "attack_miss": (1300, 0, 0), "wild_swing_self_damage": (1500, 0, 0),
     "wild_swing_bystander": (1600, 0, 0), "wild_swing_room_reaction": (1600, 0, 0), "hazard_burn": (1300, 0, 0),
@@ -77,13 +89,9 @@ TOKEN_COLOURS = ["#e0b48a", "#f0ede8", "#4fd1c5", "#ffd166", "#ff8fa3", "#c48cff
 MONSTER_LABELS = {"ironwood_guardian": "IG", "ossuary_guardian": "OG", "crown_warden": "W"}
 
 
-def dwell_ms(event: dict) -> int:
-    base, per_char, cap = DWELL.get(event["event_type"], DEFAULT_DWELL)
-    if per_char:
-        p = event.get("payload") or {}
-        text = p.get("speech") or (p.get("note") or {}).get("objective") or event.get("public_text") or ""
-        return min(cap, base + per_char * len(text))
-    return base
+def dwell_for(kind: str, text: str = "") -> int:
+    base, per_char, cap = DWELL.get(kind, DEFAULT_DWELL)
+    return min(cap, base + per_char * len(text)) if per_char else base
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +99,9 @@ def dwell_ms(event: dict) -> int:
 # ---------------------------------------------------------------------------
 
 def initial_state(bundle: dict) -> dict:
-    """The board before round 1, from the referee's first snapshot."""
+    """The board before round 1, from the referee's first snapshot, plus the
+    secret aim each character carries (from its manifest, worded by the
+    engine's own scoring table)."""
     first = bundle["snapshots"][0]["state"]
     secrets = {p["manifest"]["id"]: p["manifest"].get("secret_objective") or "" for p in bundle.get("participants", [])}
     agents = {}
@@ -255,36 +265,70 @@ def apply_event(state: dict, ev: dict) -> dict:
     return d
 
 
+def _merge(into: dict, delta: dict) -> None:
+    for aid, fields in (delta.get("agents") or {}).items():
+        into.setdefault("agents", {}).setdefault(aid, {}).update(fields)
+    for mid, fields in (delta.get("monsters") or {}).items():
+        into.setdefault("monsters", {}).setdefault(mid, {}).update(fields)
+    for key, val in delta.items():
+        if key not in ("agents", "monsters"):
+            into[key] = val
+
+
 def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
-    """Initial state plus one frame per watched event, in seq order."""
+    """Initial state plus one frame per watched moment, in seq order.
+
+    A round's private notes are logged one per character as each decision
+    returns, interleaved with the lines spoken; the engine collected them all
+    in one decision phase before anything resolved. They become ONE
+    ``everyone_thinks`` frame at the first note's position, carrying every
+    plan of the round, and the individual note events fold into it."""
     state = initial_state(bundle)
     start = copy.deepcopy(state)
     frames = []
     names = {**{a["id"]: a["name"] for a in state["agents"].values()},
              **{m["id"]: m["name"] for m in state["monsters"].values()}}
-    for ev in sorted(bundle["events"], key=lambda e: e["seq"]):
+    events = sorted(bundle["events"], key=lambda e: e["seq"])
+    notes_by_round: dict[int, list[dict]] = {}
+    for ev in events:
+        if ev["event_type"] == "note_written":
+            notes_by_round.setdefault(ev["round_no"], []).append(ev)
+    thought_rounds: set[int] = set()
+    for ev in events:
         t = ev["event_type"]
         if t in SKIP:
             continue
         if t == "item_taken" and ev.get("target_id") == "ember_crown":
             continue  # the crown_taken event that follows says the same thing
         p = ev.get("payload") or {}
+        if t == "note_written":
+            rnd = ev["round_no"]
+            if rnd in thought_rounds:
+                continue
+            thought_rounds.add(rnd)
+            delta: dict = {}
+            thoughts = []
+            for n in notes_by_round[rnd]:
+                _merge(delta, apply_event(state, n))
+                a = state["agents"][n["actor_id"]]
+                thoughts.append({"who": n["actor_id"], "name": a["name"], "objective": a["note"]["objective"], "reads": a["note"]["reads"]})
+            frames.append({
+                "seq": ev["seq"], "round": rnd, "type": "everyone_thinks", "actor": None, "target": None,
+                "text": "Everyone writes their plan for the round at the same time, before anyone moves.",
+                "thoughts": thoughts, "dwell": dwell_for("everyone_thinks", "".join(x["objective"] for x in thoughts)),
+                "delta": delta, "room": None,
+            })
+            continue
         frame = {
             "seq": ev["seq"], "round": ev["round_no"], "type": t,
             "actor": ev.get("actor_id"), "target": ev.get("target_id"),
-            "text": ev.get("public_text") or "", "dwell": dwell_ms(ev),
+            "text": ev.get("public_text") or "",
         }
         if t == "agent_speech":
             frame["speech"] = p.get("speech") or ""
             frame["mode"] = p.get("mode") or "say"
             to = p.get("addressed_ids") or ([p["to"]] if p.get("to") else [])
             frame["to"] = [names.get(x, x) for x in to]
-        if t == "note_written":
-            note = p.get("note") or {}
-            frame["private"] = True
-            frame["objective"] = note.get("objective") or ""
-            frame["reads"] = [{"who": names.get(r.get("who"), r.get("who") or ""), "stance": r.get("stance") or "unknown", "why": r.get("why") or ""}
-                              for r in (note.get("reads") or [])]
         if t in ("attack_hit", "wild_swing_bystander", "wild_swing_self_damage", "hazard_burn", "wild_swing_room_reaction"):
             frame["amount"] = int(p.get("applied") or p.get("amount") or 0)
         if t in ("rest", "item_used") and "hp" in (p.get("changes") or {}):
@@ -294,8 +338,10 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
             frame["scores"] = p.get("scores") or {}
         if t == "round_narration":
             frame["narration"] = True
+        if t == "stale_action":
+            frame["text"] = frame["text"] + " " + ((p.get("reason") or "").capitalize() + "." if p.get("reason") else "")
+        frame["dwell"] = dwell_for(t, frame.get("speech") or frame["text"])
         frame["delta"] = apply_event(state, ev)
-        # where the camera looks: the actor's room
         who = ev.get("actor_id") or ev.get("target_id")
         body = state["agents"].get(who) or state["monsters"].get(who)
         frame["room"] = body["room"] if body else (p.get("room") if p.get("room") in grid.ROOM_GRIDS else None)
@@ -311,9 +357,6 @@ def verify(bundle: dict, start: dict, frames: list[dict]) -> list[str]:
     by_round_end = {s["round_no"]: s["state"] for s in bundle["snapshots"] if s["phase"] == "end"}
     problems: list[str] = []
     i = 0
-    frames_by_round: dict[int, list[dict]] = {}
-    for f in frames:
-        frames_by_round.setdefault(f["round"], []).append(f)
     for rnd in sorted(by_round_end):
         for f in frames:
             if f["round"] <= rnd and f["seq"] > i:
@@ -389,26 +432,26 @@ def board_geometry() -> dict:
 CSS = """
   :root {
     --ground: #15110f; --panel: #201916; --panel-2: #2a211c; --line: #3d3029; --line-2: #55443a;
-    --ink: #efe4d6; --muted: #a8968a; --faint: #6f6058;
+    --ink: #efe4d6; --muted: #a8968a; --faint: #6f6058; --thought: #d9cbb9;
     --ember: #e8632a; --ember-soft: rgba(232, 99, 42, .18); --gold: #e9b44c; --moon: #9fc4d8;
     --blood: #c0392b; --heal: #6fae6a;
     --display: "Cinzel", "Times New Roman", serif; --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
     --serif: "IBM Plex Serif", Georgia, serif;
   }
   html { color-scheme: dark; }
-  body { margin: 0; background: var(--ground); color: var(--ink); font: 400 1rem/1.5 var(--sans); padding: 1rem 1rem 3rem; }
-  .page { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1.4rem; }
-  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.2rem; margin-bottom: .8rem; grid-column: 1 / -1; }
-  .side { min-width: 0; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 400 1rem/1.5 var(--sans); padding: .8rem 1rem 2rem; }
+  .page { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1.2rem; }
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin-bottom: .6rem; grid-column: 1 / -1; }
+  h1 { font: 700 1.25rem/1.2 var(--display); letter-spacing: .04em; margin: 0; color: var(--ink); }
+  .sub { color: var(--muted); font-size: .88rem; margin: 0; }
+  .main, .side { min-width: 0; }
   @media (min-width: 960px) {
-    .page { grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr); }
-    .side { position: sticky; top: 1rem; align-self: start; }
-    .stage { margin-top: 0; }
+    .page { grid-template-columns: minmax(0, 1fr) minmax(360px, 1.05fr); }
+    .side { position: sticky; top: .6rem; align-self: start; }
+    svg.board { max-height: calc(100vh - 12rem); }
   }
-  h1 { font: 700 1.35rem/1.2 var(--display); letter-spacing: .04em; margin: 0; color: var(--ink); }
-  .sub { color: var(--muted); font-size: .92rem; margin: 0; }
   .board-wrap { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-  svg.board { display: block; width: 100%; height: auto; }
+  svg.board { display: block; width: 100%; height: auto; margin: 0 auto; }
   .room-floor { fill: #2a211c; stroke: var(--line-2); stroke-width: 1.5; }
   .room-floor.sealed { fill: #1a1512; stroke: #2c2420; }
   .room-floor.contracting { stroke: var(--ember); stroke-dasharray: 6 4; animation: pulse 1.4s ease-in-out infinite; }
@@ -441,6 +484,7 @@ CSS = """
   .token.escaped circle.body { stroke: var(--moon); filter: drop-shadow(0 0 6px var(--moon)); }
   .token.speaking circle.body { stroke: #fff; filter: drop-shadow(0 0 5px rgba(255,255,255,.7)); }
   .token.acting circle.body { stroke: var(--ink); }
+  .token.thinking circle.body { stroke: var(--thought); stroke-dasharray: 3 2; }
   .token .guard { fill: none; stroke: var(--moon); stroke-width: 2; stroke-dasharray: 4 3; }
   .monster circle.body { fill: var(--blood); stroke: #4a0f0c; stroke-width: 2; }
   .monster text.ini { fill: #fbe9e6; }
@@ -461,83 +505,95 @@ CSS = """
   .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-top-color: #f4ece0; border-bottom: 0; }
   .bubble.whisper { background: #d9d3e6; font-style: italic; }
   .bubble.whisper::after { border-top-color: #d9d3e6; }
-  .bubble.thought { background: #cfc9c0; color: #2a221d; font-style: italic; border: 2px dashed #8a7f75; }
-  .bubble.thought::after { border-top-color: #cfc9c0; }
   .bubble.below { transform: translate(-50%, 22px); }
   .bubble.below::after { top: -8px; bottom: auto; border: 8px solid transparent; border-bottom-color: #f4ece0; border-top: 0; }
   .bubble.below.whisper::after { border-bottom-color: #d9d3e6; }
+  /* anchored from the right when the speaker stands in the right half, so the
+     bubble has room to be as wide as its text instead of shrinking to the edge */
+  .bubble.rt { transform: translate(50%, calc(-100% - 22px)); }
+  .bubble.rt.below { transform: translate(50%, 22px); }
   .bubble[hidden] { display: none; }
-  .stage { margin-top: .9rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line-2); border-radius: 6px; padding: .9rem 1.1rem; min-height: 5.4rem; display: grid; gap: .35rem; }
+  /* the eight, compact, under the board: HP at a glance, nothing to read */
+  .roster { margin-top: .5rem; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .3rem; }
+  .card { display: grid; grid-template-columns: 14px 1fr auto; gap: .1rem .4rem; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: .3rem .45rem; font-size: .76rem; }
+  .card .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #0e0b0a; }
+  .card .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .num { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .72rem; }
+  .card .bar { grid-column: 1 / 4; height: 4px; background: #0e0b0a; border-radius: 3px; overflow: hidden; }
+  .card .bar i { display: block; height: 100%; background: var(--heal); transition: width .3s; }
+  .card .bar i.low { background: var(--gold); } .card .bar i.crit { background: var(--blood); }
+  .card.out { opacity: .45; } .card.out .name::after { content: " · out"; color: var(--muted); font-weight: 400; }
+  .card.escaped .name::after { content: " · escaped"; color: var(--moon); font-weight: 400; }
+  .card.crown .name::before { content: "♛ "; color: var(--gold); }
+  .legend { margin-top: .5rem; display: flex; flex-wrap: wrap; gap: .3rem .9rem; font-size: .74rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: .3rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border: 1px solid #55443a; }
+  .legend i.b { background: #120e0c; } .legend i.c { background: repeating-linear-gradient(45deg, #2a211c 0 3px, #55443a 3px 4px); }
+  .legend i.h { background: var(--ember-soft); border-color: rgba(232,99,42,.6); } .legend i.d { border: 0; border-top: 2px solid var(--muted); height: 0; margin-top: 6px; }
+  .legend i.m { background: var(--blood); border-color: #4a0f0c; border-radius: 50%; }
+  /* the panel: one round, one sequence, one place */
+  .round-bar { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; font-family: var(--display); letter-spacing: .06em; font-size: .9rem; color: var(--gold); margin-bottom: .45rem; }
+  .round-bar .n { color: var(--muted); font: 500 .78rem var(--sans); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line-2); border-radius: 6px; padding: .8rem 1rem .85rem; min-height: 9rem; display: grid; gap: .4rem; }
   .stage.speech { border-left-color: var(--ink); }
   .stage.narration { border-left-color: var(--ember); }
   .stage.blow { border-left-color: var(--blood); }
   .stage.crown { border-left-color: var(--gold); }
-  .stage.thought { border-left: 4px dashed var(--muted); background: #1b1613; }
-  .stage.thought .what { font-style: italic; color: #d9cbb9; }
-  .stage .reads { font-size: .86rem; color: var(--muted); margin: 0; }
-  .stage .reads b { color: var(--ink); font-weight: 500; }
-  .transport button.toggle { min-width: 0; }
-  .transport button.toggle[aria-pressed="true"] { background: var(--ink); color: #1a0e08; border-color: var(--ink); }
-  .card .think { grid-column: 1 / 4; display: none; font-size: .8rem; color: var(--muted); line-height: 1.35; margin-top: .2rem; border-top: 1px dashed var(--line); padding-top: .35rem; }
-  .card .think i { display: block; font-style: normal; }
-  .card .think i.aim { color: #d9cbb9; font-style: italic; }
-  .card .think i.aim:empty::before { content: "no plan written yet"; color: var(--faint); }
-  .card .think i.secret b { color: var(--gold); font-weight: 500; }
-  .card .think i.secret .done { color: var(--heal); } .card .think i.secret .failed { color: var(--muted); }
-  body.think-on .card .think { display: block; }
-  .who { display: inline-flex; align-items: center; gap: .5rem; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-  .who .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--faint); border: 1px solid #0e0b0a; }
+  .stage.thinks { border-left: 4px dashed var(--thought); }
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .who .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--faint); border: 1px solid #0e0b0a; flex: none; }
   .who .dot.monster { background: var(--blood); border-color: #4a0f0c; }
-  .who b { color: var(--ink); letter-spacing: .02em; text-transform: none; font-size: .95rem; }
-  .what { font-size: 1.15rem; line-height: 1.45; margin: 0; max-width: 70ch; }
-  .stage.speech .what { font-size: 1.3rem; }
+  .who b { color: var(--ink); letter-spacing: .02em; text-transform: none; font-size: .98rem; }
+  .who .phase { margin-left: auto; color: var(--faint); font-size: .72rem; }
+  .what { font-size: 1.1rem; line-height: 1.45; margin: 0; max-width: 70ch; }
+  .stage.speech .what { font-size: 1.22rem; }
   .stage.narration .what { font-family: var(--serif); font-style: italic; color: #e4d6c4; }
-  .meta { font-size: .8rem; color: var(--faint); }
-  .transport { margin-top: .9rem; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .9rem; }
-  .transport button { font: 600 .9rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .5rem .8rem; cursor: pointer; min-width: 2.8rem; }
+  .goal { margin: 0; padding: .5rem .7rem; background: #1b1613; border: 1px dashed var(--line-2); border-radius: 4px; font-size: .86rem; line-height: 1.4; color: var(--thought); display: grid; gap: .15rem; }
+  .goal .lbl { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .goal .plan { font-style: italic; }
+  .goal .plan:empty::before { content: "no plan written yet this round"; color: var(--faint); font-style: normal; }
+  .goal .reads { color: var(--muted); font-size: .8rem; }
+  .goal .reads:empty { display: none; }
+  .goal .secret { color: var(--muted); font-size: .8rem; }
+  .goal .secret b { color: var(--gold); font-weight: 500; }
+  .goal .secret .done { color: var(--heal); } .goal .secret .failed { color: var(--muted); }
+  .goal[hidden] { display: none; }
+  .thoughts { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+  .thoughts li { display: grid; grid-template-columns: 12px 1fr; gap: .15rem .5rem; align-items: baseline; font-size: .86rem; line-height: 1.35; }
+  .thoughts .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #0e0b0a; position: relative; top: 1px; }
+  .thoughts b { font-weight: 600; color: var(--ink); }
+  .thoughts .plan { font-style: italic; color: var(--thought); }
+  .thoughts .plan:empty::before { content: "wrote no plan"; color: var(--faint); font-style: normal; }
+  .thoughts .reads { grid-column: 2; color: var(--muted); font-size: .76rem; }
+  .thoughts .reads:empty { display: none; }
+  .thoughts[hidden] { display: none; }
+  .meta { font-size: .76rem; color: var(--faint); }
+  .transport { margin-top: .7rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .7rem; }
+  .transport button { font: 600 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .45rem .75rem; cursor: pointer; min-width: 2.6rem; }
   .transport button:hover { border-color: var(--muted); }
-  .transport button.play { background: var(--ember); border-color: var(--ember); color: #1a0e08; min-width: 6.2rem; font-size: 1rem; }
+  .transport button.play { background: var(--ember); border-color: var(--ember); color: #1a0e08; min-width: 6rem; font-size: 1rem; }
   .transport button:focus-visible, .transport select:focus-visible, .transport input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-  .transport select { font: 500 .9rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .45rem .5rem; }
-  .transport label { font-size: .85rem; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
-  .scrub { display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center; margin-top: .7rem; font-variant-numeric: tabular-nums; }
+  .transport select { font: 500 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .4rem .5rem; }
+  .transport label { font-size: .82rem; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
+  .scrub { display: grid; grid-template-columns: auto 1fr auto; gap: .7rem; align-items: center; margin-top: .55rem; font-variant-numeric: tabular-nums; }
   .scrub input[type=range] { width: 100%; accent-color: var(--ember); }
-  .scrub .lbl { font-size: .85rem; color: var(--muted); white-space: nowrap; }
-  .scrub .lbl b { color: var(--ink); font-weight: 600; }
-  .roster { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: .5rem; }
-  .card { display: grid; grid-template-columns: 22px 1fr auto; gap: .2rem .55rem; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .5rem .65rem; font-size: .85rem; }
-  .card .dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #0e0b0a; }
-  .card .name { font-weight: 600; }
-  .card .build { color: var(--muted); font-size: .78rem; text-transform: capitalize; }
-  .card .num { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; text-align: right; }
-  .card .bar { grid-column: 2 / 4; height: 5px; background: #0e0b0a; border-radius: 3px; overflow: hidden; }
-  .card .bar i { display: block; height: 100%; background: var(--heal); transition: width .3s; }
-  .card .bar i.low { background: var(--gold); } .card .bar i.crit { background: var(--blood); }
-  .card.out { opacity: .5; } .card.out .name::after { content: " · out"; color: var(--muted); font-weight: 400; }
-  .card.escaped .name::after { content: " · escaped"; color: var(--moon); font-weight: 400; }
-  .card.crown .name::before { content: "♛ "; color: var(--gold); }
-  .legend { margin-top: .9rem; display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .78rem; color: var(--muted); }
-  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
-  .legend i { display: inline-block; width: 14px; height: 14px; border: 1px solid #55443a; }
-  .legend i.b { background: #120e0c; } .legend i.c { background: repeating-linear-gradient(45deg, #2a211c 0 3px, #55443a 3px 4px); }
-  .legend i.h { background: var(--ember-soft); border-color: rgba(232,99,42,.6); } .legend i.d { border: 0; border-top: 2px solid var(--muted); height: 0; margin-top: 6px; }
-  .legend i.m { background: var(--blood); border-color: #4a0f0c; border-radius: 50%; }
-  .main { min-width: 0; }
-  .final { margin-top: 1rem; background: var(--panel); border: 1px solid var(--gold); border-radius: 6px; padding: .9rem 1.1rem; }
+  .scrub .lbl { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  .final { margin-top: .8rem; background: var(--panel); border: 1px solid var(--gold); border-radius: 6px; padding: .8rem 1rem; }
   .final[hidden] { display: none; }
-  .final h2 { font: 700 1rem var(--display); letter-spacing: .06em; margin: 0 0 .5rem; color: var(--gold); }
-  .final table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .9rem; }
-  .final td, .final th { text-align: left; padding: .25rem .5rem .25rem 0; border-bottom: 1px solid var(--line); }
-  .final th { color: var(--muted); font-weight: 500; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+  .final h2 { font: 700 .95rem var(--display); letter-spacing: .06em; margin: 0 0 .4rem; color: var(--gold); }
+  .final table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .86rem; }
+  .final td, .final th { text-align: left; padding: .2rem .5rem .2rem 0; border-bottom: 1px solid var(--line); }
+  .final th { color: var(--muted); font-weight: 500; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; }
   .final td.n { text-align: right; }
-  .foot { margin-top: 1.4rem; color: var(--faint); font-size: .8rem; max-width: 70ch; }
+  .foot { margin-top: .9rem; color: var(--faint); font-size: .76rem; max-width: 70ch; }
   @keyframes rise { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-26px); } }
   @keyframes ring { from { r: 14; opacity: 1; } to { r: 30; opacity: 0; } }
   @keyframes fade { from { opacity: 1; } to { opacity: 0; } }
   @keyframes pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
   @media (max-width: 560px) {
     body { padding-inline: .8rem; }
-    .stage .what { font-size: 1.02rem; } .stage.speech .what { font-size: 1.1rem; }
+    .roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .what { font-size: 1rem; } .stage.speech .what { font-size: 1.08rem; }
     .bubble { max-width: 170px; font-size: .74rem; }
     .scrub { grid-template-columns: 1fr; gap: .3rem; }
     .transport button.play { min-width: 5rem; }
@@ -563,9 +619,10 @@ def render_board_svg(geo: dict, start: dict) -> str:
            '<rect width="6" height="6" fill="#2a211c"/><line x1="0" y1="0" x2="0" y2="6" stroke="#55443a" stroke-width="2"/></pattern></defs>']
     for c in geo["corridors"]:
         (ax, ay), (bx, by) = c["a"], c["b"]
-        # an elbow: vertical from the upper door, then horizontal, then vertical into the lower door
         midy = (ay + by) / 2
         out.append(f'<path class="corridor" data-from="{c["from"]}" data-to="{c["to"]}" d="M{ax:.1f} {ay:.1f} V{midy:.1f} H{bx:.1f} V{by:.1f}"/>')
+    names = {"egress": "The Moonlit Egress", "vault": "The Ember Vault", "ironwood_gate": "The Ironwood Gate",
+             "ossuary_gate": "The Ossuary Gate", "threshold": "The Threshold"}
     for rid, r in geo["rooms"].items():
         x, y, w, h = r["x"], r["y"], r["w"], r["h"]
         out.append(f'<g class="room" data-room="{rid}">')
@@ -589,13 +646,11 @@ def render_board_svg(geo: dict, start: dict) -> str:
                            f'<text class="feature" x="{px:.1f}" y="{py + T * .5 + 9:.1f}">cache</text>')
             elif feat == "pedestal":
                 out.append(f'<circle class="pedestal" cx="{px:.1f}" cy="{py:.1f}" r="{T * .38:.1f}"/>')
-        name = start and {"egress": "The Moonlit Egress", "vault": "The Ember Vault", "ironwood_gate": "The Ironwood Gate",
-                          "ossuary_gate": "The Ossuary Gate", "threshold": "The Threshold"}[rid]
-        out.append(f'<text class="room-name" id="name-{rid}" x="{x + 6:.1f}" y="{y - 6:.1f}">{E(name)}</text>')
+        out.append(f'<text class="room-name" id="name-{rid}" x="{x + 6:.1f}" y="{y - 6:.1f}">{E(names[rid])}</text>')
         out.append('</g>')
     out.append('<g id="crown" class="crown hidden"><path d="' + _crown_path() + '"/><text id="crown-att" y="3"></text></g>')
     out.append('<g id="bodies">')
-    for i, (mid, m) in enumerate(start["monsters"].items()):
+    for mid, m in start["monsters"].items():
         out.append(f'<g class="token monster" id="tok-{mid}" data-name="{E(m["name"])}">'
                    f'<circle class="body" r="14"/><text class="ini">{MONSTER_LABELS.get(mid, "M")}</text>'
                    f'<g class="hpbar"><rect class="hpbg" x="-14" y="17" width="28" height="4" rx="1"/><rect class="hp" x="-14" y="17" width="28" height="4" rx="1"/></g></g>')
@@ -612,11 +667,10 @@ def render_board_svg(geo: dict, start: dict) -> str:
 SCRIPT = r"""
 (function () {
   var D = window.__REPLAY__;
-  var geo = D.geo, frames = D.frames, T = geo.tile;
+  var geo = D.geo, frames = D.frames, T = geo.tile, colours = D.colours;
   var state, idx = -1, playing = false, timer = null, speed = 1;
   var $ = function (s) { return document.querySelector(s); };
-  var svg = $("svg.board"), fx = $("#fx"), bubble = $("#bubble"), wrap = $(".board-wrap");
-  var colours = D.colours;
+  var fx = $("#fx"), bubble = $("#bubble");
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function fold(s, d) {
@@ -630,11 +684,19 @@ SCRIPT = r"""
     if (d.contracting) s.contracting = d.contracting.slice();
     if (d.vault_open) s.vault_open = true;
   }
-  function px(room, tile) {
-    var r = geo.rooms[room];
-    return [r.x + (tile[0] + .5) * T, r.y + (tile[1] + .5) * T];
-  }
+  function px(room, tile) { var r = geo.rooms[room]; return [r.x + (tile[0] + .5) * T, r.y + (tile[1] + .5) * T]; }
   function hpClass(hp, max) { var f = hp / max; return f <= .25 ? "crit" : f <= .5 ? "low" : ""; }
+  function roomName(r) { var n = document.getElementById("name-" + r); return n ? n.textContent : r; }
+  function readsLine(reads) {
+    if (!reads || !reads.length) return "";
+    var by = { trust: [], distrust: [], unknown: [] };
+    reads.forEach(function (r) { (by[r.stance] || by.unknown).push(r.who); });
+    var parts = [];
+    if (by.trust.length) parts.push("trusts " + by.trust.join(", "));
+    if (by.distrust.length) parts.push("distrusts " + by.distrust.join(", "));
+    if (by.unknown.length) parts.push("unsure of " + by.unknown.join(", "));
+    return parts.join(" · ");
+  }
 
   function render(frame) {
     var k, a, el, p;
@@ -648,13 +710,7 @@ SCRIPT = r"""
       var bar = el.querySelector(".hp"); bar.setAttribute("width", Math.max(0, 28 * a.hp / a.max_hp)); bar.setAttribute("class", "hp " + hpClass(a.hp, a.max_hp));
       var card = document.getElementById("card-" + k);
       card.className = "card" + (a.status === "eliminated" ? " out" : "") + (a.status === "escaped" ? " escaped" : "") + (state.crown.carrier === k ? " crown" : "");
-      card.querySelector(".num").textContent = a.hp + " / " + a.max_hp;
-      card.querySelector(".aim").textContent = a.note && a.note.objective ? "Plan: " + a.note.objective : "";
-      card.querySelector(".rd").textContent = readsLine(a.note && a.note.reads);
-      var sec = card.querySelector(".secret");
-      sec.innerHTML = a.secret ? 'Secret aim: <b></b> <span class="d"></span>' : "";
-      if (a.secret) { sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
-        var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : ""; dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : ""; }
+      card.querySelector(".num").textContent = a.hp + "/" + a.max_hp;
       card.querySelector(".bar i").style.width = Math.max(0, 100 * a.hp / a.max_hp) + "%";
       card.querySelector(".bar i").className = hpClass(a.hp, a.max_hp);
     }
@@ -688,80 +744,101 @@ SCRIPT = r"""
     for (k in state.seals) { var sm = document.getElementById("seal-" + k); if (sm) sm.setAttribute("class", "seal-mark" + (state.seals[k] === "active" ? " active" : "")); }
     for (k in state.caches) { var cm = document.getElementById("cache-" + k); if (cm) cm.setAttribute("class", "cache-mark" + (state.caches[k] ? " found" : "")); }
     document.querySelectorAll(".door").forEach(function (d) { d.setAttribute("class", "door" + (state.vault_open && d.id.indexOf("vault") >= 0 ? " open" : "")); });
-    document.querySelectorAll(".token").forEach(function (t) { t.classList.remove("speaking", "acting"); });
-    if (frame && frame.actor) { var t = document.getElementById("tok-" + frame.actor); if (t) t.classList.add(frame.type === "agent_speech" ? "speaking" : "acting"); }
+    document.querySelectorAll(".token").forEach(function (t) { t.classList.remove("speaking", "acting", "thinking"); });
+    if (frame && frame.type === "everyone_thinks") {
+      for (k in state.agents) if (state.agents[k].status === "active") document.getElementById("tok-" + k).classList.add("thinking");
+    } else if (frame && frame.actor) { var t = document.getElementById("tok-" + frame.actor); if (t) t.classList.add(frame.type === "agent_speech" ? "speaking" : "acting"); }
   }
 
-  function who(id) {
-    if (!id) return null;
-    if (state.agents[id]) return { name: state.agents[id].name, colour: colours[id], kind: "agent", build: state.agents[id].build };
-    if (state.monsters[id]) return { name: state.monsters[id].name, colour: null, kind: "monster" };
-    return null;
-  }
   var BLOWS = { attack_hit: 1, attack_miss: 1, wild_swing_self_damage: 1, wild_swing_bystander: 1, wild_swing_room_reaction: 1, hazard_burn: 1, agent_eliminated: 1, monster_defeated: 1 };
   var CROWN = { crown_unlocked: 1, crown_taken: 1, crown_dropped: 1, crown_attuned: 1, crown_extracted: 1, vault_gate_opened: 1 };
+  var PHASE = { everyone_thinks: "1 · they think", agent_speech: "2 · they speak", initiative_order: "3 · they act", move: "3 · they act", step: "3 · they act", attack_hit: "3 · they act", attack_miss: "3 · they act", guard: "3 · they act", rest: "3 · they act", search_failure: "3 · they act", cache_found: "3 · they act", seal_activated: "3 · they act", stale_action: "3 · they act", item_used: "3 · they act", wild_swing_self_damage: "3 · they act", wild_swing_bystander: "3 · they act", wild_swing_room_reaction: "3 · they act", monster_step: "4 · the vault", round_narration: "end of round" };
+
+  function actOf(f) { return f.actor && state.agents[f.actor] ? f.actor : (f.target && state.agents[f.target] && !(f.actor && state.monsters[f.actor]) ? f.target : null); }
+  function setGoal(aid) {
+    var g = $("#goal");
+    if (!aid) { g.hidden = true; return; }
+    var a = state.agents[aid];
+    g.hidden = false;
+    $("#goal-plan").textContent = a.note && a.note.objective ? a.note.objective : "";
+    $("#goal-reads").textContent = readsLine(a.note && a.note.reads);
+    var sec = $("#goal-secret");
+    if (a.secret) {
+      sec.innerHTML = 'Secret aim: <b></b> <span class="d"></span>';
+      sec.querySelector("b").textContent = a.secret + " (" + a.secret_text.replace(/\.$/, "").toLowerCase() + ")";
+      var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : "";
+      dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : "";
+    } else sec.textContent = "";
+  }
 
   function caption(f) {
-    var st = $("#stage"), w = who(f.actor);
-    var kind = f.private ? "thought" : f.type === "agent_speech" ? "speech" : f.narration ? "narration" : BLOWS[f.type] ? "blow" : CROWN[f.type] ? "crown" : "";
+    var st = $("#stage"), whoEl = $("#who"), what = $("#what"), meta = $("#meta"), th = $("#thoughts");
+    var kind = f.type === "everyone_thinks" ? "thinks" : f.type === "agent_speech" ? "speech" : f.narration ? "narration" : BLOWS[f.type] ? "blow" : CROWN[f.type] ? "crown" : "";
     st.className = "stage " + kind;
-    var whoEl = $("#who"), what = $("#what"), meta = $("#meta"), reads = $("#reads");
-    reads.textContent = "";
-    if (f.private) {
-      whoEl.innerHTML = '<span class="dot" style="background:' + (w ? w.colour : "") + '"></span><b></b><span class="role">thinks, privately · </span><span class="rm"></span>';
-      whoEl.querySelector("b").textContent = w ? w.name : "";
-      whoEl.querySelector(".rm").textContent = w ? roomName(state.agents[f.actor].room) : "";
-      what.textContent = f.objective || "(no plan written)";
-      var rl = readsLine(f.reads); if (rl) { reads.innerHTML = "<b>Reads:</b> "; reads.appendChild(document.createTextNode(rl)); }
-      meta.textContent = "Round " + f.round + " · " + (idx + 1) + " of " + frames.length + " · private, never said aloud";
+    $("#round-no").textContent = f.round >= 1 ? "Round " + f.round : "Before round 1";
+    $("#round-n").textContent = (idx + 1) + " of " + frames.length;
+    var phase = PHASE[f.type] ? '<span class="phase">' + PHASE[f.type] + "</span>" : "";
+    th.hidden = true; th.innerHTML = "";
+    if (f.type === "everyone_thinks") {
+      whoEl.innerHTML = '<span class="dot" style="background:var(--thought)"></span><b>All eight, privately</b>' + phase;
+      what.textContent = f.text;
+      f.thoughts.forEach(function (t) {
+        var li = document.createElement("li");
+        li.innerHTML = '<span class="dot"></span><span><b></b> <span class="plan"></span></span><span class="reads"></span>';
+        li.querySelector(".dot").style.background = colours[t.who];
+        li.querySelector("b").textContent = t.name + ":";
+        li.querySelector(".plan").textContent = t.objective;
+        li.querySelector(".reads").textContent = readsLine(t.reads);
+        th.appendChild(li);
+      });
+      th.hidden = false;
+      setGoal(null);
+      meta.textContent = "Written before anyone moves. Never said aloud.";
       return;
     }
-    if (w) {
-      whoEl.innerHTML = '<span class="dot' + (w.kind === "monster" ? " monster" : "") + '" style="' + (w.colour ? "background:" + w.colour : "") + '"></span><b></b><span class="role"></span>';
-      whoEl.querySelector("b").textContent = w.name;
-      whoEl.querySelector(".role").textContent = w.kind === "agent" ? (w.build + " · " + roomName(state.agents[f.actor].room)) : roomName(state.monsters[f.actor].room);
-    } else if (f.narration) { whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>Narrator</b>'; }
-    else { whoEl.innerHTML = '<span class="dot"></span><b>Referee</b>'; }
+    var aid = actOf(f);
+    if (f.actor && state.agents[f.actor]) {
+      var a = state.agents[f.actor];
+      whoEl.innerHTML = '<span class="dot"></span><b></b><span class="role"></span>' + phase;
+      whoEl.querySelector(".dot").style.background = colours[f.actor];
+      whoEl.querySelector("b").textContent = a.name;
+      whoEl.querySelector(".role").textContent = a.build + " · " + roomName(a.room);
+    } else if (f.actor && state.monsters[f.actor]) {
+      var m = state.monsters[f.actor];
+      whoEl.innerHTML = '<span class="dot monster"></span><b></b><span class="role"></span>' + phase;
+      whoEl.querySelector("b").textContent = m.name;
+      whoEl.querySelector(".role").textContent = roomName(m.room);
+    } else if (f.narration) { whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>Narrator</b>' + phase; }
+    else { whoEl.innerHTML = '<span class="dot"></span><b>Referee</b>' + phase; }
     if (f.type === "agent_speech") {
       what.textContent = (f.mode === "whisper" ? "whispers" + (f.to && f.to.length ? " to " + f.to.join(", ") : "") + ": " : "") + "“" + f.speech + "”";
     } else what.textContent = f.text;
-    meta.textContent = "Round " + f.round + " · " + (idx + 1) + " of " + frames.length;
+    setGoal(aid);
+    meta.textContent = aid ? (f.type === "agent_speech" ? "Said aloud. Under it, what they privately meant to do this round." : "What they did. Under it, what they privately meant to do.") : "";
   }
-  function roomName(r) { var n = document.getElementById("name-" + r); return n ? n.textContent : r; }
-  function readsLine(reads) {
-    if (!reads || !reads.length) return "";
-    var by = { trust: [], distrust: [], unknown: [] };
-    reads.forEach(function (r) { (by[r.stance] || by.unknown).push(r.who); });
-    var parts = [];
-    if (by.trust.length) parts.push("trusts " + by.trust.join(", "));
-    if (by.distrust.length) parts.push("distrusts " + by.distrust.join(", "));
-    if (by.unknown.length) parts.push("unsure of " + by.unknown.join(", "));
-    return parts.join(" · ");
-  }
-  var thinkOn = false;
-  function visible(i) { return thinkOn || !frames[i].private; }
-  function nextVisible(from, dir) { var i = from + dir; while (i >= 0 && i < frames.length && !visible(i)) i += dir; return i; }
 
   function effects(f) {
     var tgt = f.target && (state.agents[f.target] || state.monsters[f.target]) ? f.target : (f.actor && (state.agents[f.actor] || state.monsters[f.actor]) ? f.actor : null);
-    if ((f.type === "agent_speech" || f.private) && f.actor && state.agents[f.actor]) {
-      var a = state.agents[f.actor], p = px(a.room, a.tile), line = f.private ? (f.objective || "") : f.speech;
-      var below = p[1] < geo.height * .22;
-      bubble.className = "bubble" + (f.private ? " thought" : f.mode === "whisper" ? " whisper" : "") + (below ? " below" : "");
-      bubble.textContent = line.length > 110 ? line.slice(0, 107) + "…" : line;
-      var bx = Math.max(geo.width * .18, Math.min(geo.width * .82, p[0]));
-      bubble.style.left = (100 * bx / geo.width) + "%"; bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
+    if (f.type === "agent_speech" && f.actor && state.agents[f.actor]) {
+      var a = state.agents[f.actor], p = px(a.room, a.tile);
+      var below = p[1] < geo.height * .22, right = p[0] > geo.width / 2;
+      bubble.className = "bubble" + (f.mode === "whisper" ? " whisper" : "") + (below ? " below" : "") + (right ? " rt" : "");
+      bubble.textContent = f.speech.length > 110 ? f.speech.slice(0, 107) + "…" : f.speech;
+      var pct = 100 * Math.max(geo.width * .16, Math.min(geo.width * .84, p[0])) / geo.width;
+      if (right) { bubble.style.left = "auto"; bubble.style.right = (100 - pct) + "%"; }
+      else { bubble.style.right = "auto"; bubble.style.left = pct + "%"; }
+      bubble.style.top = (100 * (p[1] + (below ? 14 : -14)) / geo.height) + "%";
       bubble.hidden = false;
     } else bubble.hidden = true;
     if (!tgt) return;
-    var b = state.agents[tgt] || state.monsters[tgt], p = px(b.room, b.tile);
+    var b = state.agents[tgt] || state.monsters[tgt], p2 = px(b.room, b.tile);
     var ns = "http://www.w3.org/2000/svg";
-    function text(cls, s) { var t = document.createElementNS(ns, "text"); t.setAttribute("class", cls); t.setAttribute("x", p[0]); t.setAttribute("y", p[1] - 20); t.textContent = s; fx.appendChild(t); setTimeout(function () { t.remove(); }, 1400); }
+    function text(cls, s) { var t = document.createElementNS(ns, "text"); t.setAttribute("class", cls); t.setAttribute("x", p2[0]); t.setAttribute("y", p2[1] - 20); t.textContent = s; fx.appendChild(t); setTimeout(function () { t.remove(); }, 1400); }
     if (f.type === "attack_hit" || f.type === "wild_swing_bystander" || f.type === "wild_swing_self_damage" || f.type === "hazard_burn" || f.type === "wild_swing_room_reaction") {
-      var ring = document.createElementNS(ns, "circle"); ring.setAttribute("class", "ring"); ring.setAttribute("cx", p[0]); ring.setAttribute("cy", p[1]); fx.appendChild(ring); setTimeout(function () { ring.remove(); }, 900);
+      var ring = document.createElementNS(ns, "circle"); ring.setAttribute("class", "ring"); ring.setAttribute("cx", p2[0]); ring.setAttribute("cy", p2[1]); fx.appendChild(ring); setTimeout(function () { ring.remove(); }, 900);
       text("dmg", "−" + f.amount);
-      swing(f, p);
-    } else if (f.type === "attack_miss") { text("miss", "miss"); swing(f, p); }
+      swing(f, p2);
+    } else if (f.type === "attack_miss") { text("miss", "miss"); swing(f, p2); }
     else if (f.type === "rest" || f.type === "item_used") { if (f.amount) text("heal", "+" + f.amount); }
     else if (f.type === "agent_eliminated") { text("dmg", "out"); }
     else if (f.type === "monster_defeated") { text("dmg", "falls"); }
@@ -792,14 +869,14 @@ SCRIPT = r"""
     var tb = $("#final tbody"); tb.innerHTML = "";
     rows.forEach(function (id) {
       var a = state.agents[id], tr = document.createElement("tr");
-      tr.innerHTML = '<td class="n"></td><td><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.4rem;background:' + colours[id] + '"></span><span class="nm"></span></td><td></td><td class="n"></td>';
+      tr.innerHTML = '<td class="n"></td><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.4rem;background:' + colours[id] + '"></span><span class="nm"></span></td><td></td><td class="n"></td>';
       tr.children[0].textContent = f.placements[id]; tr.querySelector(".nm").textContent = a.name;
       tr.children[2].textContent = a.status === "escaped" ? "escaped with the Crown" : a.status === "eliminated" ? "eliminated" : "standing";
       tr.children[3].textContent = f.scores[id];
       tb.appendChild(tr);
     });
   }
-  function step(dir) { pause(); var n = nextVisible(idx, dir); if (n >= 0 && n < frames.length) goto(n, dir > 0); }
+  function step(dir) { pause(); goto(idx + dir, dir > 0); }
   function jumpRound(dir) {
     pause();
     var r = frames[idx].round, target = null;
@@ -809,9 +886,8 @@ SCRIPT = r"""
   }
   function tick() {
     if (!playing) return;
-    var n = nextVisible(idx, 1);
-    if (n >= frames.length) { pause(); return; }
-    goto(n, true);
+    if (idx >= frames.length - 1) { pause(); return; }
+    goto(idx + 1, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
   function play() { if (idx >= frames.length - 1) goto(0, true); playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true"); timer = setTimeout(tick, frames[idx].dwell / speed); }
@@ -823,15 +899,7 @@ SCRIPT = r"""
   $("#nextr").addEventListener("click", function () { jumpRound(1); });
   $("#prevr").addEventListener("click", function () { jumpRound(-1); });
   $("#speed").addEventListener("change", function (e) { speed = parseFloat(e.target.value) || 1; });
-  $("#scrub").addEventListener("input", function (e) { pause(); var n = parseInt(e.target.value, 10); if (!visible(n)) n = Math.min(frames.length - 1, nextVisible(n, 1)); goto(n, false); });
-  $("#think").addEventListener("click", function () {
-    thinkOn = !thinkOn;
-    document.body.classList.toggle("think-on", thinkOn);
-    this.setAttribute("aria-pressed", String(thinkOn));
-    this.textContent = thinkOn ? "Hide what they're thinking" : "Show what they're thinking";
-    if (!thinkOn && frames[idx].private) { var n = nextVisible(idx, 1); goto(n < frames.length ? n : nextVisible(idx, -1), false); }
-    else render(frames[idx]);
-  });
+  $("#scrub").addEventListener("input", function (e) { pause(); goto(parseInt(e.target.value, 10), false); });
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
     if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
@@ -855,12 +923,11 @@ def build(bundle: dict, note: str = "") -> str:
     data = {"geo": geo, "start": start, "frames": frames, "colours": colours}
     roster = "\n".join(
         f'<div class="card" id="card-{E(aid)}"><span class="dot" style="background:{colours[aid]}"></span>'
-        f'<span class="name">{E(a["name"])}</span><span class="num">{a["hp"]} / {a["max_hp"]}</span>'
-        f'<span class="build" style="grid-column:2/4">{E(a["build"])}</span><span class="bar"><i style="width:100%"></i></span>'
-        f'<span class="think"><i class="aim"></i><i class="rd"></i><i class="secret"></i></span></div>'
+        f'<span class="name" title="{E(a["name"])}, {E(a["build"])}">{E(a["name"].split()[0])}</span><span class="num">{a["hp"]}/{a["max_hp"]}</span>'
+        f'<span class="bar"><i style="width:100%"></i></span></div>'
         for aid, a in start["agents"].items())
     sub = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}. {len(rounds)} rounds of {E(str(m.get('max_rounds', '')))} played; "
-           f"winner {E(winner)}. {len(frames)} things happen. Press Play, or step with the arrows." + (f" {E(note)}" if note else ""))
+           f"winner {E(winner)}. Each round: all eight think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return f"""<title>Ember Vault Board</title>
 {FONTS}
@@ -875,16 +942,26 @@ def build(bundle: dict, note: str = "") -> str:
 {render_board_svg(geo, start)}
     <div class="bubble" id="bubble" hidden></div>
   </div>
+  <div class="roster">
+{roster}
+  </div>
   <div class="legend">
     <span><i class="b"></i> not floor</span><span><i class="c"></i> cover (+1 armour)</span><span><i class="h"></i> hazard (1 damage to end a step on)</span>
     <span><i class="d"></i> door</span><span>♛ the Crown, with attunement</span><span><i class="m"></i> a monster</span>
   </div>
   </div>
   <aside class="side">
+  <div class="round-bar"><span id="round-no">Round 1</span><span class="n" id="round-n"></span></div>
   <section class="stage" id="stage" aria-live="polite">
     <div class="who" id="who"></div>
     <p class="what" id="what"></p>
-    <p class="reads" id="reads"></p>
+    <ul class="thoughts" id="thoughts" hidden></ul>
+    <div class="goal" id="goal" hidden>
+      <span class="lbl">Their plan this round, written privately</span>
+      <span class="plan" id="goal-plan"></span>
+      <span class="reads" id="goal-reads"></span>
+      <span class="secret" id="goal-secret"></span>
+    </div>
     <div class="meta" id="meta"></div>
   </section>
   <div class="transport">
@@ -894,21 +971,17 @@ def build(bundle: dict, note: str = "") -> str:
     <button type="button" id="next" title="Forward one">&#8250;</button>
     <button type="button" id="nextr" title="Next round">round &#187;</button>
     <label for="speed">Speed <select id="speed"><option value="0.6">slow</option><option value="1" selected>normal</option><option value="2">fast</option><option value="4">very fast</option></select></label>
-    <button type="button" id="think" class="toggle" aria-pressed="false">Show what they're thinking</button>
   </div>
   <div class="scrub">
     <span class="lbl">Start</span>
     <input type="range" id="scrub" min="0" max="{len(frames) - 1}" value="0" step="1" aria-label="Position in the match">
     <span class="lbl">End</span>
   </div>
-  <div class="roster">
-{roster}
-  </div>
   <section class="final" id="final" hidden>
     <h2>How it ended</h2>
     <table><thead><tr><th>Place</th><th>Character</th><th>Fate</th><th>Score</th></tr></thead><tbody></tbody></table>
   </section>
-  <p class="foot">Drawn to the referee's own grids: rooms, doors, cover, hazards and the tile each body stood on, checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. "Show what they're thinking" adds each character's private plan for the round and who they trust, written before they act and never said aloud, plus the secret aim each carries into the match, under their card.</p>
+  <p class="foot">Drawn to the referee's own grids: rooms, doors, cover, hazards and the tile each body stood on, checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim under a character's plan is the side objective their brain file carries, worth points at the end.</p>
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>

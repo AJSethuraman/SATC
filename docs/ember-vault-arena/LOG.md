@@ -5,6 +5,48 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 01:50Z — "Don't they think at the same time?": one round, one sequence, one panel
+
+The firm, on the board with the switch: *"Okay. This is hard to follow
+without looking in multiple places. Don't they think at the same time?
+Can't you just show me that in the play by play? And you can have their
+goal and such show up in the same space? I don't want to have to scroll
+up and down and stuff."*
+
+They do think at the same time. The engine runs each round as one
+decision phase for all eight (`engine.py`, the fan-out under one frozen
+state), then resolves in initiative order; the log records the notes one
+per character as each decision returns, interleaved with the lines
+spoken, which is why the page had been showing them one at a time. The
+switch, and the cards under the board, put the same fact in three
+places.
+
+Now the panel reads a round the way the engine plays it:
+
+1. **They think.** One moment, all eight private plans side by side,
+   each with who they trust, distrust or are unsure of, every token on
+   the board ringed while it shows. The sixteen `note_written` blocks
+   become sixteen `everyone_thinks` frames, one per round, at the first
+   note's position, before any line spoken or action taken; a test
+   proves the position and that every plan of the round is in it.
+2. **They speak.** Each line, and directly under it, in the same panel,
+   that speaker's plan for the round and their secret aim.
+3. **They act.** Each action in initiative order with the actor's plan
+   under it, so what they did reads against what they meant to do.
+4. The monsters, the referee, the narration.
+
+Nothing to switch on; the cards under the board are now HP only, eight
+small chips; the board is capped to the viewport height on a wide screen
+so board, chips, panel and controls sit on one screen. 329 frames.
+Looked at once, at the round-3 thinking moment and the line after it:
+Fen says *"I'm at three hitpoints … I'm your draft under the door"* and
+privately plans *"Survive at 3HP; retreat to threshold, heal, return
+later for cache loot"*, distrusting Ilse, the one addressed. One fix from
+the look: a bubble for a speaker on the right half of the board is
+anchored from the right so it is not squeezed against the edge.
+
+Suite 112. Published as version 3, same link.
+
 ## 14 September 2026, 01:05Z — "now I do not see what they're thinking": the thinking back, behind a switch, beside what they say
 
 The firm, on the board: *"Okay this is easier to follow but now I do not

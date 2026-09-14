@@ -58,27 +58,35 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         problems = replay_board.verify(self.bundle, self.start, frames)
         self.assertTrue(any(aid in p for p in problems), problems)
 
-    def test_the_thinking_is_carried_but_off_until_switched_on_and_no_dice_reach_the_page(self):
+    def test_everyone_thinks_at_once_before_anyone_speaks_or_moves(self):
         page = replay_board.build(self.bundle)
-        notes = [e for e in sorted(self.bundle["events"], key=lambda e: e["seq"]) if e["event_type"] == "note_written"]
-        self.assertTrue(notes, "the mock wrote no notes, so this proves nothing")
-        private = [f for f in self.frames if f.get("private")]
-        self.assertEqual([f["seq"] for f in private], [e["seq"] for e in notes])
-        self.assertEqual([f["objective"] for f in private], [e["payload"]["note"]["objective"] for e in notes])
-        # every plan is in the page data, behind a switch that opens off
-        for f in private[:20]:
-            if f["objective"]:
-                self.assertIn(f["objective"], page)
-        self.assertIn('id="think" class="toggle" aria-pressed="false"', page)
-        self.assertIn("body.think-on .card .think { display: block; }", page)
-        # the plan reaches each character's card through the delta, so the roster follows the round
-        for f in private[:20]:
-            self.assertEqual(f["delta"]["agents"][f["actor"]]["note"]["objective"], f["objective"])
-        # and the secret aim each carries is named from the manifest, with the engine's own wording
+        events = sorted(self.bundle["events"], key=lambda e: e["seq"])
+        notes_by_round = {}
+        for e in events:
+            if e["event_type"] == "note_written":
+                notes_by_round.setdefault(e["round_no"], []).append(e)
+        self.assertTrue(notes_by_round, "the mock wrote no notes, so this proves nothing")
+        thinks = [f for f in self.frames if f["type"] == "everyone_thinks"]
+        # one moment per round, holding every plan of that round in the order written
+        self.assertEqual([f["round"] for f in thinks], sorted(notes_by_round))
+        for f in thinks:
+            notes = notes_by_round[f["round"]]
+            self.assertEqual([t["who"] for t in f["thoughts"]], [n["actor_id"] for n in notes])
+            self.assertEqual([t["objective"] for t in f["thoughts"]], [n["payload"]["note"]["objective"] for n in notes])
+            # and every plan reaches its character through the frame's delta
+            for t in f["thoughts"]:
+                self.assertEqual(f["delta"]["agents"][t["who"]]["note"]["objective"], t["objective"])
+        # it comes before any line spoken or action taken in its round
+        for f in thinks:
+            same_round = [x for x in self.frames if x["round"] == f["round"] and x["type"] not in ("round_started", "act_started", "room_contracting")]
+            self.assertIs(same_round[0], f, [x["type"] for x in same_round[:3]])
+        self.assertFalse([f for f in self.frames if f["type"] == "note_written"])
+        # the secret aim each carries is named from the manifest, with the engine's own wording
         for aid, a in self.start["agents"].items():
             self.assertTrue(a["secret"], aid)
             self.assertTrue(a["secret_text"].endswith("."), a["secret_text"])
         self.assertNotIn("d20 =", page)
+        self.assertNotIn('id="think"', page)
         types = {f["type"] for f in self.frames}
         self.assertFalse(types & replay_board.SKIP, types & replay_board.SKIP)
 
