@@ -5,6 +5,30 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 14 September 2026, 14:05Z — D9 and D10 answered: the order holds; voicing is in, after the pilot
+
+The firm, on the docket page at 13:51Z and 13:52Z, read back by
+`read_db`:
+
+- **D9, the ending rule:** *"Keep the order: M3 after the gate."* No
+  note. So: the engine keeps July's rule (`_crown_extract` ends a match
+  on a legal extraction) until M3 opens; M3 opens after the gate has been
+  read; the 12 September match stands as played. D8's ruling is
+  unchanged and reaches the code with M3. PRD §5 item 4 says so.
+- **D10, voicing:** *"In, after the pilot."* No note. So: voicing the
+  characters, all AI, is in the goal, as the first thing after the
+  private pilot and out of the pilot itself. PRD §3's non-goal line now
+  records the ruling; §5 gains item 41 (P1, after the pilot); the four
+  design questions (which lines; who picks a voice; where the seconds
+  sit in the one-round-behind stream; cost at published rates) stay
+  open in §10 and are the firm's to answer before it is designed. Not
+  started until the gate is read and M3 and M4 are done.
+
+Both moved to the docket's answered section. Nothing on the docket now
+waits on a tap; the blind read still does (one pick of eight). The
+check-in and the pull-request feed stay disarmed at the firm's word of
+13 September until they say they have reviewed.
+
 ## 14 September 2026, 05:30Z — "viewed live with things moving … and voicing for the characters": one already the goal, one a recorded non-goal reopened
 
 The firm: *"Something I want to ensure we understand - this is meant to
