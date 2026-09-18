@@ -121,6 +121,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     prov = wb.create_sheet("_provenance")
     for ws in (cover, grad, cube, conf, meth, check, prov):
         ks.hide_gridlines(ws)
+    first_facts = data.per_outcome[0][0]
 
     # -- _config: the knobs, as named cells ------------------------------
     conf.column_dimensions["A"].width = 34
@@ -149,9 +150,11 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     wb.defined_names["Z"] = DefinedName("Z", attr_text=f"_config!$C${row}")
     row += 2
     row = ks.section_band(conf, row, "Rebuild knobs — shown for the record; change the question file and build again", 4)
+    outcome_text = f"{cfg.outcome.label} ({cfg.outcome.form}" + (
+        f", at edges {', '.join(f'{e:g}' for e in cfg.outcome.edges)})" if cfg.outcome.edges else ")")
     for label, value in (("Question file", cfg.name), ("Rule", _fires_text(cfg)),
                          ("Bucket edges", ", ".join(f"{e:g}" for e in cfg.rule.buckets)),
-                         ("Outcome", f"{cfg.outcome.label} ({cfg.outcome.form})"),
+                         ("Outcome", outcome_text),
                          ("Window (months)", cfg.window_months),
                          ("Filter", ", ".join(f"{k} in {list(v)}" for k, v in cfg.filter.items()) or "none"),
                          ("As-of date", pop.asof.isoformat())):
@@ -160,7 +163,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     _note(conf, row, notes.fill("notes.config"), 4)
 
     # -- _cube -----------------------------------------------------------
-    cube.column_dimensions["A"].width = 18; cube.column_dimensions["B"].width = 26
+    cube.column_dimensions["A"].width = 22; cube.column_dimensions["B"].width = 26
     ks.header_row(cube, 1, ["block", "label", "loans", "events"], right_from=2)
     crow = 2
     addr: dict[str, tuple[str, str]] = {}   # block -> (loans cell, events cell) on _cube
@@ -170,67 +173,102 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         cube.cell(crow, 3, r.n); cube.cell(crow, 4, r.events)
         addr[r.block] = (f"_cube!$C${crow}", f"_cube!$D${crow}")
         crow += 1
-    for gr in data.gradient.rows:
-        put_cube(gr.cube)
-    put_cube(data.gradient.base.cube)
+    for facts, g in data.per_outcome:
+        for gr in g.rows:
+            put_cube(gr.cube)
+        put_cube(g.base.cube)
+    if data.bands:
+        for i, (lab, counts) in enumerate(data.bands.rows):
+            for j, c in enumerate(counts):
+                put_cube(ladder.CubeRow(f"s3.bands.bucket{i}.band{j}", f"{lab} | {data.bands.band_labels[j]}", c, 0))
     for q, n in data.unseasoned_by_quarter.items():
         put_cube(ladder.CubeRow(f"unseasoned.{q}", q, n, 0))
 
-    # -- 3_Gradient ------------------------------------------------------
-    g = data.gradient
+    # -- 3_Gradient: one block per outcome ------------------------------------
     ncols = 10
     for col, w in zip("ABCDEFGHIJ", (26, 10, 10, 10, 10, 10, 11, 10, 14, 14)):
         grad.column_dimensions[col].width = w
-    row = _header_band(grad, ncols, "Step 3 — Gradient", cfg, table, data.facts, run_date)
-    row = _note(grad, row, notes.fill("notes.gradient", rule_text=_rule_sentence(cfg), with_both=g.with_both,
-                                      blank_either=g.blank_either, edges=", ".join(f"{e:g}" for e in cfg.rule.buckets),
-                                      base_n=g.base.cube.n, fires_text=_fires_text(cfg), confidence=cfg.confidence,
-                                      method=cfg.method), ncols)
+    row = _header_band(grad, ncols, "Step 3 — Gradient", cfg, table, first_facts, run_date)
+    grad_note = notes.fill("notes.gradient", rule_text=_rule_sentence(cfg),
+                           with_both=data.per_outcome[0][1].with_both,
+                           blank_either=data.per_outcome[0][1].blank_either,
+                           edges=", ".join(f"{e:g}" for e in cfg.rule.buckets),
+                           base_n=data.per_outcome[0][1].base.cube.n, fires_text=_fires_text(cfg),
+                           confidence=cfg.confidence, method=cfg.method)
+    row = _note(grad, row, grad_note, ncols)
     row += 1
-    hdr = row
-    ks.header_row(grad, hdr, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper", "Gap (pts)", "Multiple",
-                              "Rate change vs bucket above", "Interval clear of bucket above"], right_from=1)
-    first = hdr + 1
-    rows_cells: list[int] = []
-    base_row = first + len(g.rows)
-    n_base, x_base = addr["s3.base"]
-    for i, gr in enumerate(g.rows):
-        r = first + i
-        rows_cells.append(r)
-        n, x = addr[gr.cube.block]
-        grad.cell(r, 1, gr.cube.label)
-        b.formula(grad, f"B{r}", f"={n}", gr.cube.n, TOL_COUNT, fmt="#,##0")
-        b.formula(grad, f"C{r}", f"={x}", gr.cube.events, TOL_COUNT, fmt="#,##0")
-        b.formula(grad, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', gr.rate, fmt="0.00%")
-        b.formula(grad, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), gr.lo, TOL_INTERVAL, fmt="0.00%")
-        b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), gr.hi, TOL_INTERVAL, fmt="0.00%")
-        b.formula(grad, f"G{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",(D{r}-D{base_row})*100)', gr.gap_pts, TOL_POINTS, fmt="0.00")
-        b.formula(grad, f"H{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",IF(D{base_row}=0,"",D{r}/D{base_row}))', gr.multiple, fmt="0.00")
-        if i > 0:
-            p = r - 1
-            b.formula(grad, f"I{r}", f'=IF(OR(D{r}="",D{p}=""),"",D{r}-D{p})', g.diffs[i - 1], fmt="0.0000")
-            b.formula(grad, f"J{r}", f'=IF(OR(E{r}="",F{p}=""),0,IF(E{r}>F{p},1,0)+IF(F{r}<E{p},1,0))', g.nonoverlap[i - 1], TOL_COUNT)
-    r = base_row
-    grad.cell(r, 1, "Base: rule does not fire").font = BOLD
-    b.formula(grad, f"B{r}", f"={n_base}", g.base.cube.n, TOL_COUNT, fmt="#,##0")
-    b.formula(grad, f"C{r}", f"={x_base}", g.base.cube.events, TOL_COUNT, fmt="#,##0")
-    b.formula(grad, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', g.base.rate, fmt="0.00%")
-    b.formula(grad, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), g.base.lo, TOL_INTERVAL, fmt="0.00%")
-    b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), g.base.hi, TOL_INTERVAL, fmt="0.00%")
-    row = base_row + 2
-    i_rng = f"I{first + 1}:I{first + len(g.rows) - 1}"
-    j_rng = f"J{first + 1}:J{first + len(g.rows) - 1}"
-    grad.cell(row, 1, "Monotonic?").font = BOLD
-    word_cell = f"B{row}"
-    b.formula(grad, word_cell,
-              f'=IF(COUNT({i_rng})=0,"no data",IF(COUNTIF({i_rng},"<0")=0,"monotonic increasing",'
-              f'IF(COUNTIF({i_rng},">0")=0,"monotonic decreasing","not monotonic")))', g.word, 0.0, "text")
-    grad.merge_cells(f"B{row}:E{row}")
-    row += 1
-    grad.cell(row, 1, "Adjacent pairs whose intervals do not overlap").font = BOLD
-    grad.merge_cells(f"A{row}:D{row}")
-    b.formula(grad, f"E{row}", f"=SUM({j_rng})", g.nonoverlap_count, TOL_COUNT)
-    ks.freeze_below(grad, hdr)
+    word_cells: list[tuple[ladder.Gradient, str]] = []
+    first_hdr = None
+    for facts, g in data.per_outcome:
+        row = ks.section_band(grad, row, f"Outcome: {g.outcome.label} — {facts.events:,} events among {facts.seasoned:,} seasoned loans", ncols)
+        hdr = row
+        first_hdr = first_hdr or hdr
+        ks.header_row(grad, hdr, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper", "Gap (pts)", "Multiple",
+                                  "Rate change vs bucket above", "Interval clear of bucket above"], right_from=1)
+        first = hdr + 1
+        base_row = first + len(g.rows)
+        n_base, x_base = addr[g.base.cube.block]
+        for i, gr in enumerate(g.rows):
+            r = first + i
+            n, x = addr[gr.cube.block]
+            grad.cell(r, 1, gr.cube.label)
+            b.formula(grad, f"B{r}", f"={n}", gr.cube.n, TOL_COUNT, fmt="#,##0")
+            b.formula(grad, f"C{r}", f"={x}", gr.cube.events, TOL_COUNT, fmt="#,##0")
+            b.formula(grad, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', gr.rate, fmt="0.00%")
+            b.formula(grad, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), gr.lo, TOL_INTERVAL, fmt="0.00%")
+            b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), gr.hi, TOL_INTERVAL, fmt="0.00%")
+            b.formula(grad, f"G{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",(D{r}-D{base_row})*100)', gr.gap_pts, TOL_POINTS, fmt="0.00")
+            b.formula(grad, f"H{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",IF(D{base_row}=0,"",D{r}/D{base_row}))', gr.multiple, fmt="0.00")
+            if i > 0:
+                pr = r - 1
+                b.formula(grad, f"I{r}", f'=IF(OR(D{r}="",D{pr}=""),"",D{r}-D{pr})', g.diffs[i - 1], fmt="0.0000")
+                b.formula(grad, f"J{r}", f'=IF(OR(E{r}="",F{pr}=""),0,IF(E{r}>F{pr},1,0)+IF(F{r}<E{pr},1,0))', g.nonoverlap[i - 1], TOL_COUNT)
+        r = base_row
+        grad.cell(r, 1, "Base: rule does not fire").font = BOLD
+        b.formula(grad, f"B{r}", f"={n_base}", g.base.cube.n, TOL_COUNT, fmt="#,##0")
+        b.formula(grad, f"C{r}", f"={x_base}", g.base.cube.events, TOL_COUNT, fmt="#,##0")
+        b.formula(grad, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', g.base.rate, fmt="0.00%")
+        b.formula(grad, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), g.base.lo, TOL_INTERVAL, fmt="0.00%")
+        b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), g.base.hi, TOL_INTERVAL, fmt="0.00%")
+        row = base_row + 2
+        i_rng = f"I{first + 1}:I{first + len(g.rows) - 1}"
+        j_rng = f"J{first + 1}:J{first + len(g.rows) - 1}"
+        grad.cell(row, 1, "Monotonic?").font = BOLD
+        word_cell = f"B{row}"
+        b.formula(grad, word_cell,
+                  f'=IF(COUNT({i_rng})=0,"no data",IF(COUNTIF({i_rng},"<0")=0,"monotonic increasing",'
+                  f'IF(COUNTIF({i_rng},">0")=0,"monotonic decreasing","not monotonic")))', g.word, 0.0, "text")
+        grad.merge_cells(f"B{row}:E{row}")
+        word_cells.append((g, word_cell))
+        row += 1
+        grad.cell(row, 1, "Adjacent pairs whose intervals do not overlap").font = BOLD
+        grad.merge_cells(f"A{row}:D{row}")
+        b.formula(grad, f"E{row}", f"=SUM({j_rng})", g.nonoverlap_count, TOL_COUNT)
+        row += 2
+    if data.bands:
+        bt = data.bands
+        row = ks.section_band(grad, row, "Where the measure sits, by bucket", ncols)
+        row = _note(grad, row, notes.fill("notes.bands_table"), ncols)
+        hdr = row
+        cols = ["Bucket"] + [f"{lab} (loans)" for lab in bt.band_labels] + [f"{lab} (share)" for lab in bt.band_labels]
+        ks.header_row(grad, hdr, cols, right_from=1)
+        k = len(bt.band_labels)
+        for j in range(2 * k):
+            grad.column_dimensions[get_column_letter(2 + j)].width = max(
+                grad.column_dimensions[get_column_letter(2 + j)].width or 0, 18)
+        for i, (lab, counts) in enumerate(bt.rows):
+            r = hdr + 1 + i
+            grad.cell(r, 1, lab)
+            for j, c in enumerate(counts):
+                n, _ = addr[f"s3.bands.bucket{i}.band{j}"]
+                b.formula(grad, f"{get_column_letter(2 + j)}{r}", f"={n}", c, TOL_COUNT, fmt="#,##0")
+            total = f"SUM({get_column_letter(2)}{r}:{get_column_letter(1 + k)}{r})"
+            for j in range(k):
+                cnt = f"{get_column_letter(2 + j)}{r}"
+                b.formula(grad, f"{get_column_letter(2 + k + j)}{r}", f'=IF({total}=0,"",{cnt}/{total})',
+                          bt.shares[i][j], fmt="0.0%")
+        row = hdr + 1 + len(bt.rows) + 1
+    ks.freeze_below(grad, first_hdr)
 
     # -- Cover -----------------------------------------------------------
     cover.column_dimensions["A"].width = 110
@@ -240,23 +278,24 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     cover.cell(row, 1, "The question").font = BOLD; row += 1
     row = _note(cover, row, notes.fill("cover.question", rule_sentence=_rule_sentence(cfg), outcome_label=cfg.outcome.label), 1)
     row += 1
-    cover.cell(row, 1, "The answer, in three lines").font = BOLD; row += 1
-    variants = notes.wording()["cover"]["answer_gradient"]
-    def v(key: str) -> str:
-        return notes.pick("cover.answer_gradient", key, outcome_label=cfg.outcome.label).replace('"', '""')
-    wc = f"'3_Gradient'!{word_cell}"
-    b.formula(cover, f"A{row}",
-              f'=IF({wc}="monotonic increasing","{v("monotonic increasing")}",IF({wc}="monotonic decreasing","{v("monotonic decreasing")}",'
-              f'IF({wc}="not monotonic","{v("not monotonic")}","{v("no data")}")))',
-              notes.pick("cover.answer_gradient", g.word, outcome_label=cfg.outcome.label), 0.0, "text")
-    cover[f"A{row}"].alignment = Alignment(wrap_text=True)
-    row += 1
+    cover.cell(row, 1, "The answer, in three lines" + (" (per outcome)" if len(data.per_outcome) > 1 else "")).font = BOLD; row += 1
+    for g, word_cell in word_cells:
+        def v(key: str) -> str:
+            return notes.pick("cover.answer_gradient", key, outcome_label=g.outcome.label).replace('"', '""')
+        wc = f"'3_Gradient'!{word_cell}"
+        b.formula(cover, f"A{row}",
+                  f'=IF({wc}="monotonic increasing","{v("monotonic increasing")}",IF({wc}="monotonic decreasing","{v("monotonic decreasing")}",'
+                  f'IF({wc}="not monotonic","{v("not monotonic")}","{v("no data")}")))',
+                  notes.pick("cover.answer_gradient", g.word, outcome_label=g.outcome.label), 0.0, "text")
+        cover[f"A{row}"].alignment = Alignment(wrap_text=True)
+        row += 1
     cover.cell(row, 1, notes.fill("cover.not_built", step="Survives or collapses (step 4)")); row += 1
     cover.cell(row, 1, notes.fill("cover.not_built", step="Model (step 6)")); row += 2
     cover.cell(row, 1, "What it rests on").font = BOLD; row += 1
-    row = _note(cover, row, notes.fill("cover.denominator", seasoned=data.facts.seasoned, events=data.facts.events,
-                                       outcome_label=cfg.outcome.label, unseasoned=data.facts.unseasoned,
-                                       window_months=cfg.window_months), 1)
+    for facts, g in data.per_outcome:
+        row = _note(cover, row, notes.fill("cover.denominator", seasoned=facts.seasoned, events=facts.events,
+                                           outcome_label=g.outcome.label, unseasoned=facts.unseasoned,
+                                           window_months=cfg.window_months), 1)
     row += 1
     check_line_row = row
     row += 2
@@ -269,31 +308,43 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     row = ks.section_band(meth, 1, "Method notes — generated from the question file and the counts", 1)
     filt = notes.fill("notes.filter_some", filter_text="; ".join(f"{k} in {list(v)}" for k, v in cfg.filter.items()),
                       rows_after_filter=pop.rows_after_filter) if cfg.filter else ""
+    date_text = "; ".join(f"{col}: {fmt} ({pop.date_parsed[col]:,} values)" for col, fmt in pop.date_formats.items())
     for text in (
         notes.fill("notes.population", rows_read=pop.rows_read, source_name=table.path.split('/')[-1],
                    filter_sentence=filt, loans=len(pop.loans), asof=pop.asof.isoformat(),
-                   window_months=cfg.window_months, seasoned=data.facts.seasoned, unseasoned=data.facts.unseasoned),
+                   window_months=cfg.window_months, seasoned=data.seasoned, unseasoned=data.unseasoned),
+        notes.fill("notes.dates", date_text=date_text),
         _outcome_note(cfg),
-        grad.cell(3, 1).value,
+        grad_note,
         notes.fill("notes.check"),
     ):
         row = _note(meth, row, text, 1)
 
     # -- _provenance -----------------------------------------------------
-    prov.column_dimensions["A"].width = 30; prov.column_dimensions["B"].width = 90
+    prov.column_dimensions["A"].width = 34; prov.column_dimensions["B"].width = 90
     row = ks.section_band(prov, 1, "Provenance", 2)
-    for k, val in (("Source file", table.path.split('/')[-1]), ("Source sha256", table.sha256),
-                   ("Source kind", table.kind), ("Rows read", pop.rows_read),
-                   ("Rows after filter", pop.rows_after_filter), ("Loans after typing", len(pop.loans)),
-                   ("Seasoned loans", data.facts.seasoned), ("Unseasoned loans (excluded from rates)", data.facts.unseasoned),
-                   ("Events among seasoned loans", data.facts.events),
-                   ("Question file", cfg.name), ("Question file sha256", cfg.source_sha256),
-                   ("Date format", cfg.date_format or "typed date cells"),
-                   ("As-of date", pop.asof.isoformat()), ("Run date", run_date.isoformat()),
-                   ("Generator version", __version__),
-                   ("Window (months)", cfg.window_months), ("Confidence (at build)", cfg.confidence),
-                   ("Interval method (at build)", cfg.method)):
+    items = [("Source file", table.path.split('/')[-1]), ("Source sha256", table.sha256),
+             ("Source kind", table.kind), ("Rows read", pop.rows_read),
+             ("Rows after filter", pop.rows_after_filter), ("Loans after typing", len(pop.loans)),
+             ("Seasoned loans", data.seasoned), ("Unseasoned loans (excluded from rates)", data.unseasoned)]
+    for facts, g in data.per_outcome:
+        items.append((f"Events among seasoned loans ({g.outcome.label})", facts.events))
+    items += [("Question file", cfg.name), ("Question file sha256", cfg.source_sha256)]
+    for col, fmt in pop.date_formats.items():
+        items.append((f"Date format: {col}", f"{fmt}, {pop.date_parsed[col]:,} of {pop.date_parsed[col]:,} parsed"))
+    items += [("As-of date", pop.asof.isoformat()), ("Run date", run_date.isoformat()),
+              ("Generator version", __version__),
+              ("Window (months)", cfg.window_months), ("Confidence (at build)", cfg.confidence),
+              ("Interval method (at build)", cfg.method)]
+    for k, val in items:
         prov.cell(row, 1, k); prov.cell(row, 2, val); row += 1
+    row += 1
+    prov.cell(row, 1, "Range check, per declared field").font = BOLD; row += 1
+    for name, checked in pop.range_checked.items():
+        lo_hi = cfg.fields[name].plausible
+        prov.cell(row, 1, name)
+        prov.cell(row, 2, f"checked against {lo_hi[0]:g} – {lo_hi[1]:g}" if checked else "range check: not run (no plausible range given)")
+        row += 1
     row += 1
     prov.cell(row, 1, "Unseasoned by origination quarter").font = BOLD; row += 1
     for q, n in data.unseasoned_by_quarter.items():
@@ -334,6 +385,9 @@ def _outcome_note(cfg: Config) -> str:
                           window_months=cfg.window_months)
     m = o.measure or {}
     mt = m.get("field") or f"{m.get('field_a')} {'÷' if m.get('kind', 'ratio') == 'ratio' else '−'} {m.get('field_b')}"
+    if o.edges:
+        return notes.fill("notes.outcome_snapshot_bands", outcome_label=o.label, measure_text=mt,
+                          edges=", ".join(f"{e:g}" for e in o.edges), window_months=cfg.window_months)
     return notes.fill("notes.outcome_snapshot", outcome_label=o.label, measure_text=mt, op=o.op, value=o.value,
                       window_months=cfg.window_months)
 

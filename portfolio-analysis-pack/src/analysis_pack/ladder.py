@@ -3,8 +3,8 @@
 Every number the workbook shows is a formula over the count cube. This module
 produces the cube rows and, beside them, the values Python computes for the
 same cells with the same arithmetic (`stats.py`), so the `_check` tab can
-compare them. Slice 1 carries step 3, the gradient; later slices add the
-other steps here in the same shape.
+compare them. Slices 1–2 carry step 3, the gradient, once per outcome; later
+slices add the other steps here in the same shape.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from . import stats
 from .config import Config
-from .population import Loan, Population
+from .population import Loan, OutcomeDef, Population, bucket_index, bucket_labels
 
 
 @dataclass
@@ -37,6 +37,7 @@ class GradientRow:
 
 @dataclass
 class Gradient:
+    outcome: OutcomeDef
     rows: list[GradientRow]
     base: GradientRow
     with_both: int
@@ -48,7 +49,16 @@ class Gradient:
 
 
 @dataclass
+class BandTable:
+    """For a graded measure outcome: loans per rule bucket per measure band."""
+    band_labels: list[str]
+    rows: list[tuple[str, list[int]]]     # (bucket label, counts per band)
+    shares: list[list[float | None]]      # Python twins of the share formulas
+
+
+@dataclass
 class Facts:
+    outcome: OutcomeDef
     seasoned: int
     events: int
     unseasoned: int
@@ -56,9 +66,11 @@ class Facts:
 
 @dataclass
 class PackData:
-    facts: Facts
-    gradient: Gradient
+    seasoned: int
+    unseasoned: int
+    per_outcome: list[tuple[Facts, Gradient]]
     unseasoned_by_quarter: dict[str, int]
+    bands: BandTable | None = None
 
 
 def _twin_rate(n: int, x: int) -> float | None:
@@ -72,34 +84,35 @@ def _twin_interval(n: int, x: int, cfg: Config) -> tuple[float | None, float | N
     return lo, hi
 
 
-def gradient(cfg: Config, pop: Population) -> Gradient:
+def gradient(cfg: Config, pop: Population, outcome: OutcomeDef) -> Gradient:
     seasoned = pop.seasoned
     both = [l for l in seasoned if l.rule_value is not None]
     blank_either = len(seasoned) - len(both)
     labels = pop.bucket_labels
     counts = [[0, 0] for _ in labels]
     base_n = base_x = 0
+    key = outcome.key
     for l in both:
+        ev = int(l.events.get(key, False))
         counts[l.bucket][0] += 1
-        counts[l.bucket][1] += int(l.event)
+        counts[l.bucket][1] += ev
         if not l.fires:
             base_n += 1
-            base_x += int(l.event)
-    base = GradientRow(CubeRow("s3.base", "rule does not fire", base_n, base_x))
+            base_x += ev
+    base = GradientRow(CubeRow(f"s3.{key}.base", "rule does not fire", base_n, base_x))
     base.rate = _twin_rate(base_n, base_x)
     base.lo, base.hi = _twin_interval(base_n, base_x, cfg)
     rows: list[GradientRow] = []
     for i, lab in enumerate(labels):
         n, x = counts[i]
-        r = GradientRow(CubeRow(f"s3.bucket{i}", lab, n, x))
+        r = GradientRow(CubeRow(f"s3.{key}.bucket{i}", lab, n, x))
         r.rate = _twin_rate(n, x)
         r.lo, r.hi = _twin_interval(n, x, cfg)
         if r.rate is not None and base.rate is not None:
             r.gap_pts = (r.rate - base.rate) * 100.0
             r.multiple = None if base.rate == 0 else r.rate / base.rate
         rows.append(r)
-    g = Gradient(rows=rows, base=base, with_both=len(both), blank_either=blank_either)
-    # adjacent pairs: same rule as the sheet's helper columns
+    g = Gradient(outcome=outcome, rows=rows, base=base, with_both=len(both), blank_either=blank_either)
     for i in range(1, len(rows)):
         a, b = rows[i - 1], rows[i]
         if a.rate is None or b.rate is None:
@@ -121,11 +134,35 @@ def gradient(cfg: Config, pop: Population) -> Gradient:
     return g
 
 
+def band_table(pop: Population) -> BandTable | None:
+    if not pop.measure_edges:
+        return None
+    edges = pop.measure_edges
+    blabels = bucket_labels(edges)
+    rows: list[tuple[str, list[int]]] = []
+    shares: list[list[float | None]] = []
+    seasoned_both = [l for l in pop.seasoned if l.rule_value is not None and l.measure is not None]
+    for i, lab in enumerate(pop.bucket_labels):
+        counts = [0] * len(blabels)
+        for l in seasoned_both:
+            if l.bucket == i:
+                counts[bucket_index(l.measure, edges)] += 1
+        total = sum(counts)
+        rows.append((lab, counts))
+        shares.append([None if total == 0 else c / total for c in counts])
+    return BandTable(band_labels=blabels, rows=rows, shares=shares)
+
+
 def run(cfg: Config, pop: Population) -> PackData:
     seasoned = pop.seasoned
-    facts = Facts(seasoned=len(seasoned), events=sum(1 for l in seasoned if l.event),
-                  unseasoned=len(pop.unseasoned))
+    per: list[tuple[Facts, Gradient]] = []
+    for od in pop.outcomes:
+        facts = Facts(outcome=od, seasoned=len(seasoned),
+                      events=sum(1 for l in seasoned if l.events.get(od.key, False)),
+                      unseasoned=len(pop.unseasoned))
+        per.append((facts, gradient(cfg, pop, od)))
     ubq: dict[str, int] = {}
     for l in pop.unseasoned:
         ubq[l.quarter] = ubq.get(l.quarter, 0) + 1
-    return PackData(facts=facts, gradient=gradient(cfg, pop), unseasoned_by_quarter=dict(sorted(ubq.items())))
+    return PackData(seasoned=len(seasoned), unseasoned=len(pop.unseasoned), per_outcome=per,
+                    unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop))

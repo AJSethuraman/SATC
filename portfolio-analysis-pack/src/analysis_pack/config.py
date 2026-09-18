@@ -66,6 +66,7 @@ class Outcome:
     value: float | None = None
     measure: dict[str, Any] | None = None
     basis: str | None = None
+    edges: tuple[float, ...] | None = None     # a measure outcome cut at several shares, one outcome per edge
 
     def columns(self) -> tuple[str, ...]:
         if self.form == "event_date":
@@ -224,9 +225,16 @@ def load_config(path: str | Path) -> Config:
             problems.append(_line("`outcome` must take exactly one form: date_field, or field, or measure. Found: "
                                   + (", ".join(forms) or "none")))
         if "field" in out_raw or "measure" in out_raw:
-            if out_raw.get("op") not in OPS or _num(out_raw.get("value")) is None:
-                problems.append(_line("`outcome.op` and `outcome.value` are needed for a flag or measure outcome. Add under outcome:",
-                                      "  op: '>='", "  value: 0.9"))
+            has_cut = out_raw.get("op") in OPS and _num(out_raw.get("value")) is not None
+            edges_raw = out_raw.get("edges")
+            has_edges = ("measure" in out_raw and isinstance(edges_raw, list) and edges_raw
+                         and all(_num(x) is not None for x in edges_raw))
+            if has_cut == bool(has_edges):
+                problems.append(_line("a flag or measure outcome takes either one cut (`op` and `value`) or, for a measure, "
+                                      "a list of `edges` (one outcome per edge, at or above). Add under outcome one of:",
+                                      "  op: '>='", "  value: 0.9", "  # or", "  edges: [0.5, 0.75, 0.9]"))
+            if has_edges and any(edges_raw[i] >= edges_raw[i + 1] for i in range(len(edges_raw) - 1)):
+                problems.append("`outcome.edges` must strictly increase")
             basis = out_raw.get("basis")
             want = "windowed_by_bank" if "field" in out_raw else "snapshot_at_asof"
             if basis != want:
@@ -283,8 +291,11 @@ def load_config(path: str | Path) -> Config:
         outcome = Outcome(label=out_raw["label"], form="flag", field=out_raw["field"], op=out_raw["op"],
                           value=float(out_raw["value"]), basis=out_raw["basis"])
     else:
+        edges_raw = out_raw.get("edges")
         outcome = Outcome(label=out_raw["label"], form="snapshot", measure=dict(out_raw["measure"]),
-                          op=out_raw["op"], value=float(out_raw["value"]), basis=out_raw["basis"])
+                          op=out_raw.get("op"), value=(float(out_raw["value"]) if "value" in out_raw else None),
+                          basis=out_raw["basis"],
+                          edges=(tuple(float(x) for x in edges_raw) if edges_raw else None))
     confounders: list[Confounder] = []
     for c in raw.get("confounders") or []:
         if not isinstance(c, dict) or "name" not in c or "field" not in c:

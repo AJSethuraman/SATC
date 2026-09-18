@@ -89,6 +89,12 @@ def generate(out_dir: str | Path, *, seed: int = 20260918, loans: int = 40000,
         elif rng.random() < 0.004:
             ed = add_months(orig, window_months + rng.randrange(1, 13))
             outcome_date = ed.isoformat() if ed <= ASOF else ""
+        # a bank-windowed flag (the same in-window event, already cut to the window by "the bank")
+        flag_1 = 1 if (outcome_date and add_months(orig, window_months) >= date.fromisoformat(outcome_date)) else 0
+        # a snapshot measure at as-of: measure_a / measure_b rises with the same planted odds
+        measure_b = amount
+        util = min(1.0, max(0.0, rng.betavariate(2.0, 2.0) * (1.0 + 0.5 * (mult - 1.0))))
+        measure_a = measure_b * util
         rows.append({
             "loan_id": f"L{i + 1:06d}",
             "origination_date": orig.isoformat(),
@@ -99,6 +105,9 @@ def generate(out_dir: str | Path, *, seed: int = 20260918, loans: int = 40000,
             "category_2": cat2,
             "code_1": code,
             "outcome_date": outcome_date,
+            "flag_1": flag_1,
+            "measure_a": f"{measure_a:.2f}",
+            "measure_b": f"{measure_b:.2f}",
         })
     rows.sort(key=lambda r: r["loan_id"])
     with (out / "loans.csv").open("w", encoding="utf-8", newline="") as fh:
@@ -140,6 +149,9 @@ fields:
   category_2:       {{known: at_origination}}
   code_1:           {{known: at_origination, derive: {{kind: prefix, length: 2}}}}
   outcome_date:     {{known: later}}
+  flag_1:           {{known: later}}
+  measure_a:        {{known: later}}
+  measure_b:        {{known: later}}
 rule:
   kind: ratio
   field_a: field_a

@@ -14,7 +14,7 @@ from conftest import ASOF, RUN
 
 
 def test_the_planted_gradient_reads_monotonic_increasing(effect_recalc, effect_pack):
-    assert effect_pack["data"].gradient.word == "monotonic increasing"
+    assert effect_pack["data"].per_outcome[0][1].word == "monotonic increasing"
     words = effect_recalc.find_text("3_Gradient", "monotonic")
     assert words == ["monotonic increasing"], words
 
@@ -36,7 +36,7 @@ def test_every_check_row_agrees_and_the_cover_counts_them(effect_recalc, effect_
 
 
 def test_bucket_rates_are_the_cube_counts_divided(effect_recalc, effect_pack):
-    g = effect_pack["data"].gradient
+    g = effect_pack["data"].per_outcome[0][1]
     loans = effect_recalc.column("3_Gradient", "B")
     events = effect_recalc.column("3_Gradient", "C")
     rates = effect_recalc.column("3_Gradient", "D")
@@ -77,16 +77,16 @@ def test_an_event_after_the_window_is_not_an_event_and_a_blank_side_leaves_the_t
     ]
     pop = build_population(cfg, rows, ASOF)
     by = {l.loan_id: l for l in pop.loans}
-    assert by["IN"].event and not by["OUT"].event
+    assert by["IN"].events["o1"] and not by["OUT"].events["o1"]
     assert by["BLANK"].rule_value is None and by["BLANK"].bucket is None
     from analysis_pack import ladder
-    g = ladder.gradient(cfg, pop)
+    g = ladder.gradient(cfg, pop, pop.outcomes[0])
     assert g.with_both == 2 and g.blank_either == 1
 
 
 def test_the_planted_odds_ratio_is_visible_in_the_flagged_versus_base_rates(effect_pack):
     """Slice 6 fits the model; here the raw contrast already carries the plant."""
-    g = effect_pack["data"].gradient
+    g = effect_pack["data"].per_outcome[0][1]
     flagged_n = sum(r.cube.n for r in g.rows[2:])          # buckets at or above the flag line (ratio > 1.0)
     flagged_x = sum(r.cube.events for r in g.rows[2:])
     p1 = flagged_x / flagged_n
