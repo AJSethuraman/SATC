@@ -895,8 +895,12 @@ sales on the small-business book; built domain-free so a consumer question
 (stated vs bureau income, auto) is a config, not code. Spec:
 `portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`.
 
-- [ ] **Build v1 (M1–M4 in the PRD):** ladder + door one, seams 1 and 2,
-      mutation tool, render harness, bundle.
+- [ ] **Build v1 (M1–M4 in the PRD)** — nine vertical slices, published
+      2026-09-18, dependency-ordered: #364 tracer bullet (ready-for-agent) →
+      #365 inspect/hygiene/dates/outcome forms, #366 steps 1–2, #367 step 4
+      + suggest, #368 bundle + README → #369 step 5 + step 7 + consumer
+      example, #370 step 6 model, #371 charts → #372 mutation tool + this
+      section's close-out.
 - [ ] **Door two — threshold/boundary.** Deferred by ruling (C11 struck for
       this project, 2026-09-18). Reuses the bucket-with-interval block with
       finer edges around the cut, a bunching count, and a boundary-coincidence
