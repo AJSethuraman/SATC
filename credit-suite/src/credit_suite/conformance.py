@@ -57,8 +57,15 @@ UNMIGRATED_FOLDERS: Dict[str, str] = {
 #: carries borrower PII and AES encryption the public-data monitors do not, and
 #: the PRD is explicit that it stays separate and may consume patterns, never
 #: merge. Its style module is not a copy to be removed.
+#:
+#: `portfolio-analysis-pack` is the same case, decided on the record: the firm
+#: ruled on 18 September 2026 (canon CONVICTIONS.md, Rulings by project, C9)
+#: that it lives in its own folder, copies only the house-style module, and
+#: imports nothing across folders -- it must lift out whole to a bank desk as
+#: an ASCII bundle. The copy is that ruling, not a leftover.
 SEPARATE_PRODUCTS: Dict[str, str] = {
     "credit-review-os": "a separate product (PRD non-goal), not a monitor",
+    "portfolio-analysis-pack": "a separate product (C9 ruling, 18 Sep 2026), not a monitor",
 }
 
 #: The one Python file a migrated folder may keep: the generated ASCII bundle,
