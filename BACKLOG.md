@@ -884,6 +884,53 @@ a ratio nobody could check.
 - The covering document was rebuilt and **opened**: 105 fields, 156,881 values,
   137,424 checked, 2 disagreements.
 
+## 6c · Portfolio Analysis Pack (`portfolio-analysis-pack/` — grilled + PRD'd 2026-09-18)
+
+A loan extract plus a YAML question file → one workbook: the fixed six-step
+ladder (capture, prevalence, gradient, stratified, decomposition, model) and
+a closing control observation. Python aggregates; the workbook holds a count
+cube and derives every rate, interval and the survives/collapses word by
+live formula. First instance: stated obligor income above reported business
+sales on the small-business book; built domain-free so a consumer question
+(stated vs bureau income, auto) is a config, not code. Spec:
+`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`.
+
+- [ ] **Build v1 (M1–M4 in the PRD)** — nine vertical slices, published
+      2026-09-18, dependency-ordered: #364 tracer bullet (ready-for-agent) →
+      #365 inspect/hygiene/dates/outcome forms, #366 steps 1–2, #367 step 4
+      + suggest, #368 bundle + README → #369 step 5 + step 7 + consumer
+      example, #370 step 6 model, #371 charts → #372 mutation tool + this
+      section's close-out.
+- [ ] **Door two — threshold/boundary.** Deferred by ruling (C11 struck for
+      this project, 2026-09-18). Reuses the bucket-with-interval block with
+      finer edges around the cut, a bunching count, and a boundary-coincidence
+      map for the multi-scheme case. Checked 2026-09-18: `credit-review-os`
+      Mode B's FRINGE flag + fringe-vs-core rate is a binary compare, not a
+      curve with intervals — not a rebuild, not free.
+- [ ] **Door three — residual profiling.** Deferred by the same ruling. Fit
+      the accepted drivers across all vintages, compare predicted vs actual by
+      vintage, profile the worst residuals, feed the split back through the
+      ladder across all vintages.
+- [ ] **Sweep mode.** Deferred. Leads never findings; log every partition
+      attempted; promote only on held-back data.
+- [ ] **Vintage curves** as an alternative to the fixed window. Deferred.
+- [ ] **Utilization as a second outcome** (line-assignment failure looks
+      like drawing to the line). The firm, 18 Sep 2026: outstanding divided
+      by commitment, a snapshot at as-of. The PRD's third outcome form
+      carries it; what remains is Key's column names and the threshold, then
+      it is a second config file.
+- **Decided against (2026-09-18), permanently for this tool:** any
+      domain-specific list, mapping or transform in the code. The firm: "i
+      don't want to have a sector list - this is supposed to be generic...
+      it should be adaptable." Grouping is a generic `prefix` or a `map`
+      the config supplies (PRD §6.15); the NAICS list that was in the PRD
+      for a day is gone, and with it the item to confirm it.
+- **Decided against for now (2026-09-18):** a PII guard for this project
+      (the firm: "stop worrying about PII. It is all on Key's desk"); Excel-
+      side bucket edges via a fine-grained cube; two outcomes in one pack;
+      any numpy/scipy/statsmodels/sklearn on the build path (the desk has
+      none); charts beyond the gradient blocks.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -895,6 +942,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
   862 of 862 tie.** Each figure on the ours side read out of the shipped
   workbook -- the cell a person opens, never re-fetched -- and each on the

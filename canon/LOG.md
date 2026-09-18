@@ -935,3 +935,28 @@ and would have read as progress.
 184 → 187 passing. Mutation-checked three ways: strip 21's incident, remove 21
 entirely, and edit the record without regenerating the digest. Each goes red on
 its own guard.
+
+---
+
+## 18 September 2026 — two rulings for a project that is not the practice's
+
+The Portfolio Analysis Pack (`portfolio-analysis-pack/`, credit consulting
+line) was grilled from a handover. Two entries fired and were put to the firm
+before any design question, in the shape the record asks for — the quote, the
+decision, "has the reason changed?" — and the firm asked for the consequences
+laid out before ruling. Both rulings are in `CONVICTIONS.md` under *Rulings by
+project*, quoting the option they chose.
+
+**C11 struck for the project.** The handover deferred doors two and three
+("design for, do not build"); C11 fires on *defer*. The firm struck it, on the
+ground C11 itself names: *"when you know you will eventually do it anyway"* is
+a prediction, and neither door has a first instance.
+
+**C9 upheld on placement.** Raised by hand, as C9's own note says to: a second
+openpyxl builder beside `credit-review-os`'s is a mechanism added rather than
+extended. The firm chose a new folder that copies only the house-style module.
+
+One thing about the mechanism worth keeping: the grill's rule is *always
+recommend*, and Bassy's is *do not weigh the challenge*. They collided on the
+first question. What resolved it was the firm asking for the recommendation —
+which is C7's shape, a question handed back rather than a decision taken.
