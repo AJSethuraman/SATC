@@ -125,54 +125,65 @@ class RulesetTestCase(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Crown: escape gate, attunement, transfers
+# Crown: the Egress as a room, the holder at the end, attunement, transfers
 # ---------------------------------------------------------------------------
 
 
 class CrownTests(RulesetTestCase):
-    def test_escape_illegal_at_attunement_zero_and_one_legal_at_two(self):
+    def test_the_egress_is_a_room_and_walking_into_it_ends_nothing(self):
+        """Ruleset 0.3: the Egress is entered from the Vault like any room, by
+        anyone, at any attunement; nothing is extracted and nothing ends."""
         move = AgentAction(action="move", destination=rules.EGRESS_ROOM)
-        for attunement in (0, 1):
-            engine = self.engine(f"escape_{attunement}.db")
+        for attunement in (0, 1, 2):
+            engine = self.engine(f"egress_{attunement}.db")
             self.open_vault_state(engine, "bramble", attunement)
             observation = self.observation(engine, "bramble")
-            self.assertFalse(
-                self.has_action(observation, "move", destination=rules.EGRESS_ROOM),
-                f"egress must not be enumerated at attunement {attunement}",
-            )
-            self.assertFalse(rules.is_legal(move, observation))
-            self.assertFalse(rules.escape_gate_ok(engine.state, "bramble"))
+            self.assertTrue(self.has_action(observation, "move", destination=rules.EGRESS_ROOM))
+            self.assertTrue(rules.is_legal(move, observation))
+            engine._resolve_action("bramble", move)
+            self.assertEqual(engine.state["agents"]["bramble"]["room"], rules.EGRESS_ROOM)
+            self.assertEqual(engine.state["agents"]["bramble"]["status"], "active")
+            self.assertEqual(engine.state["crown"]["status"], "carried")
+            self.assertIsNone(engine.state["winner_agent_id"])
+            self.assertIsNone(engine.state["ended_reason"])
+            self.assertFalse(self.events(engine, "crown_extracted"))
+            self.assertEqual(len(self.events(engine, "move")), 1)
 
-        engine = self.engine("escape_2.db")
-        self.open_vault_state(engine, "bramble", 2)
-        observation = self.observation(engine, "bramble")
-        self.assertTrue(
-            self.has_action(observation, "move", destination=rules.EGRESS_ROOM)
-        )
-        self.assertTrue(rules.is_legal(move, observation))
-        engine._resolve_action("bramble", move)
-        self.assertEqual(engine.state["agents"]["bramble"]["status"], "escaped")
-        self.assertEqual(engine.state["winner_agent_id"], "bramble")
-        self.assertEqual(engine.state["crown"]["status"], "escaped")
-        self.assertEqual(engine.state["ended_reason"], "extraction")
-        self.assertIn(
-            ("extraction", scoring.SCORING["extraction"]),
-            [(row["category"], row["points"]) for row in self.scores(engine, "bramble")],
-        )
-
-    def test_non_carrier_can_never_enter_egress(self):
+    def test_a_non_carrier_may_enter_the_egress_too(self):
         engine = self.engine("noncarrier.db")
         self.open_vault_state(engine, "bramble", 2)
         engine.state["agents"]["nix"]["room"] = rules.VAULT_ROOM
         observation = self.observation(engine, "nix")
-        self.assertFalse(
-            self.has_action(observation, "move", destination=rules.EGRESS_ROOM)
+        self.assertTrue(self.has_action(observation, "move", destination=rules.EGRESS_ROOM))
+        move = AgentAction(action="move", destination=rules.EGRESS_ROOM)
+        self.assertTrue(rules.is_legal(move, observation))
+        engine._resolve_action("nix", move)
+        self.assertEqual(engine.state["agents"]["nix"]["room"], rules.EGRESS_ROOM)
+        self.assertIsNone(engine.state["winner_agent_id"])
+
+    def test_the_crown_holder_at_the_end_wins_and_scores_the_win(self):
+        engine = self.engine("holder.db")
+        self.open_vault_state(engine, "bramble", 1)
+        engine.state["round"] = engine.max_rounds
+        engine._finalize()
+        self.assertEqual(engine.state["ended_reason"], "crown_held")
+        self.assertEqual(engine.state["winner_agent_id"], "bramble")
+        self.assertIn(
+            ("crown_held_at_end", scoring.SCORING["crown_held_at_end"]),
+            [(row["category"], row["points"]) for row in self.scores(engine, "bramble")],
         )
-        self.assertFalse(
-            rules.is_legal(
-                AgentAction(action="move", destination=rules.EGRESS_ROOM), observation
-            )
-        )
+        self.assertEqual(scoring.placements(engine.state)["bramble"], 1)
+        self.assertEqual(len(self.events(engine, "crown_held")), 1)
+
+    def test_nobody_holding_the_crown_at_the_end_places_by_score(self):
+        engine = self.engine("nobody.db")
+        engine.state["round"] = engine.max_rounds
+        engine.state["agents"]["nix"]["score"] = 40
+        engine._finalize()
+        self.assertEqual(engine.state["ended_reason"], "rounds_exhausted")
+        self.assertEqual(engine.state["winner_agent_id"], "nix")
+        self.assertFalse(self.events(engine, "crown_held"))
+        self.assertEqual(scoring.placements(engine.state)["nix"], 1)
 
     def test_attunement_ticks_at_end_of_round_only(self):
         engine = self.engine("attune.db")
@@ -221,8 +232,6 @@ class CrownTests(RulesetTestCase):
             ("crown_taken", scoring.SCORING["crown_taken"]),
             [(row["category"], row["points"]) for row in self.scores(engine, "nix")],
         )
-        # A fresh holder cannot walk out on the transfer round.
-        self.assertFalse(rules.escape_gate_ok(engine.state, "nix"))
 
     def test_crown_ledger_invariant_holds_through_the_lifecycle(self):
         engine = self.engine("ledger.db")

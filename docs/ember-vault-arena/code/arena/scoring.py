@@ -29,7 +29,7 @@ SCORING: Mapping[str, int] = MappingProxyType(
         "direct_elimination": 2,  # max once per victim
         "invalid_action": -2,
         "invalid_output": -2,
-        "extraction": 10,  # on top of first place, for display
+        "crown_held_at_end": 10,  # holding the Crown when the last round ends: the win, on top of first place
     }
 )
 
@@ -206,7 +206,7 @@ def _tie_break_digest(seed: Any, agent_id: str) -> str:
 
 
 def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
-    """Sort ascending. Escaped winner first, then score desc, then the chain."""
+    """Sort ascending. The Crown's holder at the end first, then score desc, then the chain."""
     crown = state.get("crown", {})
     hold_rounds = crown.get("hold_rounds_by_agent", {}).get(agent["id"], 0)
     max_rounds = state.get("max_rounds", 12)
@@ -215,7 +215,8 @@ def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
     eliminated_round = agent.get("eliminated_round")
     survival_rank = max_rounds + 1 if eliminated_round is None else eliminated_round
     return (
-        0 if agent["id"] == state.get("winner_agent_id") and agent.get("status") == "escaped" else 1,
+        0 if (agent["id"] == state.get("winner_agent_id") and crown.get("status") == "carried"
+              and crown.get("carrier_id") == agent["id"]) else 1,
         -agent.get("score", 0),
         -survival_rank,
         -hold_rounds,

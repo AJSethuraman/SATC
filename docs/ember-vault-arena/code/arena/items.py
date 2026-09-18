@@ -44,8 +44,8 @@ _REGISTRY: dict[str, ItemDef] = {
         name="Ember Crown",
         effect=(
             "Objective. While you carry it you gain +2 at the end of every full "
-            "round (attunement). At attunement 2 or more you may move to egress "
-            "and win the match outright. ANY transfer resets attunement to 0. It "
+            "round (attunement). Whoever carries it when the final round ends "
+            "wins the match outright. ANY transfer resets attunement to 0. It "
             "cannot be used. WARNING: it sorts first alphabetically, so a wild "
             "swing that makes you drop an item always drops the Crown."
         ),

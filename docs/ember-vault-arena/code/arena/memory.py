@@ -64,6 +64,7 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "crown_dropped": "crown",
     "crown_attuned": "crown",
     "crown_extracted": "crown",
+    "crown_held": "crown",
     "crown_escaped": "crown",
     # seals, contraction and forced relocation
     "seal_activated": "seal",

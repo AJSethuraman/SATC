@@ -5,6 +5,43 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 02:20Z — M3, slice 2: the ending is the Crown's holder at the last round; the Egress is a room
+
+Ruleset `ember-vault-0.3`. D8 as ruled on 12 September: taking the Crown
+out no longer ends the match; whoever holds it when the final round
+resolves wins outright; the Crown can change hands to the end.
+
+What changed: `rules.escape_gate_ok`, `rules.crown_extract`, the
+Egress's special case in `move_allowed` and in the legal-action list,
+the `attunement_required` field of the digest, and `engine._crown_extract`
+are gone; nothing in a round can end the match. `engine._finalize` now
+looks at the Crown: carried by a living character, that character wins
+(`ended_reason: crown_held`, a `crown_held` event, `crown_held_at_end`
++10 in place of `extraction` +10, first place by `placement_key`);
+otherwise the highest score places first, as before. The prompt's THE
+WAY TO WIN says the new rule; the Crown item's own text says it; the
+mock no longer runs for the exit. `memory.py` files `crown_held` under
+the crown family. The simulator's labels follow.
+
+**The Egress, decided here and reversible by the firm.** The spec left
+open what the Egress does now. The smallest faithful reading is taken: a
+room like any other, entered from the Vault by anyone once the Vault is
+open, at any attunement, with its description rewritten to say the
+match cannot be ended early. The alternatives (a place the Crown cannot
+be taken from; a place that costs the carrier; nothing at all beyond a
+room) stay in PRD §10 for the bigger world. It is one function to
+change if the firm wants otherwise.
+
+Tests: the engine test that pinned extraction now pins the opposite (no
+`crown_extracted`, no `escaped`, the match runs to its last round, and
+the holder wins when there is one); the ruleset tests that pinned the
+escape gate now prove the Egress is a room at attunement 0, 1 and 2
+for the carrier and for a non-carrier, that the holder at the end wins
+and scores the win and places first, and that nobody holding it places
+by score. The golden fixture regenerated again: on seed 52 the mock
+match now runs its 12 rounds and Sable wins holding the Crown (622
+events). Suite 125 → **127**.
+
 ## 19 September 2026, 01:30Z — M3, slice 1: the second choice is in the engine
 
 PRD §5 item 42, built. The output contract is `agent-action-1.1`: the

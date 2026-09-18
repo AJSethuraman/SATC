@@ -80,7 +80,7 @@ ROOMS: dict[str, dict[str, Any]] = {
     },
     "egress": {
         "name": "The Moonlit Egress",
-        "description": "Open sky. Leaving here with an attuned Crown ends the match.",
+        "description": "Open sky and the way out, and no way to end it early: the Crown is won by whoever holds it when the last round ends.",
         "neighbors": ["vault"],
         "kind": "egress",
         "seal_id": None,
@@ -96,7 +96,6 @@ EGRESS_ROOM = "egress"
 CONTRACTION_REFUGE = "vault"  # force-move destination, a constant not an adjacency
 
 CROWN_ITEM_ID = items.CROWN_ID
-CROWN_ESCAPE_ATTUNEMENT = 2
 DEFAULT_MAX_ROUNDS = 12
 STARTING_TOKEN_BUDGET = 10_000_000  # no cap in v1 (firm, 11 Sep 2026); the ledger measures
 
@@ -449,27 +448,11 @@ def living_bodies_in(state: Mapping[str, Any], room: str) -> list[dict[str, Any]
     return sorted(bodies, key=lambda body: body["id"])
 
 
-def escape_gate_ok(state: Mapping[str, Any], agent_id: str) -> bool:
-    agent = state["agents"][agent_id]
-    crown = state["crown"]
-    return (
-        agent["status"] == "active"
-        and agent["room"] == VAULT_ROOM
-        and crown["status"] == "carried"
-        and crown["carrier_id"] == agent_id
-        and CROWN_ITEM_ID in agent["inventory"]
-        and crown["attunement_rounds"] >= CROWN_ESCAPE_ATTUNEMENT
-        and not is_sealed(state, EGRESS_ROOM)
-    )
-
-
 def move_allowed(state: Mapping[str, Any], agent_id: str, destination: str) -> bool:
     agent = state["agents"][agent_id]
     if destination not in open_neighbors(state, agent["room"]):
         return False
     if destination == VAULT_ROOM and not vault_open(state):
-        return False
-    if destination == EGRESS_ROOM and not escape_gate_ok(state, agent_id):
         return False
     return True
 
@@ -565,18 +548,6 @@ def crown_to_floor(state: dict[str, Any], room: str) -> dict[str, Any]:
         "crown.status": [before_status, "floor"],
         "crown.carrier_id": [before_carrier, None],
         "crown.attunement_rounds": [before_attunement, 0],
-    }
-
-
-def crown_extract(state: dict[str, Any], agent_id: str) -> dict[str, Any]:
-    crown = state["crown"]
-    before_status = crown["status"]
-    crown["status"] = "escaped"
-    crown["room"] = None
-    crown["carrier_id"] = agent_id
-    return {
-        "crown.status": [before_status, "escaped"],
-        "winner_agent_id": [state.get("winner_agent_id"), agent_id],
     }
 
 
@@ -788,21 +759,6 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     # tactical decisions actually live.
     for destination in room.get("neighbors", []):
         if destination == VAULT_ROOM and not public.get("vault_open"):
-            continue
-        if destination == EGRESS_ROOM:
-            if crown.get("carrier_id") != me["id"]:
-                continue
-            if crown.get("attunement_rounds", 0) < crown.get(
-                "attunement_required", CROWN_ESCAPE_ATTUNEMENT
-            ):
-                continue
-            entries.append(
-                _entry(
-                    "move",
-                    "move to egress — ESCAPE AND WIN",
-                    destination=destination,
-                )
-            )
             continue
         entries.append(
             _entry(
@@ -1018,7 +974,6 @@ def _build_public_state(state: Mapping[str, Any]) -> dict[str, Any]:
             "carrier_id": crown["carrier_id"],
             "room": crown["room"],
             "attunement_rounds": crown["attunement_rounds"],
-            "attunement_required": CROWN_ESCAPE_ATTUNEMENT,
         },
     }
 

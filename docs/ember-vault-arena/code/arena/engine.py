@@ -282,8 +282,8 @@ class ArenaEngine:
             self._monster_phase(round_no)
 
         # -- P5 END-OF-ROUND UPKEEP -----------------------------------------
-        # A legal escape ends the match IMMEDIATELY: no attunement tick, no
-        # contraction seal, no Act II bonus in the round someone extracted.
+        # Nothing ends a match mid-round since ruleset 0.3; the winner check
+        # in the loop is kept for a future rule that might.
         if not self.state.get("winner_agent_id"):
             self._end_round_upkeep(round_no)
 
@@ -699,14 +699,9 @@ class ArenaEngine:
     def _move(self, agent_id: str, action: AgentAction) -> None:
         agent = self.state["agents"][agent_id]
         destination = action.destination or ""
-        if destination == EGRESS_ROOM:
-            # Resolution-time re-check: the carrier may have fumbled the Crown
-            # on an earlier initiative this round. STALE, never a penalty.
-            if not rules.escape_gate_ok(self.state, agent_id):
-                self._stale(agent_id, action, "the Crown is no longer attuned in hand")
-                return
-            self._crown_extract(agent_id)
-            return
+        # The Egress is a room like any other since ruleset 0.3 (PRD §5.4,
+        # ruled 12 Sep 2026, D8): nothing ends the match early. Whoever holds
+        # the Crown when the last round resolves wins; see _finalize.
         if rules.is_sealed(self.state, destination):
             self._stale(agent_id, action, "that room has sealed")
             return
@@ -814,43 +809,6 @@ class ArenaEngine:
                 },
                 "to": destination,
                 "from": before,
-            },
-        )
-
-    def _crown_extract(self, agent_id: str) -> None:
-        agent = self.state["agents"][agent_id]
-        crown = self.state["crown"]
-        attunement = crown["attunement_rounds"]
-        before_room = agent["room"]
-        agent["room"] = EGRESS_ROOM
-        if EGRESS_ROOM not in agent["visited"]:
-            agent["visited"].append(EGRESS_ROOM)
-        agent["status"] = "escaped"
-        changes = rules.crown_extract(self.state, agent_id)
-        changes["room"] = [before_room, EGRESS_ROOM]
-        changes["status"] = ["active", "escaped"]
-        self.state["winner_agent_id"] = agent_id
-        self.state["status"] = "completed"
-        self.state["ended_reason"] = "extraction"
-        self._score(
-            agent_id,
-            "extraction",
-            scoring.SCORING["extraction"],
-            "Extracted with the Ember Crown",
-        )
-        self._event(
-            self.state["round"],
-            "referee",
-            "crown_extracted",
-            agent_id,
-            EGRESS_ROOM,
-            f"{agent['name']} walks out under open sky with the Ember Crown.",
-            {
-                "agent_id": agent_id,
-                "attunement_rounds": attunement,
-                "round": self.state["round"],
-                "winner_agent_id": agent_id,
-                "changes": changes,
             },
         )
 
@@ -1956,6 +1914,24 @@ class ArenaEngine:
 
     def _finalize(self) -> None:
         self.state["status"] = "completed"
+        # THE ENDING (ruleset 0.3, PRD §5.4, ruled 12 Sep 2026, D8): whoever
+        # holds the Crown when the final round has resolved wins outright.
+        # Nobody holding it: the highest score places first (below).
+        crown = self.state["crown"]
+        holder = crown.get("carrier_id") if crown.get("status") == "carried" else None
+        if holder and self.state["agents"].get(holder, {}).get("status") == "active" and not self.state["ended_reason"]:
+            self.state["winner_agent_id"] = holder
+            self.state["ended_reason"] = "crown_held"
+            self._score(
+                holder, "crown_held_at_end", scoring.SCORING["crown_held_at_end"],
+                "Held the Ember Crown when the last round ended",
+            )
+            self._event(
+                self.state["round"], "referee", "crown_held", holder, rules.CROWN_ITEM_ID,
+                f"{self.state['agents'][holder]['name']} holds the Ember Crown as the last round ends.",
+                {"agent_id": holder, "attunement_rounds": crown.get("attunement_rounds", 0),
+                 "round": self.state["round"], "winner_agent_id": holder},
+            )
         if not self.state["ended_reason"]:
             self.state["ended_reason"] = "rounds_exhausted"
         for agent_id in sorted(self.state["agents"]):

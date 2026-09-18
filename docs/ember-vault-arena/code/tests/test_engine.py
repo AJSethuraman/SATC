@@ -55,7 +55,7 @@ class ArenaEngineTests(unittest.TestCase):
         try:
             replay = store.replay_bundle(match_id)
             self.assertEqual(replay["match"]["status"], "completed")
-            self.assertEqual(replay["match"]["ruleset_version"], "ember-vault-0.2")
+            self.assertEqual(replay["match"]["ruleset_version"], "ember-vault-0.3")
             self.assertEqual(replay["match"]["max_rounds"], 12)
             self.assertEqual(len(replay["participants"]), len(self.manifests))
             self.assertEqual(
@@ -234,40 +234,32 @@ class ArenaEngineTests(unittest.TestCase):
             first.close()
             second.close()
 
-    def test_escape_ends_the_match_before_upkeep_and_later_initiatives(self):
-        store, match_id = self.run_match("escape.db", seed=42)
+    def test_the_crown_holder_when_the_last_round_ends_wins_and_nothing_ends_early(self):
+        """Ruleset 0.3 (PRD §5.4, ruled 12 Sep 2026, D8): no extraction, no early
+        end; whoever holds the Crown when the final round resolves wins outright."""
+        store, match_id = self.run_match("ending.db", seed=42)
         try:
             replay = store.replay_bundle(match_id)
-            extractions = [
-                event
-                for event in replay["events"]
-                if event["event_type"] == "crown_extracted"
-            ]
-            self.assertEqual(len(extractions), 1)
-            final_round = extractions[0]["round_no"]
-            after = [
-                event
-                for event in replay["events"]
-                if event["round_no"] == final_round
-                and event["seq"] > extractions[0]["seq"]
-            ]
-            forbidden = {
-                "crown_attuned",
-                "room_sealed",
-                "act_two_survival",
-                "attack_hit",
-                "attack_miss",
-            }
-            self.assertFalse(
-                [event for event in after if event["event_type"] in forbidden],
-                "no upkeep or combat may follow a legal extraction",
-            )
-            snapshots = replay["snapshots"]
-            final_state = [
-                shot["state"] for shot in snapshots if shot["phase"] == "final"
-            ][0]
-            self.assertEqual(final_state["ended_reason"], "extraction")
-            self.assertEqual(final_state["crown"]["status"], "escaped")
+            events = sorted(replay["events"], key=lambda e: e["seq"])
+            self.assertFalse([e for e in events if e["event_type"] == "crown_extracted"])
+            final_state = [s["state"] for s in replay["snapshots"] if s["phase"] == "final"][0]
+            self.assertNotEqual(final_state["ended_reason"], "extraction")
+            self.assertNotIn("escaped", {a["status"] for a in final_state["agents"].values()})
+            rounds = [e["round_no"] for e in events if e["event_type"] == "round_started"]
+            crown = final_state["crown"]
+            if crown["status"] == "carried" and final_state["agents"][crown["carrier_id"]]["status"] == "active":
+                self.assertEqual(final_state["ended_reason"], "crown_held")
+                self.assertEqual(final_state["winner_agent_id"], crown["carrier_id"])
+                held = [e for e in events if e["event_type"] == "crown_held"]
+                self.assertEqual(len(held), 1)
+                self.assertEqual(held[0]["actor_id"], crown["carrier_id"])
+                self.assertEqual(replay["match"]["winner_agent_id"], crown["carrier_id"])
+                self.assertEqual(min(replay["scores"][crown["carrier_id"]]["placement"] if isinstance(replay.get("scores"), dict) and isinstance(replay["scores"].get(crown["carrier_id"]), dict) else [1]), 1)
+            else:
+                self.assertIn(final_state["ended_reason"], ("rounds_exhausted", "all_eliminated"))
+            # the match ran to its last round unless everyone fell
+            if final_state["ended_reason"] != "all_eliminated":
+                self.assertEqual(max(rounds), final_state["max_rounds"])
         finally:
             store.close()
 
@@ -397,7 +389,7 @@ class ValidationTests(unittest.TestCase):
     def test_ruleset_version_and_defaults(self):
         from arena import rules
 
-        self.assertEqual(RULESET_VERSION, "ember-vault-0.2")
+        self.assertEqual(RULESET_VERSION, "ember-vault-0.3")
         self.assertEqual(rules.DEFAULT_MAX_ROUNDS, 12)
         manifests = load_manifests()
         state = rules.new_match_state(manifests, 1)

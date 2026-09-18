@@ -43,9 +43,9 @@ MAX_OUTPUT_TOKENS = 600
 # agent that has to remember from round one why it is there drifts by round
 # eight.
 VICTORY_CONDITION = (
-    "Escape the Egress carrying the Ember Crown after it has attuned to you for "
-    "the required rounds. That wins outright. If nobody escapes, the highest "
-    "score places first; every other contestant is placed by score."
+    "Hold the Ember Crown when the final round ends. That wins outright, and the "
+    "Crown can change hands until the last round. If nobody holds it at the end, "
+    "the highest score places first; every other contestant is placed by score."
 )
 
 
@@ -362,12 +362,7 @@ class MockDecisionProvider:
         monsters = observation["visible_monsters"]
         hurt = me["hp"] * 2 <= me["max_hp"]
 
-        # 1. Win outright.
-        escape = self._find(legal, "move", destination="egress")
-        if escape:
-            return escape
-
-        # 2. Carrying the Crown: survive until attuned.
+        # 1. Carrying the Crown: survive with it; whoever holds it at the end wins.
         if me.get("carrying_crown"):
             if hurt:
                 tonic = self._find(legal, "use", item="healing_tonic")

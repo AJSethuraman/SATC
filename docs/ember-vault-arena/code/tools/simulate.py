@@ -331,7 +331,7 @@ def _summarize(
         "winner": winner,
         "winner_build": build_of.get(winner or ""),
         "winner_seat": seat_of.get(winner or ""),
-        "winner_escaped": ended_reason == "extraction",
+        "winner_held_crown": ended_reason == "crown_held",
         "survivors": len(survivors),
         # crown
         "crown_status": crown.get("status"),
@@ -518,7 +518,7 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
         ],
         "act3_rate": _pct(len(act3), len(completed)),
         "ended_reasons": dict(reasons),
-        "escape_rate": _pct(reasons.get("extraction", 0), len(completed)),
+        "crown_held_rate": _pct(reasons.get("crown_held", 0), len(completed)),
         "round_limit_rate": _pct(reasons.get("rounds_exhausted", 0), len(completed)),
         "wipe_rate": _pct(reasons.get("all_eliminated", 0), len(completed)),
         "rounds_median": statistics.median(rounds) if rounds else 0,
@@ -684,7 +684,7 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
             f"{_pct(count, summary['matches_completed']):5.1f}%"
         )
     add(
-        f"  escapes {summary['escape_rate']:.1f}%  vs  "
+        f"  crown held at the end {summary['crown_held_rate']:.1f}%  vs  "
         f"round-limit {summary['round_limit_rate']:.1f}%  vs  "
         f"wipe {summary['wipe_rate']:.1f}%"
     )
