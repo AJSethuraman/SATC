@@ -227,6 +227,34 @@ ANSWERED = [
             "<b>Proved on the case it was added for.</b> The file that made round trip "
             "<code>a276e4aed20a</code> throw an answer away now prints "
             "<code>unit_cost: 185.00</code> under ON FILE."},
+
+ {"key": "dec-whytrunc",
+  "title": "A position\u2019s reasoning is cut off before it reaches the card you ratify from. Fix it?",
+  "said": "Read the whole thing, folded",
+  "where": "on the eighth docket, 18 September",
+  "caused": "<b>The whole of a position\u2019s reasoning reaches the card now, and "
+            "the default view did not move a character.</b> The opening paragraph "
+            "is byte-for-byte what you were already reading \u2014 429 characters "
+            "on POS2 \u2014 and the 1,831 that never arrived are one disclosure "
+            "below it, with the fold saying how much is behind it.<br><br>"
+            "<b>The fix was a reader, not a renderer.</b> A field ended at any "
+            "line starting with bold, which is right for a value that wraps and "
+            "wrong for prose \u2014 because a paragraph written to be read starts "
+            "with its point in bold. Prose now ends at the entry\u2019s own field "
+            "names, which is exact.<br><br><b>The tidy heuristic would have been "
+            "worse than the bug.</b> Ending at any bold-text-then-colon looked "
+            "right and `POSITIONS.md` contains one paragraph that opens <i>\u201cWhat "
+            "this position does NOT settle, and why it is a position at "
+            "all:\u201d</i> \u2014 so it would have truncated the reasoning at "
+            "precisely the sentence a reader most needs. Found by looking, not by "
+            "thinking about it.<br><br><b>And it moved a number nobody touched.</b> "
+            "One unused gate reads a position\u2019s reasoning as part of its "
+            "subject check, so giving it the rest of the text made one answer stop "
+            "being wrongly refused \u2014 36 of 98 down to 35. Right direction, and "
+            "it exposes a coupling nobody chose: how far that gate reaches depends "
+            "on how much you happened to write. Recorded where the figure is "
+            "pinned rather than fixed, because the gate is unused and fixing it "
+            "means deciding what it should read."},
 ]
 
 #: THREE MATTERS, all of which arrived AFTER the page said nothing needed
@@ -236,53 +264,7 @@ ANSWERED = [
 #: closed without the firm saying so.
 #: NOTHING IS OPEN. The three that were here were answered at 17:20 and are in
 #: `ANSWERED` above with what each one did. A key may not be in both.
-OTHERS = [
- {"key": "dec-whytrunc", "new": True, "group": "How a position reaches you",
-  "tag": "New — found while building, not by looking",
-  "title": "A position’s reasoning is cut off before it reaches the card you ratify from. Fix it?",
-  "position": "Yes — read the whole of a position’s reasoning, not its first paragraph.",
-  "context": "<b>What broke, in one line.</b> A position’s <code>Why:</code> stops at "
-             "its first bolded paragraph. Everything after that is in "
-             "<code>POSITIONS.md</code> and reaches nothing.<br><br><b>Measured across "
-             "all twenty positions: 23,044 characters go nowhere.</b> POS13 loses "
-             "6,364 of its 6,658. Every single position loses "
-             "something.<br><br><b>Where it lands is the part that matters.</b> That "
-             "field feeds the ratification card — the page you read a position on when "
-             "you decide whether to ratify it. So the card you ratified POS2 from "
-             "showed <b>429 characters of about 2,270</b>. And the hidden part of POS2 "
-             "contains this: <i>“And $2,500 is a ceiling, not the number. § "
-             "1.263(a)-1(f)(1)(ii)(B) requires the client to have a book policy at the "
-             "beginning of the year; the safe harbour protects amounts under whichever "
-             "is lower, that policy or the ceiling.”</i><br><br>That is the exact "
-             "sentence that makes today’s capitalisation default something to be "
-             "careful with, and it was not on the card when you ratified the position "
-             "it belongs to.<br><br><b>Nothing is wrong in any answer that has been "
-             "served.</b> The answering brief prints a position’s WORDS, not its "
-             "reasoning, so no client work is affected. This is about what you see "
-             "before you say yes.<br><br><b>I found it by accident</b>, writing a "
-             "paragraph into a position and then checking whether anything printed it. "
-             "Nothing did. It has been true since the field was written.",
-  "either": [("Read the whole thing",
-              "Ratification cards carry the full reasoning. They get considerably "
-              "longer — POS13’s grows roughly twenty-fold — and the caveats that "
-              "currently vanish are in front of you when you decide."),
-             ("Read the whole thing, folded",
-              "Same content, with everything past the first paragraph behind a "
-              "disclosure you open. Cards stay scannable and nothing is hidden from "
-              "somebody who wants it. More to build than the first option."),
-             ("Leave it",
-              "Cards stay short. The caveats stay in the file for whoever opens it, "
-              "and a position can be ratified from a card that omits the reason not "
-              "to.")],
-  "rec": "Read the whole thing, folded. The first option is right about what should "
-         "reach you and wrong about how much of it should arrive at once — POS13 at "
-         "full length is a card nobody finishes, which is how this became invisible in "
-         "the first place. Folded, the default view is what you have now and the "
-         "caveat is one click rather than one file away.",
-  "rec_pick": "Read the whole thing, folded",
-  "picks": ["Read the whole thing, folded", "Read the whole thing", "Leave it",
-            "Not yet"]},
-]
+OTHERS = []
 
 #: BEHAVIOUR 19, ADDED TO CANON THIS MORNING AS 1.13.0: name the goal, report the
 #: distance, then stop. Its incident is this session -- *"i feel like sometimes the
@@ -306,9 +288,10 @@ NEXT = {
          "the installed plugin, and a written record of three things: every answer "
          "served, every refusal with what it asked for, and the questions the desk "
          "never saw.",
- "distance": "<b>Seven of your eight answers are built and pushed; the eighth is "
-             "blocked outside this container.</b> desk 0.33.0 \u2014 six versions "
-             "in an afternoon, each its own commit with its own mutations.",
+ "distance": "<b>Eight of your nine answers are built and pushed; the ninth is "
+             "blocked outside this container.</b> desk 0.34.0 \u2014 seven "
+             "versions, each its own commit with its own mutations run red "
+             "first.",
  "detail": "<b>Two things stand between this and the pilot, and neither is a "
            "decision.</b><br><br><b>1. The branch has to merge.</b> Occam installs "
            "from <code>main</code>, so a pilot run today would use the version "
@@ -325,9 +308,9 @@ NEXT = {
 }
 
 CHANGED = [
- ("1,334", "desk tests passing", "1,254 this morning; identical from a checkout and from an install"),
- ("7 of 8", "answers built and pushed", "the eighth is blocked on network access to fasb.org, not on a decision"),
- ("0.28.1 \u2192 0.33.0", "versions shipped today", "one per answer, each with its own mutations run red first"),
+ ("1,346", "desk tests passing", "1,254 on 14 September; identical from a checkout and from an install"),
+ ("8 of 9", "answers built and pushed", "FASB is the one left, blocked on network access rather than on a decision"),
+ ("0.28.1 \u2192 0.34.0", "versions shipped", "one per answer, each with its own mutations run red first"),
  ("17 / 0", "of 98 right answers a refusing source-gate would cost", "terse phrasing against full-facts phrasing \u2014 the spread is the finding"),
  ("6 of 113", "questions that would get worked examples and nothing else", "the four tried by hand were all fine"),
  ("23,044", "characters of position prose that reach no ratification card", "see the decision below"),
@@ -394,6 +377,38 @@ def _md(t: str) -> str:
     return out.replace("\n\n", "</p><p>").replace("\n", " ")
 
 
+def _opening(why: str) -> str:
+    """A position's reasoning down to its first blank line.
+
+    EXACTLY WHAT THE CARD SHOWED BEFORE, which is the point: the firm chose
+    folding over full length, so nothing they were used to reading moved and
+    everything that was missing is one disclosure below it.
+    """
+    body = [b.strip() for b in (why or "").strip().split("\n\n") if b.strip()]
+    return body[0] if body else ""
+
+
+def _after_the_opening(why: str) -> str:
+    """Everything past the first paragraph, or `""`."""
+    body = [b.strip() for b in (why or "").strip().split("\n\n") if b.strip()]
+    return "\n\n".join(body[1:])
+
+
+def _how_much(why: str) -> str:
+    """How much is behind the fold, said on the fold itself.
+
+    A disclosure with no size on it is one a reader takes for a footnote, and
+    the whole finding here was that it is not: the part that did not reach the
+    POS2 card contains *"$2,500 is a ceiling, not the number"*.
+    """
+    rest = _after_the_opening(why)
+    if not rest:
+        return ""
+    paras = len([b for b in rest.split("\n\n") if b.strip()])
+    return ("%d more paragraph%s, about %d words"
+            % (paras, "" if paras == 1 else "s", len(rest.split())))
+
+
 class DocketError(Exception):
     """A card that would ask a question it has already answered."""
 
@@ -450,7 +465,16 @@ def items():
             "tier": p["tier"],
             "shape": p["kind"],
             "unlocks": p["unlocks"],
-            "why": _md(p["why"]),
+            # SPLIT, NOT WHOLE. `dec-whytrunc`, 18 September 2026 -- the firm:
+            # "Read the whole thing, FOLDED." Until `record._prose` landed the
+            # same day, this field stopped at the first bolded paragraph and
+            # 23,044 characters across the twenty positions reached no card at
+            # all. Fixing the parser alone would have handed them the OTHER
+            # option on that card -- the whole thing at full length -- which
+            # they declined, and POS13's reasoning is 6,658 characters.
+            "why": _md(_opening(p["why"])),
+            "why_rest": _md(_after_the_opening(p["why"])),
+            "why_more": _how_much(p["why"]),
             "note": p["note"],
             "rec_pick": (p["note"] or {}).get("rec_pick", ""),
             "picks": list(POSITION_PICKS),
@@ -647,14 +671,18 @@ def _answered() -> str:
         '<li><code class="pr">%s</code> <b>%s</b> <i>%s</i><br>%s</li>'
         % (a["said"], a["title"], a["where"], a["caused"]) for a in ANSWERED)
     return ('<h2 class="sec">What you already answered, and what it did</h2>'
-            '<p class="lead">All %s answered, all %s acted on. <b>These were '
-            'answered somewhere else</b> \u2014 on the one-corpus docket and in '
-            'conversation \u2014 so unlike previous pages these are transcribed '
-            'from the log rather than read out of this page\u2019s own store. '
-            'Where each was said is on the line. What each one caused is measured '
-            'from the repository.</p>'
+            '<p class="lead">All %s answered, %s acted on. Every one of these '
+            'was answered ON THIS PAGE and is read back out of its own store, '
+            'not out of any session\u2019s memory of being told \u2014 which is '
+            'the only independent record of what you actually said. What each '
+            'one caused is measured from the repository.</p>'
+            '<p class="lead"><b>An earlier version of this line said these were '
+            'transcribed from the log because they were answered elsewhere.</b> '
+            'That was true of the four matters this section used to carry and '
+            'false of these, and it stayed on the page for four days saying so. '
+            'Corrected by reading the store rather than the sentence.</p>'
             '<ul class="plain">%s</ul>') % (_word(len(ANSWERED)),
-                                            _word(len(ANSWERED)), rows)
+                                            _word(len(ANSWERED) - 1), rows)
 
 
 def _next_block() -> str:
@@ -778,6 +806,10 @@ h3.t{font-size:1.28rem;line-height:1.26;margin:0 0 .7rem}
  font-size:.72rem;color:var(--ink3)}
 .pick.is-rec[aria-pressed="true"]::after{color:inherit}
 details.why{margin:.8rem 0}
+details.rest{margin:.5rem 0 0;padding-left:.75rem;border-left:2px solid var(--rule)}
+details.rest summary{cursor:pointer;font-size:.68rem;letter-spacing:.08em;
+ text-transform:uppercase;color:var(--ink3);font-weight:700}
+details.rest p{margin-top:.4rem}
 details.why summary{cursor:pointer;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
  color:var(--ink3);font-weight:700}
 details.why .d{color:var(--ink2);font-size:.9rem;margin-top:.45rem;max-width:64ch}
@@ -901,7 +933,11 @@ function card(d) {
             ? `<b>${d.unlocks}</b> of this desk's scored problems turn on this exact citation, so ratifying makes them answerable.`
             : `<b>No scored problem changes.</b> What changes is that the desk stops handing the question back and starts saying ${d.shape === "rule" ? "what to do next" : "this, in your words, with the citation behind it"}.`
         }</p></div>` : "",
-        d.why ? `<div class="blk"><h4>The full reasoning as drafted</h4><p>${d.why}</p></div>` : "",
+        d.why ? `<div class="blk"><h4>The reasoning as drafted</h4><p>${d.why}</p>${
+          d.why_rest
+            ? `<details class="rest"><summary>The rest of it \u2014 ${d.why_more}</summary><p>${d.why_rest}</p></details>`
+            : ""
+        }</div>` : "",
       ].filter(Boolean);
       return more.length
         ? `<details class="why"><summary>What else I looked at (${more.length})</summary><div class="d">${more.join("")}</div></details>`

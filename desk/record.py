@@ -961,6 +961,66 @@ def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
     return ""
 
 
+def _prose(block: str, label: str, where: str, *, fields: tuple,
+           required: bool = False) -> str:
+    """A field whose value is PROSE, read to the end of its entry.
+
+    `dec-whytrunc`, 18 September 2026 \u2014 the firm: **"Read the whole thing,
+    folded."**
+
+    WHAT `_field` DOES AND WHY IT IS RIGHT EVERYWHERE ELSE. It stops at
+    `_FIELD_END`, which is any line starting `**`. That is correct for a value
+    that happens to wrap. It is wrong for prose, because **a paragraph written
+    to be read starts with its point in bold** \u2014 and the reader stopped
+    there.
+
+    MEASURED BEFORE IT WAS PUT TO THE FIRM, across the twenty ratified
+    positions: **23,044 characters reached nothing.** POS13 lost 6,364 of its
+    6,658; every single position lost something. The field feeds the
+    RATIFICATION CARD, so the card POS2 was ratified from showed 429 characters
+    of about 2,270 \u2014 and the part that did not arrive contains *"$2,500 is
+    a ceiling, not the number"*, which is exactly the caveat that makes the
+    firm's own capitalisation default something to be careful with.
+
+    Sources lose another 1,802 the same way. A source's `Why` reaches only
+    `guards.py`, which checks it is non-empty, so nothing a reader sees moved
+    \u2014 but the defect is the same one in a second place and is fixed here
+    rather than left to be found again.
+
+    THE END IS EXACT AND NOT A HEURISTIC, which is the whole of the design. The
+    parser knows which labels its own entries carry, so prose ends at the next
+    line opening one of THOSE, or at a new entry. Nothing guesses what a field
+    looks like.
+
+    The heuristic considered and rejected was `**Word:**` \u2014 bold text
+    ending in a colon. `POSITIONS.md` contains the paragraph *"**What this
+    position does NOT settle, and why it is a position at all:**"*, which would
+    have been read as a field and truncated the prose at exactly the sentence a
+    reader most needs. One instance in one file, found by looking rather than by
+    reasoning about it.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if not m:
+        if required:
+            raise RecordError(f"{where}: no '{label}' field")
+        return ""
+    rest = block[m.end():]
+    ends = re.compile(
+        r"^(?:%s|## |---\s*$)"
+        % "|".join(r"\*\*%s:\*\*" % re.escape(f) for f in fields if f != label),
+        re.M)
+    stop = ends.search(rest)
+    value = (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
+    if not value and required:
+        raise RecordError(f"{where}: no '{label}' field")
+    return value
+
+
+#: The labels a SOURCE entry carries, so `_prose` knows where one ends.
+SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
+                 "Url", "Why")
+
+
 def _inline(block: str, label: str, where: str) -> str:
     """A field sharing a line with others, separated by ' · '.
 
@@ -1039,7 +1099,7 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
-            note=_field(block, "Why", where, required=False),
+            note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
         raise RecordError("no sources found; a desk with no authority cannot answer")

@@ -83,6 +83,49 @@ def _md(text: str) -> str:
     return out.replace("\n\n", "</p><p>").replace("\n", " ")
 
 
+def _reasoning(why: str) -> str:
+    """A position's reasoning: the opening, then the rest behind a second fold.
+
+    `dec-whytrunc`, 18 September 2026 \u2014 the firm, on the eighth docket:
+    **"Read the whole thing, folded."**
+
+    THE CARD USED TO SHOW THE FIRST PARAGRAPH AND NOTHING ELSE, and not by
+    choice: the parser stopped at the first bolded line, so 23,044 characters
+    across the twenty positions reached nothing. `record._prose` fixed the
+    reading. This is what the firm chose to do with it.
+
+    WHY FOLDED AND NOT SIMPLY LONGER. The other option on the card was the whole
+    thing at full length, and the reason to decline it is in the defect itself:
+    POS13's reasoning is 6,658 characters, and a card nobody finishes is how
+    this became invisible in the first place. Folded, the default view is what
+    the firm has been reading and the caveat is one click rather than one file
+    away.
+
+    THE SPLIT IS THE FIRST PARAGRAPH, which is exactly what the card showed
+    before \u2014 so nothing a reader was used to seeing moved, and everything
+    that was missing is one disclosure below it.
+
+    The summary SAYS HOW MUCH IS THERE. A fold with no size on it is one a
+    reader assumes is a footnote; the whole finding here is that it was not.
+    """
+    body = [b.strip() for b in why.strip().split("\n\n") if b.strip()]
+    if not body:
+        return ""
+    first, rest = body[0], body[1:]
+    inner = f"<div><p>{_md(first)}</p>"
+    if rest:
+        words = sum(len(b.split()) for b in rest)
+        inner += (
+            f'<details class="more"><summary>The rest of the reasoning '
+            f'\u2014 {len(rest)} more paragraph{"s" if len(rest) != 1 else ""}, '
+            f'about {words} words</summary>'
+            f'<div><p>{_md(chr(10).join(chr(10) + b for b in rest).strip())}'
+            f'</p></div></details>')
+    inner += "</div>"
+    return (f'<details class="why"><summary>Why it says that</summary>'
+            f'{inner}</details>')
+
+
 _CSS = """
 :root{--paper:#F4F4F1;--sheet:#FFF;--rule:#DBDBD4;--soft:#EBEBE6;
  --ink:#141C26;--ink2:#4B5563;--ink3:#7C8593;
@@ -137,6 +180,9 @@ details.why summary{cursor:pointer;font-size:.8rem;letter-spacing:.05em;
  text-transform:uppercase;color:var(--ink3);font-weight:700}
 details.why div{color:var(--ink2);font-size:.94rem;margin-top:.5rem;max-width:64ch}
 .note{padding:.6rem .8rem;margin:.7rem 0;font-size:.92rem}
+details.more{margin:.6rem 0 0;padding-left:.8rem;border-left:2px solid var(--rule)}
+details.more summary{cursor:pointer;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+details.more div{margin-top:.4rem}
 .note.lean{background:var(--yes-soft);border-left:2px solid var(--yes)}
 .note.stop{background:var(--stop-soft);border-left:2px solid var(--stop)}
 .answer{border-top:1px dashed var(--rule);margin-top:.9rem;padding-top:.8rem}
@@ -211,8 +257,7 @@ def render(by_desk: dict, total: int) -> str:
             if blocked:
                 out.append(f'<div class="note stop">{blocked}</div>')
             if q.why.strip():
-                out.append('<details class="why"><summary>Why it says that</summary>'
-                           f'<div><p>{_md(q.why.strip())}</p></div></details>')
+                out.append(_reasoning(q.why))
             picks = ("Ratify it", "No", "Not yet")
             dis = " disabled" if blocked else ""
             out.append(

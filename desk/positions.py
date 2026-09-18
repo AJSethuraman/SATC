@@ -40,7 +40,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from record import RecordError, _blocks, _date, _field, _inline
+from record import RecordError, _blocks, _date, _field, _inline, _prose
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 
@@ -188,6 +188,12 @@ class Position:
 _FACT = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
+#: The labels a POSITION entry carries. `_prose` ends the `Why:` body at the
+#: next one of these rather than at any bold line -- see `record._prose`.
+POSITION_FIELDS = ("Citation", "Recorded", "Position", "Why", "Ratified",
+                   "Kind", "Reviewed", "Needs", "Unless", "Default")
+
+
 def _a_default(block: str, where: str) -> str:
     """The `Default:` line, or `""`. ONE LINE, read with `_inline`.
 
@@ -272,7 +278,7 @@ def parse(text: str) -> list[Position]:
             citation=_inline(block, "Citation", where),
             recorded=_date(_inline(block, "Recorded", where), "recorded", where),
             position=_field(block, "Position", where),
-            why=_field(block, "Why", where, required=False),
+            why=_prose(block, "Why", where, fields=POSITION_FIELDS),
             ratified=_field(block, "Ratified", where, required=False),
             kind=_kind(_field(block, "Kind", where, required=False), where),
             reviewed=(_field(block, "Reviewed", where, required=False).strip()
