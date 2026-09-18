@@ -919,9 +919,12 @@ sales on the small-business book; built domain-free so a consumer question
       by commitment, a snapshot at as-of. The PRD's third outcome form
       carries it; what remains is Key's column names and the threshold, then
       it is a second config file.
-- [ ] **Confirm the NAICS 2-digit sector list** in PRD §6.15 against the 2022
-      manual — census.gov, bls.gov and Wikipedia were all blocked from the
-      build container.
+- **Decided against (2026-09-18), permanently for this tool:** any
+      domain-specific list, mapping or transform in the code. The firm: "i
+      don't want to have a sector list - this is supposed to be generic...
+      it should be adaptable." Grouping is a generic `prefix` or a `map`
+      the config supplies (PRD §6.15); the NAICS list that was in the PRD
+      for a day is gone, and with it the item to confirm it.
 - **Decided against for now (2026-09-18):** a PII guard for this project
       (the firm: "stop worrying about PII. It is all on Key's desk"); Excel-
       side bucket edges via a fine-grained cube; two outcomes in one pack;

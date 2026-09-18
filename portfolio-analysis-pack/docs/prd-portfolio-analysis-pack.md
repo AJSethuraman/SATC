@@ -104,6 +104,11 @@ notes are generated from the config and the counts, never written by hand.
 - **Excel-side bucket edges** (the fine-grid variant). Edges are a rebuild.
 - **Permutation importance.** There is no ensemble; a single tree's split
   order is the artifact. The handover's rule applies only if ensembles arrive.
+- **Any domain-specific list, mapping or transform in the code** — a sector
+  table, a score band, a product family. The firm, 18 Sep 2026: *"i don't
+  want to have a sector list - this is supposed to be generic... it should be
+  adaptable."* Grouping a column is a generic operation the config asks for
+  (§6.15), and any mapping is supplied in the config, never shipped.
 
 ## 4. User Stories
 
@@ -191,9 +196,9 @@ maintainer/agent** (building or extending the tool).
     bureau estimate, auto, 60+ DPD, score and LTV bands, state and term as
     controls) to build with no code change, and a test that proves it.
 24. As a maintainer, I want a test that fails if any column name or domain
-    word (income, sales, NAICS, charge-off) appears in the package outside the
-    transforms registry and the example configs, so that the tool stays
-    domain-free by construction.
+    word (income, sales, NAICS, charge-off) appears anywhere in the package
+    code, so that the tool stays domain-free by construction; the example
+    configs are data, not code, and are the only place such words live.
 25. As a maintainer, I want synthetic fixtures with planted answers — a 2.0x
     effect, a null, an effect that vanishes under stratification — and a
     mutation tool that proves each test can go red, so that the suite
@@ -397,7 +402,7 @@ fields:                           # every column the pack touches
   STATED_INC: {known: at_origination, plausible: [1000, 50000000]}
   RPT_SALES:  {known: at_origination, plausible: [1000, 500000000]}
   ORIG_AMT:   {known: at_origination}
-  NAICS_CD:   {known: at_origination, transform: naics_sector}
+  NAICS_CD:   {known: at_origination, derive: {kind: prefix, length: 2}}
   ENTITY_TYP: {known: at_origination}
   CO_DT:      {known: later}
 rule:
@@ -427,8 +432,8 @@ confounders:
 controls:
   - {name: origination_year, derived: origination_year}   # always available
   - {name: loan_size, field: ORIG_AMT, as: log}           # log | linear | bands: <scheme edges>
-  - {name: naics_sector, field: NAICS_CD}                 # categorical via the field's transform
-decompose_by: [naics_sector, line_band, origination_year]
+  - {name: industry, field: NAICS_CD}                    # categorical on the derived 2-character group
+decompose_by: [industry, line_band, origination_year]
 existing_control: none            # required: none | "text naming what reacts today"
 drives:                           # narrative only; feeds the step-7 note
   field_a: "DTI — borrower qualifies"
@@ -536,7 +541,7 @@ says months on book range from the window to the oldest seasoned loan.
 ### 6.5 The cube
 
 `_cube` is one row per cell: `block_id` (e.g. `s3.gradient`, `s4.revenue_band.
-by_loans.band2`, `s5.naics_sector.44-45`), dimension labels, `n`, `events`,
+by_loans.band2`, `s5.industry.44`), dimension labels, `n`, `events`,
 and for step 4 the four 2×2 counts. Results tabs reference cube cells by
 address (never SUMIFS over the cube), so the cube is the readable source of
 every number and every formula is short. Rows are written in the order the
@@ -667,28 +672,32 @@ a test greps for it.
 A test reads every column name and every `name:` label from the example
 configs, plus the words `income, sales, naics, charge, chargeoff, charge-off,
 dti, fico, ltv, utilization, sector, sba, small business`, and fails if any
-appears (case-insensitive, whole word) in any `.py` under the package other
-than the transforms registry. The registry holds named transforms only; v1
-ships `naics_sector` (§6.15). Synthetic fixtures use `field_a`, `field_b`,
-`amount`, `category_1..n`, `outcome_date`.
+appears (case-insensitive, whole word) in any `.py` under the package. There
+is no exception: derivations (§6.15) are generic operations and carry no
+vocabulary. Synthetic fixtures use `field_a`, `field_b`, `amount`,
+`category_1..n`, `code_1..n`, `outcome_date`.
 
-### 6.15 The `naics_sector` transform
+### 6.15 Derived groupings (generic; the tool ships no list)
 
-First two digits of the code, with `31|32|33 → 31-33`, `44|45 → 44-45`,
-`48|49 → 48-49`; any other prefix not in the twenty sectors → `unknown
-sector` (counted, never dropped). Sector titles for labels: 11 Agriculture,
-Forestry, Fishing and Hunting · 21 Mining, Quarrying, and Oil and Gas
-Extraction · 22 Utilities · 23 Construction · 31-33 Manufacturing · 42
-Wholesale Trade · 44-45 Retail Trade · 48-49 Transportation and Warehousing ·
-51 Information · 52 Finance and Insurance · 53 Real Estate and Rental and
-Leasing · 54 Professional, Scientific, and Technical Services · 55 Management
-of Companies and Enterprises · 56 Administrative and Support and Waste
-Management and Remediation Services · 61 Educational Services · 62 Health
-Care and Social Assistance · 71 Arts, Entertainment, and Recreation · 72
-Accommodation and Food Services · 81 Other Services (except Public
-Administration) · 92 Public Administration. **⚑ CONFIRM** against the 2022
-NAICS Manual (census.gov/naics); the Census, BLS and Wikipedia pages were all
-blocked from the build container on 18 Sep 2026, so this list is from memory.
+A field in `fields:` may carry `derive:`, and the derived value is what every
+step sees for that field. Two kinds, chainable in a list, applied in order:
+
+- `{kind: prefix, length: N}` — the first N characters of the value, as
+  text. Blank stays blank. A non-blank value shorter than N is hygiene
+  (a malformed code), refused with the loan ids.
+- `{kind: map, groups: {label: [value, ...]}, other: label}` or
+  `{kind: map, groups_file: path.csv, other: label}` (two columns: value,
+  group; path relative to the config). A value in no group takes the `other`
+  label and is counted on `1_Capture`. If `other` is absent and an unmapped
+  value occurs, the build refuses and lists the values — a grouping the
+  config did not supply is never invented.
+
+So rolling an industry code to its two-digit group is `prefix 2`; merging
+several groups into one (or attaching titles) is a `map` the reviewer writes
+if they want it, and the tool never contains that mapping. The same two
+operations cover a ZIP to a ZIP3, a product code to a family, a state to a
+region. Every derivation used is named in the method note with its kind and
+parameters, and the `map`'s group count.
 
 ### 6.16 CLI contract
 
@@ -814,8 +823,6 @@ function is prefixed.
   18 Sep 2026), e.g. `>= 0.9`.
 - **Open question (yours):** the `existing_control` value for the first
   instance.
-- **Open question (yours):** confirm the NAICS sector list (§6.15) against the
-  2022 manual; the build container could not reach it.
 
 ## 11. Done Criteria
 
