@@ -919,6 +919,28 @@ sales on the small-business book; built domain-free so a consumer question
       by commitment, a snapshot at as-of. The PRD's third outcome form
       carries it; what remains is Key's column names and the threshold, then
       it is a second config file.
+- **Docket answered 18 Sep 2026 (form 6LgJGrLMitMi6CKe9BMaH6).** In the
+      firm's words, and what each caused:
+      - *Next:* "Build and keep building until you actually need me." → the
+        nine slices run autonomously; a docket only when genuinely blocked.
+      - *Who merges:* "You merge them" → each slice's PR is merged by the
+        session once its checks are green and the workbook has been opened.
+      - *First real run:* "After all nine … i expect synthetic testing and
+        proofing. you also have the adversarial skill" → synthetic fixtures
+        prove each slice; a `canon:adversarial` pass (another agent writes
+        only tests to break it) runs before the desk; the desk run is last.
+      - *existing_control:* "None … this is specific to an idea - it also
+        has to be generalized" → the step-7 sentence asserts nothing the
+        tool cannot know: the share where the two fields disagree, plus what
+        the question file says reacts today. No word like "unverified" is
+        the tool's.
+      - *Utilization threshold:* "why would we define this in the script
+        when the person running the test can do it? … utilization can be
+        segmented into percentages itself … the directive has been clear
+        about being adaptable" → no threshold anywhere in the tool or spec.
+        A measure outcome takes a single cut or a set of percentage bands,
+        chosen by whoever runs it, and the pack shows the bands. Built in
+        slice 2 (#365). The docket should not have asked it.
 - **Decided against (2026-09-18), permanently for this tool:** any
       domain-specific list, mapping or transform in the code. The firm: "i
       don't want to have a sector list - this is supposed to be generic...

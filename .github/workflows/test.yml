@@ -73,6 +73,13 @@ jobs:
           # their SDKs lazily and the suite drives them through fakes.
           - project: docs/ember-vault-arena/code
             install: pip install pytest
+          # Portfolio Analysis Pack: a loan extract in, one analysis workbook
+          # out, for the credit consulting line. The suite builds a 40,000-loan
+          # synthetic book and reads the workbook back through the `formulas`
+          # engine, so every Excel formula is checked against Python here on
+          # every PR. The render harness (LibreOffice) is desk-run, not CI.
+          - project: portfolio-analysis-pack
+            install: pip install -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
