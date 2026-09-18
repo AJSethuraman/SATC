@@ -22,7 +22,7 @@ import json
 from typing import Any, Mapping, Sequence
 
 
-MEMORY_VERSION = "ember-vault-memory-0.2"
+MEMORY_VERSION = "ember-vault-memory-0.3"
 
 MEMORY_LIMIT = 6
 MEMORY_WINDOW_ROUNDS = 4  # current round + 4 prior
@@ -34,6 +34,7 @@ MEMORY_PRIORITY: tuple[str, ...] = (
     "damage_dealt",
     "elimination_involving_me",
     "crown_change",
+    "deal_change",
     "seal_change",
     "item_change",
     "speech_to_me",
@@ -88,6 +89,12 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     # speech
     "agent_speech": "speech",
     "whisper_lost": "speech",
+    # deals (PRD §5.19–21): a promise made, struck, lapsed, broken or lost
+    "offer_made": "deal",
+    "deal_struck": "deal",
+    "offer_lapsed": "deal",
+    "deal_broken": "deal",
+    "deal_lost": "deal",
 }
 
 IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
@@ -265,6 +272,14 @@ def classify_event(
             return None
         addressed = payload.get("addressed_ids") or []
         return "speech_to_me" if agent_id in addressed else None
+
+    if family == "deal":
+        # A party remembers its promises; everyone else reads breaks in the
+        # digest's deals block, which is where public breaks live.
+        parties = payload.get("parties") or []
+        if actor_id == agent_id or target_id == agent_id or agent_id in parties:
+            return "deal_change"
+        return None
 
     return None
 

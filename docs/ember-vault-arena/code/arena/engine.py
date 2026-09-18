@@ -30,9 +30,10 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, Callable
 
-from . import combat, grid, items, rules, scoring
+from . import combat, deals, grid, items, rules, scoring
 from .models import (
     AgentAction,
+    Deal,
     AgentManifest,
     Note,
     ProviderResult,
@@ -117,6 +118,9 @@ class ArenaEngine:
         self.manifests: dict[str, AgentManifest] = {}
         self.rng = HashRNG(0)
         self.round_lines: list[str] = []
+        # This round's committed events, as written, for the deal settlement
+        # in upkeep (PRD §5.20: a break is judged against committed events).
+        self._round_events: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # match loop
@@ -175,6 +179,7 @@ class ArenaEngine:
         # -- P0 ROUND OPEN --------------------------------------------------
         self.state["round"] = round_no
         self.round_lines = []
+        self._round_events = []
         round_resets: dict[str, Any] = {}
         for agent_id in sorted(self.state["agents"]):
             agent = self.state["agents"][agent_id]
@@ -527,6 +532,10 @@ class ArenaEngine:
                 )
             if action.speech.mode != "silent":
                 self._emit_speech(round_no, agent_id, action.speech)
+            # A promise is the character's own: the autopilot never deals on a
+            # brain's behalf, so a deal rides only on a valid decision.
+            if validity == "valid" and action.deal is not None:
+                self._emit_deal(round_no, agent_id, action.deal)
             self.store.log_decision(
                 self.match_id,
                 round_no,
@@ -621,6 +630,48 @@ class ArenaEngine:
                 "room": agent["room"],
                 "addressed_ids": addressed,
             },
+        )
+
+    def _emit_deal(self, round_no: int, agent_id: str, deal: Deal) -> None:
+        """Record an offer or an accept (PRD §5.19). What cannot be recorded is
+        ``deal_lost`` with the reason and no penalty, as a whisper to an empty
+        room is lost."""
+        raw = deal.as_dict()
+        agent = self.state["agents"][agent_id]
+        if deal.kind == "offer":
+            offer, reason = deals.record_offer(self.state, round_no, agent_id, raw)
+            if offer is None:
+                self._event(
+                    round_no, "dialogue", "deal_lost", agent_id, deal.to,
+                    f"{agent['name']}'s offer goes nowhere: {reason}.",
+                    {"kind": "offer", "deal": raw, "reason": reason},
+                )
+                return
+            other = self.state["agents"][offer["to"]]
+            self._event(
+                round_no, "dialogue", "offer_made", agent_id, offer["to"],
+                f"{agent['name']} offers {other['name']} {deals.describe_terms(self.state, offer)}; "
+                f"it stands until the end of round {offer['lapses_after_round']}.",
+                {"offer": deepcopy(offer), "parties": [offer["from"], offer["to"]],
+                 "changes": {f"deals.offers.{offer['id']}.status": [None, "open"]}},
+            )
+            return
+        struck, reason = deals.record_accept(self.state, round_no, agent_id, deal.offer_id)
+        if struck is None:
+            self._event(
+                round_no, "dialogue", "deal_lost", agent_id, None,
+                f"{agent['name']}'s acceptance goes nowhere: {reason}.",
+                {"kind": "accept", "deal": raw, "reason": reason},
+            )
+            return
+        offerer = self.state["agents"][struck["from"]]
+        self._event(
+            round_no, "dialogue", "deal_struck", agent_id, struck["from"],
+            f"{agent['name']} accepts {offerer['name']}'s offer of {deals.describe_terms(self.state, struck)}. "
+            f"It stands through round {struck['term_end']}.",
+            {"deal": deepcopy(struck), "parties": list(struck["parties"]),
+             "changes": {f"deals.offers.{struck['id']}.status": ["open", "struck"],
+                         f"deals.struck.{struck['id']}.status": [None, "standing"]}},
         )
 
     def _addressed_ids(self, speaker_id: str, text: str) -> list[str]:
@@ -968,7 +1019,7 @@ class ArenaEngine:
         agent = self.state["agents"][agent_id]
         item_id = action.item or ""
         receiver = self.state["agents"].get(action.target or "")
-        if item_id not in agent["inventory"] or item_id == CROWN_ITEM_ID:
+        if item_id not in agent["inventory"]:
             self._stale(agent_id, action, "item no longer in hand")
             return
         if (
@@ -991,6 +1042,33 @@ class ArenaEngine:
                 "item": items.describe_item(item_id),
                 "to": receiver["id"],
                 "changes": {"inventory_removed": item_id, "inventory_added": item_id},
+            },
+        )
+        if item_id == CROWN_ITEM_ID:
+            self._crown_given(agent_id, receiver["id"])
+
+    def _crown_given(self, giver_id: str, receiver_id: str) -> None:
+        """The deal path (18 Sep 2026): a handed-over Crown is a transfer that
+        resets attunement and scores nothing for either hand, so a gift can
+        keep a promise and cannot farm the take."""
+        crown = self.state["crown"]
+        changes = rules.crown_to_carrier(self.state, receiver_id)
+        giver = self.state["agents"][giver_id]
+        receiver = self.state["agents"][receiver_id]
+        self._event(
+            self.state["round"],
+            "referee",
+            "crown_taken",
+            receiver_id,
+            CROWN_ITEM_ID,
+            f"{receiver['name']} takes the Ember Crown from {giver['name']}'s hands. Attunement resets to zero.",
+            {
+                "agent_id": receiver_id,
+                "from": giver_id,
+                "via": "given",
+                "points": 0,
+                "transfers": crown["transfers"],
+                "changes": changes,
             },
         )
 
@@ -1543,6 +1621,30 @@ class ArenaEngine:
                 },
             )
 
+        # P5.d DEALS (PRD §5.20): breaks judged against this round's committed
+        # events, then offers nobody answered lapse. Nothing is prevented,
+        # nothing is scored; a kept deal is recorded and says nothing.
+        settled = deals.settle(self.state, round_no, self._round_events)
+        for deal, breaker in settled["broken"]:
+            wronged = [p for p in deal["parties"] if p != breaker]
+            names = self.state["agents"]
+            self._event(
+                round_no, "referee", "deal_broken", breaker, wronged[0] if wronged else None,
+                f"{names[breaker]['name']} breaks the deal with {names[wronged[0]]['name'] if wronged else 'nobody'}: "
+                f"{deal['how']} ({deals.describe_terms(self.state, deal)}).",
+                {"deal": deepcopy(deal), "parties": list(deal["parties"]), "broken_by": breaker, "how": deal["how"],
+                 "changes": {f"deals.struck.{deal['id']}.status": ["standing", "broken"]}},
+            )
+        for offer in deals.lapse_offers(self.state, round_no):
+            names = self.state["agents"]
+            self._event(
+                round_no, "referee", "offer_lapsed", offer["from"], offer["to"],
+                f"{names[offer['from']]['name']}'s offer to {names[offer['to']]['name']} lapses unanswered.",
+                {"offer": deepcopy(offer), "parties": [offer["from"], offer["to"]],
+                 "changes": {f"deals.offers.{offer['id']}.status": ["open", "lapsed"]}},
+                include_in_narration=False,
+            )
+
         # P5.e TERMINAL CHECK
         if not any(
             agent["status"] == "active" for agent in self.state["agents"].values()
@@ -1979,6 +2081,9 @@ class ArenaEngine:
             public_text,
             payload,
             self.state,
+        )
+        self._round_events.append(
+            {"round_no": round_no, "event_type": event_type, "actor_id": actor_id, "target_id": target_id, "payload": payload}
         )
         if include_in_narration and phase != "narration":
             self.round_lines.append(public_text)

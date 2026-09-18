@@ -71,7 +71,8 @@ class SecondChoiceTests(unittest.TestCase):
     # ---- the contract ----------------------------------------------------
 
     def test_the_contract_carries_a_second_choice_and_its_schema_is_pinned(self):
-        self.assertEqual(ACTION_SCHEMA_VERSION, "agent-action-1.1")
+        # the second choice entered at 1.1 and every later version keeps it
+        self.assertGreaterEqual(tuple(int(x) for x in ACTION_SCHEMA_VERSION.rsplit("-", 1)[1].split(".")), (1, 1))
         a = AgentAction.from_dict(json.loads(_raw("take", item="ember_crown", fallback=GUARD)))
         self.assertEqual(a.fallback, SecondChoice(action="guard"))
         self.assertEqual(a.as_dict()["fallback"], GUARD)

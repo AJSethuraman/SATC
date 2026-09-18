@@ -5,6 +5,62 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 18 September 2026, 23:50Z — M3, slice C: deals, recorded and never enforced
+
+PRD §5 items 19–21 built: `agent-action-1.2`, `arena/deals.py`,
+`ember-vault-obs-0.3`, `ember-vault-prompt-1.2`, `ember-vault-memory-0.3`.
+A deal rides in the action's `deal` slot, one per character per round:
+an offer to one living character in the offerer's room (it is spoken, so
+it has to be heard) of a truce (1–6 rounds), a share (an item, by a
+round) or an escort (a room, by a round), or an accept naming an open
+offer's id the round after it was made. `offer_made` carries the id
+(`offer-r<round>-<offerer>`), `deal_struck` the term, `offer_lapsed`
+lands at the end of the round after an unanswered offer, and what the
+referee cannot record is `deal_lost` with the reason and no penalty, as
+a whisper to an empty room is lost. A promise rides only on a valid
+decision: the autopilot never deals for a panicked brain.
+
+Breaks are judged at P5.d of upkeep against the round's committed
+events, which the engine now keeps as it writes them: an attack, hit or
+miss, between truce partners inside the term is broken by the attacker;
+a share not handed over by its round is broken by the offerer; an
+escort not stood together by its round is broken by whoever is absent,
+one `deal_broken` each. Breaks are judged before deaths, so a partner
+killed inside a truce is a break; a death otherwise ends a deal
+silently. A kept deal is recorded and says nothing: the session's
+choice, reversible if the firm wants kept promises on screen. Nothing
+is prevented and nothing is scored.
+
+The digest gains `deals`: the character's open offers either way, its
+standing deals, the last eight public breaks, who it can offer to, and
+the policy in numbers. Nobody sees another's offers; everybody sees
+every break. The prompt explains the slot; the pinned schema is
+regenerated; the replay publishes the deal with the action; memory
+keeps a party's own deal events; the board shows offers, acceptances
+and breaks on the cards.
+
+**The deal path for the Crown, the session's decision, reversible:**
+`give` no longer skips the Crown. A handed-over Crown is a transfer
+(`crown_taken` with `via: given`) that resets attunement and scores
+nothing for either hand, so a share deal for the Crown can be kept and
+a give-and-give-back loop farms nothing. The comment in `rules.py` had
+said M3 would decide this. Open for the firm: whether a gift should
+reset attunement at all.
+
+The mock accepts any offer made to it and offers a three-round truce on
+odd rounds when it holds nothing; its choices ignore its promises. The
+seed-52 mock match now carries 83 offers, 27 struck, 56 lapsed and no
+break (the dice never put partners on each other); the golden is
+regenerated on purpose: 98 snapshots, 1,793 events, Vetch still wins.
+Tests: `tests/test_deals.py` (10): the offer, the acceptance the round
+after, the digest to the parties only, the lapse and the late accept,
+every reason a deal is lost, the truce break with nothing prevented and
+no second break, the truce kept and an attack after the term, the share
+kept and broken, the escort kept and broken by the absent, the death
+that voids and the killing that breaks, the Crown by hand, and the mock
+carrying every event through seam 1. The contract test that refused
+every deal now proves the contract. Suite 133 → **143**, 76 seconds.
+
 ## 18 September 2026, 23:35Z — M3, slice A: forty-eight rounds in four acts of twelve
 
 *On the date: the clock reads 18 September 23:35Z. The five entries below

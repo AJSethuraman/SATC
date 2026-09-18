@@ -1,8 +1,8 @@
 {
-  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.1.json",
+  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.2.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "agent-action-1.1",
+  "description": "agent-action-1.2",
   "properties": {
     "action": {
       "enum": [
@@ -20,7 +20,85 @@
       "type": "string"
     },
     "deal": {
-      "type": "null"
+      "additionalProperties": false,
+      "properties": {
+        "by_round": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "destination": {
+          "maxLength": 32,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "accept",
+            "offer"
+          ],
+          "type": "string"
+        },
+        "offer_id": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rounds": {
+          "maximum": 6,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "to": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "enum": [
+            "escort",
+            "share_item",
+            "truce",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "to",
+        "type",
+        "rounds",
+        "item",
+        "destination",
+        "by_round",
+        "offer_id"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "destination": {
       "maxLength": 32,

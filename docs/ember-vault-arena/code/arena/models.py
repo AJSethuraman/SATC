@@ -7,14 +7,17 @@ stays at ember-vault-0.2 until M3 changes the rules; the ACTION and MANIFEST
 schema versions move here, now, because a stored match is only replayable by a
 reader that knows the shape of what was stored.
 
-agent-action-1.1 (PRD §5.14, §5.42):
+agent-action-1.2 (PRD §5.14, §5.19, §5.42):
   action + target/destination/item/tile as before, plus ``give``;
   speech is an object {mode: say|whisper|silent, to, text<=300};
   note is {objective<=120, reads<=4 of {who, stance, why<=60}};
-  deal is accepted by the contract and must be null in 1.0 -- it opens in M3,
-  when the referee can record offers and detect breaks. Refusing a non-null deal
-  now is the honest version of "not built yet": a model that offers one is told
-  so, rather than having its offer silently dropped.
+  fallback is the second choice: the five action slots, or null;
+  deal is an offer or an accept, or null (opened 18 Sep 2026, M3): an offer
+  names who it is to and one of truce (rounds 1-6), share_item (item,
+  by_round) or escort (destination, by_round); an accept names an open
+  offer's id. The referee records deals and their breaks and enforces nothing.
+  Until 1.2 a non-null deal was refused with the reason, which was the honest
+  version of "not built yet".
   reasoning_summary and memory_write are gone; the note replaced both.
 """
 
@@ -25,7 +28,7 @@ from typing import Any
 
 
 RULESET_VERSION = "ember-vault-0.4"
-ACTION_SCHEMA_VERSION = "agent-action-1.1"
+ACTION_SCHEMA_VERSION = "agent-action-1.2"
 MANIFEST_SCHEMA_VERSION = "agent-manifest-1.0"
 
 BUILDS: dict[str, dict[str, int]] = {
@@ -58,6 +61,10 @@ NOTE_OBJECTIVE_CAP = 120
 NOTE_READS_MAX = 4
 NOTE_WHY_CAP = 60
 STANCES = {"trust", "distrust", "unknown"}
+DEAL_KINDS = {"offer", "accept"}
+DEAL_TYPES = {"truce", "share_item", "escort"}
+TRUCE_ROUNDS_MIN = 1
+TRUCE_ROUNDS_MAX = 6
 ID_PATTERN = r"[A-Za-z0-9_-]+"
 
 
@@ -322,6 +329,80 @@ def _parse_tile(tile_raw: Any, label: str = "tile") -> tuple[int, int] | None:
 
 
 @dataclass(frozen=True)
+class Deal:
+    """An offer or an accept (PRD §5.19), flat: every slot is present and the
+    ones that do not belong to the kind and type are null. The referee
+    records it, never enforces it, and a bad one is lost with the reason."""
+
+    kind: str
+    to: str | None = None
+    type: str | None = None
+    rounds: int | None = None
+    item: str | None = None
+    destination: str | None = None
+    by_round: int | None = None
+    offer_id: str | None = None
+
+    _SLOTS = ("kind", "to", "type", "rounds", "item", "destination", "by_round", "offer_id")
+    _NEEDS = {"truce": ("rounds",), "share_item": ("item", "by_round"), "escort": ("destination", "by_round")}
+
+    @classmethod
+    def from_raw(cls, raw: Any) -> "Deal | None":
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            raise ValidationError("deal must be an object or null")
+        unknown = set(raw) - set(cls._SLOTS)
+        if unknown:
+            raise ValidationError(f"unknown deal fields: {sorted(unknown)}")
+        kind = _bounded_text(raw.get("kind"), "deal.kind", 8, 1).lower()
+        if kind not in DEAL_KINDS:
+            raise ValidationError(f"deal.kind must be one of {sorted(DEAL_KINDS)}")
+
+        def integer(name: str, low: int, high: int) -> int | None:
+            value = raw.get(name)
+            if value is None:
+                return None
+            if not isinstance(value, int) or isinstance(value, bool) or not low <= value <= high:
+                raise ValidationError(f"deal.{name} must be an integer from {low} to {high}")
+            return value
+
+        def ident(name: str) -> str | None:
+            return None if raw.get(name) is None else _id(raw.get(name), f"deal.{name}", 64, 1)
+
+        to, item, offer_id = ident("to"), ident("item"), ident("offer_id")
+        type_ = None if raw.get("type") is None else _bounded_text(raw.get("type"), "deal.type", 16, 1).lower()
+        rounds = integer("rounds", TRUCE_ROUNDS_MIN, TRUCE_ROUNDS_MAX)
+        destination = _optional_text(raw, "destination", 32, "deal.")
+        by_round = integer("by_round", 1, 9_999)
+        if kind == "offer":
+            if not to:
+                raise ValidationError("deal.to names who the offer is made to")
+            if type_ not in DEAL_TYPES:
+                raise ValidationError(f"deal.type must be one of {sorted(DEAL_TYPES)}")
+            if offer_id is not None:
+                raise ValidationError("deal.offer_id belongs to an accept, not an offer")
+            needs = cls._NEEDS[type_]
+            for slot in ("rounds", "item", "destination", "by_round"):
+                present = raw.get(slot) is not None
+                if slot in needs and not present:
+                    raise ValidationError(f"a {type_} offer needs deal.{slot}")
+                if slot not in needs and present:
+                    raise ValidationError(f"deal.{slot} does not belong to a {type_} offer")
+        else:
+            if not offer_id:
+                raise ValidationError("deal.offer_id names the open offer you accept")
+            for slot in ("to", "type", "rounds", "item", "destination", "by_round"):
+                if raw.get(slot) is not None:
+                    raise ValidationError(f"deal.{slot} does not belong to an accept")
+        return cls(kind=kind, to=to, type=type_, rounds=rounds, item=item, destination=destination,
+                   by_round=by_round, offer_id=offer_id)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {slot: getattr(self, slot) for slot in self._SLOTS}
+
+
+@dataclass(frozen=True)
 class SecondChoice:
     """The brain's second choice (PRD §5.42, ruled 18 Sep 2026, docket D11):
     the five action slots and nothing else, used by the referee only when the
@@ -371,7 +452,7 @@ class AgentAction:
     tile: tuple[int, int] | None = None
     speech: Speech = field(default_factory=Speech)
     note: Note = field(default_factory=Note)
-    deal: None = None
+    deal: Deal | None = None
     fallback: SecondChoice | None = None
 
     _FIELDS = frozenset({
@@ -408,11 +489,6 @@ class AgentAction:
                 raise ValidationError("tile coordinates out of range")
             tile = (int(tile_raw[0]), int(tile_raw[1]))
 
-        if raw.get("deal") is not None:
-            raise ValidationError(
-                f"deal must be null in {ACTION_SCHEMA_VERSION}; structured deals open in a "
-                "later schema version"
-            )
         if "note" not in raw:
             raise ValidationError("note is required: {objective, reads}")
         return cls(
@@ -423,7 +499,7 @@ class AgentAction:
             tile=tile,
             speech=Speech.from_raw(raw.get("speech")),
             note=Note.from_raw(raw.get("note")),
-            deal=None,
+            deal=Deal.from_raw(raw.get("deal")),
             fallback=SecondChoice.from_raw(raw.get("fallback")),
         )
 
@@ -436,13 +512,13 @@ class AgentAction:
             "tile": list(self.tile) if self.tile else None,
             "speech": self.speech.as_dict(),
             "note": self.note.as_dict(),
-            "deal": None,
+            "deal": self.deal.as_dict() if self.deal else None,
             "fallback": self.fallback.as_dict() if self.fallback else None,
         }
 
     def second(self) -> "AgentAction | None":
         """The second choice as a resolvable action: the five slots from the
-        fallback, the speech already spent (silent), the note unchanged."""
+        fallback, the speech and the deal already spent, the note unchanged."""
         if not self.fallback:
             return None
         return AgentAction(
@@ -509,7 +585,21 @@ def action_json_schema() -> dict[str, Any]:
                     },
                 },
             },
-            "deal": {"type": "null"},
+            "deal": {
+                "type": ["object", "null"],
+                "additionalProperties": False,
+                "required": ["kind", "to", "type", "rounds", "item", "destination", "by_round", "offer_id"],
+                "properties": {
+                    "kind": {"type": "string", "enum": sorted(DEAL_KINDS)},
+                    "to": nullable_ident,
+                    "type": {"type": ["string", "null"], "enum": sorted(DEAL_TYPES) + [None]},
+                    "rounds": {"type": ["integer", "null"], "minimum": TRUCE_ROUNDS_MIN, "maximum": TRUCE_ROUNDS_MAX},
+                    "item": nullable_ident,
+                    "destination": {"type": ["string", "null"], "maxLength": 32},
+                    "by_round": {"type": ["integer", "null"], "minimum": 1},
+                    "offer_id": nullable_ident,
+                },
+            },
             "fallback": {
                 "type": ["object", "null"],
                 "additionalProperties": False,

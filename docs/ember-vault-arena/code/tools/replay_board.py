@@ -74,6 +74,8 @@ DWELL = {
     "crown_extracted": (3200, 0, 0), "seal_activated": (1800, 0, 0), "cache_found": (1800, 0, 0), "vault_gate_opened": (2400, 0, 0),
     "room_contracting": (1800, 0, 0), "room_sealing": (1600, 0, 0), "room_sealed": (1800, 0, 0),
     "final_scores": (4500, 0, 0), "objective_reveal": (1600, 0, 0), "act_two_survival": (2000, 0, 0),
+    "offer_made": (2200, 30, 6000), "deal_struck": (2400, 30, 6000), "deal_broken": (2800, 30, 7000),
+    "offer_lapsed": (1500, 0, 0), "deal_lost": (1500, 0, 0),
 }
 DEFAULT_DWELL = (1200, 0, 0)
 
@@ -368,11 +370,12 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
 # Frames that are the actor's own doing, for the followed character's card.
 DID = {"move", "step", "attack_hit", "attack_miss", "wild_swing_self_damage", "wild_swing_bystander", "wild_swing_room_reaction",
        "guard", "rest", "search_failure", "cache_found", "seal_activated", "stale_action", "item_used", "item_taken", "give",
-       "crown_taken", "crown_extracted", "action_skipped", "invalid_action", "interact", "search_success"}
+       "crown_taken", "crown_extracted", "action_skipped", "invalid_action", "interact", "search_success",
+       "offer_made", "deal_struck", "deal_lost", "offer_lapsed"}
 # Frames that land on a character from outside: another body's swing, the
 # floor, the referee sweeping a room, the Crown leaving their hands.
 HAPPENED = {"attack_hit", "attack_miss", "wild_swing_bystander", "hazard_burn", "agent_eliminated", "agent_force_moved",
-            "crown_dropped", "monster_step"}
+            "crown_dropped", "monster_step", "offer_made", "deal_struck", "deal_broken", "offer_lapsed"}
 
 
 DICE_KINDS = {"initiative": "initiative", "tohit": "to hit", "damage": "damage", "wildswing": "wild swing",

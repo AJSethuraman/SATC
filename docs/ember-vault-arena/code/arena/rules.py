@@ -25,7 +25,7 @@ implementation and no second predicate that can drift from what the agent saw.
 from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
-from . import combat, grid, items, memory, scoring
+from . import combat, deals, grid, items, memory, scoring
 from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
 
 
@@ -183,7 +183,7 @@ CACHE_CONTENTS: dict[str, str] = {
     "ossuary_gate": "healing_tonic",
 }
 
-OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.2"
+OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.3"
 LEGALITY_VERSION = "ember-vault-legality-0.2"
 
 
@@ -291,6 +291,8 @@ def new_match_state(
         "collateral_damage": {"total": 0, "by_source": {}, "by_victim": {}},
         "room_reaction_uses": {room_id: 0 for room_id in ROOM_ORDER},
         "recent_speech": [],
+        # PRD §5.19–21: every offer and every struck deal, in the state hash.
+        "deals": deals.new_ledger(),
     }
 
 
@@ -842,12 +844,12 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
             _entry("use", f"use {item_id} ({items.item_name(item_id)})", item=item_id)
         )
     # give: any carried item except the Crown, to any living character in the
-    # room. The Crown changes hands by being taken, never handed over (it would
-    # otherwise be a transfer that resets attunement, which M3 decides).
+    # room. The Crown too, since deals opened (18 Sep 2026, PRD §5.19 and §10
+    # "the deal path"): handing it over is a transfer that resets attunement
+    # and scores nothing for either hand, so a share_item deal for the Crown
+    # can be kept and not only broken. Reversible by the firm.
     for view in me.get("inventory", []):
         item_id = view["id"]
-        if item_id == CROWN_ITEM_ID:
-            continue
         for other in observation.get("visible_agents", []):
             if other.get("status") != "active":
                 continue
@@ -956,6 +958,7 @@ def visible_observation(
                       "reads": [dict(r) for r in agent["note"].get("reads", [])]},
         "recent_speech": _build_recent_speech(state, agent),
         "whispers_seen": _build_whispers_seen(state, agent),
+        "deals": deals.digest(state, agent_id),
         "score_breakdown": scoring.score_breakdown_view(state, agent_id),
     }
     observation["legal_actions"] = enumerate_legal_actions(observation)
