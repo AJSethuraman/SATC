@@ -5,6 +5,28 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 18 September 2026, 22:40Z — D11 answered: a second choice
+
+The firm, on the docket at 22:32Z: *"B: a second choice."* In the
+session: *"2nd chance seems good."*
+
+Recorded as PRD §5 item 42: everyone still commits blind at once; the
+action gains an optional `fallback` of the same shape as the action,
+applied by the referee only when the first choice is stale at
+resolution; a stale fallback is a stale turn, no third; the
+`stale_action` event names which choice was applied; the output contract
+bumps to `agent-action-1.1` with the pinned schema regenerated, and the
+brain template and the digest tell the brain what a fallback is for.
+Measured on the mock and on the model by stale turns per match before
+and after; the 12 September match's 17 of 106 is the baseline. D, the
+re-ask, stays in §10 as the next step if B leaves too many.
+
+It is M3 work and M3 waits on the gate (D7, D9), so nothing is built
+today. Moved to the docket's answered section; nothing on the docket now
+waits on a tap. The blind read still does: one pick of eight, unchanged
+since 13 September. The check-in and the pull-request feed stay
+disarmed at the firm's word.
+
 ## 14 September 2026, 14:40Z — "waste their turn if someone else gets to something first": 17 of 106 in the match; four ways out, none built
 
 The firm: *"Okay so I do think it makes sense to have them play one at a
