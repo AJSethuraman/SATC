@@ -45,6 +45,7 @@ from .providers import (
     MockDecisionProvider,
     compile_narration_prompt,
     compile_prompt,
+    compile_opening_prompt,
 )
 from .rng import HashRNG
 from .rules import (
@@ -160,6 +161,7 @@ class ArenaEngine:
             },
         )
         self.store.save_snapshot(self.match_id, 0, "start", self.state)
+        self._narrate_opening()
 
         for round_no in range(1, self.max_rounds + 1):
             if self._is_terminal():
@@ -1842,6 +1844,86 @@ class ArenaEngine:
             category,
             points,
             detail,
+        )
+
+    def opening_facts(self) -> dict[str, Any]:
+        """What the narrator may set the scene from: the public world and the
+        contestants by name and build. No secret aim, no brain text, no
+        note. A pure read of state."""
+        state = self.state
+        monsters = state["monsters"]
+        rooms = []
+        for room_id, room in state["rooms"].items():
+            guardian = monsters.get(room.get("guardian_id") or "")
+            rooms.append({"id": room_id, "name": room["name"], "description": room.get("description", ""),
+                          "guardian": guardian["name"] if guardian else None})
+        names = {room_id: room["name"] for room_id, room in state["rooms"].items()}
+        closes = [{"room": names.get(c["room"], c["room"]), "round": c["round"]}
+                  for c in state.get("contraction", {}).get("schedule", [])]
+        return {
+            "max_rounds": self.max_rounds,
+            "contestants": [{"name": a["name"], "build": a["build"], "hp": a["max_hp"]}
+                            for a in (state["agents"][aid] for aid in sorted(state["agents"]))],
+            "monsters": [{"name": m["name"], "room": names.get(m["room"], m["room"]), "hp": m["max_hp"],
+                          "power": m["power"], "armor": m["armor"], "reach": m["reach"]}
+                         for m in (monsters[mid] for mid in sorted(monsters))],
+            "rooms": rooms,
+            "closes": closes,
+            "rules": [
+                f"{self.max_rounds} rounds at most; every round all decide at once, the dice set the order, each acts in turn, then the monsters.",
+                "Each gate holds a seal and a guardian; the Vault opens when both seals are lit.",
+                "The Crown is locked inside its Warden and drops when the Warden falls; whoever holds it when the last round ends wins outright.",
+            ],
+        }
+
+    @staticmethod
+    def validate_opening(text: str, facts: dict[str, Any]) -> str | None:
+        """The check PRD §5.26 asks for, applied to the opening: bounds, no
+        secret aim named, and at least the Crown and one room mentioned.
+        Returns the reason it fails, or None."""
+        if not text or not text.strip():
+            return "empty opening"
+        if len(text) > 1_600:
+            return "opening longer than 1,600 characters"
+        low = text.lower()
+        for word in ("monster hunter", "monster_hunter", "lorekeeper", "oathbreaker", "treasure hoarder", "treasure_hoarder", "secret objective", "secret aim"):
+            if word in low:
+                return f"opening names a secret aim: {word}"
+        if "crown" not in low:
+            return "opening never mentions the Crown"
+        if not any(r["name"].lower() in low for r in facts.get("rooms", [])):
+            return "opening names no room"
+        return None
+
+    def _narrate_opening(self) -> None:
+        """The narrator sets the scene before round 1 (PRD §5.26, asked by the
+        firm 14 Sep 2026). Outside the state hash like every narration; a
+        failed check substitutes the deterministic template and says why."""
+        facts = self.opening_facts()
+        prompt = compile_opening_prompt(facts)
+        fallback_reason = None
+        try:
+            result = self.provider.narrate(0, prompt, [])
+            opening = (result.raw_output or "").strip()
+            problem = self.validate_opening(opening, facts)
+            if problem:
+                raise ValueError(problem)
+        except Exception as exc:  # noqa: BLE001 - provider isolation
+            fallback_reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+            result = self.autopilot.narrate(0, prompt, [])
+            opening = result.raw_output
+        self.store.append_audit(
+            self.match_id, "gm_opening",
+            {"round_no": 0, "prompt": prompt, "raw_output": opening,
+             "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens,
+                       "provider": result.provider, "model": result.model},
+             "fallback_reason": fallback_reason},
+        )
+        self._event(
+            0, "narration", "match_opening", None, None, opening,
+            {"facts": facts, "fallback_reason": fallback_reason,
+             "provider": result.provider, "model": result.model},
+            include_in_narration=False,
         )
 
     def _narrate(self, round_no: int) -> str:

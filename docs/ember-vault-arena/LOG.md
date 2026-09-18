@@ -5,6 +5,43 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 03:30Z — M3, slice 4: the narrator opens the match
+
+PRD §5 item 26, the opening, built. Before round 1 the referee publishes
+a facts packet (`engine.opening_facts`): the five rooms with their
+descriptions and who holds each, the guardians and the Warden with room,
+HP, power, armour and reach, the closing schedule, the contestants by
+name and build and HP, and three rules in one line each (rounds and
+turn order; seals and the Vault; the Crown and the ending). Nothing
+secret: no aim, no brain text, no note. The narrator gets it through
+the same `narrate` seam as a round, with an opening prompt that says
+add colour, never add or alter a fact, never name anything not in the
+packet, never guess what a contestant wants.
+
+`validate_opening` is the check item 26 asks for, applied to the
+opening: refuse an empty or over-long text, one that names a secret aim
+in any spelling, one that never mentions the Crown, one that names no
+room; on refusal the deterministic `opening_template`, built from the
+facts alone, stands in and the reason is audited. The mock's opening is
+that template. The `match_opening` event carries the text and the facts
+at round 0, after `match_started` and before round 1, outside the state
+hash like every narration; memory ignores it at memory scale. The
+board's scene card leads with it when a record has one; the feed page
+does not show it.
+
+Tests (`tests/test_opening.py`, 3): the opening comes between
+`match_started` and round 1 and names every character with build, every
+room, every monster, the round count and the Crown, and nothing secret
+reaches the packet or the text; the check refuses each fault by reason
+and the template stands in when a provider's opening is bad; the prompt
+carries the facts and nothing else. Golden regenerated for the one
+extra event (623). Suite 129 → **132**.
+
+The four fixes of D12 are in. Next: the golden is regenerated (done in
+each slice), then a fresh match on the forge's subscription route under
+ruleset 0.3 for the firm to watch on the board, with voices, and the
+first before-and-after on stale turns against 17 of 106.
+
 ## 19 September 2026, 02:45Z — M3, slice 3: a room's burst names each body it catches
 
 `combat._room_wears_it`, burst branch: every event the burst emits now

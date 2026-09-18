@@ -105,6 +105,7 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "initiative_order",
         "action_skipped",
         "match_started",
+        "match_opening",
         "act_started",
         "act_two_survival",
         "guard",

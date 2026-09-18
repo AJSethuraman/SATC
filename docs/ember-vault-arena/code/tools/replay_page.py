@@ -237,7 +237,7 @@ def build(pack: Path, blind_read_url: str = "") -> str:
 
 # ------------------------------------------------------------ replay bundles
 
-SKIP = {"dice_roll", "agent_resource_update", "round_started", "match_started"}
+SKIP = {"dice_roll", "agent_resource_update", "round_started", "match_started", "match_opening"}
 
 
 def load_bundle(path: Path) -> dict:

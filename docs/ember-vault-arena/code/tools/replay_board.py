@@ -563,8 +563,11 @@ def build_scene(bundle: dict, start: dict) -> dict:
         stats = (f"{bs['hp']} HP, power {bs['power']}, armour {bs['armor']}, moves {bs['moves']}, reach {bs['reach']}, search +{bs['search']}" if bs else "")
         eight.append({"who": aid, "name": a["name"], "build": a["build"], "hp": a["max_hp"], "secret": a["secret"],
                       "secret_text": a["secret_text"], "wants": first_sentence, "stats": stats})
-    text = " ".join(t for t in [f"{len(eight)} rivals enter the Ember Vault.", f"Seed {m.get('seed')}."] if t)
-    return {"rooms": rooms, "rules": rules, "eight": eight, "npcs": npcs, "npc_rules": npc_rules, "builds": builds, "text": text}
+    opening = next((e.get("public_text") for e in sorted(bundle.get("events", []), key=lambda e: e["seq"])
+                    if e["event_type"] == "match_opening"), None)
+    text = opening or " ".join(t for t in [f"{len(eight)} rivals enter the Ember Vault.", f"Seed {m.get('seed')}."] if t)
+    return {"rooms": rooms, "rules": rules, "eight": eight, "npcs": npcs, "npc_rules": npc_rules, "builds": builds, "text": text,
+            "narrated": bool(opening)}
 
 
 def build_story(start: dict, frames: list[dict], turns: dict[str, list[dict]], bundle: dict | None = None) -> list[dict]:
