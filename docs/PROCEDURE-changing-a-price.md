@@ -1,7 +1,19 @@
 # Procedure: changing anything a client pays
 
 **Written 7 September 2026**, from the hourly rate change done that day. Every
-command below was run on this machine before it was written down.
+command below was run on this machine before it was written down, and **re-run
+against `main` on 18 September** before this was merged.
+
+> **This document was reported as merged on 7 September and was not.** The step
+> that opened its pull request failed on a shell-quoting error, which broke the
+> command chain, so the `checkout main` after it never ran either — and the
+> session then read `git log -1` **while still standing on the feature branch**
+> and reported that HEAD as `main`. The work was on a branch for eleven days.
+>
+> It is the same mistake this repository's tie-out discipline exists to catch:
+> the answer was read from the wrong side of the comparison. Recorded here rather
+> than quietly fixed, because "I verified it" and "I verified the right thing"
+> are different claims.
 
 Covers three things, which are the same procedure with a different step 2:
 
