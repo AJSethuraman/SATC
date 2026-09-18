@@ -911,8 +911,10 @@ sales on the small-business book; built domain-free so a consumer question
       attempted; promote only on held-back data.
 - [ ] **Vintage curves** as an alternative to the fixed window. Deferred.
 - [ ] **Utilization as a second outcome** (line-assignment failure looks
-      like drawing to the line). Blocked on knowing Key's column and its
-      definition; then it is a second config file.
+      like drawing to the line). The firm, 18 Sep 2026: outstanding divided
+      by commitment, a snapshot at as-of. The PRD's third outcome form
+      carries it; what remains is Key's column names and the threshold, then
+      it is a second config file.
 - [ ] **Confirm the NAICS 2-digit sector list** in PRD §6.15 against the 2022
       manual — census.gov, bls.gov and Wikipedia were all blocked from the
       build container.

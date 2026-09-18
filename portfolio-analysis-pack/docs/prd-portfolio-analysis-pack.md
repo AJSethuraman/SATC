@@ -132,9 +132,10 @@ maintainer/agent** (building or extending the tool).
    excluded from every rate table and counted as *unseasoned* on the capture
    tab, so that seasoned and unseasoned originations never share a rate.
 7. As the reviewer, I want the outcome to be any yes/no per loan — an event
-   date the pack censors at the window, or a flag the bank already windowed
-   and I declare as such — so that charge-off, 60+ DPD and utilization are
-   each a config, not a code change.
+   date the pack censors at the window, a flag the bank already windowed and
+   I declare as such, or a measure taken at the as-of date such as
+   outstanding ÷ commitment above a line — so that charge-off, 60+ DPD and
+   utilization are each a config, not a code change.
 8. As the reviewer, I want prevalence split into two series — how often both
    fields are present, and how often the flag fires among loans where they are
    — so that a capture trend and a flag trend are never merged.
@@ -223,9 +224,13 @@ Priority: [P0] must · [P1] should · [P2] nice.
 3. [P0] `rule.fires_when` is required (`{op, value}`, op ∈ `> >= < <= == !=`).
    `existing_control` is required (`none` or free text). Neither is defaulted.
 4. [P0] Input is CSV (stdlib) or XLSX (openpyxl, first sheet or `--sheet`).
-   Column names are used verbatim. `population.date_format` is required and
-   is a `strptime` pattern; `pack inspect` proposes one from the data and
-   never applies it.
+   Column names are used verbatim. Dates are detected per §6.2: typed XLSX
+   date cells need nothing; text dates are parsed by the one common pattern
+   that fits every value, and that pattern is recorded on `_provenance`;
+   when two patterns both fit, the build refuses and prints the candidates
+   with a sample value so the reviewer picks one by adding
+   `population.date_format`. The line is therefore optional, and when
+   present it is applied as given.
 5. [P0] `pack inspect DATA` prints, per column: inferred type (integer,
    decimal, date-like, text, mixed), null share, distinct count, five sample
    values, and the date pattern that parses the most date-like values.
@@ -243,11 +248,19 @@ Priority: [P0] must · [P1] should · [P2] nice.
    calendar months from origination to as-of (§6.4). Loans with months on
    book < `window_months` are excluded from every rate table and counted as
    *unseasoned* on `1_Capture`, by quarter.
-9. [P0] Outcome is either `{date_field}` (event iff date ≤ origination +
-   window months; later events are non-events in-window; blank is non-event)
-   or `{field, op, value, window_applied_by: bank}` (event iff the predicate
-   holds; the pack does not window it and the method note says so).
-   Exactly one form.
+9. [P0] Outcome takes exactly one of three forms. **Event date:**
+   `{date_field}` — event iff date ≤ origination + window months; later
+   events are non-events in-window; blank is non-event. **Bank-windowed
+   flag:** `{field, op, value, basis: windowed_by_bank}` — event iff the
+   predicate holds; the pack does not window it and the method note says
+   so. **Snapshot at as-of:** `{measure, op, value, basis: snapshot_at_asof}`
+   where `measure` is a column or a derived `{kind: ratio|difference,
+   field_a, field_b}` using the rule's own machinery (utilization =
+   outstanding ÷ commitment) — event iff the predicate holds on the value
+   at the as-of date; the method note states that months on book vary
+   across the base from the window to the oldest seasoned loan, and the
+   decomposition by origination year is where that variation is read.
+   Seasoning exclusion applies identically to all three.
 10. [P0] The word for the outcome in every note and header is
     `outcome.label` from the config. The package contains no outcome name.
 
@@ -396,7 +409,9 @@ rule:
 outcome:
   label: charge-off
   date_field: CO_DT
-  # or:  field: PEAK_UTIL_12M, op: ">=", value: 0.9, window_applied_by: bank
+  # or:  field: DPD60_FLAG_24M, op: "==", value: 1, basis: windowed_by_bank
+  # or:  measure: {kind: ratio, field_a: OUTSTANDING, field_b: COMMITMENT},
+  #      op: ">=", value: 0.9, basis: snapshot_at_asof, label: drawn to the line
 window_months: 24
 confounders:
   - name: revenue_band
@@ -477,11 +492,20 @@ CSV via `csv` with `utf-8-sig`; XLSX via openpyxl read-only. Numeric parse:
 strip `$`, `,`, whitespace, parentheses as negative; `%` refused (a rate
 column is declared as a decimal). A blank, `NA`, `N/A`, `NULL`, `null`,
 `None`, `-` after strip is **blank**. Anything else that fails `Decimal` is
-**non-numeric** (hygiene). Dates via `population.date_format` only; a value
-that fails is **unparseable** (hygiene). `pack inspect` reports the share
-each of eight common patterns parses (`%m/%d/%Y`, `%Y-%m-%d`, `%d/%m/%Y`,
-`%m/%d/%y`, `%Y%m%d`, `%d-%b-%Y`, `%b %d, %Y`, `%Y-%m-%dT%H:%M:%S`) and
-proposes the best; ties are printed as ties.
+**non-numeric** (hygiene). Dates: a typed XLSX date cell is taken as is.
+Text dates are tried against eight common patterns (`%m/%d/%Y`, `%Y-%m-%d`,
+`%d/%m/%Y`, `%m/%d/%y`, `%Y%m%d`, `%d-%b-%Y`, `%b %d, %Y`,
+`%Y-%m-%dT%H:%M:%S`), per date column, over every non-blank value. Exactly
+one pattern fitting every value is a fact: it is used and written to
+`_provenance` (`ORIG_DT: %m/%d/%Y, 40,000 of 40,000 parsed`). Two or more
+fitting every value (every day ≤ 12, so month-first and day-first both
+parse) is ambiguous: the build refuses, prints each candidate with the same
+sample value read both ways (`03/04/2021 → 4 March or 3 April`), and names
+the line to add (`population.date_format`). No pattern fitting every value:
+the values that fail the best pattern are **unparseable** (hygiene) and the
+refusal file lists them. `pack inspect` prints the same per-column result.
+When `population.date_format` is present it is applied as given and the
+detection is skipped.
 
 ### 6.3 Hygiene (refuse, report, never repair)
 
@@ -501,9 +525,13 @@ run` for that field — a third answer, never a pass.
 Seasoned iff `months_on_book ≥ window_months`. Window end = origination plus
 `window_months` calendar months, day clamped to month end. Event (date form)
 iff outcome date is not blank and ≤ window end; an outcome date before
-origination is hygiene failure (d′). Event (flag form) iff the predicate
-holds; blank is non-event. Loans paid off inside the window without an event
-are non-events; the method note says so.
+origination is hygiene failure (d′). Event (bank-windowed flag) iff the
+predicate holds; blank is non-event. Event (snapshot) iff the predicate
+holds on the measure's value at as-of; a blank measure is non-event and is
+counted as blank on `1_Capture`; a derived ratio with a zero denominator is
+hygiene failure (a). Loans paid off inside the window without an event are
+non-events; the method note says so. For a snapshot outcome the note also
+says months on book range from the window to the oldest seasoned loan.
 
 ### 6.5 The cube
 
@@ -774,19 +802,20 @@ function is prefixed.
   five-minute budget. Mitigation: the build prints per-step time; the cube
   steps are O(n); if the model step is the cost, cap tree candidates (§6.10)
   before reaching for a dependency.
+- **Assumption (the firm's, 18 Sep 2026):** Key's desk Python has
+  `openpyxl` — the credit-review-os bundle ran there. Not re-verified.
 - **Risk:** Key's Excel version. `_xlfn.` functions need Excel 2010+; the
   render harness proves LibreOffice, not Excel. First open at the desk is the
   proof.
-- **Open question (yours):** Key's column names and date format — written
-  into the config at the desk after `pack inspect`.
-- **Open question (yours):** whether Key's extract carries a utilization
-  measure and how it is defined; then it is a second config.
+- **Open question (yours):** Key's column names — written into the config
+  at the desk after `pack inspect`.
+- **Open question (yours):** the utilization threshold for the second
+  config (outstanding ÷ commitment at as-of; the firm named the measure on
+  18 Sep 2026), e.g. `>= 0.9`.
 - **Open question (yours):** the `existing_control` value for the first
   instance.
 - **Open question (yours):** confirm the NAICS sector list (§6.15) against the
   2022 manual; the build container could not reach it.
-- **Open question (yours):** whether Key's desk Python has `openpyxl` and
-  `PyYAML`, or can `pip install` them.
 
 ## 11. Done Criteria
 
