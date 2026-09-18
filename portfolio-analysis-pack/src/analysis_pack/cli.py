@@ -1,5 +1,6 @@
 """The command line. JSON status on stdout, a human summary on stderr.
 
+    pack inspect  DATA [--sheet NAME]
     pack synth    --out DIR [--seed N] [--loans N] [--effect X] [--null] [--confounded]
     pack validate CONFIG --data DATA [--asof D] [--sheet NAME]
     pack build    CONFIG --data DATA --asof D [--run-date D] [-o OUT.xlsx] [--sheet NAME]
@@ -21,8 +22,8 @@ from pathlib import Path
 
 from . import __version__
 from .config import ConfigError, buildable, check_columns_present, load_config
-from .ingest import read_table
-from .population import PopulationError, build_population
+from .ingest import inspect_columns, read_table
+from .population import AmbiguousDates, PopulationError, build_population
 
 
 def _say(msg: str) -> None:
@@ -43,6 +44,29 @@ def cmd_synth(a: argparse.Namespace) -> int:
     planted = synth.generate(a.out, seed=a.seed, loans=a.loans, effect=a.effect, mode=mode)
     _say(f"wrote {a.out}/loans.csv, config.yaml, planted.json ({mode}, seed {a.seed}, {a.loans:,} loans)")
     _emit({"ok": True, "out": str(a.out), **planted})
+    return 0
+
+
+def cmd_inspect(a: argparse.Namespace) -> int:
+    table = read_table(a.data, sheet=a.sheet)
+    report = inspect_columns(table)
+    _say(f"{table.path}: {len(table.rows):,} rows, {len(table.columns)} columns ({table.kind})")
+    for e in report:
+        line = f"  {e['column']:<28} {e['kind']:<10} blank {e['null_share']:.1%}  distinct {e['distinct']:,}  e.g. {', '.join(e['samples'])}"
+        _say(line)
+        if "dates" in e:
+            d = e["dates"]
+            if d["resolved"]:
+                _say(f"      dates: every value fits {d['resolved']} — the pack will use it")
+            elif d["ambiguous"]:
+                readings = "; ".join(f"{pat} reads it as {plain}" for pat, plain in d["readings"])
+                _say(f"      dates: {len(d['ambiguous'])} patterns fit every value ({readings}). "
+                     f"Add population.date_format to say which.")
+            elif d["typed"]:
+                _say(f"      dates: {d['typed']:,} typed date cells; no pattern needed")
+            else:
+                _say(f"      dates: no pattern fits every value; best fits {d['fits']}")
+    _emit({"ok": True, "path": table.path, "sha256": table.sha256, "rows": len(table.rows), "columns": report})
     return 0
 
 
@@ -69,6 +93,12 @@ def _load(a: argparse.Namespace):
 def _population(cfg, table, asof: date, out_dir: Path, name: str):
     try:
         return build_population(cfg, table.rows, asof), 0
+    except AmbiguousDates as exc:
+        _say("refused: " + str(exc))
+        _emit({"ok": False, "refused": "dates", "column": exc.detection.column,
+               "candidates": list(exc.detection.ambiguous), "sample": exc.detection.sample,
+               "readings": exc.detection.readings()})
+        return None, 2
     except PopulationError as exc:
         path = out_dir / f"hygiene-{name}.csv"
         with path.open("w", encoding="utf-8", newline="") as fh:
@@ -130,11 +160,15 @@ def cmd_build(a: argparse.Namespace) -> int:
     digest = hashlib.sha256(blob).hexdigest()
     _say(f"wrote {out} ({len(blob):,} bytes, sha256 {digest[:16]}…)")
     _say(f"  read {t1 - t0:.1f}s · population {t2 - t1:.1f}s · workbook {t3 - t2:.1f}s")
-    _say(f"  {data.facts.seasoned:,} seasoned loans, {data.facts.events:,} events, "
-         f"{data.facts.unseasoned:,} unseasoned excluded; gradient reads: {data.gradient.word}")
+    for facts, g in data.per_outcome:
+        _say(f"  {facts.seasoned:,} seasoned loans, {facts.events:,} events ({g.outcome.label}), "
+             f"{facts.unseasoned:,} unseasoned excluded; gradient reads: {g.word}")
     _say(f"  formula check: not run here (no engine); Excel verifies on open — {len(checks)} checks written to _check")
-    _emit({"ok": True, "out": str(out), "sha256": digest, "seasoned": data.facts.seasoned,
-           "events": data.facts.events, "unseasoned": data.facts.unseasoned, "gradient": data.gradient.word,
+    _emit({"ok": True, "out": str(out), "sha256": digest, "seasoned": data.seasoned, "unseasoned": data.unseasoned,
+           "outcomes": [{"label": g.outcome.label, "events": facts.events, "gradient": g.word}
+                        for facts, g in data.per_outcome],
+           "gradient": data.per_outcome[0][1].word, "events": data.per_outcome[0][0].events,
+           "date_formats": pop.date_formats,
            "checks_written": len(checks), "formula_check": "not run here",
            "seconds": {"read": round(t1 - t0, 2), "population": round(t2 - t1, 2), "workbook": round(t3 - t2, 2)}})
     return 0
@@ -144,6 +178,10 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="pack", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"pack {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    ins = sub.add_parser("inspect", help="list every column of an extract with what is in it")
+    ins.add_argument("data"); ins.add_argument("--sheet")
+    ins.set_defaults(fn=cmd_inspect)
 
     s = sub.add_parser("synth", help="write a made-up book with a known answer")
     s.add_argument("--out", required=True)

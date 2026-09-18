@@ -35,6 +35,17 @@ notes:
     Outcome: "{outcome_label}", measured at the as-of date as {measure_text} {op} {value:g}. Months on book
     vary across the base from {window_months} to the oldest seasoned loan; read the decomposition by
     origination year with that in mind.
+  outcome_snapshot_bands: >-
+    Outcome: "{outcome_label}", measured at the as-of date as {measure_text}, read at each of the edges
+    {edges}: a loan counts at an edge when the measure is at or above it, so every step below is shown once
+    per edge and no single cut was chosen. Months on book vary across the base from {window_months} to the
+    oldest seasoned loan; read the decomposition by origination year with that in mind.
+  dates: >-
+    Dates: {date_text}. A typed date cell needs no pattern; text was parsed with the pattern shown, which is
+    the one common pattern that fit every value in the column unless the question file declared one.
+  bands_table: >-
+    Where the measure sits, by bucket: the share of each bucket's loans in each band of the measure at the
+    as-of date, with the counts beside them.
   gradient: >-
     Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
     fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this

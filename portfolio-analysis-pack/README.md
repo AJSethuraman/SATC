@@ -21,9 +21,10 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slice 1 of 9 built (the tracer bullet: config → synthetic book →
-gradient tab, checked and rendered). Steps 1, 2, 4, 5, 6, 7, charts, the
-bundle and the mutation tool follow in the order the issues give.
+**Status:** slices 1 and 2 of 9 built (the tracer bullet; then inspect,
+the refusals, detected dates, the filter and the outcome forms). Steps 1, 2,
+4, 5, 6, 7, charts, the bundle and the mutation tool follow in the order the
+issues give.
 
 ## What a built pack contains
 
@@ -47,6 +48,14 @@ At the desk: Python 3.10 or later with `openpyxl` and `PyYAML`.
 pip install -e .
 ```
 
+Look at an extract first. `inspect` lists every column with its kind, how
+often it is blank, how many distinct values it holds, five samples, and for
+a date-like column which pattern its values fit:
+
+```
+pack inspect extract.csv
+```
+
 Make a book with a known answer and build it:
 
 ```
@@ -57,9 +66,24 @@ pack build demo/config.yaml --data demo/loans.csv --asof 2026-06-30 -o demo/pack
 
 `validate` refuses a question file that is missing a required line and prints
 the line to add. `build` refuses an extract with values it will not accept
-(a zero in a rule field, a duplicate loan number, a date that will not parse)
-and writes the offending rows to a file beside the output. Blanks are not
-refused: they are a finding, counted on the capture tab once slice 3 lands.
+(a zero in a rule field, a duplicate loan number, a date that will not parse,
+a value outside a plausible range you gave) and writes the offending rows to
+a file beside the output. Blanks are not refused: they are a finding, counted
+on the capture tab once slice 3 lands.
+
+Dates are detected. A typed date cell in an XLSX needs nothing. Text dates
+are parsed by the one common pattern that fits every value in the column,
+and the pattern is recorded on the provenance tab. When two patterns both
+fit every value (every day is 12 or under, so month-first and day-first both
+read), the build refuses, shows a sample value read both ways, and names the
+line to add: `population.date_format`.
+
+The outcome is any yes/no per loan, in one of three forms: an event date the
+pack cuts at the window; a flag the bank already windowed, declared as such;
+or a measure taken at the as-of date (outstanding over commitment, say) with
+either one cut or a list of percentage bands, in which case every step is
+shown once per band edge and no single cut is chosen by anyone but the
+person writing the file.
 
 The as-of date is required and the run date defaults to it; the clock is
 never read, so the same inputs give the same bytes.

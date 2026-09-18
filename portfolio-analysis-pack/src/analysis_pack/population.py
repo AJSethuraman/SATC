@@ -1,12 +1,23 @@
 """From typed rows to the population the ladder runs on.
 
-Seasoning, the outcome, the rule value, the flag and the bucket, per loan.
+Seasoning, the outcome(s), the rule value, the flag and the bucket, per loan.
 The as-of date is injected by the caller; nothing here reads a clock.
 
 Months on book (PRD §6.4): whole calendar months from origination to as-of,
 one fewer when the as-of day of month is earlier than the origination day.
 A loan is seasoned when it has at least `window_months` on book. Only
 seasoned loans enter a rate; the unseasoned are counted, by quarter.
+
+Dates (PRD §6.2): a typed cell needs nothing; text is parsed with the
+declared pattern, or with the one common pattern that fits every value in
+the column. Two patterns fitting every value is ambiguous and refuses the
+build with both readings of a sample; none fitting every value leaves the
+best pattern's failures as unparseable dirt.
+
+Outcomes: one question file yields one or more binary outcomes. An event
+date, a bank-windowed flag, or a measure at as-of with a single cut give
+one; a measure with `edges` gives one per edge (loan at or above that
+share), so nobody has to pick a single line.
 """
 
 from __future__ import annotations
@@ -17,7 +28,8 @@ from datetime import date
 from typing import Any
 
 from .config import Config
-from .ingest import BLANK, Bad, cell_text, is_blank, parse_date, parse_number
+from .ingest import (BLANK, Bad, DateDetection, best_pattern, cell_text, detect_date_format, is_blank,
+                     parse_date, parse_number)
 
 
 class PopulationError(Exception):
@@ -31,6 +43,20 @@ class PopulationError(Exception):
             counts[reason] = counts.get(reason, 0) + 1
         summary = "; ".join(f"{n} x {r}" for r, n in sorted(counts.items()))
         super().__init__(f"the extract has values the pack will not accept: {summary}")
+
+
+class AmbiguousDates(Exception):
+    """Two or more patterns fit every value in a date column. The build
+    refuses rather than guess; the message shows the sample both ways and
+    names the line to add."""
+
+    def __init__(self, det: DateDetection):
+        self.detection = det
+        readings = "; ".join(f"{pat} reads it as {plain}" for pat, plain in det.readings())
+        super().__init__(
+            f"column `{det.column}`: {len(det.ambiguous)} date patterns fit every value, so the pack cannot tell "
+            f"which is meant. Sample {det.sample!r}: {readings}. Add under population:\n"
+            f"  date_format: \"{det.ambiguous[0]}\"   # or one of {list(det.ambiguous)}")
 
 
 def months_between(origination: date, asof: date) -> int:
@@ -89,6 +115,15 @@ def bucket_labels(edges: tuple[float, ...]) -> list[str]:
     return labels
 
 
+@dataclass(frozen=True)
+class OutcomeDef:
+    key: str          # short, safe for a cube block id
+    label: str        # what the tabs call it
+    form: str         # event_date | flag | snapshot
+    op: str | None = None
+    value: float | None = None
+
+
 @dataclass
 class Loan:
     loan_id: str
@@ -102,8 +137,8 @@ class Loan:
     rule_value: float | None     # None when either side is blank
     fires: bool | None
     bucket: int | None
-    event: bool
-    event_date: date | None
+    events: dict[str, bool]      # outcome key -> event
+    measure: float | None = None # the snapshot measure at as-of, when that form is used
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -114,6 +149,11 @@ class Population:
     rows_after_filter: int
     loans: list[Loan]            # every loan after filter, seasoned or not
     bucket_labels: list[str]
+    outcomes: list[OutcomeDef]
+    date_formats: dict[str, str]         # column -> pattern used, or "typed date cells"
+    date_parsed: dict[str, int]          # column -> non-blank values parsed
+    range_checked: dict[str, bool]       # field -> whether a plausible range was applied
+    measure_edges: tuple[float, ...] = ()   # for the graded snapshot form
 
     @property
     def seasoned(self) -> list[Loan]:
@@ -132,27 +172,71 @@ def _rule_value(kind: str, a: float, b: float) -> float | Bad:
     return a - b
 
 
+def outcome_defs(cfg: Config) -> list[OutcomeDef]:
+    o = cfg.outcome
+    if o.form == "event_date":
+        return [OutcomeDef(key="o1", label=o.label, form="event_date")]
+    if o.form == "flag":
+        return [OutcomeDef(key="o1", label=o.label, form="flag", op=o.op, value=o.value)]
+    if o.edges:
+        return [OutcomeDef(key=f"o{i + 1}", label=f"{o.label} ≥ {e:g}", form="snapshot", op=">=", value=e)
+                for i, e in enumerate(o.edges)]
+    return [OutcomeDef(key="o1", label=o.label, form="snapshot", op=o.op, value=o.value)]
+
+
+def _resolve_date_format(cfg: Config, column: str, rows: list[dict[str, Any]]) -> tuple[str | None, str, int, bool]:
+    """(pattern to parse with, what to record, non-blank count, strict).
+    `strict` False means failures of the best pattern are hygiene dirt."""
+    values = [r.get(column) for r in rows]
+    det = detect_date_format(column, values)
+    if cfg.date_format:
+        return cfg.date_format, cfg.date_format, det.total, True
+    if det.total == det.typed:
+        return None, "typed date cells", det.total, True
+    if det.resolved:
+        return det.resolved, det.resolved, det.total, True
+    if det.ambiguous:
+        raise AmbiguousDates(det)
+    bp = best_pattern(det)
+    return bp, (bp or "none fits"), det.total, False
+
+
 def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Population:
     """Type every row, apply the filter, season, and evaluate the rule and
-    the outcome. Refuses (PopulationError) on dirt in any field the pack
-    reads: a non-numeric rule value, a zero or negative rule value, an
-    unparseable date, a duplicate loan id, an origination after as-of, or
-    an outcome date before origination."""
+    the outcome(s). Refuses (PopulationError) on dirt in any field the pack
+    reads, and (AmbiguousDates) when a date column reads two ways."""
     dirt: list[tuple[str, str, Any, str]] = []
     seen_ids: set[str] = set()
     loans: list[Loan] = []
-    rows_after_filter = 0
-    fmt = cfg.date_format
+    outcomes = outcome_defs(cfg)
+    o = cfg.outcome
+    measure_edges = tuple(o.edges) if (o.form == "snapshot" and o.edges) else ()
+
+    # the filter first, so dates are detected on the population that matters
+    kept_rows: list[dict[str, Any]] = []
     for r in rows:
-        if cfg.filter:
-            keep = True
-            for col, allowed in cfg.filter.items():
-                if cell_text(r.get(col)) not in allowed:
-                    keep = False
-                    break
-            if not keep:
-                continue
-        rows_after_filter += 1
+        keep = True
+        for col, allowed in cfg.filter.items():
+            if cell_text(r.get(col)) not in allowed:
+                keep = False
+                break
+        if keep:
+            kept_rows.append(r)
+
+    date_cols = [cfg.origination_date] + ([o.date_field] if o.form == "event_date" else [])
+    fmts: dict[str, str | None] = {}
+    date_formats: dict[str, str] = {}
+    date_parsed: dict[str, int] = {}
+    for col in date_cols:
+        fmt, record, n, _strict = _resolve_date_format(cfg, col, kept_rows)
+        fmts[col] = fmt
+        date_formats[col] = record
+        date_parsed[col] = n
+
+    plausible_fields = {name: f.plausible for name, f in cfg.fields.items() if f.plausible is not None}
+    range_checked = {name: (f.plausible is not None) for name, f in cfg.fields.items()}
+
+    for r in kept_rows:
         lid = cell_text(r.get(cfg.loan_id))
         if lid == "(blank)":
             dirt.append((lid, cfg.loan_id, r.get(cfg.loan_id), "blank loan id"))
@@ -161,7 +245,7 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
             dirt.append((lid, cfg.loan_id, lid, "duplicate loan id"))
             continue
         seen_ids.add(lid)
-        orig = parse_date(r.get(cfg.origination_date), fmt)
+        orig = parse_date(r.get(cfg.origination_date), fmts[cfg.origination_date])
         if orig is BLANK:
             dirt.append((lid, cfg.origination_date, r.get(cfg.origination_date), "blank origination date"))
             continue
@@ -171,18 +255,22 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
         if orig > asof:
             dirt.append((lid, cfg.origination_date, orig.isoformat(), "origination after as-of"))
             continue
-        a = parse_number(r.get(cfg.rule.field_a))
-        b = parse_number(r.get(cfg.rule.field_b))
         bad = False
-        for col, v in ((cfg.rule.field_a, a), (cfg.rule.field_b, b)):
+        for col, (lo, hi) in plausible_fields.items():
+            v = parse_number(r.get(col))
             if isinstance(v, Bad):
                 dirt.append((lid, col, v.value, v.reason)); bad = True
+            elif v is not BLANK and not (lo <= v <= hi):
+                dirt.append((lid, col, v, "outside the plausible range")); bad = True
+        a = parse_number(r.get(cfg.rule.field_a))
+        b = parse_number(r.get(cfg.rule.field_b))
+        for col, v in ((cfg.rule.field_a, a), (cfg.rule.field_b, b)):
+            if isinstance(v, Bad):
+                if col not in plausible_fields:
+                    dirt.append((lid, col, v.value, v.reason))
+                bad = True
             elif v is not BLANK and v <= 0.0:
                 dirt.append((lid, col, v, "zero or negative in a rule field")); bad = True
-            elif v is not BLANK and cfg.fields[col].plausible is not None:
-                lo, hi = cfg.fields[col].plausible
-                if not (lo <= v <= hi):
-                    dirt.append((lid, col, v, "outside the plausible range")); bad = True
         if bad:
             continue
         rule_value: float | None = None
@@ -198,32 +286,33 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
             bucket = bucket_index(rv, cfg.rule.buckets)
         mob = months_between(orig, asof)
         seasoned = mob >= cfg.window_months
-        event = False
-        event_date: date | None = None
-        if cfg.outcome.form == "event_date":
-            ed = parse_date(r.get(cfg.outcome.date_field), fmt)
+        events: dict[str, bool] = {}
+        measure: float | None = None
+        if o.form == "event_date":
+            ed = parse_date(r.get(o.date_field), fmts[o.date_field])
             if isinstance(ed, Bad):
-                dirt.append((lid, cfg.outcome.date_field, ed.value, ed.reason))
+                dirt.append((lid, o.date_field, ed.value, ed.reason))
                 continue
+            ev = False
             if ed is not BLANK:
                 if ed < orig:
-                    dirt.append((lid, cfg.outcome.date_field, ed.isoformat(), "outcome date before origination"))
+                    dirt.append((lid, o.date_field, ed.isoformat(), "outcome date before origination"))
                     continue
-                event_date = ed
-                event = ed <= add_months(orig, cfg.window_months)
-        elif cfg.outcome.form == "flag":
-            v = parse_number(r.get(cfg.outcome.field))
+                ev = ed <= add_months(orig, cfg.window_months)
+            events[outcomes[0].key] = ev
+        elif o.form == "flag":
+            v = parse_number(r.get(o.field))
             if isinstance(v, Bad):
-                dirt.append((lid, cfg.outcome.field, v.value, v.reason))
+                dirt.append((lid, o.field, v.value, v.reason))
                 continue
-            event = (v is not BLANK) and compare(cfg.outcome.op, v, cfg.outcome.value)
+            events[outcomes[0].key] = (v is not BLANK) and compare(o.op, v, o.value)
         else:  # snapshot
-            m = cfg.outcome.measure or {}
+            m = o.measure or {}
             if "field" in m:
                 v = parse_number(r.get(m["field"]))
                 if isinstance(v, Bad):
                     dirt.append((lid, m["field"], v.value, v.reason)); continue
-                mv = None if v is BLANK else v
+                measure = None if v is BLANK else v
             else:
                 va = parse_number(r.get(m["field_a"])); vb = parse_number(r.get(m["field_b"]))
                 if isinstance(va, Bad):
@@ -231,18 +320,21 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
                 if isinstance(vb, Bad):
                     dirt.append((lid, m["field_b"], vb.value, vb.reason)); continue
                 if va is BLANK or vb is BLANK:
-                    mv = None
+                    measure = None
                 else:
                     rv2 = _rule_value(m.get("kind", "ratio"), va, vb)
                     if isinstance(rv2, Bad):
                         dirt.append((lid, m["field_b"], rv2.value, rv2.reason)); continue
-                    mv = rv2
-            event = mv is not None and compare(cfg.outcome.op, mv, cfg.outcome.value)
+                    measure = rv2
+            for od in outcomes:
+                events[od.key] = measure is not None and compare(od.op, measure, od.value)
         loans.append(Loan(loan_id=lid, origination=orig, quarter=quarter_label(orig), year=orig.year,
                           months_on_book=mob, seasoned=seasoned, a=a, b=b, rule_value=rule_value,
-                          fires=fires, bucket=bucket, event=event, event_date=event_date, raw=r))
+                          fires=fires, bucket=bucket, events=events, measure=measure, raw=r))
     if dirt:
         raise PopulationError(dirt)
     loans.sort(key=lambda l: l.loan_id)
-    return Population(asof=asof, rows_read=len(rows), rows_after_filter=rows_after_filter,
-                      loans=loans, bucket_labels=bucket_labels(cfg.rule.buckets))
+    return Population(asof=asof, rows_read=len(rows), rows_after_filter=len(kept_rows),
+                      loans=loans, bucket_labels=bucket_labels(cfg.rule.buckets), outcomes=outcomes,
+                      date_formats=date_formats, date_parsed=date_parsed, range_checked=range_checked,
+                      measure_edges=measure_edges)
