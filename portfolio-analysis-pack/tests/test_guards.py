@@ -33,12 +33,15 @@ def _example_names() -> set[str]:
 
 
 def test_no_domain_word_or_example_column_name_appears_in_package_code():
-    words = set(DOMAIN_WORDS) | _example_names()
-    assert words, "no example config found to take names from"
+    names = _example_names()
+    assert names, "no example config found to take names from"
     hits = []
     for fname, text in _package_sources().items():
-        for w in words:
-            if re.search(r"(?<![A-Za-z0-9_])" + re.escape(w.lower()) + r"(?![A-Za-z0-9_])", text.lower()):
+        for w in DOMAIN_WORDS:                       # domain words: any case
+            if re.search(r"(?<![A-Za-z0-9_])" + re.escape(w) + r"(?![A-Za-z0-9_])", text.lower()):
+                hits.append((fname, w))
+        for w in names:                              # column and band names: as written (STATE is not "state")
+            if re.search(r"(?<![A-Za-z0-9_])" + re.escape(w) + r"(?![A-Za-z0-9_])", text):
                 hits.append((fname, w))
     assert not hits, hits
 

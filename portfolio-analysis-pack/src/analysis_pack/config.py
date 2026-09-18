@@ -275,7 +275,14 @@ def load_config(path: str | Path) -> Config:
         derive = spec.get("derive", ())
         if isinstance(derive, dict):
             derive = (derive,)
-        fields[col] = Field(name=col, known=known, plausible=plausible, derive=tuple(derive))
+        steps = []
+        for d in derive:
+            step, why = _parse_derive(d, p.parent)
+            if why:
+                problems.append(f"`fields.{col}.derive`: {why}")
+            else:
+                steps.append(step)
+        fields[col] = Field(name=col, known=known, plausible=plausible, derive=tuple(steps))
 
     # build the typed pieces so referenced columns can be listed
     filt: dict[str, tuple[str, ...]] = {}
@@ -322,6 +329,16 @@ def load_config(path: str | Path) -> Config:
     edges = rule.buckets
     if any(edges[i] >= edges[i + 1] for i in range(len(edges) - 1)):
         problems.append("`rule.buckets` edges must strictly increase")
+    dims = {c.name for c in confounders} | {c.name for c in controls if c.derived == "origination_year" or c.as_ == "categorical"}
+    dims.add("origination_year")
+    for dim in decompose_by:                      # not `name`: that is the question file's own name
+        if dim not in dims:
+            problems.append(f"`decompose_by` names `{dim}`, which is not a confounder, a categorical control, or origination_year")
+    numeric_use = {rule.field_a, rule.field_b} | {c.field for c in confounders if c.schemes}
+    numeric_use |= {c.field for c in controls if c.field and c.as_ in ("log", "linear", "bands")}
+    for col, f in fields.items():
+        if f.derive and col in numeric_use:
+            problems.append(f"`fields.{col}.derive` groups a code read as text, but `{col}` is used as a number")
 
     cfg_no_fields = Config(
         name=name, rule_type=rule_type, loan_id=pop["loan_id"], origination_date=pop["origination_date"],
@@ -362,6 +379,52 @@ def load_config(path: str | Path) -> Config:
     if problems:
         raise ConfigError(problems)
     return cfg_no_fields
+
+
+def _parse_derive(d: Any, base: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """A generic grouping step (PRD §6.15). The tool ships no list: a `map`
+    is the config's own, inline or in a two-column file beside it."""
+    if not isinstance(d, dict) or d.get("kind") not in ("prefix", "map"):
+        return None, "each step is {kind: prefix, length: N} or {kind: map, groups: {...} | groups_file: path, other: label}"
+    if d["kind"] == "prefix":
+        n = d.get("length")
+        if not isinstance(n, int) or isinstance(n, bool) or n <= 0:
+            return None, "prefix needs a positive whole `length`"
+        return {"kind": "prefix", "length": n}, None
+    groups_raw = d.get("groups")
+    path = d.get("groups_file")
+    if (groups_raw is None) == (path is None):
+        return None, "map needs exactly one of `groups` (inline) or `groups_file` (a two-column file: value, group)"
+    groups: dict[str, list[str]] = {}
+    source = "inline"
+    if path is not None:
+        fp = (base / str(path)) if not Path(str(path)).is_absolute() else Path(str(path))
+        if not fp.exists():
+            return None, f"groups_file `{path}` was not found beside the question file"
+        import csv as _csv
+        with fp.open(encoding="utf-8-sig", newline="") as fh:
+            for row in _csv.reader(fh):
+                if len(row) < 2 or not row[0].strip():
+                    continue
+                if row[0].strip().lower() == "value" and row[1].strip().lower() == "group":
+                    continue
+                groups.setdefault(row[1].strip(), []).append(row[0].strip())
+        source = str(fp)
+    else:
+        if not isinstance(groups_raw, dict) or not groups_raw:
+            return None, "`groups` must be a mapping of label: [values]"
+        for label, vals in groups_raw.items():
+            vals = vals if isinstance(vals, list) else [vals]
+            groups[str(label)] = [str(v) for v in vals]
+    lookup: dict[str, str] = {}
+    for label, vals in groups.items():
+        for v in vals:
+            if v in lookup and lookup[v] != label:
+                return None, f"value `{v}` is in two groups ({lookup[v]}, {label})"
+            lookup[v] = label
+    other = d.get("other")
+    return {"kind": "map", "lookup": lookup, "labels": list(groups), "other": (str(other) if other is not None else None),
+            "source": source}, None
 
 
 def check_columns_present(cfg: Config, columns: list[str]) -> list[str]:

@@ -1,0 +1,45 @@
+# A consumer question on the same tool: stated income against the bureau's
+# estimate, on an indirect auto book, read at 60 days past due. Column names
+# are placeholders for the bank's own. This file is data; the tool contains
+# none of these words, and a test proves this file builds with no code change.
+name: stated_vs_bureau_income_auto
+schema_version: 1
+rule_type: contradiction
+population:
+  loan_id: ACCT
+  origination_date: FUND_DT
+  filter:
+    PRODUCT: [INDIRECT_AUTO]
+fields:
+  ACCT:           {known: at_origination}
+  FUND_DT:        {known: at_origination}
+  PRODUCT:        {known: at_origination}
+  STATED_INC:     {known: at_origination, plausible: [6000, 2000000]}
+  BUREAU_INC_EST: {known: at_origination, plausible: [6000, 2000000]}
+  FICO:           {known: at_origination, plausible: [300, 850]}
+  LTV:            {known: at_origination, plausible: [0.1, 2.0]}
+  TERM_MO:        {known: at_origination}
+  STATE:          {known: at_origination, derive: {kind: map, groups_file: regions.csv, other: other}}
+  DPD60_DT:       {known: later}
+rule:
+  kind: ratio
+  field_a: STATED_INC
+  field_b: BUREAU_INC_EST
+  fires_when: {op: ">", value: 1.5}
+  buckets: [1.0, 1.5, 2.0, 3.0]
+outcome:
+  label: "60+ days past due"
+  date_field: DPD60_DT
+window_months: 12
+confounders:
+  - {name: score_band, field: FICO, edges: [620, 680, 740]}
+  - {name: ltv_band, field: LTV, edges: [0.8, 1.0, 1.2]}
+controls:
+  - {name: origination_year, derived: origination_year}
+  - {name: term_months, field: TERM_MO, as: linear}
+  - {name: region, field: STATE}
+decompose_by: [region, score_band, origination_year]
+existing_control: "income reasonableness test above 150% of the bureau estimate"
+model: {tree_depth: 3, min_leaf_events: 10, min_leaf_loans: 100}
+intervals: {confidence: 0.95, method: wilson}
+survives_threshold: 0.5
