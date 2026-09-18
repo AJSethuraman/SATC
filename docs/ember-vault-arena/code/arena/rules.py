@@ -96,25 +96,35 @@ EGRESS_ROOM = "egress"
 CONTRACTION_REFUGE = "vault"  # force-move destination, a constant not an adjacency
 
 CROWN_ITEM_ID = items.CROWN_ID
-DEFAULT_MAX_ROUNDS = 12
+DEFAULT_MAX_ROUNDS = 48  # four acts of twelve (PRD §5.1); the only place the match length lives
 STARTING_TOKEN_BUDGET = 10_000_000  # no cap in v1 (firm, 11 Sep 2026); the ledger measures
 
-# Acts. Total functions over any positive round, so a short or long match never
-# raises — later contraction entries simply never fire.
-ACT_I_LAST_ROUND = 4
-ACT_II_LAST_ROUND = 7
+# Acts (PRD §5.1): forty-eight rounds in four acts of twelve, I rounds 1–12,
+# II 13–24, III 25–36, IV 37–48. Total functions over any positive round, so a
+# short or long match never raises — later contraction entries simply never
+# fire. These constants and the schedule below are the only statement of the
+# match shape; tests read them rather than repeating them. The act names are
+# the session's, from July's spec and code, and the firm can rename them.
+ROUNDS_PER_ACT = 12
+ACT_I_LAST_ROUND = 12
+ACT_II_LAST_ROUND = 24
+ACT_III_LAST_ROUND = 36
 ACT_NAMES: dict[int, str] = {
     1: "Act I — The Gates",
     2: "Act II — The Long Knife",
-    3: "Act III — The Contraction",
+    3: "Act III — The Crown Run",
+    4: "Act IV — The Contraction",
 }
+CONTRACTION_ACT = 4  # "Contraction belongs to act IV only" (PRD §5.4)
 
-# Ordered, absolute round numbers. One room per round; vault and egress never
-# seal.
+# Ordered, absolute round numbers, every one inside act IV and before the last
+# round. One room per round; vault and egress never seal. July's shape at four
+# times the length: the outer room goes first, the two gates after, and the
+# final round is played in the Vault and the Egress alone.
 CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = (
-    (9, "threshold"),
-    (10, "ironwood_gate"),
-    (11, "ossuary_gate"),
+    (40, "threshold"),
+    (44, "ironwood_gate"),
+    (47, "ossuary_gate"),
 )
 
 MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
@@ -329,7 +339,9 @@ def act_for_round(round_no: int) -> int:
         return 1
     if round_no <= ACT_II_LAST_ROUND:
         return 2
-    return 3
+    if round_no <= ACT_III_LAST_ROUND:
+        return 3
+    return 4
 
 
 def act_name(act: int) -> str:
@@ -407,7 +419,7 @@ def crown_carrier(state: Mapping[str, Any]) -> str | None:
 
 
 def rounds_remaining(state: Mapping[str, Any]) -> int:
-    """INCLUSIVE of the current round: 12 at round 1, 1 at round 12.
+    """INCLUSIVE of the current round: ``max_rounds`` at round 1, 1 at the last.
 
     The convention is republished in the observation so a model never has to
     guess it.
@@ -755,7 +767,7 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     # action, arriving at the destination's doorway. Gating transit on reaching
     # the door first was tried and abandoned -- a Vanguard (move range 1) needed
     # three turns to cross a gate room to the vault door, which is crippling
-    # inside twelve rounds. Range governs WITHIN-room movement, where the
+    # inside July's twelve rounds. Range governs WITHIN-room movement, where the
     # tactical decisions actually live.
     for destination in room.get("neighbors", []):
         if destination == VAULT_ROOM and not public.get("vault_open"):

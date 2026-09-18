@@ -47,7 +47,7 @@ COLLATERAL_SCORES_NOTHING = True
 # flipping this to a first-take-only policy is a one-line change.
 CROWN_TAKE_FIRST_ONLY = False
 
-SURVIVAL_ACT = 2  # "survive through Act II" == alive at the end of round 7
+SURVIVAL_ACT = 2  # "survive through Act II" == alive at the end of rules.ACT_II_LAST_ROUND
 
 OBJECTIVE_DEFS: Mapping[str, Mapping[str, Any]] = MappingProxyType(
     {
@@ -209,7 +209,7 @@ def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
     """Sort ascending. The Crown's holder at the end first, then score desc, then the chain."""
     crown = state.get("crown", {})
     hold_rounds = crown.get("hold_rounds_by_agent", {}).get(agent["id"], 0)
-    max_rounds = state.get("max_rounds", 12)
+    max_rounds = state["max_rounds"]  # set by rules.new_match_state; the number lives there
     # Alive/escaped agents count as "eliminated after the last round" so that
     # "later elimination / still alive first" is one comparison, not two.
     eliminated_round = agent.get("eliminated_round")

@@ -5,6 +5,53 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 18 September 2026, 23:35Z — M3, slice A: forty-eight rounds in four acts of twelve
+
+*On the date: the clock reads 18 September 23:35Z. The five entries below
+this one, "19 September 00:20Z" to "03:30Z", and the forge order dated
+"03:45Z", were written between 18 September 22:40Z and 23:10Z; their
+timestamps ran about four and a half hours ahead of the clock. They are
+left as written and the drift is recorded here. From this entry the
+header is the clock.*
+
+PRD §5 item 1 built, ruleset `ember-vault-0.4`. The match is forty-eight
+rounds in four acts of twelve, and the shape lives in `rules.py` and
+nowhere else: `DEFAULT_MAX_ROUNDS = 48`, `ROUNDS_PER_ACT = 12`,
+`ACT_I_LAST_ROUND` / `ACT_II_LAST_ROUND` / `ACT_III_LAST_ROUND` at 12,
+24 and 36, `act_for_round` total over the four acts, `ACT_NAMES` with a
+fourth name, `CONTRACTION_ACT = 4` and the schedule moved into act IV:
+the Threshold seals at the end of round 40, the Ironwood Gate at 44, the
+Ossuary Gate at 47, so the last round is played in the Vault and the
+Egress alone, July's shape at four times the length. Nothing seals in
+the first three acts, and a test proves it against the constants.
+
+Decisions the session took, reversible by the firm: the act names
+(*The Gates*, *The Long Knife*, *The Crown Run*, *The Contraction*, the
+first two from July's code, the third from July's spec); the spacing of
+the three seals inside act IV; survival scoring left at the end of act
+II, now round 24, until item 5 retunes the table. Rivals may still attack
+from act II, which is now round 13, not round 5. Every test that set a
+round number for an act or a seal now reads the constant
+(`SEAL_AT[room]`, `ACT_I_LAST_ROUND + 1`); one test in `test_engine.py`
+repeats 48 / 12 / 24 / 36 on purpose as item 1's guard. The simulator's
+match-shape line reads *reached act IV* and its histogram runs to the
+last round. `scoring.placement_key` no longer carries its own default of
+twelve.
+
+The seed-52 mock match now runs forty-eight rounds: 98 snapshots, 1,601
+events, Vetch wins holding the Crown; the golden fixture is regenerated
+on purpose and its diff is the diff of the match. The longer match also
+surfaced a board case the twelve-round record never had, a wild swing
+in the Vault from a character on the page, and the board test now
+expects the burst folded into one line naming every body it caught.
+Suite 132 → **133**, 59 seconds.
+
+The forge order (FORGE.md, "M3 is open") said "expect 132 passed" at
+`4dbbacc6`; an amendment went down the channel at 23:25Z before this
+push: any head past `b1fc126e` is fine, the proof is the suite green at
+the count it reports, and the match runs under the ruleset the head
+carries. The firm woke the smoke tester at about 23:20Z.
+
 ## 19 September 2026, 03:30Z — M3, slice 4: the narrator opens the match
 
 PRD §5 item 26, the opening, built. Before round 1 the referee publishes

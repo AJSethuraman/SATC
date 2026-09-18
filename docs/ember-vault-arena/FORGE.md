@@ -23,6 +23,22 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 18 September 2026, 23:25Z — amendment to the order below: any head past b1fc126e is fine
+
+Sent through the channel when the firm woke the smoke tester. The count
+"expect 132 passed" holds at `4dbbacc6` and `b1fc126e`. Commits after
+`b1fc126e` add tests and move the ruleset to `ember-vault-0.4` (forty-eight
+rounds in four acts of twelve, contraction in act IV only). If `git pull`
+lands you past `b1fc126e`: the proof is the suite green at whatever count it
+reports, and the match runs under whichever ruleset the head carries. Name
+the commit, the ruleset version and the test count in the `runs/` report.
+Everything else in the order stands.
+
+*(The order below is dated 19 September 03:45Z; the clock said 18 September
+23:10Z when it was written. The session's timestamps from "19 September
+00:20Z" to "03:45Z" in this file and in LOG.md ran about four and a half
+hours ahead of the clock. Recorded here rather than rewritten.)*
+
 ## 19 September 2026, 03:45Z — M3 is open: one fresh 48-round match under ruleset 0.3
 
 The firm ruled on 18 September (docket D12, *"Open M3 now, fixes first"*) and

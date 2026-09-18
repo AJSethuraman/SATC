@@ -326,7 +326,7 @@ def _summarize(
         "ruleset_version": state.get("ruleset_version"),
         "rounds": rounds_played,
         "ended_reason": ended_reason,
-        "reached_act3": rounds_played >= 8,
+        "reached_act4": rounds_played > rules.ACT_III_LAST_ROUND,
         "final_act": state.get("act"),
         "winner": winner,
         "winner_build": build_of.get(winner or ""),
@@ -436,7 +436,7 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
     ]
 
     rounds = [record["rounds"] for record in completed]
-    act3 = [record for record in completed if record["reached_act3"]]
+    act4 = [record for record in completed if record["reached_act4"]]
     reasons = Counter(record["ended_reason"] for record in completed)
 
     transfers = [record["crown_takes"] for record in completed]
@@ -516,7 +516,7 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
             for record in records
             if not record.get("ok")
         ],
-        "act3_rate": _pct(len(act3), len(completed)),
+        "act4_rate": _pct(len(act4), len(completed)),
         "ended_reasons": dict(reasons),
         "crown_held_rate": _pct(reasons.get("crown_held", 0), len(completed)),
         "round_limit_rate": _pct(reasons.get("rounds_exhausted", 0), len(completed)),
@@ -629,7 +629,7 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
 
 TARGETS = [
     ("completion rate >= 95%", "completion_rate", lambda value: value >= 95.0),
-    ("reach Act III (round >= 8) >= 70%", "act3_rate", lambda value: value >= 70.0),
+    (f"reach Act IV (round > {rules.ACT_III_LAST_ROUND}) >= 70%", "act4_rate", lambda value: value >= 70.0),
     (
         "median match has >= 1 Crown transfer",
         "crown_transfers_median",
@@ -664,7 +664,7 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
             add(f"    seed {error['seed']}: {error['error']}")
     add("")
     add("-- MATCH SHAPE -----------------------------------------------------------")
-    add(f"  reached Act III (r>=8)     {summary['act3_rate']:.1f}%")
+    add(f"  reached Act IV (r>{rules.ACT_III_LAST_ROUND})     {summary['act4_rate']:.1f}%")
     add(f"  median rounds              {summary['rounds_median']}")
     add(f"  mean rounds                {summary['rounds_mean']:.2f}")
     add("  rounds histogram:")
@@ -749,7 +749,7 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
     add(
         _fmt_hist(
             summary["elim_rounds"],
-            list(range(1, 13)),
+            list(range(1, rules.DEFAULT_MAX_ROUNDS + 1)),
             max(1, summary["elim_total"]),
         )
     )

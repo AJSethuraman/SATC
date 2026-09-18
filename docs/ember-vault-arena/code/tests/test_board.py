@@ -120,12 +120,34 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
                 self.assertEqual(c["said"], said[0]["payload"]["speech"] if said else None)
                 # what they did is the round's action frames for them, in order, each carrying the referee's line
                 did_frames = [f for f in self.frames if f["round"] == rnd and f["actor"] == aid and f["type"] in replay_board.DID]
-                self.assertEqual(c["did"], [f["text"] for f in did_frames])
+                # a room's burst is one event per body it catches; the card folds the run
+                # into one line that names every body and the amount (18 Sep 2026)
+                def folded(f, lines):
+                    return (f["type"] == "wild_swing_room_reaction" and f.get("base_text") and lines
+                            and lines[-1].startswith(f["base_text"] + " It catches "))
+                def name_of(x):
+                    return self.start["agents"].get(x, self.start["monsters"].get(x, {})).get("name", x)
+                expected = []
+                for f in did_frames:
+                    if folded(f, expected):
+                        expected[-1] = expected[-1].rstrip(".") + f", {name_of(f['target'])} for {f.get('amount', 0)}."
+                    else:
+                        expected.append(f["text"])
+                self.assertEqual(c["did"], expected)
+                for f in did_frames:
+                    if f["type"] == "wild_swing_room_reaction" and f.get("base_text"):  # a burst on a body, not a room's own reaction
+                        self.assertEqual(sum(f"{name_of(f['target'])} for {f.get('amount', 0)}" in line for line in c["did"]), 1, (f["target"], c["did"]))
                 did_events = [e for e in events if e["round_no"] == rnd and e["actor_id"] == aid and e["event_type"] in replay_board.DID
                               and not (e["event_type"] == "item_taken" and e["target_id"] == "ember_crown")]
                 self.assertEqual(len(did_frames), len(did_events))
-                for text, e in zip(c["did"], did_events):
-                    self.assertTrue(text.startswith(e["public_text"]), (text, e["public_text"]))
+                lines, seen = list(c["did"]), []
+                for f, e in zip(did_frames, did_events):
+                    if folded(f, seen):
+                        self.assertTrue(e["public_text"].startswith(f["base_text"]), (e["public_text"], f["base_text"]))
+                        continue
+                    seen.append(lines.pop(0))
+                    self.assertTrue(seen[-1].startswith(f.get("base_text") or e["public_text"]), (seen[-1], e["public_text"]))
+                self.assertEqual(lines, [])
                 hits_on_me = [e["public_text"] for e in events if e["round_no"] == rnd and e["event_type"] == "attack_hit" and e["target_id"] == aid]
                 for text in hits_on_me:
                     self.assertIn(text, c["happened"])

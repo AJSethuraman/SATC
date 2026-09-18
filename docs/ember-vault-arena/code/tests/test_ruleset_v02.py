@@ -45,6 +45,10 @@ class GuardOnlyProvider(MockDecisionProvider):
         )
 
 
+# The round whose end seals each room, read from the schedule rather than repeated.
+SEAL_AT = {room: round_no for round_no, room in rules.CONTRACTION_SCHEDULE}
+
+
 class RulesetTestCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -106,8 +110,8 @@ class RulesetTestCase(unittest.TestCase):
 
     def open_vault_state(self, engine: ArenaEngine, carrier: str, attunement: int):
         state = engine.state
-        state["round"] = 8
-        state["act"] = rules.act_for_round(8)
+        state["round"] = rules.ACT_II_LAST_ROUND + 1  # act III, as July's round 8 was
+        state["act"] = rules.act_for_round(state["round"])
         state["monsters"]["crown_warden"]["hp"] = 0
         state["monsters"]["crown_warden"]["death_cause"] = "combat"
         state["seals"] = {room: "active" for room in rules.SEAL_ROOMS}
@@ -341,8 +345,8 @@ class GateTests(RulesetTestCase):
             [(row["category"], row["points"]) for row in self.scores(engine, "bramble")],
         )
 
-        state["round"] = 5
-        state["act"] = rules.act_for_round(5)
+        state["round"] = rules.ACT_I_LAST_ROUND + 1
+        state["act"] = rules.act_for_round(state["round"])
         self.assertEqual(state["act"], 2)
         observation = self.observation(engine, "bramble")
         self.assertTrue(observation["public_state"]["agent_attacks_allowed"])
@@ -354,10 +358,38 @@ class GateTests(RulesetTestCase):
         self.assertLessEqual(state["agents"]["nix"]["hp"], hp_before)
 
     def test_act_boundaries(self):
-        expected = [1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3]
+        """Four acts of twelve (PRD §5.1), read from the constants."""
+        per_act = rules.ROUNDS_PER_ACT
+        expected = [1] * per_act + [2] * per_act + [3] * per_act + [4] * per_act
+        self.assertEqual(len(expected), rules.DEFAULT_MAX_ROUNDS)
         self.assertEqual(
-            [rules.act_for_round(round_no) for round_no in range(1, 13)], expected
+            [rules.act_for_round(round_no) for round_no in range(1, rules.DEFAULT_MAX_ROUNDS + 1)],
+            expected,
         )
+        self.assertEqual(rules.act_for_round(rules.ACT_I_LAST_ROUND), 1)
+        self.assertEqual(rules.act_for_round(rules.ACT_I_LAST_ROUND + 1), 2)
+        self.assertEqual(rules.act_for_round(rules.ACT_II_LAST_ROUND), 2)
+        self.assertEqual(rules.act_for_round(rules.ACT_II_LAST_ROUND + 1), 3)
+        self.assertEqual(rules.act_for_round(rules.ACT_III_LAST_ROUND), 3)
+        self.assertEqual(rules.act_for_round(rules.ACT_III_LAST_ROUND + 1), 4)
+        self.assertEqual(rules.act_for_round(rules.DEFAULT_MAX_ROUNDS + 5), 4)  # total, never raises
+        for act in (1, 2, 3, 4):
+            self.assertTrue(rules.act_name(act).startswith(f"Act {'I' * act if act < 4 else 'IV'} — "), rules.act_name(act))
+
+    def test_contraction_belongs_to_act_iv_only(self):
+        """PRD §5.4: every scheduled seal falls inside act IV and before the last round."""
+        rounds = [round_no for round_no, _ in rules.CONTRACTION_SCHEDULE]
+        self.assertEqual(rounds, sorted(rounds))
+        self.assertEqual(len(set(rounds)), len(rounds))
+        for round_no, room in rules.CONTRACTION_SCHEDULE:
+            self.assertEqual(rules.act_for_round(round_no), rules.CONTRACTION_ACT, (round_no, room))
+            self.assertLess(round_no, rules.DEFAULT_MAX_ROUNDS, (round_no, room))
+            self.assertNotIn(room, (rules.VAULT_ROOM, rules.EGRESS_ROOM))
+        self.assertEqual(rules.CONTRACTION_ACT, 4)
+        self.assertEqual(sorted(room for _, room in rules.CONTRACTION_SCHEDULE), sorted(set(rules.ROOM_ORDER) - {rules.VAULT_ROOM, rules.EGRESS_ROOM}))
+        # and nothing seals in the first three acts
+        for round_no in range(1, rules.ACT_III_LAST_ROUND + 1):
+            self.assertIsNone(rules.sealing_room_for_round(round_no), round_no)
 
 
 # ---------------------------------------------------------------------------
@@ -368,22 +400,22 @@ class GateTests(RulesetTestCase):
 class ContractionTests(RulesetTestCase):
     def test_contracting_flag_is_visible_for_the_full_round_before_sealing(self):
         engine = self.engine("warning.db")
-        engine.state["round"] = 9
-        engine._flag_contracting_rooms(9)
+        engine.state["round"] = SEAL_AT["threshold"]
+        engine._flag_contracting_rooms(SEAL_AT["threshold"])
         self.assertEqual(engine.state["contraction"]["contracting"], ["threshold"])
         observation = self.observation(engine, "bramble")
         self.assertEqual(observation["map"]["contracting"], ["threshold"])
         self.assertTrue(observation["room"]["contracting"])
-        self.assertEqual(observation["room"]["seals_at_end_of_round"], 9)
+        self.assertEqual(observation["room"]["seals_at_end_of_round"], SEAL_AT["threshold"])
         self.assertEqual(observation["map"]["sealed"], [])
 
     def test_contraction_force_moves_agents_and_seals_the_room(self):
         engine = self.engine("contract.db")
         state = engine.state
-        state["round"] = 9
-        engine._flag_contracting_rooms(9)
+        state["round"] = SEAL_AT["threshold"]
+        engine._flag_contracting_rooms(SEAL_AT["threshold"])
         self.assertFalse(rules.vault_open(state))  # both seals still inactive
-        engine._apply_contraction(9, "threshold")
+        engine._apply_contraction(SEAL_AT["threshold"], "threshold")
 
         for agent in state["agents"].values():
             self.assertEqual(agent["room"], rules.VAULT_ROOM)
@@ -423,9 +455,9 @@ class ContractionTests(RulesetTestCase):
         """
         engine = self.engine("void.db")
         state = engine.state
-        state["round"] = 10
+        state["round"] = SEAL_AT["ironwood_gate"]
         state["seals"]["ossuary_gate"] = "active"
-        engine._apply_contraction(10, "ironwood_gate")
+        engine._apply_contraction(SEAL_AT["ironwood_gate"], "ironwood_gate")
         self.assertEqual(state["seals"]["ironwood_gate"], "voided")
         self.assertFalse(rules.vault_open(state))
         self.assertTrue(rules.gate_permanently_closed(state))
@@ -471,9 +503,9 @@ class ContractionTests(RulesetTestCase):
     def test_forced_relocation_into_the_vault_does_not_satisfy_the_gate(self):
         engine = self.engine("relocate.db")
         state = engine.state
-        state["round"] = 9
-        engine._flag_contracting_rooms(9)
-        engine._apply_contraction(9, "threshold")
+        state["round"] = SEAL_AT["threshold"]
+        engine._flag_contracting_rooms(SEAL_AT["threshold"])
+        engine._apply_contraction(SEAL_AT["threshold"], "threshold")
 
         # everyone is IN the vault, and the gate is still shut
         for agent in state["agents"].values():
@@ -484,9 +516,9 @@ class ContractionTests(RulesetTestCase):
 
         # stepping back out means you cannot voluntarily step back in — not even
         # after contraction has voided a seal on the way past.
-        state["round"] = 10
+        state["round"] = SEAL_AT["ironwood_gate"]
         state["seals"]["ossuary_gate"] = "active"  # one seal lit, one about to die
-        engine._apply_contraction(10, "ironwood_gate")
+        engine._apply_contraction(SEAL_AT["ironwood_gate"], "ironwood_gate")
         self.assertEqual(state["seals"]["ironwood_gate"], "voided")
         state["agents"]["bramble"]["room"] = "ossuary_gate"
         state["monsters"]["ossuary_guardian"]["hp"] = 0
@@ -530,8 +562,8 @@ class ContractionTests(RulesetTestCase):
     def test_living_guardian_is_entombed_not_relocated(self):
         engine = self.engine("entomb.db")
         state = engine.state
-        state["round"] = 10
-        engine._apply_contraction(10, "ironwood_gate")
+        state["round"] = SEAL_AT["ironwood_gate"]
+        engine._apply_contraction(SEAL_AT["ironwood_gate"], "ironwood_gate")
         guardian = state["monsters"]["ironwood_guardian"]
         self.assertEqual(guardian["hp"], 0)
         self.assertEqual(guardian["death_cause"], "contraction")
@@ -550,7 +582,7 @@ class ContractionTests(RulesetTestCase):
     def test_contraction_relocates_floor_items_including_the_crown(self):
         engine = self.engine("relocate.db")
         state = engine.state
-        state["round"] = 10
+        state["round"] = SEAL_AT["ironwood_gate"]
         state["monsters"]["crown_warden"]["hp"] = 0
         rules.crown_unlock(state, 6)
         rules.floor_remove(state, rules.VAULT_ROOM, CROWN)
@@ -568,8 +600,8 @@ class ContractionTests(RulesetTestCase):
         engine = self.engine("forcemove.db")
         self.open_vault_state(engine, "bramble", 1)
         engine.state["agents"]["bramble"]["room"] = "threshold"
-        engine.state["round"] = 9
-        engine._apply_contraction(9, "threshold")
+        engine.state["round"] = SEAL_AT["threshold"]
+        engine._apply_contraction(SEAL_AT["threshold"], "threshold")
         crown = engine.state["crown"]
         self.assertEqual(crown["carrier_id"], "bramble")
         self.assertEqual(crown["status"], "carried")
@@ -578,10 +610,10 @@ class ContractionTests(RulesetTestCase):
 
     def test_contraction_consumes_no_dice(self):
         engine = self.engine("nodice.db")
-        engine.state["round"] = 9
+        engine.state["round"] = SEAL_AT["threshold"]
         before = engine.rng.counter
-        engine._flag_contracting_rooms(9)
-        engine._apply_contraction(9, "threshold")
+        engine._flag_contracting_rooms(SEAL_AT["threshold"])
+        engine._apply_contraction(SEAL_AT["threshold"], "threshold")
         self.assertEqual(engine.rng.counter, before)
 
 

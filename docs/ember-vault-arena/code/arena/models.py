@@ -24,7 +24,7 @@ import re
 from typing import Any
 
 
-RULESET_VERSION = "ember-vault-0.3"
+RULESET_VERSION = "ember-vault-0.4"
 ACTION_SCHEMA_VERSION = "agent-action-1.1"
 MANIFEST_SCHEMA_VERSION = "agent-manifest-1.0"
 
