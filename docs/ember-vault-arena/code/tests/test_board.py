@@ -227,6 +227,31 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         for a in scene["eight"]:
             self.assertIn(f"{scene['builds'][a['build']]['hp']} HP", a["stats"])
 
+    def test_a_room_reaction_reads_as_one_line_naming_everyone_it_caught(self):
+        # the engine logs one event per body a room's burst reaches, all worded alike and naming nobody;
+        # the swinger's card folds them into one line, and each victim's card says whose swing it was
+        ids = list(self.start["agents"])
+        a, v1, v2, v3 = ids[0], ids[1], ids[2], ids[3]
+        n = {k: self.start["agents"][k]["name"] for k in ids}
+        flare = "The ember-glass flares and the heat lashes everything near the plinth."
+        frames = [{"seq": 1, "round": 1, "type": "attack_miss", "actor": a, "target": v1, "text": f"{n[a]} swings at {n[v1]}, misses, and the arena takes it personally.", "delta": {}}]
+        for i, v in enumerate((v1, v2, v3)):
+            frames.append({"seq": 2 + i, "round": 1, "type": "wild_swing_room_reaction", "actor": a, "target": v, "amount": 1,
+                           "base_text": flare, "text": f"{flare} It catches {n[v]} for 1.",
+                           "delta": {"agents": {v: {"hp": self.start["agents"][v]["hp"] - 1}}}})
+        turns = replay_board.build_turns(self.start, frames)
+        card = turns[a][0]
+        self.assertEqual(card["did"], [frames[0]["text"], f"{flare} It catches {n[v1]} for 1, {n[v2]} for 1, {n[v3]} for 1."])
+        for v in (v1, v2, v3):
+            caught = f"{flare} It catches {n[v]} for 1. From {n[a]}'s wild swing."
+            # the one swung at also sees the miss on their card; the bystanders see only the burst
+            self.assertEqual(turns[v][0]["happened"], [frames[0]["text"], caught] if v == v1 else [caught])
+            self.assertEqual(turns[v][0]["hp_after"], self.start["agents"][v]["hp"] - 1)
+        # and the timeline names the victim on such a frame when the record carries one
+        for f in self.frames:
+            if f["type"] == "wild_swing_room_reaction" and f.get("base_text"):
+                self.assertIn(" It catches ", f["text"])
+
     def test_the_scene_is_set_from_the_record_and_nothing_else(self):
         scene = replay_board.build_scene(self.bundle, self.start)
         first = self.bundle["snapshots"][0]["state"]

@@ -5,6 +5,31 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 18 September 2026, 23:10Z — "what happened here?": one wild swing, six bodies, one line repeated six times
+
+The firm, on Fen's round-8 card: *"what happened here?"* followed by the
+miss line and six identical *"The ember-glass flares and the heat
+lashes everything near the plinth."*
+
+What happened, from the record (seq 497–503): round 8, in the Vault,
+Fen swung at Yarrow and missed; the wild-swing d6 came up 6, the face
+called THE ROOM WEARS IT, and the room's own reaction went off. In the
+Vault that reaction is a burst: every living body in the room except
+the swinger takes 1 (`combat._room_wears_it`, `burst_damage`). Six
+bodies were in the Vault: the Crown Warden 15→14, Grael 10→9, Ossa
+12→11, Perrin 12→11, Torvic 14→13 and Yarrow 4→3. Fen took nothing,
+being the swinger. So six events, one per body, and the engine words
+every one of them with the room's flavour line and names nobody; the
+victim and the amount sit only in the payload. The card listed all six.
+
+Two fixes. On the page now: the timeline names the victim on each such
+frame (*"... It catches Grael Thantos for 1."*), the swinger's card
+folds the run into one line naming everyone it caught, and each
+victim's card says whose swing it was. Tested. In the engine, later: the
+public text should name the victim, or the burst should be one event
+listing everyone it caught; that moves the golden replay fixture, so it
+is M3 work and is recorded in PRD §10.
+
 ## 18 September 2026, 22:40Z — D11 answered: a second choice
 
 The firm, on the docket at 22:32Z: *"B: a second choice."* In the

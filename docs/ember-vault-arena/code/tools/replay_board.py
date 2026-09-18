@@ -337,6 +337,11 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
             frame["to"] = [names.get(x, x) for x in to]
         if t in ("attack_hit", "wild_swing_bystander", "wild_swing_self_damage", "hazard_burn", "wild_swing_room_reaction"):
             frame["amount"] = int(p.get("applied") or p.get("amount") or 0)
+        if t == "wild_swing_room_reaction" and ev.get("target_id") in names and p.get("changes", {}).get("hp"):
+            # the engine words every body the room's reaction reaches alike and names nobody
+            # (combat.py, "The ember-glass flares..."); the page says who it caught
+            frame["base_text"] = frame["text"]
+            frame["text"] = f"{frame['text']} It catches {names[ev['target_id']]} for {frame['amount']}."
         if t in ("rest", "item_used") and "hp" in (p.get("changes") or {}):
             frame["amount"] = int(p["changes"]["hp"][1]) - int(p["changes"]["hp"][0])
         if t == "final_scores":
@@ -459,16 +464,29 @@ def build_turns(start: dict, frames: list[dict], bundle: dict | None = None) -> 
                     c["narration"] = f["text"]
             else:
                 actor, target = f.get("actor"), f.get("target")
+                who_name = lambda x: state["agents"][x]["name"] if x in state["agents"] else state["monsters"][x]["name"] if x in state["monsters"] else str(x)
                 if actor in cards and t in DID:
-                    cards[actor]["did"].append(f["text"])
-                if t in HAPPENED:
+                    if t == "wild_swing_room_reaction" and target and f.get("base_text"):
+                        # one event per body the room's reaction reaches; fold the run of them
+                        # into one line that says who it caught and for how much
+                        did = cards[actor]["did"]
+                        if did and did[-1].startswith(f["base_text"] + " It catches "):
+                            did[-1] = did[-1].rstrip(".") + f", {who_name(target)} for {f.get('amount', 0)}."
+                        else:
+                            did.append(f["text"])
+                    else:
+                        cards[actor]["did"].append(f["text"])
+                if t in HAPPENED or t == "wild_swing_room_reaction":
                     victim = target if target in cards else (actor if actor in cards and t in ("hazard_burn", "agent_force_moved") else None)
                     if t == "crown_dropped" and actor in cards:
                         victim = actor
                     if t == "agent_eliminated" and target in cards:
                         victim = target
                     if victim and not (t == "attack_hit" and actor == victim) and not (victim == actor and t in ("attack_miss",)):
-                        cards[victim]["happened"].append(f["text"])
+                        text = f["text"]
+                        if t == "wild_swing_room_reaction" and actor:
+                            text = f"{f['text']} From {who_name(actor)}'s wild swing."
+                        cards[victim]["happened"].append(text)
             _fold(state, f["delta"])
         for aid, c in cards.items():
             a = state["agents"][aid]
