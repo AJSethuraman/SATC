@@ -886,6 +886,8 @@ CSS = """
   .transport button { font: 600 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .45rem .75rem; cursor: pointer; min-width: 2.6rem; }
   .transport button:hover { border-color: var(--muted); }
   .transport button.play { background: var(--ember); border-color: var(--ember); color: #1a0e08; min-width: 6rem; font-size: 1rem; }
+  .transport button.toggle[aria-pressed="true"] { background: var(--ink); color: #1a0e08; border-color: var(--ink); }
+  .transport button:disabled { opacity: .45; cursor: default; }
   .transport button:focus-visible, .transport select:focus-visible, .transport input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .transport select { font: 500 .88rem var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: .4rem .5rem; }
   .transport label { font-size: .82rem; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
@@ -986,6 +988,45 @@ SCRIPT = r"""
   var $ = function (s) { return document.querySelector(s); };
   var fx = $("#fx"), bubble = $("#bubble");
   var mode = "*", turns = D.turns, ti = -1;   // mode: "*" the story, "" every moment, else one character's id; ti: index into seq
+
+  // ---- voices: the browser's own speech, one voice per character, nothing sent anywhere ----
+  var voiceOn = false, voices = [], speaking = null, canSpeak = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
+  var PITCH = { vanguard: 0.8, scout: 1.25, mystic: 1.0, scoundrel: 1.1 };
+  function loadVoices() {
+    if (!canSpeak) return;
+    var all = window.speechSynthesis.getVoices() || [];
+    voices = all.filter(function (v) { return /^en/i.test(v.lang); });
+    if (!voices.length) voices = all;
+    voices.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+  }
+  function voiceFor(id) {
+    if (!voices.length) return null;
+    var ids = Object.keys(D.start.agents), i = ids.indexOf(id);
+    if (i < 0) return voices[0];
+    return voices[(i * 2 + 1) % voices.length];
+  }
+  function speak(text, id, opts) {
+    if (!canSpeak || !voiceOn || !text) return Promise.resolve();
+    loadVoices();
+    if (!voices.length) return Promise.resolve();          // a browser with the API but no voices: play on, silently
+    window.speechSynthesis.cancel();
+    return new Promise(function (resolve) {
+      var u = new SpeechSynthesisUtterance(text), done = false;
+      function finish() { if (done) return; done = true; if (speaking === u) speaking = null; resolve(); }
+      var v = voiceFor(id); if (v) u.voice = v;
+      var a = id && D.start.agents[id];
+      u.pitch = (opts && opts.pitch) || (a ? (PITCH[a.build] || 1) : 0.9);
+      u.rate = (opts && opts.rate) || (a ? 1.0 : 0.95);
+      u.onend = u.onerror = finish;
+      speaking = u;
+      window.speechSynthesis.speak(u);
+      // never let a voice that fails to report its end hold the match: a line takes at most
+      // about 90 ms a character at these rates, plus a margin
+      setTimeout(finish, 2000 + 90 * text.length);
+    });
+  }
+  function hush() { if (canSpeak) window.speechSynthesis.cancel(); speaking = null; }
+  if (canSpeak) { loadVoices(); if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadVoices; }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function fold(s, d) {
@@ -1223,7 +1264,8 @@ SCRIPT = r"""
     $("#round-n").textContent = (k + 1) + " of " + seq.length;
     $("#scrub").value = k;
     bubble.hidden = true;
-    var narr = "";
+    hush();
+    var narr = "", said_ = null;
     if (e.kind === "turn") {
       var c = cardOf[e.who][e.round], a = state.agents[e.who];
       narr = c.narration || "";
@@ -1254,7 +1296,8 @@ SCRIPT = r"""
       var dEl = sec.querySelector(".d"); dEl.className = a.secret_done === true ? "done" : a.secret_done === false ? "failed" : "";
       dEl.textContent = a.secret_done === true ? "· done" : a.secret_done === false ? "· not done" : "";
       $("#meta").textContent = "Thought is private, written before the round. Said is what the others heard. HP is for the whole round.";
-      if (animate !== false && c.said) speechBubble(a, c.said, c.mode === "whisper");
+      if (animate !== false && c.said) { speechBubble(a, c.said, c.mode === "whisper"); said_ = speak(c.said, e.who, c.mode === "whisper" ? { rate: 0.9 } : null); }
+      else if (animate !== false && c.did.length) said_ = speak(c.did.join(" "), null);
     } else if (e.kind === "vault") {
       var any = Object.keys(cardOf)[0]; narr = (cardOf[any][e.round] || {}).narration || "";
       Object.keys(state.monsters).forEach(function (m) { if (state.monsters[m].hp > 0) document.getElementById("tok-" + m).classList.add("acting"); });
@@ -1262,6 +1305,7 @@ SCRIPT = r"""
       list($("#t-vault"), e.texts, "nothing");
       renderDice($("#t-dice"), e.dice, animate !== false);
       $("#meta").textContent = "";
+      if (animate !== false) said_ = speak(e.texts.join(" "), null);
     } else if (e.kind === "scene") {
       whoEl.innerHTML = '<span class="dot" style="background:var(--ember)"></span><b>The scene</b><span class="role">before round 1, from the record</span>';
       $("#round-no").textContent = "Before round 1";
@@ -1274,6 +1318,9 @@ SCRIPT = r"""
     }
     turn.classList.toggle("scenecard", e.kind === "scene");
     $("#t-narr-row").hidden = !narr; $("#t-narr").textContent = narr;
+    if (e.kind === "scene" && animate !== false) said_ = speak(D.scene.text + " " + D.scene.rules[0], null);
+    if (e.kind === "end" && animate !== false) said_ = speak(e.text, null);
+    e._spoken = said_ || Promise.resolve();
   }
   function renderScene(s) {
     var el = $("#t-scene"); el.innerHTML = "";
@@ -1359,17 +1406,27 @@ SCRIPT = r"""
     if (target === null) target = dir > 0 ? frames.length - 1 : 0;
     goto(target, false);
   }
+  function after(ms, spoken, fn) {
+    // the next step comes when the dwell has passed AND the voice, if any, has finished
+    var done = false, waited = false;
+    function go() { if (done && waited) fn(); }
+    timer = setTimeout(function () { waited = true; go(); }, ms);
+    (spoken || Promise.resolve()).then(function () { done = true; go(); });
+  }
   function tick() {
     if (!playing) return;
     if (mode !== "") {
       if (ti >= seq.length - 1) { pause(); return; }
       showEntry(ti + 1, true);
-      timer = setTimeout(tick, seq[ti].dwell / speed);
+      after(seq[ti].dwell / speed, seq[ti]._spoken, tick);
       return;
     }
     if (idx >= frames.length - 1) { pause(); return; }
     goto(idx + 1, true);
-    timer = setTimeout(tick, frames[idx].dwell / speed);
+    var f = frames[idx], spoken = null;
+    if (f.type === "agent_speech") spoken = speak(f.speech, f.actor);
+    else if (f.narration) spoken = speak(f.text, null);
+    after(f.dwell / speed, spoken, tick);
   }
   function play() {
     playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true");
@@ -1377,7 +1434,17 @@ SCRIPT = r"""
     if (idx >= frames.length - 1) goto(0, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
-  function pause() { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; $("#play").setAttribute("aria-pressed", "false"); }
+  function pause() { playing = false; clearTimeout(timer); hush(); $("#play").textContent = "Play"; $("#play").setAttribute("aria-pressed", "false"); }
+  $("#voice").addEventListener("click", function () {
+    if (!canSpeak) { this.textContent = "No voices in this browser"; this.disabled = true; return; }
+    voiceOn = !voiceOn; loadVoices();
+    this.setAttribute("aria-pressed", String(voiceOn));
+    this.textContent = voiceOn ? "Voices on" : "Voices";
+    if (!voiceOn) hush();
+    else if (mode !== "" && ti >= 0) showEntry(ti, true);
+    else if (mode === "" && idx >= 0 && frames[idx].type === "agent_speech") speak(frames[idx].speech, frames[idx].actor);
+  });
+  if (!canSpeak) { $("#voice").disabled = true; $("#voice").title = "This browser has no speech voices"; }
 
   $("#play").addEventListener("click", function () { playing ? pause() : play(); });
   $("#next").addEventListener("click", function () { step(1); });
@@ -1481,6 +1548,7 @@ def build(bundle: dict, note: str = "") -> str:
     <button type="button" id="next" title="Forward one">&#8250;</button>
     <button type="button" id="nextr" title="Next round">round &#187;</button>
     <label for="speed">Speed <select id="speed"><option value="0.6">slow</option><option value="1" selected>normal</option><option value="2">fast</option><option value="4">very fast</option></select></label>
+    <button type="button" id="voice" class="toggle" aria-pressed="false" title="Read each line aloud in a voice per character, using this browser's own speech">Voices</button>
   </div>
   <div class="scrub">
     <span class="lbl">Start</span>
@@ -1491,7 +1559,7 @@ def build(bundle: dict, note: str = "") -> str:
     <h2>How it ended</h2>
     <table><thead><tr><th>Place</th><th>Character</th><th>Fate</th><th>Score</th></tr></thead><tbody></tbody></table>
   </section>
-  <p class="foot">The story: each step is one character's moment in the round, in the order they acted, with what they thought, said and did and what happened to them on one card, then the vault's own beat, then the next round. A name plays that character's moments only. "Every moment" plays each recorded event. Drawn to the referee's own grids and checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim is the side objective their brain file carries, worth points at the end.</p>
+  <p class="foot">The story: each step is one character's moment in the round, in the order they acted, with what they thought, said and did and what happened to them on one card, then the vault's own beat, then the next round. A name plays that character's moments only. "Every moment" plays each recorded event. "Voices" reads each line aloud with this browser's own speech, one voice per character and a plainer one for the referee; nothing leaves your machine, and the quality is whatever your browser ships. Play waits for a line to finish before moving on. Drawn to the referee's own grids and checked against every round-end record the referee kept. Space plays and pauses; the arrow keys step. The Crown is the objective everyone plays for; the secret aim is the side objective their brain file carries, worth points at the end.</p>
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>

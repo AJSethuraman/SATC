@@ -174,6 +174,11 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         page = replay_board.build(self.bundle)
         self.assertIn('data-follow="*"', page)
         self.assertIn('setMode("*")', page)
+        # voices come from the browser's own speech and nothing leaves the machine: no audio host, no key
+        self.assertIn('id="voice"', page)
+        self.assertIn("speechSynthesis", page)
+        self.assertNotIn("api.elevenlabs", page)
+        self.assertNotIn("audio/", page)
 
     def test_every_die_the_referee_rolled_for_a_character_is_on_their_card_with_what_it_decided(self):
         turns = replay_board.build_turns(self.start, self.frames, self.bundle)
