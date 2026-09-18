@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from . import stats
 from .config import Config
+from .ingest import BLANK
 from .population import Loan, OutcomeDef, Population, bucket_index, bucket_labels
 
 
@@ -57,6 +58,42 @@ class BandTable:
 
 
 @dataclass
+class CaptureRow:
+    quarter: str
+    loans: int
+    unseasoned: int
+    a_blank: int
+    b_blank: int
+    both: int
+    # twins of the share formulas
+    a_blank_share: float | None = None
+    b_blank_share: float | None = None
+    both_share: float | None = None
+
+
+@dataclass
+class BandCount:
+    confounder: str
+    scheme: str
+    labels: list[str]
+    counts: list[int]           # seasoned loans per band (blank field excluded)
+    blank: int
+
+
+@dataclass
+class PrevalenceRow:
+    quarter: str
+    capture: CubeRow            # n = seasoned loans, events = both present
+    flag: CubeRow               # n = both present, events = fires
+    capture_rate: float | None = None
+    capture_lo: float | None = None
+    capture_hi: float | None = None
+    flag_rate: float | None = None
+    flag_lo: float | None = None
+    flag_hi: float | None = None
+
+
+@dataclass
 class Facts:
     outcome: OutcomeDef
     seasoned: int
@@ -71,6 +108,9 @@ class PackData:
     per_outcome: list[tuple[Facts, Gradient]]
     unseasoned_by_quarter: dict[str, int]
     bands: BandTable | None = None
+    capture: list[CaptureRow] = field(default_factory=list)
+    band_counts: list[BandCount] = field(default_factory=list)
+    prevalence: list[PrevalenceRow] = field(default_factory=list)
 
 
 def _twin_rate(n: int, x: int) -> float | None:
@@ -153,6 +193,78 @@ def band_table(pop: Population) -> BandTable | None:
     return BandTable(band_labels=blabels, rows=rows, shares=shares)
 
 
+def capture(cfg: Config, pop: Population) -> list[CaptureRow]:
+    by_q: dict[str, CaptureRow] = {}
+    for l in pop.loans:
+        r = by_q.get(l.quarter)
+        if r is None:
+            r = by_q[l.quarter] = CaptureRow(l.quarter, 0, 0, 0, 0, 0)
+        r.loans += 1
+        r.unseasoned += int(not l.seasoned)
+        a_blank = l.a is BLANK
+        b_blank = l.b is BLANK
+        r.a_blank += int(a_blank)
+        r.b_blank += int(b_blank)
+        r.both += int(not a_blank and not b_blank)
+    rows = [by_q[q] for q in sorted(by_q)]
+    for r in rows:
+        r.a_blank_share = _twin_rate(r.loans, r.a_blank)
+        r.b_blank_share = _twin_rate(r.loans, r.b_blank)
+        r.both_share = _twin_rate(r.loans, r.both)
+    return rows
+
+
+def band_counts(cfg: Config, pop: Population) -> list[BandCount]:
+    out: list[BandCount] = []
+    seasoned = pop.seasoned
+    for c in cfg.confounders:
+        if not c.schemes:
+            levels: dict[str, int] = {}
+            blank = 0
+            for l in seasoned:
+                v = l.values.get(c.field)
+                if v is None:
+                    blank += 1
+                else:
+                    levels[str(v)] = levels.get(str(v), 0) + 1
+            ordered = sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))
+            out.append(BandCount(c.name, "levels", [k for k, _ in ordered], [n for _, n in ordered], blank))
+            continue
+        for sname, edges in c.schemes.items():
+            labels = bucket_labels(edges)
+            counts = [0] * len(labels)
+            blank = 0
+            for l in seasoned:
+                v = l.values.get(c.field)
+                if v is None:
+                    blank += 1
+                else:
+                    counts[bucket_index(v, edges)] += 1
+            out.append(BandCount(c.name, sname, labels, counts, blank))
+    return out
+
+
+def prevalence(cfg: Config, pop: Population) -> list[PrevalenceRow]:
+    by_q: dict[str, list[int]] = {}      # quarter -> [seasoned, both, fires]
+    for l in pop.seasoned:
+        s = by_q.setdefault(l.quarter, [0, 0, 0])
+        s[0] += 1
+        if l.rule_value is not None:
+            s[1] += 1
+            s[2] += int(bool(l.fires))
+    rows: list[PrevalenceRow] = []
+    for q in sorted(by_q):
+        seasoned, both, fires = by_q[q]
+        r = PrevalenceRow(q, CubeRow(f"s2.{q}.capture", f"{q} capture", seasoned, both),
+                          CubeRow(f"s2.{q}.flag", f"{q} flag", both, fires))
+        r.capture_rate = _twin_rate(seasoned, both)
+        r.capture_lo, r.capture_hi = _twin_interval(seasoned, both, cfg)
+        r.flag_rate = _twin_rate(both, fires)
+        r.flag_lo, r.flag_hi = _twin_interval(both, fires, cfg)
+        rows.append(r)
+    return rows
+
+
 def run(cfg: Config, pop: Population) -> PackData:
     seasoned = pop.seasoned
     per: list[tuple[Facts, Gradient]] = []
@@ -165,4 +277,5 @@ def run(cfg: Config, pop: Population) -> PackData:
     for l in pop.unseasoned:
         ubq[l.quarter] = ubq.get(l.quarter, 0) + 1
     return PackData(seasoned=len(seasoned), unseasoned=len(pop.unseasoned), per_outcome=per,
-                    unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop))
+                    unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop),
+                    capture=capture(cfg, pop), band_counts=band_counts(cfg, pop), prevalence=prevalence(cfg, pop))
