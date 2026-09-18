@@ -14,13 +14,20 @@ import formulas
 
 
 class Recalc:
-    def __init__(self, wb_bytes: bytes) -> None:
+    def __init__(self, wb_bytes: bytes, inputs: dict[tuple[str, str], object] | None = None) -> None:
+        """`inputs` overrides cells before calculating, keyed by (sheet, cell):
+        the way a reviewer moves a knob on _config and watches the words move."""
         fd, path = tempfile.mkstemp(suffix=".xlsx")
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(wb_bytes)
             model = formulas.ExcelModel().loads(path).finish()
-            self._solution = model.calculate()
+            book = os.path.basename(path)          # the engine keys inputs by the file name as written
+            if inputs:
+                keyed = {f"'[{book}]{sheet.upper()}'!{cell.upper()}": value for (sheet, cell), value in inputs.items()}
+                self._solution = model.calculate(inputs=keyed)
+            else:
+                self._solution = model.calculate()
         finally:
             os.unlink(path)
         self._cells: dict[str, dict[str, object]] = {}
@@ -30,7 +37,8 @@ class Recalc:
                 continue
             sheet = ku.split("]")[1].split("'!")[0]
             cell = ku.split("'!")[1]
-            self._cells.setdefault(sheet, {})[cell] = v.value[0][0]
+            val = v.value[0][0] if hasattr(v, "value") else v      # an overridden input comes back as a plain value
+            self._cells.setdefault(sheet, {})[cell] = val
 
     def value(self, sheet: str, cell: str):
         try:
@@ -44,6 +52,10 @@ class Recalc:
             if cell.startswith(col.upper()) and cell[len(col):].isdigit():
                 out[int(cell[len(col):])] = v
         return out
+
+    def exact(self, sheet: str, values: set[str]) -> list[str]:
+        """Every cell on the sheet whose whole value is one of `values`."""
+        return [str(v) for v in self._cells.get(sheet.upper(), {}).values() if isinstance(v, str) and v in values]
 
     def find_text(self, sheet: str, needle: str) -> list[str]:
         return [str(v) for v in self._cells.get(sheet.upper(), {}).values()

@@ -111,6 +111,7 @@ class PackData:
     capture: list[CaptureRow] = field(default_factory=list)
     band_counts: list[BandCount] = field(default_factory=list)
     prevalence: list[PrevalenceRow] = field(default_factory=list)
+    strata: list = field(default_factory=list)          # list[Stratified], every outcome x confounder x scheme
 
 
 def _twin_rate(n: int, x: int) -> float | None:
@@ -276,6 +277,136 @@ def run(cfg: Config, pop: Population) -> PackData:
     ubq: dict[str, int] = {}
     for l in pop.unseasoned:
         ubq[l.quarter] = ubq.get(l.quarter, 0) + 1
+    strata = []
+    for od in pop.outcomes:
+        strata.extend(stratified(cfg, pop, od))
     return PackData(seasoned=len(seasoned), unseasoned=len(pop.unseasoned), per_outcome=per,
                     unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop),
-                    capture=capture(cfg, pop), band_counts=band_counts(cfg, pop), prevalence=prevalence(cfg, pop))
+                    capture=capture(cfg, pop), band_counts=band_counts(cfg, pop), prevalence=prevalence(cfg, pop),
+                    strata=strata)
+
+
+# --------------------------------------------------------------------------
+# Step 4 — stratified: the gradient inside every band, and the word
+# --------------------------------------------------------------------------
+
+@dataclass
+class StratumBand:
+    label: str
+    flagged: CubeRow            # n = flagged loans in the band, events = a
+    unflagged: CubeRow          # n = unflagged loans in the band, events = c
+    buckets: list[GradientRow]  # the gradient inside this band
+    # twins of the sheet's cells
+    flagged_rate: float | None = None
+    flagged_lo: float | None = None
+    flagged_hi: float | None = None
+    unflagged_rate: float | None = None
+    unflagged_lo: float | None = None
+    unflagged_hi: float | None = None
+    gap_pts: float | None = None
+    p: float = 0.0
+    q: float = 0.0
+    r: float = 0.0
+    s: float = 0.0
+
+    @property
+    def abcd(self) -> tuple[int, int, int, int]:
+        a = self.flagged.events
+        b = self.flagged.n - a
+        c = self.unflagged.events
+        d = self.unflagged.n - c
+        return a, b, c, d
+
+
+@dataclass
+class Stratified:
+    outcome: OutcomeDef
+    confounder: str
+    scheme: str
+    bands: list[StratumBand]
+    crude: tuple[float | None, float | None, float | None] = (None, None, None)
+    pooled: tuple[float | None, float | None, float | None] = (None, None, None)
+    kept: float | None = None
+    word: str = ""
+
+    @property
+    def block_key(self) -> str:
+        return f"{self.outcome.key}.{self.confounder}.{self.scheme}"
+
+
+def _band_of(l: Loan, field: str, edges: tuple[float, ...] | None, labels: list[str]) -> int | None:
+    v = l.values.get(field)
+    if v is None:
+        return None
+    if edges is None:
+        try:
+            return labels.index(str(v))
+        except ValueError:
+            return None
+    return bucket_index(v, edges)
+
+
+def stratified(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Stratified]:
+    out: list[Stratified] = []
+    seasoned_both = [l for l in pop.seasoned if l.rule_value is not None]
+    z = stats.z_for_confidence(cfg.confidence)
+    key = outcome.key
+    for c in cfg.confounders:
+        schemes: dict[str, tuple[float, ...] | None] = dict(c.schemes) if c.schemes else {"levels": None}
+        for sname, edges in schemes.items():
+            if edges is None:
+                levels: dict[str, int] = {}
+                for l in seasoned_both:
+                    v = l.values.get(c.field)
+                    if v is not None:
+                        levels[str(v)] = levels.get(str(v), 0) + 1
+                labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
+            else:
+                labels = bucket_labels(edges)
+            bands: list[StratumBand] = []
+            for i, lab in enumerate(labels):
+                members = [l for l in seasoned_both if _band_of(l, c.field, edges, labels) == i]
+                fl = [l for l in members if l.fires]
+                un = [l for l in members if not l.fires]
+                a = sum(int(l.events.get(key, False)) for l in fl)
+                cc = sum(int(l.events.get(key, False)) for l in un)
+                prefix = f"s4.{key}.{c.name}.{sname}.{i}"
+                band = StratumBand(lab, CubeRow(f"{prefix}.flagged", f"{lab} flagged", len(fl), a),
+                                   CubeRow(f"{prefix}.unflagged", f"{lab} unflagged", len(un), cc), [])
+                band.flagged_rate = _twin_rate(len(fl), a)
+                band.flagged_lo, band.flagged_hi = _twin_interval(len(fl), a, cfg)
+                band.unflagged_rate = _twin_rate(len(un), cc)
+                band.unflagged_lo, band.unflagged_hi = _twin_interval(len(un), cc, cfg)
+                if band.flagged_rate is not None and band.unflagged_rate is not None:
+                    band.gap_pts = (band.flagged_rate - band.unflagged_rate) * 100.0
+                n = len(members)
+                aa, bb, cc2, dd = band.abcd
+                if n:
+                    band.p = (aa + dd) / n
+                    band.q = (bb + cc2) / n
+                    band.r = aa * dd / n
+                    band.s = bb * cc2 / n
+                # the gradient inside the band
+                counts = [[0, 0] for _ in pop.bucket_labels]
+                for l in members:
+                    counts[l.bucket][0] += 1
+                    counts[l.bucket][1] += int(l.events.get(key, False))
+                for j, blab in enumerate(pop.bucket_labels):
+                    nn, xx = counts[j]
+                    gr = GradientRow(CubeRow(f"{prefix}.bucket{j}", f"{lab} | {blab}", nn, xx))
+                    gr.rate = _twin_rate(nn, xx)
+                    gr.lo, gr.hi = _twin_interval(nn, xx, cfg)
+                    band.buckets.append(gr)
+                bands.append(band)
+            st = Stratified(outcome=outcome, confounder=c.name, scheme=sname, bands=bands)
+            tot = [0, 0, 0, 0]
+            for band in bands:
+                for k2, v in enumerate(band.abcd):
+                    tot[k2] += v
+            st.crude = stats.crude_odds_ratio(*tot, z)
+            st.pooled = stats.mantel_haenszel([band.abcd for band in bands], z)
+            if st.crude[0] is not None and st.pooled[0] is not None and st.crude[0] != 1.0:
+                st.kept = stats.math.log(st.pooled[0]) / stats.math.log(st.crude[0])
+            st.word = stats.survives_word(st.crude, st.pooled, cfg.survives_threshold)
+            out.append(st)
+    return out

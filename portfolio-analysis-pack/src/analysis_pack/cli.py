@@ -3,6 +3,7 @@
     pack inspect  DATA [--sheet NAME]
     pack synth    --out DIR [--seed N] [--loans N] [--effect X] [--null] [--confounded]
     pack validate CONFIG --data DATA [--asof D] [--sheet NAME]
+    pack suggest  CONFIG --data DATA --asof D [--field COL] [--sheet NAME]
     pack build    CONFIG --data DATA --asof D [--run-date D] [-o OUT.xlsx] [--sheet NAME]
 
 Exit codes: 0 OK · 1 error · 2 refused (the question file or the data).
@@ -134,6 +135,36 @@ def cmd_validate(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_suggest(a: argparse.Namespace) -> int:
+    from .suggest import render_text, suggest
+    cfg, table, rc = _load(a)
+    if rc:
+        return rc
+    pop, rc = _population(cfg, table, _date(a.asof), Path(a.data).parent, cfg.name)
+    if rc:
+        return rc
+    fields = [a.field] if a.field else [c.field for c in cfg.confounders if c.schemes]
+    if not fields:
+        _say("nothing to suggest for: name a numeric column with --field, or declare a confounder with edges")
+        _emit({"ok": False, "error": "no numeric field to suggest bands for"})
+        return 1
+    out = []
+    for f in fields:
+        try:
+            s = suggest(pop, f)
+        except (ValueError, KeyError) as exc:
+            _say(f"{f}: {exc}")
+            continue
+        _say(render_text(s))
+        out.append({"field": s.field, "loans": s.loans, "events": s.events, "outcome": s.outcome_label,
+                    "schemes": [{"name": sc.name, "edges": list(sc.edges), "labels": sc.labels, "loans": sc.loans,
+                                 "events": sc.events, "thin": sc.thin()} for sc in s.schemes],
+                    "outcome_cut": {"value": s.outcome_cut, "rates": list(s.outcome_cut_rates),
+                                    "note": "information only; chosen on the outcome, not for step 4"}})
+    _emit({"ok": True, "suggestions": out})
+    return 0
+
+
 def cmd_build(a: argparse.Namespace) -> int:
     from .workbook import build_pack
     t0 = time.perf_counter()
@@ -163,9 +194,14 @@ def cmd_build(a: argparse.Namespace) -> int:
     for facts, g in data.per_outcome:
         _say(f"  {facts.seasoned:,} seasoned loans, {facts.events:,} events ({g.outcome.label}), "
              f"{facts.unseasoned:,} unseasoned excluded; gradient reads: {g.word}")
+        for st in data.strata:
+            if st.outcome.key == g.outcome.key:
+                _say(f"    step 4 {st.confounder} ({st.scheme}): {st.word}")
     _say(f"  formula check: not run here (no engine); Excel verifies on open — {len(checks)} checks written to _check")
     _emit({"ok": True, "out": str(out), "sha256": digest, "seasoned": data.seasoned, "unseasoned": data.unseasoned,
-           "outcomes": [{"label": g.outcome.label, "events": facts.events, "gradient": g.word}
+           "outcomes": [{"label": g.outcome.label, "events": facts.events, "gradient": g.word,
+                         "stratified": {f"{st.confounder}.{st.scheme}": st.word for st in data.strata
+                                        if st.outcome.key == g.outcome.key}}
                         for facts, g in data.per_outcome],
            "gradient": data.per_outcome[0][1].word, "events": data.per_outcome[0][0].events,
            "date_formats": pop.date_formats,
@@ -196,6 +232,11 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("config"); v.add_argument("--data", required=True); v.add_argument("--asof")
     v.add_argument("--sheet")
     v.set_defaults(fn=cmd_validate)
+
+    sg = sub.add_parser("suggest", help="propose band cut points from the data, with counts")
+    sg.add_argument("config"); sg.add_argument("--data", required=True); sg.add_argument("--asof", required=True)
+    sg.add_argument("--field"); sg.add_argument("--sheet")
+    sg.set_defaults(fn=cmd_suggest)
 
     bld = sub.add_parser("build", help="build the pack")
     bld.add_argument("config"); bld.add_argument("--data", required=True); bld.add_argument("--asof", required=True)
