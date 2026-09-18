@@ -338,10 +338,13 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
         if t in ("attack_hit", "wild_swing_bystander", "wild_swing_self_damage", "hazard_burn", "wild_swing_room_reaction"):
             frame["amount"] = int(p.get("applied") or p.get("amount") or 0)
         if t == "wild_swing_room_reaction" and ev.get("target_id") in names and p.get("changes", {}).get("hp"):
-            # the engine words every body the room's reaction reaches alike and names nobody
-            # (combat.py, "The ember-glass flares..."); the page says who it caught
-            frame["base_text"] = frame["text"]
-            frame["text"] = f"{frame['text']} It catches {names[ev['target_id']]} for {frame['amount']}."
+            # since ruleset 0.3 the engine names the body a burst catches; a record
+            # from before it worded every body alike, and the page says who it caught
+            if " It catches " in frame["text"]:
+                frame["base_text"] = frame["text"].split(" It catches ")[0]
+            else:
+                frame["base_text"] = frame["text"]
+                frame["text"] = f"{frame['text']} It catches {names[ev['target_id']]} for {frame['amount']}."
         if t in ("rest", "item_used") and "hp" in (p.get("changes") or {}):
             frame["amount"] = int(p["changes"]["hp"][1]) - int(p["changes"]["hp"][0])
         if t == "final_scores":

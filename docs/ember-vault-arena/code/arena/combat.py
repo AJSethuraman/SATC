@@ -973,6 +973,10 @@ def _room_wears_it(
         effects = []
         for victim_id in victims:
             victim = _by_id(room_occupants, victim_id)
+            # One event per body the burst reaches, so each line names its
+            # victim and the amount: the firm read six identical flavour lines
+            # on one card (18 Sep 2026) and could not tell what had happened.
+            named = f"{flavor} It catches {victim.name if victim else victim_id} for {reaction.amount}."
             effects.append(
                 Effect(
                     kind="damage",
@@ -987,7 +991,7 @@ def _room_wears_it(
                     credited_to=None,
                     cause="room_reaction",
                     accident=True,
-                    public_text=flavor,
+                    public_text=named,
                     payload={
                         **base_payload,
                         "applied": True,

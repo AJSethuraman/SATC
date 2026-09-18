@@ -5,6 +5,21 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 02:45Z — M3, slice 3: a room's burst names each body it catches
+
+`combat._room_wears_it`, burst branch: every event the burst emits now
+ends *"It catches <name> for <amount>."*, so the six lines the firm
+read on Fen's round-8 card would read as six different sentences. The
+other reactions already named who they touched (the Threshold's sluice
+names the target, the Ossuary's rib the attacker). Event texts sit
+outside the state hash, so the golden fixture did not move. The board
+page detects the named form and keeps naming victims itself on records
+from before this change. Tests (`tests/test_room_reaction.py`, 2): a
+Vault burst with five bodies and the Warden in the room catches
+everyone but the swinger, each line names its victim and the amount,
+no two lines alike; the other reactions name who they touch. Suite 127
+→ **129**.
+
 ## 19 September 2026, 02:20Z — M3, slice 2: the ending is the Crown's holder at the last round; the Egress is a room
 
 Ruleset `ember-vault-0.3`. D8 as ruled on 12 September: taking the Crown
