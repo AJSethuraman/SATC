@@ -7,7 +7,7 @@ stays at ember-vault-0.2 until M3 changes the rules; the ACTION and MANIFEST
 schema versions move here, now, because a stored match is only replayable by a
 reader that knows the shape of what was stored.
 
-agent-action-1.0 (PRD §5.14):
+agent-action-1.1 (PRD §5.14, §5.42):
   action + target/destination/item/tile as before, plus ``give``;
   speech is an object {mode: say|whisper|silent, to, text<=300};
   note is {objective<=120, reads<=4 of {who, stance, why<=60}};
@@ -25,7 +25,7 @@ from typing import Any
 
 
 RULESET_VERSION = "ember-vault-0.2"
-ACTION_SCHEMA_VERSION = "agent-action-1.0"
+ACTION_SCHEMA_VERSION = "agent-action-1.1"
 MANIFEST_SCHEMA_VERSION = "agent-manifest-1.0"
 
 BUILDS: dict[str, dict[str, int]] = {
@@ -300,6 +300,68 @@ class Note:
         return {"objective": self.objective, "reads": [r.as_dict() for r in self.reads]}
 
 
+def _optional_text(raw: dict[str, Any], field_name: str, maximum: int, prefix: str = "") -> str | None:
+    value = raw.get(field_name)
+    if value is None:
+        return None
+    return _bounded_text(value, prefix + field_name, maximum)
+
+
+def _parse_tile(tile_raw: Any, label: str = "tile") -> tuple[int, int] | None:
+    if tile_raw is None:
+        return None
+    if (
+        not isinstance(tile_raw, (list, tuple))
+        or len(tile_raw) != 2
+        or not all(isinstance(v, int) and not isinstance(v, bool) for v in tile_raw)
+    ):
+        raise ValidationError(f"{label} must be [x, y] integers")
+    if not all(0 <= v < 32 for v in tile_raw):
+        raise ValidationError(f"{label} coordinates out of range")
+    return (int(tile_raw[0]), int(tile_raw[1]))
+
+
+@dataclass(frozen=True)
+class SecondChoice:
+    """The brain's second choice (PRD §5.42, ruled 18 Sep 2026, docket D11):
+    the five action slots and nothing else, used by the referee only when the
+    first choice is stale at resolution -- someone took the item, lit the
+    seal, killed the target or stood on the tile first. A stale second choice
+    is a stale turn; there is no third."""
+
+    action: str
+    target: str | None = None
+    destination: str | None = None
+    item: str | None = None
+    tile: tuple[int, int] | None = None
+
+    _SLOTS = ("action", "target", "destination", "item", "tile")
+
+    @classmethod
+    def from_raw(cls, raw: Any) -> "SecondChoice | None":
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            raise ValidationError("fallback must be an object or null")
+        unknown = set(raw) - set(cls._SLOTS)
+        if unknown:
+            raise ValidationError(f"unknown fallback fields: {sorted(unknown)}")
+        action = _bounded_text(raw.get("action"), "fallback.action", 20, 1).lower()
+        if action not in ACTIONS:
+            raise ValidationError(f"fallback.action must be one of {sorted(ACTIONS)}")
+        return cls(
+            action=action,
+            target=_optional_text(raw, "target", 64, "fallback."),
+            destination=_optional_text(raw, "destination", 32, "fallback."),
+            item=_optional_text(raw, "item", 64, "fallback."),
+            tile=_parse_tile(raw.get("tile"), "fallback.tile"),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"action": self.action, "target": self.target, "destination": self.destination,
+                "item": self.item, "tile": list(self.tile) if self.tile else None}
+
+
 @dataclass(frozen=True)
 class AgentAction:
     action: str
@@ -310,9 +372,10 @@ class AgentAction:
     speech: Speech = field(default_factory=Speech)
     note: Note = field(default_factory=Note)
     deal: None = None
+    fallback: SecondChoice | None = None
 
     _FIELDS = frozenset({
-        "action", "target", "destination", "item", "tile", "speech", "note", "deal",
+        "action", "target", "destination", "item", "tile", "speech", "note", "deal", "fallback",
     })
 
     @classmethod
@@ -347,7 +410,7 @@ class AgentAction:
 
         if raw.get("deal") is not None:
             raise ValidationError(
-                "deal must be null in agent-action-1.0; structured deals open in a "
+                f"deal must be null in {ACTION_SCHEMA_VERSION}; structured deals open in a "
                 "later schema version"
             )
         if "note" not in raw:
@@ -361,6 +424,7 @@ class AgentAction:
             speech=Speech.from_raw(raw.get("speech")),
             note=Note.from_raw(raw.get("note")),
             deal=None,
+            fallback=SecondChoice.from_raw(raw.get("fallback")),
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -373,7 +437,19 @@ class AgentAction:
             "speech": self.speech.as_dict(),
             "note": self.note.as_dict(),
             "deal": None,
+            "fallback": self.fallback.as_dict() if self.fallback else None,
         }
+
+    def second(self) -> "AgentAction | None":
+        """The second choice as a resolvable action: the five slots from the
+        fallback, the speech already spent (silent), the note unchanged."""
+        if not self.fallback:
+            return None
+        return AgentAction(
+            action=self.fallback.action, target=self.fallback.target, destination=self.fallback.destination,
+            item=self.fallback.item, tile=self.fallback.tile,
+            speech=Speech(), note=self.note, deal=None, fallback=None,
+        )
 
 
 def action_json_schema() -> dict[str, Any]:
@@ -390,7 +466,7 @@ def action_json_schema() -> dict[str, Any]:
         "description": ACTION_SCHEMA_VERSION,
         "type": "object",
         "additionalProperties": False,
-        "required": ["action", "target", "destination", "item", "tile", "speech", "note", "deal"],
+        "required": ["action", "target", "destination", "item", "tile", "speech", "note", "deal", "fallback"],
         "properties": {
             "action": {"type": "string", "enum": sorted(ACTIONS)},
             "target": nullable_ident,
@@ -434,6 +510,22 @@ def action_json_schema() -> dict[str, Any]:
                 },
             },
             "deal": {"type": "null"},
+            "fallback": {
+                "type": ["object", "null"],
+                "additionalProperties": False,
+                "required": ["action", "target", "destination", "item", "tile"],
+                "properties": {
+                    "action": {"type": "string", "enum": sorted(ACTIONS)},
+                    "target": nullable_ident,
+                    "destination": {"type": ["string", "null"], "maxLength": 32},
+                    "item": nullable_ident,
+                    "tile": {
+                        "type": ["array", "null"],
+                        "items": {"type": "integer", "minimum": 0, "maximum": 31},
+                        "minItems": 2, "maxItems": 2,
+                    },
+                },
+            },
         },
     }
 

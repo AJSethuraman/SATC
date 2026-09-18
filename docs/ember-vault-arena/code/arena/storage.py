@@ -41,7 +41,7 @@ PRIVATE_CHANGE_KEYS = ("note", "tokens_remaining")
 
 # The only parsed-action fields that describe a PUBLIC, observable act. The note
 # is the agent's private thinking; a whisper's words are private to two.
-PUBLIC_ACTION_KEYS = ("action", "target", "destination", "item", "speech")
+PUBLIC_ACTION_KEYS = ("action", "target", "destination", "item", "speech", "fallback")
 
 # Mid-match a die shows its face and nothing else: the seed/counter/digest are
 # the material that lets a rival precompute future rolls.

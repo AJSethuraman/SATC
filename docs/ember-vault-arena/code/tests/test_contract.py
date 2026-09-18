@@ -55,7 +55,7 @@ class SchemaPinTests(unittest.TestCase):
             "action": "guard", "target": None, "destination": None, "item": None,
             "tile": None, "speech": {"mode": "whisper", "to": "nix", "text": "later"},
             "note": {"objective": "hold", "reads": [{"who": "nix", "stance": "trust", "why": "shared"}]},
-            "deal": None,
+            "deal": None, "fallback": None,
         }
         action = AgentAction.from_dict(raw)
         self.assertEqual(action.as_dict(), raw)

@@ -1,8 +1,8 @@
 {
-  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.0.json",
+  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.1.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "agent-action-1.0",
+  "description": "agent-action-1.1",
   "properties": {
     "action": {
       "enum": [
@@ -26,6 +26,71 @@
       "maxLength": 32,
       "type": [
         "string",
+        "null"
+      ]
+    },
+    "fallback": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "attack",
+            "give",
+            "guard",
+            "interact",
+            "move",
+            "rest",
+            "search",
+            "step",
+            "take",
+            "use"
+          ],
+          "type": "string"
+        },
+        "destination": {
+          "maxLength": 32,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tile": {
+          "items": {
+            "maximum": 31,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "action",
+        "target",
+        "destination",
+        "item",
+        "tile"
+      ],
+      "type": [
+        "object",
         "null"
       ]
     },
@@ -141,7 +206,8 @@
     "tile",
     "speech",
     "note",
-    "deal"
+    "deal",
+    "fallback"
   ],
   "title": "Agent Action",
   "type": "object"

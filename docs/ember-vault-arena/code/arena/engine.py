@@ -87,6 +87,7 @@ class FrozenDecision:
     legal_actions_hash: str
     validity: str
     fallback_reason: str | None
+    second_legal: bool = False   # the brain's second choice was in the frozen legal set (PRD §5.42)
 
 
 class ArenaEngine:
@@ -101,6 +102,10 @@ class ArenaEngine:
         self.store = store
         self.provider = provider
         self.max_rounds = max_rounds
+        self._second_pending: AgentAction | None = None
+        self._second_given = False
+        self._resolving_second = False
+        self._last_stale: str | None = None
         self.parallel_agents = parallel_agents
         self.autopilot = MockDecisionProvider()
         # PRD §5.18: one transport retry; §5.34: a pool as wide as the living.
@@ -252,7 +257,23 @@ class ArenaEngine:
                     "action was not in the frozen start-of-round legal_actions",
                 )
                 continue
+            # THE SECOND CHOICE (PRD §5.42, ruled 18 Sep 2026): the first choice
+            # resolves; if the board no longer allows it, the second choice, if
+            # the brain gave one and it was legal at the freeze, resolves once.
+            # A stale second is a stale turn. Neither is ever a penalty.
+            self._second_pending = decision.action.second() if decision.second_legal else None
+            self._second_given = decision.action.fallback is not None
+            self._last_stale = None
             self._resolve_action(agent_id, decision.action)
+            if self._last_stale and self._second_pending is not None:
+                second, self._second_pending = self._second_pending, None
+                self._last_stale = None
+                self._resolving_second = True
+                try:
+                    self._resolve_action(agent_id, second)
+                finally:
+                    self._resolving_second = False
+            self._second_pending = None
             if self.state.get("winner_agent_id"):
                 break
 
@@ -536,6 +557,11 @@ class ArenaEngine:
                 legal_actions_hash=legal_hashes[agent_id],
                 validity=validity,
                 fallback_reason=fallback_reason,
+                # judged against the same captured oracle as the first choice
+                second_legal=bool(
+                    action.fallback is not None
+                    and rules.action_key(action.fallback.as_dict()) in legal_keys[agent_id]
+                ),
             )
         return frozen
 
@@ -1791,17 +1817,37 @@ class ArenaEngine:
         )
 
     def _stale(self, agent_id: str, action: AgentAction, reason: str) -> None:
+        """No effect, no penalty, and the second choice follows when there is a
+        legal one (PRD §5.42). The event says which choice this was and what,
+        if anything, comes next, so a viewer can follow it."""
+        self._last_stale = reason
+        name = self.state["agents"][agent_id]["name"]
+        second = getattr(self, "_resolving_second", False)
+        pending = getattr(self, "_second_pending", None)
+        if second:
+            text, decision = f"{name}'s second choice finds nothing there either.", "no_effect_no_penalty"
+        elif pending is not None:
+            text, decision = f"{name}'s first choice finds nothing there; the second choice follows.", "second_choice_follows"
+        elif getattr(self, "_second_given", False):
+            text, decision = f"{name}'s action finds nothing there, and the second choice was never legal.", "no_effect_no_penalty"
+        else:
+            text, decision = f"{name}'s action finds nothing there.", "no_effect_no_penalty"
         self._event(
             self.state["round"],
             "referee",
             "stale_action",
             agent_id,
             action.target or action.destination or action.item,
-            f"{self.state['agents'][agent_id]['name']}'s action finds nothing there.",
+            text,
             {
                 "submitted_action": action.as_dict(),
                 "reason": reason,
-                "referee_decision": "no_effect_no_penalty",
+                "choice": "second" if second else "first",
+                "second_choice": (
+                    {k: pending.as_dict()[k] for k in ("action", "target", "destination", "item", "tile")}
+                    if pending is not None else None
+                ),
+                "referee_decision": decision,
                 "points": 0,
             },
         )
