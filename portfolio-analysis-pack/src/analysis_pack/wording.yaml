@@ -1,0 +1,59 @@
+# Every sentence the pack writes lives here, as a template with {placeholders}.
+# Code fills a template; it never assembles a sentence from pieces (tenet S10).
+# The placeholders are counts and config values; a missing one is an error,
+# never a blank.
+
+cover:
+  question: "Loans where {rule_sentence}: do they {outcome_label} more often than loans where it is not, and is that real or something else in disguise?"
+  rule:
+    ratio: "{field_a} divided by {field_b} is {fires_op} {fires_value:g}"
+    difference: "{field_a} minus {field_b} is {fires_op} {fires_value:g}"
+  answer_gradient:
+    monotonic increasing: "Gradient: yes. As the ratio rises, the {outcome_label} rate rises at every step."
+    monotonic decreasing: "Gradient: falls. As the ratio rises, the {outcome_label} rate falls at every step."
+    not monotonic: "Gradient: not one-directional. The {outcome_label} rate does not rise at every step of the ratio."
+    no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
+  not_built: "{step}: not built in this version."
+  denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
+
+notes:
+  population: >-
+    Population: {rows_read:,} rows read from {source_name}{filter_sentence}. {loans:,} loans after typing.
+    As-of date {asof}. A loan is seasoned when it has at least {window_months} whole months on book at
+    the as-of date; {seasoned:,} are seasoned and {unseasoned:,} are not. Only seasoned loans enter a rate.
+  filter_none: ""
+  filter_some: ", keeping rows where {filter_text} ({rows_after_filter:,} kept)"
+  outcome_event_date: >-
+    Outcome: "{outcome_label}", taken from {date_field}. A loan is an event when that date falls within
+    {window_months} months of origination; a later date is not an event in the window; a blank is not an
+    event. A loan paid off inside the window without an event is not an event.
+  outcome_flag: >-
+    Outcome: "{outcome_label}", taken from {field} where {field} {op} {value:g}. The bank applied the window
+    before the extract; the pack did not enforce it and only excluded loans younger than {window_months}
+    months.
+  outcome_snapshot: >-
+    Outcome: "{outcome_label}", measured at the as-of date as {measure_text} {op} {value:g}. Months on book
+    vary across the base from {window_months} to the oldest seasoned loan; read the decomposition by
+    origination year with that in mind.
+  gradient: >-
+    Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
+    fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this
+    table). Buckets are left-closed at the edges {edges}; the bottom and top buckets are open. The base row
+    is the {base_n:,} loans where the rule does not fire ({fires_text}). Each rate carries a {confidence:.0%}
+    {method} interval; gap is the bucket rate minus the base rate in percentage points; multiple is the
+    bucket rate divided by the base rate. Monotonic is read on the point estimates, comparing each pair of
+    adjacent buckets that both hold loans.
+  check: >-
+    Every rate, interval, gap, multiple and word on the results tabs is an Excel formula over the _cube
+    tab. This tab holds Python's own value for each one and asks Excel whether they agree, to the
+    tolerance shown. The cover reports how many agree out of how many. A build at the desk cannot run
+    this check itself; Excel runs it when the file is opened.
+  config: >-
+    Live knobs recalculate the workbook when changed: the confidence level and the interval method.
+    Rebuild knobs are shown for the record and take effect only when the pack is built again.
+
+labels:
+  fires: "{field_a} {kind_word} {field_b} {fires_op} {fires_value:g}"
+  kind_word:
+    ratio: "÷"
+    difference: "−"

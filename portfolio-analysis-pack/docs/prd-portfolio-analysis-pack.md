@@ -265,7 +265,12 @@ Priority: [P0] must · [P1] should · [P2] nice.
    at the as-of date; the method note states that months on book vary
    across the base from the window to the oldest seasoned loan, and the
    decomposition by origination year is where that variation is read.
-   Seasoning exclusion applies identically to all three.
+   A measure outcome may carry `edges: [...]` instead of `op`/`value` (the
+   firm, 18 Sep 2026: *"utilization can be segmented into percentages
+   itself"*): the pack then shows the share of loans in each band and runs
+   the ladder once per edge as a threshold, one block per edge. No cut point
+   is ever the tool's; whoever runs it sets one, or several.
+   Seasoning exclusion applies identically to all three forms.
 10. [P0] The word for the outcome in every note and header is
     `outcome.label` from the config. The package contains no outcome name.
 
@@ -309,9 +314,11 @@ Priority: [P0] must · [P1] should · [P2] nice.
 17. [P0] **Step 7, control observation.** Emitted iff `rule_type:
     contradiction`, from the config and step-2 counts alone, regardless of
     steps 3–6: the share of seasoned loans with both fields present where the
-    rule fires; that `field_a` is unverified (from `drives`/wording); and the
-    `existing_control` line rendered as "nothing acts on it" only when the
-    value is `none`.
+    rule fires; the `drives` text for each field exactly as the config gives
+    it (the tool asserts nothing of its own about verification or process);
+    and the `existing_control` line rendered as "nothing acts on it" only
+    when the value is `none`. The firm, 18 Sep 2026: *"this is specific to
+    an idea - it also has to be generalized."*
 
 **Workbook**
 
@@ -818,9 +825,6 @@ function is prefixed.
   proof.
 - **Open question (yours):** Key's column names — written into the config
   at the desk after `pack inspect`.
-- **Open question (yours):** the utilization threshold for the second
-  config (outstanding ÷ commitment at as-of; the firm named the measure on
-  18 Sep 2026), e.g. `>= 0.9`.
 - **Open question (yours):** the `existing_control` value for the first
   instance.
 
