@@ -13,12 +13,14 @@ cover:
     monotonic decreasing: "Gradient: falls. As the ratio rises, the {outcome_label} rate falls at every step."
     not monotonic: "Gradient: not one-directional. The {outcome_label} rate does not rise at every step of the ratio."
     no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
+    flat: "Gradient: flat. The {outcome_label} rate is the same in every bucket that holds loans, so there is no gradient to read."
   not_built: "{step}: not built in this version."
   answer_model:
     both: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1) and {m2:.2f} [{m2lo:.2f}, {m2hi:.2f}] with the confounders added (M2), on {events:,} events."
     m1_only: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1); M2 is {m2_reason}."
     unknown: "Model (step 6): unknown — {reason}."
   answer_stratified_prefix: "Survives or collapses (step 4), for {outcome_label}: "
+  check_moved: "The live knobs have been moved from the settings this pack was built with (confidence {confidence:.0%}, method {method}, survives threshold {threshold:g}). The Python column on _check was computed at those settings, so the formula check applies there only; set the knobs back to compare."
   answer_stratified_item: "{confounder} ({scheme}) — {word}"
   denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
 
@@ -86,6 +88,7 @@ notes:
     points, the multiple, and the share of all flagged events that fall in the level. Rows are sorted by
     flagged events, most first, so a pattern that is all in one level is read off the top row. A dimension
     with a band scheme uses the scheme's first set of edges.
+  stratified_empty: "No seasoned loan with both rule fields carries a value for {confounder}, so there is nothing to stratify on."
   control: >-
     Step 7, the observation that stands regardless of what steps 3 to 6 found. It rests on the counts alone:
     how often the two fields disagree in the seasoned book, and what the question file says reacts to that
@@ -120,6 +123,7 @@ notes:
 
 control:
   share: "In {share:.1%} of the {both:,} seasoned loans where both {field_a} and {field_b} are present, {fires_text}."
+  share_none: "No seasoned loan carries both {field_a} and {field_b}, so the share where {fires_text} cannot be read."
   drives_line: "{field}: {text}"
   none: "Nothing in the process reacts to it."
   some: "What reacts to it today, as the question file states it: {text}"

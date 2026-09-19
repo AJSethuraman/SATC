@@ -230,10 +230,16 @@ def inspect_columns(table: "Table") -> list[dict[str, Any]]:
                 break
         entry = {"column": col, "kind": kind, "null_share": round((n - len(nonblank)) / n, 4) if n else None,
                  "distinct": distinct, "samples": samples}
-        if kind == "date-like":
+        # an all-digit column of eight-character values reads as %Y%m%d dates
+        # too (the way a mainframe writes a date); say so, since the build will
+        # read it that way if the question file names it as a date column
+        # (adversarial finding 10, 19 Sep 2026)
+        digits_as_dates = (kind == "integer" and det.fits.get("%Y%m%d", 0) == len(nonblank)
+                           and all(len(cell_text(v)) == 8 for v in nonblank))
+        if kind == "date-like" or digits_as_dates:
             entry["dates"] = {"typed": det.typed, "fits": {k: v for k, v in det.fits.items() if v},
                               "resolved": det.resolved, "ambiguous": list(det.ambiguous),
-                              "readings": det.readings()}
+                              "readings": det.readings(), "also_integer": digits_as_dates}
         out.append(entry)
     return out
 

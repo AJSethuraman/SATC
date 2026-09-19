@@ -901,8 +901,8 @@ sales on the small-business book; built domain-free so a consumer question
       steps 1–2, #367 step 4 + suggest, #368 bundle + README → #369 step 5 +
       step 7 + consumer example, #370 step 6 model, #371 charts → #372
       mutation tool + this close-out. **What shipped, in measured facts:**
-      - **Tests: 78 pass** (`cd portfolio-analysis-pack && pytest -q`,
-        measured 19 Sep 2026). The suite builds three 40,000-loan synthetic
+      - **Tests: 94 pass** (`cd portfolio-analysis-pack && pytest -q`,
+        measured 19 Sep 2026: 78 from the build, 16 from the adversarial pass below). The suite builds three 40,000-loan synthetic
         books (a planted effect, a null, and an effect that is size in
         disguise), reads each workbook back through the `formulas` engine,
         and checks: the gradient reads as planted; the step-4 word is
@@ -941,11 +941,74 @@ sales on the small-business book; built domain-free so a consumer question
         format the extract actually carries, and the bundle crossing the
         DLP boundary are all untried. `pack inspect` first, then
         `pack validate`, before a build.
-      - **An adversarial pass.** The firm asked for one (docket, 18 Sep:
-        "you also have the adversarial skill") before the desk run. Not
-        yet run; it is the next item, and it writes only tests.
       - **The NAICS list is gone**, so nothing checks it; grouping by
         `prefix` or `map` is proved on synthetic codes only.
+      **Adversarial pass, 19 Sep 2026** (canon skill `adversarial`; the firm
+      asked for it on the docket: "you also have the adversarial skill").
+      A second model, tests only, one file across. **35 hypotheses formed,
+      35 tried, 16 went red, 19 clean.** Fifteen were bugs against the PRD or
+      README and are fixed; one was arguable and its expectation restated.
+      All sixteen now live in `tests/test_adversarial.py`. In plain words,
+      the ones that changed a number a reader would act on:
+      - An empty bucket in the middle of the gradient broke the chain: rates
+        of 5%, 20%, 1%, 2% with a gap between read *monotonic increasing*,
+        and the cover said the rate rises at every step. Each bucket is now
+        compared with the nearest bucket below it that holds loans.
+      - A book with no events at all read *monotonic increasing* too (every
+        change was exactly zero). There is now a word for that: *flat*.
+      - Loans with a blank grouping value vanished from steps 4 and 5 with no
+        row and no count, which also made the "whole population" crude odds
+        ratio differ from block to block on the same tab and made the pack
+        fail its own formula check. A `(blank)` level, always last, holds
+        them now (PRD §6.8 said so; the code did not).
+      - A blank measure on a snapshot outcome was a silent non-event; the
+        capture tab now counts it by quarter, naming the measure fields.
+      - With several outcomes, steps 4 and 5 headed every block with the
+        first outcome's event count; each block now states its own.
+      - Step 7 printed "In 0.0% of the 0 seasoned loans" when there were
+        none; it now says there is no share to read.
+      - One bad value in a column used twice was refused twice; once now.
+        The hygiene file's row order was set-dependent; sorted now.
+      - `pack inspect` called an all-digit `20210315` column an integer and
+        said nothing about dates; it now says the column also reads as
+        `%Y%m%d`. It crashed on an extract with a header and no rows.
+      - `pack list` was in the PRD and did not exist. `pack suggest --field`
+        answered a green nothing for the rule's own fields and crashed on a
+        text column; it reads any numeric column now and refuses the rest.
+      - A confounder with no seasoned levels wrote a cell range backwards
+        (`SUM(C106:C105)`), which LibreOffice tolerates and the `formulas`
+        engine reads as `#NULL!`. The block now says there is nothing to
+        stratify on and writes no formula. `#NULL!` joined the render
+        harness's error list.
+      - **Restated (finding 15):** moving the live interval-method knob made
+        the cover read "529 of 620 formula checks agree". The Python column
+        is a snapshot at the built settings and cannot follow a knob; the
+        cover now says the knobs have moved and shows no count, and reads N
+        of N again when they are set back.
+      **Checked and found clean (19):** a value exactly on a bucket edge; a
+      rule at exactly its cut; seasoning at exactly the window with the
+      month-end clamp; byte-identical builds under a different row order and
+      five hash seeds; the confidence knob at 0.5 and 0.999 under both
+      methods; both interval methods at zero events and at every loan an
+      event; a one-loan book and a book with no seasoned loans; no error
+      cell in the degenerate packs under LibreOffice or the engine;
+      Mantel-Haenszel and the crude ratio with a zero cell; a CSV with a
+      byte-order mark, Windows line endings and a trailing blank line;
+      column names with a space and with accents; labels `0012` and `12`
+      kept distinct; `N/A` and `-` read as blank; the bundle's contents and
+      its `--validate` / `--inspect` argument order.
+      **Candidate tenet, for the firm's yes (the tenets are ratified; a session
+      does not add one):** *A rule that holds because there was nothing to
+      compare must not print the same word as a rule that held. Give "nothing
+      to compare" and "nothing moved" their own words.* Cited to findings 1,
+      2 and 8 above: `all(d >= 0)` over zero differences read "rises at every
+      step"; a skipped pair over an empty bucket read "monotonic"; `share or
+      0.0` read "checked, and it never happens".
+      **Looked at and not filed:** `_provenance` prints the date pattern as
+      "N of N parsed" using the same number on both sides; the capture tab's
+      range-check note lives on `_provenance` instead; §5.11's zero and
+      out-of-range columns are absent because hygiene refuses those values
+      before the tab exists.
 - [ ] **Door two — threshold/boundary.** Deferred by ruling (C11 struck for
       this project, 2026-09-18). Reuses the bucket-with-interval block with
       finer edges around the cut, a bunching count, and a boundary-coincidence
@@ -1009,7 +1072,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
-- 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 78 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Not checked: Excel itself, the desk run, the adversarial pass — §6c has the list.
+- 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
 - 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
   862 of 862 tie.** Each figure on the ours side read out of the shipped

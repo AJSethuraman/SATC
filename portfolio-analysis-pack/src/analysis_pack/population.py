@@ -262,11 +262,14 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
         date_parsed[col] = n
 
     plausible_fields = {name: f.plausible for name, f in cfg.fields.items() if f.plausible is not None}
-    numeric_fields = set(c.field for c in cfg.confounders if c.schemes)
-    numeric_fields |= set(c.field for c in cfg.controls if c.field and c.as_ in ("log", "linear", "bands"))
+    # sorted, so the order of the hygiene file's rows never depends on how a
+    # set happens to iterate (adversarial pass, 19 Sep 2026)
+    numeric_fields = sorted(set(c.field for c in cfg.confounders if c.schemes)
+                            | set(c.field for c in cfg.controls if c.field and c.as_ in ("log", "linear", "bands")))
     log_fields = set(c.field for c in cfg.controls if c.field and c.as_ == "log")
-    text_fields = set(c.field for c in cfg.confounders if not c.schemes)
-    text_fields |= set(c.field for c in cfg.controls if c.field and c.as_ == "categorical")
+    text_fields = sorted(set(c.field for c in cfg.confounders if not c.schemes)
+                         | set(c.field for c in cfg.controls if c.field and c.as_ == "categorical"))
+    rule_fields = (cfg.rule.field_a, cfg.rule.field_b)
     range_checked = {name: (f.plausible is not None) for name, f in cfg.fields.items()}
 
     for r in kept_rows:
@@ -306,9 +309,11 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
                 dirt.append((lid, col, v, "zero or negative in a rule field")); bad = True
         values: dict[str, Any] = {}
         for col in numeric_fields:
-            v = parse_number(r.get(col))
+            # a column that is also a rule field was parsed and, if bad, reported
+            # just above; one bad value is one row (adversarial finding 9)
+            v = a if col == cfg.rule.field_a else b if col == cfg.rule.field_b else parse_number(r.get(col))
             if isinstance(v, Bad):
-                if col not in plausible_fields:
+                if col not in plausible_fields and col not in rule_fields:
                     dirt.append((lid, col, v.value, v.reason))
                 bad = True
             else:

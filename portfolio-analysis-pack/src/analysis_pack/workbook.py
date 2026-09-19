@@ -123,10 +123,14 @@ def _note(ws, row: int, text: str, ncols: int) -> int:
     return row + 1
 
 
-def _header_band(ws, ncols: int, title: str, cfg: Config, table: Table, facts: ladder.Facts, run_date: date) -> int:
+def _header_band(ws, ncols: int, title: str, cfg: Config, table: Table, facts: ladder.Facts, run_date: date,
+                 n_outcomes: int = 1) -> int:
+    # with several outcomes there is no single event count: each block states
+    # its own (adversarial finding 7, 19 Sep 2026)
+    events = f"{facts.events:,} events" if n_outcomes == 1 else "events per outcome in each block"
     row = ks.brand_banner(ws, 1, ncols, title,
                           f"{cfg.name} · source {table.path.split('/')[-1]} · sha256 {table.sha256[:16]}… · "
-                          f"{facts.seasoned:,} seasoned loans · {facts.events:,} events · "
+                          f"{facts.seasoned:,} seasoned loans · {events} · "
                           f"generator {__version__} · run {run_date.isoformat()}")
     return row
 
@@ -169,6 +173,11 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         ws.page_setup.fitToHeight = 0
         ws.page_setup.orientation = "landscape"
     first_facts = data.per_outcome[0][0]
+    n_out = len(data.per_outcome)
+    facts_by = {g.outcome.key: f for f, g in data.per_outcome}
+    snapshot = cfg.outcome.form == "snapshot"
+    m_ = cfg.outcome.measure or {}
+    measure_fields = m_["field"] if "field" in m_ else f"{m_.get('field_a')}, {m_.get('field_b')}"
 
     # -- _config: the knobs, as named cells ------------------------------
     conf.column_dimensions["A"].width = 34
@@ -226,6 +235,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         put_cube(ladder.CubeRow(f"s1.{cr.quarter}.a_blank", f"{cr.quarter} {cfg.rule.field_a} blank", cr.a_blank, 0))
         put_cube(ladder.CubeRow(f"s1.{cr.quarter}.b_blank", f"{cr.quarter} {cfg.rule.field_b} blank", cr.b_blank, 0))
         put_cube(ladder.CubeRow(f"s1.{cr.quarter}.both", f"{cr.quarter} both present", cr.both, 0))
+        if snapshot:
+            put_cube(ladder.CubeRow(f"s1.{cr.quarter}.measure_blank", f"{cr.quarter} measure blank ({measure_fields})", cr.measure_blank, 0))
     for bc in data.band_counts:
         for i, (lab, n) in enumerate(zip(bc.labels, bc.counts)):
             put_cube(ladder.CubeRow(f"s1.band.{bc.confounder}.{bc.scheme}.{i}", f"{bc.confounder} {bc.scheme} {lab}", n, 0))
@@ -257,17 +268,18 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         put_cube(ladder.CubeRow(f"unseasoned.{q}", q, n, 0))
 
     # -- 1_Capture -------------------------------------------------------------
-    ncols = 9
-    for col, wdt in zip("ABCDEFGHI", (22, 16, 12, 16, 9, 16, 9, 14, 9)):
+    ncols = 11 if snapshot else 9
+    for col, wdt in zip("ABCDEFGHIJK", (22, 16, 12, 16, 9, 16, 9, 14, 9, 24, 9)):
         cap.column_dimensions[col].width = wdt
-    row = _header_band(cap, ncols, "Step 1 — Capture", cfg, table, first_facts, run_date)
+    row = _header_band(cap, ncols, "Step 1 — Capture", cfg, table, first_facts, run_date, n_out)
     cap_note = notes.fill("notes.capture", window_months=cfg.window_months, field_a=cfg.rule.field_a,
                           field_b=cfg.rule.field_b)
     row = _note(cap, row, cap_note, ncols)
     row += 1
     hdr = row
     ks.header_row(cap, hdr, ["Quarter", "Loans", "Unseasoned", f"{cfg.rule.field_a} blank", "share",
-                             f"{cfg.rule.field_b} blank", "share", "Both present", "share"], right_from=1)
+                             f"{cfg.rule.field_b} blank", "share", "Both present", "share"]
+                  + ([f"measure blank ({measure_fields})", "share"] if snapshot else []), right_from=1)
     for i, cr in enumerate(data.capture):
         r = hdr + 1 + i
         cap.cell(r, 1, cr.quarter)
@@ -279,6 +291,10 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         b.formula(cap, f"G{r}", f'=IF(B{r}=0,"",F{r}/B{r})', cr.b_blank_share, fmt="0.0%")
         b.formula(cap, f"H{r}", f"={addr[f's1.{cr.quarter}.both'][0]}", cr.both, TOL_COUNT, fmt="#,##0")
         b.formula(cap, f"I{r}", f'=IF(B{r}=0,"",H{r}/B{r})', cr.both_share, fmt="0.0%")
+        if snapshot:
+            # a blank measure is a non-event that is counted, never silent (adversarial finding 5)
+            b.formula(cap, f"J{r}", f"={addr[f's1.{cr.quarter}.measure_blank'][0]}", cr.measure_blank, TOL_COUNT, fmt="#,##0")
+            b.formula(cap, f"K{r}", f'=IF(B{r}=0,"",J{r}/B{r})', cr.measure_blank_share, fmt="0.0%")
     ks.freeze_below(cap, hdr)
     row = hdr + 1 + len(data.capture) + 1
     if data.band_counts:
@@ -301,7 +317,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     ncols = 10
     for col, wdt in zip("ABCDEFGHIJ", (10, 14, 12, 12, 9, 9, 10, 10, 9, 9)):
         prev.column_dimensions[col].width = wdt
-    row = _header_band(prev, ncols, "Step 2 — Prevalence", cfg, table, first_facts, run_date)
+    row = _header_band(prev, ncols, "Step 2 — Prevalence", cfg, table, first_facts, run_date, n_out)
     quarters = [pr.quarter for pr in data.prevalence]
     prev_note = notes.fill("notes.prevalence", field_a=cfg.rule.field_a, field_b=cfg.rule.field_b,
                            fires_text=_fires_text(cfg), confidence=cfg.confidence, method=cfg.method,
@@ -331,7 +347,9 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     ncols = 10
     for col, w in zip("ABCDEFGHIJKL", (26, 10, 10, 10, 10, 10, 11, 10, 14, 14, 9, 9)):
         grad.column_dimensions[col].width = w
-    row = _header_band(grad, ncols, "Step 3 — Gradient", cfg, table, first_facts, run_date)
+    for col in "MNO":
+        grad.column_dimensions[col].width = 11
+    row = _header_band(grad, ncols, "Step 3 — Gradient", cfg, table, first_facts, run_date, n_out)
     grad_note = notes.fill("notes.gradient", rule_text=_rule_sentence(cfg),
                            with_both=data.per_outcome[0][1].with_both,
                            blank_either=data.per_outcome[0][1].blank_either,
@@ -347,11 +365,12 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         hdr = row
         first_hdr = first_hdr or hdr
         ks.header_row(grad, hdr, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper", "Gap (pts)", "Multiple",
-                                  "Rate change vs bucket above", "Interval clear of bucket above",
-                                  "Bar up", "Bar down"], right_from=1)
+                                  "Rate change vs nearest bucket above with loans", "Interval clear of that bucket",
+                                  "Bar up", "Bar down", "Last rate seen", "Last lower", "Last upper"], right_from=1)
         first = hdr + 1
         base_row = first + len(g.rows)
         n_base, x_base = addr[g.base.cube.block]
+        seen: tuple = (None, None, None)     # rate, lower, upper of the last bucket with loans
         for i, gr in enumerate(g.rows):
             r = first + i
             n, x = addr[gr.cube.block]
@@ -363,10 +382,22 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
             b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), gr.hi, TOL_INTERVAL, fmt="0.00%")
             b.formula(grad, f"G{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",(D{r}-D{base_row})*100)', gr.gap_pts, TOL_POINTS, fmt="0.00")
             b.formula(grad, f"H{r}", f'=IF(OR(D{r}="",D{base_row}=""),"",IF(D{base_row}=0,"",D{r}/D{base_row}))', gr.multiple, fmt="0.00")
-            if i > 0:
+            # M–O: the last rate, lower and upper seen at or above this row, so a
+            # bucket with no loans does not break the chain (adversarial finding
+            # 1, 19 Sep 2026); twinned like every other formula
+            if gr.rate is not None:
+                seen = (gr.rate, gr.lo, gr.hi)
+            if i == 0:
+                b.formula(grad, f"M{r}", f'=IF(D{r}="","",D{r})', seen[0], fmt="0.0000")
+                b.formula(grad, f"N{r}", f'=IF(E{r}="","",E{r})', seen[1], TOL_INTERVAL, fmt="0.0000")
+                b.formula(grad, f"O{r}", f'=IF(F{r}="","",F{r})', seen[2], TOL_INTERVAL, fmt="0.0000")
+            else:
                 pr = r - 1
-                b.formula(grad, f"I{r}", f'=IF(OR(D{r}="",D{pr}=""),"",D{r}-D{pr})', g.diffs[i - 1], fmt="0.0000")
-                b.formula(grad, f"J{r}", f'=IF(OR(E{r}="",F{pr}=""),0,IF(E{r}>F{pr},1,0)+IF(F{r}<E{pr},1,0))', g.nonoverlap[i - 1], TOL_COUNT)
+                b.formula(grad, f"M{r}", f'=IF(D{r}="",M{pr},D{r})', seen[0], fmt="0.0000")
+                b.formula(grad, f"N{r}", f'=IF(E{r}="",N{pr},E{r})', seen[1], TOL_INTERVAL, fmt="0.0000")
+                b.formula(grad, f"O{r}", f'=IF(F{r}="",O{pr},F{r})', seen[2], TOL_INTERVAL, fmt="0.0000")
+                b.formula(grad, f"I{r}", f'=IF(OR(D{r}="",M{pr}=""),"",D{r}-M{pr})', g.diffs[i - 1], fmt="0.0000")
+                b.formula(grad, f"J{r}", f'=IF(OR(E{r}="",O{pr}=""),0,IF(E{r}>O{pr},1,0)+IF(F{r}<N{pr},1,0))', g.nonoverlap[i - 1], TOL_COUNT)
         r = base_row
         grad.cell(r, 1, "Base: rule does not fire").font = BOLD
         b.formula(grad, f"B{r}", f"={n_base}", g.base.cube.n, TOL_COUNT, fmt="#,##0")
@@ -386,15 +417,16 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                     Reference(grad, min_col=1, min_row=first, max_row=last_bucket),
                     [(Reference(grad, min_col=4, min_row=hdr, max_row=last_bucket),
                       f"$K${first}:$K${last_bucket}", f"$L${first}:$L${last_bucket}")],
-                    anchor=f"N{hdr}")
+                    anchor=f"Q{hdr}")
         row = base_row + 2
         i_rng = f"I{first + 1}:I{first + len(g.rows) - 1}"
         j_rng = f"J{first + 1}:J{first + len(g.rows) - 1}"
         grad.cell(row, 1, "Monotonic?").font = BOLD
         word_cell = f"B{row}"
         b.formula(grad, word_cell,
-                  f'=IF(COUNT({i_rng})=0,"no data",IF(COUNTIF({i_rng},"<0")=0,"monotonic increasing",'
-                  f'IF(COUNTIF({i_rng},">0")=0,"monotonic decreasing","not monotonic")))', g.word, 0.0, "text")
+                  f'=IF(COUNT({i_rng})=0,"no data",IF(AND(COUNTIF({i_rng},"<0")=0,COUNTIF({i_rng},">0")=0),"flat",'
+                  f'IF(COUNTIF({i_rng},"<0")=0,"monotonic increasing",'
+                  f'IF(COUNTIF({i_rng},">0")=0,"monotonic decreasing","not monotonic"))))', g.word, 0.0, "text")
         grad.merge_cells(f"B{row}:E{row}")
         word_cells.append((g, word_cell))
         row += 1
@@ -431,7 +463,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     ncols = 20
     for col, wdt in zip("ABCDEFGHIJKLMNOPQRST", (44, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9)):
         strat.column_dimensions[col].width = wdt
-    row = _header_band(strat, ncols, "Step 4 — Stratified", cfg, table, first_facts, run_date)
+    row = _header_band(strat, ncols, "Step 4 — Stratified", cfg, table, first_facts, run_date, n_out)
     strat_note = notes.fill("notes.stratified",
                             confounder_list=", ".join(c.name for c in cfg.confounders) or "(no confounders declared)",
                             confidence=cfg.confidence, method=cfg.method, threshold=cfg.survives_threshold)
@@ -440,7 +472,19 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     strat_first_hdr = None
     word_cells_s4: dict[str, list[tuple[ladder.Stratified, str]]] = {}
     for st in data.strata:
-        row = ks.section_band(strat, row, f"Outcome: {st.outcome.label} · {st.confounder} · {st.scheme}", ncols)
+        f_ = facts_by[st.outcome.key]
+        row = ks.section_band(strat, row, f"Outcome: {st.outcome.label} — {f_.events:,} events among {f_.seasoned:,} seasoned loans"
+                              f" · {st.confounder} · {st.scheme}", ncols)
+        if not st.bands:
+            # nothing to stratify on: no table, no chart, and no formula over an
+            # empty range, which the engine reads as #NULL! (adversarial finding 16)
+            row = _note(strat, row, notes.fill("notes.stratified_empty", confounder=st.confounder), ncols)
+            strat.cell(row, 1, "Word").font = BOLD
+            word_cell = f"B{row}"
+            b.formula(strat, word_cell, '="no data"', "no data", 0.0, "text")
+            word_cells_s4.setdefault(st.outcome.key, []).append((st, word_cell))
+            row += 3
+            continue
         hdr = row
         strat_first_hdr = strat_first_hdr or hdr
         ks.header_row(strat, hdr, ["Band", "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
@@ -551,13 +595,15 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     ncols = 13
     for col, wdt in zip("ABCDEFGHIJKLM", (30, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 10)):
         decomp.column_dimensions[col].width = wdt
-    row = _header_band(decomp, ncols, "Step 5 — Decomposition", cfg, table, first_facts, run_date)
+    row = _header_band(decomp, ncols, "Step 5 — Decomposition", cfg, table, first_facts, run_date, n_out)
     decomp_note = notes.fill("notes.decomposition", confidence=cfg.confidence, method=cfg.method)
     row = _note(decomp, row, decomp_note, ncols)
     row += 1
     decomp_first_hdr = None
     for dc in data.decompositions:
-        row = ks.section_band(decomp, row, f"Outcome: {dc.outcome.label} · by {dc.dimension}", ncols)
+        f_ = facts_by[dc.outcome.key]
+        row = ks.section_band(decomp, row, f"Outcome: {dc.outcome.label} — {f_.events:,} events among {f_.seasoned:,} seasoned loans"
+                              f" · by {dc.dimension}", ncols)
         hdr = row
         decomp_first_hdr = decomp_first_hdr or hdr
         ks.header_row(decomp, hdr, [dc.dimension, "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
@@ -589,7 +635,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     # -- 6_Model (values only) ---------------------------------------------------
     for col, wdt in zip("ABCDEFG", (34, 12, 10, 10, 12, 11, 60)):
         mdl.column_dimensions[col].width = wdt
-    row = _header_band(mdl, 7, "Step 6 — Model", cfg, table, first_facts, run_date)
+    row = _header_band(mdl, 7, "Step 6 — Model", cfg, table, first_facts, run_date, n_out)
     model_note = notes.fill("notes.model", confidence=cfg.confidence)
     row = _note(mdl, row, model_note, 7)
     row += 1
@@ -658,15 +704,21 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     if ctrl is not None and data.control is not None:
         ctrl.column_dimensions["A"].width = 110
         ctrl.column_dimensions["B"].width = 16
-        row = _header_band(ctrl, 2, "Step 7 — The observation that stands regardless", cfg, table, first_facts, run_date)
+        row = _header_band(ctrl, 2, "Step 7 — The observation that stands regardless", cfg, table, first_facts, run_date, n_out)
         row = _note(ctrl, row, notes.fill("notes.control"), 2)
         row += 1
         n_cell, x_cell = addr[data.control.both.block]
         ctrl.cell(row, 1, "Seasoned loans with both fields present"); b.formula(ctrl, f"B{row}", f"={n_cell}", data.control.both.n, TOL_COUNT, fmt="#,##0"); row += 1
         ctrl.cell(row, 1, "Of those, loans where the rule fires"); b.formula(ctrl, f"B{row}", f"={x_cell}", data.control.both.events, TOL_COUNT, fmt="#,##0"); row += 1
         ctrl.cell(row, 1, "Share"); b.formula(ctrl, f"B{row}", f'=IF(B{row - 2}=0,"",B{row - 1}/B{row - 2})', data.control.share, fmt="0.0%"); row += 2
-        share_text = notes.fill("control.share", share=(data.control.share or 0.0), both=data.control.both.n,
-                                field_a=cfg.rule.field_a, field_b=cfg.rule.field_b, fires_text=_fires_text(cfg))
+        if data.control.share is None:
+            # no seasoned loan carries both fields: there is no share, and "0.0%
+            # of 0" would read as checked-and-never (adversarial finding 8)
+            share_text = notes.fill("control.share_none", field_a=cfg.rule.field_a, field_b=cfg.rule.field_b,
+                                    fires_text=_fires_text(cfg))
+        else:
+            share_text = notes.fill("control.share", share=data.control.share, both=data.control.both.n,
+                                    field_a=cfg.rule.field_a, field_b=cfg.rule.field_b, fires_text=_fires_text(cfg))
         control_lines.append(share_text)
         for fld, key in ((cfg.rule.field_a, "field_a"), (cfg.rule.field_b, "field_b")):
             if cfg.drives.get(key):
@@ -693,7 +745,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         wc = f"'3_Gradient'!{word_cell}"
         b.formula(cover, f"A{row}",
                   f'=IF({wc}="monotonic increasing","{v("monotonic increasing")}",IF({wc}="monotonic decreasing","{v("monotonic decreasing")}",'
-                  f'IF({wc}="not monotonic","{v("not monotonic")}","{v("no data")}")))',
+                  f'IF({wc}="not monotonic","{v("not monotonic")}",IF({wc}="flat","{v("flat")}","{v("no data")}"))))',
                   notes.pick("cover.answer_gradient", g.word, outcome_label=g.outcome.label), 0.0, "text")
         cover[f"A{row}"].alignment = Alignment(wrap_text=True)
         row += 1
@@ -807,8 +859,14 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         r += 1
     last = r - 1
     ks.freeze_below(check, 1)
-    cover[f"A{check_line_row}"] = (f'=COUNTIF(_check!$G$2:$G${last},"OK")&" of "&COUNTA(_check!$G$2:$G${last})'
-                                   f'&" formula checks agree (see _check)"')
+    # The Python column is a snapshot at the settings the pack was built with. A
+    # reader who moves a live knob must not read a false count (adversarial
+    # finding 15, 19 Sep 2026): the line then says the knobs moved.
+    at_built = f'AND(CONF={cfg.confidence!r},METHOD="{cfg.method}",SURV_T={cfg.survives_threshold!r})'
+    moved = notes.fill("cover.check_moved", confidence=cfg.confidence, method=cfg.method,
+                       threshold=cfg.survives_threshold).replace('"', '""')
+    cover[f"A{check_line_row}"] = (f'=IF({at_built},COUNTIF(_check!$G$2:$G${last},"OK")&" of "&COUNTA(_check!$G$2:$G${last})'
+                                   f'&" formula checks agree (see _check)","{moved}")')
     cover[f"A{check_line_row}"].font = BOLD
     return wb, data, b.checks
 

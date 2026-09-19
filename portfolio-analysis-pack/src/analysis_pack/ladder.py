@@ -16,6 +16,10 @@ from .config import Config
 from .ingest import BLANK
 from .population import Loan, OutcomeDef, Population, bucket_index, bucket_labels
 
+#: PRD §6.8: a blank grouping value is its own level, always last. A loan is
+#: never dropped from a step for having no value; it is counted under this.
+BLANK_LEVEL = "(blank)"
+
 
 @dataclass
 class CubeRow:
@@ -65,10 +69,12 @@ class CaptureRow:
     a_blank: int
     b_blank: int
     both: int
+    measure_blank: int = 0           # snapshot outcome only: loans with no measure at as-of
     # twins of the share formulas
     a_blank_share: float | None = None
     b_blank_share: float | None = None
     both_share: float | None = None
+    measure_blank_share: float | None = None
 
 
 @dataclass
@@ -157,17 +163,29 @@ def gradient(cfg: Config, pop: Population, outcome: OutcomeDef) -> Gradient:
             r.multiple = None if base.rate == 0 else r.rate / base.rate
         rows.append(r)
     g = Gradient(outcome=outcome, rows=rows, base=base, with_both=len(both), blank_either=blank_either)
+    # Each bucket is compared with the nearest bucket BELOW it that holds loans
+    # (PRD §5.13: the read is over buckets with n > 0), so an empty bucket in
+    # the middle cannot break the chain. The sheet keeps the same "last rate
+    # seen" in its helper columns M–O. Adversarial finding 1, 19 Sep 2026.
+    prev: GradientRow | None = rows[0] if rows and rows[0].rate is not None else None
     for i in range(1, len(rows)):
-        a, b = rows[i - 1], rows[i]
-        if a.rate is None or b.rate is None:
+        b = rows[i]
+        if prev is None or b.rate is None:
             g.diffs.append(None)
             g.nonoverlap.append(0)
         else:
-            g.diffs.append(b.rate - a.rate)
-            g.nonoverlap.append(int(b.lo > a.hi) + int(b.hi < a.lo))
+            g.diffs.append(b.rate - prev.rate)
+            g.nonoverlap.append(int(b.lo > prev.hi) + int(b.hi < prev.lo))
+        if b.rate is not None:
+            prev = b
     present = [d for d in g.diffs if d is not None]
     if not present:
         g.word = "no data"
+    elif all(d == 0 for d in present):
+        # every populated bucket carries the same rate (a book with no events
+        # is the common case): there is no gradient to read, and saying "rises
+        # at every step" would be false. Adversarial finding 2.
+        g.word = "flat"
     elif all(d >= 0 for d in present):
         g.word = "monotonic increasing"
     elif all(d <= 0 for d in present):
@@ -199,6 +217,7 @@ def band_table(pop: Population) -> BandTable | None:
 
 def capture(cfg: Config, pop: Population) -> list[CaptureRow]:
     by_q: dict[str, CaptureRow] = {}
+    snapshot = cfg.outcome.form == "snapshot"
     for l in pop.loans:
         r = by_q.get(l.quarter)
         if r is None:
@@ -210,11 +229,14 @@ def capture(cfg: Config, pop: Population) -> list[CaptureRow]:
         r.a_blank += int(a_blank)
         r.b_blank += int(b_blank)
         r.both += int(not a_blank and not b_blank)
+        if snapshot:
+            r.measure_blank += int(l.measure is None)
     rows = [by_q[q] for q in sorted(by_q)]
     for r in rows:
         r.a_blank_share = _twin_rate(r.loans, r.a_blank)
         r.b_blank_share = _twin_rate(r.loans, r.b_blank)
         r.both_share = _twin_rate(r.loans, r.both)
+        r.measure_blank_share = _twin_rate(r.loans, r.measure_blank) if snapshot else None
     return rows
 
 
@@ -346,10 +368,21 @@ class Stratified:
         return f"{self.outcome.key}.{self.confounder}.{self.scheme}"
 
 
+def _levels_with_blank(labels: list[str], loans: list[Loan], field: str) -> list[str]:
+    """PRD §6.8: `(blank)` is a level of its own, always last — present only
+    when some loan actually has no value, so a clean book shows no empty row.
+    Adversarial findings 3, 4 and 6, 19 Sep 2026: without it, loans with a
+    blank left steps 4 and 5 with no row, the 'whole population' crude ratio
+    changed from block to block, and the pack failed its own check."""
+    if any(l.values.get(field) is None for l in loans):
+        return labels + [BLANK_LEVEL]
+    return labels
+
+
 def _band_of(l: Loan, field: str, edges: tuple[float, ...] | None, labels: list[str]) -> int | None:
     v = l.values.get(field)
     if v is None:
-        return None
+        return len(labels) - 1 if labels and labels[-1] == BLANK_LEVEL else None
     if edges is None:
         try:
             return labels.index(str(v))
@@ -375,6 +408,7 @@ def stratified(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Strati
                 labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
             else:
                 labels = bucket_labels(edges)
+            labels = _levels_with_blank(labels, seasoned_both, c.field)
             bands: list[StratumBand] = []
             for i, lab in enumerate(labels):
                 members = [l for l in seasoned_both if _band_of(l, c.field, edges, labels) == i]
@@ -420,6 +454,11 @@ def stratified(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Strati
             if st.crude[0] is not None and st.pooled[0] is not None and st.crude[0] != 1.0:
                 st.kept = stats.math.log(st.pooled[0]) / stats.math.log(st.crude[0])
             st.word = stats.survives_word(st.crude, st.pooled, cfg.survives_threshold)
+            if not bands:
+                # nothing to stratify on: no seasoned loan with both rule fields
+                # carries a value. The sheet writes no formula over an empty
+                # range (adversarial finding 16) and the word says so.
+                st.word = "no data"
             out.append(st)
     return out
 
@@ -462,14 +501,16 @@ def _dimension_levels(cfg: Config, pop: Population, name: str):
             if c.schemes:
                 sname, edges = next(iter(c.schemes.items()))
                 labels = bucket_labels(edges)
-                return (lambda l, f=c.field, e=edges, lab=labels: None if l.values.get(f) is None else lab[bucket_index(l.values[f], e)]), labels
+                return (lambda l, f=c.field, e=edges, lab=labels: BLANK_LEVEL if l.values.get(f) is None else lab[bucket_index(l.values[f], e)]), \
+                    _levels_with_blank(labels, seasoned_both, c.field)
             levels: dict[str, int] = {}
             for l in seasoned_both:
                 v = l.values.get(c.field)
                 if v is not None:
                     levels[str(v)] = levels.get(str(v), 0) + 1
             labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
-            return (lambda l, f=c.field: None if l.values.get(f) is None else str(l.values[f])), labels
+            return (lambda l, f=c.field: BLANK_LEVEL if l.values.get(f) is None else str(l.values[f])), \
+                _levels_with_blank(labels, seasoned_both, c.field)
     for c in cfg.controls:
         if c.name == name:
             if c.derived == "origination_year":
@@ -481,7 +522,8 @@ def _dimension_levels(cfg: Config, pop: Population, name: str):
                 if v is not None:
                     levels[str(v)] = levels.get(str(v), 0) + 1
             labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
-            return (lambda l, f=c.field: None if l.values.get(f) is None else str(l.values[f])), labels
+            return (lambda l, f=c.field: BLANK_LEVEL if l.values.get(f) is None else str(l.values[f])), \
+                _levels_with_blank(labels, seasoned_both, c.field)
     raise KeyError(name)
 
 

@@ -1,6 +1,7 @@
 """The command line. JSON status on stdout, a human summary on stderr.
 
     pack inspect  DATA [--sheet NAME]
+    pack list     [DIR]                         # question files under DIR and whether each is accepted
     pack synth    --out DIR [--seed N] [--loans N] [--effect X] [--null] [--confounded]
     pack validate CONFIG --data DATA [--asof D] [--sheet NAME]
     pack suggest  CONFIG --data DATA --asof D [--field COL] [--sheet NAME]
@@ -54,11 +55,15 @@ def cmd_inspect(a: argparse.Namespace) -> int:
     report = inspect_columns(table)
     _say(f"{table.path}: {len(table.rows):,} rows, {len(table.columns)} columns ({table.kind})")
     for e in report:
-        line = f"  {e['column']:<28} {e['kind']:<10} blank {e['null_share']:.1%}  distinct {e['distinct']:,}  e.g. {', '.join(e['samples'])}"
+        blank = "n/a" if e["null_share"] is None else f"{e['null_share']:.1%}"   # no rows: nothing to share
+        line = f"  {e['column']:<28} {e['kind']:<10} blank {blank}  distinct {e['distinct']:,}  e.g. {', '.join(e['samples'])}"
         _say(line)
         if "dates" in e:
             d = e["dates"]
-            if d["resolved"]:
+            if d.get("also_integer"):
+                _say(f"      all-digit values that also read as {d['resolved'] or 'dates'} dates; the build reads the column"
+                     f" as dates where the question file names it as a date column")
+            elif d["resolved"]:
                 _say(f"      dates: every value fits {d['resolved']} — the pack will use it")
             elif d["ambiguous"]:
                 readings = "; ".join(f"{pat} reads it as {plain}" for pat, plain in d["readings"])
@@ -116,6 +121,28 @@ def _population(cfg, table, asof: date, out_dir: Path, name: str):
         return None, 2
 
 
+def cmd_list(a: argparse.Namespace) -> int:
+    """PRD §6.16: the question files under a folder and whether each would be
+    accepted, one line each (adversarial finding 12, 19 Sep 2026)."""
+    root = Path(a.dir or "configs")
+    paths = sorted(root.rglob("*.yaml")) if root.is_dir() else ([root] if root.is_file() else [])
+    if not paths:
+        _say(f"no question files under {root}")
+    out = []
+    for path in paths:
+        try:
+            cfg = load_config(path)
+        except ConfigError as exc:
+            first = exc.problems[0].splitlines()[0] if exc.problems else "refused"
+            _say(f"  refused  {path}: {first}")
+            out.append({"path": str(path), "ok": False, "problems": exc.problems})
+            continue
+        _say(f"  ok       {path}  ({cfg.name})")
+        out.append({"path": str(path), "ok": True, "name": cfg.name})
+    _emit({"ok": True, "configs": out})
+    return 0
+
+
 def cmd_validate(a: argparse.Namespace) -> int:
     cfg, table, rc = _load(a)
     if rc:
@@ -144,6 +171,11 @@ def cmd_suggest(a: argparse.Namespace) -> int:
     pop, rc = _population(cfg, table, _date(a.asof), Path(a.data).parent, cfg.name)
     if rc:
         return rc
+    if a.field and a.field not in table.columns:
+        _say(f"refused: `{a.field}` is not a column of the extract; columns found: {', '.join(table.columns)}")
+        _emit({"ok": False, "refused": "columns", "problems": [f"`{a.field}` is not a column of the extract"],
+               "columns_found": table.columns})
+        return 2
     fields = [a.field] if a.field else [c.field for c in cfg.confounders if c.schemes]
     if not fields:
         _say("nothing to suggest for: name a numeric column with --field, or declare a confounder with edges")
@@ -155,6 +187,11 @@ def cmd_suggest(a: argparse.Namespace) -> int:
             s = suggest(pop, f)
         except (ValueError, KeyError) as exc:
             _say(f"{f}: {exc}")
+            if a.field:
+                # asked for by name and cannot be answered: a refusal, never a
+                # green nothing (adversarial findings 13 and 14, 19 Sep 2026)
+                _emit({"ok": False, "refused": "field", "field": f, "error": str(exc)})
+                return 2
             continue
         _say(render_text(s))
         out.append({"field": s.field, "loans": s.loans, "events": s.events, "outcome": s.outcome_label,
@@ -265,6 +302,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--null", action="store_true")
     s.add_argument("--confounded", action="store_true")
     s.set_defaults(fn=cmd_synth)
+
+    ls = sub.add_parser("list", help="the question files under a folder (default: configs) and whether each would be accepted")
+    ls.add_argument("dir", nargs="?")
+    ls.set_defaults(fn=cmd_list)
 
     v = sub.add_parser("validate", help="check the question file against the data; refuse with the line to add")
     v.add_argument("config"); v.add_argument("--data", required=True); v.add_argument("--asof")

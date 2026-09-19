@@ -290,8 +290,14 @@ Priority: [P0] must · [P1] should · [P2] nice.
     loans, events, rate, interval, gap from the unflagged base in percentage
     points, ratio to the base, and the base row itself. A monotonicity read
     over buckets with n > 0: `monotonic increasing`, `monotonic decreasing`,
-    or `not monotonic` on point estimates, plus the count of adjacent pairs
-    whose intervals do not overlap.
+    `not monotonic` on point estimates, or `flat` when every populated
+    bucket carries the same rate (a book with no events is the common case),
+    plus the count of adjacent pairs whose intervals do not overlap. Each
+    bucket is compared with the nearest bucket below it that holds loans, so
+    an empty bucket in the middle cannot break the chain *(amended 19 Sep
+    2026, adversarial findings 1 and 2: the read compared adjacent pairs
+    only, and a twenty-fold fall across an empty bucket read `monotonic
+    increasing`; so did a book with zero events)*.
 14. [P0] **Step 4, stratified.** For each confounder and each of its schemes:
     the step-3 block repeated inside every band; a 2×2 (flagged/unflagged ×
     event/non-event) per band; the crude odds ratio with a Woolf interval;
@@ -341,7 +347,11 @@ Priority: [P0] must · [P1] should · [P2] nice.
     `=IF(ABS(live-python)<=tol,"OK","MISMATCH")` (string compare for words).
     `Cover` shows `=COUNTIF(_check!G:G,"OK")&" of "&COUNTA(_check!G:G)&"
     formula checks agree"`. A desk build prints `formula check: not run here
-    (no engine); Excel verifies on open` and never `passed`.
+    (no engine); Excel verifies on open` and never `passed`. The Python
+    column is a snapshot at the settings the pack was built with; when a
+    live knob (§5.18) has been moved from them, the cover line says so and
+    shows no count, because a count at moved knobs would be false
+    *(amended 19 Sep 2026, adversarial finding 15)*.
 22. [P0] `_provenance`: source filename, SHA-256 of the input bytes, rows
     read, rows after filter, rows after hygiene (always equal, or no build),
     seasoned rows, config name and SHA-256, generator version, as-of, run
