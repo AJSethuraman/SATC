@@ -22,6 +22,7 @@ output of ``enumerate_legal_actions(observation)``.  There is exactly one rules
 implementation and no second predicate that can drift from what the agent saw.
 """
 
+import hashlib
 from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
@@ -82,6 +83,19 @@ MONSTER_TEMPLATES: dict[str, dict[str, Any]] = world.monster_templates()
 SITES: dict[str, dict[str, Any]] = world.SITES  # cooperative objective sites (PRD §5.3)
 
 CACHE_CONTENTS: dict[str, str] = dict(world.CACHES)
+
+
+def seeded_loot(seed: int) -> dict[str, str]:
+    """PRD §5.2: the seed places loot within its declared sites. The map's
+    caches are the sites and what the map put in them is the pool; the seed
+    deals the pool over the sites, so the same seed always deals the same,
+    every site still holds something, and no cache ever holds anything the
+    map did not declare. A hash of the seed and the room, not the match
+    RNG, so the deal consumes no die."""
+    sites = sorted(CACHE_CONTENTS)
+    pool = sorted(CACHE_CONTENTS.values())
+    order = sorted(sites, key=lambda room: hashlib.sha256(f"loot:{int(seed)}:{room}".encode("utf-8")).hexdigest())
+    return dict(zip(order, pool))
 
 OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.3"
 LEGALITY_VERSION = "ember-vault-legality-0.2"
@@ -184,12 +198,12 @@ def new_match_state(
         },
         "caches": {
             room_id: {
-                "item_id": CACHE_CONTENTS[room_id],
+                "item_id": item_id,  # dealt by the seed within the declared sites (PRD §5.2)
                 "found": False,
                 "found_by": None,
                 "found_round": None,
             }
-            for room_id in sorted(CACHE_CONTENTS)  # every cache the map declares, not only the gates'
+            for room_id, item_id in sorted(seeded_loot(seed).items())
         },
         "crown": {
             "status": "locked",  # locked|floor|carried|escaped

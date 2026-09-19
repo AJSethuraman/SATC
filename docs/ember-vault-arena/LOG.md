@@ -5,6 +5,26 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 03:05Z — the seed deals the loot; where things stand
+
+Item 2's last sentence built: the seed places loot within its declared
+sites. `rules.seeded_loot(seed)` deals the map's eight cache contents
+over the eight caches by a hash of the seed and the room, no die
+consumed, so the same seed always deals the same, a different seed
+deals differently, every cache still holds something and never
+anything the map did not declare; the relic stays on the altar. Two
+tests; golden regenerated on purpose (98 snapshots, 2,351 events, Hex
+wins). Suite **178**.
+
+**Where things stand, for whoever reads this next.** M3 and M4 are
+built and pushed; every CI run read so far is green. What waits is the
+firm's: D13 (the world as drawn), one real match on the new rules
+(the forge has the order and two amendments and has not stirred since
+23:18Z on the 18th; the docket says how to run it by hand and where
+the live page is), and a target for the scoring table's values. The
+hourly check-in stays off until the firm says "reviewed"; the PR feed
+is on.
+
 ## 19 September 2026, 02:30Z — M4: the live page, one round behind the referee
 
 PRD §5 items 35–38 built on the board page the firm has been watching,
