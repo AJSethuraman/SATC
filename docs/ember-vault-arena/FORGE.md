@@ -23,6 +23,114 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 19 September 2026, 02:00Z — second amendment: the talkers are seated
+
+M3 is built on the branch as of `4b228bc2` (suite 170). Pull that or later.
+The match command gains the three house talkers, so the first real match on
+the new rules seats eleven:
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --talkers brains/talkers --seed 8 --rounds 48
+```
+
+Up to 528 calls instead of 384; expect about eighty minutes. Everything else
+in the order stands: `ANTHROPIC_API_KEY` unset, the subscription route, then
+`ledger`, the replay bundle to `../runs/<match id>.replay.json`, and the
+`runs/` report naming the commit, the ruleset version (expect
+`ember-vault-0.5`) and the test count. No code edits, no rebase, no
+force-push. Sent down the channel at 02:00Z; the forge had not started the
+first order at that hour.
+
+## 18 September 2026, 23:25Z — amendment to the order below: any head past b1fc126e is fine
+
+Sent through the channel when the firm woke the smoke tester. The count
+"expect 132 passed" holds at `4dbbacc6` and `b1fc126e`. Commits after
+`b1fc126e` add tests and move the ruleset to `ember-vault-0.4` (forty-eight
+rounds in four acts of twelve, contraction in act IV only). If `git pull`
+lands you past `b1fc126e`: the proof is the suite green at whatever count it
+reports, and the match runs under whichever ruleset the head carries. Name
+the commit, the ruleset version and the test count in the `runs/` report.
+Everything else in the order stands.
+
+*(The order below is dated 19 September 03:45Z; the clock said 18 September
+23:10Z when it was written. The session's timestamps from "19 September
+00:20Z" to "03:45Z" in this file and in LOG.md ran about four and a half
+hours ahead of the clock. Recorded here rather than rewritten.)*
+
+## 19 September 2026, 03:45Z — M3 is open: one fresh 48-round match under ruleset 0.3
+
+The firm ruled on 18 September (docket D12, *"Open M3 now, fixes first"*) and
+the four fixes are on the branch as of `4dbbacc6`: the second choice
+(`agent-action-1.1`), the ending (whoever holds the Crown when round 48 ends
+wins; nothing ends a match early; the Egress is a room), every burst line
+naming who it caught, and the narrator's opening before round 1. Suite 132
+here. What is wanted from you is one fresh match on the subscription route so
+the firm can watch it on the board page with the new rules, and the first
+before-and-after on wasted turns.
+
+**1. Pull and prove.** From `docs/ember-vault-arena/code` on branch
+`claude/ember-vault-arena-rebuild-dn890n` at `4dbbacc6` or later:
+
+```
+git pull
+python -m pytest -q
+```
+
+Expect 132 passed. If not, stop and push the failure as a `runs/` file; do
+not edit code.
+
+**2. The match.** Same route as 12 September: `ANTHROPIC_API_KEY` unset, the
+Agent SDK under the firm's login. A new seed so it is a new match, 48 rounds;
+under ruleset 0.3 it runs all 48 unless everyone falls, so expect up to 384
+calls and about an hour:
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --seed 8 --rounds 48
+```
+
+then, with the match id it printed:
+
+```
+python run.py ledger <match id>
+python run.py replay <match id> --output ../runs/<match id>.replay.json
+```
+
+**3. Push** the replay bundle and a `runs/<UTC timestamp>-agent-sdk-ruleset-0.3.md`
+in the shape of your earlier run files, with: wall-clock time; rounds played
+and `ended_reason`; the winner and whether they held the Crown at the end; the
+ledger's totals; the count of `stale_action` events by `payload.choice` and
+`payload.referee_decision` (this is the before-and-after against the
+12 September match's 17 stale in 106 decisions); how many decisions carried a
+`fallback`; the `match_opening` text verbatim; and anything that broke. Push
+only under `runs/`; no code edits; no rebase or force-push on this branch.
+
+The cloud rebuilds the board page from the bundle the moment it lands and
+tells the firm.
+
+## 12 September 2026, 09:55Z — after the merge: the two plugin commands, verbatim
+
+PR #359 is merged (f44ae5f7) and the branch is restarted from main; PR #360
+carries the continuing work. "The plugin commands" means exactly these two,
+from any folder on the firm's machine, in this order. The firm chose them on
+the docket (D2, step 4) and they were in the PR body; they refresh the
+listing and install canon 1.17.0, which carries the rulings the firm
+approved. They touch the firm's Claude Code plugin install and nothing else.
+
+```
+claude plugin marketplace update satc
+```
+
+```
+claude plugin update canon
+```
+
+Push the output of both, and the version the second prints (expect 1.17.0),
+as `runs/<UTC>-plugin-update.md`. If either asks for a permission you would
+rather not grant, stop and say so in the file.
+
+Then the two-round smoke from the 09:20Z section if it has not run, the
+Haiku line if you have it, and stand down.
+
 ## 12 September 2026, 09:20Z — one push, then quiet; the merge is yours
 
 Your arena probe and billed smoke explained the cost to the cent, and they

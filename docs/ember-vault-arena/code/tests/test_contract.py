@@ -55,7 +55,7 @@ class SchemaPinTests(unittest.TestCase):
             "action": "guard", "target": None, "destination": None, "item": None,
             "tile": None, "speech": {"mode": "whisper", "to": "nix", "text": "later"},
             "note": {"objective": "hold", "reads": [{"who": "nix", "stance": "trust", "why": "shared"}]},
-            "deal": None,
+            "deal": None, "fallback": None,
         }
         action = AgentAction.from_dict(raw)
         self.assertEqual(action.as_dict(), raw)
@@ -71,9 +71,46 @@ class ActionContractTests(unittest.TestCase):
         raw.update(over)
         return raw
 
-    def test_deal_must_be_null_in_1_0(self):
-        with self.assertRaisesRegex(ValidationError, "deal must be null"):
-            AgentAction.from_dict(self._raw(deal={"kind": "offer"}))
+    def test_a_deal_is_an_offer_or_an_accept_and_nothing_else(self):
+        """agent-action-1.2 (18 Sep 2026): the deal slot opened."""
+        empty = {"kind": None, "to": None, "type": None, "rounds": None, "item": None,
+                 "destination": None, "by_round": None, "offer_id": None}
+        truce = {**empty, "kind": "offer", "to": "nix", "type": "truce", "rounds": 3}
+        action = AgentAction.from_dict(self._raw(deal=truce))
+        self.assertEqual(action.deal.kind, "offer")
+        self.assertEqual(action.as_dict()["deal"], truce)
+        share = {**empty, "kind": "offer", "to": "nix", "type": "share_item", "item": "healing_tonic", "by_round": 9}
+        self.assertEqual(AgentAction.from_dict(self._raw(deal=share)).as_dict()["deal"], share)
+        escort = {**empty, "kind": "offer", "to": "nix", "type": "escort", "destination": "vault", "by_round": 20}
+        self.assertEqual(AgentAction.from_dict(self._raw(deal=escort)).as_dict()["deal"], escort)
+        accept = {**empty, "kind": "accept", "offer_id": "offer-r1-nix"}
+        self.assertEqual(AgentAction.from_dict(self._raw(deal=accept)).as_dict()["deal"], accept)
+        # naming the offerer and echoing the type on an accept is allowed (19 Sep 2026)
+        clear = {**accept, "to": "nix", "type": "truce"}
+        self.assertEqual(AgentAction.from_dict(self._raw(deal=clear)).as_dict()["deal"], clear)
+        self.assertIsNone(AgentAction.from_dict(self._raw(deal=None)).deal)
+        # the second choice carries no deal twice
+        second = AgentAction.from_dict(self._raw(deal=truce, fallback={"action": "guard", "target": None, "destination": None, "item": None, "tile": None})).second()
+        self.assertIsNone(second.deal)
+        bad = {
+            "deal must be an object": "yes",
+            "unknown deal fields": {**truce, "price": 3},
+            "deal.kind must be one of": {**empty, "kind": "promise"},
+            "deal.to names who": {**truce, "to": None},
+            "deal.type must be one of": {**truce, "type": "pact"},
+            "deal.rounds must be an integer from 1 to 6": {**truce, "rounds": 7},
+            "a truce offer needs deal.rounds": {**truce, "rounds": None},
+            "deal.item does not belong to a truce offer": {**truce, "item": "healing_tonic"},
+            "a share_item offer needs deal.by_round": {**share, "by_round": None},
+            "deal.offer_id belongs to an accept": {**truce, "offer_id": "offer-r1-nix"},
+            "deal.offer_id names the open offer": {**empty, "kind": "accept"},
+            "deal.rounds does not belong to an accept": {**accept, "rounds": 2},
+            "deal.by_round must be an integer": {**escort, "by_round": "soon"},
+        }
+        for message, deal in bad.items():
+            with self.subTest(message):
+                with self.assertRaisesRegex(ValidationError, message):
+                    AgentAction.from_dict(self._raw(deal=deal))
 
     def test_note_is_required(self):
         raw = self._raw(); del raw["note"]
@@ -183,10 +220,15 @@ class NoteWhisperGiveTests(unittest.TestCase):
 
         store, _ = self._run(NotingProvider())
         store.close()
+        # a character that falls early decides fewer times; the round-trip holds
+        # for every round it played (Sable dies in round 2 of seed 7 since the
+        # bigger world sent the mock past the guardians, 18 Sep 2026)
+        self.assertTrue(any(len(notes) == 3 for notes in seen.values()))
         for agent_id, notes in seen.items():
+            self.assertGreaterEqual(len(notes), 2)
             self.assertEqual(notes[0], "")
-            self.assertEqual(notes[1], f"{agent_id} round 1")
-            self.assertEqual(notes[2], f"{agent_id} round 2")
+            for i, note in enumerate(notes[1:], start=1):
+                self.assertEqual(note, f"{agent_id} round {i}")
 
     def test_no_character_ever_sees_another_note_and_only_the_target_hears_a_whisper(self):
         state = rules.new_match_state(self.manifests, 99, 12)
@@ -252,10 +294,10 @@ class NoteWhisperGiveTests(unittest.TestCase):
         self.assertTrue(gives)
         self.assertTrue(all(g["item"] == "healing_tonic" for g in gives))
         self.assertIn(receiver, {g["target"] for g in gives})
-        # and never the Crown
+        # and the Crown too, since deals opened (18 Sep 2026): the deal path
         state["agents"][giver]["inventory"].append(rules.CROWN_ITEM_ID)
         obs = rules.visible_observation(deepcopy(state), giver, "lorekeeper", [])
-        self.assertFalse(any(g["item"] == rules.CROWN_ITEM_ID for g in obs["legal_actions"] if g["action"] == "give"))
+        self.assertTrue(any(g["item"] == rules.CROWN_ITEM_ID for g in obs["legal_actions"] if g["action"] == "give"))
 
         store = ArenaStore(Path(self.temp.name) / "g.db")
         engine = ArenaEngine(store, MockDecisionProvider(), max_rounds=1, parallel_agents=False)
@@ -462,7 +504,7 @@ class AgentSDKAdapterTests(unittest.TestCase):
         AgentSDKProvider(query=_fake_query(_Result("success", structured=json.loads(GOOD_JSON))),
                          options_factory=factory).decide(manifest, prompt, obs)
         self.assertEqual(captured["tools"], [])
-        self.assertEqual(captured["max_turns"], 1)
+        self.assertEqual(captured["max_turns"], 2)  # the structured-output tool turn needs the second (19 Sep 2026)
         self.assertEqual(captured["setting_sources"], [])
         self.assertEqual(captured["output_format"]["type"], "json_schema")
         self.assertNotIn(str(ROOT), captured["cwd"])
