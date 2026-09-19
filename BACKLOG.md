@@ -997,6 +997,15 @@ sales on the small-business book; built domain-free so a consumer question
       column names with a space and with accents; labels `0012` and `12`
       kept distinct; `N/A` and `-` read as blank; the bundle's contents and
       its `--validate` / `--inspect` argument order.
+      **Close-out docket published 19 Sep 2026 (form
+      BEtT86sVUTSDJaEGYhrLqL, collection `decisions`).** Two decisions open,
+      to be read back from the form and written here when answered: (1) how
+      the column names of Key's extract reach a question file — recommended:
+      the firm runs the bundle's `--inspect` at the desk and pastes the
+      column lines; (2) whether the candidate tenet below enters the record as
+      S36 — recommended: yes, via bassy. Next, unless the firm says otherwise:
+      merge the adversarial pass (PR #383) when green, then stop; the tool is
+      complete as specified and the real run is the firm's.
       **Candidate tenet, for the firm's yes (the tenets are ratified; a session
       does not add one):** *A rule that holds because there was nothing to
       compare must not print the same word as a rule that held. Give "nothing
