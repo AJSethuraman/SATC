@@ -80,6 +80,50 @@ def looked(question: str, corpus: Path = CORPUS, *,
     return pool.look(question, held, limit=limit, known=stats)
 
 
+def with_a_rule(question: str, found: tuple, corpus: Path = CORPUS) -> tuple:
+    """`found`, with the top-ranked RULE appended when every hit is an example.
+
+    `dec-examples`, 14 September 2026 -- the firm: **"Label and never
+    examples-only."** The label is the first half and lives in `brief`; this is
+    the second, and it is the half that protects the answer.
+
+    WHY THE LABEL IS NOT ENOUGH ON ITS OWN. A worked example read BESIDE its
+    rule is useful -- it is the drafter showing the rule applied. An example
+    read INSTEAD of its rule is a confident wrong answer waiting to happen: the
+    answerer has been handed a conclusion about somebody else's facts and
+    nothing to test it against. Labelling says whose facts those are; it does
+    not give them the rule.
+
+    MEASURED BEFORE IT WAS BUILT: examples are 260 of 786 entries in the pool (a
+    third) and take 7 of 12 top slots on real working questions -- roughly twice
+    their share -- because they are narrative and concrete, and so share more
+    words with a bookkeeper's sentence than an abstract rule does.
+
+    IT ADDS AND NEVER REMOVES. The obvious alternative -- drop examples until a
+    rule appears -- would throw away the most on-point thing the pool found on a
+    question where the closest authority genuinely IS a fact pattern. The rule
+    joins them at the end, and the brief's existing order does the rest.
+
+    IT LOOKS DEEPER RATHER THAN WIDER. The rule is taken from the same ranking,
+    further down, so it is a rule THIS QUESTION reached -- never the corpus's
+    idea of a relevant rule, and never one chosen by any means other than the
+    score that was already computed.
+
+    AND NOTHING IS INVENTED. Where no rule anywhere in the pool shares a word
+    with the question, this returns what it was given, unchanged, and the brief
+    is examples only -- which is the honest outcome. `test_a_rule_that_does_not
+    _exist_is_not_invented` pins it.
+    """
+    if not found or any(f.held.kind != record.EXAMPLE for f in found):
+        return found
+    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
+    # THE WHOLE RANKING, not a wider net: `limit` is the only thing that changes.
+    for deeper in pool.look(question, held, limit=len(held), known=stats):
+        if deeper.held.kind != record.EXAMPLE:
+            return found + (deeper,)
+    return found
+
+
 def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str:
     """What comes back when the corpus holds nothing that shares this question's
     language. A DOCUMENT, never an empty string.
@@ -275,9 +319,13 @@ def consult(question: str, corpus: Path = CORPUS,
     found = looked(question, corpus, limit=limit)
     if not found:
         return nothing_on_file(question, corpus)
+    # `dec-examples`, second half: a brief is never worked examples alone.
+    widened = with_a_rule(question, found, corpus)
+    added = widened[-1].held.citation if len(widened) > len(found) else ""
     return brief(question,
-                 _corpus(corpus)[0].narrowed_to([f.held.citation for f in found]),
-                 context)
+                 _corpus(corpus)[0].narrowed_to(
+                     [f.held.citation for f in widened]),
+                 context, rule_added=added)
 
 
 def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
@@ -482,7 +530,8 @@ def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
 
 
 def brief(question: str, desk: record.Desk,
-          context: record.Context | None = None) -> str:
+          context: record.Context | None = None, *,
+          rule_added: str = "") -> str:
     """Everything the desk will let an answerer see, and nothing else."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
@@ -703,7 +752,45 @@ def brief(question: str, desk: record.Desk,
     # when it reports how much a desk put in front of a model that then said the
     # desk held nothing. Two readings of "what was shown" is one too many.
     for p in record.shown(desk):
-        out += [f"### {p.citation}", "", f"> {p.text}", ""]
+        out += [f"### {p.citation}", ""]
+        # SOMEBODY ELSE'S FACTS, SAID SO. `dec-examples`, 14 September 2026 --
+        # the firm: **"Label and never examples-only."**
+        #
+        # A worked example is a fact pattern the regulation prints to show a
+        # rule applied, and it is narrative and concrete -- so it shares more
+        # words with a bookkeeper's sentence than an abstract rule does, and the
+        # pool ranks it accordingly: examples are 260 of 786 entries and take 7
+        # of 12 top slots on real working questions, about twice their share.
+        #
+        # NOTHING IN THE ENGINE KNOWS THIS CLIENT'S PAINT BOOTH IS NOT EXAMPLE
+        # 11'S PAINT BOOTH, and nothing can -- that needs the facts. So it is
+        # said rather than decided, the same trade `passage`, `alongside` and
+        # `scoped` all make.
+        # AND WHY THIS ONE IS HERE, when it is only here because everything
+        # else was an example. Measured: on the six questions in 113 where the
+        # whole brief would otherwise be worked examples, the rule this pulls in
+        # scores as low as 3.2 -- on "A contractor paid by cheque" it is a MEALS
+        # rule, which is the honest top-ranked rule and is not about the
+        # question. Adding it silently would present it as the authority; a
+        # score cutoff would be picking a number by taste, which is the thing
+        # this retrieval was built not to do. So it says why it is here and
+        # leaves the judgement where judgement belongs.
+        if p.citation == rule_added:
+            out += ["**Every other passage this question reached is a worked "
+                    "example, so the highest-ranked RULE was added here — it "
+                    "was not among the closest matches.** It may not be the "
+                    "right rule. It is here so the answer is not built only "
+                    "out of somebody else's facts; if it does not bear on the "
+                    "question, the record may simply not hold a rule that "
+                    "does, and that is worth saying rather than working "
+                    "around.", ""]
+        if p.kind == record.EXAMPLE:
+            out += ["**A worked example — another taxpayer's facts, not this "
+                    "client's.** It shows how the rule was applied to the "
+                    "situation described in it. Answer from the rule; cite an "
+                    "example only where the facts in front of you match the "
+                    "ones in it, and say which.", ""]
+        out += [f"> {p.text}", ""]
     return "\n".join(out)
 
 

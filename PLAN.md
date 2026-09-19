@@ -447,6 +447,82 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-14 — The eighth docket: all eight answered, every one taking the
+  recommendation (artifact `642c3276`).**
+
+  Answered between 14:53 and 14:57 UTC, read back out of the page's own store
+  rather than out of this session's memory of being told. Four had been carried
+  across three dockets; four were new, and two of those exist because
+  Forge-Desk's findings were re-run here before they were accepted and two of
+  their diagnoses did not survive the re-run.
+
+  **`dec-caprule` — "Record it at intake", and the note is the decision.** The
+  firm, in their own words: *"The firm's threshold for our clients if non
+  specified will be based on IRS rules for simplicity."* So the default is not a
+  firm-chosen figure, it is the IRS de minimis ceiling — $2,500 per invoice or
+  per item, $5,000 where the client has an applicable financial statement. This
+  ends the blanket refusal: POS1 and POS2 have been unservable on every client
+  since 5 September because `Unless: capitalization_rule` was blank everywhere.
+
+  **AND IT CARRIES A CONSEQUENCE POS2 ALREADY NAMES.** *"$2,500 is a ceiling,
+  not the number. § 1.263(a)-1(f)(1)(ii)(B) requires the client to have a book
+  policy at the beginning of the year; the safe harbour protects amounts under
+  whichever is lower, that policy or the ceiling."* So defaulting to the ceiling
+  is a claim about the client's own policy, not only about ours — which is POS3,
+  and POS3 is a fact about the client that has to be recorded at engagement. The
+  default cannot make POS3's fact unnecessary; it makes it load-bearing.
+
+  **`dec-fasb` — "Admit ASUs, secondary."** `us-gaap` has been a body of
+  authority the record can name and cannot answer from: `DOMAINS.md` gives
+  fasb.org as its publisher and `SOURCES.md` admits 34 sources, none of them US
+  GAAP. Costs 0 of 98 recorded problems and bites on the live lease path.
+
+  **`dec-tie` — "Keep warning."** Unchanged at 4 right against 1 wrong across
+  the 5 straddles in 98 problems. **The new evidence offered for changing it was
+  not about it:** Forge-Desk attached their confidently-wrong answer to this
+  decision, and that question classifies `federal-tax` alone, `tied=()`.
+
+  **`dec-offsource` — "Keep warning."** The decision that finding is actually
+  about, split out and measured here for the first time: making the
+  source-declaration guard refuse would refuse **17 of 98** recorded-correct
+  answers on terse phrasing and **0 of 98** on full-facts phrasing. Kept
+  warning on a 17-to-1 trade — and the 17-versus-0 spread is itself a defect in
+  the guard, recorded rather than closed.
+
+  **`dec-pair` — "Pair them."** `alongside` is NOT dead code, which is what
+  Forge-Desk reported. It fires on exactly the Pub. 583 pair, via the citation
+  stem on the record rather than via the pool, and a served answer carries both
+  positions and both passages in full. The exposure is a caller that reads
+  `pool.look` directly and takes rank 1 — where the firm's WRONG answer scores
+  33.6 against the right one's 22.0.
+
+  **`dec-scoped` — "Mark them."** 36 passages open with a clause scoping
+  themselves and 13 are definitions; six probed all return in the top 7 for the
+  very term they scope. Marked, never demoted — demoting is tuning a ranking by
+  taste, which is what the pool was built not to do.
+
+  **`dec-examples` — "Label and never examples-only."** Worked examples are 260
+  of 786 pool entries and take 7 of 12 top slots on real working questions.
+
+  **`dec-unitcost` — "Add it, with a format check."** One word on one line of
+  `corpus/SUBJECTS.md`, proved in a scratch copy. The format check is the real
+  content of the answer: fact values are free text, so the field would otherwise
+  accept `$185`, `185.00` and "one eighty five" alike.
+
+  **The docket was almost not a docket.** The firm: *"I don't see an actual
+  docket."* Correct — the eight had been written as a markdown memo beside a
+  generator that renders the form, and `tools/docket_form.py` was sitting on
+  `OTHERS = []` with an 8 September preface. **Four defects in the page, every
+  one found by printing it and then opening it in a browser rather than by
+  reading the code that builds it:** a preface a week stale under today's date;
+  "All eight are new" over four questions carried across three dockets; a claim
+  that the answers were read from this page's store when they were transcribed
+  from the log; and `<code>` tags printing as literal characters in the outcome
+  blocks. The first fix for the second one was wrong and the suite caught it in
+  one run — deriving "new" from a flag the page sets about itself, which is the
+  exact weakness the comment on that line already recorded.
+
+
 - **2026-09-10 — The four answered decisions are built (desk 0.22.0).**
 
   `dec-gate`, `dec-coverage`, `dec-fields` and `dec-pos2`, in that order, on top

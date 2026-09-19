@@ -682,10 +682,26 @@ def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
 #:
 #: Kept public, tested and unused, with the cost pinned, so nobody wires it in
 #: without watching this list.
+#:
+#: 36 -> 35 ON 18 SEPTEMBER 2026, AND NOBODY TOUCHED THIS GATE. `IR5` alone
+#: stopped being refused because `dec-whytrunc` fixed a PARSER: a position's
+#: `Why:` had been truncated at its first bolded paragraph, and `_text_of` feeds
+#: `off_subject` a position's `position` PLUS its `why`. Give the check the rest
+#: of the firm's reasoning and it finds subjects it could not previously see.
+#:
+#: THE GATE DID NOT GET SMARTER; IT GOT MORE TEXT, which is the same thing that
+#: happened in the other direction on 10 September and is worth saying twice.
+#: The direction is right — one fewer answer wrongly refused — and the
+#: mechanism is a coupling nobody chose: **how far this gate reaches depends on
+#: how much the firm happened to write under a position.** A position argued at
+#: length passes subjects a tersely argued one does not, and that is not a
+#: statement about the authority. It is recorded here rather than fixed, because
+#: fixing it means deciding what `off_subject` should read, and this gate is
+#: unused.
 OFF_SUBJECT = [
     "CD8", "TP3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P12", "P13",
     "P14", "P15", "P16", "M2", "M3", "M6", "M7", "M8", "M11", "M13", "PB1",
-    "PB6", "IR4", "IR5", "VE1", "VE2", "VE3", "VE4", "VE5", "VE6", "VE7",
+    "PB6", "IR4", "VE1", "VE2", "VE3", "VE4", "VE5", "VE6", "VE7",
     "VE8", "VE9", "VE10", "VE11",
 ]
 

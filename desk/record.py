@@ -21,6 +21,7 @@ difference between a field that was empty and a field that was never read.
 """
 from __future__ import annotations
 
+import decimal
 import re
 from datetime import date as _date_cls
 from dataclasses import dataclass, field
@@ -282,6 +283,27 @@ def shown_by_source(desk) -> dict:
     return out
 
 
+#: An amount as a person writes one: optional `$`, optional thousands
+#: separators, at most two decimal places. Deliberately FORGIVING about how it
+#: is typed and strict about whether it is a number at all — `$2,500` is how the
+#: firm's own POS2 writes the de minimis ceiling, so refusing it would refuse
+#: the record's own spelling, while `one eighty five`, `about 200`, `185 each`
+#: and `100-200` are all values nobody can answer a threshold question from.
+_MONEY = re.compile(r"^\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$")
+
+#: Facts whose VALUE has a shape, checked in `Context.__post_init__`.
+#:
+#: THE RECORD SAYS WHICH FACTS EXIST; THIS SAYS WHAT ONE OF THEM MAY LOOK LIKE.
+#: Same split as `_FACT_NAME`, which is here rather than in `SUBJECTS.md` for
+#: the same reason: a desk declares the facts it holds, and what counts as a
+#: well-formed name — or a well-formed amount — is not a per-desk choice.
+#:
+#: A fact absent from this table is free text and is not checked, which is every
+#: other fact: `trade` is "general contractor", `capitalization_rule` is a
+#: sentence. Adding a name here is a deliberate act with a test behind it.
+SHAPES = {"unit_cost": _MONEY}
+
+
 @dataclass(frozen=True)
 class Context:
     """What the CALLER already recorded about the matter. Never inferred here.
@@ -317,6 +339,66 @@ class Context:
     #: supplies. A name the desk does not declare is refused at load, not here,
     #: so a typo cannot become a fact nothing ever meets.
     facts: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Every fact with a declared SHAPE is checked here, at the point of
+        RECORDING, and this is the only place it can be.
+
+        `dec-unitcost`, 14 September 2026 — the firm: **"Add it, with a format
+        check."** The field itself was one word in `SUBJECTS.md`. The check is
+        the content of the answer, and the reason is in the card they answered:
+        fact values are free text, so `unit_cost` would otherwise accept `$185`,
+        `185.00` and *one eighty five* alike, and a threshold question answered
+        off a mistyped value is **a wrong answer with a real number under it** —
+        which is worse than a refusal, because it looks arithmetic.
+
+        WHY HERE AND NOT AT THE ANSWERING SIDE. Checking when a position needs
+        the fact would refuse at the moment somebody is waiting for an answer,
+        about a value typed hours earlier by somebody else, and would let a bad
+        value sit on file in the meantime looking recorded. `Context` is frozen,
+        so every path that builds one — the engagement file, a problem's `On
+        file` line, a caller in `ask` — goes through this constructor and cannot
+        route around it.
+
+        WHAT IT DOES NOT DO IS NORMALISE. It accepts what an accountant types
+        (`$2,500`, which is how the firm's own POS2 writes it) and stores the
+        string exactly as given, because *facts are recorded, not inferred* and
+        a value silently rewritten is a value nobody can check against the file
+        it came from. `money()` is how a caller gets the number.
+        """
+        for name, value in (self.facts or {}).items():
+            shape = SHAPES.get(str(name).strip().lower())
+            if shape is None:
+                continue
+            raw = str(value).strip()
+            # A FACT WITH NO VALUE IS NOT A BADLY SHAPED ONE. `missing()` and
+            # `standing_rule()` both read blank as "nobody said", and turning
+            # that into an exception here would refuse the ordinary case of a
+            # file that simply does not carry this fact yet.
+            if not raw:
+                continue
+            if not shape.match(raw):
+                raise RecordError(
+                    f"{name} is {value!r}, which is not an amount. Write it as "
+                    f"digits — 185, 185.00, 2500 or $2,500 — with no words, no "
+                    f"range and no 'each'. This is refused where the fact is "
+                    f"RECORDED rather than where it is answered, because a "
+                    f"threshold answered off a value nobody could read is a "
+                    f"wrong answer with a real number under it."
+                )
+
+    def money(self, fact: str) -> "decimal.Decimal | None":
+        """A shaped amount as a number, or `None` where the file does not carry
+        it. The stored string stays exactly as the caller wrote it.
+
+        Anything that COMPARES a fact to a threshold reads it through here.
+        Comparing the strings would make `$2,500` and `2500` two different
+        facts, which is the defect the shape check exists to keep out.
+        """
+        raw = str(self.facts.get(fact, "")).strip()
+        if not raw or SHAPES.get(fact) is None or not SHAPES[fact].match(raw):
+            return None
+        return decimal.Decimal(raw.lstrip("$").replace(",", ""))
 
     def known(self) -> tuple[str, ...]:
         return tuple(sorted(k for k, v in self.facts.items() if str(v).strip()))
@@ -879,6 +961,66 @@ def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
     return ""
 
 
+def _prose(block: str, label: str, where: str, *, fields: tuple,
+           required: bool = False) -> str:
+    """A field whose value is PROSE, read to the end of its entry.
+
+    `dec-whytrunc`, 18 September 2026 \u2014 the firm: **"Read the whole thing,
+    folded."**
+
+    WHAT `_field` DOES AND WHY IT IS RIGHT EVERYWHERE ELSE. It stops at
+    `_FIELD_END`, which is any line starting `**`. That is correct for a value
+    that happens to wrap. It is wrong for prose, because **a paragraph written
+    to be read starts with its point in bold** \u2014 and the reader stopped
+    there.
+
+    MEASURED BEFORE IT WAS PUT TO THE FIRM, across the twenty ratified
+    positions: **23,044 characters reached nothing.** POS13 lost 6,364 of its
+    6,658; every single position lost something. The field feeds the
+    RATIFICATION CARD, so the card POS2 was ratified from showed 429 characters
+    of about 2,270 \u2014 and the part that did not arrive contains *"$2,500 is
+    a ceiling, not the number"*, which is exactly the caveat that makes the
+    firm's own capitalisation default something to be careful with.
+
+    Sources lose another 1,802 the same way. A source's `Why` reaches only
+    `guards.py`, which checks it is non-empty, so nothing a reader sees moved
+    \u2014 but the defect is the same one in a second place and is fixed here
+    rather than left to be found again.
+
+    THE END IS EXACT AND NOT A HEURISTIC, which is the whole of the design. The
+    parser knows which labels its own entries carry, so prose ends at the next
+    line opening one of THOSE, or at a new entry. Nothing guesses what a field
+    looks like.
+
+    The heuristic considered and rejected was `**Word:**` \u2014 bold text
+    ending in a colon. `POSITIONS.md` contains the paragraph *"**What this
+    position does NOT settle, and why it is a position at all:**"*, which would
+    have been read as a field and truncated the prose at exactly the sentence a
+    reader most needs. One instance in one file, found by looking rather than by
+    reasoning about it.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if not m:
+        if required:
+            raise RecordError(f"{where}: no '{label}' field")
+        return ""
+    rest = block[m.end():]
+    ends = re.compile(
+        r"^(?:%s|## |---\s*$)"
+        % "|".join(r"\*\*%s:\*\*" % re.escape(f) for f in fields if f != label),
+        re.M)
+    stop = ends.search(rest)
+    value = (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
+    if not value and required:
+        raise RecordError(f"{where}: no '{label}' field")
+    return value
+
+
+#: The labels a SOURCE entry carries, so `_prose` knows where one ends.
+SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
+                 "Url", "Why")
+
+
 def _inline(block: str, label: str, where: str) -> str:
     """A field sharing a line with others, separated by ' · '.
 
@@ -957,7 +1099,7 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
-            note=_field(block, "Why", where, required=False),
+            note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
         raise RecordError("no sources found; a desk with no authority cannot answer")
@@ -1226,6 +1368,22 @@ def load(desk_dir: Path) -> Desk:
                     f"position was checked against what is on file; on a cited "
                     f"one it would read as a general review log and claim "
                     f"something this record does not check.")
+
+        # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
+        #
+        # `dec-caprule`, 14 September 2026. `Default:` says what a preparer
+        # should record when the file is silent on the fact that would displace
+        # this position. On a position with no `Unless:` there is no such fact,
+        # so the line would sit in the record looking like firm policy and be
+        # read by nobody -- the same shape as the `Reviewed:` line above, and
+        # refused for the same reason.
+        if q.default and not q.unless:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} records a Default line and "
+                f"declares no `Unless:`. A default is what to record when the "
+                f"displacing fact is missing; with no such fact the line "
+                f"answers a question nothing asks, and the engine will never "
+                f"print it.")
 
     return Desk(
         name=desk_dir.name,

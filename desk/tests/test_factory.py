@@ -366,13 +366,16 @@ def test_the_plugin_version_agrees_with_the_marketplace():
     another machine is a factory nobody can run.
     """
     import json
-    from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2]
-    mine = json.loads((root / "desk" / ".claude-plugin" / "plugin.json")
-                      .read_text(encoding="utf-8"))
-    market = json.loads((root / ".claude-plugin" / "marketplace.json")
-                        .read_text(encoding="utf-8"))
+    import _layout
+
+    # BOTH LAYOUTS. This read `parents[2] / "desk" / ...`, which only resolves
+    # in the repository — so the one check that exists to prove an INSTALL
+    # lands was the one check that could not run from an install. It looked for
+    # `.../cache/satc/desk/desk/.claude-plugin/plugin.json` and raised
+    # FileNotFoundError. Found by Forge-Desk, 14 September 2026.
+    mine = json.loads(_layout.MANIFEST.read_text(encoding="utf-8"))
+    market = json.loads(_layout.listing().read_text(encoding="utf-8"))
     listed = next(p for p in market["plugins"] if p["name"] == "desk")
     assert listed["version"] == mine["version"], (
         f"marketplace lists desk {listed['version']}, plugin.json says "
