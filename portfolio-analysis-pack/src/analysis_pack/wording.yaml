@@ -14,6 +14,10 @@ cover:
     not monotonic: "Gradient: not one-directional. The {outcome_label} rate does not rise at every step of the ratio."
     no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
   not_built: "{step}: not built in this version."
+  answer_model:
+    both: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1) and {m2:.2f} [{m2lo:.2f}, {m2hi:.2f}] with the confounders added (M2), on {events:,} events."
+    m1_only: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1); M2 is {m2_reason}."
+    unknown: "Model (step 6): unknown — {reason}."
   answer_stratified_prefix: "Survives or collapses (step 4), for {outcome_label}: "
   answer_stratified_item: "{confounder} ({scheme}) — {word}"
   denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
@@ -87,6 +91,16 @@ notes:
     how often the two fields disagree in the seasoned book, and what the question file says reacts to that
     today. The tool asserts nothing of its own about how either field is verified or used; the two lines
     under the share are the question file's words.
+  model: >-
+    Step 6, model. Two logistic regressions side by side, values only (a regression cannot be written as a
+    cell formula, so this tab does not recalculate and its numbers have no check-tab twin). M1 has the flag
+    plus the controls; M2 adds every confounder that is not already a control. A term's odds ratio says how
+    the odds of the outcome move with that term, everything else held fixed: 2.0 on the flag means flagged
+    loans carry twice the odds. The interval is the {confidence:.0%} range it plausibly sits in. If the flag's
+    ratio falls from M1 to M2, what was lost is explained by the confounders. Categorical terms are measured
+    against a reference level, the one with the most loans. A continuous control marked log enters as its
+    natural logarithm. The tree beneath is a search for the two- or three-way combination with the most
+    contrast, printed as rules with the loans, events and rate in each leaf; a lead to check, not a proof.
   gradient: >-
     Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
     fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this

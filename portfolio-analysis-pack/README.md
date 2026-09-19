@@ -21,11 +21,11 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slices 1 to 5 of 9 built: the tracer bullet; inspect, the
+**Status:** slices 1 to 6 of 9 built: the tracer bullet; inspect, the
 refusals, detected dates, the filter and the outcome forms; steps 1 and 2;
 step 4 with the survives/collapses word and `pack suggest`; step 5, step 7,
-generic groupings and the consumer example. Step 6, charts, the bundle and
-the mutation tool follow in the order the issues give.
+generic groupings and the consumer example; step 6, two regressions and a
+tree in plain Python. Charts, the bundle and the mutation tool follow.
 
 ## What a built pack contains
 
@@ -37,14 +37,13 @@ the mutation tool follow in the order the issues give.
 | `3_Gradient` | The outcome rate across buckets of the rule value, each with its interval, its gap from the unflagged base in percentage points and as a multiple, and whether the rates rise at every step |
 | `4_Stratified` | For each confounder and band scheme: the flagged and unflagged rates per band, the crude odds ratio beside the pooled one across bands, the share of the effect kept, and one word: survives, collapses, unknown, or no crude effect |
 | `5_Decomposition` | For each dimension the question file lists: flagged and unflagged rates per level with intervals, the gap, and the share of all flagged events in the level, most first |
+| `6_Model` | Two regressions side by side, values only: the flag plus the controls, then plus the confounders. Each term's odds ratio with its interval, the events per parameter printed above, and a small tree printed as plain rules with the loans, events and rate per leaf |
 | `7_Control` | The observation that stands regardless: how often the two fields disagree in the seasoned book, the question file's own words on what each field drives, and what it says reacts to the disagreement today |
 | `_cube` | The counts every formula reads: loans and events per cell |
 | `_config` | Live knobs (confidence level, interval method) and the rebuild knobs for the record |
 | `_method` | Notes on what was done, generated from the question file and the counts |
 | `_check` | Python's value beside every formula cell and Excel's own verdict on whether they agree |
 | `_provenance` | Source file and its hash, row counts, window, dates, generator version |
-
-The step 6 tab arrives with its slice.
 
 ## Using it
 
@@ -104,6 +103,30 @@ person writing the file.
 
 The as-of date is required and the run date defaults to it; the clock is
 never read, so the same inputs give the same bytes.
+
+## The model step, in plain terms
+
+Step 6 asks: after taking everything else into account, does the flag still
+matter, and by how much? A regression is a way of asking that for several
+factors at once. The number it gives per factor is an odds ratio: 2.0 on the
+flag means flagged loans carry twice the odds of the outcome with the other
+factors held fixed, and the interval beside it is the range it plausibly
+sits in. Two regressions sit side by side: the flag plus the controls (M1),
+and the same plus the confounders (M2). If the flag's ratio falls from M1 to
+M2, what was lost is explained by the confounders. Above each table: loans,
+events, the number of coefficients estimated, and events per parameter; below
+ten the tab says the estimates are unstable and to read the intervals, not
+the point estimates. When a term separates the outcome perfectly the fit is
+not estimable and the tab names the term rather than printing a number.
+
+The tree beneath is a search for the two- or three-way combination with the
+most contrast, printed as plain rules with the loans, events and rate in each
+leaf. A lead to check, not a proof. Everything on this tab is a value, not a
+formula: a regression cannot be written as a cell, so this is the one tab that
+does not recalculate and carries no check-tab twin.
+
+All of it runs in plain Python with no numerical library, because the desk
+has none. A 25,000-loan fit takes about a second.
 
 ## Grouping a code column
 

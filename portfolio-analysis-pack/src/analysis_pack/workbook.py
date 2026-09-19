@@ -118,13 +118,14 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     grad = wb.create_sheet("3_Gradient")
     strat = wb.create_sheet("4_Stratified")
     decomp = wb.create_sheet("5_Decomposition")
+    mdl = wb.create_sheet("6_Model")
     ctrl = wb.create_sheet("7_Control") if data.control is not None else None
     cube = wb.create_sheet("_cube")
     conf = wb.create_sheet("_config")
     meth = wb.create_sheet("_method")
     check = wb.create_sheet("_check")
     prov = wb.create_sheet("_provenance")
-    for ws in (cover, cap, prev, grad, strat, decomp, cube, conf, meth, check, prov) + ((ctrl,) if ctrl else ()):
+    for ws in (cover, cap, prev, grad, strat, decomp, mdl, cube, conf, meth, check, prov) + ((ctrl,) if ctrl else ()):
         ks.hide_gridlines(ws)
     first_facts = data.per_outcome[0][0]
 
@@ -517,6 +518,73 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     if decomp_first_hdr:
         ks.freeze_below(decomp, decomp_first_hdr)
 
+    # -- 6_Model (values only) ---------------------------------------------------
+    for col, wdt in zip("ABCDEFG", (34, 12, 10, 10, 12, 11, 60)):
+        mdl.column_dimensions[col].width = wdt
+    row = _header_band(mdl, 7, "Step 6 — Model", cfg, table, first_facts, run_date)
+    model_note = notes.fill("notes.model", confidence=cfg.confidence)
+    row = _note(mdl, row, model_note, 7)
+    row += 1
+    model_lines: dict[str, str] = {}
+    for mr in data.models:
+        row = ks.section_band(mdl, row, f"Outcome: {mr.outcome.label}", 7)
+        mdl.cell(row, 1, f"Loans in the design: {mr.used:,} seasoned loans with both rule fields and every predictor present; "
+                         f"{mr.excluded_blank:,} left out for a blank predictor.")
+        mdl.merge_cells(f"A{row}:G{row}"); row += 1
+        for fit in (mr.m1, mr.m2):
+            mdl.cell(row, 1, f"{fit.label}: {'flag + controls' if fit.label == 'M1' else 'M1 + confounders not already controls'}").font = BOLD
+            row += 1
+            head = (f"{fit.loans:,} loans · {fit.events:,} events · {fit.coefficients} estimated coefficients · "
+                    f"events per parameter {fit.epp:.1f}" if fit.epp is not None else f"{fit.loans:,} loans · {fit.events:,} events")
+            mdl.cell(row, 1, head); mdl.merge_cells(f"A{row}:G{row}"); row += 1
+            if fit.warning:
+                c = mdl.cell(row, 1, fit.warning); c.font = ks.ALERT_FONT; c.alignment = Alignment(wrap_text=True)
+                mdl.merge_cells(f"A{row}:G{row}"); mdl.row_dimensions[row].height = 30; row += 1
+            if fit.skipped:
+                mdl.cell(row, 1, "Skipped: " + "; ".join(fit.skipped)); mdl.merge_cells(f"A{row}:G{row}"); row += 1
+            if not fit.estimable:
+                c = mdl.cell(row, 1, fit.reason + (f" — implicated: {', '.join(fit.implicated)}" if fit.implicated else ""))
+                c.font = ks.ALERT_FONT; mdl.merge_cells(f"A{row}:G{row}"); row += 2
+                continue
+            ks.header_row(mdl, row, ["Term", "Odds ratio", "Lower", "Upper", "Coefficient", "Std error", "Reference level"], right_from=1)
+            row += 1
+            for term in fit.terms:
+                mdl.cell(row, 1, term.name)
+                mdl.cell(row, 2, term.odds_ratio).number_format = "0.000"
+                mdl.cell(row, 3, term.lo).number_format = "0.000"
+                mdl.cell(row, 4, term.hi).number_format = "0.000"
+                mdl.cell(row, 5, term.coef).number_format = "0.0000"
+                mdl.cell(row, 6, term.se).number_format = "0.0000"
+                base = term.name.split("=")[0]
+                if base in fit.references:
+                    mdl.cell(row, 7, f"against {base}={fit.references[base]}")
+                row += 1
+            mdl.cell(row, 1, "intercept"); mdl.cell(row, 5, fit.intercept).number_format = "0.0000"; row += 2
+        tr = mr.tree
+        mdl.cell(row, 1, f"Tree, depth up to {cfg.model['tree_depth']}: {tr.loans:,} loans, {tr.events:,} events, "
+                         f"overall rate {tr.overall_rate:.2%}" if tr.overall_rate is not None else "Tree: no loans").font = BOLD
+        mdl.merge_cells(f"A{row}:G{row}"); row += 1
+        ks.header_row(mdl, row, ["Rule", "Loans", "Events", "Rate", "Lift"], right_from=1); row += 1
+        for leaf in tr.leaves:
+            mdl.cell(row, 1, " and ".join(leaf.path) if leaf.path else "(no split found)")
+            mdl.cell(row, 2, leaf.loans).number_format = "#,##0"
+            mdl.cell(row, 3, leaf.events).number_format = "#,##0"
+            if leaf.rate is not None:
+                mdl.cell(row, 4, leaf.rate).number_format = "0.00%"
+                if tr.overall_rate:
+                    mdl.cell(row, 5, leaf.rate / tr.overall_rate).number_format = "0.00"
+            row += 1
+        row += 1
+        f1, f2 = mr.m1.flag(), mr.m2.flag()
+        if mr.m1.estimable and mr.m2.estimable and f1 and f2:
+            model_lines[mr.outcome.key] = notes.pick("cover.answer_model", "both", m1=f1.odds_ratio, m1lo=f1.lo, m1hi=f1.hi,
+                                                     m2=f2.odds_ratio, m2lo=f2.lo, m2hi=f2.hi, events=mr.m1.events)
+        elif mr.m1.estimable and f1:
+            model_lines[mr.outcome.key] = notes.pick("cover.answer_model", "m1_only", m1=f1.odds_ratio, m1lo=f1.lo, m1hi=f1.hi,
+                                                     m2_reason=mr.m2.reason or "not estimable")
+        else:
+            model_lines[mr.outcome.key] = notes.pick("cover.answer_model", "unknown", reason=mr.m1.reason or "not estimable")
+
     # -- 7_Control ---------------------------------------------------------------
     control_lines: list[str] = []
     if ctrl is not None and data.control is not None:
@@ -579,7 +647,10 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                   notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label) + "; ".join(twin_parts), 0.0, "text")
         cover[f"A{row}"].alignment = Alignment(wrap_text=True)
         row += 1
-    cover.cell(row, 1, notes.fill("cover.not_built", step="Model (step 6)")); row += 2
+    for facts, g in data.per_outcome:
+        line = model_lines.get(g.outcome.key) or notes.fill("cover.not_built", step="Model (step 6)")
+        c = cover.cell(row, 1, line); c.alignment = Alignment(wrap_text=True); row += 1
+    row += 1
     if control_lines:
         cover.cell(row, 1, notes.fill("control.cover_heading")).font = BOLD; row += 1
         for line in control_lines:
@@ -614,6 +685,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         grad_note,
         strat_note,
         decomp_note,
+        model_note,
         notes.fill("notes.check"),
     ):
         row = _note(meth, row, text, 1)

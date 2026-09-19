@@ -264,6 +264,7 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
     plausible_fields = {name: f.plausible for name, f in cfg.fields.items() if f.plausible is not None}
     numeric_fields = set(c.field for c in cfg.confounders if c.schemes)
     numeric_fields |= set(c.field for c in cfg.controls if c.field and c.as_ in ("log", "linear", "bands"))
+    log_fields = set(c.field for c in cfg.controls if c.field and c.as_ == "log")
     text_fields = set(c.field for c in cfg.confounders if not c.schemes)
     text_fields |= set(c.field for c in cfg.controls if c.field and c.as_ == "categorical")
     range_checked = {name: (f.plausible is not None) for name, f in cfg.fields.items()}
@@ -311,6 +312,8 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
                     dirt.append((lid, col, v.value, v.reason))
                 bad = True
             else:
+                if v is not BLANK and col in log_fields and v <= 0.0:
+                    dirt.append((lid, col, v, "zero or negative in a log-scaled control")); bad = True
                 values[col] = None if v is BLANK else v
         for col in text_fields:
             raw_text = None if is_blank(r.get(col)) else cell_text(r.get(col))

@@ -86,8 +86,10 @@ def test_the_confounded_book_collapses_on_the_confounder_and_only_there(confound
 
 
 def test_the_word_is_live_moving_the_threshold_knob_flips_it(confounded_pack):
-    """SURV_T at 0.99 means only 1% of the crude log-odds need survive, so
-    the size-band block that collapsed at 0.5 now reads 'survives'."""
+    """SURV_T at 0.99 means only 1% of the crude log-odds need survive, so the
+    size-band block no longer collapses. Its pooled interval still contains 1,
+    so the honest word is 'unknown', not 'survives': the knob moved the word,
+    and the rule kept it truthful."""
     from recalc import Recalc
     wb = load_workbook(io.BytesIO(confounded_pack["bytes"]))
     ref = wb.defined_names["SURV_T"].attr_text            # e.g. _config!$C$4
@@ -95,7 +97,10 @@ def test_the_word_is_live_moving_the_threshold_knob_flips_it(confounded_pack):
     before = Recalc(confounded_pack["bytes"]).exact("4_Stratified", WORDS)
     assert sorted(before) == ["collapses", "survives", "survives"]
     after = Recalc(confounded_pack["bytes"], inputs={(sheet, cell): 0.99}).exact("4_Stratified", WORDS)
-    assert after == ["survives", "survives", "survives"], after
+    assert "collapses" not in after and sorted(after) == ["survives", "survives", "unknown"], after
+    st = next(s for s in confounded_pack["data"].strata if s.confounder == "size_band")
+    from analysis_pack.stats import survives_word
+    assert survives_word(st.crude, st.pooled, 0.99) == "unknown"    # the Python twin agrees on the flipped word
 
 
 def test_two_schemes_on_one_confounder_give_two_blocks_each_with_its_word(effect_book, tmp_path):
