@@ -25,6 +25,8 @@ is just the map.
 | 5 | County Mortgage Delinquency Monitor | `cfpb-mortgage-monitor/` | CFPB Mortgage Performance Trends (NMDB 5% sample; county/state/national 30-89 + 90+ DPD, monthly, ~6-7 mo lag) | **OPEN** — `^county:[0-9]{5}$` [FOOTPRINT] slots; suppression rendered explicitly; vintage + continuity guarded | v1 done, PR #53 |
 | 6 | EDGAR Crit/Class Tracker | `edgar-crit-class-tracker/` | SEC EDGAR (extracted XBRL instances + submissions JSON; keyless, User-Agent required) | **OPEN (entity)** -- `^cik:[0-9]{1,10}$` [PEERS]; commercial criticized/classified by disclosure family + 8-K credit events | v1 done, PR #53; first live run validates family coverage |
 
+**Same consulting line, not a template:** `portfolio-analysis-pack/` — a loan extract plus a question file in, one workbook out, laying the evidence for a flag in a fixed six-step order; v1 built 18–19 Sep 2026, log in `BACKLOG.md` §6c, spec in its `docs/`.
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |

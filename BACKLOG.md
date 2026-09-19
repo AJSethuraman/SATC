@@ -884,7 +884,7 @@ a ratio nobody could check.
 - The covering document was rebuilt and **opened**: 105 fields, 156,881 values,
   137,424 checked, 2 disagreements.
 
-## 6c · Portfolio Analysis Pack (`portfolio-analysis-pack/` — grilled + PRD'd 2026-09-18)
+## 6c · Portfolio Analysis Pack (`portfolio-analysis-pack/` — grilled + PRD'd 2026-09-18, v1 built 2026-09-19)
 
 A loan extract plus a YAML question file → one workbook: the fixed six-step
 ladder (capture, prevalence, gradient, stratified, decomposition, model) and
@@ -895,12 +895,57 @@ sales on the small-business book; built domain-free so a consumer question
 (stated vs bureau income, auto) is a config, not code. Spec:
 `portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`.
 
-- [ ] **Build v1 (M1–M4 in the PRD)** — nine vertical slices, published
-      2026-09-18, dependency-ordered: #364 tracer bullet (ready-for-agent) →
-      #365 inspect/hygiene/dates/outcome forms, #366 steps 1–2, #367 step 4
-      + suggest, #368 bundle + README → #369 step 5 + step 7 + consumer
-      example, #370 step 6 model, #371 charts → #372 mutation tool + this
-      section's close-out.
+- [x] **Build v1 (M1–M4 in the PRD) — built, 18–19 Sep 2026.** Nine
+      vertical slices, one PR each, merged by the session as each went green:
+      #364 tracer bullet → #365 inspect/hygiene/dates/outcome forms, #366
+      steps 1–2, #367 step 4 + suggest, #368 bundle + README → #369 step 5 +
+      step 7 + consumer example, #370 step 6 model, #371 charts → #372
+      mutation tool + this close-out. **What shipped, in measured facts:**
+      - **Tests: 78 pass** (`cd portfolio-analysis-pack && pytest -q`,
+        measured 19 Sep 2026). The suite builds three 40,000-loan synthetic
+        books (a planted effect, a null, and an effect that is size in
+        disguise), reads each workbook back through the `formulas` engine,
+        and checks: the gradient reads as planted; the step-4 word is
+        survives / no crude effect / collapses respectively; both regressions
+        recover the plant and lose it under the confounders; every `_check`
+        row agrees; two builds are byte-identical; the bundle rebuilds the
+        same bytes in an empty directory with only openpyxl and PyYAML.
+      - **Mutations: 9 of 9 caught** by their named tests
+        (`python tools/mutation_check.py`; CI runs it on every pull request).
+        Each breaks one behaviour: the z quantile, the Clopper-Pearson tail,
+        the pooled odds ratio's direction, seasoning, the leakage refusal,
+        the flag's side of the line, the `_xlfn.` prefix, the check tab's
+        tolerance, the decomposition sort.
+      - **Build time** (this container, 19 Sep 2026): 40,000 loans in 5.2 s
+        (read 0.2 · population 2.0 · models 1.8 · workbook 0.8); 100,000
+        loans in 12.7 s (read 0.6 · population 4.8 · models 4.8 · workbook
+        2.1). The workbook is 164 KB at both sizes: it holds counts, not
+        loans, which is what the firm asked for on 18 Sep ("I don't want a
+        situation where excel is the limiting factor").
+      - **Render harness** (LibreOffice → PDF → one PNG per page): every tab
+        fits one page wide, 58 pages for the confounded book, zero error
+        cells, and the gradient and stratified charts carry axis numbers and
+        interval bars — looked at, not just scanned. The first two chart
+        attempts rendered cleanly and had no axis numbers; a cell scan
+        cannot see that, which is why the pages are opened.
+      - **Docket answers honoured:** no threshold, list, mapping or transform
+        in code; any binary outcome; step 7 asserts nothing of its own;
+        refuse on dirt, report blanks, never repair; plain language in the
+        README as a standing rule.
+      **Not checked, and who checks it:**
+      - **Excel itself.** Nothing here has met Excel. The engine and
+        LibreOffice both recalculate the pack and agree with Python, and the
+        `_xlfn.` prefix is guarded, but the cover's "N of N formula checks
+        agree" line is the first thing to read on the first Excel open.
+      - **The first real run at the desk.** Key's column names, the date
+        format the extract actually carries, and the bundle crossing the
+        DLP boundary are all untried. `pack inspect` first, then
+        `pack validate`, before a build.
+      - **An adversarial pass.** The firm asked for one (docket, 18 Sep:
+        "you also have the adversarial skill") before the desk run. Not
+        yet run; it is the next item, and it writes only tests.
+      - **The NAICS list is gone**, so nothing checks it; grouping by
+        `prefix` or `map` is proved on synthetic codes only.
 - [ ] **Door two — threshold/boundary.** Deferred by ruling (C11 struck for
       this project, 2026-09-18). Reuses the bucket-with-interval block with
       finer edges around the cut, a bunching count, and a boundary-coincidence
@@ -964,6 +1009,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 78 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Not checked: Excel itself, the desk run, the adversarial pass — §6c has the list.
 - 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
   862 of 862 tie.** Each figure on the ours side read out of the shipped

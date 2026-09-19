@@ -21,12 +21,11 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slices 1 to 8 of 9 built: the tracer bullet; inspect, the
-refusals, detected dates, the filter and the outcome forms; steps 1 and 2;
-step 4 with the survives/collapses word and `pack suggest`; step 5, step 7,
-generic groupings and the consumer example; step 6, two regressions and a
-tree in plain Python; charts with interval bars; the bundle. The mutation
-tool and the close-out follow.
+**Status:** v1 built, all nine slices (18 to 19 September 2026): the ladder
+plus door one, the bundle, the render harness and the mutation tool. What is
+not built is deferred by ruling and logged in `../BACKLOG.md` §6c: doors two
+and three, sweep mode, vintage curves. The first real run at the desk has
+not happened; nothing here has met Excel itself.
 
 ## What a built pack contains
 
@@ -205,11 +204,32 @@ the gradient and stratified pages before calling a version done: the lesson
 in this line is that the first two chartbooks opened cleanly and had no axis
 numbers, and a harness reading a cell cannot see that.
 
-The suite builds a 40,000-loan synthetic book with a planted effect and
-reads the workbook back through the engine: the gradient must read as
-planted, every `_check` row must agree, two builds must be byte-identical,
-and the guards must hold (no domain word in the code, no clock read, the
-`_xlfn.` prefix on every newer function).
+The suite builds three 40,000-loan synthetic books (a planted effect, a
+null, and an effect that is size in disguise) and reads the workbooks back
+through the engine: the gradient must read as planted, the step-4 word must
+be survives, no crude effect and collapses respectively, the regressions
+must recover the plant and lose it under the confounders, every `_check`
+row must agree, two builds must be byte-identical, and the guards must hold
+(no domain word in the code, no clock read, the `_xlfn.` prefix on every
+newer function).
+
+How long it takes, measured here on 19 September 2026: a 40,000-loan book
+builds in about 5 seconds and a 100,000-loan book in about 13. The workbook
+is 164 KB either way, because it holds counts rather than loans; the loan
+count changes how long Python works, never how big the file Excel opens is.
+
+Then check the checker:
+
+```
+python tools/mutation_check.py
+```
+
+Nine mutations each break one behaviour in the working tree (the z quantile,
+the Clopper-Pearson tail, the pooled odds ratio's direction, seasoning, the
+leakage refusal, the flag's side of the line, the `_xlfn.` prefix, the check
+tab's tolerance, the decomposition sort) and name the tests that must go
+red. The file is restored byte for byte afterwards. CI runs it on every pull
+request; a mutation that survives fails the run.
 
 ## What it is not
 
