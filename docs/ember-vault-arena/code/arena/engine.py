@@ -30,7 +30,7 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, Callable
 
-from . import combat, deals, grid, items, rules, scoring
+from . import combat, deals, grid, items, rules, scoring, world
 from .models import (
     AgentAction,
     Deal,
@@ -869,6 +869,10 @@ class ArenaEngine:
     def _interact(self, agent_id: str, action: AgentAction) -> None:
         agent = self.state["agents"][agent_id]
         room_id = agent["room"]
+        site_id = world.site_of_hand(action.target or "")
+        if site_id is not None:
+            self._lend_hand(agent_id, action, site_id, action.target or "")
+            return
         if room_id not in SEAL_ROOMS:
             self._invalid_action(agent_id, action, "no seal here")
             return
@@ -911,6 +915,77 @@ class ArenaEngine:
                 VAULT_ROOM,
                 "Both seals burn. The Ember Vault stands open.",
                 {"reason": "seals_active", "seals": dict(self.state["seals"])},
+            )
+
+    def _lend_hand(self, agent_id: str, action: AgentAction, site_id: str, hand: str) -> None:
+        """A hand at a cooperative site (PRD §5.3). Legality was proved at the
+        freeze; what changed since (the site done, the hand taken, a monster
+        arrived) is stale, never a penalty. The site is judged in upkeep."""
+        agent = self.state["agents"][agent_id]
+        site = rules.SITES[site_id]
+        rec = self.state["sites"][site_id]
+        if site["room"] != agent["room"]:
+            self._invalid_action(agent_id, action, "that site is not in this room")
+            return
+        if rec["status"] != "waiting":
+            self._stale(agent_id, action, "the site is already done")
+            return
+        if hand in rec["hands"]:
+            self._stale(agent_id, action, "that hand is already taken this round")
+            return
+        if rules.room_has_living_monster(self.state, agent["room"]):
+            self._stale(agent_id, action, "a monster still holds the room")
+            return
+        rec["hands"][hand] = agent_id
+        lent = len(rec["hands"])
+        needs = len(site["hands"])
+        self._event(
+            self.state["round"],
+            "agent",
+            "site_hand",
+            agent_id,
+            hand,
+            f"{agent['name']} lends a hand at {hand.replace('_', ' ')} ({lent} of {needs} this round for {site['name']}).",
+            {"site": site_id, "hand": hand, "lent": lent, "needs": needs,
+             "changes": {f"sites.{site_id}.hands.{hand}": [None, agent_id]}},
+        )
+
+    def _settle_sites(self, round_no: int) -> None:
+        """P5: a site with every hand lent by a different character this round
+        is done and pays each of them; one with too few hands lapses, in
+        public, and the try is kept for next round's digest."""
+        names = self.state["agents"]
+        for site_id in sorted(self.state["sites"]):
+            rec = self.state["sites"][site_id]
+            site = rules.SITES[site_id]
+            hands = dict(rec["hands"])
+            if rec["status"] != "waiting" or not hands:
+                rec["hands"] = {}
+                continue
+            needs = len(site["hands"])
+            lenders = sorted(set(hands.values()))
+            if len(hands) == needs and len(lenders) == needs:
+                rec["status"] = "done"
+                rec["done_round"] = round_no
+                rec["done_by"] = lenders
+                rec["hands"] = {}
+                for i, agent_id in enumerate(lenders):
+                    self._score(agent_id, "site_done", site["points"], f"Lent a hand at {site['name']}")
+                    self._event(
+                        round_no, "referee", "site_done", agent_id, site_id,
+                        f"{site['done_text']} {', '.join(names[a]['name'] for a in lenders)} each take {site['points']}.",
+                        {"site": site_id, "parties": lenders, "hands": hands, "points": site["points"],
+                         "changes": {f"sites.{site_id}.status": ["waiting", "done"]}},
+                        include_in_narration=(i == 0),
+                    )
+                continue
+            rec["last_attempt"] = {"round": round_no, "hands": hands}
+            rec["hands"] = {}
+            who = ", ".join(f"{names[a]['name']} at {h.replace('_', ' ')}" for h, a in sorted(hands.items()))
+            self._event(
+                round_no, "referee", "site_lapsed", None, site_id,
+                f"{site['name'].capitalize()} wants {needs} hands in one round and had {len(hands)}: {who}. It goes cold again.",
+                {"site": site_id, "hands": hands, "needs": needs, "lent": len(hands)},
             )
 
     def _search(self, agent_id: str, action: AgentAction) -> None:
@@ -1622,6 +1697,9 @@ class ArenaEngine:
                 },
             )
 
+        # P5.c2 COOPERATIVE SITES (PRD §5.3): every hand this round, or none
+        self._settle_sites(round_no)
+
         # P5.d DEALS (PRD §5.20): breaks judged against this round's committed
         # events, then offers nobody answered lapse. Nothing is prevented,
         # nothing is scored; a kept deal is recorded and says nothing.
@@ -1976,6 +2054,10 @@ class ArenaEngine:
                 f"{self.max_rounds} rounds at most; every round all decide at once, the dice set the order, each acts in turn, then the monsters.",
                 "Each gate holds a seal and a guardian; the Vault opens when both seals are lit.",
                 "The Crown is locked inside its Warden and drops when the Warden falls; whoever holds it when the last round ends wins outright.",
+                "Some things take more than one pair of hands: "
+                + "; ".join(f"{s['name']} wakes only when {len(s['hands'])} characters lend a hand in the same round, {s['points']} points each"
+                            for s in rules.SITES.values())
+                + ".",
             ],
         }
 

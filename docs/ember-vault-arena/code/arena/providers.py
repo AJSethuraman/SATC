@@ -368,6 +368,25 @@ class MockDecisionProvider:
         return ordered[0]
 
     @staticmethod
+    def _lend_hand(observation: Mapping[str, Any]) -> dict[str, Any] | None:
+        """At a waiting site with enough characters in the room, take the
+        hand matching my rank among the ids present, so two or three mocks
+        cover the hands between them without a word (PRD §5.3)."""
+        legal = observation["legal_actions"]
+        me = observation["you"]["id"]
+        present = sorted([me] + [a["id"] for a in observation.get("visible_agents", []) if a.get("status") == "active"])
+        for site in observation.get("room", {}).get("sites", []):
+            if site.get("status") != "waiting" or len(present) < site["needs"]:
+                continue
+            rank = present.index(me)
+            if rank >= site["needs"]:
+                continue
+            entry = next((e for e in legal if e["action"] == "interact" and e.get("target") == site["hands"][rank]), None)
+            if entry:
+                return dict(entry)
+        return None
+
+    @staticmethod
     def _nearest_unfound_cache(observation: Mapping[str, Any]) -> str | None:
         """The closest room, by hops over the observed map, whose cache nobody
         has found; the current room if its own cache waits (search handles
@@ -500,10 +519,13 @@ class MockDecisionProvider:
             if close:
                 return close
 
-        # 6. Seal, then loot.
-        seal = self._find(legal, "interact")
+        # 6. Seal, a cooperative site when enough are here, then loot.
+        seal = next((e for e in legal if e["action"] == "interact" and str(e.get("target", "")).endswith("_seal")), None)
         if seal:
             return seal
+        hand = self._lend_hand(observation)
+        if hand:
+            return hand
         search = self._find(legal, "search")
         if search:
             return search

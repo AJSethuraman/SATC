@@ -5,6 +5,45 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 00:40Z — M3, slice B2: three things that take more than one pair of hands
+
+PRD §5 item 3's cooperative sites built, as data in `world.SITES` and one
+mechanic: the Gallery's two cold braziers (two hands, +4 each), the Bone
+Well's winch (crank and brake, +3 each), the Bell Tower's bell (three
+ropes, +5 each). A hand is a feature of the room, drawn on the board as
+a small diamond, and an `interact` target while the site waits and no
+monster holds the room. Lending one is `site_hand`, public, saying how
+many of how many this round. At upkeep, before deals, a site with every
+hand lent by a different character wakes: `site_done` once per party
+with the site's line, and each party scores the site's points under
+`site_done`. Too few hands, or one character reaching for two, lapses in
+public (`site_lapsed`, naming who reached for what) and the try is kept
+in the next round's digest under `room.sites[].last_attempt`, so a
+brain can see that someone stood at the west brazier last round and
+say so. This round's hands are never shown: everyone decides blind,
+which is the whole point of a thing that takes two.
+
+The mock takes the hand matching its rank among the characters present
+in the room, so two or three mocks cover a site between them without a
+word, and alone it does not waste a turn on a two-hand site. In the
+seed-52 house match three of them ring the bell in round 2. The
+narrator's opening gains one line naming the three sites and what each
+takes and pays. Memory keeps a site waking for everyone (a room
+changing, the seal family); the hands and the lapses are noise at
+memory scale. The board shows a hand and a waking on the cards and a
+lapse in the vault's beat.
+
+Tests (`tests/test_sites.py`, 7): the registry and its hands as
+features; hands legal only in the room while the site waits, with the
+digest saying what it needs; one hand lapses in public and the next
+digest shows the try; two hands by two characters wake it and each
+scores, a third gets nothing and a late hand is stale, never a penalty;
+one character cannot lend both hands; the bell takes three, and a
+monster in the room stops every hand; two mocks take different hands by
+rank and a lone mock does not reach. Golden regenerated on purpose: 98
+snapshots, 2,130 events, Quill wins. Suite 149 → **156**, 80 seconds.
+Points are the session's, for item 5's retune.
+
 ## 19 September 2026, 00:15Z — M3, slice B1: the Ember Vault drawn once, sixteen locations
 
 PRD §5 item 2 built, item 3 in part. `arena/world.py` is the one drawing

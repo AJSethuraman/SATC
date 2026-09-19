@@ -76,6 +76,7 @@ DWELL = {
     "final_scores": (4500, 0, 0), "objective_reveal": (1600, 0, 0), "act_two_survival": (2000, 0, 0),
     "offer_made": (2200, 30, 6000), "deal_struck": (2400, 30, 6000), "deal_broken": (2800, 30, 7000),
     "offer_lapsed": (1500, 0, 0), "deal_lost": (1500, 0, 0),
+    "site_hand": (1500, 0, 0), "site_done": (2600, 0, 0), "site_lapsed": (2000, 0, 0),
 }
 DEFAULT_DWELL = (1200, 0, 0)
 
@@ -365,7 +366,7 @@ def build_timeline(bundle: dict) -> tuple[dict, list[dict]]:
 DID = {"move", "step", "attack_hit", "attack_miss", "wild_swing_self_damage", "wild_swing_bystander", "wild_swing_room_reaction",
        "guard", "rest", "search_failure", "cache_found", "seal_activated", "stale_action", "item_used", "item_taken", "give",
        "crown_taken", "crown_extracted", "action_skipped", "invalid_action", "interact", "search_success",
-       "offer_made", "deal_struck", "deal_lost", "offer_lapsed"}
+       "offer_made", "deal_struck", "deal_lost", "offer_lapsed", "site_hand", "site_done"}
 # Frames that land on a character from outside: another body's swing, the
 # floor, the referee sweeping a room, the Crown leaving their hands.
 HAPPENED = {"attack_hit", "attack_miss", "wild_swing_bystander", "hazard_burn", "agent_eliminated", "agent_force_moved",
@@ -501,7 +502,7 @@ def build_turns(start: dict, frames: list[dict], bundle: dict | None = None) -> 
 
 # The vault's own beat in a round: the monsters moving and striking, rooms
 # closing, the gate opening, an act turning.
-VAULT = {"monster_step", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved"}
+VAULT = {"monster_step", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved", "site_lapsed"}
 
 
 def build_scene(bundle: dict, start: dict) -> dict:
@@ -727,6 +728,7 @@ CSS = """
   .feature { font: 600 .62rem var(--sans); fill: var(--muted); text-anchor: middle; }
   .seal-mark { fill: none; stroke: var(--faint); stroke-width: 2; }
   .seal-mark.active { stroke: var(--gold); filter: drop-shadow(0 0 4px var(--gold)); }
+  .site-mark { fill: none; stroke: var(--faint); stroke-width: 1.5; }
   .cache-mark { fill: #6f6058; }
   .cache-mark.found { fill: #3d3029; }
   .pedestal { fill: none; stroke: var(--faint); stroke-width: 1.5; stroke-dasharray: 3 3; }
@@ -966,6 +968,10 @@ def render_board_svg(geo: dict, start: dict) -> str:
                            f'<text class="feature" x="{px:.1f}" y="{py + T * .5 + 9:.1f}">cache</text>')
             elif feat == "pedestal":
                 out.append(f'<circle class="pedestal" cx="{px:.1f}" cy="{py:.1f}" r="{T * .38:.1f}"/>')
+            else:  # a hand at a cooperative site, or any other named feature: a small diamond and its name
+                d = T * .22
+                out.append(f'<path class="site-mark" d="M{px:.1f} {py - d:.1f} L{px + d:.1f} {py:.1f} L{px:.1f} {py + d:.1f} L{px - d:.1f} {py:.1f} Z"><title>{E(feat.replace("_", " "))}</title></path>'
+                           f'<text class="feature" x="{px:.1f}" y="{py + T * .5 + 9:.1f}">{E(feat.split("_")[-1])}</text>')
         out.append(f'<text class="room-name" id="name-{rid}" x="{x + 6:.1f}" y="{y - 6:.1f}">{E(names[rid])}</text>')
         out.append('</g>')
     out.append('<g id="crown" class="crown hidden"><path d="' + _crown_path() + '"/><text id="crown-att" y="3"></text></g>')

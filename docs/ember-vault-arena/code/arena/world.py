@@ -84,6 +84,29 @@ FLOOR_ITEMS: dict[str, list[str]] = {
     "reliquary": ["marrow_reliquary"],
 }
 
+# Cooperative objective sites (PRD §5.3): a site wakes only when every one of
+# its hands is lent by a different character in the same round; each of them
+# scores its points; a round with too few hands lapses in public. The hands
+# are features of the room, so the board draws them. Points are the
+# session's, tuned later on the simulator (item 5).
+SITES: dict[str, dict[str, Any]] = {
+    "gallery_braziers": {
+        "name": "the Gallery's braziers", "room": "the_gallery",
+        "hands": ["brazier_west", "brazier_east"], "points": 4,
+        "done_text": "Both braziers catch at once and the Long Gallery blazes end to end.",
+    },
+    "well_winch": {
+        "name": "the Bone Well's winch", "room": "bone_well",
+        "hands": ["winch_crank", "winch_brake"], "points": 3,
+        "done_text": "Crank and brake move together and the well's bucket comes up out of the dark.",
+    },
+    "tower_bell": {
+        "name": "the Bell Tower's bell", "room": "bell_tower",
+        "hands": ["bell_rope_north", "bell_rope_east", "bell_rope_south"], "points": 5,
+        "done_text": "Three ropes pull as one and the cracked bell speaks over the whole vault.",
+    },
+}
+
 MONSTERS: dict[str, dict[str, Any]] = {
     "ironwood_guardian": {"name": "Ironwood Guardian", "kind": "guardian", "room": "ironwood_gate", "tile": [2, 1],
                           "reach": 1, "max_hp": 12, "power": 3, "armor": 1},
@@ -191,7 +214,7 @@ ROOMS: dict[str, dict[str, Any]] = {
         "kind": "chamber", "seal_id": None, "cache_id": "bell_cache", "guardian_id": None,
         "grid": {"w": 3, "h": 3,
                  "doors": {"threshold": (0, 1), "lantern_walk": (1, 2)},
-                 "features": {"cache": (2, 0)},
+                 "features": {"cache": (2, 0), "bell_rope_north": (1, 0), "bell_rope_east": (2, 1), "bell_rope_south": (1, 2)},
                  "spawn": [(0, 1), (1, 2), (0, 2), (1, 0), (0, 0), (2, 1), (2, 2), (2, 0)]},
         "props": {"1,1": _p("blocking", "bell_frame", "Bell Frame"), "2,2": _p("cover", "stair_rail", "Stair Rail")},
         "reaction": {"reaction_id": "bell_rope_snap", "flavor": "The bell rope snaps taut and {target} loses their footing.", "effect_kind": "strip_guard"},
@@ -317,7 +340,7 @@ ROOMS: dict[str, dict[str, Any]] = {
         "kind": "chamber", "seal_id": None, "cache_id": "well_cache", "guardian_id": None,
         "grid": {"w": 3, "h": 3,
                  "doors": {"charnel_stair": (0, 1)},
-                 "features": {"cache": (2, 2)},
+                 "features": {"cache": (2, 2), "winch_crank": (2, 0), "winch_brake": (2, 1)},
                  "spawn": [(0, 1), (0, 0), (1, 1), (1, 2), (2, 1), (0, 2), (2, 2), (2, 0)]},
         "props": {"1,0": _p("blocking", "well_mouth", "Well Mouth"), "2,0": _p("cover", "winch_post", "Winch Post"),
                   "0,2": _p("hazard", "bone_dust", "Bone Dust")},
@@ -383,6 +406,17 @@ def monster_reach() -> dict[str, int]:
     return {mid: int(m["reach"]) for mid, m in MONSTERS.items()}
 
 
+def sites_in(room_id: str) -> list[str]:
+    return [sid for sid, site in SITES.items() if site["room"] == room_id]
+
+
+def site_of_hand(hand: str) -> str | None:
+    for sid, site in SITES.items():
+        if hand in site["hands"]:
+            return sid
+    return None
+
+
 def sealing_rounds() -> dict[str, int]:
     return {room: round_no for round_no, room in CONTRACTION_SCHEDULE}
 
@@ -444,6 +478,20 @@ def validate() -> None:
             raise ValueError(f"{rid}: reaction kind {re['effect_kind']}")
         if re["effect_kind"] == "reveal_item" and not items.is_known_item(re.get("item_id")):
             raise ValueError(f"{rid}: reaction reveals an unknown item")
+    hands_seen: set[str] = set()
+    for sid, site in SITES.items():
+        if site["room"] not in ids:
+            raise ValueError(f"site {sid} in no room")
+        if len(site["hands"]) < 2 or len(set(site["hands"])) != len(site["hands"]):
+            raise ValueError(f"site {sid} needs at least two distinct hands")
+        for hand in site["hands"]:
+            if hand not in ROOMS[site["room"]]["grid"]["features"]:
+                raise ValueError(f"site {sid}: hand {hand} is not a feature of {site['room']}")
+            if hand in hands_seen:
+                raise ValueError(f"hand {hand} belongs to two sites")
+            hands_seen.add(hand)
+        if int(site["points"]) <= 0:
+            raise ValueError(f"site {sid} must be worth something")
     for mid, m in MONSTERS.items():
         if m["room"] not in ids:
             raise ValueError(f"monster {mid} in no room")

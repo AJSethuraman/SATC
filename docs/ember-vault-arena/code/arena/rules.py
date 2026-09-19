@@ -74,6 +74,8 @@ CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = world.CONTRACTION_SCHEDULE
 
 MONSTER_TEMPLATES: dict[str, dict[str, Any]] = world.monster_templates()
 
+SITES: dict[str, dict[str, Any]] = world.SITES  # cooperative objective sites (PRD §5.3)
+
 CACHE_CONTENTS: dict[str, str] = dict(world.CACHES)
 
 OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.3"
@@ -186,6 +188,12 @@ def new_match_state(
         "recent_speech": [],
         # PRD §5.19–21: every offer and every struck deal, in the state hash.
         "deals": deals.new_ledger(),
+        # PRD §5.3: the cooperative sites; ``hands`` is this round's lending,
+        # ``last_attempt`` what the previous try looked like, for the digest.
+        "sites": {
+            sid: {"status": "waiting", "hands": {}, "done_round": None, "done_by": [], "last_attempt": None}
+            for sid in sorted(SITES)
+        },
     }
 
 
@@ -383,6 +391,23 @@ def seal_activation_allowed(state: Mapping[str, Any], agent_id: str) -> bool:
         and room in SEAL_ROOMS
         and state["seals"][room] == "inactive"
         and not room_has_living_monster(state, room)
+    )
+
+
+def site_hand_allowed(state: Mapping[str, Any], agent_id: str, hand: str) -> bool:
+    """A hand may be lent at a site in the agent's room while the site waits
+    and no monster holds the room; the same hand twice in a round is stale at
+    resolution, never illegal at the freeze."""
+    agent = state["agents"][agent_id]
+    sid = world.site_of_hand(hand)
+    if sid is None or SITES[sid]["room"] != agent["room"]:
+        return False
+    site = state.get("sites", {}).get(sid)
+    return (
+        agent["status"] == "active"
+        and site is not None
+        and site["status"] == "waiting"
+        and not room_has_living_monster(state, agent["room"])
     )
 
 
@@ -757,6 +782,19 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
                 )
             )
 
+    # A cooperative site (PRD §5.3): one entry per hand while the site waits.
+    for site in room.get("sites", []):
+        if site.get("status") != "waiting" or monsters:
+            continue
+        for hand in site["hands"]:
+            entries.append(
+                _entry(
+                    "interact",
+                    f"interact {hand} (lend a hand at {site['name']}: {site['needs']} hands in one round, +{site['points']} each)",
+                    target=hand,
+                )
+            )
+
     seal = room.get("seal")
     if seal and not seal["active"] and not monsters:
         entries.append(
@@ -1008,9 +1046,32 @@ def _build_room(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "seals_at_end_of_round": seal_round_for_room(room_id),
         "seal": seal,
         "cache": cache,
+        "sites": _build_sites(state, room_id),
         "floor_items": items.describe_items(list(state["floor_items"][room_id])),
         "grid": _build_grid(state, agent),
     }
+
+
+def _build_sites(state: Mapping[str, Any], room_id: str) -> list[dict[str, Any]]:
+    """The cooperative sites in this room (PRD §5.3): what each needs, what it
+    pays, whether it is done, and what the last try looked like. This round's
+    hands are not shown: everyone decides blind."""
+    out = []
+    for sid in world.sites_in(room_id):
+        site = SITES[sid]
+        rec = state.get("sites", {}).get(sid) or {}
+        out.append({
+            "id": sid,
+            "name": site["name"],
+            "hands": list(site["hands"]),
+            "needs": len(site["hands"]),
+            "points": site["points"],
+            "status": rec.get("status", "waiting"),
+            "done_by": list(rec.get("done_by", [])),
+            "done_round": rec.get("done_round"),
+            "last_attempt": deepcopy(rec.get("last_attempt")),
+        })
+    return out
 
 
 def _build_grid(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, Any]:

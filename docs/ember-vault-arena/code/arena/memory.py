@@ -77,6 +77,7 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "room_sealing": "seal",
     "room_sealed": "seal",
     "agent_force_moved": "seal",
+    "site_done": "seal",  # a cooperative site waking is a room changing, remembered by all
     # items
     "item_taken": "item",
     "item_used": "item",
@@ -131,6 +132,8 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "invalid_action_fallback",
         "invalid_output_fallback",
         "stale_action",
+        "site_hand",
+        "site_lapsed",
         "objective_reveal",
         "final_scores",
     }
