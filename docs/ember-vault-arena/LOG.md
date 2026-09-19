@@ -32,6 +32,18 @@ I opened it: a slow mock match of fourteen rounds with the three
 talkers seated, the page opened in a headless browser mid-match, Play
 pressed, rounds arriving while it played, the header changing to "The
 match is over" at the end with the winner named, no console errors.
+The scene card listed a talker as "· , 10 HP · secret aim: ." and now
+says what it is: a house voice that plays for nobody.
+
+**"Complete" had to be defined exactly.** The first cut showed a round
+once its end snapshot existed. The test that serves a real running
+match then lost a frame: a round's narration event lands after its end
+snapshot, and the last round's finish lands after its narration, so a
+presenter reading between them served the round without its narration
+and never returned for it. The rule now is the PRD's own words: while
+the match runs, the round before the one under way (round N is shown
+once round N+1 has begun); once completed, every round. The store and
+the page builder apply the same rule over the same events.
 
 Tests (`tests/test_live.py`, 6): the callbacks fire in order after the
 snapshot is committed; a running match shows only its completed rounds

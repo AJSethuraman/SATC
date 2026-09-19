@@ -51,7 +51,7 @@ class TheEngineSaysWhenARoundHasEnded(unittest.TestCase):
         self.assertEqual(seen[0], ("start", match_id, 0))
         self.assertEqual([s[1] for s in seen[1:]], [1, 2, 3])
         for _, n, complete, status in seen[1:]:
-            self.assertEqual(complete, n)  # the end snapshot is already there when the presenter hears of it
+            self.assertEqual(complete, n - 1)  # one round behind: round n is shown once round n+1 has begun
             self.assertEqual(status, "running")
 
 
@@ -71,7 +71,7 @@ class TheBoardSlicedByCompletedRounds(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_a_running_match_shows_only_its_completed_rounds_and_no_end(self):
-        running = replay_board.trim_bundle(self.bundle, 4)
+        running = replay_board.trim_bundle(self.bundle, 5)  # round 5 under way: rounds 1-4 may be shown
         self.assertEqual(running["match"]["status"], "running")
         self.assertIsNone(running["match"]["winner_agent_id"])
         data = replay_board.live_data(running, 0)
@@ -107,7 +107,7 @@ class TheBoardSlicedByCompletedRounds(unittest.TestCase):
 
     def test_the_live_page_carries_its_pull_urls_and_what_it_already_has(self):
         live = {"match_id": self.match_id, "board": "/b", "sse": "/s", "poll_ms": 100}
-        page = replay_board.build(replay_board.trim_bundle(self.bundle, 3), live=live)
+        page = replay_board.build(replay_board.trim_bundle(self.bundle, 4), live=live)  # round 4 under way
         self.assertIn('"live":{', page)
         self.assertIn('"after":3', page)
         self.assertIn('"status":"running"', page)

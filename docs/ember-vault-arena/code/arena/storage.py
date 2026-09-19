@@ -737,14 +737,21 @@ class ArenaStore:
         return [dict(row) for row in rows]
 
     def rounds_complete(self, match_id: str) -> int:
-        """The last round whose end snapshot is committed: what a presenter
-        may show (PRD §5.36, one round behind the engine)."""
+        """What a presenter may show (PRD §5.36–37, one round behind the
+        engine): while the match runs, the round before the one under way,
+        since a round's narration lands after its end snapshot and the last
+        round's finish lands after its narration; once the match is
+        completed, every round."""
         with self.lock:
             row = self.conn.execute(
-                "SELECT MAX(round_no) AS r FROM snapshots WHERE match_id=? AND phase='end'",
+                "SELECT MAX(round_no) AS r FROM events WHERE match_id=? AND event_type='round_started'",
                 (match_id,),
             ).fetchone()
-        return int(row["r"] or 0) if row else 0
+            status = self.conn.execute("SELECT status FROM matches WHERE id=?", (match_id,)).fetchone()
+        started = int(row["r"] or 0) if row else 0
+        if status and status["status"] == "completed":
+            return started
+        return max(0, started - 1)
 
     def match_status(self, match_id: str) -> str:
         with self.lock:

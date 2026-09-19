@@ -561,8 +561,14 @@ def build_scene(bundle: dict, start: dict) -> dict:
         first_sentence = w.split(". ")[0].rstrip(".") + "." if w else ""
         bs = builds.get(a["build"], {})
         stats = (f"{bs['hp']} HP, power {bs['power']}, armour {bs['armor']}, moves {bs['moves']}, reach {bs['reach']}, search +{bs['search']}" if bs else "")
+        if a.get("kind") == "talker":
+            # a house voice (PRD §5.25): a body with modest numbers, no build, no aim, cannot win
+            eight.append({"who": aid, "name": a["name"], "build": "house talker", "hp": a["max_hp"], "secret": "",
+                          "secret_text": "A house voice: it plays for nobody, carries no aim and cannot win.",
+                          "wants": "", "stats": f"{a['max_hp']} HP; it speaks, whispers, deals, moves and gives", "kind": "talker"})
+            continue
         eight.append({"who": aid, "name": a["name"], "build": a["build"], "hp": a["max_hp"], "secret": a["secret"],
-                      "secret_text": a["secret_text"], "wants": first_sentence, "stats": stats})
+                      "secret_text": a["secret_text"], "wants": first_sentence, "stats": stats, "kind": "character"})
     opening = next((e.get("public_text") for e in sorted(bundle.get("events", []), key=lambda e: e["seq"])
                     if e["event_type"] == "match_opening"), None)
     text = opening or " ".join(t for t in [f"{len(eight)} rivals enter the Ember Vault.", f"Seed {m.get('seed')}."] if t)
@@ -1354,7 +1360,7 @@ SCRIPT = r"""
     s.eight.forEach(function (a) {
       var li = h("li"); var dot = h("span", "dot"); dot.style.background = colours[a.who]; li.appendChild(dot);
       var b = h("b", null, a.name); li.appendChild(b);
-      li.appendChild(document.createTextNode(" · " + a.build + (a.stats ? " (" + a.stats + ")" : ", " + a.hp + " HP") + " · secret aim: " + a.secret + ". "));
+      li.appendChild(document.createTextNode(" · " + a.build + (a.stats ? " (" + a.stats + ")" : ", " + a.hp + " HP") + (a.kind === "talker" ? " · plays for nobody. " : " · secret aim: " + a.secret + ". ")));
       if (a.wants) li.appendChild(h("i", null, a.wants));
       ul.appendChild(li);
     });
@@ -1514,8 +1520,14 @@ SCRIPT = r"""
 
 
 def rounds_complete(bundle: dict) -> int:
-    """The last round with an end snapshot: what may be shown of a running match."""
-    return max([s["round_no"] for s in bundle.get("snapshots", []) if s.get("phase") == "end"] or [0])
+    """What may be shown of a running match: the round before the one under
+    way (a round's narration lands after its end snapshot, and the last
+    round's finish after its narration), or every round once completed.
+    The store's ``rounds_complete`` is the same rule over the same events."""
+    started = max([e["round_no"] for e in bundle.get("events", []) if e.get("event_type") == "round_started"] or [0])
+    if bundle.get("match", {}).get("status") == "completed":
+        return started
+    return max(0, started - 1)
 
 
 def trim_bundle(bundle: dict, upto: int) -> dict:
