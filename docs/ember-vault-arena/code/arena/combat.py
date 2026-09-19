@@ -18,7 +18,7 @@ callable and returns data.
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
-from . import grid, items
+from . import grid, items, world
 
 
 COMBAT_TABLE_VERSION = "ember-vault-0.2/combat-1"
@@ -238,43 +238,15 @@ class RoomReaction:
     max_uses: int = 0  # 0 == unlimited
 
 
-# Deterministic, one per room, consuming ZERO randomness.  ironwood_gate and
-# ossuary_gate are REQUIRED to differ in both flavor and effect_kind.
+# Deterministic, one per room, consuming ZERO randomness, drawn with the map
+# in world.py.  ironwood_gate and ossuary_gate are REQUIRED to differ in both
+# flavor and effect_kind (validate_tables).
 ROOM_REACTIONS: dict[str, RoomReaction] = {
-    "threshold": RoomReaction(
-        "threshold",
-        "threshold_sluice",
-        "Rain sluices off the threshold stone and shoves {target} off its brace.",
-        "strip_guard",
-    ),
-    "ironwood_gate": RoomReaction(
-        "ironwood_gate",
-        "ironwood_splinter_shear",
-        "The swing shears a blade of ironwood off the gate; it clatters to the floor.",
-        "reveal_item",
-        item_id="ironwood_splinter",
-        max_uses=1,
-    ),
-    "ossuary_gate": RoomReaction(
-        "ossuary_gate",
-        "ossuary_ribfall",
-        "The bone-rack sloughs; a rib of ash-bone lodges in {attacker}'s guard arm.",
-        "attacker_damage",
-        amount=1,
-    ),
-    "vault": RoomReaction(
-        "vault",
-        "ember_glass_flare",
-        "The ember-glass flares and the heat lashes everything near the plinth.",
-        "burst_damage",
-        amount=1,
-    ),
-    "egress": RoomReaction(
-        "egress",
-        "egress_windfall",
-        "Wind off the egress arch takes the blow and gives nothing back.",
-        "none",
-    ),
+    rid: RoomReaction(
+        rid, spec["reaction_id"], spec["flavor"], spec["effect_kind"],
+        item_id=spec.get("item_id"), amount=int(spec.get("amount", 0)), max_uses=int(spec.get("max_uses", 0)),
+    )
+    for rid, spec in world.reactions().items()
 }
 
 DEFAULT_ROOM_REACTION = ROOM_REACTIONS["egress"]
@@ -304,6 +276,9 @@ def validate_tables() -> None:
         raise ValueError(
             f"wild swing table must partition {sorted(expected)}, got {sorted(seen)}"
         )
+    gates = [ROOM_REACTIONS[r] for r in world.SEAL_ROOMS if r in ROOM_REACTIONS]
+    if len(gates) >= 2 and (gates[0].effect_kind == gates[1].effect_kind or gates[0].flavor == gates[1].flavor):
+        raise ValueError("the two gates' room reactions must differ in flavor and effect")
     for room_id, reaction in ROOM_REACTIONS.items():
         if reaction.room_id != room_id:
             raise ValueError(f"room reaction key/room_id mismatch for {room_id}")

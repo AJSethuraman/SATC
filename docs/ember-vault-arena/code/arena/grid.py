@@ -29,43 +29,16 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
 
-GRID_VERSION = "ember-vault-grid-0.3"
+from . import world
+
+GRID_VERSION = "ember-vault-grid-0.4"
 
 # Per-room grid, the tile each doorway sits on, and named feature tiles.
 # Door tiles are the only way between rooms: to transit you must be able to
 # reach the door, which makes chokepoints real.
-ROOM_GRIDS: dict[str, dict[str, Any]] = {
-    "threshold": {
-        "w": 5, "h": 3,
-        "doors": {"ironwood_gate": (0, 1), "ossuary_gate": (4, 1)},
-        "features": {},
-        "spawn": [(2, 2), (1, 2), (3, 2), (2, 1), (1, 1), (3, 1), (0, 2), (4, 2)],
-    },
-    "ironwood_gate": {
-        "w": 5, "h": 4,
-        "doors": {"threshold": (2, 3), "vault": (2, 0)},
-        "features": {"seal": (4, 0), "cache": (0, 0)},
-        "spawn": [(2, 3), (1, 3), (3, 3), (2, 2), (1, 2), (3, 2), (0, 3), (4, 3)],
-    },
-    "ossuary_gate": {
-        "w": 5, "h": 4,
-        "doors": {"threshold": (2, 3), "vault": (2, 0)},
-        "features": {"seal": (0, 0), "cache": (4, 0)},
-        "spawn": [(2, 3), (1, 3), (3, 3), (2, 2), (1, 2), (3, 2), (0, 3), (4, 3)],
-    },
-    "vault": {
-        "w": 7, "h": 5,
-        "doors": {"ironwood_gate": (0, 4), "ossuary_gate": (6, 4), "egress": (3, 0)},
-        "features": {"pedestal": (3, 2)},
-        "spawn": [(3, 4), (2, 4), (4, 4), (1, 4), (5, 4), (0, 4), (6, 4), (3, 3)],
-    },
-    "egress": {
-        "w": 3, "h": 2,
-        "doors": {"vault": (1, 1)},
-        "features": {},
-        "spawn": [(1, 1), (0, 1), (2, 1), (1, 0), (0, 0), (2, 0), (1, 1), (0, 1)],
-    },
-}
+# Every room's grid comes from the world registry (world.py), the one drawing
+# of the Ember Vault. Door tiles are the only way between rooms.
+ROOM_GRIDS: dict[str, dict[str, Any]] = world.grids()
 
 # Move range = 1 + Speed. Reach is a flat per-build property.
 BUILD_REACH: dict[str, int] = {
@@ -74,11 +47,7 @@ BUILD_REACH: dict[str, int] = {
     "scout": 2,
     "mystic": 3,
 }
-MONSTER_REACH: dict[str, int] = {
-    "ironwood_guardian": 1,
-    "ossuary_guardian": 1,
-    "crown_warden": 2,
-}
+MONSTER_REACH: dict[str, int] = world.monster_reach()
 MONSTER_STEP = 1  # monsters close one tile per round
 
 
@@ -325,42 +294,7 @@ def step_toward(
 # differently rather than being mirrored reskins.
 PROP_KINDS = ("blocking", "cover", "hazard")
 
-ROOM_PROPS: dict[str, dict[str, dict[str, Any]]] = {
-    "threshold": {
-        "1,0": {"kind": "blocking", "id": "broken_statue", "name": "Broken Statue"},
-        "3,0": {"kind": "blocking", "id": "broken_statue_2", "name": "Toppled Statue"},
-        "0,0": {"kind": "cover", "id": "stair_wall", "name": "Stair Wall"},
-        "4,0": {"kind": "cover", "id": "rain_barrel", "name": "Rain Barrel"},
-    },
-    "ironwood_gate": {
-        "1,1": {"kind": "blocking", "id": "ironwood_trunk", "name": "Ironwood Trunk"},
-        "3,1": {"kind": "blocking", "id": "ironwood_trunk_2", "name": "Split Trunk"},
-        "0,2": {"kind": "cover", "id": "root_tangle", "name": "Root Tangle"},
-        "4,2": {"kind": "cover", "id": "bark_shield", "name": "Bark Shelf"},
-        "1,2": {"kind": "hazard", "id": "sap_pool", "name": "Boiling Sap"},
-        "3,2": {"kind": "hazard", "id": "sap_pool_2", "name": "Sap Seep"},
-    },
-    "ossuary_gate": {
-        "1,1": {"kind": "blocking", "id": "bone_stack", "name": "Bone Stack"},
-        "3,1": {"kind": "blocking", "id": "bone_stack_2", "name": "Femur Pile"},
-        "0,2": {"kind": "cover", "id": "skull_wall", "name": "Skull Wall"},
-        "4,2": {"kind": "cover", "id": "rib_arch", "name": "Rib Arch"},
-        "2,1": {"kind": "hazard", "id": "marrow_pit", "name": "Marrow Pit"},
-    },
-    "vault": {
-        "1,1": {"kind": "blocking", "id": "vault_pillar", "name": "Ember Pillar"},
-        "5,1": {"kind": "blocking", "id": "vault_pillar_2", "name": "Ember Pillar"},
-        "2,3": {"kind": "cover", "id": "fallen_pillar", "name": "Fallen Pillar"},
-        "4,3": {"kind": "cover", "id": "shield_wall", "name": "Warden's Shieldwall"},
-        "0,2": {"kind": "hazard", "id": "brazier", "name": "Open Brazier"},
-        "6,2": {"kind": "hazard", "id": "brazier_2", "name": "Open Brazier"},
-        "3,1": {"kind": "hazard", "id": "ember_vent", "name": "Ember Vent"},
-    },
-    "egress": {
-        "0,0": {"kind": "blocking", "id": "egress_rubble", "name": "Rubble"},
-        "2,0": {"kind": "cover", "id": "arch_stone", "name": "Arch Stone"},
-    },
-}
+ROOM_PROPS: dict[str, dict[str, dict[str, Any]]] = world.props()
 
 COVER_ARMOR_BONUS = 1
 HAZARD_DAMAGE = 1

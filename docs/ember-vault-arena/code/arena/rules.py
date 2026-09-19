@@ -25,7 +25,7 @@ implementation and no second predicate that can drift from what the agent saw.
 from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
-from . import combat, deals, grid, items, memory, scoring
+from . import combat, deals, grid, items, memory, scoring, world
 from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
 
 
@@ -33,67 +33,16 @@ from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
 # map
 # ---------------------------------------------------------------------------
 
-ROOM_ORDER: tuple[str, ...] = (
-    "threshold",
-    "ironwood_gate",
-    "ossuary_gate",
-    "vault",
-    "egress",
-)
-
-ROOMS: dict[str, dict[str, Any]] = {
-    "threshold": {
-        "name": "The Threshold",
-        "description": "Rain hammers the outer stair; two gates wait inland.",
-        "neighbors": ["ironwood_gate", "ossuary_gate"],
-        "kind": "start",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": None,
-    },
-    "ironwood_gate": {
-        "name": "The Ironwood Gate",
-        "description": "Living timber grown through the arch, wet with sap.",
-        "neighbors": ["threshold", "vault"],
-        "kind": "gate",
-        "seal_id": "ironwood_seal",
-        "cache_id": "ironwood_cache",
-        "guardian_id": "ironwood_guardian",
-    },
-    "ossuary_gate": {
-        "name": "The Ossuary Gate",
-        "description": "A stacked-bone arch that clicks when anyone breathes.",
-        "neighbors": ["threshold", "vault"],
-        "kind": "gate",
-        "seal_id": "ossuary_seal",
-        "cache_id": "ossuary_cache",
-        "guardian_id": "ossuary_guardian",
-    },
-    "vault": {
-        "name": "The Ember Vault",
-        "description": "The Crown burns inside its Warden.",
-        "neighbors": ["egress", "ironwood_gate", "ossuary_gate"],
-        "kind": "vault",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": "crown_warden",
-    },
-    "egress": {
-        "name": "The Moonlit Egress",
-        "description": "Open sky and the way out, and no way to end it early: the Crown is won by whoever holds it when the last round ends.",
-        "neighbors": ["vault"],
-        "kind": "egress",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": None,
-    },
-}
-
-SEAL_ROOMS: tuple[str, ...] = ("ironwood_gate", "ossuary_gate")
-START_ROOM = "threshold"
-VAULT_ROOM = "vault"
-EGRESS_ROOM = "egress"
-CONTRACTION_REFUGE = "vault"  # force-move destination, a constant not an adjacency
+# The Ember Vault is drawn once, in world.py (PRD §5.2): rooms, adjacency,
+# grids, props, caches, floor items, monsters, reactions, the schedule and the
+# board layout. Everything here is a view of that registry.
+ROOM_ORDER: tuple[str, ...] = world.ROOM_ORDER
+ROOMS: dict[str, dict[str, Any]] = world.room_records()
+SEAL_ROOMS: tuple[str, ...] = world.SEAL_ROOMS
+START_ROOM = world.START_ROOM
+VAULT_ROOM = world.VAULT_ROOM
+EGRESS_ROOM = world.EGRESS_ROOM
+CONTRACTION_REFUGE = world.CONTRACTION_REFUGE  # force-move destination, a constant not an adjacency
 
 CROWN_ITEM_ID = items.CROWN_ID
 DEFAULT_MAX_ROUNDS = 48  # four acts of twelve (PRD §5.1); the only place the match length lives
@@ -117,71 +66,15 @@ ACT_NAMES: dict[int, str] = {
 }
 CONTRACTION_ACT = 4  # "Contraction belongs to act IV only" (PRD §5.4)
 
-# Ordered, absolute round numbers, every one inside act IV and before the last
-# round. One room per round; vault and egress never seal. July's shape at four
-# times the length: the outer room goes first, the two gates after, and the
-# final round is played in the Vault and the Egress alone.
-CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = (
-    (40, "threshold"),
-    (44, "ironwood_gate"),
-    (47, "ossuary_gate"),
-)
+# The schedule is drawn with the map (world.CONTRACTION_SCHEDULE): ordered,
+# absolute round numbers, every one inside act IV and before the last round;
+# a round may seal more than one room; the Vault, the Egress and the Parapet
+# never seal. The act is proven by a test here, the rest by world.validate.
+CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = world.CONTRACTION_SCHEDULE
 
-MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
-    "ironwood_guardian": {
-        "id": "ironwood_guardian",
-        "name": "Ironwood Guardian",
-        "kind": "guardian",
-        "room": "ironwood_gate",
-        "tile": [2, 1],
-        "reach": 1,
-        "max_hp": 12,
-        "hp": 12,
-        "power": 3,
-        "armor": 1,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-    "ossuary_guardian": {
-        "id": "ossuary_guardian",
-        "name": "Ossuary Guardian",
-        "kind": "guardian",
-        "room": "ossuary_gate",
-        "tile": [2, 1],
-        "reach": 1,
-        "max_hp": 12,
-        "hp": 12,
-        "power": 3,
-        "armor": 0,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-    "crown_warden": {
-        "id": "crown_warden",
-        "name": "Crown Warden",
-        "kind": "warden",
-        "room": "vault",
-        "tile": [3, 2],
-        "reach": 2,
-        "max_hp": 20,
-        "hp": 20,
-        "power": 4,
-        "armor": 2,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-}
+MONSTER_TEMPLATES: dict[str, dict[str, Any]] = world.monster_templates()
 
-CACHE_CONTENTS: dict[str, str] = {
-    "ironwood_gate": "veteran_blade",
-    "ossuary_gate": "healing_tonic",
-}
+CACHE_CONTENTS: dict[str, str] = dict(world.CACHES)
 
 OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.3"
 LEGALITY_VERSION = "ember-vault-legality-0.2"
@@ -249,7 +142,7 @@ def new_match_state(
         "rooms": deepcopy(ROOMS),  # STATIC forever (P1)
         "monsters": deepcopy(MONSTER_TEMPLATES),
         "agents": agents,
-        "floor_items": {room_id: [] for room_id in ROOM_ORDER},
+        "floor_items": {room_id: sorted(world.FLOOR_ITEMS.get(room_id, [])) for room_id in ROOM_ORDER},
         # TRI-STATE, not bool: "inactive" | "active" | "voided". Contraction can
         # remove a gate room before its seal was ever activated; "voided" records
         # that the seal can never be lit and scores nothing. It does NOT satisfy
@@ -268,7 +161,7 @@ def new_match_state(
                 "found_by": None,
                 "found_round": None,
             }
-            for room_id in SEAL_ROOMS
+            for room_id in sorted(CACHE_CONTENTS)  # every cache the map declares, not only the gates'
         },
         "crown": {
             "status": "locked",  # locked|floor|carried|escaped
@@ -350,16 +243,18 @@ def act_name(act: int) -> str:
     return ACT_NAMES.get(act, f"Act {act}")
 
 
+def sealing_rooms_for_round(round_no: int) -> list[str]:
+    """Every room whose end-of-round seal falls on this round, in schedule order."""
+    return [room_id for scheduled_round, room_id in CONTRACTION_SCHEDULE if scheduled_round == round_no]
+
+
 def sealing_room_for_round(round_no: int) -> str | None:
-    for scheduled_round, room_id in CONTRACTION_SCHEDULE:
-        if scheduled_round == round_no:
-            return room_id
-    return None
+    rooms = sealing_rooms_for_round(round_no)
+    return rooms[0] if rooms else None
 
 
 def contracting_rooms_for_round(round_no: int) -> list[str]:
-    room_id = sealing_room_for_round(round_no)
-    return [room_id] if room_id else []
+    return sealing_rooms_for_round(round_no)
 
 
 def seal_round_for_room(room: str) -> int | None:
@@ -1011,6 +906,9 @@ def _build_map(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, 
                 "seals_at_end_of_round": seal_round_for_room(room_id),
                 "has_seal": room_id in SEAL_ROOMS,
                 "seal_status": state["seals"].get(room_id),
+                # a cache is part of the map; whether it has been found is public
+                "has_cache": room_id in state["caches"],
+                "cache_found": state["caches"][room_id]["found"] if room_id in state["caches"] else None,
                 "guardian_id": state["rooms"][room_id]["guardian_id"],
                 "visited": room_id in visited,
             }

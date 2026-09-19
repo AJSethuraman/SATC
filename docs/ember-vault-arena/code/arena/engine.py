@@ -46,6 +46,7 @@ from .providers import (
     MockDecisionProvider,
     compile_narration_prompt,
     compile_prompt,
+    OPENING_CAP,
     compile_opening_prompt,
 )
 from .rng import HashRNG
@@ -1589,10 +1590,10 @@ class ArenaEngine:
                 },
             )
 
-        # P5.b CONTRACTION
-        room_id = rules.sealing_room_for_round(round_no)
-        if room_id and not rules.is_sealed(self.state, room_id):
-            self._apply_contraction(round_no, room_id)
+        # P5.b CONTRACTION: every room the schedule closes this round, in order
+        for room_id in rules.sealing_rooms_for_round(round_no):
+            if not rules.is_sealed(self.state, room_id):
+                self._apply_contraction(round_no, room_id)
 
         # P5.c ACT II SURVIVAL
         if round_no == rules.ACT_II_LAST_ROUND:
@@ -1985,8 +1986,8 @@ class ArenaEngine:
         Returns the reason it fails, or None."""
         if not text or not text.strip():
             return "empty opening"
-        if len(text) > 1_600:
-            return "opening longer than 1,600 characters"
+        if len(text) > OPENING_CAP:
+            return f"opening longer than {OPENING_CAP:,} characters"
         low = text.lower()
         for word in ("monster hunter", "monster_hunter", "lorekeeper", "oathbreaker", "treasure hoarder", "treasure_hoarder", "secret objective", "secret aim"):
             if word in low:

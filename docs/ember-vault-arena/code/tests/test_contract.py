@@ -217,10 +217,15 @@ class NoteWhisperGiveTests(unittest.TestCase):
 
         store, _ = self._run(NotingProvider())
         store.close()
+        # a character that falls early decides fewer times; the round-trip holds
+        # for every round it played (Sable dies in round 2 of seed 7 since the
+        # bigger world sent the mock past the guardians, 18 Sep 2026)
+        self.assertTrue(any(len(notes) == 3 for notes in seen.values()))
         for agent_id, notes in seen.items():
+            self.assertGreaterEqual(len(notes), 2)
             self.assertEqual(notes[0], "")
-            self.assertEqual(notes[1], f"{agent_id} round 1")
-            self.assertEqual(notes[2], f"{agent_id} round 2")
+            for i, note in enumerate(notes[1:], start=1):
+                self.assertEqual(note, f"{agent_id} round {i}")
 
     def test_no_character_ever_sees_another_note_and_only_the_target_hears_a_whisper(self):
         state = rules.new_match_state(self.manifests, 99, 12)

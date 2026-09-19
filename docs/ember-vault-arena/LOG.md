@@ -5,6 +5,67 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 00:15Z — M3, slice B1: the Ember Vault drawn once, sixteen locations
+
+PRD §5 item 2 built, item 3 in part. `arena/world.py` is the one drawing
+of the Ember Vault: rooms with adjacency, grid, doors, features, spawn,
+props, wild-swing reaction and board position; monsters; caches; floor
+items; the contraction schedule; the never-seal rooms. `rules`, `grid`,
+`combat`, `memory` and the board page read it, so a room drawn there is
+a room everywhere. It validates itself at import: symmetric adjacency, a
+door both ways on the floor, features and spawns on the floor, one
+guardian per room and in it, known items, the schedule inside the map
+with the never-seal rooms never in it, every room still open at the end
+reachable from the Vault, and no two rooms overlapping on the board.
+July's egress spawn list had a tile on the rubble; the validator caught
+it and it is fixed.
+
+The map, the session's drawing and reversible by the firm (docket D13):
+July's five first and unchanged in shape; off the Threshold, the Bell
+Tower (cache), the Drowned Cellar (a Cellar Drowner over a cache) and
+the Lantern Walk joining them under the stair; off the Ironwood Gate,
+the Root Hollow (cache) and the Sap Works (cache, hazards), and down to
+the Long Gallery, the one hall joining west to east, with the Undercroft
+(cache) under its hatch; off the Ossuary Gate, the Reliquary (the Marrow
+Reliquary on its altar, loot 10, a new item), the Charnel Stair (a
+Charnel Hound) and the Bone Well (cache, a dead end); beyond the Egress,
+the Parapet. Sixteen rooms, five monsters, eight caches. Contraction
+seals from the outside in over rounds 37–47, two rooms on each of the
+last two rounds, so round 48 is played in the Vault, the Egress and the
+Parapet; a round may now seal more than one room
+(`rules.sealing_rooms_for_round`). The board lays the rooms out from the
+registry and I looked at it once: the ring under the stair, the deeps
+either side, the gallery along the bottom, the parapet beside the
+egress, every corridor clear.
+
+Two things moved that were not the map. The narrator's opening template
+now names every room and guardian in one list instead of a sentence per
+room, and the cap is 2,400 characters (`OPENING_CAP`), since sixteen
+rooms and a thirteen-entry closing clock did not fit 1,600. The mock's
+travel policy hunts the nearest unfound cache with half its party (the
+map view now says which rooms hold a cache and whether it was found),
+because without it the mock never left July's five rooms and the new
+ground went untested; the other half opens the gates as before. Under
+seed 7 that sends Sable past the Ironwood Guardian and she dies in
+round 2, which broke a contract test that assumed everyone survives
+three rounds; the test now checks the note round-trip for the rounds
+each character played.
+
+Tests (`tests/test_world.py`, 6): the counts and that every module reads
+the same drawing; the validator catches seven ways to break the map;
+the schedule seals from the outside in and leaves the last round
+connected; the state carries the whole map and the relic; by round 48
+everyone alive stands in a never-seal room and the deep rooms were
+walked; the opening names every room and monster inside the cap. Golden
+regenerated on purpose twice in this slice (the map, then the mock's
+hunting): 98 snapshots, 1,924 events, Vetch still wins. Suite 143 →
+**149**, 86 seconds.
+
+Not built: the cooperative objective sites (item 3's three), for which
+the Gallery's two braziers are drawn; seeded loot placement; talker
+starts. Item 5's scoring retune is still open and the world makes it
+more urgent: eight caches at +2 and five monsters at +1 a hit.
+
 ## 18 September 2026, 23:50Z — M3, slice C: deals, recorded and never enforced
 
 PRD §5 items 19–21 built: `agent-action-1.2`, `arena/deals.py`,

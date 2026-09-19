@@ -226,15 +226,20 @@ def compile_opening_prompt(facts: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+OPENING_CAP = 2_400  # characters; sixteen rooms and a closing clock need the room
+
+
 def opening_template(facts: dict[str, Any]) -> str:
     """The deterministic opening, from the facts alone: what the mock says,
     and what the referee substitutes when a narrator's opening fails its
-    check."""
+    check. Every room and every guardian by name; the descriptions are the
+    narrator's to use, not the template's."""
     eight = ", ".join(f"{a['name']}, {a['build']}" for a in facts.get("contestants", []))
-    rooms = " ".join(
-        f"{r['name']}. {r['description'].rstrip('.')}." + (f" Held by the {r['guardian']}." if r.get("guardian") else "")
+    room_list = "; ".join(
+        r["name"] + (f", held by the {r['guardian']}" if r.get("guardian") else "")
         for r in facts.get("rooms", [])
     )
+    rooms = f"{len(facts.get('rooms', []))} rooms: {room_list}."
     closes = "; ".join(f"{c['room']} at the end of round {c['round']}" for c in facts.get("closes", []))
     parts = [
         f"{len(facts.get('contestants', []))} rivals enter the Ember Vault: {eight}.",
@@ -244,7 +249,7 @@ def opening_template(facts: dict[str, Any]) -> str:
         parts.append(rule)
     if closes:
         parts.append(f"Rooms close on a clock: {closes}.")
-    return " ".join(parts)[:1_600]
+    return " ".join(parts)[:OPENING_CAP]
 
 
 def approximate_tokens(text: str) -> int:
@@ -344,14 +349,47 @@ class MockDecisionProvider:
             if room.get("has_seal") and not room.get("sealed")
         ]
         unlit = [room["id"] for room in gates if room.get("seal_status") == "inactive"]
+        # The bigger world (18 Sep 2026): caches lie beyond the gates. Half the
+        # party hunts the nearest unfound cache before it thinks of a seal, so
+        # the mock walks the whole map and its fights and finds reach the
+        # record; the other half opens the gates as July's mock did.
+        digest = int(hashlib.sha256(agent_id.encode()).hexdigest()[:8], 16)
+        hunts_first = digest % 4 >= 2
+        cache = MockDecisionProvider._nearest_unfound_cache(observation)
+        if hunts_first and cache:
+            return cache
         if not unlit:
-            return "vault"
+            return cache or "vault"
         # Deterministic split so a party of four to eight opens both gates.
-        preference = int(hashlib.sha256(agent_id.encode()).hexdigest()[:8], 16) % 2
+        preference = digest % 2
         ordered = sorted(unlit)
         if preference and len(ordered) > 1:
             ordered = list(reversed(ordered))
         return ordered[0]
+
+    @staticmethod
+    def _nearest_unfound_cache(observation: Mapping[str, Any]) -> str | None:
+        """The closest room, by hops over the observed map, whose cache nobody
+        has found; the current room if its own cache waits (search handles
+        it before travel does). None when every cache is found or cut off."""
+        rooms = {room["id"]: room for room in observation["map"]["rooms"]}
+        start = observation["room"]["id"]
+        wanted = {rid for rid, room in rooms.items() if room.get("has_cache") and room.get("cache_found") is False and not room.get("sealed")}
+        if not wanted:
+            return None
+        if start in wanted:
+            return start
+        frontier, seen, hops = [start], {start}, {start: 0}
+        while frontier:
+            current = frontier.pop(0)
+            for neighbor in sorted(rooms.get(current, {}).get("neighbors", [])):
+                if neighbor in seen:
+                    continue
+                seen.add(neighbor)
+                hops[neighbor] = hops[current] + 1
+                frontier.append(neighbor)
+        reachable = sorted((hops[rid], rid) for rid in wanted if rid in hops)
+        return reachable[0][1] if reachable else None
 
     @staticmethod
     def _step_toward(

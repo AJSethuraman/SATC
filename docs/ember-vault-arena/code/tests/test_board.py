@@ -282,7 +282,10 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
     def test_the_scene_is_set_from_the_record_and_nothing_else(self):
         scene = replay_board.build_scene(self.bundle, self.start)
         first = self.bundle["snapshots"][0]["state"]
-        self.assertEqual([r["name"] for r in scene["rooms"]], [first["rooms"][k]["name"] for k in ("threshold", "ironwood_gate", "ossuary_gate", "vault", "egress")])
+        # the scene keeps the registry's order (the Threshold first); a snapshot sorts its keys
+        self.assertEqual(sorted(r["name"] for r in scene["rooms"]), sorted(r["name"] for r in first["rooms"].values()))
+        self.assertEqual(scene["rooms"][0]["name"], first["rooms"]["threshold"]["name"])
+        self.assertEqual(len(scene["rooms"]), 16)
         for r in scene["rooms"]:
             self.assertEqual(r["desc"], first["rooms"][r["id"]]["description"])
         self.assertTrue(any(str(self.bundle["match"]["max_rounds"]) in t for t in scene["rules"]))

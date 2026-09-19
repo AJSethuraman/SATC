@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from arena import combat, items, rules, scoring
+from arena import combat, items, rules, scoring, world
 from arena.demo import load_manifests
 from arena.engine import ArenaEngine
 from arena.models import AgentAction
@@ -380,13 +380,14 @@ class GateTests(RulesetTestCase):
         """PRD §5.4: every scheduled seal falls inside act IV and before the last round."""
         rounds = [round_no for round_no, _ in rules.CONTRACTION_SCHEDULE]
         self.assertEqual(rounds, sorted(rounds))
-        self.assertEqual(len(set(rounds)), len(rounds))
         for round_no, room in rules.CONTRACTION_SCHEDULE:
             self.assertEqual(rules.act_for_round(round_no), rules.CONTRACTION_ACT, (round_no, room))
             self.assertLess(round_no, rules.DEFAULT_MAX_ROUNDS, (round_no, room))
             self.assertNotIn(room, (rules.VAULT_ROOM, rules.EGRESS_ROOM))
         self.assertEqual(rules.CONTRACTION_ACT, 4)
-        self.assertEqual(sorted(room for _, room in rules.CONTRACTION_SCHEDULE), sorted(set(rules.ROOM_ORDER) - {rules.VAULT_ROOM, rules.EGRESS_ROOM}))
+        sealed = {room for _, room in rules.CONTRACTION_SCHEDULE}
+        self.assertEqual(sorted(set(rules.ROOM_ORDER) - sealed), sorted(world.NEVER_SEALS))
+        self.assertEqual(len(sealed), len(rules.CONTRACTION_SCHEDULE))
         # and nothing seals in the first three acts
         for round_no in range(1, rules.ACT_III_LAST_ROUND + 1):
             self.assertIsNone(rules.sealing_room_for_round(round_no), round_no)
@@ -423,7 +424,7 @@ class ContractionTests(RulesetTestCase):
         self.assertIn("threshold", state["contraction"]["sealed"])
         self.assertEqual(state["contraction"]["contracting"], [])
         self.assertTrue(rules.is_sealed(state, "threshold"))
-        self.assertEqual(rules.open_neighbors(state, "ironwood_gate"), ["vault"])
+        self.assertEqual(rules.open_neighbors(state, "ironwood_gate"), sorted(set(state["rooms"]["ironwood_gate"]["neighbors"]) - {"threshold"}))
         self.assertEqual(state["floor_items"]["threshold"], [])
 
         forced = self.events(engine, "agent_force_moved")

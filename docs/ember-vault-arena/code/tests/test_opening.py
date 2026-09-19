@@ -15,7 +15,7 @@ from pathlib import Path
 
 from arena.demo import load_manifests
 from arena.engine import ArenaEngine
-from arena.providers import MockDecisionProvider, ProviderResult, compile_opening_prompt, opening_template
+from arena.providers import OPENING_CAP, MockDecisionProvider, ProviderResult, compile_opening_prompt, opening_template
 from arena.storage import ArenaStore
 
 
@@ -85,7 +85,7 @@ class OpeningTests(unittest.TestCase):
         store.close()
         self.assertIsNone(ArenaEngine.validate_opening(opening_template(facts), facts))
         self.assertEqual(ArenaEngine.validate_opening("", facts), "empty opening")
-        self.assertIn("1,600", ArenaEngine.validate_opening("x" * 1_601, facts))
+        self.assertIn(f"{OPENING_CAP:,}", ArenaEngine.validate_opening("x" * (OPENING_CAP + 1), facts))
         self.assertIn("secret aim", ArenaEngine.validate_opening("The Crown waits in The Threshold; Fen is a treasure hoarder.", facts))
         self.assertIn("Crown", ArenaEngine.validate_opening("The Threshold is wet.", facts))
         self.assertIn("room", ArenaEngine.validate_opening("The Crown waits.", facts))

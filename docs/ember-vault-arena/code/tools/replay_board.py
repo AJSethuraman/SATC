@@ -48,7 +48,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from arena import combat, grid, models, scoring  # noqa: E402
+from arena import combat, grid, models, scoring, world  # noqa: E402
 
 # Three numbers the engine keeps as literals rather than constants; read from
 # the source, cited here so the opening can state them without inventing them.
@@ -83,18 +83,12 @@ DEFAULT_DWELL = (1200, 0, 0)
 # egress door (3,0) under the egress door (1,1); the vault's gate doors (0,4)
 # and (6,4) above the gates' vault doors (2,0); the gates' threshold doors
 # (2,3) above the threshold's gate doors (0,1) and (4,1), joined by corridors.
-LAYOUT = {
-    "egress": (7.5, 0.0),
-    "vault": (5.5, 3.0),
-    "ironwood_gate": (3.5, 9.0),
-    "ossuary_gate": (9.5, 9.0),
-    "threshold": (6.5, 14.5),
-}
+LAYOUT = {rid: tuple(pos) for rid, pos in world.LAYOUT.items()}  # drawn with the map, in world.py
 TILE = 44
 MARGIN = 26
 
 TOKEN_COLOURS = ["#e0b48a", "#f0ede8", "#4fd1c5", "#ffd166", "#ff8fa3", "#c48cff", "#5fb3ff", "#b5e07a"]
-MONSTER_LABELS = {"ironwood_guardian": "IG", "ossuary_guardian": "OG", "crown_warden": "W"}
+MONSTER_LABELS = {"ironwood_guardian": "IG", "ossuary_guardian": "OG", "crown_warden": "W", "cellar_drowner": "CD", "charnel_hound": "CH"}
 
 
 def dwell_for(kind: str, text: str = "") -> int:
@@ -940,15 +934,15 @@ def _crown_path() -> str:
 
 def render_board_svg(geo: dict, start: dict) -> str:
     T = geo["tile"]
-    out = [f'<svg class="board" viewBox="0 0 {geo["width"]:.0f} {geo["height"]:.0f}" role="img" aria-label="The Ember Vault, five rooms, with every character and monster on its tile">',
+    out = [f'<svg class="board" viewBox="0 0 {geo["width"]:.0f} {geo["height"]:.0f}" role="img" aria-label="The Ember Vault, {len(geo["rooms"])} rooms, with every character and monster on its tile">',
            '<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
            '<rect width="6" height="6" fill="#2a211c"/><line x1="0" y1="0" x2="0" y2="6" stroke="#55443a" stroke-width="2"/></pattern></defs>']
     for c in geo["corridors"]:
         (ax, ay), (bx, by) = c["a"], c["b"]
         midy = (ay + by) / 2
         out.append(f'<path class="corridor" data-from="{c["from"]}" data-to="{c["to"]}" d="M{ax:.1f} {ay:.1f} V{midy:.1f} H{bx:.1f} V{by:.1f}"/>')
-    names = {"egress": "The Moonlit Egress", "vault": "The Ember Vault", "ironwood_gate": "The Ironwood Gate",
-             "ossuary_gate": "The Ossuary Gate", "threshold": "The Threshold"}
+    names = {rid: ((start.get("rooms") or {}).get(rid) or {}).get("name") or world.ROOMS.get(rid, {}).get("name", rid)
+             for rid in geo["rooms"]}
     for rid, r in geo["rooms"].items():
         x, y, w, h = r["x"], r["y"], r["w"], r["h"]
         out.append(f'<g class="room" data-room="{rid}">')

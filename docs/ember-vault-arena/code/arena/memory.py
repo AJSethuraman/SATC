@@ -41,7 +41,7 @@ MEMORY_PRIORITY: tuple[str, ...] = (
     "observed_elimination",
 )
 
-START_ROOM = "threshold"
+from .world import START_ROOM  # noqa: E402  (the map is drawn once, in world.py)
 
 # event_type -> family. classify_event turns a family plus the agent's relation
 # to the event into exactly one MEMORY_PRIORITY class.

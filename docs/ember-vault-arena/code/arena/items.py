@@ -75,6 +75,18 @@ _REGISTRY: dict[str, ItemDef] = {
         droppable=True,
         value=3,
     ),
+    "marrow_reliquary": ItemDef(
+        id="marrow_reliquary",
+        name="Marrow Reliquary",
+        effect=(
+            "Loot. Worth 10 to whoever carries it at the end; it does nothing "
+            "else. Can be dropped, taken and handed over."
+        ),
+        consumed_on_use=False,
+        usable=False,
+        droppable=True,
+        value=10,
+    ),
     "veteran_blade": ItemDef(
         id="veteran_blade",
         name="Veteran Blade",
