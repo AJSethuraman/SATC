@@ -5,6 +5,20 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 03:20Z — D13 ruled: the world as drawn stands
+
+The firm answered the docket at 01:06Z (the clock's time): D13, choice
+A, *"Keep it, run on it"*, no note; and in the session, "done". The
+sixteen-room Ember Vault of `arena/world.py` is now the firm's map, not
+the session's draft: its rooms, edges, names, monsters, caches, sites,
+schedule and layout stand as drawn until the firm says otherwise, and
+the next slices build on it. Nothing in the code changes; the
+registry's docstring already says every name is the firm's to change.
+Nothing else in the docket's store moved (D1, D5–D12 as recorded).
+
+The forge is still idle at this hour, three messages unread in it, so
+the one real match on the new rules still waits on the firm's machine.
+
 ## 19 September 2026, 03:05Z — the seed deals the loot; where things stand
 
 Item 2's last sentence built: the seed places loot within its declared
