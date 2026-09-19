@@ -37,7 +37,7 @@ def test_a_different_run_date_changes_only_provenance_and_header_bands(effect_pa
     assert diffs, "the run date did not reach the workbook"
     for name, coord, va, vb in diffs:
         assert "2026-09-18" in str(va) and "2026-09-19" in str(vb), (name, coord, va, vb)
-        assert name in ("Cover", "3_Gradient", "_provenance"), (name, coord)
+        assert name in ("Cover", "1_Capture", "2_Prevalence", "3_Gradient", "_provenance"), (name, coord)   # header bands carry the run date
     with zipfile.ZipFile(io.BytesIO(other)) as z:
         core = z.read("docProps/core.xml").decode()
         assert "2026-09-19T00:00:00Z" in core

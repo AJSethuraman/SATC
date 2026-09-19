@@ -46,6 +46,23 @@ notes:
   bands_table: >-
     Where the measure sits, by bucket: the share of each bucket's loans in each band of the measure at the
     as-of date, with the counts beside them.
+  capture: >-
+    Step 1, capture. Before a field is trended it has to exist. For every origination quarter: loans
+    originated, how many are still younger than the {window_months}-month window at the as-of date, how
+    many carry a blank in {field_a}, how many in {field_b}, and how many carry both. Blank is a state, not
+    dirt: a quarter where a field was rarely captured is a finding about the field, and any trend in that
+    quarter is a trend in capture, not in behaviour. Values the pack will not accept never reach this tab;
+    the build refuses on them and lists the loans.
+  capture_bands: >-
+    Bands by scheme: how many seasoned loans land in each band of each confounder, so an empty band is
+    visible before step 4 stratifies on it.
+  prevalence: >-
+    Step 2, prevalence. Two series by origination quarter, on seasoned loans only, never merged: the
+    capture rate is the share of seasoned loans with both {field_a} and {field_b} present; the flag rate is
+    the share of those with both present where {fires_text}. Each carries a {confidence:.0%} {method}
+    interval. The span runs from {first_quarter} to {last_quarter}: a change in the flag rate across those
+    years is not on its own a read of underwriting drift, because the years a span covers can move either
+    field for reasons of their own.
   gradient: >-
     Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
     fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this

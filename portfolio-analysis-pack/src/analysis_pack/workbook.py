@@ -113,13 +113,15 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     wb = b.wb
     cover = wb.active
     cover.title = "Cover"
+    cap = wb.create_sheet("1_Capture")
+    prev = wb.create_sheet("2_Prevalence")
     grad = wb.create_sheet("3_Gradient")
     cube = wb.create_sheet("_cube")
     conf = wb.create_sheet("_config")
     meth = wb.create_sheet("_method")
     check = wb.create_sheet("_check")
     prov = wb.create_sheet("_provenance")
-    for ws in (cover, grad, cube, conf, meth, check, prov):
+    for ws in (cover, cap, prev, grad, cube, conf, meth, check, prov):
         ks.hide_gridlines(ws)
     first_facts = data.per_outcome[0][0]
 
@@ -173,6 +175,19 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         cube.cell(crow, 3, r.n); cube.cell(crow, 4, r.events)
         addr[r.block] = (f"_cube!$C${crow}", f"_cube!$D${crow}")
         crow += 1
+    for cr in data.capture:
+        put_cube(ladder.CubeRow(f"s1.{cr.quarter}.loans", f"{cr.quarter} loans", cr.loans, 0))
+        put_cube(ladder.CubeRow(f"s1.{cr.quarter}.unseasoned", f"{cr.quarter} unseasoned", cr.unseasoned, 0))
+        put_cube(ladder.CubeRow(f"s1.{cr.quarter}.a_blank", f"{cr.quarter} {cfg.rule.field_a} blank", cr.a_blank, 0))
+        put_cube(ladder.CubeRow(f"s1.{cr.quarter}.b_blank", f"{cr.quarter} {cfg.rule.field_b} blank", cr.b_blank, 0))
+        put_cube(ladder.CubeRow(f"s1.{cr.quarter}.both", f"{cr.quarter} both present", cr.both, 0))
+    for bc in data.band_counts:
+        for i, (lab, n) in enumerate(zip(bc.labels, bc.counts)):
+            put_cube(ladder.CubeRow(f"s1.band.{bc.confounder}.{bc.scheme}.{i}", f"{bc.confounder} {bc.scheme} {lab}", n, 0))
+        put_cube(ladder.CubeRow(f"s1.band.{bc.confounder}.{bc.scheme}.blank", f"{bc.confounder} {bc.scheme} (blank)", bc.blank, 0))
+    for pr in data.prevalence:
+        put_cube(pr.capture)
+        put_cube(pr.flag)
     for facts, g in data.per_outcome:
         for gr in g.rows:
             put_cube(gr.cube)
@@ -183,6 +198,77 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                 put_cube(ladder.CubeRow(f"s3.bands.bucket{i}.band{j}", f"{lab} | {data.bands.band_labels[j]}", c, 0))
     for q, n in data.unseasoned_by_quarter.items():
         put_cube(ladder.CubeRow(f"unseasoned.{q}", q, n, 0))
+
+    # -- 1_Capture -------------------------------------------------------------
+    ncols = 9
+    for col, wdt in zip("ABCDEFGHI", (22, 16, 12, 16, 9, 16, 9, 14, 9)):
+        cap.column_dimensions[col].width = wdt
+    row = _header_band(cap, ncols, "Step 1 — Capture", cfg, table, first_facts, run_date)
+    cap_note = notes.fill("notes.capture", window_months=cfg.window_months, field_a=cfg.rule.field_a,
+                          field_b=cfg.rule.field_b)
+    row = _note(cap, row, cap_note, ncols)
+    row += 1
+    hdr = row
+    ks.header_row(cap, hdr, ["Quarter", "Loans", "Unseasoned", f"{cfg.rule.field_a} blank", "share",
+                             f"{cfg.rule.field_b} blank", "share", "Both present", "share"], right_from=1)
+    for i, cr in enumerate(data.capture):
+        r = hdr + 1 + i
+        cap.cell(r, 1, cr.quarter)
+        b.formula(cap, f"B{r}", f"={addr[f's1.{cr.quarter}.loans'][0]}", cr.loans, TOL_COUNT, fmt="#,##0")
+        b.formula(cap, f"C{r}", f"={addr[f's1.{cr.quarter}.unseasoned'][0]}", cr.unseasoned, TOL_COUNT, fmt="#,##0")
+        b.formula(cap, f"D{r}", f"={addr[f's1.{cr.quarter}.a_blank'][0]}", cr.a_blank, TOL_COUNT, fmt="#,##0")
+        b.formula(cap, f"E{r}", f'=IF(B{r}=0,"",D{r}/B{r})', cr.a_blank_share, fmt="0.0%")
+        b.formula(cap, f"F{r}", f"={addr[f's1.{cr.quarter}.b_blank'][0]}", cr.b_blank, TOL_COUNT, fmt="#,##0")
+        b.formula(cap, f"G{r}", f'=IF(B{r}=0,"",F{r}/B{r})', cr.b_blank_share, fmt="0.0%")
+        b.formula(cap, f"H{r}", f"={addr[f's1.{cr.quarter}.both'][0]}", cr.both, TOL_COUNT, fmt="#,##0")
+        b.formula(cap, f"I{r}", f'=IF(B{r}=0,"",H{r}/B{r})', cr.both_share, fmt="0.0%")
+    ks.freeze_below(cap, hdr)
+    row = hdr + 1 + len(data.capture) + 1
+    if data.band_counts:
+        row = ks.section_band(cap, row, "Bands by scheme (seasoned loans)", ncols)
+        row = _note(cap, row, notes.fill("notes.capture_bands"), ncols)
+        for bc in data.band_counts:
+            cap.cell(row, 1, f"{bc.confounder} · {bc.scheme}").font = BOLD
+            row += 1
+            ks.header_row(cap, row, ["Band", "Seasoned loans"], right_from=1)
+            row += 1
+            for i, lab in enumerate(bc.labels):
+                cap.cell(row, 1, lab)
+                b.formula(cap, f"B{row}", f"={addr[f's1.band.{bc.confounder}.{bc.scheme}.{i}'][0]}", bc.counts[i], TOL_COUNT, fmt="#,##0")
+                row += 1
+            cap.cell(row, 1, "(blank)")
+            b.formula(cap, f"B{row}", f"={addr[f's1.band.{bc.confounder}.{bc.scheme}.blank'][0]}", bc.blank, TOL_COUNT, fmt="#,##0")
+            row += 2
+
+    # -- 2_Prevalence ------------------------------------------------------------
+    ncols = 10
+    for col, wdt in zip("ABCDEFGHIJ", (10, 14, 12, 12, 9, 9, 10, 10, 9, 9)):
+        prev.column_dimensions[col].width = wdt
+    row = _header_band(prev, ncols, "Step 2 — Prevalence", cfg, table, first_facts, run_date)
+    quarters = [pr.quarter for pr in data.prevalence]
+    prev_note = notes.fill("notes.prevalence", field_a=cfg.rule.field_a, field_b=cfg.rule.field_b,
+                           fires_text=_fires_text(cfg), confidence=cfg.confidence, method=cfg.method,
+                           first_quarter=quarters[0] if quarters else "—", last_quarter=quarters[-1] if quarters else "—")
+    row = _note(prev, row, prev_note, ncols)
+    row += 1
+    hdr = row
+    ks.header_row(prev, hdr, ["Quarter", "Seasoned loans", "Both present", "Capture rate", "Lower", "Upper",
+                              "Flagged", "Flag rate", "Lower", "Upper"], right_from=1)
+    for i, pr in enumerate(data.prevalence):
+        r = hdr + 1 + i
+        cn, cx = addr[pr.capture.block]
+        fn, fx = addr[pr.flag.block]
+        prev.cell(r, 1, pr.quarter)
+        b.formula(prev, f"B{r}", f"={cn}", pr.capture.n, TOL_COUNT, fmt="#,##0")
+        b.formula(prev, f"C{r}", f"={cx}", pr.capture.events, TOL_COUNT, fmt="#,##0")
+        b.formula(prev, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', pr.capture_rate, fmt="0.0%")
+        b.formula(prev, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), pr.capture_lo, TOL_INTERVAL, fmt="0.0%")
+        b.formula(prev, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), pr.capture_hi, TOL_INTERVAL, fmt="0.0%")
+        b.formula(prev, f"G{r}", f"={fx}", pr.flag.events, TOL_COUNT, fmt="#,##0")
+        b.formula(prev, f"H{r}", f'=IF({fn}=0,"",G{r}/{fn})', pr.flag_rate, fmt="0.0%")
+        b.formula(prev, f"I{r}", interval_formula("lo", fn, f"G{r}"), pr.flag_lo, TOL_INTERVAL, fmt="0.0%")
+        b.formula(prev, f"J{r}", interval_formula("hi", fn, f"G{r}"), pr.flag_hi, TOL_INTERVAL, fmt="0.0%")
+    ks.freeze_below(prev, hdr)
 
     # -- 3_Gradient: one block per outcome ------------------------------------
     ncols = 10
@@ -315,6 +401,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                    window_months=cfg.window_months, seasoned=data.seasoned, unseasoned=data.unseasoned),
         notes.fill("notes.dates", date_text=date_text),
         _outcome_note(cfg),
+        cap_note,
+        prev_note,
         grad_note,
         notes.fill("notes.check"),
     ):

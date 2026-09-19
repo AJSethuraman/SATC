@@ -105,9 +105,16 @@ def bucket_index(value: float, edges: tuple[float, ...]) -> int:
     return i
 
 
+def fmt_edge(x: float) -> str:
+    """An edge as a person would write it: 150,000 not 1.5e+05; 0.5 stays 0.5."""
+    if float(x).is_integer():
+        return f"{int(x):,}"
+    return f"{x:g}"
+
+
 def bucket_labels(edges: tuple[float, ...]) -> list[str]:
     def fmt(x: float) -> str:
-        return f"{x:g}"
+        return fmt_edge(x)
     labels = [f"< {fmt(edges[0])}"]
     for i in range(len(edges) - 1):
         labels.append(f"{fmt(edges[i])} – {fmt(edges[i + 1])}")
@@ -139,6 +146,7 @@ class Loan:
     bucket: int | None
     events: dict[str, bool]      # outcome key -> event
     measure: float | None = None # the snapshot measure at as-of, when that form is used
+    values: dict[str, Any] = field(default_factory=dict)   # confounder/control field -> float | str | None
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -234,6 +242,10 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
         date_parsed[col] = n
 
     plausible_fields = {name: f.plausible for name, f in cfg.fields.items() if f.plausible is not None}
+    numeric_fields = set(c.field for c in cfg.confounders if c.schemes)
+    numeric_fields |= set(c.field for c in cfg.controls if c.field and c.as_ in ("log", "linear", "bands"))
+    text_fields = set(c.field for c in cfg.confounders if not c.schemes)
+    text_fields |= set(c.field for c in cfg.controls if c.field and c.as_ == "categorical")
     range_checked = {name: (f.plausible is not None) for name, f in cfg.fields.items()}
 
     for r in kept_rows:
@@ -271,6 +283,17 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
                 bad = True
             elif v is not BLANK and v <= 0.0:
                 dirt.append((lid, col, v, "zero or negative in a rule field")); bad = True
+        values: dict[str, Any] = {}
+        for col in numeric_fields:
+            v = parse_number(r.get(col))
+            if isinstance(v, Bad):
+                if col not in plausible_fields:
+                    dirt.append((lid, col, v.value, v.reason))
+                bad = True
+            else:
+                values[col] = None if v is BLANK else v
+        for col in text_fields:
+            values[col] = None if is_blank(r.get(col)) else cell_text(r.get(col))
         if bad:
             continue
         rule_value: float | None = None
@@ -330,7 +353,7 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
                 events[od.key] = measure is not None and compare(od.op, measure, od.value)
         loans.append(Loan(loan_id=lid, origination=orig, quarter=quarter_label(orig), year=orig.year,
                           months_on_book=mob, seasoned=seasoned, a=a, b=b, rule_value=rule_value,
-                          fires=fires, bucket=bucket, events=events, measure=measure, raw=r))
+                          fires=fires, bucket=bucket, events=events, measure=measure, values=values, raw=r))
     if dirt:
         raise PopulationError(dirt)
     loans.sort(key=lambda l: l.loan_id)
