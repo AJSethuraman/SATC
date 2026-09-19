@@ -61,6 +61,17 @@ a date-like column which pattern its values fit:
 pack inspect extract.csv
 ```
 
+A column of all-digit values such as `20210315` is listed as an integer with
+a note that it also reads as a date, because the build will read it as one
+if the question file names it as a date column.
+
+To see which question files under a folder would be accepted, and why not
+when one is refused:
+
+```
+pack list configs
+```
+
 Ask for band cut points before writing them. `suggest` proposes equal-count
 bands by loans, equal-count by events, and round numbers, each with the
 loans and events it would give per band and a `thin` mark where a band holds
@@ -176,6 +187,12 @@ counted; with no `other` label the build refuses and lists the values.
 `configs/examples/stated_vs_bureau_income_auto.yaml` uses a file-backed map
 for regions.
 
+A loan with no value in a grouping column is never dropped from a step. It
+sits in a level called `(blank)`, always last, on the stratified and
+decomposition tabs, and the capture tab counts it. That way every block's
+"whole population" figure is the whole population, and a reader can see how
+many loans had no value rather than wonder.
+
 ## The question file
 
 Every slot names a column in the extract as it comes out of the bank's
@@ -230,6 +247,15 @@ leakage refusal, the flag's side of the line, the `_xlfn.` prefix, the check
 tab's tolerance, the decomposition sort) and name the tests that must go
 red. The file is restored byte for byte afterwards. CI runs it on every pull
 request; a mutation that survives fails the run.
+
+Then the pass that mutation cannot make: a second model was handed the built
+pack with one job, break it, and could write only tests. It tried 35 things
+and 16 went red. Fifteen were real and are fixed; the sixteenth was a matter
+of judgement and its expectation was restated. All sixteen are in
+`tests/test_adversarial.py`, each with the story of what it found, and
+`../BACKLOG.md` section 6c lists the 19 it tried that held. The pattern is
+the canon skill `adversarial`; run it again whenever the suite has grown
+confident.
 
 ## What it is not
 

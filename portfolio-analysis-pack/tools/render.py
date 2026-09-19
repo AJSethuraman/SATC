@@ -6,7 +6,7 @@
 Writes PACK.pdf (to look at), one PNG per page under pages/ so the charts
 can be read as images, and PACK.html (every sheet as text), and scans
 the HTML for the error strings Excel shows when a formula did not evaluate:
-#NAME?, #DIV/0!, #VALUE!, #REF!, #N/A. Prints the count of each and exits 2
+#NAME?, #DIV/0!, #VALUE!, #REF!, #N/A, #NUM!, #NULL!. Prints the count of each and exits 2
 when any is present, 1 when LibreOffice is missing or fails.
 
 Needs `libreoffice-calc` installed: the bare `soffice` reports "source file
@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ERRORS = ("#NAME?", "#DIV/0!", "#VALUE!", "#REF!", "#N/A", "#NUM!")
+ERRORS = ("#NAME?", "#DIV/0!", "#VALUE!", "#REF!", "#N/A", "#NUM!", "#NULL!")
 
 
 def render(pack: Path, out_dir: Path) -> dict:

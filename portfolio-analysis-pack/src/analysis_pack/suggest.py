@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from .ingest import Bad, is_blank, parse_number
 from .population import Population, bucket_index, bucket_labels, fmt_edge
 
 THIN_EVENTS = 10
@@ -88,9 +89,19 @@ def _counts(pairs: list[tuple[float, int]], edges: tuple[float, ...]) -> tuple[l
 
 def suggest(pop: Population, field: str, outcome_key: str | None = None) -> Suggestion:
     od = pop.outcomes[0] if outcome_key is None else next(o for o in pop.outcomes if o.key == outcome_key)
-    pairs = [(l.values[field], int(l.events.get(od.key, False)))
-             for l in pop.seasoned if l.values.get(field) is not None]
+
+    def numeric(l) -> float | None:
+        # a confounder or control was typed when the population was built; any
+        # other column (the rule's own fields, say) is read from the raw row on
+        # demand (PRD §6.6 "--field COL on demand"; adversarial finding 13)
+        v = l.values.get(field) if field in l.values else parse_number(l.raw.get(field))
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    pairs = [(v, int(l.events.get(od.key, False))) for l in pop.seasoned for v in (numeric(l),) if v is not None]
     if not pairs:
+        text_values = sum(1 for l in pop.seasoned if not is_blank(l.raw.get(field)))
+        if text_values:
+            raise ValueError(f"`{field}` is not a numeric column; band cut points need numbers (adversarial finding 14)")
         raise ValueError(f"no seasoned loan carries a numeric value in `{field}`")
     pairs.sort(key=lambda t: t[0])
     vals = [v for v, _ in pairs]
