@@ -190,13 +190,24 @@ def cmd_build(a: argparse.Namespace) -> int:
     import hashlib
     digest = hashlib.sha256(blob).hexdigest()
     _say(f"wrote {out} ({len(blob):,} bytes, sha256 {digest[:16]}…)")
-    _say(f"  read {t1 - t0:.1f}s · population {t2 - t1:.1f}s · workbook {t3 - t2:.1f}s")
+    model_s = sum(m.seconds for m in data.models)
+    _say(f"  read {t1 - t0:.1f}s · population {t2 - t1:.1f}s · models {model_s:.1f}s · workbook {t3 - t2 - model_s:.1f}s")
     for facts, g in data.per_outcome:
         _say(f"  {facts.seasoned:,} seasoned loans, {facts.events:,} events ({g.outcome.label}), "
              f"{facts.unseasoned:,} unseasoned excluded; gradient reads: {g.word}")
         for st in data.strata:
             if st.outcome.key == g.outcome.key:
                 _say(f"    step 4 {st.confounder} ({st.scheme}): {st.word}")
+        for mr in data.models:
+            if mr.outcome.key == g.outcome.key:
+                for fit in (mr.m1, mr.m2):
+                    fl = fit.flag()
+                    if fit.estimable and fl:
+                        _say(f"    step 6 {fit.label}: flag odds ratio {fl.odds_ratio:.2f} [{fl.lo:.2f}, {fl.hi:.2f}], "
+                             f"{fit.events:,} events, {fit.coefficients} coefficients, EPP {fit.epp:.1f}"
+                             + ("  THIN" if fit.warning else ""))
+                    else:
+                        _say(f"    step 6 {fit.label}: {fit.reason}")
     _say(f"  formula check: not run here (no engine); Excel verifies on open — {len(checks)} checks written to _check")
     _emit({"ok": True, "out": str(out), "sha256": digest, "seasoned": data.seasoned, "unseasoned": data.unseasoned,
            "outcomes": [{"label": g.outcome.label, "events": facts.events, "gradient": g.word,
@@ -205,6 +216,15 @@ def cmd_build(a: argparse.Namespace) -> int:
                         for facts, g in data.per_outcome],
            "gradient": data.per_outcome[0][1].word, "events": data.per_outcome[0][0].events,
            "date_formats": pop.date_formats,
+           "models": [{"outcome": mr.outcome.label,
+                       "m1": ({"flag_or": mr.m1.flag().odds_ratio, "lo": mr.m1.flag().lo, "hi": mr.m1.flag().hi,
+                               "epp": mr.m1.epp, "warning": mr.m1.warning} if mr.m1.estimable and mr.m1.flag()
+                              else {"reason": mr.m1.reason, "implicated": mr.m1.implicated}),
+                       "m2": ({"flag_or": mr.m2.flag().odds_ratio, "lo": mr.m2.flag().lo, "hi": mr.m2.flag().hi,
+                               "epp": mr.m2.epp, "warning": mr.m2.warning} if mr.m2.estimable and mr.m2.flag()
+                              else {"reason": mr.m2.reason, "implicated": mr.m2.implicated}),
+                       "tree_first_split": mr.tree.first_split, "seconds": round(mr.seconds, 2)}
+                      for mr in data.models],
            "checks_written": len(checks), "formula_check": "not run here",
            "seconds": {"read": round(t1 - t0, 2), "population": round(t2 - t1, 2), "workbook": round(t3 - t2, 2)}})
     return 0

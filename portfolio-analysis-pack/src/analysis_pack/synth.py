@@ -70,7 +70,10 @@ def generate(out_dir: str | Path, *, seed: int = 20260918, loans: int = 40000,
         if mode == "effect":
             mult = effect ** math.log2(max(ratio, 1e-9))
         elif mode == "confounded":
-            mult = (400_000.0 / max(b, 1.0)) ** 0.9
+            # a step over the size bands the generated config declares, so stratifying on
+            # those bands removes the effect entirely: what remains within a band is noise
+            band = sum(1 for e in (100_000.0, 200_000.0, 400_000.0, 800_000.0, 1_600_000.0) if b >= e)
+            mult = (12.0, 5.0, 2.0, 1.0, 0.5, 0.25)[band]
         else:
             mult = 1.0
         odds = base_rate / (1.0 - base_rate) * mult

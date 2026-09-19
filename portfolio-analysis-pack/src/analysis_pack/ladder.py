@@ -114,6 +114,7 @@ class PackData:
     strata: list = field(default_factory=list)          # list[Stratified], every outcome x confounder x scheme
     decompositions: list = field(default_factory=list)  # list[Decomposition], every outcome x dimension
     control: object = None                              # ControlObservation, for a contradiction rule
+    models: list = field(default_factory=list)          # list[ModelResult], one per outcome
 
 
 def _twin_rate(n: int, x: int) -> float | None:
@@ -290,10 +291,11 @@ def run(cfg: Config, pop: Population) -> PackData:
         fires = sum(1 for l in both if l.fires)
         control = ControlObservation(CubeRow("s7.both", "seasoned loans with both fields", len(both), fires))
         control.share = _twin_rate(len(both), fires)
+    fits = [models(cfg, pop, od) for od in pop.outcomes]
     return PackData(seasoned=len(seasoned), unseasoned=len(pop.unseasoned), per_outcome=per,
                     unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop),
                     capture=capture(cfg, pop), band_counts=band_counts(cfg, pop), prevalence=prevalence(cfg, pop),
-                    strata=strata, decompositions=decomps, control=control)
+                    strata=strata, decompositions=decomps, control=control, models=fits)
 
 
 # --------------------------------------------------------------------------
@@ -522,3 +524,138 @@ def decomposition(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Dec
 class ControlObservation:
     both: CubeRow                       # n = seasoned loans with both fields, events = rule fires
     share: float | None = None
+
+
+# --------------------------------------------------------------------------
+# Step 6 — the model: design matrices from the question file, then the fits
+# --------------------------------------------------------------------------
+
+from . import model as _model   # noqa: E402  (kept near its use)
+
+
+@dataclass
+class ModelResult:
+    outcome: OutcomeDef
+    m1: _model.Fit
+    m2: _model.Fit
+    tree: _model.TreeResult
+    used: int                         # loans in the design (seasoned, both fields, every predictor present)
+    excluded_blank: int               # seasoned loans with both fields but a blank predictor
+    skipped: list[str]                # confounders skipped because their field is already a control
+    seconds: float = 0.0
+
+
+def _reference(levels: dict[str, int]) -> str:
+    return sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
+def _design(cfg: Config, loans: list[Loan], outcome: OutcomeDef, with_confounders: bool):
+    """Column names, rows (with a leading 1.0), y, reference levels, skipped."""
+    names: list[str] = ["flag"]
+    columns: list = [lambda l: 1.0 if l.fires else 0.0]
+    references: dict[str, str] = {}
+    skipped: list[str] = []
+    control_fields = {c.field for c in cfg.controls if c.field}
+
+    def add_categorical(name: str, key):
+        levels: dict[str, int] = {}
+        for l in loans:
+            v = key(l)
+            levels[v] = levels.get(v, 0) + 1
+        ref = _reference(levels)
+        references[name] = ref
+        for lev, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0])):
+            if lev == ref:
+                continue
+            names.append(f"{name}={lev}")
+            columns.append(lambda l, k=key, lv=lev: 1.0 if k(l) == lv else 0.0)
+
+    for c in cfg.controls:
+        if c.derived == "origination_year":
+            add_categorical(c.name, lambda l: str(l.year))
+        elif c.as_ == "log":
+            names.append(f"{c.name} (log)")
+            columns.append(lambda l, f=c.field: stats.math.log(l.values[f]))
+        elif c.as_ == "linear":
+            names.append(c.name)
+            columns.append(lambda l, f=c.field: float(l.values[f]))
+        elif c.as_ == "bands":
+            labels = bucket_labels(c.edges)
+            add_categorical(c.name, lambda l, f=c.field, e=c.edges, lab=labels: lab[bucket_index(l.values[f], e)])
+        else:
+            add_categorical(c.name, lambda l, f=c.field: str(l.values[f]))
+    if with_confounders:
+        for conf in cfg.confounders:
+            if conf.field in control_fields:
+                skipped.append(f"{conf.name} (its field {conf.field} is already a control)")
+                continue
+            if conf.schemes:
+                sname, edges = next(iter(conf.schemes.items()))
+                labels = bucket_labels(edges)
+                add_categorical(conf.name, lambda l, f=conf.field, e=edges, lab=labels: lab[bucket_index(l.values[f], e)])
+            else:
+                add_categorical(conf.name, lambda l, f=conf.field: str(l.values[f]))
+    rows = [[1.0] + [col(l) for col in columns] for l in loans]
+    y = [int(l.events.get(outcome.key, False)) for l in loans]
+    return names, rows, y, references, skipped
+
+
+def models(cfg: Config, pop: Population, outcome: OutcomeDef) -> ModelResult:
+    import time
+    t0 = time.perf_counter()
+    needed = [c.field for c in cfg.controls if c.field] + [c.field for c in cfg.confounders]
+    both = [l for l in pop.seasoned if l.rule_value is not None]
+    loans = [l for l in both if all(l.values.get(f) is not None for f in needed)]
+    excluded = len(both) - len(loans)
+    z = stats.z_for_confidence(cfg.confidence)
+    if not loans:
+        empty = _model.Fit(label="M1", terms=[], intercept=0.0, loans=0, events=0, coefficients=0, epp=None,
+                           warning=None, estimable=False, reason="not estimable (no seasoned loans with every predictor present)")
+        empty2 = _model.Fit(**{**empty.__dict__, "label": "M2"})
+        return ModelResult(outcome=outcome, m1=empty, m2=empty2,
+                           tree=_model.TreeResult(leaves=[], overall_rate=None, first_split=None, loans=0, events=0),
+                           used=0, excluded_blank=excluded, skipped=[], seconds=time.perf_counter() - t0)
+    n1, x1, y, ref1, _ = _design(cfg, loans, outcome, False)
+    m1 = _model.fit_logistic(x1, y, n1, "M1", z)
+    m1.references = ref1
+    n2, x2, _, ref2, skipped = _design(cfg, loans, outcome, True)
+    m2 = _model.fit_logistic(x2, y, n2, "M2", z)
+    m2.references = ref2
+    m2.skipped = skipped
+    # the tree: the rule value plus every M2 predictor in its raw form
+    features: list[tuple[str, str, list[str] | None]] = [("rule value", "numeric", None)]
+    trows: list[dict] = []
+    cat_levels: dict[str, dict[str, int]] = {}
+    specs = []
+    for c in cfg.controls:
+        if c.derived == "origination_year":
+            specs.append((c.name, "categorical", lambda l: str(l.year)))
+        elif c.as_ in ("log", "linear", "bands"):
+            specs.append((c.name, "numeric", lambda l, f=c.field: float(l.values[f])))
+        else:
+            specs.append((c.name, "categorical", lambda l, f=c.field: str(l.values[f])))
+    for conf in cfg.confounders:
+        if conf.field in {c.field for c in cfg.controls if c.field}:
+            continue
+        if conf.schemes:
+            specs.append((conf.name, "numeric", lambda l, f=conf.field: float(l.values[f])))
+        else:
+            specs.append((conf.name, "categorical", lambda l, f=conf.field: str(l.values[f])))
+    for l in loans:
+        row = {"rule value": float(l.rule_value)}
+        for name, kind, key in specs:
+            v = key(l)
+            row[name] = v
+            if kind == "categorical":
+                cat_levels.setdefault(name, {})[v] = cat_levels.setdefault(name, {}).get(v, 0) + 1
+        trows.append(row)
+    for name, kind, _ in specs:
+        if kind == "numeric":
+            features.append((name, "numeric", None))
+        else:
+            levels = [k for k, _ in sorted(cat_levels.get(name, {}).items(), key=lambda kv: (-kv[1], kv[0]))]
+            features.append((name, "categorical", levels))
+    tree = _model.grow_tree(trows, y, features, cfg.model["tree_depth"], cfg.model["min_leaf_loans"],
+                            cfg.model["min_leaf_events"])
+    return ModelResult(outcome=outcome, m1=m1, m2=m2, tree=tree, used=len(loans), excluded_blank=excluded,
+                       skipped=skipped, seconds=time.perf_counter() - t0)

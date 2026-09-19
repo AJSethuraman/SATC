@@ -92,6 +92,7 @@ class Control:
     field: str | None = None
     derived: str | None = None
     as_: str = "categorical"           # log | linear | categorical | bands
+    edges: tuple[float, ...] = ()      # for as: bands
 
 
 @dataclass(frozen=True)
@@ -322,8 +323,14 @@ def load_config(path: str | Path) -> Config:
         if not isinstance(c, dict) or "name" not in c or ("field" not in c and "derived" not in c):
             problems.append("each control needs `name` and either `field` or `derived`")
             continue
+        as_ = str(c.get("as", "categorical"))
+        if as_ not in ("log", "linear", "categorical", "bands"):
+            problems.append(f"control `{c['name']}`: `as` must be log, linear, categorical or bands")
+        edges_c = tuple(float(x) for x in (c.get("edges") or []))
+        if as_ == "bands" and not edges_c:
+            problems.append(f"control `{c['name']}`: `as: bands` needs `edges: [...]`")
         controls.append(Control(name=str(c["name"]), field=c.get("field"), derived=c.get("derived"),
-                                as_=str(c.get("as", "categorical"))))
+                                as_=as_, edges=edges_c))
     decompose_by = tuple(str(x) for x in (raw.get("decompose_by") or []))
 
     edges = rule.buckets
