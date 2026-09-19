@@ -23,6 +23,24 @@ forge pushes under `runs/` and `code/gate/`. Newest instruction first.
 - After your pushes, end your turn. The cloud polls the branch hourly and
   reads every file under `runs/`.
 
+## 19 September 2026, 02:00Z — second amendment: the talkers are seated
+
+M3 is built on the branch as of `4b228bc2` (suite 170). Pull that or later.
+The match command gains the three house talkers, so the first real match on
+the new rules seats eleven:
+
+```
+python run.py demo --provider agent_sdk --brains brains/house --talkers brains/talkers --seed 8 --rounds 48
+```
+
+Up to 528 calls instead of 384; expect about eighty minutes. Everything else
+in the order stands: `ANTHROPIC_API_KEY` unset, the subscription route, then
+`ledger`, the replay bundle to `../runs/<match id>.replay.json`, and the
+`runs/` report naming the commit, the ruleset version (expect
+`ember-vault-0.5`) and the test count. No code edits, no rebase, no
+force-push. Sent down the channel at 02:00Z; the forge had not started the
+first order at that hour.
+
 ## 18 September 2026, 23:25Z — amendment to the order below: any head past b1fc126e is fine
 
 Sent through the channel when the firm woke the smoke tester. The count
