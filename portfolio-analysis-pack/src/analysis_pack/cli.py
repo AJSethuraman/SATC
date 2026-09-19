@@ -5,6 +5,7 @@
     pack validate CONFIG --data DATA [--asof D] [--sheet NAME]
     pack suggest  CONFIG --data DATA --asof D [--field COL] [--sheet NAME]
     pack build    CONFIG --data DATA --asof D [--run-date D] [-o OUT.xlsx] [--sheet NAME]
+    pack bundle   CONFIG [-o build_pack.py]
 
 Exit codes: 0 OK · 1 error · 2 refused (the question file or the data).
 The clock is never read: the as-of date is required and the run date
@@ -230,6 +231,23 @@ def cmd_build(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bundle(a: argparse.Namespace) -> int:
+    from .bundle import make_bundle
+    try:
+        load_config(a.config)
+    except ConfigError as exc:
+        _say("the question file was refused, so it was not bundled:")
+        for p in exc.problems:
+            _say("  - " + p.replace("\n", "\n    "))
+        _emit({"ok": False, "refused": "config", "problems": exc.problems})
+        return 2
+    out = make_bundle(a.config, a.out)
+    size = out.stat().st_size
+    _say(f"wrote {out} ({size:,} bytes, pure ASCII). On the target: python {out.name} --data EXTRACT --asof YYYY-MM-DD")
+    _emit({"ok": True, "out": str(out), "bytes": size})
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="pack", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"pack {__version__}")
@@ -262,6 +280,10 @@ def main(argv: list[str] | None = None) -> int:
     bld.add_argument("config"); bld.add_argument("--data", required=True); bld.add_argument("--asof", required=True)
     bld.add_argument("--run-date"); bld.add_argument("-o", "--out"); bld.add_argument("--sheet")
     bld.set_defaults(fn=cmd_build)
+
+    bu = sub.add_parser("bundle", help="write one pure-ASCII script that rebuilds the pack on a machine with only openpyxl and PyYAML")
+    bu.add_argument("config"); bu.add_argument("-o", "--out")
+    bu.set_defaults(fn=cmd_bundle)
 
     a = p.parse_args(argv)
     try:

@@ -21,12 +21,12 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slices 1 to 7 of 9 built: the tracer bullet; inspect, the
+**Status:** slices 1 to 8 of 9 built: the tracer bullet; inspect, the
 refusals, detected dates, the filter and the outcome forms; steps 1 and 2;
 step 4 with the survives/collapses word and `pack suggest`; step 5, step 7,
 generic groupings and the consumer example; step 6, two regressions and a
-tree in plain Python; charts with interval bars. The bundle and the mutation
-tool follow.
+tree in plain Python; charts with interval bars; the bundle. The mutation
+tool and the close-out follow.
 
 ## What a built pack contains
 
@@ -139,6 +139,31 @@ does not recalculate and carries no check-tab twin.
 
 All of it runs in plain Python with no numerical library, because the desk
 has none. A 25,000-loan fit takes about a second.
+
+## Getting it to the desk
+
+Binary files do not survive a bank's email filter; plain text does. So the
+tool is never sent as a package:
+
+```
+pack bundle configs/examples/stated_income_vs_sales.yaml -o build_pack.py
+```
+
+writes one pure-ASCII Python script (about 80 KB) that carries the package
+and the question file inside it, and never the data. On the desk, with
+Python, `openpyxl` and `PyYAML` installed:
+
+```
+python build_pack.py --inspect extract.csv
+python build_pack.py --validate extract.csv --asof 2026-06-30
+python build_pack.py --data extract.csv --asof 2026-06-30 -o pack.xlsx
+```
+
+The script prints the SHA-256 of what it wrote. Because the build is
+deterministic, that hash equals a build made anywhere else from the same
+inputs, which is how a reviewer proves the desk copy is the same
+deliverable. A test rebuilds a fixture pack from the bundle in an empty
+directory with only those two libraries on the path and compares the hash.
 
 ## Grouping a code column
 
