@@ -123,9 +123,10 @@ def main() -> None:
             if args.talkers:
                 manifests = manifests + load_talkers(args.talkers)
             kwargs = {"max_rounds": args.rounds} if args.rounds else {}
-            match_id = ArenaEngine(
-                store, provider_from_name(args.provider), **kwargs
-            ).run(manifests, args.seed)
+            engine = ArenaEngine(store, provider_from_name(args.provider), **kwargs)
+            # PRD §5.35–38: the live page is served by `run.py serve` on the same --db
+            engine.on_start = lambda mid: print(f"watch it live: http://127.0.0.1:8787/live/{mid}  (with `run.py serve --db {args.db}`)")
+            match_id = engine.run(manifests, args.seed)
             result = store.replay_bundle(match_id)
             print(f"Completed {match_id}")
             for participant in sorted(

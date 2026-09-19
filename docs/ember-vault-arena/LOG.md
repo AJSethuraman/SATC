@@ -5,6 +5,43 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 02:30Z — M4: the live page, one round behind the referee
+
+PRD §5 items 35–38 built on the board page the firm has been watching,
+not on July's viewer. The engine says when a round has ended
+(`on_start`, `on_round`) but the presenter does not listen to it: the
+local server reads the store, and a round is shown only once its end
+snapshot is committed (`store.rounds_complete`), which is the "one
+round behind" of item 37 and the reason a slow call never reaches the
+screen. `GET /live/<id>` is the board page with everything that has
+completed and a live loop; `GET /api/matches/<id>/board?after=N` serves
+the frames, the cards and the story entries for the completed rounds
+after N, built by `replay_board.live_data` from the record's prefix so
+every index continues the page's own list; `GET /api/matches/<id>/live`
+is a Server-Sent Events stream of `round` events and a `done`, which
+the page uses to know when to pull, with a poll every five seconds as
+the fallback. The page appends in place and plays on if the viewer had
+pressed Play, and a pause at the end of what it has is not the
+viewer's pause. `run.py demo` prints the live address the moment the
+match has an id; `run.py serve --db` on the same database serves it,
+on 127.0.0.1 by default, unredacted (the audience sees every note the
+moment it is written); the public replay endpoint keeps redacting a
+running match.
+
+I opened it: a slow mock match of fourteen rounds with the three
+talkers seated, the page opened in a headless browser mid-match, Play
+pressed, rounds arriving while it played, the header changing to "The
+match is over" at the end with the winner named, no console errors.
+
+Tests (`tests/test_live.py`, 6): the callbacks fire in order after the
+snapshot is committed; a running match shows only its completed rounds
+and no end; the rounds after a point continue the page's own list,
+index for index; the live page carries its pull URLs and what it
+already has; a real server over a real running match serves the board
+round by round, never ahead of the referee, and the stream says when;
+the presenter sees the notes mid-match and the public replay does not.
+Suite 170 → **176**.
+
 ## 19 September 2026, 01:50Z — M3, slice F: the reveal at death, the monsters' lines, a talker's death
 
 Three small items closed. PRD §5.7's second half: a dead character's

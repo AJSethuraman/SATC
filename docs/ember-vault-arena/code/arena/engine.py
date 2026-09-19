@@ -120,6 +120,10 @@ class ArenaEngine:
         self.manifests: dict[str, AgentManifest] = {}
         self.rng = HashRNG(0)
         self.round_lines: list[str] = []
+        # PRD §5.35: the presenter hears each round the moment its end
+        # snapshot is committed, and the match id the moment it exists.
+        self.on_start: Callable[[str], None] | None = None
+        self.on_round: Callable[[int], None] | None = None
         # This round's committed events, as written, for the deal settlement
         # in upkeep (PRD §5.20: a break is judged against committed events).
         self._round_events: list[dict[str, Any]] = []
@@ -172,11 +176,15 @@ class ArenaEngine:
         )
         self.store.save_snapshot(self.match_id, 0, "start", self.state)
         self._narrate_opening()
+        if self.on_start:
+            self.on_start(self.match_id)
 
         for round_no in range(1, self.max_rounds + 1):
             if self._is_terminal():
                 break
             self._run_round(round_no)
+            if self.on_round:
+                self.on_round(round_no)
 
         self._finalize()
         return self.match_id

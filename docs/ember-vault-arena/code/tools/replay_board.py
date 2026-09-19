@@ -1428,12 +1428,12 @@ SCRIPT = r"""
   function tick() {
     if (!playing) return;
     if (mode !== "") {
-      if (ti >= seq.length - 1) { pause(); return; }
+      if (ti >= seq.length - 1) { pause(true); return; }
       showEntry(ti + 1, true);
       after(seq[ti].dwell / speed, seq[ti]._spoken, tick);
       return;
     }
-    if (idx >= frames.length - 1) { pause(); return; }
+    if (idx >= frames.length - 1) { pause(true); return; }
     goto(idx + 1, true);
     var f = frames[idx], spoken = null;
     if (f.type === "agent_speech") spoken = speak(f.speech, f.actor);
@@ -1441,12 +1441,48 @@ SCRIPT = r"""
     after(f.dwell / speed, spoken, tick);
   }
   function play() {
-    playing = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true");
+    playing = true; liveWant = true; $("#play").textContent = "Pause"; $("#play").setAttribute("aria-pressed", "true");
     if (mode !== "") { if (ti >= seq.length - 1) showEntry(0, true); timer = setTimeout(tick, seq[ti].dwell / speed); return; }
     if (idx >= frames.length - 1) goto(0, true);
     timer = setTimeout(tick, frames[idx].dwell / speed);
   }
-  function pause() { playing = false; clearTimeout(timer); hush(); $("#play").textContent = "Play"; $("#play").setAttribute("aria-pressed", "false"); }
+  var liveWant = false;         // live: keep playing as rounds arrive, until the viewer pauses
+  function pause(atEnd) { playing = false; clearTimeout(timer); hush(); $("#play").textContent = "Play"; $("#play").setAttribute("aria-pressed", "false"); if (!atEnd) liveWant = false; }
+  // ---- live: the completed rounds arrive as they end (PRD §5.36, §5.37) ----
+  if (D.live) {
+    var liveAfter = D.live.after, liveDone = D.live.status === "completed", fetching = false;
+    function absorb(more) {
+      if (!more || !more.frames) return;
+      if (more.rounds_complete <= liveAfter && !(more.status === "completed" && !liveDone)) return;
+      more.frames.forEach(function (f) { frames.push(f); });
+      Object.keys(more.turns || {}).forEach(function (who) {
+        turns[who] = turns[who] || []; cardOf[who] = cardOf[who] || {};
+        more.turns[who].forEach(function (c) { turns[who].push(c); cardOf[who][c.round] = c; });
+      });
+      (more.story || []).forEach(function (e) { D.story.push(e); });
+      liveAfter = more.rounds_complete; liveDone = more.status === "completed";
+      if (mode !== "") { seq = entriesFor(mode); $("#scrub").max = seq.length - 1; } else { $("#scrub").max = frames.length - 1; }
+      var sub = document.querySelector(".sub");
+      if (sub) sub.textContent = liveDone
+        ? "The match is over: " + liveAfter + " rounds played; winner " + (more.winner || "nobody") + ". Everything is on the board."
+        : "Live. " + liveAfter + " of " + (more.max_rounds || "?") + " rounds so far, one round behind the referee; the rest arrive as they end.";
+      if (liveWant && !playing) play();
+    }
+    function pull() {
+      if (fetching || liveDone) return;
+      fetching = true;
+      fetch(D.live.board + "?after=" + liveAfter, { cache: "no-store" })
+        .then(function (r) { return r.json(); }).then(absorb).catch(function () {})
+        .then(function () { fetching = false; });
+    }
+    try {
+      var es = new EventSource(D.live.sse);
+      es.addEventListener("round", pull);
+      es.addEventListener("done", function () { pull(); es.close(); });
+      es.onerror = function () {};
+    } catch (e) {}
+    setInterval(pull, D.live.poll_ms || 5000);
+  }
   $("#voice").addEventListener("click", function () {
     if (!canSpeak) { this.textContent = "No voices in this browser"; this.disabled = true; return; }
     voiceOn = !voiceOn; loadVoices();
@@ -1477,20 +1513,87 @@ SCRIPT = r"""
 """
 
 
-def build(bundle: dict, note: str = "") -> str:
-    start, frames = build_timeline(bundle)
-    problems = verify(bundle, start, frames)
+def rounds_complete(bundle: dict) -> int:
+    """The last round with an end snapshot: what may be shown of a running match."""
+    return max([s["round_no"] for s in bundle.get("snapshots", []) if s.get("phase") == "end"] or [0])
+
+
+def trim_bundle(bundle: dict, upto: int) -> dict:
+    """The bundle as it stood when round ``upto`` had just ended: events and
+    snapshots through that round, nothing of the round under way. A prefix
+    of the record, so every frame index it yields is the full record's."""
+    complete = bundle.get("match", {}).get("status") == "completed" and upto >= rounds_complete(bundle)
+    match = dict(bundle.get("match", {}))
+    if not complete:
+        match["status"] = "running"
+        match["winner_agent_id"] = None
+    return {
+        **bundle,
+        "match": match,
+        "events": [e for e in bundle.get("events", []) if e["round_no"] <= upto or (e["round_no"] == 0)],
+        "snapshots": [s for s in bundle.get("snapshots", []) if s["round_no"] <= upto],
+    }
+
+
+def live_data(bundle: dict, after: int = 0) -> dict:
+    """What the live page needs for the rounds after ``after`` (PRD §5.36,
+    §5.37): the frames, the cards and the story entries of every completed
+    round beyond it, with frame indices that continue the page's own list,
+    since both are built from the same prefix of the record. ``after == 0``
+    also carries the start, the scene and the board."""
+    complete = rounds_complete(bundle)
+    trimmed = trim_bundle(bundle, complete)
+    start, frames = build_timeline(trimmed)
+    problems = verify(trimmed, start, frames)
     if problems:
         raise ValueError("board disagrees with the referee's snapshots:\n  " + "\n  ".join(problems[:20]))
-    geo = board_geometry()
-    m = bundle.get("match", {})
+    turns = build_turns(start, frames, trimmed)
+    story = build_story(start, frames, turns, trimmed)
+    status = trimmed["match"].get("status")
+    out = {
+        "rounds_complete": complete,
+        "status": status,
+        "max_rounds": trimmed["match"].get("max_rounds"),
+        "winner": start["agents"].get(trimmed["match"].get("winner_agent_id") or "", {}).get("name") if status == "completed" else None,
+        "frames": [f for f in frames if f["round"] > after or (after == 0 and f["round"] == 0)],
+        "turns": {aid: [c for c in cards if c["round"] > after] for aid, cards in turns.items()},
+        "story": [e for e in story if e.get("round", 0) > after or (after == 0 and e.get("round", 0) == 0)],
+    }
+    if after == 0:
+        out["start"] = start
+        out["geo"] = board_geometry()
+        out["colours"] = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
+        out["scene"] = build_scene(trimmed, start)
+    return out
+
+
+def build(bundle: dict, note: str = "", live: dict | None = None) -> str:
+    """The page. With ``live`` (the match id and the two URLs the page pulls
+    from), it is the live page: the completed rounds now, the rest as they
+    end, one round behind the referee, playing on from where it stands."""
+    if live:
+        data = live_data(bundle, 0)
+        start, frames, geo, colours, turns, story, scene = (data["start"], data["frames"], data["geo"], data["colours"],
+                                                            data["turns"], data["story"], data["scene"])
+        m = dict(bundle.get("match", {}))
+        m["status"] = data["status"]
+        live = {**live, "after": data["rounds_complete"], "status": data["status"]}
+    else:
+        start, frames = build_timeline(bundle)
+        problems = verify(bundle, start, frames)
+        if problems:
+            raise ValueError("board disagrees with the referee's snapshots:\n  " + "\n  ".join(problems[:20]))
+        geo = board_geometry()
+        m = bundle.get("match", {})
+        colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
+        turns = build_turns(start, frames, bundle)
+        story = build_story(start, frames, turns, bundle)
+        scene = build_scene(bundle, start)
     rounds = sorted({f["round"] for f in frames if f["round"] >= 1})
     winner = start["agents"].get(m.get("winner_agent_id"), {}).get("name") or "nobody"
-    colours = {aid: TOKEN_COLOURS[i % len(TOKEN_COLOURS)] for i, aid in enumerate(start["agents"])}
-    turns = build_turns(start, frames, bundle)
-    story = build_story(start, frames, turns, bundle)
-    scene = build_scene(bundle, start)
     data = {"geo": geo, "start": start, "frames": frames, "colours": colours, "turns": turns, "story": story, "scene": scene}
+    if live:
+        data["live"] = live
     chips = ('<button type="button" class="chip" data-follow="*" aria-pressed="false">The story, in order</button>\n'
              '<button type="button" class="chip" data-follow="" aria-pressed="false">Every moment</button>\n') + "\n".join(
         f'<button type="button" class="chip" data-follow="{E(aid)}" aria-pressed="false"><span class="dot" style="background:{colours[aid]}"></span>{E(a["name"].split()[0])}</button>'
@@ -1500,8 +1603,12 @@ def build(bundle: dict, note: str = "") -> str:
         f'<span class="name" title="{E(a["name"])}, {E(a["build"])}">{E(a["name"].split()[0])}</span><span class="num">{a["hp"]}/{a["max_hp"]}</span>'
         f'<span class="bar"><i style="width:100%"></i></span></div>'
         for aid, a in start["agents"].items())
-    sub = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}. {len(rounds)} rounds of {E(str(m.get('max_rounds', '')))} played; "
-           f"winner {E(winner)}. Each round: all eight think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
+    if live and m.get("status") != "completed":
+        sub = (f"Live. Match {E(str(m.get('id', '')))}: {len(rounds)} of {E(str(m.get('max_rounds', '')))} rounds so far, one round behind the referee; "
+               f"the rest arrive as they end. Each round: all think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
+    else:
+        sub = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}. {len(rounds)} rounds of {E(str(m.get('max_rounds', '')))} played; "
+               f"winner {E(winner)}. Each round: all eight think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return f"""<title>Ember Vault Board</title>
 {FONTS}

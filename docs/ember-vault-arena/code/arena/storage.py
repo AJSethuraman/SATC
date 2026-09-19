@@ -736,14 +736,35 @@ class ArenaStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def replay_bundle(self, match_id: str) -> dict[str, Any]:
+    def rounds_complete(self, match_id: str) -> int:
+        """The last round whose end snapshot is committed: what a presenter
+        may show (PRD §5.36, one round behind the engine)."""
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT MAX(round_no) AS r FROM snapshots WHERE match_id=? AND phase='end'",
+                (match_id,),
+            ).fetchone()
+        return int(row["r"] or 0) if row else 0
+
+    def match_status(self, match_id: str) -> str:
+        with self.lock:
+            row = self.conn.execute("SELECT status FROM matches WHERE id=?", (match_id,)).fetchone()
+        if not row:
+            raise KeyError(match_id)
+        return str(row["status"])
+
+    def replay_bundle(self, match_id: str, reveal: bool | None = None) -> dict[str, Any]:
+        """The match as a bundle. Mid-match the published view is narrowed
+        (below) unless ``reveal`` is True: the loopback presenter's page
+        shows the audience every note the moment it is written (PRD §5.24),
+        and it is served only on the operator's own machine (PRD §5.38)."""
         with self.lock:
             match = self.conn.execute(
                 "SELECT * FROM matches WHERE id=?", (match_id,)
             ).fetchone()
             if not match:
                 raise KeyError(match_id)
-            reveal = match["status"] == "completed"
+            reveal = (match["status"] == "completed") if reveal is None else bool(reveal)
             participants = self.conn.execute(
                 """
                 SELECT p.*, a.name, a.manifest_json, a.prompt_hash
