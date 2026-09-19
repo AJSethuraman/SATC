@@ -21,24 +21,27 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slices 1 and 2 of 9 built (the tracer bullet; then inspect,
-the refusals, detected dates, the filter and the outcome forms). Steps 1, 2,
-4, 5, 6, 7, charts, the bundle and the mutation tool follow in the order the
-issues give.
+**Status:** slices 1 to 4 of 9 built: the tracer bullet; inspect, the
+refusals, detected dates, the filter and the outcome forms; steps 1 and 2;
+step 4 with the survives/collapses word and `pack suggest`. Steps 5, 6, 7,
+charts, the bundle and the mutation tool follow in the order the issues give.
 
 ## What a built pack contains
 
 | Tab | What it shows |
 |---|---|
 | `Cover` | The question, the answer in three lines, the loans and events it rests on, and `N of N formula checks agree` |
+| `1_Capture` | By origination quarter: loans, how many are younger than the window, blanks in each rule field, how many carry both; then seasoned loans per band for every confounder scheme |
+| `2_Prevalence` | By quarter, on seasoned loans: the capture rate (both fields present) and the flag rate (rule fires among those), each with its interval, never merged |
 | `3_Gradient` | The outcome rate across buckets of the rule value, each with its interval, its gap from the unflagged base in percentage points and as a multiple, and whether the rates rise at every step |
+| `4_Stratified` | For each confounder and band scheme: the flagged and unflagged rates per band, the crude odds ratio beside the pooled one across bands, the share of the effect kept, and one word: survives, collapses, unknown, or no crude effect |
 | `_cube` | The counts every formula reads: loans and events per cell |
 | `_config` | Live knobs (confidence level, interval method) and the rebuild knobs for the record |
 | `_method` | Notes on what was done, generated from the question file and the counts |
 | `_check` | Python's value beside every formula cell and Excel's own verdict on whether they agree |
 | `_provenance` | Source file and its hash, row counts, window, dates, generator version |
 
-Tabs for steps 1, 2, 4, 5, 6 and 7 arrive with their slices.
+Tabs for steps 5, 6 and 7 arrive with their slices.
 
 ## Using it
 
@@ -54,6 +57,17 @@ a date-like column which pattern its values fit:
 
 ```
 pack inspect extract.csv
+```
+
+Ask for band cut points before writing them. `suggest` proposes equal-count
+bands by loans, equal-count by events, and round numbers, each with the
+loans and events it would give per band and a `thin` mark where a band holds
+fewer than ten events. It also prints, marked as information only, the single
+cut at which the outcome rate changes most; that one is chosen on the
+outcome and is not offered as a scheme for step 4.
+
+```
+pack suggest demo/config.yaml --data demo/loans.csv --asof 2026-06-30 --field field_b
 ```
 
 Make a book with a known answer and build it:

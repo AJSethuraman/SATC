@@ -116,12 +116,13 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     cap = wb.create_sheet("1_Capture")
     prev = wb.create_sheet("2_Prevalence")
     grad = wb.create_sheet("3_Gradient")
+    strat = wb.create_sheet("4_Stratified")
     cube = wb.create_sheet("_cube")
     conf = wb.create_sheet("_config")
     meth = wb.create_sheet("_method")
     check = wb.create_sheet("_check")
     prov = wb.create_sheet("_provenance")
-    for ws in (cover, cap, prev, grad, cube, conf, meth, check, prov):
+    for ws in (cover, cap, prev, grad, strat, cube, conf, meth, check, prov):
         ks.hide_gridlines(ws)
     first_facts = data.per_outcome[0][0]
 
@@ -192,6 +193,12 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         for gr in g.rows:
             put_cube(gr.cube)
         put_cube(g.base.cube)
+    for st in data.strata:
+        for band in st.bands:
+            put_cube(band.flagged)
+            put_cube(band.unflagged)
+            for gr in band.buckets:
+                put_cube(gr.cube)
     if data.bands:
         for i, (lab, counts) in enumerate(data.bands.rows):
             for j, c in enumerate(counts):
@@ -356,6 +363,113 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         row = hdr + 1 + len(bt.rows) + 1
     ks.freeze_below(grad, first_hdr)
 
+    # -- 4_Stratified ----------------------------------------------------------
+    ncols = 16
+    for col, wdt in zip("ABCDEFGHIJKLMNOP", (44, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 9, 9, 9, 9)):
+        strat.column_dimensions[col].width = wdt
+    row = _header_band(strat, ncols, "Step 4 — Stratified", cfg, table, first_facts, run_date)
+    strat_note = notes.fill("notes.stratified",
+                            confounder_list=", ".join(c.name for c in cfg.confounders) or "(no confounders declared)",
+                            confidence=cfg.confidence, method=cfg.method, threshold=cfg.survives_threshold)
+    row = _note(strat, row, strat_note, ncols)
+    row += 1
+    strat_first_hdr = None
+    word_cells_s4: dict[str, list[tuple[ladder.Stratified, str]]] = {}
+    for st in data.strata:
+        row = ks.section_band(strat, row, f"Outcome: {st.outcome.label} · {st.confounder} · {st.scheme}", ncols)
+        hdr = row
+        strat_first_hdr = strat_first_hdr or hdr
+        ks.header_row(strat, hdr, ["Band", "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
+                                   "Unflagged loans", "Unflagged events", "Unflagged rate", "Lower", "Upper",
+                                   "Gap (pts)", "P", "Q", "R", "S"], right_from=1)
+        first = hdr + 1
+        for i, band in enumerate(st.bands):
+            r = first + i
+            fn, fx = addr[band.flagged.block]
+            un, ux = addr[band.unflagged.block]
+            strat.cell(r, 1, band.label)
+            b.formula(strat, f"B{r}", f"={fn}", band.flagged.n, TOL_COUNT, fmt="#,##0")
+            b.formula(strat, f"C{r}", f"={fx}", band.flagged.events, TOL_COUNT, fmt="#,##0")
+            b.formula(strat, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', band.flagged_rate, fmt="0.00%")
+            b.formula(strat, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), band.flagged_lo, TOL_INTERVAL, fmt="0.00%")
+            b.formula(strat, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), band.flagged_hi, TOL_INTERVAL, fmt="0.00%")
+            b.formula(strat, f"G{r}", f"={un}", band.unflagged.n, TOL_COUNT, fmt="#,##0")
+            b.formula(strat, f"H{r}", f"={ux}", band.unflagged.events, TOL_COUNT, fmt="#,##0")
+            b.formula(strat, f"I{r}", f'=IF(G{r}=0,"",H{r}/G{r})', band.unflagged_rate, fmt="0.00%")
+            b.formula(strat, f"J{r}", interval_formula("lo", f"G{r}", f"H{r}"), band.unflagged_lo, TOL_INTERVAL, fmt="0.00%")
+            b.formula(strat, f"K{r}", interval_formula("hi", f"G{r}", f"H{r}"), band.unflagged_hi, TOL_INTERVAL, fmt="0.00%")
+            b.formula(strat, f"L{r}", f'=IF(OR(D{r}="",I{r}=""),"",(D{r}-I{r})*100)', band.gap_pts, TOL_POINTS, fmt="0.00")
+            n_expr = f"(B{r}+G{r})"
+            b.formula(strat, f"M{r}", f'=IF({n_expr}=0,0,(C{r}+(G{r}-H{r}))/{n_expr})', band.p, fmt="0.0000")
+            b.formula(strat, f"N{r}", f'=IF({n_expr}=0,0,((B{r}-C{r})+H{r})/{n_expr})', band.q, fmt="0.0000")
+            b.formula(strat, f"O{r}", f'=IF({n_expr}=0,0,C{r}*(G{r}-H{r})/{n_expr})', band.r, fmt="0.0000")
+            b.formula(strat, f"P{r}", f'=IF({n_expr}=0,0,(B{r}-C{r})*H{r}/{n_expr})', band.s, fmt="0.0000")
+        last = first + len(st.bands) - 1
+        rB, rC, rG, rH = f"B{first}:B{last}", f"C{first}:C{last}", f"G{first}:G{last}", f"H{first}:H{last}"
+        rM, rN, rO, rP = f"M{first}:M{last}", f"N{first}:N{last}", f"O{first}:O{last}", f"P{first}:P{last}"
+        row = last + 2
+        A_, B_, C_, D_ = f"SUM({rC})", f"(SUM({rB})-SUM({rC}))", f"SUM({rH})", f"(SUM({rG})-SUM({rH}))"
+        strat.cell(row, 1, "Crude odds ratio, whole population — ratio, lower, upper").font = BOLD
+        crude_cell = f"B{row}"
+        b.formula(strat, crude_cell, f'=IF(OR({A_}=0,{B_}=0,{C_}=0,{D_}=0),"not estimable",({A_}*{D_})/({B_}*{C_}))',
+                  st.crude[0] if st.crude[0] is not None else "not estimable", TOL_RATE * 1e3,
+                  "number" if st.crude[0] is not None else "text", fmt="0.00")
+        se_crude = f"SQRT(1/{A_}+1/{B_}+1/{C_}+1/{D_})"
+        b.formula(strat, f"C{row}", f'=IF({crude_cell}="not estimable","",EXP(LN({crude_cell})-Z*{se_crude}))',
+                  st.crude[1], TOL_INTERVAL * 1e3, fmt="0.00")
+        b.formula(strat, f"D{row}", f'=IF({crude_cell}="not estimable","",EXP(LN({crude_cell})+Z*{se_crude}))',
+                  st.crude[2], TOL_INTERVAL * 1e3, fmt="0.00")
+        row += 1
+        strat.cell(row, 1, "Pooled odds ratio across bands (Mantel-Haenszel) — ratio, lower, upper").font = BOLD
+        mh_cell = f"B{row}"
+        b.formula(strat, mh_cell, f'=IF(OR(SUM({rO})=0,SUM({rP})=0),"not estimable",SUM({rO})/SUM({rP}))',
+                  st.pooled[0] if st.pooled[0] is not None else "not estimable", TOL_RATE * 1e3,
+                  "number" if st.pooled[0] is not None else "text", fmt="0.00")
+        var_mh = (f"(SUMPRODUCT({rM},{rO})/(2*SUM({rO})^2)+(SUMPRODUCT({rM},{rP})+SUMPRODUCT({rN},{rO}))/(2*SUM({rO})*SUM({rP}))"
+                  f"+SUMPRODUCT({rN},{rP})/(2*SUM({rP})^2))")
+        b.formula(strat, f"C{row}", f'=IF({mh_cell}="not estimable","",EXP(LN({mh_cell})-Z*SQRT({var_mh})))',
+                  st.pooled[1], TOL_INTERVAL * 1e3, fmt="0.00")
+        b.formula(strat, f"D{row}", f'=IF({mh_cell}="not estimable","",EXP(LN({mh_cell})+Z*SQRT({var_mh})))',
+                  st.pooled[2], TOL_INTERVAL * 1e3, fmt="0.00")
+        crude_row, mh_row = row - 1, row
+        row += 1
+        strat.cell(row, 1, "Share of the crude log-odds the pooled ratio kept").font = BOLD
+        kept_cell = f"B{row}"
+        b.formula(strat, kept_cell,
+                  f'=IF(OR({crude_cell}="not estimable",{mh_cell}="not estimable",{crude_cell}=1),"",LN({mh_cell})/LN({crude_cell}))',
+                  st.kept, TOL_INTERVAL * 1e3, fmt="0.00")
+        row += 1
+        strat.cell(row, 1, "Word").font = BOLD
+        word_cell = f"B{row}"
+        b.formula(strat, word_cell,
+                  f'=IF({crude_cell}="not estimable","no crude effect",'
+                  f'IF(AND(C{crude_row}<=1,D{crude_row}>=1),"no crude effect",'
+                  f'IF({mh_cell}="not estimable","unknown",'
+                  f'IF({kept_cell}<1-SURV_T,"collapses",'
+                  f'IF(OR(C{mh_row}>1,D{mh_row}<1),"survives","unknown")))))', st.word, 0.0, "text")
+        strat.merge_cells(f"B{row}:D{row}")
+        word_cells_s4.setdefault(st.outcome.key, []).append((st, word_cell))
+        row += 2
+        # the gradient inside each band
+        for band in st.bands:
+            strat.cell(row, 1, f"Inside band: {band.label}").font = BOLD
+            row += 1
+            ks.header_row(strat, row, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper"], right_from=1)
+            row += 1
+            for gr in band.buckets:
+                n, x = addr[gr.cube.block]
+                strat.cell(row, 1, gr.cube.label.split(" | ")[1])
+                b.formula(strat, f"B{row}", f"={n}", gr.cube.n, TOL_COUNT, fmt="#,##0")
+                b.formula(strat, f"C{row}", f"={x}", gr.cube.events, TOL_COUNT, fmt="#,##0")
+                b.formula(strat, f"D{row}", f'=IF(B{row}=0,"",C{row}/B{row})', gr.rate, fmt="0.00%")
+                b.formula(strat, f"E{row}", interval_formula("lo", f"B{row}", f"C{row}"), gr.lo, TOL_INTERVAL, fmt="0.00%")
+                b.formula(strat, f"F{row}", interval_formula("hi", f"B{row}", f"C{row}"), gr.hi, TOL_INTERVAL, fmt="0.00%")
+                row += 1
+            row += 1
+        row += 1
+    if strat_first_hdr:
+        ks.freeze_below(strat, strat_first_hdr)
+
     # -- Cover -----------------------------------------------------------
     cover.column_dimensions["A"].width = 110
     row = ks.brand_banner(cover, 1, 1, "Portfolio Analysis Pack",
@@ -375,7 +489,24 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                   notes.pick("cover.answer_gradient", g.word, outcome_label=g.outcome.label), 0.0, "text")
         cover[f"A{row}"].alignment = Alignment(wrap_text=True)
         row += 1
-    cover.cell(row, 1, notes.fill("cover.not_built", step="Survives or collapses (step 4)")); row += 1
+    for facts, g in data.per_outcome:
+        items = word_cells_s4.get(g.outcome.key, [])
+        if not items:
+            cover.cell(row, 1, notes.fill("cover.not_built", step="Survives or collapses (step 4)")); row += 1
+            continue
+        prefix = notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label).replace('"', '""')
+        parts = []
+        twin_parts = []
+        for st, wc in items:
+            # fill with a marker and cut at it, so the space before the live word survives the template's strip
+            lead = notes.fill("cover.answer_stratified_item", confounder=st.confounder, scheme=st.scheme,
+                              word="\x00").split("\x00")[0].replace('"', '""')
+            parts.append(f'"{lead}"&\'4_Stratified\'!{wc}')
+            twin_parts.append(notes.fill("cover.answer_stratified_item", confounder=st.confounder, scheme=st.scheme, word=st.word))
+        b.formula(cover, f"A{row}", f'="{prefix}"&' + '&"; "&'.join(parts),
+                  notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label) + "; ".join(twin_parts), 0.0, "text")
+        cover[f"A{row}"].alignment = Alignment(wrap_text=True)
+        row += 1
     cover.cell(row, 1, notes.fill("cover.not_built", step="Model (step 6)")); row += 2
     cover.cell(row, 1, "What it rests on").font = BOLD; row += 1
     for facts, g in data.per_outcome:
@@ -404,6 +535,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         cap_note,
         prev_note,
         grad_note,
+        strat_note,
         notes.fill("notes.check"),
     ):
         row = _note(meth, row, text, 1)

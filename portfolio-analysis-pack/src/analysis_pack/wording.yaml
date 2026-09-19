@@ -14,6 +14,8 @@ cover:
     not monotonic: "Gradient: not one-directional. The {outcome_label} rate does not rise at every step of the ratio."
     no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
   not_built: "{step}: not built in this version."
+  answer_stratified_prefix: "Survives or collapses (step 4), for {outcome_label}: "
+  answer_stratified_item: "{confounder} ({scheme}) — {word}"
   denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
 
 notes:
@@ -63,6 +65,17 @@ notes:
     interval. The span runs from {first_quarter} to {last_quarter}: a change in the flag rate across those
     years is not on its own a read of underwriting drift, because the years a span covers can move either
     field for reasons of their own.
+  stratified: >-
+    Step 4, stratified. The question is whether the flag still matters once loans are compared only with
+    loans of similar {confounder_list}. For each confounder and each band scheme: a 2x2 per band (flagged and
+    unflagged loans, events in each), the flagged and unflagged rates with {confidence:.0%} {method} intervals
+    and their gap in percentage points, and the gradient inside the band. Beneath each block: the crude odds
+    ratio over the whole population with a Woolf interval, the Mantel-Haenszel pooled odds ratio across the
+    bands with the Robins-Breslow-Greenland interval, the share of the crude log-odds the pooled ratio kept,
+    and one word. An odds ratio of 2.0 means flagged loans carry twice the odds of the outcome. The word:
+    "no crude effect" when the crude interval contains 1; "collapses" when the pooled ratio has lost more
+    than the survives threshold ({threshold:.0%}, a knob on _config) of the crude log-odds; "survives" when it
+    kept it and the pooled interval excludes 1; "unknown" when the interval is too wide to say either.
   gradient: >-
     Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
     fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this

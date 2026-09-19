@@ -70,7 +70,7 @@ def generate(out_dir: str | Path, *, seed: int = 20260918, loans: int = 40000,
         if mode == "effect":
             mult = effect ** math.log2(max(ratio, 1e-9))
         elif mode == "confounded":
-            mult = (400_000.0 / max(b, 1.0)) ** 0.6
+            mult = (400_000.0 / max(b, 1.0)) ** 0.9
         else:
             mult = 1.0
         odds = base_rate / (1.0 - base_rate) * mult
@@ -163,7 +163,7 @@ outcome:
   date_field: outcome_date
 window_months: {window_months}
 confounders:
-  - {{name: size_band, field: field_b, edges: [150000, 600000]}}
+  - {{name: size_band, field: field_b, edges: [100000, 200000, 400000, 800000, 1600000]}}
   - {{name: amount_band, field: amount, edges: [60000, 250000]}}
   - {{name: category_2, field: category_2}}
 controls:

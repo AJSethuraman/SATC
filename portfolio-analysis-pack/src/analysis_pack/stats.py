@@ -212,3 +212,62 @@ def interval(events: int, n: int, confidence: float, method: str) -> tuple[float
     if method == "Clopper-Pearson":
         return clopper_pearson(events, n, confidence)
     raise ValueError(f"unknown interval method {method!r}")
+
+
+# --------------------------------------------------------------------------
+# Odds ratios: crude (Woolf interval) and Mantel-Haenszel pooled (RBG interval)
+# --------------------------------------------------------------------------
+
+def crude_odds_ratio(a: int, b: int, c: int, d: int, z: float) -> tuple[float | None, float | None, float | None]:
+    """(OR, lo, hi) from a 2x2 of flagged events a, flagged non-events b,
+    unflagged events c, unflagged non-events d. None when any cell is zero
+    (the sheet prints 'not estimable'). Woolf: exp(ln OR ± z·sqrt(1/a+1/b+1/c+1/d))."""
+    if min(a, b, c, d) == 0:
+        return None, None, None
+    o = (a * d) / (b * c)
+    se = math.sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d)
+    return o, math.exp(math.log(o) - z * se), math.exp(math.log(o) + z * se)
+
+
+def mantel_haenszel(strata: list[tuple[int, int, int, int]], z: float) -> tuple[float | None, float | None, float | None]:
+    """(OR_MH, lo, hi) over strata of (a, b, c, d). Mantel & Haenszel 1959;
+    variance of ln OR_MH per Robins, Breslow & Greenland 1986, written the
+    way the sheet's SUMPRODUCT helpers write it. None when a sum is zero."""
+    P = Q = R = S = 0.0
+    PR = PS = QR = QS = 0.0
+    for a, b, c, d in strata:
+        n = a + b + c + d
+        if n == 0:
+            continue
+        p = (a + d) / n
+        q = (b + c) / n
+        r = a * d / n
+        s = b * c / n
+        R += r; S += s
+        PR += p * r; PS += p * s; QR += q * r; QS += q * s
+    if R == 0.0 or S == 0.0:
+        return None, None, None
+    o = R / S
+    var = PR / (2 * R * R) + (PS + QR) / (2 * R * S) + QS / (2 * S * S)
+    se = math.sqrt(var)
+    return o, math.exp(math.log(o) - z * se), math.exp(math.log(o) + z * se)
+
+
+def survives_word(crude: tuple, pooled: tuple, threshold: float) -> str:
+    """The step-4 word, the same rule as the sheet's formula (PRD §6.7):
+    'no crude effect' when the crude interval contains 1 or is not estimable;
+    'collapses' when the pooled OR has lost more than `threshold` of the crude
+    log-odds; 'survives' when it kept it and the pooled interval excludes 1;
+    'unknown' otherwise, including when the pooled OR is not estimable."""
+    o, lo, hi = crude
+    if o is None or lo <= 1.0 <= hi:
+        return "no crude effect"
+    m, mlo, mhi = pooled
+    if m is None:
+        return "unknown"
+    kept = math.log(m) / math.log(o)
+    if kept < 1.0 - threshold:
+        return "collapses"
+    if mlo > 1.0 or mhi < 1.0:
+        return "survives"
+    return "unknown"
