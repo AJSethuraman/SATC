@@ -1,8 +1,9 @@
 """Talkers (PRD §5.25, built 19 Sep 2026): three house side characters on the
 same contract with a restricted legal set. They speak, whisper, offer and
 accept; they move, give and guard; they cannot score, carry the Crown,
-search, or win; nobody targets them yet (PRD §5.8 is P1); their brains are
-the firm's, drafted here by the session."""
+search, or win; a rival may attack one from act II (PRD §5.8) and its death
+pays nobody and is public; monsters never hunt them; their brains are the
+firm's, drafted here by the session."""
 from __future__ import annotations
 
 import json
@@ -104,7 +105,8 @@ class TheHouseTalkers(TalkerTestCase):
         obs = self.obs(engine, self.ids[0])
         seen = next(v for v in obs["visible_agents"] if v["id"] == "wick")
         self.assertEqual(seen["kind"], "talker")
-        self.assertFalse([e for e in obs["legal_actions"] if e["action"] == "attack" and e["target"] == "wick"])
+        # and can attack it from act II (PRD §5.8): a talker's death pays nothing and is public
+        self.assertTrue([e for e in obs["legal_actions"] if e["action"] == "attack" and e["target"] == "wick"])
         self.assertNotIn("wick", [r["id"] for r in obs["standings"]])
         self.assertEqual(len(obs["standings"]), 8)
 

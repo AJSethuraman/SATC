@@ -77,6 +77,7 @@ DWELL = {
     "offer_made": (2200, 30, 6000), "deal_struck": (2400, 30, 6000), "deal_broken": (2800, 30, 7000),
     "offer_lapsed": (1500, 0, 0), "deal_lost": (1500, 0, 0),
     "site_hand": (1500, 0, 0), "site_done": (2600, 0, 0), "site_lapsed": (2000, 0, 0),
+    "monster_line": (1800, 30, 4500),
 }
 DEFAULT_DWELL = (1200, 0, 0)
 
@@ -502,7 +503,7 @@ def build_turns(start: dict, frames: list[dict], bundle: dict | None = None) -> 
 
 # The vault's own beat in a round: the monsters moving and striking, rooms
 # closing, the gate opening, an act turning.
-VAULT = {"monster_step", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved", "site_lapsed"}
+VAULT = {"monster_step", "monster_line", "room_contracting", "room_sealing", "room_sealed", "vault_gate_opened", "act_started", "act_two_survival", "agent_force_moved", "site_lapsed"}
 
 
 def build_scene(bundle: dict, start: dict) -> dict:

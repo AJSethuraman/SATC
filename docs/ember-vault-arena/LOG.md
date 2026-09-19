@@ -5,6 +5,28 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 01:50Z — M3, slice F: the reveal at death, the monsters' lines, a talker's death
+
+Three small items closed. PRD §5.7's second half: a dead character's
+private objective is revealed the moment they fall (`objective_reveal`
+with `at: death`, met or unmet at that moment), and the end reveals
+only the living; a completed objective still pays at the end either
+way. It had only ever been revealed at the end. §5.6 and §5.27: each
+monster has five lines in `world.MONSTERS`, the session's, spoken as a
+`monster_line` event when it strikes, keyed by the round so the replay
+says the same thing at the same moment; the board shows it in the
+vault's beat, memory ignores it, the narrator hears it. §5.8: from act
+II a talker in reach is an attack entry like any rival; its death is
+public, named as a talker's, and pays nobody; monsters still never hunt
+one. Tests (`tests/test_reveal_and_lines.py`, 3; one talker test
+flipped). Golden regenerated on purpose: 98 snapshots, 2,349 events,
+Hex wins. Suite 167 → **170**, 103 seconds.
+
+What M3 still holds: the scoring table's values (item 5), which wait
+for a target that speaks to placements; seeded loot placement and
+talker starts in the registry (item 2's tail); the world's names and
+edges, on the docket as D13. The rest of M3 is built.
+
 ## 19 September 2026, 01:25Z — M3, slices D and E: the talkers, the standings, the simulator, and the Vault opening in act IV
 
 **The simulator did not run.** Slice A wrote `rules.` into

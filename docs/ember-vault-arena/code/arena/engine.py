@@ -1547,7 +1547,8 @@ class ArenaEngine:
             rules.floor_add(self.state, room_id, item_id)
         agent["inventory"] = []
         category, points = "collateral_kill_no_credit", 0
-        if credited_to and not collateral:
+        talker = agent.get("kind") == "talker"
+        if credited_to and not collateral and not talker:  # a talker's death pays nobody (PRD §5.8, §5.25)
             killer = self.state["agents"].get(credited_to)
             if killer is not None:
                 earned = scoring.register_direct_elimination(killer, agent_id)
@@ -1566,11 +1567,12 @@ class ArenaEngine:
             "agent_eliminated",
             credited_to,
             agent_id,
-            f"{agent['name']} is eliminated ({reason}).",
+            f"{agent['name']}{', a talker,' if talker else ''} is eliminated ({reason}).",
             {
                 "reason": reason,
                 "cause": reason,
                 "room": room_id,
+                "kind": "talker" if talker else "character",
                 "collateral": collateral,
                 "accident": collateral,
                 "credited_to": credited_to,
@@ -1584,6 +1586,28 @@ class ArenaEngine:
         )
         if CROWN_ITEM_ID in dropped:
             self._crown_dropped(room_id, "elimination", agent_id)
+        if not talker:
+            # PRD §5.7: a dead character's private objective is revealed to the
+            # audience at the moment of death; nothing in a digest carries it.
+            self._reveal_objective(agent_id, at="death")
+
+    def _reveal_objective(self, agent_id: str, *, at: str) -> bool:
+        agent = self.state["agents"][agent_id]
+        objective = self.manifests[agent_id].secret_objective
+        completed = scoring.objective_complete(self.state, agent_id, objective)
+        self._event(
+            self.state["round"],
+            "scoring",
+            "objective_reveal",
+            agent_id,
+            None,
+            (
+                f"{agent['name']}'s secret objective was {objective.replace('_', ' ')}"
+                + ("—completed." if completed else ("—unmet at death." if at == "death" else "—failed."))
+            ),
+            {"objective": objective, "completed": completed, "at": at},
+        )
+        return completed
 
     # ------------------------------------------------------------------
     # P4 monster phase — deterministic, no model call
@@ -1663,6 +1687,13 @@ class ArenaEngine:
                 roll=roll,
             )
             self._run_attack(monster, "monster", self.state["agents"][target_id])
+            # its line for the round (PRD §5.6, §5.27): from the table, by the round
+            line = world.monster_line(monster_id, round_no)
+            self._event(
+                round_no, "monster", "monster_line", monster_id, target_id,
+                f"{monster['name']}: \u201c{line}\u201d",
+                {"line": line, "round": round_no},
+            )
 
     # ------------------------------------------------------------------
     # P5 end-of-round upkeep
@@ -2247,7 +2278,10 @@ class ArenaEngine:
             if agent.get("kind") == "talker":
                 continue  # no aim, no reveal, no place
             objective = self.manifests[agent_id].secret_objective
-            completed = scoring.objective_complete(self.state, agent_id, objective)
+            if agent["status"] == "active":
+                completed = self._reveal_objective(agent_id, at="end")
+            else:
+                completed = scoring.objective_complete(self.state, agent_id, objective)  # revealed at death
             if completed:
                 self._score(
                     agent_id,
@@ -2255,19 +2289,6 @@ class ArenaEngine:
                     scoring.SCORING["secret_objective"],
                     f"Completed {objective}",
                 )
-            self._event(
-                self.state["round"],
-                "scoring",
-                "objective_reveal",
-                agent_id,
-                None,
-                (
-                    f"{agent['name']}'s secret objective was "
-                    f"{objective.replace('_', ' ')}"
-                    + ("—completed." if completed else "—failed.")
-                ),
-                {"objective": objective, "completed": completed},
-            )
 
         placements = scoring.placements(self.state)
         order = scoring.placement_order(self.state)

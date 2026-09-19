@@ -1,7 +1,7 @@
 {
   "action_schema_version": "agent-action-1.2",
   "audit_valid": true,
-  "event_count": 2335,
+  "event_count": 2349,
   "final_scores": {
     "bramble": 16,
     "hex": 22,

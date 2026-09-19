@@ -127,6 +127,7 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "attack_miss",
         "wild_swing_no_bystander",
         "monster_guard",
+        "monster_line",
         "monster_defeated",
         "monster_entombed",
         "floor_items_relocated",

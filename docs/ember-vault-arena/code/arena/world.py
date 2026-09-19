@@ -107,17 +107,29 @@ SITES: dict[str, dict[str, Any]] = {
     },
 }
 
+# Each monster's canned lines (PRD §5.6, §5.27), spoken when it strikes,
+# keyed by the round so a replay says the same thing at the same moment.
 MONSTERS: dict[str, dict[str, Any]] = {
     "ironwood_guardian": {"name": "Ironwood Guardian", "kind": "guardian", "room": "ironwood_gate", "tile": [2, 1],
-                          "reach": 1, "max_hp": 12, "power": 3, "armor": 1},
+                          "reach": 1, "max_hp": 12, "power": 3, "armor": 1,
+                          "lines": ["The gate does not open for the living.", "Sap for sap.", "Roots remember every footstep.",
+                                    "You brought steel to a tree.", "Grow still."]},
     "ossuary_guardian": {"name": "Ossuary Guardian", "kind": "guardian", "room": "ossuary_gate", "tile": [2, 1],
-                         "reach": 1, "max_hp": 12, "power": 3, "armor": 0},
+                         "reach": 1, "max_hp": 12, "power": 3, "armor": 0,
+                         "lines": ["Bone to the bone-rack.", "You will fit. They all fit.", "The arch counts its teeth.",
+                                   "Breathe quieter.", "Another rib for the wall."]},
     "crown_warden": {"name": "Crown Warden", "kind": "warden", "room": "vault", "tile": [3, 2],
-                     "reach": 2, "max_hp": 20, "power": 4, "armor": 2},
+                     "reach": 2, "max_hp": 20, "power": 4, "armor": 2,
+                     "lines": ["The Crown is not yours to wear.", "It burns whoever holds it. Ask me.", "Kneel, and it is quicker.",
+                               "Ash is what the vault keeps.", "Come closer to the fire."]},
     "cellar_drowner": {"name": "Cellar Drowner", "kind": "guardian", "room": "drowned_cellar", "tile": [1, 1],
-                       "reach": 1, "max_hp": 9, "power": 2, "armor": 0},
+                       "reach": 1, "max_hp": 9, "power": 2, "armor": 0,
+                       "lines": ["Down. Down.", "The water keeps what it takes.", "Nobody searches here.", "Cold, is it?",
+                                 "Under. Stay under."]},
     "charnel_hound": {"name": "Charnel Hound", "kind": "guardian", "room": "charnel_stair", "tile": [1, 1],
-                      "reach": 1, "max_hp": 10, "power": 3, "armor": 0},
+                      "reach": 1, "max_hp": 10, "power": 3, "armor": 0,
+                      "lines": ["*a low growl over the bones*", "*teeth, then the landing rail*", "*it circles the stair*",
+                                "*the heap shifts under it*", "*it does not bark; it waits*"]},
 }
 
 
@@ -402,6 +414,12 @@ def monster_templates() -> dict[str, dict[str, Any]]:
     return out
 
 
+def monster_line(monster_id: str, round_no: int) -> str:
+    """The monster's line for this round: the table keyed by the round."""
+    lines = MONSTERS[monster_id]["lines"]
+    return lines[(max(1, int(round_no)) - 1) % len(lines)]
+
+
 def monster_reach() -> dict[str, int]:
     return {mid: int(m["reach"]) for mid, m in MONSTERS.items()}
 
@@ -495,6 +513,8 @@ def validate() -> None:
     for mid, m in MONSTERS.items():
         if m["room"] not in ids:
             raise ValueError(f"monster {mid} in no room")
+        if not m.get("lines") or not all(isinstance(x, str) and x.strip() for x in m["lines"]):
+            raise ValueError(f"monster {mid} has no lines")
         if ROOMS[m["room"]]["guardian_id"] != mid:
             raise ValueError(f"monster {mid} is not its room's guardian")
         g = ROOMS[m["room"]]["grid"]

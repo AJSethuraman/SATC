@@ -761,8 +761,8 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         )
     if public.get("agent_attacks_allowed"):
         for other in observation.get("visible_agents", []):
-            if other.get("status") != "active" or other.get("kind") == "talker":
-                continue  # a talker is not a legal target until PRD §5.8 ships
+            if other.get("status") != "active":
+                continue  # a talker too, from act II (PRD §5.8): its death pays nothing and is public
             if not _within(other.get("tile"), my_reach):
                 continue
             entries.append(
