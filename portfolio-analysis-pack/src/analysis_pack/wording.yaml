@@ -76,6 +76,17 @@ notes:
     "no crude effect" when the crude interval contains 1; "collapses" when the pooled ratio has lost more
     than the survives threshold ({threshold:.0%}, a knob on _config) of the crude log-odds; "survives" when it
     kept it and the pooled interval excludes 1; "unknown" when the interval is too wide to say either.
+  decomposition: >-
+    Step 5, decomposition. Where the flag's effect sits: for each dimension listed in the question file, the
+    flagged and unflagged rates per level with {confidence:.0%} {method} intervals, the gap in percentage
+    points, the multiple, and the share of all flagged events that fall in the level. Rows are sorted by
+    flagged events, most first, so a pattern that is all in one level is read off the top row. A dimension
+    with a band scheme uses the scheme's first set of edges.
+  control: >-
+    Step 7, the observation that stands regardless of what steps 3 to 6 found. It rests on the counts alone:
+    how often the two fields disagree in the seasoned book, and what the question file says reacts to that
+    today. The tool asserts nothing of its own about how either field is verified or used; the two lines
+    under the share are the question file's words.
   gradient: >-
     Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
     fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this
@@ -92,6 +103,13 @@ notes:
   config: >-
     Live knobs recalculate the workbook when changed: the confidence level and the interval method.
     Rebuild knobs are shown for the record and take effect only when the pack is built again.
+
+control:
+  share: "In {share:.1%} of the {both:,} seasoned loans where both {field_a} and {field_b} are present, {fires_text}."
+  drives_line: "{field}: {text}"
+  none: "Nothing in the process reacts to it."
+  some: "What reacts to it today, as the question file states it: {text}"
+  cover_heading: "Regardless of the above"
 
 labels:
   fires: "{field_a} {kind_word} {field_b} {fires_op} {fires_value:g}"

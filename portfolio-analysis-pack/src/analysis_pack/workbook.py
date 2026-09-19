@@ -117,12 +117,14 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     prev = wb.create_sheet("2_Prevalence")
     grad = wb.create_sheet("3_Gradient")
     strat = wb.create_sheet("4_Stratified")
+    decomp = wb.create_sheet("5_Decomposition")
+    ctrl = wb.create_sheet("7_Control") if data.control is not None else None
     cube = wb.create_sheet("_cube")
     conf = wb.create_sheet("_config")
     meth = wb.create_sheet("_method")
     check = wb.create_sheet("_check")
     prov = wb.create_sheet("_provenance")
-    for ws in (cover, cap, prev, grad, strat, cube, conf, meth, check, prov):
+    for ws in (cover, cap, prev, grad, strat, decomp, cube, conf, meth, check, prov) + ((ctrl,) if ctrl else ()):
         ks.hide_gridlines(ws)
     first_facts = data.per_outcome[0][0]
 
@@ -199,6 +201,12 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
             put_cube(band.unflagged)
             for gr in band.buckets:
                 put_cube(gr.cube)
+    for dc in data.decompositions:
+        for r_ in dc.rows:
+            put_cube(r_.flagged)
+            put_cube(r_.unflagged)
+    if data.control is not None:
+        put_cube(data.control.both)
     if data.bands:
         for i, (lab, counts) in enumerate(data.bands.rows):
             for j, c in enumerate(counts):
@@ -470,6 +478,70 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     if strat_first_hdr:
         ks.freeze_below(strat, strat_first_hdr)
 
+    # -- 5_Decomposition -------------------------------------------------------
+    ncols = 13
+    for col, wdt in zip("ABCDEFGHIJKLM", (30, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 10)):
+        decomp.column_dimensions[col].width = wdt
+    row = _header_band(decomp, ncols, "Step 5 — Decomposition", cfg, table, first_facts, run_date)
+    decomp_note = notes.fill("notes.decomposition", confidence=cfg.confidence, method=cfg.method)
+    row = _note(decomp, row, decomp_note, ncols)
+    row += 1
+    decomp_first_hdr = None
+    for dc in data.decompositions:
+        row = ks.section_band(decomp, row, f"Outcome: {dc.outcome.label} · by {dc.dimension}", ncols)
+        hdr = row
+        decomp_first_hdr = decomp_first_hdr or hdr
+        ks.header_row(decomp, hdr, [dc.dimension, "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
+                                    "Unflagged loans", "Unflagged events", "Unflagged rate", "Lower", "Upper",
+                                    "Gap (pts)", "Share of flagged events"], right_from=1)
+        first = hdr + 1
+        last = hdr + len(dc.rows)
+        for i, r_ in enumerate(dc.rows):
+            r = first + i
+            fn, fx = addr[r_.flagged.block]
+            un, ux = addr[r_.unflagged.block]
+            decomp.cell(r, 1, r_.label)
+            b.formula(decomp, f"B{r}", f"={fn}", r_.flagged.n, TOL_COUNT, fmt="#,##0")
+            b.formula(decomp, f"C{r}", f"={fx}", r_.flagged.events, TOL_COUNT, fmt="#,##0")
+            b.formula(decomp, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', r_.flagged_rate, fmt="0.00%")
+            b.formula(decomp, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), r_.flagged_lo, TOL_INTERVAL, fmt="0.00%")
+            b.formula(decomp, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), r_.flagged_hi, TOL_INTERVAL, fmt="0.00%")
+            b.formula(decomp, f"G{r}", f"={un}", r_.unflagged.n, TOL_COUNT, fmt="#,##0")
+            b.formula(decomp, f"H{r}", f"={ux}", r_.unflagged.events, TOL_COUNT, fmt="#,##0")
+            b.formula(decomp, f"I{r}", f'=IF(G{r}=0,"",H{r}/G{r})', r_.unflagged_rate, fmt="0.00%")
+            b.formula(decomp, f"J{r}", interval_formula("lo", f"G{r}", f"H{r}"), r_.unflagged_lo, TOL_INTERVAL, fmt="0.00%")
+            b.formula(decomp, f"K{r}", interval_formula("hi", f"G{r}", f"H{r}"), r_.unflagged_hi, TOL_INTERVAL, fmt="0.00%")
+            b.formula(decomp, f"L{r}", f'=IF(OR(D{r}="",I{r}=""),"",(D{r}-I{r})*100)', r_.gap_pts, TOL_POINTS, fmt="0.00")
+            b.formula(decomp, f"M{r}", f'=IF(SUM(C{first}:C{last})=0,"",C{r}/SUM(C{first}:C{last}))', r_.share, fmt="0.0%")
+        row = last + 2
+    if decomp_first_hdr:
+        ks.freeze_below(decomp, decomp_first_hdr)
+
+    # -- 7_Control ---------------------------------------------------------------
+    control_lines: list[str] = []
+    if ctrl is not None and data.control is not None:
+        ctrl.column_dimensions["A"].width = 110
+        ctrl.column_dimensions["B"].width = 16
+        row = _header_band(ctrl, 2, "Step 7 — The observation that stands regardless", cfg, table, first_facts, run_date)
+        row = _note(ctrl, row, notes.fill("notes.control"), 2)
+        row += 1
+        n_cell, x_cell = addr[data.control.both.block]
+        ctrl.cell(row, 1, "Seasoned loans with both fields present"); b.formula(ctrl, f"B{row}", f"={n_cell}", data.control.both.n, TOL_COUNT, fmt="#,##0"); row += 1
+        ctrl.cell(row, 1, "Of those, loans where the rule fires"); b.formula(ctrl, f"B{row}", f"={x_cell}", data.control.both.events, TOL_COUNT, fmt="#,##0"); row += 1
+        ctrl.cell(row, 1, "Share"); b.formula(ctrl, f"B{row}", f'=IF(B{row - 2}=0,"",B{row - 1}/B{row - 2})', data.control.share, fmt="0.0%"); row += 2
+        share_text = notes.fill("control.share", share=(data.control.share or 0.0), both=data.control.both.n,
+                                field_a=cfg.rule.field_a, field_b=cfg.rule.field_b, fires_text=_fires_text(cfg))
+        control_lines.append(share_text)
+        for fld, key in ((cfg.rule.field_a, "field_a"), (cfg.rule.field_b, "field_b")):
+            if cfg.drives.get(key):
+                control_lines.append(notes.fill("control.drives_line", field=fld, text=cfg.drives[key]))
+        if cfg.existing_control.lower() == "none":
+            control_lines.append(notes.fill("control.none"))
+        else:
+            control_lines.append(notes.fill("control.some", text=cfg.existing_control))
+        for line in control_lines:
+            c = ctrl.cell(row, 1, line); c.alignment = Alignment(wrap_text=True); row += 1
+
     # -- Cover -----------------------------------------------------------
     cover.column_dimensions["A"].width = 110
     row = ks.brand_banner(cover, 1, 1, "Portfolio Analysis Pack",
@@ -508,6 +580,11 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         cover[f"A{row}"].alignment = Alignment(wrap_text=True)
         row += 1
     cover.cell(row, 1, notes.fill("cover.not_built", step="Model (step 6)")); row += 2
+    if control_lines:
+        cover.cell(row, 1, notes.fill("control.cover_heading")).font = BOLD; row += 1
+        for line in control_lines:
+            row = _note(cover, row, line, 1)
+        row += 1
     cover.cell(row, 1, "What it rests on").font = BOLD; row += 1
     for facts, g in data.per_outcome:
         row = _note(cover, row, notes.fill("cover.denominator", seasoned=facts.seasoned, events=facts.events,
@@ -536,6 +613,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         prev_note,
         grad_note,
         strat_note,
+        decomp_note,
         notes.fill("notes.check"),
     ):
         row = _note(meth, row, text, 1)

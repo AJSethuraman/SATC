@@ -112,6 +112,8 @@ class PackData:
     band_counts: list[BandCount] = field(default_factory=list)
     prevalence: list[PrevalenceRow] = field(default_factory=list)
     strata: list = field(default_factory=list)          # list[Stratified], every outcome x confounder x scheme
+    decompositions: list = field(default_factory=list)  # list[Decomposition], every outcome x dimension
+    control: object = None                              # ControlObservation, for a contradiction rule
 
 
 def _twin_rate(n: int, x: int) -> float | None:
@@ -278,12 +280,20 @@ def run(cfg: Config, pop: Population) -> PackData:
     for l in pop.unseasoned:
         ubq[l.quarter] = ubq.get(l.quarter, 0) + 1
     strata = []
+    decomps = []
     for od in pop.outcomes:
         strata.extend(stratified(cfg, pop, od))
+        decomps.extend(decomposition(cfg, pop, od))
+    control = None
+    if cfg.rule_type == "contradiction":
+        both = [l for l in seasoned if l.rule_value is not None]
+        fires = sum(1 for l in both if l.fires)
+        control = ControlObservation(CubeRow("s7.both", "seasoned loans with both fields", len(both), fires))
+        control.share = _twin_rate(len(both), fires)
     return PackData(seasoned=len(seasoned), unseasoned=len(pop.unseasoned), per_outcome=per,
                     unseasoned_by_quarter=dict(sorted(ubq.items())), bands=band_table(pop),
                     capture=capture(cfg, pop), band_counts=band_counts(cfg, pop), prevalence=prevalence(cfg, pop),
-                    strata=strata)
+                    strata=strata, decompositions=decomps, control=control)
 
 
 # --------------------------------------------------------------------------
@@ -410,3 +420,105 @@ def stratified(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Strati
             st.word = stats.survives_word(st.crude, st.pooled, cfg.survives_threshold)
             out.append(st)
     return out
+
+
+# --------------------------------------------------------------------------
+# Step 5 — decomposition: where it concentrates
+# --------------------------------------------------------------------------
+
+@dataclass
+class DecompRow:
+    label: str
+    flagged: CubeRow
+    unflagged: CubeRow
+    flagged_rate: float | None = None
+    flagged_lo: float | None = None
+    flagged_hi: float | None = None
+    unflagged_rate: float | None = None
+    unflagged_lo: float | None = None
+    unflagged_hi: float | None = None
+    gap_pts: float | None = None
+    multiple: float | None = None
+    share: float | None = None          # this level's flagged events over all flagged events
+
+
+@dataclass
+class Decomposition:
+    outcome: OutcomeDef
+    dimension: str
+    rows: list[DecompRow]
+
+
+def _dimension_levels(cfg: Config, pop: Population, name: str):
+    """(level-of-loan function, ordered labels) for a decompose_by name."""
+    seasoned_both = [l for l in pop.seasoned if l.rule_value is not None]
+    if name == "origination_year":
+        years = sorted({l.year for l in seasoned_both})
+        return (lambda l: str(l.year)), [str(y) for y in years]
+    for c in cfg.confounders:
+        if c.name == name:
+            if c.schemes:
+                sname, edges = next(iter(c.schemes.items()))
+                labels = bucket_labels(edges)
+                return (lambda l, f=c.field, e=edges, lab=labels: None if l.values.get(f) is None else lab[bucket_index(l.values[f], e)]), labels
+            levels: dict[str, int] = {}
+            for l in seasoned_both:
+                v = l.values.get(c.field)
+                if v is not None:
+                    levels[str(v)] = levels.get(str(v), 0) + 1
+            labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
+            return (lambda l, f=c.field: None if l.values.get(f) is None else str(l.values[f])), labels
+    for c in cfg.controls:
+        if c.name == name:
+            if c.derived == "origination_year":
+                years = sorted({l.year for l in seasoned_both})
+                return (lambda l: str(l.year)), [str(y) for y in years]
+            levels = {}
+            for l in seasoned_both:
+                v = l.values.get(c.field)
+                if v is not None:
+                    levels[str(v)] = levels.get(str(v), 0) + 1
+            labels = [k for k, _ in sorted(levels.items(), key=lambda kv: (-kv[1], kv[0]))]
+            return (lambda l, f=c.field: None if l.values.get(f) is None else str(l.values[f])), labels
+    raise KeyError(name)
+
+
+def decomposition(cfg: Config, pop: Population, outcome: OutcomeDef) -> list[Decomposition]:
+    out: list[Decomposition] = []
+    seasoned_both = [l for l in pop.seasoned if l.rule_value is not None]
+    key = outcome.key
+    total_flagged_events = sum(int(l.events.get(key, False)) for l in seasoned_both if l.fires)
+    for dim in cfg.decompose_by:
+        level_of, labels = _dimension_levels(cfg, pop, dim)
+        rows: list[DecompRow] = []
+        for i, lab in enumerate(labels):
+            members = [l for l in seasoned_both if level_of(l) == lab]
+            fl = [l for l in members if l.fires]
+            un = [l for l in members if not l.fires]
+            a = sum(int(l.events.get(key, False)) for l in fl)
+            c = sum(int(l.events.get(key, False)) for l in un)
+            prefix = f"s5.{key}.{dim}.{i}"
+            r = DecompRow(lab, CubeRow(f"{prefix}.flagged", f"{dim}={lab} flagged", len(fl), a),
+                          CubeRow(f"{prefix}.unflagged", f"{dim}={lab} unflagged", len(un), c))
+            r.flagged_rate = _twin_rate(len(fl), a)
+            r.flagged_lo, r.flagged_hi = _twin_interval(len(fl), a, cfg)
+            r.unflagged_rate = _twin_rate(len(un), c)
+            r.unflagged_lo, r.unflagged_hi = _twin_interval(len(un), c, cfg)
+            if r.flagged_rate is not None and r.unflagged_rate is not None:
+                r.gap_pts = (r.flagged_rate - r.unflagged_rate) * 100.0
+                r.multiple = None if r.unflagged_rate == 0 else r.flagged_rate / r.unflagged_rate
+            r.share = None if total_flagged_events == 0 else a / total_flagged_events
+            rows.append(r)
+        rows.sort(key=lambda r: (-r.flagged.events, r.label))
+        out.append(Decomposition(outcome=outcome, dimension=dim, rows=rows))
+    return out
+
+
+# --------------------------------------------------------------------------
+# Step 7 — the control observation, from the config and the counts alone
+# --------------------------------------------------------------------------
+
+@dataclass
+class ControlObservation:
+    both: CubeRow                       # n = seasoned loans with both fields, events = rule fires
+    share: float | None = None

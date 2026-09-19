@@ -180,6 +180,26 @@ def _rule_value(kind: str, a: float, b: float) -> float | Bad:
     return a - b
 
 
+def derive_value(steps: tuple, text: str) -> str | Bad:
+    """Apply the field's grouping steps in order (PRD §6.15). A code shorter
+    than a prefix length is malformed; a value in no group takes the `other`
+    label, and with no `other` label it is refused, never invented."""
+    v = text
+    for step in steps:
+        if step["kind"] == "prefix":
+            if len(v) < step["length"]:
+                return Bad(f"malformed code (shorter than the {step['length']}-character prefix)", text)
+            v = v[:step["length"]]
+        else:
+            if v in step["lookup"]:
+                v = step["lookup"][v]
+            elif step["other"] is not None:
+                v = step["other"]
+            else:
+                return Bad("value in no group and the map has no `other` label", v)
+    return v
+
+
 def outcome_defs(cfg: Config) -> list[OutcomeDef]:
     o = cfg.outcome
     if o.form == "event_date":
@@ -293,7 +313,14 @@ def build_population(cfg: Config, rows: list[dict[str, Any]], asof: date) -> Pop
             else:
                 values[col] = None if v is BLANK else v
         for col in text_fields:
-            values[col] = None if is_blank(r.get(col)) else cell_text(r.get(col))
+            raw_text = None if is_blank(r.get(col)) else cell_text(r.get(col))
+            if raw_text is not None and cfg.fields[col].derive:
+                dv = derive_value(cfg.fields[col].derive, raw_text)
+                if isinstance(dv, Bad):
+                    dirt.append((lid, col, dv.value, dv.reason)); bad = True
+                    continue
+                raw_text = dv
+            values[col] = raw_text
         if bad:
             continue
         rule_value: float | None = None
