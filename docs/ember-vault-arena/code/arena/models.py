@@ -399,9 +399,16 @@ class Deal:
         else:
             if not offer_id:
                 raise ValidationError("deal.offer_id names the open offer you accept")
-            for slot in ("to", "type", "rounds", "item", "destination", "by_round"):
+            # An accept is the offer's id. A brain that also names the offerer in
+            # ``to`` or echoes the offer's ``type`` is being clear, not wrong: the
+            # real match of 19 Sep 2026 lost twelve turns to guard for that in
+            # its first seventeen rounds. Those two ride along and are checked
+            # against the offer by the referee; the terms belong to the offer.
+            for slot in ("rounds", "item", "destination", "by_round"):
                 if raw.get(slot) is not None:
                     raise ValidationError(f"deal.{slot} does not belong to an accept")
+            if type_ is not None and type_ not in DEAL_TYPES:
+                raise ValidationError(f"deal.type must be one of {sorted(DEAL_TYPES)}")
         return cls(kind=kind, to=to, type=type_, rounds=rounds, item=item, destination=destination,
                    by_round=by_round, offer_id=offer_id)
 

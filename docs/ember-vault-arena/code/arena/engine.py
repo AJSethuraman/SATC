@@ -680,7 +680,7 @@ class ArenaEngine:
                  "changes": {f"deals.offers.{offer['id']}.status": [None, "open"]}},
             )
             return
-        struck, reason = deals.record_accept(self.state, round_no, agent_id, deal.offer_id)
+        struck, reason = deals.record_accept(self.state, round_no, agent_id, deal.offer_id, raw)
         if struck is None:
             self._event(
                 round_no, "dialogue", "deal_lost", agent_id, None,

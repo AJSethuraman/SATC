@@ -383,3 +383,25 @@ class TheMockDeals(DealTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnAcceptThatNamesTheOfferer(DealTestCase):
+    def test_to_and_type_on_an_accept_ride_along_and_must_match_the_offer(self):
+        """The real match of 19 Sep 2026 lost turns to guard for an accept
+        that named the offerer; now it is accepted, and one that names the
+        wrong offerer or type is lost with the reason, never a penalty."""
+        a, b, c = self.ids[:3]
+        engine = self.engine()
+        state = engine.state
+        recorded, why = deals.record_offer(state, 1, a, offer(b, "truce", rounds=2))
+        self.assertIsNone(why)
+        self.assertEqual(deals.record_accept(state, 2, b, recorded["id"], {**accept(recorded["id"]), "to": c})[1], f"that offer was made by {a}, not {c}")
+        self.assertEqual(deals.record_accept(state, 2, b, recorded["id"], {**accept(recorded["id"]), "type": "escort"})[1], "that offer is a truce, not a escort")
+        struck, why = deals.record_accept(state, 2, b, recorded["id"], {**accept(recorded["id"]), "to": a, "type": "truce"})
+        self.assertIsNone(why)
+        self.assertEqual(struck["status"], "standing")
+        # through the contract and the engine, as a brain sends it
+        script = {(1, a): offer(b, "truce", rounds=2), (2, b): {**accept(f"offer-r1-{a}"), "to": a, "type": "truce"}}
+        _, bundle = self.run_match(Scripted(script), rounds=3, name="clear.db")
+        self.assertEqual(len(self.events(bundle, "deal_struck")), 1)
+        self.assertFalse([d for d in bundle["decisions"] if d["validity"] != "valid"])

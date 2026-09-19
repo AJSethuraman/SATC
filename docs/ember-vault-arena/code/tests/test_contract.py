@@ -85,6 +85,9 @@ class ActionContractTests(unittest.TestCase):
         self.assertEqual(AgentAction.from_dict(self._raw(deal=escort)).as_dict()["deal"], escort)
         accept = {**empty, "kind": "accept", "offer_id": "offer-r1-nix"}
         self.assertEqual(AgentAction.from_dict(self._raw(deal=accept)).as_dict()["deal"], accept)
+        # naming the offerer and echoing the type on an accept is allowed (19 Sep 2026)
+        clear = {**accept, "to": "nix", "type": "truce"}
+        self.assertEqual(AgentAction.from_dict(self._raw(deal=clear)).as_dict()["deal"], clear)
         self.assertIsNone(AgentAction.from_dict(self._raw(deal=None)).deal)
         # the second choice carries no deal twice
         second = AgentAction.from_dict(self._raw(deal=truce, fallback={"action": "guard", "target": None, "destination": None, "item": None, "tile": None})).second()
@@ -101,7 +104,7 @@ class ActionContractTests(unittest.TestCase):
             "a share_item offer needs deal.by_round": {**share, "by_round": None},
             "deal.offer_id belongs to an accept": {**truce, "offer_id": "offer-r1-nix"},
             "deal.offer_id names the open offer": {**empty, "kind": "accept"},
-            "deal.to does not belong to an accept": {**accept, "to": "nix"},
+            "deal.rounds does not belong to an accept": {**accept, "rounds": 2},
             "deal.by_round must be an integer": {**escort, "by_round": "soon"},
         }
         for message, deal in bad.items():
@@ -501,7 +504,7 @@ class AgentSDKAdapterTests(unittest.TestCase):
         AgentSDKProvider(query=_fake_query(_Result("success", structured=json.loads(GOOD_JSON))),
                          options_factory=factory).decide(manifest, prompt, obs)
         self.assertEqual(captured["tools"], [])
-        self.assertEqual(captured["max_turns"], 1)
+        self.assertEqual(captured["max_turns"], 2)  # the structured-output tool turn needs the second (19 Sep 2026)
         self.assertEqual(captured["setting_sources"], [])
         self.assertEqual(captured["output_format"]["type"], "json_schema")
         self.assertNotIn(str(ROOT), captured["cwd"])

@@ -127,14 +127,21 @@ def record_offer(
 
 
 def record_accept(
-    state: dict[str, Any], round_no: int, by_id: str, oid: str | None
+    state: dict[str, Any], round_no: int, by_id: str, oid: str | None, deal: Mapping[str, Any] | None = None
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Strike a deal from an open offer. Returns (deal, None) or (None, why)."""
+    """Strike a deal from an open offer. Returns (deal, None) or (None, why).
+    ``deal`` is the accept as sent: a ``to`` or ``type`` on it must match the
+    offer, or the accept is lost with the reason."""
+    deal = deal or {}
     offer = state["deals"]["offers"].get(oid or "")
     if offer is None:
         return None, "no such offer"
     if offer["to"] != by_id:
         return None, "that offer was not made to you"
+    if deal.get("to") not in (None, offer["from"]):
+        return None, f"that offer was made by {offer['from']}, not {deal.get('to')}"
+    if deal.get("type") not in (None, offer["type"]):
+        return None, f"that offer is a {offer['type']}, not a {deal.get('type')}"
     if offer["status"] != "open":
         return None, f"that offer is {offer['status']}"
     if offer["made_round"] >= round_no:

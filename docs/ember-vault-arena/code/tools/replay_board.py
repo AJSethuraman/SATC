@@ -93,6 +93,14 @@ TOKEN_COLOURS = ["#e0b48a", "#f0ede8", "#4fd1c5", "#ffd166", "#ff8fa3", "#c48cff
 MONSTER_LABELS = {"ironwood_guardian": "IG", "ossuary_guardian": "OG", "crown_warden": "W", "cellar_drowner": "CD", "charnel_hound": "CH"}
 
 
+
+_COUNT_WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve"}
+
+
+def _count_word(n):
+    """The number of pieces on the board, as a word where one fits in a sentence: the page said "all eight" while eleven stood on it."""
+    return _COUNT_WORDS.get(n, str(n)) if n else "all"
+
 def dwell_for(kind: str, text: str = "") -> int:
     base, per_char, cap = DWELL.get(kind, DEFAULT_DWELL)
     return min(cap, base + per_char * len(text)) if per_char else base
@@ -525,7 +533,7 @@ def build_scene(bundle: dict, start: dict) -> dict:
     rooms.sort(key=lambda r: order.index(r["id"]) if r["id"] in order else 99)
     schedule = (first.get("contraction") or {}).get("schedule") or []
     names = {rid: r["name"] for rid, r in first["rooms"].items()}
-    rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all eight decide at once; then a d20 each sets the order and each acts in turn; then the monsters."]
+    rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all {_count_word(len(bundle.get('participants') or []))} decide at once; then a d20 each sets the order and each acts in turn; then the monsters."]
     if schedule:
         rules.append("Rooms close on a clock: " + "; ".join(f"{names.get(s['room'], s['room'])} at the end of round {s['round']}" for s in schedule) + ". Whoever is inside is swept into the Vault.")
     opens_at = (first.get("max_rounds", 48) // 4) * 3 + 1 if str(m.get("ruleset_version", "")) >= "ember-vault-0.5" else None
@@ -1620,7 +1628,7 @@ def build(bundle: dict, note: str = "", live: dict | None = None) -> str:
                f"the rest arrive as they end. Each round: all think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
     else:
         sub = (f"Match {E(str(m.get('id', '')))}, seed {E(str(m.get('seed', '')))}. {len(rounds)} rounds of {E(str(m.get('max_rounds', '')))} played; "
-               f"winner {E(winner)}. Each round: all eight think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
+               f"winner {E(winner)}. Each round: all {_count_word(len(start['agents']))} think at once, then speak, then act in initiative order. Press Play." + (f" {E(note)}" if note else ""))
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return f"""<title>Ember Vault Board</title>
 {FONTS}

@@ -5,6 +5,65 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 01:55Z — the first full match on the new rules, run from here at the firm's word
+
+*On the date: this header is the clock. The seven entries below it, headed
+"19 September 00:15Z" to "03:20Z", were written before this one and their
+headers ran about two hours ahead of the clock again, after the note under
+"18 September 23:35Z" said the header would be the clock from then on. Left
+as written; recorded here.*
+
+The firm, after "done" on D13: *"come on i keep saying i want you to run
+it."* The forge on their machine had held the order since 23:18Z on the
+18th and never stirred, so the match ran from this session on the
+subscription route, `ANTHROPIC_API_KEY` unset, at HEAD `2542892e`, with
+`--talkers brains/talkers` and no `--rounds` (the default is forty-eight
+now). `runs/20260919T011140Z-agent-sdk-ruleset-0.5.md` is the run report;
+`runs/ember-8-2c61e565.replay.json` is the bundle, 22.8 MB because it
+carries all 433 prompts and raw outputs, committed on the precedent of
+`ember-7`'s.
+
+**The match.** Seed 8, eleven seats, all forty-eight rounds in 22 min 28 s,
+`crown_held`: Fen Marrowlane, the scout who *"will not stand and fight when
+there is any way at all to be somewhere else"*, lifted the Crown at round 44
+after Grael killed the Warden at 43, and nobody touched him. 38 points; Ilse
+24; Yarrow third at 5 though dead since round 6; Ossa last at −7 with the
+match's only two kills of a character (Perrin at 43, Vesper the talker at
+46, the first talker death on record, paying nobody). Both seals lit by
+round 10; the gate opened at 37; thirteen rooms sealed on the schedule the
+opening announced. Ninety-six offers, eighteen deals struck, seventy-eight
+lapsed, one broken. 335 lines said; the talkers led the speaking. **Stale
+turns: 13 of 433 (3.0%) against 17 of 106 (16%) on 13 September**; the second
+choice is what changed between the two. **No site ever woke**: twenty-two
+hands offered, twenty at the braziers, every one alone. Recorded for the firm.
+
+**Two faults, both in the harness.** 41 network fallbacks, all "Reached
+maximum number of turns (1)": the SDK option was one turn and the structured
+answer takes two, so the model's answer was thrown away and the character
+stood still. `max_turns` is 2, pinned by a test. 30 invalid outputs, all
+"deal.to does not belong to an accept": the model named who it was
+accepting from and echoed the type, which is how anyone would read the
+contract, and the validator refused the whole action. An accept may carry
+`to` and `type` now and `record_accept` checks them against the offer;
+`rounds`, `item`, `destination` and `by_round` still do not belong to an
+accept. Prompt `ember-vault-prompt-1.4` says so; golden regenerated on
+purpose. Together 71 of 433 turns, 16.4%, lost to the harness; the model's
+own answers were valid 362 of 362 times. The CLI fell over after the match
+sorting placements with a talker's `None` among them; the match was already
+complete in the database, and the summary sorts talkers last now. A
+two-round check on the route after all three fixes, seed 9, eleven seats:
+**22 of 22, network 0, panic 0**, $1.91. Evidence, not proof; and no
+accept was made in two rounds, so that fix rests on its tests alone.
+
+**The board.** Built from the bundle, looked at once (sixteen rooms drawn,
+eleven pieces at the Threshold, 476 moments, no page errors), and published
+to the artifact the firm watches. The header said "all eight think at once"
+over eleven pieces; it counts now. The first publish went to a new address
+by this session's mistake before the second went to the right one; the stray
+copy is left, since deleting a page is the firm's call. PRD item 29 carries
+the final counts (an earlier note had the mid-match ones). Suite **179**.
+Task 13 (the board from the forge's match) is closed by this one.
+
 ## 19 September 2026, 03:20Z — D13 ruled: the world as drawn stands
 
 The firm answered the docket at 01:06Z (the clock's time): D13, choice

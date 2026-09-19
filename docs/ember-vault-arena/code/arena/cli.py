@@ -129,11 +129,13 @@ def main() -> None:
             match_id = engine.run(manifests, args.seed)
             result = store.replay_bundle(match_id)
             print(f"Completed {match_id}")
+            # a talker has no placement (PRD §5.25); it is listed after the contestants
             for participant in sorted(
-                result["participants"], key=lambda item: item["placement"]
+                result["participants"], key=lambda item: (item["placement"] is None, item["placement"] or 0)
             ):
+                place = f"#{participant['placement']}" if participant["placement"] is not None else "talker"
                 print(
-                    f"  #{participant['placement']} "
+                    f"  {place} "
                     f"{participant['manifest']['name']}: "
                     f"{participant['final_score']} points"
                 )

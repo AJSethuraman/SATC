@@ -36,7 +36,7 @@ from .models import (
 from .storage import canonical_json
 
 
-PROMPT_VERSION = "ember-vault-prompt-1.3"
+PROMPT_VERSION = "ember-vault-prompt-1.4"
 MAX_OUTPUT_TOKENS = 600
 
 # The victory condition, restated in every digest AND here (PRD §5.22): an
@@ -103,8 +103,9 @@ attacks the other for that many rounds once struck), "share_item" with "item"
 (an item id) and "by_round" (you hand it over by the end of that round), or
 "escort" with "destination" (a room id) and "by_round" (you both stand there
 by the end of that round). To accept an offer made to you, {{"kind":"accept",
-"offer_id":"<id>"}}, the round after it was made; an offer nobody answers by
-the end of the next round lapses. Unused slots are null. The referee records
+"offer_id":"<id>"}}, the round after it was made ("to" may name the offerer
+and "type" may echo the offer's type; the terms stay null); an offer nobody
+answers by the end of the next round lapses. Unused slots are null. The referee records
 every offer, acceptance and break and enforces nothing: a truce partner can
 still strike you, and when they do it is a public deal_broken event that
 every contestant reads. observation.deals lists your open offers, your
@@ -1200,7 +1201,11 @@ class AgentSDKProvider:
             "tools": [],
             "model": self.model,
             "effort": self.effort,
-            "max_turns": 1,
+            # Two, not one (19 Sep 2026): the structured output the schema asks
+            # for arrives as a tool turn, and with one turn the SDK ended 26 of
+            # 305 calls in the first real match "Reached maximum number of
+            # turns (1)", each resolved to guard as a transport failure.
+            "max_turns": 2,
             "cwd": self._cwd,
             "setting_sources": [],
         }
