@@ -228,7 +228,9 @@ def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
 
 
 def placement_order(state: Mapping[str, Any]) -> list[str]:
-    agents = [state["agents"][agent_id] for agent_id in sorted(state["agents"])]
+    """Contestants only: a talker (PRD §5.25) cannot place or win."""
+    agents = [state["agents"][agent_id] for agent_id in sorted(state["agents"])
+              if state["agents"][agent_id].get("kind", "character") == "character"]
     agents.sort(key=lambda agent: placement_key(state, agent))
     return [agent["id"] for agent in agents]
 

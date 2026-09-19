@@ -603,7 +603,7 @@ class ArenaStore:
                     """,
                     (
                         agent["score"],
-                        placements[agent_id],
+                        placements.get(agent_id),
                         agent["status"],
                         match_id,
                         agent_id,
@@ -787,7 +787,7 @@ class ArenaStore:
                 "id": manifest["id"],
                 "name": manifest["name"],
                 "kind": manifest.get("kind", "character"),
-                "build": manifest["build"],
+                "build": manifest.get("build", ""),  # a talker has no build
             }
             if reveal or row["final_status"] == "eliminated":
                 public_manifest = manifest

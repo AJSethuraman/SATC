@@ -34,6 +34,7 @@ from . import combat, deals, grid, items, rules, scoring, world
 from .models import (
     AgentAction,
     Deal,
+    TALKERS_MAX,
     AgentManifest,
     Note,
     ProviderResult,
@@ -133,8 +134,12 @@ class ArenaEngine:
         seed: int = 20260724,
         match_id: str | None = None,
     ) -> str:
-        if not 4 <= len(manifests) <= 8:
-            raise ValueError("Ember Vault requires four to eight agents")
+        characters = [m for m in manifests if getattr(m, "kind", "character") == "character"]
+        talkers = [m for m in manifests if getattr(m, "kind", "character") == "talker"]
+        if not 4 <= len(characters) <= 8:
+            raise ValueError("Ember Vault requires four to eight contestants")
+        if len(talkers) > TALKERS_MAX:
+            raise ValueError(f"Ember Vault seats at most {TALKERS_MAX} talkers")
         if len({manifest.id for manifest in manifests}) != len(manifests):
             raise ValueError("agent IDs must be unique")
         self.match_id = match_id or f"ember-{seed}-{uuid.uuid4().hex[:8]}"
@@ -334,6 +339,16 @@ class ArenaEngine:
                 "changes": {"act": [old_act, new_act]},
             },
         )
+        if new_act == rules.VAULT_OPENS_ACT and rules.vault_open(self.state):
+            self._event(
+                round_no,
+                "referee",
+                "vault_gate_opened",
+                None,
+                VAULT_ROOM,
+                "The last act opens and both seals burn: the Ember Vault stands open.",
+                {"reason": "last_act_with_seals_lit", "seals": dict(self.state["seals"])},
+            )
 
     def _flag_contracting_rooms(self, round_no: int) -> None:
         """A room is flagged for the FULL round whose END seals it, so the
@@ -916,6 +931,17 @@ class ArenaEngine:
                 "Both seals burn. The Ember Vault stands open.",
                 {"reason": "seals_active", "seals": dict(self.state["seals"])},
             )
+        elif rules.seals_lit(self.state):
+            self._event(
+                self.state["round"],
+                "referee",
+                "seals_lit",
+                None,
+                VAULT_ROOM,
+                f"Both seals burn. The Ember Vault waits for the last act: it opens at round {rules.vault_opens_at_round()}.",
+                {"reason": "seals_active_before_the_last_act", "seals": dict(self.state["seals"]),
+                 "opens_at_round": rules.vault_opens_at_round()},
+            )
 
     def _lend_hand(self, agent_id: str, action: AgentAction, site_id: str, hand: str) -> None:
         """A hand at a cooperative site (PRD §5.3). Legality was proved at the
@@ -1104,6 +1130,9 @@ class ArenaEngine:
             or receiver["room"] != agent["room"]
         ):
             self._stale(agent_id, action, "the receiver is no longer here")
+            return
+        if item_id == CROWN_ITEM_ID and receiver.get("kind") == "talker":
+            self._stale(agent_id, action, "a talker cannot carry the Crown")
             return
         rules.inventory_remove(self.state, agent_id, item_id)
         rules.inventory_add(self.state, receiver["id"], item_id)
@@ -1573,6 +1602,7 @@ class ArenaEngine:
                 if self.state["agents"][agent_id]["room"] == monster["room"]
                 and self.state["agents"][agent_id]["status"] == "active"
                 and self.state["agents"][agent_id]["hp"] > 0
+                and self.state["agents"][agent_id].get("kind", "character") == "character"  # a talker is nobody's target yet (PRD §5.8)
             ]
             if not present:
                 continue
@@ -1676,6 +1706,7 @@ class ArenaEngine:
                 agent_id
                 for agent_id in sorted(self.state["agents"])
                 if self.state["agents"][agent_id]["status"] == "active"
+                and self.state["agents"][agent_id].get("kind", "character") == "character"
             ]
             for agent_id in survivors:
                 self._score(
@@ -2015,6 +2046,8 @@ class ArenaEngine:
 
     def _score(self, agent_id: str, category: str, points: int, detail: str) -> None:
         agent = self.state["agents"][agent_id]
+        if agent.get("kind") == "talker":
+            return  # a talker cannot score (PRD §5.25), not even a penalty
         agent["score"] += points
         breakdown = agent["score_breakdown"]
         breakdown[category] = breakdown.get(category, 0) + points
@@ -2033,18 +2066,23 @@ class ArenaEngine:
         note. A pure read of state."""
         state = self.state
         monsters = state["monsters"]
+        names = {room_id: room["name"] for room_id, room in state["rooms"].items()}
         rooms = []
         for room_id, room in state["rooms"].items():
             guardian = monsters.get(room.get("guardian_id") or "")
             rooms.append({"id": room_id, "name": room["name"], "description": room.get("description", ""),
                           "guardian": guardian["name"] if guardian else None})
-        names = {room_id: room["name"] for room_id, room in state["rooms"].items()}
         closes = [{"room": names.get(c["room"], c["room"]), "round": c["round"]}
                   for c in state.get("contraction", {}).get("schedule", [])]
         return {
             "max_rounds": self.max_rounds,
             "contestants": [{"name": a["name"], "build": a["build"], "hp": a["max_hp"]}
-                            for a in (state["agents"][aid] for aid in sorted(state["agents"]))],
+                            for a in (state["agents"][aid] for aid in sorted(state["agents"]))
+                            if a.get("kind", "character") == "character"],
+            # the house voices (PRD §5.25): name and where each stands, never an agenda
+            "talkers": [{"name": a["name"], "room": names.get(a["room"], a["room"])}
+                        for a in (state["agents"][aid] for aid in sorted(state["agents"]))
+                        if a.get("kind") == "talker"],
             "monsters": [{"name": m["name"], "room": names.get(m["room"], m["room"]), "hp": m["max_hp"],
                           "power": m["power"], "armor": m["armor"], "reach": m["reach"]}
                          for m in (monsters[mid] for mid in sorted(monsters))],
@@ -2052,7 +2090,7 @@ class ArenaEngine:
             "closes": closes,
             "rules": [
                 f"{self.max_rounds} rounds at most; every round all decide at once, the dice set the order, each acts in turn, then the monsters.",
-                "Each gate holds a seal and a guardian; the Vault opens when both seals are lit.",
+                f"Each gate holds a seal and a guardian; the Vault opens in the last act, from round {rules.vault_opens_at_round()}, and only if both seals are lit.",
                 "The Crown is locked inside its Warden and drops when the Warden falls; whoever holds it when the last round ends wins outright.",
                 "Some things take more than one pair of hands: "
                 + "; ".join(f"{s['name']} wakes only when {len(s['hands'])} characters lend a hand in the same round, {s['points']} points each"
@@ -2206,6 +2244,8 @@ class ArenaEngine:
             self.state["ended_reason"] = "rounds_exhausted"
         for agent_id in sorted(self.state["agents"]):
             agent = self.state["agents"][agent_id]
+            if agent.get("kind") == "talker":
+                continue  # no aim, no reveal, no place
             objective = self.manifests[agent_id].secret_objective
             completed = scoring.objective_complete(self.state, agent_id, objective)
             if completed:
@@ -2247,6 +2287,7 @@ class ArenaEngine:
                 "scores": {
                     agent_id: self.state["agents"][agent_id]["score"]
                     for agent_id in sorted(self.state["agents"])
+                    if self.state["agents"][agent_id].get("kind", "character") == "character"
                 },
             },
         )

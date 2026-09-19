@@ -55,7 +55,7 @@ class ArenaEngineTests(unittest.TestCase):
         try:
             replay = store.replay_bundle(match_id)
             self.assertEqual(replay["match"]["status"], "completed")
-            self.assertEqual(replay["match"]["ruleset_version"], "ember-vault-0.4")
+            self.assertEqual(replay["match"]["ruleset_version"], "ember-vault-0.5")
             from arena import rules
             self.assertEqual(replay["match"]["max_rounds"], rules.DEFAULT_MAX_ROUNDS)
             self.assertEqual(len(replay["participants"]), len(self.manifests))
@@ -390,7 +390,7 @@ class ValidationTests(unittest.TestCase):
     def test_ruleset_version_and_defaults(self):
         from arena import rules
 
-        self.assertEqual(RULESET_VERSION, "ember-vault-0.4")
+        self.assertEqual(RULESET_VERSION, "ember-vault-0.5")
         # PRD §5.1, the one place the numbers are repeated on purpose: forty-eight
         # rounds in four acts of twelve, I 1–12, II 13–24, III 25–36, IV 37–48.
         self.assertEqual(rules.DEFAULT_MAX_ROUNDS, 48)

@@ -5,6 +5,73 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 19 September 2026, 01:25Z — M3, slices D and E: the talkers, the standings, the simulator, and the Vault opening in act IV
+
+**The simulator did not run.** Slice A wrote `rules.` into
+`tools/simulate.py` without importing it and nothing said so, because
+the simulator was in no test. It is now (`tests/test_simulate.py`: one
+seed through the worker, the aggregate and the report), and it reports
+every §8 balance metric: act IV with the Warden alive, eliminations
+median, the seat band, sites woken and deals per match.
+
+**What it said, 96 seeds on the mock, before anything changed:** every
+target met but one, build spread (mystic 45.8%, scoundrel 9.4%), and
+one the PRD asks for that the report did not yet show: the Warden alive
+when act IV opens, in 1 match of 100. The mock rushed the gates, killed
+the Warden in act II, and the Crown changed hands for thirty rounds,
+which is where the mystic's reach compounds. Three build experiments
+(the mystic's reach at 2; that plus the scoundrel's power at 3; the
+mystic's power at 2) moved the spread little: the mystic 36–38%, the
+scoundrel 12–15%.
+
+**The rule that fixed it, ruleset `ember-vault-0.5`, the session's
+decision and reversible:** the Vault opens only in act IV, the "one
+convergent terminal objective in act IV" of PRD item 4. Both seals lit
+is the key and the last act is the hour: lit earlier, a `seals_lit`
+event says when the gate opens and the digest carries `seals_lit` and
+`vault_opens_at_round`; at act IV's first round with both lit, or the
+moment the second lights in act IV, `vault_gate_opened`. The mock no
+longer walks at a shut gate. Measured as a patch first (every target
+met but build spread, 17.7–36.5%), then built and measured again: every
+§8 target met on 96 seeds, build win rates 20.8–28.1%, seats 9.4–16.7%,
+eliminations median 2, the Warden alive into act IV in every match,
+sites woken 2.95 a match, transfers median 1, mishaps 36.6%. Tests
+(`tests/test_vault_act.py`, 3): lit in act II arms the gate and it
+opens when act IV begins; the second seal lit in act IV opens it at
+once; a whole mock match keeps the Warden alive into act IV and nobody
+enters the Vault before it. The scoring table's values are not retuned:
+under D8's ending the points place second to eighth and no §8 target
+speaks to placements, so the retune waits for a target (PRD item 5).
+
+**Standings** (item 5, item 22): `observation.standings`, every
+contestant by score with status and who carries the Crown, nothing
+private. One test.
+
+**The talkers** (item 25): a talker is an agent of `kind: talker` with
+modest fixed numbers so it has a body on the board (10 HP, power 1,
+armour 1, speed 1), starting in its manifest's room with what it holds.
+Its legal set is `move`, `give`, `guard`; it speaks, whispers, offers
+and accepts through the slots. It cannot score (the referee's `_score`
+is a no-op for it, penalties included), is out of standings,
+placements, `final_scores`, the survival bonus and the objective
+reveal, carries no secret objective, is nobody's legal target (no
+attack entry, no monster swing) until item 8 ships, and cannot be given
+the Crown. Its prompt is the platform rules plus a talker paragraph and
+a house-authored block (voice, agenda, knows, holds), never the player
+sections; the opening names the talkers and where each stands, never an
+agenda. `run.py demo --talkers brains/talkers` seats up to three beside
+four to eight contestants; the replay carries them with no placement.
+Three drafts in `brains/talkers/`, the session's, the firm's to
+rewrite: Wick the Guide, Coin who Sells, Vesper of the Ash Court. The
+mock played them silent at first (it read a secret objective every
+talker lacks and the referee logged the crash as a network fallback,
+which is what provider isolation is for); fixed. Tests
+(`tests/test_talkers.py`, 6).
+
+The board learned that a round may open with the Vault's gate. Golden
+regenerated on purpose, twice (the rule, then the talker-proof mock):
+98 snapshots, 2,335 events, Hex wins. Suite 156 → **167**, 99 seconds.
+
 ## 19 September 2026, 00:40Z — M3, slice B2: three things that take more than one pair of hands
 
 PRD §5 item 3's cooperative sites built, as data in `world.SITES` and one

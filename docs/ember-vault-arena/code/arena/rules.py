@@ -26,7 +26,7 @@ from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
 from . import combat, deals, grid, items, memory, scoring, world
-from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
+from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION, TALKER_ACTIONS, TALKER_STATS
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +65,11 @@ ACT_NAMES: dict[int, str] = {
     4: "Act IV — The Contraction",
 }
 CONTRACTION_ACT = 4  # "Contraction belongs to act IV only" (PRD §5.4)
+# The Vault opens only in the last act (PRD §5.4, "one convergent terminal
+# objective in act IV"; built 19 Sep 2026 after the simulator showed the
+# Warden dead before act IV in every match): both seals lit is the key, the
+# last act is the hour. Until then the seals are armed and the gate waits.
+VAULT_OPENS_ACT = 4
 
 # The schedule is drawn with the map (world.CONTRACTION_SCHEDULE): ordered,
 # absolute round numbers, every one inside act IV and before the last round;
@@ -94,15 +99,19 @@ def new_match_state(
 ) -> dict[str, Any]:
     agents: dict[str, Any] = {}
     for seat_index, manifest in enumerate(manifests):
-        stats = BUILDS[manifest.build]
+        talker = getattr(manifest, "kind", "character") == "talker"
+        stats = TALKER_STATS if talker else BUILDS[manifest.build]
+        start_room = manifest.start if talker and manifest.start in ROOMS else START_ROOM
         agents[manifest.id] = {
             "id": manifest.id,
             "name": manifest.name,
             "build": manifest.build,
-            "room": START_ROOM,
+            "kind": "talker" if talker else "character",
+            "room": start_room,
             # Tactical position. Seat order fixes the opening formation, so the
-            # same roster always starts identically.
-            "tile": list(grid.spawn_tile(START_ROOM, seat_index)),
+            # same roster always starts identically. A talker starts where its
+            # manifest says, on a free tile there (resolved below).
+            "tile": list(grid.spawn_tile(start_room, seat_index)),
             "move_range": grid.move_range(stats["speed"]),
             "reach": grid.reach_for_build(manifest.build),
             "hp": stats["max_hp"],
@@ -112,7 +121,8 @@ def new_match_state(
             "speed": stats["speed"],
             "search": stats["search"],
             "guard": 0,
-            "inventory": [],  # ALWAYS sorted (P2)
+            # ALWAYS sorted (P2); a talker starts with what its manifest says it holds
+            "inventory": sorted(i for i in getattr(manifest, "holds", ()) if items.is_known_item(i)) if talker else [],
             "status": "active",
             "score": 0,
             "score_breakdown": {},
@@ -132,6 +142,22 @@ def new_match_state(
             "crown_takes": 0,
             "eliminated_round": None,
         }
+    # Two bodies never share a tile: a talker whose seat tile is taken in its
+    # start room takes the next free spawn tile there, then any free floor.
+    taken = set()
+    for agent in agents.values():
+        key = (agent["room"], tuple(agent["tile"]))
+        if agent["kind"] == "talker" and key in taken:
+            g = grid.grid_for(agent["room"])
+            blocked = grid.blocked_tiles(agent["room"])
+            candidates = list(g["spawn"]) + [(x, y) for x in range(g["w"]) for y in range(g["h"])]
+            for t in candidates:
+                t = tuple(t)
+                if t not in blocked and (agent["room"], t) not in taken:
+                    agent["tile"] = list(t)
+                    key = (agent["room"], t)
+                    break
+        taken.add(key)
     return {
         "ruleset_version": RULESET_VERSION,
         "seed": int(seed),
@@ -301,8 +327,21 @@ def vault_open(state: Mapping[str, Any]) -> bool:
     Referee RELOCATION is a separate concern and deliberately not routed through
     this predicate: contraction still force-moves survivors into the vault, and
     those events are flagged ``gate_bypassed``.
+
+    Since ruleset 0.5 the gate also waits for the last act (``VAULT_OPENS_ACT``):
+    both seals lit before then arm it, and it opens when act IV begins.
     """
+    return seals_lit(state) and act_for_round(max(1, state.get("round", 1))) >= VAULT_OPENS_ACT
+
+
+def seals_lit(state: Mapping[str, Any]) -> bool:
+    """Every seal ACTIVE: the key to the Vault, whatever the hour."""
     return all(status == "active" for status in state["seals"].values())
+
+
+def vault_opens_at_round() -> int:
+    """The first round of the act the Vault opens in."""
+    return ACT_III_LAST_ROUND + 1 if VAULT_OPENS_ACT == 4 else ROUNDS_PER_ACT * (VAULT_OPENS_ACT - 1) + 1
 
 
 def gate_permanently_closed(state: Mapping[str, Any]) -> bool:
@@ -722,8 +761,8 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         )
     if public.get("agent_attacks_allowed"):
         for other in observation.get("visible_agents", []):
-            if other.get("status") != "active":
-                continue
+            if other.get("status") != "active" or other.get("kind") == "talker":
+                continue  # a talker is not a legal target until PRD §5.8 ships
             if not _within(other.get("tile"), my_reach):
                 continue
             entries.append(
@@ -773,6 +812,8 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         for other in observation.get("visible_agents", []):
             if other.get("status") != "active":
                 continue
+            if item_id == CROWN_ITEM_ID and other.get("kind") == "talker":
+                continue  # a talker cannot carry the Crown (PRD §5.25)
             entries.append(
                 _entry(
                     "give",
@@ -811,6 +852,11 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         entries.append(_entry("rest", "rest (+2 HP, once per match)"))
 
     entries.sort(key=_entry_sort_key)
+    # A talker's legal set is move, give and guard (PRD §5.25): it speaks,
+    # whispers, offers and accepts through the slots, never fights, searches,
+    # lights, lends a hand or takes.
+    if me.get("kind") == "talker":
+        entries = [e for e in entries if e["action"] in TALKER_ACTIONS]
     return entries
 
 
@@ -882,7 +928,8 @@ def visible_observation(
         "room": _build_room(state, agent),
         "visible_agents": _build_visible_agents(state, agent),
         "visible_monsters": _build_visible_monsters(state, agent),
-        "secret_objective": scoring.objective_progress(state, agent_id, objective),
+        # a talker has no aim to score (PRD §5.25)
+        "secret_objective": scoring.objective_progress(state, agent_id, objective) if agent.get("kind", "character") == "character" else None,
         "episodic_memory": memory.project_episodic_memory(
             event_log, agent_id, state.get("round", 0)
         ),
@@ -892,6 +939,7 @@ def visible_observation(
         "recent_speech": _build_recent_speech(state, agent),
         "whispers_seen": _build_whispers_seen(state, agent),
         "deals": deals.digest(state, agent_id),
+        "standings": _build_standings(state),
         "score_breakdown": scoring.score_breakdown_view(state, agent_id),
     }
     observation["legal_actions"] = enumerate_legal_actions(observation)
@@ -914,7 +962,9 @@ def _build_public_state(state: Mapping[str, Any]) -> dict[str, Any]:
         "act_name": act_name(act),
         "agent_attacks_allowed": act >= 2,
         "seals": dict(state["seals"]),
+        "seals_lit": seals_lit(state),
         "vault_open": vault_open(state),
+        "vault_opens_at_round": vault_opens_at_round(),
         "vault_gate_permanently_closed": gate_permanently_closed(state),
         "warden_alive": state["monsters"]["crown_warden"]["hp"] > 0,
         "crown": {
@@ -924,6 +974,30 @@ def _build_public_state(state: Mapping[str, Any]) -> dict[str, Any]:
             "attunement_rounds": crown["attunement_rounds"],
         },
     }
+
+
+def _build_standings(state: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Everyone, by score (PRD §5.5 and §5.22: standings are public in every
+    digest). Totals, status and who carries the Crown; never a breakdown, an
+    aim, a note or a room."""
+    crown = state.get("crown", {})
+    rows = sorted(
+        (a for a in state["agents"].values() if a.get("kind", "character") == "character"),
+        key=lambda a: (-int(a.get("score", 0)), a["id"]),
+    )
+    return [
+        {
+            "rank": i + 1,
+            "id": a["id"],
+            "name": a["name"],
+            "build": a["build"],
+            "status": a["status"],
+            "score": int(a.get("score", 0)),
+            "carrying_crown": crown.get("status") == "carried" and crown.get("carrier_id") == a["id"],
+            "eliminated_round": a.get("eliminated_round"),
+        }
+        for i, a in enumerate(rows)
+    ]
 
 
 def _build_map(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, Any]:
@@ -985,6 +1059,7 @@ def _build_self(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "id": agent["id"],
         "name": agent["name"],
         "build": agent["build"],
+        "kind": agent.get("kind", "character"),
         "room": agent["room"],
         "status": agent["status"],
         # Tactical position and the two ranges derived from the build.
@@ -1133,6 +1208,7 @@ def _build_visible_agents(
                 "id": other["id"],
                 "name": other["name"],
                 "build": other["build"],
+                "kind": other.get("kind", "character"),
                 "status": other["status"],
                 "tile": list(other.get("tile") or []),
                 "reach": other.get("reach", 1),

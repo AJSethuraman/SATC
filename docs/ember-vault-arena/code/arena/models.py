@@ -27,7 +27,7 @@ import re
 from typing import Any
 
 
-RULESET_VERSION = "ember-vault-0.4"
+RULESET_VERSION = "ember-vault-0.5"
 ACTION_SCHEMA_VERSION = "agent-action-1.2"
 MANIFEST_SCHEMA_VERSION = "agent-manifest-1.0"
 
@@ -37,6 +37,13 @@ BUILDS: dict[str, dict[str, int]] = {
     "mystic": {"max_hp": 11, "power": 3, "armor": 1, "speed": 1, "search": 1},
     "scoundrel": {"max_hp": 12, "power": 2, "armor": 1, "speed": 2, "search": 1},
 }
+
+# A talker (PRD §5.25): a house side character on the same contract with a
+# restricted legal set. It has a body, so it has numbers, modest ones; it
+# cannot score, carry the Crown, search or win.
+TALKER_STATS: dict[str, int] = {"max_hp": 10, "power": 1, "armor": 1, "speed": 1, "search": 0}
+TALKER_ACTIONS = frozenset({"move", "give", "guard"})
+TALKERS_MAX = 3
 
 OBJECTIVES = {
     "monster_hunter",

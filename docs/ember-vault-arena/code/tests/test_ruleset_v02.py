@@ -110,7 +110,7 @@ class RulesetTestCase(unittest.TestCase):
 
     def open_vault_state(self, engine: ArenaEngine, carrier: str, attunement: int):
         state = engine.state
-        state["round"] = rules.ACT_II_LAST_ROUND + 1  # act III, as July's round 8 was
+        state["round"] = rules.ACT_III_LAST_ROUND + 1  # act IV, the act the Vault opens in (ruleset 0.5)
         state["act"] = rules.act_for_round(state["round"])
         state["monsters"]["crown_warden"]["hp"] = 0
         state["monsters"]["crown_warden"]["death_cause"] = "combat"
@@ -278,6 +278,7 @@ class GateTests(RulesetTestCase):
 
     def test_neither_seal_alone_opens_the_vault(self):
         engine = self.engine("gate.db")
+        engine.state["round"] = rules.ACT_III_LAST_ROUND + 1  # the last act: the hour is right, only the key is missing
         self._stand_in_gate(engine)
         move = AgentAction(action="move", destination=rules.VAULT_ROOM)
 
@@ -488,6 +489,7 @@ class ContractionTests(RulesetTestCase):
             with self.subTest(seals=(ironwood, ossuary)):
                 engine = self.engine(f"sweep-{ironwood}-{ossuary}.db")
                 state = engine.state
+                state["round"] = rules.ACT_III_LAST_ROUND + 1  # in the last act; before it nothing opens (test_vault_act.py)
                 state["seals"]["ironwood_gate"] = ironwood
                 state["seals"]["ossuary_gate"] = ossuary
                 state["agents"]["bramble"]["room"] = "ironwood_gate"

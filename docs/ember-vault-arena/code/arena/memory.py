@@ -71,6 +71,7 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "seal_activated": "seal",
     "seal_voided": "seal",
     "vault_gate_opened": "seal",
+    "seals_lit": "seal",
     "vault_gate_permanently_closed": "seal",
     "vault_unlocked": "seal",
     "room_contracting": "seal",

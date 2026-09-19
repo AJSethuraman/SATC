@@ -78,7 +78,8 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
                 self.assertEqual(f["delta"]["agents"][t["who"]]["note"]["objective"], t["objective"])
         # it comes before any line spoken or action taken in its round
         for f in thinks:
-            same_round = [x for x in self.frames if x["round"] == f["round"] and x["type"] not in ("round_started", "act_started", "room_contracting")]
+            # the referee opens a round before anyone thinks: the act, a room's warning, the Vault at the last act
+            same_round = [x for x in self.frames if x["round"] == f["round"] and x["type"] not in ("round_started", "act_started", "room_contracting", "vault_gate_opened")]
             self.assertIs(same_round[0], f, [x["type"] for x in same_round[:3]])
         self.assertFalse([f for f in self.frames if f["type"] == "note_written"])
         # the secret aim each carries is named from the manifest, with the engine's own wording

@@ -527,7 +527,8 @@ def build_scene(bundle: dict, start: dict) -> dict:
     rules = [f"{m.get('max_rounds', '?')} rounds at most. Every round, all eight decide at once; then a d20 each sets the order and each acts in turn; then the monsters."]
     if schedule:
         rules.append("Rooms close on a clock: " + "; ".join(f"{names.get(s['room'], s['room'])} at the end of round {s['round']}" for s in schedule) + ". Whoever is inside is swept into the Vault.")
-    rules.append("Each gate holds a seal and a guardian. The Vault opens when both seals are lit.")   # rules.vault_open
+    opens_at = (first.get("max_rounds", 48) // 4) * 3 + 1 if str(m.get("ruleset_version", "")) >= "ember-vault-0.5" else None
+    rules.append("Each gate holds a seal and a guardian. " + (f"The Vault opens in the last act, from round {opens_at}, and only if both seals are lit." if opens_at else "The Vault opens when both seals are lit."))   # rules.vault_open
     rules.append("The Crown is locked inside its Warden. Kill the Warden and it drops; pick it up and it attunes over held rounds, and can be taken from a fallen carrier. "
                  + ("Whoever holds it when the last round ends wins outright." if str(m.get("ruleset_version", "")) >= "ember-vault-0.3" else "Under this match's rules, carrying it out through the Egress won outright."))
     rules.append("One thing a round: move to the next room through its door; step up to 1 + Speed tiles inside the room; attack anything within reach; "

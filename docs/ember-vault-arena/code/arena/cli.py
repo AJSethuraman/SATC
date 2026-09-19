@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .demo import DEFAULT_AGENT_DIR, load_manifests
+from .demo import DEFAULT_AGENT_DIR, load_manifests, load_talkers
 from .engine import ArenaEngine
 from .brains import load_brains
 from .providers import PROVIDER_NAMES, provider_from_name
@@ -28,6 +28,8 @@ def parser() -> argparse.ArgumentParser:
     demo.add_argument("--brains", default=None,
                       help="folder of brain .md files; overrides --agents")
     demo.add_argument("--rounds", type=int, default=None)
+    demo.add_argument("--talkers", default=None,
+                      help="folder of talker JSON manifests (the house side characters); none by default")
 
     web = sub.add_parser("serve", help="start spectator UI and local API")
     web.add_argument("--host", default="127.0.0.1")
@@ -118,6 +120,8 @@ def main() -> None:
     try:
         if args.command == "demo":
             manifests = load_brains(args.brains) if args.brains else load_manifests(args.agents)
+            if args.talkers:
+                manifests = manifests + load_talkers(args.talkers)
             kwargs = {"max_rounds": args.rounds} if args.rounds else {}
             match_id = ArenaEngine(
                 store, provider_from_name(args.provider), **kwargs

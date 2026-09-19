@@ -47,7 +47,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from arena.engine import ArenaEngine  # noqa: E402
-from arena.rules import STARTING_TOKEN_BUDGET
+from arena import rules  # noqa: E402
+from arena.rules import STARTING_TOKEN_BUDGET  # noqa: E402
 from arena.models import AgentManifest  # noqa: E402
 from arena.providers import MockDecisionProvider  # noqa: E402
 from arena.storage import ArenaStore  # noqa: E402
@@ -270,6 +271,18 @@ def _summarize(
 
     crown = state.get("crown", {})
     crown_take_events = [e for e in events if e["event_type"] == "crown_taken"]
+    # PRD §8: "reach act IV with a living Warden fight" -- the Warden alive
+    # when act IV opens, so the last act's fight is still to be had.
+    warden_died_round = next(
+        (e["round_no"] for e in events
+         if e["event_type"] == "monster_defeated"
+         and (e.get("target_id") == "crown_warden" or e.get("actor_id") == "crown_warden"
+              or (e.get("payload") or {}).get("monster") == "crown_warden"
+              or (e.get("payload") or {}).get("monster_id") == "crown_warden")),
+        None,
+    )
+    sites_done = {e["target_id"] for e in events if e["event_type"] == "site_done"}
+    deal_counts = {k: counts.get(k, 0) for k in ("offer_made", "deal_struck", "offer_lapsed", "deal_broken", "deal_lost")}
     crown_carriers = [event["actor_id"] for event in crown_take_events]
 
     decisions = len(bundle["decisions"])
@@ -327,6 +340,11 @@ def _summarize(
         "rounds": rounds_played,
         "ended_reason": ended_reason,
         "reached_act4": rounds_played > rules.ACT_III_LAST_ROUND,
+        "warden_died_round": warden_died_round,
+        "act4_with_living_warden": rounds_played > rules.ACT_III_LAST_ROUND
+        and (warden_died_round is None or warden_died_round > rules.ACT_III_LAST_ROUND),
+        "sites_done": len(sites_done),
+        "deals": deal_counts,
         "final_act": state.get("act"),
         "winner": winner,
         "winner_build": build_of.get(winner or ""),
@@ -437,6 +455,12 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
 
     rounds = [record["rounds"] for record in completed]
     act4 = [record for record in completed if record["reached_act4"]]
+    act4_warden = [record for record in completed if record.get("act4_with_living_warden")]
+    elims_per_match = [len(record["eliminations"]) for record in completed]
+    sites_per_match = [record.get("sites_done", 0) for record in completed]
+    deal_totals: Counter[str] = Counter()
+    for record in completed:
+        deal_totals.update(record.get("deals", {}))
     reasons = Counter(record["ended_reason"] for record in completed)
 
     transfers = [record["crown_takes"] for record in completed]
@@ -517,6 +541,11 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
             if not record.get("ok")
         ],
         "act4_rate": _pct(len(act4), len(completed)),
+        "act4_warden_rate": _pct(len(act4_warden), len(completed)),
+        "elim_median": statistics.median(elims_per_match) if elims_per_match else 0,
+        "sites_per_match": statistics.fmean(sites_per_match) if sites_per_match else 0.0,
+        "sites_any_rate": _pct(sum(1 for v in sites_per_match if v), len(completed)),
+        "deals_per_match": {k: (v / len(completed) if completed else 0.0) for k, v in deal_totals.items()},
         "ended_reasons": dict(reasons),
         "crown_held_rate": _pct(reasons.get("crown_held", 0), len(completed)),
         "round_limit_rate": _pct(reasons.get("rounds_exhausted", 0), len(completed)),
@@ -630,6 +659,8 @@ def aggregate(records: list[dict[str, Any]], n_agents: int) -> dict[str, Any]:
 TARGETS = [
     ("completion rate >= 95%", "completion_rate", lambda value: value >= 95.0),
     (f"reach Act IV (round > {rules.ACT_III_LAST_ROUND}) >= 70%", "act4_rate", lambda value: value >= 70.0),
+    ("reach Act IV with the Warden alive >= 70%", "act4_warden_rate", lambda value: value >= 70.0),
+    ("median eliminations per match 1..5", "elim_median", lambda value: 1 <= value <= 5),
     (
         "median match has >= 1 Crown transfer",
         "crown_transfers_median",
@@ -665,6 +696,7 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
     add("")
     add("-- MATCH SHAPE -----------------------------------------------------------")
     add(f"  reached Act IV (r>{rules.ACT_III_LAST_ROUND})     {summary['act4_rate']:.1f}%")
+    add(f"  ... with the Warden alive  {summary['act4_warden_rate']:.1f}%")
     add(f"  median rounds              {summary['rounds_median']}")
     add(f"  mean rounds                {summary['rounds_mean']:.2f}")
     add("  rounds histogram:")
@@ -821,6 +853,9 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
     add("-- OTHER -----------------------------------------------------------------")
     add(f"  seals activated per match  {summary['seals_per_match']:.2f}")
     add(f"  monsters killed per match  {summary['monsters_per_match']:.2f}")
+    add(f"  sites woken per match      {summary['sites_per_match']:.2f}  (matches with any: {summary['sites_any_rate']:.1f}%)")
+    add("  deals per match:           " + ", ".join(f"{k} {v:.2f}" for k, v in sorted(summary["deals_per_match"].items())))
+    add(f"  eliminations, median       {summary['elim_median']}")
     add("")
     add("-- TARGETS ---------------------------------------------------------------")
     build_rates = list(summary["winrate_build_norm"].values())
@@ -833,6 +868,18 @@ def report(summary: dict[str, Any], n_agents: int, elapsed: float) -> list[str]:
             "no build win rate outside 25% +/- 10pp",
             f"min {min(build_rates):.1f}% / max {max(build_rates):.1f}%",
             spread_ok,
+        )
+    )
+    # PRD §8: "no seat outside the same band" -- the fair share is 100/n, the
+    # band the same ten points either side.
+    seat_rates = list(summary["winrate_seat"].values())
+    fair = 100.0 / n_agents
+    seat_ok = all(fair - 10.0 <= rate <= fair + 10.0 for rate in seat_rates)
+    checks.append(
+        (
+            f"no seat win rate outside {fair:.1f}% +/- 10pp",
+            f"min {min(seat_rates):.1f}% / max {max(seat_rates):.1f}%",
+            seat_ok,
         )
     )
     for label, value, ok in checks:
