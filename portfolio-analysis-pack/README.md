@@ -21,11 +21,12 @@ file, not different code.
 - **Running log:** `../BACKLOG.md` §6c (credit line; not `PLAN.md`)
 - **Rulings on the record:** `../canon/CONVICTIONS.md`, *Rulings by project*
 
-**Status:** slices 1 to 6 of 9 built: the tracer bullet; inspect, the
+**Status:** slices 1 to 7 of 9 built: the tracer bullet; inspect, the
 refusals, detected dates, the filter and the outcome forms; steps 1 and 2;
 step 4 with the survives/collapses word and `pack suggest`; step 5, step 7,
 generic groupings and the consumer example; step 6, two regressions and a
-tree in plain Python. Charts, the bundle and the mutation tool follow.
+tree in plain Python; charts with interval bars. The bundle and the mutation
+tool follow.
 
 ## What a built pack contains
 
@@ -104,6 +105,17 @@ person writing the file.
 The as-of date is required and the run date defaults to it; the clock is
 never read, so the same inputs give the same bytes.
 
+## The charts
+
+Every gradient block on `3_Gradient` carries a column chart of the rate per
+bucket, and every block on `4_Stratified` carries one of the flagged and
+unflagged rates per band. The interval bars on each bar are read from helper
+cells beside the table, which are formulas with their own check-tab twins,
+so the picture and the numbers cannot disagree. The charts are native Excel
+charts and stay live: move the confidence level and the bars move. Every tab
+prints one page wide, so a chart sits beside its table on paper and in the
+render harness's page images.
+
 ## The model step, in plain terms
 
 Step 6 asks: after taking everything else into account, does the flag still
@@ -160,8 +172,13 @@ that get looked at.
 ```
 pip install -e ".[test]"
 pytest -q
-python tools/render.py demo/pack.xlsx        # PDF + HTML; fails on any error cell
+python tools/render.py demo/pack.xlsx        # PDF, one PNG per page, HTML; fails on any error cell
 ```
+
+The render harness writes a PNG per page under `rendered/pages/`. Look at
+the gradient and stratified pages before calling a version done: the lesson
+in this line is that the first two chartbooks opened cleanly and had no axis
+numbers, and a harness reading a cell cannot see that.
 
 The suite builds a 40,000-loan synthetic book with a planted effect and
 reads the workbook back through the engine: the gradient must read as

@@ -3,7 +3,8 @@
 
     python tools/render.py PACK.xlsx [--out DIR]
 
-Writes PACK.pdf (to look at) and PACK.html (every sheet as text) and scans
+Writes PACK.pdf (to look at), one PNG per page under pages/ so the charts
+can be read as images, and PACK.html (every sheet as text), and scans
 the HTML for the error strings Excel shows when a formula did not evaluate:
 #NAME?, #DIV/0!, #VALUE!, #REF!, #N/A. Prints the count of each and exits 2
 when any is present, 1 when LibreOffice is missing or fails.
@@ -49,6 +50,20 @@ def render(pack: Path, out_dir: Path) -> dict:
         else:
             results[fmt] = str(target)
     shutil.rmtree(home, ignore_errors=True)
+    pdf = out_dir / (pack.stem + ".pdf")
+    pdftoppm = shutil.which("pdftoppm")
+    if pdf.exists() and pdftoppm:
+        pages = out_dir / "pages"
+        pages.mkdir(exist_ok=True)
+        for old_png in pages.glob(pack.stem + "-*.png"):
+            old_png.unlink()
+        subprocess.run([pdftoppm, "-r", "70", "-png", str(pdf), str(pages / pack.stem)],
+                       capture_output=True, text=True, timeout=600)
+        pngs = sorted(pages.glob(pack.stem + "-*.png"))
+        results["pages"] = len(pngs)
+        results["pages_dir"] = str(pages)
+    elif pdf.exists():
+        results["pages"] = "not rendered: pdftoppm (poppler-utils) not on PATH"
     html = out_dir / (pack.stem + ".html")
     if html.exists():
         text = html.read_text(encoding="utf-8", errors="replace")

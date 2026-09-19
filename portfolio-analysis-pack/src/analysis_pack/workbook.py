@@ -24,6 +24,9 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.data_source import NumDataSource, NumRef
+from openpyxl.chart.error_bar import ErrorBars
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
@@ -78,6 +81,38 @@ class Build:
         self.checks.append(Check(ws.title, cell, text, python, tol, kind))
 
 
+def _error_bars(sheet: str, plus_rng: str, minus_rng: str) -> ErrorBars:
+    """Custom error bars read from the interval helper cells, so the picture
+    and the table cannot disagree: both come from the same formulas."""
+    return ErrorBars(errDir="y", errBarType="both", errValType="cust",
+                     plus=NumDataSource(numRef=NumRef(f=f"'{sheet}'!{plus_rng}")),
+                     minus=NumDataSource(numRef=NumRef(f=f"'{sheet}'!{minus_rng}")))
+
+
+def _rate_chart(ws, title: str, y_title: str, cats: Reference, series: list[tuple[Reference, str, str]],
+                anchor: str, width: float = 14.0, height: float = 6.5) -> None:
+    """A column chart of rates with interval bars. `series` is a list of
+    (values reference incl. header, plus range, minus range)."""
+    ch = BarChart()
+    ch.type = "col"
+    ch.title = title
+    ch.y_axis.title = y_title
+    ch.y_axis.number_format = "0.0%"
+    ch.y_axis.majorGridlines = None
+    ch.x_axis.title = None
+    if len(series) > 1:
+        ch.legend.position = "b"
+    else:
+        ch.legend = None
+    for values, plus_rng, minus_rng in series:
+        ch.add_data(values, titles_from_data=True)
+        ch.series[-1].errBars = _error_bars(ws.title, plus_rng, minus_rng)
+    ch.set_categories(cats)
+    ch.width = width
+    ch.height = height
+    ws.add_chart(ch, anchor)
+
+
 def _note(ws, row: int, text: str, ncols: int) -> int:
     last = get_column_letter(ncols)
     ws.merge_cells(f"A{row}:{last}{row}")
@@ -127,6 +162,12 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     prov = wb.create_sheet("_provenance")
     for ws in (cover, cap, prev, grad, strat, decomp, mdl, cube, conf, meth, check, prov) + ((ctrl,) if ctrl else ()):
         ks.hide_gridlines(ws)
+        # print (and render) one page wide, as many pages tall as needed, so a
+        # chart sits beside its table rather than on a page of its own
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.page_setup.orientation = "landscape"
     first_facts = data.per_outcome[0][0]
 
     # -- _config: the knobs, as named cells ------------------------------
@@ -288,7 +329,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
 
     # -- 3_Gradient: one block per outcome ------------------------------------
     ncols = 10
-    for col, w in zip("ABCDEFGHIJ", (26, 10, 10, 10, 10, 10, 11, 10, 14, 14)):
+    for col, w in zip("ABCDEFGHIJKL", (26, 10, 10, 10, 10, 10, 11, 10, 14, 14, 9, 9)):
         grad.column_dimensions[col].width = w
     row = _header_band(grad, ncols, "Step 3 — Gradient", cfg, table, first_facts, run_date)
     grad_note = notes.fill("notes.gradient", rule_text=_rule_sentence(cfg),
@@ -306,7 +347,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         hdr = row
         first_hdr = first_hdr or hdr
         ks.header_row(grad, hdr, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper", "Gap (pts)", "Multiple",
-                                  "Rate change vs bucket above", "Interval clear of bucket above"], right_from=1)
+                                  "Rate change vs bucket above", "Interval clear of bucket above",
+                                  "Bar up", "Bar down"], right_from=1)
         first = hdr + 1
         base_row = first + len(g.rows)
         n_base, x_base = addr[g.base.cube.block]
@@ -332,6 +374,19 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         b.formula(grad, f"D{r}", f'=IF(B{r}=0,"",C{r}/B{r})', g.base.rate, fmt="0.00%")
         b.formula(grad, f"E{r}", interval_formula("lo", f"B{r}", f"C{r}"), g.base.lo, TOL_INTERVAL, fmt="0.00%")
         b.formula(grad, f"F{r}", interval_formula("hi", f"B{r}", f"C{r}"), g.base.hi, TOL_INTERVAL, fmt="0.00%")
+        # interval helpers behind the chart's error bars, twinned like every other formula
+        for i, gr in enumerate(g.rows):
+            r = first + i
+            b.formula(grad, f"K{r}", f'=IF(F{r}="","",F{r}-D{r})',
+                      (None if gr.hi is None else gr.hi - gr.rate), TOL_INTERVAL, fmt="0.0000")
+            b.formula(grad, f"L{r}", f'=IF(E{r}="","",D{r}-E{r})',
+                      (None if gr.lo is None else gr.rate - gr.lo), TOL_INTERVAL, fmt="0.0000")
+        last_bucket = first + len(g.rows) - 1
+        _rate_chart(grad, f"{g.outcome.label}: rate by bucket, with intervals", f"{g.outcome.label} rate",
+                    Reference(grad, min_col=1, min_row=first, max_row=last_bucket),
+                    [(Reference(grad, min_col=4, min_row=hdr, max_row=last_bucket),
+                      f"$K${first}:$K${last_bucket}", f"$L${first}:$L${last_bucket}")],
+                    anchor=f"N{hdr}")
         row = base_row + 2
         i_rng = f"I{first + 1}:I{first + len(g.rows) - 1}"
         j_rng = f"J{first + 1}:J{first + len(g.rows) - 1}"
@@ -346,7 +401,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         grad.cell(row, 1, "Adjacent pairs whose intervals do not overlap").font = BOLD
         grad.merge_cells(f"A{row}:D{row}")
         b.formula(grad, f"E{row}", f"=SUM({j_rng})", g.nonoverlap_count, TOL_COUNT)
-        row += 2
+        row = max(row + 2, hdr + 15)          # leave room for the chart beside the block
     if data.bands:
         bt = data.bands
         row = ks.section_band(grad, row, "Where the measure sits, by bucket", ncols)
@@ -373,8 +428,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     ks.freeze_below(grad, first_hdr)
 
     # -- 4_Stratified ----------------------------------------------------------
-    ncols = 16
-    for col, wdt in zip("ABCDEFGHIJKLMNOP", (44, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 9, 9, 9, 9)):
+    ncols = 20
+    for col, wdt in zip("ABCDEFGHIJKLMNOPQRST", (44, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9)):
         strat.column_dimensions[col].width = wdt
     row = _header_band(strat, ncols, "Step 4 — Stratified", cfg, table, first_facts, run_date)
     strat_note = notes.fill("notes.stratified",
@@ -390,7 +445,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         strat_first_hdr = strat_first_hdr or hdr
         ks.header_row(strat, hdr, ["Band", "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
                                    "Unflagged loans", "Unflagged events", "Unflagged rate", "Lower", "Upper",
-                                   "Gap (pts)", "P", "Q", "R", "S"], right_from=1)
+                                   "Gap (pts)", "P", "Q", "R", "S",
+                                   "Flagged bar up", "Flagged bar down", "Unflagged bar up", "Unflagged bar down"], right_from=1)
         first = hdr + 1
         for i, band in enumerate(st.bands):
             r = first + i
@@ -414,6 +470,18 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
             b.formula(strat, f"O{r}", f'=IF({n_expr}=0,0,C{r}*(G{r}-H{r})/{n_expr})', band.r, fmt="0.0000")
             b.formula(strat, f"P{r}", f'=IF({n_expr}=0,0,(B{r}-C{r})*H{r}/{n_expr})', band.s, fmt="0.0000")
         last = first + len(st.bands) - 1
+        for i, band in enumerate(st.bands):
+            r = first + i
+            b.formula(strat, f"Q{r}", f'=IF(F{r}="","",F{r}-D{r})', (None if band.flagged_hi is None else band.flagged_hi - band.flagged_rate), TOL_INTERVAL, fmt="0.0000")
+            b.formula(strat, f"R{r}", f'=IF(E{r}="","",D{r}-E{r})', (None if band.flagged_lo is None else band.flagged_rate - band.flagged_lo), TOL_INTERVAL, fmt="0.0000")
+            b.formula(strat, f"S{r}", f'=IF(K{r}="","",K{r}-I{r})', (None if band.unflagged_hi is None else band.unflagged_hi - band.unflagged_rate), TOL_INTERVAL, fmt="0.0000")
+            b.formula(strat, f"T{r}", f'=IF(J{r}="","",I{r}-J{r})', (None if band.unflagged_lo is None else band.unflagged_rate - band.unflagged_lo), TOL_INTERVAL, fmt="0.0000")
+        _rate_chart(strat, f"{st.outcome.label} by {st.confounder} ({st.scheme}): flagged vs unflagged",
+                    f"{st.outcome.label} rate",
+                    Reference(strat, min_col=1, min_row=first, max_row=last),
+                    [(Reference(strat, min_col=4, min_row=hdr, max_row=last), f"$Q${first}:$Q${last}", f"$R${first}:$R${last}"),
+                     (Reference(strat, min_col=9, min_row=hdr, max_row=last), f"$S${first}:$S${last}", f"$T${first}:$T${last}")],
+                    anchor=f"V{hdr}", width=16.0, height=7.0)
         rB, rC, rG, rH = f"B{first}:B{last}", f"C{first}:C{last}", f"G{first}:G{last}", f"H{first}:H{last}"
         rM, rN, rO, rP = f"M{first}:M{last}", f"N{first}:N{last}", f"O{first}:O{last}", f"P{first}:P{last}"
         row = last + 2
