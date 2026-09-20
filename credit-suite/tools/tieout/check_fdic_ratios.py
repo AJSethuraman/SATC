@@ -38,7 +38,15 @@ import csv
 import pathlib
 import sys
 
-CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
+# Derived, not typed. This script became IMPORTABLE on 19 September 2026 so the
+# covering document could compute its ratio counts instead of quoting a figure
+# read off the output once -- and the moment a test imported it, the absolute
+# path typed on line one stopped being a convenience and became a failure. It
+# resolves on the machine it was written on and nowhere else: the build server
+# read it as a relative segment and reported that the delivered feed did not
+# exist. Fifty-five files under tools/ still carry the same literal; they are
+# not imported by anything, which is the only reason they still work.
+CS = pathlib.Path(__file__).resolve().parents[2]
 DATA = CS / "verified-data"
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
