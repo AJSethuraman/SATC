@@ -1,6 +1,7 @@
 """The command line. JSON status on stdout, a human summary on stderr.
 
     pack inspect  DATA [--sheet NAME]
+    pack init     DATA [-o question.yaml] [--sheet NAME]   # a question-file skeleton from the columns
     pack list     [DIR]                         # question files under DIR and whether each is accepted
     pack synth    --out DIR [--seed N] [--loans N] [--effect X] [--null] [--confounded]
     pack validate CONFIG --data DATA [--asof D] [--sheet NAME]
@@ -119,6 +120,26 @@ def _population(cfg, table, asof: date, out_dir: Path, name: str):
             counts[reason] = counts.get(reason, 0) + 1
         _emit({"ok": False, "refused": "hygiene", "counts": counts, "file": str(path)})
         return None, 2
+
+
+def cmd_init(a: argparse.Namespace) -> int:
+    """Write a question-file skeleton from the extract's own columns, for the
+    person at the desk to fill in. The firm, 20 Sep 2026: the tool is not
+    specific to any bank; whoever holds the file designates its columns."""
+    from .designate import count_markers, skeleton
+    table = read_table(a.data, sheet=a.sheet)
+    out = Path(a.out) if a.out else Path(a.data).parent / "question.yaml"
+    if out.exists():
+        _say(f"error: {out} already exists; pass -o to write the skeleton somewhere else")
+        _emit({"ok": False, "error": f"{out} already exists"})
+        return 1
+    text = skeleton(table, inspect_columns(table))
+    out.write_text(text, encoding="utf-8", newline="\n")
+    n = count_markers(text)
+    _say(f"wrote {out}: {len(table.columns)} columns listed, {n} values marked [CONFIRM: ...] for you to fill in")
+    _say(f"then: pack validate {out} --data {a.data} --asof YYYY-MM-DD")
+    _emit({"ok": True, "path": str(out), "columns": table.columns, "markers": n})
+    return 0
 
 
 def cmd_list(a: argparse.Namespace) -> int:
@@ -302,6 +323,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--null", action="store_true")
     s.add_argument("--confounded", action="store_true")
     s.set_defaults(fn=cmd_synth)
+
+    ini = sub.add_parser("init", help="write a question-file skeleton from an extract's own columns, to fill in at the desk")
+    ini.add_argument("data"); ini.add_argument("-o", "--out"); ini.add_argument("--sheet")
+    ini.set_defaults(fn=cmd_init)
 
     ls = sub.add_parser("list", help="the question files under a folder (default: configs) and whether each would be accepted")
     ls.add_argument("dir", nargs="?")

@@ -1006,8 +1006,69 @@ sales on the small-business book; built domain-free so a consumer question
       S36 — recommended: yes, via bassy. Next, unless the firm says otherwise:
       merge the adversarial pass (PR #383) when green, then stop; the tool is
       complete as specified and the real run is the firm's.
-      **Candidate tenet, for the firm's yes (the tenets are ratified; a session
-      does not add one):** *A rule that holds because there was nothing to
+      **Docket answered 20 Sep 2026.** In the firm's words, and what each
+      caused:
+      - *Decision 1 (how Key's column names reach a question file):* "The
+        column names will never reach you. I am becoming annoyed with this -
+        we design a tool that we can put anything into and designate it to
+        be something that the tool can work with. The point is it isn't key
+        specific but we're designing it to work with key." → The docket had
+        asked the wrong question, and the tool had the same fault: the
+        bundle carries one fixed question file, so the only place a column
+        could be designated was where the bundle was made. Designation now
+        happens at the desk, on any extract, with nothing coming back: see
+        the entry below this one. The firm's sentence is a candidate
+        conviction, to be put to them through bassy on the next docket, not
+        recorded by a session.
+      - *Decision 2 (candidate tenet S36):* "No" → it stays a project lesson
+        here and binds nothing else. Struck from the docket.
+      - *Next:* no objection → the last pull request was merged and the
+        session stopped, as the docket said it would.
+      **Designation at the desk, built 20 Sep 2026** (the change the firm's
+      answer caused). `pack init EXTRACT` writes a question-file skeleton from
+      the extract's own columns: every column listed with what inspect found
+      beside it, and a `[CONFIRM: ...]` marker on each value the person must
+      choose (the loan number column, the origination date, the two rule
+      columns, the outcome, `known` per column, `existing_control`). The
+      loader refuses a file that still carries a marker and names every one;
+      the tool fills nothing on anyone's behalf. The bundle gained `--init`
+      and `--config`, so any extract is designated and built at the desk with
+      nothing coming back. Proved: the skeleton lists every column in the
+      extract's order with a marker on every slot; the loader names all of
+      them; a skeleton filled in by hand validates and builds with no code
+      change; two `init` runs are byte-identical; the bundle writes the
+      skeleton, refuses it unfilled, and builds from the filled file beside
+      it. The example question file under `configs/examples/` is now only
+      an example. Not checked: the flow at a real desk, which is the firm's.
+      **The exercise harness, built 20 Sep 2026.** The firm, on seeing the
+      designation slice wait on a test suite: "you should be ensuring
+      everything works by actually running the script using a good
+      synthetically created population. It should be able to show how each
+      scenario is covered." → `tools/exercise.py` makes eleven made-up books
+      with known answers, drives the bundle script from an empty folder the
+      way a desk would, reads every answer back out of the workbook the way
+      Excel reads it, renders the pages, and writes `docs/exercise-report.md`
+      (pages beside it) putting what was planted beside what the pack said,
+      scenario by scenario, with the checks counted. First full run: **48 of
+      48 checks agree across 11 scenarios** — a planted effect (every word
+      right, the planted odds ratio inside the regression's interval); no
+      effect (no block says survives, the interval contains 1); size in
+      disguise (size band collapses, M2 loses the effect, the tree splits on
+      size); the outcome as a bank-set flag (same counts and words as the
+      event-date book); a measure in bands (three blocks, blank measure
+      counted); designation of an unseen extract at the desk (skeleton
+      written, refused unfilled naming 20 slots, filled file builds
+      byte-identical to a build here); four refusals (dirt, two-way dates,
+      a missing line, a leaking control); blanks counted with the pack's own
+      check still N of N; the live knobs; same inputs same file; 100,000
+      loans in 9.5 s to a 165 KB workbook. One harness mistake on the first
+      run (a flag outcome's `basis` written as free text) was refused by the
+      tool with the exact line to add, which is the behaviour wanted.
+      The report, with the pages in it, is published for the firm as
+      https://claude.ai/artifact/VDjgSETp3wh6ysXag4rf7e and regenerated whole
+      by every run of the harness.
+      **Candidate tenet, declined by the firm 20 Sep 2026 — kept as a
+      project lesson only:** *A rule that holds because there was nothing to
       compare must not print the same word as a rule that held. Give "nothing
       to compare" and "nothing moved" their own words.* Cited to findings 1,
       2 and 8 above: `all(d >= 0)` over zero differences read "rises at every
