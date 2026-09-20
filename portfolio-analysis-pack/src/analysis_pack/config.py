@@ -25,6 +25,9 @@ BUILT_RULE_TYPES = ("contradiction",)
 RULE_KINDS = ("ratio", "difference")
 OPS = (">", ">=", "<", "<=", "==", "!=")
 KNOWN = ("at_origination", "later")
+#: The marker `pack init` leaves on every slot the person must fill in. A
+#: file that still carries one is refused, naming each (refuse, never default).
+CONFIRM = "[CONFIRM:"
 INTERVAL_METHODS = {"wilson": "Wilson", "clopper_pearson": "Clopper-Pearson"}
 
 
@@ -147,10 +150,25 @@ def _num(v: Any) -> float | None:
     return None
 
 
+def _confirm_markers(node: Any, path: str = "") -> list[tuple[str, str]]:
+    """Every "[CONFIRM: ...]" value still in the file, with the slot it sits in."""
+    out: list[tuple[str, str]] = []
+    if isinstance(node, str):
+        if node.lstrip().startswith(CONFIRM):
+            out.append((path, node.strip()))
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            out.extend(_confirm_markers(v, f"{path}.{k}" if path else str(k)))
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            out.extend(_confirm_markers(v, f"{path}[{i}]"))
+    return out
+
+
 def load_config(path: str | Path) -> Config:
     """Read and validate a question file. Raises ConfigError listing every
-    problem in the first failing group (schema, then required lines, then
-    column declarations, then value checks)."""
+    problem in the first failing group (slots left to fill in, then schema,
+    then required lines, then column declarations, then value checks)."""
     p = Path(path)
     text = p.read_text(encoding="utf-8")
     try:
@@ -160,6 +178,15 @@ def load_config(path: str | Path) -> Config:
     if not isinstance(raw, dict):
         raise ConfigError([f"{p}: the question file must be a mapping of slot: value"])
     problems: list[str] = []
+
+    # -- group 0: slots `pack init` left for the person to fill in ------------
+    markers = _confirm_markers(raw)
+    if markers:
+        n = len(markers)
+        problems.append(f"{p}: {n} value{'s' if n != 1 else ''} still to fill in (written by `pack init`):")
+        for slot, value in markers:
+            problems.append(f"`{slot}` still reads {value} — replace it with your answer")
+        raise ConfigError(problems)
 
     # -- group 1: shape and required slots ---------------------------------
     name = raw.get("name")

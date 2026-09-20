@@ -11,10 +11,13 @@ results tabs is an Excel formula over that cube, so a reviewer changes the
 confidence level or the interval method on the `_config` tab and the pack
 recalculates. Bucket edges, bands and the window are rebuild knobs.
 
-The tool knows no domain. No column name, no list of anything, no outcome
-word lives in the code; a test fails if one appears. The question file is
-the only place such things live, so a consumer question is a different
-file, not different code.
+The tool knows no domain and no bank. No column name, no list of anything,
+no outcome word lives in the code; a test fails if one appears. The
+question file is the only place such things live, so a consumer question
+is a different file, not different code. Any extract goes in: whoever holds
+the file says what each column is, there, in a question file the tool
+writes the skeleton for. Nothing about the file has to reach whoever built
+the tool.
 
 - **Spec:** [`docs/prd-portfolio-analysis-pack.md`](docs/prd-portfolio-analysis-pack.md)
 - **Build plan:** issues #364–#372 on the repository, in order
@@ -64,6 +67,22 @@ pack inspect extract.csv
 A column of all-digit values such as `20210315` is listed as an integer with
 a note that it also reads as a date, because the build will read it as one
 if the question file names it as a date column.
+
+Then say what each column is. `init` reads the extract and writes a
+question file with every column listed, what was found in each beside it
+as a comment, and a `[CONFIRM: ...]` marker on every value that is yours to
+choose: the loan number column, the origination date, the two columns of
+the ratio, the outcome, whether each column was known when the loan was
+made, and what reacts to the contradiction today. Fill them in, delete the
+columns the pack should not read, and validate:
+
+```
+pack init extract.csv -o question.yaml
+pack validate question.yaml --data extract.csv --asof 2026-06-30
+```
+
+A file with a marker still in it is refused, and the refusal names every
+one. The tool never fills a slot on your behalf.
 
 To see which question files under a folder would be accepted, and why not
 when one is refused:
@@ -160,14 +179,19 @@ pack bundle configs/examples/stated_income_vs_sales.yaml -o build_pack.py
 ```
 
 writes one pure-ASCII Python script (about 80 KB) that carries the package
-and the question file inside it, and never the data. On the desk, with
-Python, `openpyxl` and `PyYAML` installed:
+and a question file inside it, and never the data. The carried file is only
+the default. On the desk, with Python, `openpyxl` and `PyYAML` installed,
+any extract is designated there and built there:
 
 ```
 python build_pack.py --inspect extract.csv
-python build_pack.py --validate extract.csv --asof 2026-06-30
-python build_pack.py --data extract.csv --asof 2026-06-30 -o pack.xlsx
+python build_pack.py --init extract.csv -o question.yaml
+python build_pack.py --validate extract.csv --asof 2026-06-30 --config question.yaml
+python build_pack.py --data extract.csv --asof 2026-06-30 --config question.yaml -o pack.xlsx
 ```
+
+Without `--config`, the carried question file is used. Either way nothing
+leaves the desk: not the extract, not its column names.
 
 The script prints the SHA-256 of what it wrote. Because the build is
 deterministic, that hash equals a build made anywhere else from the same
@@ -247,6 +271,24 @@ leakage refusal, the flag's side of the line, the `_xlfn.` prefix, the check
 tab's tolerance, the decomposition sort) and name the tests that must go
 red. The file is restored byte for byte afterwards. CI runs it on every pull
 request; a mutation that survives fails the run.
+
+Then run the thing a person actually runs. The exercise harness makes
+eleven made-up books with known answers, drives the bundle script from an
+empty folder the way a desk would, reads every answer back out of the
+workbook the way Excel reads it, renders the pages, and writes one report
+that puts what was planted beside what the pack said, scenario by scenario,
+with the checks counted:
+
+```
+python tools/exercise.py
+```
+
+The report is `docs/exercise-report.md`, with the pages beside it, and it
+is regenerated whole; a green suite is not a substitute for reading it.
+The scenarios: a planted effect; no effect; an effect that is size in
+disguise; the outcome as a bank-set flag; the outcome as a measure in
+bands; designation of an unseen extract at the desk; four refusals; blanks
+counted; the live knobs; same inputs, same file; 100,000 loans.
 
 Then the pass that mutation cannot make: a second model was handed the built
 pack with one job, break it, and could write only tests. It tried 35 things

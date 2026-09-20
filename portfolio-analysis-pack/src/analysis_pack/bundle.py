@@ -27,17 +27,22 @@ PACKAGE_DIR = Path(__file__).parent
 BUNDLED = (
     "__init__.py", "config.py", "ingest.py", "population.py", "stats.py", "ladder.py",
     "model.py", "notes.py", "wording.yaml", "workbook.py", "keybank_style.py", "cli.py", "suggest.py",
+    "designate.py",
 )
 
 _RUNNER = '''#!/usr/bin/env python3
 # Portfolio Analysis Pack -- build-on-target bundle. Pure ASCII by construction.
 #
-#   python {script_name} --data EXTRACT.csv --asof YYYY-MM-DD [--run-date YYYY-MM-DD] [-o OUT.xlsx]
-#   python {script_name} --inspect EXTRACT.csv           # list the columns first
-#   python {script_name} --validate EXTRACT.csv --asof YYYY-MM-DD
+#   python {script_name} --inspect EXTRACT.csv                 # list the columns first
+#   python {script_name} --init EXTRACT.csv [-o question.yaml]  # write a question file to fill in
+#   python {script_name} --validate EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
+#   python {script_name} --data EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
+#                        [--run-date YYYY-MM-DD] [-o OUT.xlsx]
 #
 # Needs: Python 3.10+, openpyxl, PyYAML   (pip install openpyxl PyYAML)
-# Carries: the analysis_pack package and the question file `{config_name}`. Never the data.
+# Carries: the analysis_pack package and the question file `{config_name}`, which
+# is used when --config names none. Never the data. Any extract: designate its
+# columns in a question file beside this script, and nothing leaves the desk.
 import base64, gzip, hashlib, os, sys
 
 FILES = {files_literal}
@@ -61,8 +66,17 @@ def main(argv):
     from analysis_pack.cli import main as pack_main
     config_path = os.path.join(root, "question", CONFIG_NAME)
     args = list(argv)
+    if "--config" in args:
+        i = args.index("--config")
+        if i + 1 >= len(args):
+            print("--config needs the path of a question file", file=sys.stderr)
+            return 1
+        config_path = args[i + 1]
+        del args[i:i + 2]
     if args and args[0] == "--inspect":
         return pack_main(["inspect"] + args[1:])
+    if args and args[0] == "--init":
+        return pack_main(["init"] + args[1:])
     if args and args[0] == "--validate":
         rest = args[1:]
         data = rest[0]

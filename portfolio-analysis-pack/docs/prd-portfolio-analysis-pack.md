@@ -239,6 +239,15 @@ Priority: [P0] must · [P1] should · [P2] nice.
 5. [P0] `pack inspect DATA` prints, per column: inferred type (integer,
    decimal, date-like, text, mixed), null share, distinct count, five sample
    values, and the date pattern that parses the most date-like values.
+   `pack init DATA` writes a question-file skeleton from those columns:
+   every column listed with what inspect found beside it, and a
+   `[CONFIRM: ...]` marker on every value the person must choose. The loader
+   refuses a file that still carries a marker and names each. The bundle
+   offers `--init` and takes `--config` for a question file beside it, so
+   any extract is designated and built at the desk with nothing coming back
+   *(amended 20 Sep 2026 on the firm's words: "we design a tool that we can
+   put anything into and designate it to be something that the tool can
+   work with. The point is it isn't key specific")*.
 6. [P0] `population.filter` (optional) is `{COLUMN: [values]}`; rows not
    matching every entry are dropped before anything else and the drop is
    recorded (rows read → rows after filter) on `_provenance` and in every
@@ -720,6 +729,7 @@ parameters, and the `map`'s group count.
 
 ```
 pack inspect  DATA [--sheet NAME]
+pack init     DATA [-o question.yaml]                # a question-file skeleton from the columns
 pack validate CONFIG --data DATA [--asof D]         # schema, columns, hygiene
 pack suggest  CONFIG --data DATA [--field COL] [--asof D]
 pack build    CONFIG --data DATA --asof D [--run-date D] [-o OUT.xlsx]
