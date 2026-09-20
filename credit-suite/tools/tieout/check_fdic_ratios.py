@@ -1,6 +1,8 @@
-"""The 6,080 ratios the FDIC computes: does its arithmetic join our lines?
+"""The values the FDIC computes: does its arithmetic join our lines?
 
-Eight of the eighty-seven bank fields are not lines a bank files. The FDIC
+Ten of the bank fields in this feed are not lines a bank files -- the count is
+printed by the run rather than written here, because it was "eight of the
+eighty-seven" for as long as it took somebody to add more fields. The FDIC
 computes them from filed lines and publishes the result, so there is no row on
 any form to photograph and no line to compare them with. They are delivered
 labelled `computed_by = the FDIC` and, until now, checked against nothing at
@@ -8,7 +10,7 @@ all -- the lines they are computed FROM are verified, and the step that joins
 those lines was taken on trust.
 
 That is a `COULD NOT` with an obstacle named, and a named obstacle is a
-hypothesis rather than a verdict. Testing it: four of the eight are plain
+hypothesis rather than a verdict. Testing it: four of them are plain
 point-in-time ratios of two figures this feed already carries and has already
 tied to the filings. Recompute each one from ITS OWN verified components and
 compare with what the FDIC published.
@@ -18,7 +20,8 @@ compare with what the FDIC published.
     NCLNLSR   noncurrent loans          / gross loans and leases
     LNRESNCR  allowance for loan losses / noncurrent loans
 
-The other four -- ROAQ, NIMY, NTLNLSQR, EEFFR -- are computed over AVERAGE
+The rest -- ROAQ, NIMY, NTLNLSQR, EEFFR, and the two averages ERNAST and
+LNLSGR5 that two of those are built on -- are computed over AVERAGE
 balances across a period, or over income-statement items this feed does not
 carry, so their components are not here to recompute from. That is reported
 rather than glossed.
@@ -91,69 +94,119 @@ def tolerance(num, den):
     return abs(((num + 0.5) / (den - 0.5) - num / den) * 100) + 5e-5
 
 
-panel = collections.defaultdict(dict)
-verified = collections.defaultdict(dict)
-for r in csv.DictReader((DATA / "bank-values.csv").open(encoding="utf-8")):
-    key = (r["cert"], r["report_date"])
-    panel[key][r["field"]] = float(r["value"])
-    verified[key][r["field"]] = r["verified"] == "yes"
+def read_panel():
+    """Every delivered bank value, keyed by bank-quarter, with its verdict."""
+    panel = collections.defaultdict(dict)
+    verified = collections.defaultdict(dict)
+    for r in csv.DictReader((DATA / "bank-values.csv").open(encoding="utf-8")):
+        key = (r["cert"], r["report_date"])
+        panel[key][r["field"]] = float(r["value"])
+        verified[key][r["field"]] = r["verified"] == "yes"
+    return panel, verified
 
-print("Recomputing the FDIC's own ratios from the lines this feed has already")
-print("tied to the filings. Nothing computed here is delivered.\n")
 
-totals = collections.Counter()
-worst = {}
-for ratio, (num_f, den_f) in sorted(RECOMPUTABLE.items()):
-    agree = differ = skipped = 0
-    biggest = (0.0, None)
-    for key, fields in panel.items():
-        theirs = fields.get(ratio)
-        num, den = fields.get(num_f), fields.get(den_f)
-        if theirs is None or num is None or den is None:
-            skipped += 1
-            continue
-        if not (verified[key].get(num_f) and verified[key].get(den_f)):
-            skipped += 1               # an unverified component proves nothing
-            continue
-        if den == 0:
-            skipped += 1               # a zero denominator is not a failure
-            continue
-        ours = num / den * 100.0
-        gap = abs(ours - theirs)
-        tol = tolerance(num, den)
-        if gap <= tol:
-            agree += 1
-        else:
-            differ += 1
-            if gap > biggest[0]:
-                biggest = (gap, "%s %s: FDIC %s, the two verified lines give "
-                                "%.4f" % (key[0], key[1], theirs, ours))
-    totals["agree"] += agree
-    totals["differ"] += differ
-    totals["skipped"] += skipped
-    worst[ratio] = biggest[1]
-    print("  %-9s = %-8s / %-8s   %4d agree, %d differ, %d not comparable"
-          % (ratio, num_f, den_f, agree, differ, skipped))
-    if biggest[1]:
-        print("        worst: %s" % biggest[1])
+def recompute(panel=None, verified=None):
+    """Per recomputable ratio: how many agree, how many differ, and the worst.
 
-print("\n  %d of the 6,080 FDIC-computed values were recomputed from their own"
-      % (totals["agree"] + totals["differ"]))
-print("  verified components. %d agree, %d differ."
-      % (totals["agree"], totals["differ"]))
-print("\nNot recomputable, and why:")
-for ratio, why in sorted(NOT_RECOMPUTABLE.items()):
-    print("  %-9s %s" % (ratio, why))
-print("\nWhat this does NOT prove: that the FDIC's definition is the one you")
-print("want. It proves its arithmetic joins the lines we verified, on the")
-print("four where those lines are here to join.")
-print()
-print("What changed on 8 September 2026: those four were checked against")
-print("NOTHING. Their figures are in the feed now -- sixteen fields, each tied")
-print("to a filed line in all 760 bank-quarters -- so a return on assets, a net")
-print("interest margin or an efficiency ratio can be built from numbers that")
-print("were checked. What is still open is narrower, and named above: two of")
-print("the four denominators are averages the FDIC constructs and no bank")
-print("files, and on the other two every formula tried failed to reproduce the")
-print("published figure. Neither is guessed at here.")
-raise SystemExit(1 if totals["differ"] else 0)
+    Split out from the printing on 19 September 2026 so the covering document
+    can state these counts by COMPUTING them rather than by quoting a figure
+    somebody once read off this script's output. Two copies of a number are two
+    numbers, and one of them goes stale without telling anybody.
+    """
+    if panel is None:
+        panel, verified = read_panel()
+    out = {}
+    for ratio, (num_f, den_f) in sorted(RECOMPUTABLE.items()):
+        agree = differ = skipped = 0
+        biggest = (0.0, None)
+        for key, fields in panel.items():
+            theirs = fields.get(ratio)
+            num, den = fields.get(num_f), fields.get(den_f)
+            if theirs is None or num is None or den is None:
+                skipped += 1
+                continue
+            if not (verified[key].get(num_f) and verified[key].get(den_f)):
+                skipped += 1           # an unverified component proves nothing
+                continue
+            if den == 0:
+                skipped += 1           # a zero denominator is not a failure
+                continue
+            ours = num / den * 100.0
+            gap = abs(ours - theirs)
+            if gap <= tolerance(num, den):
+                agree += 1
+            else:
+                differ += 1
+                if gap > biggest[0]:
+                    biggest = (gap, "%s %s: FDIC %s, the two verified lines "
+                                    "give %.4f" % (key[0], key[1], theirs, ours))
+        out[ratio] = {"num": num_f, "den": den_f, "agree": agree,
+                      "differ": differ, "skipped": skipped, "worst": biggest[1]}
+    return out
+
+
+def fdic_computed():
+    """The delivered values the FDIC works out rather than a bank filing them.
+
+    Read off the delivered verdicts rather than off the two dictionaries above,
+    and the difference is the point: this script names eight such fields and the
+    feed carries ten. ERNAST and LNLSGR5 -- the averages the FDIC constructs,
+    which the other ratios are built ON -- are delivered as fields in their own
+    right and belong in this denominator. Counting the dictionaries instead
+    reported 6,080 where the honest figure is larger, which is the same defect
+    as a roster that does not add up to its headline.
+
+    Returns (values, fields).
+    """
+    values, fields = 0, set()
+    for r in csv.DictReader((DATA / "bank-values.csv").open(encoding="utf-8")):
+        if "FDIC calculates" in r["verified_meaning"]:
+            values += 1
+            fields.add(r["field"])
+    return values, fields
+
+
+def main():
+    """Print the run. Kept out of import so the covering document can
+    call `recompute()` without this script writing to its stdout or
+    exiting its process."""
+    print("Recomputing the FDIC's own ratios from the lines this feed has already")
+    print("tied to the filings. Nothing computed here is delivered.\n")
+
+    panel, verified = read_panel()
+    results = recompute(panel, verified)
+    totals = collections.Counter()
+    for ratio, r in results.items():
+        totals["agree"] += r["agree"]
+        totals["differ"] += r["differ"]
+        totals["skipped"] += r["skipped"]
+        print("  %-9s = %-8s / %-8s   %4d agree, %d differ, %d not comparable"
+              % (ratio, r["num"], r["den"], r["agree"], r["differ"], r["skipped"]))
+        if r["worst"]:
+            print("        worst: %s" % r["worst"])
+
+    _values, _fields = fdic_computed()
+    print("\n  %d of the %s FDIC-computed values, across %d of its %d fields, were"
+          % (totals["agree"] + totals["differ"], "{:,}".format(_values),
+             len(RECOMPUTABLE), len(_fields)))
+    print("  recomputed from their own verified components. %d agree, %d differ."
+          % (totals["agree"], totals["differ"]))
+    print("\nNot recomputable, and why:")
+    for ratio, why in sorted(NOT_RECOMPUTABLE.items()):
+        print("  %-9s %s" % (ratio, why))
+    print("\nWhat this does NOT prove: that the FDIC's definition is the one you")
+    print("want. It proves its arithmetic joins the lines we verified, on the")
+    print("four where those lines are here to join.")
+    print()
+    print("What changed on 8 September 2026: those four were checked against")
+    print("NOTHING. Their figures are in the feed now -- sixteen fields, each tied")
+    print("to a filed line in all 760 bank-quarters -- so a return on assets, a net")
+    print("interest margin or an efficiency ratio can be built from numbers that")
+    print("were checked. What is still open is narrower, and named above: two of")
+    print("the four denominators are averages the FDIC constructs and no bank")
+    print("files, and on the other two every formula tried failed to reproduce the")
+    print("published figure. Neither is guessed at here.")
+    return 1 if totals["differ"] else 0
+
+if __name__ == "__main__":
+    sys.exit(main())

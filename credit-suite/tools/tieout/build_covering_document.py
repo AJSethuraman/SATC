@@ -27,9 +27,23 @@ import subprocess
 import sys
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
 sys.path.insert(0, str(CS / "src"))
 
+# The conformance gate lives in `canon`, not here. The rules it holds belong to
+# the tie-out skill, and the next document built from that skill will be in
+# some other project. If canon is not beside us the build STOPS: a checker that
+# is missing must never read the same as a checker that passed.
+CANON = CS.parent / "canon"
+if not (CANON / "check_tie_out.py").exists():
+    raise SystemExit(
+        "REFUSING: canon's tie-out conformance checker is not at %s, so this "
+        "document would be published unchecked." % CANON)
+sys.path.insert(0, str(CANON))
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+import check_fdic_ratios                        # noqa: E402
+import check_tie_out                            # noqa: E402
 from credit_suite.workdir import workdir        # noqa: E402
 
 SB = workdir()
@@ -70,13 +84,63 @@ for _shard in sorted(SB.glob("deep_strips-*.json"),
 BANK_TIED = sum(1 for r in BANK if r["verified"] == "yes")
 MACRO_TIED = sum(1 for r in MACRO if r["verified"] == "yes")
 DIFFERS = [r for r in BANK if "DOES NOT MATCH" in r["verified_meaning"]]
-RATIOS = sum(1 for r in BANK if "FDIC calculates" in r["verified_meaning"])
-MERGER_ROWS = sum(1 for r in BANK if "spans a merger" in r["verified_meaning"])
-BASE_ROWS = sum(1 for r in BANK if "running total" in r["verified_meaning"])
-NOLINE = sum(1 for r in BANK if "did not report this line" in r["verified_meaning"])
 MACRO_NOT = len(MACRO) - MACRO_TIED
 TOTAL = len(BANK) + len(MACRO)
 TOTAL_TIED = BANK_TIED + MACRO_TIED
+
+# ---------------------------------------------------------------------------
+# The roster, as a partition
+# ---------------------------------------------------------------------------
+# WHY THIS IS A PARTITION AND NOT SEVEN SEARCHES. Until 19 September 2026 each
+# roster line was its own `sum(1 for r in BANK if <phrase> in ...)`. On
+# 8 September the delivered wording of one verdict was improved -- "the bank
+# did not report that line" became "the form this bank filed ... does not carry
+# the line this field cites" -- and the search over it was not. That line
+# printed 0; the headline above it still said 156,881; the roster beneath added
+# to 156,767. Every number in the document was right and the document said two
+# different things about how much of itself it had checked.
+#
+# So each delivered row is now classified EXACTLY ONCE, the roster is the tally
+# of that classification, and it adds to the headline by construction rather
+# than by luck. A row matching no verdict, or more than one, stops the build
+# instead of falling quietly into a zero.
+TIED = "TIED"
+MACRO_UNSOURCED = "macro, no obtainable source"
+BANK_VERDICTS = (
+    ("DIFFERS", "DOES NOT MATCH"),
+    ("not comparable &mdash; spans a merger", "spans a merger"),
+    ("not comparable &mdash; base moved", "running total"),
+    ("not on that filing", "does not carry the line"),
+    ("computed by the FDIC", "FDIC calculates"),
+)
+
+
+def verdict_of(row):
+    """Which roster line this delivered row belongs on. Exactly one."""
+    if row["verified"] == "yes":
+        return TIED
+    hits = [label for label, probe in BANK_VERDICTS
+            if probe in row["verified_meaning"]]
+    if len(hits) != 1:
+        raise SystemExit(
+            "REFUSING: the delivered verdict %r matches %d roster lines, not "
+            "one. A verdict this document has no home for would be counted "
+            "nowhere and the roster would stop adding up to the headline -- "
+            "which is the defect this refusal exists to stop repeating."
+            % (row["verified_meaning"], len(hits)))
+    return hits[0]
+
+
+ROSTER = dict.fromkeys([label for label, _ in BANK_VERDICTS], 0)
+ROSTER[TIED] = MACRO_TIED
+ROSTER[MACRO_UNSOURCED] = MACRO_NOT
+for _row in BANK:
+    ROSTER[verdict_of(_row)] += 1
+
+RATIOS = ROSTER["computed by the FDIC"]
+MERGER_ROWS = ROSTER["not comparable &mdash; spans a merger"]
+BASE_ROWS = ROSTER["not comparable &mdash; base moved"]
+NOLINE = ROSTER["not on that filing"]
 QUARTERS = sorted({r["report_date"] for r in BANK})
 CERTS = sorted({r["cert"] for r in BANK})
 IDS = sum(1 for b in PEERS["banks"] if b.get("identity_verified"))
@@ -94,16 +158,24 @@ VINTAGE_VERY_LATE = sum(1 for d in _VINT.values() if int(d) > 365)
 #: shape those steps describe.
 _ONE_LINE = __import__("re").compile(r"^(RC[A-Z]{2}|RIAD)[A-Z]?\d{3,4}$")
 RECIPE = {"one line": 0, "arithmetic": 0, "two filings": 0, "no line": 0}
+# "no line" is decided by the DELIVERED VERDICT, not by the shape of the
+# citation string. Deciding it on a "/" in the citation put ERNAST and LNLSGR5
+# -- the two averages the FDIC constructs, whose citation reads "the FDIC's own
+# average; no filed line carries it" -- into the arithmetic bucket, so 1,520
+# rows were told to "find each code on the page and do what the signs say" when
+# there is no code and no arithmetic. It also made this breakdown say 6,080
+# where the roster three pages earlier said 7,600 about the same thing.
 for _r in BANK:
     _c, _note = _r["cited_line"], _r["note"]
-    if "year-to-date less the previous" in _note:
-        RECIPE["two filings"] += 1
-    elif "/" in _c:
+    if "FDIC calculates" in _r["verified_meaning"]:
         RECIPE["no line"] += 1
+    elif "year-to-date less the previous" in _note:
+        RECIPE["two filings"] += 1
     elif _ONE_LINE.match(_c):
         RECIPE["one line"] += 1
     else:
         RECIPE["arithmetic"] += 1
+assert sum(RECIPE.values()) == len(BANK), RECIPE
 
 #: Merger quarters whose total assets step by 10% or more, and the worst one.
 #: MEASURABLE is the denominator, not len(MERGERS): two merger quarters sit at
@@ -117,22 +189,96 @@ STEPS = [m for m in MEASURABLE
 WORST_STEP = (max(STEPS, key=lambda m: abs(
     float(m["change_in_total_assets_pct"]))) if STEPS else None)
 
+#: The fields the FDIC works out rather than a bank filing them, and how far
+#: the recomputation gets. Counted and RUN here, not quoted: this paragraph
+#: said "eight of the 87 fields" while the feed carried 105 fields and ten such
+#: ratios, because both numbers were true on the day somebody typed them.
+FDIC_FIELDS = sorted({r["field"] for r in BANK
+                      if "FDIC calculates" in r["verified_meaning"]})
+_RECOMPUTED = check_fdic_ratios.recompute()
+RECOMPUTED_FIELDS = sorted(set(_RECOMPUTED) & set(FDIC_FIELDS))
+RECOMPUTED_AGREE = sum(r["agree"] for r in _RECOMPUTED.values())
+RECOMPUTED_DIFFER = sum(r["differ"] for r in _RECOMPUTED.values())
+RECOMPUTED_TOTAL = RECOMPUTED_AGREE + RECOMPUTED_DIFFER
+
+#: The window, in years, off the quarters actually delivered. "ten years"
+#: appeared three times in this document as a typed phrase.
+YEARS = round(len(QUARTERS) / 4)
+
+#: The Case-Shiller series whose history is behind S&P's paywall, and how many
+#: of them the free release pins only the MOVE for rather than a level. Both
+#: were typed -- "all 22", "for 21". Counted off the delivered reasons now, and
+#: NOT off the titles: two of the twenty-two are called "S&P CoreLogic
+#: Case-Shiller U.S. National HPI", so matching the title gave twenty and a
+#: computed figure that is wrong is worse than a typed one that is right.
+_SELLS = ("S&P Dow Jones Indices sells", "S&P sells the history")
+_PAYWALLED = {r["series_id"]: r["why_not_verified"] for r in MACRO
+              if r["verified"] != "yes"
+              and any(s in r["why_not_verified"] for s in _SELLS)}
+CASE_SHILLER = len(_PAYWALLED)
+CASE_SHILLER_MOVE = sum(1 for why in _PAYWALLED.values()
+                        if "pins the MOVE" in why)
+
 
 def n(x):
     return "{:,}".format(int(x))
+
+
+#: Small counts, spelled. A figure computed from the data still has to read
+#: like a sentence: "33 such quarters in 10 years" is a computed number and a
+#: worse sentence than the typed one it replaced.
+_WORDS = ("zero one two three four five six seven eight nine ten eleven twelve "
+          "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+          .split())
+
+
+def w(x):
+    """The word for a small count, or the figure for a large one."""
+    return _WORDS[int(x)] if 0 <= int(x) < len(_WORDS) else n(x)
 
 
 def esc(x):
     return html.escape("" if x is None else str(x))
 
 
-def img(name):
-    """A strip, embedded. Returns None if it is not there, and the caller says so."""
+#: The ink. Dark enough to read as deliberate on a printed page, far enough
+#: from black that canon's checker can tell it from the form's own rules.
+RED = (172, 18, 51)
+RING = 4
+
+
+def img(name, ring=False):
+    """A strip, embedded. Returns None if it is not there, and the caller says so.
+
+    `ring=True` draws the red box the skill asks for. WHY IT IS DRAWN HERE AND
+    NOT CUT WITH THE STRIP: the strips are cut once, greyscaled and kept -- 664
+    MB of them before they were shrunk -- and they are the evidence. Marking a
+    copy at build time leaves the evidence untouched and means the mark can be
+    changed without re-photographing 760 filings.
+
+    The strip IS the row, clipped to the band the code sits on and five points
+    either side, so a box around it rings exactly what the citation names and
+    nothing else. Re-quantised to sixteen shades afterwards for the same reason
+    the strips were: a Call Report page is black on white, and the palette costs
+    nothing to read and two thirds of the bytes.
+    """
     p = STRIPS / name
     if not p.exists():
         return None
-    return ("data:image/png;base64,%s"
-            % base64.b64encode(p.read_bytes()).decode())
+    raw = p.read_bytes()
+    if ring:
+        from PIL import Image, ImageDraw
+        import io
+        picture = Image.open(io.BytesIO(raw)).convert("RGB")
+        pen = ImageDraw.Draw(picture)
+        pen.rectangle([RING // 2, RING // 2,
+                       picture.width - 1 - RING // 2,
+                       picture.height - 1 - RING // 2],
+                      outline=RED, width=RING)
+        buffer = io.BytesIO()
+        picture.quantize(colors=16).save(buffer, "PNG", optimize=True)
+        raw = buffer.getvalue()
+    return "data:image/png;base64,%s" % base64.b64encode(raw).decode()
 
 
 def find(cert, iso, field):
@@ -155,6 +301,76 @@ TIES_ROW = find("12368", "2026-06-30", "ASSET")
 # assembled in. Naming what the narrative is about beats taking the first one.
 DIFF_ROW = next((r for r in DIFFERS if r["field"] == "RBC"),
                 DIFFERS[0] if DIFFERS else None)
+
+# ---------------------------------------------------------------------------
+# The one disagreement, in figures read out of the delivered rows
+# ---------------------------------------------------------------------------
+# Every number the narrative below states was typed into it until 19 September
+# 2026 -- six of them in one fixed-width table -- in a document whose opening
+# line is that not one number in it is typed. They come out of the two
+# delivered rows and their notes now, and the two that CANNOT are listed in
+# HAND_READ so a reader can count them.
+_FILED = __import__("re").compile(
+    r"the filing reads ([\d,.]+) and the FDIC publishes ([\d,.]+), "
+    r"a difference of (-?[\d,.]+)")
+
+
+def filed_figure(row):
+    """What the form says, out of the delivered note. Not re-fetched."""
+    hit = _FILED.search(row["note"])
+    if not hit:
+        raise SystemExit("the delivered note for %s %s %s does not carry the "
+                         "filed figure this document quotes"
+                         % (row["cert"], row["report_date"], row["field"]))
+    return float(hit.group(1).replace(",", ""))
+
+
+#: The two figures on this page that are NOT in the delivered file and cannot
+#: be worked out from it. Both were read off the filed form by hand, the
+#: document says so where each appears, and they are named here so that how
+#: much of the page is not computed is itself a number a reader can see: two.
+#:
+#: The risk-weighted-assets line is kept as READ rather than backed out of the
+#: capital and the ratio. Backing it out was tried on 19 September 2026 and
+#: gives 206,904,087 -- 140 thousand under the figure on the form, because the
+#: ratio is only published to six decimals and that is all the precision there
+#: is to divide by. The number on the form is the better evidence, and a
+#: document that quietly replaced it with a rounder one would be doing the
+#: thing this whole feed exists to stop.
+HAND_READ = {"the filing's printed risk-weighted assets": 206904227,
+             "the leverage ratio as filed": 10.235700}
+
+if DIFF_ROW:
+    RATIO_ROW = find(DIFF_ROW["cert"], DIFF_ROW["report_date"], "RBCRWAJ")
+    LEVER_ROW = find(DIFF_ROW["cert"], DIFF_ROW["report_date"], "RBC1AAJ")
+    RBC_FDIC = int(float(DIFF_ROW["value"]))
+    RBC_FILED = int(filed_figure(DIFF_ROW))
+    RBC_GAP = RBC_FDIC - RBC_FILED
+    RATIO_FDIC = float(RATIO_ROW["value"])
+    RATIO_FILED = filed_figure(RATIO_ROW)
+    LEVERAGE_FDIC = float(LEVER_ROW["value"])
+    # Risk-weighted assets are not a field in this feed. The FDIC's side is
+    # backed out of its own capital and its own ratio -- it publishes the ratio
+    # to enough places for that to land. The filing's side is the line printed
+    # on the form, in HAND_READ above.
+    RWA_FDIC = RBC_FDIC / RATIO_FDIC * 100
+    RWA_FILED = HAND_READ["the filing's printed risk-weighted assets"]
+    # The form checking itself: its own risk-weighted assets times its own
+    # ratio should come back to its own capital, and it does, to 20 thousand.
+    RBC_FILED_CROSSCHECK = round(RWA_FILED * RATIO_FILED / 100)
+    DIFF_AMENDED_DAYS = DIFF_ROW["days_after_quarter_end"]
+
+#: The rows the "a hundred times the rounding it needed" sentence is about.
+#: Named by field rather than counted by hand.
+CAPITAL_RATIO_FIELDS = ("RBCRWAJ", "RBC1AAJ")
+CAPITAL_ROWS = sum(1 for r in BANK if r["field"] in CAPITAL_RATIO_FIELDS)
+
+#: The rows with no citable line at all -- the FDIC's own averages, which are
+#: neither a filed line nor arithmetic over filed lines. They are 1,520, which
+#: is also what CAPITAL_ROWS comes to; using that one here because the figure
+#: matched would have been the whole failure this session is about.
+NO_CITABLE_LINE = sum(1 for r in BANK
+                      if "not lines any bank files" in r["verified_meaning"])
 
 CSS = """
 @page{size:A4;margin:16mm 14mm}
@@ -310,7 +526,7 @@ def trace(r, title, why, expect_tie):
     ours = float(r["value"])
     entry = ((STRIP_INDEX.get(r["cert"], {}).get(r["report_date"], {})
               .get(r["field"])) or [None])[0]
-    row_png = img(entry["png"]) if entry else None
+    row_png = img(entry["png"], ring=True) if entry else None
     hdr_png = img(entry["header"]) if entry else None
     filed_txt = "{:,.0f}".format(ours)
     diff_txt = "0"
@@ -339,13 +555,13 @@ def trace(r, title, why, expect_tie):
 
     if row_png and hdr_png:
         shot = ('<div class="shot"><img src="%s"></div>'
-                '<div class="shot"><img src="%s"></div>'
-                '<p class="cap">The filed page, and the row on it. The header '
-                'is photographed from the same page, so &ldquo;same entity, '
-                'same date&rdquo; is read off the picture rather than taken '
-                'on trust.</p>' % (hdr_png, row_png))
+                '<div class="shot"><img data-tieout="source" src="%s"></div>'
+                '<p class="cap">The filed page, and the row on it, <b>ringed in '
+                'red</b>. The header is photographed from the same page, so '
+                '&ldquo;same entity, same date&rdquo; is read off the picture '
+                'rather than taken on trust.</p>' % (hdr_png, row_png))
     elif row_png:
-        shot = ('<div class="shot"><img src="%s"></div>'
+        shot = ('<div class="shot"><img data-tieout="source" src="%s"></div>'
                 '<p class="cap">The row on the filed page. <b>The page header '
                 'is not on file for this row</b>, so the bank and period are '
                 'not visible in the shot &mdash; said here rather than left to '
@@ -422,12 +638,16 @@ A('<p class="stamp">Sethuraman Accounting, Tax &amp; Consulting &middot; %s '
   '<span class="mono">SATC-verified-credit-data.xlsx</span></p>' % STAMP)
 
 A('<div class="cards">')
+# The first card is the document's headline -- the number the roster below has
+# to add up to. It is marked so canon's checker can find it; nothing else here
+# is a total about the feed as a whole.
 for k, v in (("values delivered", n(TOTAL)),
              ("checked against an outside document", n(TOTAL_TIED)),
              ("disagreed", n(len(DIFFERS))),
              ("filed pages photographed", n(AUDIT["filings_photographed"]))):
-    A('<div class="card"><div class="k">%s</div><div class="big">%s</div></div>'
-      % (k, v))
+    mark = ' data-tieout="headline"' if k == "values delivered" else ""
+    A('<div class="card"><div class="k">%s</div><div class="big"%s>%s</div>'
+      "</div>" % (k, mark, v))
 A('</div>')
 
 A('<p class="lead"><b>No value in this feed is calculated by our software.</b> '
@@ -454,78 +674,100 @@ if DIFF_ROW:
             "One of the two differences in the whole feed, and they are the "
             "same event twice. It is here on purpose: a tie-out that hides "
             "its own findings is worth nothing.", False))
+    # Every figure in the paragraphs below is read out of the two delivered
+    # rows and their notes, or worked out from them here, with one exception
+    # that is labelled where it appears. Until 19 September 2026 the whole of
+    # it was typed -- including a table of six figures -- in a document whose
+    # opening docstring says not one number in it is.
     A('<div class="note warn"><p>The filing was read twice &mdash; off the '
       'printed page above and off the machine-readable copy the regulator '
-      'publishes beside it &mdash; and both say <b>29,148,027</b>. The '
-      'filing\'s own total capital ratio multiplied by its own risk-weighted '
-      'assets comes to 29,148,047, so the form is internally consistent. The '
+      'publishes beside it &mdash; and both say <b>%s</b>. The '
+      'filing&rsquo;s own total capital ratio multiplied by its own risk-weighted '
+      'assets comes to %s, so the form is internally consistent. The '
       'second column on that line reads <span class="mono">NR</span>, not '
-      'reported, so there is no other column the FDIC\'s figure could have '
-      'come from. <b>We have no explanation for the $945 thousand, and we are '
-      'not going to invent one.</b> It is 0.003% of the figure and it sits in '
-      'the quarter Huntington closed an acquisition.</p></div>')
+      'reported, so there is no other column the FDIC&rsquo;s figure could have '
+      'come from. <b>We have no explanation for the $%s thousand, and we are '
+      'not going to invent one.</b> It is %s%% of the figure and it sits in '
+      'the quarter Huntington closed an acquisition.</p></div>'
+      % (n(RBC_FILED), n(RBC_FILED_CROSSCHECK), n(abs(RBC_GAP)),
+         "{:.3f}".format(abs(RBC_GAP) / RBC_FDIC * 100)))
     A('<h3>The same quarter disagrees a second time, and it says more</h3>')
     A('<p>This bank&rsquo;s <b>total capital ratio</b> for the same quarter '
-      'disagrees too: the FDIC publishes <b>14.092446%</b> and the filing '
-      'reports <b>14.087700%</b>. Until 8 September 2026 it was reported as '
+      'disagrees too: the FDIC publishes <b>%s%%</b> and the filing '
+      'reports <b>%s%%</b>. Until 8 September 2026 it was reported as '
       'agreeing, because capital ratios were compared to within 0.005 of a '
-      'percentage point and this gap is 0.00475 &mdash; just inside. Every '
-      'other one of the 1,520 capital-ratio rows is within 0.00005, which is '
+      'percentage point and this gap is %s &mdash; just inside. Every '
+      'other one of the %s capital-ratio rows is within 0.00005, which is '
       'the rounding you get from a form that prints six decimals and a '
       'publisher that prints four. So the room was a hundred times what '
       'rounding needed, and exactly one value used it. The comparison is now '
-      '0.0001 and this row is reported for what it is.</p>')
+      '0.0001 and this row is reported for what it is.</p>'
+      % ("{:.6f}".format(RATIO_FDIC), "{:.6f}".format(RATIO_FILED),
+         "{:.5f}".format(abs(RATIO_FDIC - RATIO_FILED)), n(CAPITAL_ROWS)))
     A('<p>Working the risk-weighted assets back out of each side is what makes '
       'it worth reading:</p>')
     A('<pre>                  total capital        risk-weighted assets\n'
-      'FDIC              29,147,082                 206,827,694\n'
-      'the filing        29,148,027                 206,904,227\n'
-      'difference             -945                     -76,533\n'
+      'FDIC          %s          %s\n'
+      'the filing    %s          %s\n'
+      'difference    %s          %s\n'
       '                                        (thousands of dollars)\n\n'
-      'leverage ratio    FDIC 10.235659%   filing 10.235700%   unmoved</pre>')
+      'leverage ratio    FDIC %s%%   filing %s%%   unmoved</pre>'
+      % ("{:>14}".format(n(RBC_FDIC)), "{:>14}".format(n(round(RWA_FDIC))),
+         "{:>14}".format(n(RBC_FILED)), "{:>14}".format(n(round(RWA_FILED))),
+         "{:>14}".format(n(RBC_FDIC - RBC_FILED)),
+         "{:>14}".format(n(round(RWA_FDIC - RWA_FILED))),
+         "{:.6f}".format(LEVERAGE_FDIC),
+         "{:.6f}".format(HAND_READ["the leverage ratio as filed"])))
     A('<p><b>Two capital figures moved together and two did not.</b> Total '
       'capital and risk-weighted assets differ; Tier 1 capital and average '
       'assets, which the leverage ratio is built from, agree to the rounding. '
-      'That is the shape of an amendment to the risk-weighting pages rather '
+      '<i>Two figures in that table are read off the form by hand rather than '
+      'computed: the filing&rsquo;s own risk-weighted assets, and the leverage '
+      'ratio as the filing prints it. The feed carries neither &mdash; it has '
+      'no risk-weighted-assets field, and the leverage row agrees, so there is '
+      'no filed figure recorded beside it.</i> This is the '
+      'shape of an amendment to the risk-weighting pages rather '
       'than a mistyped line, and it is the best evidence we have for the '
-      'explanation we could not prove: this filing was amended 143 days after '
+      'explanation we could not prove: this filing was amended %s days after '
       'the quarter and the FDIC&rsquo;s published figures have not moved with '
       'it. <b>Still not proven</b> &mdash; the pre-amendment filing cannot be '
-      'obtained. The feed carries no risk-weighted-assets field of its own, so '
-      'the second half of that table is worked out here and is not part of '
-      'the data.</p>')
+      'obtained. The FDIC&rsquo;s risk-weighted assets are worked out here, '
+      'from its own capital and its own ratio; they are not part of the '
+      'data.</p>' % DIFF_AMENDED_DAYS)
 
 A('<h2 class="brk">The roster, with its denominator</h2>')
 A('<p>What did not check out comes first, because the things that agree are '
   'not what anybody needs to read.</p>')
-A('<table><tr><th>Verdict</th><th class="n">Rows</th><th>What it means</th></tr>')
-for label, count, meaning in (
-        ("DIFFERS", len(DIFFERS),
+A('<table data-tieout="roster">')
+A('<tr><th>Verdict</th><th class="n">Rows</th><th>What it means</th></tr>')
+# The rows come out of ROSTER, which is a tally of every delivered value
+# classified exactly once. The table is therefore the partition, printed -- it
+# cannot disagree with the headline without the build refusing.
+for label, meaning in (
+        ("DIFFERS",
          "the delivered value and the filed line do not agree; named above"),
-        ("not comparable &mdash; spans a merger", MERGER_ROWS,
+        ("not comparable &mdash; spans a merger",
          "a quarterly flow in a quarter that mixes two banks. %d such quarters "
-         "in ten years, all listed in the workbook" % len(MERGERS)),
-        ("not comparable &mdash; base moved", BASE_ROWS,
+         "in %s years, all listed in the workbook" % (len(MERGERS), w(YEARS))),
+        ("not comparable &mdash; base moved",
          "the quarter after a merger that landed in a first quarter: the "
          "running total it counts from is the FDIC's own adjusted figure, "
          "which no filing carries"),
-        ("not on that filing", NOLINE,
+        ("not on that filing",
          "the FORM did not carry that line in that quarter, so no bank filed "
          "it. Every one of these is the second half of 2016, before Schedule "
-         "RC-N gained a total line, across all nineteen banks. This row read "
-         "&ldquo;the bank did not report that line&rdquo; until 8 September "
-         "2026, which says one bank left something out"),
-        ("computed by the FDIC", RATIOS,
-         "a ratio the FDIC calculates rather than a line a bank files. The "
-         "lines it is calculated FROM are checked"),
-        ("macro, no obtainable source", MACRO_NOT,
+         "RC-N gained a total line, across all %s banks" % w(len(CERTS))),
+        ("computed by the FDIC",
+         "a figure the FDIC works out rather than a line a bank files. The "
+         "lines it is worked out FROM are checked"),
+        (MACRO_UNSOURCED,
          "whole series with no independent publisher we can reach; each row "
          "says why"),
-        ("TIED", TOTAL_TIED,
+        (TIED,
          "checked against a document published by somebody outside this firm"),
 ):
-    A('<tr><td><b>%s</b></td><td class="n">%s</td><td>%s</td></tr>'
-      % (label, n(count), meaning))
+    A('<tr><td><b>%s</b></td><td class="n" data-tieout="count">%s</td>'
+      "<td>%s</td></tr>" % (label, n(ROSTER[label]), meaning))
 A('</table>')
 
 A('<h3>And the thing every other check takes on trust</h3>')
@@ -540,9 +782,9 @@ A('<p>That check exists because searching the regulator for a holding '
   'Park, Texas &mdash; a real, live, unrelated bank that would have tied to '
   'the dollar under the wrong label.</p>')
 A('<p>A certificate is stable; the institution behind it is not. Checked at '
-  'the other end of the ten years as well: <b>%d of %d</b> carry the same '
+  'the other end of the %s years as well: <b>%d of %d</b> carry the same '
   'legal name on the oldest filing as on the newest. %s</p>'
-  % (SAME_THROUGHOUT, len(PEERS["banks"]),
+  % (w(YEARS), SAME_THROUGHOUT, len(PEERS["banks"]),
      "" if not RENAMED else
      ("The exceptions are " + "; ".join(
          "<b>%s</b>, filed in %s as %s" % (b["name"], QUARTERS[0][:4],
@@ -596,15 +838,16 @@ A('<li><b>%s rows are one quarter of a running yearly total</b>, which no '
   'previous one&rsquo;s. So you need the quarter before as well, and it is at '
   'a different address &mdash; change the <span class="mono">date</span> in '
   'the link to the previous quarter end.</li>' % n(RECIPE["two filings"]))
-A('<li><b>%s rows are ratios the FDIC works out</b> rather than lines a bank '
-  'files. There is nothing on the form to find; the lines they are worked out '
-  'FROM are in this feed and are checked.</li>' % n(RECIPE["no line"]))
+A('<li><b>%s rows are figures the FDIC works out</b> rather than lines a bank '
+  'files. There is nothing on the form to find; where they are worked out FROM '
+  'lines, those lines are in this feed and are checked.</li>'
+  % n(RECIPE["no line"]))
 A('</ul>')
 A('<p>To change bank or quarter, edit the <span class="mono">id</span> (the '
   'FDIC certificate) and the <span class="mono">date</span> '
   '(<span class="mono">MMDDYYYY</span>, a quarter end) in that address.</p>')
 
-A('<h2>What running this found</h2>')
+A('<h2 data-tieout="what-it-found">What running this found</h2>')
 A('<p>%s exhibits sit behind this feed &mdash; one per bank per year, %s MB of '
   'them, every cited row photographed off the filed page with the page header '
   'in the shot. They are kept locally rather than sent with this document. '
@@ -618,10 +861,10 @@ for item in (
     "separately-rounded halves; our citation pointed at the bank's own "
     "single-line total. Both numbers were correct as published, and only "
     "following the citation to the page could show it.",
-    "<b>%d quarters in ten years span a merger</b>, where a first pass over "
+    "<b>%d quarters in %s years span a merger</b>, where a first pass over "
     "sixteen quarters had seen six. Every one of them would otherwise have "
     "been reported as the regulator disagreeing with the filings when nothing "
-    "was wrong with either." % len(MERGERS),
+    "was wrong with either." % (len(MERGERS), w(YEARS)),
     "<b>The largest acquisition in the set was filed under a code we did not "
     "carry.</b> First-Citizens taking on Silicon Valley Bridge Bank in March "
     "2023 is recorded by the FDIC as a &ldquo;Bridge Bank Resolution&rdquo;. "
@@ -632,8 +875,8 @@ for item in (
     "filings at all.</b> A quarterly flow is the year's running total less "
     "what was already reported &mdash; and the first quarter's published "
     "figure <i>is</i> that base. Where a merger moves it, nothing in the "
-    "documents reaches the second quarter. %d values are reported as such "
-    "rather than as differences." % BASE_ROWS,
+    "documents reaches the second quarter. %s values are reported as such "
+    "rather than as differences." % w(BASE_ROWS).capitalize(),
     "<b>Nineteen fields were shipping with no units beside them.</b> A number "
     "in a spreadsheet with no unit is the trap this whole feed is written "
     "against, and it was in the feed.",
@@ -649,7 +892,41 @@ A('<div class="note"><p>Every one of those was found by pointing the machinery '
   'argument for doing this again next quarter rather than assuming it still '
   'works.</p></div>')
 
-A('<h2>What this does not prove</h2>')
+A('<h2 data-tieout="what-i-got-wrong">What I got wrong</h2>')
+A('<p>The last version of this document got these wrong. None of '
+  'them was a value &mdash; every number in the feed was checked again and not '
+  'one moved &mdash; and every one is the same mistake: something true on the '
+  'day it was typed, still sitting there after the thing it described '
+  'changed.</p>')
+A('<ul>')
+A('<li><b>The roster printed 0 where %s belonged.</b> One verdict was reworded '
+  'on 8 September &mdash; it used to say the bank had not reported a line, '
+  'which blamed the bank for something the form did not ask. The tally '
+  'underneath was still looking for the old wording, found none, and printed '
+  'nothing. So the front of this document said %s values and the roster '
+  'below it added to %s. Both were built from the same file. Now every value is sorted '
+  'into exactly one row of that roster, so it adds up or the document does not '
+  'get built.</li>' % (n(NOLINE), n(TOTAL), n(TOTAL - NOLINE)))
+A('<li><b>It said eight of 87 fields are worked out by the FDIC.</b> There are '
+  '%s fields and %s of them. Both of those were right once. They are counted '
+  'off the delivered file now, every time this is built.</li>'
+  % (n(len(FIELDS)), w(len(FDIC_FIELDS))))
+A('<li><b>Two lists in this document counted the same thing differently.</b> '
+  'One said %s rows are worked out by the FDIC and the roster said %s. '
+  'The list under &ldquo;when the row cites more than one '
+  'line&rdquo; sorted rows by what their citation looked like rather than by '
+  'what the row says it is. Two fields the FDIC works out from averages of its '
+  'own have no code to cite, so they fell in with the rows that need '
+  'arithmetic &mdash; and %s rows were told to find codes on a page that does '
+  'not carry any. Both lists are sorted the same way now.</li>'
+  % (n(RATIOS - NO_CITABLE_LINE), n(RATIOS), n(NO_CITABLE_LINE)))
+A('<li><b>The filed pages were photographed and nothing on them was marked.</b> '
+  'You were handed a picture of a dense regulatory page and a sentence saying '
+  'which row to look at. The row is ringed in red now, which is the difference '
+  'between checking us and taking our word for it.</li>')
+A('</ul>')
+
+A('<h2 data-tieout="what-this-does-not-prove">What this does not prove</h2>')
 A('<div class="note warn"><p><b>Read this one before you chart a bank across '
   'a merger.</b> Every value here is correct for the institution as it stood '
   'that day &mdash; and on either side of a merger that institution is a '
@@ -677,22 +954,30 @@ A('<li><b>It is a snapshot, and banks amend.</b> Every bank row carries '
   'report and %s more than a year after it &mdash; Bank of America amended '
   'its third quarter of 2016 in December 2021. The macro side has no such '
   'stamp.</li>' % (n(VINTAGE_LATE), n(VINTAGE_TOTAL), n(VINTAGE_VERY_LATE)))
-A('<li><b>The %s FDIC-computed ratios are half checked now.</b> Eight of '
-  'the 87 fields are not lines a bank files &mdash; the FDIC computes them, so '
-  'there is no row on any form to compare them with. Four of the eight are '
-  'plain ratios of two figures this feed already carries and has already tied '
-  'to the filings, and recomputing those from their own verified components '
-  'gives <b>2,964 of 2,964 agreeing, none differing</b>. The other four are '
-  'computed over average balances or income-statement items this feed does '
-  'not hold, so they remain unchecked. Run '
-  '<span class="mono">tools/tieout/check_fdic_ratios.py</span>.</li>' % n(RATIOS))
+A('<li><b>%s of the %s values the FDIC works out are checked; the rest are '
+  'not.</b> %s of the %s fields are not lines a bank files &mdash; the FDIC '
+  'works them out, so there is no row on any form to compare them with. %s of '
+  'those %s are plain ratios of two figures this feed already carries and has '
+  'already tied to the filings, and working each one out again from its own '
+  'checked parts gives <b>%s of %s agreeing, %s differing</b>. The other %s '
+  'are built on averages the FDIC makes itself, or on figures this feed does '
+  'not hold, so they stay unchecked. Run '
+  '<span class="mono">tools/tieout/check_fdic_ratios.py</span>.</li>'
+  % (n(RECOMPUTED_TOTAL), n(RATIOS), w(len(FDIC_FIELDS)).capitalize(),
+     n(len(FIELDS)),
+     w(len(RECOMPUTED_FIELDS)).capitalize(), w(len(FDIC_FIELDS)),
+     n(RECOMPUTED_AGREE),
+     n(RECOMPUTED_TOTAL),
+     ("none" if not RECOMPUTED_DIFFER else n(RECOMPUTED_DIFFER)),
+     w(len(FDIC_FIELDS) - len(RECOMPUTED_FIELDS))))
 A('<li><b>%s macro observations have no obtainable source.</b> They are '
   'whole series rather than a scatter of gaps, and most are Case-Shiller, '
   'whose history S&amp;P Dow Jones Indices sells. The most recent month of '
-  'all 22 of those WAS checked against the S&amp;P free release and all 22 '
-  'agreed &mdash; for 21 that pins the month-on-month move rather than the '
+  'all %d of those WAS checked against the S&amp;P free release and all %d '
+  'agreed &mdash; for %d that pins the month-on-month move rather than the '
   'level, and for the national index it is a published level. Each row says '
-  'exactly what was and was not checked.</li>' % n(MACRO_NOT))
+  'exactly what was and was not checked.</li>'
+  % (n(MACRO_NOT), CASE_SHILLER, CASE_SHILLER, CASE_SHILLER_MOVE))
 A('<li><b>The %d banks are not a like-for-like peer group.</b> %s are not '
   'commercial lenders. Their balance sheets are shaped nothing like a '
   'lender\'s and a peer ranking that mixes them will mislead; they are marked '
@@ -728,6 +1013,13 @@ A('</div>')
 HTML = ("<!doctype html><meta charset='utf-8'><title>Verified credit data "
         "&mdash; how it was proved</title><style>%s</style>%s"
         % (CSS, "\n".join(BODY)))
+
+# THE GATE, BEFORE THE RENDER. canon reads what is about to be printed and
+# refuses it if the roster does not add to the headline, if any of the three
+# named sections is missing, or if the photographed rows carry no mark. It is
+# deliberately upstream of Chrome: the refusal lands while there is still
+# nothing on disk to forward.
+check_tie_out.gate(HTML, "the covering document for the verified credit feed")
 
 src = SB / "covering.html"
 src.write_text(HTML, encoding="utf-8")
