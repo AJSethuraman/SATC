@@ -1067,6 +1067,14 @@ sales on the small-business book; built domain-free so a consumer question
       The report, with the pages in it, is published for the firm as
       https://claude.ai/artifact/VDjgSETp3wh6ysXag4rf7e and regenerated whole
       by every run of the harness.
+      **The bundle carries the made-up-book generator, 21 Sep 2026.** The
+      firm: "you have the script I can email myself to create and test this".
+      `build_pack.py --synth demo` now writes a book with a known answer
+      beside the script, so a desk can test on it before any extract
+      exists; the test helpers, the render harness and any data still stay
+      home. The file handed to the firm was run end to end in an empty
+      folder first: book made, pack built, question file written and
+      refused unfilled.
       **Candidate tenet, declined by the firm 20 Sep 2026 — kept as a
       project lesson only:** *A rule that holds because there was nothing to
       compare must not print the same word as a rule that held. Give "nothing

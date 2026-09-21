@@ -150,3 +150,8 @@ def test_the_bundle_writes_the_skeleton_and_builds_from_a_question_file_beside_i
     built = (desk / "desk.xlsx").read_bytes()
     assert status["sha256"] == hashlib.sha256(built).hexdigest()
     assert status["sha256"][:16] in r.stderr
+    # the same script makes a made-up book with a known answer, to test on at the desk
+    r = run("--synth", "demo", "--loans", "3000")
+    assert r.returncode == 0 and (desk / "demo" / "loans.csv").exists() and (desk / "demo" / "config.yaml").exists(), r.stderr[-800:]
+    r = run("--data", "demo/loans.csv", "--asof", ASOF.isoformat(), "--config", "demo/config.yaml", "-o", "demo/pack.xlsx")
+    assert r.returncode == 0 and (desk / "demo" / "pack.xlsx").exists(), r.stderr[-800:]
