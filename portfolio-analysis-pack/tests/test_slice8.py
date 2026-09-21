@@ -37,7 +37,10 @@ def test_the_bundle_carries_the_package_and_the_question_file_but_never_the_data
     assert "import formulas" not in head and "pytest" not in head
     files = [line.split(":")[0].strip().strip("'") for line in text.splitlines() if line.startswith("    'analysis_pack/") or line.startswith("    'question/")]
     assert "analysis_pack/workbook.py" in files and "question/config.yaml" in files
-    assert not any(f.endswith("synth.py") or f.endswith(".csv") for f in files)
+    # the made-up-book generator travels (a desk tests on a book with a known
+    # answer, 21 Sep 2026); the test helpers, the render harness and any data do not
+    assert "analysis_pack/synth.py" in files
+    assert not any(f.endswith(".csv") or f.endswith("recalc.py") or f.endswith("render.py") for f in files)
     assert "loans.csv" not in text
 
 

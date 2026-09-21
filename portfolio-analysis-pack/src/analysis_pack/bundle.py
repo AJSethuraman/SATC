@@ -22,17 +22,20 @@ from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).parent
 
-#: Only the build path travels. The test helpers, the render harness and the
-#: synthetic generator stay home; so does anything importing `formulas`.
+#: The build path travels, and the made-up-book generator so a desk can make a
+#: book with a known answer and test on it. The test helpers and the render
+#: harness stay home; so does anything importing `formulas`.
 BUNDLED = (
     "__init__.py", "config.py", "ingest.py", "population.py", "stats.py", "ladder.py",
     "model.py", "notes.py", "wording.yaml", "workbook.py", "keybank_style.py", "cli.py", "suggest.py",
-    "designate.py",
+    "designate.py", "synth.py",
 )
 
 _RUNNER = '''#!/usr/bin/env python3
 # Portfolio Analysis Pack -- build-on-target bundle. Pure ASCII by construction.
 #
+#   python {script_name} --synth demo [--loans 40000] [--null | --confounded]
+#                                                              # a made-up book with a known answer, to test on
 #   python {script_name} --inspect EXTRACT.csv                 # list the columns first
 #   python {script_name} --init EXTRACT.csv [-o question.yaml]  # write a question file to fill in
 #   python {script_name} --validate EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
@@ -73,6 +76,11 @@ def main(argv):
             return 1
         config_path = args[i + 1]
         del args[i:i + 2]
+    if args and args[0] == "--synth":
+        if len(args) < 2:
+            print("--synth needs a folder to write the made-up book into", file=sys.stderr)
+            return 1
+        return pack_main(["synth", "--out", args[1]] + args[2:])
     if args and args[0] == "--inspect":
         return pack_main(["inspect"] + args[1:])
     if args and args[0] == "--init":

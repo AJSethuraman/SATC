@@ -193,6 +193,18 @@ python build_pack.py --data extract.csv --asof 2026-06-30 --config question.yaml
 Without `--config`, the carried question file is used. Either way nothing
 leaves the desk: not the extract, not its column names.
 
+To try it before there is an extract, the same script writes a made-up
+book with a known answer (a planted effect; `--null` for no effect,
+`--confounded` for an effect that is size in disguise) and builds from it:
+
+```
+python build_pack.py --synth demo
+python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config demo/config.yaml -o demo/pack.xlsx
+```
+
+Open `demo/pack.xlsx`: the cover should say the gradient rises, every
+block survives, and every formula check agrees.
+
 The script prints the SHA-256 of what it wrote. Because the build is
 deterministic, that hash equals a build made anywhere else from the same
 inputs, which is how a reviewer proves the desk copy is the same
