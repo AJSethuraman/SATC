@@ -1171,6 +1171,33 @@ sales on the small-business book; built domain-free so a consumer question
       the knob change was written by a script. Excel itself is still the one
       thing not checked; the procedure is the script a fresh agent on a
       Windows machine with Excel would follow.
+- **The walk's defects patched before anything shipped (22 Sep 2026, later
+      the same day).** The firm, on being offered the script to test live:
+      *"Wait stop hold on back up we need to patch anything wrong prior to
+      shipping. Especially math issues."* Held. On the math: the walk had
+      found no arithmetic defect, and `WALKTHROUGH-DEFECTS.md` now ends with
+      every number checked by hand from the screens (the crude odds ratio and
+      its interval recomputed from the four cells, the gradient multiples,
+      the capture shares, events per coefficient, the two known answers, the
+      formula twins). Ten of the eleven screen defects fixed in one slice,
+      each pinned in `tests/test_walk_defects.py` (9 tests): the confounders
+      slot is marked in the skeleton and a file with none is told so at
+      validate, build, cover and model tab; the bundle keeps its JSON off
+      the screen unless `--json`; every command ends with a `then:` line in
+      the running front door's spelling; the bundle unpacks to a temporary
+      folder removed on exit and `keybank_style.py` is `workbook_style.py`;
+      header rows wrap and grow, no heading is cut (a test walks every
+      sheet); chart and pooling columns are headed `chart:` / `working:` in
+      a quieter face; "events per coefficient" and "runs when Excel opens
+      the file" replace EPP and "no engine"; without `--run-date` the pack
+      says "run date not given" rather than print the as-of date; "is
+      {outcome} more common among them" replaces "do they {outcome}"; the
+      knob note and the outcome line say what is true. Defect 11 stands by
+      the firm's ruling of 18 Sep. Verified: 108 tests (99 + 9), 48 of 48
+      harness checks on the patched bundle, the mutation check, and the walk
+      run again on the patched script — thirty screens re-captured, the
+      procedure re-issued from them, and the skeleton now filled with three
+      confounders so the designated pack's cover matches the demo's.
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

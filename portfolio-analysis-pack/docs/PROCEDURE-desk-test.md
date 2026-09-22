@@ -5,10 +5,13 @@
 This is the procedure for testing the pack on a machine that has never seen
 it: a file arrives by email, you run it on a book of made-up loans with a
 known answer, you read the workbook it builds, and then you point it at an
-extract of your own. It was walked on 22 September 2026, and every screen
-below is from that walk. Where a screen of yours differs from the picture,
-either the product has changed or something went wrong, and finding out
-which is the point of doing it again.
+extract of your own. It was walked twice on 22 September 2026: once on the
+script as first written, which found eleven things the screens said wrong
+(`WALKTHROUGH-DEFECTS.md`), and again the same day on the patched script,
+after the firm asked for everything wrong to be fixed before anything
+shipped. Every screen below is from the second walk. Where a screen of yours
+differs from the picture, either the product has changed or something went
+wrong, and finding out which is the point of doing it again.
 
 Two things to know before you start. The terminal pictures show a prompt
 that reads `desk>`; on your machine it will show the folder you are in. And
@@ -66,10 +69,9 @@ test on first: a book where you know the answer.
 ![Step 3](walkthrough/desk-test-2026-09-22/step-03-make-book.png)
 
 **Right when:** the first line reads *wrote demo/loans.csv, config.yaml,
-planted.json (effect, seed 20260918, 40,000 loans)*. The block in braces
-underneath is the tool's status written for other programs; you do not need
-to read it. The number after *true_marginal_flag_odds_ratio* is the planted
-answer, 4.32, and step 18 comes back to it.
+planted.json (effect, seed 20260918, 40,000 loans)* and the second, *then:*,
+gives the build command, which is step 5's. Nothing else is printed. The
+planted answer is in `demo\planted.json`, and step 18 comes back to it.
 
 ### Step 4 — Look at what appeared
 
@@ -78,9 +80,9 @@ walk ran on) and look at the folder.
 
 ![Step 4](walkthrough/desk-test-2026-09-22/step-04-the-folder.png)
 
-**Right when:** there is a `demo` folder with three files in it, and a folder
-called `analysis_pack_bundle_src` that the script unpacked for its own use.
-You can ignore the second folder; it reappears on every run.
+**Right when:** the folder holds `build_pack.py` and a `demo` folder with
+three files in it, and nothing else. The script unpacks itself into a
+temporary folder while it runs and removes it when it finishes.
 
 ### Step 5 — Build the pack
 
@@ -95,8 +97,11 @@ python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config demo/confi
 **Right when:** the first line reads *wrote demo/pack.xlsx*, and the summary
 under it has these numbers: 29,343 seasoned loans, 257 events, *gradient
 reads: monotonic increasing*, three step-4 lines each ending *survives*, and
-M1's odds ratio 3.73 with the interval [2.84, 4.89]. The last line says the
-formula check will run when Excel opens the file. Keep this screen in mind;
+M1's odds ratio 3.73 with the interval [2.84, 4.89] on 211 events, about 19
+events per coefficient. The last three lines say that the formula check runs
+when Excel opens the file, that no run date was given so the pack will say
+so rather than guess one (add `--run-date 2026-09-22`, with the day you ran
+it, if you want it stamped), and what to do next. Keep this screen in mind;
 the cover in the next step must say the same things.
 
 ## Part C · Read the workbook
@@ -111,12 +116,17 @@ twelve steps is one tab or one thing on it.
 
 ![Step 6](walkthrough/desk-test-2026-09-22/step-06-cover.png)
 
-**Right when:** under *The answer, in three lines* the three lines say what
-step 5's screen said: *Gradient: yes*, *survives* three times, and *3.73
-[2.84, 4.89]*. The last line reads *1389 of 1389 formula checks agree (see
-_check)*: every number Python wrote has been recomputed by the workbook's
-own formulas and matched. If that line shows a smaller first number, or the
-sentence about knobs having been moved (step 17 shows it), stop and say so.
+**Right when:** the black banner reads *run date not given*, because step 5
+did not pass one. *The question* reads *Loans where field_a divided by
+field_b is > 1: is event more common among them than among loans where it is
+not, and is that real or something else in disguise?* Under *The answer, in
+three lines* the three lines say what step 5's screen said: *Gradient: yes*,
+*survives* three times (*for event: size_band (edges) — survives; …*), and
+*3.73 [2.84, 4.89]*. The last line reads *1389 of 1389 formula checks agree
+(see _check)*: every number Python wrote has been recomputed by the
+workbook's own formulas and matched. If that line shows a smaller first
+number, or the sentence about knobs having been moved (step 17 shows it),
+stop and say so.
 
 ### Step 7 — Step 1, capture
 
@@ -150,8 +160,9 @@ stops at 2024Q2, the last seasoned quarter.
 **Right when:** five buckets of the ratio from *< 0.5* to *≥ 5* and a base
 row. The rate climbs down the column: 0.31%, 0.91%, 1.52%, 2.83%, 5.31%.
 Under the table, *Monotonic?* reads *monotonic increasing* and *Adjacent
-pairs whose intervals do not overlap* reads 3. The columns from *Bar up*
-rightward feed the chart and are not results.
+pairs whose intervals do not overlap* reads 3. The two long headings wrap
+inside their columns. The columns headed *chart:* further right feed the
+chart and are not results; the tab's note says so.
 
 ### Step 10 — Step 3, the chart
 
@@ -170,10 +181,11 @@ block (they repeat under every block).
 
 ![Step 11](walkthrough/desk-test-2026-09-22/step-11-stratified.png)
 
-**Right when:** *Crude odds ratio* 3.73 with bounds 2.84 and 4.89, *Pooled
-odds ratio* 3.74, *Share of the crude log-odds the pooled ratio kept* 1.00,
-and *Word* reads *survives*. The same word appears under all three blocks
-and matches the cover.
+**Right when:** *Crude odds ratio, whole population — ratio, lower, upper*
+3.73, 2.84, 4.89; *Pooled odds ratio across bands (Mantel-Haenszel) — ratio,
+lower, upper* 3.74, 2.85, 4.91; *Share of the crude log-odds the pooled ratio
+kept* 1.00; and *Word* reads *survives*. The labels read whole. The same word
+appears under all three blocks and matches the cover.
 
 ### Step 12 — Step 5, decomposition
 
@@ -214,8 +226,10 @@ depend on anything steps 3 to 6 found.
 ![Step 15](walkthrough/desk-test-2026-09-22/step-15-config.png)
 
 **Right when:** *Confidence level* 95.00%, *Interval method* Wilson,
-*Survives threshold* 0.50, and *z* 1.959964. The block under it, *Rebuild
-knobs*, is for the record only.
+*Survives threshold* 0.50 (its note: *Step 4's word: the share of the crude
+effect that must remain for 'survives'. 0.50 means half.*), and *z* 1.959964.
+The block under it, *Rebuild knobs*, is for the record only; its *Outcome*
+line reads *event, from outcome_date*, the word and the column you gave.
 
 ### Step 16 — Move a knob
 
@@ -302,10 +316,9 @@ can be checked; on a real one the columns will be yours.
 
 ![Step 22](walkthrough/desk-test-2026-09-22/step-22-init.png)
 
-**Right when:** *wrote demo/question.yaml: 12 columns listed, 20 values
-marked [CONFIRM: ...] for you to fill in*. Ignore the *then:* line; the
-command it names is not the one on this machine, and step 25 shows the right
-one.
+**Right when:** *wrote demo/question.yaml: 12 columns listed, 21 values
+marked [CONFIRM: ...] for you to fill in*, and a *then:* line that says to
+fill them in and gives the command to run afterwards, which is step 25's.
 
 ### Step 23 — Read the file it wrote, top half
 
@@ -328,9 +341,9 @@ values.
 ![Step 24](walkthrough/desk-test-2026-09-22/step-24-skeleton-rest.png)
 
 **Right when:** the rule's two columns, the outcome's word and date column,
-and what at the bank reacts to the contradiction today. The `confounders`
-line reads `[]` with examples in comments; leave it for this walk (the
-defects list says what that costs).
+the `confounders` line (what the effect might be hiding in; the comments
+under it show how to list one), and what at the bank reacts to the
+contradiction today. Five marked lines on this half, sixteen on the top.
 
 ### Step 25 — Try to run it unfilled
 
@@ -343,8 +356,8 @@ python build_pack.py --validate demo/loans.csv --asof 2026-06-30 --config demo/q
 ![Step 25](walkthrough/desk-test-2026-09-22/step-25-validate-unfilled.png)
 
 **Right when:** *the question file was refused*, then one line for each of
-the twenty values still marked, naming it and telling you to replace it with
-your answer. Nothing was built. This is the tool refusing to guess.
+the twenty-one values still marked, naming it and telling you to replace it
+with your answer. Nothing was built. This is the tool refusing to guess.
 
 ### Step 26 — Fill it in, top half
 
@@ -363,11 +376,18 @@ wrote are untouched.
 ### Step 27 — Fill it in, the rest
 
 **Do:** field_a `field_a`; field_b `field_b`; label `event`; date_field
-`outcome_date`; existing_control `none`. Save.
+`outcome_date`; existing_control `none`. For `confounders`, replace the
+marked line with a list written the way the comment under it shows, one
+line per confounder: `size_band` on `field_b` with edges 100000, 200000,
+400000, 800000, 1600000; `amount_band` on `amount` with edges 60000, 250000;
+and `category_2` on `category_2`, a text column taken level by level. (Write
+`[]` instead and the tool will build, but will tell you at every step that
+step 4 has nothing to compare within.) Save.
 
 ![Step 27](walkthrough/desk-test-2026-09-22/step-27-filled-rest.png)
 
-**Right when:** no `[CONFIRM:` is left anywhere in the file.
+**Right when:** no `[CONFIRM:` is left anywhere in the file, which is now
+three lines longer than the tool wrote it.
 
 ### Step 28 — Run it again
 
@@ -376,7 +396,8 @@ wrote are untouched.
 ![Step 28](walkthrough/desk-test-2026-09-22/step-28-validate-filled.png)
 
 **Right when:** *ok: 40,000 rows, 40,000 loans, 29,343 seasoned at
-2026-06-30*, the same seasoned count as step 5.
+2026-06-30*, the same seasoned count as step 5, then a *then:* line with the
+build command.
 
 ### Step 29 — Build from your question file
 
@@ -389,9 +410,12 @@ python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config demo/quest
 ![Step 29](walkthrough/desk-test-2026-09-22/step-29-build-designated.png)
 
 **Right when:** *wrote demo/mine.xlsx*, 29,343 seasoned loans, 257 events,
-*monotonic increasing*, and M1 3.72 [2.84, 4.88]: the same answer as step
-5 to within rounding, from a question file you wrote. There is no step-4
-line, because the file listed no confounders.
+*monotonic increasing*, three step-4 lines each ending *survives*, and M1
+3.72 [2.84, 4.88] on 211 events over 6 coefficients (step 5 had 11: the file
+the tool wrote lists only the origination year as a control, where the
+made-up book's own file also lists the amount and a category). The same
+answer as step 5 to within rounding, from a question file you wrote. 1293
+formula checks are written.
 
 ### Step 30 — Its cover
 
@@ -399,12 +423,10 @@ line, because the file listed no confounders.
 
 ![Step 30](walkthrough/desk-test-2026-09-22/step-30-designated-cover.png)
 
-**Right when:** *Gradient: yes* and *3.72 [2.84, 4.88]* as on the screen
-before. The middle line reads *Survives or collapses (step 4): not built in
-this version.* That sentence is wrong (the step exists; the file gave it
-nothing to compare within) and is the first item in
-`WALKTHROUGH-DEFECTS.md`. It is what this screen says today, so it is what
-you should expect to see until it is fixed.
+**Right when:** *Gradient: yes*, *survives* three times, and *3.72 [2.84,
+4.88]*, as on the screen before, with *1293 of 1293 formula checks agree*
+lower down. The banner reads *designated_at_the_desk*, the name you gave the
+question, and *run date not given*.
 
 ## When you are done
 
@@ -412,5 +434,6 @@ You have run the tool on a book with a known answer and watched it find the
 answer, on a book with no answer and watched it say so, and on an extract
 with a question file you wrote yourself. To do the same on a real extract,
 repeat Part E with your file in place of `demo/loans.csv`, a real as-of date,
-and confounders listed. Delete the `analysis_pack_bundle_src` folder if you
-want the folder tidy; the script makes it again next time.
+`--run-date` with the day you run it, and the confounders that matter for
+that book. There is nothing to tidy afterwards: the script leaves nothing
+beside itself.

@@ -103,7 +103,7 @@ def test_thin_data_prints_the_events_per_parameter_warning(tmp_path_factory, cap
     status = json.loads(out.out)
     m1 = status["models"][0]["m1"]
     assert "epp" in m1 and m1["epp"] < 10 and m1["warning"] and "Thin" in m1["warning"]
-    assert "THIN" in out.err
+    assert "thin: the model wants at least ten" in out.err and "THIN" not in out.err
     wb = load_workbook(d / "thin.xlsx")
     tab = [str(c.value) for row in wb["6_Model"].iter_rows() for c in row if isinstance(c.value, str)]
     assert any(l.startswith("Thin:") for l in tab)
