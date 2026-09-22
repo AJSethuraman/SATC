@@ -28,14 +28,16 @@ PACKAGE_DIR = Path(__file__).parent
 BUNDLED = (
     "__init__.py", "config.py", "ingest.py", "population.py", "stats.py", "ladder.py",
     "model.py", "notes.py", "wording.yaml", "workbook.py", "workbook_style.py", "cli.py", "suggest.py",
-    "designate.py", "synth.py", "picker.py",
+    "designate.py", "synth.py", "picker.py", "form.py",
 )
 
 _RUNNER = '''#!/usr/bin/env python3
 # Portfolio Analysis Pack -- build-on-target bundle. Pure ASCII by construction.
 #
-#   python {script_name} --setup EXTRACT.csv                   # YOUR EXTRACT: pick the columns by number,
-#                                                              # one question at a time, and the pack is built
+#   python {script_name} --setup EXTRACT.csv                   # YOUR EXTRACT: run once, it writes question.xlsx;
+#                                                              # pick a role beside each column in Excel, save,
+#                                                              # run it again and the pack is built
+#   python {script_name} --setup EXTRACT.csv --ask             # the same, asked one question at a time instead
 #   python {script_name} --synth demo [--loans 40000] [--null | --confounded]
 #                                                              # a made-up book with a known answer, to test on
 #   python {script_name} --inspect EXTRACT.csv                 # list the columns first
