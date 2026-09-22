@@ -43,6 +43,7 @@ class GatePackTests(unittest.TestCase):
         self.assertFalse((self.pack / "KEY.json").exists())
         key_file = gate.key_path(self.pack)
         self.assertTrue(key_file.exists())
+
         self.assertEqual(key_file.parent, self.pack.parent)
         key = json.loads(key_file.read_text(encoding="utf-8"))
         numbers = key["letter_to_brain_number"]
@@ -65,6 +66,21 @@ class GatePackTests(unittest.TestCase):
             for token in tokens:
                 self.assertIsNone(re.search(rf"\b{re.escape(token)}\b", text, re.I), f"{token!r} in {path.name}")
 
+    def test_the_full_match_records_are_kept_beside_the_pack_and_not_in_it(self):
+        """Every event and every round's state, one JSON per seed, with real
+        names: beside the pack with the key, so a reader's pack stays blind
+        and the firm can still replay a gate match in full."""
+        replays = gate.replays_dir(self.pack)
+        self.assertTrue(replays.is_dir())
+        files = sorted(replays.glob("*.json"))
+        self.assertEqual([f.name for f in files], ["101.json"])
+        bundle = json.loads(files[0].read_text(encoding="utf-8"))
+        self.assertEqual(set(bundle) >= {"match", "events", "snapshots", "participants"}, True)
+        self.assertEqual(bundle["match"]["seed"], 101)
+        self.assertFalse(any(p.suffix == ".json" for p in self.pack.rglob("*") if "replay" in p.name.lower()))
+        # and the pack folder itself holds no bundle
+        self.assertFalse((self.pack / "replays").exists())
+
     def test_scorer_reads_the_key_beside_the_pack_and_inside_an_older_one(self):
         key = json.loads(gate.key_path(self.pack).read_text(encoding="utf-8"))["letter_to_brain_number"]
         perfect = self.pack / "reader_a.json"
@@ -83,6 +99,105 @@ class GatePackTests(unittest.TestCase):
             (old / "KEY.json").write_text(json.dumps({"letter_to_brain_number": key}), encoding="utf-8")
             self.assertEqual(score_gate.find_key(old), old / "KEY.json")
             self.assertEqual(score_gate.score(old, perfect)[0], 8)
+
+
+def test_blind_read_page_carries_no_key_and_no_real_id(tmp_path):
+    """The page a reader answers on is built from the pack alone. Nothing the
+    key holds may reach it: not a brain number beside a letter, not a real
+    character id (four letters or more; the anonymiser skips shorter tokens
+    on purpose, so `fen` inside `fence` is not a leak)."""
+    import json
+    from tools import blind_read_page
+
+    pack = gate.ROOT / "gate" / "20260912-034624-agent_sdk"
+    key = json.loads(score_gate.find_key(pack).read_text(encoding="utf-8"))
+    page = blind_read_page.build(pack, reader="test")
+    assert "letter_to_brain" not in page and "letter_to_id" not in page
+    for real_id in key["letter_to_id"].values():
+        if len(real_id) >= 4:
+            assert real_id.lower() not in page.lower(), real_id
+    assert page.count("<details") == page.count("</details>") == 8
+    assert len(re.findall(r'data-letter="[A-H]"', page)) == 64
+    assert 'db.doc("reads/test")' in page
+    out = tmp_path / "read.html"
+    assert blind_read_page.main([str(pack), str(out), "--reader", "test"]) == 0
+    assert out.read_text(encoding="utf-8") == page
+
+
+def test_replay_page_interleaves_the_pack_and_carries_no_key(tmp_path):
+    """The replay page re-joins the eight per-character transcripts by seed
+    and round so a reader sees all eight in one moment. Same leak rule as
+    the blind-read page: nothing the key holds may reach it."""
+    import json
+    from tools import replay_page
+
+    pack = gate.ROOT / "gate" / "20260912-034624-agent_sdk"
+    key = json.loads(score_gate.find_key(pack).read_text(encoding="utf-8"))
+    matches = replay_page.interleave(pack)
+    assert [m["seed"] for m in matches] == ["Seed 101", "Seed 102", "Seed 103"]
+    assert all(len(m["rounds"]) == 6 for m in matches)
+    # every round carries an entry for every letter: a dict while on the board, None once gone
+    for m in matches:
+        for r in m["rounds"]:
+            assert set(r["chars"]) == set("ABCDEFGH")
+    # 136 decisions across the pack: the gate's own count of answered calls
+    assert sum(1 for m in matches for r in m["rounds"] for c in r["chars"].values() if c) == 136
+    page = replay_page.build(pack, "https://example.invalid/read")
+    assert "letter_to_brain" not in page and "letter_to_id" not in page
+    for real_id in key["letter_to_id"].values():
+        if len(real_id) >= 4:
+            assert real_id.lower() not in page.lower(), real_id
+    out = tmp_path / "replay.html"
+    assert replay_page.main([str(pack), str(out), "--blind-read-url", "https://example.invalid/read"]) == 0
+    assert out.read_text(encoding="utf-8") == page
+
+
+def test_replay_page_from_a_bundle_shows_every_recorded_event_in_order(tmp_path):
+    """From a full match record the page carries what the pack cannot: every
+    move, swing, monster step and narration, in sequence, with a state strip
+    at the end of each round. The bundle is produced here by a mock match on
+    the house brains, so the test carries its own fixture; the demo's bundle
+    is git-ignored and CI never has it (the 17aa60dd failure)."""
+    from arena.engine import ArenaEngine
+    from arena.providers import MockDecisionProvider
+    from arena.storage import ArenaStore
+    from tools import replay_page
+
+    store = ArenaStore(tmp_path / "mock.db")
+    try:
+        match_id = ArenaEngine(store, MockDecisionProvider(), parallel_agents=True).run(load_brains(str(HOUSE)), seed=52)
+        bundle = store.replay_bundle(match_id)
+    finally:
+        store.close()
+    page = replay_page.build_from_bundle(bundle)
+    rounds = sorted({e["round_no"] for e in bundle["events"] if e["round_no"] >= 1})
+    assert rounds and page.count('<h2 class="round">') == len(rounds)
+    # every public line that is not speech, a note, dice or bookkeeping appears, and in seq order
+    shown = [e["public_text"] for e in sorted(bundle["events"], key=lambda e: e["seq"])
+             if e["event_type"] not in replay_page.SKIP | {"agent_speech", "note_written", "round_narration", "act_started"}]
+    assert shown
+    pos = -1
+    for text in shown:
+        nxt = page.find(replay_page.E(text), pos + 1)
+        assert nxt > pos, text
+        pos = nxt
+    ends = {s["round_no"] for s in bundle["snapshots"] if s.get("phase") == "end"}
+    assert page.count('class="state"') == len(ends) == len(rounds)
+    assert page.count('class="ev dice"') == sum(1 for e in bundle["events"] if e["event_type"] == "dice_roll")
+    names = {p["manifest"]["id"]: p["manifest"]["name"] for p in bundle["participants"]}
+    for name in names.values():
+        assert name in page
+    bundle_path = tmp_path / "match.replay.json"
+    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+    out = tmp_path / "full.html"
+    assert replay_page.main([str(bundle_path), str(out)]) == 0
+    assert out.read_text(encoding="utf-8") == page
+    # a note about the rules the match was played under goes into the lede and nowhere else
+    noted = replay_page.build_from_bundle(bundle, "Played under the July ending rule.")
+    assert noted.count("Played under the July ending rule.") == 1
+    assert noted.replace("Played under the July ending rule.", "").replace(" ", "") == page.replace(" ", "")
+    assert replay_page.main([str(bundle_path), str(out), "--note", "Played under the July ending rule."]) == 0
+    assert out.read_text(encoding="utf-8") == noted
 
 
 if __name__ == "__main__":
