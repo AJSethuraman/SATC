@@ -5,6 +5,75 @@ The durable log for this project. It migrates with the folder to the
 (`canon/CONVICTIONS.md`, *Rulings by project*) holds the rulings on which
 convictions apply here; this file holds everything else.
 
+## 22 September 2026, 10:00Z — "the creepiest way to voice": the browser's joke voices, dealt out by the page; the real voicing measured and put on the docket
+
+The firm, having pressed Voices on the board: *"This is literally the
+creepiest way to voice. How do we get more natural voices. At least in
+the TTS sense these sound crazy bad."*
+
+**What they heard, from the code.** The board's Voices button is the
+placeholder for PRD item 41 (AI voicing, ruled D10 "In, after the
+pilot"): the browser's own speech, nothing sent anywhere. Its picker
+took every voice `speechSynthesis.getVoices()` returns, kept the
+English ones, sorted them by name and dealt characters the odd-numbered
+ones. On a Mac that list is Apple's novelty voices, which are English
+and alphabetical: Bad News, Bells, Boing, Bubbles, Hysterical, Whisper,
+Zarvox. Then the pitch was bent by build on top. It was written to hear
+a line at all and never listened to on a Mac. **Fixed** in
+`tools/replay_board.py`: `VOICE_JS`, plain JavaScript with no page in
+it, ranks English voices with the browser's natural ones first (Edge's
+"Online (Natural)", Chrome's Google voices, Apple's Premium and
+Enhanced), the old desktop robots last, refuses the novelty list
+outright, gives the narrator the best voice and each character the next
+one down, and leaves a natural voice at its own pitch. Five tests in
+`tests/test_board.py` run that JavaScript under Node against voice
+lists copied from a Mac, Edge and Chrome, and one proves the page
+carries the same code; they skip with a reason where Node is absent
+(GitHub's runners have it). Board rebuilt from `ember-8` and
+republished. Suite 179 → **184**.
+
+**What the firm asked for is item 41, and the record has it after the
+pilot.** D10, 14 September: "In, after the pilot", with the §10
+questions open and the firm's note box empty. Two of those questions
+now have numbers, from `ember-8-2c61e565`:
+
+- **Length.** 335 character lines, 49 narrations and 21 monster lines,
+  123,329 characters, 22,656 words: about **two and a half hours of
+  speech** at a hundred and fifty words a minute for a match the referee
+  played in twenty-two minutes, seven minutes a round against the
+  referee's half-minute. The narrator is three words in ten. "Where the
+  seconds sit" is the length of the show.
+- **Cost.** The publishers' pricing pages are blocked from this
+  container (Google's came back truncated), so the rates were found by
+  web search and are recorded with that caveat, to be read once on the
+  publisher's page before choosing: Google Neural2 $16, Chirp 3 HD $30,
+  Studio $160 per million characters; Amazon Polly Neural $16,
+  Generative $30; Azure Neural $15, Neural HD $22; OpenAI
+  gpt-4o-mini-tts about $0.015 a minute; ElevenLabs $0.10 per thousand
+  characters (multilingual) or $0.05 (Flash), or $22 a month for
+  121,000 credits. One match, every line voiced: about $2 to $4 on a
+  cloud provider's neural tier, $6 to $12 on ElevenLabs, against the
+  match's own $35 of model calls.
+
+Both written into PRD §10 under the voicing question. The docket
+carries three decisions: **D14**, whether hearing it moved D10's date
+(now, after the pilot as ruled with the browser's best voices until
+then, or no voices in the pilot; recommended: after, as ruled);
+**D15**, which service (a cloud provider's neural tier, ElevenLabs, or
+OpenAI's speech model; recommended: ElevenLabs, the most natural and
+the one that makes a voice from the Voice paragraph each brain
+carries); **D16**, how much of a match is spoken (everything at two
+and a half hours, the characters with the narrator as text and one
+spoken sentence, or everything read faster; recommended: the
+characters). Who chooses a character's voice and whether a player may
+hear it first stay open until D15 is answered. Nothing of item 41 is
+built; D10 stands until the firm moves it.
+
+For the pilot's own sound, the docket tells the firm how to give the
+page a good voice to find: on a Mac, download a Premium or Enhanced
+voice under Accessibility, Spoken Content; in Edge on Windows the
+natural voices are already there.
+
 ## 19 September 2026, 01:55Z — the first full match on the new rules, run from here at the firm's word
 
 *On the date: this header is the clock. The seven entries below it, headed

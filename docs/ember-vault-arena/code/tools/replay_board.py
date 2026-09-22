@@ -1006,6 +1006,48 @@ def render_board_svg(geo: dict, start: dict) -> str:
     return "\n".join(out)
 
 
+# The browser's own voices, ranked. This is the placeholder for PRD item 41
+# (AI voicing, ruled "in, after the pilot", D10), and until 22 September 2026
+# it chose voices by alphabetical index from everything the machine had, which
+# on a Mac is Apple's novelty voices: Bad News, Bells, Boing, Zarvox. The firm:
+# "This is literally the creepiest way to voice." The rule now: English voices
+# only where any exist; never a novelty or toy voice; the browser's natural
+# voices first (Edge's "Online (Natural)", Chrome's Google voices, Apple's
+# Premium and Enhanced), the old desktop robots last; one voice per character,
+# the best one to the narrator; a natural voice is left at its own pitch.
+# Plain JavaScript with no page in it, so tests/test_board.py runs it under
+# Node against voice lists copied from real browsers.
+VOICE_JS = r"""
+  var NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Deranged|Eddy|Flo|Fred|Good News|Grandma|Grandpa|Hysterical|Jester|Junior|Kathy|Organ|Pipe Organ|Ralph|Reed|Rocko|Sandy|Shelley|Superstar|Trinoids|Whisper|Wobble|Zarvox)\b/i;
+  var ROBOT = /desktop|espeak|compact|mbrola|festival/i;
+  var FINE = /natural|neural|premium|enhanced|studio|journey|wavenet|siri|\bhd\b/i;
+  function fineVoice(v) { return !!v && (FINE.test(v.name || "") || v.localService === false); }
+  function voiceScore(v) {
+    var n = (v && v.name) || "";
+    if (NOVELTY.test(n)) return -1;                     // refused outright
+    var s = 20;                                          // any other voice is allowed
+    if (FINE.test(n)) s += 40;                           // the browser's natural voices first
+    if (v.localService === false) s += 20;               // then its cloud voices
+    if (ROBOT.test(n)) s -= 15;                          // the old desktop robots last, but last is still there
+    return s;
+  }
+  function rankVoices(all) {
+    all = all || [];
+    var en = all.filter(function (v) { return /^en/i.test((v && v.lang) || ""); });
+    var pool = en.length ? en : all, kept = [];
+    for (var i = 0; i < pool.length; i++) { var sc = voiceScore(pool[i]); if (sc >= 0) kept.push({ v: pool[i], s: sc }); }
+    kept.sort(function (a, b) { return b.s - a.s || ((a.v.name || "") < (b.v.name || "") ? -1 : (a.v.name || "") > (b.v.name || "") ? 1 : 0); });
+    var out = []; for (var j = 0; j < kept.length; j++) out.push(kept[j].v);
+    return out;
+  }
+  function voiceForId(ranked, ids, id) {
+    if (!ranked || !ranked.length) return null;
+    var i = ids.indexOf(id);
+    if (i < 0) return ranked[0];                         // the narrator, the monsters: the best voice there is
+    return ranked[(i + 1) % ranked.length];              // each character the next one down, wrapping
+  }
+"""
+
 SCRIPT = r"""
 (function () {
   var D = window.__REPLAY__;
@@ -1015,22 +1057,15 @@ SCRIPT = r"""
   var fx = $("#fx"), bubble = $("#bubble");
   var mode = "*", turns = D.turns, ti = -1;   // mode: "*" the story, "" every moment, else one character's id; ti: index into seq
 
-  // ---- voices: the browser's own speech, one voice per character, nothing sent anywhere ----
+  // ---- voices: the browser's own speech, its best voices first, one per character, nothing sent anywhere ----
   var voiceOn = false, voices = [], speaking = null, canSpeak = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
-  var PITCH = { vanguard: 0.8, scout: 1.25, mystic: 1.0, scoundrel: 1.1 };
+  var PITCH = { vanguard: 0.9, scout: 1.1, mystic: 1.0, scoundrel: 1.05 };   // only for a plain local voice; a natural one is left alone
+/*VOICE_JS*/
   function loadVoices() {
     if (!canSpeak) return;
-    var all = window.speechSynthesis.getVoices() || [];
-    voices = all.filter(function (v) { return /^en/i.test(v.lang); });
-    if (!voices.length) voices = all;
-    voices.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+    voices = rankVoices(window.speechSynthesis.getVoices() || []);
   }
-  function voiceFor(id) {
-    if (!voices.length) return null;
-    var ids = Object.keys(D.start.agents), i = ids.indexOf(id);
-    if (i < 0) return voices[0];
-    return voices[(i * 2 + 1) % voices.length];
-  }
+  function voiceFor(id) { return voiceForId(voices, Object.keys(D.start.agents), id); }
   function speak(text, id, opts) {
     if (!canSpeak || !voiceOn || !text) return Promise.resolve();
     loadVoices();
@@ -1041,7 +1076,8 @@ SCRIPT = r"""
       function finish() { if (done) return; done = true; if (speaking === u) speaking = null; resolve(); }
       var v = voiceFor(id); if (v) u.voice = v;
       var a = id && D.start.agents[id];
-      u.pitch = (opts && opts.pitch) || (a ? (PITCH[a.build] || 1) : 0.9);
+      var bend = !fineVoice(v);                          // bending a natural voice is what sounded wrong
+      u.pitch = (opts && opts.pitch) || (!bend ? 1 : (a ? (PITCH[a.build] || 1) : 0.9));
       u.rate = (opts && opts.rate) || (a ? 1.0 : 0.95);
       u.onend = u.onerror = finish;
       speaking = u;
@@ -1702,7 +1738,7 @@ def build(bundle: dict, note: str = "", live: dict | None = None) -> str:
   </aside>
 </div>
 <script>window.__REPLAY__ = {payload};</script>
-<script>{SCRIPT}</script>
+<script>{SCRIPT.replace("/*VOICE_JS*/", VOICE_JS)}</script>
 """
 
 

@@ -328,5 +328,97 @@ class BoardIsTheRefereesBoard(unittest.TestCase):
         self.assertFalse((self.tmp / "bad.html").exists())
 
 
+
+
+class TheBrowsersVoicesAreItsBestOnes(unittest.TestCase):
+    """The page's voice picker (replay_board.VOICE_JS), run as the JavaScript it is.
+
+    Until 22 September 2026 it took every voice the machine had, sorted by
+    name, and dealt them out by index: on a Mac that is Apple's novelty
+    voices. The firm: "This is literally the creepiest way to voice." The
+    lists below are copied from real browsers.
+    """
+
+    MAC = [
+        {"name": "Samantha", "lang": "en-US", "localService": True},
+        {"name": "Bad News", "lang": "en-US", "localService": True},
+        {"name": "Bells", "lang": "en-US", "localService": True},
+        {"name": "Alex", "lang": "en-US", "localService": True},
+        {"name": "Zarvox", "lang": "en-US", "localService": True},
+        {"name": "Whisper", "lang": "en-US", "localService": True},
+        {"name": "Daniel", "lang": "en-GB", "localService": True},
+        {"name": "Fred", "lang": "en-US", "localService": True},
+        {"name": "Eddy (English (US))", "lang": "en-US", "localService": True},
+        {"name": "Ava (Premium)", "lang": "en-US", "localService": True},
+        {"name": "Karen", "lang": "en-AU", "localService": True},
+    ]
+    EDGE = [
+        {"name": "Microsoft David Desktop - English (United States)", "lang": "en-US", "localService": True},
+        {"name": "Microsoft Zira Desktop - English (United States)", "lang": "en-US", "localService": True},
+        {"name": "Microsoft Aria Online (Natural) - English (United States)", "lang": "en-US", "localService": False},
+        {"name": "Microsoft Guy Online (Natural) - English (United States)", "lang": "en-US", "localService": False},
+        {"name": "Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)", "lang": "zh-CN", "localService": False},
+    ]
+    CHROME = [
+        {"name": "Samantha", "lang": "en-US", "localService": True},
+        {"name": "Google US English", "lang": "en-US", "localService": False},
+        {"name": "Google UK English Male", "lang": "en-GB", "localService": False},
+        {"name": "Google Deutsch", "lang": "de-DE", "localService": False},
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+        import tempfile
+        cls.node = shutil.which("node")
+        cls.bundle = mock_bundle(Path(tempfile.mkdtemp(prefix="voices-")))
+
+    def rank(self, voices, ids=(), pick=None):
+        """Run VOICE_JS under Node: the ranked names, and the voice dealt to `pick` among `ids`."""
+        if not self.node:
+            self.skipTest("node is not installed here, so the page's JavaScript cannot be run; the ranking is unchecked on this machine")
+        import subprocess
+        prog = (replay_board.VOICE_JS + "\nvar r = rankVoices(" + json.dumps(voices) + ");"
+                "var v = voiceForId(r, " + json.dumps(list(ids)) + ", " + json.dumps(pick) + ");"
+                "console.log(JSON.stringify({ranked: r.map(function (x) { return x.name; }), pick: v && v.name}));")
+        out = subprocess.run([self.node, "-e", prog], capture_output=True, text=True, check=True).stdout
+        return json.loads(out)
+
+    def test_a_mac_never_speaks_in_a_novelty_voice(self):
+        r = self.rank(self.MAC)["ranked"]
+        for toy in ("Bad News", "Bells", "Zarvox", "Whisper", "Fred", "Eddy (English (US))"):
+            self.assertNotIn(toy, r)
+        self.assertEqual(r[0], "Ava (Premium)")                       # the enhanced voice first
+        self.assertEqual(set(r), {"Ava (Premium)", "Samantha", "Alex", "Daniel", "Karen"})
+
+    def test_edge_speaks_in_its_natural_voices_before_its_desktop_robots_and_never_in_another_language(self):
+        r = self.rank(self.EDGE)["ranked"]
+        self.assertEqual(r[:2], ["Microsoft Aria Online (Natural) - English (United States)",
+                                 "Microsoft Guy Online (Natural) - English (United States)"])
+        self.assertNotIn("Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)", r)
+        self.assertEqual(len(r), 4)
+        self.assertTrue(all("Desktop" in n for n in r[2:]))            # kept, but last
+
+    def test_chrome_prefers_its_cloud_voices_to_the_local_one(self):
+        r = self.rank(self.CHROME)["ranked"]
+        self.assertEqual(r[:2], ["Google UK English Male", "Google US English"])
+        self.assertEqual(r[-1], "Samantha")
+        self.assertNotIn("Google Deutsch", r)
+
+    def test_the_narrator_gets_the_best_voice_and_each_character_the_next_one_down(self):
+        ids = ["torvic", "ossa", "fen"]
+        self.assertEqual(self.rank(self.EDGE, ids, None)["pick"], "Microsoft Aria Online (Natural) - English (United States)")
+        self.assertEqual(self.rank(self.EDGE, ids, "torvic")["pick"], "Microsoft Guy Online (Natural) - English (United States)")
+        self.assertEqual(self.rank(self.EDGE, ids, "ossa")["pick"], "Microsoft David Desktop - English (United States)")
+        self.assertEqual(self.rank(self.EDGE, ids, "fen")["pick"], "Microsoft Zira Desktop - English (United States)")
+        self.assertIsNone(self.rank([], ids, "fen")["pick"])
+
+    def test_the_page_carries_the_same_javascript_the_test_ran(self):
+        html = replay_board.build(self.bundle)
+        self.assertIn(replay_board.VOICE_JS.strip(), html)
+        self.assertNotIn("/*VOICE_JS*/", html)
+        self.assertIn("var bend = !fineVoice(v);", html)
+
+
 if __name__ == "__main__":
     unittest.main()
