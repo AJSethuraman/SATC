@@ -316,7 +316,7 @@ class Picker:
             else:
                 out["edges"] = self._edges("13. The edges (numbers, smallest first)", [])
             a["outcome"] = out
-        a["label"] = self._text("Next: the word every tab will use for the event (e.g. default, charge-off)", required=True)
+        a["label"] = self._text("The word every tab will use for the event (e.g. default, charge-off)", required=True)
 
         a["window_months"] = int(self._number("Months a loan needs on book before it counts", 24))
         a["asof"] = self._date("The as-of date the pack is built at")
