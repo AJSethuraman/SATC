@@ -143,13 +143,22 @@ def test_the_form_reads_what_excel_stores(effect_book, tmp_path, capsys):
     capsys.readouterr()
     form = tmp_path / "question.xlsx"
     fill(form, ROLES, {"label": "bad", "asof": "2026-06-30", "run_date": datetime(2026, 9, 22), "months": 24.0,
-                       "buckets": 2, "fires": "1"}, edges={"field_b": 250000})
+                       "buckets": 2, "fires": "1"}, edges={"field_b": 250000, "amount": "100,000, 200,000; 400,000"})
     table = read_table(data)
     a = F.read_form(form, table, inspect_columns(table))
     assert a["asof"] == ASOF and a["run_date"].isoformat() == "2026-09-22"
     assert a["window_months"] == 24 and a["buckets"] == [2.0] and a["fires_value"] == 1.0
-    assert [c for c in a["confounders"] if c["name"] == "field_b"][0]["edges"] == [250000.0]
+    by = {c["name"]: c for c in a["confounders"]}
+    assert by["field_b"]["edges"] == [250000.0]
+    assert by["amount"]["edges"] == [100000.0, 200000.0, 400000.0], "thousands commas with a space between are one number each"
     assert a["label"] == "bad"
+    # run together they cannot be told from four numbers: refused, with the way out
+    fill(form, ROLES, {"label": "bad", "asof": "2026-06-30"}, edges={"amount": "100,000,200,000"})
+    try:
+        F.read_form(form, table, inspect_columns(table))
+        assert False, "run-together thousands were guessed at"
+    except F.FormError as exc:
+        assert any("needs a space after it" in p for p in exc.problems)
 
 
 def test_a_form_written_for_another_extract_is_refused(effect_book, tmp_path, capsys):
@@ -224,7 +233,7 @@ def test_the_form_has_a_dropdown_beside_every_column_and_the_lists_out_of_sight(
     # the quartiles of a number column are shown beside its edges cell, from the data
     amount = names.index("amount") + 1
     q = ws.cell(F.HEADER_ROW + amount, F.QUARTILE_COL).value
-    assert q and len(q.split(",")) == 3
+    assert q and len(q.split(", ")) == 3 and "," not in q.replace(", ", ""), "written the way the edges cell takes them"
     wa = wb[F.ANSWERS_TAB]
     questions = [wa.cell(F.HEADER_ROW + i, 1).value for i in range(1, len(F.ANSWERS) + 1)]
     assert questions == [q for _, q, _, _ in F.ANSWERS]

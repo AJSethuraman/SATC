@@ -138,7 +138,7 @@ def write_form(table: Table, report: list[dict], path: Path) -> Path:
             ws.cell(r, c).font = ks.DATA_FONT
         if e["kind"] in NUMERIC:
             q = _quartile_edges(_values(table, e["column"]))
-            ws.cell(r, QUARTILE_COL, ", ".join(_fmt(x) for x in q) if q else "too few values to propose").font = NOTE
+            ws.cell(r, QUARTILE_COL, ", ".join(_plain(x) for x in q) if q else "too few values to propose").font = NOTE
     last = HEADER_ROW + n
     lists = wb.create_sheet(LISTS_TAB)
     for i, role in enumerate(ROLES, start=1):
@@ -213,17 +213,32 @@ def _number(v, where: str, problems: list[str]) -> float | None:
     return float(n)
 
 
+def _plain(x: float) -> str:
+    """A number the way the edges cell takes it: no thousands separator."""
+    return f"{x:.10g}"
+
+
 def _edges(v, where: str, problems: list[str]) -> list[float] | None:
+    """Numbers separated by commas, or by spaces or semicolons; a number typed
+    with thousands commas (100,000) is read as one number when a space or a
+    semicolon separates it from the next. Run together (100,000,200,000) it
+    cannot be told from four numbers, and is refused rather than guessed."""
     if isinstance(v, (int, float)) and not isinstance(v, bool):
         return [float(v)]
-    parts = [p for p in re.split(r"[,\s;]+", _text(v).replace("_", "")) if p]
-    try:
-        edges = [float(p) for p in parts]
-    except ValueError:
+    text = _text(v).replace("_", "")
+    if re.search(r"[\s;]", text):
+        parts = [p.strip(",") for p in re.split(r"[\s;]+", text)]
+    else:
+        parts = text.split(",")
+    parts = [p for p in parts if p]
+    nums = [parse_number(p) for p in parts]
+    if not parts or any(isinstance(n, Bad) for n in nums):
         problems.append(f"{where}: type numbers separated by commas, smallest first (not {_text(v)!r})")
         return None
-    if not edges or any(edges[i] >= edges[i + 1] for i in range(len(edges) - 1)):
-        problems.append(f"{where}: the edges must rise, smallest first, no repeats (not {_text(v)!r})")
+    edges = [float(n) for n in nums]
+    if any(edges[i] >= edges[i + 1] for i in range(len(edges) - 1)):
+        problems.append(f"{where}: the edges must rise, smallest first, no repeats (not {_text(v)!r}); "
+                        f"a number with thousands commas needs a space after it: 100,000, 200,000")
         return None
     return edges
 
@@ -476,12 +491,16 @@ def describe(a: dict) -> list[str]:
                           + (", its quartiles from the data" if c.get("proposed") else "") + ")")
         else:
             groups.append(f"{c['name']} (level by level)")
+    pad = " " * 20
     lines = [
         f"  loan number       {a['loan_id']}",
         f"  origination date  {a['origination_date']}",
         f"  rule              {a['field_a']} {kind} {a['field_b']}, fires above {_fmt(a['fires_value'])}, steps {steps}",
         f"  went bad          {bad}",
-        f"  groups            " + ("; ".join(groups) if groups else "none (step 4 will have nothing to test inside)"),
+        f"  groups            " + (groups[0] if groups else "none (step 4 will have nothing to test inside)"),
+    ]
+    lines += [pad + g for g in groups[1:]]                     # one group per line, so none wraps
+    lines += [
         f"  window            {a['window_months']} months; as-of {a['asof'].isoformat()}; "
         + (f"run date {a['run_date'].isoformat()}" if a.get("run_date") else "run date not given"),
         f"  reacts today      {a['existing_control']}",

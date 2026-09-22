@@ -135,10 +135,11 @@ def main(argv: list[str] | None = None) -> int:
     wbf = w.Workbook(desk / "demo/question.xlsx", work / "form-blank")
     role = wbf.find(1, "pick from the list", pad=0.008)
     rows = wbf.span(1, "loan_id", "measure_b", full_width=True)
-    shot(wbf, 23, "form-blank", 1, ring=(role[0], role[1], role[2], rows[1] + rows[3] - role[1]),
-         zoom=(0.0, role[1] - 0.01, 0.62, rows[1] + rows[3] - role[1] + 0.02),
-         zoom_caption="one row per column of the extract; the role cell beside each has a dropdown",
-         zoom_width=1000, stack=True, page_crop=(0.0, 0.0, 1.0, 0.55))
+    table = (0.06, role[1] - 0.012, 0.86, rows[1] + rows[3] - role[1] + 0.024)     # the whole table, header to last row
+    sheet_crop = (0.05, 0.12, 0.90, 0.34)                                          # the sheet on its landscape page
+    shot(wbf, 23, "form-blank", 1, ring=(role[0], role[1], role[2], rows[1] + rows[3] - role[1]), zoom=table,
+         zoom_caption="one row per column of the extract; the shaded role cell beside each offers a list when clicked",
+         zoom_width=1000, stack=True, page_crop=sheet_crop)
     book = openpyxl.load_workbook(desk / "demo/question.xlsx")
     ws, wa = book["Columns"], book["Answers"]
     roles = {"loan_id": "loan number", "origination_date": "origination date", "field_a": "rule top",
@@ -147,27 +148,28 @@ def main(argv: list[str] | None = None) -> int:
     r = 4
     while ws.cell(r, 2).value:
         col = ws.cell(r, 2).value
-        ws.cell(r, 6, roles.get(col))
-        ws.cell(r, 8, edges.get(col))
+        ws.cell(r, 6).value = roles.get(col)
+        ws.cell(r, 8).value = edges.get(col)
         r += 1
     r = 4
     while wa.cell(r, 1).value:
         q = wa.cell(r, 1).value
         if q.startswith("The word every tab"):
-            wa.cell(r, 2, "event")
+            wa.cell(r, 2).value = "event"
         if q.startswith("The as-of date"):
-            wa.cell(r, 2, datetime(2026, 6, 30))
+            wa.cell(r, 2).value = datetime(2026, 6, 30)
         r += 1
     book.save(desk / "demo/question.xlsx")
     wbd = w.Workbook(desk / "demo/question.xlsx", work / "form-filled")
     picked = wbd.span(1, "loan number", "went bad: date", full_width=True)
-    shot(wbd, 24, "form-columns", 1, ring=picked, zoom=(0.0, picked[1] - 0.01, 0.75, picked[3] + 0.02),
-         zoom_caption="the roles picked beside the seven columns in use; edges typed for two of the groups",
-         zoom_width=1000, stack=True, page_crop=(0.0, 0.0, 1.0, 0.55))
+    shot(wbd, 24, "form-columns", 1, ring=picked, zoom=table,
+         zoom_caption="the roles picked beside the seven columns in use, and edges typed for two of the groups",
+         zoom_width=1000, stack=True, page_crop=sheet_crop)
     ans = wbd.span(2, "The word every tab", "The as-of date", full_width=True)
-    shot(wbd, 25, "form-answers", 2, ring=ans, zoom=(0.0, ans[1] - 0.01, 0.75, ans[3] + 0.02),
-         zoom_caption="the two required answers on the Answers tab: the word for the event and the as-of date",
-         zoom_width=1000, stack=True, page_crop=(0.0, 0.0, 1.0, 0.5))
+    whole = wbd.span(2, "Compare the two rule", "or its band edges", full_width=True)
+    shot(wbd, 25, "form-answers", 2, ring=ans, zoom=(0.06, whole[1] - 0.02, 0.86, whole[3] + 0.03),
+         zoom_caption="the Answers tab: the two required answers filled (the word for the event, the as-of date); the rest as written",
+         zoom_width=1000, stack=True, page_crop=(0.05, 0.12, 0.90, 0.30))
     term(26, "setup-built", cmd)
     wbm = w.Workbook(desk / "demo/field_a_vs_field_b.xlsx", work / "mine")
     ans = wbm.span(1, "The answer, in three lines", "events.", full_width=True)

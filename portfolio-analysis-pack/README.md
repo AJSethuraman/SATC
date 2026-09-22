@@ -181,7 +181,24 @@ pack bundle configs/examples/stated_income_vs_sales.yaml -o build_pack.py
 writes one pure-ASCII Python script (about 80 KB) that carries the package
 and a question file inside it, and never the data. The carried file is only
 the default. On the desk, with Python, `openpyxl` and `PyYAML` installed,
-any extract is designated there and built there:
+any extract is designated there and built there. The way a desk does it is
+a form in Excel:
+
+```
+python build_pack.py --setup extract.csv
+```
+
+The first run writes `question.xlsx` beside the extract: one row per column,
+with what it reads as and three sample values, and a dropdown beside each
+for its role (loan number, origination date, rule top, rule bottom, how a
+loan went bad, group); a second tab holds the word for the event and the
+as-of date. Pick in Excel, save, run the same command again, and it reads
+the form, refuses anything the loader would (every problem at once, each
+with its cell), writes `question.yaml` from it and builds the pack, named
+after the two rule columns. `--ask` asks the same things one question at a
+time at the keyboard instead. Nothing is edited by hand either way.
+
+The longer way, for scripts and for a question file written by hand:
 
 ```
 python build_pack.py --inspect extract.csv
