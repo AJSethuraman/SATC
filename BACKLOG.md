@@ -1139,6 +1139,38 @@ sales on the small-business book; built domain-free so a consumer question
       any numpy/scipy/statsmodels/sklearn on the build path (the desk has
       none); charts beyond the gradient blocks.
 
+- **Walked at a desk (22 Sep 2026, `canon:walk`).** The job "test the
+      tool from the emailed file to a read workbook", done as a person would:
+      the bundle saved into an empty folder, every command typed, every
+      screen read, the workbook opened tab by tab, then a question file
+      written for the extract and a pack built from it. Thirty screens, all
+      kept. Two documents: `portfolio-analysis-pack/docs/PROCEDURE-desk-test.md`
+      (delivered as one self-contained PDF under `docs/walkthrough/
+      desk-test-2026-09-22/`, a screenshot per step, ringed and zoomed, and
+      the route pictured first) and `docs/WALKTHROUGH-DEFECTS.md`, **eleven
+      defects against 99 passing tests, 9 of 9 mutations caught and 48 of 48
+      harness checks, none of which caught any of them**. The first: fill in
+      the question file exactly as `--init` writes it and the cover says
+      step 4 is "not built in this version" — the skeleton ships
+      `confounders: []` unmarked, and `wording.yaml`'s `not_built` sentence
+      is used for a step that was given nothing to do. Then the JSON dump on
+      every screen, a next-command line naming `pack validate` on a desk that
+      has `build_pack.py`, a folder appearing beside the emailed file with
+      `keybank_style.py` in it, headings cut by column widths in the rows
+      the cover points to, chart helper columns shown as results, EPP and
+      "no engine" unexplained, the run date silently set to the as-of date,
+      "do they event more often", a knob note reading "(not in this
+      version)", and the skeleton quoting three real values of every column.
+      Nothing was fixed mid-walk; all eleven are a later slice. The walk is
+      a script (`tools/walk_desk_test.py` over `tools/walkshot.py`, headless
+      Chromium + LibreOffice, no image library): run twice, 22 of 31 screens
+      byte-identical and the rest differing only by timings or by the
+      capture tool's own height fix; the second run's screens are the ones
+      committed. Deviations stated in both documents: terminal screens are
+      rendered from captured text, spreadsheet screens are LibreOffice, and
+      the knob change was written by a script. Excel itself is still the one
+      thing not checked; the procedure is the script a fresh agent on a
+      Windows machine with Excel would follow.
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
