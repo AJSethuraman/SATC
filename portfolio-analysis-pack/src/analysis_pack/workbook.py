@@ -32,7 +32,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from . import __version__, keybank_style as ks, ladder, notes
+from . import __version__, workbook_style as ks, ladder, notes
 from .config import Config
 from .ingest import Table
 from .population import Population
@@ -123,7 +123,14 @@ def _note(ws, row: int, text: str, ncols: int) -> int:
     return row + 1
 
 
-def _header_band(ws, ncols: int, title: str, cfg: Config, table: Table, facts: ladder.Facts, run_date: date,
+def _run_text(run_date: date | None) -> str:
+    """The run date as the person gave it, or the fact that they did not.
+    The tool reads no clock, and a value it did not have is not invented
+    (walk defect 8, 22 Sep 2026: every cover said "run" on the as-of date)."""
+    return f"run {run_date.isoformat()}" if run_date else "run date not given"
+
+
+def _header_band(ws, ncols: int, title: str, cfg: Config, table: Table, facts: ladder.Facts, run_date: date | None,
                  n_outcomes: int = 1) -> int:
     # with several outcomes there is no single event count: each block states
     # its own (adversarial finding 7, 19 Sep 2026)
@@ -131,8 +138,27 @@ def _header_band(ws, ncols: int, title: str, cfg: Config, table: Table, facts: l
     row = ks.brand_banner(ws, 1, ncols, title,
                           f"{cfg.name} · source {table.path.split('/')[-1]} · sha256 {table.sha256[:16]}… · "
                           f"{facts.seasoned:,} seasoned loans · {events} · "
-                          f"generator {__version__} · run {run_date.isoformat()}")
+                          f"generator {__version__} · {_run_text(run_date)}")
     return row
+
+
+def _outcome_text(cfg: Config) -> str:
+    """The outcome as the person declared it: its word and the column it comes
+    from, never the tool's name for the kind of outcome (walk defect 10)."""
+    o = cfg.outcome
+    if o.form == "event_date":
+        text = f"{o.label}, from {o.date_field}"
+    elif o.form == "flag":
+        text = f"{o.label}, from {o.field} {o.op} {o.value:g}"
+    else:
+        m = o.measure or {}
+        joiner = "÷" if m.get("kind") == "ratio" else "−"
+        text = f"{o.label}, from {m.get('field_a')} {joiner} {m.get('field_b')} at the as-of date"
+        if o.op is not None and o.value is not None:
+            text += f", {o.op} {o.value:g}"
+    if o.edges:
+        text += f", at edges {', '.join(f'{e:g}' for e in o.edges)}"
+    return text
 
 
 def _rule_sentence(cfg: Config) -> str:
@@ -146,7 +172,7 @@ def _fires_text(cfg: Config) -> str:
                       fires_op=cfg.rule.fires_op, fires_value=cfg.rule.fires_value)
 
 
-def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -> tuple[Workbook, ladder.PackData, list[Check]]:
+def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date | None) -> tuple[Workbook, ladder.PackData, list[Check]]:
     data = ladder.run(cfg, pop)
     b = Build(Workbook())
     wb = b.wb
@@ -196,7 +222,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     wb.defined_names["METHOD"] = DefinedName("METHOD", attr_text=f"_config!$C${row}")
     row += 1
     conf.cell(row, 1, "Survives threshold"); conf.cell(row, 3, cfg.survives_threshold).number_format = "0.00"
-    conf.cell(row, 4, "Step 4 (not in this version): the share of the crude effect that must remain for 'survives'.")
+    conf.cell(row, 4, "Step 4's word: the share of the crude effect that must remain for 'survives'. 0.50 means half.")
     wb.defined_names["SURV_T"] = DefinedName("SURV_T", attr_text=f"_config!$C${row}")
     row += 1
     conf.cell(row, 1, "z for the confidence level")
@@ -206,8 +232,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     wb.defined_names["Z"] = DefinedName("Z", attr_text=f"_config!$C${row}")
     row += 2
     row = ks.section_band(conf, row, "Rebuild knobs — shown for the record; change the question file and build again", 4)
-    outcome_text = f"{cfg.outcome.label} ({cfg.outcome.form}" + (
-        f", at edges {', '.join(f'{e:g}' for e in cfg.outcome.edges)})" if cfg.outcome.edges else ")")
+    outcome_text = _outcome_text(cfg)
     for label, value in (("Question file", cfg.name), ("Rule", _fires_text(cfg)),
                          ("Bucket edges", ", ".join(f"{e:g}" for e in cfg.rule.buckets)),
                          ("Outcome", outcome_text),
@@ -345,7 +370,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
 
     # -- 3_Gradient: one block per outcome ------------------------------------
     ncols = 10
-    for col, w in zip("ABCDEFGHIJKL", (26, 10, 10, 10, 10, 10, 11, 10, 14, 14, 9, 9)):
+    for col, w in zip("ABCDEFGHIJKL", (26, 10, 10, 10, 10, 10, 11, 10, 18, 18, 11, 11)):
         grad.column_dimensions[col].width = w
     for col in "MNO":
         grad.column_dimensions[col].width = 11
@@ -356,6 +381,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                            edges=", ".join(f"{e:g}" for e in cfg.rule.buckets),
                            base_n=data.per_outcome[0][1].base.cube.n, fires_text=_fires_text(cfg),
                            confidence=cfg.confidence, method=cfg.method)
+    grad_note += " " + notes.fill("notes.helper_columns")
     row = _note(grad, row, grad_note, ncols)
     row += 1
     word_cells: list[tuple[ladder.Gradient, str]] = []
@@ -366,7 +392,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         first_hdr = first_hdr or hdr
         ks.header_row(grad, hdr, ["Bucket", "Loans", "Events", "Rate", "Lower", "Upper", "Gap (pts)", "Multiple",
                                   "Rate change vs nearest bucket above with loans", "Interval clear of that bucket",
-                                  "Bar up", "Bar down", "Last rate seen", "Last lower", "Last upper"], right_from=1)
+                                  "chart: bar up", "chart: bar down", "chart: last rate seen", "chart: last lower",
+                                  "chart: last upper"], right_from=1, dim_from=10)
         first = hdr + 1
         base_row = first + len(g.rows)
         n_base, x_base = addr[g.base.cube.block]
@@ -461,12 +488,13 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
 
     # -- 4_Stratified ----------------------------------------------------------
     ncols = 20
-    for col, wdt in zip("ABCDEFGHIJKLMNOPQRST", (44, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 9, 9, 9, 9, 9, 9, 9, 9)):
+    for col, wdt in zip("ABCDEFGHIJKLMNOPQRST", (72, 14, 14, 12, 9, 9, 15, 15, 14, 9, 9, 10, 11, 11, 11, 11, 12, 12, 12, 12)):
         strat.column_dimensions[col].width = wdt
     row = _header_band(strat, ncols, "Step 4 — Stratified", cfg, table, first_facts, run_date, n_out)
     strat_note = notes.fill("notes.stratified",
                             confounder_list=", ".join(c.name for c in cfg.confounders) or "(no confounders declared)",
                             confidence=cfg.confidence, method=cfg.method, threshold=cfg.survives_threshold)
+    strat_note += " " + notes.fill("notes.working_columns")
     row = _note(strat, row, strat_note, ncols)
     row += 1
     strat_first_hdr = None
@@ -489,8 +517,9 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
         strat_first_hdr = strat_first_hdr or hdr
         ks.header_row(strat, hdr, ["Band", "Flagged loans", "Flagged events", "Flagged rate", "Lower", "Upper",
                                    "Unflagged loans", "Unflagged events", "Unflagged rate", "Lower", "Upper",
-                                   "Gap (pts)", "P", "Q", "R", "S",
-                                   "Flagged bar up", "Flagged bar down", "Unflagged bar up", "Unflagged bar down"], right_from=1)
+                                   "Gap (pts)", "working: P", "working: Q", "working: R", "working: S",
+                                   "chart: flagged bar up", "chart: flagged bar down", "chart: unflagged bar up",
+                                   "chart: unflagged bar down"], right_from=1, dim_from=12)
         first = hdr + 1
         for i, band in enumerate(st.bands):
             r = first + i
@@ -646,7 +675,8 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
                          f"{mr.excluded_blank:,} left out for a blank predictor.")
         mdl.merge_cells(f"A{row}:G{row}"); row += 1
         for fit in (mr.m1, mr.m2):
-            mdl.cell(row, 1, f"{fit.label}: {'flag + controls' if fit.label == 'M1' else 'M1 + confounders not already controls'}").font = BOLD
+            m2_title = "M1 + confounders not already controls" if cfg.confounders else "M1 again — the question file lists no confounders to add"
+            mdl.cell(row, 1, f"{fit.label}: {'flag + controls' if fit.label == 'M1' else m2_title}").font = BOLD
             row += 1
             head = (f"{fit.loans:,} loans · {fit.events:,} events · {fit.coefficients} estimated coefficients · "
                     f"events per parameter {fit.epp:.1f}" if fit.epp is not None else f"{fit.loans:,} loans · {fit.events:,} events")
@@ -690,7 +720,10 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
             row += 1
         row += 1
         f1, f2 = mr.m1.flag(), mr.m2.flag()
-        if mr.m1.estimable and mr.m2.estimable and f1 and f2:
+        if not cfg.confounders and mr.m1.estimable and f1:
+            model_lines[mr.outcome.key] = notes.pick("cover.answer_model", "no_confounders", m1=f1.odds_ratio, m1lo=f1.lo,
+                                                     m1hi=f1.hi, events=mr.m1.events)
+        elif mr.m1.estimable and mr.m2.estimable and f1 and f2:
             model_lines[mr.outcome.key] = notes.pick("cover.answer_model", "both", m1=f1.odds_ratio, m1lo=f1.lo, m1hi=f1.hi,
                                                      m2=f2.odds_ratio, m2lo=f2.lo, m2hi=f2.hi, events=mr.m1.events)
         elif mr.m1.estimable and f1:
@@ -733,7 +766,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     # -- Cover -----------------------------------------------------------
     cover.column_dimensions["A"].width = 110
     row = ks.brand_banner(cover, 1, 1, "Portfolio Analysis Pack",
-                          f"{cfg.name} · run {run_date.isoformat()} · as-of {pop.asof.isoformat()} · generator {__version__}")
+                          f"{cfg.name} · {_run_text(run_date)} · as-of {pop.asof.isoformat()} · generator {__version__}")
     row += 1
     cover.cell(row, 1, "The question").font = BOLD; row += 1
     row = _note(cover, row, notes.fill("cover.question", rule_sentence=_rule_sentence(cfg), outcome_label=cfg.outcome.label), 1)
@@ -752,9 +785,11 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     for facts, g in data.per_outcome:
         items = word_cells_s4.get(g.outcome.key, [])
         if not items:
-            cover.cell(row, 1, notes.fill("cover.not_built", step="Survives or collapses (step 4)")); row += 1
+            key = "cover.answer_stratified_empty" if cfg.confounders else "cover.answer_stratified_none"
+            c = cover.cell(row, 1, notes.fill(key)); c.alignment = Alignment(wrap_text=True); row += 1
             continue
-        prefix = notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label).replace('"', '""')
+        # the template ends in ": " and the filler strips it; the space is put back (walk defect 9)
+        prefix = (notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label) + " ").replace('"', '""')
         parts = []
         twin_parts = []
         for st, wc in items:
@@ -764,7 +799,7 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
             parts.append(f'"{lead}"&\'4_Stratified\'!{wc}')
             twin_parts.append(notes.fill("cover.answer_stratified_item", confounder=st.confounder, scheme=st.scheme, word=st.word))
         b.formula(cover, f"A{row}", f'="{prefix}"&' + '&"; "&'.join(parts),
-                  notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label) + "; ".join(twin_parts), 0.0, "text")
+                  notes.fill("cover.answer_stratified_prefix", outcome_label=g.outcome.label) + " " + "; ".join(twin_parts), 0.0, "text")
         cover[f"A{row}"].alignment = Alignment(wrap_text=True)
         row += 1
     for facts, g in data.per_outcome:
@@ -822,7 +857,9 @@ def build_workbook(cfg: Config, pop: Population, table: Table, run_date: date) -
     items += [("Question file", cfg.name), ("Question file sha256", cfg.source_sha256)]
     for col, fmt in pop.date_formats.items():
         items.append((f"Date format: {col}", f"{fmt}, {pop.date_parsed[col]:,} of {pop.date_parsed[col]:,} parsed"))
-    items += [("As-of date", pop.asof.isoformat()), ("Run date", run_date.isoformat()),
+    items += [("As-of date", pop.asof.isoformat()),
+              ("Run date", run_date.isoformat() if run_date
+               else "not given (pass --run-date to stamp it); the file's own timestamp is the as-of date"),
               ("Generator version", __version__),
               ("Window (months)", cfg.window_months), ("Confidence (at build)", cfg.confidence),
               ("Interval method (at build)", cfg.method)]
@@ -908,6 +945,6 @@ def workbook_bytes(wb: Workbook, run_date: date) -> bytes:
     return out.getvalue()
 
 
-def build_pack(cfg: Config, pop: Population, table: Table, run_date: date) -> tuple[bytes, ladder.PackData, list[Check]]:
+def build_pack(cfg: Config, pop: Population, table: Table, run_date: date | None) -> tuple[bytes, ladder.PackData, list[Check]]:
     wb, data, checks = build_workbook(cfg, pop, table, run_date)
-    return workbook_bytes(wb, run_date), data, checks
+    return workbook_bytes(wb, run_date or pop.asof), data, checks

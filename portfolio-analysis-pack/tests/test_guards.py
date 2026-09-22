@@ -18,7 +18,7 @@ DOMAIN_WORDS = ["income", "sales", "naics", "charge", "chargeoff", "charge-off",
 
 
 def _package_sources() -> dict[str, str]:
-    return {p.name: p.read_text(encoding="utf-8") for p in PKG.glob("*.py") if p.name != "keybank_style.py"}
+    return {p.name: p.read_text(encoding="utf-8") for p in PKG.glob("*.py") if p.name != "workbook_style.py"}
 
 
 def _example_names() -> set[str]:

@@ -26,7 +26,7 @@ CSS = """
 body{font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;color:#1B2430;font-size:11.5pt;line-height:1.45;max-width:180mm;margin:0 auto}
 h1{font-size:22pt;margin:0 0 4pt;line-height:1.2}
 h2{font-size:15pt;margin:22pt 0 6pt;padding-top:8pt;border-top:2px solid #1B2430;page-break-after:avoid}
-h2:not(:first-of-type){page-break-before:always;margin-top:0}
+section.part h2{margin-top:0}
 h3{font-size:12.5pt;margin:16pt 0 4pt;page-break-after:avoid;color:#1F6F8B}
 p{margin:4pt 0 6pt}
 ul{margin:2pt 0 6pt 18pt;padding:0}
@@ -36,7 +36,12 @@ pre{font-family:'IBM Plex Mono',ui-monospace,Consolas,monospace;font-size:9.5pt;
 figure{margin:6pt 0 10pt;page-break-inside:avoid}
 figure img{max-width:100%;height:auto;display:block;border:1px solid #D5DBD8;border-radius:4px}
 figcaption{font-size:9.5pt;color:#5B6673;margin-top:3pt}
-.step{page-break-inside:avoid}
+.step{page-break-inside:auto}
+p.do{page-break-after:avoid}
+p{orphans:3;widows:3}
+section.part{page-break-before:always}
+section.part:first-of-type{page-break-before:auto}
+section.part.last{page-break-before:auto;page-break-inside:avoid;margin-top:12pt}
 .lead{font-size:12.5pt;color:#5B6673;margin:0 0 12pt}
 strong{color:#1B2430}
 """
@@ -115,6 +120,14 @@ def convert(md_path: Path, web: bool = False) -> str:
         if m:
             flush(); end_list()
             level = len(m.group(1))
+            if level == 2:
+                if any(l.startswith("<!--/section-->") for l in lines[i + 1:]):
+                    pass
+                # close the previous part and open the next; the last part is marked
+                is_last = not any(re.match(r"^##\s", l) for l in lines[i + 1:])
+                if out and any("<section class='part" in o for o in out):
+                    out.append("</section>")
+                out.append(f"<section class='part{' last' if is_last else ''}'>")
             if level == 3:
                 out.append(f"<div class='step'><h3>{_inline(m.group(2))}</h3>")
                 # a step's block ends at the next heading; close it there
@@ -157,9 +170,19 @@ def convert(md_path: Path, web: bool = False) -> str:
             out.append(f"<p class='lead'>{_inline(ln[2:])}</p>")
             i += 1
             continue
+        if not para and ln.startswith("**Do:**"):
+            # the action line stays with its picture on the page
+            j = i + 1
+            while j < len(lines) and lines[j].strip():
+                j += 1
+            out.append(f"<p class='do'>{_inline(' '.join(x.strip() for x in lines[i:j]))}</p>")
+            i = j
+            continue
         para.append(ln.strip())
         i += 1
     flush(); end_list()
+    if any("<section class='part" in o for o in out):
+        out.append("</section>")
     out.append("</main>" if web else "</body></html>")
     return "".join(out)
 

@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     term(2, "libraries", ["python", "-c", "import openpyxl, yaml; print('ready: openpyxl', openpyxl.__version__, 'and PyYAML', yaml.__version__)"])
     # Part B · a book with a known answer
     term(3, "make-book", ["python", "build_pack.py", "--synth", "demo"])
-    term(4, "the-folder", ["ls", "-1", ".", "demo", "analysis_pack_bundle_src", "analysis_pack_bundle_src/analysis_pack", "analysis_pack_bundle_src/question"])
+    term(4, "the-folder", ["ls", "-1", ".", "demo"])
     term(5, "build", ["python", "build_pack.py", "--data", "demo/loans.csv", "--asof", "2026-06-30", "--config", "demo/config.yaml", "-o", "demo/pack.xlsx"])
     # Part C · read the workbook
     wb = w.Workbook(desk / "demo/pack.xlsx", work / "demo")
@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     q4 = wb.span(5, "Quarter", "2019Q4", full_width=True)
     shot(wb, 8, "prevalence", 5, ring=q4, zoom=q4, zoom_caption="the first four quarters: capture rate and flag rate, each with its interval", zoom_width=1000, stack=True)
     top = (0.06, 0.11, 0.9, 0.32)
-    shot(wb, 9, "gradient", 6, ring=(0.06, 0.20, 0.40, 0.135), zoom=(0.06, 0.20, 0.40, 0.135), zoom_caption="the bucket table and the two lines under it",
+    shot(wb, 9, "gradient", 6, ring=(0.06, 0.20, 0.40, 0.16), zoom=(0.06, 0.20, 0.40, 0.16), zoom_caption="the bucket table and the two lines under it",
          zoom_width=1000, stack=True, page_crop=top)
     shot(wb, 10, "gradient-chart", 6, ring=(0.69, 0.21, 0.22, 0.13), zoom=(0.69, 0.21, 0.22, 0.13), zoom_caption="the chart to the right of the table",
          zoom_width=600, stack=True, page_crop=top)
@@ -137,16 +137,20 @@ def main(argv: list[str] | None = None) -> int:
     answers = {"name:": "name: designated_at_the_desk", "  loan_id: \"[": "  loan_id: loan_id",
                "  origination_date: \"[": "  origination_date: origination_date", "  field_a: \"[": "  field_a: field_a",
                "  field_b: \"[": "  field_b: field_b", "  label: \"[": "  label: event", "  date_field: \"[": "  date_field: outcome_date",
+               # the confounders, written the way the skeleton's own comment shows (three lines for one)
+               "confounders:": "confounders:\n  - {name: size_band, field: field_b, edges: [100000, 200000, 400000, 800000, 1600000]}"
+                               "\n  - {name: amount_band, field: amount, edges: [60000, 250000]}\n  - {name: category_2, field: category_2}",
                "existing_control: \"[": "existing_control: none"}
     later = {"outcome_date", "flag_1", "measure_a", "measure_b"}
-    filled, changed = [], []
-    for i, ln in enumerate(lines, start=1):
+    filled, changed = [], []          # `changed` counts lines of the filled file, which grows where one answer is several lines
+    for ln in lines:
         key = next((k for k in answers if ln.startswith(k) and "[CONFIRM:" in ln), None)
         if key:
-            filled.append(answers[key]); changed.append(i)
+            for part in answers[key].split("\n"):
+                filled.append(part); changed.append(len(filled))
         elif "[CONFIRM: at_origination or later]" in ln:
             col = ln.split(":")[0].strip()
-            filled.append(ln.replace('"[CONFIRM: at_origination or later]"', "later" if col in later else "at_origination")); changed.append(i)
+            filled.append(ln.replace('"[CONFIRM: at_origination or later]"', "later" if col in later else "at_origination")); changed.append(len(filled))
         else:
             filled.append(ln)
     q.write_text("\n".join(filled) + "\n", encoding="utf-8")

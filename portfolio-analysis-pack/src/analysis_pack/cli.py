@@ -30,8 +30,25 @@ from .ingest import inspect_columns, read_table
 from .population import AmbiguousDates, PopulationError, build_population
 
 
+#: Set by the bundle to its own file name. The next-step line every command
+#: prints is then spelled the way that script takes it, not the installed
+#: tool's way (walk defect 3, 22 Sep 2026: a desk typed `pack validate`).
+SCRIPT: str | None = None
+
+
 def _say(msg: str) -> None:
     print(msg, file=sys.stderr)
+
+
+def _next(kind: str, *, data: str, config: str, out: str | None = None, asof: str = "YYYY-MM-DD") -> str:
+    """The next command, spelled for whichever front door is running."""
+    if SCRIPT:
+        if kind == "validate":
+            return f"python {SCRIPT} --validate {data} --asof {asof} --config {config}"
+        return f"python {SCRIPT} --data {data} --asof {asof} --config {config} -o {out}"
+    if kind == "validate":
+        return f"pack validate {config} --data {data} --asof {asof}"
+    return f"pack build {config} --data {data} --asof {asof} -o {out}"
 
 
 def _emit(status: dict) -> None:
@@ -47,6 +64,8 @@ def cmd_synth(a: argparse.Namespace) -> int:
     mode = "null" if a.null else ("confounded" if a.confounded else "effect")
     planted = synth.generate(a.out, seed=a.seed, loans=a.loans, effect=a.effect, mode=mode)
     _say(f"wrote {a.out}/loans.csv, config.yaml, planted.json ({mode}, seed {a.seed}, {a.loans:,} loans)")
+    _say("then: " + _next("build", data=f"{a.out}/loans.csv", config=f"{a.out}/config.yaml", out=f"{a.out}/pack.xlsx",
+                          asof=str(planted.get("asof", "YYYY-MM-DD"))))
     _emit({"ok": True, "out": str(a.out), **planted})
     return 0
 
@@ -137,7 +156,7 @@ def cmd_init(a: argparse.Namespace) -> int:
     out.write_text(text, encoding="utf-8", newline="\n")
     n = count_markers(text)
     _say(f"wrote {out}: {len(table.columns)} columns listed, {n} values marked [CONFIRM: ...] for you to fill in")
-    _say(f"then: pack validate {out} --data {a.data} --asof YYYY-MM-DD")
+    _say("then: fill in every [CONFIRM: ...] value, and " + _next("validate", data=str(a.data), config=str(out)))
     _emit({"ok": True, "path": str(out), "columns": table.columns, "markers": n})
     return 0
 
@@ -176,8 +195,14 @@ def cmd_validate(a: argparse.Namespace) -> int:
         if rc:
             return rc
         _say(f"ok: {len(table.rows):,} rows, {len(pop.loans):,} loans, {len(pop.seasoned):,} seasoned at {a.asof}")
+        note = why
+        if not cfg.confounders:
+            note = "no confounders listed: step 4 will have nothing to compare within"
+            _say("note: " + note)
+        _say("then: " + _next("build", data=str(a.data), config=str(a.config), asof=str(a.asof),
+                              out=str(Path(a.data).with_name(f"{cfg.name}.xlsx"))))
         _emit({"ok": True, "rows": len(table.rows), "loans": len(pop.loans), "seasoned": len(pop.seasoned),
-               "buildable": why is None, "note": why})
+               "buildable": why is None, "note": note})
     else:
         _say(f"ok: question file and columns agree ({len(table.rows):,} rows). Add --asof to run the hygiene checks.")
         _emit({"ok": True, "rows": len(table.rows), "buildable": why is None, "note": why})
@@ -236,7 +261,7 @@ def cmd_build(a: argparse.Namespace) -> int:
         _emit({"ok": False, "refused": "rule_type", "problems": [why]})
         return 2
     asof = _date(a.asof)
-    run_date = _date(a.run_date) if a.run_date else asof
+    run_date = _date(a.run_date) if a.run_date else None   # never guessed: the pack says "run date not given"
     out = Path(a.out) if a.out else Path(a.data).with_name(f"{cfg.name}.xlsx")
     t1 = time.perf_counter()
     pop, rc = _population(cfg, table, asof, out.parent, cfg.name)
@@ -257,17 +282,23 @@ def cmd_build(a: argparse.Namespace) -> int:
         for st in data.strata:
             if st.outcome.key == g.outcome.key:
                 _say(f"    step 4 {st.confounder} ({st.scheme}): {st.word}")
+        if not cfg.confounders:
+            _say("    step 4: nothing to compare within — the question file lists no confounders")
         for mr in data.models:
             if mr.outcome.key == g.outcome.key:
                 for fit in (mr.m1, mr.m2):
                     fl = fit.flag()
                     if fit.estimable and fl:
-                        _say(f"    step 6 {fit.label}: flag odds ratio {fl.odds_ratio:.2f} [{fl.lo:.2f}, {fl.hi:.2f}], "
-                             f"{fit.events:,} events, {fit.coefficients} coefficients, EPP {fit.epp:.1f}"
-                             + ("  THIN" if fit.warning else ""))
+                        _say(f"    step 6 {fit.label}: flag odds ratio {fl.odds_ratio:.2f} [{fl.lo:.2f}, {fl.hi:.2f}] "
+                             f"on {fit.events:,} events over {fit.coefficients} coefficients, about {fit.epp:.0f} events per coefficient"
+                             + (" (thin: the model wants at least ten)" if fit.warning else ""))
                     else:
                         _say(f"    step 6 {fit.label}: {fit.reason}")
-    _say(f"  formula check: not run here (no engine); Excel verifies on open — {len(checks)} checks written to _check")
+    _say(f"  formula check: runs when Excel opens the file (this machine has no spreadsheet engine) — "
+         f"{len(checks)} checks written to _check")
+    if run_date is None:
+        _say("  run date: not given, so the pack says so; pass --run-date YYYY-MM-DD to stamp it")
+    _say(f"then: open {out} in Excel; the cover's last line should say every formula check agrees")
     _emit({"ok": True, "out": str(out), "sha256": digest, "seasoned": data.seasoned, "unseasoned": data.unseasoned,
            "outcomes": [{"label": g.outcome.label, "events": facts.events, "gradient": g.word,
                          "stratified": {f"{st.confounder}.{st.scheme}": st.word for st in data.strata

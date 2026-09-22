@@ -49,8 +49,10 @@ def test_init_lists_every_column_of_the_extract_and_marks_every_slot_to_fill(eff
         assert raw["rule"][slot].startswith(CONFIRM), slot
     for col in columns:
         assert raw["fields"][col]["known"].startswith(CONFIRM), col
-    # eight slots of the question, plus one `known` per column
-    assert status["markers"] == text.count(CONFIRM) == 8 + len(columns)
+    # nine slots of the question (confounders among them, since a file with
+    # none answers only half the question), plus one `known` per column
+    assert raw["confounders"].startswith(CONFIRM)
+    assert status["markers"] == text.count(CONFIRM) == 9 + len(columns)
     # what inspect found travels as a comment beside each column, for the person choosing
     assert "reads as dates" in text
     assert "origination_date" in text and "e.g." in text
@@ -90,6 +92,7 @@ def _fill(skeleton_path: Path, answers_path: Path) -> Path:
     raw["rule"]["field_b"] = ans["rule"]["field_b"]
     raw["outcome"]["label"] = ans["outcome"]["label"]
     raw["outcome"]["date_field"] = outcome_col
+    raw["confounders"] = ans.get("confounders", [])
     raw["existing_control"] = "none"
     filled = skeleton_path.with_name("filled.yaml")
     filled.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
@@ -137,6 +140,12 @@ def test_the_bundle_writes_the_skeleton_and_builds_from_a_question_file_beside_i
     r = run("--init", "extract.csv")
     assert r.returncode == 0, r.stderr[-1500:]
     assert (desk / "question.yaml").exists() and "[CONFIRM:" in r.stderr
+    # the next command is spelled the way this script takes it, and the
+    # machine-readable status stays off the screen unless asked (walk defects 2, 3)
+    assert "then: fill in every [CONFIRM: ...] value, and python build_pack.py --validate extract.csv --asof YYYY-MM-DD --config question.yaml" in r.stderr
+    assert r.stdout.strip() == ""
+    # nothing appeared beside the script (walk defect 4)
+    assert sorted(p.name for p in desk.iterdir()) == ["build_pack.py", "extract.csv", "question.yaml"]
     # validating the unfilled skeleton beside the script is refused, naming the slots
     r = run("--validate", "extract.csv", "--config", "question.yaml")
     assert r.returncode == 2 and "still to fill in" in r.stderr, r.stderr[-1500:]
@@ -144,8 +153,9 @@ def test_the_bundle_writes_the_skeleton_and_builds_from_a_question_file_beside_i
     r = run("--validate", "extract.csv", "--asof", ASOF.isoformat(), "--config", filled.name)
     assert r.returncode == 0, r.stderr[-1500:]
     r = run("--data", "extract.csv", "--asof", ASOF.isoformat(), "--run-date", "2026-09-18",
-            "--config", filled.name, "-o", "desk.xlsx")
+            "--config", filled.name, "-o", "desk.xlsx", "--json")
     assert r.returncode == 0, r.stderr[-1500:]
+    assert "then: open desk.xlsx in Excel" in r.stderr
     status = json.loads(r.stdout)
     built = (desk / "desk.xlsx").read_bytes()
     assert status["sha256"] == hashlib.sha256(built).hexdigest()
@@ -153,5 +163,6 @@ def test_the_bundle_writes_the_skeleton_and_builds_from_a_question_file_beside_i
     # the same script makes a made-up book with a known answer, to test on at the desk
     r = run("--synth", "demo", "--loans", "3000")
     assert r.returncode == 0 and (desk / "demo" / "loans.csv").exists() and (desk / "demo" / "config.yaml").exists(), r.stderr[-800:]
+    assert "then: python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config demo/config.yaml -o demo/pack.xlsx" in r.stderr
     r = run("--data", "demo/loans.csv", "--asof", ASOF.isoformat(), "--config", "demo/config.yaml", "-o", "demo/pack.xlsx")
     assert r.returncode == 0 and (desk / "demo" / "pack.xlsx").exists(), r.stderr[-800:]

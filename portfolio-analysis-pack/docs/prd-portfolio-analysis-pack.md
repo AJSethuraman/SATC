@@ -340,7 +340,7 @@ Priority: [P0] must · [P1] should · [P2] nice.
 18. [P0] Tabs, in order: `Cover`, `1_Capture`, `2_Prevalence`, `3_Gradient`,
     `4_Stratified`, `5_Decomposition`, `6_Model`, `7_Control`, `_cube`,
     `_config`, `_method`, `_check`, `_provenance`. House style from the copied
-    `keybank_style.py`; no hard-coded fill or font in a builder.
+    `workbook_style.py`; no hard-coded fill or font in a builder.
 19. [P0] `_config` holds the live knobs as named cells: `CONF` (confidence,
     default 0.95), `METHOD` (data-validation list `Wilson`, `Clopper-Pearson`;
     default from config), `SURV_T` (default 0.5). Rebuild knobs (edges,
@@ -355,8 +355,8 @@ Priority: [P0] must · [P1] should · [P2] nice.
     Python's value, a reference to the live cell, tolerance, and
     `=IF(ABS(live-python)<=tol,"OK","MISMATCH")` (string compare for words).
     `Cover` shows `=COUNTIF(_check!G:G,"OK")&" of "&COUNTA(_check!G:G)&"
-    formula checks agree"`. A desk build prints `formula check: not run here
-    (no engine); Excel verifies on open` and never `passed`. The Python
+    formula checks agree"`. A desk build prints `formula check: runs when Excel
+    opens the file (this machine has no spreadsheet engine)` and never `passed`. The Python
     column is a snapshot at the settings the pack was built with; when a
     live knob (§5.18) has been moved from them, the cover line says so and
     shows no count, because a count at moved knobs would be false
@@ -396,7 +396,7 @@ Priority: [P0] must · [P1] should · [P2] nice.
 Folder `portfolio-analysis-pack/`, package `analysis_pack`, console script
 `pack`, Python ≥ 3.10, runtime dependencies `openpyxl>=3.1`, `PyYAML>=6.0`;
 test extras `pytest`, `formulas>=1.2`. Nothing imports across folders;
-`keybank_style.py` is copied in (the two existing copies are byte-identical,
+`workbook_style.py` is copied in (the two existing copies are byte-identical,
 checked 18 Sep 2026). Module shape (behaviour, not paths): `config`
 (schema, validation, the missing-line messages), `ingest` (CSV/XLSX → typed
 rows, date parsing), `hygiene`, `population` (filter, seasoning, outcome),

@@ -4,7 +4,7 @@
 # never a blank.
 
 cover:
-  question: "Loans where {rule_sentence}: do they {outcome_label} more often than loans where it is not, and is that real or something else in disguise?"
+  question: "Loans where {rule_sentence}: is {outcome_label} more common among them than among loans where it is not, and is that real or something else in disguise?"
   rule:
     ratio: "{field_a} divided by {field_b} is {fires_op} {fires_value:g}"
     difference: "{field_a} minus {field_b} is {fires_op} {fires_value:g}"
@@ -15,9 +15,12 @@ cover:
     no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
     flat: "Gradient: flat. The {outcome_label} rate is the same in every bucket that holds loans, so there is no gradient to read."
   not_built: "{step}: not built in this version."
+  answer_stratified_none: "Survives or collapses (step 4): the question file lists nothing to compare within, so the flag was not tested against anything. List confounders and build again."
+  answer_stratified_empty: "Survives or collapses (step 4): no seasoned loan carries a value for any confounder listed, so there is nothing to compare within."
   answer_model:
     both: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1) and {m2:.2f} [{m2lo:.2f}, {m2hi:.2f}] with the confounders added (M2), on {events:,} events."
     m1_only: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1); M2 is {m2_reason}."
+    no_confounders: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1), on {events:,} events. There is no M2: the question file lists no confounders to add."
     unknown: "Model (step 6): unknown — {reason}."
   answer_stratified_prefix: "Survives or collapses (step 4), for {outcome_label}: "
   check_moved: "The live knobs have been moved from the settings this pack was built with (confidence {confidence:.0%}, method {method}, survives threshold {threshold:g}). The Python column on _check was computed at those settings, so the formula check applies there only; set the knobs back to compare."
@@ -25,6 +28,8 @@ cover:
   denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
 
 notes:
+  helper_columns: "Columns headed chart: feed the chart beside the table and are not results."
+  working_columns: "Columns headed working: carry the pooling arithmetic and columns headed chart: feed the chart; neither is a result."
   population: >-
     Population: {rows_read:,} rows read from {source_name}{filter_sentence}. {loans:,} loans after typing.
     As-of date {asof}. A loan is seasoned when it has at least {window_months} whole months on book at
