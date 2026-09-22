@@ -162,38 +162,110 @@ def cmd_init(a: argparse.Namespace) -> int:
 
 
 def cmd_setup(a: argparse.Namespace) -> int:
-    """The picker: designate the columns by number, one question at a time,
-    then check the file and build the pack. Nothing is edited by hand."""
-    from .picker import Abandoned, Picker
+    """Designate the columns in Excel: the first run writes the form beside
+    the extract, the next reads it, checks it, writes the question file and
+    builds the pack. `--ask` asks at the keyboard instead (the picker).
+    Nothing is edited by hand either way."""
+    from . import form as F
     table = read_table(a.data, sheet=a.sheet)
     out = Path(a.out) if a.out else Path(a.data).parent / "question.yaml"
-    if out.exists():
-        from .picker import _ask_stderr
-        _say(f"{out} already exists.")
-        while True:
-            line = _ask_stderr("    1  use it as it is and build the pack\n    2  answer the questions again (replaces it)\n  (Enter for 1)\n> ").strip()
-            if line in ("", "1", "2"):
-                break
-            _say("  type 1 or 2")
-        if line in ("", "1"):
-            try:
-                cfg = load_config(out)
-            except ConfigError as exc:
-                _say("the question file was refused:")
-                for prob in exc.problems:
-                    _say("  - " + prob.replace("\n", "\n    "))
-                _emit({"ok": False, "refused": "config", "problems": exc.problems})
-                return 2
-            from .picker import Picker as _P  # noqa: F401
-            asof = None
-            while asof is None:
-                line = _ask_stderr("The as-of date the pack is built at (YYYY-MM-DD)\n> ").strip()
-                try:
-                    asof = _date(line)
-                except ValueError:
-                    _say("  type the date as YYYY-MM-DD, e.g. 2026-06-30")
-            run = _ask_stderr("Today's date, to stamp on the pack (YYYY-MM-DD; Enter for none)\n> ").strip()
-            return _setup_build(a, cfg, out, asof, run or None)
+    if a.ask:
+        return _setup_ask(a, table, out)
+    form = Path(a.data).with_name(F.FORM_NAME)
+    report = inspect_columns(table)
+    if not form.exists():
+        if out.exists():
+            return _setup_reuse(a, out)
+        F.write_form(table, report, form)
+        _say(f"wrote {form}: one row per column of {Path(a.data).name} ({len(report)} columns), a dropdown beside each")
+        _say("open it in Excel:")
+        _say("  Columns tab   pick a role beside each column you use (loan number, origination date, rule top,")
+        _say("                rule bottom, how a loan went bad, group); leave the others blank")
+        _say("  Answers tab   the word for the event and the as-of date; the rest holds a usual value already")
+        _say("save it, then run the same command again:")
+        _say("  " + _setup_cmd(a))
+        _emit({"ok": True, "stage": "form", "form": str(form), "built": False})
+        return 0
+    try:
+        answers = F.read_form(form, table, report)
+    except F.NotFilled:
+        _say(f"{form} has nothing picked yet. Open it in Excel: on the Columns tab pick a role beside each column")
+        _say("you use; on the Answers tab fill the word for the event and the as-of date. Save, then run the same command again:")
+        _say("  " + _setup_cmd(a))
+        _emit({"ok": True, "stage": "form", "form": str(form), "built": False})
+        return 0
+    except F.FormError as exc:
+        _say(f"{form} cannot be built from yet:")
+        for prob in exc.problems:
+            _say("  - " + prob)
+        _say("fix these in Excel, save, and run the same command again:")
+        _say("  " + _setup_cmd(a))
+        _emit({"ok": False, "refused": "form", "problems": exc.problems})
+        return 2
+    _say(f"read {form}:")
+    for line in F.describe(answers):
+        _say(line)
+    out.write_text(F.to_yaml(answers, table.columns), encoding="utf-8", newline="\n")
+    _say(f"wrote {out} from {form.name}")
+    cfg = _setup_check(out, "the form")
+    if cfg is None:
+        return 2
+    run = answers.get("run_date")
+    return _setup_build(a, cfg, out, answers["asof"], run.isoformat() if run else None)
+
+
+def _setup_cmd(a: argparse.Namespace) -> str:
+    tail = f" --sheet {a.sheet}" if a.sheet else ""
+    return (f"python {SCRIPT} --setup {a.data}" if SCRIPT else f"pack setup {a.data}") + tail
+
+
+def _setup_check(out: Path, who: str):
+    """The loader's verdict on a file the tool itself wrote."""
+    try:
+        return load_config(out)
+    except ConfigError as exc:
+        _say(f"the question file written from {who} was refused (this is a defect in the tool; please report it):")
+        for prob in exc.problems:
+            _say("  - " + prob.replace("\n", "\n    "))
+        _emit({"ok": False, "refused": "config", "problems": exc.problems})
+        return None
+
+
+def _setup_reuse(a: argparse.Namespace, out: Path) -> int:
+    """A question file with no form beside it (from --ask or --init): offer it."""
+    from .picker import _ask_stderr
+    _say(f"{out} already exists.")
+    while True:
+        line = _ask_stderr("    1  use it as it is and build the pack\n    2  answer the questions again (replaces it)\n  (Enter for 1)\n> ").strip()
+        if line in ("", "1", "2"):
+            break
+        _say("  type 1 or 2")
+    if line == "2":
+        return _setup_ask(a, read_table(a.data, sheet=a.sheet), out, fresh=True)
+    try:
+        cfg = load_config(out)
+    except ConfigError as exc:
+        _say("the question file was refused:")
+        for prob in exc.problems:
+            _say("  - " + prob.replace("\n", "\n    "))
+        _emit({"ok": False, "refused": "config", "problems": exc.problems})
+        return 2
+    asof = None
+    while asof is None:
+        line = _ask_stderr("The as-of date the pack is built at (YYYY-MM-DD)\n> ").strip()
+        try:
+            asof = _date(line)
+        except ValueError:
+            _say("  type the date as YYYY-MM-DD, e.g. 2026-06-30")
+    run = _ask_stderr("Today's date, to stamp on the pack (YYYY-MM-DD; Enter for none)\n> ").strip()
+    return _setup_build(a, cfg, out, asof, run or None)
+
+
+def _setup_ask(a: argparse.Namespace, table, out: Path, fresh: bool = False) -> int:
+    """The picker: one question at a time at the keyboard."""
+    from .picker import Abandoned, Picker
+    if out.exists() and not fresh:
+        return _setup_reuse(a, out)
     picker = Picker(table, inspect_columns(table))
     try:
         picker.run()
@@ -204,13 +276,8 @@ def cmd_setup(a: argparse.Namespace) -> int:
     out.write_text(picker.to_yaml(), encoding="utf-8", newline="\n")
     _say("")
     _say(f"wrote {out} from your answers")
-    try:
-        cfg = load_config(out)
-    except ConfigError as exc:
-        _say("the question file the picker wrote was refused (this is a defect in the picker; please report it):")
-        for prob in exc.problems:
-            _say("  - " + prob.replace("\n", "\n    "))
-        _emit({"ok": False, "refused": "config", "problems": exc.problems})
+    cfg = _setup_check(out, "your answers")
+    if cfg is None:
         return 2
     asof = picker.answers["asof"]
     run = picker.answers.get("run_date")
@@ -426,8 +493,10 @@ def main(argv: list[str] | None = None) -> int:
     ini.add_argument("data"); ini.add_argument("-o", "--out"); ini.add_argument("--sheet")
     ini.set_defaults(fn=cmd_init)
 
-    st = sub.add_parser("setup", help="designate the columns by number, one question at a time, then build the pack")
+    st = sub.add_parser("setup", help="designate the columns in Excel (a form with dropdowns), then build the pack; "
+                                      "--ask asks at the keyboard instead")
     st.add_argument("data"); st.add_argument("-o", "--out"); st.add_argument("--sheet")
+    st.add_argument("--ask", action="store_true", help="answer one question at a time at the keyboard instead of in the form")
     st.set_defaults(fn=cmd_setup)
 
     ls = sub.add_parser("list", help="the question files under a folder (default: configs) and whether each would be accepted")

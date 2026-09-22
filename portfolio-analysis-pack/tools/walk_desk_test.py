@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The desk test, walked: twenty-five screens from the emailed file to a read workbook.
+"""The desk test, walked: twenty-seven screens from the emailed file to a read workbook.
 
     python tools/walk_desk_test.py --bundle build_pack.py --desk DIR --out DIR [--pylibs DIR]
 
@@ -10,15 +10,16 @@ references them. Run it again after a change and compare the folder with the
 one in `docs/walkthrough/`: a step whose picture differs is either a defect or
 an out-of-date procedure, and finding out which is the job (canon `walk`).
 
-The one edit a person would make by hand (step 16, a knob on `_config`, and
-steps 26-27, filling in the question file) is made here by writing the cell or
-the lines; the procedure says so.
+The edits a person would make by hand in Excel (step 16, a knob on `_config`;
+steps 23-25, the picks in the form) are made here by writing the cells; the
+procedure says so.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+from datetime import datetime
 import shutil
 import sys
 from pathlib import Path
@@ -67,8 +68,10 @@ def main(argv: list[str] | None = None) -> int:
         ("Excel", "Read the pack: the cover, the seven tabs, the knobs; move a knob and watch the cover notice.", "steps 6–17"),
         ("Notepad", "Open the planted answer and compare it with the model's interval.", "step 18"),
         ("Command Prompt + Excel", "Make a book with nothing in it, build it, read a cover that says so.", "steps 19–21"),
-        ("Command Prompt", "Your own extract: one command, answer the questions by number, the pack is built.", "steps 22–24"),
-        ("Excel", "The cover of the pack built from your answers.", "step 25"),
+        ("Command Prompt", "Your own extract: one command writes a form beside it.", "step 22"),
+        ("Excel", "Pick a role beside each column from its dropdown, two answers on the second tab, save.", "steps 23–25"),
+        ("Command Prompt", "The same command again reads the form, writes the question file and builds the pack.", "step 26"),
+        ("Excel", "The cover of the pack built from your picks.", "step 27"),
     ], out / "step-00-route.png")
 
     # Part A · is the machine ready?
@@ -125,25 +128,52 @@ def main(argv: list[str] | None = None) -> int:
     wbn = w.Workbook(desk / "null/pack.xlsx", work / "null")
     ans = wbn.span(1, "The answer, in three lines", "events.", full_width=True)
     shot(wbn, 21, "null-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines on the book with nothing planted", zoom_width=1000, stack=True, page_crop=(0.06, 0.11, 0.9, 0.8))
-    # Part E · your own extract: the picker. One command, answers by number, the pack built.
-    picks = ["", "2", "3", "4", "", "", "", "1", "9", "event", "", "2026-06-30",
-             "4, 5, 7", "100000, 200000, 400000, 800000, 1600000", "60000, 250000", "", "", ""]
+    # Part E · your own extract: the form. One command writes it, the person picks
+    # in Excel (openpyxl stands in for the hand here), the same command builds.
     cmd = ["python", "build_pack.py", "--setup", "demo/loans.csv"]
-    rc, so, se = w.terminal(cmd, desk, out / "step-22-setup-columns.png", title=TITLE, prompt=PROMPT, env=env,
-                            answers=picks, first=1, last=1)   # re-rendered below once the slices are known
-    print(f"step 22 setup: rc={rc}")
-    body = w.weave(se, picks)
-    lines = body.splitlines()
-    cut1 = next(i for i, ln in enumerate(lines) if ln.startswith("8. How does the extract"))
-    cut2 = next(i for i, ln in enumerate(lines) if ln.startswith("wrote "))
-    shown = " ".join(cmd)
-    w.render_terminal(shown, body, out / "step-22-setup-columns.png", TITLE, PROMPT, first=1, last=cut1)
-    w.render_terminal(shown, body, out / "step-23-setup-outcome.png", TITLE, PROMPT, first=cut1 + 1, last=cut2)
-    w.render_terminal(shown, body, out / "step-24-setup-built.png", TITLE, PROMPT, first=cut2 + 1, last=len(lines))
-    print("steps 22-24: the picker's exchange in three screens")
+    term(22, "setup-form-written", cmd)
+    wbf = w.Workbook(desk / "demo/question.xlsx", work / "form-blank")
+    role = wbf.find(1, "pick from the list", pad=0.008)
+    rows = wbf.span(1, "loan_id", "measure_b", full_width=True)
+    table = (0.06, role[1] - 0.012, 0.86, rows[1] + rows[3] - role[1] + 0.024)     # the whole table, header to last row
+    sheet_crop = (0.05, 0.12, 0.90, 0.34)                                          # the sheet on its landscape page
+    shot(wbf, 23, "form-blank", 1, ring=(role[0], role[1], role[2], rows[1] + rows[3] - role[1]), zoom=table,
+         zoom_caption="one row per column of the extract; the shaded role cell beside each offers a list when clicked",
+         zoom_width=1000, stack=True, page_crop=sheet_crop)
+    book = openpyxl.load_workbook(desk / "demo/question.xlsx")
+    ws, wa = book["Columns"], book["Answers"]
+    roles = {"loan_id": "loan number", "origination_date": "origination date", "field_a": "rule top",
+             "field_b": "rule bottom + group", "outcome_date": "went bad: date", "amount": "group", "category_2": "group"}
+    edges = {"field_b": "100000, 200000, 400000, 800000, 1600000", "amount": "60000, 250000"}
+    r = 4
+    while ws.cell(r, 2).value:
+        col = ws.cell(r, 2).value
+        ws.cell(r, 6).value = roles.get(col)
+        ws.cell(r, 8).value = edges.get(col)
+        r += 1
+    r = 4
+    while wa.cell(r, 1).value:
+        q = wa.cell(r, 1).value
+        if q.startswith("The word every tab"):
+            wa.cell(r, 2).value = "event"
+        if q.startswith("The as-of date"):
+            wa.cell(r, 2).value = datetime(2026, 6, 30)
+        r += 1
+    book.save(desk / "demo/question.xlsx")
+    wbd = w.Workbook(desk / "demo/question.xlsx", work / "form-filled")
+    picked = wbd.span(1, "loan number", "went bad: date", full_width=True)
+    shot(wbd, 24, "form-columns", 1, ring=picked, zoom=table,
+         zoom_caption="the roles picked beside the seven columns in use, and edges typed for two of the groups",
+         zoom_width=1000, stack=True, page_crop=sheet_crop)
+    ans = wbd.span(2, "The word every tab", "The as-of date", full_width=True)
+    whole = wbd.span(2, "Compare the two rule", "or its band edges", full_width=True)
+    shot(wbd, 25, "form-answers", 2, ring=ans, zoom=(0.06, whole[1] - 0.02, 0.86, whole[3] + 0.03),
+         zoom_caption="the Answers tab: the two required answers filled (the word for the event, the as-of date); the rest as written",
+         zoom_width=1000, stack=True, page_crop=(0.05, 0.12, 0.90, 0.30))
+    term(26, "setup-built", cmd)
     wbm = w.Workbook(desk / "demo/field_a_vs_field_b.xlsx", work / "mine")
     ans = wbm.span(1, "The answer, in three lines", "events.", full_width=True)
-    shot(wbm, 25, "picked-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines of the pack built from your answers",
+    shot(wbm, 27, "picked-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines of the pack built from your picks",
          zoom_width=1000, stack=True, page_crop=(0.06, 0.11, 0.9, 0.8))
     print(f"{len(list(out.glob('step-*.png')))} screens in {out}")
     return 0

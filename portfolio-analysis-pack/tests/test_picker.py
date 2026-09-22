@@ -160,7 +160,7 @@ def test_setup_at_the_command_line_writes_checks_and_builds(effect_book, tmp_pat
     data = tmp_path / "extract.csv"
     shutil.copy(effect_book / "loans.csv", data)
     monkeypatch.setattr("sys.stdin", io.StringIO("\n".join(EFFECT_ANSWERS) + "\n"))
-    rc = main(["setup", str(data)])
+    rc = main(["setup", str(data), "--ask"])
     captured = capsys.readouterr()
     assert rc == 0, captured.err[-1500:]
     assert (tmp_path / "question.yaml").exists()
@@ -171,7 +171,7 @@ def test_setup_at_the_command_line_writes_checks_and_builds(effect_book, tmp_pat
     assert status["ok"] and status["seasoned"] == 29343
     # a second run finds the file and offers to reuse it
     monkeypatch.setattr("sys.stdin", io.StringIO("\n" + ASOF.isoformat() + "\n\n"))
-    rc = main(["setup", str(data)])
+    rc = main(["setup", str(data), "--ask"])
     captured = capsys.readouterr()
     assert rc == 0 and "already exists" in captured.err and "building" in captured.err
 
@@ -184,7 +184,7 @@ def test_the_bundle_runs_the_picker_and_needs_nothing_but_the_extract(effect_boo
     desk.mkdir()
     shutil.copy(bundle, desk / bundle.name)
     shutil.copy(effect_book / "loans.csv", desk / "extract.csv")
-    r = subprocess.run([sys.executable, bundle.name, "--setup", "extract.csv"], cwd=desk, capture_output=True,
+    r = subprocess.run([sys.executable, bundle.name, "--setup", "extract.csv", "--ask"], cwd=desk, capture_output=True,
                        text=True, timeout=900, input="\n".join(EFFECT_ANSWERS) + "\n", env=dict(os.environ))
     assert r.returncode == 0, r.stderr[-2000:]
     assert "The columns of extract.csv" in r.stderr and "1. Which column numbers the loans" in r.stderr

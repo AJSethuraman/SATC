@@ -1235,6 +1235,39 @@ sales on the small-business book; built domain-free so a consumer question
       the procedure only shows `.csv`; (f) the as-of date could be
       proposed from the latest origination date in the file (a fact, shown
       and confirmed, never assumed).
+- **The form (22 Sep 2026, later).** Asked whether there was an easier
+      way to select than typing numbers, the firm was offered a pop-up
+      window or a form in Excel and chose the form: *"Actually excel
+      version is fine."* Built: `python build_pack.py --setup EXTRACT.csv`
+      run once writes `question.xlsx` beside the extract — the Columns tab
+      has one row per column (what it reads as, how often blank, three
+      samples) with a dropdown beside each for its role (loan number,
+      origination date, rule top, rule bottom, rule top + group, rule
+      bottom + group, went bad: date / flag / measure top / measure bottom,
+      group), a yes/no for known-only-later, a cell for band edges with the
+      column's quartiles shown beside it from the data; the Answers tab
+      holds the twelve answers that are not a column, two of them required
+      (the event word, the as-of date) and the rest at a usual value. The
+      person picks in Excel, saves, runs the same command again; the tool
+      reads the form, refuses everything the loader would refuse at once,
+      each with its cell (`Columns!F9: category_1 reads as text, and "rule
+      top" needs a number column`; a leak on `G7`; edges that fall on
+      `Answers!B6`), writes `question.yaml` from the form and builds. A
+      form written for another extract is refused by name. Excel's own
+      storage is read as Excel stores it (a typed date becomes a date cell,
+      a number a number). The picker stays as `--setup … --ask`; the yaml
+      the form writes is byte-for-byte the yaml the picker writes from the
+      same answers, and a test proves it. `src/analysis_pack/form.py`,
+      `tests/test_form.py` (7). The walk's Part E is now the form: 27
+      steps, four screens of Excel. The bundle grew to 117 KB.
+      **Seen while building, not built:** (g) the form could carry the
+      column's quartiles into the edges cell as a starting value instead of
+      beside it, at the cost of a value the person did not type; (h) a
+      second sheet in the extract's own workbook could hold the form, so a
+      `.xlsx` extract and its designation travel as one file; (i) the form
+      could be re-read on a timer, so saving in Excel builds without a
+      second command — a watcher, which is a process, which is a different
+      kind of tool.
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

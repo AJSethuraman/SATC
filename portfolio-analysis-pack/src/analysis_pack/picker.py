@@ -364,41 +364,50 @@ class Picker:
     # -- the file ---------------------------------------------------------------
 
     def question(self) -> dict:
-        a = self.answers
-        outcome_cols = set(a["outcome"].get("measure", {}).values()) - {"ratio", "difference"}
-        for key in ("date_field", "field"):
-            if key in a["outcome"]:
-                outcome_cols.add(a["outcome"][key])
-        fields = {}
-        for col in self.columns:
-            if col not in a["used"]:
-                continue
-            known = "later" if (col in outcome_cols or col in a.get("later", [])) else "at_origination"
-            fields[col] = {"known": known}
-        out = {"label": a["label"], **a["outcome"]}
-        return {
-            "name": a["name"],
-            "schema_version": 1,
-            "rule_type": "contradiction",
-            "population": {"loan_id": a["loan_id"], "origination_date": a["origination_date"]},
-            "fields": fields,
-            "rule": {"kind": a["kind"], "field_a": a["field_a"], "field_b": a["field_b"],
-                     "fires_when": {"op": ">", "value": a["fires_value"]}, "buckets": a["buckets"]},
-            "outcome": out,
-            "window_months": a["window_months"],
-            "confounders": a["confounders"],
-            "controls": [{"name": "origination_year", "derived": "origination_year"}],
-            "decompose_by": [c["name"] for c in a["confounders"]] + ["origination_year"],
-            "existing_control": a["existing_control"],
-            "model": {"tree_depth": 3, "min_leaf_events": 10, "min_leaf_loans": 100},
-            "intervals": {"confidence": 0.95, "method": "wilson"},
-            "survives_threshold": 0.5,
-        }
+        return question_from_answers(self.answers, self.columns)
 
     def to_yaml(self) -> str:
         head = ("# Question file written by the picker from your answers. Run the setup again\n"
                 "# to answer differently; nothing here needs editing by hand.\n")
-        return head + yaml.safe_dump(self.question(), sort_keys=False, allow_unicode=True)
+        return head + answers_to_yaml(self.answers, self.columns)
+
+
+def question_from_answers(a: dict, columns: list[str]) -> dict:
+    """The question file, as a mapping, from answers in the picker's shape
+    (the form reads into the same shape)."""
+    outcome_cols = set(a["outcome"].get("measure", {}).values()) - {"ratio", "difference"}
+    for key in ("date_field", "field"):
+        if key in a["outcome"]:
+            outcome_cols.add(a["outcome"][key])
+    fields = {}
+    for col in columns:
+        if col not in a["used"]:
+            continue
+        known = "later" if (col in outcome_cols or col in a.get("later", [])) else "at_origination"
+        fields[col] = {"known": known}
+    out = {"label": a["label"], **a["outcome"]}
+    return {
+        "name": a["name"],
+        "schema_version": 1,
+        "rule_type": "contradiction",
+        "population": {"loan_id": a["loan_id"], "origination_date": a["origination_date"]},
+        "fields": fields,
+        "rule": {"kind": a["kind"], "field_a": a["field_a"], "field_b": a["field_b"],
+                 "fires_when": {"op": ">", "value": a["fires_value"]}, "buckets": a["buckets"]},
+        "outcome": out,
+        "window_months": a["window_months"],
+        "confounders": a["confounders"],
+        "controls": [{"name": "origination_year", "derived": "origination_year"}],
+        "decompose_by": [c["name"] for c in a["confounders"]] + ["origination_year"],
+        "existing_control": a["existing_control"],
+        "model": {"tree_depth": 3, "min_leaf_events": 10, "min_leaf_loans": 100},
+        "intervals": {"confidence": 0.95, "method": "wilson"},
+        "survives_threshold": 0.5,
+    }
+
+
+def answers_to_yaml(a: dict, columns: list[str]) -> str:
+    return yaml.safe_dump(question_from_answers(a, columns), sort_keys=False, allow_unicode=True)
 
 
 def check(path) -> Config:
@@ -406,4 +415,4 @@ def check(path) -> Config:
     return load_config(path)
 
 
-__all__ = ["Picker", "Abandoned", "PROMPT_END", "check", "ConfigError"]
+__all__ = ["Picker", "Abandoned", "PROMPT_END", "check", "ConfigError", "question_from_answers", "answers_to_yaml"]

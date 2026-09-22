@@ -1,15 +1,16 @@
 # Testing the Portfolio Analysis Pack at a desk
 
-> From the emailed file to a workbook you have read, in twenty-five steps. Written for a person doing it for the first time, with a picture of every screen and what a correct one looks like.
+> From the emailed file to a workbook you have read, in twenty-seven steps. Written for a person doing it for the first time, with a picture of every screen and what a correct one looks like.
 
 This is the procedure for testing the pack on a machine that has never seen
 it: a file arrives by email, you run it on a book of made-up loans with a
 known answer, you read the workbook it builds, and then you point it at an
-extract of your own. It was walked three times on 22 September 2026: on the
+extract of your own. It was walked four times on 22 September 2026: on the
 script as first written, which found eleven things the screens said wrong
 (`WALKTHROUGH-DEFECTS.md`); on the patched script, after the firm asked for
-everything wrong to be fixed before anything shipped; and once more after
-Part E became a picker, so that nothing is edited by hand at the desk.
+everything wrong to be fixed before anything shipped; after Part E became a
+picker, so that nothing is edited by hand at the desk; and once more after
+the picker became a form in Excel, with a dropdown beside each column.
 Every screen below is from the last walk. Where a screen of yours
 differs from the picture, either the product has changed or something went
 wrong, and finding out which is the point of doing it again.
@@ -26,7 +27,7 @@ to run if either is missing), and Excel. Nothing is edited by hand.
 
 ## The route
 
-![The route: eight screens in order, with what happens on each.](walkthrough/desk-test-2026-09-22/step-00-route.png)
+![The route: ten screens in order, with what happens on each.](walkthrough/desk-test-2026-09-22/step-00-route.png)
 
 Make a new, empty folder, save `build_pack.py` into it, and open a Command
 Prompt in that folder (in File Explorer, type `cmd` in the address bar and
@@ -306,89 +307,124 @@ wrong. Close the workbook.
 ## Part E · Your own extract
 
 The made-up book came with its question file. An extract of your own does
-not, and the tool will not guess. One command lists your columns with a
-number beside each and asks you, one question at a time, which is which.
-You answer with the numbers. It writes the question file from your answers,
-checks it, and builds the pack. Nothing is typed into a file. The walk did
-this on the made-up extract so the answers can be checked against Part B;
-on a real one the columns will be yours.
+not, and the tool will not guess. One command writes a form beside your
+extract: one row per column, with what it reads as and three sample values,
+and a dropdown in the next cell for the column's role. You pick in Excel,
+save, and run the same command again; it reads the form, writes the question
+file from it, checks it, and builds the pack. Nothing is typed at a prompt
+and nothing is edited by hand. The walk did this on the made-up extract so
+the picks can be checked against Part B; on a real one the columns will be
+yours. (If you would rather answer at the keyboard, one question at a time,
+add `--ask` to the command.)
 
-### Step 22 — Start the picker and answer the first seven questions
+### Step 22 — Ask for the form
 
 **Do:** type `python build_pack.py --setup demo/loans.csv` and press Enter.
-Read the numbered list of columns. Answer each question with a number from
-that list (or press Enter where the question offers a default). The answers
-for the made-up extract: Enter (it found the one column with a different
-value on every row), `2`, `3`, `4`, Enter (a ratio), Enter (fires above 1),
-Enter (edges 0.5, 1, 2, 5).
 
-![Step 22](walkthrough/desk-test-2026-09-22/step-22-setup-columns.png)
+![Step 22](walkthrough/desk-test-2026-09-22/step-22-setup-form-written.png)
 
-**Right when:** the list shows every column with what it reads as (text,
-date, decimal, integer), how often it is blank and three sample values, and
-the first question already proposes `loan_id`, the only column that is
-different on every row. A wrong answer (a text column where a number is
-needed, a number not on the list) is refused with a reason and the question
-is asked again.
+**Right when:** *wrote demo/question.xlsx: one row per column of loans.csv
+(12 columns), a dropdown beside each*, then what to do on each tab, then
+the command to run again, spelled out. Nothing is built yet; the folder now
+holds `question.xlsx` beside the extract.
 
-### Step 23 — The outcome, the as-of date and the groups
+### Step 23 — Open the form
 
-**Do:** keep answering: `1` (a column with the date it happened), `9`
-(`outcome_date`), the word `event`, Enter (24 months), the as-of date
-`2026-06-30`, then `4, 5, 7` for the columns the effect might be hiding in.
-For `field_b` type the edges `100000, 200000, 400000, 800000, 1600000`; for
-`amount`, `60000, 250000` (the picker proposes the quartiles of the data if
-you would rather press Enter). Enter for *what reacts today* (none), Enter
-for *known only after* (nothing), Enter for today's date (unstamped).
+**Do:** open `demo\question.xlsx` in Excel. Read the Columns tab: the
+number, the column, what it reads as, how often it is blank, three sample
+values, and beside them the three cells to fill: *role*, *known only after
+the loan was made?*, and *band edges*.
 
-![Step 23](walkthrough/desk-test-2026-09-22/step-23-setup-outcome.png)
+![Step 23](walkthrough/desk-test-2026-09-22/step-23-form-blank.png)
 
-**Right when:** the picker explains why it asks for groups (*without any
-group, the pack cannot tell an effect from something else in disguise*),
-proposes band edges for each number column from the data, and asks nothing
-you cannot answer from the list. If you name a column as known only after
-the loan was made and it is one of the rule's columns, the picker refuses
-it as a leak and asks again.
+**Right when:** every column of the extract has its row (twelve here), the
+role cell of each is shaded and offers a list when you click it (loan
+number, origination date, rule top, rule bottom, rule top + group, rule
+bottom + group, went bad: date, went bad: flag, went bad: measure top, went
+bad: measure bottom, group), and the last column already shows the
+quartiles of each number column, from the data, for you to take or replace.
 
-### Step 24 — It writes the file, checks it and builds
+### Step 24 — Pick a role beside each column you use
 
-**Do:** nothing; read the screen.
+**Do:** from the dropdown, pick *loan number* beside `loan_id`,
+*origination date* beside `origination_date`, *rule top* beside `field_a`,
+*rule bottom + group* beside `field_b` (it is the bottom of the ratio and
+also the group that matters most), *went bad: date* beside `outcome_date`,
+and *group* beside `amount` and `category_2`. Leave the other five blank.
+In the band-edges cell type `100000, 200000, 400000, 800000, 1600000`
+beside `field_b` and `60000, 250000` beside `amount`; a group number column
+left blank takes the quartiles shown beside it.
 
-![Step 24](walkthrough/desk-test-2026-09-22/step-24-setup-built.png)
+![Step 24](walkthrough/desk-test-2026-09-22/step-24-form-columns.png)
 
-**Right when:** *wrote demo/question.yaml from your answers*, then
-*building demo/field_a_vs_field_b.xlsx …* (the pack is named after the two
-columns), then the same summary as step 5: 29,343 seasoned loans, 257
-events, *monotonic increasing*, three step-4 lines each ending *survives*,
-M1 3.72 [2.84, 4.88], and the *then:* line telling you to open the file in
-Excel. M1 has 6 coefficients where step 5 had 11: the picker adds only the
+**Right when:** seven roles picked, five cells blank, two sets of edges
+typed. A cell that does not match the list is refused by Excel as you
+type; a pick the tool cannot use (a text column as *rule top*, two loan
+numbers, a rule column marked as known only later) is refused at step 26,
+every problem at once with its cell.
+
+### Step 25 — The two answers that are not a column, then save
+
+**Do:** on the Answers tab, type `event` beside *The word every tab will
+use for the event* and `2026-06-30` beside *The as-of date the pack is
+built at*. The other rows already hold a usual value (a ratio, fires above
+1, steps 0.5, 1, 2, 5, 24 months, nothing reacts today); change one only
+if you know better. Save the file and close it.
+
+![Step 25](walkthrough/desk-test-2026-09-22/step-25-form-answers.png)
+
+**Right when:** the two shaded cells beside those questions are filled and
+the file is saved. Excel turns the date you typed into a date; that is
+fine, the tool reads either.
+
+### Step 26 — Run the same command again
+
+**Do:** type `python build_pack.py --setup demo/loans.csv` again and press
+Enter.
+
+![Step 26](walkthrough/desk-test-2026-09-22/step-26-setup-built.png)
+
+**Right when:** *read demo/question.xlsx:* followed by one line per answer
+as the tool understood it (the loan number, the origination date, the rule
+`field_a / field_b, fires above 1, steps 0.5, 1, 2, 5`, *went bad
+outcome_date (the date it happened)*, the three groups with their edges,
+the window and as-of date, *run date not given*), then *wrote
+demo/question.yaml from question.xlsx*, *building
+demo/field_a_vs_field_b.xlsx …* (the pack is named after the two columns),
+and the same summary as step 5: 29,343 seasoned loans, 257 events,
+*monotonic increasing*, three step-4 lines each ending *survives*, M1 3.72
+[2.84, 4.88], and the *then:* line telling you to open the file in Excel.
+M1 has 6 coefficients where step 5 had 11: the form adds only the
 origination year as a control, where the made-up book's own file also holds
-the amount and a category.
+the amount and a category. If the form was refused, the screen lists every
+problem with its cell (*Columns!F9*, *Answers!B7*); fix them in Excel, save,
+and run the command again.
 
-### Step 25 — Its cover
+### Step 27 — Its cover
 
 **Do:** open `demo\field_a_vs_field_b.xlsx` and read the three answer
 lines.
 
-![Step 25](walkthrough/desk-test-2026-09-22/step-25-picked-cover.png)
+![Step 27](walkthrough/desk-test-2026-09-22/step-27-picked-cover.png)
 
 **Right when:** *Gradient: yes*, *survives* three times (*for event:
 field_b (edges) — survives; amount (edges) — survives; category_2 (levels)
 — survives*), and *3.72 [2.84, 4.88]*, with *1473 of 1473 formula checks
-agree* lower down. The banner reads *field_a_vs_field_b*, the name the
-picker gave the question from your two columns, and *run date not given*.
-The same answer as step 6, from your own answers.
+agree* lower down. The banner reads *field_a_vs_field_b*, the name the tool
+gave the question from your two columns, and *run date not given*. The same
+answer as step 6, from your own picks.
 
-Run the command again later and it finds the question file and offers to
-reuse it, asking only for the as-of date.
+To change a pick later, open `question.xlsx` again, change it, save, and run
+the command again; the question file is rewritten from the form each time.
 
 ## When you are done
 
 You have run the tool on a book with a known answer and watched it find the
 answer, on a book with no answer and watched it say so, and on an extract
-whose columns you designated yourself by number. To do the same on a real
+whose columns you designated yourself in Excel. To do the same on a real
 extract, run `python build_pack.py --setup YOUR-FILE.csv` (an `.xlsx` works
-too: add `--sheet` and the tab's name) and answer the questions for that
-book: its own columns, its real as-of date, today's date to stamp, and the
-groups that matter for it. There is nothing to tidy afterwards: the script
-leaves nothing beside itself but the question file and the pack.
+too: add `--sheet` and the tab's name), fill the form it writes for that
+book (its own columns, its real as-of date, today's date to stamp, and the
+groups that matter for it), save, and run the command again. There is
+nothing to tidy afterwards: the script leaves nothing beside itself but the
+form, the question file and the pack.
