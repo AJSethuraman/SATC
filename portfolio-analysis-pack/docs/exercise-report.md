@@ -37,7 +37,7 @@ python build_pack.py --data effect.csv --asof 2026-06-30 --run-date 2026-09-22 -
 - Model (step 6): the flag's odds ratio is 3.73 [2.84, 4.89] with the controls (M1) and 3.74 [2.85, 4.91] with the confounders added (M2), on 211 events.
 - In 22.2% of the 25,106 seasoned loans where both field_a and field_b are present, field_a ÷ field_b > 1.
 - 1389 of 1389 formula checks agree (see _check)
-- 29,343 seasoned loans, 257 events; 10,657 too young to count. Built in 5.3 s.
+- 29,343 seasoned loans, 257 events; 10,657 too young to count. Built in 5.4 s.
 
 **Checks: 7 of 7 agree.**
 
@@ -303,11 +303,11 @@ python build_pack.py --data large.csv --asof 2026-06-30 --run-date 2026-09-22 --
 
 **What the pack said.**
 
-- 73,293 seasoned loans, 649 events, built in 11.4 s; workbook 162 KB against 161 KB at 40,000 loans.
+- 73,293 seasoned loans, 649 events, built in 11.0 s; workbook 162 KB against 161 KB at 40,000 loans.
 
 **Checks: 4 of 4 agree.**
 
 - ✔ the script built the pack and exited 0
-- ✔ built in under a minute — 11.4 s
+- ✔ built in under a minute — 11.0 s
 - ✔ the workbook is no larger than the 40,000-loan one by more than a tenth — 165,637 vs 165,100 bytes
 - ✔ the words match the 40,000-loan book's — {'size_band.edges': 'survives', 'amount_band.edges': 'survives', 'category_2.levels': 'survives'}

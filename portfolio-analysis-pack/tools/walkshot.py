@@ -112,22 +112,57 @@ def _text_height(text: str, cols: int = 118) -> int:
 _MEASURE = ""
 
 
+def weave(stderr: str, answers: list[str] | None, prompt_end: str = "> ") -> str:
+    """The exchange as a person saw it: each typed answer after the question it
+    answered (the program printed the question; the terminal echoed the typing)."""
+    body = stderr.rstrip()
+    if answers is None:
+        return body
+    parts = body.split(prompt_end)
+    woven = parts[0]
+    for i, part in enumerate(parts[1:]):
+        typed = answers[i] if i < len(answers) else ""
+        woven += prompt_end + typed + ("\n" if part and not part.startswith("\n") else "") + part
+    return woven
+
+
+def render_terminal(shown: str, body: str, out: Path, title: str = "Terminal", prompt: str = "pack> ",
+                    first: int | None = None, last: int | None = None) -> Path:
+    """A terminal window showing `body` (lines `first`..`last` of it, when given,
+    for a long exchange captured as more than one screen) after the command."""
+    lines = body.splitlines()
+    total = len(lines)
+    lo, hi = (first or 1) - 1, min(last or total, total)
+    shown_body = ("…\n" if lo > 0 else "") + "\n".join(lines[lo:hi]) + ("\n…" if hi < total else "")
+    cmd_line = (f'<span class="prompt">{html.escape(prompt)}</span><span class="cmd">{html.escape(shown)}</span>\n'
+                if lo == 0 else "")
+    tail = f'\n<span class="prompt">{html.escape(prompt)}</span>' if hi >= total else ""
+    text = f"{cmd_line}{html.escape(shown_body)}{tail}"
+    doc = f"<style>{_CSS}</style>{_MEASURE}<div class='term'><div class='bar'>{html.escape(title)}</div><pre>{text}</pre></div>"
+    measure = (f"{prompt}{shown}\n" if lo == 0 else "…\n") + shown_body + (f"\n{prompt}" if hi >= total else "")
+    return _shoot(doc, out, 1080, _text_height(measure))
+
+
 def terminal(cmd: list[str], cwd: Path, out: Path, title: str = "Terminal", prompt: str = "pack> ",
-             env: dict | None = None, timeout: int = 1200) -> tuple[int, str, str]:
-    """Run `cmd` in `cwd` as typed, render the exchange, return (rc, stdout, stderr)."""
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env, timeout=timeout)
+             env: dict | None = None, timeout: int = 1200, answers: list[str] | None = None,
+             prompt_end: str = "> ", first: int | None = None, last: int | None = None) -> tuple[int, str, str]:
+    """Run `cmd` in `cwd` as typed, render the exchange, return (rc, stdout, stderr).
+
+    `answers` are typed in reply to the program's questions (fed on stdin) and
+    woven into the rendering where a person's typing would appear. `first` /
+    `last` show only those lines; render the other slices of the same run with
+    `render_terminal(shown, weave(stderr, answers), ...)`."""
+    stdin_text = ("\n".join(answers) + "\n") if answers is not None else None
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env, timeout=timeout, input=stdin_text)
     shown = " ".join(cmd)
     # what a person sees: the summary the tool prints (stderr) and, when the
     # JSON status is short, that too
-    body = r.stderr.rstrip()
+    body = weave(r.stderr, answers, prompt_end)
     if r.stdout.strip() and len(r.stdout) < 900:
         body = (body + "\n" if body else "") + r.stdout.rstrip()
     elif r.stdout.strip():
         body = (body + "\n" if body else "") + r.stdout.strip().splitlines()[0] + "\n  … (the status, as JSON, continues)"
-    text = (f'<span class="prompt">{html.escape(prompt)}</span><span class="cmd">{html.escape(shown)}</span>\n'
-            f'{html.escape(body)}\n<span class="prompt">{html.escape(prompt)}</span>')
-    doc = f"<style>{_CSS}</style>{_MEASURE}<div class='term'><div class='bar'>{html.escape(title)}</div><pre>{text}</pre></div>"
-    _shoot(doc, out, 1080, _text_height(f"{prompt}{shown}\n{body}\n{prompt}"))
+    render_terminal(shown, body, out, title, prompt, first, last)
     return r.returncode, r.stdout, r.stderr
 
 

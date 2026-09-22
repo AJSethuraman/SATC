@@ -28,16 +28,18 @@ PACKAGE_DIR = Path(__file__).parent
 BUNDLED = (
     "__init__.py", "config.py", "ingest.py", "population.py", "stats.py", "ladder.py",
     "model.py", "notes.py", "wording.yaml", "workbook.py", "workbook_style.py", "cli.py", "suggest.py",
-    "designate.py", "synth.py",
+    "designate.py", "synth.py", "picker.py",
 )
 
 _RUNNER = '''#!/usr/bin/env python3
 # Portfolio Analysis Pack -- build-on-target bundle. Pure ASCII by construction.
 #
+#   python {script_name} --setup EXTRACT.csv                   # YOUR EXTRACT: pick the columns by number,
+#                                                              # one question at a time, and the pack is built
 #   python {script_name} --synth demo [--loans 40000] [--null | --confounded]
 #                                                              # a made-up book with a known answer, to test on
 #   python {script_name} --inspect EXTRACT.csv                 # list the columns first
-#   python {script_name} --init EXTRACT.csv [-o question.yaml]  # write a question file to fill in
+#   python {script_name} --init EXTRACT.csv [-o question.yaml]  # write a question file to fill in by hand
 #   python {script_name} --validate EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
 #   python {script_name} --data EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
 #                        [--run-date YYYY-MM-DD] [-o OUT.xlsx]
@@ -70,7 +72,24 @@ def _unpack():
     return root
 
 
+def _libraries_present():
+    missing = []
+    for module, package in (("openpyxl", "openpyxl"), ("yaml", "PyYAML")):
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(package)
+    if missing:
+        print("This script needs " + " and ".join(missing) + ". Once, in this window, run:", file=sys.stderr)
+        print("    pip install " + " ".join(missing), file=sys.stderr)
+        print("then run the command again.", file=sys.stderr)
+        return False
+    return True
+
+
 def main(argv):
+    if not _libraries_present():
+        return 1
     root = _unpack()
     sys.path.insert(0, root)
     from analysis_pack import cli as pack_cli
@@ -101,6 +120,11 @@ def main(argv):
         return pack_main(["inspect"] + args[1:])
     if args and args[0] == "--init":
         return pack_main(["init"] + args[1:])
+    if args and args[0] == "--setup":
+        if len(args) < 2:
+            print("--setup needs the extract, e.g. --setup extract.csv", file=sys.stderr)
+            return 1
+        return pack_main(["setup"] + args[1:])
     if args and args[0] == "--validate":
         rest = args[1:]
         data = rest[0]

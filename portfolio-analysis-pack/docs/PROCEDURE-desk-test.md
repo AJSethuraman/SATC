@@ -1,15 +1,16 @@
 # Testing the Portfolio Analysis Pack at a desk
 
-> From the emailed file to a workbook you have read, in thirty steps. Written for a person doing it for the first time, with a picture of every screen and what a correct one looks like.
+> From the emailed file to a workbook you have read, in twenty-five steps. Written for a person doing it for the first time, with a picture of every screen and what a correct one looks like.
 
 This is the procedure for testing the pack on a machine that has never seen
 it: a file arrives by email, you run it on a book of made-up loans with a
 known answer, you read the workbook it builds, and then you point it at an
-extract of your own. It was walked twice on 22 September 2026: once on the
+extract of your own. It was walked three times on 22 September 2026: on the
 script as first written, which found eleven things the screens said wrong
-(`WALKTHROUGH-DEFECTS.md`), and again the same day on the patched script,
-after the firm asked for everything wrong to be fixed before anything
-shipped. Every screen below is from the second walk. Where a screen of yours
+(`WALKTHROUGH-DEFECTS.md`); on the patched script, after the firm asked for
+everything wrong to be fixed before anything shipped; and once more after
+Part E became a picker, so that nothing is edited by hand at the desk.
+Every screen below is from the last walk. Where a screen of yours
 differs from the picture, either the product has changed or something went
 wrong, and finding out which is the point of doing it again.
 
@@ -20,8 +21,8 @@ walk ran on has no Excel; the numbers and words are the same, the fonts are
 not.
 
 **You need:** the emailed file `build_pack.py`, Python 3.10 or later, the two
-libraries it uses (`openpyxl` and `PyYAML`; if step 2 fails, run
-`pip install openpyxl PyYAML`), Excel, and Notepad or any text editor.
+libraries it uses (`openpyxl` and `PyYAML`; the script says which pip line
+to run if either is missing), and Excel. Nothing is edited by hand.
 
 ## The route
 
@@ -305,135 +306,89 @@ wrong. Close the workbook.
 ## Part E · Your own extract
 
 The made-up book came with its question file. An extract of your own does
-not, and the tool will not guess: it writes a question file listing every
-column it found, marks every value you have to choose, and refuses to run
-until none is left. The walk did this on the made-up extract so the answers
-can be checked; on a real one the columns will be yours.
+not, and the tool will not guess. One command lists your columns with a
+number beside each and asks you, one question at a time, which is which.
+You answer with the numbers. It writes the question file from your answers,
+checks it, and builds the pack. Nothing is typed into a file. The walk did
+this on the made-up extract so the answers can be checked against Part B;
+on a real one the columns will be yours.
 
-### Step 22 — Ask for a question file
+### Step 22 — Start the picker and answer the first seven questions
 
-**Do:** type `python build_pack.py --init demo/loans.csv -o demo/question.yaml` and press Enter.
+**Do:** type `python build_pack.py --setup demo/loans.csv` and press Enter.
+Read the numbered list of columns. Answer each question with a number from
+that list (or press Enter where the question offers a default). The answers
+for the made-up extract: Enter (it found the one column with a different
+value on every row), `2`, `3`, `4`, Enter (a ratio), Enter (fires above 1),
+Enter (edges 0.5, 1, 2, 5).
 
-![Step 22](walkthrough/desk-test-2026-09-22/step-22-init.png)
+![Step 22](walkthrough/desk-test-2026-09-22/step-22-setup-columns.png)
 
-**Right when:** *wrote demo/question.yaml: 12 columns listed, 21 values
-marked [CONFIRM: ...] for you to fill in*, and a *then:* line that says to
-fill them in and gives the command to run afterwards, which is step 25's.
+**Right when:** the list shows every column with what it reads as (text,
+date, decimal, integer), how often it is blank and three sample values, and
+the first question already proposes `loan_id`, the only column that is
+different on every row. A wrong answer (a text column where a number is
+needed, a number not on the list) is refused with a reason and the question
+is asked again.
 
-### Step 23 — Read the file it wrote, top half
+### Step 23 — The outcome, the as-of date and the groups
 
-**Do:** open `demo\question.yaml` in Notepad. The marked lines are the ones
-you will change.
+**Do:** keep answering: `1` (a column with the date it happened), `9`
+(`outcome_date`), the word `event`, Enter (24 months), the as-of date
+`2026-06-30`, then `4, 5, 7` for the columns the effect might be hiding in.
+For `field_b` type the edges `100000, 200000, 400000, 800000, 1600000`; for
+`amount`, `60000, 250000` (the picker proposes the quartiles of the data if
+you would rather press Enter). Enter for *what reacts today* (none), Enter
+for *known only after* (nothing), Enter for today's date (unstamped).
 
-![Step 23](walkthrough/desk-test-2026-09-22/step-23-skeleton-top.png)
+![Step 23](walkthrough/desk-test-2026-09-22/step-23-setup-outcome.png)
 
-**Right when:** a name to give the question, the column that numbers the
-loans, the column with the origination date, and one line per column of the
-extract asking whether the column was known when the loan was made
-(`at_origination`) or only afterwards (`later`). Each column line ends with
-what the tool saw in it: its kind, how often it is blank, and three example
-values.
+**Right when:** the picker explains why it asks for groups (*without any
+group, the pack cannot tell an effect from something else in disguise*),
+proposes band edges for each number column from the data, and asks nothing
+you cannot answer from the list. If you name a column as known only after
+the loan was made and it is one of the rule's columns, the picker refuses
+it as a leak and asks again.
 
-### Step 24 — The rest of the file
+### Step 24 — It writes the file, checks it and builds
 
-**Do:** scroll down.
+**Do:** nothing; read the screen.
 
-![Step 24](walkthrough/desk-test-2026-09-22/step-24-skeleton-rest.png)
+![Step 24](walkthrough/desk-test-2026-09-22/step-24-setup-built.png)
 
-**Right when:** the rule's two columns, the outcome's word and date column,
-the `confounders` line (what the effect might be hiding in; the comments
-under it show how to list one), and what at the bank reacts to the
-contradiction today. Five marked lines on this half, sixteen on the top.
+**Right when:** *wrote demo/question.yaml from your answers*, then
+*building demo/field_a_vs_field_b.xlsx …* (the pack is named after the two
+columns), then the same summary as step 5: 29,343 seasoned loans, 257
+events, *monotonic increasing*, three step-4 lines each ending *survives*,
+M1 3.72 [2.84, 4.88], and the *then:* line telling you to open the file in
+Excel. M1 has 6 coefficients where step 5 had 11: the picker adds only the
+origination year as a control, where the made-up book's own file also holds
+the amount and a category.
 
-### Step 25 — Try to run it unfilled
+### Step 25 — Its cover
 
-**Do:** type this on one line and press Enter:
+**Do:** open `demo\field_a_vs_field_b.xlsx` and read the three answer
+lines.
 
-```
-python build_pack.py --validate demo/loans.csv --asof 2026-06-30 --config demo/question.yaml
-```
+![Step 25](walkthrough/desk-test-2026-09-22/step-25-picked-cover.png)
 
-![Step 25](walkthrough/desk-test-2026-09-22/step-25-validate-unfilled.png)
+**Right when:** *Gradient: yes*, *survives* three times (*for event:
+field_b (edges) — survives; amount (edges) — survives; category_2 (levels)
+— survives*), and *3.72 [2.84, 4.88]*, with *1473 of 1473 formula checks
+agree* lower down. The banner reads *field_a_vs_field_b*, the name the
+picker gave the question from your two columns, and *run date not given*.
+The same answer as step 6, from your own answers.
 
-**Right when:** *the question file was refused*, then one line for each of
-the twenty-one values still marked, naming it and telling you to replace it
-with your answer. Nothing was built. This is the tool refusing to guess.
-
-### Step 26 — Fill it in, top half
-
-**Do:** in Notepad, replace each marked value with your answer and save.
-For the made-up extract the answers are: name `designated_at_the_desk`;
-loan_id `loan_id`; origination_date `origination_date`; every column
-`at_origination` except `outcome_date`, `flag_1`, `measure_a` and
-`measure_b`, which are `later`. (In the walk a script made these edits, one
-line each, and touched nothing else.)
-
-![Step 26](walkthrough/desk-test-2026-09-22/step-26-filled-top.png)
-
-**Right when:** no `[CONFIRM:` is left in the top half; the comments the tool
-wrote are untouched.
-
-### Step 27 — Fill it in, the rest
-
-**Do:** field_a `field_a`; field_b `field_b`; label `event`; date_field
-`outcome_date`; existing_control `none`. For `confounders`, replace the
-marked line with a list written the way the comment under it shows, one
-line per confounder: `size_band` on `field_b` with edges 100000, 200000,
-400000, 800000, 1600000; `amount_band` on `amount` with edges 60000, 250000;
-and `category_2` on `category_2`, a text column taken level by level. (Write
-`[]` instead and the tool will build, but will tell you at every step that
-step 4 has nothing to compare within.) Save.
-
-![Step 27](walkthrough/desk-test-2026-09-22/step-27-filled-rest.png)
-
-**Right when:** no `[CONFIRM:` is left anywhere in the file, which is now
-three lines longer than the tool wrote it.
-
-### Step 28 — Run it again
-
-**Do:** press the up arrow to bring back step 25's command and press Enter.
-
-![Step 28](walkthrough/desk-test-2026-09-22/step-28-validate-filled.png)
-
-**Right when:** *ok: 40,000 rows, 40,000 loans, 29,343 seasoned at
-2026-06-30*, the same seasoned count as step 5, then a *then:* line with the
-build command.
-
-### Step 29 — Build from your question file
-
-**Do:** type this on one line and press Enter:
-
-```
-python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config demo/question.yaml -o demo/mine.xlsx
-```
-
-![Step 29](walkthrough/desk-test-2026-09-22/step-29-build-designated.png)
-
-**Right when:** *wrote demo/mine.xlsx*, 29,343 seasoned loans, 257 events,
-*monotonic increasing*, three step-4 lines each ending *survives*, and M1
-3.72 [2.84, 4.88] on 211 events over 6 coefficients (step 5 had 11: the file
-the tool wrote lists only the origination year as a control, where the
-made-up book's own file also lists the amount and a category). The same
-answer as step 5 to within rounding, from a question file you wrote. 1293
-formula checks are written.
-
-### Step 30 — Its cover
-
-**Do:** open `demo\mine.xlsx` and read the three answer lines.
-
-![Step 30](walkthrough/desk-test-2026-09-22/step-30-designated-cover.png)
-
-**Right when:** *Gradient: yes*, *survives* three times, and *3.72 [2.84,
-4.88]*, as on the screen before, with *1293 of 1293 formula checks agree*
-lower down. The banner reads *designated_at_the_desk*, the name you gave the
-question, and *run date not given*.
+Run the command again later and it finds the question file and offers to
+reuse it, asking only for the as-of date.
 
 ## When you are done
 
 You have run the tool on a book with a known answer and watched it find the
 answer, on a book with no answer and watched it say so, and on an extract
-with a question file you wrote yourself. To do the same on a real extract,
-repeat Part E with your file in place of `demo/loans.csv`, a real as-of date,
-`--run-date` with the day you run it, and the confounders that matter for
-that book. There is nothing to tidy afterwards: the script leaves nothing
-beside itself.
+whose columns you designated yourself by number. To do the same on a real
+extract, run `python build_pack.py --setup YOUR-FILE.csv` (an `.xlsx` works
+too: add `--sheet` and the tab's name) and answer the questions for that
+book: its own columns, its real as-of date, today's date to stamp, and the
+groups that matter for it. There is nothing to tidy afterwards: the script
+leaves nothing beside itself but the question file and the pack.
