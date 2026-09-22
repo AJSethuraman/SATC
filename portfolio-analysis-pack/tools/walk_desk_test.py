@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The desk test, walked: thirty screens from the emailed file to a read workbook.
+"""The desk test, walked: twenty-five screens from the emailed file to a read workbook.
 
     python tools/walk_desk_test.py --bundle build_pack.py --desk DIR --out DIR [--pylibs DIR]
 
@@ -67,8 +67,8 @@ def main(argv: list[str] | None = None) -> int:
         ("Excel", "Read the pack: the cover, the seven tabs, the knobs; move a knob and watch the cover notice.", "steps 6–17"),
         ("Notepad", "Open the planted answer and compare it with the model's interval.", "step 18"),
         ("Command Prompt + Excel", "Make a book with nothing in it, build it, read a cover that says so.", "steps 19–21"),
-        ("Command Prompt + Notepad", "Your own extract: write the question file, see it refused, fill it in, see it accepted, build.", "steps 22–29"),
-        ("Excel", "The cover of the pack built from your own question file.", "step 30"),
+        ("Command Prompt", "Your own extract: one command, answer the questions by number, the pack is built.", "steps 22–24"),
+        ("Excel", "The cover of the pack built from your answers.", "step 25"),
     ], out / "step-00-route.png")
 
     # Part A · is the machine ready?
@@ -125,42 +125,25 @@ def main(argv: list[str] | None = None) -> int:
     wbn = w.Workbook(desk / "null/pack.xlsx", work / "null")
     ans = wbn.span(1, "The answer, in three lines", "events.", full_width=True)
     shot(wbn, 21, "null-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines on the book with nothing planted", zoom_width=1000, stack=True, page_crop=(0.06, 0.11, 0.9, 0.8))
-    # Part E · your own extract
-    term(22, "init", ["python", "build_pack.py", "--init", "demo/loans.csv", "-o", "demo/question.yaml"])
-    q = desk / "demo/question.yaml"
-    lines = q.read_text(encoding="utf-8").splitlines()
-    hl = [i + 1 for i, ln in enumerate(lines) if "[CONFIRM:" in ln]
-    w.textfile(q, out / "step-23-skeleton-top.png", highlight=[h for h in hl if h <= 33], title="demo\\question.yaml — Notepad", first=1, last=33)
-    w.textfile(q, out / "step-24-skeleton-rest.png", highlight=[h for h in hl if h > 33], title="demo\\question.yaml — Notepad", first=34, last=len(lines))
-    term(25, "validate-unfilled", ["python", "build_pack.py", "--validate", "demo/loans.csv", "--asof", "2026-06-30", "--config", "demo/question.yaml"])
-    # steps 26-27: the person's edits, one line each, nothing else touched
-    answers = {"name:": "name: designated_at_the_desk", "  loan_id: \"[": "  loan_id: loan_id",
-               "  origination_date: \"[": "  origination_date: origination_date", "  field_a: \"[": "  field_a: field_a",
-               "  field_b: \"[": "  field_b: field_b", "  label: \"[": "  label: event", "  date_field: \"[": "  date_field: outcome_date",
-               # the confounders, written the way the skeleton's own comment shows (three lines for one)
-               "confounders:": "confounders:\n  - {name: size_band, field: field_b, edges: [100000, 200000, 400000, 800000, 1600000]}"
-                               "\n  - {name: amount_band, field: amount, edges: [60000, 250000]}\n  - {name: category_2, field: category_2}",
-               "existing_control: \"[": "existing_control: none"}
-    later = {"outcome_date", "flag_1", "measure_a", "measure_b"}
-    filled, changed = [], []          # `changed` counts lines of the filled file, which grows where one answer is several lines
-    for ln in lines:
-        key = next((k for k in answers if ln.startswith(k) and "[CONFIRM:" in ln), None)
-        if key:
-            for part in answers[key].split("\n"):
-                filled.append(part); changed.append(len(filled))
-        elif "[CONFIRM: at_origination or later]" in ln:
-            col = ln.split(":")[0].strip()
-            filled.append(ln.replace('"[CONFIRM: at_origination or later]"', "later" if col in later else "at_origination")); changed.append(len(filled))
-        else:
-            filled.append(ln)
-    q.write_text("\n".join(filled) + "\n", encoding="utf-8")
-    w.textfile(q, out / "step-26-filled-top.png", highlight=[c for c in changed if c <= 33], title="demo\\question.yaml — Notepad", first=1, last=33)
-    w.textfile(q, out / "step-27-filled-rest.png", highlight=[c for c in changed if c > 33], title="demo\\question.yaml — Notepad", first=34, last=len(lines))
-    term(28, "validate-filled", ["python", "build_pack.py", "--validate", "demo/loans.csv", "--asof", "2026-06-30", "--config", "demo/question.yaml"])
-    term(29, "build-designated", ["python", "build_pack.py", "--data", "demo/loans.csv", "--asof", "2026-06-30", "--config", "demo/question.yaml", "-o", "demo/mine.xlsx"])
-    wbm = w.Workbook(desk / "demo/mine.xlsx", work / "mine")
+    # Part E · your own extract: the picker. One command, answers by number, the pack built.
+    picks = ["", "2", "3", "4", "", "", "", "1", "9", "event", "", "2026-06-30",
+             "4, 5, 7", "100000, 200000, 400000, 800000, 1600000", "60000, 250000", "", "", ""]
+    cmd = ["python", "build_pack.py", "--setup", "demo/loans.csv"]
+    rc, so, se = w.terminal(cmd, desk, out / "step-22-setup-columns.png", title=TITLE, prompt=PROMPT, env=env,
+                            answers=picks, first=1, last=1)   # re-rendered below once the slices are known
+    print(f"step 22 setup: rc={rc}")
+    body = w.weave(se, picks)
+    lines = body.splitlines()
+    cut1 = next(i for i, ln in enumerate(lines) if ln.startswith("8. How does the extract"))
+    cut2 = next(i for i, ln in enumerate(lines) if ln.startswith("wrote "))
+    shown = " ".join(cmd)
+    w.render_terminal(shown, body, out / "step-22-setup-columns.png", TITLE, PROMPT, first=1, last=cut1)
+    w.render_terminal(shown, body, out / "step-23-setup-outcome.png", TITLE, PROMPT, first=cut1 + 1, last=cut2)
+    w.render_terminal(shown, body, out / "step-24-setup-built.png", TITLE, PROMPT, first=cut2 + 1, last=len(lines))
+    print("steps 22-24: the picker's exchange in three screens")
+    wbm = w.Workbook(desk / "demo/field_a_vs_field_b.xlsx", work / "mine")
     ans = wbm.span(1, "The answer, in three lines", "events.", full_width=True)
-    shot(wbm, 30, "designated-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines of the pack built from the question file you filled in",
+    shot(wbm, 25, "picked-cover", 1, ring=ans, zoom=ans, zoom_caption="the three answer lines of the pack built from your answers",
          zoom_width=1000, stack=True, page_crop=(0.06, 0.11, 0.9, 0.8))
     print(f"{len(list(out.glob('step-*.png')))} screens in {out}")
     return 0

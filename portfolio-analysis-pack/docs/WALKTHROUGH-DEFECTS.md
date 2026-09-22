@@ -12,7 +12,10 @@ to 10 were fixed the same day, each pinned by a test in
 `tests/test_walk_defects.py`, and the walk was run again on the patched
 script; every step's screen was re-captured and the procedure re-issued.
 Defect 11 stands, by the firm's own ruling. Each defect below ends with a
-**Fixed** line saying what the screen says now. On the math: the walk
+**Fixed** line saying what the screen says now. Later the same day the firm asked
+for a picker instead of a file to fill in (*"no editing at the desk"*), and Part
+E of the procedure became three screens of `--setup` and the cover; the
+fill-in path the walk found defect 1 on remains for scripts. On the math: the walk
 cross-checked every number on every screen against the counts and found no
 arithmetic defect; the section at the end lists what was checked.
 

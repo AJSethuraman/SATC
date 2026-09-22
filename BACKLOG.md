@@ -1198,6 +1198,43 @@ sales on the small-business book; built domain-free so a consumer question
       run again on the patched script — thirty screens re-captured, the
       procedure re-issued from them, and the skeleton now filled with three
       confounders so the designated pack's cover matches the demo's.
+- **The picker (22 Sep 2026).** The firm, asked how a desk designates its
+      own columns: *"I want it to be really easy like a picker … I want no
+      editing at the desk of Python or script this is meant to be straight
+      forward. Build it and identify other opportunities."* Built:
+      `python build_pack.py --setup EXTRACT.csv` (installed: `pack setup`)
+      lists the extract's columns with a number, what each reads as, how
+      often it is blank and three sample values, then asks one question at
+      a time — which column numbers the loans, the origination date, the
+      two rule columns, ratio or difference, the flag line, the gradient
+      edges, how the extract says a loan went bad (a date column, a yes/no
+      flag, or a measure from two columns), the word for it, the window,
+      the as-of date, the columns the effect might hide in (numbers banded,
+      quartiles proposed from the data; text taken level by level), what
+      reacts today, anything known only later, the run date — writes the
+      question file from the answers, checks it with the same loader, and
+      builds the pack. Answers are numbers; four are words or dates. A
+      wrong answer is refused and asked again; a column known only later
+      named in the rule is refused as a leak on the spot. The tool proposes
+      only what the data shows (the one column distinct on every row, the
+      one date column, quartiles) and fills nothing unanswered. A second
+      run finds the question file and offers to reuse it. The bundle now
+      checks for openpyxl and PyYAML before anything and prints the one
+      `pip install` line if either is missing. `src/analysis_pack/picker.py`,
+      `tests/test_picker.py` (6). `pack init` and the Notepad path stay for
+      scripts and the harness. The walk's Part E is now three screens of
+      the picker and the cover (25 steps, not 30).
+      **Other opportunities seen at the desk, not built (the firm to pick):**
+      (a) `--synth demo` could build the demo pack too, so the demo is one
+      command; (b) after a build, offer to open the workbook in Excel;
+      (c) the picker could ask for controls beyond the origination year
+      (a numeric column as a log, a text column as categories); (d) a
+      `.exe` so a desk without Python can run it — the single biggest
+      hurdle left, and outside the "pure-ASCII script" design; (e) an
+      `.xlsx` extract is already read (`--sheet NAME` picks the tab) but
+      the procedure only shows `.csv`; (f) the as-of date could be
+      proposed from the latest origination date in the file (a fact, shown
+      and confirmed, never assumed).
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

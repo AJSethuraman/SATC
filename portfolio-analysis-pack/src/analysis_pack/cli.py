@@ -161,6 +161,73 @@ def cmd_init(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_setup(a: argparse.Namespace) -> int:
+    """The picker: designate the columns by number, one question at a time,
+    then check the file and build the pack. Nothing is edited by hand."""
+    from .picker import Abandoned, Picker
+    table = read_table(a.data, sheet=a.sheet)
+    out = Path(a.out) if a.out else Path(a.data).parent / "question.yaml"
+    if out.exists():
+        from .picker import _ask_stderr
+        _say(f"{out} already exists.")
+        while True:
+            line = _ask_stderr("    1  use it as it is and build the pack\n    2  answer the questions again (replaces it)\n  (Enter for 1)\n> ").strip()
+            if line in ("", "1", "2"):
+                break
+            _say("  type 1 or 2")
+        if line in ("", "1"):
+            try:
+                cfg = load_config(out)
+            except ConfigError as exc:
+                _say("the question file was refused:")
+                for prob in exc.problems:
+                    _say("  - " + prob.replace("\n", "\n    "))
+                _emit({"ok": False, "refused": "config", "problems": exc.problems})
+                return 2
+            from .picker import Picker as _P  # noqa: F401
+            asof = None
+            while asof is None:
+                line = _ask_stderr("The as-of date the pack is built at (YYYY-MM-DD)\n> ").strip()
+                try:
+                    asof = _date(line)
+                except ValueError:
+                    _say("  type the date as YYYY-MM-DD, e.g. 2026-06-30")
+            run = _ask_stderr("Today's date, to stamp on the pack (YYYY-MM-DD; Enter for none)\n> ").strip()
+            return _setup_build(a, cfg, out, asof, run or None)
+    picker = Picker(table, inspect_columns(table))
+    try:
+        picker.run()
+    except Abandoned as exc:
+        _say(f"stopped: {exc}")
+        _emit({"ok": False, "error": str(exc)})
+        return 1
+    out.write_text(picker.to_yaml(), encoding="utf-8", newline="\n")
+    _say("")
+    _say(f"wrote {out} from your answers")
+    try:
+        cfg = load_config(out)
+    except ConfigError as exc:
+        _say("the question file the picker wrote was refused (this is a defect in the picker; please report it):")
+        for prob in exc.problems:
+            _say("  - " + prob.replace("\n", "\n    "))
+        _emit({"ok": False, "refused": "config", "problems": exc.problems})
+        return 2
+    asof = picker.answers["asof"]
+    run = picker.answers.get("run_date")
+    return _setup_build(a, cfg, out, asof, run.isoformat() if run else None)
+
+
+def _setup_build(a: argparse.Namespace, cfg, out: Path, asof: date, run: str | None) -> int:
+    pack = Path(a.data).with_name(f"{cfg.name}.xlsx")
+    args = ["build", str(out), "--data", str(a.data), "--asof", asof.isoformat(), "-o", str(pack)]
+    if run:
+        args += ["--run-date", run]
+    if a.sheet:
+        args += ["--sheet", a.sheet]
+    _say(f"building {pack} …")
+    return main(args)
+
+
 def cmd_list(a: argparse.Namespace) -> int:
     """PRD §6.16: the question files under a folder and whether each would be
     accepted, one line each (adversarial finding 12, 19 Sep 2026)."""
@@ -358,6 +425,10 @@ def main(argv: list[str] | None = None) -> int:
     ini = sub.add_parser("init", help="write a question-file skeleton from an extract's own columns, to fill in at the desk")
     ini.add_argument("data"); ini.add_argument("-o", "--out"); ini.add_argument("--sheet")
     ini.set_defaults(fn=cmd_init)
+
+    st = sub.add_parser("setup", help="designate the columns by number, one question at a time, then build the pack")
+    st.add_argument("data"); st.add_argument("-o", "--out"); st.add_argument("--sheet")
+    st.set_defaults(fn=cmd_setup)
 
     ls = sub.add_parser("list", help="the question files under a folder (default: configs) and whether each would be accepted")
     ls.add_argument("dir", nargs="?")
