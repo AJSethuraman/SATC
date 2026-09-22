@@ -27,7 +27,7 @@ PACKAGE_DIR = Path(__file__).parent
 #: harness stay home; so does anything importing `formulas`.
 BUNDLED = (
     "__init__.py", "config.py", "ingest.py", "population.py", "stats.py", "ladder.py",
-    "model.py", "notes.py", "wording.yaml", "workbook.py", "keybank_style.py", "cli.py", "suggest.py",
+    "model.py", "notes.py", "wording.yaml", "workbook.py", "workbook_style.py", "cli.py", "suggest.py",
     "designate.py", "synth.py",
 )
 
@@ -42,11 +42,17 @@ _RUNNER = '''#!/usr/bin/env python3
 #   python {script_name} --data EXTRACT.csv --asof YYYY-MM-DD [--config question.yaml]
 #                        [--run-date YYYY-MM-DD] [-o OUT.xlsx]
 #
+# Every command prints a plain summary and says what to type next. Add --json
+# to any command to also print the machine-readable status. Without
+# --run-date the pack says "run date not given" rather than guess the day.
+# Nothing is written beside this file: the package unpacks to a temporary
+# folder that is removed when the command ends.
+#
 # Needs: Python 3.10+, openpyxl, PyYAML   (pip install openpyxl PyYAML)
 # Carries: the analysis_pack package and the question file `{config_name}`, which
 # is used when --config names none. Never the data. Any extract: designate its
 # columns in a question file beside this script, and nothing leaves the desk.
-import base64, gzip, hashlib, os, sys
+import atexit, base64, gzip, hashlib, os, shutil, sys, tempfile
 
 FILES = {files_literal}
 
@@ -54,7 +60,8 @@ CONFIG_NAME = {config_name!r}
 
 
 def _unpack():
-    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis_pack_bundle_src")
+    root = tempfile.mkdtemp(prefix="build_pack_")
+    atexit.register(shutil.rmtree, root, True)
     for relpath, blob in FILES.items():
         dest = os.path.join(root, *relpath.split("/"))
         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -66,9 +73,18 @@ def _unpack():
 def main(argv):
     root = _unpack()
     sys.path.insert(0, root)
-    from analysis_pack.cli import main as pack_main
+    from analysis_pack import cli as pack_cli
+    pack_main = pack_cli.main
+    # next-step lines are spelled the way this script takes them
+    pack_cli.SCRIPT = os.path.basename(os.path.abspath(__file__))
     config_path = os.path.join(root, "question", CONFIG_NAME)
     args = list(argv)
+    # the machine-readable status is for other programs; a person sees the
+    # plain summary unless they ask for both (walk defect 2, 22 Sep 2026)
+    if "--json" in args:
+        args.remove("--json")
+    else:
+        sys.stdout = open(os.devnull, "w")
     if "--config" in args:
         i = args.index("--config")
         if i + 1 >= len(args):

@@ -137,13 +137,16 @@ def main(argv: list[str] | None = None) -> int:
     answers = {"name:": "name: designated_at_the_desk", "  loan_id: \"[": "  loan_id: loan_id",
                "  origination_date: \"[": "  origination_date: origination_date", "  field_a: \"[": "  field_a: field_a",
                "  field_b: \"[": "  field_b: field_b", "  label: \"[": "  label: event", "  date_field: \"[": "  date_field: outcome_date",
+               # the confounders, written the way the skeleton's own comment shows (three lines for one)
+               "confounders:": "confounders:\n  - {name: size_band, field: field_b, edges: [100000, 200000, 400000, 800000, 1600000]}"
+                               "\n  - {name: amount_band, field: amount, edges: [60000, 250000]}\n  - {name: category_2, field: category_2}",
                "existing_control: \"[": "existing_control: none"}
     later = {"outcome_date", "flag_1", "measure_a", "measure_b"}
     filled, changed = [], []
     for i, ln in enumerate(lines, start=1):
         key = next((k for k in answers if ln.startswith(k) and "[CONFIRM:" in ln), None)
         if key:
-            filled.append(answers[key]); changed.append(i)
+            filled.extend(answers[key].split("\n")); changed.extend(range(i, i + answers[key].count("\n") + 1))
         elif "[CONFIRM: at_origination or later]" in ln:
             col = ln.split(":")[0].strip()
             filled.append(ln.replace('"[CONFIRM: at_origination or later]"', "later" if col in later else "at_origination")); changed.append(i)

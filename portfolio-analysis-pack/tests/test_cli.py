@@ -98,7 +98,7 @@ def test_build_writes_the_pack_and_reports_the_check_as_not_run_here(effect_book
                             "--asof", "2026-06-30", "-o", str(out)], capsys)
     assert rc == 0 and out.exists()
     assert status["formula_check"] == "not run here"
-    assert "not run here (no engine); Excel verifies on open" in err
+    assert "formula check: runs when Excel opens the file" in err and "EPP" not in err and "no engine" not in err
     assert status["gradient"] == "monotonic increasing"
 
 

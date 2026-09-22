@@ -6,6 +6,16 @@ Written for whoever fixes the product. The procedure the walk followed is
 ranked by what each would cost a real person at a desk, not by how
 interesting it is.
 
+**Status, 22 September 2026, later the same day.** The firm: *"we need to
+patch anything wrong prior to shipping. Especially math issues."* Defects 1
+to 10 were fixed the same day, each pinned by a test in
+`tests/test_walk_defects.py`, and the walk was run again on the patched
+script; every step's screen was re-captured and the procedure re-issued.
+Defect 11 stands, by the firm's own ruling. Each defect below ends with a
+**Fixed** line saying what the screen says now. On the math: the walk
+cross-checked every number on every screen against the counts and found no
+arithmetic defect; the section at the end lists what was checked.
+
 **The denominator.** At the time of the walk the project's suite was **99
 tests, all passing**, with **9 of 9 mutations caught** and **48 of 48 checks
 agreeing** in the exercise harness that runs the same script on eleven
@@ -57,6 +67,20 @@ compare"* and the build's summary repeats it). The cover says what happened:
 *"Survives or collapses (step 4): the question file lists nothing to compare
 within."* And M2 says *"no confounders to add"* instead of quoting M1 again.
 
+**Fixed.** All three. The skeleton's line now reads `confounders: "[CONFIRM:
+what the effect might be hiding in: list columns as the examples below show,
+or write [] for none]"` and the loader refuses the file until it is answered
+(21 slots, not 20). A file that answers `[]` gets, on validate, *"note: no
+confounders listed: step 4 will have nothing to compare within"*; on build,
+*"step 4: nothing to compare within — the question file lists no
+confounders"*; on the cover, *"Survives or collapses (step 4): the question
+file lists nothing to compare within, so the flag was not tested against
+anything. List confounders and build again."* and *"There is no M2: the
+question file lists no confounders to add."*; and on the model tab, *"M2: M1
+again — the question file lists no confounders to add"*. The sentence *"not
+built in this version"* is left for the one thing it is true of, a rule type
+the tool does not build.
+
 ## 2 · Every command dumps a block of builder-facing JSON onto the person's screen
 
 **What I did.** Typed `python build_pack.py --synth demo`, then the build.
@@ -84,6 +108,10 @@ detail also lands.
 **The fix.** The bundle keeps the JSON off the screen unless asked (`--json`)
 or writes it to a file beside the output. The plain summary is the screen.
 
+**Fixed.** The bundle prints nothing to the screen but the summary; `--json`
+on any command prints the status as well, and the harness and the tests ask
+for it. The installed `pack` command is unchanged.
+
 ## 3 · The one screen that tells the person their next command names a command the desk does not have
 
 **What I did.** Ran `--synth demo`, then `--init demo/loans.csv`. Steps 3
@@ -105,6 +133,15 @@ on their machine, on the first screen that offered to help.
 
 **The fix.** Every command that writes something says the next command,
 spelled the way this script takes it.
+
+**Fixed.** The bundle tells the tool its own file name, and every command
+ends with a *then:* line in that spelling: after `--synth demo`, *"then:
+python build_pack.py --data demo/loans.csv --asof 2026-06-30 --config
+demo/config.yaml -o demo/pack.xlsx"*; after `--init`, *"then: fill in every
+[CONFIRM: ...] value, and python build_pack.py --validate … --config …"*;
+after a validate that passes, the build; after a build, *"then: open
+demo/pack.xlsx in Excel; the cover's last line should say every formula
+check agrees"*.
 
 ## 4 · Running the emailed file makes a folder appear beside it with a bank's name inside
 
@@ -129,6 +166,14 @@ particular field finds a file that says which field it was about.
 name says what it is (`build_pack_internals`). Rename the style module for
 what it does. Carry no question file at all: `--init` writes one, and a build
 without `--config` should say so rather than silently use the carried one.
+
+**Fixed, two of three.** The package unpacks into a temporary folder that is
+removed when the command ends, so nothing appears beside the emailed file (a
+test lists the folder after every command). The style module is
+`workbook_style.py`, with no bank in its name or its first line. The carried
+question file stays: it is what the first pack is built from when no
+`--config` is given, and it never touches the desk now that nothing is
+unpacked there.
 
 ## 5 · The labels that explain the numbers are cut off in exactly the rows the cover points to
 
@@ -155,6 +200,13 @@ the screen. These are the rows the cover's second line summarises.
 write, or wrap the heading rows. A test that measures every heading against
 its column width would hold it.
 
+**Fixed.** Every header row wraps, and the row grows to hold its longest
+heading; the two long gradient headings got wider columns; the stratified
+tab's label column is wide enough for *"Pooled odds ratio across bands
+(Mantel-Haenszel) — ratio, lower, upper"*. The test walks every sheet and
+fails on any header that needs more lines than its row has, or any bold
+label in column A with a number beside it that is longer than the column.
+
 ## 6 · The chart's helper columns are shown as if they were results
 
 **What I did.** Read the gradient tab to the right of the table. Step 9.
@@ -174,6 +226,13 @@ in two formats and does not know why.
 
 **The fix.** Move them under a heading that says *"chart helpers — not
 results"*, grey them, or hide the columns; the chart reads them either way.
+
+**Fixed.** The headings now read *"chart: bar up"*, *"chart: last rate
+seen"*, and on the stratified tab *"working: P"* … *"chart: flagged bar
+up"*, in a quieter italic face, and each tab's note ends *"Columns headed
+chart: feed the chart … and are not results."* Not hidden: Excel leaves
+hidden columns out of a chart by default, and the chart would have gone
+blank.
 
 ## 7 · The build's summary uses two terms it never explains
 
@@ -195,6 +254,12 @@ on.
 coefficient, comfortably above the ten the model needs"*, and *"the formula
 check runs when Excel opens the file"*.
 
+**Fixed.** The build's summary now reads *"step 6 M1: flag odds ratio 3.73
+[2.84, 4.89] on 211 events over 11 coefficients, about 19 events per
+coefficient"* (with *"(thin: the model wants at least ten)"* when it is) and
+*"formula check: runs when Excel opens the file (this machine has no
+spreadsheet engine) — 1389 checks written to _check"*.
+
 ## 8 · The cover says the pack was run on the as-of date
 
 **What the screen said.** *"synthetic_effect · run 2026-06-30 · as-of
@@ -214,6 +279,14 @@ invented.
 **The fix.** With no `--run-date`, write *"run date not given"* on the cover
 and in the file's properties, or make the flag required and say so in the
 usage lines at the top of the script.
+
+**Fixed.** With no `--run-date` the cover and every tab's header band read
+*"run date not given"*, `_provenance` says *"not given (pass --run-date to
+stamp it); the file's own timestamp is the as-of date"*, the build's summary
+says *"run date: not given, so the pack says so"*, and the script's usage
+lines say the same. The file's properties carry the as-of date, because a
+file must carry some date and that one is true. Same inputs still give the
+same bytes.
 
 ## 9 · The first sentence on the cover uses the outcome's name as a verb, and the second line is missing a space
 
@@ -237,6 +310,10 @@ either; the label needs to be a noun everywhere: *"Loans where … > 1: is
 and is that real or something else in disguise?"*. And *"for event: size_band
 (edges)"*.
 
+**Fixed.** Both sentences read as above. The missing space was the wording
+filler stripping the template's trailing space; the cover puts it back in
+both the live formula and its Python twin, and the test reads the formula.
+
 ## 10 · A knob's note says the step it drives is not in this version, and the outcome line shows a builder's word as if it were a column
 
 **What the screen said.** `_config`, live knobs: *"Survives threshold 0.50 —
@@ -256,6 +333,11 @@ that is not there.
 **The fix.** Delete *"(not in this version)"*. Show the outcome as *"event,
 from outcome_date"* and keep the kind out of it.
 
+**Fixed.** The knob's note reads *"Step 4's word: the share of the crude
+effect that must remain for 'survives'. 0.50 means half."* The outcome line
+reads *"event, from outcome_date"*; a flag outcome names its column and cut,
+a measure outcome its two columns and the as-of date.
+
 ## 11 · The question file the tool writes quotes three real values of every column
 
 **What the screen said.** Step 23: every field line ends with a comment
@@ -269,6 +351,43 @@ help carries three names.
 
 **The fix, if the firm wants one.** Show samples only for columns that read
 as numbers or dates; for text columns say *"text, blank 0%"* and stop.
+
+**Not fixed**, by the firm's ruling of 18 September (*"stop worrying about
+PII. It is all on Key's desk"*). Recorded so the ruling is a choice and not
+an oversight.
+
+## The math, checked by hand from the screens
+
+The firm asked for math issues first. The walk found none; this is what was
+checked, each from the numbers on the screens and nothing else:
+
+- **Capture, 2019Q1:** 610 of 1,370 loans with `field_b` blank is 44.5%;
+  1,370 − 64 − 610 leaves 696, and *both present* reads 728, so 32 loans are
+  blank in both fields, which is what two independent blank rates of 4.7%
+  and 44.5% would give (about 29). Share 728 of 1,370 is 53.1%.
+- **Prevalence, 2019Q1:** 155 flagged of 728 with both present is 21.3%.
+- **Gradient:** the multiples 0.59, 1.73, 2.88, 5.37, 10.07 are each
+  bucket's rate over the base rate 0.527% (0.31 ÷ 0.527 = 0.59; 5.31 ÷ 0.527
+  = 10.07). Five rates rising is *monotonic increasing*.
+- **Stratified, crude odds ratio:** flagged events are 211 − 103 = 108 on
+  5,575 flagged loans; unflagged 103 on 19,531. The odds ratio (108 ÷ 5,467)
+  ÷ (103 ÷ 19,428) = 3.726, and its log-scale standard error √(1/108 + 1/5,467
+  + 1/103 + 1/19,428) = 0.1386, so the interval is exp(1.3155 ± 1.96 ×
+  0.1386) = [2.84, 4.89]. The screen reads 3.73 [2.84, 4.89]. The pooled
+  ratio 3.74 against the crude 3.73 gives *share kept* log 3.74 ÷ log 3.73 =
+  1.00.
+- **Model:** M1's flag row 3.729 [2.842, 4.894] with standard error 0.1387
+  agrees with the crude to the third decimal, as it should on this book,
+  where the generator drew the controls independently of the flag. 211
+  events over 11 coefficients is 19.2; M2's 21 coefficients are the 11 plus
+  five size bands and five category levels; 211 ÷ 21 = 10.0.
+- **Control:** 5,575 of 25,106 is 22.2%.
+- **Known answers:** the planted odds ratio 4.32 lies inside M1's [2.84,
+  4.89]; the book with nothing planted gives 0.82 [0.62, 1.08] with 1 inside
+  and *no crude effect* three times.
+- **Formula twins:** 1,389 of 1,389 live formulas recomputed by LibreOffice
+  agreed with Python's numbers, and 590 of 590 on the pack built from the
+  filled-in question file.
 
 ## What the walk did not find
 

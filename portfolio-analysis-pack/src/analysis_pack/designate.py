@@ -107,7 +107,7 @@ def skeleton(table: Table, report: list[dict]) -> str:
         "",
         "window_months: 24                      # a loan needs this many months on book to count",
         "",
-        "confounders: []",
+        f"confounders: {_marker('what the effect might be hiding in: list columns as the examples below show, or write [] for none')}",
         "  # Things the effect might be in disguise as. Each is a column, banded by",
         "  # edges you choose (ask `pack suggest`), or a text column taken level by level:",
         "  # - name: size_band",

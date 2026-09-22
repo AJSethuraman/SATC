@@ -64,7 +64,7 @@ def test_the_bundle_rebuilds_the_pack_byte_identical_in_an_empty_directory(bundl
     shutil.copy(effect_book / "loans.csv", work / "loans.csv")
     env = {"PATH": os.environ.get("PATH", ""), "HOME": str(work), "PYTHONPATH": str(libs)}
     r = subprocess.run([sys.executable, "-S", bundle.name, "--data", "loans.csv", "--asof", "2026-06-30",
-                        "--run-date", "2026-09-18", "-o", "target.xlsx"],
+                        "--run-date", "2026-09-18", "-o", "target.xlsx", "--json"],
                        cwd=work, capture_output=True, text=True, timeout=900, env=env)
     assert r.returncode == 0, r.stderr[-2000:]
     built = (work / "target.xlsx").read_bytes()

@@ -1,10 +1,9 @@
-"""KeyBank Excel design system — the single source of style for our workbooks.
+"""Excel design system for the workbooks — the single source of style.
 
-Drop-in for openpyxl builders (e.g. build_workbook.py). Import the tokens and
-helpers from here instead of hand-coding fills/fonts, so every workbook we ship
-— this FRED dashboard and any future template — looks like one brand.
+Import the tokens and helpers from here instead of hand-coding fills/fonts,
+so every workbook this tool ships looks like one product.
 
-    from keybank_style import (
+    from workbook_style import (
         INK, ONYX, KEY_RED, CRIMSON, CANVAS, MIST, SLATE,
         HDR_FILL, SECT_FILL, WHITE_BOLD, TITLE_FONT, DATA_FONT,
         brand_banner, kpi_tiles, section_band, header_row,
@@ -61,6 +60,7 @@ PALETTE = {  # handy for tests / docs / a legend tab
 TITLE_FONT   = Font(name="Arial",   bold=True,  size=16, color=PAPER)    # banner title
 SUBTITLE_FONT= Font(name="Calibri", size=11,    color="B9B4AC")          # banner subtitle (on dark)
 WHITE_BOLD   = Font(name="Arial",   bold=True,  size=11, color=PAPER)    # header row
+DIM_HDR_FONT = Font(name="Arial",   bold=False, italic=True, size=10, color="9AA6B2")   # working columns, not results
 KPI_LABEL    = Font(name="Arial",   bold=True,  size=9,  color=SLATE)
 KPI_NUMBER   = Font(name="Arial",   bold=True,  size=20, color=INK)
 DATA_FONT    = Font(name="Calibri", size=11,    color=INK_TEXT)
@@ -166,25 +166,35 @@ def kpi_tiles(ws, row, tiles, span=3, accents=None):
     return row + 3
 
 
-def header_row(ws, row, columns, right_from=None, center_cols=()):
+def header_lines(text, width):
+    """How many lines a header needs in a column `width` units wide (Excel's
+    unit is about one character of the default font; bold Arial runs wider,
+    so a unit is taken as one character and the estimate leans long)."""
+    return max(1, -(-len(str(text)) // max(int(width or 8.43) - 1, 1)))
+
+
+def header_row(ws, row, columns, right_from=None, center_cols=(), dim_from=None):
     """The Ink (black) column-header band with white Arial-bold labels.
 
     columns    : list of header strings
     right_from : index (0-based) at/after which numeric headers are right-aligned
     center_cols: indices to centre (e.g. Flag, Trend)
+    dim_from   : index at/after which headers are working columns, not results
+                 (chart helpers, pooling terms): set in a quieter face
+
+    A header longer than its column wraps, and the row grows to hold it, so no
+    heading is ever cut by the next column (walk defect 5, 22 Sep 2026).
     """
+    lines = 1
     for i, name in enumerate(columns):
         cell = ws.cell(row, i + 1, name)
         cell.fill = HDR_FILL
-        cell.font = WHITE_BOLD
-        if i in center_cols:
-            cell.alignment = CENTER
-        elif right_from is not None and i >= right_from:
-            cell.alignment = RIGHT
-        else:
-            cell.alignment = LEFT
+        cell.font = DIM_HDR_FONT if dim_from is not None and i >= dim_from else WHITE_BOLD
+        horizontal = "center" if i in center_cols else ("right" if right_from is not None and i >= right_from else "left")
+        cell.alignment = Alignment(horizontal=horizontal, vertical="center", wrap_text=True)
         cell.border = Border(bottom=Side(style="thin", color=ONYX))
-    ws.row_dimensions[row].height = 22
+        lines = max(lines, header_lines(name, ws.column_dimensions[get_column_letter(i + 1)].width))
+    ws.row_dimensions[row].height = 22 if lines == 1 else 15 * lines + 4
     return row + 1
 
 

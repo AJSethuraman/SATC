@@ -89,8 +89,9 @@ class Desk:
         self.log: list[str] = []
 
     def run(self, *args: str) -> tuple[int, dict | None, str, float]:
-        cmd = [sys.executable, self.script.name, *args]
-        self.log.append("python " + " ".join(cmd[1:]))
+        # --json: the harness reads the status; a person at the desk does not see it
+        cmd = [sys.executable, self.script.name, *args, "--json"]
+        self.log.append("python " + " ".join(cmd[1:-1]))
         t0 = time.perf_counter()
         r = subprocess.run(cmd, cwd=self.folder, capture_output=True, text=True, timeout=1200)
         elapsed = time.perf_counter() - t0
