@@ -316,7 +316,7 @@ class Picker:
             else:
                 out["edges"] = self._edges("13. The edges (numbers, smallest first)", [])
             a["outcome"] = out
-        a["label"] = self._text("The word every tab will use for the event (e.g. default, charge-off)", required=True)
+        a["label"] = self._text("The word every tab will use for the event (one word, e.g. event or bad)", required=True)
 
         a["window_months"] = int(self._number("Months a loan needs on book before it counts", 24))
         a["asof"] = self._date("The as-of date the pack is built at")
@@ -328,7 +328,7 @@ class Picker:
         # the loan number, the origination date and the outcome cannot
         fixed = {"loan number", "origination date", "outcome date", "outcome flag", "measure column"}
         conf_candidates = [c for c in self.columns if a["used"].get(c) not in fixed]
-        conf = self._many("Which columns might the effect be hiding in (size, product, region …)?",
+        conf = self._many("Which columns might the effect be hiding in (a size, a type, a place …)?",
                           conf_candidates, hint="— number columns are banded, text columns taken level by level")
         a["confounders"] = []
         for col in conf:
