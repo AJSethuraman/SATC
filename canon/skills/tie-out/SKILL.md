@@ -12,6 +12,93 @@ on the same number.
 
 The sample of one is the point, not a limitation. Coverage is a different job.
 
+---
+
+## This skill has two halves, and you should be able to tell them apart
+
+**Part one is checked by a tool.** `canon/check_tie_out.py` reads the document
+you are about to render and **refuses** it on three things. Not warns.
+
+**Part two is judgement, permanently.** No engine will ever hold it, and saying
+so protects it: an instruction filed under judgement is not a rule somebody
+quietly failed — it is the part where thinking is the job.
+
+**Why the file is laid out this way, and why part one exists at all.** On
+11 September 2026 every promise this skill made was extracted and tested against
+the largest document ever built from it. The results sorted like this:
+
+| Kind of promise | Kept |
+|---|---|
+| enforced by code | **1 of 1**, unbroken across three sessions |
+| carrying a dated incident | **5 of 5** |
+| stated as an instruction and nothing else | **0 of 5** |
+
+The instructions that were skipped were the **most specific ones in the file** —
+ring the row in red, three named headings, a closed verdict vocabulary. So
+precision is not the variable. Whether anything but willpower holds the promise
+is the variable. Everything below sits under the half it belongs to, so a reader
+can see at a glance which kind of promise they are reading.
+
+---
+
+# Part one — what the checker enforces
+
+Call it on the HTML before you render it, not on the PDF afterwards: the refusal
+should land while there is still nothing to forward.
+
+```python
+import check_tie_out                      # from ${CLAUDE_PLUGIN_ROOT}
+check_tie_out.gate(html, "the covering document")   # raises on any finding
+```
+
+The document points at its own parts with a `data-tieout` attribute, and a part
+the checker cannot find is a refusal, not a pass. A mistyped mark is refused for
+the same reason — `data-tieout="rostr"` would otherwise be a check that switched
+itself off.
+
+### 1 · The roster must add up to the headline
+
+Mark the total with `data-tieout="headline"`, the table with
+`data-tieout="roster"`, and each count in it with `data-tieout="count"`. If the
+counts do not sum to the headline, the build stops.
+
+**Incident:** on 8 September 2026 the wording of one verdict in a delivered feed
+was improved — *"the bank did not report that line"* became *"the form this bank
+filed does not carry the line this field cites"*, because the first blamed the
+bank for something the form never asked. The counter above it still searched for
+the old wording, found none, and printed **0**. So the document's front page said
+156,881 values delivered and its own roster added to 156,767. Every number in it
+was right. It said two different things about how much of itself it had checked,
+on the page written to be forwarded, and it sat on `main` for eleven days.
+
+**The cheapest way to pass this is to make the roster a partition** — classify
+every value into exactly one line and tally, rather than running one search per
+line. Then it adds up by construction, and a verdict with no home stops the build
+instead of falling into a zero.
+
+### 2 · The three named sections must exist
+
+`data-tieout="what-it-found"`, `data-tieout="what-i-got-wrong"` and
+`data-tieout="what-this-does-not-prove"`, each a heading of its own with
+something under it. A missing one is a refusal.
+
+The delivered document had two of the three. The missing one was **what I got
+wrong**, which is the one that costs something to write and the one that makes
+the other two believable.
+
+### 3 · A source picture must carry a mark
+
+Mark each photograph of the independent source with `data-tieout="source"`. At
+least one must carry red ink. The checker decodes the embedded PNG itself and
+counts; an image it cannot read is refused and named, never skipped.
+
+Neither delivered document had a red pixel anywhere in a source image. The rule
+had been in this file, in those words, the whole time.
+
+---
+
+# Part two — what is judgement, permanently
+
 ## The rule everything else serves
 
 **A number confirmed only by your own system is confirmed by nothing.**
@@ -127,7 +214,8 @@ section where a document stops being a claim and becomes a tool.
 
 **5 · What it found**, **6 · What I got wrong**, and **7 · What this does not
 prove** — each a section of its own, not a footnote. The last two are what make
-the first believable.
+the first believable, and all three are refused by the checker if they are
+missing.
 
 ## The five links
 
@@ -172,13 +260,19 @@ either the number is there or it is not, and you find out at the moment you look
 rather than at the moment somebody else does.
 
 **Mark it, and enlarge it.** A photograph of a dense regulatory page with a
-sentence pointing at a row is still a puzzle the reader has to solve. In the
-document: ring the exact row **in red**, and put a **zoomed crop of that row
-directly beneath it**, large enough to read the digits without leaning in. Beside
-them, break the citation into its parts — schedule, page, line, column, code,
-units — each shown as its own label rather than buried in a sentence. The reader
-should be able to check you in one glance, which is the only kind of checking
-that actually gets done.
+sentence pointing at a row is still a puzzle the reader has to solve. Cut the
+row out of the page at a size the digits can be read at, **ring it in red**, and
+put the page's own identity header above it out of the same page. Beside them,
+break the citation into its parts — schedule, page, line, column, code, units —
+each shown as its own label rather than buried in a sentence. The reader should
+be able to check you in one glance, which is the only kind of checking that
+actually gets done.
+
+*This asked for the whole page shot with a zoomed crop of the row beneath it
+until 19 September 2026. What a real exhibit did instead — two cuts off the same
+page, the header and the row, each already enlarged — is smaller, is what the
+checker in part one can see, and carries the same evidence. The shorter
+instruction is the one that was being followed.*
 
 **The identity of the document goes in the same shot as the number.** The
 entity's name, the form or statement type, and the period, printed in the header
@@ -271,13 +365,24 @@ A document where that is not marked is a liability.
 
 ## "Could not" is a verdict, not a gap
 
-Every figure gets exactly one of three, and the third is not a failure:
+Three verdicts always apply, and the third is not a failure:
 
 | Verdict | Meaning |
 |---|---|
 | **TIED** | executed end to end, and the numbers agree |
 | **DIFFERS** | executed end to end, and they do not — with the difference stated |
 | **COULD NOT** | no independent source was reached, **and here is precisely why** |
+
+**A more specific verdict is better than one of these three, and is what you
+should reach for.** This used to say *every* figure gets exactly one of the
+three. A delivered roster ignored that and invented six — *spans a merger*, *the
+form did not carry this line*, *computed by the FDIC*, *a running total whose
+base moved*, *no obtainable source*, *TIED* — and every one of them tells a
+reader something that `COULD NOT` does not. The letter was missed and the meaning
+was improved on, so the rule moved rather than the document. What you may not do
+is blur the three that matter: a figure that was executed and disagrees is
+`DIFFERS`, whatever else you call it, and a figure with no independent source
+behind it never reads as tied.
 
 `COULD NOT` must name its obstacle, because that is the whole value of it:
 

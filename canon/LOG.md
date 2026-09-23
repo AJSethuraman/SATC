@@ -960,3 +960,90 @@ One thing about the mechanism worth keeping: the grill's rule is *always
 recommend*, and Bassy's is *do not weigh the challenge*. They collided on the
 first question. What resolved it was the firm asking for the recommendation —
 which is C7's shape, a question handed back rather than a decision taken.
+
+---
+
+## 19 September 2026 — the tie-out skill gets a checker, and the measurement that argued for one
+
+**What the firm decided**, on five proposals put to them the same day:
+
+| | Proposal | The firm's answer |
+|---|---|---|
+| P1 | Canon ships a conformance checker; the skill's checkable half becomes its test suite | *"Agree — canon ships the checker"* |
+| P2 | Three refusals first: roster arithmetic, the three named sections, a marked source image | *"Agree — all three refusals"* |
+| P3 | No figure a document states about itself may be typed | *"Agree — computed at build time, with a test"* |
+| P4 | Split the skill into what is checked and what is judgement | *"Agree — split it into checked and judgement"* |
+| P5 | Every surviving instruction earns an incident or gets cut; the skill gets shorter | *"Agree — incident or cut, and make it shorter"* |
+
+On P5 they added, in their own words:
+
+> *"Fine if it is truly not helping it follow. It's just hard to understand…
+> because I'm human"*
+
+And on a divergence between the skill and the document built from it, as a
+standing preference:
+
+> *"I prefer spirit to be improved."*
+
+**The measurement, re-derived rather than adopted.** The brief that carried
+these decisions reported 19 promises extracted from `skills/tie-out/SKILL.md`,
+16 mechanically testable, 6 red. Re-extracted on 19 September against the same
+artifact — the covering document for the verified credit feed, as it stood on
+`main` — this session got **30 promises, 25 testable, 5 red**. The difference is
+granularity, not disagreement: three named sections counted as one promise there
+and three here, five links as one and five here.
+
+**The finding that matters replicated exactly.** Promises enforced by code: 1 of
+1 kept. Promises carrying a dated incident: 5 of 5 kept. Promises stated as an
+instruction and nothing else: **0 of 5 kept** — and the five that broke are the
+most specific sentences in the file. Precision is not what holds a promise.
+
+Four of the brief's six reds confirmed: no red ink in any source image, no *what
+I got wrong* section, the literal `COULD NOT` never used, and the roster adding
+to 156,767 under its own headline of 156,881. Two scored differently, both
+reported rather than quietly adopted: the citation IS broken into labelled parts
+in the delivered trace (schedule, code, units each labelled), and the diagram is
+on page one, third — which the brief itself said not to enforce. One red the
+brief did not have: no zoomed crop of the located row, anywhere.
+
+**What was built.** `canon/check_tie_out.py`, with three refusals, called by
+`credit-suite/tools/tieout/build_covering_document.py` before it renders. All
+three were watched red against the document as it stood and green after.
+
+**The stdlib fork, decided out loud.** The brief offered two options: leave the
+red-ink check in the project where `pymupdf` already is, or let canon take an
+optional dependency that announces when it skips. Neither was taken. canon
+decodes the PNG itself, in `zlib` and arithmetic — about seventy lines, the
+whole of the format this needs — so there is **no dependency to be missing and
+therefore no skip path to go quiet down**. An image it cannot read (a JPEG, an
+interlaced PNG, a truncated one) is refused and named. Unknown is not a pass.
+
+**P5: what was cut, so a later session can put it back rather than rediscover
+why it went.** Exactly one passage met all three conditions — no incident
+attached, not enforced by the checker, and a measured record of not being
+followed:
+
+* *"put a **zoomed crop of that row directly beneath it**, large enough to read
+  the digits without leaning in"*, from **Mark it, and enlarge it**. No exhibit
+  ever did this. Two did something better and smaller — cut the row out of the
+  page already enlarged, with the page's identity header cut from the same page
+  above it — which is what the instruction now asks for, under the firm's
+  *"I prefer spirit to be improved"*. `test_the_tie_out_skill_marks_and_enlarges
+  _the_source` moved with it and records why.
+
+Loosened rather than cut, on the same preference: the **closed three-verdict
+vocabulary**. The skill demanded every figure be `TIED`, `DIFFERS` or
+`COULD NOT`; the delivered roster invented six categories that each carry more
+information than the bucket they replaced. The three still always apply and a
+more specific verdict is now the better answer.
+
+**Nothing else qualified, and the file got longer.** The judgement half is about
+the length it was; the file grew by roughly a hundred lines because the enforced
+half is new. That is a departure from *"make it shorter"* and it is recorded as
+one rather than dressed up: on the evidence rule the firm set, one instruction
+earned a cut, and the "what not to do" list — five of whose eight bullets
+restate something said earlier — was followed every time it was measured, so
+none of it qualified. Cutting it would have been the editorial judgement P5
+explicitly forbids.
+
+1.18.0 → **1.19.0**. 190 → 221 passing.
