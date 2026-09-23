@@ -39,9 +39,7 @@ import domains                                              # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
-
-DESK = "fixed-assets"
+from conftest import CORPUS                          # noqa: E402
 
 #: A citation NO desk holds. Checked in a test rather than asserted here.
 UNHELD = "26 CFR 1.9999-1(z)(4)"
@@ -81,10 +79,11 @@ class _Counted:
 
 
 def _copy(tmp_path):
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
-    return desks
+    """A writable copy of the ONE corpus. `dec-kill` deleted the desks, so there
+    is no desk to pick and nothing beneath the record directory."""
+    dst = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dst)
+    return dst
 
 
 def _ask(desks, question, transport, *, citation=UNHELD, url=FOUND_AT,
@@ -99,8 +98,8 @@ def _ask(desks, question, transport, *, citation=UNHELD, url=FOUND_AT,
     from conftest import a_judgment
     if judged is ...:
         judged = a_judgment(text) if text.strip() else None
-    return front.answer(question, DESK, position="It is capitalized.",
-                        citation=citation, desks=desks, keep=keep,
+    return front.answer(question,  position="It is capitalized.",
+                        citation=citation, corpus=desks, keep=keep,
                         prove=transport, found_at=url, found_text=text,
                         judged=judged)
 
@@ -111,8 +110,7 @@ def test_the_fixtures_are_what_this_file_claims():
     """POSITIVE PRECONDITIONS FOR THE WHOLE FILE. A citation some desk turned
     out to hold, or a question that stopped classifying, would make most of
     these pass for the wrong reason and none of them fail."""
-    for d in sorted(p for p in DESKS.iterdir() if p.is_dir()):
-        assert record.load(d).authority_for(UNHELD) is None, f"{d.name} holds it"
+    assert record.load(CORPUS).authority_for(UNHELD) is None, "the corpus holds it"
     tax, books = domains.classify(TAX), domains.classify(BOOKS)
     assert tax and tax.domain.name == "federal-tax"
     assert books and books.domain.name == "us-gaap"
@@ -169,7 +167,7 @@ def test_a_candidate_is_never_binding_however_good_its_host(tmp_path):
     it as authority that binds their own work, and the firm has not seen it.
     """
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     irs = "https://www.irs.gov/publications/p9999"
     assert domains.tier_for(irs, domains.classify(TAX).domain) == "primary", (
         "if the map stops calling irs.gov primary this test proves nothing")
@@ -235,14 +233,23 @@ def test_a_licence_wall_refuses_without_fetching(tmp_path):
     """A wall the firm put up is not routed around by arriving at the same
     publisher through a URL nobody admitted.
 
-    NO DESK HOLDS A `human_only` SOURCE TODAY, so one is constructed — and the
-    fact that none exists is asserted, so this test starts failing loudly the
-    day one does rather than silently testing a fixture instead of the record.
+    NO DESK HELD A `human_only` SOURCE, so one is constructed — and the absence
+    was asserted, so this would start failing loudly the day one appeared rather
+    than silently testing a fixture instead of the record.
+
+    ONE APPEARED, 10 SEPTEMBER 2026, AND IT IS NOT ONE OF THESE. `dec-pos2`
+    added S34, the firm's own standing policy: `human_only` because there is no
+    publisher to reach, and a wall is about a publisher whose content may not
+    reach a model. `walled()` matches on the registered HOST, and S34 has no
+    URL, so it can never be what this gate fires on. The premise that has to
+    hold is narrower than "everything is readable" and it is the one the gate
+    actually uses: nothing unreadable has a host to arrive at.
     """
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
-    assert all(s.readable for s in desk.sources), (
-        "a desk now holds an unreadable source; test against the real one")
+    desk = record.load(desks)
+    assert all(s.readable or not s.url.strip() for s in desk.sources), (
+        "a desk now holds an unreadable source WITH A URL, which is what this "
+        "gate fires on; test against the real one")
     walled = record.Source(
         id="ASC", title="FASB Accounting Standards Codification",
         tier="primary", access="human_only", may_store="license_check",
@@ -268,7 +275,7 @@ def test_a_licence_wall_refuses_without_fetching(tmp_path):
 
 def test_the_wall_is_matched_on_the_publisher_and_not_the_path(tmp_path):
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     walled = record.Source(
         id="ASC", title="FASB ASC", tier="primary", access="human_only",
         may_store="license_check", checked="2026-09-08", citation_prefix="ASC ",
@@ -306,7 +313,7 @@ def test_only_authority_absent_opens_the_candidate_path(tmp_path):
     all here, which refuses `no_citation` before the record is consulted."""
     desks = _copy(tmp_path)
     transport = _Counted(page=_Page(WORDS, url=FOUND_AT))
-    out = front.answer(TAX, DESK, position="x", citation="", desks=desks,
+    out = front.answer(TAX,  position="x", citation="", corpus=desks,
                        keep=False, prove=transport, found_at=FOUND_AT,
                        found_text=WORDS)
     assert isinstance(out, engine.Refusal)
@@ -321,7 +328,7 @@ def test_the_attempt_is_recorded_on_this_path_too(tmp_path):
     _ask(desks, TAX, lambda s, c: _Page(WORDS, url=FOUND_AT), keep=True)
     _ask(desks, TAX, _Counted(raises=OSError("down")), keep=True)
     rows = attempts.parse(
-        attempts.store_for(desks, DESK).read_text(encoding="utf-8"))
+        attempts.store_for(desks).read_text(encoding="utf-8"))
     assert [r.verdict for r in rows] == [proving.TIED, proving.COULD_NOT]
     assert all(r.citation == UNHELD for r in rows)
 
@@ -330,15 +337,15 @@ def test_nothing_is_kept_from_the_page_itself(tmp_path):
     """`may_store` is `license_check`: this path caches nothing, so the desk on
     disk must be byte-identical apart from the attempts log."""
     desks = _copy(tmp_path)
-    before = {p: p.read_bytes() for p in sorted((desks / DESK).rglob("*"))
+    before = {p: p.read_bytes() for p in sorted(desks.rglob("*"))
               if p.is_file()}
     _ask(desks, TAX, lambda s, c: _Page(WORDS, url=FOUND_AT), keep=True)
-    after = {p: p.read_bytes() for p in sorted((desks / DESK).rglob("*"))
+    after = {p: p.read_bytes() for p in sorted(desks.rglob("*"))
              if p.is_file()}
     added = set(after) - set(before)
-    assert added == {attempts.store_for(desks, DESK)}, added
+    assert added == {attempts.store_for(desks)}, added
     assert all(before[p] == after[p] for p in before), "an existing file moved"
-    assert WORDS not in after[attempts.store_for(desks, DESK)].decode("utf-8")
+    assert WORDS not in after[attempts.store_for(desks)].decode("utf-8")
 
 
 def test_the_candidate_source_is_built_and_never_written():

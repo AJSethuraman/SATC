@@ -40,13 +40,42 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from record import RecordError, _blocks, _date, _field, _inline
+from record import RecordError, _blocks, _date, _field, _inline, _prose
 
 _HEAD = re.compile(r"^## (\S+) · (.+)$", re.M)
 
 #: The fields that make a block a position rather than a passage. `guards.py`
 #: refuses to find any of these under `extracted/`.
 MARKERS = ("Position", "Ratified")
+
+#: WHAT A POSITION RESTS ON.
+#:
+#: `dec-pos2`, 10 September 2026 — the firm: **"Firm policy, no citation — with
+#: two conditions."** POS11 (*"flag it for attention and ask the client what was
+#: bought; do not book it to owner draws on the seller's name"*) is pinned to
+#: § 1.262-1(a), and two independent judges refused it: that paragraph is about
+#: costs which are PERSONAL, and the position is about costs whose nature is
+#: UNKNOWN. The position is sound and the pin is wrong.
+#:
+#: A pin that is wrong is worse than no pin. It tells a reader the regulation
+#: says something it does not, and it survives every check in this repository
+#: because the citation resolves. So a position may now say that it rests on the
+#: firm rather than on a paragraph — and saying so is the whole of what makes it
+#: different from a mis-pinned one.
+AUTHORITY = "authority"      #: rests on a paragraph, cited
+FIRM_POLICY = "firm policy"  #: rests on the firm, cited to nothing
+KINDS = (AUTHORITY, FIRM_POLICY)
+
+#: THE FIRST OF THE FIRM'S TWO CONDITIONS, in their words:
+#:
+#:     "I'm good with this but can I want this to be clearly marked as they may
+#:      need to be reviewed/changed at some point."
+#:
+#: `open` is the state every firm-policy position starts in and it is NOT a
+#: defect — it is the mark. What it must never do is default silently: a policy
+#: that has never been looked at and one that was looked at last week are
+#: different facts, and only one of them may be served without saying so.
+OPEN = "open"
 
 
 @dataclass(frozen=True)
@@ -59,6 +88,14 @@ class Position:
     position: str
     why: str = ""
     ratified: str = ""
+    #: `authority` or `firm policy` — see `KINDS`. Absent means `authority`,
+    #: which is what every position in the record was before `dec-pos2`, so
+    #: adding the field changed no existing position's behaviour.
+    kind: str = AUTHORITY
+    #: `open`, or what a reviewer found and when. The firm's first condition.
+    #: Only meaningful on a `firm policy` position; `record.load` refuses it
+    #: elsewhere rather than letting it read as a general review log.
+    reviewed: str = OPEN
     #: The facts about the ENGAGEMENT this position cannot be applied without,
     #: from `record.Context.FACTS`. Optional, and empty on almost every position.
     #:
@@ -91,16 +128,89 @@ class Position:
     #: it."* A position that may only ask about fields somebody already thought
     #: to create can never discover the one nobody thought to create.
     unless: tuple = ()
+    #: WHAT TO RECORD when the file says nothing about the `Unless:` fact.
+    #:
+    #: `dec-caprule`, 14 September 2026. POS1 and POS2 both carried
+    #: `Unless: capitalization_rule` with the field blank on every client, so
+    #: the engine refused `context_not_on_file` on all of them -- correctly:
+    #: *"a default applied without looking is not a default"*. Two of the firm's
+    #: twenty ratified positions were unreachable on every engagement since
+    #: 5 September, which is the most expensive thing on the eighth docket.
+    #:
+    #: The firm answered **"Record it at intake"**, and their note is the
+    #: decision: *"The firm's threshold for our clients if non specified will be
+    #: based on IRS rules for simplicity."*
+    #:
+    #: SO THIS DOES NOT MAKE THE ENGINE ASSUME ANYTHING, and that is the whole
+    #: design. The refusal stands; the fact still has to reach the file through
+    #: a person. What changes is that the refusal now names WHAT TO WRITE, so a
+    #: preparer holding it can act on it instead of going and asking. A refusal
+    #: that names a gap and not the remedy is a dead end wearing a reason code.
+    #:
+    #: THE ALTERNATIVE THE FIRM DECLINED was a silent default in the code. It
+    #: was on the card and they did not pick it: an engine supplying the value
+    #: itself would be inventing the one fact that says somebody checked.
+    default: str = ""
 
     @property
     def proposed(self) -> bool:
         """Not yet ratified. Real until a person merges it, and not before."""
         return not self.ratified
 
+    @property
+    def is_policy(self) -> bool:
+        """The firm's own rule, resting on no paragraph."""
+        return self.kind == FIRM_POLICY
+
+    @property
+    def unreviewed(self) -> bool:
+        """A firm policy nobody has checked against the authority on file.
+
+        THE FIRM'S SECOND CONDITION, and it is the risk that arrives with the
+        approval:
+
+            "I would also be remiss if something I said is my position blatantly
+             goes against a regulation or something. I would want the option to
+             review that too though"
+
+        An uncited position is exactly the kind that can sit against authority
+        with nothing noticing — there is no citation for anything to check it
+        with. So it needs the INVERSE of a citation check: not *what proves
+        this* but *does anything on file contradict this*, with the answer going
+        to the firm. `positions.against` assembles what a reviewer must read;
+        this says whether anybody has.
+        """
+        return self.is_policy and self.reviewed.strip().lower() == OPEN
+
 
 #: A fact name: lowercase words joined by underscores, and nothing else. Not a
 #: style rule -- the SHAPE is what makes a swallowed paragraph fail loudly.
 _FACT = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+#: The labels a POSITION entry carries. `_prose` ends the `Why:` body at the
+#: next one of these rather than at any bold line -- see `record._prose`.
+POSITION_FIELDS = ("Citation", "Recorded", "Position", "Why", "Ratified",
+                   "Kind", "Reviewed", "Needs", "Unless", "Default")
+
+
+def _a_default(block: str, where: str) -> str:
+    """The `Default:` line, or `""`. ONE LINE, read with `_inline`.
+
+    WRITTEN WITH `_field` FIRST AND IT OVER-READ IMMEDIATELY. `_field` runs to
+    the next `**`, so it swallowed the whole paragraph under the line -- the
+    firm's quoted words, the note that this does not make the desk assume
+    anything, and the POS3 consequence -- and handed all of it back as the
+    default VALUE. The refusal would then have printed four paragraphs where a
+    preparer needs a word.
+
+    The same defect `**Records:**` carries a test for, in a second place, found
+    by printing what the parser returned instead of trusting that it worked.
+    """
+    try:
+        return _inline(block, "Default", where)
+    except RecordError:
+        return ""
 
 
 def _needs(listed: str, where: str, field: str = "Needs") -> tuple:
@@ -137,6 +247,26 @@ def _needs(listed: str, where: str, field: str = "Needs") -> tuple:
     return tuple(out)
 
 
+def _kind(value: str, where: str) -> str:
+    """`authority` unless the block says otherwise, and never a guess.
+
+    A MISSPELT KIND MUST NOT FALL BACK TO `authority`, which is the one way this
+    field can do harm: a position meaning to say it rests on the firm would
+    silently claim to rest on the paragraph in its `Citation:` line — the exact
+    mis-pin `dec-pos2` exists to stop, reintroduced by a typo.
+    """
+    value = " ".join(value.split()).lower()
+    if not value:
+        return AUTHORITY
+    if value not in KINDS:
+        raise RecordError(
+            f"{where}: Kind says {value!r}; it may say "
+            f"{' or '.join(repr(k) for k in KINDS)}. A misspelt kind would "
+            f"leave a position claiming the authority of a paragraph it does "
+            f"not rest on, which is what this field exists to stop.")
+    return value
+
+
 def parse(text: str) -> list[Position]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -148,11 +278,15 @@ def parse(text: str) -> list[Position]:
             citation=_inline(block, "Citation", where),
             recorded=_date(_inline(block, "Recorded", where), "recorded", where),
             position=_field(block, "Position", where),
-            why=_field(block, "Why", where, required=False),
+            why=_prose(block, "Why", where, fields=POSITION_FIELDS),
             ratified=_field(block, "Ratified", where, required=False),
+            kind=_kind(_field(block, "Kind", where, required=False), where),
+            reviewed=(_field(block, "Reviewed", where, required=False).strip()
+                      or OPEN),
             needs=_needs(_field(block, "Needs", where, required=False), where),
             unless=_needs(_field(block, "Unless", where, required=False), where,
                           "Unless"),
+            default=_a_default(block, where),
         ))
     return out
 
@@ -171,3 +305,4 @@ and the citation is how a reader gets to the text themselves.
 ---
 
 """
+

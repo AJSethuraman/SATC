@@ -92,7 +92,7 @@ NOTES = {
 
 def positions():
     rows = []
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

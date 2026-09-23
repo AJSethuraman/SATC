@@ -1,6 +1,6 @@
 ---
 name: ask-desk
-description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. Sends the question to the session that holds the desks and receives the answer back; the desk answers only from authority it can cite, or tells you who has to be asked.
+description: Consult an expert desk when a question is outside your authority — bookkeeping, tax treatment, whether a cost is the business's, what a purchase is. Use when you are doing the work and hit something you cannot settle from what is in front of you, rather than guessing and moving on. Sends the question to the session that holds the corpus and receives the answer back; it answers only from authority it can cite, or tells you who has to be asked.
 ---
 
 # Ask a desk
@@ -9,7 +9,7 @@ description: Consult an expert desk when a question is outside your authority �
 something.** It is not a second opinion on your judgement — it is the authority
 you do not have.
 
-**You may well be able to read the desks. Do not.** `desk/desks/` is very
+**You may well be able to read the corpus. Do not.** `desk/corpus/` is very
 likely sitting in the checkout you are working in, and nothing stops you opening
 it. This file used to say *"you do not hold the desks and you cannot read them"*,
 and a doer on 8 September read five files out of it before sending anything —
@@ -237,6 +237,40 @@ read one and discard the other.
 The desk returns **one of two things**, and they carry different fields. Print
 what it sent you, whole, either way.
 
+**DO NOT DECIDE WHICH ONE IT IS BY READING IT.** `relay.read` does that, off the
+reply exactly as it arrived:
+
+```python
+said = relay.read(<the whole reply body>)
+
+said.answered     # True or False. Not a judgement — read off the reply
+said.reason       # on a refusal: which of the closed set
+said.ask          # on a refusal: the follow-up, where there was one
+said.citation     # on an answer: what it rests on
+said.binding      # whether the FIRM treats it as authority binding their work
+said.usable       # answered AND binding. Anything else needs a person
+```
+
+**It raises rather than guessing.** An empty reply is not a refusal — it is a
+delivery that did not happen, and the two call for opposite next steps. Anything
+it cannot place raises too, instead of coming back `answered=False`: that would
+look cautious and would quietly throw away a mangled ANSWER, and a doer told
+"the desk refused" does not go back and check. A reply carrying both a refusal
+and an answer raises as well. **When it raises, a person reads it.**
+
+**Why this is here at all.** The reply is prose because the rendering is written
+for a human — it is the one channel that reaches an agent whose skill file is
+four releases stale, and that is deliberate. But *deciding whether the desk
+answered* is not a reading task, and the failure it invites is the one Occam
+named on the other leg: *"silence is indistinguishable from 'there is nothing to
+say here.' A doer reads it as permission. I nearly did."* A refusal read as an
+answer is that same mistake one step later, holding something that looks like a
+reply.
+
+**`usable` is the narrow one on purpose.** A guidance answer is a real answer and
+is not `usable`: `dec-guidance` decided those serve **marked**, and the mark
+means a person reads the caveat before anyone relies on it.
+
 **If it ANSWERED**, and none of this is yours to trim:
 
 | | |
@@ -251,7 +285,7 @@ nothing, which is what makes it a refusal:
 | | |
 |---|---|
 | `reason` | one of a closed set. `facts_not_established`, `authority_absent`, … |
-| `desk` | which desk refused. A question reaches more than one |
+| `desk` | the record that refused. Always `corpus` since `dec-kill` — there is one, and a question reaches all of it |
 | `working` | the desk's own reasoning. Usually the part you hand to a person |
 | `ask` | **the follow-up question.** Set wherever a person can resolve it |
 
@@ -269,19 +303,22 @@ law.
 
 And where `alongside` is not empty, **read it before you act**: the firm has
 answered that passage more than once, the other answer is not this one, and
-which applies is a question about facts that nothing in the desk has looked at.
+which applies is a question about facts that nothing in the record has looked
+at.
 
 ## `authority_absent` is not a dead end — send it on
 
-**When every desk says `authority_absent`, nobody holds the rule.** That is not
-the end of the question; it is a job for the session that can go and look. The
+**`authority_absent` means nobody holds the rule.** Before `dec-kill` it meant
+the desks you happened to reach held nothing, and a question that reached the
+wrong one got it for the wrong reason. There is one corpus now: the refusal is
+about the whole record. That is not the end of the question; it is a job for
+the session that can go and look. The
 firm, 8 September 2026: *"the skill also has to direct questions to this
 container when they need research, obviously."*
 
 ```python
 gap = relay.research(question, reply_to=<your session id>,
-                     refused_by=(("capitalization-and-de-minimis", "authority_absent"),
-                                 ("vehicle-expense", "authority_absent")))
+                     refused_by=(("corpus", "authority_absent"),))
 print(gap.ref)
 print(relay.research_prompt(gap, reply_to=<your session id>))
 ```
@@ -289,18 +326,19 @@ print(relay.research_prompt(gap, reply_to=<your session id>))
 Send that to the same desk session, **poke-only**, exactly as you sent the
 question. It comes back opening `FOUND <ref>` or `LOOKED <ref>`.
 
-**`refused_by` is required and only `authority_absent` is accepted.** Every other
-refusal is answered by a person, by the firm, or by asking a different desk —
-and sending one to a searcher is how a refusal gets talked out of: the desk said
-no, so go and find something that says yes. `relay.research` refuses them.
+**`refused_by` is required and only `authority_absent` is accepted.** It is one
+row now — the corpus, and the reason — where it used to carry one per desk.
+Every other refusal is answered by a person or by the firm, and sending one to a
+searcher is how a refusal gets talked out of: the desk said no, so go and find
+something that says yes. `relay.research` refuses them.
 
 **`LOOKED <ref>` — searched, and the authority is not reachable — is a real
 result.** It turns a gap nobody has examined into a gap somebody has, which is
 the difference between a queue and a pile. Do not treat it as a failed lookup.
 
 **Nothing found this way is authority yet.** The searcher proposes; the firm
-admits a source. An answer that cites something no desk holds is refused by the
-engine exactly as before, and correctly.
+admits a source. An answer that cites something the corpus does not hold is
+refused by the engine exactly as before, and correctly.
 
 ## A refusal is an answer
 

@@ -49,7 +49,7 @@ def test_a_missing_manifest_is_unknown_rather_than_an_error(monkeypatch, tmp_pat
 
 def test_the_brief_carries_it():
     """The brief is what an answerer reasons from — it is always read."""
-    desk = record.load(HERE / "desks" / "fixed-assets")
+    desk = record.load(HERE / "corpus")
     first = ask.brief("we bought a forklift", desk,
                       record.NOTHING_ON_FILE).splitlines()[0]
     assert record.VERSION in first, first
@@ -68,8 +68,14 @@ def test_and_tells_the_desk_which_to_believe():
     assert "a stale skill cannot know it is stale" in body
 
 
-def test_the_desk_name_survives_the_stamp():
-    """A stamp that displaced the thing it annotates would be a regression."""
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+def test_the_record_name_survives_the_stamp():
+    """A stamp that displaced the thing it annotates would be a regression.
+
+    It read `# cash-and-bank`; `dec-kill` left one record and it is called
+    `corpus`. What is being checked is that the version is APPENDED to the
+    heading rather than replacing it, which is the same check either way.
+    """
+    desk = record.load(HERE / "corpus")
     first = ask.brief("q", desk, record.NOTHING_ON_FILE).splitlines()[0]
-    assert first.startswith("# cash-and-bank")
+    assert first.startswith(f"# {desk.name}")
+    assert record.VERSION in first, "the stamp is not on the heading at all"

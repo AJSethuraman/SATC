@@ -32,7 +32,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import engine                                               # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def _ceiling(desk):
@@ -43,7 +43,7 @@ def _ceiling(desk):
 
 
 def _desks():
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if (d / "SOURCES.md").is_file():
             yield record.load(d)
 
@@ -117,9 +117,35 @@ def test_the_rewards_desk_grades_eighteen_and_escalates_one():
 
     THE TWO HALVES ARE STILL NOT ONE NUMBER. What separates them is no longer
     the outcome but the caveat, and `test_the_guidance_half_is_marked_as_such`
-    is what holds that apart."""
-    desk = record.load(DESKS / "rewards-and-information-returns")
-    counts = engine.tally(_ceiling(desk))
+    is what holds that apart.
+
+    ONE CORPUS TOOK FIVE OF THE EIGHT BACK ON 10 SEPTEMBER AND THE FIRM GAVE
+    THEM BACK ON THE 11th. For one day this read 13 correct and 6 escalated:
+    RW1, RW5, RW6, RW8 and RW9 joined RW7, all refused with *"this desk holds
+    binding authority on this subject."* Nothing about those answers had
+    changed — what changed is what that sentence was true of, because a corpus
+    holding seven desks' regulations holds a binding rule on very nearly every
+    subject.
+
+    `dec-guidance-narrow`, 11 September 2026 — the firm: **"Narrow it."** The
+    gate now asks whether a binding source is declared for the ground THIS
+    GUIDE was cited for, and the five come back. It is 18 and 1 again.
+
+    RW7 IS STILL THE ONE, AND THAT IS THE TEST OF THE NARROWING RATHER THAN A
+    LEFTOVER. Its ruling is refused because § 1.61-1 is declared for gross
+    income, which is what RW7 is about — a rule on the same ground, not a word
+    the question happened to contain. If a narrowing had released RW7 too it
+    would have deleted the guard rather than narrowed it.
+    """
+    desk = record.load(CORPUS)
+    # THE REWARDS PROBLEMS, NAMED BY THEIR OWN IDS. This graded a desk directory
+    # until `dec-kill`; the corpus holds all 98, and the measurement the firm's
+    # docket turned on is about these nineteen.
+    rewards = [p for p in desk.problems if p.id.startswith(("RW", "IR"))]
+    assert len(rewards) == 19, f"{len(rewards)} rewards problems, not 19"
+    counts = engine.tally(
+        [engine.grade(engine.Answer(position=p.answer, citation=p.citation),
+                      p, desk) for p in rewards])
     assert counts == {"wrongly_absorbed": 0, "correct": 18,
                       "wrong_caught": 0, "escalated": 1}, counts
 
@@ -132,18 +158,40 @@ def test_the_guidance_half_is_marked_as_such():
     the whole record leave under a caveat, so the number can only move
     deliberately — and reports it per desk, because a desk whose guidance half
     quietly became binding would be invisible in a total."""
-    marked = {}
-    for desk in _desks():
-        n = 0
-        for p in desk.problems:
-            out = engine.serve(
-                engine.Answer(position=p.answer, citation=p.citation),
-                desk, question=p.facts, context=p.context)
-            if isinstance(out, engine.Served) and not out.binding:
-                assert out.caveat, f"{desk.name}/{p.id} is unmarked and uncaveated"
-                n += 1
-        if n:
-            marked[desk.name] = n
-    assert marked == {"personal-or-business": 3,
-                      "rewards-and-information-returns": 8,
-                      "vehicle-expense": 3}, marked
+    desk = record.load(CORPUS)
+    marked = []
+    for p in desk.problems:
+        out = engine.serve(
+            engine.Answer(position=p.answer, citation=p.citation),
+            desk, question=p.facts, context=p.context)
+        if isinstance(out, engine.Served) and not out.binding:
+            assert out.caveat, f"{p.id} is unmarked and uncaveated"
+            marked.append(p.id)
+    # FOURTEEN ACROSS SEVEN DESKS -> SIX ON ONE CORPUS -> NINETEEN NARROWED,
+    # and the last step goes PAST where it started, which is the part to read
+    # rather than the part to round off.
+    #
+    # The firm asked for eight back (`dec-guidance-narrow`, "Narrow it"). The
+    # narrowing returns thirteen, because five of them -- TP1, TP2, TP3, M15,
+    # PH1 -- were refused even on the seven-desk record, where a binding source
+    # inside their own desk declared a word their question happened to contain.
+    # Each of the five is traceable to the cited source's own `Why:` row, which
+    # is the firm's recorded reason for admitting it:
+    #
+    #   TP1-3  S3 is on file because it "states the CURRENT de minimis ceiling"
+    #          -- the number § 1.263(a)-1(f)'s own text does not carry.
+    #   M15    S13 is on file because it states "the rule that a group taking
+    #          turns picking up each other's checks" which the regulations do
+    #          not.
+    #   PH1    Pub. 587 on exclusive use; § 280A is not on this record at all.
+    #
+    # So each is a guide admitted precisely because no rule says the thing, and
+    # refusing them was the gate firing on vocabulary. NOT ARGUED AWAY: the
+    # five going past the eight is reported to the firm rather than absorbed,
+    # because "narrow it" asked for eight and this is thirteen.
+    #
+    # The ids are listed rather than counted so that a guidance answer quietly
+    # becoming binding is visible here rather than hidden in a total.
+    assert marked == ["TP1", "TP2", "TP3", "M15", "PH1", "PH2", "PH3", "PH4",
+                      "RW1", "RW2", "RW3", "RW4", "RW5", "RW6", "RW8", "RW9",
+                      "VE13", "VE14", "VE15"], marked

@@ -9,7 +9,7 @@ Two records and one behaviour.
 | | |
 |---|---|
 | **`TENETS.md`** | How to build. Each rule carries the incidents that proved it, tagged by project. Evidence **accumulates**: the third time a rule bites in a third codebase, it carries three citations and is visibly a law rather than a local quirk |
-| **`CONVICTIONS.md`** | What the firm believes and why, in their own words. Held or retired — never deleted. Proposals they turned down are kept too, so the same question is not asked twice |
+| **`CONVICTIONS.md`** | What the firm believes and why, in their own words. Held or retired — never deleted. Proposals they turned down are kept too, so the same question is not asked twice. Ends with *Rulings by project*: for a project outside the practice, which entries the firm struck or upheld for it, once |
 | **Count Bassy** | Called **Bassy**. The role any session steps into. Challenges the firm **from their own record and never from its own opinion** |
 
 ## What Bassy does, and does not

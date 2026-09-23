@@ -52,7 +52,7 @@ import engine
 import record
 from engine import Answer
 
-DESKS = Path(__file__).resolve().parents[1] / "desks"
+CORPUS = Path(__file__).resolve().parents[1] / "corpus"
 
 #: The measured case.
 #: THE ORIGINAL FIXTURE WAS FIXED OUT FROM UNDER THIS TEST, 8 September 2026,
@@ -68,7 +68,7 @@ POSITION = "listed property, and the substantiation rules apply"
 
 
 def _serve():
-    desk = record.load(DESKS / "vehicle-expense")
+    desk = record.load(CORPUS)
     return engine.serve(Answer(position=POSITION, citation=OFF_SOURCE),
                         desk, question=QUESTION)
 
@@ -103,7 +103,7 @@ def out_i(text: str, needle: str) -> int:
 
 def test_an_on_source_citation_carries_no_warning():
     """The note must mean something. If every answer carried it, it is noise."""
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     out = engine.serve(
         Answer(position="the ceiling is $2,500 per invoice or item without an AFS",
                citation='IRS Tangible Property Final Regulations, '

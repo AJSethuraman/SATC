@@ -66,6 +66,20 @@ jobs:
           # `live`, and never collected.
           - project: credit-suite
             install: pip install -e ".[test]"
+          # Ember Vault Arena is staged under docs/ for migration to its own
+          # repository and is not the practice's software; it runs here so the
+          # golden replay (PRD §5.40) is verified on every PR with no model call.
+          # Standard library only, by design: the two hosted adapters import
+          # their SDKs lazily and the suite drives them through fakes.
+          - project: docs/ember-vault-arena/code
+            install: pip install pytest
+          # Portfolio Analysis Pack: a loan extract in, one analysis workbook
+          # out, for the credit consulting line. The suite builds a 40,000-loan
+          # synthetic book and reads the workbook back through the `formulas`
+          # engine, so every Excel formula is checked against Python here on
+          # every PR. The render harness (LibreOffice) is desk-run, not CI.
+          - project: portfolio-analysis-pack
+            install: pip install -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -85,6 +99,31 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+  # Check the checker. Every guard in the Portfolio Analysis Pack's suite must
+  # be able to go red: nine mutations each break one behaviour and name the
+  # tests that must fail. A suite that passes against broken code is
+  # validating nothing (canon behaviour: check the checker by mutation).
+  # Its own job because it re-runs parts of the suite nine times.
+  mutation:
+    name: mutation check (portfolio-analysis-pack)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: portfolio-analysis-pack
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Every mutation is caught
+        run: python tools/mutation_check.py
 
   # The website publishes prices. A number on satcllp.com is a commitment, and
   # the estimate a client gets later has to agree with it — so the page is

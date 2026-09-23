@@ -40,9 +40,9 @@ sys.path.insert(0, str(HERE / "tools"))
 import ask                                                   # noqa: E402
 import record                                                # noqa: E402
 import scoreboard_run as sr                                  # noqa: E402
-from conftest import DESKS                                   # noqa: E402
+from conftest import CORPUS                                   # noqa: E402
 
-_HAS_SOURCES = [d for d in sorted(DESKS.iterdir()) if (d / "SOURCES.md").is_file()]
+_HAS_SOURCES = [d for d in [CORPUS] if (d / "SOURCES.md").is_file()]
 
 #: The publisher's own marker, and the reason it is not a judgement of ours: the
 #: passage text opens "Example." because the IRS wrote it that way.
@@ -153,17 +153,21 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     `meals-and-entertainment`'s other three sections and two of the rewards
     desk's simply carry no worked examples at all.
     """
-    per = {}
-    for d, p in _kinds():
-        if p.kind == record.EXAMPLE:
-            per[d] = per.get(d, 0) + 1
-    assert per == {"capitalization-and-de-minimis": 31,
-                   "cash-and-bank": 19,
-                   "fixed-assets": 117,
-                   "meals-and-entertainment": 32,
-                   "personal-or-business": 4,
-                   "rewards-and-information-returns": 38,
-                   "vehicle-expense": 22}, per
+    # ONE CORPUS, ONE NUMBER, AND THE ROWS DO NOT ADD UP TO IT — DELIBERATELY.
+    # The seven-desk breakdown was:
+    #
+    #     capitalization-and-de-minimis  31    personal-or-business             4
+    #     cash-and-bank                  19    rewards-and-information-returns 38
+    #     fixed-assets                  117    vehicle-expense                 22
+    #     meals-and-entertainment        32                             TOTAL 263
+    #
+    # 263 rows, 260 DISTINCT citations. Three of § 1.274-5T(c)(3)(ii)(C)'s
+    # examples were stored twice, on `meals-and-entertainment` and on
+    # `vehicle-expense`, and one corpus holds each once. Nothing was lost: the
+    # merge report reconciles all 260 and the missing set is empty.
+    examples = [p for _, p in _kinds() if p.kind == record.EXAMPLE]
+    assert len(examples) == 260, len(examples)
+    assert len({p.citation for p in examples}) == 260, "a citation stored twice"
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():
@@ -209,7 +213,7 @@ def test_the_grading_brief_carries_no_worked_example_from_any_desk():
 def test_the_answering_brief_does_carry_them():
     """NARROWING, and without it the test above passes on an empty brief.
     The whole point is that the answering side keeps what grading gives up."""
-    desk = record.load(DESKS / "personal-or-business")
+    desk = record.load(CORPUS)
     full = ask.brief("is the greenhouse deductible?", desk)
     grading = ask.brief_for_grading("is the greenhouse deductible?", desk)
     examples = [p for p in desk.passages if p.kind == record.EXAMPLE]
@@ -330,14 +334,18 @@ def test_the_citation_index_is_exactly_what_the_prompt_showed():
 
 def test_that_index_still_carries_the_rules():
     """Narrowing. An empty index would satisfy the test above perfectly."""
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     index = sr.citation_index(desk)
     rules = {p.citation for p in desk.passages if p.kind == record.RULE}
-    # 174 SINCE 7 SEPTEMBER 2026: 172 from § 1.263(a)-3 and the two paragraphs of
-    # § 1.162-3 the firm admitted eCFR for. The index carries every RULE the desk
-    # holds, whichever source it came from — that is what makes the desk able to
-    # answer on the second one at all.
-    assert set(index) == rules and len(index) == 176, len(index)
+    # 525 SINCE 10 SEPTEMBER 2026, and it was 176 on `fixed-assets` alone: 172
+    # from § 1.263(a)-3 and the two paragraphs of § 1.162-3 the firm admitted
+    # eCFR for, plus two more added since. One corpus means the index carries
+    # every RULE the record holds, from all seven sets of sources. THAT IS THE
+    # WHOLE POINT AND ALSO THE OPEN PROBLEM: an index of 525 citations is what a
+    # reply is scored against, and `ask.consult` narrows to eight before
+    # anything is shown. What is scored and what is shown are now two different
+    # sizes, which was not true when a desk was the unit.
+    assert set(index) == rules and len(index) == 525, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────
@@ -396,7 +404,7 @@ def test_the_four_corrected_examples_are_where_the_section_puts_them():
     rather than only as the rule above, because the rule would also pass if all
     four moved somewhere else wrong.
     """
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     moved = [p for p in desk.passages
              if p.citation.startswith("26 CFR 1.263(a)-3(g)(2)(ii) Example")]
     assert len(moved) == 4, [p.citation for p in moved]

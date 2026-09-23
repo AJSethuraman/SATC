@@ -22,6 +22,7 @@ fact the file lacks. Nothing looked the other way: a fact the CALLER holds and
 the record cannot. That is a preparer discovering, by doing the work, that the
 firm tracks nowhere to put something, and it was being thrown away.
 """
+import re
 from pathlib import Path
 
 import pytest
@@ -35,12 +36,45 @@ Q = "we bought a forklift, deducted or capitalized"
 
 @pytest.fixture
 def caps():
-    return record.load(HERE / "desks" / "capitalization-and-de-minimis")
+    return record.load(HERE / "corpus")
 
 
 @pytest.fixture
-def assets():
-    return record.load(HERE / "desks" / "fixed-assets")
+def assets(tmp_path):
+    """A record that declares NO facts, CONSTRUCTED.
+
+    It was `desks/fixed-assets`, which happened to declare none. `dec-kill`
+    merged the seven and the corpus declares all three, so there is no record on
+    disk left to point at — and a property proved on whichever directory
+    happened to satisfy it was always the weaker version: it goes green the day
+    that directory declares a fact, having checked nothing.
+
+    Stripping `Records:` out of the real corpus does not work either, and the
+    reason is a guard doing its job: `record.load` refuses a position that needs
+    a field nothing declares, so the corpus without its `Records:` line is not a
+    legal record at all. So this is built from nothing — one source, one
+    passage, one problem, no positions, no facts.
+    """
+    d = tmp_path / "corpus"
+    (d / "extracted").mkdir(parents=True)
+    (d / "SOURCES.md").write_text(
+        "## S1 · A source\n\n**Tier:** primary · **Access:** public_fetch · "
+        "**May store:** full_text · **Checked:** 2026-09-10\n\n"
+        "**Citation prefix:** 26 CFR\n\n**Why:** 17 U.S.C. § 105 places a work "
+        "of the United States Government in the public domain.\n",
+        encoding="utf-8")
+    (d / "PROBLEMS.md").write_text(
+        "## P1 · x\n\n**Citation:** 26 CFR 1\n\n**Answer:** must capitalize"
+        "\n\n**Facts:** f\n", encoding="utf-8")
+    (d / "extracted" / "a.md").write_text(
+        "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-10 · "
+        "**Kind:** rule\n\n> must capitalize\n", encoding="utf-8")
+    (d / "SUBJECTS.md").write_text(
+        "## corpus · A record that records nothing\n\n"
+        "**Answered from S1:** widgets\n", encoding="utf-8")
+    desk = record.load(d)
+    assert desk.records == (), "the fixture declares a fact after all"
+    return desk
 
 
 # ------------------------------------------------------------- the record
@@ -55,8 +89,8 @@ def test_an_undeclared_one_is_named(caps):
     assert ctx.unrecorded(caps.records) == ("invoice_amount",)
 
 
-def test_a_desk_declaring_nothing_can_hold_nothing(assets):
-    """`fixed-assets` declares no records at all — every fact is a hole there."""
+def test_a_record_declaring_nothing_can_hold_nothing(assets):
+    """A record declaring no facts has a hole for every fact."""
     assert assets.records == ()
     ctx = record.Context(facts={"capitalization_rule": "x", "invoice_amount": "y"})
     assert ctx.unrecorded(assets.records) == ("capitalization_rule",

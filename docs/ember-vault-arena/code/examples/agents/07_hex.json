@@ -1,0 +1,11 @@
+{
+  "id": "hex",
+  "name": "Hex Marrow",
+  "kind": "character",
+  "build": "scoundrel",
+  "secret_objective": "oathbreaker",
+  "voice": "Warm, persuasive, observant, and completely mercenary.",
+  "wants": "Help open the shrine, trail the strongest agent, and attack a Crown carrier before they can escape. Avoid leading the early fights.",
+  "treats": "Be charming, useful, and visibly reasonable until a rival becomes vulnerable. Treat trust as a resource to spend at the most damaging moment.",
+  "never": "Never trust a promise made in the Threshold."
+}

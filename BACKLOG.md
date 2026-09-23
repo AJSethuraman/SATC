@@ -945,6 +945,390 @@ source document, the one link in the chain that cannot be reopened.
 **Not fixed.** The firm has the report; nothing was changed on the strength of
 it. The roster defect is live on `main`.
 
+## 6c · Portfolio Analysis Pack (`portfolio-analysis-pack/` — grilled + PRD'd 2026-09-18, v1 built 2026-09-19)
+
+A loan extract plus a YAML question file → one workbook: the fixed six-step
+ladder (capture, prevalence, gradient, stratified, decomposition, model) and
+a closing control observation. Python aggregates; the workbook holds a count
+cube and derives every rate, interval and the survives/collapses word by
+live formula. First instance: stated obligor income above reported business
+sales on the small-business book; built domain-free so a consumer question
+(stated vs bureau income, auto) is a config, not code. Spec:
+`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`.
+
+- [x] **Build v1 (M1–M4 in the PRD) — built, 18–19 Sep 2026.** Nine
+      vertical slices, one PR each, merged by the session as each went green:
+      #364 tracer bullet → #365 inspect/hygiene/dates/outcome forms, #366
+      steps 1–2, #367 step 4 + suggest, #368 bundle + README → #369 step 5 +
+      step 7 + consumer example, #370 step 6 model, #371 charts → #372
+      mutation tool + this close-out. **What shipped, in measured facts:**
+      - **Tests: 94 pass** (`cd portfolio-analysis-pack && pytest -q`,
+        measured 19 Sep 2026: 78 from the build, 16 from the adversarial pass below). The suite builds three 40,000-loan synthetic
+        books (a planted effect, a null, and an effect that is size in
+        disguise), reads each workbook back through the `formulas` engine,
+        and checks: the gradient reads as planted; the step-4 word is
+        survives / no crude effect / collapses respectively; both regressions
+        recover the plant and lose it under the confounders; every `_check`
+        row agrees; two builds are byte-identical; the bundle rebuilds the
+        same bytes in an empty directory with only openpyxl and PyYAML.
+      - **Mutations: 9 of 9 caught** by their named tests
+        (`python tools/mutation_check.py`; CI runs it on every pull request).
+        Each breaks one behaviour: the z quantile, the Clopper-Pearson tail,
+        the pooled odds ratio's direction, seasoning, the leakage refusal,
+        the flag's side of the line, the `_xlfn.` prefix, the check tab's
+        tolerance, the decomposition sort.
+      - **Build time** (this container, 19 Sep 2026): 40,000 loans in 5.2 s
+        (read 0.2 · population 2.0 · models 1.8 · workbook 0.8); 100,000
+        loans in 12.7 s (read 0.6 · population 4.8 · models 4.8 · workbook
+        2.1). The workbook is 164 KB at both sizes: it holds counts, not
+        loans, which is what the firm asked for on 18 Sep ("I don't want a
+        situation where excel is the limiting factor").
+      - **Render harness** (LibreOffice → PDF → one PNG per page): every tab
+        fits one page wide, 58 pages for the confounded book, zero error
+        cells, and the gradient and stratified charts carry axis numbers and
+        interval bars — looked at, not just scanned. The first two chart
+        attempts rendered cleanly and had no axis numbers; a cell scan
+        cannot see that, which is why the pages are opened.
+      - **Docket answers honoured:** no threshold, list, mapping or transform
+        in code; any binary outcome; step 7 asserts nothing of its own;
+        refuse on dirt, report blanks, never repair; plain language in the
+        README as a standing rule.
+      **Not checked, and who checks it:**
+      - **Excel itself.** Nothing here has met Excel. The engine and
+        LibreOffice both recalculate the pack and agree with Python, and the
+        `_xlfn.` prefix is guarded, but the cover's "N of N formula checks
+        agree" line is the first thing to read on the first Excel open.
+      - **The first real run at the desk.** Key's column names, the date
+        format the extract actually carries, and the bundle crossing the
+        DLP boundary are all untried. `pack inspect` first, then
+        `pack validate`, before a build.
+      - **The NAICS list is gone**, so nothing checks it; grouping by
+        `prefix` or `map` is proved on synthetic codes only.
+      **Adversarial pass, 19 Sep 2026** (canon skill `adversarial`; the firm
+      asked for it on the docket: "you also have the adversarial skill").
+      A second model, tests only, one file across. **35 hypotheses formed,
+      35 tried, 16 went red, 19 clean.** Fifteen were bugs against the PRD or
+      README and are fixed; one was arguable and its expectation restated.
+      All sixteen now live in `tests/test_adversarial.py`. In plain words,
+      the ones that changed a number a reader would act on:
+      - An empty bucket in the middle of the gradient broke the chain: rates
+        of 5%, 20%, 1%, 2% with a gap between read *monotonic increasing*,
+        and the cover said the rate rises at every step. Each bucket is now
+        compared with the nearest bucket below it that holds loans.
+      - A book with no events at all read *monotonic increasing* too (every
+        change was exactly zero). There is now a word for that: *flat*.
+      - Loans with a blank grouping value vanished from steps 4 and 5 with no
+        row and no count, which also made the "whole population" crude odds
+        ratio differ from block to block on the same tab and made the pack
+        fail its own formula check. A `(blank)` level, always last, holds
+        them now (PRD §6.8 said so; the code did not).
+      - A blank measure on a snapshot outcome was a silent non-event; the
+        capture tab now counts it by quarter, naming the measure fields.
+      - With several outcomes, steps 4 and 5 headed every block with the
+        first outcome's event count; each block now states its own.
+      - Step 7 printed "In 0.0% of the 0 seasoned loans" when there were
+        none; it now says there is no share to read.
+      - One bad value in a column used twice was refused twice; once now.
+        The hygiene file's row order was set-dependent; sorted now.
+      - `pack inspect` called an all-digit `20210315` column an integer and
+        said nothing about dates; it now says the column also reads as
+        `%Y%m%d`. It crashed on an extract with a header and no rows.
+      - `pack list` was in the PRD and did not exist. `pack suggest --field`
+        answered a green nothing for the rule's own fields and crashed on a
+        text column; it reads any numeric column now and refuses the rest.
+      - A confounder with no seasoned levels wrote a cell range backwards
+        (`SUM(C106:C105)`), which LibreOffice tolerates and the `formulas`
+        engine reads as `#NULL!`. The block now says there is nothing to
+        stratify on and writes no formula. `#NULL!` joined the render
+        harness's error list.
+      - **Restated (finding 15):** moving the live interval-method knob made
+        the cover read "529 of 620 formula checks agree". The Python column
+        is a snapshot at the built settings and cannot follow a knob; the
+        cover now says the knobs have moved and shows no count, and reads N
+        of N again when they are set back.
+      **Checked and found clean (19):** a value exactly on a bucket edge; a
+      rule at exactly its cut; seasoning at exactly the window with the
+      month-end clamp; byte-identical builds under a different row order and
+      five hash seeds; the confidence knob at 0.5 and 0.999 under both
+      methods; both interval methods at zero events and at every loan an
+      event; a one-loan book and a book with no seasoned loans; no error
+      cell in the degenerate packs under LibreOffice or the engine;
+      Mantel-Haenszel and the crude ratio with a zero cell; a CSV with a
+      byte-order mark, Windows line endings and a trailing blank line;
+      column names with a space and with accents; labels `0012` and `12`
+      kept distinct; `N/A` and `-` read as blank; the bundle's contents and
+      its `--validate` / `--inspect` argument order.
+      **Close-out docket published 19 Sep 2026 (form
+      BEtT86sVUTSDJaEGYhrLqL, collection `decisions`).** Two decisions open,
+      to be read back from the form and written here when answered: (1) how
+      the column names of Key's extract reach a question file — recommended:
+      the firm runs the bundle's `--inspect` at the desk and pastes the
+      column lines; (2) whether the candidate tenet below enters the record as
+      S36 — recommended: yes, via bassy. Next, unless the firm says otherwise:
+      merge the adversarial pass (PR #383) when green, then stop; the tool is
+      complete as specified and the real run is the firm's.
+      **Docket answered 20 Sep 2026.** In the firm's words, and what each
+      caused:
+      - *Decision 1 (how Key's column names reach a question file):* "The
+        column names will never reach you. I am becoming annoyed with this -
+        we design a tool that we can put anything into and designate it to
+        be something that the tool can work with. The point is it isn't key
+        specific but we're designing it to work with key." → The docket had
+        asked the wrong question, and the tool had the same fault: the
+        bundle carries one fixed question file, so the only place a column
+        could be designated was where the bundle was made. Designation now
+        happens at the desk, on any extract, with nothing coming back: see
+        the entry below this one. The firm's sentence is a candidate
+        conviction, to be put to them through bassy on the next docket, not
+        recorded by a session.
+      - *Decision 2 (candidate tenet S36):* "No" → it stays a project lesson
+        here and binds nothing else. Struck from the docket.
+      - *Next:* no objection → the last pull request was merged and the
+        session stopped, as the docket said it would.
+      **Designation at the desk, built 20 Sep 2026** (the change the firm's
+      answer caused). `pack init EXTRACT` writes a question-file skeleton from
+      the extract's own columns: every column listed with what inspect found
+      beside it, and a `[CONFIRM: ...]` marker on each value the person must
+      choose (the loan number column, the origination date, the two rule
+      columns, the outcome, `known` per column, `existing_control`). The
+      loader refuses a file that still carries a marker and names every one;
+      the tool fills nothing on anyone's behalf. The bundle gained `--init`
+      and `--config`, so any extract is designated and built at the desk with
+      nothing coming back. Proved: the skeleton lists every column in the
+      extract's order with a marker on every slot; the loader names all of
+      them; a skeleton filled in by hand validates and builds with no code
+      change; two `init` runs are byte-identical; the bundle writes the
+      skeleton, refuses it unfilled, and builds from the filled file beside
+      it. The example question file under `configs/examples/` is now only
+      an example. Not checked: the flow at a real desk, which is the firm's.
+      **The exercise harness, built 20 Sep 2026.** The firm, on seeing the
+      designation slice wait on a test suite: "you should be ensuring
+      everything works by actually running the script using a good
+      synthetically created population. It should be able to show how each
+      scenario is covered." → `tools/exercise.py` makes eleven made-up books
+      with known answers, drives the bundle script from an empty folder the
+      way a desk would, reads every answer back out of the workbook the way
+      Excel reads it, renders the pages, and writes `docs/exercise-report.md`
+      (pages beside it) putting what was planted beside what the pack said,
+      scenario by scenario, with the checks counted. First full run: **48 of
+      48 checks agree across 11 scenarios** — a planted effect (every word
+      right, the planted odds ratio inside the regression's interval); no
+      effect (no block says survives, the interval contains 1); size in
+      disguise (size band collapses, M2 loses the effect, the tree splits on
+      size); the outcome as a bank-set flag (same counts and words as the
+      event-date book); a measure in bands (three blocks, blank measure
+      counted); designation of an unseen extract at the desk (skeleton
+      written, refused unfilled naming 20 slots, filled file builds
+      byte-identical to a build here); four refusals (dirt, two-way dates,
+      a missing line, a leaking control); blanks counted with the pack's own
+      check still N of N; the live knobs; same inputs same file; 100,000
+      loans in 9.5 s to a 165 KB workbook. One harness mistake on the first
+      run (a flag outcome's `basis` written as free text) was refused by the
+      tool with the exact line to add, which is the behaviour wanted.
+      The report, with the pages in it, is published for the firm as
+      https://claude.ai/artifact/VDjgSETp3wh6ysXag4rf7e and regenerated whole
+      by every run of the harness.
+      **The bundle carries the made-up-book generator, 21 Sep 2026.** The
+      firm: "you have the script I can email myself to create and test this".
+      `build_pack.py --synth demo` now writes a book with a known answer
+      beside the script, so a desk can test on it before any extract
+      exists; the test helpers, the render harness and any data still stay
+      home. The file handed to the firm was run end to end in an empty
+      folder first: book made, pack built, question file written and
+      refused unfilled.
+      **Candidate tenet, declined by the firm 20 Sep 2026 — kept as a
+      project lesson only:** *A rule that holds because there was nothing to
+      compare must not print the same word as a rule that held. Give "nothing
+      to compare" and "nothing moved" their own words.* Cited to findings 1,
+      2 and 8 above: `all(d >= 0)` over zero differences read "rises at every
+      step"; a skipped pair over an empty bucket read "monotonic"; `share or
+      0.0` read "checked, and it never happens".
+      **Looked at and not filed:** `_provenance` prints the date pattern as
+      "N of N parsed" using the same number on both sides; the capture tab's
+      range-check note lives on `_provenance` instead; §5.11's zero and
+      out-of-range columns are absent because hygiene refuses those values
+      before the tab exists.
+- [ ] **Door two — threshold/boundary.** Deferred by ruling (C11 struck for
+      this project, 2026-09-18). Reuses the bucket-with-interval block with
+      finer edges around the cut, a bunching count, and a boundary-coincidence
+      map for the multi-scheme case. Checked 2026-09-18: `credit-review-os`
+      Mode B's FRINGE flag + fringe-vs-core rate is a binary compare, not a
+      curve with intervals — not a rebuild, not free.
+- [ ] **Door three — residual profiling.** Deferred by the same ruling. Fit
+      the accepted drivers across all vintages, compare predicted vs actual by
+      vintage, profile the worst residuals, feed the split back through the
+      ladder across all vintages.
+- [ ] **Sweep mode.** Deferred. Leads never findings; log every partition
+      attempted; promote only on held-back data.
+- [ ] **Vintage curves** as an alternative to the fixed window. Deferred.
+- [ ] **Utilization as a second outcome** (line-assignment failure looks
+      like drawing to the line). The firm, 18 Sep 2026: outstanding divided
+      by commitment, a snapshot at as-of. The PRD's third outcome form
+      carries it; what remains is Key's column names and the threshold, then
+      it is a second config file.
+- **Docket answered 18 Sep 2026 (form 6LgJGrLMitMi6CKe9BMaH6).** In the
+      firm's words, and what each caused:
+      - *Next:* "Build and keep building until you actually need me." → the
+        nine slices run autonomously; a docket only when genuinely blocked.
+      - *Who merges:* "You merge them" → each slice's PR is merged by the
+        session once its checks are green and the workbook has been opened.
+      - *First real run:* "After all nine … i expect synthetic testing and
+        proofing. you also have the adversarial skill" → synthetic fixtures
+        prove each slice; a `canon:adversarial` pass (another agent writes
+        only tests to break it) runs before the desk; the desk run is last.
+      - *existing_control:* "None … this is specific to an idea - it also
+        has to be generalized" → the step-7 sentence asserts nothing the
+        tool cannot know: the share where the two fields disagree, plus what
+        the question file says reacts today. No word like "unverified" is
+        the tool's.
+      - *Utilization threshold:* "why would we define this in the script
+        when the person running the test can do it? … utilization can be
+        segmented into percentages itself … the directive has been clear
+        about being adaptable" → no threshold anywhere in the tool or spec.
+        A measure outcome takes a single cut or a set of percentage bands,
+        chosen by whoever runs it, and the pack shows the bands. Built in
+        slice 2 (#365). The docket should not have asked it.
+- **Decided against (2026-09-18), permanently for this tool:** any
+      domain-specific list, mapping or transform in the code. The firm: "i
+      don't want to have a sector list - this is supposed to be generic...
+      it should be adaptable." Grouping is a generic `prefix` or a `map`
+      the config supplies (PRD §6.15); the NAICS list that was in the PRD
+      for a day is gone, and with it the item to confirm it.
+- **Decided against for now (2026-09-18):** a PII guard for this project
+      (the firm: "stop worrying about PII. It is all on Key's desk"); Excel-
+      side bucket edges via a fine-grained cube; two outcomes in one pack;
+      any numpy/scipy/statsmodels/sklearn on the build path (the desk has
+      none); charts beyond the gradient blocks.
+
+- **Walked at a desk (22 Sep 2026, `canon:walk`).** The job "test the
+      tool from the emailed file to a read workbook", done as a person would:
+      the bundle saved into an empty folder, every command typed, every
+      screen read, the workbook opened tab by tab, then a question file
+      written for the extract and a pack built from it. Thirty screens, all
+      kept. Two documents: `portfolio-analysis-pack/docs/PROCEDURE-desk-test.md`
+      (delivered as one self-contained PDF under `docs/walkthrough/
+      desk-test-2026-09-22/`, a screenshot per step, ringed and zoomed, and
+      the route pictured first) and `docs/WALKTHROUGH-DEFECTS.md`, **eleven
+      defects against 99 passing tests, 9 of 9 mutations caught and 48 of 48
+      harness checks, none of which caught any of them**. The first: fill in
+      the question file exactly as `--init` writes it and the cover says
+      step 4 is "not built in this version" — the skeleton ships
+      `confounders: []` unmarked, and `wording.yaml`'s `not_built` sentence
+      is used for a step that was given nothing to do. Then the JSON dump on
+      every screen, a next-command line naming `pack validate` on a desk that
+      has `build_pack.py`, a folder appearing beside the emailed file with
+      `keybank_style.py` in it, headings cut by column widths in the rows
+      the cover points to, chart helper columns shown as results, EPP and
+      "no engine" unexplained, the run date silently set to the as-of date,
+      "do they event more often", a knob note reading "(not in this
+      version)", and the skeleton quoting three real values of every column.
+      Nothing was fixed mid-walk; all eleven are a later slice. The walk is
+      a script (`tools/walk_desk_test.py` over `tools/walkshot.py`, headless
+      Chromium + LibreOffice, no image library): run twice, 22 of 31 screens
+      byte-identical and the rest differing only by timings or by the
+      capture tool's own height fix; the second run's screens are the ones
+      committed. Deviations stated in both documents: terminal screens are
+      rendered from captured text, spreadsheet screens are LibreOffice, and
+      the knob change was written by a script. Excel itself is still the one
+      thing not checked; the procedure is the script a fresh agent on a
+      Windows machine with Excel would follow.
+- **The walk's defects patched before anything shipped (22 Sep 2026, later
+      the same day).** The firm, on being offered the script to test live:
+      *"Wait stop hold on back up we need to patch anything wrong prior to
+      shipping. Especially math issues."* Held. On the math: the walk had
+      found no arithmetic defect, and `WALKTHROUGH-DEFECTS.md` now ends with
+      every number checked by hand from the screens (the crude odds ratio and
+      its interval recomputed from the four cells, the gradient multiples,
+      the capture shares, events per coefficient, the two known answers, the
+      formula twins). Ten of the eleven screen defects fixed in one slice,
+      each pinned in `tests/test_walk_defects.py` (9 tests): the confounders
+      slot is marked in the skeleton and a file with none is told so at
+      validate, build, cover and model tab; the bundle keeps its JSON off
+      the screen unless `--json`; every command ends with a `then:` line in
+      the running front door's spelling; the bundle unpacks to a temporary
+      folder removed on exit and `keybank_style.py` is `workbook_style.py`;
+      header rows wrap and grow, no heading is cut (a test walks every
+      sheet); chart and pooling columns are headed `chart:` / `working:` in
+      a quieter face; "events per coefficient" and "runs when Excel opens
+      the file" replace EPP and "no engine"; without `--run-date` the pack
+      says "run date not given" rather than print the as-of date; "is
+      {outcome} more common among them" replaces "do they {outcome}"; the
+      knob note and the outcome line say what is true. Defect 11 stands by
+      the firm's ruling of 18 Sep. Verified: 108 tests (99 + 9), 48 of 48
+      harness checks on the patched bundle, the mutation check, and the walk
+      run again on the patched script — thirty screens re-captured, the
+      procedure re-issued from them, and the skeleton now filled with three
+      confounders so the designated pack's cover matches the demo's.
+- **The picker (22 Sep 2026).** The firm, asked how a desk designates its
+      own columns: *"I want it to be really easy like a picker … I want no
+      editing at the desk of Python or script this is meant to be straight
+      forward. Build it and identify other opportunities."* Built:
+      `python build_pack.py --setup EXTRACT.csv` (installed: `pack setup`)
+      lists the extract's columns with a number, what each reads as, how
+      often it is blank and three sample values, then asks one question at
+      a time — which column numbers the loans, the origination date, the
+      two rule columns, ratio or difference, the flag line, the gradient
+      edges, how the extract says a loan went bad (a date column, a yes/no
+      flag, or a measure from two columns), the word for it, the window,
+      the as-of date, the columns the effect might hide in (numbers banded,
+      quartiles proposed from the data; text taken level by level), what
+      reacts today, anything known only later, the run date — writes the
+      question file from the answers, checks it with the same loader, and
+      builds the pack. Answers are numbers; four are words or dates. A
+      wrong answer is refused and asked again; a column known only later
+      named in the rule is refused as a leak on the spot. The tool proposes
+      only what the data shows (the one column distinct on every row, the
+      one date column, quartiles) and fills nothing unanswered. A second
+      run finds the question file and offers to reuse it. The bundle now
+      checks for openpyxl and PyYAML before anything and prints the one
+      `pip install` line if either is missing. `src/analysis_pack/picker.py`,
+      `tests/test_picker.py` (6). `pack init` and the Notepad path stay for
+      scripts and the harness. The walk's Part E is now three screens of
+      the picker and the cover (25 steps, not 30).
+      **Other opportunities seen at the desk, not built (the firm to pick):**
+      (a) `--synth demo` could build the demo pack too, so the demo is one
+      command; (b) after a build, offer to open the workbook in Excel;
+      (c) the picker could ask for controls beyond the origination year
+      (a numeric column as a log, a text column as categories); (d) a
+      `.exe` so a desk without Python can run it — the single biggest
+      hurdle left, and outside the "pure-ASCII script" design; (e) an
+      `.xlsx` extract is already read (`--sheet NAME` picks the tab) but
+      the procedure only shows `.csv`; (f) the as-of date could be
+      proposed from the latest origination date in the file (a fact, shown
+      and confirmed, never assumed).
+- **The form (22 Sep 2026, later).** Asked whether there was an easier
+      way to select than typing numbers, the firm was offered a pop-up
+      window or a form in Excel and chose the form: *"Actually excel
+      version is fine."* Built: `python build_pack.py --setup EXTRACT.csv`
+      run once writes `question.xlsx` beside the extract — the Columns tab
+      has one row per column (what it reads as, how often blank, three
+      samples) with a dropdown beside each for its role (loan number,
+      origination date, rule top, rule bottom, rule top + group, rule
+      bottom + group, went bad: date / flag / measure top / measure bottom,
+      group), a yes/no for known-only-later, a cell for band edges with the
+      column's quartiles shown beside it from the data; the Answers tab
+      holds the twelve answers that are not a column, two of them required
+      (the event word, the as-of date) and the rest at a usual value. The
+      person picks in Excel, saves, runs the same command again; the tool
+      reads the form, refuses everything the loader would refuse at once,
+      each with its cell (`Columns!F9: category_1 reads as text, and "rule
+      top" needs a number column`; a leak on `G7`; edges that fall on
+      `Answers!B6`), writes `question.yaml` from the form and builds. A
+      form written for another extract is refused by name. Excel's own
+      storage is read as Excel stores it (a typed date becomes a date cell,
+      a number a number). The picker stays as `--setup … --ask`; the yaml
+      the form writes is byte-for-byte the yaml the picker writes from the
+      same answers, and a test proves it. `src/analysis_pack/form.py`,
+      `tests/test_form.py` (7). The walk's Part E is now the form: 27
+      steps, four screens of Excel. The bundle grew to 117 KB.
+      **Seen while building, not built:** (g) the form could carry the
+      column's quartiles into the edges cell as a starting value instead of
+      beside it, at the cost of a value the person did not type; (h) a
+      second sheet in the extract's own workbook could hold the form, so a
+      `.xlsx` extract and its designation travel as one file; (i) the form
+      could be re-read on a timer, so saving in Excel builds without a
+      second command — a watcher, which is a process, which is a different
+      kind of tool.
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -956,6 +1340,8 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
+- 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:
   862 of 862 tie.** Each figure on the ours side read out of the shipped
   workbook -- the cell a person opens, never re-fetched -- and each on the

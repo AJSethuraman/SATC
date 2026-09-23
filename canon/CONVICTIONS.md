@@ -261,3 +261,30 @@ because the finding was strong and the conclusion still was not the firm's.
 > *You shouldn’t ever touch the website itself. That is another agents job.*
 
 **Not a conviction because:** it was a call about that week's pull requests, not a standing belief. The lane still holds as an instruction; it is not something the firm wants challenged from. Proposed 3 September 2026, declined the next day.
+
+---
+
+## Rulings by project
+
+Where a project is not the practice's software, the firm decides how each entry
+applies to it — once — and the ruling is kept here so it is not asked again. A
+struck entry does not fire on that project; an upheld one fires as it would
+anywhere. A ruling is permanent for the project unless a held entry re-collides.
+
+### Ember Vault Arena · 2026-09-11
+
+Ember Vault Arena is not the practice's software, and the firm chose how the record applies to it on 11 September 2026: "Case by case on a permanent basis. We strike it done or uphold it once then move on unless something held re-conflicts." A ruling below is permanent for the project unless a held entry re-collides.
+
+| Entry | Ruling | Date | The firm's words |
+|---|---|---|---|
+| C10 · the Forge preference | Struck for Ember Vault Arena. Hosted models are the target; the provider seam stays so a local run remains possible | 2026-09-11 | "Strike for this project" |
+| C11 against the July 2026 non-goal on cross-match memory | Each match starts clean. A brain keeps its identity so it can be resubmitted. A champions round is a later format | 2026-09-11 | "The idea is each setup is new. They aren't recursions. We could resubmit an agent, but that's a future iteration to me. A champions round maybe." |
+
+### Portfolio Analysis Pack · 2026-09-18
+
+Portfolio Analysis Pack is credit-consulting software for the firm's work at a bank, not the practice's own. It was grilled on 18 September 2026 and the firm ruled on the two entries that fired, under the mechanism they set on 11 September 2026: "Case by case on a permanent basis. We strike it done or uphold it once then move on unless something held re-conflicts." A ruling below is permanent for the project unless a held entry re-collides.
+
+| Entry | Ruling | Date | The firm's words |
+|---|---|---|---|
+| C11 · the simplest answer is doing the work once, upfront, when you know it is coming | Struck for Portfolio Analysis Pack. v1 is the ladder plus door one; doors two and three keep a config slot and a plug-in seam and are logged, not built | 2026-09-18 | "Strike for this project (Recommended)" |
+| C9 · the simplest answer is likely the best, raised by hand on placement | Upheld. A new top-level folder that copies only the house-style module; nothing else duplicated, nothing imported across folders | 2026-09-18 | "New top-level folder, copies the style module only (Recommended)" |

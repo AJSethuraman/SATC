@@ -785,7 +785,7 @@ def run_dir(out: str, desk_name: str, today: date) -> Path:
     moving the old directory costs one command, and the record costs a rerun
     that cannot reproduce it.
     """
-    d = Path(out) if out else ROOT / "desks" / desk_name / "runs" / today.isoformat()
+    d = Path(out) if out else ROOT / "runs" / f"{desk_name}-{today.isoformat()}"
     held = [n for n in RUN_RECORDS if (d / n).is_file()]
     if held:
         raise RunWouldOverwrite(
@@ -805,7 +805,7 @@ def _main(argv: list[str]) -> int:
     from record import load
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--desk", default=str(ROOT / "desks" / "fixed-assets"))
+    ap.add_argument("--desk", default=str(ROOT / "corpus"))
     ap.add_argument("--out", default="")
     ap.add_argument("--dump-prompts", default="",
                     help="write the prompts for a brain answered elsewhere")

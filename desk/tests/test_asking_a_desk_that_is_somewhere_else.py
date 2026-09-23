@@ -171,9 +171,9 @@ def test_it_says_a_refusal_is_a_finding():
     assert "a refusal is a finding" in body
 
 
-def test_it_forbids_writing_to_a_desk():
+def test_it_forbids_writing_to_the_record():
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "Do not write to a desk" in body
+    assert "Do not write to the record" in body
 
 
 # ------------------------------------------------------------ the two skills
@@ -296,22 +296,52 @@ def test_the_address_is_not_committed_anywhere_in_this_repository():
         + f". It is deployment state — read it from ${relay.DESK}")
 
 
-def test_the_envelope_asks_the_desk_to_name_the_desks_it_reached():
-    """ROUTING IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
+def test_the_envelope_asks_the_desk_to_say_what_the_phrasing_reached():
+    """WHAT THE RETRIEVAL DID IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
 
     On 8 September a doer asked "what do I do with it" about a forklift and
     reached ONE desk. The same transaction phrased as "is the invoice price
-    deducted or capitalized?" reaches TWO — and the one dropped, `fixed-assets`,
-    holds the most on-point paragraph. The doer: *"My phrasing was the natural
+    deducted or capitalized?" reached TWO — and the one dropped, `fixed-assets`,
+    held the most on-point paragraph. The doer: *"My phrasing was the natural
     working one and it got strictly less authority. I did not know that when I
     wrote it, and a doer has no way to tell."*
 
-    Nothing in the engine is wrong here — `routing.route` is a comparison and it
-    compared correctly. What was missing is that the only party who can see the
-    routing was not asked to report it."""
+    Nothing in the engine was wrong there — `routing.route` was a comparison and
+    it compared correctly. What was missing is that the only party who can see
+    what the question reached was not asked to report it. That is still true
+    with the desks gone, and `test_the_envelopes_measurement_is_still_the_truth`
+    is what stops the envelope's own numbers going stale."""
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "Name every desk" in body
-    assert "fewer desks than an obvious rephrasing" in body
+    assert "Name the citations it came back with" in body
+    assert "reaches authority this one did not" in body
+
+
+def test_the_envelopes_measurement_is_still_the_truth():
+    """THE ENVELOPE QUOTES A NUMBER, SO THE NUMBER IS RECOMPUTED HERE.
+
+    It tells the answerer that the forklift asked the natural way now reaches
+    NOTHING while the explicit phrasing reaches eight — measured 11 September
+    2026, and worse than the one-desk-of-two it replaced. A figure in a message
+    an agent reads at runtime is the worst place for a stale one: it is quoted
+    as evidence and nobody re-checks it.
+
+    IF THIS GOES RED THE RETRIEVAL MOVED. Down to a smaller gap is the pool
+    learning the natural phrasing — good, and the envelope's sentence has to
+    move with it. Anything else is a regression nobody asked for.
+    """
+    import ask
+    from conftest import CORPUS
+
+    natural = "what do i do with it? we bought a forklift"
+    explicit = ("we bought a forklift - is the invoice price deducted or "
+                "capitalized?")
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+
+    assert len(ask.looked(natural, CORPUS)) == 0, (
+        "the natural phrasing reaches something now; the envelope still says "
+        "it reaches NOTHING AT ALL. Fix the sentence in `relay.as_prompt`.")
+    assert len(ask.looked(explicit, CORPUS)) == 8
+    assert "0 passages against 8" in body
 
 
 def test_and_says_why_the_asker_cannot_do_it_themselves():

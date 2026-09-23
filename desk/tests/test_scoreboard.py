@@ -21,9 +21,27 @@ def always(position, citation=""):
 
 
 def test_a_perfect_pass_is_all_correct(fixed_assets):
+    """A PERFECT ANSWERER REACHES THE CEILING, WHICH IS NOT EVERYTHING.
+
+    This read `== len(problems)` and passed while the record was one desk. One
+    corpus escalates fourteen of its own recorded answers
+    `authority_permits_choice` — a corpus holding seven desks' regulations holds
+    a binding rule on nearly every subject, and guidance may not answer past
+    one. See `test_a_desk_can_answer_itself.py`, where that is explained and
+    where whether it is right is the firm's call.
+
+    So the shape asserted here is what this test is actually about: a perfect
+    answerer lands only in `correct` or `escalated`, and NEVER in
+    `wrongly_absorbed` or `wrong_caught`. Anything else is the record
+    contradicting itself.
+    """
     r = run(fixed_assets, lambda p: Answer(p.answer, p.citation), model="stub")
-    assert r.counts["correct"] == len(fixed_assets.problems)
     assert r.counts["wrongly_absorbed"] == 0
+    assert r.counts["wrong_caught"] == 0
+    assert (r.counts["correct"] + r.counts["escalated"]
+            == len(fixed_assets.problems))
+    assert r.counts["correct"] > len(fixed_assets.problems) * 3 // 4, (
+        "most of the record no longer answers its own problems")
 
 
 def test_a_model_that_answers_without_citing_is_never_scored_correct(

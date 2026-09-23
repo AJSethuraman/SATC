@@ -27,14 +27,14 @@ from collections import Counter
 import pytest
 
 import record
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 
 sys.path.insert(0, str(ROOT / "tools"))
 import extract_ecfr as ex          # noqa: E402
 import scoreboard_run as sr        # noqa: E402
 
 XML = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
-DESK = DESKS / "fixed-assets"
+DESK = CORPUS
 PREFIX = "26 CFR 1.263(a)-3"
 
 
@@ -171,8 +171,15 @@ def test_the_extracted_file_states_the_corroboration_it_was_built_with():
     """The header prints numbers about itself. They are asserted against a
     rebuild, both directions, so the file cannot outlive the facts."""
     facts = ex.corpus(XML)
-    text = (DESK / "extracted" / "treas-reg-1-263a-3.md").read_text(encoding="utf-8")
-    head = " ".join(text.split("\n---\n", 1)[0].split())     # it is line-wrapped
+    # ONE FILE. It was `extracted/treas-reg-1-263a-3.md`; `dec-kill` merged the
+    # seven records' extractions into `extracted/authority.md` and moved each
+    # file's own preface into the merged preamble under a `###` heading, so this
+    # section's self-description is still there to be checked against a rebuild.
+    text = (DESK / "extracted" / "authority.md").read_text(encoding="utf-8")
+    # SPLIT ON THE FIRST PASSAGE HEADING, NOT ON `"## "` -- the prefaces are
+    # `###` sub-headings and a plain split truncates the preamble at the first
+    # of them, which is before the numbers this checks.
+    head = " ".join(re.split(r"(?m)^## (?!#)", text, maxsplit=1)[0].split())
     assert f"{facts['elements']} elements opening {len(facts['paragraphs'])} paragraphs" in head
     assert f"cites {len(facts['cited'])} of its own paragraph paths" in head
     assert f"{len(facts['resolved'])} resolve" in head
@@ -218,12 +225,13 @@ def test_the_marking_is_truthful_against_the_section_itself():
     desk = record.load(DESK)
     assert len(desk.passages) > 100, "the corpus is not the section"
     rules, examples_ = _rules_text(), _examples_text()
-    # S1 ONLY, AND THE NARROWING IS NEW. This desk held one source until
-    # 7 September 2026, when the firm admitted eCFR for § 1.162-3 and two of its
-    # paragraphs were stored. They are verbatim from THEIR section and would
-    # never be found in this one, so a check that reads "every passage" was
-    # really reading "every passage of the only source there was".
-    for p in (q for q in desk.passages if q.source_id == "S1"):
+    # THIS SECTION ONLY, AND IT IS NARROWED BY CITATION RATHER THAN BY SOURCE
+    # ID. It read `source_id == "S1"` — right while S1 was this section on a
+    # desk holding almost nothing else, wrong twice over now: `dec-kill`
+    # renumbered every id, and one corpus holds 785 passages from thirty-three
+    # publications, none of which is verbatim from THIS section's XML. The
+    # citation prefix is what actually names the section.
+    for p in (q for q in desk.passages if q.citation.startswith(PREFIX)):
         where, name = ((rules, "the section's rules")
                        if p.kind == record.RULE
                        else (examples_, "the section's worked examples"))
@@ -245,7 +253,11 @@ def test_every_worked_example_is_stored_and_every_one_is_marked():
                for e in ex.examples(XML)
                if " ".join(e["text"].split()) not in stored]
     assert not missing, f"the section's examples are not all stored: {missing}"
-    assert len(stored) == 117, f"{len(stored)} examples stored, not 117"
+    stored_here = {p.text for p in desk.passages
+                   if p.kind == record.EXAMPLE and p.citation.startswith(PREFIX)}
+    assert len(stored_here) == 117, (
+        f"{len(stored_here)} of this section's examples stored, not 117 "
+        f"(the corpus holds {len(stored)} in total, from seven records)")
 
 
 def test_no_worked_example_is_filed_among_the_rules():
@@ -368,6 +380,20 @@ def test_build_refuses_a_problem_whose_stipulation_names_its_own_rule(tmp_path):
     assert all("**Kind:** example" not in x for x in rules)
 
 
+def _ours(desk):
+    """The problems from THIS section, out of everything the corpus holds.
+
+    `dec-kill` merged seven records, so `desk.problems` is 98 problems from
+    seven sources and sixteen of them are this section's. A check about the
+    extractor's output that swept all 98 was checking hand-curated problems
+    against rules that were never applied to them — `CD1` "is not a rebuild of
+    the fixture" is true and is not a defect.
+    """
+    out = [p for p in desk.problems if p.citation.startswith(PREFIX)]
+    assert out, f"no problem cites {PREFIX}; this would check nothing"
+    return out
+
+
 def _kept_by_facts() -> dict:
     _, kept, _, _, _ = ex.build(XML, DESK, checked="2026-09-04")
     return {e["facts"]: e for e, _ in kept}
@@ -380,8 +406,7 @@ def test_every_problems_citation_is_named_in_its_own_withheld_analysis():
     desk = record.load(DESK)
     kept = _kept_by_facts()
     root = ET.parse(XML).getroot()
-    assert desk.problems, "would pass vacuously"
-    for p in desk.problems:
+    for p in _ours(desk):
         assert p.facts in kept, f"{p.id} is not a rebuild of the fixture"
         e = kept[p.facts]
         _, withheld, _ = ex.split_conclusion(e["text"])
@@ -396,9 +421,8 @@ def test_no_problems_facts_name_its_own_citation_or_apply_a_rule_by_name():
     imported: a fact may cite a paragraph only inside a stipulation, and never
     the paragraph the problem is scored on finding."""
     desk = record.load(DESK)
-    assert desk.problems, "would pass vacuously"
     applies = re.compile(r"paragraphs? \(")
-    for p in desk.problems:
+    for p in _ours(desk):
         path = p.citation[len(PREFIX):]
         assert path not in p.facts, f"{p.id}'s facts name its citation {path}"
         for s in re.split(r"(?<=\.)\s+(?=[A-Z(])", p.facts):
@@ -444,24 +468,27 @@ def test_problems_md_states_the_citation_spread_and_its_baseline():
     text = (DESK / "PROBLEMS.md").read_text(encoding="utf-8")
     stated = {m.group(1): int(m.group(2)) for m in
               re.finditer(r"^\| (26 CFR [^|]+?) \| (\d+) \|$", text, re.M)}
-    assert stated == dict(Counter(p.citation for p in desk.problems))
+    ours = _ours(desk)
+    assert stated == dict(Counter(p.citation for p in ours))
     top = max(stated.values())
     assert (f"Always citing the most common one matches {top} of "
-            f"{len(desk.problems)} ({top * 100 // len(desk.problems)}%)") in text
+            f"{len(ours)} ({top * 100 // len(ours)}%)") in text
     # READ OFF THE PROMPT PATH, NOT OFF `desk.passages`. Since the corpus began
     # holding the section's 117 worked examples, those two are different
     # numbers: this desk stores 289, of which 172 are the index it cites
     # from. The sentence claims the latter, so the check asks the code that
     # builds the index rather than counting the record.
-    # S1's RULES, NOT THE DESK'S. `PROBLEMS.md` is § 1.263(a)-3's own
-    # denominator -- every problem is a worked example FROM THAT SECTION -- so
-    # § 1.162-3's two paragraphs, admitted on 7 September 2026, do not belong in
-    # the figure however much they belong in the desk.
+    # THIS SECTION'S RULES, NOT THE CORPUS'S. `PROBLEMS.md` is § 1.263(a)-3's
+    # own denominator -- every problem it counts is a worked example FROM THAT
+    # SECTION -- so the other thirty-two publications the corpus now holds do
+    # not belong in the figure however much they belong in the record. It read
+    # `source_id == "S1"`, which named this section on one desk and names a
+    # different regulation after `dec-kill` renumbered every id.
     shown = sum(1 for p in desk.passages
-                if p.kind == record.RULE and p.source_id == "S1")
+                if p.kind == record.RULE and p.citation.startswith(PREFIX))
     assert len(sr.corpus_lines(desk, "index")) == sum(
         1 for p in desk.passages if p.kind == record.RULE)
-    assert f"holds **{shown}** paragraphs for **{len(desk.problems)}** problems" in text
+    assert f"holds **{shown}** paragraphs for **{len(ours)}** problems" in text
 
 
 # -- the two shapes a run-in heading takes ------------------------------------

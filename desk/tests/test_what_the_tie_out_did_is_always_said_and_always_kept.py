@@ -44,9 +44,11 @@ import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
 import tieouts                                              # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
-DESK = "fixed-assets"
+#: The record a refusal names. There is one, and `dec-kill` is why:
+#: it took a desk name until 10 September 2026, when there were seven.
+DESK = "corpus"
 REAL = "https://www.ecfr.gov/current/title-26/section-1.263(a)-2"
 
 
@@ -60,14 +62,14 @@ class _Page:
 
 
 def _copy(tmp_path):
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
-    return desks
+    """A writable copy of the ONE corpus. There is no desk to choose."""
+    dst = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dst)
+    return dst
 
 
 def _problem(desks):
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     return desk, desk.problems[0]
 
 
@@ -103,8 +105,8 @@ def test_a_tied_answer_says_so_where_the_authority_is(tmp_path):
     desk, p = _problem(desks)
     url = _url(desk, p.citation)
     page = _Page(desk.passage(p.citation).text, url=url)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=lambda s, c: page,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
@@ -124,8 +126,8 @@ def test_an_unreachable_publisher_is_said_out_loud_on_the_served_answer(tmp_path
     def dead(source, citation):
         raise OSError("no route to host")
 
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=dead,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=dead,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "the answer must still stand"
     assert out.proof.verdict == proving.COULD_NOT
@@ -144,8 +146,8 @@ def test_no_line_at_all_when_nobody_asked(tmp_path):
     """
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None
@@ -158,8 +160,8 @@ def test_no_line_at_all_when_nobody_asked(tmp_path):
 def test_a_withdrawal_states_what_the_fetch_did_and_where(tmp_path):
     desks = _copy(tmp_path)
     _desk, p = _problem(desks)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
                        prove=lambda s, c: _Page(
                            f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
@@ -169,7 +171,7 @@ def test_a_withdrawal_states_what_the_fetch_did_and_where(tmp_path):
     assert out.proof.sha256 and out.proof.fetched_at
     text = str(out)
     assert "NOT TIED OUT" in text
-    assert out.desk == DESK, "a refusal that fetched must say which desk did"
+    assert out.desk == DESK, "a refusal that fetched must say which record did"
 
 
 # ── 3. what reaches the store, and what may never ───────────────────────────
@@ -181,7 +183,7 @@ def test_the_store_keeps_the_publisher_and_never_the_passage():
                       fetched_at="2026-09-08T12:00:00+00:00",
                       sha256="0" * 64, doc_bytes=len(secret),
                       matched_chars=len(secret))
-    line = json.dumps(vars(attempts.from_proof(p, DESK)))
+    line = json.dumps(vars(attempts.from_proof(p, "corpus")))
     assert "ecfr.gov" in line and "TIED" in line
     assert secret not in line
     for dropped in ("sha256", "doc_bytes", "matched_chars"):
@@ -202,7 +204,7 @@ def test_an_attempt_survives_a_round_trip(tmp_path):
     path = tmp_path / "attempts.jsonl"
     p = proving.Proof(proving.DIFFERS, "26 CFR 1.263(a)-2", url=REAL,
                       fetched_at="2026-09-08T12:00:00+00:00", note="moved")
-    attempts.append(path, attempts.from_proof(p, DESK))
+    attempts.append(path, attempts.from_proof(p, "corpus"))
     back = attempts.parse(path.read_text(encoding="utf-8"))
     assert len(back) == 1
     assert back[0].verdict == proving.DIFFERS
@@ -231,10 +233,10 @@ def test_every_verdict_is_recorded_including_the_one_that_changed_nothing(
     # not is one we cannot show is the right one, which is COULD NOT (#344).
     body = (desk.passage(p.citation).text if page is None
             else page.format(citation=p.citation))
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, keep=True, prove=lambda s, c: _Page(body))
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks, keep=True, prove=lambda s, c: _Page(body))
     rows = attempts.parse(
-        attempts.store_for(desks, DESK).read_text(encoding="utf-8"))
+        attempts.store_for(desks).read_text(encoding="utf-8"))
     assert [r.verdict for r in rows] == [verdict]
     assert rows[0].citation == p.citation
 
@@ -246,10 +248,10 @@ def test_an_unreachable_publisher_is_recorded_too(tmp_path):
     def dead(source, citation):
         raise OSError("no route to host")
 
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, keep=True, prove=dead)
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks, keep=True, prove=dead)
     rows = attempts.parse(
-        attempts.store_for(desks, DESK).read_text(encoding="utf-8"))
+        attempts.store_for(desks).read_text(encoding="utf-8"))
     assert [r.verdict for r in rows] == [proving.COULD_NOT]
     assert "no route to host" in rows[0].note
 
@@ -261,10 +263,10 @@ def test_attempts_accumulate_rather_than_replace(tmp_path):
     desk, p = _problem(desks)
     for body in (desk.passage(p.citation).text,
                  f"{p.citation} rewritten", f"{p.citation} rewritten again"):
-        front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                     desks=desks, keep=True, prove=lambda s, c: _Page(body))
+        front.answer(p.facts,  position=p.answer, citation=p.citation,
+                     corpus=desks, keep=True, prove=lambda s, c: _Page(body))
     rows = attempts.parse(
-        attempts.store_for(desks, DESK).read_text(encoding="utf-8"))
+        attempts.store_for(desks).read_text(encoding="utf-8"))
     assert len(rows) == 3
 
 
@@ -273,10 +275,10 @@ def test_measuring_writes_nothing(tmp_path):
     this the suite would write into the repository on every run."""
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, keep=False,
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks, keep=False,
                  prove=lambda s, c: _Page(desk.passage(p.citation).text))
-    assert not attempts.store_for(desks, DESK).exists()
+    assert not attempts.store_for(desks).exists()
 
 
 # ── 5. the reader says what it read ─────────────────────────────────────────
@@ -297,8 +299,8 @@ def test_the_report_counts_by_publisher_and_shows_only_the_failures(tmp_path):
     passage = desk.passage(p.citation).text
     url = _url(desk, p.citation)
     for body in (passage, passage, f"{p.citation} rewritten"):
-        front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                     desks=desks, keep=True,
+        front.answer(p.facts,  position=p.answer, citation=p.citation,
+                     corpus=desks, keep=True,
                      prove=lambda s, c: _Page(body, url=url))
     out = tieouts.report(root=desks)
     assert "Read 1 store of 1 looked for" in out
@@ -312,8 +314,8 @@ def test_the_report_says_so_when_every_one_tied_out(tmp_path):
     """A clean result is a finding, and must not render as an empty section."""
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, keep=True,
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks, keep=True,
                  prove=lambda s, c: _Page(desk.passage(p.citation).text))
     out = tieouts.report(root=desks)
     assert "Every one of the 1 tied out. Recorded rather than assumed." in out

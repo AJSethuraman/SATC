@@ -159,7 +159,7 @@ def test_a_domain_term_in_a_closed_vocabulary_is_caught(tmp_path):
 
 def test_desk_data_is_not_covered_by_this_rule():
     """`desks/` is one domain's data and is supposed to be full of its words."""
-    problems = (ROOT / "desks" / "fixed-assets" / "PROBLEMS.md").read_text(
+    problems = (ROOT / "corpus" / "PROBLEMS.md").read_text(
         encoding="utf-8")
     assert "capitalize" in problems.lower(), (
         "the desk's own record should speak its trade; if this fails the fixture "

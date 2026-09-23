@@ -328,12 +328,24 @@ def test_the_tie_out_skill_marks_and_enlarges_the_source():
     """A captured page satisfies "screenshot the source" and still leaves the
     reader hunting a row on a dense regulatory form. Marking and enlarging is
     what makes the check take a glance, and a check that takes work does not
-    happen."""
+    happen.
+
+    WHAT CHANGED ON 19 SEPTEMBER 2026, and why this test changed with it. The
+    skill asked for the whole page photographed with a zoomed crop of the row
+    beneath it, and no delivered exhibit ever did that. What two of them did do
+    -- cut the row out of the page at a readable size, with the page's identity
+    header cut from the same page above it -- is smaller, carries the same
+    evidence, and is what `check_tie_out.py` can see. The instruction moved to
+    what was being followed and the phrase this used to pin went with it. The
+    ring is now held in code rather than asked for here.
+    """
     flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
                     .read_text(encoding="utf-8").split())
     assert "Mark it, and enlarge it" in flat, \
         "the capture may still be an unmarked page"
-    assert "zoomed crop of that row" in flat, "no enlargement of the located row"
+    assert "Cut the row out of the page at a size the digits can be read at" \
+        in flat, "no enlargement of the located row"
+    assert "ring it in red" in flat, "the located row need not be marked"
     assert "same shot as the number" in flat, \
         "entity, form and period may still be taken on trust"
     assert "Read every figure twice" in flat, \

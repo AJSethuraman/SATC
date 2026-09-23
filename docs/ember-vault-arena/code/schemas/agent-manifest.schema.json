@@ -1,0 +1,143 @@
+{
+  "$id": "https://ember-vault-arena.local/schemas/agent-manifest-1.0.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "agent-manifest-1.0. A character's four sections together must total at most 2000 characters; that cap is enforced by the loader, since JSON Schema cannot sum lengths.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "enum": [
+            "mystic",
+            "scoundrel",
+            "scout",
+            "vanguard"
+          ],
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 40,
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 40,
+          "minLength": 2,
+          "type": "string"
+        },
+        "never": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "secret_objective": {
+          "enum": [
+            "lorekeeper",
+            "monster_hunter",
+            "oathbreaker",
+            "treasure_hoarder",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "treats": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "voice": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wants": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "build",
+        "voice",
+        "wants",
+        "treats",
+        "never"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "agenda": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "holds": {
+          "items": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 40,
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "talker"
+          ],
+          "type": "string"
+        },
+        "knows": {
+          "items": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 40,
+          "minLength": 2,
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 32,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "voice": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "voice",
+        "agenda"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Agent Manifest"
+}

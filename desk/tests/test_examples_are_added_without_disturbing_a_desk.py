@@ -28,13 +28,13 @@ sys.path.insert(0, str(HERE / "tools"))
 
 import add_examples                                          # noqa: E402
 import record                                                # noqa: E402
-from conftest import DESKS                                   # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
-CAP = DESKS / "capitalization-and-de-minimis"
+CAP = CORPUS
 
 
 def _desk_with_source(**changes):
-    """The capitalization desk with one field of S1 altered."""
+    """The corpus with one field of S1 altered."""
     import dataclasses
     desk = record.load(CAP)
     s1 = dataclasses.replace(desk.source("S1"), **changes)
@@ -77,15 +77,32 @@ def test_the_date_must_be_a_date_and_is_never_defaulted():
 
 # ── it finds the right file, by reading rather than by convention ────────────
 
-def test_the_source_s_own_file_is_found_by_reading_it():
-    """The desks spell these `S1.md`, `S1-treas-reg-1-274-12.md` and
+def test_the_source_s_own_file_is_found_by_reading_it(tmp_path):
+    """The seven desks spelled these `S1.md`, `S1-treas-reg-1-274-12.md` and
     `treas-reg-1-263a-3.md`. A naming convention six records each have to
-    remember is not a convention."""
-    assert add_examples._file_holding(CAP, "S1").name == "S1.md"
-    assert add_examples._file_holding(DESKS / "fixed-assets", "S1").name == \
-        "treas-reg-1-263a-3.md"
-    assert add_examples._file_holding(DESKS / "meals-and-entertainment", "S1").name == \
-        "S1-treas-reg-1-274-12.md"
+    remember is not a convention.
+
+    THE THREE SPELLINGS ARE GONE AND THE PROPERTY IS NOT. `dec-kill` left one
+    `extracted/authority.md`, so pointing this at the corpus would prove that a
+    file called `authority.md` can be found — which is the naming convention
+    back, and passing by luck. The three shapes are CONSTRUCTED instead, which
+    is what the test always meant: the file is found by reading which source its
+    passages name, whatever it is called.
+    """
+    for spelling in ("S1.md", "S1-treas-reg-1-274-12.md", "zzz-anything.md"):
+        d = tmp_path / spelling
+        (d / "extracted").mkdir(parents=True)
+        (d / "extracted" / spelling).write_text(
+            "## 26 CFR 1\n\n**Source:** S1 · **Checked:** 2026-09-07 · "
+            "**Kind:** rule\n\n> a rule\n", encoding="utf-8")
+        # AND A DECOY THAT SORTS FIRST, so "the first file" cannot pass.
+        (d / "extracted" / "aaa-other.md").write_text(
+            "## 26 CFR 9\n\n**Source:** S2 · **Checked:** 2026-09-07 · "
+            "**Kind:** rule\n\n> another rule\n", encoding="utf-8")
+        assert add_examples._file_holding(d, "S1").name == spelling
+
+    # And on the real record, where there is now exactly one.
+    assert add_examples._file_holding(CAP, "S1").name == "authority.md"
 
 
 def test_a_source_held_in_no_file_is_refused_rather_than_guessed():
@@ -98,9 +115,7 @@ def test_a_source_held_in_no_file_is_refused_rather_than_guessed():
 def test_every_added_example_is_marked_and_cited_under_its_own_source():
     """Read off the committed record. An example filed under the wrong source
     would pass the desk's own load and be cited to another regulation."""
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         for p in desk.passages:
             if p.kind != record.EXAMPLE:
@@ -120,7 +135,7 @@ def test_an_added_example_is_not_beneath_its_lead_in_as_a_paragraph():
     example as a near miss on the rule, and the engine's containment logic
     would treat a worked example as a sub-rule of the paragraph it illustrates.
     """
-    desk = record.load(DESKS / "rewards-and-information-returns")
+    desk = record.load(CORPUS)
     example = "26 CFR 1.6041-1(a)(1)(v) Example 1"
     assert desk.passage(example).kind == record.EXAMPLE
     assert not record.under(example, "26 CFR 1.6041-1(a)(1)(v)")

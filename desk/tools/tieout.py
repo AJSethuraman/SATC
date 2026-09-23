@@ -445,7 +445,26 @@ def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]
     return out
 
 
-_BLOCK = re.compile(r"^### (.+?)\n\n> (.+?)\n", re.M | re.S)
+#: A passage as the brief renders it: a heading LINE, then anything the brief
+#: chooses to put in front of the quotation, then the quotation.
+#:
+#: THE CITATION IS ONE LINE AND THIS USED TO SAY `(.+?)` UNDER `re.S`, which
+#: makes `.` match newlines -- so the citation group swallowed whatever sat
+#: between the heading and the `>`. Nothing sat there until 14 September 2026,
+#: when `dec-examples` put a label on every worked example, and every example in
+#: the corpus came back with the label glued onto its citation and therefore
+#: "not in the record".
+#:
+#: PARSING THE RENDERED BRIEF IS DELIBERATE -- reading `desk.passages` here would
+#: put the intermediate on the `ours` side, which is the failure this exercise is
+#: written against. The cost of that choice is exactly this: the parser tracks
+#: the rendering. So it is written to survive the brief gaining prose, and it
+#: refuses to cross a following heading rather than matching greedily past one.
+_BLOCK = re.compile(
+    r"^### ([^\n]+)\n"          # the citation, and only the heading line
+    r"(?:(?!^### )[\s\S])*?"     # anything the brief prints before the quote
+    r"^> ([\s\S]+?)\n",         # the passage itself
+    re.M)
 
 
 def brief_passages(desk: record.Desk) -> dict:
@@ -460,9 +479,15 @@ def brief_passages(desk: record.Desk) -> dict:
     return {m.group(1).strip(): m.group(2).strip() for m in _BLOCK.finditer(body)}
 
 
-def run(desks_dir: Path = HERE / "desks") -> list[Line]:
+def run(root: Path = HERE) -> list[Line]:
+    """Tie out every passage in the record. ONE CORPUS since 10 September 2026.
+
+    It walked `desks/*/`. The loop is kept over a one-entry list rather than
+    flattened, so a second record — should the firm ever want one — is a change
+    to what this iterates and not a rewrite of what it does.
+    """
     lines: list[Line] = []
-    for d in sorted(desks_dir.iterdir()):
+    for d in [root / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

@@ -17,15 +17,19 @@ own. Here:
     scored is a claim.
   - `emit` writes into a git checkout and nowhere else, so the installed plugin
     -- which is replaced whole on update -- can never be the thing that changed.
-  - `emit` runs `guards.check` over what it just wrote and DELETES IT on failure.
-    A factory-built desk passes exactly the gates a hand-built one does, or it
-    does not exist. There is deliberately no weaker path for generated records.
+  - `emit` assembles the merge in a temporary copy of the corpus, runs
+    `guards.check` over the WHOLE of it, and touches the checkout only if that
+    comes back clean. A factory-built subject passes exactly the gates the
+    shipped corpus passes, or it does not exist. There is deliberately no
+    weaker path for generated records.
 
 The pull request is the firm's yes. Nothing here is a substitute for it.
 """
 from __future__ import annotations
 
+import re
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -457,18 +461,124 @@ def render(draft: DeskDraft) -> dict[str, str]:
 
 # ── emitting ──────────────────────────────────────────────────────────────────
 
+#: WHERE A PROPOSAL LANDS, AND THERE IS ONLY ONE PLACE NOW. This was
+#: `desk/desks/<name>/` until 11 September 2026 -- and `dec-kill` had deleted
+#: `desk/desks/` the day before. The factory went on writing there: `guards.check`
+#: passed, because it grades a record directory in isolation and that directory
+#: was a perfectly good one. Nothing loads it. A subject built this way would
+#: have been interviewed out of the firm, reviewed, merged, and then never
+#: reached by a question -- the emptiest possible failure, and silent.
+CORPUS = Path("desk") / "corpus"
+
+#: The files a proposal adds to, in the order a reviewer reads them.
+SUBJECTS, SOURCES, PROBLEMS = "SUBJECTS.md", "SOURCES.md", "PROBLEMS.md"
+
+
+def _body(text: str, preamble: str) -> str:
+    """`render` builds every file as preamble + records. Merging wants the
+    records; the corpus already carries the preamble, and a second copy of it in
+    the middle of a file is a reviewer wondering which half is live."""
+    return text[len(preamble):].lstrip("\n") if text.startswith(preamble) else text
+
+
+def _collisions(draft: DeskDraft, corpus: record.Desk) -> list[str]:
+    """What this proposal would land on top of. Read with the corpus's own
+    parsers, because a check that reads the file its own way is a second
+    definition of what is in there."""
+    out = []
+    ids = {s.id for s in corpus.sources}
+    prefixes = {s.citation_prefix for s in corpus.sources}
+    for s in draft.sources:
+        if s.id in ids:
+            out.append(f"source {s.id} is already declared")
+        if s.citation_prefix in prefixes:
+            out.append(f"citation prefix {s.citation_prefix!r} is already "
+                       f"declared, so a citation under it would be ambiguous "
+                       f"about which source it came from")
+    held = {p.id for p in corpus.problems}
+    for p in draft.problems:
+        if p.id in held:
+            out.append(f"problem {p.id} is already recorded")
+    stored = {q.citation for q in corpus.passages}
+    for q in draft.passages:
+        if q.citation in stored:
+            out.append(f"{q.citation} is already stored")
+    return out
+
+
+def _merge(draft: DeskDraft, corpus_dir: Path) -> dict[str, str]:
+    """The corpus files this proposal would change, keyed by name. Writes
+    nothing and reads the corpus through `record.load`.
+
+    REFUSES ON ANY COLLISION rather than resolving one. `one_corpus.py` merged
+    the seven records by keeping the longest text where two held the same
+    citation, and that was right for a migration nobody chose. This is a NEW
+    subject being proposed: a source, problem or citation the corpus already
+    holds means the interview covered ground that is already recorded, and the
+    answer to that is a diff somebody reads, not a silent pick between two texts.
+    """
+    corpus = record.load(corpus_dir)
+    clash = _collisions(draft, corpus)
+    if clash:
+        raise FactoryError(
+            f"{draft.name} would land on top of what the corpus already holds, "
+            f"and the factory proposes rather than overwrites:\n  - "
+            + "\n  - ".join(clash))
+
+    rendered = render(draft)
+    out: dict[str, str] = {}
+
+    # SUBJECTS.md TAKES THE DECLARATIONS AND NOT A SECOND HEADING, because
+    # `parse_subjects` reads `blocks[0]` and nothing else. A `## widgets` section
+    # appended to this file parses cleanly, reviews cleanly, and is read by
+    # nobody -- which is the same failure as the wrong directory, one file down.
+    text = (corpus_dir / SUBJECTS).read_text(encoding="utf-8")
+    heads = [m.start() for m in re.finditer(r"^## ", text, re.M)]
+    at = heads[1] if len(heads) > 1 else len(text)
+    block = _body(rendered[SUBJECTS], _SUBJECTS_PREAMBLE)
+    block = block[block.index("\n\n") + 2:] if block.startswith("## ") else block
+    out[SUBJECTS] = (text[:at].rstrip("\n") + "\n\n" + block.strip("\n")
+                     + "\n\n" + text[at:]).rstrip("\n") + "\n"
+
+    for name, preamble in ((SOURCES, _SOURCES_PREAMBLE),
+                           (PROBLEMS, _PROBLEMS_PREAMBLE)):
+        text = (corpus_dir / name).read_text(encoding="utf-8").rstrip("\n")
+        if not text.endswith("---"):
+            text += "\n\n---"
+        out[name] = (text + "\n\n"
+                     + _body(rendered[name], preamble).strip("\n") + "\n")
+
+    for name, text in rendered.items():
+        if not name.startswith("extracted/"):
+            continue
+        if (corpus_dir / name).exists():
+            raise FactoryError(
+                f"{name} already exists in the corpus. One file per source is "
+                f"what makes an extraction diff readable against the source it "
+                f"came from; appending to somebody else's would lose that.")
+        out[name] = text
+    return out
+
+
 def emit(draft: DeskDraft, repo_root: Path, *, branch: str) -> Path:
-    """Write the proposal into a checkout, or write nothing at all.
+    """Merge the proposal into the one corpus in a checkout, or write nothing.
 
-    Returns the desk directory. The caller commits it and opens a pull request;
-    that pull request is the firm's yes, and there is no argument to this
-    function that stands in for one.
+    Returns the corpus directory. The caller commits it and opens a pull
+    request; that pull request is the firm's yes, and there is no argument to
+    this function that stands in for one.
 
-    IT VALIDATES WHAT IT WROTE THROUGH `guards.check` AND ROLLS BACK ON FAILURE.
-    Not through a copy of those rules, and not through a subset of them: a desk
-    this emits either passes every gate the shipped desk passes, or it is
-    removed and this raises. A generated record held to a weaker bar is a second
-    definition of what a desk is, and the two would drift.
+    IT VALIDATES THE MERGED CORPUS THROUGH `guards.check` BEFORE THE CHECKOUT IS
+    TOUCHED. Not the proposal on its own: the old version wrote a desk directory,
+    graded that directory, and deleted it if it failed -- which proved the
+    fragment was well formed and proved nothing about the record it was joining.
+    The merge is assembled in a temporary copy, every gate the shipped corpus
+    passes is run over the whole of it, and the checkout is written only if it
+    comes back clean. Nothing to roll back, because nothing was written.
+
+    AND IT RECONCILES AFTERWARDS. Every subject the draft declared has to come
+    back out of the merged `SUBJECTS.md` through `parse_subjects`. A merge that
+    tallies and a merge that landed are different claims, and this repository
+    has already shipped the first while believing the second.
     """
     repo_root = Path(repo_root)
     if not (repo_root / ".git").exists():
@@ -480,28 +590,70 @@ def emit(draft: DeskDraft, repo_root: Path, *, branch: str) -> Path:
         )
     if branch.strip() in PROTECTED or not branch.strip():
         raise FactoryError(
-            f"branch {branch!r}: a desk enters the record by pull request. "
+            f"branch {branch!r}: a subject enters the record by pull request. "
             f"Writing onto {branch!r} is not a faster route to the same place, "
             f"it is the firm's yes removed."
         )
 
-    desk_dir = repo_root / "desk" / "desks" / draft.name
-    if desk_dir.exists():
+    corpus_dir = repo_root / CORPUS
+    if not corpus_dir.is_dir():
         raise FactoryError(
-            f"{desk_dir} already exists. The factory proposes a new desk; "
-            f"changing an existing one is a diff somebody reads, not a "
-            f"regeneration.")
+            f"no corpus at {corpus_dir}. There is one, since `dec-kill`, and a "
+            f"proposal has nowhere else to go -- a new directory beside it is "
+            f"a record nothing loads.")
 
-    desk_dir.mkdir(parents=True)
-    (desk_dir / "extracted").mkdir()
-    try:
+    changed = _merge(draft, corpus_dir)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # TWICE, AND THE SECOND DOES NOT SUBSUME THE FIRST.
+        # `authority_is_more_than_the_answer_key` is a guard about ONE subject:
+        # it fires when the passages stored are exactly the citations the
+        # problems are keyed to, which is the bijection measured on fixed-assets
+        # (#244). Run over the merged corpus it can never fire again -- 785 other
+        # passages dilute any proposal to nothing. So the proposal is graded
+        # alone, where that guard means something, and then the merge is graded
+        # whole, where the guards about the record as a body mean something.
+        # Checking only the merge would have quietly retired a gate.
+        alone = Path(tmp) / draft.name
+        alone.mkdir()
+        (alone / "extracted").mkdir()
         for name, text in render(draft).items():
-            (desk_dir / name).write_text(text, encoding="utf-8")
-        guards.check(desk_dir)
-    except Exception as exc:
-        shutil.rmtree(desk_dir, ignore_errors=True)
-        raise FactoryError(
-            f"{draft.name} did not pass the gates a hand-built desk passes, so "
-            f"nothing was left on disk: {exc}"
-        ) from exc
-    return desk_dir
+            (alone / name).write_text(text, encoding="utf-8")
+        try:
+            guards.check(alone)
+        except Exception as exc:
+            raise FactoryError(
+                f"{draft.name} did not pass the gates a hand-built subject "
+                f"passes, so the checkout was not touched: {exc}") from exc
+
+        staged = Path(tmp) / "corpus"
+        shutil.copytree(corpus_dir, staged)
+        for name, text in changed.items():
+            (staged / name).parent.mkdir(parents=True, exist_ok=True)
+            (staged / name).write_text(text, encoding="utf-8")
+        try:
+            guards.check(staged)
+        except Exception as exc:
+            raise FactoryError(
+                f"{draft.name} did not pass the gates the shipped corpus "
+                f"passes, so the checkout was not touched: {exc}") from exc
+
+        # `corpus_dir.name` AND NOT `draft.name`: `parse_subjects` refuses a
+        # heading that disagrees with the directory, because a stale name there
+        # once sent a refusal to a desk that did not exist. The proposal joins
+        # the corpus's block; it does not rename it.
+        reg = record.parse_subjects(
+            (staged / SUBJECTS).read_text(encoding="utf-8"), corpus_dir.name)
+        missing = {sid: terms for sid, terms in draft.answered_from.items()
+                   if set(terms) - set(reg.answered_from.get(sid, ()))}
+        if missing:
+            raise FactoryError(
+                f"{draft.name} merged and then did not read back: "
+                f"{missing}. The subjects went into SUBJECTS.md and did not "
+                f"come out of it, which is a merge that tallies and did not "
+                f"land. Nothing was written.")
+
+    for name, text in changed.items():
+        (corpus_dir / name).parent.mkdir(parents=True, exist_ok=True)
+        (corpus_dir / name).write_text(text, encoding="utf-8")
+    return corpus_dir

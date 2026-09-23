@@ -45,7 +45,7 @@ import record                                               # noqa: E402
 import searching                                            # noqa: E402
 import tieout                                               # noqa: E402
 
-DESKS = HERE / "desks"
+CORPUS = HERE / "corpus"
 
 
 class _Refused:
@@ -80,7 +80,10 @@ def transport(url: str):
 
 
 def run(spec: dict) -> searching.Search:
-    desk = record.load(DESKS / spec["desk"])
+    # ONE CORPUS. This loaded `desks/<spec["desk"]>`; the spec's `desk` key is
+    # kept because it is what the run RECORDED about where the gap was found,
+    # and a run file is evidence rather than configuration.
+    desk = record.load(CORPUS)
     gap = searching.Gap.from_refusal(
         _Refused(spec.get("reason", searching.ABSENT), spec.get("detail", "")),
         spec["desk"], spec["question"])

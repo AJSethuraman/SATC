@@ -21,6 +21,7 @@ difference between a field that was empty and a field that was never read.
 """
 from __future__ import annotations
 
+import decimal
 import re
 from datetime import date as _date_cls
 from dataclasses import dataclass, field
@@ -282,6 +283,27 @@ def shown_by_source(desk) -> dict:
     return out
 
 
+#: An amount as a person writes one: optional `$`, optional thousands
+#: separators, at most two decimal places. Deliberately FORGIVING about how it
+#: is typed and strict about whether it is a number at all — `$2,500` is how the
+#: firm's own POS2 writes the de minimis ceiling, so refusing it would refuse
+#: the record's own spelling, while `one eighty five`, `about 200`, `185 each`
+#: and `100-200` are all values nobody can answer a threshold question from.
+_MONEY = re.compile(r"^\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$")
+
+#: Facts whose VALUE has a shape, checked in `Context.__post_init__`.
+#:
+#: THE RECORD SAYS WHICH FACTS EXIST; THIS SAYS WHAT ONE OF THEM MAY LOOK LIKE.
+#: Same split as `_FACT_NAME`, which is here rather than in `SUBJECTS.md` for
+#: the same reason: a desk declares the facts it holds, and what counts as a
+#: well-formed name — or a well-formed amount — is not a per-desk choice.
+#:
+#: A fact absent from this table is free text and is not checked, which is every
+#: other fact: `trade` is "general contractor", `capitalization_rule` is a
+#: sentence. Adding a name here is a deliberate act with a test behind it.
+SHAPES = {"unit_cost": _MONEY}
+
+
 @dataclass(frozen=True)
 class Context:
     """What the CALLER already recorded about the matter. Never inferred here.
@@ -317,6 +339,66 @@ class Context:
     #: supplies. A name the desk does not declare is refused at load, not here,
     #: so a typo cannot become a fact nothing ever meets.
     facts: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Every fact with a declared SHAPE is checked here, at the point of
+        RECORDING, and this is the only place it can be.
+
+        `dec-unitcost`, 14 September 2026 — the firm: **"Add it, with a format
+        check."** The field itself was one word in `SUBJECTS.md`. The check is
+        the content of the answer, and the reason is in the card they answered:
+        fact values are free text, so `unit_cost` would otherwise accept `$185`,
+        `185.00` and *one eighty five* alike, and a threshold question answered
+        off a mistyped value is **a wrong answer with a real number under it** —
+        which is worse than a refusal, because it looks arithmetic.
+
+        WHY HERE AND NOT AT THE ANSWERING SIDE. Checking when a position needs
+        the fact would refuse at the moment somebody is waiting for an answer,
+        about a value typed hours earlier by somebody else, and would let a bad
+        value sit on file in the meantime looking recorded. `Context` is frozen,
+        so every path that builds one — the engagement file, a problem's `On
+        file` line, a caller in `ask` — goes through this constructor and cannot
+        route around it.
+
+        WHAT IT DOES NOT DO IS NORMALISE. It accepts what an accountant types
+        (`$2,500`, which is how the firm's own POS2 writes it) and stores the
+        string exactly as given, because *facts are recorded, not inferred* and
+        a value silently rewritten is a value nobody can check against the file
+        it came from. `money()` is how a caller gets the number.
+        """
+        for name, value in (self.facts or {}).items():
+            shape = SHAPES.get(str(name).strip().lower())
+            if shape is None:
+                continue
+            raw = str(value).strip()
+            # A FACT WITH NO VALUE IS NOT A BADLY SHAPED ONE. `missing()` and
+            # `standing_rule()` both read blank as "nobody said", and turning
+            # that into an exception here would refuse the ordinary case of a
+            # file that simply does not carry this fact yet.
+            if not raw:
+                continue
+            if not shape.match(raw):
+                raise RecordError(
+                    f"{name} is {value!r}, which is not an amount. Write it as "
+                    f"digits — 185, 185.00, 2500 or $2,500 — with no words, no "
+                    f"range and no 'each'. This is refused where the fact is "
+                    f"RECORDED rather than where it is answered, because a "
+                    f"threshold answered off a value nobody could read is a "
+                    f"wrong answer with a real number under it."
+                )
+
+    def money(self, fact: str) -> "decimal.Decimal | None":
+        """A shaped amount as a number, or `None` where the file does not carry
+        it. The stored string stays exactly as the caller wrote it.
+
+        Anything that COMPARES a fact to a threshold reads it through here.
+        Comparing the strings would make `$2,500` and `2500` two different
+        facts, which is the defect the shape check exists to keep out.
+        """
+        raw = str(self.facts.get(fact, "")).strip()
+        if not raw or SHAPES.get(fact) is None or not SHAPES[fact].match(raw):
+            return None
+        return decimal.Decimal(raw.lstrip("$").replace(",", ""))
 
     def known(self) -> tuple[str, ...]:
         return tuple(sorted(k for k, v in self.facts.items() if str(v).strip()))
@@ -402,6 +484,25 @@ ABSENT, NONE, RECORDED = "absent", "none_recorded", "recorded"
 #: engine can reach on its own, because the difference between "nobody asked"
 #: and "somebody asked and the answer was no" is the whole point of the field.
 NO_STANDING_RULE = "none"
+
+#: WHAT A FIRM-POLICY POSITION'S REFERENCE BEGINS WITH.
+#:
+#: `dec-pos2`, 10 September 2026. A position may rest on the firm rather than on
+#: a paragraph, and the danger in that is not the missing citation — it is a
+#: reference a reader takes for one. Every lookup in this file is keyed on
+#: citation and none of them may be given an empty string, so a policy still
+#: carries a reference; it just has to be visibly the firm's.
+#:
+#: A LITERAL PREFIX RATHER THAN A FLAG, because the flag is on the position and
+#: the reference travels without it — into a refusal's sentence, into a brief,
+#: into a notification, into whatever a model quotes back. The words have to
+#: carry it.
+_POLICY_PREFIX = "SATC policy —"
+#: AN EM-DASH AND NOT A MIDDOT, and the reason is the parser. `Citation:` shares
+#: its line with `Recorded:` and `_inline` splits that line on ` · ` — so a
+#: reference containing a middot is read as two fields and the citation silently
+#: becomes `SATC policy`. It loaded, it matched no source, and `load` refused a
+#: record that was correct. Found on the first policy written.
 
 
 @dataclass(frozen=True)
@@ -729,6 +830,48 @@ class Desk:
                      if not p.proposed and p.citation != citation
                      and _stem(p.citation) == stem)
 
+    def narrowed_to(self, citations) -> "Desk":
+        """This record holding only the citations named, and what they rest on.
+
+        WHY IT EXISTS. `ask.brief` prints EVERY passage the record holds, which
+        was reasonable when a question reached one desk of forty passages and is
+        useless over one corpus of 785: an answerer handed the whole corpus is
+        an answerer handed nothing, and a model with an 8,192-token window
+        (LOCAL-LLM-PATTERN rule 1) is handed less than nothing.
+
+        So the pool narrows and this applies the narrowing. `pool.look` says
+        which citations speak to the question; this returns the record as if it
+        held only those, and every existing reader -- the brief, the positions
+        block, `alongside`, the sources list -- goes on working unchanged. That
+        is the point: NOTHING about how a brief is rendered changes, only how
+        much of the record reaches it.
+
+        SOURCES AND POSITIONS FOLLOW THE PASSAGES, and both directions matter.
+        A source nothing cites is noise in the brief. A POSITION whose citation
+        was not selected is worse than noise -- it is the firm's answer to a
+        different question, printed as though it bore on this one.
+
+        `alongside` IS DELIBERATELY NOT NARROWED. Where the firm holds two
+        positions on one passage with opposite answers -- `cash-and-bank` did,
+        and serving one without the other is the 7 September incident -- both
+        must travel with the answer even though only one citation was retrieved.
+        `Desk.alongside` matches on the citation STEM, so keeping every position
+        whose stem is selected is what preserves it.
+        """
+        import dataclasses
+        wanted = {c for c in citations}
+        stems = {_stem(c) for c in wanted}
+        passages = tuple(p for p in self.passages if p.citation in wanted)
+        positions = tuple(q for q in self.positions
+                          if q.citation in wanted or _stem(q.citation) in stems)
+        used = {p.source_id for p in passages}
+        return dataclasses.replace(
+            self,
+            passages=passages,
+            positions=positions,
+            sources=tuple(s for s in self.sources if s.id in used),
+        )
+
     def rules_only(self) -> "Desk":
         """This desk with its worked examples withheld. FOR GRADING ONLY.
 
@@ -818,12 +961,99 @@ def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
     return ""
 
 
-def _inline(block: str, label: str, where: str) -> str:
-    """A field sharing a line with others, separated by ' · '."""
-    m = re.search(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)", block)
-    if not m or not m.group(1).strip():
+def _prose(block: str, label: str, where: str, *, fields: tuple,
+           required: bool = False) -> str:
+    """A field whose value is PROSE, read to the end of its entry.
+
+    `dec-whytrunc`, 18 September 2026 \u2014 the firm: **"Read the whole thing,
+    folded."**
+
+    WHAT `_field` DOES AND WHY IT IS RIGHT EVERYWHERE ELSE. It stops at
+    `_FIELD_END`, which is any line starting `**`. That is correct for a value
+    that happens to wrap. It is wrong for prose, because **a paragraph written
+    to be read starts with its point in bold** \u2014 and the reader stopped
+    there.
+
+    MEASURED BEFORE IT WAS PUT TO THE FIRM, across the twenty ratified
+    positions: **23,044 characters reached nothing.** POS13 lost 6,364 of its
+    6,658; every single position lost something. The field feeds the
+    RATIFICATION CARD, so the card POS2 was ratified from showed 429 characters
+    of about 2,270 \u2014 and the part that did not arrive contains *"$2,500 is
+    a ceiling, not the number"*, which is exactly the caveat that makes the
+    firm's own capitalisation default something to be careful with.
+
+    Sources lose another 1,802 the same way. A source's `Why` reaches only
+    `guards.py`, which checks it is non-empty, so nothing a reader sees moved
+    \u2014 but the defect is the same one in a second place and is fixed here
+    rather than left to be found again.
+
+    THE END IS EXACT AND NOT A HEURISTIC, which is the whole of the design. The
+    parser knows which labels its own entries carry, so prose ends at the next
+    line opening one of THOSE, or at a new entry. Nothing guesses what a field
+    looks like.
+
+    The heuristic considered and rejected was `**Word:**` \u2014 bold text
+    ending in a colon. `POSITIONS.md` contains the paragraph *"**What this
+    position does NOT settle, and why it is a position at all:**"*, which would
+    have been read as a field and truncated the prose at exactly the sentence a
+    reader most needs. One instance in one file, found by looking rather than by
+    reasoning about it.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if not m:
+        if required:
+            raise RecordError(f"{where}: no '{label}' field")
+        return ""
+    rest = block[m.end():]
+    ends = re.compile(
+        r"^(?:%s|## |---\s*$)"
+        % "|".join(r"\*\*%s:\*\*" % re.escape(f) for f in fields if f != label),
+        re.M)
+    stop = ends.search(rest)
+    value = (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
+    if not value and required:
         raise RecordError(f"{where}: no '{label}' field")
-    return m.group(1).strip()
+    return value
+
+
+#: The labels a SOURCE entry carries, so `_prose` knows where one ends.
+SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
+                 "Url", "Why")
+
+
+def _inline(block: str, label: str, where: str) -> str:
+    """A field sharing a line with others, separated by ' · '.
+
+    A QUOTED BODY CANNOT SHADOW A FIELD, and until 9 September 2026 it could.
+    This searched the whole block, so the same characters appearing INSIDE a
+    value were indistinguishable from the field itself. A parked question
+    reading *"Should the report say **Answered:** here?"* was read as the
+    `Answered` field, `here?` was handed to the date parser, and the RecordError
+    that raised made EVERY entry in the file unreadable -- not one bad row, the
+    whole store, with nothing saying which sentence did it.
+
+    Every value in these files is arbitrary text from outside: a question is the
+    caller's, an answer is the firm's, a conclusion is a model's. So this is not
+    about one field. `Failed because`, `Recorded` and the rest were shadowable
+    the same way and nobody had tried.
+
+    THE LINE START IS NOT THE TEST, because `render` writes
+    `**Failed because:** x · **Recorded:** y` and the second field is genuinely
+    mid-line. What separates a field from a look-alike is that every free-form
+    value is written by `_quote`, which prefixes `> `. So a candidate on a
+    quoted line is not a field, and that is the whole rule.
+
+    Found by a review of the commit that added `Answered`, on the morning the
+    firm was about to run a live close against it.
+    """
+    pattern = re.compile(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)")
+    for line in block.split("\n"):
+        if line.lstrip().startswith(">"):
+            continue
+        m = pattern.search(line)
+        if m and m.group(1).strip():
+            return m.group(1).strip()
+    raise RecordError(f"{where}: no '{label}' field")
 
 
 def _one_of(value: str, allowed: tuple[str, ...], label: str, where: str) -> str:
@@ -869,7 +1099,7 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
-            note=_field(block, "Why", where, required=False),
+            note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
         raise RecordError("no sources found; a desk with no authority cannot answer")
@@ -1081,6 +1311,79 @@ def load(desk_dir: Path) -> Desk:
                 f"or the position can never be served: nothing a caller passes "
                 f"could ever meet it."
             )
+
+    # A FIRM POLICY MUST NOT LOOK LIKE AUTHORITY, AND IT MUST BE MARKED.
+    #
+    # `dec-pos2`, 10 September 2026 — the firm: "Firm policy, no citation — with
+    # two conditions." Three ways that could go wrong silently, refused here
+    # where the sources are in hand:
+    #
+    #   A policy citing a paragraph of a source the record holds. That is the
+    #   mis-pin the decision was made about, wearing the label that is supposed
+    #   to say it is not one — worse than the original, because the label reads
+    #   as a disclosure.
+    #
+    #   A policy with an empty citation. Every lookup in this file is keyed on
+    #   citation; an empty one collides with the next empty one and
+    #   `authority_for` returns whichever sorted first. The reference must be
+    #   real and must be the firm's, not a publisher's.
+    #
+    #   `Reviewed:` on an ordinary cited position. It would read as a general
+    #   review log, and the one thing it records — that somebody checked an
+    #   UNCITED position against the authority on file — is not a claim an
+    #   ordinary position can make.
+    for q in pos:
+        if q.is_policy:
+            if not q.citation.strip():
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and cites "
+                    f"nothing at all. It still needs a reference the firm can "
+                    f"name it by — every lookup here is keyed on it — and "
+                    f"{_POLICY_PREFIX!r} is what that reference begins with.")
+            if not q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and its "
+                    f"Citation is {q.citation!r}. A policy's reference must "
+                    f"begin {_POLICY_PREFIX!r}, so nothing can read it as a "
+                    f"paragraph somebody could go and check.")
+            # AND THERE IS NO THIRD CHECK HERE, DELIBERATELY. The first draft
+            # added one: "the citation must fall under the policy source and no
+            # other". It was dead code. A reference beginning `SATC policy —`
+            # cannot also resolve to a publisher unless some source registers a
+            # prefix under it, and the uniqueness check below already refuses a
+            # citation matching more than one source, by name and by count. A
+            # guard that can never fire reads like protection and is not, which
+            # is worse than the gap it pretends to close.
+        else:
+            if q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} and "
+                    f"does not declare `Kind: firm policy`. A reference "
+                    f"beginning {_POLICY_PREFIX!r} points at nothing anybody "
+                    f"can read.")
+            if q.reviewed.strip().lower() != _positions.OPEN:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} records a Reviewed line "
+                    f"and rests on authority. `Reviewed:` says an UNCITED "
+                    f"position was checked against what is on file; on a cited "
+                    f"one it would read as a general review log and claim "
+                    f"something this record does not check.")
+
+        # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
+        #
+        # `dec-caprule`, 14 September 2026. `Default:` says what a preparer
+        # should record when the file is silent on the fact that would displace
+        # this position. On a position with no `Unless:` there is no such fact,
+        # so the line would sit in the record looking like firm policy and be
+        # read by nobody -- the same shape as the `Reviewed:` line above, and
+        # refused for the same reason.
+        if q.default and not q.unless:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} records a Default line and "
+                f"declares no `Unless:`. A default is what to record when the "
+                f"displacing fact is missing; with no such fact the line "
+                f"answers a question nothing asks, and the engine will never "
+                f"print it.")
 
     return Desk(
         name=desk_dir.name,

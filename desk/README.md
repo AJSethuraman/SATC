@@ -1,12 +1,21 @@
-# desk — expert desks
+# desk — the expert an agent consults
 
-A **desk** is an expert an agent consults so a question does not reach the firm.
-It answers only from authority it can cite, states how binding that authority is,
+**The desk** is what an agent consults so a question does not reach the firm. It
+answers only from authority it can cite, states how binding that authority is,
 and **escalates rather than guesses**.
 
+**There is ONE corpus.** `dec-kill`, 8 September 2026 — the firm: *"Kill the
+desks; one pool."* Until 10 September the record was seven `desks/<name>/`
+folders and a word list decided which one a question reached. Both are deleted.
+`desk/corpus/` is addressed by citation, and retrieval is over the authority's
+own text (`pool.py`). Nothing in the public API names a desk, because there is
+nothing to name.
+
 Installing `desk` brings `canon` with it: this plugin declares it as a dependency
-because it uses canon's selector for routing and inherits Bassy's challenge duty.
-Canon uses nothing from here, and must not — it has to lift out whole.
+because `domains.py` and `engine.py` match whole words and phrases through
+canon's `touches` rather than through a copy of its rule, and because it inherits
+Bassy's challenge duty. Canon uses nothing from here, and must not — it has to
+lift out whole.
 
 ## The one rule
 
@@ -84,7 +93,7 @@ their own work, and nobody has looked at the document. `candidates.py`.
 browser — an HTTP 200 "Request Access" page — and its own refusal names a
 developer API instead. Measured before building: **no key, no cost**, HTTP 200
 to a plain client, the section's full text. `ecfr.py` reads that API, and
-**19 of 19** of the eCFR sources these desks cite tie out live through it. It is
+**19 of 19** of the eCFR sources the corpus cites tie out live through it. It is
 a transport and not a shortcut past verification: everything it returns is
 proved against the stored passage exactly as a browser fetch is. The
 user-agent in `browser.py` stays the fallback for publishers offering nothing
@@ -100,16 +109,18 @@ own side a changed text and a refused fetch are the same observation, so
 asked for**; absent that it is `COULD NOT`, which asks a human to look.
 `desk/docs/DESK-ANSWER-344-2026-09-08.md`.
 
-**And no desk serves an answer nobody read.** The firm, asked which desks may
-not serve unjudged: *"The judge can look at it all I guess?"* — all seven. A
-second reader is handed the paragraph and the conclusion and says whether one
-carries the other; the engine checks only that the words they quote are really
-in what they read, and where a tie-out was taken they read **the fetched page**
-rather than our copy of it. It does not make a wrong answer impossible — it
-makes one attributable. The requirement is declared in each desk's own
-`SUBJECTS.md` (`**Judged:** required`), so lifting it from a desk is one line of
-that file. Cost, measured rather than estimated: **92 of the 98 recorded
-problems** serve today, and every one now takes a second model call.
+**And nothing serves an answer nobody read.** The firm, asked which desks may
+not serve unjudged: *"The judge can look at it all I guess?"* — all seven, which
+is now one policy rather than seven declarations. A second reader is handed the
+paragraph and the conclusion and says whether one carries the other; the engine
+checks only that the words they quote are really in what they read, and where a
+tie-out was taken they read **the fetched page** rather than our copy of it. It
+does not make a wrong answer impossible — it makes one attributable. The
+requirement is declared once, in `corpus/SUBJECTS.md` (`**Judged:** required`).
+Cost, measured rather than estimated: **84 of the 98 recorded problems** serve
+today, and every one takes a second model call. It was 92 before the merge —
+the eight are the guidance question in `docs/WHERE-THINGS-STAND.md`, not a
+regression in the judge.
 
 **Every attempt is written down, whatever it did.** The firm, 8 September 2026:
 *"It should state what happened when trying to tie it out. I need info to make
@@ -119,14 +130,14 @@ answer in front of you. `python3 tools/tieouts.py` reads them out, counted by
 publisher, naming what it read them from.
 
 **Two skills, because there are two sides.** `skills/be-the-desk` is for the
-session that HOLDS the desks and answers from them; `skills/ask-desk` is for the
+session that HOLDS the record and answers from it; `skills/ask-desk` is for the
 agent doing the work, which holds none of the record and sends its question to
 that session instead. The split is `docs/THE-DESK-IS-A-SESSION.md`, and `relay.py`
 is the wire between them.
 
-**The split is the mechanism.** A model does not choose the desk — routing is a
-comparison, not a judgement. A model does not decide whether its own citation
-holds — the engine does, and refuses. What the model does is the one thing it is
+**The split is the mechanism.** A model does not choose what a question reaches
+— retrieval is a comparison, not a judgement. A model does not decide whether
+its own citation holds — the engine does, and refuses. What the model does is the one thing it is
 good at: reading the authority it was handed and proposing a conclusion from it.
 
 **`consult` shows the sources, the firm's RATIFIED positions and the stored
@@ -165,33 +176,43 @@ question is about. qwen3:8b cited a primary paragraph about inventory on all
 four cash problems, by explicit "extension", and never reached the gate. A desk
 can make declining *possible*; it cannot make a brain decline.
 
-## What is in a desk
+## What is in the corpus
 
 ```
-desks/<name>/
-  SUBJECTS.md   what brings it into play — whole-word subjects, deliberately
-  SOURCES.md    what it may rely on: tier, access, may_store, checked
+corpus/
+  SUBJECTS.md   which source answers what, and which citation narrows it.
+                NOT routing — that was deleted with the desks.
+  SOURCES.md    what may be relied on: tier, access, may_store, checked
   PROBLEMS.md   the denominator — worked examples whose answers are not ours
   extracted/    public-domain authority text — the RULES, never the examples.
                 an agent may write this.
   positions/    what the firm decided. an agent only PROPOSES here.
+  unsupported/  the one queue of questions nothing could answer
 ```
 
 The two stores have different gates on purpose. Every line in `extracted/` is
 checkable against a public source, so a large diff can be skimmed. `positions/`
 holds judgement, so its diffs are read. **The pull request is the firm's yes.**
 
-## A second desk is built by interview, not by hand
+## A new subject is built by interview, not by hand
 
-`skills/desk-factory` asks ten questions and opens a pull request containing the
-desk. Every question carries the thing that taught us to ask it — what building
-`fixed-assets` by hand actually required — and a test refuses one that does not.
+`skills/desk-factory` asks ten questions and opens a pull request that merges the
+subject into the corpus. Every question carries the thing that taught us to ask
+it — what building the first record by hand actually required — and a test
+refuses one that does not.
 
 **It proposes and never writes.** `factory.emit` writes into a git checkout on a
-branch that is not `main` and refuses everything else, then runs `guards.check`
-over what it wrote and **deletes it on failure**. A factory-built desk passes
-exactly the gates the shipped one passes, or it does not exist; there is
-deliberately no weaker path for generated records.
+branch that is not `main` and refuses everything else. It assembles the merge in
+a temporary copy and touches the checkout only if that copy passes, so a refusal
+leaves nothing to clean up — and it grades **twice**: the proposal alone, where
+`authority_is_more_than_the_answer_key` can still fire, and then the whole merged
+corpus. Checking only the merge would have retired that gate, because merged into
+785 other passages it compares two sets that can never be equal again. Then it
+reads the subjects back out of `SUBJECTS.md`: a merge that tallies and a merge
+that landed are different claims.
+
+*Until 11 September this wrote `desk/desks/<name>/` — the folder deleted the day
+before. Every gate passed and nothing loaded it.*
 
 Two of the ten questions decide whether the desk is worth building at all:
 

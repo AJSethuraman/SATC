@@ -32,9 +32,14 @@ import comparing                                            # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
 import searching                                            # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
-ECFR = "https://www.ecfr.gov/current/title-26/section-1.263(a)-3"
+#: S1's URL, and it MOVED when the desks were merged. It was
+#: `section-1.263(a)-3` — `fixed-assets`'s first source. One corpus renumbers
+#: every id, so S1 is now § 1.263(a)-1. Nothing here is about which regulation
+#: it is: what the tests below turn on is that a quote found on a BLOG is
+#: checked against the PUBLISHER of the source that covers the citation.
+ECFR = "https://www.ecfr.gov/current/title-26/section-1.263(a)-1"
 BLOG = "https://tax-blog.example/what-the-regs-say"
 QUOTE = ("An amount is paid to improve a unit of property if it results in a "
          "betterment to the unit of property, a restoration of the unit of "
@@ -90,7 +95,7 @@ def _absent_citation(desk):
 
 @pytest.fixture
 def desk():
-    return record.load(DESKS / "fixed-assets")
+    return record.load(CORPUS)
 
 
 # ── reading a candidate off a hit ─────────────────────────────────────────────
@@ -325,7 +330,7 @@ def _undeclared(desk, *candidates):
 
 
 def test_one_more_section_from_a_publisher_this_desk_reads_says_so():
-    desk = record.load(HERE / "desks" / "fixed-assets")
+    desk = record.load(HERE / "corpus")
     section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
     what, why = searching.dispose(
         _tied(f"{section}(b)(1)",
@@ -338,7 +343,7 @@ def test_one_more_section_from_a_publisher_this_desk_reads_says_so():
 
 
 def test_a_publisher_nobody_here_reads_is_still_the_bigger_ask():
-    desk = record.load(HERE / "desks" / "fixed-assets")
+    desk = record.load(HERE / "corpus")
     section = _undeclared(desk, "26 CFR 1.263A-1", "26 CFR 1.167(a)-1")
     what, why = searching.dispose(
         _tied(f"{section}(b)(1)",
@@ -371,7 +376,7 @@ def test_every_stored_citation_yields_a_section_a_desk_declares():
     is right on seven hand-picked strings and wrong on the eighth is a bug that
     reaches the firm as a request to declare something that does not exist."""
     checked = 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

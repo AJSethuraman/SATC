@@ -72,6 +72,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import re
+from dataclasses import dataclass
 
 #: A session id as the harness writes it. Checked, because the failure of a
 #: wrong one is silent -- the answer is delivered somewhere, just not here.
@@ -180,7 +181,7 @@ def as_prompt(a: Ask) -> str:
            _stamp(), "",
            "## The question", "", a.question, "",
            "**That is the whole of what you were told, and it is deliberate.** "
-           "No context came with it. Read the facts off the desk's own record "
+           "No context came with it. Read the facts off the record itself "
            "through `consult`, where the ones we do NOT hold are named as such "
            "— and escalate on a missing one rather than infer it. Nobody has "
            "framed this question for you, which is the point of your being "
@@ -189,9 +190,9 @@ def as_prompt(a: Ask) -> str:
     out += [
         "## How to answer", "",
         "Use the `be-the-desk` skill — NOT `ask-desk`, which is the skill for "
-        "whoever sent you this: `ask.consult` for what a desk will let you "
+        "whoever sent you this: `ask.consult` for what the corpus will let you "
         "answer from, then `ask.answer(...)` with your conclusion and citation. "
-        "`keep=False` unless you are told otherwise. Do not write to a desk, do "
+        "`keep=False` unless you are told otherwise. Do not write to the record, do "
         "not commit, do not push.", "",
         "## How to reply — THIS IS NOT OPTIONAL", "",
         f"Send `print(out)` in full, and your reasoning, back to "
@@ -208,6 +209,22 @@ def as_prompt(a: Ask) -> str:
         "Poke-only delivers once, in about eight seconds.", "",
         f"**Open your reply with `DESK ANSWER {a.ref}`** so a duplicate can be "
         f"told from a second question.", "",
+        "**IF `create_trigger` AND `fire_trigger` ARE NOT IN YOUR TOOLSET, YOU "
+        "ARE NOT STUCK.** Return the whole reply as your final output to "
+        "whoever invoked you -- same opening line, same content -- and say in "
+        "one sentence that the relay tools were unavailable so the asker knows "
+        "why it arrived by hand. Do NOT stay silent, do NOT invent another "
+        "transport, and do NOT treat the missing tools as a reason to skip "
+        "answering.", "",
+        "WHY THIS PARAGRAPH EXISTS. On 9 September 2026 Forge-Occam ran a real "
+        "year-end close against the installed plugin and had neither tool. They "
+        "improvised correctly -- each desk run as a subagent, its answer handed "
+        "back as a report -- and then said what that meant: the reply protocol "
+        "is not self-sufficient, and *\"an answerer that follows it literally, "
+        "in an environment without those tools, is stuck with no path and no "
+        "diagnosis.\"* The firm, on the docket: **\"Name the fallback.\"** An "
+        "answer that reaches the asker by hand is worth more than a protocol "
+        "obeyed into silence.", "",
         "**NOTHING YOU CAN SEE TELLS YOU WHETHER IT LANDED.** A 200 from "
         "`fire_trigger` is not delivery — measured. AND the durable record is "
         "not the fallback: on a `persist_session` trigger a fire that DID "
@@ -219,17 +236,25 @@ def as_prompt(a: Ask) -> str:
         "failure you have not been told about: say what you sent, and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
         "so and say what authority is missing — a refusal is a finding.", "",
-        "## Say which desks this reached", "",
-        "Name every desk `consult` routed to. **And if the question as phrased "
-        "reaches fewer desks than an obvious rephrasing of the same question "
-        "would, say that too, and name what it missed.**", "",
-        "THE ASKER CANNOT SEE THIS AND YOU CAN. On 8 September a doer asked "
-        "*\"what do I do with it\"* about a forklift and reached ONE desk; the "
-        "same transaction as *\"is the invoice price deducted or capitalized?\"* "
-        "reaches TWO, and the one dropped holds the most on-point paragraph. "
-        "Their words: *\"My phrasing was the natural working one and it got "
-        "strictly less authority. I did not know that when I wrote it, and a "
-        "doer has no way to tell.\"* You are the only party that can tell them.",
+        "## Say what the phrasing reached", "",
+        "Name the citations it came back with — `ask.looked(question)` gives "
+        "you them without rendering a brief. **And if an obvious rephrasing of "
+        "the same question reaches authority this one did not, say so and name "
+        "what it missed.**", "",
+        "THE ASKER CANNOT SEE THIS AND YOU CAN, AND IT GOT WORSE, NOT BETTER. "
+        "On 8 September a doer asked *\"what do I do with it\"* about a forklift "
+        "and reached ONE desk; the same transaction as *\"is the invoice price "
+        "deducted or capitalized?\"* reached TWO, and the one dropped held the "
+        "most on-point paragraph. Their words: *\"My phrasing was the natural "
+        "working one and it got strictly less authority. I did not know that "
+        "when I wrote it, and a doer has no way to tell.\"* `dec-kill` deleted "
+        "the desks and did NOT settle this. Measured on one corpus, "
+        "11 September 2026: the same forklift, asked the natural way, now "
+        "reaches **NOTHING AT ALL** — 0 passages against 8 for the explicit "
+        "phrasing. Two other pairs both returned 8 and 8, sharing five "
+        "citations and none. So a working phrasing can still cost the asker "
+        "the whole record, and nothing they can see says so. You are the only "
+        "party that can tell them.",
     ]
     return "\n".join(out)
 
@@ -237,6 +262,124 @@ def as_prompt(a: Ask) -> str:
 def reply_opens(body: str, ref: str) -> bool:
     """Is this the answer to that question? Used to spot a second copy."""
     return body.strip().startswith(f"DESK ANSWER {ref}")
+
+
+#: THE TWO ANCHORS, AND THEY ARE THE RENDERING'S AND NOT THIS FILE'S. A refusal
+#: opens with a banner naming itself; a served answer carries an indented
+#: citation and, under it, a line ending ` · confirmed <date>`. Both are
+#: `engine.Served.__str__` / `Refusal.__str__` -- read `Served.__str__`'s
+#: docstring before touching either. The rendering is written for a PERSON and
+#: is the one channel that reaches an agent whose SKILL.md is four releases
+#: stale; it does not get constrained to suit a parser. If it moves, this
+#: breaks loudly, which is the correct direction.
+_REFUSED = "THE DESK DID NOT ANSWER — "
+_GRADE = re.compile(
+    r"^ {4}(?P<citation>\S.*)\n {4}(?P<tier>.+?) · (?P<binding>.+?) · confirmed "
+    r"(?P<checked>.+?)$", re.M)
+_REASON = re.compile(rf"^{re.escape(_REFUSED)}(?P<reason>[^\n·]+?)(?:  ·  (?P<desk>.+?))?$",
+                     re.M)
+_ASKS = re.compile(r"^It asks: (?P<ask>.+)$", re.M)
+
+
+@dataclass(frozen=True)
+class Answered:
+    """What the desk actually said, read off the reply rather than by eye.
+
+    WHY THE ASKING SIDE NEEDED THIS AT ALL. The reply arrives as prose, because
+    the rendering is deliberately written for a person. `reply_opens` was the
+    whole of the receiving side: a boolean saying *this is the answer to that
+    question*, and nothing saying WHAT it was. So a doer decided "did the desk
+    answer or refuse" by reading, and on 8 September one went looking for a
+    `passage` on a refusal and did not find it: *"a doer looking for `passage`
+    in a refusal will not find it and has been given no signal that is
+    expected."*
+
+    THAT IS `dec-coverage`'S FAILURE ON THE RETURN LEG. Occam, on the consult
+    leg: *"silence is indistinguishable from 'there is nothing to say here.' A
+    doer reads it as permission. I nearly did."* A refusal read as an answer is
+    the same mistake one step later, and under more time pressure, because by
+    then the doer is holding something that looks like a reply.
+
+    IT NEVER GUESSES. `read` raises where it cannot find either anchor rather
+    than defaulting to `answered=False`, which would report a mangled ANSWER as
+    a refusal -- the safe-looking wrong way round, and the one that silently
+    throws away work. Unknown is a third answer and it is an exception here.
+    """
+    answered: bool
+    #: On a refusal: which of `engine.REASONS` it was. Empty on a served answer.
+    reason: str = ""
+    #: On a served answer: the citation it rests on. Empty on a refusal, and
+    #: that emptiness is the finding -- a refusal cites nothing, which is what
+    #: makes it a refusal.
+    citation: str = ""
+    tier: str = ""
+    #: Whether the FIRM treats it as authority that binds their own work. Never
+    #: "binding in the tax sense" -- the rendering was corrected for saying the
+    #: second when it meant the first, and this carries the same meaning.
+    binding: bool = False
+    checked: str = ""
+    #: The follow-up, where the desk had one. A refusal that names a gap and not
+    #: a question is a dead end wearing a reason code.
+    ask: str = ""
+
+    @property
+    def usable(self) -> bool:
+        """Whether this is something to act on WITHOUT going back to a person.
+
+        A served answer the firm treats as binding, and nothing else. A served
+        answer that does not bind is a real answer and still not this: it is the
+        case `dec-guidance` decided -- serve it, marked -- and the mark means a
+        person reads the caveat before it is relied on.
+        """
+        return self.answered and self.binding
+
+
+def read(body: str) -> Answered:
+    """What the desk said, off the reply the answerer sent back.
+
+    THE INPUT IS THE ENVELOPE'S OWN INSTRUCTION, which is `print(out)` in full.
+    So this parses the rendering rather than a format invented here: there is no
+    second wire protocol to keep in step, and an answerer running a stale skill
+    still produces something this reads, because printing the object IS the
+    rendering.
+
+    RAISES ON ANYTHING IT CANNOT PLACE. See `Answered`.
+    """
+    if not body or not body.strip():
+        raise RelayError("nothing came back. An empty reply is not a refusal — "
+                         "it is a delivery that did not happen, and the two "
+                         "call for opposite next steps.")
+    refusal, grade = _REASON.search(body), _GRADE.search(body)
+    # BOTH ANCHORS IS NOT A TIE TO BREAK. An answerer who quoted a refusal
+    # while serving, or pasted two replies into one message, has produced
+    # something whose meaning is not recoverable from the text -- and picking
+    # the first match would silently prefer whichever the author happened to
+    # type first. Checking `_REASON` before `_GRADE` would have made a served
+    # answer that mentions a refusal read as a refusal, which is the direction
+    # that throws work away while looking cautious.
+    if refusal and grade:
+        raise RelayError(
+            "this reply carries BOTH a refusal banner and a served citation, "
+            "so what the desk decided cannot be read off it. Two replies in "
+            "one message, or an answer quoting a refusal — either way a person "
+            "reads it, because guessing here picks whichever was typed first.")
+    if refusal:
+        m = refusal
+        return Answered(answered=False,
+                        reason=m.group("reason").strip(),
+                        ask=(a.group("ask").strip()
+                             if (a := _ASKS.search(body)) else ""))
+    if (m := grade):
+        return Answered(answered=True,
+                        citation=m.group("citation").strip(),
+                        tier=m.group("tier").strip(),
+                        binding="treats as binding" in m.group("binding"),
+                        checked=m.group("checked").strip())
+    raise RelayError(
+        "this does not read as a desk answer or a desk refusal. It carries "
+        f"neither {_REFUSED.strip()!r} nor an indented citation with a "
+        "`· confirmed` line under it. Hand it to a person rather than acting "
+        "on it: something that cannot be placed is not the same as a no.")
 
 
 def desk_session(env=None) -> str:
@@ -417,9 +560,10 @@ class Research:
 def research(question: str, reply_to: str, refused_by=()) -> Research:
     """Send an `authority_absent` gap to be run down, or REFUSE to send it.
 
-    `refused_by` is `((desk, reason), ...)` from the refusals that produced the
-    gap. It is REQUIRED and it is checked, because the one thing that must not
-    happen here is a question being researched that a desk could already answer:
+    `refused_by` is `((record, reason), ...)` from the refusals that produced the
+    gap -- one row since `dec-kill`, where it used to carry one per desk. It is
+    REQUIRED and it is checked, because the one thing that must not happen here
+    is a question being researched that the record could already answer:
     a search that finds authority the record already holds costs the firm a
     source-admission decision it does not need to make, and a search launched
     because an agent did not like the answer it got is not research.
@@ -428,23 +572,22 @@ def research(question: str, reply_to: str, refused_by=()) -> Research:
     rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
     if not rows:
         raise RelayError(
-            "nothing refused this. A gap is what a DESK could not reach, and "
-            "`refused_by` is the evidence — without it this is a search for "
+            "nothing refused this. A gap is what the RECORD could not reach, "
+            "and `refused_by` is the evidence — without it this is a search for "
             "authority nobody has established is missing.")
     if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
         raise RelayError(
             f"refused {', '.join(wrong)}, which is not a gap in the record. "
             f"`authority_absent` is the only refusal this answers — the others "
-            f"are answered by a person, by the firm, or by asking a different "
-            f"desk, and searching for authority instead is how a refusal gets "
-            f"talked out of.")
+            f"are answered by a person or by the firm, and searching for "
+            f"authority instead is how a refusal gets talked out of.")
     return Research(ref=a.ref, question=a.question, refused_by=rows)
 
 
 def research_prompt(r: Research, reply_to: str) -> str:
     """The message the researching session receives."""
-    out = [f"RUN DOWN {r.ref} — no desk holds the rule for this, and you are "
-           f"the session that can go and look.", "",
+    out = [f"RUN DOWN {r.ref} — the record does not hold the rule for this, "
+           f"and you are the session that can go and look.", "",
            _stamp(), "",
            "## The question", "", r.question, "",
            "## What already refused it, and why", ""]
@@ -470,6 +613,11 @@ def research_prompt(r: Research, reply_to: str) -> str:
             f"Reply poke-only to `{reply_to}` — `create_trigger` with NO "
             f"`run_once_at` and NO `cron_expression`, then one `fire_trigger` — "
             f"opening with `FOUND {r.ref}` or `LOOKED {r.ref}`.", "",
+            "**No `create_trigger` / `fire_trigger` in your toolset?** Return "
+            "the same reply as your final output to whoever invoked you, and "
+            "say the relay tools were unavailable. `dec-relay`, 10 September "
+            "2026 — a protocol with one transport and no named fallback strands "
+            "an answerer that follows it literally.", "",
             "**`LOOKED` is a real answer and I want it.** *\"I searched, here is "
             "where, and the authority is not reachable\"* is a finding: it turns "
             "a gap nobody has examined into a gap somebody has, which is the "

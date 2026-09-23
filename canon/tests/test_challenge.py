@@ -109,8 +109,13 @@ def test_the_committed_record_round_trips():
     """
     text = R.CONVICTIONS.read_text(encoding="utf-8")
     assert R.render_convictions(R.parse_convictions(text),
-                                R.parse_declined(text)) == text
+                                R.parse_declined(text),
+                                rulings=R.parse_rulings(text)) == text
     assert R.parse_declined(text), "the fixture stopped covering the declined half"
+    # THIRD HALF, same reason as the second: the rulings section was added on
+    # 11 September 2026 and a round-trip that ignored it would let a project's
+    # rulings be dropped on the next write with nothing noticing.
+    assert R.parse_rulings(text), "the fixture stopped covering the rulings"
 
 
 def test_an_unreadable_record_refuses_rather_than_returning_nothing():
@@ -406,3 +411,47 @@ def test_the_old_name_still_resolves_to_the_same_function():
     """Renamed, not removed: callers exist and a silent AttributeError at the
     moment a challenge should fire is worse than a bad name."""
     assert CH.conflicts is CH.both_bear_on
+
+
+# ── rulings by project ────────────────────────────────────────────────────
+
+RULINGS_FIXTURE = R.CONVICTIONS_PREAMBLE + """
+---
+
+## C1 · A thing
+
+**State:** held · **Recorded:** 2026-01-01 · **Applies:** everything
+
+> *we believe it*
+> — the firm, 1 January 2026
+
+**Why:** because.
+
+**Fires on:** thing
+""" + R.render_rulings([R.ProjectRulings(
+    project="Some Game", opened="2026-09-11",
+    note='Some Game is not the practice\'s software: "case by case".',
+    rulings=(R.Ruling(entry="C1 · A thing", ruling="Struck for Some Game",
+                      on="2026-09-11", words='"strike it"'),))])
+
+
+def test_a_hand_written_rulings_section_parses_and_round_trips():
+    projects = R.parse_rulings(RULINGS_FIXTURE)
+    assert [p.project for p in projects] == ["Some Game"]
+    assert projects[0].rulings[0].entry == "C1 · A thing"
+    assert projects[0].rulings[0].words == '"strike it"'
+    assert R.render_convictions(R.parse_convictions(RULINGS_FIXTURE),
+                                R.parse_declined(RULINGS_FIXTURE),
+                                rulings=projects) == RULINGS_FIXTURE
+
+
+def test_a_record_without_rulings_parses_to_nothing_not_an_error():
+    assert R.parse_rulings(R.CONVICTIONS_PREAMBLE + "\n## C1 · x\n") == []
+
+
+def test_a_ruling_without_the_firms_words_refuses():
+    """A ruling is a claim about what the firm decided. In the session's words
+    alone it is the session's decision wearing their name."""
+    bad = RULINGS_FIXTURE.replace('| "strike it" |', '| "" |')
+    with pytest.raises(R.RecordError, match="none of the firm's words"):
+        R.parse_rulings(bad)

@@ -28,6 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+import pool
 import record as record_mod
 from record import Desk, Problem, Source
 
@@ -69,6 +70,7 @@ REASONS = (
     "client_rule_governs",      # the file records the firm's own call for THIS client
     "authority_has_moved",      # the publisher no longer carries what we stored
     "wrong_body_of_authority",  # real authority, real subject, wrong universe
+    "body_of_authority_unknown",  # nothing classified it, so nothing could check
     "model_gave_up",            # ran out of window or abandoned the task
     "judgment_not_in_the_passage",
     "not_judged",               # this desk may not serve what nobody read  # the second reader quoted words that are not there
@@ -302,6 +304,22 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
+    #: The clause the passage uses to say it applies SOMEWHERE ELSE, read off
+    #: its own opening words, or `""`. `dec-scoped`, 14 September 2026 -- the
+    #: firm: **"Mark them."**
+    #:
+    #: WHAT IT IS FOR. `26 CFR 1.263(a)-3(h)(3)(iv)` is headed *"Definition of
+    #: gross receipts"* and really does define the term; its first words are
+    #: *"For purposes of applying paragraph (h)(3)(i) of this section"* -- the
+    #: small-taxpayer safe harbour for BUILDING IMPROVEMENTS. Asked *are
+    #: unidentified deposits gross receipts?* it is the top hit in the pool, and
+    #: an answer resting on it served `primary`, `binding` and wrong.
+    #:
+    #: SHOWN, NOT DECIDED -- the same trade `passage` and `alongside` make. The
+    #: engine cannot tell whether this reader's facts are inside the scope; it
+    #: can stop the scope from being something the reader has to notice on their
+    #: own, 200 words into a definition that reads like it is about them.
+    scoped: str = ""
     #: THE FIRM'S OTHER POSITIONS ON THIS SAME PASSAGE — `((citation, position,
     #: passage text), ...)`, and empty on the ordinary answer where there are
     #: none. The TEXT is carried because a reader warned that the firm answers
@@ -531,6 +549,17 @@ class Served:
                         f"evidence the record wants a field, and that evidence "
                         f"is worth more than the answer it did not alter."]
         if self.passage:
+            # THE SCOPE GOES ABOVE THE PASSAGE, not below it and not appended.
+            # A reader who reaches the end of a 2,000-character definition has
+            # already decided what it is about; the whole point is that they
+            # read the next paragraph knowing it announced a narrower reach than
+            # its heading suggests.
+            if self.scoped:
+                out += ["", f"THIS PASSAGE SAYS IT APPLIES {self.scoped.upper()} "
+                            f"— its own opening words. It may still be the right "
+                            f"rule here; nothing has checked whether these facts "
+                            f"are inside that scope, and its heading will not say "
+                            f"so."]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
@@ -950,31 +979,66 @@ def _follow_up(facts, ruling) -> str:
     sentence somebody does something about. It names the fact and never a value.
     """
     named = ", ".join(facts)
-    return (f"Does the file record {named} for this engagement? The firm's "
-            f"position {ruling.id} cannot be applied until it does, and it is "
-            f"ours to record rather than the client's to be asked.")
+    asked = (f"Does the file record {named} for this engagement? The firm's "
+             f"position {ruling.id} cannot be applied until it does, and it is "
+             f"ours to record rather than the client's to be asked.")
+    # AND WHAT TO WRITE, where the firm has said. `dec-caprule`, 14 September
+    # 2026 -- they answered "Record it at intake" and their note said what to
+    # record. A refusal that names a gap and not the remedy is a dead end
+    # wearing a reason code: the preparer holding this one had to go and ask
+    # what the firm's threshold was before they could close it.
+    #
+    # THE DEFAULT IS READ OFF THE POSITION AND NEVER APPLIED. The engine still
+    # refuses; this only says what a person should put on file. The firm was
+    # offered a silent default in the code and declined it, and an engine that
+    # supplied this value itself would be inventing the one fact that says
+    # somebody checked.
+    if getattr(ruling, "default", ""):
+        asked += (f" Where the client has no rule of its own, record "
+                  f"{ruling.default}.")
+    return asked
 
 
-def _rule_reaches(desk: Desk, question: str) -> bool:
-    """Whether this desk declares BINDING authority for anything the question
-    is about.
+def _rule_reaches(desk: Desk, question: str, guide: str = "") -> bool:
+    """Whether the record holds BINDING authority on the ground the guide was
+    cited for.
 
-    Three cases, and the middle one is the one worth the lines.
+    `guide` is the source id of the non-binding source being cited. It is what
+    makes this a question about THIS question rather than about the corpus.
 
-    NO BINDING SOURCE ON THE DESK AT ALL -> no rule can reach, unambiguously,
-    and guidance is the best authority there is. The rewards desk's whole
-    rewards half is this: the Code and the regulations define gross income and
-    stop, so every statement that a rebate is not income is a ruling, an
-    announcement or a publication.
+    `dec-guidance-narrow`, 11 September 2026 — the firm: **"Narrow it."**
 
-    BINDING SOURCES, BUT NO DECLARED MAPPING -> REFUSE. A rule might reach and
-    nothing here can tell. "I could not check" and "I checked and it is fine"
-    must never be the same answer -- the rule `off_subject` is written to, and
-    the direction to fail in is the one that asks the firm rather than the one
-    that answers on a publication while a regulation sits unread beside it.
+    WHAT IT USED TO ASK, AND WHY ONE CORPUS BROKE IT. It asked whether any
+    binding source answered ANY subject the question touched. Over seven
+    records that was near enough: a question only ever reached one shelf, so
+    "some binding source on this shelf covers some word of this question" was a
+    reasonable proxy for "a rule reaches this". Merged, it is not. Measured on
+    the eight answers that flipped from serving-marked to escalating:
 
-    BINDING SOURCES AND A MAPPING -> read it off `answered_from`, which the firm
-    wrote, rather than judged.
+        PH2   a basement used to store inventory   matched on `tools`
+        VE13  business and personal use of a car   matched on `expense`
+        RW9   a cash discount on an invoice        matched on `invoices`
+
+    `tools`, `expense`, `invoices` — three of the most generic words in the
+    corpus, declared by sources with nothing to say about any of those three
+    questions. The gate was firing on vocabulary coincidence, and with one
+    shelf the coincidences are everything.
+
+    WHAT IT ASKS NOW. The guide was cited for ground it declares: the subjects
+    the question touches that THIS source says it answers. A rule silences the
+    guide only where a binding source declares that same ground. Everything
+    else is unchanged -- no binding source at all still means guidance is the
+    best authority there is, and an undeclared mapping still refuses, because
+    "I could not check" and "I checked and it is fine" must never be the same
+    answer.
+
+    IT IS STILL READ OFF THE RECORD AND NEVER JUDGED. The narrowing is a second
+    lookup in `answered_from`, which the firm wrote. Nothing here scores, ranks
+    or decides what a passage is about -- two instruments that would have were
+    measured and rejected: matching on the question's words is what broke, and
+    asking whether the pool surfaces a binding passage returns TRUE for all 24
+    of the record's non-binding problems, which is the always-answering problem
+    wearing a gate's clothes.
     """
     binding = {s.id for s in desk.sources if s.binding}
     if not binding:
@@ -987,7 +1051,19 @@ def _rule_reaches(desk: Desk, question: str) -> bool:
         # The question touches nothing this desk declared, so the mapping cannot
         # answer either. Same reasoning as above: unable to tell is not clear.
         return True
-    return any(sid in binding and any(t in asked for t in terms)
+
+    # THE GROUND THE GUIDE WAS CITED FOR. Absent a named guide this falls back
+    # to the whole question, which is the old behaviour -- callers that do not
+    # know which source is being cited are no worse off than before, and no
+    # better.
+    ground = {t for t in desk.answered_from.get(guide, ()) if t in asked} if guide \
+        else set(asked)
+    if not ground:
+        # The guide answers nothing this question touches. That is not a licence
+        # to serve it: it is the case where nothing here can tell what the guide
+        # is being cited FOR, and unable to tell refuses.
+        return True
+    return any(sid in binding and ground & set(terms)
                for sid, terms in desk.answered_from.items())
 
 
@@ -1250,7 +1326,7 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
         # WHERE NO RULE REACHES, refusing was never protecting anyone. It sent
         # the same question back to the firm every time it was asked, which is
         # the thing they asked to stop.
-        if _rule_reaches(desk, question):
+        if _rule_reaches(desk, question, source.id):
             return Refusal(
                 "authority_permits_choice",
                 f"{source.title} is {source.tier} authority, which is somebody's "
@@ -1361,11 +1437,49 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
             f"keyword table, not a reading. {why} Check the passage below "
             f"answers what was asked before relying on it."
         ) if astray else "",
-        caveat="" if binding else (
-            f"This rests on {source.title}, which is {source.tier} authority: "
-            f"the IRS's own guidance, not the rule. No binding authority on this "
-            f"desk reaches the question. Read it as the Service's stated position "
-            f"and not as settled law."),
+        # A FIRM POLICY IS BINDING AND STILL CARRIES A CAVEAT, which is the one
+        # combination this field did not have before `dec-pos2`.
+        #
+        # The firm's first condition, verbatim: *"I'm good with this but can I
+        # want this to be clearly marked as they may need to be
+        # reviewed/changed at some point."* So it SERVES — "I'm good with this"
+        # — and it says what it is. That is the same disposition they chose for
+        # guidance on the fourth docket ("Serve it, marked"), for the same
+        # reason: refusing throws away a real answer, and serving silently
+        # throws away the one thing the reader needs to know about it.
+        #
+        # AND IT SAYS WHETHER ANYBODY HAS CHECKED IT. Their second condition is
+        # the inverse of a citation check — does anything on file contradict
+        # this — and until somebody has read `ask.review_brief` and written what
+        # they found into `Reviewed:`, the honest answer is nobody knows. An
+        # uncited position is exactly the kind that can sit against authority
+        # with nothing noticing, so "nobody has looked" is a fact about this
+        # answer and belongs on it.
+        caveat=(
+            (f"This is the firm's own standing policy. It rests on the firm "
+             f"and not on any paragraph — there is nothing to go and read "
+             f"behind it, which is why it says so. "
+             + ("Nobody has yet checked it against the authority on file; "
+                "`ask.review_brief` is what puts that question to the firm."
+                if getattr(passage, "unreviewed", False) else
+                f"Checked against the record: {getattr(passage, 'reviewed', '')}"))
+            if from_position and getattr(passage, "is_policy", False)
+            else "" if binding else (
+                # THE CAVEAT AND THE GATE READ THE SAME FACT, and until
+                # `dec-guidance-narrow` they did not. This said "No binding
+                # authority on this desk reaches the question" — which was the
+                # gate's old test, and the narrowed gate makes it FALSE on the
+                # very answers it now lets through. TP1 is the case: a binding
+                # regulation does reach a question about the threshold; what it
+                # does not do is declare the word. An answer whose own caveat
+                # overstates what was checked is worse than one that refuses,
+                # because a reader has no way to tell.
+                f"This rests on {source.title}, which is {source.tier} "
+                f"authority: the IRS's own guidance, not the rule. Nothing "
+                f"binding on file is declared to answer what this source "
+                f"answers here — which is not the same as nothing binding "
+                f"existing. Read it as the Service's stated position and not "
+                f"as settled law.")),
         # A position is the firm's words, so those are the words that leave the
         # desk -- not a restatement, however close. `_check` has already refused
         # one that disagrees; this makes the agreeing case exact rather than
@@ -1417,6 +1531,12 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         passage=(getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
+        # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules
+        # in one section scope themselves differently and the citation cannot
+        # tell them apart.
+        scoped=pool.scope_of(getattr(passage, "text", "")
+                             or getattr(desk.passage(answer.citation),
+                                        "text", "") or ""),
         # COMPUTED, NEVER PASSED, for the same reason `unchecked` is: an answer
         # that can be constructed without it is one that will be. Read off the
         # record on EVERY served answer and not only the position-backed ones —
@@ -1636,15 +1756,50 @@ def _straddle_note(verdict, desk) -> str:
     return " ".join(out)
 
 
+#: Characters that are the SAME CHARACTER as far as the firm's word goes, and
+#: differ only in which key or which editor produced them. Nothing here changes
+#: a word; each pair is visually identical or near enough that no reader could
+#: tell them apart on a screen.
+#:
+#: `dec-apostrophe`, 10 September 2026. Forge-Occam had a submission refused
+#: `contradicts_ratified_position` over a curly versus straight apostrophe
+#: inside the firm's own quoted position -- two characters that look identical,
+#: one of which Word, phones and most editors insert automatically. It cost a
+#: round and the cause was invisible to the person hitting it. Offered the
+#: choice between normalising and staying byte-exact, the firm: **"Normalise."**
+#:
+#: THIS LIST IS CLOSED AND STAYS SHORT. Every entry is a crack in "a desk does
+#: not revise the firm's word", and the principle is right: the reason this is
+#: defensible is that a curly apostrophe is not a different word, it is a
+#: different way of typing the same one. Anything that could change meaning --
+#: a word, a number, a negation -- must still fail.
+_TYPOGRAPHY = str.maketrans({
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",
+    "\u2032": "'", "\u00b4": "'", "\u0060": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',
+    "\u2033": '"',
+    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-",
+    "\u2014": "-", "\u2015": "-", "\u2212": "-",
+})
+
+#: KNOWN AND DELIBERATELY NOT HANDLED: a non-breaking space (U+00A0) inside a
+#: position still fails the comparison. It is the same class of invisible
+#: hazard, the firm approved quotes and dashes, and widening past what they
+#: approved is the failure this whole check exists to prevent. Recorded here so
+#: the next person hitting it finds a note rather than a mystery.
+
+
 def _same(given: str, known: str) -> bool:
     """Compare a conclusion to the known one.
 
-    Deliberately exact once normalised for case and surrounding space. A looser
+    Exact once normalised for case, surrounding space, and the typographic
+    variants in `_TYPOGRAPHY` -- and exact in every other respect. A looser
     comparison here would quietly turn wrong answers into right ones, which is
-    the one direction this code must never fail in -- and `wrongly_absorbed` is
-    precisely the count that a generous comparison would hide.
+    the one direction this code must never fail in, and `wrongly_absorbed` is
+    precisely the count a generous comparison would hide.
     """
-    return given.strip().casefold() == known.strip().casefold()
+    return (given.translate(_TYPOGRAPHY).strip().casefold()
+            == known.translate(_TYPOGRAPHY).strip().casefold())
 
 
 def tally(results: list[Result]) -> dict[str, int]:
