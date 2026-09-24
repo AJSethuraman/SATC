@@ -1047,3 +1047,42 @@ none of it qualified. Cutting it would have been the editorial judgement P5
 explicitly forbids.
 
 1.18.0 → **1.19.0**. 190 → 221 passing.
+
+## 1.20.0 — the gate moved inside the door (23 September 2026)
+
+1.19.0 shipped `gate()` and asked each builder to call it before rendering. The
+firm read the hand-over and stopped on one sentence — *the next tie-out document
+in another project gets nothing until someone wires it up* — and asked what that
+meant. It meant the checking was held by one line somebody had to remember to
+write, and the skill asking for that line is prose. **Which is the thing this
+whole module exists because nobody follows: 0 of 5.** A builder that simply
+never called `gate` would produce an unchecked document indistinguishable from a
+checked one.
+
+*"Yes do that. I want it to be required."*
+
+So `render()` now gates and then drives Chrome, and it is the only door: a
+builder asks canon for a PDF and is checked on the way through. `gate()` stays
+for a builder with its own reason to render, and the skill names it as the
+weaker path rather than an equal one.
+
+Three things the render refuses that the gate could not: Chrome producing
+nothing; a stale PDF sitting where the new one goes, which would satisfy every
+later check and mean the render never ran; and pictures that were in the HTML
+and did not survive into the PDF. The last one is checked by counting
+`/Subtype /Image` in the file — stdlib, and enough to tell NONE from SOME, which
+is the only question being asked.
+
+`test_there_is_no_argument_that_skips_the_gate` asserts the signature never
+grows `skip`, `force` or `unchecked`. A flag that turns a check off is the check
+not existing.
+
+**Checked by mutation.** Deleting the `gate()` call from `render()` turns two
+tests red — and the mutant renders a real PDF from a document that should have
+been refused, which is exactly the failure being guarded.
+
+**What this still cannot do**, written down rather than implied: canon cannot
+stop a builder shelling out to Chrome itself. What it can do is make the honest
+path the short one and the other one visible in a grep for `print-to-pdf`
+outside this module. That is prevention where prevention reaches and detection
+where it does not, and the difference is stated rather than blurred.

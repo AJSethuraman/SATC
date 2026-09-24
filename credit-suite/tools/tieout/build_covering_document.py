@@ -1014,34 +1014,23 @@ HTML = ("<!doctype html><meta charset='utf-8'><title>Verified credit data "
         "&mdash; how it was proved</title><style>%s</style>%s"
         % (CSS, "\n".join(BODY)))
 
-# THE GATE, BEFORE THE RENDER. canon reads what is about to be printed and
-# refuses it if the roster does not add to the headline, if any of the three
-# named sections is missing, or if the photographed rows carry no mark. It is
-# deliberately upstream of Chrome: the refusal lands while there is still
-# nothing on disk to forward.
-check_tie_out.gate(HTML, "the covering document for the verified credit feed")
-
-src = SB / "covering.html"
-src.write_text(HTML, encoding="utf-8")
-OUT.mkdir(parents=True, exist_ok=True)
-subprocess.run([CHROME, "--headless=new", "--disable-gpu",
-                "--no-pdf-header-footer", "--print-to-pdf=%s" % PDF,
-                src.as_uri()], capture_output=True, timeout=300)
-if not PDF.exists():
-    raise SystemExit("Chrome produced no PDF")
+# THE RENDER IS CANON'S, AND SO IS THE GATE INSIDE IT. This file used to call
+# `gate()` and then drive Chrome itself, which meant the checking was held by
+# one line somebody had to remember to write -- and the skill asking for that
+# line is prose, which is the thing measured at 0 of 5. A builder that simply
+# never called it produced an unchecked document indistinguishable from a
+# checked one. So the door moved: asking canon for a PDF is the only way to get
+# one, and the gate is on the inside of it.
+#
+# The firm, 23 September 2026: "I want it to be required."
+check_tie_out.render(HTML, PDF,
+                     what="the covering document for the verified credit feed",
+                     chrome=CHROME, scratch=SB)
 
 import pymupdf
 doc = pymupdf.open(PDF)
-images = sum(len(doc[p].get_images()) for p in range(doc.page_count))
 pages = doc.page_count
 doc.close()
-if not images:
-    raise SystemExit(
-        "REFUSING: the covering document rendered with NO images in it. "
-        "Every figure it traces is supposed to carry a photograph of the "
-        "filed line, and a document that argues about numbers the reader "
-        "cannot see is not evidence.")
 print("written : %s" % PDF)
-print("          %d pages, %d images embedded, %.1f MB"
-      % (pages, images, PDF.stat().st_size / 1e6))
+print("          %d pages, %.1f MB" % (pages, PDF.stat().st_size / 1e6))
 print("every number in it read from verified-data/ at build time")
