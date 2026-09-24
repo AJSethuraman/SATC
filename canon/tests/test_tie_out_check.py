@@ -348,3 +348,76 @@ def test_the_command_line_passes_a_conforming_document(tmp_path):
     path = tmp_path / "doc.html"
     path.write_text(document(), encoding="utf-8")
     assert gate.main([str(path)]) == 0
+
+
+# ---------------------------------------------------------------------------
+# the render is the only door, and the gate is on the inside of it
+# ---------------------------------------------------------------------------
+# WHY THESE EXIST. Shipping `gate()` and asking each builder to call it left the
+# checking held by prose -- one line somebody had to remember -- which is the
+# thing this whole module was built because nobody does. A builder that never
+# called it produced an unchecked document that looked exactly like a checked
+# one. So `render()` gates on the way through, and these prove there is no way
+# past it and nothing on disk when it refuses.
+
+def test_the_render_refuses_a_document_that_fails_the_gate(tmp_path):
+    pdf = tmp_path / "out.pdf"
+    with pytest.raises(SystemExit) as raised:
+        gate.render(document(pictures=(False,)), pdf, "the covering document")
+    assert "REFUSING" in str(raised.value)
+
+
+def test_a_refused_document_leaves_nothing_on_disk(tmp_path):
+    """The point of gating upstream: nothing to forward when it fails."""
+    pdf = tmp_path / "out.pdf"
+    with pytest.raises(SystemExit):
+        gate.render(document(headline="99"), pdf, "the covering document")
+    assert not pdf.exists()
+
+
+def test_a_stale_file_is_removed_before_the_render(tmp_path, monkeypatch):
+    """A leftover PDF would satisfy every check and mean the render never ran."""
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.4 stale /Subtype /Image")
+    monkeypatch.setattr(gate.subprocess, "run", lambda *a, **k: None)
+    with pytest.raises(SystemExit) as raised:
+        gate.render(document(), pdf, "the covering document", chrome="x")
+    assert "produced no PDF" in str(raised.value)
+    assert not pdf.exists()
+
+
+def test_a_render_that_drops_the_pictures_is_refused(tmp_path, monkeypatch):
+    """The HTML carried them; this asks whether they survived Chrome."""
+    pdf = tmp_path / "out.pdf"
+    monkeypatch.setattr(gate.subprocess, "run",
+                        lambda *a, **k: pdf.write_bytes(b"%PDF-1.4 no pictures"))
+    with pytest.raises(SystemExit) as raised:
+        gate.render(document(), pdf, "the covering document", chrome="x")
+    assert "NO images" in str(raised.value)
+
+
+def test_a_conforming_document_renders(tmp_path, monkeypatch):
+    pdf = tmp_path / "out.pdf"
+    monkeypatch.setattr(
+        gate.subprocess, "run",
+        lambda *a, **k: pdf.write_bytes(b"%PDF-1.4 /Subtype /Image here"))
+    assert gate.render(document(), pdf, "doc", chrome="x") == pdf
+    assert pdf.exists()
+
+
+def test_there_is_no_argument_that_skips_the_gate():
+    """A flag that turns the check off is the check not existing."""
+    import inspect
+    names = set(inspect.signature(gate.render).parameters)
+    assert not {"skip", "force", "check", "gate", "unchecked"} & names, (
+        "render grew a way past the gate; the gate being unavoidable is the "
+        "whole reason the render lives in canon")
+
+
+def test_a_builder_that_renders_some_other_way_is_visible():
+    """Not enforceable from here, and worth stating: canon cannot stop a
+    builder shelling out to Chrome itself. What it can do is make the honest
+    path the short one and the dishonest path a thing that shows up in a grep
+    for `print-to-pdf` outside this module."""
+    source = Path(gate.__file__).read_text(encoding="utf-8")
+    assert "print-to-pdf" in source

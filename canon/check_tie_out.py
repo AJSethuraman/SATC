@@ -58,6 +58,7 @@ import base64
 import binascii
 import re
 import struct
+import subprocess
 import sys
 import zlib
 from dataclasses import dataclass, field
@@ -486,6 +487,100 @@ def gate(html: str, what: str = "this tie-out document") -> None:
             "\nREFUSING to publish %s. Nothing above is about a number being "
             "wrong; each one is the document contradicting itself, or leaving "
             "out the part a reader checks you with." % what)
+
+
+#: Where Chrome usually is. A builder may pass its own path; this is only so
+#: that the common case needs no argument.
+CHROME_CANDIDATES = (
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+)
+
+
+def find_chrome() -> str:
+    for candidate in CHROME_CANDIDATES:
+        if Path(candidate).exists():
+            return candidate
+    raise SystemExit(
+        "REFUSING: no Chrome found to render with, and rendering is the only "
+        "way to produce a tie-out document. Pass chrome=<path>. Tried:\n  "
+        + "\n  ".join(CHROME_CANDIDATES))
+
+
+def _pdf_images(raw: bytes) -> int:
+    """How many pictures the PDF carries, counted from the file itself.
+
+    Not a PDF parser: it counts `/Subtype /Image` dictionary entries, which is
+    what an embedded picture has and what nothing else in a Chrome-printed file
+    does. It is used only to tell NONE from SOME, so a count that is
+    approximate is still a true answer to the question being asked.
+    """
+    return len(re.findall(rb"/Subtype\s*/Image", raw))
+
+
+def render(html: str, pdf: "Path | str", what: str = "this tie-out document",
+           chrome: str | None = None, scratch: "Path | str | None" = None,
+           timeout: int = 300) -> Path:
+    """Gate the document, then render it. **This is the only door.**
+
+    WHY THE RENDER LIVES HERE AND NOT IN THE BUILDER. Until 23 September 2026
+    canon shipped `gate()` and nothing else, and the skill asked each builder to
+    call it before rendering. That request is prose — and this file exists
+    because a promise held by prose was kept 0 times out of 5 while a promise
+    held by code was kept 1 of 1. Shipping the check and leaving the CALLING of
+    it to an instruction moved the problem one layer down and left it there: a
+    builder that simply never called `gate` would produce an unchecked document
+    indistinguishable from a checked one.
+
+    The firm, shown that: *"I want it to be required."*
+
+    So the gate is on the inside of the only door. A builder that wants a PDF
+    asks for one here and is checked on the way through. There is no argument
+    that skips it, and a builder that renders some other way is not using this
+    module at all — which is visible in a grep rather than silent in a build.
+
+    Returns the path written. Raises SystemExit if the document fails the gate,
+    if Chrome produces nothing, or if what came out has no pictures in it.
+    """
+    pdf = Path(pdf)
+    gate(html, what)
+
+    source = Path(scratch) if scratch else pdf.parent
+    source.mkdir(parents=True, exist_ok=True)
+    page = source / (pdf.stem + ".html")
+    page.write_text(html, encoding="utf-8")
+    pdf.parent.mkdir(parents=True, exist_ok=True)
+    # A stale file sitting where the new one goes would satisfy every check
+    # below, which is the shape of "it worked" meaning "it never ran".
+    if pdf.exists():
+        pdf.unlink()
+
+    subprocess.run(
+        [chrome or find_chrome(), "--headless=new", "--disable-gpu",
+         "--no-pdf-header-footer", "--print-to-pdf=%s" % pdf, page.as_uri()],
+        capture_output=True, timeout=timeout)
+    if not pdf.exists():
+        raise SystemExit("REFUSING: Chrome produced no PDF for %s." % what)
+
+    # The pictures are the evidence, and a render that drops them is
+    # indistinguishable from one that kept them until somebody opens it. The
+    # HTML was checked for marked source images before Chrome ran; this asks
+    # whether they SURVIVED, which is a different question, and the one that
+    # caught seven exhibits built with no photographs in them.
+    embedded = _pdf_images(pdf.read_bytes())
+    if not embedded:
+        raise SystemExit(
+            "REFUSING: %s rendered with NO images in it. Every figure it "
+            "traces is supposed to carry a photograph of the source, and a "
+            "document that argues about numbers the reader cannot see is not "
+            "evidence. The pictures were in the HTML and did not survive the "
+            "render." % what)
+    print("rendered: %s  (%d images embedded, %.1f MB)"
+          % (pdf, embedded, pdf.stat().st_size / 1e6))
+    return pdf
 
 
 def main(argv: list[str] | None = None) -> int:

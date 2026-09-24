@@ -16,8 +16,10 @@ The sample of one is the point, not a limitation. Coverage is a different job.
 
 ## This skill has two halves, and you should be able to tell them apart
 
-**Part one is checked by a tool.** `canon/check_tie_out.py` reads the document
-you are about to render and **refuses** it on three things. Not warns.
+**Part one is checked by a tool, and you cannot get past it.**
+`canon/check_tie_out.py` **renders** the document, and the check is on the
+inside of that door: ask it for a PDF and you are checked on the way through.
+It refuses on three things. Not warns.
 
 **Part two is judgement, permanently.** No engine will ever hold it, and saying
 so protects it: an instruction filed under judgement is not a rule somebody
@@ -43,13 +45,23 @@ can see at a glance which kind of promise they are reading.
 
 # Part one — what the checker enforces
 
-Call it on the HTML before you render it, not on the PDF afterwards: the refusal
-should land while there is still nothing to forward.
+**Do not render it yourself.** Ask canon for the PDF:
 
 ```python
 import check_tie_out                      # from ${CLAUDE_PLUGIN_ROOT}
-check_tie_out.gate(html, "the covering document")   # raises on any finding
+check_tie_out.render(html, "docs/tie-out/TIE-OUT-<figure>-<date>.pdf",
+                     what="the covering document")
 ```
+
+It checks the HTML, drives Chrome, and refuses if the pictures did not survive
+the render. There is no argument that skips the check, and a test asserts there
+never will be — a flag that turns a check off is the check not existing.
+
+`check_tie_out.gate(html, what)` is still there for a builder that has its own
+reason to render, and **it is the weaker path**: it leaves the checking held by
+one line somebody has to remember to write. That was the arrangement until
+23 September 2026, and it lasted until somebody asked what happens in a project
+that forgets. The firm: *"I want it to be required."*
 
 The document points at its own parts with a `data-tieout` attribute, and a part
 the checker cannot find is a refusal, not a pass. A mistyped mark is refused for
