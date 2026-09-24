@@ -54,6 +54,50 @@ with sync_playwright() as p:
     ok(pg.evaluate("sessionStorage.getItem('satc_intake_v1')") is None, "sessionStorage cleared")
     pg.close()
 
+    print("\n=== WHERE IT CAME FROM: ?from= reaches the submission ===")
+    # An enquiry that arrived from the Schedule C tool has to arrive SAYING so,
+    # or the tool cannot be told from any other source and the only measurement
+    # it was built for is gone. Three cases: a real tag, no tag at all, and a
+    # tag a stranger made up.
+    def walk_to_send(page):
+        for v in ["individual_tax", "w2", "current", "no"]:
+            step(page, v)
+        step(page)                                       # notes, optional
+        page.fill("input[name=name]", "Test Prospect")
+        page.fill("input[name=email]", "t@example.com")
+        page.check("input[name=consent]")
+        page.click("#intakeForm button[type=submit]")
+        page.wait_for_timeout(500)
+        posts = page.evaluate("window.__posts")
+        return posts[0]["r"] if posts else {}
+
+    pg = b.new_page(); pg.add_init_script(STUB)
+    pg.goto(U + "?from=schedule-c"); pg.wait_for_timeout(300)
+    r = walk_to_send(pg)
+    ok(r.get("Came from") == "schedule-c",
+       "the tag reaches the POST as a field (got %r)" % r.get("Came from"))
+    try:
+        ok(J.loads(r.get("_json", "{}")).get("source") == "schedule-c",
+           "and rides in _json, so a spreadsheet flow sees it too")
+    except Exception as e:
+        ok(False, "_json source: %s" % e)
+    pg.close()
+
+    pg = b.new_page(); pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(300)
+    r = walk_to_send(pg)
+    ok("Came from" not in r,
+       "no tag means the field is ABSENT, not blank or invented (got %r)" % r.get("Came from"))
+    pg.close()
+
+    # The value is a stranger's, and it lands in an email subject and body.
+    pg = b.new_page(); pg.add_init_script(STUB)
+    pg.goto(U + "?from=" + "%3Cscript%3E%20nasty%20cc:someone@evil.test")
+    pg.wait_for_timeout(300)
+    r = walk_to_send(pg)
+    ok("Came from" not in r,
+       "a tag that is not a plain slug is dropped, not cleaned up (got %r)" % r.get("Came from"))
+    pg.close()
+
     print("\n=== STALE DATA: full cascade after dropping the business service ===")
     # Walk the whole business subtree, then go back to step 1 and swap the
     # service to individual-only. Structure, complexity, headcount and revenue

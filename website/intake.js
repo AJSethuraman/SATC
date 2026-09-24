@@ -477,7 +477,33 @@
     state.submitting = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
-    const cfg   = window.SATC_CONFIG || { contact: {} };
+    // ── where the enquiry came from ────────────────────────────────────────
+  //
+  // A link into this form can carry `?from=` naming the page that sent the
+  // person -- `satcllp.com/?from=schedule-c#intake` from the Schedule C tool.
+  // Without this, every enquiry looks identical and there is no way to tell
+  // whether a tool produced a client, which is the only question that decides
+  // whether more of them get built.
+  //
+  // Read ONCE at load: the visitor may reload, and the draft in sessionStorage
+  // may outlive the address that carried the tag.
+  //
+  // Constrained to a short slug because it is a value a stranger controls and
+  // it ends up in an email subject and body. Anything else is dropped rather
+  // than cleaned up -- a tag we cannot vouch for is worth less than no tag.
+  const SOURCE_KEY = 'satc.intake.from';
+  const SOURCE = (function () {
+    let tag = '';
+    try {
+      const raw = new URLSearchParams(window.location.search).get('from') || '';
+      if (/^[a-z0-9][a-z0-9-]{0,39}$/.test(raw.toLowerCase())) tag = raw.toLowerCase();
+      if (tag) sessionStorage.setItem(SOURCE_KEY, tag);
+      else tag = sessionStorage.getItem(SOURCE_KEY) || '';
+    } catch (e) { /* storage off, or a malformed address: no tag, not an error */ }
+    return tag;
+  })();
+
+  const cfg   = window.SATC_CONFIG || { contact: {} };
     const email = cfg.contact.email;
     const fid   = cfg.contact.formspreeId;
     const c     = state.answers.contact || {};
@@ -494,13 +520,18 @@
     payload.set('_gotcha',   '');   // Formspree runs its own check on this field
     // Single-line normalized copy, so a Power Automate / Apps Script flow can
     // turn a submission into a spreadsheet row without parsing prose.
-    payload.set('_json', JSON.stringify(state.answers));
+    // The tag goes on BOTH paths below. Setting it only on the Formspree one
+    // would leave the mailto fallback silently untagged -- a fix on one door.
+    if (SOURCE) payload.set('Came from', SOURCE);
+    payload.set('_json', JSON.stringify(Object.assign({}, state.answers,
+      SOURCE ? { source: SOURCE } : {})));
 
     if (!fid) {
       // summary() covers the questions but deliberately skips the contact
       // name/email, which the Formspree path sets as its own fields — so the
       // mailto body has to add them back or the enquiry has no reply address.
       const body = ['Name: ' + c.name, 'Email: ' + c.email]
+        .concat(SOURCE ? ['Came from: ' + SOURCE] : [])
         .concat(summary())
         .join('\n') + '\n\n— sent from the SATC website';
       window.location.href = 'mailto:' + (email || '') +
