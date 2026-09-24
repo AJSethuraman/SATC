@@ -108,8 +108,11 @@ Not sure whether something counts? Include it.
 
 ---
 
-This is general information, not advice about a particular return.
+This is general information, not advice about a particular return or business.
 
-<!-- [CONFIRM: does a page like this carry a line saying it is general and not
-     advice on a particular return? If so, the firm's own wording is needed —
-     inventing assurance wording is against the repo rules. -->
+<!-- ANSWERED 7 Sep 2026. Yes, it carries one, and it is the sentence above.
+     The firm chose it from a docket rather than writing one: the words that had
+     been live since the guides went up, with the noun opened out so the three
+     pages stop disagreeing. The sentence is now word for word on all three and
+     the builder no longer picks a noun per page. Recorded at open item 4 of
+     SOURCES.md and SOURCES-entity-choice.md. -->

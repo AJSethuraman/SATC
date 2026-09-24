@@ -1116,3 +1116,323 @@ wrong tool: it is session-only and would not have survived the night.
 - **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
   Deferred deliberately; the disk holding the vault is unencrypted and the
   recovery key must go to Bitwarden before it is turned on.
+
+---
+
+## Sunday 7 September 2026 — the guides' open questions, and one that was live and wrong
+
+**Goal:** the three client guides carry wording the firm has approved, and the
+questions they have not answered are answered. Done is every `[CONFIRM:]` gone
+and `python3 website/build-guides.py --publish-ready` exiting 0.
+
+**Distance at the close: 5 markers open at the start, 4 open now.** One was
+retired. Two of the remaining four are one question asked twice, and the other
+two are a second question asked twice, so what is actually outstanding is **two
+decisions, both the firm's, neither of which a session may make for them.** Both
+are written up as answerable questions with a recommendation and the exact diff
+that lands on a yes.
+
+### Found by reading the live page, which no check does
+
+`satcllp.com/guides/business-records.html` section 04 has been printing
+**`&mdash;`** as literal text to every visitor since the guides went live on
+7 September. `good-records-business.md` line 57 carried an HTML entity in a
+Markdown draft, and `build-guides.py` escapes `&` to `&amp;` before anything
+else, so the entity reached the reader as its own source.
+
+Nothing was going to catch it. `copy.spec.py` bans wording, not characters.
+`build-guides.py --check` compares the built page to the draft and the built
+page reproduced the draft faithfully — the draft was the thing that was wrong.
+`tenets.spec.py` reads the drafts through `visible_text()`, which never looks at
+an ampersand. It took opening the page.
+
+Fixed in the draft and regenerated. **A guard now exists** in `tenets.spec.py`:
+no HTML entity in a draft, matched on the raw text with the `[CONFIRM:` comments
+removed, because an entity inside a note to the firm never reaches a page.
+Mutation-tested five ways — the exact bug, a numeric entity, a hex entity, an
+entity inside a comment, and bare ampersands in prose. Five killed or correctly
+ignored, no survivors.
+
+### One marker retired, and why that is not the same as answering it
+
+`entity-choice.md` carried *"[CONFIRM: Ohio's cities. Section 04 says a city
+wants the wage side..."*. **Section 04 no longer says that.** The bullet used to
+read *"Ohio and the city where the work happens want their share of the wage"*
+and the firm cut it at C063 in `FIRM-REVIEW.md`:
+
+> still need more context - honestly ohio-specific stuff should maybe be
+> shelved for now. let's focus federal then go beyond
+
+It is now *"Wages bring state and local obligations too — a registration and
+returns for each"*, which names no state and no city. So the marker was asking
+the firm to approve a scope they had already set, about a sentence that is not
+on the page. Answering it would mean asking them to rule twice.
+
+**It was not deleted to get a build green.** Its full text and the reasoning are
+kept at open item 3 of `SOURCES-entity-choice.md`, the draft carries a note
+saying where it went, and it comes back if Ohio comes off the shelf. The
+underlying unknown — what an Ohio municipality does with a shareholder's
+distributive share, and the firm's own *"RITA is really integral"* — is not
+resolved and is recorded in the table row for that bullet, where it belongs.
+
+### The practice unit is out
+
+`entity-choice.md` section 07: *"Taking a property back out of a corporation
+later is taxed as though it had been sold."* It rested on an IRS practice unit
+PDF — training material rather than authority, and 2,203 characters of
+unreadable extract besides.
+
+Replaced with the statute, in two pieces because the bullet is about an S
+corporation and the rule is in subchapter C:
+
+- **26 U.S.C. § 311(b)(1)** — gain is recognized *"as if such property were
+  sold to the distributee at its fair market value"*.
+- **26 U.S.C. § 1371(a)** — *"subchapter C shall apply to an S corporation and
+  its shareholders"*.
+
+Both checked by fetching them through `verify_sources.py`'s own `fetch()` and
+`strip_html()`, not by reading them in a browser: the phrase is split across a
+definition link in Cornell's markup and a raw grep misses it. Both carry the
+words attributed to them. **The page's wording did not change** — only what
+stands behind it.
+
+### What was checked, and what was not
+
+Ran here: `pricing.spec.py` 66/66, `copy.spec.py` 36/36,
+`build-guides.py --check` (4 files match), `tenets.spec.py` 0 failing,
+`build-guides.py --publish-ready` — 4 remaining, exits 1 by design.
+
+**Not run: `intake.spec.py`.** Playwright launches against a
+`PLAYWRIGHT_BROWSERS_PATH` of `/opt/pw-browsers` that this Windows machine
+cannot override from the shell. **What is therefore unproven is the intake
+form's behaviour** — and nothing in this branch touches `intake-config.js`,
+`intake.js` or `index.html`, so the exposure is that CI is the only thing that
+has looked. It runs there.
+
+**Not run: `verify_sources.py` end to end.** The two statute pages were fetched
+and probed individually; the other 87 claims were not re-checked and their
+verdicts are whatever the last full run said.
+
+### Still open — both are the firm's, and neither is a blocker on anything else
+
+- **The not-advice line.** All three guides end with a sentence nobody
+  approved, live now. Two of the four markers.
+- **What an S corp owner pays themselves.** The guides say nothing about it
+  and the price page carries a line for it. The other two markers.
+- **T-03** — unchanged and untouched. Written up as a pricing suggestion for
+  the firm to pass on, per `HANDOFF.md` §4a. Not reconciled here.
+
+### The firm answered, same day — the goal is met
+
+Three decisions went out as a docket. All three came back within four minutes.
+
+**D1, the not-advice line — option A.** One sentence, word for word on all three
+guides: *"This is general information, not advice about a particular return or
+business."* These are the words that had been live since the guides went up,
+with the noun opened out. The second half of the question turned out to have an
+answer nobody had noticed: **the three pages did not match.** `build-guides.py`
+chose the noun from the page — *return* on the individual guide, *business* on
+the other two — so three pages carried two sentences. It no longer chooses; the
+sentence is one literal in the shell, and the drafts, the body strip and
+`tenets.spec.py`'s FURNITURE exemption all moved with it.
+
+Nothing was invented to get there, which is what `docs/pricing-for-website.md`
+§4 forbids. The firm was shown the words already on their site and approved
+them; the only change is the word that made the pages disagree.
+
+**D2, what an S corp owner pays themselves — option A.** One bullet, S-corp
+guide only, section 05, after *"Nothing on this page sets one"*:
+
+> If you want us to set one or check yours, it has [its own line on the price
+> page](../pricing.html).
+
+Nineteen words, no amount, no promise about who does the work. It cannot carry a
+figure — this page is downstream of `fee-schedule.yaml` and the line it points
+at is generated from `assumed.officer_compensation`. **The business guide keeps
+its silence deliberately**: two guides carrying the same sentence is one guide
+split in half, and `tenets.spec.py` fails on any run of prose shared between a
+pair of them. That reader is sent on by the "Also here" link.
+
+**T-03 — option C, leave it**, with an instruction attached:
+
+> ok you do not control pricing - give feedback on what you are unsure about /
+> what seems to need decided so i can run it by the proper agent
+
+So the suggestion block is not sent by me and not acted on. It is written up in
+the docket for the firm to route, and T-03 stays as it is in
+`docs/pricing-open-threads.md` — still disagreeing with the schedule, still
+recorded as a trap in `HANDOFF.md` §7.
+
+### Where it ended
+
+```
+python website/build-guides.py --publish-ready   ->  No open questions. exit 0
+```
+
+**5 markers at the start, 0 now.** One retired because its premise was gone,
+four answered by the firm. None deleted to make a build green.
+
+| | |
+|---|---|
+| `pricing.spec.py` | 66 / 66 |
+| `copy.spec.py` | 36 / 36 |
+| `build-guides.py --check` | 4 files match |
+| `tenets.spec.py` | 0 failing |
+| `build-guides.py --publish-ready` | **exit 0** |
+| `intake.spec.py` | **not run** — Playwright cannot launch here; CI is the only thing that has looked at the intake form |
+
+Still true and unchanged by any of this: **nobody has read the three guides end
+to end.** The firm said they would before publication and the pages went up
+anyway. Checks passing is not approval, and this branch does not make it one.
+
+### Tie-out: the $2,000 on the business guide, traced to the law that put it there
+
+One figure, proved link by link. `docs/tie-out/1099-nec-threshold-2026-09-07/` —
+the deliverable is the PDF; everything else in the folder is what it renders from
+and the evidence it renders.
+
+**The figure was chosen because it had been wrong.** It read `$600` until a source
+pass caught it, and a business owner acts on it directly. A figure everybody
+already trusts proves nothing and costs the same.
+
+**Verdict: TIED, difference 0.** The bullet makes four claims and all four hold:
+
+| Claim on the page | Source, located |
+|---|---|
+| `$2,000` threshold | 26 U.S.C. § 6041(a), *"of $2,000 or more in any calendar year"*; IRS Instructions Rev. 12/2026, *"at least $2,000"* |
+| was `$600` | OLRC amendment note: *Pub. L. 119–21, §70433(a), substituted "$2,000" for "$600"* |
+| indexes from 2027 | § 6041(h), *"any calendar year after 2026"*, rounded to the nearest $100 |
+| due 31 January | § 6071(c), restated in the instructions |
+
+Two branches of government, three documents, none of them ours. The statute was
+read **twice** — Cornell LII and uscode.house.gov — and the two agree.
+
+### What running it found
+
+**One. The page states a date that has moved in each of the last two seasons and
+does not say it moves.** The bullet says *"due... by January 31"* and stops. January
+31 is the statutory date, so the page is not wrong — but 31 January 2026 was a
+Saturday and the IRS's own General Instructions said **2 February 2026**; 31 January
+2027 is a Sunday, so the date a reader will actually face is **1 February 2027**.
+
+The firm gave a standing instruction on exactly this at C001: *"we can use January 31
+and other standard dates and then say that you have to account for weekends and
+holidays as well."* The individual guide obeys it. **This page obeys it once and not
+twice** — section 06 carries the moving rule for March 15, section 05's January 31
+carries nothing. One page, two dates, one rule stated. **Not fixed: it is client-facing
+copy, so it goes to the firm as a decision.**
+
+**Two. `SOURCES.md` justifies the figure with the agency's paraphrase rather than the
+rule.** It quotes the IRS — *"For tax years beginning after 2025"* — where § 70433(f)
+says *"applicable with respect to payments made after Dec. 31, 2025"*. Different
+tests. Same answer here, because § 70433(e) simultaneously changed § 6041(a) to read
+*calendar year*, and an information return runs on the calendar year regardless of the
+payer's fiscal year. Nothing on the site is wrong; the citation is looser than the rule.
+
+**Three. `uscode.house.gov` is recorded as unfetchable and it is not.** `HANDOFF.md` §6
+and `SOURCES-entity-choice.md` both carry it as blocked — *"the only source in either
+file that still cannot be fetched from here"*. Tested once; it opened. It then turned
+out to be the most useful document in the exhibit: its amendment notes prove three of
+the four claims in one image. **The obstacle was real when written and is a property of
+a container, not of the source.**
+
+### What I got wrong, in the exhibit itself
+
+- **A wedged browser tab reported six successful scrolls and moved nothing.** The IRS
+  page would not scroll — `window.scrollTo`, `scrollIntoView`, an anchor and a direct
+  `scrollTop` all returned cleanly and did nothing, because that tab's renderer had
+  timed out earlier. A fresh tab worked first time. Screenshotting without checking
+  where it landed would have put a photograph of the wrong part of the right page into
+  an exhibit, which looks exactly like evidence.
+- **The first marking attempt matched a wrapper** and washed the whole IRS document
+  yellow, banner included. Discarded rather than cropped: a page restyled wholesale by
+  the person photographing it is not a photograph of that page.
+- **The verdict banner laid its own sentence out in three columns.** `display:flex` on
+  the text block made every `<b>` a flex item. Caught by opening the rendered page,
+  which was the only thing that would have.
+
+### What it does not prove
+
+One bullet, on one of three pages. **Five other numeric claims on the same page were
+not checked** and carry whatever the last full `verify_sources.py` run gave them; that
+run was not repeated. Nothing watches for the 2027 indexation. And the firm still has
+not read the three guides end to end.
+
+### Walked the live site as a client — 5 defects against ~106 passing checks, none caught
+
+`docs/WALKTHROUGH-DEFECTS-website.md`. Six published pages, in Chrome, as a
+single-member LLC owner wondering about an S corp election. Home → Pricing →
+guides → the intake form, to the last step. **Nothing was submitted** — pressing
+"Send to SATC" puts a real lead in the inbox, so that click was not made.
+
+Kept separate from `docs/WALKTHROUGH-DEFECTS.md`, which is the internal apps.
+
+**The one that matters.** The consent checkbox on the live home page reads
+*"SATC is engaged only when we both sign an **engagement letter**."* That phrase
+is banned — `copy.spec.py` line 67, `CONTRACT_WORDS` — and it is banned because
+of the firm's own words: *"i would never expect a client to understand what an
+engagement letter is inherently."* The price page was fixed in August. The home
+page was not, because **nothing looks at it**: the string lives in
+`website/intake.js:236` and is injected by JavaScript, `index.html` contains it
+zero times, and `copy.spec.py` scans six `.html` files and no `.js`. The rule and
+the text are in two places with nothing comparing them.
+
+Ran the firm's three word lists over every client-visible string in the files the
+checker does not open: **one real hit**, that one. Two apparent hits in
+`build-pricing-config.py` are the comment explaining this very failure and reach
+the generated file zero times — excluded rather than counted.
+
+**The rest.** `sitemap.xml` stamps the three guides `lastmod 2026-08-26`, twelve
+days before they existed — written in `061ac96`, the same commit that created
+them, and nothing checks that file at all. The home page links to no guide
+(`grep -c "guides/" index.html` → 0), so `business-records` and `s-corp` have no
+inbound link from outside `/guides/` and the S-corp page is four hops from the
+front door. The intake wizard has no progress indicator while the home page
+promises "five minutes". `privacy.html` is the only page of six with no Open
+Graph tags.
+
+**Not defects, but decisions:** `robots.txt` blocks ClaudeBot, GPTBot,
+Google-Extended and five more under a Cloudflare-managed block. Ordinary search
+is allowed. Nobody here wrote it; it is worth choosing rather than inheriting.
+
+### What I got wrong — three times, and it is the useful part
+
+My own probe reported three defects that were not. The honeypot I called visible
+is at `left:-9999px; opacity:0; tabindex:-1; aria-hidden` — correct. The question
+I called duplicated is an `sr-only` label at `clip:rect(0,0,0,0)` — correct, and
+better accessibility than I assumed. The step I called silently stuck shows
+*"Please fill this in to continue."* — my read was from a stale render. **A
+visibility heuristic built on display/visibility/size over-fires on three common
+correct patterns**, and a sweep that filed all three would have had somebody
+break working code.
+
+### Not delivered, and why
+
+**The procedure document.** The walk skill wants two and this is one. The
+browser's display here is 736px wide and the window wedged at 640×311 with
+`outerWidth: 0`; `resize_window` reports success and does nothing. A procedure
+needs a readable screenshot per step and that viewport cannot produce one, so it
+is unwritten rather than written badly. It needs the Chrome window restored —
+one action on the machine. **Desktop-width layout is therefore unproven**, and
+every finding above was made at narrow width.
+
+### The site docket came back — five answered, one deferred
+
+**D5 = A.** The firm's own approval, given to me directly rather than relayed:
+the consent checkbox becomes *"...that begins when we both sign a written
+agreement setting out the work and the fee."* It lands in three places at once
+because the phrase is live, not just pending in #138.
+
+**D6 = C.** One sentence at the top of the business guide covering every date on
+it, and the March 15 clause comes out. Option A — their first answer — could not
+ship: it duplicated the March 15 construction and `copy.spec.py` fails a phrase
+repeating on one page. The linter was right; the page would have said the same
+thing twice.
+
+**D7 = R.** Do not merge #317. The firm reads the branch preview first.
+
+**D8 deferred**, in their words: *"we do this when i'm comfortable adding them,
+it will be A"* — the Guides nav item on the home page. Not built. It is a
+decision made and postponed, not an open question.
+
+**D9 = A.** Allow assistants to read the site, keep training blocked.
