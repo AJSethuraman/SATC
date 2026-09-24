@@ -1116,3 +1116,99 @@ wrong tool: it is session-only and would not have survived the night.
 - **B8 — BitLocker.** The firm read the steps and said *"Not tonight."*
   Deferred deliberately; the disk holding the vault is unencrypted and the
   recovery key must go to Bitwarden before it is turned on.
+
+### D5 applied: the banned phrase is out, and the file it hid in is now checked
+
+The consent checkbox on the home page reads, with the firm's own wording:
+
+> I understand that sending this does not create a client engagement. **That
+> begins when we both sign a written agreement setting out the work and the
+> fee.**
+
+**Only the half they ruled on was changed.** The first sentence is untouched from
+what shipped. "engagement" on its own is not a banned word — only "engagement
+letter" is — and rewriting a sentence the firm did not rule on would be the same
+over-reach this session has been refusing all day. The remaining term of art
+goes back to them as a separate small question rather than being fixed quietly.
+
+**The structural half, which is the reason it was possible.** `copy.spec.py` now
+reads `intake.js`. #320 had added `intake-config.js` that morning and reported
+39/39 green while the banned phrase sat in the renderer beside it — half a blind
+spot still reads as green.
+
+`intake.js` could not simply join `COPY_IN_SCRIPTS`: that list is read by
+`key: "value"` pairs and a renderer has none, so the key reader finds nothing and
+the assert fires on an empty result. It gets `COPY_IN_RENDERERS` and its own
+extractor — every quoted literal, joined in source order, through the same
+tag-stripper the `.html` pages use. It over-collects class names on purpose:
+every check run against that text looks for a banned English phrase, and
+`wiz-step` matches nothing. Missing real copy is the dangerous error.
+
+39/39 -> **42/42**, and 2,081 characters of renderer copy are under the checker
+that previously read none of it.
+
+**Mutation table — five mutants, five killed, no survivors:**
+
+| Mutant | Result |
+|---|---|
+| put "engagement letter" back — the exact live bug | killed |
+| a self-claim, "peace of mind" | killed |
+| a promise, "guaranteed" | killed |
+| a contract-desk verb, "at our discretion" | killed |
+| the extractor silently returns nothing | killed by the assert |
+
+The last one is the one that mattered: an extractor that quietly finds nothing
+reports green forever, which is exactly how the original blind spot survived.
+
+**One of my own mutations did not apply and I nearly recorded it as a pass.** The
+first attempt at the extractor-returns-nothing mutant had a mis-escaped anchor,
+so the file was never modified and the run that "passed" was the unmutated one.
+Caught by checking the file changed rather than reading the result. A mutation
+that silently fails to apply looks exactly like a surviving mutant looks exactly
+like a passing test.
+
+### The three repairs silence approved
+
+**sitemap.xml was wrong on five of six rows, and nothing had ever read it.** The
+three guide rows were added in `061ac96` — the same commit that created those
+pages — stamped `2026-08-26`, twelve days before the files existed, by copying
+the rows above. The price and privacy rows were stale for the same reason. Only
+the home page was right, and only because it genuinely had not changed.
+
+Corrected to `2026-09-07`, each verified against `git log` on the page's own
+source rather than set to today wholesale — `index.html` stays `2026-08-26`
+because that is when it last changed, and a check that moved every date would
+have been the same defect wearing a fix.
+
+**`website/sitemap.spec.py` now reads it**, and runs in CI. It checks five
+things: every published page is listed, nothing is listed that is not published,
+the file behind each URL exists, no date is in the future, and — the one that
+matters — **no `lastmod` is EARLIER than the page's own last commit.** A date
+later than the truth costs a wasted re-crawl. A date earlier tells a crawler the
+newest wording is old, which makes the sentence the firm just approved the change
+least likely to be fetched again.
+
+The guides are dated from their *drafts* as well as their generated HTML, because
+editing a draft changes the page even though a machine writes the file.
+
+Four mutants, four killed: a stale date put back, a page's row deleted, a page
+listed that does not exist, and a future date. It needs full git history, so the
+CI step checks out with `fetch-depth: 0` — otherwise it would report UNKNOWN and
+read as passing.
+
+**privacy.html has preview tags.** It was the only one of six published pages
+with no Open Graph tags, so it previewed bare wherever it was shared — and it
+gets shared at the one moment it matters, when somebody asks what the form
+collects. **No new words were written:** the title and description are the page's
+own, already live.
+
+### D9 is not mine to do
+
+The firm answered A — allow assistants to read the site, keep training blocked.
+**The block is not in this repository.** `website/robots.txt` is four lines and
+allows everything; the eight `Disallow` rules are injected by Cloudflare at serve
+time under a "Cloudflare Managed content" marker. Checked rather than assumed:
+the live file contains `ClaudeBot`, the repo file does not.
+
+So it is a setting in the Cloudflare dashboard, not a commit. Handed back as
+steps rather than done.

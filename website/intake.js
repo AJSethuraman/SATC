@@ -232,8 +232,15 @@
         field('City & state', 'location', 'text', c.location, 'address-level2') +
         '<div class="consent"><label class="check">' +
           '<input type="checkbox" name="consent"' + (c.consent ? ' checked' : '') + ' />' +
+          // The firm settled this wording on 7 September 2026, after "engagement
+          // letter" was found live here while copy.spec.py reported green: the
+          // string is injected by this script, and the spec read .html only.
+          // Their replacement, verbatim -- the second sentence is theirs word for
+          // word. The first is unchanged from what shipped, deliberately: only
+          // the half they ruled on was touched.
           '<span>I understand that sending this does not create ' +
-          'a client engagement. SATC is engaged only when we both sign an engagement letter.</span>' +
+          'a client engagement. That begins when we both sign a written agreement ' +
+          'setting out the work and the fee.</span>' +
         '</label></div>';
     }
 
