@@ -192,6 +192,13 @@ every one of them was unreadable.
   with a merge commit (the repo's convention) pinned to the head that went
   green, and confirm `main` carries it — for a plugin, that the marketplace
   version on `main` is the one you shipped.
+- **Marking it ready starts a Codex review — wait for it.** This repo runs
+  `chatgpt-codex-connector`, and "draft marked ready" is one of its triggers.
+  Its summary comment reads *Running*, then *Completed*; findings arrive as
+  review threads. Merge only after it reads *Completed*, and treat any thread
+  it opens as a bug report to verify and fix first. #395 was merged twenty
+  seconds after being marked ready, while this review was still running — it
+  came back clean, which was luck, not process.
 - **Still hold a merge** when the firm has said to, when CI is red, or when the
   PR carries a decision they have not answered yet. "Green" means green on the
   head you are merging, not on an earlier one.
