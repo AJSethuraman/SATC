@@ -33,34 +33,35 @@ different files.
 
 ## 1. Audit: what the code does now (file:line) and whether it fits the goal
 
-- [ ] **a.** Every place RANR is a multiple (pocket ÷ rest): Where it bleeds, Losses vs
+- [x] **a.** Every place RANR is a multiple (pocket ÷ rest): Where it bleeds, Losses vs
       revenue, Control lines, suggested lines, smallest gap. Confirm the two-negatives
       flaw.
-- [ ] **b.** Which test the OC-31 per-pocket RANR test actually runs, and which tests
+- [x] **b.** Which test the OC-31 per-pocket RANR test actually runs, and which tests
       GCO per dollar and share of booked dollars run.
-- [ ] **c.** How `synth.py` generates RANR. If it is independent of GCO or of balance,
+- [x] **c.** How `synth.py` generates RANR. If it is independent of GCO or of balance,
       the fixture contradicts OC-29.
-- [ ] **d.** What "losses" inside RANR is assumed to be: GCO, net charge-offs, or
+- [x] **d.** What "losses" inside RANR is assumed to be: GCO, net charge-offs, or
       unspecified.
-- [ ] **e.** Every label, reading and colour rule that calls RANR "revenue" or
+- [x] **e.** Every label, reading and colour rule that calls RANR "revenue" or
       "earning".
-- [ ] **f.** Whether the cube shows any column's distribution before edges are chosen.
-- [ ] **g.** What the existing loan-age Control setting does, and whether the outcome
+- [x] **f.** Whether the cube shows any column's distribution before edges are chosen.
+- [x] **g.** What the existing loan-age Control setting does, and whether the outcome
       is a flag as of the extract or is dated.
-- [ ] **h.** What happens to a pocket below the fewest-loans floor (walk 6 defect 8:
+- [x] **h.** What happens to a pocket below the fewest-loans floor (walk 6 defect 8:
       50 loans, 29 bad, "too few loans to test").
-- [ ] **i.** Which formula sits under the Split tab's actual-vs-expected: expected from
+- [x] **i.** Which formula sits under the Split tab's actual-vs-expected: expected from
       the pocket's pooled rate, or from the low half's rate (`docs/statistics.md` A7).
-- [ ] **j.** Whether the CMH test subtracts ½ (a continuity correction), and whether
+- [x] **j.** Whether the CMH test subtracts ½ (a continuity correction), and whether
       p-values are one- or two-sided.
-- [ ] **k.** What the other agent's tree code does today: what it trains on, what it
+- [x] **k.** What the other agent's tree code does today: what it trains on, what it
       outputs, and whether it can touch a holdout range. *It is `docs/scout-vs-measure.py`,
       which the firm supplied on 25 Sep 2026.*
 
 ## 2. Report the audit before changing source
 
-- [ ] Plain English, with each technical term shown and then explained, and every
-      count given with its denominator.
+- [x] Plain English, with each technical term shown and then explained, and every
+      count given with its denominator. **Done 25 Sep 2026:**
+      `docs/audit-2026-09-25.md`.
 
 ## 3. Fixes: what the tool gets wrong or cannot do today that the next run needs
 
