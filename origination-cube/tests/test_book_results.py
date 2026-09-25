@@ -115,7 +115,13 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     # loses far more and earns about the same, is not read as a trade-off
     assert ws["B4"].value == "FICO x CHANNEL"
     band, seg, box = ws["B7"].value, ws["C7"].value, ws["I7"].value
-    assert band.startswith("under") and seg == "Broker"
+    firsts, r = [], 7
+    while ws.cell(row=r, column=2).value:                 # the first grid's rows
+        v = str(ws.cell(row=r, column=2).value)
+        if v[0].isdigit():                                # not "(marked missing)"
+            firsts.append(int(v.split(" - ")[0]))
+        r += 1
+    assert int(band.split(" - ")[0]) == min(firsts) and seg == "Broker"      # the lowest FICO band
     assert box.startswith("Losing more") and "earning more" not in box.split(" (")[0] or "could be luck" in box
     assert len(ws._charts) == 6
     grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
@@ -463,7 +469,7 @@ def test_the_planted_pocket_is_not_read_as_earning_more_on_noise(tmp_path):
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
-    assert ws["B7"].value == "under 620" and ws["C7"].value == "Broker"
+    assert ws["B7"].value.endswith(" - 619") and ws["C7"].value == "Broker"
     # the suggested revenue option is each pocket's own luck range (the firm, 25 Sep 2026, after the
     # sixth walk): 1.17x on 176 loans is inside it, so the worst pocket isn't read as a trade-off
     assert ws["I7"].value == "Losing more, earning the same"

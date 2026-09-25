@@ -104,14 +104,32 @@ def classify_text(raw: Any, rule: MissingRule | None) -> str:
     return text
 
 
-def band_labels(edges: tuple[float, ...]) -> list[str]:
-    e = [_fmt(x) for x in edges]
-    if len(set(e)) < len(e):
-        # two edges would print alike and their bands would merge under one label: keep the precision
-        e = [f"{float(x):,.6g}" for x in edges]
-    out = [f"under {e[0]}"]
-    out += [f"{a} to under {b}" for a, b in zip(e, e[1:])]
-    out.append(f"{e[-1]} and over")
+def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None) -> list[str]:
+    """Bands as ranges: "620 - 679", with the lowest from the column's smallest
+    value and the highest to its largest (the firm, 25 Sep 2026: "i want bands to
+    be written in '0 - 660' form ... adding words over symbols makes a big
+    difference to how cluttered it feels"). A band holds its first number and
+    stops one step short of the next band's, the step being 1 for whole-number
+    edges and the edges' own last decimal place otherwise."""
+    dec = 0
+    if min(abs(float(x)) for x in edges) < 100:          # scores and dollars read as whole numbers
+        for x in edges:
+            t = f"{float(x):.4f}".rstrip("0").rstrip(".")
+            if "." in t:
+                dec = max(dec, len(t.split(".")[1]))
+    for d in range(dec, 7):
+        step = 10.0 ** -d
+
+        def f(x, d=d):
+            return f"{x:,.{d}f}"
+
+        first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None
+        last = f(math.ceil(hi / step) * step) if hi is not None and hi >= edges[-1] else None
+        out = [f"{first} - {f(edges[0] - step)}" if first else f"up to {f(edges[0] - step)}"]
+        out += [f"{f(a)} - {f(b - step)}" for a, b in zip(edges, edges[1:])]
+        out.append(f"{f(edges[-1])} - {last}" if last else f"{f(edges[-1])} and up")
+        if len(set(out)) == len(out):
+            return out
     return out
 
 
@@ -455,6 +473,7 @@ def run(config: Config, table: Table) -> Result:
 
     bands = {}
     band_edges: dict[str, tuple[float, ...]] = {}
+    band_label_sets: dict[str, list[str]] = {}
     for b in config.bands:
         read = [classify_number(raw, rules.get(b.field)) for raw in col(b.field)]
         edges = b.edges or cut_edges([v for v, why in read if why is None], b.count, b.cut)
@@ -464,7 +483,9 @@ def run(config: Config, table: Table) -> Result:
             warnings.append(f"band {b.name}: asked for {b.count} bands, got {len(edges) + 1} "
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
-        labels = band_labels(edges)
+        seen = [v for v, why in read if why is None]
+        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)
+        band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
             for d in config.dimensions}
@@ -547,7 +568,7 @@ def run(config: Config, table: Table) -> Result:
     for b in config.bands:
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
-                               topline, min_units, total, needed, materiality_line)
+                               topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
             if split_vals is not None:
                 labels = _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
                 # the three-way pockets go through the same machinery as any pocket: tested, flagged,
@@ -558,7 +579,7 @@ def run(config: Config, table: Table) -> Result:
                 composite = [f"{dd} / {word.get(lab, f'{sfield} {lab}')}" for dd, lab in zip(dims[d.name], labels)]
                 three = _build_grid(config, b, Dimension(name=f"{d.name} / {sfield}", field=d.field),
                                     band_edges[b.name], bands[b.name], composite, measures, per_row, topline,
-                                    min_units, total, needed, materiality_line)
+                                    min_units, total, needed, materiality_line, band_label_sets[b.name])
                 tie_outs += tie_out(three, total, measures, n)
                 three_way.append(three)
             tie_outs += tie_out(grid, total, measures, n)
@@ -713,11 +734,11 @@ def _minus(a: tuple, b: tuple) -> tuple:
 
 
 def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topline, min_units, total,
-                needed, materiality_line) -> Grid:
+                needed, materiality_line, labels: list[str] | None = None) -> Grid:
     inner = _accumulate(measures, per_row, list(zip(bl, dl)))
     for c in inner.values():
         _finish_cell(c, measures)
-    blabels = band_labels(edges)
+    blabels = labels or band_labels(edges)
     band_order = [x for x in blabels if x in set(bl)] + [x for x in _order(bl) if x not in blabels]
     dim_order = _order(dl)
 

@@ -24,12 +24,12 @@ def test_ranr_is_revenue_so_less_of_it_is_the_bleed(book):
     m = next(x for x in res.measures if x.name == "ranr_rate")
     assert m.higher_is == "better"
     g = res.grids[0]
-    low = g.cell("under 650", "A").rates["ranr_rate"]
+    low = g.cell("600 - 649", "A").rates["ranr_rate"]
     top = res.total.rates["ranr_rate"].rate
     assert low.excess == pytest.approx(top * low.den - low.num)   # a shortfall, in RANR dollars
     assert low.excess > 0
     # and a pocket earning more than the book is not bleeding
-    assert g.cell("650 and over", "B").rates["ranr_rate"].excess < 0
+    assert g.cell("650 - 700", "B").rates["ranr_rate"].excess < 0
 
 
 def test_ranr_reads_worse_when_it_earns_less(book):
@@ -38,7 +38,7 @@ def test_ranr_reads_worse_when_it_earns_less(book):
         a = i < 400
         rows.append(row(i, 600 if a else 700, "A", 100, 0, 0, ranr=(1.0 if i % 2 else 2.0) if a else 5.0))
     res = engine.run(cube(), table(rows))
-    s = res.grids[0].cell("under 650", "A").rates["ranr_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["ranr_rate"]
     assert s.vs_rest == pytest.approx(0.3)
     assert s.reading_topline == engine.WORSE                   # 0.3x of revenue is worse, not better
 
@@ -47,7 +47,7 @@ def test_too_few_losses_to_test(book):
     rows = [row(i, 600, "A", 100, 1 if i < 3 else 0, 100 if i < 3 else 0) for i in range(60)] + \
            [row(100 + i, 700, "A", 100, 1 if i < 2 else 0, 100 if i < 2 else 0) for i in range(600)]
     res = engine.run(cube(benchmark=bench(min_events=5)), table(rows))
-    s = res.grids[0].cell("under 650", "A").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["gco_rate"]
     assert s.events == 3 and s.reading_topline == engine.FEW
 
 
@@ -76,10 +76,10 @@ def test_the_allowance_is_applied_to_the_readings(tmp_path):
 
 def test_judged_against_decides_the_flag(book):
     res = engine.run(cube(benchmark=bench(compare_to="peers")), table(book))
-    s = res.grids[0].cell("under 650", "A").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["gco_rate"]
     assert s.flag == s.reading_band
     res = engine.run(cube(benchmark=bench(compare_to="topline")), table(book))
-    s = res.grids[0].cell("under 650", "A").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["gco_rate"]
     assert s.flag == s.reading_topline
 
 
@@ -87,10 +87,10 @@ def test_materiality_as_a_share_and_in_dollars(book):
     res = engine.run(cube(benchmark=bench(materiality="10% of losses")), table(book))
     assert res.materiality_line["gco_rate"] == pytest.approx(15.0)          # 10% of 150 GCO dollars
     g = res.grids[0]
-    assert g.cell("under 650", "A").rates["gco_rate"].material is True      # excess 50 - 0.075 * 200 = 35
+    assert g.cell("600 - 649", "A").rates["gco_rate"].material is True      # excess 50 - 0.075 * 200 = 35
     res = engine.run(cube(benchmark=bench(materiality=40)), table(book))
     assert res.materiality_line["gco_rate"] == 40.0
-    assert res.grids[0].cell("under 650", "A").rates["gco_rate"].material is False
+    assert res.grids[0].cell("600 - 649", "A").rates["gco_rate"].material is False
     # a dollar line is a GCO amount: nothing else borrows it (the third walk, defect 8)
     assert set(res.materiality_line) == {"gco_rate"}
     assert any("RANR per booked dollar: no materiality line" in w for w in res.warnings)

@@ -1476,6 +1476,9 @@ back.
   pocket that is material but too small to test is shaded blue on Where it bleeds
   and counted in the window, to be looked at by hand. Both floors (fewest loans,
   fewest losses) keep their suggested option and take an override.
+- [x] **Bands read as ranges** ("496 - 619", "620 - 679"), not "under 620" and
+      "620 to under 680". The firm asked for this because words make the page look
+      cluttered. 189 tests; 56 re-inserted bugs.
 - [ ] **Next:** a seventh walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

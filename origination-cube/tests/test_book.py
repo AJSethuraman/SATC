@@ -67,7 +67,7 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     ran = book.run(out.book)
     assert ran.ok, ran.lines
     assert any("tie-out checks agree" in line for line in ran.lines)
-    assert any("Worst for GCO per booked dollar: FICO under" in line and "Broker" in line for line in ran.lines)
+    assert any("Worst for GCO per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
     for t in ("Where it bleeds", "Grids", "Check", "Log"):
         assert t in wb.sheetnames

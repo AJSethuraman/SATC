@@ -473,6 +473,13 @@ enough.
   excess *loss*, so a dollar line applies to GCO only and every other rate says
   it has no line (the third walk, defect 8).
 
+- **Bands read as ranges: "620 - 679".** The firm, 25 Sep 2026: *"i want bands
+  to be written in "0 - 660" form, or whatever. adding words over symbols makes a
+  big difference to how cluttered it feels and the easy of reading"*. The lowest
+  band starts at the column's smallest value and the highest ends at its largest,
+  so every band has two ends. Scores and dollars read as whole numbers; a ratio
+  keeps the decimals its edges need.
+
 ## Open
 
 - **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to

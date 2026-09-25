@@ -38,7 +38,7 @@ def test_finding_2_a_cell_with_no_balance_reads_nothing(book):
     # every loan in channel C has a blank balance: its rate cannot exist
     book.append(row(7, 600, "C", "", 1, 10))
     res = engine.run(cube(), table(book))
-    s = res.grids[0].cell("under 650", "C").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "C").rates["gco_rate"]
     assert s.rate is None and s.vs_topline is None and s.vs_median is None
     assert s.reading_topline is None and s.reading_median is None   # never "better than benchmark"
     assert s.left_out == 1
@@ -133,7 +133,7 @@ def test_finding_8_thresholds_have_no_default():
 
 def test_finding_8_building_without_comparisons_is_said_in_the_file(book):
     res = engine.run(cube(benchmark="none"), table(book))
-    s = res.grids[0].cell("under 650", "A").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["gco_rate"]
     assert s.reading_topline is None and s.vs_median is None
     assert s.vs_topline is not None          # the ratio needs no threshold
 

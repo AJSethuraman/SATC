@@ -15,7 +15,7 @@ def test_rates_by_hand(book):
     # book: BAL 2000, GCO 150, bad balance 500
     assert res.total.rates["gco_rate"].rate == pytest.approx(150 / 2000)
     assert res.total.rates["outcome_booked"].rate == pytest.approx(500 / 2000)
-    low_a = g.cell("under 650", "A").rates["gco_rate"]      # loans 1, 2
+    low_a = g.cell("600 - 649", "A").rates["gco_rate"]      # loans 1, 2
     assert low_a.num == 50 and low_a.den == 200 and low_a.units == 2
     assert low_a.rate == pytest.approx(0.25)
     assert low_a.vs_topline == pytest.approx(0.25 / 0.075)
@@ -40,7 +40,7 @@ def test_median_benchmark_leaves_out_thin_cells(book):
     g = res.grids[0]
     # cells with 2+ loans: under650/A (0.25), 650+/B (0/1200 = 0). Thin: 650+/A, under650/B.
     assert g.benchmarks["gco_rate"] == pytest.approx(0.125)
-    assert g.cell("under 650", "B").rates["gco_rate"].reading_median == engine.THIN
+    assert g.cell("600 - 649", "B").rates["gco_rate"].reading_median == engine.THIN
 
 
 def test_signed_values_pass_through(book):
@@ -70,7 +70,7 @@ def test_the_tie_out_can_fail(book):
     """Check the checker: tamper with one cell and the tie-out must go red."""
     res = engine.run(cube(), table(book))
     g = res.grids[0]
-    g.cell("under 650", "A").rates["gco_rate"].num += 1
+    g.cell("600 - 649", "A").rates["gco_rate"].num += 1
     with pytest.raises(engine.TieOutError, match="gco_rate numerator"):
         engine.tie_out(g, res.total, res.measures, res.rows)
 
@@ -78,7 +78,7 @@ def test_the_tie_out_can_fail(book):
 def test_the_tie_out_catches_a_dropped_row(book):
     res = engine.run(cube(), table(book))
     g = res.grids[0]
-    del g.cells[("under 650", "B")]
+    del g.cells[("600 - 649", "B")]
     with pytest.raises(engine.TieOutError, match="rows"):
         engine.tie_out(g, res.total, res.measures, res.rows)
 
@@ -90,7 +90,7 @@ def test_the_plant_is_the_worst_pocket(tmp_path):
     for m in ("outcome_booked", "gco_rate"):
         ranked = sorted(g.inner(), key=lambda kc: -kc[1].rates[m].excess)
         (band, chan), top = ranked[0]
-        assert (band, chan) == ("under 620", "Broker")
+        assert (band, chan) == (g.band_labels[0], "Broker")
         assert top.rates[m].vs_topline > 4
         assert top.rates[m].reading_topline == engine.WORSE
     # RANR has no plant: no populated pocket may read as a real difference (a gap
@@ -126,7 +126,7 @@ def test_the_test_matches_a_hand_two_proportion_z():
 def test_peers_are_the_parent_without_the_pocket(book):
     res = engine.run(cube(), table(book))
     g = res.grids[0]
-    s = g.cell("under 650", "A").rates["gco_rate"]
+    s = g.cell("600 - 649", "A").rates["gco_rate"]
     # rest of under-650 is channel B: loan 5, 100 / 400
     assert s.vs_band == pytest.approx(0.25 / 0.25)
     # rest of channel A is 650+ / A: loan 3, 0 / 200 -> no rate to divide by
@@ -137,11 +137,11 @@ def test_the_plant_is_significant_and_its_neighbours_are_not_overstated(tmp_path
     cfg, data = synth.write(tmp_path, n=20000)
     res = engine.run(cfgmod.load(cfg), read_table(data))
     g = res.grids[0]
-    plant = g.cell("under 620", "Broker").rates["gco_rate"]
+    plant = g.cell(g.band_labels[0], "Broker").rates["gco_rate"]
     assert plant.p_book < 1e-6 and plant.p_band < 1e-6
     assert plant.reading_topline == engine.WORSE and plant.reading_band == engine.WORSE
     # the other under-620 pockets are worse than the book but better than their band, which the plant drags up
-    other = g.cell("under 620", "Branch").rates["gco_rate"]
+    other = g.cell(g.band_labels[0], "Branch").rates["gco_rate"]
     assert other.vs_topline > 1 and other.vs_band < 1
 
 
@@ -149,8 +149,8 @@ def test_a_pocket_says_the_smallest_gap_it_could_show(tmp_path):
     cfg, data = synth.write(tmp_path, n=20000)
     res = engine.run(cfgmod.load(cfg), read_table(data))
     g = res.grids[0]
-    small = g.cell("under 620", "Broker").rates["gco_rate"]          # ~530 loans
-    large = g.cell("680 to under 740", "Branch").rates["gco_rate"]    # ~2,700 loans
+    small = g.cell(g.band_labels[0], "Broker").rates["gco_rate"]          # ~530 loans
+    large = g.cell("680 - 739", "Branch").rates["gco_rate"]    # ~2,700 loans
     assert small.smallest_gap > large.smallest_gap > 1
     need = res.loans_needed["gco_rate"]
     # a pocket exactly the suggested size can show exactly the worse_at gap
@@ -181,7 +181,7 @@ def test_the_reading_and_its_test_compare_the_same_two_groups(tmp_path):
     uses the rest-of-book multiple, which its test is about."""
     cfg, data = synth.write(tmp_path, n=20000)
     res = engine.run(cfgmod.load(cfg), read_table(data))
-    s = res.grids[0].cell("under 620", "Broker").rates["gco_rate"]
+    s = res.grids[0].cell(res.grids[0].band_labels[0], "Broker").rates["gco_rate"]
     rest = res.total.rates["gco_rate"]
     want = s.rate / ((rest.num - s.num) / (rest.den - s.den))
     assert s.vs_rest == pytest.approx(want)
@@ -199,7 +199,7 @@ def test_a_big_pocket_is_read_against_the_rest_not_against_itself():
         loss = (140 if a else 100) if i % 10 == 0 else 0
         rows.append(row(i, 600, "A" if a else "B", 100, 1 if loss else 0, loss))
     res = engine.run(cube(), table(rows))
-    s = res.grids[0].cell("under 650", "A").rates["gco_rate"]
+    s = res.grids[0].cell("600 - 649", "A").rates["gco_rate"]
     assert s.vs_topline == pytest.approx(0.14 / 0.124)
     assert s.vs_rest == pytest.approx(1.4)
     assert s.reading_topline == engine.WORSE
@@ -232,4 +232,10 @@ def test_edges_that_would_print_alike_keep_their_precision():
     """Rounded labels must never merge two bands into one pocket."""
     labels = engine.band_labels((99.95, 100.2))
     assert len(set(labels)) == 3
-    assert engine.band_labels((26803.1, 38548.6)) == ["under 26,803", "26,803 to under 38,549", "38,549 and over"]
+    assert engine.band_labels((26803.1, 38548.6), 5000, 90000) == ["5,000 - 26,802", "26,803 - 38,548", "38,549 - 90,000"]
+
+
+def test_bands_read_as_ranges():
+    """The firm, 25 Sep 2026: "i want bands to be written in '0 - 660' form"."""
+    assert engine.band_labels((620, 680, 740), 519, 850) == ["519 - 619", "620 - 679", "680 - 739", "740 - 850"]
+    assert engine.band_labels((0.35, 0.42), 0.1, 0.9) == ["0.10 - 0.34", "0.35 - 0.41", "0.42 - 0.90"]
