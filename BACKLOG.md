@@ -1426,7 +1426,16 @@ back.
     scroll out of sight in the window). The status table is in
     `docs/walkthrough/walk-2026-09-25-b/WALKTHROUGH-DEFECTS.md`.
   - 160 tests; 32 of 32 re-inserted bugs caught.
-- [ ] **Next:** a third walkthrough on the new tabs; the firm's answer on RANR
+- [x] **The third walkthrough's 16 defects** (rulings OC-26, OC-27; the firm chose B, B, C):
+  - Losses vs revenue has nine boxes, set by the lines on Control. Revenue has its
+    own line, and the suggested option is worked out from the book: what luck
+    alone can move revenue in a typical pocket.
+  - Each split grid says what it holds fixed, with the correlation.
+  - Three-way pockets are tested and ranked on their own tab.
+  - 15 fixed, 1 in part (the window can still scroll). Status table in
+    `docs/walkthrough/walk-2026-09-25-c/WALKTHROUGH-DEFECTS.md`.
+  - 170 tests; 39 of 39 re-inserted bugs caught.
+- [ ] **Next:** a fourth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

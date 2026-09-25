@@ -57,7 +57,7 @@ muts = [
  ("forget lasts one run", B, '    if forgotten and "Columns" in wb.sheetnames:', '    if False:', "forget_holds"),
  ("workbook taken as extract", B, '    if extract.name.endswith(" - Origination Cube.xlsx"):', '    if False:',
   "own_extract"),
- ("heat maps colour untested", B, 's.vs_topline if s.reading_topline not in untested', 's.vs_topline',
+ ("heat maps colour untested", B, 's.vs_topline if s.reading_topline not in untested', 's.vs_topline if True',
   "leave_out_pockets"),
  ("RANR gap reads or more", B, """else '0.00"x or less"')""", """else '0.00"x or more"')""", "ranr_is_marked"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
