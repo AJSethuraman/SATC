@@ -1,4 +1,4 @@
-"""The workbook: where every decision about a run is made, and where the results land.
+"""The workbook: the answers for a run go in, and the results come out.
 
 Ruling OC-22 (25 Sep 2026). The firm: "my preference is this is either in a GUI
 or something the workbook can help with it because i don't want this to be a
@@ -27,7 +27,7 @@ from typing import Any
 
 import yaml
 from openpyxl import Workbook, load_workbook
-from openpyxl.formatting.rule import FormulaRule
+from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -100,7 +100,7 @@ def _answers(book: Path) -> dict[str, Any]:
         out["confirmed"] = ws[CONFIRM_CELL].value
         for r in ws.iter_rows(min_row=COL_FIRST, values_only=True):
             if r[1]:
-                out["columns"][str(r[1])] = {"means": r[2], "is": r[3], "edges": r[4]}
+                out["columns"][str(r[1])] = {"means": r[2], "cut": r[3], "is": r[4], "edges": r[5]}
     if "Odd values" in wb.sheetnames:
         for r in wb["Odd values"].iter_rows(min_row=5, values_only=True):
             if r[1]:
@@ -144,10 +144,9 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
 
     # ---- Columns
     ws = wb.create_sheet("Columns")
-    _title(ws, "Columns", "What each column is. Anything shaded in the Look first column is worth a second look "
-                          "before you run; the reason is beside it. Change a column's meaning from the list if "
-                          "it's wrong. Then set Checked every column to Yes: nothing runs until you do, and what "
-                          "you confirm is remembered for next time.", "B:I")
+    _title(ws, "Columns", "Fix any meaning that's wrong, and set Cut by it to No for anything you don't want in "
+                          "the grids. Shaded rows have a reason under Look first. Set C3 to Yes when done; "
+                          "confirmed meanings carry over to the next extract.", "B:J")
     ws["B3"] = "Checked every column?"
     ws["B3"].font = Font(name="Calibri", bold=True)
     ws[CONFIRM_CELL] = kept["confirmed"] if kept["confirmed"] in ("Yes", "No") else None
@@ -159,8 +158,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     blocking = [rv for rv in looks if rv.kind == "cannot run"]
     ws["D3"] = (" ".join(rv.says for rv in blocking)) if blocking else ""
     ws["D3"].font = Font(name="Calibri", bold=True, color="960019")
-    _head(ws, 5, ["Column", "What it is", "Yes means (outcome only)", "Band edges (optional)", "Look first",
-                  "Why this was suggested", "Blank", "Samples"])
+    _head(ws, 5, ["Column", "What it is", "Cut by it?", "Yes means (outcome only)", "Band edges (optional)",
+                  "Look first", "Why this was suggested", "Blank", "Samples"])
     mm = wb.create_sheet("_meanings")
     for i, m in enumerate(cat, start=1):
         mm.cell(row=i, column=1, value=m)
@@ -170,6 +169,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
                           showErrorMessage=True)
     dv_m.error = "Pick one of the meanings in the list."
     ws.add_data_validation(dv_m)
+    dv_cut = DataValidation(type="list", formula1='"Yes,No"', allow_blank=True, showErrorMessage=True)
+    ws.add_data_validation(dv_cut)
     by_col: dict[str, list[str]] = {}
     for rv in looks:
         if rv.kind != "cannot run":
@@ -186,27 +187,29 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         ws.cell(row=r, column=2, value=c).font = Font(name="Calibri", bold=True)
         ws.cell(row=r, column=3, value=means)
         dv_m.add(ws.cell(row=r, column=3))
-        ws.cell(row=r, column=4, value=prior.get("is") if prior else sg.is_value)
-        ws.cell(row=r, column=5, value=prior.get("edges"))
-        ws.cell(row=r, column=6, value=" ".join(by_col.get(c, [])) or None)
-        ws.cell(row=r, column=7, value=tag + sg.why)
-        ws.cell(row=r, column=8, value=blank).number_format = "0%"
-        ws.cell(row=r, column=9, value=", ".join(classified[c].samples[:3]) if c in classified else "")
-        for col in range(2, 10):
+        cuttable = cat[means].cut != "none"
+        ws.cell(row=r, column=4, value=(prior.get("cut") or "Yes") if cuttable else None)
+        dv_cut.add(ws.cell(row=r, column=4))
+        ws.cell(row=r, column=5, value=prior.get("is") if prior else sg.is_value)
+        ws.cell(row=r, column=6, value=prior.get("edges"))
+        ws.cell(row=r, column=7, value=" ".join(by_col.get(c, [])) or None)
+        ws.cell(row=r, column=8, value=tag + sg.why)
+        ws.cell(row=r, column=9, value=blank).number_format = "0%"
+        ws.cell(row=r, column=10, value=", ".join(classified[c].samples[:3]) if c in classified else "")
+        for col in range(2, 11):
             ws.cell(row=r, column=col).alignment = Alignment(wrap_text=True, vertical="top")
         r += 1
-    ws.conditional_formatting.add(f"F{COL_FIRST}:F{r}", FormulaRule(
-        formula=[f'F{COL_FIRST}<>""'], fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
-    for col, w in zip("ABCDEFGHI", (2, 22, 18, 14, 16, 48, 44, 7, 30)):
+    ws.conditional_formatting.add(f"G{COL_FIRST}:G{r}", FormulaRule(
+        formula=[f'G{COL_FIRST}<>""'], fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
+    for col, w in zip("ABCDEFGHIJ", (2, 22, 18, 9, 14, 16, 48, 44, 7, 30)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = f"C{COL_FIRST}"
     _fit(ws)
 
     # ---- Odd values
     wo = wb.create_sheet("Odd values")
-    _title(wo, "Odd values", "Things in the data that could be a code rather than a real value. None of them stops "
-                             "a run: until you answer, the values are used as they are. Answer real, or missing "
-                             "(treated as blank and counted). Your answers are remembered.", "B:G")
+    _title(wo, "Odd values", "Values that might be codes rather than real numbers. Answer real or missing (missing "
+                             "is treated as blank and counted). Unanswered ones are used as is.", "B:G")
     _head(wo, 4, ["Column", "What looks odd", "Rows", "Answer", "Note"])
     dv_a = DataValidation(type="list", formula1='"real,missing"', allow_blank=True, showErrorMessage=True)
     wo.add_data_validation(dv_a)
@@ -270,8 +273,7 @@ def _order(wb) -> None:
 
 def _learned_tab(wb, memory_path) -> None:
     ws = wb.create_sheet("Learned")
-    ws["A1"] = ("Everything the cube has learned from files you confirmed. Set a row to Forget if it shouldn't "
-                "have been learned; it's dropped the next time you press Run.")
+    ws["A1"] = "Meanings and answers carried over from past runs. Set a row to Forget to drop it on the next Run."
     ws["A1"].font = Font(italic=True, size=10)
     heads = ["Keep?", "Kind", "Column", "What it learned", "First confirmed", "Last confirmed", "Times", "id"]
     for i, h in enumerate(heads, start=1):
@@ -302,17 +304,13 @@ def _start_here(ws, extract, rows, ncols, looks, nq, unanswered, last_run) -> No
     for row in ws.iter_rows():
         for c in row:
             c.value = None
-    _title(ws, "Origination Cube", f"Where does the book bleed? Set up from {Path(extract).name}: {rows:,} loans, "
-                                   f"{ncols} columns.", "B:D")
+    _title(ws, "Origination Cube", f"Set up from {Path(extract).name}: {rows:,} loans, {ncols} columns.", "B:D")
     ws.unmerge_cells("B2:D2")
     steps = [
-        ("1", "Control", "Fill in the shaded cells. Those are our calls: what's material, how many loans is "
-                         "enough, how much worse counts as worse."),
-        ("2", "Columns", "Check what each column is; anything shaded has a reason beside it. Fix any that's "
-                         "wrong from the list, then set Checked every column to Yes."),
-        ("3", "Odd values", "Answer what you can: real, or missing. Anything unanswered is used as it is."),
-        ("4", "Launcher", "Save, close this workbook, and press Run the cube. Results land in the tabs on the "
-                          "right."),
+        ("1", "Control", "Fill in the shaded cells: materiality, minimum loans, how much worse counts."),
+        ("2", "Columns", "Check each column's meaning and whether to cut by it. Set C3 to Yes when done."),
+        ("3", "Odd values", "Answer real or missing. Unanswered ones are used as is."),
+        ("4", "Launcher", "Save and close this workbook, then press Run the cube."),
     ]
     ws["B4"], ws["C4"], ws["D4"] = "Step", "Where", "What to do"
     for c in ("B4", "C4", "D4"):
@@ -370,14 +368,16 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     if not confirmed:
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked what each "
                         f"column is.")
-    columns, edges = {}, {}
+    columns, edges, skip = {}, {}, set()
     for r in ws.iter_rows(min_row=COL_FIRST):
         name = r[1].value
         if not name:
             continue
-        means, is_value, e = r[2].value, r[3].value, r[4].value
+        means, cut, is_value, e = r[2].value, r[3].value, r[4].value, r[5].value
+        if cut == "No":
+            skip.add(str(name))
         if not means:
-            problems.append(f"Columns!C{r[1].row}: `{name}` has no meaning. Pick one from the list.")
+            problems.append(f'Columns!C{r[1].row}: "{name}" has no meaning. Pick one from the list.')
             continue
         columns[str(name)] = {"means": means, "is": is_value} if is_value not in (None, "") else means
         if e not in (None, ""):
@@ -387,8 +387,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
                     raise ValueError
                 edges[str(name)] = pts
             except ValueError:
-                problems.append(f"Columns!E{r[1].row}: band edges for `{name}` must be rising numbers "
-                                f"separated by commas, like 620, 680, 740.")
+                problems.append(f'Columns!F{r[1].row}: band edges for "{name}" must be rising numbers '
+                                f'separated by commas, like 620, 680, 740.')
     questions = []
     wo = wb["Odd values"]
     for r in wo.iter_rows(min_row=5, values_only=True):
@@ -412,7 +412,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
 
     for c, v in columns.items():
         m = v if isinstance(v, str) else v["means"]
-        if m not in cat:
+        if m not in cat or c in skip:
             continue
         if cat[m].cut == "band":
             b = {"name": uniq(profile._slug(c)), "field": c}
@@ -564,9 +564,9 @@ def _write_results(book: Path, res, memory_path) -> None:
 def _bleeds(ws, res) -> None:
     b = res.config.benchmark
     judged = "the rest of its band" if b and b.compare_to == "peers" else "the rest of the book"
-    _title(ws, "Where it bleeds", f"Every pocket losing more than its share (or, for RANR, earning less), largest "
-                                  f"first within each measure. The flag is judged against {judged}. Shaded red: "
-                                  f"worse. Shaded amber: worse, but could be luck.", "B:Q")
+    _title(ws, "Where it bleeds", f"Pockets losing more than their share (RANR: earning less), largest first. The "
+                                  f"flag compares each pocket with {judged}. Red: worse. Amber: worse, but not "
+                                  f"significant.", "B:Q")
     heads = ["Measure", "Band", "Pocket", "Dimension", "Pocket", "Loans", "Rate", "Book rate", "Excess",
              "Material", "vs rest of book", "p", "vs rest of band", "p", "Flag", "Smallest gap it could show"]
     _head(ws, 4, heads)
@@ -606,46 +606,73 @@ def _bleeds(ws, res) -> None:
 
 
 def _grids(ws, res) -> None:
-    _title(ws, "Grids", "Every band crossed with every dimension, one block per measure: each pocket's rate, then "
-                        "its rate over the book's.", "B:J")
+    """Every band crossed with every dimension, as heat maps. For each grid and
+    measure, three blocks side by side:
+      rate                        the pocket's own rate
+      over the book's rate        how it sits against the whole book
+      over the rest of its band   how it sits against its peers: the same score
+                                  band in every other segment
+    Colour runs from green (better) through white (1.00x) to red (worse). For
+    RANR, where more is better, the colours run the other way."""
+    _title(ws, "Grids", "Each grid three ways: the rate, the rate against the book, and the rate against the rest "
+                        "of the same band. Red is worse, green is better; for RANR, low is red.", "B:Z")
     r = 4
     for g in res.grids:
         for m in res.measures:
             if not m.is_rate:
                 continue
-            ws.cell(row=r, column=2, value=f"{g.band} x {g.dimension}: {m.title}   ({m.label()})").font = Font(
-                bold=True)
-            r += 1
+            ws.cell(row=r, column=2, value=f"{g.band} x {g.dimension}: {m.title}").font = Font(bold=True, size=12)
+            ws.cell(row=r + 1, column=2, value=m.label()).font = Font(italic=True, size=9, color=SLATE)
+            r += 2
             cols = g.dim_labels + [engine.ALL]
-            ws.cell(row=r, column=2, value="Rate")
-            for j, d in enumerate(cols, start=3):
-                ws.cell(row=r, column=j, value=d).font = Font(bold=True)
-            r += 1
-            for bl in g.band_labels + [engine.ALL]:
-                ws.cell(row=r, column=2, value=bl)
-                for j, d in enumerate(cols, start=3):
-                    c = g.cells.get((bl, d))
-                    if c is not None and c.rates[m.name].rate is not None:
-                        ws.cell(row=r, column=j, value=c.rates[m.name].rate).number_format = "0.00%"
-                r += 1
-            ws.cell(row=r, column=2, value="Over the book's rate").font = Font(italic=True)
-            r += 1
-            for bl in g.band_labels + [engine.ALL]:
-                ws.cell(row=r, column=2, value=bl)
-                for j, d in enumerate(cols, start=3):
-                    c = g.cells.get((bl, d))
-                    if c is not None and c.rates[m.name].vs_topline is not None:
-                        ws.cell(row=r, column=j, value=c.rates[m.name].vs_topline).number_format = '0.00"x"'
-                r += 1
-            r += 1
-    ws.column_dimensions["B"].width = 26
-    for j in range(3, 12):
-        ws.column_dimensions[chr(ord("A") + j - 1)].width = 13
+            width = max((len(x.dim_labels) + 3 for x in res.grids), default=6)
+            blocks = [("Rate", lambda s: s.rate, "0.00%", None),
+                      ("Vs the book", lambda s: s.vs_topline, '0.00"x"', "book"),
+                      ("Vs the rest of its band", lambda s: s.vs_band, '0.00"x"', "peers")]
+            top = r
+            for k, (label, get, fmt, heat) in enumerate(blocks):
+                c0 = 2 + k * width
+                cols = g.dim_labels if heat == "peers" else g.dim_labels + [engine.ALL]
+                ws.cell(row=top, column=c0, value=label).font = Font(bold=True, color=PAPER)
+                ws.cell(row=top, column=c0).fill = PatternFill("solid", fgColor=INK)
+                for j, d in enumerate(cols, start=c0 + 1):
+                    h = ws.cell(row=top, column=j, value=d)
+                    h.font = Font(bold=True, color=PAPER)
+                    h.fill = PatternFill("solid", fgColor=INK)
+                    h.alignment = Alignment(wrap_text=True, horizontal="center")
+                rr = top + 1
+                for bl in g.band_labels + [engine.ALL]:
+                    ws.cell(row=rr, column=c0, value=bl)
+                    for j, d in enumerate(cols, start=c0 + 1):
+                        c = g.cells.get((bl, d))
+                        v = get(c.rates[m.name]) if c is not None else None
+                        if v is not None and not (heat == "peers" and (bl == engine.ALL or d == engine.ALL)):
+                            ws.cell(row=rr, column=j, value=v).number_format = fmt
+                    rr += 1
+                if heat:
+                    rng = f"{_col(c0 + 1)}{top + 1}:{_col(c0 + len(cols))}{rr - 1}"
+                    lo, hi = ("63BE7B", "F8696B") if m.higher_is == "worse" else ("F8696B", "63BE7B")
+                    ws.conditional_formatting.add(rng, ColorScaleRule(
+                        start_type="num", start_value=0.5, start_color=lo,
+                        mid_type="num", mid_value=1, mid_color="FFFFFF",
+                        end_type="num", end_value=2, end_color=hi))
+            r = top + len(g.band_labels) + 3
+    ws.column_dimensions["A"].width = 2
+    widest = max((len(g.dim_labels) + 3 for g in res.grids), default=6)
+    for j in range(2, 2 + 3 * widest):
+        ws.column_dimensions[_col(j)].width = 11
+    for k in range(3):                               # each block's band-label column
+        ws.column_dimensions[_col(2 + k * widest)].width = 17
     _fit(ws)
 
 
+def _col(n: int) -> str:
+    from openpyxl.utils import get_column_letter
+    return get_column_letter(n)
+
+
 def _check(ws, res) -> None:
-    _title(ws, "Check", "What the run checked and used, for the record.", "B:D")
+    _title(ws, "Check", "Settings used, tie-outs, and what was left out.", "B:D")
     rows = [("Loans run", f"{res.rows:,}"), ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: "
                                                                 f"every grid adds up to the book")]
     if res.aged_out:

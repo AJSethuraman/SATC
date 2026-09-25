@@ -29,5 +29,5 @@ def test_an_unexpected_failure_is_a_sentence_not_a_traceback(tmp_path, monkeypat
     monkeypatch.setattr(book, "set_up", boom)
     x = synth.write_extract(tmp_path, n=100)
     lines = launcher.do_set_up(str(x))
-    assert len(lines) == 1 and "isn't something you did" in lines[0] and "Traceback" not in lines[0]
+    assert len(lines) == 1 and "send that file over" in lines[0] and "Traceback" not in lines[0]
     assert "ZeroDivisionError" in (tmp_path / ".origination-cube" / "last-error.txt").read_text()

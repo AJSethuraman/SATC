@@ -43,11 +43,8 @@ FIRST_ROW = 5
 KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G, C, D
 NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
 INSTRUCTIONS = (
-    "Fill in the shaded cells before running. Those are the calls we make on every job: "
-    "what's material, how many loans is enough to matter, and how much worse than its peers a pocket has to be. "
-    "Everything else starts on a reasonable setting, so change it only if the population calls for it. "
-    "Pick from the list, or type your own number in the next column and that wins. "
-    "Change anything here and press Run again: the results are worked out when you run, not in the cells."
+    "Fill in the shaded cells. The rest have starting values; change them if the population calls for it. "
+    "Pick from the list, or type a number in the next column to override it. Changes apply on the next Run."
 )
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"

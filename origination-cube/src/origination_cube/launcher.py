@@ -79,8 +79,7 @@ def _crash(what: str) -> list[str]:
         log.write_text(detail, encoding="utf-8")
     except OSError:
         pass
-    return [f"Something went wrong while {what}, and it isn't something you did. The details are saved in "
-            f"{log}: send that file along and it can be fixed."]
+    return [f"Something went wrong while {what}. The details are in {log}; send that file over to get it fixed."]
 
 
 def open_file(path: Path) -> None:
@@ -119,9 +118,8 @@ def build(root) -> dict:
     frame = ttk.Frame(root, padding=16)
     frame.pack(fill="both", expand=True)
 
-    ttk.Label(frame, text=TITLE, font=("Segoe UI", 16, "bold")).grid(row=0, column=0, columnspan=3, sticky="w")
-    ttk.Label(frame, text="Where does the book bleed? Every decision is made in the workbook; this window runs it.",
-              foreground="#57534B", wraplength=580).grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 12))
+    ttk.Label(frame, text=TITLE, font=("Segoe UI", 16, "bold")).grid(row=0, column=0, columnspan=3, sticky="w",
+                                                                    pady=(0, 12))
 
     ttk.Label(frame, text="Extract:").grid(row=2, column=0, sticky="w")
     extract = tk.StringVar(value=_prefs().get("extract", ""))

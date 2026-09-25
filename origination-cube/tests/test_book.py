@@ -106,18 +106,44 @@ def test_a_bad_band_edge_is_named_by_cell(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["E7"] = "700, 650"                        # FICO, edges not rising
+    wb["Columns"]["F7"] = "700, 650"                        # FICO, edges not rising
     wb.save(out.book)
     ran = book.run(out.book)
-    assert not ran.ok and any("Columns!E7" in line for line in ran.lines)
+    assert not ran.ok and any("Columns!F7" in line for line in ran.lines)
 
 
 def test_own_band_edges_are_used(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=6000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["E7"] = "620, 680, 740"
+    wb["Columns"]["F7"] = "620, 680, 740"
     wb.save(out.book)
     assert book.run(out.book).ok
     check = {r[1].value: r[2].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
     assert check["Band edges used: fico"] == "620, 680, 740"
+
+
+def test_cut_by_it_chooses_what_goes_into_the_grids(tmp_path):
+    """Start with FICO and one segment, then add more: the Cut by it column."""
+    out = book.set_up(synth.write_extract(tmp_path, n=4000))
+    _answer(out.book)
+    wb = load_workbook(out.book)
+    assert wb["Columns"]["D9"].value == "Yes"               # ORIG_BAL, a band, cut by default
+    wb["Columns"]["D9"] = "No"
+    wb.save(out.book)
+    assert book.run(out.book).ok
+    check = {r[1].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
+    assert "Band edges used: fico" in check and "Band edges used: orig_bal" not in check
+    book.set_up(synth.write_extract(tmp_path, n=4000))       # and the No survives a second set-up
+    assert load_workbook(out.book)["Columns"]["D9"].value == "No"
+
+
+def test_grids_are_heat_maps_against_the_book_and_against_peers(tmp_path):
+    out = book.set_up(synth.write_extract(tmp_path, n=4000))
+    _answer(out.book)
+    assert book.run(out.book).ok
+    ws = load_workbook(out.book)["Grids"]
+    heads = {c.value for row in ws.iter_rows(max_row=12) for c in row if c.value}
+    assert {"Rate", "Vs the book", "Vs the rest of its band"} <= heads
+    scales = [r for rng in ws.conditional_formatting for r in rng.rules if r.type == "colorScale"]
+    assert scales and all(r.colorScale.cfvo[1].val in ("1", 1) for r in scales)    # white at 1.00x
