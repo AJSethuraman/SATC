@@ -51,6 +51,10 @@ class ColumnsMissing(Exception):
                          + f". Its columns are: {', '.join(available)}")
 
 
+class NothingToCut(Exception):
+    """Every band or every dimension was taken out, so there is no grid to build."""
+
+
 class TieOutError(Exception):
     """A grid does not add up to the book. Never caught inside the engine."""
 
@@ -279,13 +283,21 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     Such a cut is left out and said so, never run."""
     from dataclasses import replace
     tops = {m.value if m.mode == "sumnum" else m.flag for m in measures if m.is_rate}
-    keep_b = tuple(b for b in config.bands if b.field not in tops)
-    keep_d = tuple(d for d in config.dimensions if d.field not in tops)
-    for x in [b for b in config.bands if b.field in tops] + [d for d in config.dimensions if d.field in tops]:
-        warnings.append(f"`{x.field}` is not cut by: it is the top of a rate, so cutting by it would cut the "
-                        f"book by its own outcome")
+    marked = dict(config.not_cut)              # meanings never cut by: servicing data, dates, the key ...
+    drop = tops | set(marked)
+    keep_b = tuple(b for b in config.bands if b.field not in drop)
+    keep_d = tuple(d for d in config.dimensions if d.field not in drop)
+    for x in [b for b in config.bands if b.field in drop] + [d for d in config.dimensions if d.field in drop]:
+        if x.field in tops:
+            warnings.append(f"`{x.field}` is not cut by: it is the top of a rate, so cutting by it would cut the "
+                            f"book by its own outcome")
+        else:
+            warnings.append(f"`{x.field}` is not cut by: `columns:` says it means {marked[x.field]}")
     if not keep_b or not keep_d:
-        raise ColumnsMissing([("(bands or dimensions)", "every one left is the top of a rate")], [])
+        which = "band" if not keep_b else "dimension"
+        raise NothingToCut(f"no {which} is left to cut by: every one listed is either the top of a rate or a "
+                           f"column `columns:` says is not cut by ({', '.join(sorted(drop))}). Add a {which}, "
+                           f"or change a column's meaning")
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 

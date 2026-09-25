@@ -343,16 +343,54 @@ groups:
               Keeps the mix of years the same on both sides, but each side has half
               the loans, so small pockets drop out.
 
-# How `cube init` suggests which column fills each required line. The firm,
-# 25 Sep 2026: "it is much easier to make assumptions for suggestions but
-# ultimately ask for confirmation on whether the right column is being used and
-# be able to fix it easily if it isn't right." A hint is a piece of a column
-# name, matched ignoring case, spaces and underscores; the values must fit too.
-# Every suggestion is written with its reason, and the file will not run until
-# `columns_confirmed: yes`. Add a bank's own column names here as they turn up.
-role_hints:
-  key: [loan, app, acct, account, nbr, number, id]
-  booked: [booked, book, origamt, loanamt, amount, principal, bal]
-  outcome: [chargedoff, chargeoff, co, bad, default, delinq, flag]
-  gco: [gco, grosschargeoff, chargeoffamt, coamt]
-  ranr: [ranr]
+# What a column can mean, and how `cube init` recognises it. The firm, 25 Sep
+# 2026: "it should suggest all columns, and maybe we can teach it along the way
+# ... it can record the original column used so it can try to suggest it in the
+# future. it won't and should not be able to guess them all off the bat - but
+# some are obvious."
+#
+# Every column in an extract gets one of these meanings, suggested with its
+# reason, and the cube file will not run until someone has checked them. What
+# was confirmed is remembered (column name -> meaning, never any values) and
+# outranks every hint below the next time that column name turns up.
+#
+#   hints   pieces of a column name, matched ignoring case, spaces and underscores
+#   test    what the values must look like for the meaning to be suggested
+#   cut     band / dimension / none: whether and how the cube cuts by it
+#   required  every extract must have exactly one column with this meaning
+#
+# Add a bank's own column names to `hints` as they turn up, or just confirm
+# them once: the memory does the rest.
+meanings:
+  - {means: key, says: loan or application number, cut: none, required: true,
+     hints: [loan, app, acct, account, nbr, number, id], test: unique}
+  - {means: booked, says: "booked or loan amount, which weights the reporting-level rates", cut: band,
+     required: true, hints: [booked, book, origamt, loanamt, amount, principal, bal], test: positive}
+  - {means: outcome, says: "the yes/no outcome: charged off, ever delinquent, decided by the system",
+     cut: none, required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, flag], test: binary}
+  - {means: gco, says: gross charge-off dollars, cut: none, required: true,
+     hints: [gco, grosschargeoff, chargeoffamt, coamt], test: mostly_zero}
+  - {means: ranr, says: RANR dollars, cut: none, required: true, hints: [ranr], test: numbers}
+  - {means: origination_date, says: when the loan was made, cut: none,
+     hints: [orig, open, book, fund, disb, note], test: dates}
+  - {means: as_of_date, says: the date the data was taken, cut: none,
+     hints: [asof, snapshot, report, perf, monthend, data], test: one_date}
+  - {means: fico, says: a FICO score, cut: band, hints: [fico, bureau, cb, credit],
+     test: {range: [300, 850]}}
+  - {means: score, says: a score not on the FICO scale (a custom or bank score), cut: band,
+     hints: [score, scr, grade, pd, risk], test: numbers}
+  - {means: dti, says: a debt-to-income style ratio, cut: band, hints: [dti, pti, debt, dsr, dbr],
+     test: {ratio_median: [0.05, 0.6]}}
+  - {means: ltv, says: a loan-to-value style ratio, cut: band, hints: [ltv, cltv, advance],
+     test: {ratio_median: [0.6, 1.6]}}
+  - {means: rate, says: interest rate or APR, cut: band, hints: [rate, apr, coupon, yield],
+     test: {ratio_median: [0.01, 0.35]}}
+  - {means: term, says: loan term in months, cut: dimension, hints: [term, tenor, months], test: term}
+  - {means: servicing, says: "servicing data: recorded after booking (a new line limit, a status, days past due), so never cut by",
+     cut: none, hints: [servicing, svc, status, dpd, pastdue, current, curbal, newlimit, newline, cli, lineincrease,
+                        limitchange, mob], test: any}
+  - {means: amount, says: a number to cut into bands, cut: band, test: numbers}
+  - {means: category, says: a category to cut by (channel, state, product), cut: dimension, test: category}
+  - {means: id, says: an identifier that is not the key, cut: none, test: unique}
+  - {means: unused, says: empty or one value only, cut: none, test: any}
+  - {means: unknown, says: not known yet, so not cut by until you say what it is, cut: none, test: any}

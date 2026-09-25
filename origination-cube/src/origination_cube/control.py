@@ -100,13 +100,6 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
     return out
 
 
-def role_hints(path: str | Path | None = None) -> dict[str, list[str]]:
-    """Pieces of column names that suggest which column fills each required line."""
-    text = (Path(path).read_text(encoding="utf-8") if path
-            else resources.files("origination_cube").joinpath("settings.yaml").read_text(encoding="utf-8"))
-    return {k: [str(x) for x in v] for k, v in (yaml.safe_load(text).get("role_hints") or {}).items()}
-
-
 # --------------------------------------------------------------------------
 
 

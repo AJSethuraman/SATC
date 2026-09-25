@@ -2,6 +2,7 @@
 
   cube inspect  EXTRACT                     every column: kind, blanks, distinct, samples
   cube init     EXTRACT -o CUBE.yaml        what every column is, written as a cube file to confirm
+  cube memory                               what the tool has learned; --forget NAME, or review it in Excel
   cube validate CUBE.yaml --data EXTRACT    refuse or accept, and say why
   cube run      CUBE.yaml --data EXTRACT    build the cube and print it
   cube synth    --out DIR                   a synthetic book with a known answer
@@ -151,11 +152,19 @@ def main(argv: list[str] | None = None) -> int:
     pn.add_argument("-o", "--out", required=True)
     pn.add_argument("--sheet")
     pn.add_argument("--control", help="a filled-in Control tab; its answers go into the file")
+    pn.add_argument("--memory", help="where learned column meanings are kept (default ~/.origination-cube)")
+    pm = sub.add_parser("memory")
+    pm.add_argument("--memory", help="the memory file (default ~/.origination-cube/memory.yaml)")
+    g2 = pm.add_mutually_exclusive_group()
+    g2.add_argument("--forget", nargs="+", metavar="COLUMN")
+    g2.add_argument("--out", help="write an Excel review with a Keep / Forget dropdown per row")
+    g2.add_argument("--read", help="apply a review: drop every row set to Forget")
     for name in ("validate", "run"):
         sp = sub.add_parser(name)
         sp.add_argument("cube")
         sp.add_argument("--data", required=True)
         sp.add_argument("--sheet")
+        sp.add_argument("--memory", help="where confirmed column meanings are remembered")
         if name == "run":
             sp.add_argument("--top", type=int, default=5, help="bleeding cells to list per grid")
     pc = sub.add_parser("control")
@@ -196,17 +205,33 @@ def main(argv: list[str] | None = None) -> int:
                 for prob in exc.problems:
                     print(f"  - {prob}", file=sys.stderr)
                 return 2
-        path, cols = profile.write_cube_file(read_table(a.extract, a.sheet), a.out, use)
-        roles = {}
-        for c in cols:
-            roles.setdefault(c.role, []).append(c.name)
+        path, cols = profile.write_cube_file(read_table(a.extract, a.sheet), a.out, use, memory_path=a.memory)
         print(f"wrote {path}")
-        for role in ("band", "dimension", "key", "date", "skipped", "question"):
-            if role in roles:
-                print(f"  {role:<10} {', '.join(roles[role])}")
         qs = sum(len(c.questions) for c in cols)
         print(f"  {qs} odd value pattern(s) raised as questions; each is used as recorded until answered")
-        print("  Next: answer every [CONFIRM: ...] in the file, then `cube validate`.")
+        print("  Next: check what each column means, set columns_confirmed: yes, answer any [CONFIRM: ...],"
+              " then cube validate.")
+        return 0
+    if a.cmd == "memory":
+        from . import memory
+        if a.forget:
+            p, gone = memory.forget(a.forget, a.memory)
+            print(f"forgot {len(gone)}: {', '.join(gone) or 'nothing by that name'} ({p})")
+            return 0
+        if a.out:
+            print(f"wrote {memory.write_review(a.out, a.memory)}: set a row to Forget, save, then "
+                  f"cube memory --read {a.out}")
+            return 0
+        if a.read:
+            p, gone = memory.apply_review(a.read, a.memory)
+            print(f"forgot {len(gone)}: {', '.join(gone) or 'nothing was set to Forget'} ({p})")
+            return 0
+        rows = memory.rows(memory.load(a.memory))
+        if not rows:
+            print(f"nothing learned yet ({a.memory or memory.default_path()})")
+            return 0
+        for r in rows:
+            print(f"{r['kind']:<7} {r['column']:<24} {r['learned']:<40} last {r['last']}, {r['times']}x")
         return 0
     if a.cmd == "inspect":
         for e in inspect_columns(read_table(a.extract, a.sheet)):
@@ -226,10 +251,15 @@ def main(argv: list[str] | None = None) -> int:
     t1 = time.perf_counter()
     try:
         res = engine.run(cfg, table)
-    except engine.ColumnsMissing as exc:
+    except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     t2 = time.perf_counter()
+    if cfg.columns:
+        from . import memory
+        mpath, n = memory.remember(cfg, a.memory)
+        print(f"remembered {n} confirmed meaning(s) and answer(s) for next time ({mpath}); "
+              f"see them with: cube memory")
     if a.cmd == "validate":
         print(f"accepted: {cfg.name} over {len(table.rows):,} rows, {len(res.grids)} grid(s), "
               f"{res.tie_outs} tie-out checks agree")

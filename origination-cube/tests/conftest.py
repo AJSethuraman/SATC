@@ -58,3 +58,9 @@ def book():
         row(5, 600, "B", 400, 1, 100),
         row(6, 700, "B", 1000, 0, 0),
     ]
+
+
+@pytest.fixture(autouse=True)
+def _memory_in_tmp(tmp_path, monkeypatch):
+    """No test may read or write the real ~/.origination-cube memory."""
+    monkeypatch.setenv("CUBE_MEMORY", str(tmp_path / "memory.yaml"))

@@ -45,7 +45,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from . import control
+from . import control, meanings, memory
 from .ingest import Bad, Table, cell_text, detect_date_format, is_blank, parse_number
 
 #: A repeated value is asked about when it covers this share of rows or more ...
@@ -164,91 +164,6 @@ def odd_values(col: str, numeric: list[float]) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
-# Suggesting the required columns
-
-
-def _norm(name: str) -> str:
-    return re.sub(r"[^0-9a-z]", "", name.lower())
-
-
-def _hint(name: str, hints: list[str]) -> str | None:
-    n = _norm(name)
-    for h in hints:
-        if _norm(h) and _norm(h) in n:
-            return h
-    return None
-
-
-@dataclass
-class Suggestion:
-    role: str
-    column: str | None
-    why: str
-    candidates: list[str]
-
-
-def _numbers(table: Table, col: str) -> list[float]:
-    out = []
-    for r in table.rows:
-        v = parse_number(r.get(col))
-        if not isinstance(v, Bad) and v is not None and not is_blank(r.get(col)):
-            out.append(v)
-    return out
-
-
-def suggest_roles(table: Table, cols: list[Column], hints: dict[str, list[str]]) -> dict[str, Suggestion]:
-    """A suggested column for each required line, with the reason, or none
-    and the candidates. Name and values must both fit, except for the key,
-    where a different value on every row is the whole test."""
-    by = {c.name: c for c in cols}
-    nums = {c.name: _numbers(table, c.name) for c in cols if c.role in ("band", "dimension", "question")}
-    out: dict[str, Suggestion] = {}
-    taken: set[str] = set()
-
-    def pick(role: str, fits: dict[str, str]) -> None:
-        free = {k: v for k, v in fits.items() if k not in taken}
-        named = [(c, why, _hint(c, hints.get(role, []))) for c, why in free.items()]
-        named = [x for x in named if x[2]]
-        if len(named) >= 1:
-            # the earliest hint in the list is the strongest; ties go to column order
-            order = hints.get(role, [])
-            named.sort(key=lambda x: order.index(x[2]))
-            c, why, h = named[0]
-            out[role] = Suggestion(role, c, f"name contains '{h}'; {why}", list(free))
-            taken.add(c)
-        elif len(free) == 1:
-            c, why = next(iter(free.items()))
-            out[role] = Suggestion(role, c, f"the only column that fits: {why}", list(free))
-            taken.add(c)
-        else:
-            out[role] = Suggestion(role, None, "no column's name and values both fit", list(free))
-
-    keys = {c.name: c.why for c in cols if c.role == "key"}
-    pick("key", keys)
-    flags = {}
-    for c, v in nums.items():
-        yes, no = sum(1 for x in v if x == 1.0), sum(1 for x in v if x == 0.0)
-        other = len(v) - yes - no
-        if v and yes and no and other <= (1 - NUMERIC_SHARE) * len(v):
-            note = f"; {other:,} other value(s), counted when read" if other else ""
-            flags[c] = f"0 and 1 ({yes / (yes + no):.1%} are 1){note}"
-    pick("outcome", flags)
-    gco = {}
-    for c, v in nums.items():
-        if v and min(v) >= 0 and sum(1 for x in v if x == 0) >= 0.5 * len(v) and len(set(v)) > 2:
-            gco[c] = f"zero on {sum(1 for x in v if x == 0) / len(v):.0%} of loans, never negative"
-    pick("gco", gco)
-    ranr = {c: "numbers" for c, v in nums.items() if v and len(set(v)) > 2}
-    pick("ranr", ranr)
-    booked = {}
-    for c, v in nums.items():
-        if v and min(v) > 0 and len(set(v)) > 2 and len(v) >= 0.99 * len(table.rows):
-            booked[c] = "positive on every loan"
-    pick("booked", booked)
-    return out
-
-
-# --------------------------------------------------------------------------
 
 
 def _q(v: Any) -> str:
@@ -267,7 +182,7 @@ def _confirm(setting: control.Setting) -> str:
 
 
 def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, Any] | None = None,
-                    today: date | None = None) -> tuple[Path, list[Column]]:
+                    today: date | None = None, memory_path: str | Path | None = None) -> tuple[Path, list[Column]]:
     """Write a cube file for this extract. `settings_in_use` comes from a
     filled-in Control tab; without one, method settings take their
     recommended option and judgment settings are left as [CONFIRM: ...]."""
@@ -283,35 +198,32 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     for c in cols:
         by_role.setdefault(c.role, []).append(c)
 
-    lines = [f"# Written by `cube init` from {Path(table.path).name} on {(today or date.today()).isoformat()}.",
-             f"# {len(table.rows):,} rows, {len(table.columns)} columns. Every column is below, in its section",
-             "# or under 'Not cut by', with the reason. Move a line to change what a column is.",
-             "# Nothing marked [CONFIRM: ...] is decided for you; the run refuses until each is answered.",
+    lines = [f"# Written by `cube init` from {Path(table.path).name} on {(today or date.today()).isoformat()}: "
+             f"{len(table.rows):,} rows, {len(table.columns)} columns.",
+             "# Anything still reading [CONFIRM: ...] is a call for us to make; the run waits until it's answered.",
              f"name: {_slug(Path(table.path).stem)}", "schema_version: 1"]
-    sugg = suggest_roles(table, cols, control.role_hints())
-    what = {"key": "loan or application number, to map results back to loans",
-            "booked": "the booked or loan amount that weights the reporting-level rates",
-            "outcome": "a yes/no column (0/1); or write {field: COLUMN, is: VALUE}",
-            "gco": "gross charge-off dollars", "ranr": "RANR dollars (signed values are kept)"}
-    lines += ["", "# REQUIRED COLUMNS, suggested by cube init. Check each. If one is wrong, type the right",
-              "# column name over it. Then set columns_confirmed to yes; the run refuses until you do."]
-    for role in ("key", "booked", "outcome", "gco", "ranr"):
-        sg = sugg[role]
-        if sg.column:
-            lines.append(f"{role + ': ' + _q(sg.column):<30} # SUGGESTED - {sg.why}. Needed: {what[role]}")
-        else:
-            cands = ", ".join(sg.candidates) if sg.candidates else "none found"
-            lines.append(f"{role}: {_q(f'[CONFIRM: which column is {what[role]}? candidates: {cands}]')}")
-    lines.append("columns_confirmed: no")
-    dates = by_role.get("date", [])
-    if dates:
-        lines.append(f"# dates found (for loan age, not cut by): {', '.join(d.name for d in dates)}")
+    mem = memory.load(memory_path)
+    sugg = meanings.suggest(table, mem["columns"])
+    cat = meanings.catalog()
+    lines += ["", "# WHAT EACH COLUMN IS. Suggested by cube init, or remembered from a file you confirmed before.",
+              "# Check each line; if one is wrong, change its `means`. Then set columns_confirmed to yes:",
+              "# nothing runs until you do, and what you confirm is remembered for next time.",
+              "# The five marked * are required. Meanings: " + ", ".join(
+                  m + ("*" if cat[m].required else "") for m in cat),
+              "columns_confirmed: no", "columns:"]
+    width = max(len(_q(c)) for c in table.columns) + 1
+    for c in table.columns:
+        sg = sugg[c]
+        body = f"{{means: {sg.means}" + (f", is: {_q(sg.is_value)}" if sg.is_value is not None else "") + "}"
+        tag = "REMEMBERED" if sg.source == "remembered" else "suggested"
+        lines.append(f"  {(_q(c) + ':'):<{width}} {body:<28} # {tag} - {sg.why}")
+    for m in meanings.REQUIRED:
+        if not any(sg.means == m for sg in sugg.values()):
+            lines.append(f"  # NO COLUMN FOUND for {m} ({cat[m].says}): set `means: {m}` on the right column")
 
     lines += ["", "missing: {}                  # answer the questions at the bottom to add rules here", "",
-              "# CHECK the bands and dimensions: take out any column recorded AFTER the loan was made",
-              "# (a charge-off flag, a status, days past due). Cutting by an outcome is circular, and",
-              "# the tool cannot tell when a column was recorded. GCO and RANR are left out for you",
-              "# once they are named under measures.",
+              "# Bands and dimensions follow from what each column means: change a column's `means` and",
+              "# the run follows it. Servicing data (a new line limit, a status) is never cut by: mark it servicing.",
               f"bands:                        # cut into {count}, {cut.replace('_', ' ')}"]
     names: set[str] = set()
 
@@ -322,16 +234,15 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
         names.add(n)
         return n
 
-    for c in by_role.get("band", []):
-        lines.append(f"  - {{name: {uniq(_slug(c.name))}, field: {_q(c.name)}, count: {count}, cut: {cut}}}"
-                     f"   # {c.why}")
+    for c in table.columns:
+        if cat[sugg[c].means].cut == "band":
+            lines.append(f"  - {{name: {uniq(_slug(c))}, field: {_q(c)}, count: {count}, cut: {cut}}}")
     lines += ["", "dimensions:"]
-    for c in by_role.get("dimension", []):
-        lines.append(f"  - {{name: {uniq(_slug(c.name))}, field: {_q(c.name)}}}   # {c.why}")
-    lines += ["", "# Not cut by:"]
-    for role in ("key", "date", "skipped", "question"):
-        for c in by_role.get(role, []):
-            lines.append(f"#   {c.name:<24} {role}: {c.why}")
+    for c in table.columns:
+        if cat[sugg[c].means].cut == "dimension":
+            lines.append(f"  - {{name: {uniq(_slug(c))}, field: {_q(c)}}}")
+    lines += ["", "# Not cut by: " + (", ".join(f"{c} ({sugg[c].means})" for c in table.columns
+                                                 if cat[sugg[c].means].cut == "none") or "none")]
 
     lines += ["", "# The core rates (outcome by loans and by booked dollars, GCO and RANR per booked dollar)",
               "# are built from the required columns on every run. Extras go here; per: each_loan",
@@ -351,8 +262,11 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
         lines.append("questions:")
         for q in qs:
             val = f", value: {_q(q['value'])}" if q["value"] is not None else ""
+            known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
+            ans = known["answer"] if known else ""
+            note = f"   # REMEMBERED - you answered {ans} on {known.get('last')}" if known else ""
             lines.append(f"  - {{column: {_q(q['column'])}, pattern: {q['pattern']}{val}, rows: {q['rows']}, "
-                         f"answer: }}")
+                         f"answer: {ans}}}{note}")
     else:
         lines.append("questions: []")
     p = Path(out)

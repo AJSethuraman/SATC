@@ -7,7 +7,7 @@ import pytest
 
 from conftest import cube, row, table
 from origination_cube import config as cfgmod
-from origination_cube import control, engine, profile, synth
+from origination_cube import control, engine, meanings, profile, synth
 from origination_cube.ingest import read_table
 
 
@@ -46,12 +46,12 @@ def test_odd_values_are_asked_about_only_where_they_make_sense(tmp_path):
     assert not any(q["column"] == "GCO_AMT" for q in qs)   # a spike of zeros is losses that did not happen
 
 
-def test_the_required_columns_are_suggested_with_reasons(tmp_path):
+def test_every_column_gets_a_meaning_and_a_reason(tmp_path):
     _, data = synth.write(tmp_path, n=4000)
-    t = read_table(data)
-    sug = profile.suggest_roles(t, profile.classify(t, 12, 50), control.role_hints())
-    assert {r: sg.column for r, sg in sug.items()} == {"key": "LOAN_NBR", "booked": "ORIG_BAL",
-                                                       "outcome": "BAD_FLAG", "gco": "GCO_AMT", "ranr": "RANR_AMT"}
+    sug = meanings.suggest(read_table(data))
+    assert {c: sg.means for c, sg in sug.items()} == {
+        "LOAN_NBR": "key", "FICO": "fico", "CHANNEL": "category", "ORIG_BAL": "booked", "BAD_FLAG": "outcome",
+        "GCO_AMT": "gco", "RANR_AMT": "ranr"}
     assert all(sg.why for sg in sug.values())
 
 
@@ -62,18 +62,8 @@ def test_nothing_is_used_until_a_person_confirms_it(tmp_path):
         cfgmod.load(path)
     text = str(exc.value)
     assert "not confirmed yet" in text and "columns_confirmed: yes" in text
-    for must in ("min_units", "worse_at", "better_at", "confidence"):     # judgment: never suggested
+    for must in ("min_units", "worse_at", "better_at", "confidence"):     # our calls: never suggested
         assert f"`benchmark.{must}` still reads" in text, must
-
-
-def test_with_no_name_to_go_on_it_asks_and_lists_candidates(tmp_path):
-    rows = [{"A": f"x{i}", "B": 1000 + i % 37, "C": i % 2, "D": 0 if i % 3 else 55.5, "E": (i % 11) - 3}
-            for i in range(300)]
-    t = table(rows)
-    sug = profile.suggest_roles(t, profile.classify(t, 12, 50), control.role_hints())
-    assert sug["key"].column == "A"                         # the only column different on every row
-    assert sug["outcome"].column == "C"                     # the only 0/1 column
-    assert sug["ranr"].column is None and sug["ranr"].candidates   # nothing named RANR: ask, with candidates
 
 
 def _answer(path, **judgment):
@@ -90,18 +80,22 @@ def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
     _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
     res = engine.run(cfgmod.load(path), read_table(data))
     cut_by = {g.band for g in res.grids} | {g.dimension for g in res.grids}
-    assert not cut_by & {"gco_amt", "ranr_amt", "bad_flag"}
-    assert any("GCO_AMT` is not cut by" in w for w in res.warnings)
+    assert cut_by == {"fico", "orig_bal", "channel"}
     assert any("open data question" in w for w in res.warnings)
 
 
-def test_a_wrong_suggestion_is_fixed_by_typing_over_it(tmp_path):
+def test_a_wrong_meaning_is_fixed_in_one_word_and_the_run_follows_it(tmp_path):
     _, data = synth.write(tmp_path, n=2000)
     path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
-    path.write_text(re.sub(r"^booked: ORIG_BAL", "booked: GCO_AMT", path.read_text(), flags=re.M))
-    cfg = cfgmod.load(path)
-    assert cfg.booked == "GCO_AMT"
+    path.write_text(re.sub(r"FICO:\s+\{means: fico\}", "FICO: {means: servicing}", path.read_text()))
+    res = engine.run(cfgmod.load(path), read_table(data))
+    assert "fico" not in {g.band for g in res.grids}
+    assert any("`FICO` is not cut by: `columns:` says it means servicing" in w for w in res.warnings)
+    # and taking out the only dimension is refused, saying what is missing
+    path.write_text(re.sub(r"CHANNEL:\s+\{means: category\}", "CHANNEL: {means: servicing}", path.read_text()))
+    with pytest.raises(engine.NothingToCut, match="no dimension is left to cut by"):
+        engine.run(cfgmod.load(path), read_table(data))
 
 
 def test_a_filled_control_tab_fills_the_judgment(tmp_path):

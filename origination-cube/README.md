@@ -44,12 +44,14 @@ cube run cube.yaml --data extract.csv
 ```
 
 **What `cube init` does:**
-- It **suggests** which column is the key, the booked amount, the outcome,
-  GCO and RANR, each with its reason, and writes `columns_confirmed: no`.
-  Check each one, type the right name over any that is wrong, and set it to
-  `yes`. Nothing runs on a suggestion you haven't confirmed.
-- It sorts every other column into band, dimension or not cut by, with the
-  reason beside it.
+- It **suggests what every column means**: key, booked, outcome, GCO, RANR,
+  FICO, score, DTI, LTV, dates, servicing data and so on. Each suggestion comes
+  with its reason, and the file starts with `columns_confirmed: no`. Change the
+  `means:` of any that is wrong, then set it to `yes`. Nothing runs on a
+  suggestion you haven't confirmed.
+- **What you confirm is remembered**, and suggested first next time.
+  `cube memory` lists everything learned; `cube memory --out learned.xlsx`
+  lets you prune it with a Keep / Forget dropdown.
 - It raises odd values (a -9999 code, negatives in a mostly positive column)
   as questions. The run carries on using the values as recorded, and says so.
 
@@ -76,8 +78,8 @@ the book's rate.
 ## Checking it
 
 ```
-pytest -q                          # 86 tests: one per finding, the arithmetic by hand, the Control tab, init
-python tools/mutation_check.py     # puts 11 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 95 tests: one per finding, the arithmetic by hand, the Control tab, init, memory
+python tools/mutation_check.py     # puts 13 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

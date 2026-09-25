@@ -20,7 +20,7 @@ says why, and waits for a yes.
 Written 25 Sep 2026. **Built:**
 - the engine
 - the per-pocket test
-- `cube init`
+- `cube init`, with a meaning for every column and a memory that can be pruned
 - the Control tab
 
 **Proposed, and the firm reacts before it's built:**
@@ -67,39 +67,63 @@ any column.
 The key used to be warn-not-stop in the VBA (D55). It is now required,
 because remapping is part of the job.
 
-**`cube init EXTRACT -o cube.yaml`** reads the extract and writes the cube
-file with everything filled in that can reasonably be filled in:
+**`cube init EXTRACT -o cube.yaml`** reads the extract and suggests what
+**every** column means, not only the required five. The firm: *"it should suggest
+all columns, and maybe we can teach it along the way ... it won't and should not
+be able to guess them all off the bat - but some are obvious."*
 
-- **The five required columns are suggested**, each with its reason, for
-  example `gco: GCO_AMT  # SUGGESTED - name contains 'gco'; zero on 95% of
-  loans, never negative`. A suggestion needs both the name and the values to
-  fit. The name hints are in `settings.yaml`, so a bank's own column names can
-  be added there. The file carries `columns_confirmed: no`, and the run refuses
-  until a person sets it to `yes`. A wrong suggestion is fixed by typing the
-  right column name over it. Where nothing fits, the line asks the question and
-  lists the candidates.
-- **Every other column is classified**:
-  - **band:** numbers with many values
-  - **dimension:** text with few values, numbers with few values (term,
-    grade), or codes written with leading zeros
-  - **key:** a different value on every row
-  - **date:** dates
-  - **skipped:** empty, or one value only
-  - **question:** too many categories to cut by, a mix of numbers and text, or
-    a number that differs on every row (an ID or an amount?)
+The cube file lists every column in a `columns:` section. Each line has a meaning
+and the reason it was suggested:
 
-  Only the clear cases are decided. The limits (12 values, 50 values) are
-  settings on the Control tab.
-- **Odd values are raised as questions and never stop the run**: a -9999
+```
+columns_confirmed: no
+columns:
+  LOAN_NBR: {means: key}        # suggested - name contains 'loan'; a different value on every row
+  FICO:     {means: fico}       # suggested - name contains 'fico'; 98% of values between 300 and 850
+  ORIG_BAL: {means: booked}     # REMEMBERED - you confirmed this as booked or loan amount on 2026-09-25
+```
+
+- **The meanings.** The catalog is in `settings.yaml` (`meanings:`), with name
+  hints and a value check for each:
+  - the required five: key, booked, outcome, gco, ranr
+  - dates: origination date, as-of date
+  - scores: FICO (whole numbers, 95% between 300 and 850), score (a custom or
+    bank score)
+  - ratios: DTI, LTV and rate, each by its median, whether written as a
+    fraction or a percentage
+  - term
+  - **servicing**: a new line limit, a status, days past due, anything
+    recorded after booking. It is never cut by. The firm: *"anything past that
+    would be 'Servicing Data'"*.
+  - the catch-alls: amount, category, id, unused, unknown
+- **What gets suggested.** Only the obvious cases:
+  - a name hint *and* values that fit
+  - or values that stand alone: a 300-850 score, or one date on every row
+    (the as-of date)
+  - a ratio with no telling name is just a number to cut, until someone says
+    otherwise
+  - a custom score on the FICO scale is suggested as FICO, with a note to
+    confirm it as `score` if it is one
+- **Fixing a wrong suggestion** is a one-word change to `means:`. Bands and
+  dimensions follow the meanings. A column marked servicing, the key, or a date
+  is never cut by, and the run says so.
+- **It learns.** A file that runs with `columns_confirmed: yes` is remembered:
+  each column name and its meaning, and each answered odd-value question (FICO's
+  -9999 is missing). Next time, the remembered answer outranks every hint. If the
+  values no longer fit it, it says CHECK. Only names, meanings and dates are
+  stored, never values. The memory file lives on the machine that runs the tool
+  (`~/.origination-cube/memory.yaml`, or `--memory PATH`, which a team can point
+  at a shared folder). It is never in the repository.
+- **Pruning.** The firm: *"an intuitive way to go and prune rules that shouldn't
+  have been added."* You can:
+  - list everything learned: `cube memory`
+  - forget a column: `cube memory --forget COLUMN`
+  - review it all in Excel: `cube memory --out learned.xlsx`, set a row's
+    dropdown from Keep to Forget, save, then `cube memory --read learned.xlsx`
+- **Odd values** are raised as questions and never stop the run: a -9999
   repeated far outside the rest, or negatives in a mostly positive column
-  (RANR's are real, and the tool asks rather than decides). Until you answer,
-  the values are used as recorded and every output says so. `missing` turns
-  the answer into a rule and `real` closes the question.
-- **Nothing is cut by its own outcome.** Once GCO, RANR and the outcome are
-  named, they are left out of the bands and dimensions, with a warning saying
-  why. A column recorded after the loan was made (a status, days past due) is
-  also an outcome. The tool can't tell when a column was recorded, so the file
-  says to take such columns out.
+  (RANR's are real). A question answered before comes back pre-answered and
+  marked REMEMBERED.
 
 ## What "every band crossed with every dimension" means
 
@@ -291,10 +315,17 @@ enough.
   ... and be able to fix it easily"*).
 - **OC-16:** proof is a separate command of the same tool, with its checks built
   in and auditable.
+- **OC-17:** every column gets a suggested meaning, and what is confirmed is
+  remembered and outranks guesses the next time.
+- **OC-18:** everything learned can be listed and pruned, by name or in Excel.
+- **OC-19:** data recorded after booking is called **servicing** data, never
+  "after origination". It is never cut by.
+- **OC-20:** the Control tab shades what still needs an answer instead of
+  labelling it, and its instructions are written the way the firm talks.
 
 ## Open
 
 - **(a) The workbook's other tabs:** Where to look, Data questions, the
   grids, and the check tab. Next to build.
-- **(b) The origination date and as-of date columns for loan age.** They can
-  be suggested the same way the required columns are.
+- **(b) Loan age.** The origination-date and as-of meanings are suggested now;
+  the engine doesn't yet apply the loan-age setting.

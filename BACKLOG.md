@@ -1390,9 +1390,19 @@ back.
     3,500 loans as a minimum hid the planted 6.6x pocket of 531 loans; each
     pocket's own test decides.
   - 86 tests; 11 of 11 re-inserted bugs caught.
+- [x] **Every column gets a meaning, and the tool learns** (rulings OC-17
+      to OC-20):
+  - `cube init` suggests a meaning for every column from a catalog in
+    `settings.yaml` (FICO, score, DTI, LTV, dates, servicing ...).
+  - What is confirmed is remembered outside the repository (names and
+    meanings only), and can be pruned with `cube memory --forget` or an Excel
+    Keep / Forget review.
+  - Data recorded after booking is called servicing.
+  - The Control tab shades what needs an answer instead of labelling it.
+  - 95 tests; 13 of 13 re-inserted bugs caught.
 - [ ] **Next:** the workbook's other tabs (Where to look, Data questions,
-      grids, check tab), then `cube drill` and `cube prove`. Loan age needs
-      the origination-date and as-of columns suggested like the required ones.
+      grids, check tab), then `cube drill` and `cube prove`, and apply the
+      loan-age setting now that its dates are recognised.
 - **Not checked:** a real extract, and the bank machine.
 
 ## 7 · Standing rules for new items

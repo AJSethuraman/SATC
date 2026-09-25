@@ -34,15 +34,18 @@ MODE_KEYS = {
     "count": {"required": (), "allowed": ()},
     "median": {"required": ("value",), "allowed": ("optional",)},
 }
-TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns_confirmed", "missing",
-            "bands", "dimensions", "measures", "benchmark", "questions"}
+TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
+            "missing", "bands", "dimensions", "measures", "benchmark", "questions"}
 #: The firm, 25 Sep 2026: "this analysis only works if we have, at a minimum, an
 #: output binary ... the GCO amount and RANR amount ... the booked amount ... and a
 #: loan number or app number or some other Key or we cannot perform the remapping
 #: exercise." So each of those is a required line, and the core rates are built
 #: from them on every run; `measures:` holds only extras.
 CORE = ("key", "booked", "outcome", "gco", "ranr")
-REQUIRED_TOP = ("name", "schema_version", *CORE, "bands", "dimensions", "benchmark")
+#: The required columns are said either as five top-level lines (a file written
+#: by hand) or as meanings in `columns:` (a file written by `cube init`, which
+#: lists every column). Never both: one place to say it.
+REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark")
 #: `per: each_loan` divides by the number of loans rather than a column: a
 #: straight share or average, beside the booked-weighted one reporting uses.
 EACH_LOAN = "each_loan"
@@ -199,6 +202,8 @@ class Config:
     questions: tuple[Question, ...] = ()
     booked: str = ""
     outcome: str = ""
+    columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
+    not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     source_path: str = ""
     raw: dict[str, Any] = field(repr=False, default_factory=dict)
 
@@ -243,6 +248,32 @@ def parse(raw: Any, source_path: str = "") -> Config:
     if "schema_version" in raw and raw["schema_version"] != SCHEMA_VERSION:
         problems.append(f"schema_version is {raw['schema_version']!r}; this engine reads {SCHEMA_VERSION}")
 
+    columns, not_cut = {}, {}
+    if "columns" in raw:
+        columns, not_cut = _parse_columns(raw.get("columns"), problems)
+        both = [k for k in CORE if k in raw]
+        if both:
+            problems.append(f"{', '.join('`' + k + ':`' for k in both)} and `columns:` both say which column is "
+                            f"which; keep `columns:` and delete the other lines")
+        if raw.get("columns_confirmed") is not True:
+            named = ", ".join(f"{m}: {', '.join(c for c, (mm, _) in columns.items() if mm == m) or '(none)'}"
+                              for m in CORE)
+            problems.append(f"the column meanings were suggested by `cube init` and are not confirmed yet "
+                            f"({named}). Check each; change `means:` on any that is wrong; then set "
+                            f"`columns_confirmed: yes`")
+        raw = dict(raw)
+        for m in CORE:
+            hits = [c for c, (mm, _) in columns.items() if mm == m]
+            if len(hits) != 1:
+                problems.append(f"`columns:` needs exactly one column that means {m}; found "
+                                f"{len(hits)}{': ' + ', '.join(hits) if hits else ''}")
+                continue
+            raw[m] = hits[0] if m != "outcome" or columns[hits[0]][1] is None else \
+                {"field": hits[0], "is": columns[hits[0]][1]}
+    else:
+        for k in CORE:
+            if k not in raw:
+                problems.append(_missing_line(k))
     cols = {}
     for k in ("key", "booked", "gco", "ranr"):
         v = raw.get(k)
@@ -250,11 +281,6 @@ def parse(raw: Any, source_path: str = "") -> Config:
             problems.append(f"`{k}:` must name a column")
         cols[k] = v.strip() if isinstance(v, str) else ""
     out_field, out_is, out_label = _parse_outcome(raw.get("outcome"), problems) if "outcome" in raw else ("", None, "")
-    if "columns_confirmed" in raw and raw["columns_confirmed"] is not True:
-        named = ", ".join(f"{k}: {raw.get(k)}" for k in ("key", "booked", "outcome", "gco", "ranr"))
-        problems.append(f"the required columns were suggested by `cube init` and are not confirmed yet ({named}). "
-                        f"Check each; type the right column name over any that is wrong; then set "
-                        f"`columns_confirmed: yes`")
     key = cols["key"]
 
     missing = _parse_missing(raw.get("missing") or {}, problems)
@@ -290,7 +316,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
-                  source_path=source_path, raw=raw)
+                  columns=columns, not_cut=not_cut, source_path=source_path, raw=raw)
 
 
 # --------------------------------------------------------------------------
@@ -304,6 +330,31 @@ def _confirm_markers(node: Any, where: str = ""):
             yield from _confirm_markers(v, f"{where}[{i}]")
     elif isinstance(node, str) and CONFIRM in node:
         yield where, node
+
+
+def _parse_columns(node: Any, problems: list[str]) -> tuple[dict, dict]:
+    """`columns:` maps each column to what it means: `COL: fico` or
+    `COL: {means: outcome, is: AUTO}`. The meanings are the catalog in
+    settings.yaml; an unknown one is refused with the list."""
+    from .meanings import catalog
+    cat = catalog()
+    if not isinstance(node, dict) or not node:
+        problems.append("`columns:` must list each column and what it means, e.g.  FICO: {means: fico}")
+        return {}, {}
+    out, not_cut = {}, {}
+    for col, v in node.items():
+        means, is_value = (v, None) if isinstance(v, str) else ((v or {}).get("means"), (v or {}).get("is")) \
+            if isinstance(v, dict) else (None, None)
+        if isinstance(v, dict):
+            _unknown(v, {"means", "is"}, f"columns.{col}", problems)
+        if means not in cat:
+            problems.append(f"columns.{col}: `means: {means}` is not a meaning this tool knows. "
+                            f"Use one of: {', '.join(cat)}")
+            continue
+        out[str(col)] = (means, is_value)
+        if cat[means].cut == "none":
+            not_cut[str(col)] = means
+    return out, not_cut
 
 
 def _parse_outcome(node: Any, problems: list[str]) -> tuple[str, Any, str]:
