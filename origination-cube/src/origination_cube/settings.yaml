@@ -22,54 +22,16 @@
 
 groups:
   - title: What the cube looks at
+    # Which cuts to build, drill depth and where proof is tested come back when
+    # drill and prove are built: a setting nothing applies is not put on the tab
+    # (walkthrough defect 1, 25 Sep 2026).
     settings:
-      - key: grids
-        question: Which cuts to build
-        takes_effect: re-run
-        override: null
-        options:
-          - value: pairs
-            label: Every column alone, and every band crossed with every dimension
-            recommended: true
-            explains: >-
-              Finds the most. Ten bands and eight dimensions make 80 grids, so the
-              Where to look tab ranks every pocket and you read only the top.
-          - value: singles
-            label: Every column alone
-            explains: >-
-              A quick first read of whether anything is off at the top level. Misses
-              pockets that only show when two things combine.
-          - value: named
-            label: Only the pairs listed on the Cuts tab
-            explains: >-
-              For a re-run once you know what matters. Fastest, and nothing else
-              crowds the results.
-
-      - key: drill_depth
-        question: How far to drill into a flagged pocket
-        takes_effect: re-run
-        override: null
-        options:
-          - value: 0
-            label: No drill
-            explains: The grids only.
-          - value: 1
-            label: One level - cut each flagged pocket by every other column
-            recommended: true
-            explains: >-
-              Shows which third factor explains the bleed inside the pocket. Most of
-              the new pockets will be small.
-          - value: 2
-            label: Two levels
-            explains: >-
-              Can find narrow groups, but most will be too small to test and some
-              will be luck. Pair it with a strict proof setting.
-
       - key: min_age_months
         question: How old a loan must be to count
         takes_effect: re-run
         judgment: true
         override: whole number of months
+        valid: {min: 0, max: 360, whole: true}
         options:
           - value: 0
             label: Every loan
@@ -91,6 +53,7 @@ groups:
         question: A number column with this many values or fewer is a category
         takes_effect: re-run
         override: whole number of values
+        valid: {min: 2, max: 100, whole: true}
         options:
           - value: 12
             label: "12"
@@ -109,6 +72,7 @@ groups:
         question: A text column with more values than this is too fine to cut by
         takes_effect: re-run
         override: whole number of values
+        valid: {min: 2, max: 1000, whole: true}
         options:
           - value: 50
             label: "50"
@@ -127,6 +91,7 @@ groups:
         question: How many bands a number column is cut into
         takes_effect: re-run
         override: whole number of bands
+        valid: {min: 2, max: 50, whole: true}
         options:
           - value: 5
             label: "5"
@@ -159,6 +124,7 @@ groups:
         takes_effect: live
         judgment: true
         override: whole number of loans
+        valid: {min: 2, max: 100000, whole: true}
         options:
           - value: 30
             label: "30"
@@ -177,6 +143,7 @@ groups:
         takes_effect: live
         judgment: true
         override: whole number of loans
+        valid: {min: 1, max: 100000, whole: true}
         options:
           - value: 5
             label: "5"
@@ -197,6 +164,7 @@ groups:
         takes_effect: live
         judgment: true
         override: a dollar amount
+        valid: {min: 0, max: 1000000000000}
         options:
           - value: 1% of losses
             label: 1% of the book's total losses
@@ -221,19 +189,20 @@ groups:
           - value: peers
             label: The rest of its band
             explains: >-
-              Broker under 620 against the rest of under 620. A pocket is never
-              compared with itself.
+              Broker under 620 against the rest of under 620. Both comparisons are
+              printed; this one decides the flag.
           - value: topline
             label: The rest of the book
             explains: >-
-              The simplest story: does this pocket stand out overall? Every
-              comparison is always shown; this picks the one that flags.
+              The simplest story: does this pocket stand out overall? Both
+              comparisons are printed; this one decides the flag.
 
       - key: worse_at
         question: How much worse than its comparison a pocket must be
         takes_effect: live
         judgment: true
         override: a multiple above 1, such as 1.4
+        valid: {min: 1.01, max: 100}
         options:
           - value: 1.25
             label: 1.25 times
@@ -250,6 +219,7 @@ groups:
         takes_effect: live
         judgment: true
         override: a multiple below 1, such as 0.7
+        valid: {min: 0.01, max: 0.99}
         options:
           - value: 0.8
             label: 0.8 times
@@ -268,13 +238,14 @@ groups:
         takes_effect: live
         judgment: true
         override: a share between 0.5 and 0.999
+        valid: {min: 0.5, max: 0.999}
         options:
           - value: 0.90
             label: 90%
             explains: Finds more. About 1 in 10 pockets with no real difference will still pass.
           - value: 0.95
             label: 95%
-            explains: The usual standard. About 1 in 20.
+            explains: The usual standard. About 1 pocket in 20 with no real difference will still pass.
           - value: 0.99
             label: 99%
             explains: Strict. About 1 in 100, and smaller real gaps will be missed.
@@ -283,6 +254,7 @@ groups:
         question: How often a real gap should be caught
         takes_effect: live
         override: a share between 0.5 and 0.99
+        valid: {min: 0.5, max: 0.99}
         options:
           - value: 0.8
             label: 80%
@@ -318,30 +290,6 @@ groups:
             explains: >-
               The chance of even one lucky pass is held to 5% at 95%. Very strict
               across many pockets; suits a short list going to the LOB.
-
-  - title: Proving it
-    settings:
-      - key: proof
-        question: Where a flagged pocket is tested
-        takes_effect: re-run
-        override: null
-        options:
-          - value: same
-            label: On the loans it was found in
-            explains: >-
-              Quick, but a pocket found by searching always looks worse than it is.
-              Fine for leads, weak as proof.
-          - value: time
-            label: Found on earlier originations, confirmed on later ones
-            recommended: true
-            explains: >-
-              The strongest evidence for the LOB: the pattern held on loans it was
-              not found in. Needs enough seasoned recent loans.
-          - value: half
-            label: Found on a random half, confirmed on the other half
-            explains: >-
-              Keeps the mix of years the same on both sides, but each side has half
-              the loans, so small pockets drop out.
 
 # What a column can mean, and how `cube init` recognises it. The firm, 25 Sep
 # 2026: "it should suggest all columns, and maybe we can teach it along the way

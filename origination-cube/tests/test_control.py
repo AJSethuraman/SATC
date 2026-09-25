@@ -122,9 +122,9 @@ def test_a_setting_missing_from_the_tab_is_refused(book):
     _answer_judgment(book)
     wb = load_workbook(book)
     ws = wb[control.SHEET]
-    ws.cell(row=_row(ws, "proof"), column=control.KEY_COL).value = None
+    ws.cell(row=_row(ws, "many_tests"), column=control.KEY_COL).value = None
     wb.save(book)
-    with pytest.raises(control.ControlError, match="`proof` is not on the Control tab"):
+    with pytest.raises(control.ControlError, match="`many_tests` is not on the Control tab"):
         control.read_control(book)
 
 
