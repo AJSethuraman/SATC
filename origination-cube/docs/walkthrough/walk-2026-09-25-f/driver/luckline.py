@@ -2,7 +2,7 @@
 
     CUBE_SRC=<frozen src> python3.12 luckline.py "<book> - what ran.yaml" EXTRACT.csv [what ran with a split ...]
 
-For the fifth walk (commit fec5f71), where "worse at", "better at" and the revenue line can all be
+For the sixth walk (commit fec5f71), where "worse at", "better at" and the revenue line can all be
 suggestions. Prints, per measure, the gap luck alone can make in a pocket of typical size (the
 median over pockets at or above the fewest-loans floor, at the Control confidence, catch rate left
 out), the spread of that gap from the smallest tested pocket to the largest, and the book's rate.
@@ -21,7 +21,7 @@ b = res.config.benchmark
 print(f"floor {b.min_units} loans, confidence {b.confidence}, worse_at {b.worse_at}, better_at {b.better_at}, "
       f"revenue_line {b.revenue_line}")
 rate = res.total.rates["outcome_loans"].rate
-print(f"book bad rate {rate:.4%}; 10 / rate = {10 / rate:.1f} -> {math.ceil(10 / rate)} loans")
+print(f"book bad rate {rate:.4%}; 5 / rate = {5 / rate:.1f} -> {math.ceil(5 / rate)} loans (OC-30: 5 expected losses)")
 for m in ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate"):
     ln = res.loans_needed.get(m)
     gaps, sizes = [], []
