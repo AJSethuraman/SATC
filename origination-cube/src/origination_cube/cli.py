@@ -36,6 +36,15 @@ def _n(v):
     return "" if v is None else f"{v:,.0f}"
 
 
+def _plural(n, word):
+    return f"{n:,} {word}" + ("" if n == 1 else "s")
+
+
+def _word(r):
+    """A reading, or why there is none (defect 4 printed Python's None)."""
+    return r if r is not None else "no comparison: the rest has no rate to compare with"
+
+
 def _p(v):
     if v is None:
         return "n/a"
@@ -60,7 +69,7 @@ def report(res: engine.Result, top: int = 5) -> str:
         if lo:
             any_lo = True
             parts = "; ".join(f"{k} x {col} {why}" for (col, why), k in sorted(lo.items()))
-            out.append(f"  {m.name}: {sum(lo.values()):,} rows ({parts})")
+            out.append(f"  {m.name}: {_plural(sum(lo.values()), 'row')} ({parts})")
     if not any_lo:
         out.append("  none")
     out.append("")
@@ -121,23 +130,39 @@ def report(res: engine.Result, top: int = 5) -> str:
             if m.is_rate and res.total.rates[m.name].rate is not None:
                 ranked = sorted(((c.rates[m.name].excess, k, c) for k, c in g.inner()
                                  if c.rates[m.name].excess is not None), key=lambda t: -t[0])
-                out.append(f"  Where it bleeds: excess {m.numerator()} over the topline rate, largest first")
-                for ex, (b, d), c in ranked[:top]:
+                what = (f"excess {m.numerator()} over the book's rate" if m.higher_is == "worse"
+                        else f"shortfall in {m.numerator()} under the book's rate")
+                line = res.materiality_line.get(m.name)
+                out.append(f"  Where it bleeds: {what}, largest first"
+                           + (f" (material at {_n(line)} or more)" if line else ""))
+                below = []
+                for ex, (b, d), c in ranked:
                     if ex <= 0:
                         break
                     s = c.rates[m.name]
-                    out.append(f"    {b} / {d}: {_n(ex)} over, {s.units:,} loans")
+                    if s.material is False:
+                        below.append(ex)
+                        continue
+                    if len(ranked) and ranked.index((ex, (b, d), c)) >= top:
+                        continue
+                    out.append(f"    {b} / {d}: {_n(ex)}, {_plural(s.units, 'loan')}")
                     if bench is not None:
-                        out.append(f"      share of losses / share of volume {_x(s.vs_topline)}")
-                        out.append(f"      vs rest of book {_x(s.vs_rest)} (p {_p(s.p_book)}): {s.reading_topline}")
-                        out.append(f"      vs rest of band {_x(s.vs_band)} (p {_p(s.p_band)}): {s.reading_band}")
+                        out.append(f"      rate over the book's rate {_x(s.vs_topline)}")
+                        out.append(f"      vs rest of book {_x(s.vs_rest)} (p {_p(s.p_book)}): {_word(s.reading_topline)}")
+                        out.append(f"      vs rest of band {_x(s.vs_band)} (p {_p(s.p_band)}): {_word(s.reading_band)}")
+                        judged = "the rest of its band" if bench.compare_to == "peers" else "the rest of the book"
+                        out.append(f"      flag (judged against {judged}): {_word(s.flag)}")
                         if s.smallest_gap:
                             out.append(f"      this many loans can show a gap of {s.smallest_gap:.2f}x or more")
+                if below:
+                    out.append(f"    below the materiality line: {_plural(len(below), 'pocket')}, {_n(sum(below))} "
+                               f"together")
                 if bench is not None:
-                    out.append("  Materiality evidence: what each level would keep (the level is your call)")
+                    unit = "loans" if (m.mode == "flagwt" and m.per == engine.EACH_LOAN) else "dollars"
+                    out.append(f"  Materiality evidence: what each level would keep, in {unit} of {m.numerator()}")
                     for row in engine.materiality(g, m, res.total):
-                        out.append(f"    {row.share_of_losses:>5.1%} of book losses ({_n(row.threshold)}): "
-                                   f"{row.pockets} pocket(s), {row.captured:.0%} of this grid's excess")
+                        out.append(f"    {row.share_of_losses:>5.1%} of the book's total ({_n(row.threshold)}): "
+                                   f"{_plural(row.pockets, 'pocket')}, {row.captured:.0%} of this grid's excess")
     return "\n".join(out)
 
 
@@ -182,8 +207,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"wrote {control.build_control_book(a.out)}")
             return 0
         try:
-            for k, v in control.read_control(a.read).items():
-                print(f"{k:<16} {v}")
+            for question, words in control.describe(control.read_control(a.read)):
+                print(f"{question}: {words}")
         except control.ControlError as exc:
             print(f"REFUSED: {len(exc.problems)} setting(s) to fix:", file=sys.stderr)
             for prob in exc.problems:
@@ -191,8 +216,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
     if a.cmd == "synth":
-        cfg, data = synth.write(a.out, n=a.rows)
-        print(f"wrote {data} and {cfg}")
+        data = synth.write_extract(a.out, n=a.rows)
+        print(f"wrote {data}: a synthetic extract with a planted problem (score under 620, broker channel).")
+        print(f"Set it up like a real one: cube init {data} -o cube.yaml")
         return 0
     if a.cmd == "init":
         from . import control, profile

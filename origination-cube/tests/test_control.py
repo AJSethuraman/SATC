@@ -134,3 +134,33 @@ def test_in_use_and_meaning_are_formulas_over_the_options_tab(book):
     assert str(ws.cell(row=r, column=5).value).startswith("=IF(")
     assert "_options" in ws.cell(row=r, column=6).value
     assert ws.data_validations.dataValidation, "every Choose cell carries a dropdown"
+
+
+@pytest.mark.parametrize("key,bad,why", [("confidence", 95, "from 0.5 to 0.999"), ("worse_at", 0.9, "from 1.01 to 100"),
+                                         ("min_loans", 30.5, "from 2 to 100000")])
+def test_an_out_of_range_value_is_refused_naming_the_cell(book, key, bad, why):
+    """Walkthrough defect 3: 95 for confidence and 0.9 for 'worse' got through."""
+    _answer_judgment(book)
+    wb = load_workbook(book)
+    ws = wb[control.SHEET]
+    r = _row(ws, key)
+    ws.cell(row=r, column=control.OWN_COL).value = bad
+    wb.save(book)
+    with pytest.raises(control.ControlError, match=f"Control!D{r}.*{why}"):
+        control.read_control(book)
+
+
+def test_the_tab_checks_typed_values_itself(book):
+    ws = load_workbook(book)[control.SHEET]
+    r = _row(ws, "confidence")
+    dvs = [dv for dv in ws.data_validations.dataValidation if f"D{r}" in str(dv.sqref)]
+    assert dvs and dvs[0].type == "decimal" and dvs[0].showErrorMessage
+    assert "IFERROR" in ws.cell(row=r, column=5).value and "IFERROR" in ws.cell(row=r, column=6).value
+    assert ws.column_dimensions["H"].hidden
+
+
+def test_read_back_is_in_words(book):
+    _answer_judgment(book)
+    words = dict(control.describe(control.read_control(book)))
+    assert words["Allowing for testing many pockets at once"].startswith("Hold down the share")
+    assert "bh" not in words.values()

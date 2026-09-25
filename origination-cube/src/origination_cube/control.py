@@ -80,7 +80,7 @@ class Setting:
     options: tuple[Option, ...]
     group: str
     judgment: bool = False
-
+    valid: dict | None = None        # {min, max, whole}: what a typed value may be
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
 
@@ -96,7 +96,7 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
                                 recommended=bool(o.get("recommended", False))) for o in s["options"])
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
-                               judgment=bool(s.get("judgment", False))))
+                               judgment=bool(s.get("judgment", False)), valid=s.get("valid")))
     return out
 
 
@@ -106,18 +106,18 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
 def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws = wb.create_sheet(SHEET, 0) if SHEET not in wb.sheetnames else wb[SHEET]
     opt = wb.create_sheet(OPTIONS_SHEET)
-    opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts"])
+    opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts", "plain"])
     ranges: dict[str, tuple[int, int]] = {}
     for s in settings:
         first = opt.max_row + 1
         for o in s.options:
-            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, o.value, o.explains, s.override or ""])
+            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, o.value, o.explains, s.override or "", o.label])
         ranges[s.key] = (first, opt.max_row)
     opt.sheet_state = "hidden"
 
     thin = Side(style="thin", color=MIST)
     ws.sheet_view.showGridLines = False
-    widths = {"A": 2, "B": 34, "C": 44, "D": 16, "E": 14, "F": 62, "G": 13, "H": 12}
+    widths = {"A": 2, "B": 34, "C": 44, "D": 19, "E": 22, "F": 62, "G": 13, "H": 12}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     ws.merge_cells("B1:G1")
@@ -155,28 +155,41 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         rec = s.recommended()
         choose = ws.cell(row=r, column=CHOOSE_COL, value=None if s.judgment or rec is None else rec.shown)
         dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$C${first}:$C${last}", allow_blank=True,
-                            showDropDown=False)
-        dv.error = "Pick one of the listed options, or type your own value in column D."
+                            showDropDown=False, showErrorMessage=True)
+        dv.errorTitle = "Pick from the list"
+        dv.error = "Pick one of the listed options. To use your own number, type it in the next column."
         ws.add_data_validation(dv)
         dv.add(choose)
         own = ws.cell(row=r, column=OWN_COL)
+        if s.override is not None and s.valid:
+            v = s.valid
+            dvo = DataValidation(type="whole" if v.get("whole") else "decimal", operator="between",
+                                 formula1=str(v["min"]), formula2=str(v["max"]), allow_blank=True,
+                                 showErrorMessage=True)
+            dvo.errorTitle = "Out of range"
+            dvo.error = f"Enter {s.override}, from {v['min']:g} to {v['max']:g}."
+            ws.add_data_validation(dvo)
+            dvo.add(own)
         if s.override is None:
             own.value = "n/a"
             own.font = Font(name="Calibri", italic=True, color=SLATE)
             own.fill = PatternFill("solid", fgColor=MIST)
         C, D, H = f"C{r}", f"D{r}", f"$H{r}"
-        # shaded while unanswered, on any row: a method setting someone clears needs an answer too
+        # shaded while unanswered, on any row: a method setting someone clears needs an answer too.
+        # A row with no own-value cell shades only its dropdown (the grey n/a cell is not an answer).
         ws.conditional_formatting.add(
-            f"C{r}:D{r}", FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
-                                      fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
+            f"C{r}:D{r}" if s.override is not None else f"C{r}",
+            FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
+                        fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         lookup = f"MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0)"
         ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","",'
-                                        f'INDEX({OPTIONS_SHEET}!$D:$D,{lookup})))'))
+                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""
         ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","Needs an answer before we run. '
                                         f'Pick one, or enter your own.",'
-                                        f'INDEX({OPTIONS_SHEET}!$E:$E,{lookup})))'))
+                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
+                                        f'options. Pick from the list, or put your number in the next column.")))'))
         ws.cell(row=r, column=7, value=s.takes_effect)
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
@@ -188,6 +201,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                 cell.font = Font(name="Calibri", size=10, color=INK)
         ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
         r += 1
+    ws.column_dimensions["H"].hidden = True
     ws.print_area = f"B1:G{r - 1}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
@@ -230,8 +244,13 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
                 problems.append(f"{where}: `{s.question}` takes one of the listed options only")
             elif not isinstance(own, (int, float)) or isinstance(own, bool):
                 problems.append(f"{SHEET}!D{row[0].row}: `{s.question}` needs {s.override}; got {own!r}")
+            elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
+                    (s.valid and s.valid.get("whole") and not float(own).is_integer()):
+                v = s.valid
+                problems.append(f"{SHEET}!D{row[0].row}: `{s.question}` needs {s.override}, from {v['min']:g} to "
+                                f"{v['max']:g}; got {own!r}")
             else:
-                found[key] = own
+                found[key] = int(own) if (s.valid or {}).get("whole") else own
             continue
         if chosen in (None, ""):
             problems.append(f"{where}: `{s.question}` needs an answer. Pick one, or enter your own in column D")
@@ -247,3 +266,16 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
     if problems:
         raise ControlError(problems)
     return found
+
+
+def describe(found: dict[str, Any], settings: list[Setting] | None = None) -> list[tuple[str, str]]:
+    """The settings in use as a person reads them: the question and the chosen
+    option's words, or the typed value (walkthrough defect 13 echoed codes)."""
+    out = []
+    for s in settings or load_settings():
+        if s.key not in found:
+            continue
+        v = found[s.key]
+        o = next((o for o in s.options if o.value == v), None)
+        out.append((s.question, o.label if o else f"{v:g}" if isinstance(v, float) else str(v)))
+    return out

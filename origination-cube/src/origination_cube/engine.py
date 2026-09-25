@@ -760,4 +760,4 @@ def materiality(grid: Grid, m: Measure, total: Cell) -> list[stats.MaterialityRo
     each candidate threshold, how many pockets it keeps and how much of the
     grid's bleed they hold."""
     ex = [c.rates[m.name].excess for _, c in grid.inner() if c.rates[m.name].excess is not None]
-    return stats.materiality_ladder(ex, total.rates[m.name].num)
+    return stats.materiality_ladder(ex, abs(total.rates[m.name].num))

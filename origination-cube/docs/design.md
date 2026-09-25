@@ -322,6 +322,16 @@ enough.
   "after origination". It is never cut by.
 - **OC-20:** the Control tab shades what still needs an answer instead of
   labelling it, and its instructions are written the way the firm talks.
+- **OC-21:** RANR is revenue, so bigger is better (*"RANR is a revenue metric - so
+  it is profitability to some degree. bigger is better"*). Its bleed is a
+  shortfall. Every extra rate has to say `higher_is: worse` or `better`.
+- **OC-22:** nobody types commands. The firm: *"my preference is this is either in
+  a GUI or something the workbook can help with it because i don't want this to
+  be a technical exercise for users to run nor me to debug"*. They chose one
+  workbook where every decision is made, plus a double-click launcher that does
+  the running. An Excel button that starts Python was not chosen, because bank
+  IT commonly blocks macros that start programs (and the repo's macro contract
+  forbids it). It can be added later if the bank allows it.
 
 ## Open
 

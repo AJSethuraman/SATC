@@ -96,3 +96,12 @@ def test_a_misfire_shows_up_near_the_top(tmp_path):
     first_non_blocking = next(rv for rv in looks if rv.kind != "cannot run")
     assert first_non_blocking.kind == "memory disagrees" and first_non_blocking.column == "BANK_SCR"
     assert "cube memory --forget BANK_SCR" in first_non_blocking.says
+
+
+def test_stray_values_are_on_the_list(tmp_path):
+    from origination_cube import synth
+    from origination_cube.ingest import read_table
+    t = read_table(synth.write_extract(tmp_path, n=2000))
+    looks = meanings.review(t, meanings.suggest(t))
+    stray = {rv.column for rv in looks if rv.kind == "stray values"}
+    assert stray == {"BAD_FLAG", "GCO_AMT"}        # the planted 2 in the outcome, the planted #N/A in GCO

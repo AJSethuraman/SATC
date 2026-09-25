@@ -271,8 +271,8 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
 #: A column this share blank or more is worth a look.
 BLANK_REVIEW = 0.05
 
-REVIEW_ORDER = ("cannot run", "memory disagrees", "name and values disagree", "blanks", "shape only",
-                "values only", "odd values")
+REVIEW_ORDER = ("cannot run", "memory disagrees", "name and values disagree", "blanks", "stray values",
+                "shape only", "values only", "odd values")
 
 
 @dataclass
@@ -312,6 +312,17 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
             share = (f.rows - f.nonblank) / f.rows
             out.append(Review("blanks", c, f"{share:.0%} blank. Blanks are left out of every rate and get their "
                               f"own row in a grid. If they weren't meant to be blank, fix the extract."))
+    for c, sg in sugg.items():
+        f = facts(table, c)
+        text = f.nonblank - len(f.numbers)
+        if sg.means == "outcome" and sg.is_value is None and f.numbers:
+            other = sum(1 for x in f.numbers if x not in (0.0, 1.0)) + text
+            if other:
+                out.append(Review("stray values", c, f"{other:,} value(s) are neither 0 nor 1. They're left out of "
+                                  f"the outcome rates and counted; if they mean something, fix the extract."))
+        elif f.numeric and 0 < text:
+            out.append(Review("stray values", c, f"{text:,} value(s) aren't numbers among {len(f.numbers):,} that "
+                              f"are. They're left out of any rate using this column and counted."))
     for c, sg in sugg.items():
         if sg.source == "structure" and sg.means not in ("unused",):
             out.append(Review("shape only", c, f"suggested as {sg.means} from its shape alone ({sg.why}). "

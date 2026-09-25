@@ -71,15 +71,18 @@ Every run also prints how many loans a gap of your size needs in this book,
 and what each materiality level would keep. That is evidence for your
 settings; it is never a setting.
 
-A synthetic book to try it on: `cube synth --out demo`. Loans with a score
-under 620 that came through the broker channel charge off at about six times
-the book's rate.
+A synthetic extract to try it on: `cube synth --out demo`, then `cube init`
+on it as if it were real. Loans with a score under 620 that came through the
+broker channel charge off at about six times the book's rate.
+
+**Coming next (ruling OC-22):** nobody will need these commands. One workbook
+will hold every decision, and a double-click launcher will do the running.
 
 ## Checking it
 
 ```
-pytest -q                          # 95 tests: one per finding, the arithmetic by hand, the Control tab, init, memory
-python tools/mutation_check.py     # puts 13 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 112 tests: one per finding, every Control answer applied, the arithmetic by hand, init, memory
+python tools/mutation_check.py     # puts 19 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

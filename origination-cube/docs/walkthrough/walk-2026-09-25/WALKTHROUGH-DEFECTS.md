@@ -149,3 +149,27 @@ All of these are in `step-03-control-blank.png` and `defect-header-and-key-colum
 - **The in-flight build.** Everything here is `360a71e`. The new cube-file format was not walked.
 - **`tools/mutation_check.py`** was not run, because the source was changing underneath.
 - **Scale.** The walk used 2,000 loans, and the planted pocket held 53 of them. Larger books weren't walked.
+
+---
+
+## Where each defect stands (25 Sep 2026, later the same day)
+
+| # | Status |
+|---|---|
+| 1 | **Fixed.** Loan age, fewest losses, materiality, judged-against and the many-tests allowance are carried in the cube file and applied. Each has a hand-checked test in `tests/test_calls.py` and a mutation proving that test can fail. Settings nothing applies yet (which cuts, drill depth, proof) are off the tab. |
+| 2 | **Fixed by the firm's answer:** *"RANR is a revenue metric - so it is profitability to some degree. bigger is better."* RANR's bleed is now a shortfall under the book's rate, and a pocket earning less reads worse. |
+| 3 | **Fixed.** Every typed value has a range. Excel refuses it as it's typed, and the tool refuses it naming the Control cell. |
+| 4 | **Fixed.** No Python `None`: a missing comparison says why. |
+| 5 | **Fixed.** The dropdown now refuses typing, and both formula cells use IFERROR with a plain sentence. |
+| 6 | **Fixed in the new format.** Stray values (a 2 in a 0/1 outcome, text among numbers) are on the look-at-these-first list. |
+| 7 | **Fixed in the new format.** Outcome, GCO and RANR are never cut by. |
+| 8 | **Fixed in the new format.** The Next line names `columns_confirmed`. |
+| 9 | **Open, and the firm's call.** Band count and edges are settings; learning a column's usual edges is proposed. |
+| 10 | **Fixed.** The materiality table says what it counts in (loans, or dollars of which column). |
+| 11 | **Fixed.** Readings say which way: worse, better, "worse, but could be luck". A flag line says which comparison decided it. |
+| 12 | **Fixed.** The header fits, the key column is hidden, "In use" shows words, and the 95% line is a sentence. There are no references to tabs that don't exist, and the n/a cells aren't shaded. |
+| 13 | **Fixed.** Read-back prints each question and the chosen words. |
+| 14 | **Fixed.** `cube synth` writes only the extract; the route starts at `cube init`. |
+| 15 | **Fixed.** Plurals; the README count. The (blank) row in the loan-amount grids is correct (one loan with a blank balance) and stays. |
+
+Not yet re-walked: a second walk follows the workbook-and-launcher front end.

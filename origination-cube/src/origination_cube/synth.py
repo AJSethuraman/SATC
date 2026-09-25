@@ -84,7 +84,22 @@ def make_rows(n: int = 20000, seed: int = 7) -> list[dict]:
     return rows
 
 
+def write_extract(out: str | Path, n: int = 20000, seed: int = 7) -> Path:
+    """The extract alone, for the demo: the analyst's route starts from
+    `cube init` on it, so no call is made for them (walkthrough defect 14)."""
+    d = Path(out)
+    d.mkdir(parents=True, exist_ok=True)
+    data = d / "loans.csv"
+    with data.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=COLUMNS)
+        w.writeheader()
+        w.writerows(make_rows(n, seed))
+    return data
+
+
 def write(out: str | Path, n: int = 20000, seed: int = 7) -> tuple[Path, Path]:
+    """The extract and an answered cube file: for the tests, which need every
+    call made. The demo uses write_extract."""
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
     data = d / "loans.csv"
