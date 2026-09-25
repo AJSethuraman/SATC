@@ -291,18 +291,27 @@ def reply_opens(body: str, ref: str) -> bool:
 
 #: THE TWO ANCHORS, AND THEY ARE THE RENDERING'S AND NOT THIS FILE'S. A refusal
 #: opens with a banner naming itself; a served answer carries an indented
-#: citation and, under it, a line ending ` · confirmed <date>`. Both are
+#: citation and, under it, a line ending ` | confirmed <date>`. Both are
 #: `engine.Served.__str__` / `Refusal.__str__` -- read `Served.__str__`'s
 #: docstring before touching either. The rendering is written for a PERSON and
 #: is the one channel that reaches an agent whose SKILL.md is four releases
 #: stale; it does not get constrained to suit a parser. If it moves, this
 #: breaks loudly, which is the correct direction.
-_REFUSED = "THE DESK DID NOT ANSWER — "
+_REFUSED = "THE DESK DID NOT ANSWER"
+#: WHAT A SEPARATOR MAY HAVE BECOME ON THE WAY BACK. The engine writes `|` and
+#: `:` now; replies composed before that carry `·` and `—`; and a console that
+#: mangles UTF-8 turns either into `-`, `--` or `.`. Sarcia pilot 2 is the
+#: measurement: three replies, every em dash and middle dot a hyphen, and this
+#: reader raised on all three. Accepting every spelling is not guessing -- the
+#: reason code is a closed set of snake_case words, and "confirmed" anchors the
+#: end of a grade line -- so the meaning is recoverable whichever survived.
+_SEP = r"(?:·|\||--|-|\.)"
 _GRADE = re.compile(
-    r"^ {4}(?P<citation>\S.*)\n {4}(?P<tier>.+?) · (?P<binding>.+?) · confirmed "
-    r"(?P<checked>.+?)$", re.M)
-_REASON = re.compile(rf"^{re.escape(_REFUSED)}(?P<reason>[^\n·]+?)(?:  ·  (?P<desk>.+?))?$",
-                     re.M)
+    rf"^ {{4}}(?P<citation>\S.*)\n {{4}}(?P<tier>.+?) {_SEP} (?P<binding>.+?) {_SEP} "
+    rf"confirmed (?P<checked>\S+)\s*$", re.M)
+_REASON = re.compile(
+    rf"^{_REFUSED}\s*(?:—|--|-|:)\s*(?P<reason>[a-z_]+)"
+    rf"(?:\s+{_SEP}\s+(?P<desk>\S.*?))?\s*$", re.M)
 _ASKS = re.compile(r"^It asks: (?P<ask>.+)$", re.M)
 
 
@@ -402,8 +411,8 @@ def read(body: str) -> Answered:
                         checked=m.group("checked").strip())
     raise RelayError(
         "this does not read as a desk answer or a desk refusal. It carries "
-        f"neither {_REFUSED.strip()!r} nor an indented citation with a "
-        "`· confirmed` line under it. Hand it to a person rather than acting "
+        f"neither {_REFUSED!r} nor an indented citation with a "
+        "`| confirmed` line under it. Hand it to a person rather than acting "
         "on it: something that cannot be placed is not the same as a no.")
 
 
