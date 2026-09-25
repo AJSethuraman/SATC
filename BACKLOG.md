@@ -1518,6 +1518,13 @@ back.
       branch of 131 has either). The eighth walk (stopped on the firm's word: *"there
       will be a large change to code incoming"*) and the Claude Design hand-off wait
       until this is done.
+- **Audit reported, 25 Sep 2026** (`origination-cube/docs/audit-2026-09-25.md`). The
+  firm's answers to the four questions it raised (rulings OC-34 to OC-37):
+  - **The permutation test:** *"add numpy; this is the kind of script where it should
+    outline what is missing and try to download it, right?"*
+  - **The losses inside RANR:** GCO.
+  - **CMH:** no continuity correction, matching the reference.
+  - **Share of loans:** the pooled two-proportion test (A1).
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine

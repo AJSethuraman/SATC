@@ -478,6 +478,20 @@ enough.
   may be mostly FICO, so not red". A real effect of the split column still shows
   red in the grids that hold the partner fixed. Testing those rows within score
   bands is the fuller answer, and is left for later.
+- **OC-34: the dollar-rate permutation test runs on numpy** (the firm, 25 Sep 2026:
+  *"add numpy; this is the kind of script where it should outline what is missing and
+  try to download it, right?"*). Plain Python took about 6 minutes a run on an
+  8,000-loan book. numpy joins openpyxl and PyYAML as a required add-on. When any of
+  them is missing, the launcher says which ones and offers to install them, and says
+  what to ask IT for if the install is blocked.
+- **OC-35: the losses inside RANR are GCO** (the firm, 25 Sep 2026). Contribution
+  before losses = RANR + GCO. If RANR turns out to net recoveries, contribution is
+  overstated by the recoveries; the definition is recorded on Check.
+- **OC-36: the CMH test runs without the continuity correction** (the firm, 25 Sep
+  2026), matching `docs/statistics.md` A6, and Check names it.
+- **OC-37: share of loans uses the pooled two-proportion test** (`statistics.md` A1;
+  the firm, 25 Sep 2026). It had been an unpooled test on n − 1: on one example that
+  gave p 0.090, where A1 gives 0.035.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so
