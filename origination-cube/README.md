@@ -11,6 +11,10 @@ breaking their own rules. `docs/vba-findings.md` lists each of those breaks and
 the test that stops it coming back. The macros were only a source of ideas, so
 this is not a port and the workbook will be designed from scratch.
 
+**Where it's going:** `docs/design.md` sets out the three stages (find, drill,
+prove), the Control tab, and the firm's rulings of 25 Sep. The Control tab is
+built (`cube control --out control.xlsx`); the rest of the workbook is not.
+
 **Status (25 Sep 2026): slice 1, the engine.** It reads the extract, applies
 the cube file, builds every grid, checks each grid against the book's totals,
 and prints the result. The workbook is slice 2 and isn't built yet. Nothing
@@ -96,7 +100,7 @@ has loans.
 ## Checking it
 
 ```
-pytest -q                          # 39 tests, one per finding plus the arithmetic by hand
+pytest -q                          # 47 tests: one per finding, the arithmetic by hand, the Control tab
 python tools/mutation_check.py     # puts each VBA bug back; every one must be caught
 ```
 

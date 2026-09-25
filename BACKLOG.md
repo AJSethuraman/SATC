@@ -1361,17 +1361,23 @@ back.
 - [ ] **Slice 3: `cube init`.** It profiles every column and writes a cube file
       with `[CONFIRM: ...]` on each band and dimension it proposes. This
       replaces the candidacy table (READY / REVIEW / BLOCKED).
-- [ ] **Open questions for the firm:**
-  - (a) Should every band be crossed with every dimension, or only the pairs
-        the file names?
-  - (b) Should a pocket be compared with the whole book only, or also with its
-        own band's total?
-  - (c) Is numpy or pandas allowed on the bank machine, and roughly how many
-        rows is a population?
-  - (d) The missing-value codes the firm already knows (bureau sentinels and
-        the like), to put in the example file.
-  - (e) Should a thin cell stay on the bleed list, marked "too few loans to
-        read", or come off it?
+- [x] **Answered 25 Sep, rulings OC-5 to OC-10 in `origination-cube/docs/design.md`:**
+  - cross everything and rank it
+  - compare each pocket with the book, its parent and the rest of its peers
+  - raise odd values as questions without stopping the run
+  - apply materiality when the cube is read, not when it's built
+  - a control center with explained options
+  - a proof stage on the loans themselves
+  - Population size: 17,000 × 80 in the firm's example, so pure Python is
+    enough (100 grids in 3.7 s).
+- [x] **Control tab built** (`cube control`): 12 settings from
+      `settings.yaml`, each with options, explanations and your own value;
+      rendered through LibreOffice with no error cells.
+- [ ] **Open:**
+  - (a) Does the proof stage live in the cube (recommended) or hand off to
+        the Pack?
+  - (b) The origination date and as-of date columns, for the loan-age setting.
+  - (c) The LOB's own dollar materiality, if it has one.
 - **Not checked:** a real extract, and the bank machine.
 
 ## 7 · Standing rules for new items

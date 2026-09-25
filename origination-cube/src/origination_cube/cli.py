@@ -4,6 +4,8 @@
   cube validate CUBE.yaml --data EXTRACT    refuse or accept, and say why
   cube run      CUBE.yaml --data EXTRACT    build the cube and print it
   cube synth    --out DIR                   a synthetic book with a known answer
+  cube control  --out FILE.xlsx             the Control tab, on the recommended options
+  cube control  --read FILE.xlsx            the settings in use, or what is wrong with them
 
 Every warning is printed to the screen, never to a log nobody opens
 (finding 7: the VBA sent them to Debug.Print).
@@ -123,11 +125,29 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--sheet")
         if name == "run":
             sp.add_argument("--top", type=int, default=5, help="bleeding cells to list per grid")
+    pc = sub.add_parser("control")
+    g = pc.add_mutually_exclusive_group(required=True)
+    g.add_argument("--out")
+    g.add_argument("--read")
     ps = sub.add_parser("synth")
     ps.add_argument("--out", required=True)
     ps.add_argument("--rows", type=int, default=20000)
     a = p.parse_args(argv)
 
+    if a.cmd == "control":
+        from . import control
+        if a.out:
+            print(f"wrote {control.build_control_book(a.out)}")
+            return 0
+        try:
+            for k, v in control.read_control(a.read).items():
+                print(f"{k:<16} {v}")
+        except control.ControlError as exc:
+            print(f"REFUSED: {len(exc.problems)} setting(s) to fix:", file=sys.stderr)
+            for prob in exc.problems:
+                print(f"  - {prob}", file=sys.stderr)
+            return 2
+        return 0
     if a.cmd == "synth":
         cfg, data = synth.write(a.out, n=a.rows)
         print(f"wrote {data} and {cfg}")

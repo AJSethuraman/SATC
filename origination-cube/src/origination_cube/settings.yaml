@@ -1,0 +1,266 @@
+# The control center's settings: every choice the firm can make about a run,
+# the options offered for each, and what each option does in plain words.
+#
+# This file is the one source. The Control tab of the workbook is generated
+# from it, and the run reads the answers back from that tab. An option's
+# explanation says what the math does, so the reader can choose without
+# knowing the statistic's name.
+#
+# takes_effect:  live    - an Excel formula reads it; change it and the book recalculates
+#                re-run  - Python reads it; change it and run the script again
+# override:      what the "Your own value" cell accepts, or null when only the
+#                listed options make sense
+# recommended:   marked in the dropdown and pre-selected; always visible, never
+#                silent. Where the old workbook had a setting, its value is the
+#                recommendation, so this file does not overrule a choice the
+#                firm already made.
+
+groups:
+  - title: What the cube looks at
+    settings:
+      - key: grids
+        question: Which cuts to build
+        takes_effect: re-run
+        override: null
+        options:
+          - value: pairs
+            label: Every column alone, and every band crossed with every dimension
+            recommended: true
+            explains: >-
+              Finds the most. Ten bands and eight dimensions make 80 grids, so the
+              Where to look tab ranks every pocket and you read only the top.
+          - value: singles
+            label: Every column alone
+            explains: >-
+              A quick first read of whether anything is off at the top level. Misses
+              pockets that only show when two things combine.
+          - value: named
+            label: Only the pairs listed on the Cuts tab
+            explains: >-
+              For a re-run once you know what matters. Fastest, and nothing else
+              crowds the results.
+
+      - key: drill_depth
+        question: How far to drill into a flagged pocket
+        takes_effect: re-run
+        override: null
+        options:
+          - value: 0
+            label: No drill
+            explains: The grids only.
+          - value: 1
+            label: One level - cut each flagged pocket by every other column
+            recommended: true
+            explains: >-
+              Shows which third factor explains the bleed inside the pocket. Most of
+              the new pockets will be small.
+          - value: 2
+            label: Two levels
+            explains: >-
+              Can find narrow groups, but most will be too small to read and some
+              will be luck. Pair it with a strict proof setting.
+
+      - key: min_age_months
+        question: How old a loan must be to count
+        takes_effect: re-run
+        override: whole number of months
+        options:
+          - value: 0
+            label: Every loan
+            explains: >-
+              New loans have not had time to go bad, so a pocket full of recent
+              loans looks better than it is.
+          - value: 12
+            label: 12 months on book or more
+            explains: Removes the newest loans. Early losses show; late ones may not yet.
+          - value: 24
+            label: 24 months on book or more
+            recommended: true
+            explains: >-
+              Gives losses about two years to show. Fewer loans qualify, and the
+              book you read is older.
+
+  - title: When a pocket can be read
+    settings:
+      - key: min_loans
+        question: Fewest loans in a pocket before its rate is read
+        takes_effect: live
+        override: whole number of loans
+        options:
+          - value: 30
+            label: "30"
+            recommended: true
+            explains: >-
+              The old workbook's setting. Reads most pockets; one bad loan can still
+              swing a small pocket's rate.
+          - value: 100
+            label: "100"
+            explains: Steadier rates. Small pockets are shown but not read.
+          - value: 300
+            label: "300"
+            explains: Only large pockets are read. Suits a first pass on a big book.
+
+      - key: min_events
+        question: Fewest loans with a loss before a loss rate is read
+        takes_effect: live
+        override: whole number of loans
+        options:
+          - value: 5
+            label: "5"
+            explains: >-
+              The floor for the tests to hold at all. Ranges will be wide.
+          - value: 10
+            label: "10"
+            recommended: true
+            explains: >-
+              A pocket's loss rate rests on how many loans lost money, not how many
+              it holds. Ten is the common floor for comparing two rates.
+          - value: 20
+            label: "20"
+            explains: >-
+              Ranges narrow enough to rank pockets against each other. Fewer pockets
+              qualify.
+
+  - title: When a pocket matters
+    settings:
+      - key: materiality
+        question: Smallest excess loss worth reporting
+        takes_effect: live
+        override: a dollar amount, to use the LOB's own materiality
+        options:
+          - value: 1% of losses
+            label: 1% of the book's total losses
+            recommended: true
+            explains: >-
+              Scales with the book, so the same setting works on any population.
+          - value: 5% of losses
+            label: 5% of the book's total losses
+            explains: Only pockets that move the total. Suits a summary for the LOB.
+          - value: none
+            label: No floor
+            explains: >-
+              Every pocket that reads worse is listed, however small. For spotting
+              patterns rather than dollars.
+
+      - key: worse_at
+        question: How much worse than its comparison a pocket must be
+        takes_effect: live
+        override: a multiple, such as 1.4
+        options:
+          - value: 1.25
+            label: 1.25 times
+            recommended: true
+            explains: >-
+              The old workbook's setting. Catches moderate gaps; more pockets
+              flagged, and more of them noise.
+          - value: 1.5
+            label: 1.5 times
+            explains: A middle setting.
+          - value: 2.0
+            label: 2 times
+            explains: Only pockets at double the rate or more. Few, and obvious.
+
+      - key: better_at
+        question: How much better than its comparison a pocket must be
+        takes_effect: live
+        override: a multiple, such as 0.7
+        options:
+          - value: 0.8
+            label: 0.8 times
+            recommended: true
+            explains: The old workbook's setting.
+          - value: 0.67
+            label: 0.67 times
+            explains: A third better or more.
+          - value: 0.5
+            label: 0.5 times
+            explains: Half the rate or less. Few, and obvious.
+
+  - title: Is it real
+    settings:
+      - key: compare_to
+        question: What a pocket is judged against
+        takes_effect: live
+        override: null
+        options:
+          - value: peers
+            label: The rest of its peer group
+            recommended: true
+            explains: >-
+              Its parent without it: Broker under 620 against the rest of under 620.
+              The fair test, since a pocket is never compared with itself.
+          - value: parent
+            label: Its parent
+            explains: >-
+              All of under 620, the pocket included. Easy to explain, but a big
+              pocket pulls its parent toward itself and hides part of the gap.
+          - value: topline
+            label: The whole book
+            explains: >-
+              The simplest story: does this pocket stand out overall? All three
+              comparisons are always shown; this picks the one that flags.
+
+      - key: confidence
+        question: How sure a difference must be before it counts
+        takes_effect: live
+        override: a share between 0.5 and 0.999
+        options:
+          - value: 0.90
+            label: 90%
+            explains: >-
+              Finds more. About 1 in 10 pockets with no real difference will still
+              pass.
+          - value: 0.95
+            label: 95%
+            recommended: true
+            explains: The usual standard. About 1 in 20.
+          - value: 0.99
+            label: 99%
+            explains: >-
+              Strict. About 1 in 100, and smaller real gaps will be missed.
+
+      - key: many_tests
+        question: Allowing for testing many pockets at once
+        takes_effect: live
+        override: null
+        options:
+          - value: none
+            label: No allowance
+            explains: >-
+              Each pocket is tested alone. Scan 200 pockets at 95% and about 10 will
+              pass by luck.
+          - value: bh
+            label: Hold down the share of lucky finds (Benjamini-Hochberg)
+            recommended: true
+            explains: >-
+              Of the pockets that pass, about 5% at 95% are expected to be luck.
+              Suits scanning for leads.
+          - value: bonferroni
+            label: Hold down the chance of any lucky find (Bonferroni)
+            explains: >-
+              The chance of even one lucky pass is held to 5% at 95%. Very strict
+              across many pockets; suits a short list going to the LOB.
+
+  - title: Proving it
+    settings:
+      - key: proof
+        question: Where a flagged pocket is tested
+        takes_effect: re-run
+        override: null
+        options:
+          - value: same
+            label: On the loans it was found in
+            explains: >-
+              Quick, but a pocket found by searching always looks worse than it is.
+              Fine for leads, weak as proof.
+          - value: time
+            label: Found on earlier originations, confirmed on later ones
+            recommended: true
+            explains: >-
+              The strongest evidence for the LOB: the pattern held on loans it was
+              not found in. Needs enough seasoned recent loans.
+          - value: half
+            label: Found on a random half, confirmed on the other half
+            explains: >-
+              Keeps the mix of years the same on both sides, but each side has half
+              the loans, so small pockets drop out.

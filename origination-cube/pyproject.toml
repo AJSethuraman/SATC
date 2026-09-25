@@ -21,6 +21,9 @@ test = ["pytest>=7.4"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+origination_cube = ["settings.yaml"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests"]
 testpaths = ["tests"]
