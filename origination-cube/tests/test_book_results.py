@@ -577,3 +577,19 @@ def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
     ws = load_workbook(b)["Split"]
     vals = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
     assert any(v.startswith("(") and v.endswith("x)") for v in vals)
+
+
+def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
+    """The firm, 25 Sep 2026: whether a small pocket matters is a materiality thing."""
+    from origination_cube import control
+    b = _ready(tmp_path, n=4000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "min_loans":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 400
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok and any("material but too small to test" in x for x in ran.lines)
+    ws = load_workbook(b)["Where it bleeds"]
+    rules = [r for rng in ws.conditional_formatting for r in rng.rules]
+    assert any('LEFT($Q5,7)="too few"' in (r.formula or [""])[0] for r in rules)

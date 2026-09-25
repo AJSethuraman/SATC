@@ -785,6 +785,11 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
     lines += _top_lines(res)
+    small = sum(1 for g in res.grids for _, c in g.inner() for m in res.measures if m.is_rate
+                and c.rates[m.name].material and c.rates[m.name].reading_topline in (engine.THIN, engine.FEW))
+    if small:
+        lines.append(f"{_n(small, 'pocket')} {'is' if small == 1 else 'are'} material but too small to test: "
+                     f"shaded blue on Where it bleeds, to look at by hand.")
     sug = getattr(res, "suggested", None) or {}
     if sug:
         said = {"min_loans": "fewest loans {:,}", "worse_at": "worse at {:.2f}x", "better_at": "better at {:.2f}x"}
@@ -1060,7 +1065,8 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     names = _names(res)
     _title(ws, title, f"{lead} losing more than their share (RANR: earning less), largest first. The "
                       f"flag compares each pocket with {judged}. Red: worse. Amber: worse, but could be "
-                      f"luck. \"Luck alone\" is how often a gap this big turns up with no real "
+                      f"luck. Blue: material, but too few loans or losses to test, so worth a look by hand. "
+                      f"\"Luck alone\" is how often a gap this big turns up with no real "
                       f"difference behind it, after the allowance for testing many pockets within each grid "
                       f"(see Check).{after}", "B:S" if note_of else "B:R")
     heads = ["Measure", "Band column", "Band", "Segment column", "Segment", "Loans", "Rate", "Book rate", "Excess",
@@ -1101,7 +1107,9 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
             r += 1
     if r == 5:
         ws.cell(row=5, column=2, value="Nothing is losing more than its share at these settings.")
-    for formula, fill in (('$Q5="worse"', WORSE_FILL), ('$Q5="worse, but could be luck"', LUCK_FILL)):
+    # material but too small to test: shown, not hidden (the firm, 25 Sep 2026: "this is a materiality thing")
+    for formula, fill in (('$Q5="worse"', WORSE_FILL), ('$Q5="worse, but could be luck"', LUCK_FILL),
+                          ('AND($L5="yes",LEFT($Q5,7)="too few")', SMALL_FILL)):
         ws.conditional_formatting.add(f"B5:R{max(r, 6)}", FormulaRule(formula=[formula], fill=PatternFill(
             "solid", fgColor=fill, bgColor=fill)))
     seg_w = 26 if grids is not res.grids else 13
@@ -1127,6 +1135,7 @@ BOXES = ("Losing more, earning less", "Losing more, earning the same", "Losing t
          "Losing more, earning more", "Losing less, earning less", "About the same on both",
          "Losing the same, earning more", "Losing less, earning the same", "Losing less, earning more")
 NOT_TESTED = "Not tested: too few loans or losses"
+SMALL_FILL = "DDEBF7"      # material, but too few loans or losses to test: look at it by hand
 WARN_TEXT = "960019"
 BOX_FILL = {0: WORSE_FILL, 1: WORSE_FILL, 2: WORSE_FILL, 3: LUCK_FILL, 4: LUCK_FILL,
             6: "E2F0D9", 7: "E2F0D9", 8: "E2F0D9"}

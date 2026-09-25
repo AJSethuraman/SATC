@@ -1470,6 +1470,12 @@ back.
       suggested revenue line is each pocket's own luck range. 187 tests; 53
       re-inserted bugs. The walk's read on convergence: the edges are getting
       smaller, but the top defect kept changing shape until OC-31.
+- **Small pockets (25 Sep 2026):** asked whether a pocket too small for the usual
+  test should get an exact test, the firm answered: *"not really sure, if they were
+  large maybe. this is a materiality thing"*. So there's no exact test for now. A
+  pocket that is material but too small to test is shaded blue on Where it bleeds
+  and counted in the window, to be looked at by hand. Both floors (fewest loans,
+  fewest losses) keep their suggested option and take an override.
 - [ ] **Next:** a seventh walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

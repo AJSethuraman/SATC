@@ -84,6 +84,8 @@ muts = [
  ("fallback called worked out", B, '            res.suggest_fallback = fallback', '            pass', "nothing_to_work_from"),
  ("split luck shaded", B, '                return got[0] if got[1] is not None and got[1] < 1 - conf else f"({got[0]:.2f}x)"',
   '                return got[0]', "bracketed"),
+ ("small material pockets not pointed out", B, '    if small:\n        lines.append', '    if False:\n        lines.append',
+  "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
 ]
 bad = 0
