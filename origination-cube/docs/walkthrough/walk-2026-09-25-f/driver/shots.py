@@ -266,23 +266,23 @@ sheet("defect-1b-every-20-earning-more", "every20main", pe20, (0.07, 0.12, 0.70,
       [F("every20main", pe20, "600 to under 620 Broker", x2=0.69)], dpi=220)
 sheet("defect-2-luck-mark-cut-off", "run1", 9, (0.07, fa[1] - 0.005, 0.70, fa[1] + 0.12),
       [(0.485, fa[1] + 0.02, 0.588, fa[1] + 0.10)], dpi=240)
-sheet("defect-3-ranr-flag-in-line-box-earning-less", "run1", 9, (0.07, fa[1] - 0.005, 0.70, fa[1] + 0.20),
+sheet("defect-4-ranr-flag-in-line-box-earning-less", "run1", 9, (0.07, fa[1] - 0.005, 0.70, fa[1] + 0.20),
       [F("run1", 9, "686 to under 712 4", x2=0.69), F("run1", 9, "under 654 3", x2=0.69),
        F("run1", 9, "712 to under 746 2", x2=0.69)], dpi=220)
 npw = F("w-noplant", 13, "Grids that don't hold FICO fixed.", x2=0.60)
-sheet("defect-4-no-effect-book-split", "w-noplant", 13, (0.05, npw[1] - 0.02, 0.95, npw[1] + 0.13),
+sheet("defect-5-no-effect-book-split", "w-noplant", 13, (0.05, npw[1] - 0.02, 0.95, npw[1] + 0.13),
       [npw, F("w-noplant", 13, "Outcome, share of loans 15 13 of 15", x2=0.56)], dpi=160)
 n1 = F("w-noplant", 15, "Outcome, share of loans ORIG_BAL 49,158 and over", x2=0.999)
-sheet("defect-4b-no-effect-book-three-way", "w-noplant", 15, (0.07, n1[1] - 0.02, 1.0, n1[3] + 0.02), [n1], dpi=240)
-win("defect-5-fallback-window", "wrong-min-huge-1-after-run", [line_box(6)])
-sheet("defect-5b-fallback-control", "w-min-huge-wide", 2, (0.05, 0.10, 0.99, 0.60),
+sheet("defect-5b-no-effect-book-three-way", "w-noplant", 15, (0.07, n1[1] - 0.02, 1.0, n1[3] + 0.02), [n1], dpi=240)
+win("defect-3-fallback-window", "wrong-min-huge-1-after-run", [line_box(6)])
+sheet("defect-3b-fallback-control", "w-min-huge-wide", 2, (0.05, 0.10, 0.99, 0.60),
       [(0.80, F("w-min-huge-wide", 2, "How much worse than its comparison a")[1], 0.975,
         F("w-min-huge-wide", 2, "How far revenue must move before it")[3] + 0.014)], dpi=130)
 mw = F("w-min-huge", 20, "Worked out from this book", x2=0.93)
-sheet("defect-5c-fallback-check", "w-min-huge", 20, (0.05, 0.08, 0.95, mw[3] + 0.06),
+sheet("defect-3c-fallback-check", "w-min-huge", 20, (0.05, 0.08, 0.95, mw[3] + 0.06),
       [(mw[0], mw[1], mw[2], mw[3] + 0.005), F("w-min-huge", 20, "Revenue counts as more or less at", x2=0.93)],
       zoom=(0.10, mw[1] - 0.01, 0.93, mw[3] + 0.05))
-win("defect-5d-low-default-book", "wrong-lowdef-1-after-run", [line_box(3, 7)])
+win("defect-3d-low-default-book", "wrong-lowdef-1-after-run", [line_box(3, 7)])
 sheet("defect-6-last-run-used-not-printed", "run1", 2, (0.05, 0.10, 0.95, 0.66))
 sheet("defect-7-look-first-count", "q1setup", 3, (0.05, 0.08, 0.95, 0.46),
       [F("q1setup", 3, "FICO FICO score Yes every 20", x2=0.95), F("q1setup", 3, "CHANNEL Category Yes 620; 680", x2=0.95),

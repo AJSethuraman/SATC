@@ -1,4 +1,4 @@
-"""Build the one-file procedure: Markdown -> HTML with every picture embedded -> PDF.
+"""Sixth walk (fec5f71). Build the one-file procedure: Markdown -> HTML with every picture embedded -> PDF.
     python3 build.py   (from anywhere)"""
 import base64, re
 from pathlib import Path
@@ -23,11 +23,11 @@ ROUTE = """<figure class="route"><svg viewBox="0 0 1000 350" xmlns="http://www.w
 <line x1="710" y1="65" x2="768" y2="65" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <rect x="520" y="190" width="470" height="110" rx="8" fill="#e6f2e6" stroke="#686"/>
 <text x="755" y="215" text-anchor="middle" font-weight="bold">Steps 12-17 · Results in the same workbook</text>
-<text x="755" y="236" text-anchor="middle">Where it bleeds → Losses vs revenue (9 boxes) → Grids</text><text x="755" y="256" text-anchor="middle">→ Materiality → Check (suggested numbers) → Log</text><text x="755" y="280" text-anchor="middle" font-size="11">planted pocket: FICO under 654 / Broker, first; "Losing more, earning the same"</text>
+<text x="755" y="236" text-anchor="middle">Where it bleeds → Losses vs revenue (lines decide) → Grids</text><text x="755" y="256" text-anchor="middle">→ Materiality → Check → Log; Control: Last Run used</text><text x="755" y="280" text-anchor="middle" font-size="11">planted pocket: FICO under 654 / Broker, first; "Losing more, earning the same"</text>
 <line x1="880" y1="110" x2="880" y2="188" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <rect x="10" y="190" width="440" height="110" rx="8" fill="#eef1f5" stroke="#667"/>
-<text x="230" y="215" text-anchor="middle" font-weight="bold">Steps 18-24 · Change and go again</text>
-<text x="230" y="236" text-anchor="middle">Split + Three-way (REV_DEBT, then ASSET_CLASS)</text><text x="230" y="256" text-anchor="middle">Show per pocket · edges or every 20 · Set up again</text><text x="230" y="276" text-anchor="middle">Forget on Learned · the next extract</text>
+<text x="230" y="215" text-anchor="middle" font-weight="bold">Steps 18-26 · Change and go again</text>
+<text x="230" y="236" text-anchor="middle">Split (method block) + Three-way (Holds FICO fixed?)</text><text x="230" y="256" text-anchor="middle">Show per pocket · edges or every 20 · Set up again</text><text x="230" y="276" text-anchor="middle">Forget · the next extracts · remembered edges</text>
 <line x1="518" y1="245" x2="452" y2="245" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M230,190 C230,150 150,140 110,112" fill="none" stroke="#999" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a)"/>
 <text x="120" y="160" font-size="11" fill="#666">Columns, then Run again</text>
