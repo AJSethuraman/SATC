@@ -206,3 +206,23 @@ On Where it bleeds, Split and Three-way, a p-value between 0.01% and 0.05% print
 | 14 | Show per pocket | **Held.** A note says it isn't tested and doesn't add up; whole numbers for amounts. "a average" (defect 11). |
 | 15 | Window and status wording | **Held in part.** Held: the split named in the window, two splits naming both cells, a split that empties the segments saying why, a renamed column saying "a segment" and to press Set up, the file name showing in the Extract box, Set up counting new columns. Not held: Start here's "things to look at" still stale after a Run, and the box still scrolls (defect 9). |
 | 16 | Materiality levels Control can't pick | **Held.** Control offers 0.5%, 1%, 2%, 5% and 10%; each heading names its total (`step-15-materiality.png`). The 2% option's text is stale (defect 11). |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+These fixes also cover the two commits this walk didn't see (`4e5d7aa`, `83a7b01`). Every fix is held by a test, and `tools/mutation_check.py` puts the bug back to prove it. Seen through LibreOffice.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | A debt effect reported where the score isn't held fixed | **Fixed within the firm's choice (keep every grid, labelled).** The Split tab says what each grid holds fixed before the number. Every Three-way row carries it, and rows from grids that hold it fixed come first | `test_three_way_rows_say_what_their_grid_holds_fixed` |
+| 2 | Box against the band, dollars against the book | **Fixed.** The dollars, the order and the chart's names all use the box's comparison. Only pockets in a "Losing more" box are named | `test_losses_vs_revenue_dollars_agree_*` |
+| 3 | Untested pockets boxed and coloured | **Fixed.** "Not tested: too few loans or losses", no colour, off the chart | `test_losses_vs_revenue_dollars_agree_*` |
+| 4 | The luck line | **Fixed in part.** It is now luck alone at the Control confidence, not the 80% catch gap (1.16x on the demo book, not 1.25x). A side only counts as more or less when its own test agrees, so a small pocket can't cross on noise. It is still one number worked out from the run's pockets, so it moves a little with the bands; Check and the tab say so | `test_the_luck_line_is_luck_alone_*`, `test_the_planted_pocket_is_not_read_as_earning_more_*` |
+| 5 | 95 told to type 0.95, then refused | **Fixed.** The hint is given only when it's allowed; otherwise "for 15%, type 0.15" | `test_a_revenue_share_of_95_*` |
+| 6 | The booked amount can split | **No change, by design.** It's an amount; the message now says so | — |
+| 7 | Charts | **Fixed in part.** A tick at 1.00x on both axes, a shorter title, names only for "Losing more" pockets and placed apart, and the count line wraps above the table. The box names still aren't on the chart, and a page break can still split a table | seen on render |
+| 8 | 0.0% beside "under 0.01%" | **Fixed.** Two places under 1% | — |
+| 9 | Start here after a Run; the message box | **Fixed.** After a Run the count is what a Forget marked; the window is taller | — |
+| 10 | Control layout and wording | **Fixed in part.** "(suggested)" is dropped where the answer is read back, and the explanation says "inside that gap". The question row's wrap on Control is not changed | — |
+| 11 | Other wording | **Fixed.** "an average"; after a Forget the Why cell no longer says "Remembered", and the C3 refusal names what was forgotten; the Learned subtitle; the 2% option; Run with the workbook picked; the full stop; Odd values in the Next line; "Nothing is worse for ..." when a measure has no worst pocket | `test_the_learned_tab_prunes_*` |

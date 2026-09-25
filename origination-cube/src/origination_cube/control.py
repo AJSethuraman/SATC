@@ -277,7 +277,8 @@ def describe(found: dict[str, Any], settings: list[Setting] | None = None) -> li
             continue
         v = found[s.key]
         o = next((o for o in s.options if o.value == v), None)
-        out.append((s.question, o.label if o else f"{v:g}" if isinstance(v, float) else str(v)))
+        label = o.label.replace(" (suggested)", "") if o else None
+        out.append((s.question, label if o else f"{v:g}" if isinstance(v, float) else str(v)))
     return out
 
 
@@ -322,5 +323,7 @@ def _percent_hint(s: Setting, own: Any) -> str:
     """95 typed where 0.95 is meant: say so."""
     v = s.valid or {}
     if v.get("max", 2) < 1 and isinstance(own, (int, float)) and 1 < own <= 100:
-        return f" For {own:g}%, type {own / 100:g}."
+        if v.get("min", 0) <= own / 100 <= v["max"]:
+            return f" For {own:g}%, type {own / 100:g}."
+        return f" Type a share between {v['min']:g} and {v['max']:g}: for 15%, type 0.15."
     return ""

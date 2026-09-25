@@ -418,6 +418,24 @@ enough.
   - **Not ready for work use until the firm says so**: *"you keep working and such
     on it and debugging, i will tell you when i think it's in a position to be
     used at work"*. The pull request stays a draft until then.
+- **OC-29: RANR already includes credit losses.** The firm, 25 Sep 2026: *"ranr
+  does include the credit loss as far as we can tell"*. So nothing is netted
+  (Open (c) is closed): RANR less GCO would count the losses twice. It also means a
+  pocket reading "earning more" is earning more after its losses, and the
+  Losses vs revenue tab says so.
+- **The fourth walk tightened OC-26 and OC-27.**
+  - **A box side needs more than the line.** It moves off "the same" only when the
+    gap is past the Control line and its own test says it isn't luck. That is how
+    every other word in the tool is decided. With one line for every pocket, a
+    176-loan pocket at 1.17x crossed a 1.16x line on noise.
+  - **The suggested lines are luck alone:** the gap luck can make in a typical
+    pocket at the Control confidence. The catch rate is left out; with it, the
+    number was the gap a pocket can find (1.25x), not what luck moves (1.17x).
+  - **The dollars on Losses vs revenue use the same comparison as the box.**
+    Untested pockets get no box.
+  - **What each grid holds fixed comes first** on the Split tab. It's on every
+    row of the Three-way tab, where grids that hold it fixed come first.
+  - **The booked amount can split.** It's an amount, like any other.
 - **Materiality in dollars is a GCO amount.** Control asks for the smallest
   excess *loss*, so a dollar line applies to GCO only and every other rate says
   it has no line (the third walk, defect 8).
@@ -428,9 +446,4 @@ enough.
   check in Excel: how dropdown picks are stored, the validation pop-ups, and the
   chart.
 - **(b) Proof stage** (OC-10, OC-16): from a pocket to its loans. Proposed, not built.
-- **(c) Does RANR already have credit losses taken out?** If it doesn't, a
-  pocket's RANR less its GCO is a fair "net" figure to show beside the four
-  boxes. If it does, netting would count the losses twice. The firm, 25 Sep
-  2026: *"i am unsure about the RANR question - i will ask this when i can at
-  work but for now let's just leave it out"*. So no net figure is shown until
-  the answer comes back.
+- **(c) Closed by OC-29:** RANR includes credit losses, so there is no net figure.

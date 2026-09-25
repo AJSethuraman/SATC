@@ -184,7 +184,7 @@ groups:
             explains: Scales with the book, so the same setting works on any population.
           - value: 2% of losses
             label: 2% of the book's total losses
-            explains: Between the two.
+            explains: Keeps pockets whose excess is over 2% of the book's losses.
           - value: 5% of losses
             label: 5% of the book's total losses
             explains: Only pockets that move the total.
@@ -226,8 +226,8 @@ groups:
           - value: luck
             label: What luck alone can move it (suggested)
             explains: >-
-              Worked out from this book: the smallest gap a typical pocket can tell
-              apart from luck. Smaller gaps can't be told from noise anyway.
+              Worked out from this book: the gap luck alone can make in a pocket of
+              typical size. A smaller gap can't be told from noise.
           - value: 1.25
             label: 1.25 times
             explains: The old workbook's value. Moderate gaps; more pockets flagged.
@@ -248,8 +248,8 @@ groups:
           - value: luck
             label: What luck alone can move it (suggested)
             explains: >-
-              The same as above, the other way: one over the smallest gap a typical
-              pocket can tell apart from luck.
+              The same as above, the other way: one over the gap luck alone can
+              make in a pocket of typical size.
           - value: 0.8
             label: 0.8 times
             explains: The old workbook's value.
@@ -270,8 +270,8 @@ groups:
           - value: luck
             label: What luck alone can move it (suggested)
             explains: >-
-              Worked out from this book: the smallest revenue gap a typical pocket
-              can tell apart from luck. Inside it, revenue reads as about the same.
+              Worked out from this book: the revenue gap luck alone can make in a
+              pocket of typical size. Revenue inside that gap reads as about the same.
           - value: 0.05
             label: "5 percent either way"
             explains: Small moves count. Expect many pockets to read as earning more or less.

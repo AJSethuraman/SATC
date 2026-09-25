@@ -35,7 +35,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import config as cfgmod
-from . import control, engine, meanings, memory, profile
+from . import control, engine, meanings, memory, profile, stats
 from .ingest import read_table
 
 INK, CANVAS, SLATE, PAPER, NEEDS = "16130F", "F4F1EC", "57534B", "FFFFFF", "FCE4C4"
@@ -306,6 +306,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     dv_a = DataValidation(type="list", formula1='"real,missing"', allow_blank=True, showErrorMessage=True)
     wo.add_data_validation(dv_a)
     r = 5
+    odd_open = 0
     for q in qs:
         key = (q["column"], f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}")
         known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
@@ -316,6 +317,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         wo.cell(row=r, column=3, value=what)
         wo.cell(row=r, column=4, value=q["rows"]).number_format = "#,##0"
         wo.cell(row=r, column=5, value=answer)
+        odd_open += not answer
         dv_a.add(wo.cell(row=r, column=5))
         wo.cell(row=r, column=6, value=f"Remembered: answered {known['answer']} on {known.get('last')}"
                 if known else None)
@@ -364,8 +366,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         left.append("Control")
     if ws[CONFIRM_CELL].value != "Yes":
         left.append("Columns")
+    if odd_open:
+        left.append("Odd values")
     # the second walk, defect 15: this line said the same thing with nothing left to fill
-    lines.append(f"Next: fill in the shaded cells on {' and '.join(left)}, save, close, and press Run." if left
+    joined = ", ".join(left[:-1]) + (" and " if len(left) > 1 else "") + left[-1] if left else ""
+    lines.append(f"Next: fill in the shaded cells on {joined}, save, close, and press Run." if left
                  else "Everything is answered. Press Run the cube.")
     return Outcome(True, book, lines)
 
@@ -375,7 +380,7 @@ def _learned_tab(wb, memory_path) -> None:
         del wb["Learned"]
     ws = wb.create_sheet("Learned")
     _title(ws, "Learned", "Meanings and answers carried over from past runs. Set a row to Forget to drop it on the "
-                          "next Run. To stop it being learned again, also change it on Columns.", "A:G")
+                          "next Run, and the column waits on Columns for you to confirm it again.", "A:G")
     heads = ["Keep?", "Kind", "Column", "What it learned", "First confirmed", "Last confirmed", "Times", "id"]
     for i, h in enumerate(heads, start=1):
         c = ws.cell(row=3, column=i, value=h)
@@ -454,8 +459,9 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     cat = meanings.catalog()
     ws = wb["Columns"]
     if ws[CONFIRM_CELL].value != "Yes":
+        note = str(ws["D3"].value or "")
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
-                        f"column's meaning.")
+                        f"column's meaning." + (f" {note}" if note.startswith("Forgotten") else ""))
     columns, edges, skip, show, split = {}, {}, set(), {}, []
     widths: dict[str, float] = {}
     typed: dict[str, str] = {}
@@ -516,7 +522,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
             else:
                 # the third walk, defect 7: GCO split by itself read 93.83x; the key "had too few loans"
                 problems.append(f'Columns!{_col(C_SPLIT)}{row}: "{name}" is marked {cat[code].label}, which '
-                                f"can't split the pockets. Only a score, ratio, amount or category can.")
+                                f"can't split the pockets. Only a score, ratio, amount (the booked amount too) or "
+                                f"category can.")
     if len(split) > 1:
         cells = " and ".join(f"Columns!{_col(C_SPLIT)}{row}" for _, _, row in split)
         problems.append(f"{cells}: only one column can split the pockets. Clear all but one.")
@@ -630,10 +637,7 @@ def _suggested(res, which: set[str]) -> dict[str, float]:
         out["min_loans"] = max(2, math.ceil(10 / rate)) if rate else 30
     if which & {"worse_at", "better_at"}:
         floor = out.get("min_loans", res.config.benchmark.min_units)
-        gaps = sorted(c.rates["outcome_loans"].smallest_gap for g in res.grids for _, c in g.inner()
-                      if c.rates["outcome_loans"].units >= floor and c.rates["outcome_loans"].smallest_gap)
-        g = round(statistics.median(gaps), 2) if gaps else 1.25
-        g = max(g, 1.05)
+        g = max(luck_gap(res, "outcome_loans", floor) or 1.25, 1.05)
         if "worse_at" in which:
             out["worse_at"] = g
         if "better_at" in which:
@@ -715,7 +719,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         msg = msg.replace("`", '"')
         if isinstance(exc, engine.ColumnsMissing):
             # the third walk, defect 15: a renamed column needs Set up, and the message didn't say so
-            msg += ". If a column was renamed or dropped, press Set up again"
+            msg += ". If a column was renamed or dropped, press Set up again."
         _log(book, ["Couldn't run:", msg])
         return Outcome(False, book, [f"Couldn't run: {msg}"])
     forgotten = memory.apply_review(book, memory_path)[1]
@@ -842,6 +846,8 @@ def _top_lines(res) -> list[str]:
                         best = (s.excess, f"{names[g.band]} {b} / {names[g.dimension]} {d}")
         if best:
             out.append(f"Worst for {m.title}: {best[1]}.")
+        else:
+            out.append(f"Nothing is worse for {m.title} at these settings.")
     return out
 
 
@@ -889,8 +895,10 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
     _grids(wb.create_sheet("Grids"), res)
     if res.config.split:
         _split_tab(wb.create_sheet("Split"), res)
+        note = (lambda g: _holds_fixed(res, g)) if res.config.split[1] == "own_median" else None
         _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
-                f"Pockets split by {res.config.split[0]}, each tested like any other pocket,")
+                f"Pockets split by {res.config.split[0]}, each tested like any other pocket"
+                + (", grids that hold fixed what it moves with first," if note else ",") , note)
     _materiality_tab(wb.create_sheet("Materiality"), res)
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -904,11 +912,14 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
         for row in cols.iter_rows(min_row=COL_FIRST):
             if row[C_NAME - 1].value in forgotten:
                 row[C_LOOK - 1].value = "Forgotten on Learned: confirm what it is."
+                why = str(row[C_WHY - 1].value or "")
+                if why.startswith("Remembered"):
+                    row[C_WHY - 1].value = "Forgotten on Learned; it was remembered before."
     if "Start here" in wb.sheetnames:
         # the second walk, defect 9, and the third walk, defect 15: the counts went stale after a run
         sh = wb["Start here"]
-        looks = sum(1 for row in wb["Columns"].iter_rows(min_row=COL_FIRST) if row[C_LOOK - 1].value) \
-            if "Columns" in wb.sheetnames else sh["D13"].value
+        # a run only happens with every column confirmed, so what's left to look at is what a Forget marked
+        looks = len(forgotten or ())
         _status(sh, 0, looks, sh["D14"].value, stamp)
         sh["B2"] = f"Last run on {res.rows:,} loans from {src.name}."
     _order(wb)
@@ -937,9 +948,11 @@ def _plain_warning(w: str) -> str:
             .replace("`", '"'))
 
 
-def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Pockets") -> None:
+def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Pockets", note_of=None) -> None:
     """Every pocket losing more than its share, largest first. The Three-way tab
-    is the same list over the three-way pockets."""
+    is the same list over the three-way pockets, with what each grid holds fixed
+    beside every row, and the grids that hold it fixed first (`note_of` gives the
+    words and the order; the fourth walk, defect 1)."""
     grids = res.grids if grids is None else grids
     b = res.config.benchmark
     judged = "the rest of its band" if b and b.compare_to == "peers" else "the rest of the book"
@@ -950,7 +963,7 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
                       f"difference behind it.", "B:R")
     heads = ["Measure", "Band column", "Band", "Segment column", "Segment", "Loans", "Rate", "Book rate", "Excess",
              "Excess is in", "Material", "Vs rest of book", "Luck alone", "Vs rest of band", "Luck alone",
-             f"Flag (vs {judged})", "Smallest gap it could show"]
+             f"Flag (vs {judged})", "Smallest gap it could show"] + (["What this grid holds fixed"] if note_of else [])
     _head(ws, 4, heads)
     r = 5
     untested = (engine.THIN, engine.FEW)
@@ -963,13 +976,16 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
                 s = c.rates[m.name]
                 if s.excess is not None and s.excess > 0:
                     found.append((s.excess, g, bl, dl, s))
-        for ex, g, bl, dl, s in sorted(found, key=lambda t: -t[0]):
+        order = (lambda t: (note_of(t[1])[1], -t[0])) if note_of else (lambda t: -t[0])
+        for ex, g, bl, dl, s in sorted(found, key=order):
             tested = s.reading_topline not in untested
             gap = s.smallest_gap if m.higher_is == "worse" else (1 / s.smallest_gap if s.smallest_gap else None)
             vals = [m.title, names[g.band], bl, names[g.dimension], dl, s.units, s.rate,
                     res.total.rates[m.name].rate, ex, _unit(m),
                     {True: "yes", False: "below the line", None: ""}[s.material], s.vs_rest,
                     s.p_book if tested else None, s.vs_band, s.p_band if tested else None, s.flag or "", gap]
+            if note_of:
+                vals.append(note_of(g)[0])
             for i, v in enumerate(vals, start=2):
                 ws.cell(row=r, column=i, value=v)
             # loans to one decimal, like the line they're held against (the third walk, defect 13)
@@ -989,11 +1005,15 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     for col, w in zip("ABCDEFGHIJKLMNOPQR", (2, 28, 12, 22, 16 if seg_w == 13 else 26, seg_w, 8, 8, 8, 12, 16, 14,
                                              11, 11, 11, 11, 22, 15)):
         ws.column_dimensions[col].width = w
+    if note_of:
+        ws.column_dimensions["S"].width = 60
+        for row in ws.iter_rows(min_row=5, min_col=19, max_col=19):
+            row[0].alignment = Alignment(wrap_text=True, vertical="top")
     ws.freeze_panes = "B5"
     _fit(ws)
 
 
-P_FMT = '[<0.0001]"under 0.01%";0.0%'
+P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 LUCK = "How often luck alone gives a gap this big"
 
 # Nine boxes, worst first. Each side reads more, about the same, or less, by the
@@ -1002,6 +1022,7 @@ LUCK = "How often luck alone gives a gap this big"
 BOXES = ("Losing more, earning less", "Losing more, earning the same", "Losing the same, earning less",
          "Losing more, earning more", "Losing less, earning less", "About the same on both",
          "Losing the same, earning more", "Losing less, earning the same", "Losing less, earning more")
+NOT_TESTED = "Not tested: too few loans or losses"
 BOX_FILL = {0: WORSE_FILL, 1: WORSE_FILL, 2: WORSE_FILL, 3: LUCK_FILL, 4: LUCK_FILL,
             6: "E2F0D9", 7: "E2F0D9", 8: "E2F0D9"}
 
@@ -1023,16 +1044,44 @@ def revenue_lines(res) -> tuple[float, float, str] | None:
     if rl is None or rl == "losses":
         return 1 / b.worse_at, 1 / b.better_at, "the same lines as for losses"
     if rl == "luck":
-        floor = b.min_units
-        gaps = sorted(c.rates["ranr_rate"].smallest_gap for g in res.grids for _, c in g.inner()
-                      if c.rates["ranr_rate"].units >= floor and c.rates["ranr_rate"].smallest_gap)
-        if not gaps:
+        g = luck_gap(res, "ranr_rate", b.min_units)
+        if g is None:
             return 1 / b.worse_at, 1 / b.better_at, "the same lines as for losses (no pocket was big enough to " \
                                                     "work out what luck can do)"
-        g = statistics.median(gaps)
-        return 1 / g, g, (f"what luck alone can move it: in a pocket of typical size, a revenue gap smaller than "
-                          f"{g:.2f}x can't be told from luck at {b.confidence:.0%} sure and {b.power:.0%} caught")
+        return 1 / g, g, (f"what luck alone can move it: in a pocket of typical size, luck alone moves revenue "
+                          f"up to {g:.2f}x at {b.confidence:.0%} sure. It's worked out from this run's pockets, so "
+                          f"it moves a little when the bands or segments change")
     return 1 - rl, 1 + rl, f"{rl:.0%} either way"
+
+
+def luck_gap(res, mname: str, floor: float) -> float | None:
+    """The gap luck alone can make in a pocket of typical size: for each pocket
+    big enough to test, the multiple its test would call real at the Control
+    confidence, and the median of those. The catch rate is left out on purpose
+    (the fourth walk, defect 4: at 80% caught it was the gap a pocket can find,
+    1.25x, not what luck alone moves, about 1.17x)."""
+    b = res.config.benchmark
+    ln = res.loans_needed.get(mname)
+    if b is None or ln is None:
+        return None
+    gaps = []
+    for g in res.grids:
+        for _, c in g.inner():
+            s = c.rates[mname]
+            if s.units >= floor:
+                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, 0.5)
+                if x:
+                    gaps.append(x)
+    return round(statistics.median(gaps), 2) if gaps else None
+
+
+def _over(s, parent) -> float:
+    """A pocket's numerator over what it would be at the rate of the rest of its
+    comparison (the parent less the pocket)."""
+    rest_num, rest_den = parent.num - s.num, parent.den - s.den
+    if not rest_den:
+        return 0.0
+    return s.num - rest_num / rest_den * s.den
 
 
 def _side(idx, lo: float, hi: float) -> str | None:
@@ -1056,13 +1105,16 @@ def _losses_vs_revenue(ws, res) -> None:
     peers = b.compare_to == "peers"
     judged = "the rest of its band" if peers else "the rest of the book"
     rlo, rhi, rwhy = revenue_lines(res)
-    _title(ws, "Losses vs revenue", f"Each pocket's GCO and RANR against {judged}. GCO counts as more at "
-                                    f"{b.worse_at:.2f}x or above and less at {b.better_at:.2f}x or below. Revenue "
-                                    f"counts as more at {rhi:.2f}x or above and less at {rlo:.2f}x or below: {rwhy}. "
-                                    f"Both are set on Control. Nothing is netted.", "B:L")
+    _title(ws, "Losses vs revenue", f"Each pocket's GCO and RANR against {judged}; the dollars are against it too. "
+                                    f"GCO counts as more at {b.worse_at:.2f}x or above and less at "
+                                    f"{b.better_at:.2f}x or below. Revenue counts as more at {rhi:.2f}x or above and "
+                                    f"less at {rlo:.2f}x or below: {rwhy}. Both are set on Control, and a side only moves off "
+                                    f"'the same' when its own test says the gap isn't luck. RANR already "
+                                    f"includes credit losses, so a pocket earning more is earning more after its "
+                                    f"losses, and nothing is netted.", "B:L")
     ws.row_dimensions[2].height = 44
     heads = ["Band", "Segment", "Loans", "GCO vs comparison", "GCO flag", "RANR vs comparison", "RANR flag",
-             "Which box", "GCO excess over the book ($)", "RANR short of the book ($)"]
+             "Which box", "GCO over its comparison ($)", "RANR short of its comparison ($)"]
     floor = b.min_units
     # the charts' own numbers (the Control lines, the named pockets) live on a hidden sheet:
     # hidden cells on this tab aren't drawn by every spreadsheet program
@@ -1079,18 +1131,30 @@ def _losses_vs_revenue(ws, res) -> None:
             gidx, ridx = (gs.vs_band, rs.vs_band) if peers else (gs.vs_rest, rs.vs_rest)
             if gs.units < floor or gidx is None or ridx is None:
                 continue
-            gside = _side(gidx, b.better_at, b.worse_at)
-            rside = _side(ridx, rlo, rhi)
+            # past the line on Control AND not luck by its own test, the way every other word in the
+            # tool is decided (the fourth walk's render: 1.17x on a 176-loan pocket crossed a 1.16x line)
+            real = lambda p: p is not None and p < 1 - b.confidence      # noqa: E731
+            gside = _side(gidx, b.better_at, b.worse_at) if real(gs.p_band if peers else gs.p_book) else "same"
+            rside = _side(ridx, rlo, rhi) if real(rs.p_band if peers else rs.p_book) else "same"
             gflag = gs.reading_band if peers else gs.reading_topline
             rflag = rs.reading_band if peers else rs.reading_topline
-            rows.append([bl, dl, gs.units, gidx, gflag or "", ridx, rflag or "", box_of(gside, rside),
-                         gs.excess, rs.excess])
-        rows.sort(key=lambda x: -(x[8] or 0))
+            # untested on either side: no box and no colour (the fourth walk, defect 3)
+            box = NOT_TESTED if {gflag, rflag} & {engine.THIN, engine.FEW} else box_of(gside, rside)
+            # dollars against the same comparison as the box and the flags (the fourth walk, defect 2)
+            parent = g.cells[(bl, engine.ALL)] if peers else res.total
+            rows.append([bl, dl, gs.units, gidx, gflag or "", ridx, rflag or "", box,
+                         _over(gs, parent.rates["gco_rate"]), -_over(rs, parent.rates["ranr_rate"])])
+        rows.sort(key=lambda x: (x[7] == NOT_TESTED, -(x[8] or 0)))
         ws.cell(row=top, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
             name="Calibri", bold=True, size=12)
-        counts = {q: sum(1 for x in rows if x[7] == q) for q in BOXES}
-        ws.cell(row=top, column=5, value="; ".join(f"{q}: {k}" for q, k in counts.items() if k)).font = Font(
-            name="Calibri", size=9, color=SLATE)
+        counts = {q: sum(1 for x in rows if x[7] == q) for q in BOXES + (NOT_TESTED,)}
+        cnt = ws.cell(row=top + 1, column=2, value="Pockets per box: " + "; ".join(
+            f"{q}: {k}" for q, k in counts.items() if k))
+        cnt.font = Font(name="Calibri", size=9, color=SLATE)
+        cnt.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=top + 1, start_column=2, end_row=top + 1, end_column=11)
+        ws.row_dimensions[top + 1].height = 26
+        top += 1
         _head(ws, top + 1, heads)
         r = top + 2
         for row in rows:
@@ -1098,7 +1162,7 @@ def _losses_vs_revenue(ws, res) -> None:
                 ws.cell(row=r, column=i, value=v)
             for col, fmt in ((5, '0.00"x"'), (7, '0.00"x"'), (10, "#,##0"), (11, "#,##0")):
                 ws.cell(row=r, column=col).number_format = fmt
-            fill = BOX_FILL.get(BOXES.index(row[7]))
+            fill = BOX_FILL.get(BOXES.index(row[7])) if row[7] in BOXES else None
             if fill:
                 for col in range(2, 12):
                     ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=fill)
@@ -1106,11 +1170,11 @@ def _losses_vs_revenue(ws, res) -> None:
         if not rows:
             ws.cell(row=r, column=2, value="No pocket has enough loans to place.")
             r += 1
-        if rows:
+        if any(x[7] in BOXES for x in rows):
             _revenue_chart(ws, hs, rows, top + 2, r - 1, f"{names[g.band]} x {names[g.dimension]}", b, rlo, rhi,
                            1 + gi * 3, top)
         top = max(r, top + 24) + 2
-    for col, w in zip("ABCDEFGHIJKL", (2, 22, 26, 8, 11, 22, 11, 22, 28, 14, 14, 2)):
+    for col, w in zip("ABCDEFGHIJKL", (2, 22, 26, 8, 11, 22, 11, 22, 30, 16, 16, 2)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "B4"
     _fit(ws)
@@ -1125,8 +1189,9 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
     chart = ScatterChart()
     chart.title = title
     chart.style = 13
-    chart.x_axis.title = "GCO vs comparison (right = losing more)"
-    chart.y_axis.title = "RANR vs comparison (up = earning more)"
+    chart.x_axis.title = "GCO vs comparison (right: losing more)"
+    chart.y_axis.title = "RANR vs comparison"
+    last = first + sum(1 for x in rows if x[7] in BOXES) - 1      # untested pockets sort last and stay off
     pts = Series(Reference(ws, min_col=7, min_row=first, max_row=last),
                  Reference(ws, min_col=5, min_row=first, max_row=last), title="Pockets")
     pts.marker.symbol = "circle"
@@ -1135,10 +1200,13 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
     pts.marker.graphicalProperties.line.solidFill = "2F5597"
     pts.graphicalProperties.line.noFill = True
     chart.series.append(pts)
-    xs, ys = [x[3] for x in rows if x[3] > 0], [x[5] for x in rows]
+    boxed = [x for x in rows if x[7] in BOXES]
+    xs, ys = [x[3] for x in boxed if x[3] > 0], [x[5] for x in boxed]
     x_lo = 10 ** math.floor(math.log10(min(xs + [b.better_at])))
     x_hi = 10 ** math.ceil(math.log10(max(xs + [b.worse_at])))
-    y_lo, y_hi = min(ys + [rlo]) - 0.05, max(ys + [rhi]) + 0.05
+    # whole tenths, so 1.00x is a tick (the fourth walk, defect 7)
+    y_lo = math.floor((min(ys + [rlo]) - 0.02) * 10) / 10
+    y_hi = math.ceil((max(ys + [rhi]) + 0.02) * 10) / 10
     # the four lines, in hidden helper columns: x, y pairs
     r = 1
     lines = [((b.worse_at, y_lo), (b.worse_at, y_hi)), ((b.better_at, y_lo), (b.better_at, y_hi)),
@@ -1156,7 +1224,9 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
         r += 2
     # the three biggest bleeders, named on the chart
     from openpyxl.chart.label import DataLabelList
-    for k, row in enumerate(rows[:3]):
+    named = [k for k, x in enumerate(rows) if x[7].startswith("Losing more")][:3]
+    for n_, k in enumerate(named):
+        row = rows[k]
         rr = first + k
         name = f"{row[0]} / {row[1]}"
         one = Series(Reference(ws, min_col=7, min_row=rr, max_row=rr),
@@ -1170,13 +1240,14 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
         one.dLbls.showSerName = True
         for flag in ("showVal", "showCatName", "showLegendKey", "showPercent", "showBubbleSize"):
             setattr(one.dLbls, flag, False)
-        one.dLbls.position = "r"
+        one.dLbls.position = ("r", "t", "b")[n_]
         chart.series.append(one)
         r += 1
     chart.legend = None
     chart.x_axis.scaling.logBase = 10
     chart.x_axis.scaling.min, chart.x_axis.scaling.max = x_lo, x_hi
-    chart.y_axis.scaling.min, chart.y_axis.scaling.max = round(y_lo, 2), round(y_hi, 2)
+    chart.y_axis.scaling.min, chart.y_axis.scaling.max = y_lo, y_hi
+    chart.y_axis.majorUnit = 0.1
     chart.x_axis.number_format = chart.y_axis.number_format = '0.00"x"'
     chart.x_axis.delete = chart.y_axis.delete = False
     chart.width, chart.height = 15, 10
@@ -1288,7 +1359,7 @@ def _grids(ws, res) -> None:
                     return None
                 return c.medians[sm.name].mean if sm.show == "average" else c.medians[sm.name].median
 
-            ws.cell(row=r + 1, column=2, value=f"Beside the rates, for reading them: not tested, and a {fig.lower()} "
+            ws.cell(row=r + 1, column=2, value=f"Beside the rates, for reading them: not tested, and {'an' if fig == 'Average' else 'a'} {fig.lower()} "
                                                f"doesn't add up across pockets.").font = Font(
                 name="Calibri", italic=True, size=9, color=SLATE)
             got = [v for v in (shown(bl, d) for bl in rows_ for d in cols_all) if v is not None]
@@ -1356,7 +1427,8 @@ def _split_tab(ws, res) -> None:
             pooled = g.split_pooled.get(m.name, {})
             ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}: {m.title}").font = Font(
                 name="Calibri", bold=True, size=12)
-            text = " ".join(x for x in (_pooled_sentence(pooled, field_, m, conf), fixed_words) if x)
+            # what the grid holds fixed comes before the number (the fourth walk, defect 1)
+            text = " ".join(x for x in (fixed_words, _pooled_sentence(pooled, field_, m, conf)) if x)
             ws.cell(row=r + 1, column=2, value=text).alignment = Alignment(wrap_text=True, vertical="top")
             ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=2 + 2 * width - 1)
             ws.row_dimensions[r + 1].height = 58
@@ -1411,7 +1483,7 @@ def _pooled_sentence(p: dict, field_: str, m, conf: float) -> str:
 def _p(v) -> str:
     if v is None:
         return "(not available)"
-    return "under 0.01%" if v < 0.0001 else f"{v:.1%}"
+    return "under 0.01%" if v < 0.0001 else f"{v:.2%}" if v < 0.01 else f"{v:.1%}"
 
 
 def _total_words(m) -> str:
@@ -1507,7 +1579,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         if "better_at" in sug:
             words.append(f"better at {sug['better_at']:.2f}x")
         if "worse_at" in sug or "better_at" in sug:
-            words[-1] += " (the smallest outcome gap a typical pocket can tell from luck)"
+            words[-1] += " (the outcome gap luck alone can make in a pocket of typical size)"
         rows.append(("Worked out from this book", "; ".join(words)))
     b = res.config.benchmark
     if b is not None and b.many_tests != "none":

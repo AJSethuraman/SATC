@@ -1451,10 +1451,16 @@ back.
     i assume all banding is adjustable to a degree"*. So: a band width ("every
     20") as well as edges, remembered per column, and more bands on offer.
   - **Next:** go ahead (the fourth walk).
+  - **RANR (asked at work):** *"ranr does include the credit loss as far as we can
+    tell"*. So nothing is netted (OC-29).
   - Built the same evening: band widths ("every 20"), remembered edges, 20 bands
     on offer, and suggested values for fewest loans and worse/better. 174 tests;
     42 re-inserted bugs.
-- [ ] **Next:** a fourth walkthrough; the firm's answer on RANR
+- [x] **The fourth walkthrough's 11 defects**: 8 fixed, 3 in part (the luck line
+      is one number per run; chart box names; Control's question wrap). The
+      booked amount can split, by design. Status table in
+      `docs/walkthrough/walk-2026-09-25-d/WALKTHROUGH-DEFECTS.md`.
+- [ ] **Next:** a fifth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

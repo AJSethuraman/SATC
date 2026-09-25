@@ -97,14 +97,20 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     hi = float(sub.split("counts as more at ")[2].split("x")[0])
     lo = float(sub.split("and less at ")[2].split("x")[0])
     for band, seg, loans, gco, gflag, ranr, rflag, box, _, _ in rows:
-        g = "more" if gco >= 1.25 else "less" if gco <= 0.8 else "same"
-        rv = "more" if ranr >= hi else "less" if ranr <= lo else "same"
-        assert box == book.box_of(g, rv), (band, seg, gco, ranr, box)
+        # GCO's side is its flag: past the Control line and not luck
+        g = {"worse": "more", "better": "less"}.get(gflag, "same")
+        assert box.startswith(book.box_of(g, "same").split(",")[0]) or (g == "same" and box.startswith(
+            ("About the same", "Losing the same"))), (band, seg, gco, gflag, box)
+        # revenue moves off "the same" only past its own line
+        if "earning more" in box:
+            assert ranr >= hi
+        if "earning less" in box:
+            assert ranr <= lo
         assert loans >= 30
     # the first grid is FICO x CHANNEL, largest GCO excess first: the planted pocket, which
     # loses far more and earns about the same, is not read as a trade-off
     assert ws["B4"].value == "FICO x CHANNEL"
-    band, seg, box = ws["B6"].value, ws["C6"].value, ws["I6"].value
+    band, seg, box = ws["B7"].value, ws["C7"].value, ws["I7"].value
     assert band.startswith("under") and seg == "Broker"
     assert box in ("Losing more, earning the same", "Losing more, earning less")
     grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
@@ -378,3 +384,72 @@ def test_check_says_what_the_allowance_covers(tmp_path):
     assert book.run(b).ok
     check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
     assert "each grid and measure on its own" in check["The allowance for many tests covers"]
+
+
+def test_losses_vs_revenue_dollars_agree_with_the_box_and_untested_pockets_get_none(tmp_path):
+    """The fourth walk, defects 2 and 3."""
+    b = _ready(tmp_path)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Losses vs revenue"]
+    rows = [[ws.cell(row=r, column=c).value for c in range(2, 12)] for r in range(5, ws.max_row + 1)]
+    boxed = [x for x in rows if x[7] in book.BOXES]
+    assert boxed
+    for x in boxed:
+        if x[7].startswith("Losing more"):
+            assert x[8] > 0, x
+        if x[7].startswith("Losing less"):
+            assert x[8] < 0, x
+    untested = [x for x in rows if x[7] == book.NOT_TESTED]
+    assert untested and all({x[4], x[6]} & {"too few loans to test", "too few losses to test"} for x in untested)
+    assert "RANR already includes credit losses" in ws["B2"].value
+
+
+def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
+    """The fourth walk, defect 1: the Three-way tab carried no caveat at all."""
+    b = _ready(tmp_path)
+    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    assert book.run(b).ok
+    ws = load_workbook(b)["Three-way"]
+    assert ws.cell(row=4, column=19).value == "What this grid holds fixed"
+    rows = [(ws.cell(row=r, column=3).value, ws.cell(row=r, column=19).value) for r in range(5, ws.max_row + 1)
+            if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
+    assert rows[0][0] == "FICO" and "holds FICO fixed" in rows[0][1]
+    assert any(band == "ORIG_BAL" and "doesn't hold FICO fixed" in words for band, words in rows)
+    split = load_workbook(b)["Split"]
+    said = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str) and "has the outcome" in c.value]
+    assert all(x.index("fixed") < x.index("has the outcome") for x in said)
+
+
+def test_the_luck_line_is_luck_alone_not_the_catch_rate(tmp_path):
+    """The fourth walk, defect 4: at 80% caught it was the gap a pocket can find."""
+    b = _ready(tmp_path)
+    assert book.run(b).ok
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    hi = float(check["Revenue counts as more or less at"].split("x")[0])
+    assert 1.05 < hi < 1.22                                    # luck alone: about 1.17x on this book, not 1.25x
+    assert "luck alone moves revenue up to" in check["Revenue counts as more or less at"]
+
+
+def test_a_revenue_share_of_95_gets_advice_that_is_allowed(tmp_path):
+    """The fourth walk, defect 5."""
+    from origination_cube import control
+    b = _ready(tmp_path, n=1000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "revenue_line":
+            r[2].value, r[3].value = None, 95
+    wb.save(b)
+    ran = book.run(b)
+    said = next(x for x in ran.lines if "How far revenue" in x)
+    assert "type 0.95" not in said and "for 15%, type 0.15" in said
+
+
+def test_the_planted_pocket_is_not_read_as_earning_more_on_noise(tmp_path):
+    """The fourth walk's render: with the LOB's edges, under 620 / Broker has RANR
+    1.17x its band on 176 loans, and its own test calls that luck."""
+    b = _ready(tmp_path, n=8000)
+    _set(b, "FICO", book.C_EDGES, "620; 680; 740")
+    assert book.run(b).ok
+    ws = load_workbook(b)["Losses vs revenue"]
+    assert ws["B7"].value == "under 620" and ws["C7"].value == "Broker"
+    assert ws["I7"].value == "Losing more, earning the same"

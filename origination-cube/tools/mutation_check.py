@@ -64,6 +64,16 @@ muts = [
  ("suggestion not worked out", B, '        if about.get("_suggest"):', '        if False:', "suggested_answers"),
  ("edges not remembered", "src/origination_cube/memory.py", '        if e is not None and e.get("edges") != text:',
   '        if False:', "every_20"),
+ ("dollars against the book", B, '            parent = g.cells[(bl, engine.ALL)] if peers else res.total',
+  '            parent = res.total', "dollars_agree"),
+ ("untested pockets boxed", B, '            box = NOT_TESTED if {gflag, rflag} & {engine.THIN, engine.FEW} else box_of(gside, rside)',
+  '            box = box_of(gside, rside)', "dollars_agree"),
+ ("three-way without its caveat", B, '        note = (lambda g: _holds_fixed(res, g)) if res.config.split[1] == "own_median" else None',
+  '        note = None', "holds_fixed"),
+ ("luck line at the catch rate", B, '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, 0.5)',
+  '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, b.power)', "luck_alone"),
+ ("boxes move on luck", B, '            rside = _side(ridx, rlo, rhi) if real(rs.p_band if peers else rs.p_book) else "same"',
+  '            rside = _side(ridx, rlo, rhi)', "planted_pocket_is_not"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
 ]
 bad = 0

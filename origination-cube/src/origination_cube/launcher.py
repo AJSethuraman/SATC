@@ -61,6 +61,8 @@ def do_run(extract: str) -> list[str]:
     from . import book
     if not extract:
         return ["Pick the extract first."]
+    if Path(extract).name.endswith(" - Origination Cube.xlsx"):
+        return [f"{Path(extract).name} is the workbook, not the loan file. Pick the extract beside it."]
     target = book_for(extract)
     if not target.exists():
         return [f"There's no workbook for {Path(extract).name} yet. Press 1. Set up from this extract first."]
@@ -113,8 +115,8 @@ def build(root) -> dict:
     from tkinter import filedialog, ttk
 
     root.title(TITLE)
-    root.geometry("640x420")
-    root.minsize(520, 360)
+    root.geometry("720x560")
+    root.minsize(560, 440)
     frame = ttk.Frame(root, padding=16)
     frame.pack(fill="both", expand=True)
 
@@ -140,7 +142,7 @@ def build(root) -> dict:
 
     buttons = ttk.Frame(frame)
     buttons.grid(row=3, column=0, columnspan=3, sticky="w", pady=12)
-    status = tk.Text(frame, height=12, wrap="word", relief="solid", borderwidth=1, font=("Segoe UI", 10))
+    status = tk.Text(frame, height=18, wrap="word", relief="solid", borderwidth=1, font=("Segoe UI", 10))
     status.grid(row=4, column=0, columnspan=3, sticky="nsew")
     scroll = ttk.Scrollbar(frame, orient="vertical", command=status.yview)
     scroll.grid(row=4, column=3, sticky="ns")
