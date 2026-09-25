@@ -260,6 +260,116 @@ def _how_to_reply(reply_to: str, refs: list[str]) -> list[str]:
     ]
 
 
+@dataclasses.dataclass(frozen=True)
+class Batch:
+    """Several questions going to the desk in ONE envelope.
+
+    WHY THIS EXISTS, FROM SARCIA PILOT 2, 25 September 2026. Occam composed seven
+    questions, sent three, and stopped. Two reasons, both its own: it read "end
+    your turn" as "stop sending", and each question cost it about 20,000
+    characters of context because the platform echoes a trigger's prompt back on
+    every create and fire. Sent one at a time, a doer pays the envelope once per
+    question and has a "send the next one" step to forget. Batched, it pays once
+    and there is no next one.
+
+    THE COST, ACCEPTED BY THE FIRM: answers come back together, so a slow
+    question holds the rest. Each question still carries its own ref and gets its
+    own answer; nothing about how a question is answered changes.
+    """
+    asks: tuple
+    reply_to: str
+    ref: str
+
+
+def ask_many(questions, reply_to: str) -> Batch:
+    """Build a batch, or REFUSE. Every question passes `ask`'s checks.
+
+    ONE BAD QUESTION REFUSES THE BATCH. Sending the other six would hand the
+    doer a batch it believes is complete; a refusal names the one to fix.
+    """
+    questions = list(questions or [])
+    if not questions:
+        raise RelayError("no questions. A batch of none is not a request.")
+    asks = tuple(ask(q, reply_to) for q in questions)
+    refs = [a.ref for a in asks]
+    if len(set(refs)) != len(refs):
+        dup = sorted({r for r in refs if refs.count(r) > 1})
+        raise RelayError(
+            f"the same question appears twice (ref {', '.join(dup)}). The desk "
+            f"would answer it twice and the second copy would read as a "
+            f"duplicate delivery. Send it once.")
+    ref = hashlib.sha256("\n".join(sorted(refs)).encode()).hexdigest()[:12]
+    return Batch(asks=asks, reply_to=reply_to, ref=ref)
+
+
+def batch_prompt(b: Batch) -> str:
+    """One envelope carrying every question in the batch.
+
+    THE RULES ARE STATED ONCE, not once per question — which is the whole saving.
+    Each question keeps its own ref, and the desk opens each answer with it, so
+    `read_batch` can hand each one back separately.
+    """
+    out = [f"DESK REQUEST {b.ref} - you are the desk. Somebody doing the work "
+           f"has {len(b.asks)} questions they cannot settle. Answer EACH one "
+           f"separately: its own consult, its own answer, its own second "
+           f"reader.", "",
+           _stamp(), "",
+           "## The questions", ""]
+    for n, a in enumerate(b.asks, 1):
+        out += [f"### {n} - ref {a.ref}", "", a.question, ""]
+    out += ["No context came with them, deliberately. Read the facts off the "
+            "record through `consult`, where the ones not held are named as "
+            "such, and escalate on a missing one rather than infer it.", ""]
+    out += _how_to_answer()
+    out += _how_to_reply(b.reply_to, [a.ref for a in b.asks])
+    out += ["", f"**Send ONE reply holding every answer**, each opening with its "
+                f"own `DESK ANSWER <ref>` line. Answer every question: a ref you "
+                f"leave out comes back to the asker as unanswered, not as a no."]
+    return "\n".join(out)
+
+
+@dataclass(frozen=True)
+class BatchReply:
+    """What came back for a batch, one entry per ref, and nothing guessed.
+
+    THREE OUTCOMES, KEPT APART: read (an `Answered`), unreadable (the block is
+    there and `read` could not place it — the reason is kept), and missing (no
+    block opened with that ref at all). Folding missing into refused would
+    report "the desk said no" when the desk said nothing.
+    """
+    answers: dict
+    unreadable: dict
+    missing: tuple
+
+    @property
+    def complete(self) -> bool:
+        return not self.unreadable and not self.missing
+
+
+def read_batch(body: str, refs) -> BatchReply:
+    """Split a batch reply on its `DESK ANSWER <ref>` lines and read each block."""
+    refs = list(refs)
+    if not body or not body.strip():
+        raise RelayError("nothing came back for the batch. An empty reply is a "
+                         "delivery that did not happen, not a set of refusals.")
+    starts = []
+    for r in refs:
+        m = re.search(rf"^DESK ANSWER {re.escape(r)}\b", body, re.M)
+        if m:
+            starts.append((m.start(), r))
+    starts.sort()
+    answers, unreadable = {}, {}
+    for i, (at, r) in enumerate(starts):
+        end = starts[i + 1][0] if i + 1 < len(starts) else len(body)
+        try:
+            answers[r] = read(body[at:end])
+        except RelayError as e:
+            unreadable[r] = str(e)
+    found = {r for _, r in starts}
+    return BatchReply(answers=answers, unreadable=unreadable,
+                      missing=tuple(r for r in refs if r not in found))
+
+
 def reply_opens(body: str, ref: str) -> bool:
     """Is this the answer to that question? Used to spot a second copy."""
     return body.strip().startswith(f"DESK ANSWER {ref}")
