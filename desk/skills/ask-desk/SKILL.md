@@ -110,15 +110,31 @@ import relay
 
 my_session_id = ...   # YOUR id: call get_session with session_id omitted
 desk = relay.desk_session()                    # refuses if SATC_DESK_SESSION is unset
-a = relay.ask("the bank statement shows a $10 service charge and nothing for "
-              "it is in the books — what do I do with it?",
-              reply_to=my_session_id)   # get_session, omit session_id
-print(a.ref)                # note it — the answer opens with it
+b = relay.ask_many([
+        "the bank statement shows a $10 service charge and nothing for it is "
+        "in the books - what do I do with it?",
+        "hand tools are bought for the trade during the year - are they "
+        "deducted or capitalized?",
+    ], reply_to=my_session_id)
+print([a.ref for a in b.asks])   # note them: each answer opens with its own
 print(desk)
-print(relay.as_prompt(a))   # the message to send
+print(relay.batch_prompt(b))     # the ONE message to send
 ```
 
-**Then COPY what it printed into the tool call.** `relay.as_prompt(a)` is a
+**SEND EVERY QUESTION YOU HAVE IN ONE BATCH.** Sarcia pilot 2, 25 September
+2026: a doer wrote seven questions, sent three one at a time, and stopped. Each
+one cost it about 20,000 characters of its own context, because the platform
+echoes the message back on every create and every fire; and it had a "send the
+next one" step it never came back to. A batch pays for the rules once and has
+no next one. `relay.ask` and `relay.as_prompt` still exist for a single
+question, but gather first and send once.
+
+**Put every question about the rules in it.** Hold one back only when it needs
+a fact that only the client or the preparer has, and write down why. The same
+pilot sent three of fifty-odd judgement calls to the desk; the rest were never
+asked.
+
+**Then COPY what it printed into the tool call.** `relay.batch_prompt(b)` is a
 Python expression and `create_trigger` is a harness tool in a different
 execution context — there is no way to pass one to the other, and the earlier
 version of this section wrote `prompt=relay.as_prompt(a)` as though there were.
@@ -164,11 +180,19 @@ read your own tool's description, and if it disagrees, the tool wins.
 question not being sent is a better outcome than a question sent somewhere
 nobody reads.
 
+**A question is SENT only when its trigger is created AND fired** — `create`
+then `run` on shape B. Created alone goes nowhere and nothing tells you so. A
+doer on the Forge created every trigger it sent before 25 September and never
+ran one; whether any of those messages reached anyone is unknown.
+
 **No `run_once_at`. No `cron_expression`.** A trigger carrying either, then
 poked, delivers twice.
 
-Then **end your turn**. The answer arrives as a message and wakes you. Do not
-poll, do not sleep, and do not chase — see below.
+**Send everything first. Then end your turn.** "End your turn" is about
+WAITING for the answer — it never means stop sending. The pilot-2 doer read it
+as the second, stopped after three questions, and left four written and unsent.
+Once every question has gone, end your turn: the answer arrives as a message and
+wakes you. Do not poll, do not sleep, and do not chase — see below.
 
 ## Four rules, each of them from something that went wrong
 
@@ -229,9 +253,13 @@ desk is your own reasoning coming back with a citation attached. The desk reads
 the facts off the record itself, where the ones nobody holds are named as
 missing.
 
-**4 · One question per envelope.** Each carries a `ref`. If two answers arrive
-with the same one, the second is a duplicate delivery and not a second opinion —
-read one and discard the other.
+**4 · One ref per question — many questions per envelope.** This read "one
+question per envelope" until 25 September 2026, and that is what made each
+question cost a full envelope. Every question in a batch still carries its own
+`ref`. If the same reply arrives twice, word for word, that is a duplicate
+delivery: read it once. If two answers carry the same ref and say different
+things, do not pick one — `read_batch` puts that ref in `got.unreadable`, and a
+person reads both.
 
 ## What comes back, and what you must pass on
 
@@ -242,7 +270,16 @@ what it sent you, whole, either way.
 reply exactly as it arrived:
 
 ```python
-said = relay.read(reply_body)          # the WHOLE reply, not an extract
+got = relay.read_batch(reply_body, [a.ref for a in b.asks])   # a batch reply
+got.answers      # ref -> what the desk said, one per answered question
+got.unreadable   # ref -> why that block could not be read: a person reads it
+got.missing      # refs the desk sent nothing for: UNANSWERED, never a no
+got.unexpected   # refs you never sent (a mistyped ref): a person reads it
+got.stray        # text before the first answer. If any ref is unreadable
+                 # because of it, the answer may be in here: a person reads it
+got.complete     # True only when every ref was answered and read
+
+said = relay.read(reply_body)          # a single-question reply: the WHOLE thing
 
 said.answered     # True or False. Not a judgement — read off the reply
 said.reason       # on a refusal: which of the closed set

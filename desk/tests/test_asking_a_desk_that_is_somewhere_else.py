@@ -347,8 +347,17 @@ def test_the_envelope_asks_the_desk_to_say_what_the_phrasing_reached():
     assert "reaches authority this one did not" in body
 
 
-def test_the_envelopes_measurement_is_still_the_truth():
-    """THE ENVELOPE QUOTES A NUMBER, SO THE NUMBER IS RECOMPUTED HERE.
+def test_the_measurement_behind_the_phrasing_rule_is_still_the_truth():
+    """THE MEASUREMENT BEHIND "SAY WHAT THE PHRASING REACHED", RECOMPUTED.
+
+    THE ENVELOPE STOPPED QUOTING IT ON 25 SEPTEMBER 2026. The message was cut to
+    its rules — 6,082 characters to 2,990 — because it cost the asking session
+    about 20,000 characters of context per question and Occam stopped sending
+    after three in Sarcia pilot 2. The number was the story of how the rule was
+    learned, not part of the rule. It stays pinned here, because a rule whose
+    evidence has quietly stopped being true is a rule nobody should trust.
+
+    WHAT IT WAS WHEN THE ENVELOPE QUOTED IT:
 
     It tells the answerer that the forklift asked the natural way now reaches
     NOTHING while the explicit phrasing reaches eight — measured 11 September
@@ -370,9 +379,11 @@ def test_the_envelopes_measurement_is_still_the_truth():
 
     assert len(ask.looked(natural, CORPUS)) == 0, (
         "the natural phrasing reaches something now; the envelope still says "
-        "it reaches NOTHING AT ALL. Fix the sentence in `relay.as_prompt`.")
+        "it reaches NOTHING AT ALL. The rule stands either way; update this.")
     assert len(ask.looked(explicit, CORPUS)) == 8
-    assert "0 passages against 8" in body
+    # and the envelope must NOT carry the number any more: a figure in a
+    # message read at runtime is the worst place for one to go stale.
+    assert "0 passages against 8" not in body
 
 
 def test_and_says_why_the_asker_cannot_do_it_themselves():

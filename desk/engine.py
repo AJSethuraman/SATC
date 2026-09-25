@@ -488,9 +488,16 @@ class Served:
               ([self.off_source, ""] if self.off_source else []) + [
                self.position, "",
                f"    {self.citation}",
-               f"    {self.tier if self.classified else 'tier not established'} · "
-               f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
-               f" · confirmed {self.checked}"]
+               # PLAIN ASCII, BECAUSE THIS LINE IS PARSED ON THE OTHER SIDE OF A
+               # WIRE THAT DOES NOT PRESERVE ANYTHING ELSE. Sarcia pilot 2,
+               # 25 September 2026: all three desk replies arrived with every
+               # em dash and middle dot turned into a hyphen -- the answering
+               # session's console mangles UTF-8 -- and `relay.read` raised on
+               # every one. A pipe cannot be mistaken for the hyphen that may
+               # already sit inside a value, and it survives any console.
+               f"    {self.tier if self.classified else 'tier not established'} | "
+               f"{'the firm treats as binding' if self.binding else 'not binding: read the note below'}"
+               f" | confirmed {self.checked}"]
         if (tied := _tieout_line(self.proof)):
             out += [tied]
         if self.caveat:
@@ -758,8 +765,11 @@ class Refusal:
         # come back, and it must not come back FIRST. `Served` puts the
         # conclusion at the top and the caveats under it; a refusal that
         # inverts that teaches a reader the shape means nothing.
-        out = [f"THE DESK DID NOT ANSWER — {self.reason}"
-               + (f"  ·  {self.desk}" if self.desk else ""), f"    {self.detail}"]
+        # PLAIN ASCII for the same reason as `Served`'s grade line: the banner
+        # is what `relay.read` anchors on, and the pilot's replies lost every
+        # character that was not.
+        out = [f"THE DESK DID NOT ANSWER: {self.reason}"
+               + (f"  |  {self.desk}" if self.desk else ""), f"    {self.detail}"]
         # WHAT THE TIE-OUT DID, WHERE ONE WAS TRIED. Directly under the detail,
         # because on the refusals that exist because of a fetch it IS the
         # detail -- the host asked, the moment, and what came back.

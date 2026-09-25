@@ -340,6 +340,19 @@ current whenever the code is. A skill can go stale; what it tells you to print
 cannot. Do not reassemble it field by field: anything added after the version of
 this file you are reading will be in the object and not in the list.
 
+**A request may carry several questions** — `DESK REQUEST` with numbered
+questions, each under its own `ref`. Answer EACH one separately: its own
+`consult`, its own `ask.answer`, its own second reader. Then send ONE reply in
+which every answer opens with its own `DESK ANSWER <ref>` line followed by that
+question's `print(out)`. Leave none out: a ref with no answer reaches the asker
+as unanswered, not as a no.
+
+**Send the printed output as it was printed — do not retype it.** In Sarcia
+pilot 2 every reply lost its em dashes and middle dots on the way out, because
+the console this session composed them in mangles UTF-8, and the asker's reader
+failed on all three. The lines it parses are plain ASCII now, so that no longer
+breaks it; a retyped reply can still drop what a copied one would not.
+
 `repr(out)` is a different thing and is for the log — it carries the counters
 (`showed`, `showed_by_source`) that exist to falsify a model's claim about its
 own record, and those are not for a preparer.

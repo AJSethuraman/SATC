@@ -5,7 +5,7 @@ Asked how depreciation is worked out, it reached no stored authority, took the
 candidate path, and served a passage fetched live from irs.gov. The header read:
 
     IRS Pub. 946 (2025), "Figuring Depreciation"
-    primary · not binding — read the note below · confirmed 2026-09-08
+    primary | not binding: read the note below | confirmed 2026-09-08
 
 and the note under it said nobody has classified the document. The desk:
 
