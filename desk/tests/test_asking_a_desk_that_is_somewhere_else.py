@@ -241,13 +241,44 @@ def test_the_headings_survive_as_headings():
         assert heading in lines, f"{heading!r} is not on a line of its own"
 
 
+def _fenced(body: str) -> list[list[str]]:
+    """Every fenced block in the envelope, in order.
+
+    IT USED TO TAKE THE FIRST ONE AND REQUIRE THERE BE EXACTLY TWO FENCES. That
+    held while the envelope carried one snippet, and broke the day it carried
+    two — on 25 September 2026, when the judging snippet was added ahead of the
+    reply snippet and this test failed reporting that `create_trigger` was not
+    fenced. It was; it was second.
+
+    The assertion was right and the way it found its block was not, so the
+    finding moves rather than relaxes: EVERY block must be closed, and the
+    reply snippet must be one of them.
+    """
+    lines = body.splitlines()
+    fences = [i for i, l in enumerate(lines) if l == "```"]
+    assert len(fences) % 2 == 0, (
+        "an unclosed fence: everything after it renders as code to the desk")
+    return [lines[a + 1:b] for a, b in zip(fences[::2], fences[1::2])]
+
+
 def test_the_reply_snippet_is_a_fenced_block_a_desk_can_copy():
-    lines = relay.as_prompt(relay.ask(Q, reply_to=ME)).splitlines()
-    assert lines.count("```") == 2, "the create_trigger snippet is not fenced"
-    opened = lines.index("```")
-    block = lines[opened + 1:lines.index("```", opened + 1)]
-    assert any(l.startswith("create_trigger(") for l in block)
-    assert any(l.startswith("fire_trigger(") for l in block)
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any(l.startswith("create_trigger(") for l in b)
+               and any(l.startswith("fire_trigger(") for l in b)
+               for b in blocks), (
+        "no fenced block carries both create_trigger and fire_trigger, so the "
+        "reply instruction is not something a desk can copy")
+
+
+def test_the_judging_snippet_is_fenced_too():
+    """Added with the judge, 25 September 2026. The envelope now tells the desk
+    to build a `judging.Judgment`, and an instruction to write code is only
+    followable if the code is copyable — the same property the reply snippet has
+    been held to since the envelope existed."""
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any("judging.Judgment(" in l for l in b) for b in blocks), (
+        "the envelope names `judging.Judgment` but not inside a fenced block, "
+        "so the desk is told to write code it has to reconstruct from prose")
 
 
 # ------------------------------------------------------- where the desk lives

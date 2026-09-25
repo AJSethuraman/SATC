@@ -194,6 +194,31 @@ def as_prompt(a: Ask) -> str:
         "answer from, then `ask.answer(...)` with your conclusion and citation. "
         "`keep=False` unless you are told otherwise. Do not write to the record, do "
         "not commit, do not push.", "",
+        "**A SECOND PARTY MUST READ THE PASSAGE BEFORE IT CAN BE SERVED, AND "
+        "THIS ENVELOPE USED TO OMIT IT.** The corpus declares `Judged: "
+        "required`, so `ask.answer` REFUSES `not_judged` without one — however "
+        "right your conclusion and however good your citation. Have somebody "
+        "other than whoever answered read the cited passage and quote the words "
+        "they rest it on:", "",
+        "```",
+        "out = ask.answer(question, position=..., citation=...,",
+        "                 judged=judging.Judgment(by=\"who read it\",",
+        "                                         supports=True,",
+        "                                         because=\"the words, QUOTED\"))",
+        "```", "",
+        "`because` is quoted and not summarised — the engine checks those words "
+        "are really in the passage, which is the whole point of the reader. "
+        "`[...]` marks an omission and is read the way a stored passage's is. "
+        "`by` may not be the party that answered: one model wearing both hats "
+        "is a model marking its own work.", "",
+        "**AND A `not_judged` REFUSAL LEAVES NO TRACE.** It is the one refusal "
+        "that is deliberately NOT filed, because it says the caller was wired "
+        "wrong rather than that the record is missing something. So an answer "
+        "that dies here does not even become a finding: the round trip is spent "
+        "and nothing anywhere records that it happened. This paragraph exists "
+        "because the envelope did not mention the judge at all until "
+        "25 September 2026, while claiming above to carry everything a desk "
+        "needs even if its own skill is months old.", "",
         "## How to reply — THIS IS NOT OPTIONAL", "",
         f"Send `print(out)` in full, and your reasoning, back to "
         f"`{a.reply_to}`:", "",
